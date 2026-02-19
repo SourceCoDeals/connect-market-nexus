@@ -1230,6 +1230,13 @@ export default function ReMarketingReferralPartnerDetail() {
                               </DropdownMenuItem>
                               <DropdownMenuSeparator />
                               <DropdownMenuItem
+                                className="text-amber-600 focus:text-amber-600"
+                                onClick={() => setConfirmAction({ type: "archive", ids: [deal.id] })}
+                              >
+                                <Archive className="h-3 w-3 mr-2" />
+                                Archive Deal
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
                                 className="text-destructive"
                                 onClick={() => setConfirmAction({ type: "delete", ids: [deal.id] })}
                               >
