@@ -633,6 +633,44 @@ export default function ValuationLeads() {
   const PAGE_SIZE = 50;
   const [currentPage, setCurrentPage] = useState(1);
 
+  // Column resizing
+  const DEFAULT_COL_WIDTHS: Record<string, number> = {
+    company: 160,
+    description: 200,
+    calculator: 110,
+    industry: 130,
+    owner: 130,
+    revenue: 90,
+    ebitda: 90,
+    valuation: 100,
+    exit: 80,
+    intros: 70,
+    quality: 80,
+    score: 65,
+    added: 90,
+    status: 90,
+  };
+  const [colWidths, setColWidths] = useState<Record<string, number>>(DEFAULT_COL_WIDTHS);
+
+  const startResize = useCallback(
+    (col: string, e: React.MouseEvent) => {
+      e.preventDefault();
+      const startX = e.clientX;
+      const startW = colWidths[col] ?? DEFAULT_COL_WIDTHS[col] ?? 120;
+      const onMouseMove = (mv: MouseEvent) => {
+        const newW = Math.max(60, startW + mv.clientX - startX);
+        setColWidths((prev) => ({ ...prev, [col]: newW }));
+      };
+      const onMouseUp = () => {
+        document.removeEventListener("mousemove", onMouseMove);
+        document.removeEventListener("mouseup", onMouseUp);
+      };
+      document.addEventListener("mousemove", onMouseMove);
+      document.addEventListener("mouseup", onMouseUp);
+    },
+    [colWidths]
+  );
+
   // Action states
   const [isPushing, setIsPushing] = useState(false);
   const [isPushEnriching, setIsPushEnriching] = useState(false);
@@ -1756,7 +1794,26 @@ export default function ValuationLeads() {
       <Card>
         <CardContent className="p-0">
           <div className="overflow-x-auto">
-            <Table>
+            <Table style={{ tableLayout: "fixed", width: "max-content", minWidth: "100%" }}>
+              <colgroup>
+                <col style={{ width: 40 }} />
+                <col style={{ width: 40 }} />
+                <col style={{ width: colWidths.company }} />
+                <col style={{ width: colWidths.description }} />
+                {activeTab === "all" && <col style={{ width: colWidths.calculator }} />}
+                <col style={{ width: colWidths.industry }} />
+                <col style={{ width: colWidths.owner }} />
+                <col style={{ width: colWidths.revenue }} />
+                <col style={{ width: colWidths.ebitda }} />
+                <col style={{ width: colWidths.valuation }} />
+                <col style={{ width: colWidths.exit }} />
+                <col style={{ width: colWidths.intros }} />
+                <col style={{ width: colWidths.quality }} />
+                <col style={{ width: colWidths.score }} />
+                <col style={{ width: colWidths.added }} />
+                <col style={{ width: colWidths.status }} />
+                <col style={{ width: 50 }} />
+              </colgroup>
               <TableHeader>
                 <TableRow>
                   <TableHead className="w-[40px]">
@@ -1766,46 +1823,34 @@ export default function ValuationLeads() {
                     />
                   </TableHead>
                   <TableHead className="w-[40px] text-center text-muted-foreground">#</TableHead>
-                  <TableHead className="min-w-[160px]">
-                    <SortHeader column="display_name">Company</SortHeader>
-                  </TableHead>
-                  <TableHead className="min-w-[180px]">Description</TableHead>
+                  {(["company","description"] as const).map((col, i) => (
+                    <TableHead key={col} className="relative overflow-visible" style={{ width: colWidths[col] }}>
+                      {col === "company" ? <SortHeader column="display_name">Company</SortHeader> : "Description"}
+                      <div onMouseDown={(e) => startResize(col, e)} className="absolute right-0 top-0 h-full w-1.5 cursor-col-resize hover:bg-primary/30 active:bg-primary/50 select-none z-10" />
+                    </TableHead>
+                  ))}
                   {activeTab === "all" && (
-                    <TableHead>Calculator</TableHead>
+                    <TableHead className="relative overflow-visible" style={{ width: colWidths.calculator }}>
+                      Calculator
+                      <div onMouseDown={(e) => startResize("calculator", e)} className="absolute right-0 top-0 h-full w-1.5 cursor-col-resize hover:bg-primary/30 active:bg-primary/50 select-none z-10" />
+                    </TableHead>
                   )}
-                  <TableHead>
-                    <SortHeader column="industry">Industry</SortHeader>
-                  </TableHead>
-                  <TableHead>
-                    <SortHeader column="owner">Deal Owner</SortHeader>
-                  </TableHead>
-                  <TableHead className="text-right">
-                    <SortHeader column="revenue">Revenue</SortHeader>
-                  </TableHead>
-                  <TableHead className="text-right">
-                    <SortHeader column="ebitda">EBITDA</SortHeader>
-                  </TableHead>
-                  <TableHead className="text-right">
-                    <SortHeader column="valuation">Valuation</SortHeader>
-                  </TableHead>
-                  <TableHead>
-                    <SortHeader column="exit_timing">Exit</SortHeader>
-                  </TableHead>
-                  <TableHead className="text-center">
-                    <SortHeader column="intros">Intros</SortHeader>
-                  </TableHead>
-                  <TableHead>
-                    <SortHeader column="quality">Quality</SortHeader>
-                  </TableHead>
-                  <TableHead>
-                    <SortHeader column="score">Score</SortHeader>
-                  </TableHead>
-                  <TableHead>
-                    <SortHeader column="created_at">Added</SortHeader>
-                  </TableHead>
-                  <TableHead>
-                    <SortHeader column="pushed">Status</SortHeader>
-                  </TableHead>
+                  {(["industry","owner","revenue","ebitda","valuation","exit","intros","quality","score","added","status"] as const).map((col) => (
+                    <TableHead key={col} className="relative overflow-visible" style={{ width: colWidths[col], textAlign: ["revenue","ebitda","valuation"].includes(col) ? "right" : ["intros"].includes(col) ? "center" : undefined }}>
+                      {col === "industry" && <SortHeader column="industry">Industry</SortHeader>}
+                      {col === "owner" && <SortHeader column="owner">Deal Owner</SortHeader>}
+                      {col === "revenue" && <SortHeader column="revenue">Revenue</SortHeader>}
+                      {col === "ebitda" && <SortHeader column="ebitda">EBITDA</SortHeader>}
+                      {col === "valuation" && <SortHeader column="valuation">Valuation</SortHeader>}
+                      {col === "exit" && <SortHeader column="exit_timing">Exit</SortHeader>}
+                      {col === "intros" && <SortHeader column="intros">Intros</SortHeader>}
+                      {col === "quality" && <SortHeader column="quality">Quality</SortHeader>}
+                      {col === "score" && <SortHeader column="score">Score</SortHeader>}
+                      {col === "added" && <SortHeader column="created_at">Added</SortHeader>}
+                      {col === "status" && <SortHeader column="pushed">Status</SortHeader>}
+                      <div onMouseDown={(e) => startResize(col, e)} className="absolute right-0 top-0 h-full w-1.5 cursor-col-resize hover:bg-primary/30 active:bg-primary/50 select-none z-10" />
+                    </TableHead>
+                  ))}
                   <TableHead className="w-[50px]"></TableHead>
                 </TableRow>
               </TableHeader>
