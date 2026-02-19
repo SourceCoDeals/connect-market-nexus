@@ -5,7 +5,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   ClipboardList,
   Send,
@@ -19,6 +18,7 @@ import {
   Clock,
   ChevronDown,
   ChevronUp,
+  Trash2,
 } from "lucide-react";
 import { format, formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
@@ -81,6 +81,7 @@ function getActivityLabel(type: string): string {
 export function DealActivityLog({ dealId }: DealActivityLogProps) {
   const [isOpen, setIsOpen] = useState(true);
   const [note, setNote] = useState("");
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const queryClient = useQueryClient();
 
   const { data: activities = [], isLoading } = useQuery<DealActivity[]>({
@@ -124,10 +125,34 @@ export function DealActivityLog({ dealId }: DealActivityLogProps) {
     },
   });
 
+  const deleteNoteMutation = useMutation({
+    mutationFn: async (activityId: string) => {
+      const { error } = await supabase
+        .from("deal_activities")
+        .delete()
+        .eq("id", activityId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["deal-activities", dealId] });
+      toast.success("Note deleted");
+      setDeletingId(null);
+    },
+    onError: () => {
+      toast.error("Failed to delete note");
+      setDeletingId(null);
+    },
+  });
+
   const handleSubmit = () => {
     const trimmed = note.trim();
     if (!trimmed) return;
     addNoteMutation.mutate(trimmed);
+  };
+
+  const handleDelete = (activityId: string) => {
+    setDeletingId(activityId);
+    deleteNoteMutation.mutate(activityId);
   };
 
   return (
@@ -188,7 +213,7 @@ export function DealActivityLog({ dealId }: DealActivityLogProps) {
               </div>
             </div>
 
-            {/* Activity Feed */}
+            {/* Activity Feed — fixed height with native scroll */}
             {isLoading ? (
               <div className="flex items-center justify-center py-6">
                 <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
@@ -199,70 +224,86 @@ export function DealActivityLog({ dealId }: DealActivityLogProps) {
                 <p className="text-sm">No activity yet</p>
               </div>
             ) : (
-              <ScrollArea className="max-h-[500px] pr-2">
-                <div className="space-y-3">
-                  {activities.map((activity) => {
-                    const icon =
-                      ACTIVITY_ICONS[activity.activity_type] ?? (
-                        <Clock className="h-3.5 w-3.5" />
-                      );
-                    const colorClass =
-                      ACTIVITY_COLORS[activity.activity_type] ??
-                      "bg-muted text-muted-foreground border-border";
-                    const adminName = activity.admin?.first_name
-                      ? `${activity.admin.first_name}${activity.admin.last_name ? ` ${activity.admin.last_name}` : ""}`
-                      : activity.admin?.email ?? null;
+              <div className="overflow-y-auto max-h-[420px] space-y-3 pr-1">
+                {activities.map((activity) => {
+                  const icon =
+                    ACTIVITY_ICONS[activity.activity_type] ?? (
+                      <Clock className="h-3.5 w-3.5" />
+                    );
+                  const colorClass =
+                    ACTIVITY_COLORS[activity.activity_type] ??
+                    "bg-muted text-muted-foreground border-border";
+                  const adminName = activity.admin?.first_name
+                    ? `${activity.admin.first_name}${activity.admin.last_name ? ` ${activity.admin.last_name}` : ""}`
+                    : activity.admin?.email ?? null;
 
-                    const isNote = activity.activity_type === "follow_up";
+                  const isNote = activity.activity_type === "follow_up";
+                  const isDeleting = deletingId === activity.id;
 
-                    return (
-                      <div
-                        key={activity.id}
-                        className={`rounded-lg border p-3 space-y-1.5 ${isNote ? "bg-background" : "bg-muted/30"}`}
-                      >
-                        {/* Header row */}
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <Badge
-                            variant="outline"
-                            className={`text-xs flex items-center gap-1 ${colorClass}`}
-                          >
-                            {icon}
-                            {getActivityLabel(activity.activity_type)}
-                          </Badge>
-                          {adminName && (
-                            <span className="text-xs text-muted-foreground">
-                              {adminName}
-                            </span>
-                          )}
-                          <span className="text-xs text-muted-foreground ml-auto whitespace-nowrap flex items-center gap-1.5">
-                            <span className="font-medium text-foreground/70">
-                              {format(new Date(activity.created_at), "MMM d, yyyy · h:mm a")}
-                            </span>
-                            <span className="text-muted-foreground/50">·</span>
-                            <span>{formatDistanceToNow(new Date(activity.created_at), { addSuffix: true })}</span>
+                  return (
+                    <div
+                      key={activity.id}
+                      className={`rounded-lg border p-3 space-y-1.5 group relative ${isNote ? "bg-background" : "bg-muted/30"}`}
+                    >
+                      {/* Header row */}
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <Badge
+                          variant="outline"
+                          className={`text-xs flex items-center gap-1 ${colorClass}`}
+                        >
+                          {icon}
+                          {getActivityLabel(activity.activity_type)}
+                        </Badge>
+                        {adminName && (
+                          <span className="text-xs text-muted-foreground">
+                            {adminName}
                           </span>
-                        </div>
+                        )}
+                        <span className="text-xs text-muted-foreground ml-auto whitespace-nowrap flex items-center gap-1.5">
+                          <span className="font-medium text-foreground/70">
+                            {format(new Date(activity.created_at), "MMM d, yyyy · h:mm a")}
+                          </span>
+                          <span className="text-muted-foreground/50">·</span>
+                          <span>{formatDistanceToNow(new Date(activity.created_at), { addSuffix: true })}</span>
+                        </span>
 
-                        {/* Content */}
-                        {isNote && activity.description ? (
-                          <p className="text-sm whitespace-pre-wrap">{activity.description}</p>
-                        ) : (
-                          <>
-                            {activity.title && activity.title !== "Note added" && (
-                              <p className="text-sm font-medium">{activity.title}</p>
+                        {/* Delete button — only for manual notes */}
+                        {isNote && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive"
+                            onClick={() => handleDelete(activity.id)}
+                            disabled={isDeleting}
+                          >
+                            {isDeleting ? (
+                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                            ) : (
+                              <Trash2 className="h-3.5 w-3.5" />
                             )}
-                            {activity.description && (
-                              <p className="text-sm text-muted-foreground whitespace-pre-wrap">
-                                {activity.description}
-                              </p>
-                            )}
-                          </>
+                          </Button>
                         )}
                       </div>
-                    );
-                  })}
-                </div>
-              </ScrollArea>
+
+                      {/* Content */}
+                      {isNote && activity.description ? (
+                        <p className="text-sm whitespace-pre-wrap">{activity.description}</p>
+                      ) : (
+                        <>
+                          {activity.title && activity.title !== "Note added" && (
+                            <p className="text-sm font-medium">{activity.title}</p>
+                          )}
+                          {activity.description && (
+                            <p className="text-sm text-muted-foreground whitespace-pre-wrap">
+                              {activity.description}
+                            </p>
+                          )}
+                        </>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
             )}
           </CardContent>
         </CollapsibleContent>
