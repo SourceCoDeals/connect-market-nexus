@@ -678,12 +678,10 @@ export default function ValuationLeads() {
     });
   };
 
-  // Row click handler — pushed leads navigate to deal detail, others open lead detail
+  // Row click handler — pushed leads navigate to deal detail, others navigate by lead id
   const handleRowClick = (lead: ValuationLead) => {
-    if (lead.pushed_listing_id) {
-      navigate(`/admin/remarketing/valuation-leads/${lead.pushed_listing_id}`);
-    }
-    // Unpushed leads: no navigation (could add drawer in future)
+    const id = lead.pushed_listing_id ?? lead.id;
+    navigate(`/admin/remarketing/valuation-leads/${id}`);
   };
 
   // Push to All Deals
