@@ -1338,7 +1338,7 @@ export default function ValuationLeads() {
                   <TableHead>
                     <SortHeader column="exit_timing">Exit</SortHeader>
                   </TableHead>
-                  <TableHead className="text-center">Intros</TableHead>
+                  <TableHead className="text-center">Buyer Intro</TableHead>
                   <TableHead>
                     <SortHeader column="quality">Quality</SortHeader>
                   </TableHead>
@@ -1465,9 +1465,9 @@ export default function ValuationLeads() {
                       <TableCell>{exitTimingBadge(lead.exit_timing)}</TableCell>
                       <TableCell className="text-center">
                         {lead.open_to_intros === true ? (
-                          <span className="text-emerald-600 font-bold text-lg leading-none">✓</span>
+                          <span className="text-emerald-600 font-semibold text-sm">Yes</span>
                         ) : lead.open_to_intros === false ? (
-                          <span className="text-muted-foreground text-base">—</span>
+                          <span className="text-muted-foreground text-sm">No</span>
                         ) : (
                           <span className="text-muted-foreground text-sm">—</span>
                         )}
