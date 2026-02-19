@@ -207,6 +207,18 @@ export const DealTableRow = ({
               </Tooltip>
             )}
             {displayName}
+            {listing.universe_build_flagged && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="flex items-center">
+                    <Network className="h-3.5 w-3.5 text-blue-500 animate-pulse shrink-0" />
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p className="text-blue-600 font-semibold">🔵 Needs Buyer Universe Build</p>
+                </TooltipContent>
+              </Tooltip>
+            )}
             {isEnriched && (
               <Tooltip>
                 <TooltipTrigger asChild>
