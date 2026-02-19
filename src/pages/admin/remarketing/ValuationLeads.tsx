@@ -112,6 +112,7 @@ interface ValuationLead {
   raw_valuation_results: Record<string, unknown> | null;
   // For deal owner display (assigned after push)
   deal_owner_id?: string | null;
+  is_priority_target?: boolean | null;
 }
 
 type SortColumn =
@@ -1509,7 +1510,8 @@ export default function ValuationLeads() {
                       key={lead.id}
                       className={cn(
                         "transition-colors cursor-pointer",
-                        lead.pushed_to_all_deals && "bg-green-50/60 hover:bg-green-50",
+                        lead.is_priority_target && "bg-amber-50 hover:bg-amber-100/80 dark:bg-amber-950/30",
+                        !lead.is_priority_target && lead.pushed_to_all_deals && "bg-green-50/60 hover:bg-green-50",
                         !lead.pushed_to_all_deals && "hover:bg-muted/40"
                       )}
                       onClick={() => handleRowClick(lead)}
@@ -1711,6 +1713,27 @@ export default function ValuationLeads() {
                                 Re-Enrich
                               </DropdownMenuItem>
                             )}
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem
+                              onClick={async (e) => {
+                                e.stopPropagation();
+                                const newVal = !lead.is_priority_target;
+                                const { error } = await supabase
+                                  .from("valuation_leads")
+                                  .update({ is_priority_target: newVal } as never)
+                                  .eq("id", lead.id);
+                                if (error) {
+                                  sonnerToast.error("Failed to update priority");
+                                } else {
+                                  queryClient.invalidateQueries({ queryKey: ["remarketing", "valuation-leads"] });
+                                  sonnerToast.success(newVal ? "Marked as priority" : "Priority removed");
+                                }
+                              }}
+                              className={lead.is_priority_target ? "text-amber-600" : ""}
+                            >
+                              <Star className={`h-4 w-4 mr-2 ${lead.is_priority_target ? "fill-amber-500 text-amber-500" : ""}`} />
+                              {lead.is_priority_target ? "Remove Priority" : "Mark as Priority"}
+                            </DropdownMenuItem>
                             <DropdownMenuSeparator />
                             <DropdownMenuItem
                               onClick={async (e) => {
