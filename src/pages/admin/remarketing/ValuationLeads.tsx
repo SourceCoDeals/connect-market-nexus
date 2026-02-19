@@ -118,6 +118,8 @@ interface ValuationLead {
   deal_owner_id?: string | null;
   is_priority_target?: boolean | null;
   is_archived?: boolean | null;
+  // Joined from listings (via pushed_listing_id) — populated by enrichment
+  listing_description?: string | null;
 }
 
 type SortColumn =
@@ -647,7 +649,7 @@ export default function ValuationLeads() {
       while (hasMore) {
         const { data, error } = await supabase
           .from("valuation_leads")
-          .select("*")
+          .select("*, listings!valuation_leads_pushed_listing_id_fkey(description, executive_summary)")
           .eq("excluded", false)
           .order("created_at", { ascending: false })
           .range(offset, offset + batchSize - 1);
@@ -655,8 +657,10 @@ export default function ValuationLeads() {
         if (error) throw error;
 
         if (data && data.length > 0) {
-          const normalized = (data as ValuationLead[]).map((row) => ({
+          const normalized = (data as any[]).map((row) => ({
             ...row,
+            listing_description: row.listings?.description || row.listings?.executive_summary || null,
+            listings: undefined, // strip the join object
             revenue: row.revenue != null ? Number(row.revenue) : null,
             ebitda: row.ebitda != null ? Number(row.ebitda) : null,
             valuation_low: row.valuation_low != null ? Number(row.valuation_low) : null,
@@ -1669,6 +1673,7 @@ export default function ValuationLeads() {
                   <TableHead>
                     <SortHeader column="website">Website</SortHeader>
                   </TableHead>
+                  <TableHead className="min-w-[200px]">Description</TableHead>
                   {activeTab === "all" && (
                     <TableHead>Calculator</TableHead>
                   )}
@@ -1765,6 +1770,15 @@ export default function ValuationLeads() {
                           >
                             {inferWebsite(lead)}
                           </a>
+                        )}
+                      </TableCell>
+                      <TableCell className="max-w-[220px]">
+                        {lead.listing_description ? (
+                          <span className="text-xs text-muted-foreground line-clamp-2 leading-relaxed" title={lead.listing_description}>
+                            {lead.listing_description}
+                          </span>
+                        ) : (
+                          <span className="text-xs text-muted-foreground/40">—</span>
                         )}
                       </TableCell>
                       {activeTab === "all" && (
