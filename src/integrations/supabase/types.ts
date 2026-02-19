@@ -8180,6 +8180,7 @@ export type Database = {
           calculator_type: string
           created_at: string | null
           cta_clicked: boolean | null
+          deal_owner_id: string | null
           display_name: string | null
           ebitda: number | null
           email: string | null
@@ -8226,6 +8227,7 @@ export type Database = {
           calculator_type?: string
           created_at?: string | null
           cta_clicked?: boolean | null
+          deal_owner_id?: string | null
           display_name?: string | null
           ebitda?: number | null
           email?: string | null
@@ -8272,6 +8274,7 @@ export type Database = {
           calculator_type?: string
           created_at?: string | null
           cta_clicked?: boolean | null
+          deal_owner_id?: string | null
           display_name?: string | null
           ebitda?: number | null
           email?: string | null
@@ -8312,6 +8315,13 @@ export type Database = {
           website?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "valuation_leads_deal_owner_id_fkey"
+            columns: ["deal_owner_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "valuation_leads_pushed_listing_id_fkey"
             columns: ["pushed_listing_id"]
