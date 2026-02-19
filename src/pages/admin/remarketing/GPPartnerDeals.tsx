@@ -66,6 +66,7 @@ import {
   Download,
   Users2,
   Phone,
+  Archive,
 } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
@@ -1159,7 +1160,7 @@ export default function GPPartnerDeals() {
                         </div>
                       </TableCell>
                       <TableCell className="max-w-[200px]">
-                        <span className="text-xs text-muted-foreground line-clamp-2">
+                        <span className="text-xs text-muted-foreground line-clamp-3">
                           {deal.description || deal.executive_summary || "\u2014"}
                         </span>
                       </TableCell>
@@ -1315,7 +1316,7 @@ export default function GPPartnerDeals() {
                                 const newValue = !deal.needs_buyer_universe;
                                 const { error } = await supabase.from("listings").update({ needs_buyer_universe: newValue } as never).eq("id", deal.id);
                                 if (error) { sonnerToast.error("Failed to update flag"); }
-                                else { sonnerToast.success(newValue ? "Flagged: Needs Buyer Universe" : "Flag removed"); queryClient.invalidateQueries({ queryKey: ["gp-partner-deals"] }); }
+                                else { sonnerToast.success(newValue ? "Flagged: Needs Buyer Universe" : "Flag removed"); queryClient.invalidateQueries({ queryKey: ["remarketing", "gp-partner-deals"] }); }
                               }}
                               className={deal.needs_buyer_universe ? "text-blue-600" : ""}
                             >
@@ -1327,7 +1328,7 @@ export default function GPPartnerDeals() {
                                 const newValue = !deal.need_to_contact_owner;
                                 const { error } = await supabase.from("listings").update({ need_to_contact_owner: newValue } as never).eq("id", deal.id);
                                 if (error) { sonnerToast.error("Failed to update flag"); }
-                                else { sonnerToast.success(newValue ? "Flagged: Need to Contact Owner" : "Flag removed"); queryClient.invalidateQueries({ queryKey: ["gp-partner-deals"] }); }
+                                else { sonnerToast.success(newValue ? "Flagged: Need to Contact Owner" : "Flag removed"); queryClient.invalidateQueries({ queryKey: ["remarketing", "gp-partner-deals"] }); }
                               }}
                               className={deal.need_to_contact_owner ? "text-orange-600" : ""}
                             >
@@ -1340,6 +1341,18 @@ export default function GPPartnerDeals() {
                             >
                               <CheckCircle2 className="h-4 w-4 mr-2" />
                               Approve to All Deals
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem
+                              onClick={async () => {
+                                const { error } = await supabase.from("listings").update({ status: "archived" } as never).eq("id", deal.id);
+                                if (error) { sonnerToast.error("Failed to archive deal"); }
+                                else { sonnerToast.success("Deal archived"); queryClient.invalidateQueries({ queryKey: ["remarketing", "gp-partner-deals"] }); }
+                              }}
+                              className="text-amber-600 focus:text-amber-600"
+                            >
+                              <Archive className="h-4 w-4 mr-2" />
+                              Archive Deal
                             </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>

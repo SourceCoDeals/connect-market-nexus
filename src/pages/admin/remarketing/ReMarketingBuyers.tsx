@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -79,8 +79,16 @@ const ReMarketingBuyers = () => {
   const [activeTab, setActiveTab] = useState<BuyerTab>('all');
   const [universeFilter, setUniverseFilter] = useState<string>("all");
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
-  const [sortColumn, setSortColumn] = useState<string>('company_name');
-  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+  // Sorting — persisted in URL for back-navigation
+  const [searchParams, setSearchParams] = useSearchParams();
+  const sortColumn = searchParams.get("sort") || "company_name";
+  const sortDirection = (searchParams.get("dir") as "asc" | "desc") || "asc";
+  const setSortColumn = (col: string) => {
+    setSearchParams(prev => { prev.set("sort", col); return prev; }, { replace: true });
+  };
+  const setSortDirection = (dir: "asc" | "desc") => {
+    setSearchParams(prev => { prev.set("dir", dir); return prev; }, { replace: true });
+  };
   // New buyer form state
   const [newBuyer, setNewBuyer] = useState({
     company_name: "",
@@ -296,7 +304,7 @@ const ReMarketingBuyers = () => {
 
   const handleSort = (column: string) => {
     if (sortColumn === column) {
-      setSortDirection(d => d === 'asc' ? 'desc' : 'asc');
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
     } else {
       setSortColumn(column);
       setSortDirection('asc');

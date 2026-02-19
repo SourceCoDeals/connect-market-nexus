@@ -1,5 +1,5 @@
 import { useEffect, useState, useMemo } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -69,8 +69,16 @@ export default function MAAllDeals() {
   const [isLoading, setIsLoading] = useState(true);
   const [dealDeleteDialogOpen, setDealDeleteDialogOpen] = useState(false);
   const [dealToDelete, setDealToDelete] = useState<{ id: string; name: string } | null>(null);
-  const [sortColumn, setSortColumn] = useState<SortColumn>("score");
-  const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
+  // Sorting — persisted in URL for back-navigation
+  const [searchParams, setSearchParams] = useSearchParams();
+  const sortColumn = (searchParams.get("sort") as SortColumn) || "score";
+  const sortDirection = (searchParams.get("dir") as SortDirection) || "desc";
+  const setSortColumn = (col: SortColumn) => {
+    setSearchParams(prev => { prev.set("sort", col); return prev; }, { replace: true });
+  };
+  const setSortDirection = (dir: SortDirection) => {
+    setSearchParams(prev => { prev.set("dir", dir); return prev; }, { replace: true });
+  };
   const [searchQuery, setSearchQuery] = useState("");
 
   const { toast } = useToast();
@@ -301,7 +309,7 @@ export default function MAAllDeals() {
 
   const toggleSort = (column: SortColumn) => {
     if (sortColumn === column) {
-      setSortDirection(prev => prev === "desc" ? "asc" : "desc");
+      setSortDirection(sortDirection === "desc" ? "asc" : "desc");
     } else {
       setSortColumn(column);
       setSortDirection("desc");

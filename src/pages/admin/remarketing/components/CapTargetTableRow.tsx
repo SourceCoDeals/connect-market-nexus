@@ -23,6 +23,7 @@ import {
   Trash2,
   Users2,
   Phone,
+  Archive,
 } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
@@ -150,7 +151,7 @@ export function CapTargetTableRow({
         </div>
       </TableCell>
       <TableCell className="max-w-[200px]">
-        <span className="text-xs text-muted-foreground line-clamp-2">
+        <span className="text-xs text-muted-foreground line-clamp-3">
           {deal.description || deal.executive_summary || "—"}
         </span>
       </TableCell>
@@ -345,6 +346,17 @@ export function CapTargetTableRow({
               Approve to All Deals
             </DropdownMenuItem>
             <DropdownMenuSeparator />
+            <DropdownMenuItem
+              onClick={async () => {
+                const { error } = await supabase.from("listings").update({ status: "archived" } as never).eq("id", deal.id);
+                if (error) { toast({ title: "Error", description: "Failed to archive deal" }); }
+                else { toast({ title: "Deal archived" }); onRefetch(); }
+              }}
+              className="text-amber-600 focus:text-amber-600"
+            >
+              <Archive className="h-4 w-4 mr-2" />
+              Archive Deal
+            </DropdownMenuItem>
             <DropdownMenuItem
               className="text-destructive"
               onClick={() => onDeleteDeal(deal.id)}

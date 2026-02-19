@@ -1,5 +1,5 @@
 import { useEffect, useState, useMemo } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -28,8 +28,16 @@ export default function MAAllBuyers() {
   const [trackers, setTrackers] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState(true);
   const [search, setSearch] = useState("");
-  const [sortColumn, setSortColumn] = useState<SortColumn>("name");
-  const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
+  // Sorting — persisted in URL for back-navigation
+  const [searchParams, setSearchParams] = useSearchParams();
+  const sortColumn = (searchParams.get("sort") as SortColumn) || "name";
+  const sortDirection = (searchParams.get("dir") as SortDirection) || "asc";
+  const setSortColumn = (col: SortColumn) => {
+    setSearchParams(prev => { prev.set("sort", col); return prev; }, { replace: true });
+  };
+  const setSortDirection = (dir: SortDirection) => {
+    setSearchParams(prev => { prev.set("dir", dir); return prev; }, { replace: true });
+  };
 
   useEffect(() => {
     loadData();
@@ -114,7 +122,7 @@ export default function MAAllBuyers() {
 
   const toggleSort = (column: SortColumn) => {
     if (sortColumn === column) {
-      setSortDirection(prev => prev === "desc" ? "asc" : "desc");
+      setSortDirection(sortDirection === "desc" ? "asc" : "desc");
     } else {
       setSortColumn(column);
       setSortDirection("asc");

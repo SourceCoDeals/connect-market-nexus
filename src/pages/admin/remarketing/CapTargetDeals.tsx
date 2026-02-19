@@ -1,6 +1,6 @@
 import { useState, useMemo, useCallback, useRef, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -116,18 +116,16 @@ export default function CapTargetDeals() {
   const [sourceTabFilter, setSourceTabFilter] = useState<string>("all");
   const [statusTab, setStatusTab] = useState<"all" | "active" | "inactive">("all");
 
-  // Sorting – persist in sessionStorage
-  const [sortColumn, setSortColumn] = useState<SortColumn>(() => {
-    return (sessionStorage.getItem("captarget_sort_column") as SortColumn) || "contact_date";
-  });
-  const [sortDirection, setSortDirection] = useState<SortDirection>(() => {
-    return (sessionStorage.getItem("captarget_sort_direction") as SortDirection) || "desc";
-  });
-
-  useEffect(() => {
-    sessionStorage.setItem("captarget_sort_column", sortColumn);
-    sessionStorage.setItem("captarget_sort_direction", sortDirection);
-  }, [sortColumn, sortDirection]);
+  // Sorting – persist in URL for back-navigation
+  const [searchParams, setSearchParams] = useSearchParams();
+  const sortColumn = (searchParams.get("sort") as SortColumn) || "contact_date";
+  const sortDirection = (searchParams.get("dir") as SortDirection) || "desc";
+  const setSortColumn = (col: SortColumn) => {
+    setSearchParams(prev => { prev.set("sort", col); return prev; }, { replace: true });
+  };
+  const setSortDirection = (dir: SortDirection) => {
+    setSearchParams(prev => { prev.set("dir", dir); return prev; }, { replace: true });
+  };
 
   // Column resizing
   const [columnWidths, setColumnWidths] = useState<Record<string, number>>({
@@ -318,7 +316,7 @@ export default function CapTargetDeals() {
   useEffect(() => { setCurrentPage(1); }, [filterState, sortColumn, sortDirection]);
 
   const handleSort = (col: SortColumn) => {
-    if (sortColumn === col) { setSortDirection((d) => (d === "asc" ? "desc" : "asc")); }
+    if (sortColumn === col) { setSortDirection(sortDirection === "asc" ? "desc" : "asc"); }
     else { setSortColumn(col); setSortDirection("asc"); }
   };
 

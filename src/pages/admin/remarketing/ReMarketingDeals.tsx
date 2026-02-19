@@ -1,6 +1,6 @@
 import { useState, useMemo, useCallback, useRef, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -105,8 +105,16 @@ const ReMarketingDeals = () => {
   // State for import dialog
   const [showImportDialog, setShowImportDialog] = useState(false);
   const [showAddDealDialog, setShowAddDealDialog] = useState(false);
-  const [sortColumn, setSortColumn] = useState<string>("rank");
-  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
+  // Sorting — persisted in URL for back-navigation
+  const [searchParams, setSearchParams] = useSearchParams();
+  const sortColumn = searchParams.get("sort") || "rank";
+  const sortDirection = (searchParams.get("dir") as "asc" | "desc") || "asc";
+  const setSortColumn = (col: string) => {
+    setSearchParams(prev => { prev.set("sort", col); return prev; }, { replace: true });
+  };
+  const setSortDirection = (dir: "asc" | "desc") => {
+    setSearchParams(prev => { prev.set("dir", dir); return prev; }, { replace: true });
+  };
   const [isCalculating, setIsCalculating] = useState(false);
   const [isEnrichingAll, setIsEnrichingAll] = useState(false);
 
