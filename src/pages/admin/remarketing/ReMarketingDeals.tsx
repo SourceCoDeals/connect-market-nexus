@@ -43,6 +43,7 @@ import {
   ArrowUpDown,
   Zap,
   Plus,
+  Network,
 } from "lucide-react";
 import { format } from "date-fns";
 import { getTierFromScore, EnrichmentProgressIndicator } from "@/components/remarketing";
@@ -98,6 +99,7 @@ const ReMarketingDeals = () => {
   const [stateFilter, setStateFilter] = useState<string>("all");
   const [employeeFilter, setEmployeeFilter] = useState<string>("all");
   const [referralPartnerFilter, setReferralPartnerFilter] = useState<string>("all");
+  const [universeBuildFilter, setUniverseBuildFilter] = useState<boolean>(false);
 
   // Admin profiles for deal owner assignment
   const { data: adminProfiles } = useAdminProfiles();
@@ -186,8 +188,6 @@ const ReMarketingDeals = () => {
           google_review_count,
           google_rating,
           is_priority_target,
-          needs_buyer_universe,
-          need_to_contact_owner,
           deal_total_score,
           seller_interest_score,
           manual_rank_override,
@@ -199,7 +199,10 @@ const ReMarketingDeals = () => {
           deal_owner_id,
           deal_owner:profiles!listings_deal_owner_id_fkey(id, first_name, last_name, email),
           needs_owner_contact,
-          needs_owner_contact_at
+          needs_owner_contact_at,
+          universe_build_flagged,
+          universe_build_flagged_at,
+          universe_build_flagged_by
         `)
         .eq('status', 'active')
         .neq('deal_source', 'gp_partners')
@@ -428,9 +431,11 @@ const ReMarketingDeals = () => {
           if (dateFilter === "90d" && daysDiff > 90) return false;
         }
       }
+      // Universe Build filter
+      if (universeBuildFilter && !listing.universe_build_flagged) return false;
       return true;
     });
-  }, [engineFiltered, universeFilter, scoreFilter, dateFilter, customDateFrom, customDateTo, industryFilter, stateFilter, employeeFilter, referralPartnerFilter, scoreStats]);
+  }, [engineFiltered, universeFilter, scoreFilter, dateFilter, customDateFrom, customDateTo, industryFilter, stateFilter, employeeFilter, referralPartnerFilter, scoreStats, universeBuildFilter]);
 
   const formatCurrency = (value: number | null) => {
     if (!value) return "—";
@@ -703,49 +708,32 @@ const ReMarketingDeals = () => {
     });
   }, [toast]);
 
-  const handleToggleNeedsBuyerUniverse = useCallback(async (dealId: string, currentStatus: boolean) => {
+  const handleToggleUniverseBuild = useCallback(async (dealId: string, currentStatus: boolean) => {
     const newStatus = !currentStatus;
+    const now = new Date().toISOString();
     setLocalOrder(prev => prev.map(deal =>
-      deal.id === dealId ? { ...deal, needs_buyer_universe: newStatus } : deal
+      deal.id === dealId ? { ...deal, universe_build_flagged: newStatus, universe_build_flagged_at: newStatus ? now : null } : deal
     ));
     const { error } = await supabase
       .from('listings')
-      .update({ needs_buyer_universe: newStatus })
+      .update({
+        universe_build_flagged: newStatus,
+        universe_build_flagged_at: newStatus ? now : null,
+        universe_build_flagged_by: newStatus ? user?.id : null,
+      } as any)
       .eq('id', dealId);
     if (error) {
       setLocalOrder(prev => prev.map(deal =>
-        deal.id === dealId ? { ...deal, needs_buyer_universe: currentStatus } : deal
+        deal.id === dealId ? { ...deal, universe_build_flagged: currentStatus } : deal
       ));
       toast({ title: "Error", description: error.message, variant: "destructive" });
       return;
     }
     toast({
-      title: newStatus ? "Flagged: Needs Buyer Universe" : "Flag removed",
-      description: newStatus ? "Deal flagged as needing a buyer universe" : "Buyer universe flag removed"
+      title: newStatus ? "Flagged: Build Buyer Universe" : "Flag removed",
+      description: newStatus ? "Deal flagged — a buyer universe needs to be built" : "Universe build flag removed"
     });
-  }, [toast]);
-
-  const handleToggleNeedToContactOwner = useCallback(async (dealId: string, currentStatus: boolean) => {
-    const newStatus = !currentStatus;
-    setLocalOrder(prev => prev.map(deal =>
-      deal.id === dealId ? { ...deal, need_to_contact_owner: newStatus } : deal
-    ));
-    const { error } = await supabase
-      .from('listings')
-      .update({ need_to_contact_owner: newStatus })
-      .eq('id', dealId);
-    if (error) {
-      setLocalOrder(prev => prev.map(deal =>
-        deal.id === dealId ? { ...deal, need_to_contact_owner: currentStatus } : deal
-      ));
-      toast({ title: "Error", description: error.message, variant: "destructive" });
-      return;
-    }
-    toast({
-      title: newStatus ? "Flagged: Need to Contact Owner" : "Flag removed",
-      description: newStatus ? "Deal flagged as needing owner contact" : "Contact owner flag removed"
-    });
-  }, [toast]);
+  }, [toast, user?.id]);
 
   const handleAssignOwner = useCallback(async (dealId: string, ownerId: string | null) => {
     const ownerProfile = ownerId && adminProfiles ? adminProfiles[ownerId] : null;
@@ -1080,6 +1068,29 @@ const ReMarketingDeals = () => {
         onSelectView={(view) => setFilterState(view.filters)}
       />
 
+      {/* Universe Build quick-filter */}
+      <div className="flex items-center gap-2">
+        <Button
+          size="sm"
+          variant={universeBuildFilter ? "default" : "outline"}
+          className={cn(
+            "gap-2 h-8 text-xs",
+            universeBuildFilter
+              ? "bg-blue-600 hover:bg-blue-700 border-blue-600 text-white"
+              : "border-blue-300 text-blue-700 hover:bg-blue-50"
+          )}
+          onClick={() => setUniverseBuildFilter(prev => !prev)}
+        >
+          <Network className="h-3.5 w-3.5" />
+          {universeBuildFilter ? "Showing: Needs Universe Build" : "Filter: Needs Universe Build"}
+          {universeBuildFilter && (
+            <span className="ml-1 bg-white/20 rounded-full px-1.5 py-0 text-[10px] font-bold">
+              {filteredListings.filter(l => l.universe_build_flagged).length}
+            </span>
+          )}
+        </Button>
+      </div>
+
       {/* Bulk Actions Toolbar */}
       <DealsBulkActions
         selectedDeals={selectedDeals}
@@ -1222,8 +1233,7 @@ const ReMarketingDeals = () => {
                           onArchive={handleArchiveDeal}
                           onDelete={handleDeleteDeal}
                           onTogglePriority={handleTogglePriority}
-                          onToggleNeedsBuyerUniverse={handleToggleNeedsBuyerUniverse}
-                          onToggleNeedToContactOwner={handleToggleNeedToContactOwner}
+                          onToggleUniverseBuild={handleToggleUniverseBuild}
                           adminProfiles={adminProfiles}
                           onAssignOwner={handleAssignOwner}
                           onUpdateRank={async (dealId, newRank) => {

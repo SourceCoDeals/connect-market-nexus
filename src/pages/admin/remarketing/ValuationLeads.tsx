@@ -65,6 +65,7 @@ import {
   Trash2,
   EyeOff,
   Phone,
+  Network,
 } from "lucide-react";
 import { format, formatDistanceToNow } from "date-fns";
 import { cn } from "@/lib/utils";
@@ -2278,7 +2279,7 @@ export default function ValuationLeads() {
                               }}
                               className={lead.needs_buyer_universe ? "text-blue-600" : ""}
                             >
-                              <Users2 className={cn("h-4 w-4 mr-2", lead.needs_buyer_universe && "text-blue-600")} />
+                              <Network className={cn("h-4 w-4 mr-2", lead.needs_buyer_universe && "text-blue-600")} />
                               {lead.needs_buyer_universe ? "Remove Buyer Universe Flag" : "Needs Buyer Universe"}
                             </DropdownMenuItem>
                             {/* Need to Contact Owner */}
