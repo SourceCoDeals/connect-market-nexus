@@ -67,7 +67,6 @@ export interface ColumnWidths {
   googleReviews: number;
   googleRating: number;
   quality: number;
-  sellerInterest: number;
   engagement: number;
   dealOwner: number;
   added: number;
@@ -92,7 +91,6 @@ export const DEFAULT_COLUMN_WIDTHS: ColumnWidths = {
   googleReviews: 70,
   googleRating: 60,
   quality: 80,
-  sellerInterest: 90,
   engagement: 130,
   dealOwner: 130,
   added: 90,

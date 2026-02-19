@@ -435,23 +435,6 @@ export const DealTableRow = ({
         )}
       </TableCell>
 
-      {/* Seller Interest Score */}
-      <TableCell className="text-center" style={{ width: columnWidths.sellerInterest, minWidth: 60 }}>
-        {listing.seller_interest_score !== null ? (
-          <span className={cn(
-            "text-sm font-medium px-2 py-0.5 rounded",
-            listing.seller_interest_score >= 80 ? "bg-green-100 text-green-700" :
-            listing.seller_interest_score >= 60 ? "bg-blue-100 text-blue-700" :
-            listing.seller_interest_score >= 40 ? "bg-yellow-100 text-yellow-700" :
-            "bg-gray-100 text-gray-600"
-          )}>
-            {listing.seller_interest_score}
-          </span>
-        ) : (
-          <span className="text-muted-foreground">—</span>
-        )}
-      </TableCell>
-
       {/* Engagement */}
       <TableCell style={{ width: columnWidths.engagement, minWidth: 80 }}>
         <div className="flex items-center justify-center gap-3 text-sm">

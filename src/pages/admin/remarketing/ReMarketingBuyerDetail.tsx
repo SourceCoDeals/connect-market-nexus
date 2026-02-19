@@ -94,8 +94,8 @@ interface BuyerData {
   hq_state: string | null;
   hq_country: string | null;
   has_fee_agreement: boolean | null;
-  marketplace_firm_id: string | null;
-  fee_agreement_source: string | null;
+  marketplace_firm_id?: string | null;
+  fee_agreement_source?: string | null;
   industry_vertical: string | null;
   business_summary: string | null;
   specialized_focus: string | null;
@@ -179,7 +179,7 @@ const ReMarketingBuyerDetail = () => {
         .single();
       
       if (error) throw error;
-      return data as BuyerData;
+      return data as unknown as BuyerData;
     },
     enabled: !isNew
   });

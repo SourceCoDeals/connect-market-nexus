@@ -546,10 +546,6 @@ const ReMarketingDeals = () => {
           aVal = a.deal_total_score ?? 0;
           bVal = b.deal_total_score ?? 0;
           break;
-        case "sellerInterest":
-          aVal = a.seller_interest_score ?? 0;
-          bVal = b.seller_interest_score ?? 0;
-          break;
         case "engagement":
           aVal = (stats_a?.totalMatches || 0);
           bVal = (stats_b?.totalMatches || 0);
@@ -1187,9 +1183,6 @@ const ReMarketingDeals = () => {
                     </ResizableHeader>
                     <ResizableHeader width={columnWidths.quality} onResize={(w) => handleColumnResize('quality', w)} minWidth={50} className="text-center">
                       <SortableHeader column="score" label="Quality" className="mx-auto" />
-                    </ResizableHeader>
-                    <ResizableHeader width={columnWidths.sellerInterest} onResize={(w) => handleColumnResize('sellerInterest', w)} minWidth={60} className="text-center">
-                      <SortableHeader column="sellerInterest" label="Seller Interest" className="mx-auto" />
                     </ResizableHeader>
                     <ResizableHeader width={columnWidths.engagement} onResize={(w) => handleColumnResize('engagement', w)} minWidth={80} className="text-center">
                       <SortableHeader column="engagement" label="Engagement" className="mx-auto" />

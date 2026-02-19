@@ -645,19 +645,19 @@ const ReMarketingBuyers = () => {
                       <TableCell>
                         {buyer.has_fee_agreement ? (
                           <Badge
-                            variant="default"
+                          variant="default"
                             className={`text-xs px-1.5 py-0 flex items-center gap-1 w-fit ${
-                              buyer.fee_agreement_source === 'pe_firm_inherited'
+                              (buyer as any).fee_agreement_source === 'pe_firm_inherited'
                                 ? 'bg-blue-600 hover:bg-blue-700'
-                                : buyer.fee_agreement_source === 'manual_override'
+                                : (buyer as any).fee_agreement_source === 'manual_override'
                                 ? 'bg-amber-600 hover:bg-amber-700'
                                 : 'bg-green-600 hover:bg-green-700'
                             }`}
                           >
                             <Check className="h-3 w-3" />
-                            {buyer.fee_agreement_source === 'pe_firm_inherited'
+                            {(buyer as any).fee_agreement_source === 'pe_firm_inherited'
                               ? `via ${buyer.pe_firm_name || 'PE'}`
-                              : buyer.fee_agreement_source === 'manual_override'
+                              : (buyer as any).fee_agreement_source === 'manual_override'
                               ? 'Manual'
                               : 'Signed'}
                           </Badge>
