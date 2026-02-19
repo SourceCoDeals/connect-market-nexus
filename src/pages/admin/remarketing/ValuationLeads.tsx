@@ -1147,6 +1147,9 @@ export default function ValuationLeads() {
           attempts: 0,
           queued_at: now,
           force: true,
+          completed_at: null,
+          last_error: null,
+          started_at: null,
         }));
 
       const CHUNK = 500;
@@ -1289,6 +1292,9 @@ export default function ValuationLeads() {
           attempts: 0,
           queued_at: now,
           force: mode === "all",
+          completed_at: null,
+          last_error: null,
+          started_at: null,
         }));
 
       const CHUNK = 500;
@@ -1296,7 +1302,10 @@ export default function ValuationLeads() {
         const chunk = rows.slice(i, i + CHUNK);
         const { error } = await supabase
           .from("enrichment_queue")
-          .upsert(chunk, { onConflict: "listing_id" });
+          .upsert(chunk, {
+            onConflict: "listing_id",
+            ignoreDuplicates: false, // ensure status/force get updated
+          });
 
         if (error) {
           console.error("Queue upsert error:", error);
