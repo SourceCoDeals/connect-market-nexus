@@ -743,6 +743,7 @@ export const GP_PARTNER_FIELDS: FilterFieldDef[] = [
 
 /** Valuation Calculator Leads */
 export const VALUATION_LEAD_FIELDS: FilterFieldDef[] = [
+  // ── Core ─────────────────────────────────────────────────────────
   {
     key: "display_name",
     label: "Lead Name",
@@ -751,6 +752,42 @@ export const VALUATION_LEAD_FIELDS: FilterFieldDef[] = [
     icon: Building2,
     accessor: (item: any) => item.business_name || item.display_name || item.full_name || "",
   },
+  {
+    key: "website",
+    label: "Website",
+    type: "text",
+    group: "Core",
+    // Mirrors inferWebsite logic: validates the website is a real domain (no spaces, contains dot)
+    accessor: (item: any) => {
+      // Helper: check if a string is a valid-looking domain
+      const isValidDomain = (s: string): boolean => {
+        const v = s.trim().toLowerCase()
+          .replace(/^[a-z]{3,6}:\/\//i, "") // strip protocol
+          .replace(/^www\./i, "")           // strip www
+          .split("/")[0].split("?")[0].split("#")[0]; // strip path
+        return !!(v && v.includes(".") && !v.includes(" ") && !/^(test|no|example)\./i.test(v));
+      };
+      const raw = item.website;
+      if (raw && raw.trim() && !raw.includes("@") && isValidDomain(raw)) return raw.trim();
+      // No valid website — return null (filter treats as empty)
+      return null;
+    },
+    icon: Globe,
+  },
+  {
+    key: "calculator_type",
+    label: "Calculator Type",
+    type: "select",
+    group: "Core",
+    icon: Tag,
+    options: [
+      { label: "General", value: "general" },
+      { label: "Auto Shop", value: "auto_shop" },
+      { label: "HVAC", value: "hvac" },
+      { label: "Collision", value: "collision" },
+    ],
+  },
+  // ── Contact ───────────────────────────────────────────────────────
   {
     key: "full_name",
     label: "Contact Name",
@@ -765,13 +802,7 @@ export const VALUATION_LEAD_FIELDS: FilterFieldDef[] = [
     group: "Contact",
     icon: Users,
   },
-  {
-    key: "website",
-    label: "Website",
-    type: "text",
-    group: "Core",
-    icon: Globe,
-  },
+  // ── Business ──────────────────────────────────────────────────────
   {
     key: "industry",
     label: "Industry",
@@ -781,10 +812,50 @@ export const VALUATION_LEAD_FIELDS: FilterFieldDef[] = [
     dynamicOptions: true,
   },
   {
+    key: "growth_trend",
+    label: "Growth Trend",
+    type: "select",
+    group: "Business",
+    icon: TrendingUp,
+    options: [
+      { label: "Growing", value: "growing" },
+      { label: "Stable", value: "stable" },
+      { label: "Declining", value: "declining" },
+    ],
+  },
+  {
+    key: "owner_dependency",
+    label: "Owner Dependency",
+    type: "select",
+    group: "Business",
+    icon: Users,
+    options: [
+      { label: "Low", value: "low" },
+      { label: "Medium", value: "medium" },
+      { label: "High", value: "high" },
+    ],
+  },
+  {
+    key: "buyer_lane",
+    label: "Buyer Lane",
+    type: "select",
+    group: "Business",
+    icon: Tag,
+    dynamicOptions: true,
+  },
+  // ── Seller Intent ─────────────────────────────────────────────────
+  {
+    key: "open_to_intros",
+    label: "Open to Intros",
+    type: "boolean",
+    group: "Seller Intent",
+    icon: Activity,
+  },
+  {
     key: "exit_timing",
     label: "Exit Timing",
     type: "select",
-    group: "Status",
+    group: "Seller Intent",
     icon: Activity,
     options: [
       { label: "Exit Now", value: "now" },
@@ -793,12 +864,13 @@ export const VALUATION_LEAD_FIELDS: FilterFieldDef[] = [
     ],
   },
   {
-    key: "open_to_intros",
-    label: "Open to Intros",
+    key: "cta_clicked",
+    label: "CTA Clicked",
     type: "boolean",
-    group: "Status",
+    group: "Seller Intent",
     icon: Activity,
   },
+  // ── Status ────────────────────────────────────────────────────────
   {
     key: "pushed_to_all_deals",
     label: "Pushed to All Deals",
@@ -807,11 +879,41 @@ export const VALUATION_LEAD_FIELDS: FilterFieldDef[] = [
     icon: Activity,
   },
   {
+    key: "status",
+    label: "Lead Status",
+    type: "select",
+    group: "Status",
+    icon: Tag,
+    options: [
+      { label: "Active", value: "active" },
+      { label: "Pushed", value: "pushed" },
+      { label: "Contacted", value: "contacted" },
+      { label: "Qualified", value: "qualified" },
+      { label: "Excluded", value: "excluded" },
+    ],
+  },
+  {
+    key: "lead_source",
+    label: "Lead Source",
+    type: "select",
+    group: "Status",
+    icon: Tag,
+    dynamicOptions: true,
+  },
+  // ── Scoring ───────────────────────────────────────────────────────
+  {
     key: "quality_label",
     label: "Quality Tier",
     type: "select",
     group: "Scoring",
     icon: TrendingUp,
+    options: [
+      { label: "Very Strong", value: "Very Strong" },
+      { label: "Strong", value: "Strong" },
+      { label: "Moderate", value: "Moderate" },
+      { label: "Weak", value: "Weak" },
+      { label: "Needs Work", value: "Needs Work" },
+    ],
   },
   {
     key: "lead_score",
@@ -827,6 +929,7 @@ export const VALUATION_LEAD_FIELDS: FilterFieldDef[] = [
     group: "Scoring",
     icon: TrendingUp,
   },
+  // ── Financial ─────────────────────────────────────────────────────
   {
     key: "revenue",
     label: "Revenue",
@@ -841,19 +944,7 @@ export const VALUATION_LEAD_FIELDS: FilterFieldDef[] = [
     group: "Financial",
     icon: DollarSign,
   },
-  {
-    key: "calculator_type",
-    label: "Calculator Type",
-    type: "select",
-    group: "Source",
-    icon: Tag,
-    options: [
-      { label: "General", value: "general" },
-      { label: "Auto Shop", value: "auto_shop" },
-      { label: "HVAC", value: "hvac" },
-      { label: "Collision", value: "collision" },
-    ],
-  },
+  // ── Location ──────────────────────────────────────────────────────
   {
     key: "location",
     label: "Location",
@@ -862,8 +953,16 @@ export const VALUATION_LEAD_FIELDS: FilterFieldDef[] = [
     icon: MapPin,
   },
   {
+    key: "region",
+    label: "Region",
+    type: "text",
+    group: "Location",
+    icon: MapPin,
+  },
+  // ── Admin ─────────────────────────────────────────────────────────
+  {
     key: "created_at",
-    label: "Created Date",
+    label: "Submitted Date",
     type: "date",
     group: "Admin",
     icon: Calendar,

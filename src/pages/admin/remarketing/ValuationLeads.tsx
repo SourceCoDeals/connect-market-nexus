@@ -61,6 +61,7 @@ import {
   ExternalLink,
   Star,
   Download,
+  Trash2,
 } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
@@ -114,6 +115,7 @@ interface ValuationLead {
   raw_valuation_results: Record<string, unknown> | null;
   // For deal owner display (assigned after push)
   deal_owner_id?: string | null;
+  is_priority_target?: boolean | null;
 }
 
 type SortColumn =
@@ -276,15 +278,58 @@ function segmentWords(input: string): string {
   }).join(" ");
 }
 
+/** Format a date string as a relative age: "4d ago", "2mo ago", "1y ago" */
+function formatAge(dateStr: string): string {
+  const now = new Date();
+  const date = new Date(dateStr);
+  const diffMs = now.getTime() - date.getTime();
+  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+  if (diffDays === 0) return "Today";
+  if (diffDays === 1) return "1d ago";
+  if (diffDays < 30) return `${diffDays}d ago`;
+  const diffMonths = Math.floor(diffDays / 30.44);
+  if (diffMonths < 12) return `${diffMonths}mo ago`;
+  const diffYears = Math.floor(diffMonths / 12);
+  return `${diffYears}y ago`;
+}
+
+/** Clean a full_name username into a human-readable display string.
+ *  e.g. "louis_castelli" → "Louis Castelli"
+ *  Rejects usernames like "epd1112", "xiyokeh495", "jpqzancanaro"
+ */
+function cleanFullName(raw: string | null): string | null {
+  if (!raw) return null;
+  const cleaned = raw.trim()
+    .replace(/_/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  // Must have at least some letters
+  if (!/[a-zA-Z]/.test(cleaned)) return null;
+  // Skip pure usernames: no spaces + contains digits OR all lowercase single token with no real words
+  if (!cleaned.includes(" ")) {
+    // Single token — only accept if it looks like a real first name (all letters, ≥3 chars, no digits)
+    if (/\d/.test(cleaned)) return null;
+    // Very short or looks like a username handle — skip
+    if (cleaned.length < 3) return null;
+  }
+  // Must have at least one letter-only word of length ≥ 2
+  const words = cleaned.split(" ").filter(w => /^[a-zA-Z]{2,}$/.test(w));
+  if (words.length === 0) return null;
+  return toTitleCase(cleaned);
+}
+
 function isPlaceholderBusinessName(name: string): boolean {
   const lower = name.toLowerCase().trim();
   // Generic placeholder patterns
-  if (lower.endsWith("'s business") || lower.endsWith("\u2019s business")) return true;
+  // Any variant of "'s Business" suffix (ASCII apostrophe, curly right quote, or any Unicode apostrophe)
+  if (/[''\u2019\u02BC\u0060]s business$/i.test(lower)) return true;
   // Looks like a URL (starts with www, or is just a domain)
   if (/^www\b/i.test(lower)) return true;
   if (/\.(com|net|org|io|co|ai|us|uk|ca|au|nz|school|pro|app|dev)(\s|$)/i.test(lower)) return true;
   // Single username-like strings (no spaces, contains underscores or digits only)
   if (/^[a-z0-9_]+$/i.test(lower) && lower.includes("_")) return true;
+  // All-lowercase username with numbers (e.g. "epd1112", "bcunningham4523")
+  if (/^[a-z0-9]+\d+[a-z0-9]*$/i.test(lower) && !/\s/.test(lower)) return true;
   return false;
 }
 
@@ -328,6 +373,9 @@ function extractBusinessName(lead: ValuationLead): string {
       }
     }
   }
+  // Try to use full_name as a human-readable fallback before falling back to "General Calculator #N"
+  const humanName = cleanFullName(lead.full_name);
+  if (humanName) return humanName;
   return lead.display_name || "—";
 }
 
@@ -451,6 +499,7 @@ function qualityBadge(label: string | null) {
   if (!label) return null;
   const config: Record<string, string> = {
     "Very Strong": "bg-emerald-50 text-emerald-700 border-emerald-200",
+    "Strong": "bg-teal-50 text-teal-700 border-teal-200",
     "Solid": "bg-blue-50 text-blue-700 border-blue-200",
     "Average": "bg-amber-50 text-amber-700 border-amber-200",
     "Needs Work": "bg-red-50 text-red-700 border-red-200",
@@ -772,35 +821,58 @@ export default function ValuationLeads() {
   const handleRowClick = useCallback(
     async (lead: ValuationLead) => {
       if (lead.pushed_listing_id) {
-        navigate(`/admin/remarketing/valuation-leads/${lead.pushed_listing_id}`, {
+        navigate('/admin/remarketing/deals/' + lead.pushed_listing_id, {
           state: { from: "/admin/remarketing/valuation-leads" },
         });
         return;
       }
 
-      // Auto-create a listing so the detail page works (not pushed to All Deals)
-      const { data: listing, error: insertError } = await supabase
+      const dealIdentifier = `vlead_${lead.id.slice(0, 8)}`;
+
+      // Check if a listing was already created for this lead (e.g. from a previous click)
+      // to avoid hitting the unique constraint on deal_identifier
+      const { data: existing } = await supabase
         .from("listings")
-        .insert(buildListingFromLead(lead, false))
         .select("id")
-        .single();
+        .eq("deal_identifier", dealIdentifier)
+        .maybeSingle();
 
-      if (insertError || !listing) {
-        console.error("Failed to create listing for lead:", lead.id, insertError);
-        sonnerToast.error("Failed to open deal page");
-        return;
+      let listingId: string;
+
+      if (existing?.id) {
+        // Reuse the existing listing and heal the missing pushed_listing_id link
+        listingId = existing.id;
+        await supabase
+          .from("valuation_leads")
+          .update({ pushed_listing_id: listingId } as never)
+          .eq("id", lead.id);
+      } else {
+        // Auto-create a listing so the detail page works (not pushed to All Deals)
+        const { data: listing, error: insertError } = await supabase
+          .from("listings")
+          .insert(buildListingFromLead(lead, false))
+          .select("id")
+          .single();
+
+        if (insertError || !listing) {
+          console.error("Failed to create listing for lead:", lead.id, insertError);
+          sonnerToast.error("Failed to open deal page");
+          return;
+        }
+
+        listingId = listing.id;
+
+        // Save the listing reference on the valuation lead
+        await supabase
+          .from("valuation_leads")
+          .update({ pushed_listing_id: listingId } as never)
+          .eq("id", lead.id);
       }
-
-      // Save the listing reference on the valuation lead
-      await supabase
-        .from("valuation_leads")
-        .update({ pushed_listing_id: listing.id } as never)
-        .eq("id", lead.id);
 
       // Refresh so the table shows the updated listing_id
       queryClient.invalidateQueries({ queryKey: ["remarketing", "valuation-leads"] });
 
-      navigate(`/admin/remarketing/valuation-leads/${listing.id}`, {
+      navigate('/admin/remarketing/deals/' + listingId, {
         state: { from: "/admin/remarketing/valuation-leads" },
       });
     },
@@ -859,9 +931,9 @@ export default function ValuationLeads() {
       setSelectedIds(new Set());
 
       if (successCount > 0) {
-        sonnerToast.success(`Pushed ${successCount} lead${successCount !== 1 ? "s" : ""} to All Deals${errorCount > 0 ? ` (${errorCount} failed)` : ""}`);
+        sonnerToast.success(`Added ${successCount} lead${successCount !== 1 ? "s" : ""} to All Deals${errorCount > 0 ? ` (${errorCount} failed)` : ""}`);
       } else {
-        sonnerToast.info("Nothing to push — selected leads were already pushed or not found.");
+        sonnerToast.info("Nothing to add — selected leads are already in All Deals.");
       }
 
       queryClient.invalidateQueries({ queryKey: ["remarketing", "valuation-leads"] });
@@ -978,9 +1050,9 @@ export default function ValuationLeads() {
       setSelectedIds(new Set());
 
       if (pushed > 0) {
-        sonnerToast.success(`Pushed ${pushed} lead${pushed !== 1 ? "s" : ""} and queued ${enrichQueued} for enrichment`);
+        sonnerToast.success(`Added ${pushed} lead${pushed !== 1 ? "s" : ""} to All Deals and queued ${enrichQueued} for enrichment`);
       } else {
-        sonnerToast.info("No unpushed leads selected");
+        sonnerToast.info("Select leads that haven't been added to All Deals yet.");
       }
 
       queryClient.invalidateQueries({ queryKey: ["remarketing", "valuation-leads"] });
@@ -1053,17 +1125,10 @@ export default function ValuationLeads() {
       sonnerToast.success(`Re-queued ${rows.length} lead${rows.length !== 1 ? "s" : ""} for enrichment`);
       setSelectedIds(new Set());
 
-      // Trigger the enrichment worker and handle results (matching CapTarget)
-      try {
-        const { data: result } = await supabase.functions.invoke("process-enrichment-queue", {
-          body: { source: "valuation_leads_re_enrich" },
-        });
-        if (result?.synced > 0 || result?.processed > 0) {
-          const totalDone = (result?.synced || 0) + (result?.processed || 0);
-          if (activityItem) updateProgress.mutate({ id: activityItem.id, completedItems: totalDone });
-        }
-      } catch {
-        // Non-blocking
+      if (queued > 0) {
+        sonnerToast.success(`Re-queued ${queued} lead${queued !== 1 ? "s" : ""} for enrichment`);
+      } else {
+        sonnerToast.info("No leads in All Deals found to re-enrich");
       }
 
       setIsReEnriching(false);
@@ -1072,20 +1137,16 @@ export default function ValuationLeads() {
     [leads, user, startOrQueueMajorOp, completeOperation, updateProgress, queryClient]
   );
 
-  // Enrich All Pushed — global bulk enrich (matching CapTarget / GP Partners pattern exactly)
+  // Enrich All — enriches any lead that has an associated listing (pushed or auto-created via row click)
   const handleBulkEnrich = useCallback(
     async (mode: "unenriched" | "all") => {
-      const pushedLeads = (leads || []).filter((l) => l.pushed_to_all_deals && l.pushed_listing_id);
-      const targets = mode === "unenriched"
-        ? pushedLeads.filter((l) => {
-            // Check the listing's enriched_at via pushed_listing_id
-            // Since we don't have enriched_at on valuation_leads, treat all pushed as candidates
-            return true;
-          })
-        : pushedLeads;
+      const allLeads = leads || [];
+
+      // Include any lead with a listing ID — either formally pushed or auto-created via row click
+      const targets = allLeads.filter((l) => !!l.pushed_listing_id);
 
       if (!targets.length) {
-        sonnerToast.info("No leads in All Deals to enrich — push leads to All Deals first");
+        sonnerToast.info("No leads with listings to enrich — open a lead first to create its listing");
         return;
       }
 
@@ -1137,7 +1198,7 @@ export default function ValuationLeads() {
         }
       }
 
-      sonnerToast.success(`Queued ${rows.length} deals for enrichment`);
+      sonnerToast.success(`Queued ${rows.length} lead${rows.length !== 1 ? "s" : ""} in All Deals for enrichment`);
 
       // Trigger the enrichment worker and handle results (matching CapTarget pattern)
       try {
@@ -1293,7 +1354,7 @@ export default function ValuationLeads() {
             Valuation Calculator Leads
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
-            {totalLeads} total &middot; {unscoredCount} unscored &middot; {pushedTotal} pushed
+            {totalLeads} total &middot; {unscoredCount} unscored &middot; {pushedTotal} in All Deals
           </p>
         </div>
 
@@ -1313,10 +1374,10 @@ export default function ValuationLeads() {
             </DropdownMenuTrigger>
             <DropdownMenuContent>
               <DropdownMenuItem onClick={() => handleBulkEnrich("unenriched")}>
-                Enrich Unenriched Pushed
+                Enrich Unenriched
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => handleBulkEnrich("all")}>
-                Re-enrich All Pushed
+                Re-enrich All
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -1432,7 +1493,7 @@ export default function ValuationLeads() {
                 <CheckCircle2 className="h-5 w-5 text-green-600" />
               </div>
               <div>
-                <p className="text-sm text-muted-foreground">Pushed to All Deals</p>
+                <p className="text-sm text-muted-foreground">Added to All Deals</p>
                 <p className="text-2xl font-bold text-green-600">{kpiStats.pushedCount}</p>
               </div>
             </div>
@@ -1629,7 +1690,8 @@ export default function ValuationLeads() {
                       key={lead.id}
                       className={cn(
                         "transition-colors cursor-pointer",
-                        lead.pushed_to_all_deals && "bg-green-50/60 hover:bg-green-50",
+                        lead.is_priority_target && "bg-amber-50 hover:bg-amber-100/80 dark:bg-amber-950/30",
+                        !lead.is_priority_target && lead.pushed_to_all_deals && "bg-green-50/60 hover:bg-green-50",
                         !lead.pushed_to_all_deals && "hover:bg-muted/40"
                       )}
                       onClick={() => handleRowClick(lead)}
@@ -1766,7 +1828,7 @@ export default function ValuationLeads() {
                         )}
                       </TableCell>
                       <TableCell>
-                        <span className="text-sm text-muted-foreground">
+                        <span className="text-sm tabular-nums text-foreground">
                           {format(new Date(lead.created_at), "MMM d, yyyy")}
                         </span>
                       </TableCell>
@@ -1792,59 +1854,81 @@ export default function ValuationLeads() {
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            {/* View Deal — only for pushed leads */}
-                            {lead.pushed_to_all_deals && lead.pushed_listing_id && (
-                              <>
-                                <DropdownMenuItem
-                                  onClick={() => navigate(`/admin/remarketing/valuation-leads/${lead.pushed_listing_id}`)}
-                                >
-                                  <ExternalLink className="h-4 w-4 mr-2" />
-                                  View Deal
-                                </DropdownMenuItem>
-                                <DropdownMenuSeparator />
-                              </>
-                            )}
+                            {/* View Deal */}
+                            <DropdownMenuItem
+                              onClick={() => {
+                                if (lead.pushed_listing_id) {
+                                  navigate('/admin/remarketing/deals/' + lead.pushed_listing_id, { state: { from: '/admin/remarketing/valuation-leads' } });
+                                } else {
+                                  handleRowClick(lead);
+                                }
+                              }}
+                            >
+                              <ExternalLink className="h-4 w-4 mr-2" />
+                              View Deal
+                            </DropdownMenuItem>
+                            {/* Enrich Deal */}
+                            <DropdownMenuItem
+                              onClick={() => {
+                                if (lead.pushed_to_all_deals && lead.pushed_listing_id) {
+                                  handleReEnrich([lead.id]);
+                                } else {
+                                  handlePushAndEnrich([lead.id]);
+                                }
+                              }}
+                            >
+                              <Sparkles className="h-4 w-4 mr-2" />
+                              Enrich Deal
+                            </DropdownMenuItem>
+                            {/* Mark as Priority */}
+                            <DropdownMenuItem
+                              onClick={async (e) => {
+                                e.stopPropagation();
+                                const newVal = !lead.is_priority_target;
+                                const { error } = await supabase
+                                  .from("valuation_leads")
+                                  .update({ is_priority_target: newVal } as never)
+                                  .eq("id", lead.id);
+                                if (error) {
+                                  sonnerToast.error("Failed to update priority");
+                                } else {
+                                  queryClient.invalidateQueries({ queryKey: ["remarketing", "valuation-leads"] });
+                                  sonnerToast.success(newVal ? "Marked as priority" : "Priority removed");
+                                }
+                              }}
+                              className={lead.is_priority_target ? "text-amber-600" : ""}
+                            >
+                              <Star className={`h-4 w-4 mr-2 ${lead.is_priority_target ? "fill-amber-500 text-amber-500" : ""}`} />
+                              {lead.is_priority_target ? "Remove Priority" : "Mark as Priority"}
+                            </DropdownMenuItem>
+                            {/* Approve to All Deals */}
                             <DropdownMenuItem
                               onClick={() => handlePushToAllDeals([lead.id])}
                               disabled={!!lead.pushed_to_all_deals}
                             >
                               <CheckCircle2 className="h-4 w-4 mr-2" />
-                              Push to All Deals
+                              Approve to All Deals
                             </DropdownMenuItem>
-                            <DropdownMenuItem
-                              onClick={() => handlePushAndEnrich([lead.id])}
-                              disabled={!!lead.pushed_to_all_deals}
-                            >
-                              <Zap className="h-4 w-4 mr-2" />
-                              Push &amp; Enrich
-                            </DropdownMenuItem>
-                            {lead.pushed_to_all_deals && lead.pushed_listing_id && (
-                              <DropdownMenuItem
-                                onClick={() => handleReEnrich([lead.id])}
-                              >
-                                <Sparkles className="h-4 w-4 mr-2" />
-                                Re-Enrich
-                              </DropdownMenuItem>
-                            )}
                             <DropdownMenuSeparator />
+                            {/* Delete Deal */}
                             <DropdownMenuItem
+                              className="text-destructive focus:text-destructive"
                               onClick={async (e) => {
                                 e.stopPropagation();
                                 const { error } = await supabase
                                   .from("valuation_leads")
-                                  .update({ excluded: true, exclusion_reason: "Manual exclusion" } as never)
+                                  .update({ is_excluded: true } as never)
                                   .eq("id", lead.id);
                                 if (error) {
-                                  sonnerToast.error("Failed to exclude lead");
+                                  sonnerToast.error("Failed to delete lead");
                                 } else {
-                                  sonnerToast.success("Lead excluded");
-                                  queryClient.invalidateQueries({ queryKey: ["remarketing", "valuation-leads"] });
+                                  sonnerToast.success("Lead removed");
+                                  queryClient.invalidateQueries({ queryKey: ["valuation-leads"] });
                                 }
                               }}
-                              className="text-destructive"
                             >
-                              <XCircle className="h-4 w-4 mr-2" />
-                              Exclude Lead
+                              <Trash2 className="h-4 w-4 mr-2" />
+                              Delete Deal
                             </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
