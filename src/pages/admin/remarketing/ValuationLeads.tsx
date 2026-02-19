@@ -1006,53 +1006,17 @@ export default function ValuationLeads() {
     [leads]
   );
 
-  // Enrich All — for "unenriched" mode, auto-pushes unpushed leads first then enriches all;
-  // for "all" mode, re-enriches already-pushed leads.
+  // Enrich All Pushed — only enriches leads that have already been added to All Deals
   const handleBulkEnrich = useCallback(
     async (mode: "unenriched" | "all") => {
       const allLeads = leads || [];
 
-      if (mode === "unenriched") {
-        // Auto-push any leads not yet in All Deals, then enrich everything
-        const unpushed = allLeads.filter((l) => !l.pushed_to_all_deals);
-        if (unpushed.length > 0) {
-          sonnerToast.info(`Adding ${unpushed.length} lead${unpushed.length !== 1 ? "s" : ""} to All Deals first...`);
-          for (const lead of unpushed) {
-            try {
-              let listingId = lead.pushed_listing_id;
-              if (!listingId) {
-                const { data: listing, error } = await supabase
-                  .from("listings")
-                  .insert(buildListingFromLead(lead, true) as never)
-                  .select("id")
-                  .single();
-                if (error || !listing) continue;
-                listingId = listing.id;
-              } else {
-                await supabase
-                  .from("listings")
-                  .update({ pushed_to_all_deals: true, pushed_to_all_deals_at: new Date().toISOString() } as never)
-                  .eq("id", listingId);
-              }
-              await supabase
-                .from("valuation_leads")
-                .update({ pushed_to_all_deals: true, pushed_to_all_deals_at: new Date().toISOString(), pushed_listing_id: listingId, status: "pushed" } as never)
-                .eq("id", lead.id);
-            } catch { /* continue */ }
-          }
-          queryClient.invalidateQueries({ queryKey: ["remarketing", "valuation-leads"] });
-        }
-      }
-
-      // Now target all pushed leads (including any just pushed above)
-      const refreshed = (await supabase.from("valuation_leads").select("id, pushed_listing_id, pushed_to_all_deals, excluded").eq("excluded", false as never)).data || [];
-      const pushedLeads = refreshed.filter((l: any) => l.pushed_to_all_deals && l.pushed_listing_id);
-      const targets = mode === "all"
-        ? pushedLeads
-        : pushedLeads;
+      // Only enrich leads that have already been added to All Deals
+      const pushedLeads = allLeads.filter((l) => l.pushed_to_all_deals && l.pushed_listing_id);
+      const targets = pushedLeads;
 
       if (!targets.length) {
-        sonnerToast.info("No leads to enrich");
+        sonnerToast.info("No leads in All Deals to enrich — use 'Add to All Deals' on individual leads first");
         return;
       }
 
