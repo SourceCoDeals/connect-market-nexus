@@ -779,6 +779,28 @@ export default function ValuationLeads() {
     // Timeframe filter
     filtered = filtered.filter((l) => isInRange(l.created_at));
 
+    // Deduplicate by normalized domain — keep the best record per website
+    // (highest lead_score, or most recent if tied)
+    const domainMap = new Map<string, ValuationLead>();
+    for (const lead of filtered) {
+      const domain = cleanWebsiteToDomain(lead.website);
+      const key = domain ?? `__no_domain_${lead.id}`;
+      const existing = domainMap.get(key);
+      if (!existing) {
+        domainMap.set(key, lead);
+      } else {
+        const existingScore = existing.lead_score ?? -1;
+        const newScore = lead.lead_score ?? -1;
+        const existingDate = existing.created_at ?? "";
+        const newDate = lead.created_at ?? "";
+        // Prefer higher score; on tie prefer more recent
+        if (newScore > existingScore || (newScore === existingScore && newDate > existingDate)) {
+          domainMap.set(key, lead);
+        }
+      }
+    }
+    filtered = Array.from(domainMap.values());
+
     // Sort
     const sorted = [...filtered];
     sorted.sort((a, b) => {
