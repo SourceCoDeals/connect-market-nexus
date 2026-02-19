@@ -757,15 +757,19 @@ export const VALUATION_LEAD_FIELDS: FilterFieldDef[] = [
     label: "Website",
     type: "text",
     group: "Core",
-    // Use the same logic as inferWebsite in ValuationLeads: raw website first, then email domain fallback
+    // Mirrors inferWebsite logic: validates the website is a real domain (no spaces, contains dot)
     accessor: (item: any) => {
+      // Helper: check if a string is a valid-looking domain
+      const isValidDomain = (s: string): boolean => {
+        const v = s.trim().toLowerCase()
+          .replace(/^[a-z]{3,6}:\/\//i, "") // strip protocol
+          .replace(/^www\./i, "")           // strip www
+          .split("/")[0].split("?")[0].split("#")[0]; // strip path
+        return !!(v && v.includes(".") && !v.includes(" ") && !/^(test|no|example)\./i.test(v));
+      };
       const raw = item.website;
-      if (raw && raw.trim()) return raw.trim();
-      // Fallback: derive domain from email
-      if (item.email) {
-        const at = item.email.indexOf("@");
-        if (at !== -1) return item.email.slice(at + 1);
-      }
+      if (raw && raw.trim() && !raw.includes("@") && isValidDomain(raw)) return raw.trim();
+      // No valid website — return null (filter treats as empty)
       return null;
     },
     icon: Globe,
