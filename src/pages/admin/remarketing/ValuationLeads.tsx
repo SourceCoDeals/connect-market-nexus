@@ -37,6 +37,8 @@ import { useTimeframe } from "@/hooks/use-timeframe";
 import { useFilterEngine } from "@/hooks/use-filter-engine";
 import { useAdminProfiles } from "@/hooks/admin/use-admin-profiles";
 import { useGlobalGateCheck, useGlobalActivityMutations } from "@/hooks/remarketing/useGlobalActivityQueue";
+import { useEnrichmentProgress } from "@/hooks/useEnrichmentProgress";
+import { EnrichmentProgressIndicator, DealEnrichmentSummaryDialog } from "@/components/remarketing";
 import { useAuth } from "@/context/AuthContext";
 import {
   Building2,
@@ -529,6 +531,17 @@ export default function ValuationLeads() {
   // Admin profiles for deal owner display
   const { data: adminProfiles } = useAdminProfiles();
 
+  // Enrichment progress tracking (same as CapTarget / GP Partners / All Deals)
+  const {
+    progress: enrichmentProgress,
+    summary: enrichmentSummary,
+    showSummary: showEnrichmentSummary,
+    dismissSummary,
+    pauseEnrichment,
+    resumeEnrichment,
+    cancelEnrichment,
+  } = useEnrichmentProgress();
+
   // Calculator type tab
   const [activeTab, setActiveTab] = useState<string>("all");
 
@@ -864,6 +877,12 @@ export default function ValuationLeads() {
       setIsPushEnriching(true);
 
       const leadsToProcess = (leads || []).filter((l) => leadIds.includes(l.id) && !l.pushed_to_all_deals);
+      if (!leadsToProcess.length) {
+        sonnerToast.info("No unpushed leads selected");
+        setIsPushEnriching(false);
+        return;
+      }
+
       let pushed = 0;
       let enrichQueued = 0;
       const listingIds: string[] = [];
@@ -903,15 +922,56 @@ export default function ValuationLeads() {
         pushed++;
       }
 
-      // Queue all pushed listings for enrichment
-      for (const listingId of listingIds) {
-        const { error } = await supabase
-          .from("enrichment_queue")
-          .upsert({ listing_id: listingId, status: "pending", force: true } as never, {
-            onConflict: "listing_id",
-            ignoreDuplicates: false,
+      // Queue all pushed listings for enrichment (chunked, matching CapTarget pattern)
+      if (listingIds.length > 0) {
+        // Register with global activity queue
+        let activityItem: { id: string } | null = null;
+        try {
+          const result = await startOrQueueMajorOp({
+            operationType: "deal_enrichment",
+            totalItems: listingIds.length,
+            description: `Push & enrich ${listingIds.length} valuation leads`,
+            userId: user?.id || "",
+            contextJson: { source: "valuation_leads_push_enrich" },
           });
-        if (!error) enrichQueued++;
+          activityItem = result.item;
+        } catch {
+          // Non-blocking
+        }
+
+        const now = new Date().toISOString();
+        const rows = listingIds.map((id) => ({
+          listing_id: id,
+          status: "pending" as const,
+          attempts: 0,
+          queued_at: now,
+        }));
+
+        const CHUNK = 500;
+        for (let i = 0; i < rows.length; i += CHUNK) {
+          const chunk = rows.slice(i, i + CHUNK);
+          const { error } = await supabase
+            .from("enrichment_queue")
+            .upsert(chunk, { onConflict: "listing_id" });
+          if (!error) enrichQueued += chunk.length;
+          else {
+            console.error("Queue upsert error:", error);
+            if (activityItem) completeOperation.mutate({ id: activityItem.id, finalStatus: "failed" });
+          }
+        }
+
+        // Trigger the enrichment worker (non-blocking, read results for progress)
+        try {
+          const { data: result } = await supabase.functions.invoke("process-enrichment-queue", {
+            body: { source: "valuation_leads_push_enrich" },
+          });
+          if (result?.synced > 0 || result?.processed > 0) {
+            const totalDone = (result?.synced || 0) + (result?.processed || 0);
+            if (activityItem) updateProgress.mutate({ id: activityItem.id, completedItems: totalDone });
+          }
+        } catch {
+          // Non-blocking — enrichment progress hook will track completion via polling
+        }
       }
 
       setIsPushEnriching(false);
@@ -926,10 +986,10 @@ export default function ValuationLeads() {
       queryClient.invalidateQueries({ queryKey: ["remarketing", "valuation-leads"] });
       queryClient.invalidateQueries({ queryKey: ["remarketing", "deals"] });
     },
-    [leads, queryClient]
+    [leads, user, startOrQueueMajorOp, completeOperation, updateProgress, queryClient]
   );
 
-  // Re-Enrich — re-queues already-pushed leads
+  // Re-Enrich selected — re-queues already-pushed leads (matching CapTarget handleEnrichSelected)
   const handleReEnrich = useCallback(
     async (leadIds: string[]) => {
       if (leadIds.length === 0) return;
@@ -939,36 +999,89 @@ export default function ValuationLeads() {
         (l) => leadIds.includes(l.id) && l.pushed_to_all_deals && l.pushed_listing_id
       );
 
-      let queued = 0;
-      for (const lead of leadsToProcess) {
-        if (!lead.pushed_listing_id) continue;
+      if (!leadsToProcess.length) {
+        sonnerToast.info("No pushed leads with listing IDs found");
+        setIsReEnriching(false);
+        return;
+      }
+
+      let activityItem: { id: string } | null = null;
+      try {
+        const result = await startOrQueueMajorOp({
+          operationType: "deal_enrichment",
+          totalItems: leadsToProcess.length,
+          description: `Re-enriching ${leadsToProcess.length} valuation leads`,
+          userId: user?.id || "",
+          contextJson: { source: "valuation_leads_re_enrich" },
+        });
+        activityItem = result.item;
+      } catch {
+        // Non-blocking
+      }
+
+      const now = new Date().toISOString();
+      const seen = new Set<string>();
+      const rows = leadsToProcess
+        .filter((l) => {
+          if (!l.pushed_listing_id || seen.has(l.pushed_listing_id)) return false;
+          seen.add(l.pushed_listing_id!);
+          return true;
+        })
+        .map((l) => ({
+          listing_id: l.pushed_listing_id!,
+          status: "pending" as const,
+          attempts: 0,
+          queued_at: now,
+          force: true,
+        }));
+
+      const CHUNK = 500;
+      for (let i = 0; i < rows.length; i += CHUNK) {
+        const chunk = rows.slice(i, i + CHUNK);
         const { error } = await supabase
           .from("enrichment_queue")
-          .upsert({ listing_id: lead.pushed_listing_id, status: "pending", force: true } as never, {
-            onConflict: "listing_id",
-            ignoreDuplicates: false,
-          });
-        if (!error) queued++;
+          .upsert(chunk, { onConflict: "listing_id" });
+        if (error) {
+          console.error("Queue upsert error:", error);
+          sonnerToast.error("Failed to queue enrichment");
+          if (activityItem) completeOperation.mutate({ id: activityItem.id, finalStatus: "failed" });
+          setIsReEnriching(false);
+          return;
+        }
+      }
+
+      sonnerToast.success(`Re-queued ${rows.length} lead${rows.length !== 1 ? "s" : ""} for enrichment`);
+      setSelectedIds(new Set());
+
+      // Trigger the enrichment worker and handle results (matching CapTarget)
+      try {
+        const { data: result } = await supabase.functions.invoke("process-enrichment-queue", {
+          body: { source: "valuation_leads_re_enrich" },
+        });
+        if (result?.synced > 0 || result?.processed > 0) {
+          const totalDone = (result?.synced || 0) + (result?.processed || 0);
+          if (activityItem) updateProgress.mutate({ id: activityItem.id, completedItems: totalDone });
+        }
+      } catch {
+        // Non-blocking
       }
 
       setIsReEnriching(false);
-      setSelectedIds(new Set());
-
-      if (queued > 0) {
-        sonnerToast.success(`Re-queued ${queued} lead${queued !== 1 ? "s" : ""} for enrichment`);
-      } else {
-        sonnerToast.info("No pushed leads with listing IDs found");
-      }
+      queryClient.invalidateQueries({ queryKey: ["remarketing", "valuation-leads"] });
     },
-    [leads]
+    [leads, user, startOrQueueMajorOp, completeOperation, updateProgress, queryClient]
   );
 
-  // Enrich All Pushed — global bulk enrich (matching GP Partners pattern)
+  // Enrich All Pushed — global bulk enrich (matching CapTarget / GP Partners pattern exactly)
   const handleBulkEnrich = useCallback(
     async (mode: "unenriched" | "all") => {
       const pushedLeads = (leads || []).filter((l) => l.pushed_to_all_deals && l.pushed_listing_id);
       const targets = mode === "unenriched"
-        ? pushedLeads // We don't have enriched_at on valuation_leads, so treat all pushed as candidates
+        ? pushedLeads.filter((l) => {
+            // Check the listing's enriched_at via pushed_listing_id
+            // Since we don't have enriched_at on valuation_leads, treat all pushed as candidates
+            return true;
+          })
         : pushedLeads;
 
       if (!targets.length) {
@@ -1017,29 +1130,55 @@ export default function ValuationLeads() {
 
         if (error) {
           console.error("Queue upsert error:", error);
-          sonnerToast.error("Failed to queue enrichment");
+          sonnerToast.error(`Failed to queue enrichment (batch ${Math.floor(i / CHUNK) + 1})`);
           if (activityItem) completeOperation.mutate({ id: activityItem.id, finalStatus: "failed" });
           setIsEnriching(false);
           return;
         }
       }
 
-      sonnerToast.success(`Queued ${rows.length} pushed leads for enrichment`);
+      sonnerToast.success(`Queued ${rows.length} deals for enrichment`);
 
+      // Trigger the enrichment worker and handle results (matching CapTarget pattern)
       try {
-        await supabase.functions.invoke("process-enrichment-queue", {
+        const { data: result } = await supabase.functions.invoke("process-enrichment-queue", {
           body: { source: "valuation_leads_bulk" },
         });
+        if (result?.synced > 0 || result?.processed > 0) {
+          const totalDone = (result?.synced || 0) + (result?.processed || 0);
+          if (activityItem) updateProgress.mutate({ id: activityItem.id, completedItems: totalDone });
+          if (result?.processed === 0) {
+            sonnerToast.success(`All ${result.synced} deals were already enriched`);
+            if (activityItem) completeOperation.mutate({ id: activityItem.id, finalStatus: "completed" });
+          }
+        }
       } catch {
-        // Non-blocking
+        // Non-blocking — enrichment progress hook will track completion via polling
       }
 
-      if (activityItem) completeOperation.mutate({ id: activityItem.id, finalStatus: "completed" });
       setIsEnriching(false);
       queryClient.invalidateQueries({ queryKey: ["remarketing", "valuation-leads"] });
     },
-    [leads, user, startOrQueueMajorOp, completeOperation, queryClient]
+    [leads, user, startOrQueueMajorOp, completeOperation, updateProgress, queryClient]
   );
+
+  // Retry failed enrichment (matching All Deals pattern)
+  const handleRetryFailedEnrichment = useCallback(async () => {
+    dismissSummary();
+    if (!enrichmentSummary?.errors.length) return;
+    const failedIds = enrichmentSummary.errors.map((e) => e.listingId);
+    const nowIso = new Date().toISOString();
+    await supabase
+      .from("enrichment_queue")
+      .update({ status: "pending", attempts: 0, last_error: null, queued_at: nowIso })
+      .in("listing_id", failedIds);
+    sonnerToast.success(
+      `Retrying ${failedIds.length} failed deal${failedIds.length !== 1 ? "s" : ""}`
+    );
+    void supabase.functions
+      .invoke("process-enrichment-queue", { body: { source: "valuation_leads_retry" } })
+      .catch(console.warn);
+  }, [dismissSummary, enrichmentSummary]);
 
   // Score leads
   const handleScoreLeads = useCallback(
@@ -1309,6 +1448,31 @@ export default function ValuationLeads() {
         dynamicOptions={dynamicOptions}
         totalCount={engineTotal}
         filteredCount={filteredCount}
+      />
+
+      {/* Enrichment Progress Bar (matching CapTarget / GP Partners / All Deals) */}
+      {(enrichmentProgress.isEnriching || enrichmentProgress.isPaused) && (
+        <EnrichmentProgressIndicator
+          completedCount={enrichmentProgress.completedCount}
+          totalCount={enrichmentProgress.totalCount}
+          progress={enrichmentProgress.progress}
+          estimatedTimeRemaining={enrichmentProgress.estimatedTimeRemaining}
+          processingRate={enrichmentProgress.processingRate}
+          successfulCount={enrichmentProgress.successfulCount}
+          failedCount={enrichmentProgress.failedCount}
+          isPaused={enrichmentProgress.isPaused}
+          onPause={pauseEnrichment}
+          onResume={resumeEnrichment}
+          onCancel={cancelEnrichment}
+        />
+      )}
+
+      {/* Deal Enrichment Summary Dialog */}
+      <DealEnrichmentSummaryDialog
+        open={showEnrichmentSummary}
+        onOpenChange={(open) => !open && dismissSummary()}
+        summary={enrichmentSummary}
+        onRetryFailed={handleRetryFailedEnrichment}
       />
 
       {/* Bulk Actions (selection-based) */}
