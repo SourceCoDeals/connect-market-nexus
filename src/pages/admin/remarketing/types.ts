@@ -43,6 +43,10 @@ export interface DealListing {
   // Contact owner flag
   needs_owner_contact: boolean | null;
   needs_owner_contact_at: string | null;
+  // Universe build flag
+  universe_build_flagged: boolean | null;
+  universe_build_flagged_at: string | null;
+  universe_build_flagged_by: string | null;
 }
 
 // Column width configuration
