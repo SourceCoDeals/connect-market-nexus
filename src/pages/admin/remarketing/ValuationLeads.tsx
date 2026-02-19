@@ -136,7 +136,8 @@ type SortColumn =
   | "score"
   | "created_at"
   | "pushed"
-  | "owner";
+  | "owner"
+  | "priority";
 type SortDirection = "asc" | "desc";
 
 // ─── Helpers ───
@@ -917,6 +918,10 @@ export default function ValuationLeads() {
         case "pushed":
           valA = a.pushed_to_all_deals ? 1 : 0;
           valB = b.pushed_to_all_deals ? 1 : 0;
+          break;
+        case "priority":
+          valA = a.is_priority_target ? 1 : 0;
+          valB = b.is_priority_target ? 1 : 0;
           break;
         case "owner": {
           const ownerA = a.deal_owner_id ? (adminProfiles?.[a.deal_owner_id]?.displayName || "") : "";
@@ -1919,8 +1924,8 @@ export default function ValuationLeads() {
                       <div onMouseDown={(e) => startResize("calculator", e)} className="absolute right-0 top-0 h-full w-1.5 cursor-col-resize hover:bg-primary/30 active:bg-primary/50 select-none z-10" />
                     </TableHead>
                   )}
-                  {(["industry","owner","revenue","ebitda","valuation","exit","intros","quality","score","added","status"] as const).map((col) => (
-                    <TableHead key={col} className="relative overflow-visible" style={{ width: colWidths[col], textAlign: ["revenue","ebitda","valuation"].includes(col) ? "right" : ["intros"].includes(col) ? "center" : undefined }}>
+                  {(["industry","owner","revenue","ebitda","valuation","exit","intros","quality","score","added","status","priority"] as const).map((col) => (
+                    <TableHead key={col} className="relative overflow-visible" style={{ width: colWidths[col], textAlign: ["revenue","ebitda","valuation"].includes(col) ? "right" : ["intros","priority"].includes(col) ? "center" : undefined }}>
                       {col === "industry" && <SortHeader column="industry">Industry</SortHeader>}
                       {col === "owner" && <SortHeader column="owner">Deal Owner</SortHeader>}
                       {col === "revenue" && <SortHeader column="revenue">Revenue</SortHeader>}
@@ -1932,6 +1937,7 @@ export default function ValuationLeads() {
                       {col === "score" && <SortHeader column="score">Score</SortHeader>}
                       {col === "added" && <SortHeader column="created_at">Added</SortHeader>}
                       {col === "status" && <SortHeader column="pushed">Status</SortHeader>}
+                      {col === "priority" && <SortHeader column="priority">Priority</SortHeader>}
                       <div onMouseDown={(e) => startResize(col, e)} className="absolute right-0 top-0 h-full w-1.5 cursor-col-resize hover:bg-primary/30 active:bg-primary/50 select-none z-10" />
                     </TableHead>
                   ))}
@@ -2117,6 +2123,13 @@ export default function ValuationLeads() {
                             </Badge>
                           )}
                         </div>
+                      </TableCell>
+                      <TableCell className="text-center">
+                        {lead.is_priority_target ? (
+                          <Star className="h-4 w-4 fill-amber-400 text-amber-400 mx-auto" />
+                        ) : (
+                          <span className="text-xs text-muted-foreground">—</span>
+                        )}
                       </TableCell>
                       <TableCell onClick={(e) => e.stopPropagation()}>
                         <DropdownMenu>

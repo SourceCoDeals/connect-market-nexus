@@ -95,7 +95,8 @@ type SortColumn =
   | "linkedin_employee_count"
   | "linkedin_employee_range"
   | "google_review_count"
-  | "google_rating";
+  | "google_rating"
+  | "priority";
 type SortDirection = "asc" | "desc";
 
 export default function CapTargetDeals() {
@@ -294,6 +295,7 @@ export default function CapTargetDeals() {
         case "linkedin_employee_range": valA = (a.linkedin_employee_range || "").toLowerCase(); valB = (b.linkedin_employee_range || "").toLowerCase(); break;
         case "google_review_count": valA = a.google_review_count ?? -1; valB = b.google_review_count ?? -1; break;
         case "google_rating": valA = a.google_rating ?? -1; valB = b.google_rating ?? -1; break;
+        case "priority": valA = a.is_priority_target ? 1 : 0; valB = b.is_priority_target ? 1 : 0; break;
         default: return 0;
       }
       if (valA < valB) return sortDirection === "asc" ? -1 : 1;
@@ -790,6 +792,7 @@ export default function CapTargetDeals() {
                     { key: 'score', content: <SortHeader column="score">Score</SortHeader> },
                     { key: 'date', content: <SortHeader column="contact_date">Date</SortHeader> },
                     { key: 'status', content: <SortHeader column="pushed">Status</SortHeader> },
+                    { key: 'priority', content: <SortHeader column="priority">Priority</SortHeader> },
                     { key: 'actions', content: '', noResize: true },
                   ].map(({ key, content, noResize }) => (
                     <TableHead

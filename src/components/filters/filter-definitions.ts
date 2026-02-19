@@ -905,6 +905,13 @@ export const VALUATION_LEAD_FIELDS: FilterFieldDef[] = [
   },
   // ── Status ────────────────────────────────────────────────────────
   {
+    key: "is_priority_target",
+    label: "Priority Target",
+    type: "boolean",
+    group: "Status",
+    icon: Star,
+  },
+  {
     key: "pushed_to_all_deals",
     label: "Pushed to All Deals",
     type: "boolean",
