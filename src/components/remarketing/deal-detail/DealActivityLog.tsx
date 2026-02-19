@@ -234,8 +234,12 @@ export function DealActivityLog({ dealId }: DealActivityLogProps) {
                               {adminName}
                             </span>
                           )}
-                          <span className="text-xs text-muted-foreground ml-auto whitespace-nowrap" title={format(new Date(activity.created_at), "PPpp")}>
-                            {formatDistanceToNow(new Date(activity.created_at), { addSuffix: true })}
+                          <span className="text-xs text-muted-foreground ml-auto whitespace-nowrap flex items-center gap-1.5">
+                            <span className="font-medium text-foreground/70">
+                              {format(new Date(activity.created_at), "MMM d, yyyy · h:mm a")}
+                            </span>
+                            <span className="text-muted-foreground/50">·</span>
+                            <span>{formatDistanceToNow(new Date(activity.created_at), { addSuffix: true })}</span>
                           </span>
                         </div>
 
@@ -254,11 +258,6 @@ export function DealActivityLog({ dealId }: DealActivityLogProps) {
                             )}
                           </>
                         )}
-
-                        {/* Absolute timestamp */}
-                        <p className="text-xs text-muted-foreground/60">
-                          {format(new Date(activity.created_at), "MMM d, yyyy · h:mm a")}
-                        </p>
                       </div>
                     );
                   })}
