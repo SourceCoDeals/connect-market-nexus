@@ -1915,7 +1915,7 @@ export default function ValuationLeads() {
                       {/* Description */}
                       <TableCell className="max-w-[220px]">
                         {lead.listing_description ? (
-                          <span className="text-sm text-muted-foreground line-clamp-2 leading-tight" title={lead.listing_description}>
+                          <span className="text-sm text-muted-foreground line-clamp-3 leading-tight" title={lead.listing_description}>
                             {lead.listing_description}
                           </span>
                         ) : (
