@@ -1132,11 +1132,7 @@ const ReMarketingDeals = () => {
       <div className="flex items-center gap-1 border-b pb-1">
         {[
           { key: "all", label: "All Deals" },
-          { key: "marketplace", label: "Marketplace Listed" },
-          { key: "internal", label: "Research / Internal" },
-          { key: "pipeline", label: "In Pipeline" },
-          { key: "needs_universe", label: "Needs Universe" },
-          { key: "needs_enrichment", label: "Needs Enrichment" },
+          { key: "marketplace", label: "Marketplace" },
         ].map(tab => (
           <button
             key={tab.key}
