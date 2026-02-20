@@ -47,42 +47,42 @@ export function ReMarketingSidebar() {
     },
     {
       label: "Buyer Universes",
-      href: "/admin/remarketing/universes",
+      href: "/admin/buyers/universes",
       icon: <Globe2 className="h-5 w-5" />,
     },
     {
       label: "All Deals",
-      href: "/admin/remarketing/deals",
+      href: "/admin/deals",
       icon: <Building2 className="h-5 w-5" />,
     },
     {
       label: "CapTarget Deals",
-      href: "/admin/remarketing/captarget-deals",
+      href: "/admin/remarketing/leads/captarget",
       icon: <Crosshair className="h-5 w-5" />,
     },
     {
       label: "GP Partner Deals",
-      href: "/admin/remarketing/gp-partner-deals",
+      href: "/admin/remarketing/leads/gp-partners",
       icon: <Briefcase className="h-5 w-5" />,
     },
     {
       label: "Valuation Leads",
-      href: "/admin/remarketing/valuation-leads",
+      href: "/admin/remarketing/leads/valuation",
       icon: <Calculator className="h-5 w-5" />,
     },
     {
       label: "Referral Partners",
-      href: "/admin/remarketing/referral-partners",
+      href: "/admin/remarketing/leads/referrals",
       icon: <Handshake className="h-5 w-5" />,
     },
     {
       label: "All Buyers",
-      href: "/admin/remarketing/buyers",
+      href: "/admin/buyers",
       icon: <Users className="h-5 w-5" />,
     },
     {
       label: "Analytics",
-      href: "/admin/remarketing/analytics",
+      href: "/admin/analytics",
       icon: <BarChart3 className="h-5 w-5" />,
     },
     {
@@ -92,7 +92,7 @@ export function ReMarketingSidebar() {
     },
     {
       label: "Settings",
-      href: "/admin/remarketing/settings",
+      href: "/admin/settings/remarketing",
       icon: <Settings className="h-5 w-5" />,
     },
   ];
@@ -201,7 +201,7 @@ export function ReMarketingSidebar() {
           {collapsed ? (
             <Tooltip>
               <TooltipTrigger asChild>
-                <Link to="/admin/remarketing/universes?new=true">
+                <Link to="/admin/buyers/universes?new=true">
                   <Button variant="outline" size="icon" className="w-full h-10">
                     <Plus className="h-4 w-4" />
                   </Button>
@@ -212,7 +212,7 @@ export function ReMarketingSidebar() {
               </TooltipContent>
             </Tooltip>
           ) : (
-            <Link to="/admin/remarketing/universes?new=true">
+            <Link to="/admin/buyers/universes?new=true">
               <Button variant="outline" className="w-full gap-2">
                 <Plus className="h-4 w-4" />
                 New Buyer Universe

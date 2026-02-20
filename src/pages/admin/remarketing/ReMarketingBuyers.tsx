@@ -547,7 +547,7 @@ const ReMarketingBuyers = () => {
                     <TableRow 
                       key={buyer.id}
                       className="cursor-pointer hover:bg-muted/50 group"
-                      onClick={() => navigate(`/admin/remarketing/buyers/${buyer.id}`)}
+                      onClick={() => navigate(`/admin/buyers/${buyer.id}`)}
                     >
                       {/* Platform / Buyer Column */}
                       <TableCell>
@@ -690,7 +690,7 @@ const ReMarketingBuyers = () => {
                           <DropdownMenuContent align="end">
                             <DropdownMenuItem onClick={(e) => {
                               e.stopPropagation();
-                              navigate(`/admin/remarketing/buyers/${buyer.id}`);
+                              navigate(`/admin/buyers/${buyer.id}`);
                             }}>
                               <Pencil className="h-4 w-4 mr-2" />
                               Edit

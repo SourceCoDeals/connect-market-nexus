@@ -243,7 +243,7 @@ const ReMarketingUniverses = () => {
       setNewName("");
       setNewDescription("");
       setSearchParams({});
-      navigate(`/admin/remarketing/universes/${data.id}`);
+      navigate(`/admin/buyers/universes/${data.id}`);
     },
     onError: (error: Error) => {
       toast.error(error.message);
@@ -546,7 +546,7 @@ const ReMarketingUniverses = () => {
                     <TableRow 
                       key={universe.id}
                       className={`cursor-pointer hover:bg-muted/50 ${isSelected ? 'bg-primary/5' : ''}`}
-                      onClick={() => navigate(`/admin/remarketing/universes/${universe.id}`)}
+                      onClick={() => navigate(`/admin/buyers/universes/${universe.id}`)}
                     >
                       <TableCell onClick={(e) => toggleSelect(universe.id, e)}>
                         <Checkbox
@@ -616,7 +616,7 @@ const ReMarketingUniverses = () => {
                           <DropdownMenuContent align="end">
                             <DropdownMenuItem onClick={(e) => {
                               e.stopPropagation();
-                              navigate(`/admin/remarketing/universes/${universe.id}`);
+                              navigate(`/admin/buyers/universes/${universe.id}`);
                             }}>
                               <Pencil className="h-4 w-4 mr-2" />
                               Edit

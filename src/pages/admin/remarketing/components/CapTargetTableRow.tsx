@@ -120,8 +120,8 @@ export function CapTargetTableRow({
       )}
       onClick={() =>
         navigate(
-          `/admin/remarketing/captarget-deals/${deal.id}`,
-          { state: { from: "/admin/remarketing/captarget-deals" } }
+          `/admin/remarketing/leads/captarget/${deal.id}`,
+          { state: { from: "/admin/remarketing/leads/captarget" } }
         )
       }
     >
@@ -295,7 +295,7 @@ export function CapTargetTableRow({
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            <DropdownMenuItem onClick={() => navigate(`/admin/remarketing/captarget-deals/${deal.id}`, { state: { from: "/admin/remarketing/captarget-deals" } })}>
+            <DropdownMenuItem onClick={() => navigate(`/admin/remarketing/leads/captarget/${deal.id}`, { state: { from: "/admin/remarketing/leads/captarget" } })}>
               <ExternalLink className="h-4 w-4 mr-2" />
               View Deal
             </DropdownMenuItem>

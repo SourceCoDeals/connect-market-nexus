@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { ArrowLeft, Building2, ExternalLink, MapPin, Pencil, Sparkles, Calendar } from "lucide-react";
+import { ArrowLeft, Building2, ExternalLink, MapPin, Pencil, Sparkles, Calendar, Store } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { format, parseISO } from "date-fns";
@@ -17,6 +17,7 @@ interface BuyerDetailHeaderProps {
   onEnrich: () => void;
   isEnriching?: boolean;
   backTo?: string;
+  marketplaceFirmId?: string | null;
 }
 
 export const BuyerDetailHeader = ({
@@ -31,7 +32,8 @@ export const BuyerDetailHeader = ({
   onEdit,
   onEnrich,
   isEnriching = false,
-  backTo = "/admin/remarketing/buyers",
+  backTo = "/admin/buyers",
+  marketplaceFirmId,
 }: BuyerDetailHeaderProps) => {
   const hqLocation = [hqCity, hqState, hqCountry].filter(Boolean).join(", ");
   
@@ -76,13 +78,21 @@ export const BuyerDetailHeader = ({
               </Badge>
             </div>
             
-            {/* PE Firm Name */}
-            {peFirmName && (
-              <div className="flex items-center gap-2 text-muted-foreground">
-                <Building2 className="h-4 w-4" />
-                <span>{peFirmName}</span>
-              </div>
-            )}
+            {/* PE Firm Name + Marketplace Badge */}
+            <div className="flex items-center gap-3">
+              {peFirmName && (
+                <div className="flex items-center gap-2 text-muted-foreground">
+                  <Building2 className="h-4 w-4" />
+                  <span>{peFirmName}</span>
+                </div>
+              )}
+              {marketplaceFirmId && (
+                <Link to="/admin/marketplace/users" className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 text-xs font-medium hover:bg-blue-100 transition-colors border border-blue-200">
+                  <Store className="h-3 w-3" />
+                  Marketplace Firm
+                </Link>
+              )}
+            </div>
             
             {/* Platform Website + HQ Location + Investment Date */}
             <div className="flex items-center gap-4 text-sm text-muted-foreground">

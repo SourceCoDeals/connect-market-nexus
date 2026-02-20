@@ -395,7 +395,7 @@ export const BuyerMatchCard = ({
             {/* Row 1: Name + Links + Status Badges */}
             <div className="flex items-center gap-2 flex-wrap mb-1">
               <Link 
-                to={`/admin/remarketing/buyers/${buyer?.id}`}
+                to={`/admin/buyers/${buyer?.id}`}
                 className="font-semibold text-lg hover:underline leading-tight"
               >
                 {buyer?.company_name || 'Unknown Buyer'}
@@ -406,7 +406,7 @@ export const BuyerMatchCard = ({
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <Link 
-                      to={`/admin/remarketing/buyers/${buyer?.id}`}
+                      to={`/admin/buyers/${buyer?.id}`}
                       className="text-muted-foreground hover:text-foreground"
                     >
                       <Eye className="h-3.5 w-3.5" />

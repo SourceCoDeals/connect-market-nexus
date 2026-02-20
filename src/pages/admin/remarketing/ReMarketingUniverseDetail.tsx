@@ -540,7 +540,7 @@ const ReMarketingUniverseDetail = () => {
       queryClient.invalidateQueries({ queryKey: ['remarketing', 'universes'] });
       toast.success(isNew ? 'Universe created' : 'Universe saved');
       if (isNew && data?.id) {
-        navigate(`/admin/remarketing/universes/${data.id}`);
+        navigate(`/admin/buyers/universes/${data.id}`);
       }
     },
     onError: () => {
@@ -758,7 +758,7 @@ const ReMarketingUniverseDetail = () => {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
           <Button variant="ghost" size="icon" asChild>
-            <Link to="/admin/remarketing/universes">
+            <Link to="/admin/buyers/universes">
               <ArrowLeft className="h-4 w-4" />
             </Link>
           </Button>

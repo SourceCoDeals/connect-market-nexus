@@ -162,7 +162,7 @@ export const ScoringInsightsSidebar = ({
         <div className="pt-2 space-y-2">
           {universeId && (
             <Button variant="outline" size="sm" className="w-full" asChild>
-              <Link to={`/admin/remarketing/universes/${universeId}/settings`}>
+              <Link to={`/admin/buyers/universes/${universeId}/settings`}>
                 <Settings2 className="h-3.5 w-3.5 mr-1.5" />
                 Customize Scoring
               </Link>

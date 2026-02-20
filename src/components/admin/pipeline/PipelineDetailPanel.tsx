@@ -162,7 +162,7 @@ export function PipelineDetailPanel({ pipeline }: PipelineDetailPanelProps) {
                     </DropdownMenuItem>
                     {selectedDeal.remarketing_buyer_id && (
                       <DropdownMenuItem
-                        onClick={() => navigate(`/admin/remarketing/buyers/${selectedDeal.remarketing_buyer_id}`)}
+                        onClick={() => navigate(`/admin/buyers/${selectedDeal.remarketing_buyer_id}`)}
                       >
                         <Target className="h-4 w-4 mr-2" />
                         View Remarketing Buyer

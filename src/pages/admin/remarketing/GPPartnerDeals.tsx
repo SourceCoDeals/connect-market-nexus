@@ -1152,8 +1152,8 @@ export default function GPPartnerDeals() {
                       )}
                       onClick={() =>
                         navigate(
-                          `/admin/remarketing/gp-partner-deals/${deal.id}`,
-                          { state: { from: "/admin/remarketing/gp-partner-deals" } }
+                          `/admin/remarketing/leads/gp-partners/${deal.id}`,
+                          { state: { from: "/admin/remarketing/leads/gp-partners" } }
                         )
                       }
                     >
@@ -1312,7 +1312,7 @@ export default function GPPartnerDeals() {
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => navigate(`/admin/remarketing/gp-partner-deals/${deal.id}`, { state: { from: "/admin/remarketing/gp-partner-deals" } })}>
+                            <DropdownMenuItem onClick={() => navigate(`/admin/remarketing/leads/gp-partners/${deal.id}`, { state: { from: "/admin/remarketing/leads/gp-partners" } })}>
                               <ExternalLink className="h-4 w-4 mr-2" />
                               View Deal
                             </DropdownMenuItem>
