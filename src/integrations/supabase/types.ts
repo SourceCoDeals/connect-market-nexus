@@ -3295,6 +3295,20 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "deals_remarketing_buyer_id_fkey"
+            columns: ["remarketing_buyer_id"]
+            isOneToOne: false
+            referencedRelation: "remarketing_buyers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "deals_remarketing_score_id_fkey"
+            columns: ["remarketing_score_id"]
+            isOneToOne: false
+            referencedRelation: "remarketing_scores"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "deals_stage_id_fkey"
             columns: ["stage_id"]
             isOneToOne: false
@@ -4752,6 +4766,7 @@ export type Database = {
           quality_calculation_version: string | null
           real_estate_info: string | null
           referral_partner_id: string | null
+          remarketing_status: string | null
           revenue: number | null
           revenue_confidence: string | null
           revenue_is_inferred: boolean | null
@@ -4922,6 +4937,7 @@ export type Database = {
           quality_calculation_version?: string | null
           real_estate_info?: string | null
           referral_partner_id?: string | null
+          remarketing_status?: string | null
           revenue?: number | null
           revenue_confidence?: string | null
           revenue_is_inferred?: boolean | null
@@ -5092,6 +5108,7 @@ export type Database = {
           quality_calculation_version?: string | null
           real_estate_info?: string | null
           referral_partner_id?: string | null
+          remarketing_status?: string | null
           revenue?: number | null
           revenue_confidence?: string | null
           revenue_is_inferred?: boolean | null
