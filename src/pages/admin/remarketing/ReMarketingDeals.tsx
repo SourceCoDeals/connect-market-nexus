@@ -156,8 +156,12 @@ const ReMarketingDeals = () => {
     })
   );
 
-  // Fetch all listings (deals)
-  const { data: listings, isLoading: listingsLoading, refetch: refetchListings } = useQuery({
+  // Pagination state
+  const [page, setPage] = useState(0);
+  const PAGE_SIZE = 50;
+
+  // Fetch all listings (deals) — slim select, no heavy text columns
+  const { data: listings, isLoading: listingsLoading, isError: listingsError, refetch: refetchListings } = useQuery({
     queryKey: ['remarketing', 'deals'],
     refetchOnMount: 'always',
     staleTime: 30_000,
@@ -167,7 +171,6 @@ const ReMarketingDeals = () => {
         .select(`
           id,
           title,
-          description,
           location,
           revenue,
           ebitda,
@@ -176,8 +179,6 @@ const ReMarketingDeals = () => {
           category,
           industry,
           website,
-          executive_summary,
-          service_mix,
           internal_company_name,
           internal_deal_memo_link,
           geographic_states,
@@ -188,6 +189,7 @@ const ReMarketingDeals = () => {
           google_review_count,
           google_rating,
           is_priority_target,
+          needs_buyer_universe,
           deal_total_score,
           seller_interest_score,
           manual_rank_override,
@@ -211,7 +213,8 @@ const ReMarketingDeals = () => {
         .or('deal_source.neq.valuation_lead,pushed_to_all_deals.eq.true')
         .order('manual_rank_override', { ascending: true, nullsFirst: false })
         .order('deal_total_score', { ascending: false, nullsFirst: true })
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: false })
+        .limit(1500);
 
       if (error) throw error;
       return (data as unknown) as DealListing[];
@@ -297,10 +300,12 @@ const ReMarketingDeals = () => {
   // Fetch universe membership map: listing_id -> array of universes
   const { data: universeDealMap } = useQuery({
     queryKey: ['remarketing', 'universe-deal-map'],
+    staleTime: 60_000,
     queryFn: async () => {
       const { data, error } = await supabase
         .from('remarketing_universe_deals')
-        .select('listing_id, universe_id, remarketing_buyer_universes(id, name)');
+        .select('listing_id, universe_id, remarketing_buyer_universes(id, name)')
+        .limit(5000);
       if (error) throw error;
       const map: Record<string, { id: string; name: string }[]> = {};
       data?.forEach((row: any) => {
@@ -313,13 +318,15 @@ const ReMarketingDeals = () => {
     }
   });
 
-  // Fetch score stats for engagement metrics
+  // Fetch score stats for engagement metrics (bounded to prevent timeout)
   const { data: scoreStats } = useQuery({
     queryKey: ['remarketing', 'deal-score-stats'],
+    staleTime: 60_000,
     queryFn: async () => {
       const { data, error } = await supabase
         .from('remarketing_scores')
-        .select('listing_id, composite_score, status, universe_id');
+        .select('listing_id, composite_score, status, universe_id')
+        .limit(10000);
       if (error) throw error;
 
       const stats: Record<string, {
@@ -573,11 +580,23 @@ const ReMarketingDeals = () => {
     });
   }, [filteredListings, sortColumn, sortDirection, scoreStats]);
 
-  // Keep ref and local order in sync with sortedListings
+  // Reset page when filters change
+  useEffect(() => {
+    setPage(0);
+  }, [filteredListings.length, sortColumn, sortDirection]);
+
+  // Paginate sortedListings
+  const totalPages = Math.max(1, Math.ceil(sortedListings.length / PAGE_SIZE));
+  const paginatedListings = useMemo(() => {
+    const start = page * PAGE_SIZE;
+    return sortedListings.slice(start, start + PAGE_SIZE);
+  }, [sortedListings, page]);
+
+  // Keep ref and local order in sync with paginated data
   useEffect(() => {
     sortedListingsRef.current = sortedListings;
-    setLocalOrder(sortedListings);
-  }, [sortedListings]);
+    setLocalOrder(paginatedListings);
+  }, [paginatedListings, sortedListings]);
 
   // Shared helper: reorder deals, optimistically update UI, persist only changed ranks
   const persistRankChanges = useCallback(async (reordered: DealListing[], description: string) => {
@@ -1221,6 +1240,17 @@ const ReMarketingDeals = () => {
                         <TableCell><Skeleton className="h-8 w-8" /></TableCell>
                       </TableRow>
                     ))
+                  ) : listingsError ? (
+                    <TableRow>
+                      <TableCell colSpan={18} className="text-center py-8 text-red-500">
+                        <Building2 className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                        <p>Failed to load deals</p>
+                        <p className="text-sm text-muted-foreground">The query may have timed out. Try refreshing.</p>
+                        <Button variant="outline" size="sm" className="mt-3" onClick={() => refetchListings()}>
+                          Retry
+                        </Button>
+                      </TableCell>
+                    </TableRow>
                   ) : localOrder.length === 0 ? (
                     <TableRow>
                       <TableCell colSpan={18} className="text-center py-8 text-muted-foreground">
@@ -1307,6 +1337,36 @@ const ReMarketingDeals = () => {
           </TooltipProvider>
         </CardContent>
       </Card>
+
+      {/* Pagination Controls */}
+      {sortedListings.length > PAGE_SIZE && (
+        <div className="flex items-center justify-between py-3">
+          <p className="text-sm text-muted-foreground">
+            Showing {page * PAGE_SIZE + 1}–{Math.min((page + 1) * PAGE_SIZE, sortedListings.length)} of {sortedListings.length} deals
+          </p>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={page === 0}
+              onClick={() => setPage(p => p - 1)}
+            >
+              Previous
+            </Button>
+            <span className="text-sm text-muted-foreground">
+              Page {page + 1} of {totalPages}
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={page >= totalPages - 1}
+              onClick={() => setPage(p => p + 1)}
+            >
+              Next
+            </Button>
+          </div>
+        </div>
+      )}
 
       {/* All Dialogs */}
       <DealsActionDialogs
