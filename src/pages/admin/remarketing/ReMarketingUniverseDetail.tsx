@@ -194,7 +194,7 @@ const ReMarketingUniverseDetail = () => {
     },
     enabled: !isNew,
     refetchOnWindowFocus: false, // Prevent unnecessary refetches
-    staleTime: 0, // Always consider data stale to ensure fresh fetches after invalidation
+    staleTime: 15_000, // 15s — prevents re-fetch storms; invalidation still triggers fresh fetch
   });
 
   // Fetch buyer IDs that have transcripts - needed to determine Intel level

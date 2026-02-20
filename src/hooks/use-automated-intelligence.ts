@@ -73,8 +73,8 @@ export function useAutomatedIntelligence(daysBack: number = 30) {
         { data: saves },
         { data: searches }
       ] = await Promise.all([
-        supabase.from('profiles').select('*').eq('approval_status', 'approved'),
-        supabase.from('listings').select('*').eq('status', 'active').is('deleted_at', null),
+        supabase.from('profiles').select('id, first_name, last_name, email, created_at, updated_at').eq('approval_status', 'approved'),
+        supabase.from('listings').select('id, title, category, revenue, ebitda, status, created_at').eq('status', 'active').is('deleted_at', null),
         supabase.from('listing_analytics').select('*').gte('created_at', startDate.toISOString()),
         supabase.from('connection_requests').select('*').gte('created_at', startDate.toISOString()),
         supabase.from('saved_listings').select('*').gte('created_at', startDate.toISOString()),

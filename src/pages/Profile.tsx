@@ -240,17 +240,21 @@ const Profile = () => {
       
       if (error) throw error;
       
+      // SECURITY: Invalidate all other sessions after password change
+      // This forces re-authentication on all other devices/tabs
+      await supabase.auth.signOut({ scope: 'others' });
+
       // Reset form and show success message
       setPasswordData({
         currentPassword: "",
         newPassword: "",
         confirmPassword: "",
       });
-      setPasswordSuccess("Password updated successfully");
-      
+      setPasswordSuccess("Password updated successfully. Other sessions have been signed out.");
+
       toast({
         title: "Password updated",
-        description: "Your password has been changed successfully.",
+        description: "Your password has been changed. All other sessions have been signed out.",
       });
     } catch (error: any) {
       console.error("Password update error:", error);

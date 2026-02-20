@@ -108,6 +108,9 @@ export function useNuclearAuth() {
         setIsLoading(false);
         setAuthChecked(true);
       } else if (event === 'SIGNED_IN' && session?.user) {
+        // SECURITY: Set loading state before deferred check to prevent
+        // brief window where isLoading=false but user is not yet loaded
+        setIsLoading(true);
         // Defer profile loading to prevent deadlocks
         setTimeout(() => {
           if (isMounted) {

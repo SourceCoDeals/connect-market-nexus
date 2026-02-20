@@ -2,6 +2,7 @@
 import { useAuth } from "@/context/AuthContext";
 import { Navigate, useLocation } from "react-router-dom";
 import { Loader2 } from "lucide-react";
+import { useEffect, useState } from "react";
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -9,16 +10,26 @@ interface ProtectedRouteProps {
   requireApproved?: boolean;
 }
 
-const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ 
-  children, 
+const AUTH_TIMEOUT_MS = 10_000; // 10 seconds max wait for auth
+
+const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
+  children,
   requireAdmin = false,
   requireApproved = true
 }) => {
   const { user, isLoading, authChecked } = useAuth();
   const location = useLocation();
+  const [timedOut, setTimedOut] = useState(false);
 
-  // Simple loading check
-  if (isLoading || !authChecked) {
+  // SECURITY: Prevent infinite loading spinner if auth never resolves
+  useEffect(() => {
+    if (!isLoading && authChecked) return;
+    const timer = setTimeout(() => setTimedOut(true), AUTH_TIMEOUT_MS);
+    return () => clearTimeout(timer);
+  }, [isLoading, authChecked]);
+
+  // Loading check with timeout safety valve
+  if ((isLoading || !authChecked) && !timedOut) {
     return (
       <div className="flex flex-col items-center justify-center gap-4 min-h-screen">
         <Loader2 className="h-16 w-16 text-primary animate-spin" />
@@ -27,7 +38,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     );
   }
 
-  // No user - redirect to welcome/persona selection (preserve query params for attribution)
+  // No user (or timed out) - redirect to welcome/persona selection
   if (!user) {
     const redirectPath = `/welcome${location.search}`;
     return <Navigate to={redirectPath} state={{ from: location.pathname }} replace />;

@@ -1,5 +1,6 @@
 
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { sendViaBervo } from "../_shared/brevo-sender.ts";
 
 /**
@@ -34,6 +35,33 @@ const handler = async (req: Request): Promise<Response> => {
   }
 
   try {
+    // ── Auth guard: require valid JWT + admin role ──
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const authHeader = req.headers.get('Authorization') || '';
+    const callerToken = authHeader.replace('Bearer ', '').trim();
+    if (!callerToken) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+        status: 401, headers: { 'Content-Type': 'application/json', ...corsHeaders },
+      });
+    }
+    const callerClient = createClient(supabaseUrl, Deno.env.get('SUPABASE_ANON_KEY')!, {
+      global: { headers: { Authorization: `Bearer ${callerToken}` } },
+    });
+    const { data: { user: callerUser }, error: callerError } = await callerClient.auth.getUser();
+    if (callerError || !callerUser) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+        status: 401, headers: { 'Content-Type': 'application/json', ...corsHeaders },
+      });
+    }
+    const supabaseAdmin = createClient(supabaseUrl, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
+    const { data: isAdmin } = await supabaseAdmin.rpc('is_admin', { _user_id: callerUser.id });
+    if (!isAdmin) {
+      return new Response(JSON.stringify({ error: 'Forbidden' }), {
+        status: 403, headers: { 'Content-Type': 'application/json', ...corsHeaders },
+      });
+    }
+    // ── End auth guard ──
+
     const text = await req.text();
     if (!text) {
       throw new Error("Empty request body");

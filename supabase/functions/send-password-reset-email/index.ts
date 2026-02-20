@@ -11,6 +11,27 @@ interface PasswordResetEmailRequest {
   resetUrl: string;
 }
 
+// ── In-memory rate limiter: 1 request per email per 60 seconds ──
+const rateLimitMap = new Map<string, number>();
+const RATE_LIMIT_WINDOW_MS = 60_000;
+
+function isRateLimited(email: string): boolean {
+  const now = Date.now();
+  const key = email.toLowerCase().trim();
+  const lastRequest = rateLimitMap.get(key);
+  if (lastRequest && now - lastRequest < RATE_LIMIT_WINDOW_MS) {
+    return true;
+  }
+  rateLimitMap.set(key, now);
+  if (rateLimitMap.size > 500) {
+    for (const [k, v] of rateLimitMap) {
+      if (now - v > RATE_LIMIT_WINDOW_MS) rateLimitMap.delete(k);
+    }
+  }
+  return false;
+}
+// ── End rate limiter ──
+
 const handler = async (req: Request): Promise<Response> => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -18,6 +39,15 @@ const handler = async (req: Request): Promise<Response> => {
 
   try {
     const { email, resetToken, resetUrl }: PasswordResetEmailRequest = await req.json();
+
+    // SECURITY: Rate limit password reset requests per email
+    if (isRateLimited(email)) {
+      console.warn(`Rate limited password reset request for: ${email}`);
+      return new Response(
+        JSON.stringify({ error: "Please wait before requesting another password reset." }),
+        { status: 429, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
 
     console.log(`Sending password reset email to: ${email}`);
 
