@@ -241,10 +241,12 @@ finalScore = clamp(0, 100, gatedScore + thesis_bonus + custom_bonus - learning_p
 
 | Severity | Issue | Location | Description |
 |----------|-------|----------|-------------|
-| **HIGH** | MA Intelligence AllDeals reads from wrong table | `src/pages/admin/ma-intelligence/AllDeals.tsx:48-64` | `DealRow` interface defines `company_website`, `geography`, `revenue`, `ebitda_amount` — fields that exist on `listings` table, NOT on `deals` table. The `deals` table (pipeline entries) doesn't have these columns directly. |
+| **HIGH** | AllDeals.tsx queries `deals` table directly with fallback field mappings | `AllDeals.tsx:99-121` | Line 99 queries `supabase.from("deals").select("*")`. Lines 105-121 map fields with fallback chains: `deal_name` tries `contact_name → deal_name → 'Unknown Deal'`, `tracker_id` tries `listing_id → tracker_id → ''`. Should use `get_deals_with_details()` RPC instead. |
 | **HIGH** | Inverted naming causes persistent confusion | Codebase-wide | `listings` = the actual deal/company. `deals` = pipeline entries (buyer pursuing a deal). This naming inversion has caused bugs in MA Intelligence pages and makes the codebase confusing for new developers. |
+| **HIGH** | `get_deals_with_details` RPC schema instability | 6+ migrations | 30+ migration updates to this RPC across 6 months (20250903, 20250930, 20251001 x2, 20251003). Indicates fundamentally unstable schema. Latest adds `buyer_connection_count`. |
 | **MEDIUM** | MA Intelligence deals route redirects | `App.tsx:268-269` | `/admin/ma-intelligence/deals` redirects to `/admin/deals` — effectively disabling the MA Intelligence deal list. The route acknowledges AllDeals.tsx is broken. |
-| **MEDIUM** | `deal_tasks`, `deal_comments`, `deal_notes`, `deal_contacts` usage is light | Multiple hooks | These tables exist and have basic CRUD but aren't deeply integrated into workflow automation. Tasks don't trigger notifications consistently. |
+| **MEDIUM** | `deal_comments` uses `as any` cast | `use-deal-comments.ts:22,65,114` | Table cast as `'deal_comments' as any` indicating TypeScript type generation issue. Types not properly exported from `supabase/types.ts`. |
+| **MEDIUM** | `deal_notes` deprecated but not cleaned up | Migration `20251003220245` | Data migrated to `deal_comments` in migration lines 32-40. Old table still exists. |
 | **LOW** | Pipeline kanban performance | `use-pipeline-core.ts` | Loading all pipeline deals at once for kanban view may become slow with 500+ active deals. |
 
 ### Architecture Clarification
@@ -279,28 +281,34 @@ deals (PIPELINE ENTRIES — a buyer pursuing a deal)
 **Status: NEEDS WORK**
 
 ### What Works Well
-- **Fireflies integration** (`sync-fireflies-transcripts/index.ts`): Incremental sync using `updated_after` timestamp — only fetches new/updated transcripts
+- **Fireflies integration** (`sync-fireflies-transcripts/index.ts`): Smart deduplication via `fireflies_transcript_id` check before insert (line 157-162). On-demand content fetching pattern reduces storage.
+- **Two-phase transcript processing** (`enrich-deal/transcript-processor.ts`): Phase 0A applies existing extracted data; Phase 0B processes new transcripts via AI. Well-structured separation.
 - **Dual extraction**: Separate buyer (`extract-buyer-transcript/index.ts`, 668 lines) and deal (`extract-deal-transcript/index.ts`, 789 lines) extractors with domain-specific prompts
 - **Source priority enforcement**: Transcript data has priority 100 (highest), ensuring it always overwrites enrichment data from lower-priority sources
-- **Transcript-deal linking**: `deal_transcripts` and `buyer_transcripts` tables properly link transcripts to their respective entities
+- **Numeric field sanitization** (`extract-deal-transcript/index.ts:690-710`): Validates all numeric fields (revenue, ebitda, employees, locations) before DB write
+- **`convert-to-pipeline-deal/index.ts`**: Bridge from remarketing to pipeline works correctly — creates `deals` entry with proper `listing_id`, `remarketing_buyer_id`, `stage_id` linking (lines 229-246). Also auto-creates `firm_agreements` and `firm_members` entries.
+- **Deal stages** (`use-deals.ts:240-253`): Well-defined schema with `is_active` and `stage_type` filtering
 
 ### Issues Found
 
 | Severity | Issue | Location | Description |
 |----------|-------|----------|-------------|
 | **HIGH** | Transcript re-extraction idempotency | `enrich-deal/index.ts:224-238` | `forceReExtract=true` clears all `extracted_data` then re-processes all transcripts. If prompts have changed since original extraction, re-extraction may produce different results, introducing inconsistency. |
-| **MEDIUM** | No transcript deduplication | `sync-fireflies-transcripts/index.ts` | If the same meeting is recorded by multiple participants, duplicate transcripts may be synced and processed independently, producing conflicting extractions. |
-| **MEDIUM** | AI extraction hallucination in buyer criteria | `extract-buyer-transcript/index.ts` | Buyer acquisition criteria (target revenue, EBITDA ranges, geographic preferences) extracted from conversational transcripts may be imprecise or hallucinated from casual mentions vs. firm criteria. |
-| **LOW** | Processing status tracking incomplete | `deal_transcripts`/`buyer_transcripts` | No clear "last_processed_at" or "extraction_version" field to track which prompt version was used for extraction. |
+| **HIGH** | Massive AI prompt maintenance burden | `extract-deal-transcript/index.ts:100-399` | 300+ lines of prompt engineering covering 9 extraction sections. `extract-buyer-transcript/index.ts:77-336` has 7,000+ characters of prompts. Changes require careful regression testing across all extraction fields. |
+| **MEDIUM** | No transcript deduplication across participants | `sync-fireflies-transcripts/index.ts` | Dedup exists per `fireflies_transcript_id` (line 157-162) but not across participants. Same meeting recorded by multiple attendees may create separate transcripts with conflicting extractions. |
+| **MEDIUM** | AI extraction hallucination in buyer criteria | `extract-buyer-transcript/index.ts` | Buyer acquisition criteria (target revenue, EBITDA ranges, geographic preferences) extracted from conversational transcripts may be imprecise or hallucinated from casual mentions vs. firm criteria. Confidence scores exist but thresholds aren't enforced. |
+| **LOW** | Processing status tracking incomplete | `deal_transcripts`/`buyer_transcripts` | `processed_at` exists but no "extraction_version" field to track which prompt version was used. Re-extraction uses current prompts without version tracking. |
 
 ### Recommended Fixes
 1. **Add extraction versioning** — store a prompt hash or version number with each extraction result so re-extraction can be triggered only when prompts change
-2. **Add transcript deduplication** — match by meeting ID, date range, or participant overlap before creating separate transcript records
+2. **Extract prompts to shared config** — move the 300+ line prompt templates from inline code to `_shared/extraction-prompts.ts` for centralized maintenance
 3. **Add confidence thresholds** — extract buyer criteria with confidence scores; only apply to buyer profile when confidence exceeds threshold
+4. **Add cross-participant dedup** — match by meeting date range + participant overlap before creating separate transcript records
 
 ### Business Impact
-- Transcript data is the highest-fidelity intelligence source. Errors in extraction directly affect buyer-deal matching accuracy.
-- Duplicate transcripts waste AI processing costs and can produce conflicting data.
+- Transcript data is the highest-fidelity intelligence source and SourceCo's competitive moat. Errors in extraction directly affect buyer-deal matching accuracy.
+- Prompt maintenance burden increases risk of regression when modifying extraction logic
+- Duplicate transcripts across participants waste AI processing costs and can produce conflicting data
 
 ---
 
