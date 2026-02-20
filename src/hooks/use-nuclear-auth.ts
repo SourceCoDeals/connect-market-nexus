@@ -108,6 +108,9 @@ export function useNuclearAuth() {
         setIsLoading(false);
         setAuthChecked(true);
       } else if (event === 'SIGNED_IN' && session?.user) {
+        // SECURITY: Set loading state before deferred check to prevent
+        // brief window where isLoading=false but user is not yet loaded
+        setIsLoading(true);
         // Defer profile loading to prevent deadlocks
         setTimeout(() => {
           if (isMounted) {
@@ -339,6 +342,13 @@ export function useNuclearAuth() {
       ...(normalizedWebsite !== undefined ? { website: normalizedWebsite } : {}),
       ...(preparedInvestmentSize !== undefined ? { investment_size: preparedInvestmentSize } : {}),
     };
+
+    // SECURITY: Strip privileged fields that must never be set via client-side profile updates.
+    // is_admin is managed by user_roles table + DB trigger; approval_status by admin actions only.
+    const PRIVILEGED_FIELDS = ['is_admin', 'approval_status', 'email_verified', 'role', 'id', 'email'];
+    for (const field of PRIVILEGED_FIELDS) {
+      delete dbPayload[field];
+    }
 
     const { error } = await supabase
       .from('profiles')

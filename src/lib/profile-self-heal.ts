@@ -110,6 +110,34 @@ export async function selfHealProfile(
 ): Promise<any | null> {
   const payload = buildProfileFromMetadata(authUser);
 
+  // Check if the profile already exists to avoid overwriting privileged fields
+  // (e.g., approval_status could be 'approved' — self-heal must not reset it to 'pending')
+  const { data: existingProfile } = await supabase
+    .from('profiles')
+    .select('id, approval_status')
+    .eq('id', authUser.id)
+    .maybeSingle();
+
+  if (existingProfile) {
+    // Profile exists — preserve approval_status and only fill in missing data
+    const { approval_status: _strip, ...safePayload } = payload;
+    const { data: updatedProfile, error: updateError } = await supabase
+      .from('profiles')
+      .update(safePayload)
+      .eq('id', authUser.id)
+      .select(selectColumns)
+      .single();
+
+    if (updateError) {
+      console.error('Self-heal profile update failed:', updateError);
+      return null;
+    }
+
+    console.log('Self-healed existing profile (approval_status preserved)');
+    return updatedProfile;
+  }
+
+  // Profile truly missing — insert with pending status
   const { data: newProfile, error: insertError } = await supabase
     .from('profiles')
     .upsert(payload, { onConflict: 'id' })

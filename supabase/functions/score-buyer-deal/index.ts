@@ -296,14 +296,44 @@ serve(async (req) => {
   }
 
   try {
-    const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY") || "";
-    if (!GEMINI_API_KEY) {
-      console.warn("GEMINI_API_KEY is not configured — AI scoring will use deterministic fallbacks");
+    // ── Auth guard: require valid JWT + admin role ──
+    const authHeader = req.headers.get("Authorization") || "";
+    const callerToken = authHeader.replace("Bearer ", "").trim();
+    if (!callerToken) {
+      return new Response(
+        JSON.stringify({ error: "Unauthorized" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+
+    const callerClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!, {
+      global: { headers: { Authorization: `Bearer ${callerToken}` } },
+    });
+    const { data: { user: callerUser }, error: callerError } = await callerClient.auth.getUser();
+    if (callerError || !callerUser) {
+      return new Response(
+        JSON.stringify({ error: "Unauthorized" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     const supabase = createClient(supabaseUrl, supabaseKey);
+    const { data: isAdmin } = await supabase.rpc("is_admin", { _user_id: callerUser.id });
+    if (!isAdmin) {
+      return new Response(
+        JSON.stringify({ error: "Forbidden: admin access required" }),
+        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+    // ── End auth guard ──
+
+    const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY") || "";
+    if (!GEMINI_API_KEY) {
+      console.warn("GEMINI_API_KEY is not configured — AI scoring will use deterministic fallbacks");
+    }
 
     const body = await req.json();
     const isBulk = body.bulk === true;

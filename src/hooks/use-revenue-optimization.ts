@@ -66,11 +66,11 @@ export function useRevenueOptimization(daysBack: number = 90) {
         { data: saves },
         { data: users }
       ] = await Promise.all([
-        supabase.from('listings').select('*').eq('status', 'active').is('deleted_at', null),
+        supabase.from('listings').select('id, title, category, revenue, ebitda, created_at').eq('status', 'active').is('deleted_at', null),
         supabase.from('listing_analytics').select('*').gte('created_at', startDate.toISOString()),
         supabase.from('connection_requests').select('*').gte('created_at', startDate.toISOString()),
         supabase.from('saved_listings').select('*').gte('created_at', startDate.toISOString()),
-        supabase.from('profiles').select('*').eq('approval_status', 'approved')
+        supabase.from('profiles').select('id').eq('approval_status', 'approved')
       ]);
 
       if (!listings || !users) return {

@@ -15,8 +15,8 @@ export const useRequestConnection = () => {
   return useMutation({
     mutationFn: async ({ listingId, message }: { listingId: string; message?: string }) => {
       try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (!session) throw new Error('You must be logged in to request a connection');
+        const { data: { user: authUser } } = await supabase.auth.getUser();
+        if (!authUser) throw new Error('You must be logged in to request a connection');
         
         // Enforce message requirement
         if (!message || message.trim().length < 20) {
@@ -35,7 +35,7 @@ export const useRequestConnection = () => {
         const parsedResult = typeof result === 'string' ? JSON.parse(result) : result;
         const requestId = parsedResult.request_id;
         
-        const userId = session.user.id;
+        const userId = authUser.id;
         
         // Log activity
         await supabase.from('user_activity').insert({
@@ -164,14 +164,14 @@ export const useConnectionStatus = (listingId: string | undefined) => {
       if (!listingId) return { exists: false, status: '', id: '' };
       
       try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (!session) return { exists: false, status: '', id: '' };
-        
+        const { data: { user: authUser } } = await supabase.auth.getUser();
+        if (!authUser) return { exists: false, status: '', id: '' };
+
         const { data, error } = await supabase
           .from('connection_requests')
           .select('id, status')
           .eq('listing_id', listingId)
-          .eq('user_id', session.user.id)
+          .eq('user_id', authUser.id)
           .maybeSingle();
         
         if (error) throw error;
@@ -197,18 +197,18 @@ export const useUserConnectionRequests = () => {
     queryKey: createQueryKey.userConnectionRequests(),
     queryFn: async () => {
       try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (!session) return [];
-        
+        const { data: { user: authUser } } = await supabase.auth.getUser();
+        if (!authUser) return [];
+
         const { data, error } = await supabase
           .from('connection_requests')
           .select(`
             *,
             listing:listing_id (
-              id, 
-              title, 
-              category, 
-              location, 
+              id,
+              title,
+              category,
+              location,
               description,
               image_url,
               revenue,
@@ -218,7 +218,7 @@ export const useUserConnectionRequests = () => {
               acquisition_type
             )
           `)
-          .eq('user_id', session.user.id)
+          .eq('user_id', authUser.id)
           .order('created_at', { ascending: false });
         
         if (error) throw error;

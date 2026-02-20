@@ -20,14 +20,14 @@ export function useAdminStats() {
           // Get total users count
           const { count: totalUsers, error: usersError } = await supabase
             .from('profiles')
-            .select('*', { count: 'exact', head: true });
+            .select('id', { count: 'exact', head: true });
           
           if (usersError) throw usersError;
           
           // Get pending users count
           const { count: pendingUsers, error: pendingError } = await supabase
             .from('profiles')
-            .select('*', { count: 'exact', head: true })
+            .select('id', { count: 'exact', head: true })
             .eq('approval_status', 'pending');
           
           if (pendingError) throw pendingError;
@@ -35,7 +35,7 @@ export function useAdminStats() {
           // Get approved users count
           const { count: approvedUsers, error: approvedError } = await supabase
             .from('profiles')
-            .select('*', { count: 'exact', head: true })
+            .select('id', { count: 'exact', head: true })
             .eq('approval_status', 'approved');
             
           if (approvedError) throw approvedError;
@@ -43,14 +43,14 @@ export function useAdminStats() {
           // Get total listings count
           const { count: totalListings, error: listingsError } = await supabase
             .from('listings')
-            .select('*', { count: 'exact', head: true });
+            .select('id', { count: 'exact', head: true });
           
           if (listingsError) throw listingsError;
           
           // Get pending connection requests count
           const { count: pendingConnections, error: pendingConnError } = await supabase
             .from('connection_requests')
-            .select('*', { count: 'exact', head: true })
+            .select('id', { count: 'exact', head: true })
             .eq('status', 'pending');
           
           if (pendingConnError) throw pendingConnError;
@@ -58,7 +58,7 @@ export function useAdminStats() {
           // Get approved connection requests count
           const { count: approvedConnections, error: approvedConnError } = await supabase
             .from('connection_requests')
-            .select('*', { count: 'exact', head: true })
+            .select('id', { count: 'exact', head: true })
             .eq('status', 'approved');
           
           if (approvedConnError) throw approvedConnError;

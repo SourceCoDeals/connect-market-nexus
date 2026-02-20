@@ -90,15 +90,10 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Verify admin status
-    const { data: profile, error: profileError } = await supabaseAdmin
-      .from('profiles')
-      .select('is_admin')
-      .eq('id', user.id)
-      .single();
-
-    if (profileError || !profile?.is_admin) {
-      console.error('Admin check failed:', profileError);
+    // Verify admin status via user_roles table (authoritative RBAC source)
+    const { data: isAdmin, error: adminCheckError } = await supabaseAdmin.rpc('is_admin', { _user_id: user.id });
+    if (adminCheckError || !isAdmin) {
+      console.error('Admin check failed:', adminCheckError);
       return new Response(
         JSON.stringify({ error: 'Admin access required' }),
         { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

@@ -27,7 +27,7 @@ export function RichTextDisplay({ content, className, compact = false }: RichTex
       // Tables for financial data
       'table', 'thead', 'tbody', 'tr', 'th', 'td'
     ],
-    ALLOWED_ATTR: ['href', 'target', 'class', 'id'],
+    ALLOWED_ATTR: ['href', 'target'],
     ALLOW_DATA_ATTR: false,
     FORCE_BODY: false,
     // Security configurations

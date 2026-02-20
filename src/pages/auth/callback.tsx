@@ -18,30 +18,31 @@ export default function AuthCallback() {
       try {
         console.log('📧 Email verification callback - processing...');
         
-        // Let Supabase handle the verification token
-        const { data, error } = await supabase.auth.getSession();
-        
+        // SECURITY: Use getUser() for server-side validation instead of getSession()
+        // getSession() trusts the local JWT; getUser() verifies with Supabase Auth server
+        const { data: { user: authUser }, error } = await supabase.auth.getUser();
+
         if (error) {
-          console.error('Session error:', error);
+          console.error('Auth error:', error);
           throw error;
         }
 
-        if (data.session?.user) {
-          console.log('✅ User session found, checking profile...');
-          
+        if (authUser) {
+          console.log('✅ User verified server-side, checking profile...');
+
           // Get latest profile data to see if verification was successful
           // eslint-disable-next-line prefer-const
           let { data: profile, error: profileError } = await supabase
             .from('profiles')
             .select('email_verified, approval_status, is_admin, first_name, last_name, email')
-            .eq('id', data.session.user.id)
+            .eq('id', authUser.id)
             .single();
 
           // Self-healing: if profile missing, create one from auth metadata
           if (!profile && (profileError?.code === 'PGRST116' || !profileError)) {
-            console.log('Profile missing in callback, attempting self-heal for:', data.session.user.email);
+            console.log('Profile missing in callback, attempting self-heal for:', authUser.email);
             const newProfile = await selfHealProfile(
-              data.session.user,
+              authUser,
               'email_verified, approval_status, is_admin, first_name, last_name, email'
             );
             if (newProfile) profile = newProfile;
@@ -54,7 +55,7 @@ export default function AuthCallback() {
           });
 
           // Check if this is a fresh email verification (user just verified their email)
-          const userJustVerified = data.session.user.email_confirmed_at && profile?.email_verified;
+          const userJustVerified = authUser.email_confirmed_at && profile?.email_verified;
           
           // Send verification success email if user just verified their email
           if (userJustVerified && profile) {

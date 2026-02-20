@@ -16,10 +16,39 @@ Deno.serve(async (req: Request) => {
   const headers = getCorsHeaders(req);
 
   try {
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
-    );
+    // ── Auth guard: require valid JWT + admin role ──
+    const authHeader = req.headers.get('Authorization') || '';
+    const callerToken = authHeader.replace('Bearer ', '').trim();
+    if (!callerToken) {
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized' }),
+        { status: 401, headers: { ...headers, 'Content-Type': 'application/json' } },
+      );
+    }
+
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+
+    const callerClient = createClient(supabaseUrl, Deno.env.get('SUPABASE_ANON_KEY')!, {
+      global: { headers: { Authorization: `Bearer ${callerToken}` } },
+    });
+    const { data: { user: callerUser }, error: callerError } = await callerClient.auth.getUser();
+    if (callerError || !callerUser) {
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized' }),
+        { status: 401, headers: { ...headers, 'Content-Type': 'application/json' } },
+      );
+    }
+
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    const { data: isAdmin } = await supabase.rpc('is_admin', { _user_id: callerUser.id });
+    if (!isAdmin) {
+      return new Response(
+        JSON.stringify({ error: 'Forbidden: admin access required' }),
+        { status: 403, headers: { ...headers, 'Content-Type': 'application/json' } },
+      );
+    }
+    // ── End auth guard ──
 
     const body: ConvertRequest = await req.json();
     const { listing_id, buyer_id, score_id, stage_name } = body;

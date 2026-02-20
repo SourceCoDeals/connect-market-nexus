@@ -218,7 +218,7 @@ export function MapboxGlobeMap({
     const user = users.find(u => u.sessionId === focusedSessionId);
     if (user?.coordinates) {
       spinEnabledRef.current = false;
-      
+
       mapRef.current.flyTo({
         center: [user.coordinates.lng, user.coordinates.lat],
         zoom: 4,
@@ -226,13 +226,15 @@ export function MapboxGlobeMap({
         essential: true,
       });
 
-      // Re-enable spin after fly-to completes
-      setTimeout(() => {
+      // Re-enable spin after fly-to completes — clean up on unmount/re-run
+      const spinTimer = setTimeout(() => {
         spinEnabledRef.current = true;
       }, 3000);
 
       // Show tooltip for focused user
       setSelectedUser(user);
+
+      return () => clearTimeout(spinTimer);
     }
   }, [focusedSessionId, users, isMapLoaded]);
 
