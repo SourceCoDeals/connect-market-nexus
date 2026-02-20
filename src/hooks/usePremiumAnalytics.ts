@@ -121,24 +121,28 @@ export function usePremiumAnalytics(timeRangeDays: number = 30) {
         recentActivityResult,
         geographyResult,
       ] = await Promise.all([
-        // Connection requests in current period
+        // Connection requests in current period - limit to 500 for performance
         supabase
           .from('connection_requests')
           .select('id, created_at, status, user_id')
-          .gte('created_at', startDate.toISOString()),
+          .gte('created_at', startDate.toISOString())
+          .limit(500),
           
         // Connection requests in previous period
         supabase
           .from('connection_requests')
           .select('id, created_at')
           .gte('created_at', previousPeriodStart.toISOString())
-          .lt('created_at', startDate.toISOString()),
+          .lt('created_at', startDate.toISOString())
+          .limit(500),
           
-        // Approved profiles in current period
+        // Approved profiles in current period - limit to recent 500
         supabase
           .from('profiles')
           .select('id, created_at, approval_status, buyer_type')
-          .eq('approval_status', 'approved'),
+          .eq('approval_status', 'approved')
+          .order('created_at', { ascending: false })
+          .limit(500),
           
         // Approved profiles created in previous period (for trend)
         supabase
@@ -146,34 +150,33 @@ export function usePremiumAnalytics(timeRangeDays: number = 30) {
           .select('id, created_at')
           .eq('approval_status', 'approved')
           .gte('created_at', previousPeriodStart.toISOString())
-          .lt('created_at', startDate.toISOString()),
+          .lt('created_at', startDate.toISOString())
+          .limit(200),
           
-        // Buyer type breakdown with connection counts
+        // Buyer type breakdown - limit to 500
         supabase
           .from('profiles')
           .select('id, buyer_type')
           .eq('approval_status', 'approved')
-          .not('buyer_type', 'is', null),
+          .not('buyer_type', 'is', null)
+          .limit(500),
           
-        // Listings with connection counts
+        // Listings with category only (no expensive nested join)
         supabase
           .from('listings')
-          .select(`
-            id,
-            title,
-            category,
-            connection_requests(id)
-          `)
-          .eq('status', 'active'),
+          .select('id, title, category')
+          .eq('status', 'active')
+          .limit(200),
           
-        // Top performing listings
+        // Top performing listings - limit to 100 recent
         supabase
           .from('connection_requests')
           .select(`
             listing_id,
             listings!inner(id, title, category)
           `)
-          .gte('created_at', startDate.toISOString()),
+          .gte('created_at', startDate.toISOString())
+          .limit(200),
           
         // Pending requests count
         supabase
@@ -211,12 +214,13 @@ export function usePremiumAnalytics(timeRangeDays: number = 30) {
           .order('created_at', { ascending: false })
           .limit(10),
 
-        // Geography from profiles
+        // Geography from profiles - limit to 200
         supabase
           .from('profiles')
           .select('target_locations')
           .eq('approval_status', 'approved')
-          .not('target_locations', 'is', null),
+          .not('target_locations', 'is', null)
+          .limit(200),
       ]);
 
       const connectionRequests = connectionRequestsResult.data || [];
@@ -323,22 +327,28 @@ export function usePremiumAnalytics(timeRangeDays: number = 30) {
         .map(([region, count]) => ({ region, count }))
         .sort((a, b) => b.count - a.count);
 
-      // Listing performance by category
-      const categoryPerformance: Record<string, { connections: number; listings: number }> = {};
+      // Listing performance by category - count connections per category using topListingsData
+      const categoryConnections: Record<string, number> = {};
+      const categoryListingCounts: Record<string, number> = {};
+      
       listings.forEach(listing => {
         const category = listing.category || 'Uncategorized';
-        if (!categoryPerformance[category]) {
-          categoryPerformance[category] = { connections: 0, listings: 0 };
-        }
-        categoryPerformance[category].listings += 1;
-        categoryPerformance[category].connections += (listing.connection_requests as any[])?.length || 0;
+        categoryListingCounts[category] = (categoryListingCounts[category] || 0) + 1;
       });
       
-      const listingPerformance = Object.entries(categoryPerformance)
-        .map(([category, data]) => ({
+      topListingsData.forEach(req => {
+        const listing = req.listings as any;
+        if (listing?.category) {
+          const cat = listing.category || 'Uncategorized';
+          categoryConnections[cat] = (categoryConnections[cat] || 0) + 1;
+        }
+      });
+      
+      const listingPerformance = Object.keys(categoryListingCounts)
+        .map(category => ({
           category,
-          connectionCount: data.connections,
-          listingCount: data.listings,
+          connectionCount: categoryConnections[category] || 0,
+          listingCount: categoryListingCounts[category],
         }))
         .sort((a, b) => b.connectionCount - a.connectionCount)
         .slice(0, 8);
