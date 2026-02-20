@@ -31,7 +31,7 @@ serve(async (req) => {
     const urlValidation = validateUrl(document_url);
     if (!urlValidation.valid) {
       console.error(`SSRF blocked for document URL: ${document_url} - ${urlValidation.reason}`);
-      return ssrfErrorResponse(urlValidation.reason || "Invalid URL");
+      return ssrfErrorResponse(urlValidation.reason || "Invalid URL", corsHeaders);
     }
 
     console.log("[parse-tracker-documents] Processing:", {

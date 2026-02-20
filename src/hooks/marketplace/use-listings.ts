@@ -27,7 +27,6 @@ const MARKETPLACE_SAFE_COLUMNS = [
   'status',
   'status_tag',
   'tags',
-  'owner_notes',
   'created_at',
   'updated_at',
   'published_at',
@@ -50,8 +49,6 @@ const MARKETPLACE_SAFE_COLUMNS = [
   'metric_4_custom_subtitle',
   'revenue_metric_subtitle',
   'ebitda_metric_subtitle',
-  'presented_by_admin_id',
-  'deal_identifier',
 ].join(', ');
 
 // Fetch listings with filters and pagination

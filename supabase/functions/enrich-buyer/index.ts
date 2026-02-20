@@ -246,13 +246,13 @@ Deno.serve(async (req) => {
     if (platformWebsite) {
       const validation = validateUrl(platformWebsite);
       if (!validation.valid) {
-        return ssrfErrorResponse(`Platform website: ${validation.reason}`);
+        return ssrfErrorResponse(`Platform website: ${validation.reason}`, corsHeaders);
       }
     }
     if (peFirmWebsite) {
       const validation = validateUrl(peFirmWebsite);
       if (!validation.valid) {
-        return ssrfErrorResponse(`PE firm website: ${validation.reason}`);
+        return ssrfErrorResponse(`PE firm website: ${validation.reason}`, corsHeaders);
       }
     }
 

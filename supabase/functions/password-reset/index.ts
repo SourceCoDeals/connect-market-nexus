@@ -98,7 +98,15 @@ const handler = async (req: Request): Promise<Response> => {
         );
       }
 
-      const origin = req.headers.get('origin') || 'https://marketplace.sourcecodeals.com';
+      // Security: Hardcode origin to prevent reflected URL attacks via Origin header
+      const ALLOWED_ORIGINS = [
+        'https://marketplace.sourcecodeals.com',
+        'https://sourcecodeals.com',
+      ];
+      const requestOrigin = req.headers.get('origin') || '';
+      const origin = ALLOWED_ORIGINS.includes(requestOrigin)
+        ? requestOrigin
+        : 'https://marketplace.sourcecodeals.com';
       const resetUrl = `${origin}/reset-password?token=${resetToken}`;
 
       // Try to send email via edge function (best-effort)
