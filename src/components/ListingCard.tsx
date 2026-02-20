@@ -1,5 +1,5 @@
 import { useContext } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { useMarketplace } from "@/hooks/use-marketplace";
 import { useAnalytics } from "@/context/AnalyticsContext";
 import { useAnalyticsTracking } from "@/hooks/use-analytics-tracking";
@@ -18,9 +18,12 @@ import { SearchSessionContext } from "@/contexts/SearchSessionContext";
 interface ListingCardProps {
   listing: Listing;
   viewType: "grid" | "list";
+  // Batch-fetched data to avoid N+1 queries
+  savedIds?: Set<string>;
+  connectionMap?: Map<string, { exists: boolean; status: string; id: string }>;
 }
 
-const ListingCard = ({ listing, viewType }: ListingCardProps) => {
+const ListingCard = ({ listing, viewType, savedIds, connectionMap }: ListingCardProps) => {
   const { 
     useConnectionStatus, 
     useSaveListingMutation, 
@@ -28,8 +31,8 @@ const ListingCard = ({ listing, viewType }: ListingCardProps) => {
     useRequestConnection 
   } = useMarketplace();
   
-  const { data: connectionStatus } = useConnectionStatus(listing.id);
-  const { data: isSaved = false } = useSavedStatus(listing.id);
+  const { data: connectionStatus } = useConnectionStatus(listing.id, connectionMap);
+  const { data: isSaved = false } = useSavedStatus(listing.id, savedIds);
   const { mutate: toggleSave, isPending: isSaving } = useSaveListingMutation();
   const { mutate: requestConnection, isPending: isRequesting } = useRequestConnection();
   const { trackListingSave, trackConnectionRequest } = useAnalytics();
