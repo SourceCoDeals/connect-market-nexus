@@ -102,7 +102,7 @@ const ReMarketingBuyers = () => {
     notes: "",
   });
 
-  // Fetch buyers with universe info
+  // Fetch buyers with universe + firm agreement info (for NDA/marketplace)
   const { data: buyers, isLoading: buyersLoading } = useQuery({
     queryKey: ['remarketing', 'buyers', universeFilter],
     queryFn: async () => {
@@ -110,7 +110,15 @@ const ReMarketingBuyers = () => {
         .from('remarketing_buyers')
         .select(`
           *,
-          universe:remarketing_buyer_universes(id, name)
+          universe:remarketing_buyer_universes(id, name),
+          firm_agreement:firm_agreements!remarketing_buyers_marketplace_firm_id_fkey(
+            id,
+            nda_signed,
+            nda_signed_at,
+            fee_agreement_signed,
+            fee_agreement_signed_at,
+            primary_company_name
+          )
         `)
         .eq('archived', false)
         .order('company_name');
@@ -617,7 +625,9 @@ const ReMarketingBuyers = () => {
                   <span className="flex items-center">Universe <SortIcon column="universe" /></span>
                 </TableHead>
                 <TableHead>Description</TableHead>
+                <TableHead className="w-[90px]">Marketplace</TableHead>
                 <TableHead className="w-[90px]">Fee Agmt</TableHead>
+                <TableHead className="w-[80px]">NDA</TableHead>
                 <TableHead className="w-[130px]">Intel</TableHead>
                 <TableHead className="w-[100px]">Enrich</TableHead>
                 <TableHead className="w-[50px]"></TableHead>
@@ -634,6 +644,8 @@ const ReMarketingBuyers = () => {
                     <TableCell><Skeleton className="h-5 w-24" /></TableCell>
                     <TableCell><Skeleton className="h-4 w-48" /></TableCell>
                     <TableCell><Skeleton className="h-5 w-16" /></TableCell>
+                    <TableCell><Skeleton className="h-5 w-16" /></TableCell>
+                    <TableCell><Skeleton className="h-5 w-16" /></TableCell>
                     <TableCell><Skeleton className="h-5 w-20" /></TableCell>
                     <TableCell><Skeleton className="h-7 w-16" /></TableCell>
                     <TableCell><Skeleton className="h-8 w-8" /></TableCell>
@@ -641,7 +653,7 @@ const ReMarketingBuyers = () => {
                 ))
               ) : filteredBuyers.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={10} className="text-center py-12 text-muted-foreground">
+                  <TableCell colSpan={12} className="text-center py-12 text-muted-foreground">
                     <Users className="h-8 w-8 mx-auto mb-3 opacity-50" />
                     <p className="font-medium">No buyers found</p>
                     <p className="text-sm">Add buyers manually or import from CSV</p>
@@ -762,6 +774,27 @@ const ReMarketingBuyers = () => {
                         )}
                       </TableCell>
 
+                      {/* Marketplace Column */}
+                      <TableCell>
+                        {buyer.marketplace_firm_id ? (
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Badge className="bg-violet-600 hover:bg-violet-700 text-xs px-1.5 py-0 flex items-center gap-1 w-fit cursor-help">
+                                  <Check className="h-3 w-3" />
+                                  Signed Up
+                                </Badge>
+                              </TooltipTrigger>
+                              <TooltipContent side="bottom" className="text-xs">
+                                {buyer.firm_agreement?.primary_company_name || 'Linked to marketplace firm'}
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        ) : (
+                          <Minus className="h-4 w-4 text-muted-foreground/40" />
+                        )}
+                      </TableCell>
+
                       {/* Fee Agreement Column */}
                       <TableCell>
                         {buyer.has_fee_agreement ? (
@@ -786,6 +819,30 @@ const ReMarketingBuyers = () => {
                           <Minus className="h-4 w-4 text-muted-foreground/40" />
                         )}
                       </TableCell>
+
+                      {/* NDA Column */}
+                      <TableCell>
+                        {buyer.firm_agreement?.nda_signed ? (
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Badge className="bg-green-600 hover:bg-green-700 text-xs px-1.5 py-0 flex items-center gap-1 w-fit cursor-help">
+                                  <Check className="h-3 w-3" />
+                                  Signed
+                                </Badge>
+                              </TooltipTrigger>
+                              <TooltipContent side="bottom" className="text-xs">
+                                {buyer.firm_agreement.nda_signed_at
+                                  ? `Signed ${new Date(buyer.firm_agreement.nda_signed_at).toLocaleDateString()}`
+                                  : 'NDA signed'}
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        ) : (
+                          <Minus className="h-4 w-4 text-muted-foreground/40" />
+                        )}
+                      </TableCell>
+
 
                       {/* Intel Column */}
                       <TableCell>
