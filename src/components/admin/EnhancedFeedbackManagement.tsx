@@ -66,7 +66,8 @@ export function EnhancedFeedbackManagement() {
 
   useEffect(() => {
     loadFeedbackMessages();
-    setupRealtimeSubscription();
+    const cleanup = setupRealtimeSubscription();
+    return cleanup;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

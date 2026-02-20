@@ -42,89 +42,8 @@
     <link rel="preconnect" href="https://vhzipqarkmmfuqadefep.supabase.co" />
     <link rel="dns-prefetch" href="https://vhzipqarkmmfuqadefep.supabase.co" />
     
-    <!-- 1. Google Tag Manager (loads first - manages other tags) -->
-    <script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
-    new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
-    j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
-    'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
-    })(window,document,'script','dataLayer','GTM-NRP8FM6T');</script>
-    <!-- End Google Tag Manager -->
-    
-    <!-- 2. Google Analytics 4 with Cross-Domain Tracking -->
-    <script async src="https://www.googletagmanager.com/gtag/js?id=G-N5T31YT52K"></script>
-    <script>
-      window.dataLayer = window.dataLayer || [];
-      function gtag(){dataLayer.push(arguments);}
-      gtag('js', new Date());
-      gtag('config', 'G-N5T31YT52K', {
-        // Cross-domain tracking for your domains
-        linker: {
-          domains: ['sourcecodeals.com', 'marketplace.sourcecodeals.com'],
-          accept_incoming: true
-        },
-        // Use subdomain cookie for shared tracking
-        cookie_domain: '.sourcecodeals.com',
-        // Let the SPA handle page views
-        send_page_view: false
-      });
-    </script>
-    
-    <!-- 3. Heap Analytics -->
-    <script type="text/javascript">
-      window.heapReadyCb=window.heapReadyCb||[],window.heap=window.heap||[],heap.load=function(e,t){window.heap.envId=e,window.heap.clientConfig=t=t||{},window.heap.clientConfig.shouldFetchServerConfig=!1;var a=document.createElement("script");a.type="text/javascript",a.async=!0,a.src="https://cdn.us.heap-api.com/config/"+e+"/heap_config.js";var r=document.getElementsByTagName("script")[0];r.parentNode.insertBefore(a,r);var n=["init","startTracking","stopTracking","track","resetIdentity","identify","getSessionId","getUserId","getIdentity","addUserProperties","addEventProperties","removeEventProperty","clearEventProperties","addAccountProperties","addAdapter","addTransformer","addTransformerFn","onReady","addPageviewProperties","removePageviewProperty","clearPageviewProperties","trackPageview"],i=function(e){return function(){var t=Array.prototype.slice.call(arguments,0);window.heapReadyCb.push({name:e,fn:function(){heap[e]&&heap[e].apply(heap,t)}})}};for(var p=0;p<n.length;p++)heap[n[p]]=i(n[p])};
-      heap.load("14631838");
-    </script>
+    <!-- Analytics scripts deferred to after app load — see bottom of <body> -->
 
-    <!-- 4. Hotjar Tracking Code -->
-    <script>
-      (function(h,o,t,j,a,r){
-        h.hj=h.hj||function(){(h.hj.q=h.hj.q||[]).push(arguments)};
-        h._hjSettings={hjid:5092554,hjsv:6};
-        a=o.getElementsByTagName('head')[0];
-        r=o.createElement('script');r.async=1;
-        r.src=t+h._hjSettings.hjid+j+h._hjSettings.hjsv;
-        a.appendChild(r);
-      })(window,document,'https://static.hotjar.com/c/hotjar-','.js?sv=');
-    </script>
-
-    <!-- 5. LinkedIn Insight Tag -->
-    <script type="text/javascript">
-      _linkedin_partner_id = "4342364";
-      window._linkedin_data_partner_ids = window._linkedin_data_partner_ids || [];
-      window._linkedin_data_partner_ids.push(_linkedin_partner_id);
-    </script>
-    <script type="text/javascript">
-      (function(l) {
-        if (!l){window.lintrk = function(a,b){window.lintrk.q.push([a,b])};
-        window.lintrk.q=[]}
-        var s = document.getElementsByTagName("script")[0];
-        var b = document.createElement("script");
-        b.type = "text/javascript";b.async = true;
-        b.src = "https://snap.licdn.com/li.lms-analytics/insight.min.js";
-        s.parentNode.insertBefore(b, s);
-      })(window.lintrk);
-    </script>
-
-    <!-- 6. Brevo -->
-
-    <!-- 8. Brevo -->
-    <script src="https://cdn.brevo.com/js/sdk-loader.js" async></script>
-    <script>
-      window.Brevo = window.Brevo || [];
-      Brevo.push([
-        "init",
-        {
-          client_key: "5hvn11cin823nl7pp8l646lr"
-        }
-      ]);
-    </script>
-
-    <!-- 9. Vector -->
-    <script>
-      !function(e,r){try{if(e.vector)return void console.log("Vector snippet included more than once.");var t={};t.q=t.q||[];for(var o=["load","identify","on"],n=function(e){return function(){var r=Array.prototype.slice.call(arguments);t.q.push([e,r])}},c=0;c<o.length;c++){var a=o[c];t[a]=n(a)}if(e.vector=t,!t.loaded){var i=r.createElement("script");i.type="text/javascript",i.async=!0,i.src="https://cdn.vector.co/pixel.js";var l=r.getElementsByTagName("script")[0];l.parentNode.insertBefore(i,l),t.loaded=!0}}catch(e){console.error("Error loading Vector:",e)}}(window,document);
-      vector.load("628e9b85-17e1-4942-bb91-06b7b5131f17");
-    </script>
-    
     <!-- Structured Data for SEO -->
     <script type="application/ld+json">
     {
@@ -159,5 +78,58 @@
     <!-- IMPORTANT: DO NOT REMOVE THIS SCRIPT TAG OR THIS VERY COMMENT! -->
     <script src="https://cdn.gpteng.co/gptengineer.js" type="module"></script>
     <script type="module" src="/src/main.tsx"></script>
+
+    <!-- Deferred analytics: load 3s after app renders to not block initial paint -->
+    <script>
+      setTimeout(function() {
+        // 1. Google Tag Manager
+        (function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+        new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+        j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+        'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+        })(window,document,'script','dataLayer','GTM-NRP8FM6T');
+
+        // 2. Google Analytics 4
+        var ga=document.createElement('script');ga.async=true;
+        ga.src='https://www.googletagmanager.com/gtag/js?id=G-N5T31YT52K';
+        document.head.appendChild(ga);
+        window.dataLayer=window.dataLayer||[];
+        function gtag(){dataLayer.push(arguments);}
+        gtag('js',new Date());
+        gtag('config','G-N5T31YT52K',{
+          linker:{domains:['sourcecodeals.com','marketplace.sourcecodeals.com'],accept_incoming:true},
+          cookie_domain:'.sourcecodeals.com',send_page_view:false
+        });
+
+        // 3. Heap Analytics
+        window.heapReadyCb=window.heapReadyCb||[];window.heap=window.heap||[];
+        heap.load=function(e,t){window.heap.envId=e;window.heap.clientConfig=t=t||{};window.heap.clientConfig.shouldFetchServerConfig=false;var a=document.createElement("script");a.type="text/javascript";a.async=true;a.src="https://cdn.us.heap-api.com/config/"+e+"/heap_config.js";var r=document.getElementsByTagName("script")[0];r.parentNode.insertBefore(a,r);var n=["init","startTracking","stopTracking","track","resetIdentity","identify","getSessionId","getUserId","getIdentity","addUserProperties","addEventProperties","removeEventProperty","clearEventProperties","addAccountProperties","addAdapter","addTransformer","addTransformerFn","onReady","addPageviewProperties","removePageviewProperty","clearPageviewProperties","trackPageview"],i=function(e){return function(){var t=Array.prototype.slice.call(arguments,0);window.heapReadyCb.push({name:e,fn:function(){heap[e]&&heap[e].apply(heap,t)}})}};for(var p=0;p<n.length;p++)heap[n[p]]=i(n[p])};
+        heap.load("14631838");
+
+        // 4. Hotjar
+        (function(h,o,t,j,a,r){
+          h.hj=h.hj||function(){(h.hj.q=h.hj.q||[]).push(arguments)};
+          h._hjSettings={hjid:5092554,hjsv:6};
+          a=o.getElementsByTagName('head')[0];
+          r=o.createElement('script');r.async=1;
+          r.src=t+h._hjSettings.hjid+j+h._hjSettings.hjsv;
+          a.appendChild(r);
+        })(window,document,'https://static.hotjar.com/c/hotjar-','.js?sv=');
+
+        // 5. LinkedIn Insight
+        _linkedin_partner_id="4342364";
+        window._linkedin_data_partner_ids=window._linkedin_data_partner_ids||[];
+        window._linkedin_data_partner_ids.push(_linkedin_partner_id);
+        (function(l){if(!l){window.lintrk=function(a,b){window.lintrk.q.push([a,b])};window.lintrk.q=[]}var s=document.getElementsByTagName("script")[0];var b=document.createElement("script");b.type="text/javascript";b.async=true;b.src="https://snap.licdn.com/li.lms-analytics/insight.min.js";s.parentNode.insertBefore(b,s);})(window.lintrk);
+
+        // 6. Brevo
+        var brevo=document.createElement('script');brevo.src='https://cdn.brevo.com/js/sdk-loader.js';brevo.async=true;document.head.appendChild(brevo);
+        window.Brevo=window.Brevo||[];Brevo.push(["init",{client_key:"5hvn11cin823nl7pp8l646lr"}]);
+
+        // 7. Vector
+        !function(e,r){try{if(e.vector)return;var t={};t.q=t.q||[];for(var o=["load","identify","on"],n=function(e){return function(){var r=Array.prototype.slice.call(arguments,0);t.q.push([e,r])}},c=0;c<o.length;c++){var a=o[c];t[a]=n(a)}if(e.vector=t,!t.loaded){var i=r.createElement("script");i.type="text/javascript";i.async=true;i.src="https://cdn.vector.co/pixel.js";var l=r.getElementsByTagName("script")[0];l.parentNode.insertBefore(i,l);t.loaded=true}}catch(e){}}(window,document);
+        vector.load("628e9b85-17e1-4942-bb91-06b7b5131f17");
+      }, 3000);
+    </script>
   </body>
 </html>

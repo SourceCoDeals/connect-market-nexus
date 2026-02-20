@@ -156,6 +156,6 @@ export function useLeadMetrics() {
       };
     },
     enabled: authChecked && user && isAdmin,
-    refetchInterval: 30000, // Refetch every 30 seconds
+    refetchInterval: 120000, // Refetch every 2 minutes (was 30s)
   });
 }

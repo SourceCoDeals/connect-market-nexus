@@ -19,4 +19,18 @@ export default defineConfig(({ mode }) => ({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          // Split Recharts into its own vendor chunk (~409KB)
+          recharts: ['recharts'],
+        },
+      },
+    },
+  },
+  esbuild: {
+    // Strip console.log in production builds (keep warn/error)
+    drop: mode === 'production' ? ['console', 'debugger'] : [],
+  },
 }));

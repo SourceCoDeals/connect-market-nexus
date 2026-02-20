@@ -34,7 +34,7 @@ export function useSimpleMarketplaceAnalytics(daysBack: number = 30) {
         session_count: 0,
       };
     },
-    refetchInterval: 30000, // Refresh every 30 seconds
+    refetchInterval: 120000, // Refresh every 2 minutes (was 30s)
   });
 }
 
@@ -59,6 +59,6 @@ export function useAnalyticsHealthCheck() {
         search_analytics: checks[4].status === 'fulfilled' ? (checks[4].value.count || 0) : 0,
       };
     },
-    refetchInterval: 10000,
+    refetchInterval: 120000, // 2 minutes (was 10s)
   });
 }
