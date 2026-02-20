@@ -6,7 +6,7 @@ import { useListingMutations } from './listings/use-listing-mutations';
  * Hook for managing listings in admin dashboard
  */
 export function useAdminListings() {
-  const useListings = useListingsQuery;
+  const useListings = (status?: 'active' | 'inactive' | 'all', enabled?: boolean) => useListingsQuery(status, enabled);
   const { 
     useCreateListing, 
     useUpdateListing, 
