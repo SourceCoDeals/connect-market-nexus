@@ -169,7 +169,7 @@ BEGIN
             'target_geographies', 'company_website', 'buyer_linkedin'
           )
         )),
-        data_last_updated = now()::text,
+        data_last_updated = now(),
         updated_at = now()
       WHERE id = v_existing_id;
 
@@ -212,7 +212,7 @@ BEGIN
             'target_geographies', 'company_website', 'buyer_linkedin'
           )
         )),
-        now()::text
+        now()
       );
 
       RAISE NOTICE 'Created new remarketing_buyer from marketplace profile %', NEW.id;
@@ -282,7 +282,7 @@ SELECT
     'priority', 80,
     'extracted_at', now()::text
   ))::jsonb AS extraction_sources,
-  now()::text AS data_last_updated
+  now() AS data_last_updated
 FROM public.profiles p
 WHERE p.approval_status = 'approved'
   AND COALESCE(NULLIF(TRIM(p.company_name), ''), NULLIF(TRIM(p.company), '')) IS NOT NULL
