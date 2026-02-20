@@ -2,20 +2,28 @@ import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { adminErrorHandler } from "@/lib/error-handler";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { RefreshCw, Settings, Users, Database, Bell, HelpCircle } from "lucide-react";
+import { RefreshCw, Settings, Users, Database, Bell, HelpCircle, Loader2 } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { StripeOverviewTab } from "@/components/admin/StripeOverviewTab";
-import { AnalyticsTabContainer } from "@/components/admin/analytics/AnalyticsTabContainer";
-import { StreamlinedManagementTab } from "@/components/admin/StreamlinedManagementTab";
-import { RecentActivityTab } from "@/components/admin/RecentActivityTab";
-import { ListingIntelligenceTab } from "@/components/admin/ListingIntelligenceTab";
-import { DataRecoveryTab } from "@/components/admin/data-recovery/DataRecoveryTab";
-import { FormMonitoringTab } from "@/components/admin/form-monitoring/FormMonitoringTab";
 import { useAdmin } from "@/hooks/use-admin";
-import { useState } from "react";
+import { lazy, Suspense, useState } from "react";
 import { usePermissions } from "@/hooks/permissions/usePermissions";
 import { PermissionsModal } from "@/components/admin/permissions/PermissionsModal";
-import { MyDealsTab } from "@/components/admin/dashboard/MyDealsTab";
+
+// Lazy-load all tab content — each becomes its own code-split chunk
+const StripeOverviewTab = lazy(() => import("@/components/admin/StripeOverviewTab").then(m => ({ default: m.StripeOverviewTab })));
+const AnalyticsTabContainer = lazy(() => import("@/components/admin/analytics/AnalyticsTabContainer").then(m => ({ default: m.AnalyticsTabContainer })));
+const StreamlinedManagementTab = lazy(() => import("@/components/admin/StreamlinedManagementTab").then(m => ({ default: m.StreamlinedManagementTab })));
+const RecentActivityTab = lazy(() => import("@/components/admin/RecentActivityTab").then(m => ({ default: m.RecentActivityTab })));
+const ListingIntelligenceTab = lazy(() => import("@/components/admin/ListingIntelligenceTab").then(m => ({ default: m.ListingIntelligenceTab })));
+const DataRecoveryTab = lazy(() => import("@/components/admin/data-recovery/DataRecoveryTab").then(m => ({ default: m.DataRecoveryTab })));
+const FormMonitoringTab = lazy(() => import("@/components/admin/form-monitoring/FormMonitoringTab").then(m => ({ default: m.FormMonitoringTab })));
+const MyDealsTab = lazy(() => import("@/components/admin/dashboard/MyDealsTab").then(m => ({ default: m.MyDealsTab })));
+
+const TabFallback = () => (
+  <div className="flex items-center justify-center py-16">
+    <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+  </div>
+);
 
 const AdminDashboard = () => {
   const { users } = useAdmin();
@@ -191,35 +199,35 @@ const AdminDashboard = () => {
             {/* Content Area - More spacious */}
             <div className="px-8 py-8">
               <TabsContent value="overview" className="mt-0 space-y-6">
-                <StripeOverviewTab />
+                <Suspense fallback={<TabFallback />}><StripeOverviewTab /></Suspense>
               </TabsContent>
 
               <TabsContent value="my-deals" className="mt-0">
-                <MyDealsTab />
+                <Suspense fallback={<TabFallback />}><MyDealsTab /></Suspense>
               </TabsContent>
 
               <TabsContent value="analytics" className="mt-0">
-                <AnalyticsTabContainer />
+                <Suspense fallback={<TabFallback />}><AnalyticsTabContainer /></Suspense>
               </TabsContent>
 
               <TabsContent value="activity" className="mt-0">
-                <RecentActivityTab />
+                <Suspense fallback={<TabFallback />}><RecentActivityTab /></Suspense>
               </TabsContent>
 
               <TabsContent value="listings" className="mt-0">
-                <ListingIntelligenceTab />
+                <Suspense fallback={<TabFallback />}><ListingIntelligenceTab /></Suspense>
               </TabsContent>
 
               <TabsContent value="management" className="mt-0">
-                <StreamlinedManagementTab />
+                <Suspense fallback={<TabFallback />}><StreamlinedManagementTab /></Suspense>
               </TabsContent>
 
               <TabsContent value="data-recovery" className="mt-0">
-                <DataRecoveryTab users={usersData} />
+                <Suspense fallback={<TabFallback />}><DataRecoveryTab users={usersData} /></Suspense>
               </TabsContent>
 
               <TabsContent value="form-monitoring" className="mt-0">
-                <FormMonitoringTab />
+                <Suspense fallback={<TabFallback />}><FormMonitoringTab /></Suspense>
               </TabsContent>
             </div>
           </Tabs>

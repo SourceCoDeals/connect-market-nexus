@@ -248,6 +248,6 @@ export function useRecentUserActivity() {
       return activities
         .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
     },
-    refetchInterval: 5000, // Refetch every 5 seconds
+    refetchInterval: 60000, // Refetch every 60 seconds (was 5s — dashboard feed, not real-time)
   });
 }

@@ -27,7 +27,7 @@ export function useGlobalActivityQueue() {
       if (error) throw error;
       return (data || []) as unknown as GlobalActivityQueueItem[];
     },
-    refetchInterval: 5000,
+    refetchInterval: false, // Disabled — realtime subscription below handles updates
   });
 
   // Realtime subscription
