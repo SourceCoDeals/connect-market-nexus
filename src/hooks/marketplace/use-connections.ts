@@ -94,12 +94,10 @@ export const useRequestConnection = () => {
             body: userConfirmationPayload
           });
 
-          // Send admin notification about new connection request to ahaile14@gmail.com only
+          // Send admin notification about new connection request
           try {
             const adminNotificationPayload = {
               type: 'admin_notification',
-              recipientEmail: 'ahaile14@gmail.com',
-              recipientName: 'Adam Haile',
               requesterName: `${userData.first_name || ''} ${userData.last_name || ''}`.trim(),
               requesterEmail: userData.email,
               listingTitle: listingData.title,
@@ -112,7 +110,7 @@ export const useRequestConnection = () => {
               body: adminNotificationPayload
             });
           } catch (adminNotifError) {
-            console.error('Failed to send admin notification to ahaile14@gmail.com:', adminNotifError);
+            console.error('Failed to send admin notification:', adminNotifError);
           }
         } catch (notificationError) {
           // Log the error but don't fail the whole request

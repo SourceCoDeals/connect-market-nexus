@@ -32,11 +32,44 @@ const handler = async (req: Request): Promise<Response> => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  // Require a valid caller token — only authenticated users trigger their own alerts
+  const authHeader = req.headers.get("Authorization") || "";
+  const callerToken = authHeader.replace("Bearer ", "").trim();
+  if (!callerToken) {
+    return new Response(JSON.stringify({ error: "Unauthorized" }), {
+      status: 401,
+      headers: { "Content-Type": "application/json", ...corsHeaders },
+    });
+  }
+
   try {
     const supabaseClient = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
     );
+
+    // Verify the caller has a valid session
+    const anonClient = createClient(
+      Deno.env.get("SUPABASE_URL") ?? "",
+      Deno.env.get("SUPABASE_ANON_KEY") ?? "",
+      { global: { headers: { Authorization: `Bearer ${callerToken}` } } }
+    );
+    const { data: { user: callerUser }, error: callerError } = await anonClient.auth.getUser();
+    if (callerError || !callerUser) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { "Content-Type": "application/json", ...corsHeaders },
+      });
+    }
+
+    // Only admins (service-to-service) or the alert owner may trigger this
+    const { data: isAdmin } = await supabaseClient.rpc("is_admin", { _user_id: callerUser.id });
+    if (!isAdmin) {
+      return new Response(JSON.stringify({ error: "Forbidden: admin access required" }), {
+        status: 403,
+        headers: { "Content-Type": "application/json", ...corsHeaders },
+      });
+    }
 
     const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
     const { alert_id, user_email, user_id, listing_id, alert_name, listing_data }: DealAlertRequest = await req.json();
@@ -115,7 +148,7 @@ const handler = async (req: Request): Promise<Response> => {
                     : listing_data.description}
                 </div>
                 
-                <a href="https://vhzipqarkmmfuqadefep.supabase.co/listing/${listing_data.id}" class="btn">
+                <a href="${Deno.env.get("SITE_URL") ?? "https://marketplace.sourcecodeals.com"}/listing/${listing_data.id}" class="btn">
                   View Full Details →
                 </a>
               </div>
@@ -127,7 +160,7 @@ const handler = async (req: Request): Promise<Response> => {
             
             <div class="footer">
               <p>You're receiving this because you have an active deal alert named "${alert_name}".</p>
-              <p><a href="https://vhzipqarkmmfuqadefep.supabase.co/profile">Manage your alerts</a> | <a href="#">Unsubscribe</a></p>
+              <p><a href="${Deno.env.get("SITE_URL") ?? "https://marketplace.sourcecodeals.com"}/profile">Manage your alerts</a></p>
             </div>
           </div>
         </body>
