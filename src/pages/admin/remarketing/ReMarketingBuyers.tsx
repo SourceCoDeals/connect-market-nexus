@@ -75,6 +75,8 @@ const BUYER_TYPES: { value: BuyerType; label: string }[] = [
 
 type BuyerTab = 'all' | 'pe_firm' | 'platform' | 'needs_agreements' | 'needs_enrichment';
 
+const PAGE_SIZE = 50;
+
 const ReMarketingBuyers = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -86,6 +88,8 @@ const ReMarketingBuyers = () => {
   const universeFilter = searchParams.get("universe") ?? "all";
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [currentPage, setCurrentPage] = useState(1);
+  const [enrichingIds, setEnrichingIds] = useState<Set<string>>(new Set());
   const sortColumn = searchParams.get("sort") ?? "company_name";
   const sortDirection = (searchParams.get("dir") as "asc" | "desc") ?? "asc";
   // New buyer form state
@@ -299,7 +303,43 @@ const ReMarketingBuyers = () => {
     });
 
     return result;
-  }, [buyers, search, sortColumn, sortDirection]);
+  }, [buyers, search, sortColumn, sortDirection, activeTab]);
+
+  // Pagination
+  const totalPages = Math.max(1, Math.ceil(filteredBuyers.length / PAGE_SIZE));
+  const pagedBuyers = useMemo(() => {
+    const start = (currentPage - 1) * PAGE_SIZE;
+    return filteredBuyers.slice(start, start + PAGE_SIZE);
+  }, [filteredBuyers, currentPage]);
+
+  // Reset to page 1 when filters/search/tab change
+  const handleTabChange = (v: string) => {
+    setActiveTab(v as BuyerTab);
+    setSelectedIds(new Set());
+    setCurrentPage(1);
+  };
+
+  // Enrich single buyer
+  const handleEnrichBuyer = async (e: React.MouseEvent, buyerId: string) => {
+    e.stopPropagation();
+    setEnrichingIds(prev => new Set(prev).add(buyerId));
+    try {
+      const { error } = await supabase.functions.invoke('enrich-buyer', {
+        body: { buyerId, force: false },
+      });
+      if (error) throw error;
+      toast.success('Enrichment started');
+      queryClient.invalidateQueries({ queryKey: ['remarketing', 'buyers'] });
+    } catch (err: any) {
+      toast.error(err.message || 'Enrichment failed');
+    } finally {
+      setEnrichingIds(prev => {
+        const next = new Set(prev);
+        next.delete(buyerId);
+        return next;
+      });
+    }
+  };
 
   const handleSort = (column: string) => {
     setSearchParams((prev) => {
@@ -497,7 +537,7 @@ const ReMarketingBuyers = () => {
       </div>
 
       {/* Tabs */}
-      <Tabs value={activeTab} onValueChange={(v) => { setActiveTab(v as BuyerTab); setSelectedIds(new Set()); }}>
+      <Tabs value={activeTab} onValueChange={handleTabChange}>
         <TabsList className="flex-wrap h-auto gap-1">
           <TabsTrigger value="all">All Buyers ({tabCounts.all})</TabsTrigger>
           <TabsTrigger value="pe_firm">PE Firms ({tabCounts.pe_firm})</TabsTrigger>
@@ -566,6 +606,7 @@ const ReMarketingBuyers = () => {
                     onCheckedChange={toggleSelectAll}
                   />
                 </TableHead>
+                <TableHead className="w-[48px] text-muted-foreground text-xs font-normal">#</TableHead>
                 <TableHead className="w-[260px] cursor-pointer select-none hover:bg-muted/50" onClick={() => handleSort('company_name')}>
                   <span className="flex items-center">Platform / Buyer <SortIcon column="company_name" /></span>
                 </TableHead>
@@ -578,6 +619,7 @@ const ReMarketingBuyers = () => {
                 <TableHead>Description</TableHead>
                 <TableHead className="w-[90px]">Fee Agmt</TableHead>
                 <TableHead className="w-[130px]">Intel</TableHead>
+                <TableHead className="w-[100px]">Enrich</TableHead>
                 <TableHead className="w-[50px]"></TableHead>
               </TableRow>
             </TableHeader>
@@ -586,25 +628,28 @@ const ReMarketingBuyers = () => {
                 Array.from({ length: 5 }).map((_, i) => (
                   <TableRow key={i}>
                     <TableCell><Skeleton className="h-4 w-4" /></TableCell>
+                    <TableCell><Skeleton className="h-4 w-6" /></TableCell>
                     <TableCell><Skeleton className="h-10 w-48" /></TableCell>
                     <TableCell><Skeleton className="h-5 w-24" /></TableCell>
                     <TableCell><Skeleton className="h-5 w-24" /></TableCell>
                     <TableCell><Skeleton className="h-4 w-48" /></TableCell>
                     <TableCell><Skeleton className="h-5 w-16" /></TableCell>
                     <TableCell><Skeleton className="h-5 w-20" /></TableCell>
+                    <TableCell><Skeleton className="h-7 w-16" /></TableCell>
                     <TableCell><Skeleton className="h-8 w-8" /></TableCell>
                   </TableRow>
                 ))
               ) : filteredBuyers.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={8} className="text-center py-12 text-muted-foreground">
+                  <TableCell colSpan={10} className="text-center py-12 text-muted-foreground">
                     <Users className="h-8 w-8 mx-auto mb-3 opacity-50" />
                     <p className="font-medium">No buyers found</p>
                     <p className="text-sm">Add buyers manually or import from CSV</p>
                   </TableCell>
                 </TableRow>
               ) : (
-                filteredBuyers.map((buyer: any) => {
+                pagedBuyers.map((buyer: any, pageIdx: number) => {
+                  const globalIdx = (currentPage - 1) * PAGE_SIZE + pageIdx + 1;
                   const location = [buyer.hq_city, buyer.hq_state].filter(Boolean).join(', ');
 
                   return (
@@ -621,7 +666,11 @@ const ReMarketingBuyers = () => {
                         />
                       </TableCell>
 
-                      {/* Platform / Buyer Column */}
+                      {/* Row Number */}
+                      <TableCell className="text-xs text-muted-foreground tabular-nums">
+                        {globalIdx}
+                      </TableCell>
+
                       <TableCell>
                         <div className="flex items-start gap-3">
                           <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
@@ -747,6 +796,20 @@ const ReMarketingBuyers = () => {
                         />
                       </TableCell>
 
+                      {/* Enrich Button Column */}
+                      <TableCell onClick={(e) => e.stopPropagation()}>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-7 px-2 text-xs gap-1"
+                          disabled={enrichingIds.has(buyer.id)}
+                          onClick={(e) => handleEnrichBuyer(e, buyer.id)}
+                        >
+                          <Sparkles className="h-3 w-3" />
+                          {enrichingIds.has(buyer.id) ? 'Running…' : 'Enrich'}
+                        </Button>
+                      </TableCell>
+
                       {/* Actions Column */}
                       <TableCell>
                         <DropdownMenu>
@@ -769,7 +832,7 @@ const ReMarketingBuyers = () => {
                             </DropdownMenuItem>
                             <DropdownMenuItem onClick={(e) => {
                               e.stopPropagation();
-                              toast.info('Enrichment coming soon');
+                              handleEnrichBuyer(e, buyer.id);
                             }}>
                               <Sparkles className="h-4 w-4 mr-2" />
                               Enrich
@@ -795,6 +858,48 @@ const ReMarketingBuyers = () => {
               )}
             </TableBody>
           </Table>
+
+          {/* Pagination Footer */}
+          {!buyersLoading && filteredBuyers.length > PAGE_SIZE && (
+            <div className="flex items-center justify-between px-4 py-3 border-t text-sm text-muted-foreground">
+              <span>
+                Showing {(currentPage - 1) * PAGE_SIZE + 1}–{Math.min(currentPage * PAGE_SIZE, filteredBuyers.length)} of {filteredBuyers.length}
+              </span>
+              <div className="flex items-center gap-1">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-8 px-3"
+                  disabled={currentPage === 1}
+                  onClick={() => setCurrentPage(1)}
+                >«</Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-8 px-3"
+                  disabled={currentPage === 1}
+                  onClick={() => setCurrentPage(p => p - 1)}
+                >‹ Prev</Button>
+                <span className="px-3 font-medium text-foreground">
+                  Page {currentPage} of {totalPages}
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-8 px-3"
+                  disabled={currentPage === totalPages}
+                  onClick={() => setCurrentPage(p => p + 1)}
+                >Next ›</Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-8 px-3"
+                  disabled={currentPage === totalPages}
+                  onClick={() => setCurrentPage(totalPages)}
+                >»</Button>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -807,3 +912,4 @@ const ReMarketingBuyers = () => {
 };
 
 export default ReMarketingBuyers;
+
