@@ -32,6 +32,7 @@ import {
   Mail,
   Calendar,
   Phone,
+  ArrowRightCircle,
 } from "lucide-react";
 import { ScoreTierBadge, getTierFromScore } from "./ScoreTierBadge";
 import { IntelligenceBadge } from "./IntelligenceBadge";
@@ -79,10 +80,13 @@ interface BuyerMatchCardProps {
   onToggleInterested?: (scoreId: string, interested: boolean, scoreData: any) => void;
   onOutreachUpdate?: (scoreId: string, status: OutreachStatus, notes: string) => Promise<void>;
   onViewed?: (scoreId: string) => void;
+  onMoveToPipeline?: (scoreId: string, buyerId: string, listingId: string) => Promise<void>;
   outreach?: OutreachData | null;
   isPending?: boolean;
   universeName?: string; // Show universe badge when viewing "All Universes"
   firmFeeAgreement?: { signed: boolean; signedAt: string | null };
+  pipelineDealId?: string | null; // If set, buyer already has a deal in the pipeline
+  listingId?: string; // The listing this score is for
 }
 
 const getScoreColorClass = (score: number) => {
@@ -269,10 +273,13 @@ export const BuyerMatchCard = ({
   onToggleInterested,
   onOutreachUpdate,
   onViewed,
+  onMoveToPipeline,
   outreach,
   isPending = false,
   universeName,
   firmFeeAgreement,
+  pipelineDealId,
+  listingId,
 }: BuyerMatchCardProps) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const [outreachDialogOpen, setOutreachDialogOpen] = useState(false);
@@ -620,6 +627,26 @@ export const BuyerMatchCard = ({
                     {outreach ? 'Update' : 'Track'}
                   </Button>
                 )}
+                {/* Move to Pipeline / In Pipeline */}
+                {pipelineDealId ? (
+                  <Link to={`/admin/pipeline?deal=${pipelineDealId}`}>
+                    <Badge className="bg-blue-100 text-blue-700 border-blue-200 cursor-pointer hover:bg-blue-200">
+                      <ArrowRightCircle className="h-3 w-3 mr-1" />
+                      In Pipeline
+                    </Badge>
+                  </Link>
+                ) : onMoveToPipeline && listingId && score.buyer?.id ? (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-7 px-2 text-xs text-blue-600 border-blue-200 hover:bg-blue-50"
+                    onClick={() => onMoveToPipeline(score.id, score.buyer!.id, listingId)}
+                    disabled={isPending}
+                  >
+                    <ArrowRightCircle className="h-3 w-3 mr-1" />
+                    Move to Pipeline
+                  </Button>
+                ) : null}
               </>
             )}
 

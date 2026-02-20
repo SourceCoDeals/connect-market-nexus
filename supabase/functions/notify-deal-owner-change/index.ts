@@ -3,6 +3,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import React from 'react';
 import { renderAsync } from '@react-email/components';
 import { DealOwnerChangeEmail } from './_templates/deal-owner-change-email.tsx';
+import { sendViaBervo } from "../_shared/brevo-sender.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -90,41 +91,24 @@ const handler = async (req: Request): Promise<Response> => {
       })
     );
 
-    // Send email via Brevo
-    const brevoApiKey = Deno.env.get("BREVO_API_KEY");
-    if (!brevoApiKey) {
-      throw new Error("BREVO_API_KEY is not set");
-    }
-    
+    // Send email via shared Brevo sender
     console.log("Sending deal owner change notification to:", previousOwner.email);
-    
-    const emailPayload = {
-      sender: { name: "SourceCo Notifications", email: "notifications@sourcecodeals.com" },
-      to: [{ email: previousOwner.email, name: previousOwnerName }],
-      subject: subject,
-      htmlContent: htmlContent,
-    };
 
-    const emailResponse = await fetch("https://api.brevo.com/v3/smtp/email", {
-      method: "POST",
-      headers: {
-        "Accept": "application/json",
-        "Content-Type": "application/json",
-        "api-key": brevoApiKey,
-      },
-      body: JSON.stringify(emailPayload),
+    const emailResult = await sendViaBervo({
+      to: previousOwner.email,
+      toName: previousOwnerName,
+      subject,
+      htmlContent,
     });
 
-    if (!emailResponse.ok) {
-      const errorText = await emailResponse.text();
-      throw new Error(`Failed to send email: ${errorText}`);
+    if (!emailResult.success) {
+      throw new Error(emailResult.error || "Failed to send email");
     }
 
-    const emailResult = await emailResponse.json();
-    console.log("Deal owner notification sent successfully:", emailResult);
+    console.log("Deal owner notification sent successfully:", emailResult.messageId);
 
     return new Response(
-      JSON.stringify({ 
+      JSON.stringify({
         success: true,
         message_id: emailResult.messageId,
         recipient: previousOwner.email

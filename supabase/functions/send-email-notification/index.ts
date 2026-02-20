@@ -1,5 +1,17 @@
 
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import { sendViaBervo } from "../_shared/brevo-sender.ts";
+
+/**
+ * DEPRECATED: Consolidated into enhanced-email-delivery.
+ *
+ * This function is preserved as a thin wrapper to avoid breaking any hidden
+ * callers. It still handles its 3 email types (approval, rejection,
+ * verification) but now uses the shared Brevo sender instead of duplicated
+ * inline fetch logic.
+ *
+ * New callers should use 'enhanced-email-delivery' directly.
+ */
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -8,45 +20,38 @@ const corsHeaders = {
 };
 
 interface EmailNotificationRequest {
-  type: 'approval' | 'rejection' | 'verification'; 
+  type: 'approval' | 'rejection' | 'verification';
   email: string;
   firstName: string;
   data?: Record<string, any>;
 }
 
 const handler = async (req: Request): Promise<Response> => {
-  console.log("Email notification request received");
-  
-  // Handle CORS preflight requests
+  console.log("[send-email-notification] DEPRECATED — using shared brevo-sender");
+
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    // Get request body
     const text = await req.text();
-    console.log("Request body:", text);
-    
     if (!text) {
       throw new Error("Empty request body");
     }
-    
-    const requestData: EmailNotificationRequest = JSON.parse(text);
-    console.log("Parsed request data:", requestData);
-    
-    const { type, email, firstName, data } = requestData;
-    
+
+    const { type, email, firstName, data }: EmailNotificationRequest = JSON.parse(text);
+
     if (!type || !email || !firstName) {
       throw new Error("Missing required fields in request");
     }
-    
+
     let subject = '';
     let htmlContent = '';
     let textContent = '';
-    
+
     switch (type) {
       case 'approval':
-        subject = '✅ Your account has been approved!';
+        subject = 'Your account has been approved!';
         htmlContent = `
           <h1>Hi ${firstName},</h1>
           <p>Great news! Your account has been approved.</p>
@@ -56,7 +61,7 @@ const handler = async (req: Request): Promise<Response> => {
         `;
         textContent = `Hi ${firstName},\n\nGreat news! Your account has been approved. You now have full access to the SourceCo Marketplace.\n\nGo to Marketplace: https://marketplace.sourcecodeals.com/login\n\n— The SourceCo Team`;
         break;
-        
+
       case 'rejection':
         subject = 'Account Application Status';
         htmlContent = `
@@ -69,7 +74,7 @@ const handler = async (req: Request): Promise<Response> => {
         `;
         textContent = `Hi ${firstName},\n\nThank you for your interest in the SourceCo Marketplace.\n\nAfter reviewing your application, we regret to inform you that we are unable to approve your account at this time.\n\n${data?.rejectionReason ? `Reason: ${data.rejectionReason}\n\n` : ''}If you have any questions, please reply to this email.\n\n— The SourceCo Team`;
         break;
-        
+
       case 'verification':
         subject = 'Please verify your email address';
         htmlContent = `
@@ -82,88 +87,39 @@ const handler = async (req: Request): Promise<Response> => {
         `;
         textContent = `Hi ${firstName},\n\nThank you for signing up for the SourceCo Marketplace.\n\nPlease verify your email address by clicking the link below:\n\n${data?.verificationLink}\n\nIf you did not sign up for an account, please ignore this email.\n\n— The SourceCo Team`;
         break;
-        
+
       default:
         throw new Error(`Invalid email notification type: ${type}`);
     }
 
-    console.log("Sending email to:", email);
-    console.log("Email subject:", subject);
-    
-    const brevoApiKey = Deno.env.get("BREVO_API_KEY");
-    if (!brevoApiKey) {
-      throw new Error("BREVO_API_KEY environment variable is not set");
-    }
-    
-    const senderEmail = Deno.env.get("SENDER_EMAIL") || "adam.haile@sourcecodeals.com";
-    const senderName = Deno.env.get("SENDER_NAME") || "Adam Haile";
-
-    const brevoPayload = {
-      sender: {
-        name: "SourceCo Marketplace",
-        email: senderEmail
-      },
-      to: [
-        {
-          email: email,
-          name: firstName
-        }
-      ],
-      subject: subject,
-      htmlContent: htmlContent,
-      textContent: textContent,
-      replyTo: {
-        email: senderEmail,
-        name: senderName
-      },
-      // Disable click tracking to prevent broken links
-      params: {
-        trackClicks: false,
-        trackOpens: true
-      }
-    };
-    
-    const response = await fetch("https://api.brevo.com/v3/smtp/email", {
-      method: "POST",
-      headers: {
-        "api-key": brevoApiKey,
-        "Content-Type": "application/json",
-        "Accept": "application/json"
-      },
-      body: JSON.stringify(brevoPayload),
-      signal: AbortSignal.timeout(15000),
+    const result = await sendViaBervo({
+      to: email,
+      toName: firstName,
+      subject,
+      htmlContent,
+      textContent,
+      senderName: "SourceCo Marketplace",
     });
-    
-    const responseData = await response.json();
-    
-    if (!response.ok) {
-      console.error("Error sending email via Brevo:", responseData);
+
+    if (!result.success) {
+      console.error("Email send failed:", result.error);
       return new Response(
-        JSON.stringify({ error: responseData }),
-        {
-          status: 500,
-          headers: { "Content-Type": "application/json", ...corsHeaders },
-        }
+        JSON.stringify({ error: result.error }),
+        { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } }
       );
     }
 
-    console.log("Email sent successfully:", responseData);
+    console.log("Email sent successfully:", result.messageId);
 
-    return new Response(JSON.stringify(responseData), {
-      status: 200,
-      headers: {
-        "Content-Type": "application/json",
-        ...corsHeaders,
-      },
-    });
+    return new Response(
+      JSON.stringify({ messageId: result.messageId }),
+      { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
+    );
   } catch (error: any) {
     console.error("Error in send-email-notification function:", error);
     return new Response(
       JSON.stringify({ error: error.message }),
-      {
-        status: 500,
-        headers: { "Content-Type": "application/json", ...corsHeaders },
-      }
+      { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } }
     );
   }
 };

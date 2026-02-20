@@ -1,10 +1,12 @@
 /**
  * Chat Conversation Persistence Client Utilities
  *
- * These utilities reference columns (context_type, title, archived, deal_id,
- * universe_id) on chat_conversations that may not yet exist in the database
- * schema.  We use `as any` on the supabase client to avoid type errors until
- * the corresponding migrations are applied.
+ * We use `as any` on the supabase client because the generated types require
+ * `listing_id` (NOT NULL) for chat_conversations inserts, but these
+ * context-based conversations (deal, deals, buyers, universe) don't always
+ * have a listing_id. The DB columns (context_type, deal_id, universe_id,
+ * archived, title) all exist and work correctly — the `as any` cast only
+ * bypasses the TypeScript-level listing_id requirement.
  */
 
 import { supabase } from './client';

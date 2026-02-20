@@ -33,7 +33,9 @@ export const useSavedListings = (filters: FilterOptions = {}) => {
           .from('listings')
           .select('*', { count: 'exact' })
           .in('id', listingIds)
-          .eq('status', 'active');
+          .eq('status', 'active')
+          .is('deleted_at', null)
+          .eq('is_internal_deal', false);
         
         // Apply filters
         if (filters.category) {

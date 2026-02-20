@@ -10,7 +10,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { X, MoreVertical, Trash2, Sparkles } from 'lucide-react';
+import { X, MoreVertical, Trash2, Sparkles, Target } from 'lucide-react';
 import { usePipelineCore } from '@/hooks/admin/use-pipeline-core';
 import { PipelineDetailOverview } from './tabs/PipelineDetailOverview';
 import { PipelineDetailBuyer } from './tabs/PipelineDetailBuyer';
@@ -160,6 +160,14 @@ export function PipelineDetailPanel({ pipeline }: PipelineDetailPanelProps) {
                       <Sparkles className="h-4 w-4 mr-2" />
                       Match Buyers
                     </DropdownMenuItem>
+                    {selectedDeal.remarketing_buyer_id && (
+                      <DropdownMenuItem
+                        onClick={() => navigate(`/admin/remarketing/buyers/${selectedDeal.remarketing_buyer_id}`)}
+                      >
+                        <Target className="h-4 w-4 mr-2" />
+                        View Remarketing Buyer
+                      </DropdownMenuItem>
+                    )}
                     <DropdownMenuSeparator />
                   </>
                 )}

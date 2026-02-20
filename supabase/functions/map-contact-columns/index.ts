@@ -1,25 +1,28 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { GEMINI_API_URL, getGeminiHeaders, DEFAULT_GEMINI_MODEL } from "../_shared/ai-providers.ts";
+
+/**
+ * DEPRECATED: This function now proxies to map-csv-columns with targetType='buyer'.
+ *
+ * The unified map-csv-columns function supports both 'buyer' and 'deal' target types,
+ * has a richer field set (19 buyer fields vs 6 here), and better AI prompting.
+ *
+ * All new callers should invoke 'map-csv-columns' directly with { targetType: 'buyer' }.
+ * This proxy exists to avoid breaking any hidden callers.
+ *
+ * NOTE: This function has zero known frontend callers as of 2026-02-19.
+ */
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-const AVAILABLE_FIELDS = [
-  { name: 'name', description: 'Full name of the contact' },
-  { name: 'title', description: 'Job title or role' },
-  { name: 'company_type', description: 'PE Firm or Platform Company' },
-  { name: 'email', description: 'Email address' },
-  { name: 'phone', description: 'Phone number' },
-  { name: 'linkedin_url', description: 'LinkedIn profile URL' },
-  { name: 'skip', description: 'Column should be ignored' }
-];
-
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
+
+  console.log("[map-contact-columns] DEPRECATED — proxying to map-csv-columns");
 
   try {
     const { headers, sampleRows } = await req.json();
@@ -31,115 +34,63 @@ serve(async (req) => {
       );
     }
 
-    const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY');
-    if (!GEMINI_API_KEY) {
-      const mappings = heuristicMapping(headers);
-      return new Response(
-        JSON.stringify({ success: true, method: 'heuristic', mappings }),
-        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+    const supabaseUrl = Deno.env.get("SUPABASE_URL");
+    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+
+    if (!supabaseUrl || !serviceRoleKey) {
+      throw new Error("Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY");
     }
 
-    const systemPrompt = `You are a CSV column mapping expert for contact data imports.
-
-Available fields to map to:
-${AVAILABLE_FIELDS.map(f => `- ${f.name}: ${f.description}`).join('\n')}
-
-Return JSON only - an object mapping each input header to the best matching field:
-{
-  "Header Name": "field_name",
-  "Another Header": "skip"
-}
-
-Rules:
-- Each input header must be mapped to exactly one field
-- Use "skip" for columns that don't match any field
-- Be case-insensitive when matching
-- Consider common variations (e.g., "Full Name" -> "name", "LinkedIn" -> "linkedin_url")`;
-
-    let sampleContext = '';
+    // Convert sampleRows (string[][]) to sampleData (Record<string, string>[]) for map-csv-columns
+    let sampleData: Record<string, string>[] | undefined;
     if (sampleRows && sampleRows.length > 0) {
-      sampleContext = `\n\nSample data (first 3 rows):\n${sampleRows.slice(0, 3).map((row: string[], i: number) => 
-        `Row ${i + 1}: ${row.join(' | ')}`
-      ).join('\n')}`;
+      sampleData = sampleRows.map((row: string[]) => {
+        const record: Record<string, string> = {};
+        headers.forEach((h: string, i: number) => {
+          record[h] = row[i] || '';
+        });
+        return record;
+      });
     }
 
-    const response = await fetch(GEMINI_API_URL, {
-      method: 'POST',
-      headers: getGeminiHeaders(GEMINI_API_KEY),
-      body: JSON.stringify({
-        model: DEFAULT_GEMINI_MODEL,
-        max_tokens: 1000,
-        messages: [
-          { role: 'system', content: systemPrompt },
-          {
-            role: 'user',
-            content: `Map these CSV headers to contact fields:\n\nHeaders: ${headers.join(', ')}${sampleContext}`
-          }
-        ],
-      }),
-    });
+    const proxyResponse = await fetch(
+      `${supabaseUrl}/functions/v1/map-csv-columns`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${serviceRoleKey}`,
+        },
+        body: JSON.stringify({
+          columns: headers,
+          targetType: 'buyer',
+          sampleData,
+        }),
+      }
+    );
 
-    if (!response.ok) {
-      const mappings = heuristicMapping(headers);
-      return new Response(
-        JSON.stringify({ success: true, method: 'heuristic', mappings }),
-        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+    const result = await proxyResponse.json();
+
+    // Convert array mappings back to Record<string, string> for legacy callers
+    const mappings: Record<string, string> = {};
+    if (Array.isArray(result.mappings)) {
+      for (const m of result.mappings) {
+        if (m.csvColumn) {
+          mappings[m.csvColumn] = m.targetField || 'skip';
+        }
+      }
     }
 
-    const result = await response.json();
-    const content = result.choices?.[0]?.message?.content || '';
-
-    const jsonMatch = content.match(/\{[\s\S]*\}/);
-    if (jsonMatch) {
-      const mappings = JSON.parse(jsonMatch[0]);
-      return new Response(
-        JSON.stringify({ success: true, method: 'ai', mappings }),
-        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    const mappings = heuristicMapping(headers);
     return new Response(
-      JSON.stringify({ success: true, method: 'heuristic', mappings }),
+      JSON.stringify({ success: true, method: 'proxy', mappings }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
   } catch (error: any) {
-    console.error('Error in map-contact-columns:', error);
+    console.error('[map-contact-columns] Proxy error:', error);
     return new Response(
       JSON.stringify({ error: error.message || 'Internal server error' }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
 });
-
-function heuristicMapping(headers: string[]): Record<string, string> {
-  const mappings: Record<string, string> = {};
-  
-  const patterns: Record<string, RegExp> = {
-    name: /^(full\s*)?name$|^contact(\s*name)?$/i,
-    title: /title|role|position|job/i,
-    company_type: /company\s*type|type|entity/i,
-    email: /e-?mail|email\s*address/i,
-    phone: /phone|tel|mobile|cell/i,
-    linkedin_url: /linkedin|li\s*url|profile/i,
-  };
-
-  for (const header of headers) {
-    let matched = false;
-    for (const [field, pattern] of Object.entries(patterns)) {
-      if (pattern.test(header)) {
-        mappings[header] = field;
-        matched = true;
-        break;
-      }
-    }
-    if (!matched) {
-      mappings[header] = 'skip';
-    }
-  }
-
-  return mappings;
-}

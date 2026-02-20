@@ -474,9 +474,10 @@ const ReMarketingDealDetail = () => {
                       .from('listings')
                       .update({
                         status: 'active',
+                        remarketing_status: 'active',
                         pushed_to_all_deals: true,
                         pushed_to_all_deals_at: new Date().toISOString(),
-                      })
+                      } as any)
                       .eq('id', dealId);
                     if (error) {
                       toast.error('Failed to push deal');

@@ -204,7 +204,7 @@ const ReMarketingDeals = () => {
           universe_build_flagged_at,
           universe_build_flagged_by
         `)
-        .eq('status', 'active')
+        .eq('remarketing_status', 'active')
         .neq('deal_source', 'gp_partners')
         .or('deal_source.neq.valuation_calculator,pushed_to_all_deals.eq.true')
         .or('deal_source.neq.valuation_lead,pushed_to_all_deals.eq.true')
@@ -407,7 +407,9 @@ const ReMarketingDeals = () => {
   const filteredListings = useMemo(() => {
     if (!engineFiltered) return [];
     return engineFiltered.filter(listing => {
-      if (universeFilter !== "all") {
+      if (universeFilter === "needs_build") {
+        if (!listing.needs_buyer_universe) return false;
+      } else if (universeFilter !== "all") {
         const stats = scoreStats?.[listing.id];
         if (!stats || !stats.universeIds.has(universeFilter)) return false;
       }
@@ -647,7 +649,7 @@ const ReMarketingDeals = () => {
   const handleArchiveDeal = useCallback(async (dealId: string, dealName: string) => {
     const { error } = await supabase
       .from('listings')
-      .update({ status: 'archived' })
+      .update({ remarketing_status: 'archived' } as any)
       .eq('id', dealId);
     if (error) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
@@ -777,7 +779,7 @@ const ReMarketingDeals = () => {
       const dealIds = Array.from(selectedDeals);
       const { error } = await supabase
         .from('listings')
-        .update({ status: 'archived' })
+        .update({ remarketing_status: 'archived' } as any)
         .in('id', dealIds);
       if (error) throw error;
       toast({ title: "Deals archived", description: `${dealIds.length} deal(s) have been archived` });

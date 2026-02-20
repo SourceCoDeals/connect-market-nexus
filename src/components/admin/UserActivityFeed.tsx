@@ -146,7 +146,7 @@ export function UserActivityFeed() {
 
     // Subscribe to connection requests changes
     const connectionRequestsChannel = supabase
-      .channel('connection-requests-changes')
+      .channel('connection-requests-activity-feed')
       .on('postgres_changes', {
         event: 'INSERT',
         schema: 'public',
@@ -164,11 +164,10 @@ export function UserActivityFeed() {
     }, 30000);
 
     return () => {
-      
-      listingAnalyticsChannel.unsubscribe();
-      pageViewsChannel.unsubscribe();
-      userEventsChannel.unsubscribe();
-      connectionRequestsChannel.unsubscribe();
+      supabase.removeChannel(listingAnalyticsChannel);
+      supabase.removeChannel(pageViewsChannel);
+      supabase.removeChannel(userEventsChannel);
+      supabase.removeChannel(connectionRequestsChannel);
       clearInterval(autoRefreshInterval);
     };
   }, [refetch]);

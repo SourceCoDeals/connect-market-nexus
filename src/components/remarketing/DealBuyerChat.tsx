@@ -107,6 +107,15 @@ export function DealBuyerChat({
     autoLoad: true,
   });
 
+  // Cleanup abort controller on unmount
+  useEffect(() => {
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
+  }, []);
+
   // Auto-scroll to bottom
   useEffect(() => {
     if (scrollRef.current) {
@@ -155,6 +164,12 @@ export function DealBuyerChat({
     setIsLoading(true);
     setStreamingContent("");
 
+    // Cancel previous request if any
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    abortControllerRef.current = new AbortController();
+
     try {
       const { data: sessionData } = await supabase.auth.getSession();
       if (!sessionData.session) {
@@ -178,6 +193,7 @@ export function DealBuyerChat({
               content: m.content,
             })),
           }),
+          signal: abortControllerRef.current.signal,
         }
       );
 
@@ -298,6 +314,9 @@ export function DealBuyerChat({
       });
       setStreamingContent("");
     } catch (error) {
+      if (error instanceof Error && error.name === "AbortError") {
+        return; // User cancelled, don't show error
+      }
       console.error("Chat error:", error);
       const errorMessage: Message = {
         id: `error-${Date.now()}`,

@@ -65,6 +65,7 @@ function scorePillClass(score: number | null): string {
 }
 
 function isAllDealVisible(d: DealRow): boolean {
+  if ((d as any).remarketing_status === "archived" || (d as any).remarketing_status === "excluded") return false;
   if (d.status === "archived" || d.status === "inactive") return false;
   const src = d.deal_source;
   if (src === "captarget" || src === "gp_partners" || src === "valuation_calculator") return d.pushed_to_all_deals === true;
@@ -130,8 +131,8 @@ const ReMarketingDashboard = () => {
       while (hasMore) {
         const { data, error } = await supabase
           .from("listings")
-          .select("id, title, internal_company_name, deal_source, pushed_to_all_deals, pushed_to_all_deals_at, deal_total_score, deal_owner_id, enrichment_status, enriched_at, created_at, revenue, ebitda, category, address_state, status")
-          .in("status", ["active", "pending"])
+          .select("id, title, internal_company_name, deal_source, pushed_to_all_deals, pushed_to_all_deals_at, deal_total_score, deal_owner_id, enrichment_status, enriched_at, created_at, revenue, ebitda, category, address_state, status, remarketing_status")
+          .in("remarketing_status", ["active"])
           .range(offset, offset + batchSize - 1);
         if (error) throw error;
         if (data && data.length > 0) {

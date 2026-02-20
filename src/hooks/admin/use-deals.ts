@@ -95,6 +95,10 @@ export interface Deal {
   company_deal_count?: number;
   listing_deal_count?: number; // More reliable - counts deals per listing
   buyer_connection_count?: number; // Total connection requests by this buyer
+
+  // Remarketing bridge (when deal originated from remarketing)
+  remarketing_buyer_id?: string | null;
+  remarketing_score_id?: string | null;
 }
 
 export interface DealStage {
@@ -217,6 +221,10 @@ export function useDeals() {
           buyer_id: row.buyer_id,
           last_contact_at: row.last_contact_at,
           last_contact_type: row.last_contact_type,
+
+          // Remarketing bridge
+          remarketing_buyer_id: row.remarketing_buyer_id ?? null,
+          remarketing_score_id: row.remarketing_score_id ?? null,
         };
       }) as Deal[];
     },

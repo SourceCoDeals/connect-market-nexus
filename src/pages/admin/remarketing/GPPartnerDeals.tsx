@@ -1368,12 +1368,12 @@ export default function GPPartnerDeals() {
                               onClick={async () => {
                                 const { error } = await supabase
                                   .from('listings')
-                                  .update({ status: 'archived' } as never)
+                                  .update({ remarketing_status: 'archived' } as never)
                                   .eq('id', deal.id);
                                 if (error) {
                                   toast({ title: "Error", description: error.message, variant: "destructive" });
                                 } else {
-                                  toast({ title: "Deal archived", description: "Deal has been archived" });
+                                  toast({ title: "Deal archived (remarketing)", description: "Deal has been archived in remarketing. Marketplace status unchanged." });
                                   refetch();
                                 }
                               }}

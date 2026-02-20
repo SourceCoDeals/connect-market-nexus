@@ -3126,6 +3126,8 @@ export type Database = {
           owner_assigned_by: string | null
           priority: string | null
           probability: number | null
+          remarketing_buyer_id: string | null
+          remarketing_score_id: string | null
           source: string | null
           stage_entered_at: string | null
           stage_id: string
@@ -3168,6 +3170,8 @@ export type Database = {
           owner_assigned_by?: string | null
           priority?: string | null
           probability?: number | null
+          remarketing_buyer_id?: string | null
+          remarketing_score_id?: string | null
           source?: string | null
           stage_entered_at?: string | null
           stage_id: string
@@ -3210,6 +3214,8 @@ export type Database = {
           owner_assigned_by?: string | null
           priority?: string | null
           probability?: number | null
+          remarketing_buyer_id?: string | null
+          remarketing_score_id?: string | null
           source?: string | null
           stage_entered_at?: string | null
           stage_id?: string

@@ -3,7 +3,7 @@ import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { CheckSquare, Clock, Building2, User, Globe, FileText, Zap } from 'lucide-react';
+import { CheckSquare, Clock, Building2, User, Globe, FileText, Zap, Target } from 'lucide-react';
 import { Deal } from '@/hooks/admin/use-deals';
 import { cn } from '@/lib/utils';
 import { formatDistanceToNow } from 'date-fns';
@@ -235,6 +235,8 @@ export function PipelineKanbanCard({ deal, onDealClick, isDragging }: PipelineKa
         return { icon: Globe, label: 'Marketplace', color: 'bg-secondary/20 text-secondary-foreground/95 border-secondary/30' };
       case 'webflow':
         return { icon: FileText, label: 'Webflow', color: 'bg-accent/20 text-accent-foreground/95 border-accent/30' };
+      case 'remarketing':
+        return { icon: Target, label: 'Remarketing', color: 'bg-indigo-100/50 text-indigo-700 border-indigo-200/60' };
       case 'manual':
         return { icon: Zap, label: 'Manual', color: 'bg-foreground/8 text-foreground/90 border-foreground/20' };
       default:
