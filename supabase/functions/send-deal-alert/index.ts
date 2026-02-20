@@ -1,6 +1,5 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { Resend } from "https://esm.sh/resend@2.0.0";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -71,8 +70,10 @@ const handler = async (req: Request): Promise<Response> => {
       });
     }
 
-    const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
-    const { alert_id, user_email, user_id, listing_id, alert_name, listing_data }: DealAlertRequest = await req.json();
+    // Parse body early so we can reference it in the catch block too
+    let parsedBody: DealAlertRequest | null = null;
+    parsedBody = await req.json();
+    const { alert_id, user_email, user_id, listing_id, alert_name, listing_data } = parsedBody;
 
     console.log("Processing deal alert:", { alert_id, user_email, listing_id });
 
@@ -167,15 +168,35 @@ const handler = async (req: Request): Promise<Response> => {
       </html>
     `;
 
-    // Send the email
-    const emailResponse = await resend.emails.send({
-      from: "Deal Alerts <deals@vhzipqarkmmfuqadefep.supabase.co>",
-      to: [user_email],
-      subject: `🚨 New Deal Alert: ${listing_data.title}`,
-      html: emailHtml,
+    // Send via Brevo (project-standard email provider)
+    const brevoApiKey = Deno.env.get("BREVO_API_KEY");
+    if (!brevoApiKey) {
+      throw new Error("BREVO_API_KEY not configured");
+    }
+
+    const brevoResponse = await fetch("https://api.brevo.com/v3/smtp/email", {
+      method: "POST",
+      headers: {
+        "api-key": brevoApiKey,
+        "Content-Type": "application/json",
+        "Accept": "application/json",
+      },
+      body: JSON.stringify({
+        sender: { name: "SourceCo Marketplace", email: "adam.haile@sourcecodeals.com" },
+        to: [{ email: user_email, name: user_email.split("@")[0] }],
+        subject: `🚨 New Deal Alert: ${listing_data.title}`,
+        htmlContent: emailHtml,
+        params: { trackClicks: false, trackOpens: true },
+      }),
     });
 
-    console.log("Email sent:", emailResponse);
+    if (!brevoResponse.ok) {
+      const errText = await brevoResponse.text();
+      throw new Error(`Brevo error ${brevoResponse.status}: ${errText}`);
+    }
+
+    const emailResponse = await brevoResponse.json();
+    console.log("Email sent via Brevo:", emailResponse);
 
     // Update delivery log status
     const { error: updateError } = await supabaseClient
@@ -210,10 +231,9 @@ const handler = async (req: Request): Promise<Response> => {
   } catch (error: any) {
     console.error("Error in send-deal-alert function:", error);
 
-    // Try to update delivery log with error if we have the alert info
+    // Use already-parsed body to update delivery log — avoids double-consuming req.json()
     try {
-      const body = await req.json();
-      if (body.alert_id && body.listing_id && body.user_id) {
+      if (parsedBody?.alert_id && parsedBody?.listing_id && parsedBody?.user_id) {
         const supabaseClient = createClient(
           Deno.env.get("SUPABASE_URL") ?? "",
           Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
@@ -225,9 +245,9 @@ const handler = async (req: Request): Promise<Response> => {
             delivery_status: "failed", 
             error_message: error.message 
           })
-          .eq("alert_id", body.alert_id)
-          .eq("listing_id", body.listing_id)
-          .eq("user_id", body.user_id);
+          .eq("alert_id", parsedBody.alert_id)
+          .eq("listing_id", parsedBody.listing_id)
+          .eq("user_id", parsedBody.user_id);
       }
     } catch (logError) {
       console.error("Error updating error log:", logError);
