@@ -86,6 +86,6 @@ export const useUserSessions = (userId: string | null) => {
       return sessions;
     },
     enabled: !!userId,
-    refetchInterval: 10000, // Refetch every 10 seconds
+    refetchInterval: 5 * 60 * 1000, // Refetch every 5 minutes (was 10s)
   });
 };

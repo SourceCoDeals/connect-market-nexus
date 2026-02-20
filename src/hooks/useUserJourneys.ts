@@ -62,7 +62,7 @@ export function useUserJourneys(timeRangeDays: number = 30) {
       if (error) throw error;
       return (data || []) as UserJourney[];
     },
-    refetchInterval: 30000, // Refresh every 30 seconds
+    refetchInterval: 5 * 60 * 1000, // Refresh every 5 minutes (was 30s)
   });
 
   // Calculate stats
