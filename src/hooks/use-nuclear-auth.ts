@@ -340,6 +340,13 @@ export function useNuclearAuth() {
       ...(preparedInvestmentSize !== undefined ? { investment_size: preparedInvestmentSize } : {}),
     };
 
+    // SECURITY: Strip privileged fields that must never be set via client-side profile updates.
+    // is_admin is managed by user_roles table + DB trigger; approval_status by admin actions only.
+    const PRIVILEGED_FIELDS = ['is_admin', 'approval_status', 'email_verified', 'role', 'id', 'email'];
+    for (const field of PRIVILEGED_FIELDS) {
+      delete dbPayload[field];
+    }
+
     const { error } = await supabase
       .from('profiles')
       .update(dbPayload)
