@@ -50,14 +50,12 @@ import {
   Building,
   Pencil,
   Trash2,
-  MapPin,
   ExternalLink,
   Sparkles,
   ArrowUpDown,
   ArrowUp,
   ArrowDown,
   Check,
-  Minus,
   Download,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -438,6 +436,27 @@ const ReMarketingBuyers = () => {
         </div>
         <div className="flex items-center gap-2">
           <BuyerCSVImport />
+          <Button
+            size="sm"
+            variant="outline"
+            className="gap-1.5"
+            disabled={selectedIds.size === 0 || enrichingIds.size > 0}
+            onClick={async () => {
+              const ids = selectedIds.size > 0 ? Array.from(selectedIds) : [];
+              for (const id of ids) {
+                setEnrichingIds(prev => new Set(prev).add(id));
+                try {
+                  await supabase.functions.invoke('enrich-buyer', { body: { buyerId: id, force: false } });
+                } catch {}
+                setEnrichingIds(prev => { const n = new Set(prev); n.delete(id); return n; });
+              }
+              queryClient.invalidateQueries({ queryKey: ['remarketing', 'buyers'] });
+              toast.success(`Enriched ${ids.length} buyers`);
+            }}
+          >
+            <Sparkles className="h-3.5 w-3.5" />
+            {enrichingIds.size > 0 ? `Enriching (${enrichingIds.size})…` : selectedIds.size > 0 ? `Enrich Selected (${selectedIds.size})` : 'Enrich Selected'}
+          </Button>
           <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
             <DialogTrigger asChild>
               <Button className="gap-2">
@@ -625,11 +644,10 @@ const ReMarketingBuyers = () => {
                   <span className="flex items-center">Universe <SortIcon column="universe" /></span>
                 </TableHead>
                 <TableHead>Description</TableHead>
-                <TableHead className="w-[90px]">Marketplace</TableHead>
-                <TableHead className="w-[90px]">Fee Agmt</TableHead>
-                <TableHead className="w-[80px]">NDA</TableHead>
+                <TableHead className="w-[70px] text-center">Mktpl.</TableHead>
+                <TableHead className="w-[70px] text-center">Fee Agmt</TableHead>
+                <TableHead className="w-[60px] text-center">NDA</TableHead>
                 <TableHead className="w-[130px]">Intel</TableHead>
-                <TableHead className="w-[100px]">Enrich</TableHead>
                 <TableHead className="w-[50px]"></TableHead>
               </TableRow>
             </TableHeader>
@@ -643,11 +661,10 @@ const ReMarketingBuyers = () => {
                     <TableCell><Skeleton className="h-5 w-24" /></TableCell>
                     <TableCell><Skeleton className="h-5 w-24" /></TableCell>
                     <TableCell><Skeleton className="h-4 w-48" /></TableCell>
-                    <TableCell><Skeleton className="h-5 w-16" /></TableCell>
-                    <TableCell><Skeleton className="h-5 w-16" /></TableCell>
-                    <TableCell><Skeleton className="h-5 w-16" /></TableCell>
+                    <TableCell><Skeleton className="h-4 w-8" /></TableCell>
+                    <TableCell><Skeleton className="h-4 w-8" /></TableCell>
+                    <TableCell><Skeleton className="h-4 w-8" /></TableCell>
                     <TableCell><Skeleton className="h-5 w-20" /></TableCell>
-                    <TableCell><Skeleton className="h-7 w-16" /></TableCell>
                     <TableCell><Skeleton className="h-8 w-8" /></TableCell>
                   </TableRow>
                 ))
@@ -703,12 +720,6 @@ const ReMarketingBuyers = () => {
                                 </Badge>
                               )}
                             </div>
-                            {location && (
-                              <div className="flex items-center gap-1 text-xs text-muted-foreground mt-0.5">
-                                <MapPin className="h-3 w-3" />
-                                {location}
-                              </div>
-                            )}
                             {buyer.company_website && (
                               <a
                                 href={buyer.company_website}
@@ -775,74 +786,25 @@ const ReMarketingBuyers = () => {
                       </TableCell>
 
                       {/* Marketplace Column */}
-                      <TableCell>
-                        {buyer.marketplace_firm_id ? (
-                          <TooltipProvider>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Badge className="bg-violet-600 hover:bg-violet-700 text-xs px-1.5 py-0 flex items-center gap-1 w-fit cursor-help">
-                                  <Check className="h-3 w-3" />
-                                  Signed Up
-                                </Badge>
-                              </TooltipTrigger>
-                              <TooltipContent side="bottom" className="text-xs">
-                                {buyer.firm_agreement?.primary_company_name || 'Linked to marketplace firm'}
-                              </TooltipContent>
-                            </Tooltip>
-                          </TooltipProvider>
-                        ) : (
-                          <Minus className="h-4 w-4 text-muted-foreground/40" />
-                        )}
+                      <TableCell className="text-center">
+                        {buyer.marketplace_firm_id
+                          ? <span className="text-xs font-medium text-green-600">Yes</span>
+                          : <span className="text-xs text-muted-foreground">No</span>}
                       </TableCell>
 
                       {/* Fee Agreement Column */}
-                      <TableCell>
-                        {buyer.has_fee_agreement ? (
-                          <Badge
-                            variant="default"
-                            className={`text-xs px-1.5 py-0 flex items-center gap-1 w-fit ${
-                              buyer.fee_agreement_source === 'pe_firm_inherited'
-                                ? 'bg-blue-600 hover:bg-blue-700'
-                                : buyer.fee_agreement_source === 'manual_override'
-                                ? 'bg-amber-600 hover:bg-amber-700'
-                                : 'bg-green-600 hover:bg-green-700'
-                            }`}
-                          >
-                            <Check className="h-3 w-3" />
-                            {buyer.fee_agreement_source === 'pe_firm_inherited'
-                              ? `via ${buyer.pe_firm_name || 'PE'}`
-                              : buyer.fee_agreement_source === 'manual_override'
-                              ? 'Manual'
-                              : 'Signed'}
-                          </Badge>
-                        ) : (
-                          <Minus className="h-4 w-4 text-muted-foreground/40" />
-                        )}
+                      <TableCell className="text-center">
+                        {buyer.has_fee_agreement
+                          ? <span className="text-xs font-medium text-green-600">Yes</span>
+                          : <span className="text-xs text-muted-foreground">No</span>}
                       </TableCell>
 
                       {/* NDA Column */}
-                      <TableCell>
-                        {buyer.firm_agreement?.nda_signed ? (
-                          <TooltipProvider>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Badge className="bg-green-600 hover:bg-green-700 text-xs px-1.5 py-0 flex items-center gap-1 w-fit cursor-help">
-                                  <Check className="h-3 w-3" />
-                                  Signed
-                                </Badge>
-                              </TooltipTrigger>
-                              <TooltipContent side="bottom" className="text-xs">
-                                {buyer.firm_agreement.nda_signed_at
-                                  ? `Signed ${new Date(buyer.firm_agreement.nda_signed_at).toLocaleDateString()}`
-                                  : 'NDA signed'}
-                              </TooltipContent>
-                            </Tooltip>
-                          </TooltipProvider>
-                        ) : (
-                          <Minus className="h-4 w-4 text-muted-foreground/40" />
-                        )}
+                      <TableCell className="text-center">
+                        {buyer.firm_agreement?.nda_signed
+                          ? <span className="text-xs font-medium text-green-600">Yes</span>
+                          : <span className="text-xs text-muted-foreground">No</span>}
                       </TableCell>
-
 
                       {/* Intel Column */}
                       <TableCell>
@@ -851,20 +813,6 @@ const ReMarketingBuyers = () => {
                           hasTranscript={buyerIdsWithTranscripts?.has(buyer.id) || false}
                           size="sm"
                         />
-                      </TableCell>
-
-                      {/* Enrich Button Column */}
-                      <TableCell onClick={(e) => e.stopPropagation()}>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="h-7 px-2 text-xs gap-1"
-                          disabled={enrichingIds.has(buyer.id)}
-                          onClick={(e) => handleEnrichBuyer(e, buyer.id)}
-                        >
-                          <Sparkles className="h-3 w-3" />
-                          {enrichingIds.has(buyer.id) ? 'Running…' : 'Enrich'}
-                        </Button>
                       </TableCell>
 
                       {/* Actions Column */}
