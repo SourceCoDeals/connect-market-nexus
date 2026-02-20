@@ -129,8 +129,8 @@ export function useRecentUserActivity() {
       console.log(`✅ Found ${validActivities.length} user activities`);
       return validActivities;
     },
-    refetchInterval: 30000, // Refetch every 30 seconds
-    staleTime: 10000, // Data is fresh for 10 seconds
+    refetchInterval: 5 * 60 * 1000, // Refetch every 5 minutes (was 30s)
+    staleTime: 2 * 60 * 1000, // Data is fresh for 2 minutes
   });
 }
 

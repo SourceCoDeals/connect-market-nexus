@@ -177,6 +177,6 @@ export function useRecentActivity(limit: number = 50) {
         .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
         .slice(0, limit);
     },
-    refetchInterval: 30000, // Refetch every 30 seconds
+    refetchInterval: 5 * 60 * 1000, // Refetch every 5 minutes (was 30s)
   });
 }

@@ -247,7 +247,31 @@ export function useEnrichmentProgress() {
     setSummary(null);
   }, []);
 
+  // Track whether enrichment is currently active to control polling rate
+  const isEnrichingRef = useRef(false);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Update the ref whenever progress changes
   useEffect(() => {
+    isEnrichingRef.current = progress.isEnriching || progress.isPaused;
+
+    // Adjust polling rate based on activity:
+    // - Active enrichment: poll every 10s
+    // - Idle: poll every 2 minutes (just to detect if a new job starts)
+    const newInterval = isEnrichingRef.current ? 10000 : 120000;
+
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+    }
+    intervalRef.current = setInterval(fetchQueueStatus, newInterval);
+
+    return () => {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+    };
+  }, [progress.isEnriching, progress.isPaused, fetchQueueStatus]);
+
+  useEffect(() => {
+    // Initial fetch on mount
     fetchQueueStatus();
 
     const channel = supabase
@@ -270,12 +294,9 @@ export function useEnrichmentProgress() {
       )
       .subscribe();
 
-    // Poll every 10 seconds instead of 5
-    const interval = setInterval(fetchQueueStatus, 10000);
-
     return () => {
       supabase.removeChannel(channel);
-      clearInterval(interval);
+      if (intervalRef.current) clearInterval(intervalRef.current);
       if (fetchTimeoutRef.current) clearTimeout(fetchTimeoutRef.current);
     };
   }, [fetchQueueStatus]);

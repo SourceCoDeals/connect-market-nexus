@@ -432,8 +432,8 @@ export function usePremiumAnalytics(timeRangeDays: number = 30) {
         },
       };
     },
-    staleTime: 30000,
-    refetchInterval: 60000,
+    staleTime: 5 * 60 * 1000,
+    refetchInterval: 10 * 60 * 1000, // Refetch every 10 minutes (was 60s)
   });
 }
 
