@@ -25,6 +25,7 @@
 -- ─── STEP 1: Restore deals that have real buyer engagement ───
 -- If real buyers saved, viewed, or requested connection on a deal,
 -- it was clearly a marketplace deal and must be visible.
+-- NOTE: image_url required by listings_marketplace_requires_image constraint.
 UPDATE public.listings
 SET
   is_internal_deal = false,
@@ -32,6 +33,8 @@ SET
 WHERE is_internal_deal = true
   AND status = 'active'
   AND deleted_at IS NULL
+  AND image_url IS NOT NULL
+  AND image_url != ''
   AND (
     EXISTS (SELECT 1 FROM public.connection_requests cr WHERE cr.listing_id = listings.id)
     OR EXISTS (SELECT 1 FROM public.saved_listings sl WHERE sl.listing_id = listings.id)
@@ -48,7 +51,9 @@ SET is_internal_deal = false
 WHERE is_internal_deal = true
   AND published_at IS NOT NULL
   AND status = 'active'
-  AND deleted_at IS NULL;
+  AND deleted_at IS NULL
+  AND image_url IS NOT NULL
+  AND image_url != '';
 
 
 -- ─── STEP 3: Restore deals with marketplace characteristics ───
