@@ -70,9 +70,37 @@ export const useSaveListingMutation = () => {
   });
 };
 
-// Check if listing is saved
-export const useSavedStatus = (listingId: string | undefined) => {
+// Batch fetch all saved listing IDs for the current user (single query)
+export const useAllSavedListingIds = () => {
   return useQuery({
+    queryKey: ['saved-listing-ids'],
+    queryFn: async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) return new Set<string>();
+        
+        const { data, error } = await supabase
+          .from('saved_listings')
+          .select('listing_id')
+          .eq('user_id', session.user.id);
+        
+        if (error) throw error;
+        
+        return new Set((data || []).map(r => r.listing_id));
+      } catch (error: any) {
+        console.error('Error fetching saved listing ids:', error);
+        return new Set<string>();
+      }
+    },
+    staleTime: 1000 * 60, // 1 minute
+  });
+};
+
+// Check if listing is saved - uses batch query when savedIds provided, falls back to individual query
+export const useSavedStatus = (listingId: string | undefined, savedIds?: Set<string>) => {
+  // If a batch set is provided, skip the individual query entirely
+  const skip = !!savedIds;
+  const query = useQuery({
     queryKey: createQueryKey.savedStatus(listingId),
     queryFn: async () => {
       if (!listingId) return false;
@@ -96,7 +124,12 @@ export const useSavedStatus = (listingId: string | undefined) => {
         return false;
       }
     },
-    enabled: !!listingId,
-    staleTime: 1000 * 60, // 1 minute
+    enabled: !!listingId && !skip,
+    staleTime: 1000 * 60,
   });
+
+  if (skip && listingId) {
+    return { ...query, data: savedIds.has(listingId) };
+  }
+  return query;
 };

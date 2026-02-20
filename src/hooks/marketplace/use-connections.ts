@@ -156,9 +156,40 @@ export const useRequestConnection = () => {
   });
 };
 
-// Get connection status for a listing
-export const useConnectionStatus = (listingId: string | undefined) => {
+// Batch fetch all connection statuses for the current user (single query)
+export const useAllConnectionStatuses = () => {
   return useQuery({
+    queryKey: ['all-connection-statuses'],
+    queryFn: async () => {
+      try {
+        const { data: { user: authUser } } = await supabase.auth.getUser();
+        if (!authUser) return new Map<string, { exists: boolean; status: string; id: string }>();
+        
+        const { data, error } = await supabase
+          .from('connection_requests')
+          .select('id, status, listing_id')
+          .eq('user_id', authUser.id);
+        
+        if (error) throw error;
+        
+        const map = new Map<string, { exists: boolean; status: string; id: string }>();
+        for (const row of data || []) {
+          map.set(row.listing_id, { exists: true, status: row.status, id: row.id });
+        }
+        return map;
+      } catch (error: any) {
+        console.error('Error fetching all connection statuses:', error);
+        return new Map<string, { exists: boolean; status: string; id: string }>();
+      }
+    },
+    staleTime: 1000 * 60,
+  });
+};
+
+// Get connection status for a listing - uses batch map when provided, falls back to individual query
+export const useConnectionStatus = (listingId: string | undefined, connectionMap?: Map<string, { exists: boolean; status: string; id: string }>) => {
+  const skip = !!connectionMap;
+  const query = useQuery({
     queryKey: createQueryKey.connectionStatus(listingId),
     queryFn: async () => {
       if (!listingId) return { exists: false, status: '', id: '' };
@@ -186,9 +217,15 @@ export const useConnectionStatus = (listingId: string | undefined) => {
         return { exists: false, status: '', id: '' };
       }
     },
-    enabled: !!listingId,
-    staleTime: 1000 * 60, // 1 minute
+    enabled: !!listingId && !skip,
+    staleTime: 1000 * 60,
   });
+
+  if (skip && listingId) {
+    const cached = connectionMap.get(listingId) ?? { exists: false, status: '', id: '' };
+    return { ...query, data: cached };
+  }
+  return query;
 };
 
 // Get user connection requests with full listing details including acquisition type

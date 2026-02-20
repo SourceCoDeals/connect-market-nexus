@@ -15,6 +15,8 @@ import {
 } from "@/components/ui/select";
 import { toast } from "@/hooks/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useAllSavedListingIds } from "@/hooks/marketplace/use-saved-listings";
+import { useAllConnectionStatuses } from "@/hooks/marketplace/use-connections";
 
 const SavedListings = () => {
   const [filters, setFilters] = useState<FilterOptions>({
@@ -32,6 +34,10 @@ const SavedListings = () => {
   const navigate = useNavigate();
   const { useSavedListings } = useMarketplace();
   const { data: listingsData, isLoading, error } = useSavedListings(filters);
+  
+  // Batch fetch (2 queries instead of N+1)
+  const { data: savedIds } = useAllSavedListingIds();
+  const { data: connectionMap } = useAllConnectionStatuses();
   
   const listings = listingsData?.listings || [];
   const totalItems = listingsData?.totalCount || 0;
@@ -238,6 +244,8 @@ const SavedListings = () => {
                       key={listing.id}
                       listing={listing}
                       viewType={viewType}
+                      savedIds={savedIds}
+                      connectionMap={connectionMap}
                     />
                   ))}
                 </div>

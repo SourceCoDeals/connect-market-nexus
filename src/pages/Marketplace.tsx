@@ -12,6 +12,8 @@ import { Button } from "@/components/ui/button";
 import { LayoutGrid, LayoutList, ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { LoadingSpinner } from "@/components/LoadingSpinner";
+import { useAllSavedListingIds } from "@/hooks/marketplace/use-saved-listings";
+import { useAllConnectionStatuses } from "@/hooks/marketplace/use-connections";
 
 import {
   Select,
@@ -43,6 +45,10 @@ const MarketplaceContent = () => {
   const pagination = useSimplePagination();
   const { data: listingsData, isLoading, error } = useSimpleListings(pagination.state);
   const { data: metadata } = useListingMetadata();
+  
+  // Batch fetch saved & connection status (2 queries total instead of 40+)
+  const { data: savedIds } = useAllSavedListingIds();
+  const { data: connectionMap } = useAllConnectionStatuses();
   
   // Search session tracking for analytics
   const { startSearch, registerResults } = useSearchSession();
@@ -345,6 +351,8 @@ const MarketplaceContent = () => {
                       key={listing.id}
                       listing={listing}
                       viewType={viewType}
+                      savedIds={savedIds}
+                      connectionMap={connectionMap}
                     />
                   ))}
                 </div>
