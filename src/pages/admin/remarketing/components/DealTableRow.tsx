@@ -245,20 +245,14 @@ export const DealTableRow = ({
         </div>
       </TableCell>
 
-      {/* Referral Source */}
+      {/* Marketplace */}
       <TableCell style={{ width: columnWidths.referralSource, minWidth: 60 }}>
-        {listing.referral_partners?.name ? (
-          <span
-            className="text-sm text-blue-600 hover:underline cursor-pointer truncate block"
-            onClick={(e) => {
-              e.stopPropagation();
-              navigate(`/admin/remarketing/referral-partners/${listing.referral_partners!.id}`);
-            }}
-          >
-            {listing.referral_partners.name}
+        {listing.is_internal_deal === false ? (
+          <span className="inline-flex items-center gap-1 text-xs font-medium text-success">
+            Yes
           </span>
         ) : (
-          <span className="text-muted-foreground">—</span>
+          <span className="text-xs text-muted-foreground">No</span>
         )}
       </TableCell>
 

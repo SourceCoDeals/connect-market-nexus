@@ -47,6 +47,7 @@ export interface DealListing {
   universe_build_flagged: boolean | null;
   universe_build_flagged_at: string | null;
   universe_build_flagged_by: string | null;
+  is_internal_deal: boolean | null;
 }
 
 // Column width configuration

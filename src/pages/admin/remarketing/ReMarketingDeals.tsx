@@ -202,7 +202,8 @@ const ReMarketingDeals = () => {
           needs_owner_contact_at,
           universe_build_flagged,
           universe_build_flagged_at,
-          universe_build_flagged_by
+          universe_build_flagged_by,
+          is_internal_deal
         `)
         .eq('remarketing_status', 'active')
         .neq('deal_source', 'gp_partners')
@@ -1148,7 +1149,7 @@ const ReMarketingDeals = () => {
                       <SortableHeader column="deal_name" label="Deal Name" />
                     </ResizableHeader>
                     <ResizableHeader width={columnWidths.referralSource} onResize={(w) => handleColumnResize('referralSource', w)} minWidth={60}>
-                      <SortableHeader column="referral_source" label="Referral Source" />
+                      <span className="text-muted-foreground font-medium">Marketplace</span>
                     </ResizableHeader>
                     <ResizableHeader width={columnWidths.industry} onResize={(w) => handleColumnResize('industry', w)} minWidth={60}>
                       <SortableHeader column="industry" label="Industry" />
