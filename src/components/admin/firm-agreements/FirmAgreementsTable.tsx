@@ -507,7 +507,7 @@ function FirmRow({
               )}
               {firm.deal_count > 0 && (
                 <DropdownMenuItem 
-                  onClick={() => window.location.href = `/admin/pipeline?firm=${firm.id}`}
+                  onClick={() => window.location.href = `/admin/deals/pipeline?firm=${firm.id}`}
                   className="cursor-pointer focus:bg-muted/80 focus:text-foreground"
                 >
                   <Building2 className="h-4 w-4 mr-2" />

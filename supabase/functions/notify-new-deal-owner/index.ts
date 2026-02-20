@@ -109,7 +109,7 @@ const handler = async (req: Request): Promise<Response> => {
 
         <!-- CTA Button -->
         <div style="text-align: center; margin-bottom: 32px;">
-          <a href="https://marketplace.sourcecodeals.com/admin/pipeline?deal=${dealId}"
+          <a href="https://marketplace.sourcecodeals.com/admin/deals/pipeline?deal=${dealId}"
              style="background-color: #d7b65c; color: #ffffff; font-size: 14px; font-weight: 600; text-decoration: none; text-align: center; display: inline-block; padding: 12px 32px; border-radius: 6px;">
             View Deal Details
           </a>

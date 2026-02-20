@@ -74,7 +74,7 @@ export function LeadFirmBadge({ leadId, compact = false }: LeadFirmBadgeProps) {
               </div>
             </div>
             <Link 
-              to="/admin/firm-agreements" 
+              to="/admin/buyers/firm-agreements" 
               className="text-xs text-primary hover:underline inline-block mt-2"
             >
               View Firm Details →

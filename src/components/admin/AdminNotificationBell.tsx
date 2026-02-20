@@ -52,7 +52,7 @@ export function AdminNotificationBell() {
       const tab = urlParams.get('tab');
       
       // Navigate to pipeline
-      navigate('/admin/pipeline');
+      navigate('/admin/deals/pipeline');
       
       // Use a slight delay to ensure the page has loaded before trying to open the deal
       setTimeout(() => {
@@ -60,7 +60,7 @@ export function AdminNotificationBell() {
         const params = new URLSearchParams();
         if (dealId) params.set('deal', dealId);
         if (tab) params.set('tab', tab);
-        window.history.replaceState(null, '', `/admin/pipeline?${params.toString()}`);
+        window.history.replaceState(null, '', `/admin/deals/pipeline?${params.toString()}`);
         
         // Dispatch custom event to open the deal panel
         window.dispatchEvent(new CustomEvent('open-deal-from-notification', { 
@@ -211,7 +211,7 @@ export function AdminNotificationBell() {
               variant="ghost"
               className="w-full justify-center text-xs text-muted-foreground hover:text-foreground"
               onClick={() => {
-                navigate('/admin/notifications');
+                navigate('/admin/settings/notifications');
                 setOpen(false);
               }}
             >

@@ -629,7 +629,7 @@ export const BuyerMatchCard = ({
                 )}
                 {/* Move to Pipeline / In Pipeline */}
                 {pipelineDealId ? (
-                  <Link to={`/admin/pipeline?deal=${pipelineDealId}`}>
+                  <Link to={`/admin/deals/pipeline?deal=${pipelineDealId}`}>
                     <Badge className="bg-blue-100 text-blue-700 border-blue-200 cursor-pointer hover:bg-blue-200">
                       <ArrowRightCircle className="h-3 w-3 mr-1" />
                       In Pipeline

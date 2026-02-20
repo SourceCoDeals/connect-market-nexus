@@ -106,7 +106,7 @@ const handler = async (req: Request): Promise<Response> => {
         ` : ''}
 
         <div style="text-align: center; margin: 30px 0;">
-          <a href="https://marketplace.sourcecodeals.com/admin/users" 
+          <a href="https://marketplace.sourcecodeals.com/admin/marketplace/users" 
              style="background: #6d2c36; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: 500;">
             View in Admin Dashboard
           </a>

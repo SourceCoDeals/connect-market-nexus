@@ -167,7 +167,7 @@ const AdminUsers = () => {
                 asChild
                 className="rounded-none border-b-2 border-transparent data-[state=active]:border-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none px-0 pb-2 pt-0 font-medium text-sm data-[state=active]:text-foreground text-muted-foreground hover:text-foreground transition-colors"
               >
-                <Link to="/admin/firm-agreements" className="inline-flex items-center gap-2">
+                <Link to="/admin/buyers/firm-agreements" className="inline-flex items-center gap-2">
                   <Building2 className="h-4 w-4" />
                   Firm Agreements
                 </Link>

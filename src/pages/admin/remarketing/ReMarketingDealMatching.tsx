@@ -835,7 +835,7 @@ const ReMarketingDealMatching = () => {
       toast.success(`Moved to pipeline: ${data.deal_title}`, {
         action: {
           label: 'View in Pipeline',
-          onClick: () => navigate(`/admin/pipeline?deal=${data.deal_id}`),
+          onClick: () => navigate(`/admin/deals/pipeline?deal=${data.deal_id}`),
         },
       });
 
@@ -869,7 +869,7 @@ const ReMarketingDealMatching = () => {
           <CardContent className="py-12 text-center">
             <p className="text-muted-foreground">Listing not found</p>
             <Button variant="link" asChild>
-              <Link to="/admin/listings">Back to Listings</Link>
+              <Link to="/admin/marketplace/listings">Back to Listings</Link>
             </Button>
           </CardContent>
         </Card>
@@ -909,7 +909,7 @@ const ReMarketingDealMatching = () => {
           <CardTitle className="flex items-center justify-between text-lg">
             <span>{listing.title}</span>
             <Button variant="ghost" size="sm" asChild>
-              <Link to={`/admin/listings/${listing.id}`}>
+              <Link to={`/admin/marketplace/listings/${listing.id}`}>
                 <ExternalLink className="h-4 w-4 mr-1" />
                 View Listing
               </Link>

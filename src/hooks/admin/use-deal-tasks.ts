@@ -117,7 +117,7 @@ export function useCreateDealTask() {
             message: `You have been assigned a new task: ${taskData.title}`,
             deal_id: taskData.deal_id,
             task_id: data.id,
-            action_url: `/admin/pipeline?deal=${taskData.deal_id}&tab=tasks`,
+            action_url: `/admin/deals/pipeline?deal=${taskData.deal_id}&tab=tasks`,
             metadata: {
               task_title: taskData.title,
               title: dealData?.title || 'Deal',
@@ -230,7 +230,7 @@ export function useUpdateDealTask() {
             message: `You have been assigned a task: ${currentTask.title}`,
             deal_id: currentTask.deal_id,
             task_id: taskId,
-            action_url: `/admin/pipeline?deal=${currentTask.deal_id}&tab=tasks`,
+            action_url: `/admin/deals/pipeline?deal=${currentTask.deal_id}&tab=tasks`,
             metadata: {
               task_title: currentTask.title,
               title: dealData?.title || 'Deal',
@@ -275,7 +275,7 @@ export function useUpdateDealTask() {
               message: `Task "${currentTask.title}" has been resolved and is ready for your review`,
               deal_id: currentTask.deal_id,
               task_id: taskId,
-              action_url: `/admin/pipeline?deal=${currentTask.deal_id}&tab=tasks`,
+              action_url: `/admin/deals/pipeline?deal=${currentTask.deal_id}&tab=tasks`,
               metadata: {
                 task_title: currentTask.title,
                 title: dealData?.title || 'Deal',
@@ -364,7 +364,7 @@ export function useCompleteDealTask() {
             message: `Task "${currentTask.title}" was marked as resolved`,
             deal_id: currentTask.deal_id,
             task_id: taskId,
-            action_url: `/admin/pipeline?deal=${currentTask.deal_id}&tab=tasks`,
+            action_url: `/admin/deals/pipeline?deal=${currentTask.deal_id}&tab=tasks`,
             metadata: {
               task_title: currentTask.title,
               title: dealData?.title || 'Deal',

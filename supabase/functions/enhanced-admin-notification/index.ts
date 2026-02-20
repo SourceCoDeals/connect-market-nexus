@@ -96,7 +96,7 @@ const handler = async (req: Request): Promise<Response> => {
                       <p style="margin: 0; color: #856404;"><strong>Action Required:</strong> Please review and approve/reject this user registration in the admin panel.</p>
                     </div>
                     <div style="text-align: center; margin: 30px 0;">
-                      <a href="${req.headers.get('origin')}/admin/users" 
+                      <a href="${req.headers.get('origin')}/admin/marketplace/users" 
                          style="background-color: #007bff; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; display: inline-block;">
                         Review User Registration
                       </a>
@@ -142,7 +142,7 @@ const handler = async (req: Request): Promise<Response> => {
                       <p style="margin: 0; color: #856404;"><strong>Action Required:</strong> Please review and approve/reject this user registration in the admin panel.</p>
                     </div>
                     <div style="text-align: center; margin: 30px 0;">
-                      <a href="${req.headers.get('origin')}/admin/users" 
+                      <a href="${req.headers.get('origin')}/admin/marketplace/users" 
                          style="background-color: #007bff; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; display: inline-block;">
                         Review User Registration
                       </a>
