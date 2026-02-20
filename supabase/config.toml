@@ -54,9 +54,6 @@ enable_signup = true
 double_confirm_changes = true
 enable_confirmations = true
 
-[auth.jwt]
-enable_jwt = true
-
 [auth.external.google]
 enabled = false
 client_id = ""
@@ -69,12 +66,6 @@ enabled = false
 port = 54327
 vector_port = 54328
 backend = "postgres"
-
-cgroupv2_memory_limit = "1024"
-collect_query_data = true
-
-[experimental.graphql]
-enabled = false
 
 [functions]
 [functions.publish-listing]
