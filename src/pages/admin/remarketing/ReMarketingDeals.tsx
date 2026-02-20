@@ -198,6 +198,7 @@ const ReMarketingDeals = () => {
             google_review_count,
             google_rating,
             is_priority_target,
+            needs_buyer_universe,
             deal_total_score,
             seller_interest_score,
             manual_rank_override,

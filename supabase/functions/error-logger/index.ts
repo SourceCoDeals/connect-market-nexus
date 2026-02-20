@@ -75,7 +75,7 @@ const handler = async (req: Request): Promise<Response> => {
       stack_trace: errorLog.stack_trace ? errorLog.stack_trace.substring(0, 10000) : null, // Cap stack trace size
       user_id: authenticatedUserId, // Always use authenticated user, ignore client-provided user_id
       correlation_id: correlationId,
-      context: errorLog.context ? JSON.parse(JSON.stringify(errorLog.context).substring(0, 50000)) : {}, // Cap context size
+      context: errorLog.context ? (() => { try { const s = JSON.stringify(errorLog.context); return s.length > 50000 ? { _truncated: true, _raw: s.substring(0, 50000) } : errorLog.context; } catch { return { _error: 'unserializable' }; } })() : {},
       severity: errorLog.severity,
       source: errorLog.source,
       timestamp: errorLog.timestamp || new Date().toISOString(),
