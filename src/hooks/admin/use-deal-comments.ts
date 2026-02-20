@@ -19,7 +19,7 @@ export function useDealComments(dealId: string) {
     queryKey: ['deal-comments', dealId],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('deal_comments' as any)
+        .from('deal_comments')
         .select(`
           *,
           profiles:admin_id (
@@ -62,13 +62,13 @@ export function useCreateDealComment() {
       if (!user) throw new Error('Not authenticated');
 
       const { data, error } = await supabase
-        .from('deal_comments' as any)
+        .from('deal_comments')
         .insert({
           deal_id: dealId,
           admin_id: user.id,
           comment_text: commentText,
           mentioned_admins: mentionedAdmins,
-        } as any)
+        })
         .select()
         .single();
 
@@ -111,11 +111,11 @@ export function useUpdateDealComment() {
       dealId: string;
     }) => {
       const { data, error } = await supabase
-        .from('deal_comments' as any)
-        .update({ 
+        .from('deal_comments')
+        .update({
           comment_text: commentText,
           mentioned_admins: mentionedAdmins,
-        } as any)
+        })
         .eq('id', commentId)
         .select()
         .single();
@@ -147,7 +147,7 @@ export function useDeleteDealComment() {
   return useMutation({
     mutationFn: async ({ commentId, dealId }: { commentId: string; dealId: string }) => {
       const { error } = await supabase
-        .from('deal_comments' as any)
+        .from('deal_comments')
         .delete()
         .eq('id', commentId);
 
