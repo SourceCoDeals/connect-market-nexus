@@ -17,6 +17,15 @@ import {
   Settings,
   FileSignature,
   UserCog,
+  Globe2,
+  Activity,
+  Crosshair,
+  Briefcase,
+  Calculator,
+  Handshake,
+  ClipboardList,
+  Brain,
+  Plus,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -78,6 +87,12 @@ export function AdminNavbar({ className }: AdminNavbarProps) {
       section: "Buyers",
     },
     {
+      to: "/admin/remarketing/universes",
+      label: "Buyer Universes",
+      icon: <Globe2 className="h-4 w-4 mr-2" />,
+      active: location.pathname.startsWith("/admin/remarketing/universes"),
+    },
+    {
       to: "/admin/buyers/firm-agreements",
       label: "Firm Agreements",
       icon: <FileSignature className="h-4 w-4 mr-2" />,
@@ -92,11 +107,17 @@ export function AdminNavbar({ className }: AdminNavbarProps) {
     },
     // Marketplace
     {
+      to: "/",
+      label: "View Marketplace",
+      icon: <ShoppingBag className="h-4 w-4 mr-2" />,
+      active: false,
+      section: "Marketplace",
+    },
+    {
       to: "/admin/marketplace/listings",
       label: "Listings",
       icon: <Store className="h-4 w-4 mr-2" />,
       active: location.pathname.startsWith("/admin/marketplace/listings"),
-      section: "Marketplace",
     },
     {
       to: "/admin/marketplace/requests",
@@ -115,33 +136,77 @@ export function AdminNavbar({ className }: AdminNavbarProps) {
     // Remarketing
     {
       to: "/admin/remarketing",
-      label: "Remarketing",
+      label: "Overview",
       icon: <Target className="h-4 w-4 mr-2" />,
       active: location.pathname === "/admin/remarketing",
       section: "Remarketing",
+    },
+    {
+      to: "/admin/remarketing/activity-queue",
+      label: "Activity Queue",
+      icon: <Activity className="h-4 w-4 mr-2" />,
+      active: location.pathname.startsWith("/admin/remarketing/activity-queue"),
+    },
+    {
+      to: "/admin/remarketing/captarget-deals",
+      label: "CapTarget Deals",
+      icon: <Crosshair className="h-4 w-4 mr-2" />,
+      active: location.pathname.startsWith("/admin/remarketing/captarget-deals"),
+    },
+    {
+      to: "/admin/remarketing/gp-partner-deals",
+      label: "GP Partner Deals",
+      icon: <Briefcase className="h-4 w-4 mr-2" />,
+      active: location.pathname.startsWith("/admin/remarketing/gp-partner-deals"),
+    },
+    {
+      to: "/admin/remarketing/valuation-leads",
+      label: "Valuation Leads",
+      icon: <Calculator className="h-4 w-4 mr-2" />,
+      active: location.pathname.startsWith("/admin/remarketing/valuation-leads"),
+    },
+    {
+      to: "/admin/remarketing/referral-partners",
+      label: "Referral Partners",
+      icon: <Handshake className="h-4 w-4 mr-2" />,
+      active: location.pathname.startsWith("/admin/remarketing/referral-partners"),
     },
     // Analytics
     {
       to: "/admin/remarketing/analytics",
       label: "Analytics",
       icon: <BarChart3 className="h-4 w-4 mr-2" />,
-      active: location.pathname.startsWith("/admin/remarketing/analytics") || location.pathname.startsWith("/admin/analytics"),
+      active: location.pathname.startsWith("/admin/remarketing/analytics"),
       section: "Analytics",
+    },
+    {
+      to: "/admin/analytics/transcripts",
+      label: "Transcript Analytics",
+      icon: <ClipboardList className="h-4 w-4 mr-2" />,
+      active: location.pathname.startsWith("/admin/analytics/transcripts"),
     },
     // Admin
     {
       to: "/admin/settings/team",
-      label: "Settings",
+      label: "Internal Users & Team",
       icon: <Settings className="h-4 w-4 mr-2" />,
-      active: location.pathname.startsWith("/admin/settings"),
+      active: location.pathname === "/admin/settings/team",
       section: "Admin",
     },
-    // View Marketplace
     {
-      to: "/",
-      label: "View Marketplace",
-      icon: <ShoppingBag className="h-4 w-4 mr-2" />,
-      active: false,
+      to: "/admin/settings/owner-leads",
+      label: "Owner/Seller Leads",
+      icon: <ClipboardList className="h-4 w-4 mr-2" />,
+      active: location.pathname.startsWith("/admin/settings/owner-leads"),
+      badge: unviewedOwnerLeadsCount,
+    },
+    // MA Intelligence
+    {
+      to: "/admin/ma-intelligence",
+      label: "MA Intelligence",
+      icon: <Brain className="h-4 w-4 mr-2" />,
+      active: location.pathname.startsWith("/admin/ma-intelligence"),
+      section: "Intelligence",
     },
   ];
 
@@ -201,6 +266,17 @@ export function AdminNavbar({ className }: AdminNavbarProps) {
                   </SheetClose>
                 </div>
               ))}
+              {/* Quick action */}
+              <div className="px-4 pt-4 mt-2 border-t border-border/50">
+                <SheetClose asChild>
+                  <Link to="/admin/remarketing/universes?new=true">
+                    <Button variant="outline" size="sm" className="w-full gap-2">
+                      <Plus className="h-4 w-4" />
+                      New Buyer Universe
+                    </Button>
+                  </Link>
+                </SheetClose>
+              </div>
             </nav>
           </SheetContent>
         </Sheet>

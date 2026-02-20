@@ -33,6 +33,7 @@ import {
   FileCheck,
   Brain,
   ExternalLink,
+  Plus,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -413,9 +414,15 @@ export function AdminSidebar({ collapsed }: AdminSidebarProps) {
           })}
         </nav>
 
-        {/* Bottom links */}
+        {/* Quick action + bottom links */}
         {!collapsed && (
-          <div className="px-3 py-2 border-t border-border/50 space-y-0.5">
+          <div className="px-3 py-2 border-t border-border/50 space-y-1">
+            <Link to="/admin/remarketing/universes?new=true">
+              <Button variant="outline" size="sm" className="w-full gap-2 h-8 text-xs">
+                <Plus className="h-3.5 w-3.5" />
+                New Buyer Universe
+              </Button>
+            </Link>
             <SidebarLink
               href="/admin/ma-intelligence"
               icon={<Brain className="h-4 w-4" />}
@@ -427,7 +434,18 @@ export function AdminSidebar({ collapsed }: AdminSidebarProps) {
           </div>
         )}
         {collapsed && (
-          <div className="px-3 py-2 border-t border-border/50">
+          <div className="px-3 py-2 border-t border-border/50 space-y-1">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Link
+                  to="/admin/remarketing/universes?new=true"
+                  className="flex items-center justify-center h-9 w-full rounded-md text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+                >
+                  <Plus className="h-4 w-4" />
+                </Link>
+              </TooltipTrigger>
+              <TooltipContent side="right">New Buyer Universe</TooltipContent>
+            </Tooltip>
             <Tooltip>
               <TooltipTrigger asChild>
                 <Link
