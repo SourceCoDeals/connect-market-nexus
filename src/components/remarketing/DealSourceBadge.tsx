@@ -22,6 +22,10 @@ const SOURCE_CONFIG: Record<string, { label: string; className: string }> = {
     label: "Calculator",
     className: "bg-emerald-50 text-emerald-700 border-emerald-200",
   },
+  remarketing: {
+    label: "Remarketing",
+    className: "bg-indigo-50 text-indigo-700 border-indigo-200",
+  },
   manual: {
     label: "Manual",
     className: "bg-gray-50 text-gray-600 border-gray-200",

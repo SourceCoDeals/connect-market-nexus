@@ -3126,6 +3126,8 @@ export type Database = {
           owner_assigned_by: string | null
           priority: string | null
           probability: number | null
+          remarketing_buyer_id: string | null
+          remarketing_score_id: string | null
           source: string | null
           stage_entered_at: string | null
           stage_id: string
@@ -3168,6 +3170,8 @@ export type Database = {
           owner_assigned_by?: string | null
           priority?: string | null
           probability?: number | null
+          remarketing_buyer_id?: string | null
+          remarketing_score_id?: string | null
           source?: string | null
           stage_entered_at?: string | null
           stage_id: string
@@ -3210,6 +3214,8 @@ export type Database = {
           owner_assigned_by?: string | null
           priority?: string | null
           probability?: number | null
+          remarketing_buyer_id?: string | null
+          remarketing_score_id?: string | null
           source?: string | null
           stage_entered_at?: string | null
           stage_id?: string
@@ -4695,6 +4701,7 @@ export type Database = {
           investment_thesis: string | null
           is_internal_deal: boolean
           is_priority_target: boolean | null
+          remarketing_status: string | null
           need_to_contact_owner: boolean | null
           needs_buyer_universe: boolean | null
           key_quotes: string[] | null
@@ -4867,6 +4874,7 @@ export type Database = {
           investment_thesis?: string | null
           is_internal_deal?: boolean
           is_priority_target?: boolean | null
+          remarketing_status?: string | null
           need_to_contact_owner?: boolean | null
           needs_buyer_universe?: boolean | null
           key_quotes?: string[] | null
@@ -5039,6 +5047,7 @@ export type Database = {
           investment_thesis?: string | null
           is_internal_deal?: boolean
           is_priority_target?: boolean | null
+          remarketing_status?: string | null
           need_to_contact_owner?: boolean | null
           needs_buyer_universe?: boolean | null
           key_quotes?: string[] | null

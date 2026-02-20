@@ -872,7 +872,7 @@ export default function CapTargetDeals() {
                       onArchiveDeal={async (id) => {
                         const { error } = await supabase
                           .from('listings')
-                          .update({ status: 'archived' } as never)
+                          .update({ remarketing_status: 'archived' } as never)
                           .eq('id', id);
                         if (error) {
                           toast({ title: "Error", description: error.message, variant: "destructive" });

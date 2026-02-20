@@ -793,6 +793,61 @@ const ReMarketingDealMatching = () => {
     }
   };
 
+  // Query existing pipeline deals for this listing's buyers (dedup check)
+  const { data: pipelineDeals } = useQuery({
+    queryKey: ['pipeline-deals-for-listing', listingId],
+    queryFn: async () => {
+      if (!listingId) return [];
+      const { data } = await supabase
+        .from('deals')
+        .select('id, remarketing_buyer_id')
+        .eq('listing_id', listingId)
+        .not('remarketing_buyer_id', 'is', null)
+        .is('deleted_at', null);
+      return data || [];
+    },
+    enabled: !!listingId,
+  });
+
+  // Map buyer_id → pipeline deal_id for quick lookup
+  const pipelineDealByBuyer = useMemo(() => {
+    const map = new Map<string, string>();
+    pipelineDeals?.forEach(d => {
+      if (d.remarketing_buyer_id) map.set(d.remarketing_buyer_id, d.id);
+    });
+    return map;
+  }, [pipelineDeals]);
+
+  // Handle "Move to Pipeline" button
+  const handleMoveToPipeline = async (scoreId: string, buyerId: string, targetListingId: string) => {
+    try {
+      const { data, error } = await supabase.functions.invoke('convert-to-pipeline-deal', {
+        body: { listing_id: targetListingId, buyer_id: buyerId, score_id: scoreId },
+      });
+
+      if (error) throw error;
+
+      if (data?.already_exists) {
+        toast.info(`Already in pipeline: ${data.deal_title}`);
+        return;
+      }
+
+      toast.success(`Moved to pipeline: ${data.deal_title}`, {
+        action: {
+          label: 'View in Pipeline',
+          onClick: () => navigate(`/admin/pipeline?deal=${data.deal_id}`),
+        },
+      });
+
+      // Refresh pipeline deals query
+      queryClient.invalidateQueries({ queryKey: ['pipeline-deals-for-listing', listingId] });
+      queryClient.invalidateQueries({ queryKey: ['deals'] });
+    } catch (err: any) {
+      console.error('Failed to move to pipeline:', err);
+      toast.error(err?.message || 'Failed to move buyer to pipeline');
+    }
+  };
+
   // Handle rescore trigger (for stale score warning)
   const handleRescore = () => {
     handleBulkScore();
@@ -1200,10 +1255,13 @@ const ReMarketingDealMatching = () => {
                   onToggleInterested={handleToggleInterested}
                   onOutreachUpdate={handleOutreachUpdate}
                   onViewed={handleScoreViewed}
+                  onMoveToPipeline={handleMoveToPipeline}
                   outreach={outreach ? { status: outreach.status as OutreachStatus, contacted_at: outreach.contacted_at, notes: outreach.notes } : undefined}
                   isPending={updateScoreMutation.isPending}
                   universeName={selectedUniverse === 'all' ? score.universe?.name : undefined}
                   firmFeeAgreement={feeAgreementLookup.get(score.id)}
+                  pipelineDealId={pipelineDealByBuyer.get(score.buyer?.id || '') || null}
+                  listingId={listingId}
                 />
               );
             })}
