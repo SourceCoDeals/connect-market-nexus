@@ -4701,9 +4701,6 @@ export type Database = {
           investment_thesis: string | null
           is_internal_deal: boolean
           is_priority_target: boolean | null
-          remarketing_status: string | null
-          need_to_contact_owner: boolean | null
-          needs_buyer_universe: boolean | null
           key_quotes: string[] | null
           key_risks: Json | null
           lead_source_id: string | null
@@ -4874,9 +4871,6 @@ export type Database = {
           investment_thesis?: string | null
           is_internal_deal?: boolean
           is_priority_target?: boolean | null
-          remarketing_status?: string | null
-          need_to_contact_owner?: boolean | null
-          needs_buyer_universe?: boolean | null
           key_quotes?: string[] | null
           key_risks?: Json | null
           lead_source_id?: string | null
@@ -5047,9 +5041,6 @@ export type Database = {
           investment_thesis?: string | null
           is_internal_deal?: boolean
           is_priority_target?: boolean | null
-          remarketing_status?: string | null
-          need_to_contact_owner?: boolean | null
-          needs_buyer_universe?: boolean | null
           key_quotes?: string[] | null
           key_risks?: Json | null
           lead_source_id?: string | null
@@ -6586,6 +6577,7 @@ export type Database = {
           email_domain: string | null
           employee_range: string | null
           extraction_sources: Json | null
+          fee_agreement_source: string | null
           fee_agreement_status: string | null
           founded_year: number | null
           geographic_footprint: string[] | null
@@ -6601,7 +6593,6 @@ export type Database = {
           key_quotes: string[] | null
           last_contact_discovery_at: string | null
           marketplace_firm_id: string | null
-          fee_agreement_source: string | null
           notes: string | null
           notes_analyzed_at: string | null
           num_employees: number | null
@@ -6667,6 +6658,7 @@ export type Database = {
           email_domain?: string | null
           employee_range?: string | null
           extraction_sources?: Json | null
+          fee_agreement_source?: string | null
           fee_agreement_status?: string | null
           founded_year?: number | null
           geographic_footprint?: string[] | null
@@ -6682,7 +6674,6 @@ export type Database = {
           key_quotes?: string[] | null
           last_contact_discovery_at?: string | null
           marketplace_firm_id?: string | null
-          fee_agreement_source?: string | null
           notes?: string | null
           notes_analyzed_at?: string | null
           num_employees?: number | null
@@ -6748,6 +6739,7 @@ export type Database = {
           email_domain?: string | null
           employee_range?: string | null
           extraction_sources?: Json | null
+          fee_agreement_source?: string | null
           fee_agreement_status?: string | null
           founded_year?: number | null
           geographic_footprint?: string[] | null
@@ -6763,7 +6755,6 @@ export type Database = {
           key_quotes?: string[] | null
           last_contact_discovery_at?: string | null
           marketplace_firm_id?: string | null
-          fee_agreement_source?: string | null
           notes?: string | null
           notes_analyzed_at?: string | null
           num_employees?: number | null
@@ -6803,17 +6794,17 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "remarketing_buyers_marketplace_firm_id_fkey"
-            columns: ["marketplace_firm_id"]
-            isOneToOne: false
-            referencedRelation: "firm_agreements"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "remarketing_buyers_industry_tracker_id_fkey"
             columns: ["industry_tracker_id"]
             isOneToOne: false
             referencedRelation: "industry_trackers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "remarketing_buyers_marketplace_firm_id_fkey"
+            columns: ["marketplace_firm_id"]
+            isOneToOne: false
+            referencedRelation: "firm_agreements"
             referencedColumns: ["id"]
           },
           {
@@ -8276,8 +8267,6 @@ export type Database = {
           industry: string | null
           is_archived: boolean
           is_priority_target: boolean | null
-          need_to_contact_owner: boolean | null
-          needs_buyer_universe: boolean | null
           lead_score: number | null
           lead_source: string | null
           linkedin_url: string | null
@@ -8327,8 +8316,6 @@ export type Database = {
           industry?: string | null
           is_archived?: boolean
           is_priority_target?: boolean | null
-          need_to_contact_owner?: boolean | null
-          needs_buyer_universe?: boolean | null
           lead_score?: number | null
           lead_source?: string | null
           linkedin_url?: string | null
@@ -8378,8 +8365,6 @@ export type Database = {
           industry?: string | null
           is_archived?: boolean
           is_priority_target?: boolean | null
-          need_to_contact_owner?: boolean | null
-          needs_buyer_universe?: boolean | null
           lead_score?: number | null
           lead_source?: string | null
           linkedin_url?: string | null
@@ -8757,7 +8742,7 @@ export type Database = {
         }
         Returns: Json
       }
-      extract_domain: { Args: { email: string }; Returns: string }
+      extract_domain: { Args: { url: string }; Returns: string }
       generate_deal_identifier: { Args: never; Returns: string }
       get_all_user_roles: {
         Args: never

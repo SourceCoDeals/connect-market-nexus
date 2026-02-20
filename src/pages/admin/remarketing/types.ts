@@ -43,6 +43,10 @@ export interface DealListing {
   // Contact owner flag
   needs_owner_contact: boolean | null;
   needs_owner_contact_at: string | null;
+  // Universe build flag
+  universe_build_flagged: boolean | null;
+  universe_build_flagged_at: string | null;
+  universe_build_flagged_by: string | null;
 }
 
 // Column width configuration
@@ -50,8 +54,10 @@ export interface ColumnWidths {
   select: number;
   rank: number;
   dealName: number;
+  
   referralSource: number;
   industry: number;
+  buyerUniverse: number;
   description: number;
   location: number;
   revenue: number;
@@ -61,7 +67,6 @@ export interface ColumnWidths {
   googleReviews: number;
   googleRating: number;
   quality: number;
-  sellerInterest: number;
   engagement: number;
   dealOwner: number;
   added: number;
@@ -73,8 +78,10 @@ export const DEFAULT_COLUMN_WIDTHS: ColumnWidths = {
   select: 40,
   rank: 60,
   dealName: 200,
+  
   referralSource: 120,
   industry: 120,
+  buyerUniverse: 160,
   description: 180,
   location: 100,
   revenue: 90,
@@ -84,7 +91,6 @@ export const DEFAULT_COLUMN_WIDTHS: ColumnWidths = {
   googleReviews: 70,
   googleRating: 60,
   quality: 80,
-  sellerInterest: 90,
   engagement: 130,
   dealOwner: 130,
   added: 90,
