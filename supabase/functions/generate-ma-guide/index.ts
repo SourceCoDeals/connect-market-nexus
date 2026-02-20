@@ -1,16 +1,13 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import {
+import { getCorsHeaders, corsPreflightResponse } from "../_shared/cors.ts";
+
   GEMINI_API_URL,
   getGeminiHeaders,
   DEFAULT_GEMINI_MODEL,
   callGeminiWithTool
 } from "../_shared/ai-providers.ts";
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
 
 // Phase definitions for the 13-phase SSE streaming generator
 const GENERATION_PHASES = [
@@ -1075,8 +1072,10 @@ IMPORTANT: Only include sources that actually exist and can be verified. Do NOT 
 }
 
 serve(async (req) => {
+  const corsHeaders = getCorsHeaders(req);
+
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+    return corsPreflightResponse(req);
   }
 
   const encoder = new TextEncoder();

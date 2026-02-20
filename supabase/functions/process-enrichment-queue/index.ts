@@ -18,6 +18,10 @@ const INTER_CHUNK_DELAY_MS = 1000; // 1s between parallel chunks
 // Stop early to avoid the platform killing the function mid-item.
 const MAX_FUNCTION_RUNTIME_MS = 140000; // ~140s
 
+// N06 FIX: Maximum number of self-continuations to prevent infinite loops.
+// Each invocation processes BATCH_SIZE items, so 50 continuations = up to 500 items.
+const MAX_CONTINUATIONS = 50;
+
 // Helper to chunk array into smaller arrays
 function chunkArray<T>(arr: T[], size: number): T[][] {
   const chunks: T[][] = [];
@@ -479,41 +483,49 @@ serve(async (req) => {
     if (remainingPending === 0) {
       await completeGlobalQueueOperation(supabase, 'deal_enrichment');
     } else if ((remainingPending ?? 0) > 0) {
-      // When circuit breaker tripped, delay continuation to let the provider recover.
-      // Otherwise continue immediately. Retry self-invocation up to 3 times on failure.
-      const continuationDelayMs = circuitBroken ? 30000 + Math.random() * 10000 : 0;
-      if (circuitBroken) {
-        console.log(`${remainingPending} items remaining — scheduling delayed continuation in ${Math.round(continuationDelayMs / 1000)}s (circuit breaker recovery)...`);
-      } else {
-        console.log(`${remainingPending} items remaining — triggering continuation...`);
-      }
+      // N06 FIX: Track continuation count to prevent infinite loops
+      const continuationCount = (typeof body.continuationCount === 'number') ? body.continuationCount : 0;
 
-      const anonKey = Deno.env.get('SUPABASE_ANON_KEY') || '';
-      const triggerContinuation = async () => {
-        if (continuationDelayMs > 0) {
-          await new Promise(r => setTimeout(r, continuationDelayMs));
+      if (continuationCount >= MAX_CONTINUATIONS) {
+        console.error(`MAX_CONTINUATIONS (${MAX_CONTINUATIONS}) reached — stopping self-continuation to prevent infinite loop. ${remainingPending} items still pending.`);
+        await completeGlobalQueueOperation(supabase, 'deal_enrichment', 'failed');
+      } else {
+        // When circuit breaker tripped, delay continuation to let the provider recover.
+        // Otherwise continue immediately. Retry self-invocation up to 3 times on failure.
+        const continuationDelayMs = circuitBroken ? 30000 + Math.random() * 10000 : 0;
+        if (circuitBroken) {
+          console.log(`${remainingPending} items remaining — scheduling delayed continuation ${continuationCount + 1}/${MAX_CONTINUATIONS} in ${Math.round(continuationDelayMs / 1000)}s (circuit breaker recovery)...`);
+        } else {
+          console.log(`${remainingPending} items remaining — triggering continuation ${continuationCount + 1}/${MAX_CONTINUATIONS}...`);
         }
-        for (let attempt = 0; attempt < 3; attempt++) {
-          try {
-            await fetch(`${supabaseUrl}/functions/v1/process-enrichment-queue`, {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${supabaseServiceKey}`,
-                'apikey': anonKey,
-              },
-              body: JSON.stringify({ source: 'self-continuation' }),
-              signal: AbortSignal.timeout(30_000),
-            });
-            return; // success
-          } catch (err) {
-            console.warn(`Self-continuation attempt ${attempt + 1} failed:`, err);
-            if (attempt < 2) await new Promise(r => setTimeout(r, 2000 * (attempt + 1)));
+
+        const anonKey = Deno.env.get('SUPABASE_ANON_KEY') || '';
+        const triggerContinuation = async () => {
+          if (continuationDelayMs > 0) {
+            await new Promise(r => setTimeout(r, continuationDelayMs));
           }
-        }
-        console.error('Self-continuation failed after 3 attempts — queue may stall until next manual trigger.');
-      };
-      triggerContinuation().catch(() => {});
+          for (let attempt = 0; attempt < 3; attempt++) {
+            try {
+              await fetch(`${supabaseUrl}/functions/v1/process-enrichment-queue`, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${supabaseServiceKey}`,
+                  'apikey': anonKey,
+                },
+                body: JSON.stringify({ source: 'self-continuation', continuationCount: continuationCount + 1 }),
+                signal: AbortSignal.timeout(30_000),
+              });
+              return; // success
+            } catch (err) {
+              console.warn(`Self-continuation attempt ${attempt + 1} failed:`, err);
+              if (attempt < 2) await new Promise(r => setTimeout(r, 2000 * (attempt + 1)));
+            }
+          }
+          console.error('Self-continuation failed after 3 attempts — queue may stall until next manual trigger.');
+        };
+        triggerContinuation().catch(() => {});
+      }
     }
 
     return new Response(

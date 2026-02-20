@@ -1,10 +1,7 @@
+import { getCorsHeaders, corsPreflightResponse } from "../_shared/cors.ts";
+
  import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
  import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
- 
- const corsHeaders = {
-   'Access-Control-Allow-Origin': '*',
-   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
- };
  
  /**
   * This function creates a generation record and returns immediately.
@@ -12,8 +9,10 @@
   * This ensures generation continues even if the user leaves the page.
   */
  serve(async (req) => {
+  const corsHeaders = getCorsHeaders(req);
+
    if (req.method === 'OPTIONS') {
-     return new Response(null, { headers: corsHeaders });
+     return corsPreflightResponse(req);
    }
  
    try {

@@ -1,5 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
+import { getCorsHeaders, corsPreflightResponse } from "../_shared/cors.ts";
+
 /**
  * DEPRECATED: This function now proxies to map-csv-columns with targetType='buyer'.
  *
@@ -12,14 +14,11 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
  * NOTE: This function has zero known frontend callers as of 2026-02-19.
  */
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
-
 serve(async (req) => {
+  const corsHeaders = getCorsHeaders(req);
+
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+    return corsPreflightResponse(req);
   }
 
   console.log("[map-contact-columns] DEPRECATED — proxying to map-csv-columns");

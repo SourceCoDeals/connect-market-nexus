@@ -10,11 +10,15 @@
  * comma-separated list.
  */
 
-const DEFAULT_ALLOWED_ORIGINS = [
+const PRODUCTION_ALLOWED_ORIGINS = [
   "https://connect-market-nexus.lovable.app",
   "https://app.sourcecoconnect.com",
   "https://sourcecoconnect.com",
-  "http://localhost:5173", // local dev
+];
+
+// N13 FIX: Localhost origins only included in non-production environments
+const DEV_ORIGINS = [
+  "http://localhost:5173",
   "http://localhost:3000",
 ];
 
@@ -36,7 +40,12 @@ function getAllowedOrigins(): string[] {
   if (envOrigins) {
     return envOrigins.split(",").map((o) => o.trim()).filter(Boolean);
   }
-  return DEFAULT_ALLOWED_ORIGINS;
+  // N13 FIX: Only include localhost in non-production environments
+  const env = Deno.env.get("ENVIRONMENT") || "";
+  if (env === "production") {
+    return PRODUCTION_ALLOWED_ORIGINS;
+  }
+  return [...PRODUCTION_ALLOWED_ORIGINS, ...DEV_ORIGINS];
 }
 
 /**

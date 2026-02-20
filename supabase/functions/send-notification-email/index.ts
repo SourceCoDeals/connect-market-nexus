@@ -2,6 +2,8 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { sendViaBervo } from "../_shared/brevo-sender.ts";
 
+import { getCorsHeaders, corsPreflightResponse } from "../_shared/cors.ts";
+
 /**
  * DEPRECATED: Consolidated into enhanced-email-delivery.
  *
@@ -12,12 +14,6 @@ import { sendViaBervo } from "../_shared/brevo-sender.ts";
  *
  * New callers should use 'enhanced-email-delivery' directly.
  */
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
-};
 
 type EmailType =
   | "account_approved"
@@ -37,10 +33,12 @@ interface NotificationEmailRequest {
 }
 
 const handler = async (req: Request): Promise<Response> => {
+  const corsHeaders = getCorsHeaders(req);
+
   console.log("[send-notification-email] DEPRECATED — using shared brevo-sender");
 
   if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+    return corsPreflightResponse(req);
   }
 
   try {

@@ -1,10 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
-};
+import { getCorsHeaders, corsPreflightResponse } from "../_shared/cors.ts";
 
 interface OwnerInquiryNotification {
   name: string;
@@ -41,8 +37,10 @@ const formatSaleTimeline = (timeline: string): string => {
 };
 
 const handler = async (req: Request): Promise<Response> => {
+  const corsHeaders = getCorsHeaders(req);
+
   if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+    return corsPreflightResponse(req);
   }
 
   try {
@@ -128,11 +126,11 @@ const handler = async (req: Request): Promise<Response> => {
       body: JSON.stringify({
         sender: {
           name: "SourceCo Marketplace",
-          email: "adam.haile@sourcecodeals.com"
+          email: Deno.env.get('OWNER_INQUIRY_SENDER_EMAIL') || "adam.haile@sourcecodeals.com"
         },
         to: [{
-          email: "ahaile14@gmail.com",
-          name: "Adam Haile"
+          email: Deno.env.get('OWNER_INQUIRY_RECIPIENT_EMAIL') || "adam.haile@sourcecodeals.com",
+          name: Deno.env.get('OWNER_INQUIRY_RECIPIENT_NAME') || "Adam Haile"
         }],
         subject: `🏢 New Owner Inquiry: ${data.companyName} (${formatRevenueRange(data.revenueRange)})`,
         htmlContent: htmlContent,

@@ -1,11 +1,7 @@
 
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.4';
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+import { getCorsHeaders, corsPreflightResponse } from "../_shared/cors.ts";
 
 interface ErrorLogRequest {
   error_code: string;
@@ -19,30 +15,67 @@ interface ErrorLogRequest {
   timestamp?: string;
 }
 
+const VALID_SEVERITIES = ['low', 'medium', 'high', 'critical'];
+
 const handler = async (req: Request): Promise<Response> => {
+  const corsHeaders = getCorsHeaders(req);
+
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+    return corsPreflightResponse(req);
   }
 
   try {
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    );
+    // N04 FIX: Require authenticated user
+    const authHeader = req.headers.get('Authorization') || '';
+    const token = authHeader.replace('Bearer ', '').trim();
 
+    const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
+    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY') ?? '';
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
+
+    let authenticatedUserId: string | null = null;
+
+    // Verify caller identity if token provided
+    if (token) {
+      const anonClient = createClient(supabaseUrl, supabaseAnonKey, {
+        global: { headers: { Authorization: `Bearer ${token}` } }
+      });
+      const { data: { user } } = await anonClient.auth.getUser();
+      if (user) {
+        authenticatedUserId = user.id;
+      }
+    }
+
+    // Require authentication — unauthenticated callers cannot log errors
+    if (!authenticatedUserId) {
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized: authentication required' }),
+        { status: 401, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
+      );
+    }
+
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
     const errorLog: ErrorLogRequest = await req.json();
-    
+
+    // Validate severity
+    if (!VALID_SEVERITIES.includes(errorLog.severity)) {
+      return new Response(
+        JSON.stringify({ error: 'Invalid severity value' }),
+        { status: 400, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
+      );
+    }
+
     // Generate correlation ID if not provided
     const correlationId = errorLog.correlation_id || crypto.randomUUID();
-    
-    // Enhanced error logging with structured data
+
+    // N04 FIX: Force user_id to the authenticated user (prevent impersonation)
     const logEntry = {
       error_code: errorLog.error_code,
       error_message: errorLog.error_message,
-      stack_trace: errorLog.stack_trace,
-      user_id: errorLog.user_id,
+      stack_trace: errorLog.stack_trace ? errorLog.stack_trace.substring(0, 10000) : null, // Cap stack trace size
+      user_id: authenticatedUserId, // Always use authenticated user, ignore client-provided user_id
       correlation_id: correlationId,
-      context: errorLog.context || {},
+      context: errorLog.context ? JSON.parse(JSON.stringify(errorLog.context).substring(0, 50000)) : {}, // Cap context size
       severity: errorLog.severity,
       source: errorLog.source,
       timestamp: errorLog.timestamp || new Date().toISOString(),
@@ -56,7 +89,6 @@ const handler = async (req: Request): Promise<Response> => {
       correlationId,
       userId: logEntry.user_id,
       source: logEntry.source,
-      context: logEntry.context
     });
 
     // Store in database for analysis
@@ -72,14 +104,13 @@ const handler = async (req: Request): Promise<Response> => {
     // For critical errors, could trigger immediate notifications
     if (errorLog.severity === 'critical') {
       console.error('CRITICAL ERROR DETECTED:', logEntry);
-      // Could integrate with external alerting systems here
     }
 
     return new Response(
-      JSON.stringify({ 
-        success: true, 
+      JSON.stringify({
+        success: true,
         correlation_id: correlationId,
-        message: 'Error logged successfully' 
+        message: 'Error logged successfully'
       }),
       {
         status: 200,
@@ -89,12 +120,12 @@ const handler = async (req: Request): Promise<Response> => {
 
   } catch (error: any) {
     console.error('Error in error-logger function:', error);
-    
+
     return new Response(
-      JSON.stringify({ 
-        success: false, 
+      JSON.stringify({
+        success: false,
         error: 'Failed to log error',
-        message: error.message 
+        message: error.message
       }),
       {
         status: 500,

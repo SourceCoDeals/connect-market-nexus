@@ -23,14 +23,18 @@ export default defineConfig(({ mode }) => ({
     rollupOptions: {
       output: {
         manualChunks: {
-          // Split Recharts into its own vendor chunk (~409KB)
+          // Split large vendor chunks to reduce initial bundle size
           recharts: ['recharts'],
+          tiptap: ['@tiptap/react', '@tiptap/starter-kit', '@tiptap/pm'],
+          mapbox: ['mapbox-gl', 'react-map-gl'],
         },
       },
     },
   },
   esbuild: {
-    // Strip console.log in production builds (keep warn/error)
-    drop: mode === 'production' ? ['console', 'debugger'] : [],
+    // N11 FIX: Only strip console.log (keep console.error/warn for error reporting)
+    // Previous config used drop:['console'] which removed ALL console output
+    pure: mode === 'production' ? ['console.log'] : [],
+    drop: mode === 'production' ? ['debugger'] : [],
   },
 }));

@@ -73,8 +73,9 @@ export async function checkRateLimit(
 
     if (error) {
       console.error('Rate limit check error:', error);
-      // Fail open on database errors to avoid blocking legitimate users
-      return { allowed: true, remaining: config.limit - 1, resetTime, currentCount: 1, limit: config.limit };
+      // N12 FIX: Fail CLOSED on database errors to prevent unlimited AI cost exposure.
+      // Under DB pressure, fail-open would remove all rate limiting protection.
+      return { allowed: false, remaining: 0, resetTime, currentCount: config.limit, limit: config.limit };
     }
 
     const currentCount = attempts?.length || 0;
