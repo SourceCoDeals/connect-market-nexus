@@ -44,6 +44,7 @@ import { BuyerDataSection } from "@/components/ma-intelligence/BuyerDataSection"
 import { BuyerDealHistoryTab } from "@/components/ma-intelligence/BuyerDealHistoryTab";
 import { BuyerContactsTab } from "@/components/ma-intelligence/BuyerContactsTab";
 import { BuyerActivitySection } from "@/components/ma-intelligence/BuyerActivitySection";
+import { BuyerAgreementsPanel } from "@/components/ma-intelligence/BuyerAgreementsPanel";
 import { PassReasonDialog } from "@/components/ma-intelligence/PassReasonDialog";
 import { BuyerNotesSection } from "@/components/remarketing/buyer-detail/BuyerNotesSection";
 
@@ -230,14 +231,14 @@ export default function BuyerDetail() {
         'platform_website', 'buyer_linkedin', 'hq_city', 'hq_state', 'hq_country',
         'hq_region', 'other_office_locations', 'business_summary', 'industry_vertical',
         'business_type', 'services_offered', 'business_model', 'revenue_model',
-        'go_to_market_strategy', 'specialized_focus', 'num_platforms', 'total_acquisitions',
+        'go_to_market_strategy', 'num_platforms', 'total_acquisitions',
         'last_acquisition_date', 'acquisition_frequency', 'acquisition_appetite',
-        'acquisition_timeline', 'min_revenue', 'max_revenue', 'revenue_sweet_spot',
-        'min_ebitda', 'max_ebitda', 'ebitda_sweet_spot', 'preferred_ebitda',
+        'acquisition_timeline', 'min_revenue', 'max_revenue',
+        'min_ebitda', 'max_ebitda', 'preferred_ebitda',
         'target_geographies', 'geographic_footprint', 'geographic_exclusions',
         'acquisition_geography', 'service_regions', 'target_services', 'target_industries',
-        'industry_exclusions', 'thesis_summary', 'thesis_confidence', 'strategic_priorities',
-        'service_mix_prefs', 'business_model_prefs', 'deal_breakers', 'key_quotes',
+        'industry_exclusions', 'thesis_summary', 'thesis_confidence',
+        'service_mix_prefs', 'business_model_prefs',
         'addon_only', 'platform_only', 'has_fee_agreement', 'fee_agreement_status'
       ];
       
@@ -408,13 +409,11 @@ export default function BuyerDetail() {
         </Card>
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Revenue Sweet Spot</CardTitle>
+            <CardTitle className="text-sm font-medium">Revenue Range</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-sm">
-              {buyer.revenue_sweet_spot
-                ? `$${buyer.revenue_sweet_spot}M`
-                : buyer.min_revenue || buyer.max_revenue
+              {buyer.min_revenue || buyer.max_revenue
                 ? `$${buyer.min_revenue || 0}M - $${buyer.max_revenue || "∞"}M`
                 : "—"}
             </div>
@@ -422,13 +421,11 @@ export default function BuyerDetail() {
         </Card>
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">EBITDA Sweet Spot</CardTitle>
+            <CardTitle className="text-sm font-medium">EBITDA Range</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-sm">
-              {buyer.ebitda_sweet_spot
-                ? `$${buyer.ebitda_sweet_spot}M`
-                : buyer.min_ebitda || buyer.max_ebitda
+              {buyer.min_ebitda || buyer.max_ebitda
                 ? `$${buyer.min_ebitda || 0}M - $${buyer.max_ebitda || "∞"}M`
                 : "—"}
             </div>
@@ -455,6 +452,7 @@ export default function BuyerDetail() {
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
         <TabsList>
           <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="agreements">Agreements</TabsTrigger>
           <TabsTrigger value="deal-history">Deal History</TabsTrigger>
           <TabsTrigger value="contacts">Contacts</TabsTrigger>
           <TabsTrigger value="transcripts">Transcripts</TabsTrigger>
@@ -531,25 +529,14 @@ export default function BuyerDetail() {
                     rows={4}
                   />
                 </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label>Specialized Focus</Label>
-                    <Input
-                      value={formData.specialized_focus || ""}
-                      onChange={(e) =>
-                        setFormData({ ...formData, specialized_focus: e.target.value })
-                      }
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Industry Vertical</Label>
-                    <Input
-                      value={formData.industry_vertical || ""}
-                      onChange={(e) =>
-                        setFormData({ ...formData, industry_vertical: e.target.value })
-                      }
-                    />
-                  </div>
+                <div className="space-y-2">
+                  <Label>Industry Vertical</Label>
+                  <Input
+                    value={formData.industry_vertical || ""}
+                    onChange={(e) =>
+                      setFormData({ ...formData, industry_vertical: e.target.value })
+                    }
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label>Services Offered</Label>
@@ -580,18 +567,10 @@ export default function BuyerDetail() {
                     {buyer.business_summary || "No business summary available"}
                   </div>
                 </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <div className="text-sm font-medium mb-1">Specialized Focus</div>
-                    <div className="text-sm text-muted-foreground">
-                      {buyer.specialized_focus || "—"}
-                    </div>
-                  </div>
-                  <div>
-                    <div className="text-sm font-medium mb-1">Industry Vertical</div>
-                    <div className="text-sm text-muted-foreground">
-                      {buyer.industry_vertical || "—"}
-                    </div>
+                <div>
+                  <div className="text-sm font-medium mb-1">Industry Vertical</div>
+                  <div className="text-sm text-muted-foreground">
+                    {buyer.industry_vertical || "—"}
                   </div>
                 </div>
                 <div>
@@ -648,16 +627,6 @@ export default function BuyerDetail() {
                       <SelectItem value="Low">Low</SelectItem>
                     </SelectContent>
                   </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label>Strategic Priorities</Label>
-                  <Textarea
-                    value={formData.strategic_priorities || ""}
-                    onChange={(e) =>
-                      setFormData({ ...formData, strategic_priorities: e.target.value })
-                    }
-                    rows={3}
-                  />
                 </div>
                 <div className="space-y-2">
                   <Label>Service Mix Preferences</Label>
@@ -752,12 +721,6 @@ export default function BuyerDetail() {
                       {buyer.thesis_confidence} Confidence
                     </Badge>
                   )}
-                </div>
-                <div>
-                  <div className="text-sm font-medium mb-1">Strategic Priorities</div>
-                  <div className="text-sm text-muted-foreground">
-                    {buyer.strategic_priorities || "—"}
-                  </div>
                 </div>
                 <div>
                   <div className="text-sm font-medium mb-1">Service Mix Preferences</div>
@@ -856,7 +819,7 @@ export default function BuyerDetail() {
             onCancel={() => handleCancelEdit("size")}
           >
             {editingSection === "size" ? (
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Min Revenue ($M)</Label>
                   <Input
@@ -879,19 +842,6 @@ export default function BuyerDetail() {
                       setFormData({
                         ...formData,
                         max_revenue: e.target.value ? Number(e.target.value) : null,
-                      })
-                    }
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Revenue Sweet Spot ($M)</Label>
-                  <Input
-                    type="number"
-                    value={formData.revenue_sweet_spot || ""}
-                    onChange={(e) =>
-                      setFormData({
-                        ...formData,
-                        revenue_sweet_spot: e.target.value ? Number(e.target.value) : null,
                       })
                     }
                   />
@@ -922,20 +872,7 @@ export default function BuyerDetail() {
                     }
                   />
                 </div>
-                <div className="space-y-2">
-                  <Label>EBITDA Sweet Spot ($M)</Label>
-                  <Input
-                    type="number"
-                    value={formData.ebitda_sweet_spot || ""}
-                    onChange={(e) =>
-                      setFormData({
-                        ...formData,
-                        ebitda_sweet_spot: e.target.value ? Number(e.target.value) : null,
-                      })
-                    }
-                  />
-                </div>
-                <div className="space-y-2 col-span-3">
+                <div className="space-y-2 col-span-2">
                   <Label>Preferred EBITDA ($M)</Label>
                   <Input
                     type="number"
@@ -955,14 +892,12 @@ export default function BuyerDetail() {
                   <div className="text-sm font-medium mb-1">Revenue Range</div>
                   <div className="text-sm text-muted-foreground">
                     ${buyer.min_revenue || 0}M - ${buyer.max_revenue || "∞"}M
-                    {buyer.revenue_sweet_spot && ` (sweet spot: $${buyer.revenue_sweet_spot}M)`}
                   </div>
                 </div>
                 <div>
                   <div className="text-sm font-medium mb-1">EBITDA Range</div>
                   <div className="text-sm text-muted-foreground">
                     ${buyer.min_ebitda || 0}M - ${buyer.max_ebitda || "∞"}M
-                    {buyer.ebitda_sweet_spot && ` (sweet spot: $${buyer.ebitda_sweet_spot}M)`}
                   </div>
                 </div>
                 <div>
@@ -1596,6 +1531,11 @@ export default function BuyerDetail() {
               </div>
             )}
           </BuyerDataSection>
+        </TabsContent>
+
+        {/* Agreements Tab */}
+        <TabsContent value="agreements">
+          <BuyerAgreementsPanel buyerId={buyer.id} marketplaceFirmId={(buyer as any).marketplace_firm_id} hasFeeAgreement={buyer.has_fee_agreement || false} feeAgreementSource={(buyer as any).fee_agreement_source} />
         </TabsContent>
 
         <TabsContent value="deal-history">

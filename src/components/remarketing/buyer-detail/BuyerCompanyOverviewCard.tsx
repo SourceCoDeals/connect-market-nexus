@@ -9,7 +9,6 @@ interface BuyerCompanyOverviewCardProps {
   hqCountry?: string | null;
   foundedYear?: number | null;
   employeeCount?: number | null;
-  employeeRange?: string | null;
   industryVertical?: string | null;
   numberOfLocations?: number | null;
   operatingLocations?: string[] | null;
@@ -23,14 +22,13 @@ export const BuyerCompanyOverviewCard = ({
   hqCountry,
   foundedYear,
   employeeCount,
-  employeeRange,
   industryVertical,
   numberOfLocations,
   operatingLocations,
   onEdit,
 }: BuyerCompanyOverviewCardProps) => {
   const headquarters = [hqCity, hqState, hqCountry].filter(Boolean).join(", ");
-  const employees = employeeCount ? employeeCount.toLocaleString() : employeeRange || null;
+  const employees = employeeCount ? employeeCount.toLocaleString() : null;
 
   const DataItem = ({ icon: Icon, label, value, isLink = false, href }: {
     icon: React.ElementType;

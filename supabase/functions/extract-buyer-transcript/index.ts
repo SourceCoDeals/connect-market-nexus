@@ -25,10 +25,8 @@ interface ExtractedInsights {
     size_criteria?: {
       revenue_min?: number;
       revenue_max?: number;
-      revenue_sweet_spot?: number;
       ebitda_min?: number;
       ebitda_max?: number;
-      ebitda_sweet_spot?: number;
       employee_min?: number;
       employee_max?: number;
       location_count_min?: number;
@@ -49,27 +47,18 @@ interface ExtractedInsights {
       confidence: number;
       geography_notes: string;
     };
-    deal_preferences?: {
+    deal_structure?: {
       deal_types: string[];
       structure_preferences: string[];
       valuation_parameters?: string;
-      deal_breakers: string[];
       preferred_characteristics: string[];
       confidence: number;
     };
   };
   buyer_profile?: {
     thesis_summary?: string;
-    strategic_priorities?: string[];
     acquisition_timeline?: string;
-    deal_breakers?: string[];
   };
-  key_quotes: Array<{
-    quote: string;
-    speaker: string;
-    context: string;
-    importance: 'high' | 'medium' | 'low';
-  }>;
   overall_confidence: number;
 }
 
@@ -101,7 +90,7 @@ CORE RULES:
 
 3. DISTINGUISH HARD REQUIREMENTS FROM PREFERENCES: "We won't look at anything under $2M EBITDA" is a hard floor. "We prefer $3-5M EBITDA" is a preference. "We've done deals at $1M EBITDA" is historical context. These are different and must be tagged differently.
 
-4. LISTEN FOR EXCLUSIONS: What the buyer says they DON'T want is as important as what they DO want. "We stay away from anything with environmental exposure" or "We don't do turnarounds" — capture these explicitly.
+4. LISTEN FOR EXCLUSIONS: What the buyer says they DON'T want is as important as what they DO want. "We stay away from anything with environmental exposure" or "We don't do turnarounds" — include these in the thesis_summary.
 
 5. SEPARATE THE PE FIRM FROM THE PLATFORM: If a PE-backed platform company is on the call, distinguish between the PE firm's criteria and the platform operator's criteria. The platform's operational priorities take precedence for matching purposes.
 
@@ -113,7 +102,7 @@ CORE RULES:
 
 9. STATE CODES: Always 2-letter uppercase. "IN" not "Indiana."
 
-10. VERBATIM QUOTES: When extracting key_quotes, copy-paste the EXACT words from the transcript. Do not paraphrase, clean up grammar, or summarize.`;
+10. DEAL-BREAKERS AND STRATEGIC PRIORITIES: Include deal-breakers and strategic priorities directly in the thesis_summary. The thesis should capture the full picture of what the buyer wants, why, and what they refuse to consider.`;
 
   const userPrompt = `Analyze the following buyer call transcript and extract their acquisition criteria, profile, and key statements.
 
@@ -127,8 +116,8 @@ ${callDate ? `DATE: ${callDate}` : ''}
 ### size_criteria
 Extract EVERY size parameter mentioned. Rules:
 - "We target $10-50M revenue companies" → revenue_min = 10000000, revenue_max = 50000000, confidence = 95.
-- "Sweet spot is around $3M EBITDA" → ebitda_sweet_spot = 3000000, confidence = 90.
 - "We've done deals as small as $1M EBITDA" → This is historical, NOT a minimum. Only set ebitda_min if they say "we won't go below" or "minimum is."
+- "Sweet spot is around $3M EBITDA" → Set ebitda_min/ebitda_max to a ±20% range around it (e.g., 2400000 to 3600000).
 - "We prefer 50+ employees" → employee_min = 50, confidence = 75.
 - Hard requirements ("we won't look at," "minimum is," "must be at least") → confidence 90-100.
 - Soft preferences ("we prefer," "ideally," "sweet spot") → confidence 70-89.
@@ -151,12 +140,11 @@ Rules:
 - "We don't want to go west of the Mississippi" → geographic_exclusions should list western states or note the boundary in geography_notes.
 - If a buyer names specific MSAs like "We want top-25 MSAs," note that in geography_notes.
 
-### deal_preferences
+### deal_structure
 Listen carefully for:
 - "We're looking for a platform" vs "We need add-ons for our existing platform" — fundamentally different.
 - Structure: "We always do majority recap with rollover equity" vs "We buy 100%."
 - Valuation: "We typically pay 4-6x EBITDA" or "We won't go above 5x."
-- Deal breakers: "No turnarounds," "No owner-dependent businesses," "Must have a management team in place," "No environmental issues."
 - Preferences: "We prefer recurring revenue," "We like businesses with long customer contracts," "Ideally family-owned."
 
 ---
@@ -164,28 +152,12 @@ Listen carefully for:
 ## BUYER PROFILE
 
 ### thesis_summary (2-4 sentences)
-Write a clear summary of this buyer's acquisition thesis. What are they building? Why? What does their ideal target look like? Use ONLY what was stated in the call. Do NOT supplement with generic PE language or assumed strategies.
-
-### strategic_priorities (array, ordered by emphasis)
-List the buyer's stated strategic priorities in order of emphasis during the call.
+Write a clear summary of this buyer's acquisition thesis. What are they building? Why? What does their ideal target look like? Use ONLY what was stated in the call. Do NOT supplement with generic PE language or assumed strategies. Include any deal-breakers and strategic priorities in the thesis summary itself.
 
 ### acquisition_timeline ("active"|"opportunistic"|"on_hold")
 - "active": Buyer is actively looking, has capital deployed, wants to see deals now.
 - "opportunistic": Buyer will look at deals but isn't in a rush.
 - "on_hold": Buyer is pausing acquisitions.
-
-### deal_breakers (array)
-EVERY deal-breaker mentioned, explicit or strongly implied.
-
----
-
-## KEY QUOTES (6-10)
-Extract 6-10 key quotes. Rules:
-- EXACT VERBATIM from transcript.
-- Identify the speaker (by name if possible, otherwise role).
-- Provide brief context.
-- Importance: "high" = specific criteria/deal-breakers, "medium" = preferences/strategic context, "low" = general observations.
-- Priority order: size criteria > geography > services > deal structure > strategic priorities > general observations.
 
 ---
 
@@ -209,10 +181,8 @@ ${transcriptText.slice(0, 50000)}`;
               properties: {
                 revenue_min: { type: "number", description: "Minimum revenue target in raw dollars. Only set if explicit floor stated." },
                 revenue_max: { type: "number", description: "Maximum revenue target in raw dollars." },
-                revenue_sweet_spot: { type: "number", description: "Ideal revenue target in raw dollars." },
                 ebitda_min: { type: "number", description: "Minimum EBITDA target in raw dollars. Only set if explicit floor stated." },
                 ebitda_max: { type: "number", description: "Maximum EBITDA target in raw dollars." },
-                ebitda_sweet_spot: { type: "number", description: "Ideal EBITDA target in raw dollars." },
                 employee_min: { type: "number", description: "Minimum employee count preference." },
                 employee_max: { type: "number", description: "Maximum employee count preference." },
                 location_count_min: { type: "number", description: "Minimum number of locations." },
@@ -267,8 +237,9 @@ ${transcriptText.slice(0, 50000)}`;
               },
               required: ["confidence"]
             },
-            deal_preferences: {
+            deal_structure: {
               type: "object",
+              description: "Deal structure preferences — stored in extracted_insights JSON only, not written to buyer record",
               properties: {
                 deal_types: {
                   type: "array",
@@ -281,11 +252,6 @@ ${transcriptText.slice(0, 50000)}`;
                   description: "E.g., 'majority recapitalization', 'full buyout', 'earnout', 'rollover equity'."
                 },
                 valuation_parameters: { type: "string", description: "Any multiple ranges or valuation approach mentioned." },
-                deal_breakers: {
-                  type: "array",
-                  items: { type: "string" },
-                  description: "Explicit things that kill a deal for this buyer."
-                },
                 preferred_characteristics: {
                   type: "array",
                   items: { type: "string" },
@@ -304,47 +270,19 @@ ${transcriptText.slice(0, 50000)}`;
               type: "string",
               description: "2-4 sentence summary of buyer's acquisition thesis. ONLY from what was stated in the call."
             },
-            strategic_priorities: {
-              type: "array",
-              items: { type: "string" },
-              description: "Buyer's stated strategic priorities, ordered by emphasis during the call."
-            },
             acquisition_timeline: {
               type: "string",
               enum: ["active", "opportunistic", "on_hold"],
               description: "How actively the buyer is pursuing acquisitions."
-            },
-            deal_breakers: {
-              type: "array",
-              items: { type: "string" },
-              description: "Every deal-breaker mentioned, explicit or strongly implied."
             }
           }
-        },
-        key_quotes: {
-          type: "array",
-          items: {
-            type: "object",
-            properties: {
-              quote: { type: "string", description: "EXACT VERBATIM quote from transcript." },
-              speaker: { type: "string", description: "Who said it — by name or role (PE Partner, Platform CEO, Buyer Representative)." },
-              context: { type: "string", description: "What question/topic prompted this statement." },
-              importance: {
-                type: "string",
-                enum: ["high", "medium", "low"],
-                description: "high = specific criteria/deal-breakers, medium = preferences/context, low = general observations."
-              }
-            },
-            required: ["quote", "speaker", "context", "importance"]
-          },
-          description: "6-10 key verbatim quotes. Priority: size > geography > services > deal structure > strategy."
         },
         overall_confidence: {
           type: "number",
           description: "Overall extraction confidence 0-100."
         }
       },
-      required: ["key_quotes", "overall_confidence"]
+      required: ["overall_confidence"]
     }
   }];
 
@@ -394,8 +332,6 @@ ${transcriptText.slice(0, 50000)}`;
   const parsed = typeof toolCall.function.arguments === 'string'
     ? JSON.parse(toolCall.function.arguments)
     : toolCall.function.arguments;
-
-  console.log(`[KEY_QUOTES] ${parsed?.key_quotes?.length || 0} quotes extracted`);
 
   return parsed as ExtractedInsights;
 }
@@ -527,14 +463,8 @@ serve(async (req) => {
           if (insights.buyer_profile.thesis_summary) {
             safeSet('thesis_summary', insights.buyer_profile.thesis_summary);
           }
-          if (insights.buyer_profile.strategic_priorities?.length) {
-            safeSet('strategic_priorities', insights.buyer_profile.strategic_priorities);
-          }
           if (insights.buyer_profile.acquisition_timeline) {
             safeSet('acquisition_timeline', insights.buyer_profile.acquisition_timeline);
-          }
-          if (insights.buyer_profile.deal_breakers?.length) {
-            safeSet('deal_breakers', insights.buyer_profile.deal_breakers);
           }
         }
 
@@ -555,20 +485,9 @@ serve(async (req) => {
           if (size) {
             if (size.revenue_min) safeSet('target_revenue_min', size.revenue_min);
             if (size.revenue_max) safeSet('target_revenue_max', size.revenue_max);
-            if (size.revenue_sweet_spot) safeSet('revenue_sweet_spot', size.revenue_sweet_spot);
             if (size.ebitda_min) safeSet('target_ebitda_min', size.ebitda_min);
             if (size.ebitda_max) safeSet('target_ebitda_max', size.ebitda_max);
-            if (size.ebitda_sweet_spot) safeSet('ebitda_sweet_spot', size.ebitda_sweet_spot);
           }
-        }
-
-        // Add key quotes — MERGE with existing rather than replace
-        if (insights.key_quotes?.length > 0) {
-          const newQuotes = insights.key_quotes.map(q => `"${q.quote}" - ${q.speaker}`);
-          const existingQuotes = existingBuyer?.key_quotes || [];
-          // Append new quotes, deduplicate
-          const mergedQuotes = [...new Set([...existingQuotes, ...newQuotes])];
-          safeSet('key_quotes', mergedQuotes);
         }
 
         if (Object.keys(buyerUpdates).length > 0) {
@@ -614,7 +533,7 @@ serve(async (req) => {
               size: insights.buyer_criteria?.size_criteria?.confidence || 0,
               service: insights.buyer_criteria?.service_criteria?.service_confidence || 0,
               geography: insights.buyer_criteria?.geography_criteria?.confidence || 0,
-              deal_preferences: insights.buyer_criteria?.deal_preferences?.confidence || 0,
+              deal_structure: insights.buyer_criteria?.deal_structure?.confidence || 0,
               overall: insights.overall_confidence
             }
           });
@@ -629,7 +548,6 @@ serve(async (req) => {
           success: true,
           transcript_id: transcriptRecord.id,
           insights,
-          key_quotes_count: insights.key_quotes.length,
           message: 'Buyer transcript insights extracted successfully'
         }),
         {

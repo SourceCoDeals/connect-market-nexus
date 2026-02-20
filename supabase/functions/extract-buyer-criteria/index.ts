@@ -70,7 +70,7 @@ For EACH buyer, extract:
 Name, type (pe_firm|platform|strategic|family_office|search_fund), website if mentioned, parent_company if applicable.
 
 ### size_criteria
-Extract revenue_min, revenue_max, revenue_sweet_spot, ebitda_min, ebitda_max, ebitda_sweet_spot, employee_range, location_range, confidence (0-100), and source ("stated"|"inferred_from_deals"|"inferred_from_context").
+Extract revenue_min, revenue_max, ebitda_min, ebitda_max, location_range, confidence (0-100), and source ("stated"|"inferred_from_deals"|"inferred_from_context"). If a sweet spot is mentioned, convert to a ±20% min/max range.
 
 Rules:
 - "Targets $5-15M revenue" → stated, confidence 85-90.
@@ -127,11 +127,8 @@ ${guideContent.slice(0, 50000)}`;
                 properties: {
                   revenue_min: { type: "number", description: "Min target revenue in raw dollars" },
                   revenue_max: { type: "number", description: "Max target revenue in raw dollars" },
-                  revenue_sweet_spot: { type: "number", description: "Ideal target revenue" },
                   ebitda_min: { type: "number", description: "Min target EBITDA in raw dollars" },
                   ebitda_max: { type: "number", description: "Max target EBITDA in raw dollars" },
-                  ebitda_sweet_spot: { type: "number", description: "Ideal target EBITDA" },
-                  employee_range: { type: "string", description: "Employee count range if mentioned" },
                   location_range: { type: "string", description: "Number of locations range if mentioned" },
                   confidence: { type: "number", description: "Confidence score 0-100" },
                   source: {

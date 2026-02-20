@@ -8,7 +8,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import {
@@ -25,14 +24,10 @@ interface EditInvestmentCriteriaDialogProps {
   data: {
     investmentThesis?: string | null;
     thesisConfidence?: string | null;
-    strategicPriorities?: string[] | null;
-    dealBreakers?: string[] | null;
   };
   onSave: (data: {
     thesis_summary?: string;
     thesis_confidence?: string;
-    strategic_priorities?: string[];
-    deal_breakers?: string[];
   }) => void;
   isSaving?: boolean;
 }
@@ -47,16 +42,12 @@ export const EditInvestmentCriteriaDialog = ({
   const [formData, setFormData] = useState({
     investmentThesis: data.investmentThesis || "",
     thesisConfidence: data.thesisConfidence || "medium",
-    strategicPriorities: data.strategicPriorities?.join(", ") || "",
-    dealBreakers: data.dealBreakers?.join(", ") || "",
   });
 
   useEffect(() => {
     setFormData({
       investmentThesis: data.investmentThesis || "",
       thesisConfidence: data.thesisConfidence || "medium",
-      strategicPriorities: data.strategicPriorities?.join(", ") || "",
-      dealBreakers: data.dealBreakers?.join(", ") || "",
     });
   }, [data]);
 
@@ -64,8 +55,6 @@ export const EditInvestmentCriteriaDialog = ({
     onSave({
       thesis_summary: formData.investmentThesis || undefined,
       thesis_confidence: formData.thesisConfidence || undefined,
-      strategic_priorities: formData.strategicPriorities ? formData.strategicPriorities.split(",").map(s => s.trim()).filter(Boolean) : undefined,
-      deal_breakers: formData.dealBreakers ? formData.dealBreakers.split(",").map(s => s.trim()).filter(Boolean) : undefined,
     });
   };
 
@@ -106,27 +95,6 @@ export const EditInvestmentCriteriaDialog = ({
             </Select>
           </div>
           
-          <div className="space-y-2">
-            <Label htmlFor="strategicPriorities">Strategic Priorities</Label>
-            <Input
-              id="strategicPriorities"
-              placeholder="Comma-separated list of priorities"
-              value={formData.strategicPriorities}
-              onChange={(e) => setFormData({ ...formData, strategicPriorities: e.target.value })}
-            />
-            <p className="text-xs text-muted-foreground">Separate multiple priorities with commas</p>
-          </div>
-          
-          <div className="space-y-2">
-            <Label htmlFor="dealBreakers">Deal Breakers</Label>
-            <Input
-              id="dealBreakers"
-              placeholder="Comma-separated list of deal breakers"
-              value={formData.dealBreakers}
-              onChange={(e) => setFormData({ ...formData, dealBreakers: e.target.value })}
-            />
-            <p className="text-xs text-muted-foreground">Things they explicitly avoid</p>
-          </div>
         </div>
         
         <DialogFooter>

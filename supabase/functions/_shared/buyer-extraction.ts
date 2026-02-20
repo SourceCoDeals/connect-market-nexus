@@ -17,7 +17,9 @@ import {
   type SourceType,
   TRANSCRIPT_PROTECTED_FIELDS,
   PLACEHOLDER_STRINGS,
+  SOURCE_PRIORITY,
   validateFieldProvenance,
+  getFieldSourcePriority,
 } from "./provenance.ts";
 import { normalizeState, VALID_US_STATE_CODES } from "./geography.ts";
 
@@ -65,21 +67,25 @@ export const REGION_MAP: Record<string, string> = {
 // ============================================================================
 
 // Valid columns in remarketing_buyers table (verified against actual schema)
+// Removed 12 dead/overengineered fields: specialized_focus, strategic_priorities,
+// revenue_sweet_spot, ebitda_sweet_spot, deal_preferences, deal_breakers, key_quotes,
+// employee_range, detected_email_pattern, contact_discovery_status, last_contact_discovery_at, scores_stale_since
 export const VALID_BUYER_COLUMNS = new Set([
   'company_name', 'company_website', 'platform_website', 'pe_firm_name', 'pe_firm_website',
   'business_summary', 'thesis_summary', 'thesis_confidence', 'buyer_type',
   'hq_city', 'hq_state', 'hq_country', 'hq_region',
   'geographic_footprint', 'service_regions', 'operating_locations',
   'primary_customer_size', 'customer_geographic_reach', 'customer_industries', 'target_customer_profile',
-  'target_revenue_min', 'target_revenue_max', 'revenue_sweet_spot',
-  'target_ebitda_min', 'target_ebitda_max', 'ebitda_sweet_spot',
+  'target_revenue_min', 'target_revenue_max',
+  'target_ebitda_min', 'target_ebitda_max',
   'target_services', 'target_industries', 'target_geographies',
-  'deal_preferences', 'deal_breakers', 'acquisition_timeline', 'acquisition_appetite', 'acquisition_frequency',
+  'acquisition_timeline', 'acquisition_appetite', 'acquisition_frequency',
   'recent_acquisitions', 'portfolio_companies', 'total_acquisitions', 'num_platforms',
-  'strategic_priorities', 'specialized_focus', 'industry_vertical',
+  'industry_vertical',
   'data_completeness', 'data_last_updated', 'extraction_sources',
-  'key_quotes', 'notes', 'has_fee_agreement',
+  'notes', 'has_fee_agreement',
   'services_offered', 'business_type', 'revenue_model',
+  'marketplace_firm_id',
 ]);
 
 // Map AI-extracted field names to actual database columns
@@ -136,7 +142,6 @@ export const PROMPT_1_BUSINESS = {
       business_summary: { type: 'string', description: '2-3 sentence overview of what the company does operationally' },
       business_type: { type: 'string', enum: ['Service Provider', 'Distributor', 'Manufacturer', 'Retailer', 'Software', 'Other'] },
       industry_vertical: { type: 'string', description: "Industry category (e.g., 'Home Services - HVAC')" },
-      specialized_focus: { type: 'string', description: 'Any niche or specialization mentioned' },
       revenue_model: { type: 'string', description: 'Detailed description of how the company generates revenue — include contract types, customer payment models, recurring vs project-based work, franchise fees if applicable. Write 1-3 sentences.' },
     },
   },
@@ -476,7 +481,6 @@ export function validateSizeCriteria(extracted: AIExtractionResult): AIExtractio
 
   data.min_ebitda = checkForMultiple(data.min_ebitda);
   data.max_ebitda = checkForMultiple(data.max_ebitda);
-  data.ebitda_sweet_spot = checkForMultiple(data.ebitda_sweet_spot);
 
   return { ...extracted, data };
 }
@@ -487,7 +491,15 @@ export function validateSizeCriteria(extracted: AIExtractionResult): AIExtractio
 
 /**
  * Determines if a new value should overwrite an existing value.
- * Enforces transcript protection and source priority rules.
+ * Uses a numeric priority system: higher-priority sources always win.
+ *
+ * Priority levels (from SOURCE_PRIORITY):
+ *   manual=110 > transcript=100 > csv=90 > marketplace=80 > website=60
+ *
+ * Logic:
+ * 1. Empty existing value → always overwrite (any source can fill gaps)
+ * 2. Existing field has known source → compare priorities numerically
+ * 3. Transcript-protected fields get extra guard for backward compatibility
  */
 export function shouldOverwrite(
   fieldName: string,
@@ -497,64 +509,39 @@ export function shouldOverwrite(
   existingSources: any[],
   newSourceType: SourceType = 'platform_website'
 ): boolean {
-  // RULE 1: If field has been written by a transcript, NEVER allow any website to overwrite it.
-  // This is absolute — transcripts are always higher priority than any website.
-  if (newSourceType === 'platform_website' || newSourceType === 'pe_firm_website') {
-    // Check if ANY transcript source has written this specific field
-    const fieldHasTranscriptSource = existingSources.some(
-      (src: any) => {
-        const isTranscript = src.type === 'transcript' || src.type === 'buyer_transcript' || src.source === 'transcript';
-        if (!isTranscript) return false;
-        // Check if this specific field was extracted by a transcript
-        const extractedFields = src.fields_extracted || src.fields || [];
-        return extractedFields.includes(fieldName);
-      }
-    );
+  // Existing value is empty/null → always overwrite (fill gaps from any source)
+  const existingIsEmpty = existingValue === null || existingValue === undefined || existingValue === '' ||
+    (Array.isArray(existingValue) && existingValue.length === 0);
+  if (existingIsEmpty) return true;
 
-    if (fieldHasTranscriptSource) {
-      const hasExistingData = existingValue !== null &&
-        existingValue !== undefined &&
-        (typeof existingValue !== 'string' || existingValue.trim() !== '') &&
-        (!Array.isArray(existingValue) || existingValue.length > 0);
+  // PRIORITY-BASED: Look up the existing field's highest-priority source
+  const existing = getFieldSourcePriority(fieldName, existingSources);
+  const newPriority = SOURCE_PRIORITY[newSourceType] ?? 60;
 
-      if (hasExistingData) {
-        console.log(`🛡️ TRANSCRIPT PROTECTION: Skipping ${fieldName} — already set by transcript, website cannot overwrite`);
-        return false;
-      }
-    }
+  if (existing.priority > 0 && existing.priority > newPriority) {
+    console.log(`🛡️ PRIORITY: Skipping ${fieldName} — existing source "${existing.sourceType}" (priority ${existing.priority}) > new source "${newSourceType}" (priority ${newPriority})`);
+    return false;
   }
 
-  // RULE 2: Never overwrite transcript-protected fields if buyer has ANY transcript source
-  // (even if we can't confirm the specific field was from a transcript)
+  // BACKWARD COMPAT: Transcript-protected fields guard
+  // Even if we can't find per-field source records, protect transcript fields
+  // when the buyer has ANY transcript source (broad protection)
   if (TRANSCRIPT_PROTECTED_FIELDS.includes(fieldName) && hasTranscriptSource) {
-    const hasExistingData = existingValue !== null &&
-      existingValue !== undefined &&
-      (typeof existingValue !== 'string' || existingValue.trim() !== '') &&
-      (!Array.isArray(existingValue) || existingValue.length > 0);
-
-    if (hasExistingData && (newSourceType === 'platform_website' || newSourceType === 'pe_firm_website')) {
+    if (newSourceType === 'platform_website' || newSourceType === 'pe_firm_website') {
       console.log(`🛡️ PROTECTED FIELD: Skipping ${fieldName} — transcript-protected and buyer has transcript data`);
       return false;
     }
   }
 
-  // Existing value is empty/null → always overwrite
-  const existingIsEmpty = existingValue === null || existingValue === undefined || existingValue === '' ||
-    (Array.isArray(existingValue) && existingValue.length === 0);
-  if (existingIsEmpty) return true;
-
-  // For strings: overwrite if new value is non-empty
+  // New value checks — only overwrite with substantive data
   if (typeof newValue === 'string') {
     return newValue.trim().length > 0;
   }
-
-  // For arrays: overwrite if new value has items
   if (Array.isArray(newValue)) {
     return newValue.length > 0;
   }
-
-  // For numbers: only overwrite if existing is null (already handled above)
-  if (typeof newValue === 'number') {
+  // For numbers: equal-priority sources don't overwrite existing numbers
+  if (typeof newValue === 'number' && existing.priority >= newPriority) {
     return false;
   }
 
@@ -573,9 +560,16 @@ export function buildBuyerUpdateObject(
   evidenceRecords: any[],
   fieldSourceMap: Record<string, SourceType> = {},
 ): Record<string, any> {
+  const timestamp = new Date().toISOString();
+
+  // Build per-field source tracking: merge existing field_sources with new ones
+  const existingFieldSources: Record<string, { source: string; priority: number; at: string }> =
+    existingSources.find((s: any) => s.type === 'field_sources')?.fields || {};
+  const fieldSources = { ...existingFieldSources };
+
   const updateData: Record<string, any> = {
-    data_last_updated: new Date().toISOString(),
-    extraction_sources: [...existingSources, ...evidenceRecords],
+    data_last_updated: timestamp,
+    // extraction_sources is finalized at the end after field_sources are computed
   };
 
   let fieldsUpdated = 0;
@@ -611,12 +605,19 @@ export function buildBuyerUpdateObject(
       continue;
     }
 
+    // Track per-field source + priority
+    const recordFieldSource = () => {
+      const priority = SOURCE_PRIORITY[sourceType] ?? 60;
+      fieldSources[field] = { source: sourceType, priority, at: timestamp };
+    };
+
     // Handle state code normalization for geographic fields
     if (field === 'hq_state') {
       const normalized = normalizeStateCode(value);
       if (VALID_STATE_CODES.has(normalized)) {
         updateData[field] = normalized;
         fieldsUpdated++;
+        recordFieldSource();
       }
       continue;
     }
@@ -639,6 +640,7 @@ export function buildBuyerUpdateObject(
         const unique = [...new Set(normalized)];
         updateData[field] = unique;
         fieldsUpdated++;
+        recordFieldSource();
       }
       continue;
     }
@@ -659,13 +661,23 @@ export function buildBuyerUpdateObject(
       }
       updateData[field] = cleanValue;
       fieldsUpdated++;
+      recordFieldSource();
       continue;
     }
 
     // Handle strings and other values
     updateData[field] = value;
     fieldsUpdated++;
+    recordFieldSource();
   }
+
+  // Finalize extraction_sources: merge evidence records + per-field source tracking
+  // Filter out any old field_sources entry, then append the updated one
+  const baseEntries = [...existingSources, ...evidenceRecords].filter(
+    (s: any) => s.type !== 'field_sources'
+  );
+  baseEntries.push({ type: 'field_sources', fields: fieldSources });
+  updateData.extraction_sources = baseEntries;
 
   // Calculate data completeness
   const keyFields = ['thesis_summary', 'target_services', 'target_geographies', 'geographic_footprint', 'hq_state', 'pe_firm_name', 'business_summary'];

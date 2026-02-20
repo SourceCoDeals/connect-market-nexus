@@ -6581,18 +6581,12 @@ export type Database = {
           company_name: string
           company_website: string | null
           confidence_level: string | null
-          contact_discovery_status: string | null
           created_at: string
           customer_geographic_reach: string | null
           customer_industries: string[] | null
           data_completeness: string | null
           data_last_updated: string | null
-          deal_breakers: string[] | null
-          deal_preferences: string | null
-          detected_email_pattern: string | null
-          ebitda_sweet_spot: number | null
           email_domain: string | null
-          employee_range: string | null
           extraction_sources: Json | null
           fee_agreement_source: string | null
           fee_agreement_status: string | null
@@ -6607,8 +6601,6 @@ export type Database = {
           industry_tracker_id: string | null
           industry_vertical: string | null
           investment_date: string | null
-          key_quotes: string[] | null
-          last_contact_discovery_at: string | null
           marketplace_firm_id: string | null
           notes: string | null
           notes_analyzed_at: string | null
@@ -6627,12 +6619,8 @@ export type Database = {
           primary_customer_size: string | null
           recent_acquisitions: Json | null
           revenue_model: string | null
-          revenue_sweet_spot: number | null
-          scores_stale_since: string | null
           service_regions: string[] | null
           services_offered: string | null
-          specialized_focus: string | null
-          strategic_priorities: string[] | null
           target_customer_profile: string | null
           target_ebitda_max: number | null
           target_ebitda_min: number | null
@@ -6662,18 +6650,12 @@ export type Database = {
           company_name: string
           company_website?: string | null
           confidence_level?: string | null
-          contact_discovery_status?: string | null
           created_at?: string
           customer_geographic_reach?: string | null
           customer_industries?: string[] | null
           data_completeness?: string | null
           data_last_updated?: string | null
-          deal_breakers?: string[] | null
-          deal_preferences?: string | null
-          detected_email_pattern?: string | null
-          ebitda_sweet_spot?: number | null
           email_domain?: string | null
-          employee_range?: string | null
           extraction_sources?: Json | null
           fee_agreement_source?: string | null
           fee_agreement_status?: string | null
@@ -6688,8 +6670,6 @@ export type Database = {
           industry_tracker_id?: string | null
           industry_vertical?: string | null
           investment_date?: string | null
-          key_quotes?: string[] | null
-          last_contact_discovery_at?: string | null
           marketplace_firm_id?: string | null
           notes?: string | null
           notes_analyzed_at?: string | null
@@ -6708,12 +6688,8 @@ export type Database = {
           primary_customer_size?: string | null
           recent_acquisitions?: Json | null
           revenue_model?: string | null
-          revenue_sweet_spot?: number | null
-          scores_stale_since?: string | null
           service_regions?: string[] | null
           services_offered?: string | null
-          specialized_focus?: string | null
-          strategic_priorities?: string[] | null
           target_customer_profile?: string | null
           target_ebitda_max?: number | null
           target_ebitda_min?: number | null
@@ -6743,18 +6719,12 @@ export type Database = {
           company_name?: string
           company_website?: string | null
           confidence_level?: string | null
-          contact_discovery_status?: string | null
           created_at?: string
           customer_geographic_reach?: string | null
           customer_industries?: string[] | null
           data_completeness?: string | null
           data_last_updated?: string | null
-          deal_breakers?: string[] | null
-          deal_preferences?: string | null
-          detected_email_pattern?: string | null
-          ebitda_sweet_spot?: number | null
           email_domain?: string | null
-          employee_range?: string | null
           extraction_sources?: Json | null
           fee_agreement_source?: string | null
           fee_agreement_status?: string | null
@@ -6769,8 +6739,6 @@ export type Database = {
           industry_tracker_id?: string | null
           industry_vertical?: string | null
           investment_date?: string | null
-          key_quotes?: string[] | null
-          last_contact_discovery_at?: string | null
           marketplace_firm_id?: string | null
           notes?: string | null
           notes_analyzed_at?: string | null
@@ -6789,12 +6757,8 @@ export type Database = {
           primary_customer_size?: string | null
           recent_acquisitions?: Json | null
           revenue_model?: string | null
-          revenue_sweet_spot?: number | null
-          scores_stale_since?: string | null
           service_regions?: string[] | null
           services_offered?: string | null
-          specialized_focus?: string | null
-          strategic_priorities?: string[] | null
           target_customer_profile?: string | null
           target_ebitda_max?: number | null
           target_ebitda_min?: number | null

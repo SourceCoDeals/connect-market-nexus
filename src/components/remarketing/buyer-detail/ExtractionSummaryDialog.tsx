@@ -1,14 +1,13 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { CheckCircle2, AlertTriangle, FileText, MapPin, Target, Briefcase, TrendingUp, Quote } from "lucide-react";
+import { CheckCircle2, AlertTriangle, FileText, MapPin, Briefcase, TrendingUp } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 
 interface ExtractionResult {
   thesis_summary?: string;
   thesis_confidence?: string;
-  strategic_priorities?: string[];
   target_industries?: string[];
   target_geography?: { regions?: string[]; states?: string[]; notes?: string };
   deal_size_range?: { revenue_min?: number; revenue_max?: number; ebitda_min?: number; ebitda_max?: number; notes?: string };
@@ -87,7 +86,7 @@ export function ExtractionSummaryDialog({
       merged.acquisition_timeline = ins.acquisition_timeline;
     }
     // Merge arrays
-    for (const key of ['strategic_priorities', 'target_industries', 'services_offered', 'operating_locations', 'geographic_footprint', 'missing_information'] as const) {
+    for (const key of ['target_industries', 'services_offered', 'operating_locations', 'geographic_footprint', 'missing_information'] as const) {
       if (ins[key]?.length) {
         merged[key] = [...new Set([...(merged[key] || []), ...ins[key]!])];
       }
@@ -104,7 +103,7 @@ export function ExtractionSummaryDialog({
     }
   }
 
-  const hasData = merged.thesis_summary || merged.business_summary || merged.strategic_priorities?.length ||
+  const hasData = merged.thesis_summary || merged.business_summary ||
     merged.target_industries?.length || merged.services_offered?.length || merged.geographic_footprint?.length;
 
   return (
@@ -148,15 +147,6 @@ export function ExtractionSummaryDialog({
                 )}
 
                 <Separator />
-
-                {/* Strategic Priorities */}
-                {merged.strategic_priorities?.length ? (
-                  <Section icon={Target} label="Strategic Priorities">
-                    <ul className="list-disc pl-4 space-y-0.5">
-                      {merged.strategic_priorities.map((p, i) => <li key={i}>{p}</li>)}
-                    </ul>
-                  </Section>
-                ) : null}
 
                 {/* Services */}
                 {merged.services_offered?.length ? (

@@ -70,7 +70,6 @@ export interface MABuyer {
   business_model: string | null;
   revenue_model: string | null;
   go_to_market_strategy: string | null;
-  specialized_focus: string | null;
   num_platforms: number | null;
   total_acquisitions: number | null;
   last_acquisition_date: string | null;
@@ -81,10 +80,8 @@ export interface MABuyer {
   portfolio_companies: string[] | null;
   min_revenue: number | null;
   max_revenue: number | null;
-  revenue_sweet_spot: number | null;
   min_ebitda: number | null;
   max_ebitda: number | null;
-  ebitda_sweet_spot: number | null;
   preferred_ebitda: number | null;
   target_geographies: string[] | null;
   geographic_footprint: string[] | null;
@@ -106,11 +103,8 @@ export interface MABuyer {
   target_customer_geography: string | null;
   thesis_summary: string | null;
   thesis_confidence: 'High' | 'Medium' | 'Low' | null;
-  strategic_priorities: string | null;
   service_mix_prefs: string | null;
   business_model_prefs: string | null;
-  deal_breakers: string[] | null;
-  key_quotes: string[] | null;
   geo_preferences: GeoPreferences | null;
   operating_locations: OperatingLocation[] | null;
   extraction_evidence: Record<string, unknown> | null;
@@ -410,7 +404,6 @@ export function getIntelligenceCoverage(buyer: Partial<MABuyer>): IntelligenceCo
     buyer.preferred_ebitda,
     buyer.service_mix_prefs,
     buyer.business_model_prefs,
-    buyer.deal_breakers,
   ];
 
   const filledFields = fields.filter(f => f !== null && f !== undefined && (Array.isArray(f) ? f.length > 0 : true)).length;

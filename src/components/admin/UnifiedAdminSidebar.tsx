@@ -8,7 +8,6 @@ import {
   GitBranch,
   Users,
   Globe2,
-  FileSignature,
   Sparkles,
   Store,
   ShoppingBag,
@@ -111,11 +110,6 @@ export function UnifiedAdminSidebar({ collapsed, onCollapsedChange }: AdminSideb
             label: "Buyer Universes",
             href: "/admin/buyers/universes",
             icon: <Globe2 className="h-4 w-4" />,
-          },
-          {
-            label: "Firm Agreements",
-            href: "/admin/buyers/firm-agreements",
-            icon: <FileSignature className="h-4 w-4" />,
           },
           {
             label: "Deal Sourcing",

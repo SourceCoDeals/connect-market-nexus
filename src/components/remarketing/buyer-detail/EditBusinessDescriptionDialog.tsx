@@ -19,13 +19,11 @@ interface EditBusinessDescriptionDialogProps {
     industryVertical?: string | null;
     businessSummary?: string | null;
     servicesOffered?: string[] | null;
-    specializedFocus?: string | null;
   };
   onSave: (data: {
     industry_vertical?: string;
     business_summary?: string;
     target_services?: string[];
-    specialized_focus?: string;
   }) => void;
   isSaving?: boolean;
 }
@@ -41,7 +39,6 @@ export const EditBusinessDescriptionDialog = ({
     industryVertical: data.industryVertical || "",
     businessSummary: data.businessSummary || "",
     servicesOffered: data.servicesOffered?.join(", ") || "",
-    specializedFocus: data.specializedFocus || "",
   });
 
   useEffect(() => {
@@ -49,7 +46,6 @@ export const EditBusinessDescriptionDialog = ({
       industryVertical: data.industryVertical || "",
       businessSummary: data.businessSummary || "",
       servicesOffered: data.servicesOffered?.join(", ") || "",
-      specializedFocus: data.specializedFocus || "",
     });
   }, [data]);
 
@@ -58,7 +54,6 @@ export const EditBusinessDescriptionDialog = ({
       industry_vertical: formData.industryVertical || undefined,
       business_summary: formData.businessSummary || undefined,
       target_services: formData.servicesOffered ? formData.servicesOffered.split(",").map(s => s.trim()).filter(Boolean) : undefined,
-      specialized_focus: formData.specializedFocus || undefined,
     });
   };
 
@@ -103,16 +98,6 @@ export const EditBusinessDescriptionDialog = ({
             <p className="text-xs text-muted-foreground">Separate multiple services with commas</p>
           </div>
           
-          <div className="space-y-2">
-            <Label htmlFor="specializedFocus">Specialized Focus</Label>
-            <Textarea
-              id="specializedFocus"
-              placeholder="Any specialized focus areas or unique capabilities..."
-              value={formData.specializedFocus}
-              onChange={(e) => setFormData({ ...formData, specializedFocus: e.target.value })}
-              rows={2}
-            />
-          </div>
         </div>
         
         <DialogFooter>

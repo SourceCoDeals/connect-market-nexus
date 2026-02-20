@@ -7,8 +7,6 @@ import { cn } from "@/lib/utils";
 interface InvestmentCriteriaCardProps {
   investmentThesis?: string | null;
   thesisConfidence?: string | null;
-  strategicPriorities?: string[] | null;
-  dealBreakers?: string[] | null;
   onEdit: () => void;
   className?: string;
 }
@@ -16,12 +14,10 @@ interface InvestmentCriteriaCardProps {
 export const InvestmentCriteriaCard = ({
   investmentThesis,
   thesisConfidence,
-  strategicPriorities,
-  dealBreakers,
   onEdit,
   className,
 }: InvestmentCriteriaCardProps) => {
-  const hasContent = investmentThesis || strategicPriorities?.length || dealBreakers?.length;
+  const hasContent = !!investmentThesis;
 
   const getConfidenceBadgeClass = (confidence: string | null | undefined) => {
     switch (confidence) {
@@ -61,41 +57,13 @@ export const InvestmentCriteriaCard = ({
                 </p>
                 <p className="text-sm text-amber-900">{investmentThesis}</p>
                 {thesisConfidence && (
-                  <Badge 
-                    variant="outline" 
+                  <Badge
+                    variant="outline"
                     className={`text-xs ${getConfidenceBadgeClass(thesisConfidence)}`}
                   >
                     {thesisConfidence.charAt(0).toUpperCase() + thesisConfidence.slice(1)} confidence
                   </Badge>
                 )}
-              </div>
-            )}
-
-            {strategicPriorities && strategicPriorities.length > 0 && (
-              <div>
-                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">
-                  Strategic Priorities
-                </p>
-                <p className="text-sm">{strategicPriorities.join(", ")}</p>
-              </div>
-            )}
-
-            {dealBreakers && dealBreakers.length > 0 && (
-              <div>
-                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">
-                  Deal Breakers
-                </p>
-                <div className="flex flex-wrap gap-2">
-                  {dealBreakers.map((breaker, index) => (
-                    <Badge 
-                      key={index} 
-                      variant="destructive"
-                      className="bg-red-100 text-red-800 hover:bg-red-100"
-                    >
-                      {breaker}
-                    </Badge>
-                  ))}
-                </div>
               </div>
             )}
           </>

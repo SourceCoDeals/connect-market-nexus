@@ -69,7 +69,6 @@ const AdminUsers = lazyWithRetry(() => import("@/pages/admin/AdminUsers"));
 const MarketplaceUsersPage = lazyWithRetry(() => import("@/pages/admin/MarketplaceUsersPage"));
 const InternalTeamPage = lazyWithRetry(() => import("@/pages/admin/InternalTeamPage"));
 const OwnerLeadsPage = lazyWithRetry(() => import("@/pages/admin/OwnerLeadsPage"));
-const FirmAgreements = lazyWithRetry(() => import("@/pages/admin/FirmAgreements"));
 const AdminRequests = lazyWithRetry(() => import("@/pages/admin/AdminRequests"));
 const AdminDealSourcing = lazyWithRetry(() => import("@/pages/admin/AdminDealSourcing"));
 const AdminPipeline = lazyWithRetry(() => import("@/pages/admin/AdminPipeline"));
@@ -192,7 +191,7 @@ function App() {
                           <Route path="buyers/:id" element={<ReMarketingBuyerDetail />} />
                           <Route path="buyers/universes" element={<ReMarketingUniverses />} />
                           <Route path="buyers/universes/:id" element={<ReMarketingUniverseDetail />} />
-                          <Route path="buyers/firm-agreements" element={<FirmAgreements />} />
+                          <Route path="buyers/firm-agreements" element={<Navigate to="/admin/buyers?tab=needs_agreements" replace />} />
                           <Route path="buyers/deal-sourcing" element={<AdminDealSourcing />} />
 
                           {/* MARKETPLACE */}
@@ -249,7 +248,7 @@ function App() {
                           {/* OLD ADMIN URL REDIRECTS */}
                           <Route path="listings" element={<Navigate to="/admin/marketplace/listings" replace />} />
                           <Route path="users" element={<Navigate to="/admin/marketplace/users" replace />} />
-                          <Route path="firm-agreements" element={<Navigate to="/admin/buyers/firm-agreements" replace />} />
+                          <Route path="firm-agreements" element={<Navigate to="/admin/buyers?tab=needs_agreements" replace />} />
                           <Route path="requests" element={<Navigate to="/admin/marketplace/requests" replace />} />
                           <Route path="deal-sourcing" element={<Navigate to="/admin/buyers/deal-sourcing" replace />} />
                           <Route path="pipeline" element={<Navigate to="/admin/deals/pipeline" replace />} />

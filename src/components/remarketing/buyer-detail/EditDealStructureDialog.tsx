@@ -9,7 +9,6 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 
 interface EditDealStructureDialogProps {
@@ -18,22 +17,16 @@ interface EditDealStructureDialogProps {
   data: {
     minRevenue?: number | null;
     maxRevenue?: number | null;
-    revenueSweetSpot?: number | null;
     minEbitda?: number | null;
     maxEbitda?: number | null;
-    ebitdaSweetSpot?: number | null;
-    dealPreferences?: string | null;
     acquisitionAppetite?: string | null;
     acquisitionTimeline?: string | null;
   };
   onSave: (data: {
     target_revenue_min?: number;
     target_revenue_max?: number;
-    revenue_sweet_spot?: number;
     target_ebitda_min?: number;
     target_ebitda_max?: number;
-    ebitda_sweet_spot?: number;
-    deal_preferences?: string;
     acquisition_appetite?: string;
     acquisition_timeline?: string;
   }) => void;
@@ -50,11 +43,8 @@ export const EditDealStructureDialog = ({
   const [formData, setFormData] = useState({
     minRevenue: data.minRevenue?.toString() || "",
     maxRevenue: data.maxRevenue?.toString() || "",
-    revenueSweetSpot: data.revenueSweetSpot?.toString() || "",
     minEbitda: data.minEbitda?.toString() || "",
     maxEbitda: data.maxEbitda?.toString() || "",
-    ebitdaSweetSpot: data.ebitdaSweetSpot?.toString() || "",
-    dealPreferences: data.dealPreferences || "",
     acquisitionAppetite: data.acquisitionAppetite || "",
     acquisitionTimeline: data.acquisitionTimeline || "",
   });
@@ -63,11 +53,8 @@ export const EditDealStructureDialog = ({
     setFormData({
       minRevenue: data.minRevenue?.toString() || "",
       maxRevenue: data.maxRevenue?.toString() || "",
-      revenueSweetSpot: data.revenueSweetSpot?.toString() || "",
       minEbitda: data.minEbitda?.toString() || "",
       maxEbitda: data.maxEbitda?.toString() || "",
-      ebitdaSweetSpot: data.ebitdaSweetSpot?.toString() || "",
-      dealPreferences: data.dealPreferences || "",
       acquisitionAppetite: data.acquisitionAppetite || "",
       acquisitionTimeline: data.acquisitionTimeline || "",
     });
@@ -82,11 +69,8 @@ export const EditDealStructureDialog = ({
     onSave({
       target_revenue_min: parseNumber(formData.minRevenue),
       target_revenue_max: parseNumber(formData.maxRevenue),
-      revenue_sweet_spot: parseNumber(formData.revenueSweetSpot),
       target_ebitda_min: parseNumber(formData.minEbitda),
       target_ebitda_max: parseNumber(formData.maxEbitda),
-      ebitda_sweet_spot: parseNumber(formData.ebitdaSweetSpot),
-      deal_preferences: formData.dealPreferences || undefined,
       acquisition_appetite: formData.acquisitionAppetite || undefined,
       acquisition_timeline: formData.acquisitionTimeline || undefined,
     });
@@ -103,7 +87,7 @@ export const EditDealStructureDialog = ({
         <div className="space-y-4 py-4">
           <div>
             <Label className="text-sm font-medium">Revenue Range (USD)</Label>
-            <div className="grid grid-cols-3 gap-2 mt-2">
+            <div className="grid grid-cols-2 gap-2 mt-2">
               <div className="space-y-1">
                 <Label htmlFor="minRevenue" className="text-xs text-muted-foreground">Min</Label>
                 <Input
@@ -124,22 +108,12 @@ export const EditDealStructureDialog = ({
                   onChange={(e) => setFormData({ ...formData, maxRevenue: e.target.value })}
                 />
               </div>
-              <div className="space-y-1">
-                <Label htmlFor="revenueSweetSpot" className="text-xs text-muted-foreground">Sweet Spot</Label>
-                <Input
-                  id="revenueSweetSpot"
-                  type="number"
-                  placeholder="e.g., 6000000"
-                  value={formData.revenueSweetSpot}
-                  onChange={(e) => setFormData({ ...formData, revenueSweetSpot: e.target.value })}
-                />
-              </div>
             </div>
           </div>
           
           <div>
             <Label className="text-sm font-medium">EBITDA Range (USD)</Label>
-            <div className="grid grid-cols-3 gap-2 mt-2">
+            <div className="grid grid-cols-2 gap-2 mt-2">
               <div className="space-y-1">
                 <Label htmlFor="minEbitda" className="text-xs text-muted-foreground">Min</Label>
                 <Input
@@ -160,28 +134,7 @@ export const EditDealStructureDialog = ({
                   onChange={(e) => setFormData({ ...formData, maxEbitda: e.target.value })}
                 />
               </div>
-              <div className="space-y-1">
-                <Label htmlFor="ebitdaSweetSpot" className="text-xs text-muted-foreground">Sweet Spot</Label>
-                <Input
-                  id="ebitdaSweetSpot"
-                  type="number"
-                  placeholder="e.g., 2000000"
-                  value={formData.ebitdaSweetSpot}
-                  onChange={(e) => setFormData({ ...formData, ebitdaSweetSpot: e.target.value })}
-                />
-              </div>
             </div>
-          </div>
-          
-          <div className="space-y-2">
-            <Label htmlFor="dealPreferences">Deal Preferences</Label>
-            <Textarea
-              id="dealPreferences"
-              placeholder="Preferred deal structures, terms, or transaction types..."
-              value={formData.dealPreferences}
-              onChange={(e) => setFormData({ ...formData, dealPreferences: e.target.value })}
-              rows={2}
-            />
           </div>
           
           <div className="space-y-2">

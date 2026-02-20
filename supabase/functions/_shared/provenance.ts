@@ -10,13 +10,24 @@
  * 3. Write-time: buildUpdateObject() in buyer-extraction.ts re-validates before DB write
  */
 
-export type SourceType = 'platform_website' | 'pe_firm_website' | 'transcript' | 'csv' | 'manual';
+export type SourceType = 'platform_website' | 'pe_firm_website' | 'transcript' | 'csv' | 'manual' | 'marketplace';
+
+// Numeric priority for each source type — higher value = more trusted.
+// Used to decide whether a new extraction should overwrite an existing field.
+export const SOURCE_PRIORITY: Record<SourceType, number> = {
+  manual: 110,       // Admin hand-edits are highest priority
+  transcript: 100,   // Direct conversations — most reliable
+  csv: 90,           // Bulk imports from verified data
+  marketplace: 80,   // Self-reported signup data from marketplace profiles
+  platform_website: 60,  // Scraped from the operating company's website
+  pe_firm_website: 60,   // Scraped from the PE firm's website
+};
 
 // Fields that may ONLY be populated from platform website or transcripts — NEVER from PE firm website
 export const PLATFORM_OWNED_FIELDS = new Set([
   // Business Identity
   'company_name', 'business_summary', 'services_offered', 'business_type',
-  'industry_vertical', 'specialized_focus', 'revenue_model',
+  'industry_vertical', 'revenue_model',
   // Customer Profile
   'primary_customer_size', 'customer_industries', 'customer_geographic_reach', 'target_customer_profile',
   // HQ Location — PE firm HQ is NOT the platform's HQ
@@ -30,10 +41,10 @@ export const PLATFORM_OWNED_FIELDS = new Set([
 // This includes both actual company financials AND PE firm investment size criteria,
 // since website-sourced financial data is unreliable and may violate data policies.
 export const TRANSCRIPT_ONLY_FIELDS = new Set([
-  'num_platforms', 'deal_preferences',
+  'num_platforms',
   // Size criteria — financial data must NEVER come from website scraping
-  'target_revenue_min', 'target_revenue_max', 'revenue_sweet_spot',
-  'target_ebitda_min', 'target_ebitda_max', 'ebitda_sweet_spot',
+  'target_revenue_min', 'target_revenue_max',
+  'target_ebitda_min', 'target_ebitda_max',
 ]);
 
 // Fields allowed to fall back from PE firm website when platform website is unavailable
@@ -46,28 +57,23 @@ export const PE_FALLBACK_ALLOWED_FIELDS = new Set([
 // Fields that can be populated from either source (shared/neutral)
 export const SHARED_FIELDS = new Set([
   'target_industries', 'target_services', 'target_geographies',
-  'deal_preferences', 'deal_breakers', 'acquisition_timeline',
+  'acquisition_timeline',
   'acquisition_appetite', 'acquisition_frequency',
   'recent_acquisitions', 'portfolio_companies', 'total_acquisitions',
-  'strategic_priorities', 'thesis_summary', 'thesis_confidence',
+  'thesis_summary', 'thesis_confidence',
   'data_completeness', 'data_last_updated', 'extraction_sources',
-  'key_quotes', 'notes', 'has_fee_agreement',
+  'notes', 'has_fee_agreement',
 ]);
 
 // Fields that are NEVER overwritten from website if they have transcript source
 export const TRANSCRIPT_PROTECTED_FIELDS = [
   // Investment Thesis
   'thesis_summary',
-  'strategic_priorities',
   'thesis_confidence',
 
   // Size Criteria (using actual column names)
-  'target_revenue_min', 'target_revenue_max', 'revenue_sweet_spot',
-  'target_ebitda_min', 'target_ebitda_max', 'ebitda_sweet_spot',
-
-  // Deal Structure
-  'deal_breakers',
-  'deal_preferences',
+  'target_revenue_min', 'target_revenue_max',
+  'target_ebitda_min', 'target_ebitda_max',
 
   // Geographic Targeting
   'target_geographies',
@@ -89,6 +95,68 @@ export const PLACEHOLDER_STRINGS = new Set([
 ]);
 
 /**
+ * Looks up the highest-priority source that has written a specific field.
+ * Searches the extraction_sources array for evidence records containing the field.
+ * Returns the priority number, or 0 if no source has written this field.
+ */
+export function getFieldSourcePriority(
+  fieldName: string,
+  extractionSources: any[],
+): { priority: number; sourceType: string | null } {
+  let maxPriority = 0;
+  let sourceType: string | null = null;
+
+  for (const src of extractionSources) {
+    // Handle the per-field source tracking record (type: 'field_sources')
+    // This stores { fields: { fieldName: { source, priority, at } } }
+    if (src.type === 'field_sources' && src.fields && typeof src.fields === 'object') {
+      const fieldEntry = src.fields[fieldName];
+      if (fieldEntry && typeof fieldEntry.priority === 'number') {
+        if (fieldEntry.priority > maxPriority) {
+          maxPriority = fieldEntry.priority;
+          sourceType = fieldEntry.source || null;
+        }
+      }
+      continue;
+    }
+
+    // Handle standard evidence records with fields_extracted arrays
+    const fields = src.fields_extracted || src.fields || [];
+    if (!Array.isArray(fields) || !fields.includes(fieldName)) continue;
+
+    // Use explicit priority if stored, otherwise infer from source type
+    let priority: number;
+    if (typeof src.priority === 'number') {
+      priority = src.priority;
+    } else {
+      const type = (src.type || src.source_type || 'platform_website') as SourceType;
+      const normalizedType = normalizeSourceType(type);
+      priority = SOURCE_PRIORITY[normalizedType] ?? 60;
+    }
+
+    if (priority > maxPriority) {
+      maxPriority = priority;
+      sourceType = src.type || src.source_type || null;
+    }
+  }
+
+  return { priority: maxPriority, sourceType };
+}
+
+/**
+ * Normalizes various source type strings to canonical SourceType values.
+ */
+function normalizeSourceType(type: string): SourceType {
+  if (type === 'buyer_transcript' || type === 'transcript') return 'transcript';
+  if (type === 'marketplace_profile' || type === 'marketplace_backfill' || type === 'marketplace_sync') return 'marketplace';
+  if (type === 'website' || type === 'platform_website') return 'platform_website';
+  if (type === 'pe_firm_website') return 'pe_firm_website';
+  if (type === 'csv') return 'csv';
+  if (type === 'manual') return 'manual';
+  return 'platform_website'; // safe default
+}
+
+/**
  * Validates whether a field may be written from a given source type.
  * Returns { allowed: true } or { allowed: false, reason: string }.
  */
@@ -96,8 +164,8 @@ export function validateFieldProvenance(
   fieldName: string,
   sourceType: SourceType,
 ): { allowed: boolean; reason?: string } {
-  // Transcripts, CSV, and manual sources can write to any field
-  if (sourceType === 'transcript' || sourceType === 'csv' || sourceType === 'manual') {
+  // Transcripts, CSV, marketplace, and manual sources can write to any field
+  if (sourceType === 'transcript' || sourceType === 'csv' || sourceType === 'manual' || sourceType === 'marketplace') {
     return { allowed: true };
   }
 
