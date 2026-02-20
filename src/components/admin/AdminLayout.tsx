@@ -7,7 +7,7 @@ const AdminLayout = () => {
     <div className="flex min-h-screen w-full bg-background">
       {/* Unified sidebar - hidden on mobile */}
       <div className="hidden md:flex flex-shrink-0 h-screen sticky top-0">
-        <UnifiedAdminSidebar />
+        <UnifiedAdminSidebar collapsed={false} />
       </div>
 
       <div className="flex flex-col flex-1 min-w-0">
