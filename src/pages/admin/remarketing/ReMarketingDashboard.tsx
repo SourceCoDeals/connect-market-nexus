@@ -135,8 +135,9 @@ const ReMarketingDashboard = () => {
           .in("remarketing_status", ["active"])
           .range(offset, offset + batchSize - 1);
         if (error) throw error;
-        if (data && data.length > 0) {
-          allData.push(...(data as unknown as DealRow[]));
+        const typedData = (data as unknown) as DealRow[];
+        if (typedData && typedData.length > 0) {
+          allData.push(...typedData);
           offset += batchSize;
           hasMore = data.length === batchSize;
         } else {
