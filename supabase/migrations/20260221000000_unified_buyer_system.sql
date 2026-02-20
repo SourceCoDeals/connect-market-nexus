@@ -98,18 +98,26 @@ BEGIN
       NULLIF(TRIM(NEW.bio), '')
     );
 
-    -- Extract industries from business_categories JSON array
+    -- Extract industries from business_categories JSON (handle both arrays and scalars)
     IF NEW.business_categories IS NOT NULL AND NEW.business_categories::text != 'null' THEN
-      SELECT ARRAY(
-        SELECT jsonb_array_elements_text(NEW.business_categories::jsonb)
-      ) INTO v_industries;
+      IF jsonb_typeof(NEW.business_categories::jsonb) = 'array' THEN
+        SELECT ARRAY(
+          SELECT jsonb_array_elements_text(NEW.business_categories::jsonb)
+        ) INTO v_industries;
+      ELSE
+        v_industries := ARRAY[NEW.business_categories::jsonb #>> '{}'];
+      END IF;
     END IF;
 
-    -- Extract geographies from target_locations JSON array
+    -- Extract geographies from target_locations JSON (handle both arrays and scalars)
     IF NEW.target_locations IS NOT NULL AND NEW.target_locations::text != 'null' THEN
-      SELECT ARRAY(
-        SELECT jsonb_array_elements_text(NEW.target_locations::jsonb)
-      ) INTO v_geographies;
+      IF jsonb_typeof(NEW.target_locations::jsonb) = 'array' THEN
+        SELECT ARRAY(
+          SELECT jsonb_array_elements_text(NEW.target_locations::jsonb)
+        ) INTO v_geographies;
+      ELSE
+        v_geographies := ARRAY[NEW.target_locations::jsonb #>> '{}'];
+      END IF;
     END IF;
 
     -- Website and LinkedIn
@@ -169,7 +177,7 @@ BEGIN
             'target_geographies', 'company_website', 'buyer_linkedin'
           )
         )),
-        data_last_updated = now()::text,
+        data_last_updated = now(),
         updated_at = now()
       WHERE id = v_existing_id;
 
@@ -212,7 +220,7 @@ BEGIN
             'target_geographies', 'company_website', 'buyer_linkedin'
           )
         )),
-        now()::text
+        now()
       );
 
       RAISE NOTICE 'Created new remarketing_buyer from marketplace profile %', NEW.id;
@@ -263,11 +271,19 @@ SELECT
   END AS buyer_type,
   COALESCE(NULLIF(TRIM(p.ideal_target_description), ''), NULLIF(TRIM(p.mandate_blurb), '')) AS thesis_summary,
   CASE WHEN p.business_categories IS NOT NULL AND p.business_categories::text != 'null'
+         AND jsonb_typeof(p.business_categories::jsonb) = 'array'
     THEN (SELECT ARRAY(SELECT jsonb_array_elements_text(p.business_categories::jsonb)))
+    WHEN p.business_categories IS NOT NULL AND p.business_categories::text != 'null'
+         AND jsonb_typeof(p.business_categories::jsonb) = 'string'
+    THEN ARRAY[p.business_categories::jsonb #>> '{}']
     ELSE NULL
   END AS target_industries,
   CASE WHEN p.target_locations IS NOT NULL AND p.target_locations::text != 'null'
+         AND jsonb_typeof(p.target_locations::jsonb) = 'array'
     THEN (SELECT ARRAY(SELECT jsonb_array_elements_text(p.target_locations::jsonb)))
+    WHEN p.target_locations IS NOT NULL AND p.target_locations::text != 'null'
+         AND jsonb_typeof(p.target_locations::jsonb) = 'string'
+    THEN ARRAY[p.target_locations::jsonb #>> '{}']
     ELSE NULL
   END AS target_geographies,
   NULLIF(TRIM(p.website), '') AS company_website,
@@ -282,7 +298,7 @@ SELECT
     'priority', 80,
     'extracted_at', now()::text
   ))::jsonb AS extraction_sources,
-  now()::text AS data_last_updated
+  now() AS data_last_updated
 FROM public.profiles p
 WHERE p.approval_status = 'approved'
   AND COALESCE(NULLIF(TRIM(p.company_name), ''), NULLIF(TRIM(p.company), '')) IS NOT NULL
@@ -295,4 +311,5 @@ WHERE p.approval_status = 'approved'
          AND extract_domain(rb.company_website) = extract_domain(p.website))
         OR lower(trim(rb.company_name)) = lower(trim(COALESCE(NULLIF(TRIM(p.company_name), ''), NULLIF(TRIM(p.company), ''))))
       )
-  );
+  )
+ON CONFLICT DO NOTHING;

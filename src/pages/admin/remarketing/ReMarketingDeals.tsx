@@ -376,6 +376,31 @@ const ReMarketingDeals = () => {
     }
   });
 
+  // Fetch pipeline counts: how many active pipeline entries per listing_id
+  const { data: pipelineCounts } = useQuery({
+    queryKey: ['remarketing', 'pipeline-counts'],
+    staleTime: 60_000,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('deals')
+        .select('listing_id')
+        .is('deleted_at', null)
+        .limit(5000);
+      if (error) throw error;
+      const counts: Record<string, number> = {};
+      data?.forEach(row => {
+        if (row.listing_id) {
+          counts[row.listing_id] = (counts[row.listing_id] || 0) + 1;
+        }
+      });
+      return counts;
+    }
+  });
+
+  // Deal tab state for quick filter tabs - initialize from URL ?tab= param
+  const initialTab = searchParams.get("tab") || "all";
+  const [dealTab, setDealTab] = useState<string>(initialTab);
+
   const universeCount = universes?.length || 0;
 
   // KPI Stats
@@ -480,9 +505,22 @@ const ReMarketingDeals = () => {
       }
       // Universe Build filter
       if (universeBuildFilter && !listing.universe_build_flagged) return false;
+      // Deal tab filters
+      if (dealTab === "marketplace") {
+        if (listing.is_internal_deal !== false || listing.status !== 'active') return false;
+      } else if (dealTab === "internal") {
+        if (listing.is_internal_deal === false) return false;
+      } else if (dealTab === "pipeline") {
+        if (!pipelineCounts?.[listing.id]) return false;
+      } else if (dealTab === "needs_universe") {
+        const universes = universeDealMap?.[listing.id];
+        if (universes && universes.length > 0) return false;
+      } else if (dealTab === "needs_enrichment") {
+        if (listing.enriched_at && listing.deal_total_score !== null) return false;
+      }
       return true;
     });
-  }, [engineFiltered, universeFilter, scoreFilter, dateFilter, customDateFrom, customDateTo, industryFilter, stateFilter, employeeFilter, referralPartnerFilter, scoreStats, universeBuildFilter]);
+  }, [engineFiltered, universeFilter, scoreFilter, dateFilter, customDateFrom, customDateTo, industryFilter, stateFilter, employeeFilter, referralPartnerFilter, scoreStats, universeBuildFilter, dealTab, pipelineCounts, universeDealMap]);
 
   const formatCurrency = (value: number | null) => {
     if (!value) return "—";
@@ -1090,6 +1128,31 @@ const ReMarketingDeals = () => {
         needsScoring={kpiStats.needsScoring}
       />
 
+      {/* Deal Tab Filters */}
+      <div className="flex items-center gap-1 border-b pb-1">
+        {[
+          { key: "all", label: "All Deals" },
+          { key: "marketplace", label: "Marketplace Listed" },
+          { key: "internal", label: "Research / Internal" },
+          { key: "pipeline", label: "In Pipeline" },
+          { key: "needs_universe", label: "Needs Universe" },
+          { key: "needs_enrichment", label: "Needs Enrichment" },
+        ].map(tab => (
+          <button
+            key={tab.key}
+            onClick={() => setDealTab(tab.key)}
+            className={cn(
+              "px-3 py-1.5 text-sm font-medium rounded-md transition-colors",
+              dealTab === tab.key
+                ? "bg-primary text-primary-foreground"
+                : "text-muted-foreground hover:text-foreground hover:bg-muted"
+            )}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
       {/* Enrichment Progress Indicator */}
       {(enrichmentProgress.isEnriching || enrichmentProgress.isPaused) && (
         <EnrichmentProgressIndicator
@@ -1224,6 +1287,9 @@ const ReMarketingDeals = () => {
                     <ResizableHeader width={columnWidths.engagement} onResize={(w) => handleColumnResize('engagement', w)} minWidth={80} className="text-center">
                       <SortableHeader column="engagement" label="Engagement" className="mx-auto" />
                     </ResizableHeader>
+                    <ResizableHeader width={columnWidths.pipeline} onResize={(w) => handleColumnResize('pipeline', w)} minWidth={70} className="text-center">
+                      <span className="text-muted-foreground font-medium">Pipeline</span>
+                    </ResizableHeader>
                     <ResizableHeader width={columnWidths.dealOwner} onResize={(w) => handleColumnResize('dealOwner', w)} minWidth={80}>
                       <span className="text-muted-foreground font-medium">Deal Owner</span>
                     </ResizableHeader>
@@ -1260,7 +1326,7 @@ const ReMarketingDeals = () => {
                     ))
                   ) : listingsError ? (
                     <TableRow>
-                      <TableCell colSpan={18} className="text-center py-8 text-red-500">
+                      <TableCell colSpan={19} className="text-center py-8 text-red-500">
                         <Building2 className="h-8 w-8 mx-auto mb-2 opacity-50" />
                         <p>Failed to load deals</p>
                         <p className="text-sm text-muted-foreground">The query may have timed out. Try refreshing.</p>
@@ -1271,7 +1337,7 @@ const ReMarketingDeals = () => {
                     </TableRow>
                   ) : localOrder.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={18} className="text-center py-8 text-muted-foreground">
+                      <TableCell colSpan={19} className="text-center py-8 text-muted-foreground">
                         <Building2 className="h-8 w-8 mx-auto mb-2 opacity-50" />
                         <p>No deals found</p>
                         <p className="text-sm">Try adjusting your search or filters</p>
@@ -1304,6 +1370,7 @@ const ReMarketingDeals = () => {
                           adminProfiles={adminProfiles}
                           onAssignOwner={handleAssignOwner}
                           universesByListing={universeDealMap ?? {}}
+                          pipelineCount={pipelineCounts?.[listing.id] || 0}
                           onUpdateRank={async (dealId, newRank) => {
                             const rankSorted = [...localOrder].sort((a, b) =>
                               (a.manual_rank_override ?? 9999) - (b.manual_rank_override ?? 9999)

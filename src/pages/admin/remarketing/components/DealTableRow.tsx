@@ -35,6 +35,7 @@ import {
   Trash2,
   PhoneCall,
   Network,
+  GitBranch,
 } from "lucide-react";
 import { format } from "date-fns";
 import { useSortable } from "@dnd-kit/sortable";
@@ -64,6 +65,7 @@ export const DealTableRow = ({
   adminProfiles,
   onAssignOwner,
   universesByListing,
+  pipelineCount,
 }: {
   listing: DealListing;
   index: number;
@@ -85,6 +87,7 @@ export const DealTableRow = ({
   adminProfiles?: Record<string, { id: string; email: string; first_name: string; last_name: string; displayName: string }>;
   onAssignOwner: (dealId: string, ownerId: string | null) => void;
   universesByListing?: Record<string, { id: string; name: string }[]>;
+  pipelineCount?: number;
 }) => {
   const {
     attributes,
@@ -422,6 +425,18 @@ export const DealTableRow = ({
             <span>{stats?.passed || 0}</span>
           </div>
         </div>
+      </TableCell>
+
+      {/* Pipeline */}
+      <TableCell className="text-center" style={{ width: columnWidths.pipeline, minWidth: 70 }}>
+        {pipelineCount && pipelineCount > 0 ? (
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-purple-50 text-purple-700 border border-purple-200">
+            <GitBranch className="h-3 w-3" />
+            {pipelineCount} {pipelineCount === 1 ? 'buyer' : 'buyers'}
+          </span>
+        ) : (
+          <span className="text-xs text-muted-foreground">—</span>
+        )}
       </TableCell>
 
       {/* Deal Owner */}
