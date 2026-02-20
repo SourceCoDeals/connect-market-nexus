@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.4';
 
 import { getCorsHeaders, corsPreflightResponse } from "../_shared/cors.ts";
+import { requireAdmin } from "../_shared/auth.ts";
 
 const supabase = createClient(
   Deno.env.get('SUPABASE_URL') ?? '',
@@ -18,13 +19,22 @@ const handler = async (req: Request): Promise<Response> => {
   const corsHeaders = getCorsHeaders(req);
 
   console.log("=== SIMPLE VERIFICATION EMAIL FUNCTION START ===");
-  
+
   if (req.method === 'OPTIONS') {
     console.log("Handling CORS preflight request");
     return corsPreflightResponse(req);
   }
 
   try {
+    // AUTH: Admin-only — this generates account recovery links
+    const auth = await requireAdmin(req, supabase);
+    if (!auth.isAdmin) {
+      return new Response(JSON.stringify({ error: auth.error }), {
+        status: auth.authenticated ? 403 : 401,
+        headers: { 'Content-Type': 'application/json', ...corsHeaders },
+      });
+    }
+
     console.log("=== PARSING REQUEST ===");
     const { email, firstName = '', lastName = '' }: EmailRequest = await req.json();
     

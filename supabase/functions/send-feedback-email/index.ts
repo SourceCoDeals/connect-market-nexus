@@ -2,6 +2,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
 import { getCorsHeaders, corsPreflightResponse } from "../_shared/cors.ts";
+import { requireAdmin, escapeHtmlWithBreaks } from "../_shared/auth.ts";
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
 const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -24,6 +25,15 @@ const handler = async (req: Request): Promise<Response> => {
   }
 
   try {
+    // AUTH: Admin-only — this sends arbitrary emails
+    const auth = await requireAdmin(req, supabase);
+    if (!auth.isAdmin) {
+      return new Response(JSON.stringify({ error: auth.error }), {
+        status: auth.authenticated ? 403 : 401,
+        headers: { 'Content-Type': 'application/json', ...corsHeaders },
+      });
+    }
+
     const { to, subject, content, feedbackId, templateId }: EmailData = await req.json();
 
     // Log the email attempt
@@ -49,7 +59,7 @@ const handler = async (req: Request): Promise<Response> => {
             <h1 style="color: white; margin: 0;">Feedback Response</h1>
           </div>
           <div style="padding: 30px; background: #ffffff;">
-            ${content.replace(/\n/g, '<br>')}
+            ${escapeHtmlWithBreaks(content)}
           </div>
           <div style="background: #f8f9fa; padding: 20px; text-align: center; border-top: 1px solid #dee2e6;">
             <p style="margin: 0; color: #6c757d; font-size: 14px;">
