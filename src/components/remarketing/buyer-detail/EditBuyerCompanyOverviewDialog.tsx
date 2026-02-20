@@ -20,7 +20,6 @@
    hqCountry?: string | null;
    foundedYear?: number | null;
    employeeCount?: number | null;
-   employeeRange?: string | null;
    industryVertical?: string | null;
    numberOfLocations?: number | null;
    onSave: (data: {
@@ -30,7 +29,6 @@
      hq_country?: string | null;
      founded_year?: number | null;
      num_employees?: number | null;
-     employee_range?: string | null;
      industry_vertical?: string | null;
      number_of_locations?: number | null;
    }) => Promise<void>;
@@ -46,7 +44,6 @@
    hqCountry,
    foundedYear,
    employeeCount,
-   employeeRange,
    industryVertical,
    numberOfLocations,
    onSave,
@@ -59,7 +56,6 @@
      hqCountry: hqCountry || "USA",
      foundedYear: foundedYear?.toString() || "",
      employeeCount: employeeCount?.toString() || "",
-     employeeRange: employeeRange || "",
      industryVertical: industryVertical || "",
      numberOfLocations: numberOfLocations?.toString() || "",
    });
@@ -73,12 +69,11 @@
          hqCountry: hqCountry || "USA",
          foundedYear: foundedYear?.toString() || "",
          employeeCount: employeeCount?.toString() || "",
-         employeeRange: employeeRange || "",
          industryVertical: industryVertical || "",
          numberOfLocations: numberOfLocations?.toString() || "",
        });
      }
-   }, [open, website, hqCity, hqState, hqCountry, foundedYear, employeeCount, employeeRange, industryVertical, numberOfLocations]);
+   }, [open, website, hqCity, hqState, hqCountry, foundedYear, employeeCount, industryVertical, numberOfLocations]);
  
    const handleSave = async () => {
      await onSave({
@@ -88,7 +83,6 @@
        hq_country: formData.hqCountry || null,
        founded_year: formData.foundedYear ? parseInt(formData.foundedYear) : null,
        num_employees: formData.employeeCount ? parseInt(formData.employeeCount) : null,
-       employee_range: formData.employeeRange || null,
        industry_vertical: formData.industryVertical || null,
        number_of_locations: formData.numberOfLocations ? parseInt(formData.numberOfLocations) : null,
      });
@@ -140,26 +134,15 @@
                  />
                </div>
              </div>
-             <div className="grid grid-cols-2 gap-3">
-               <div>
-                 <Label htmlFor="foundedYear">Founded Year</Label>
-                 <Input
-                   id="foundedYear"
-                   type="number"
-                   value={formData.foundedYear}
-                   onChange={(e) => setFormData({ ...formData, foundedYear: e.target.value })}
-                   placeholder="2016"
-                 />
-               </div>
-               <div>
-                 <Label htmlFor="employeeRange">Employees</Label>
-                 <Input
-                   id="employeeRange"
-                   value={formData.employeeRange}
-                   onChange={(e) => setFormData({ ...formData, employeeRange: e.target.value })}
-                   placeholder="51-200"
-                 />
-               </div>
+             <div>
+               <Label htmlFor="foundedYear">Founded Year</Label>
+               <Input
+                 id="foundedYear"
+                 type="number"
+                 value={formData.foundedYear}
+                 onChange={(e) => setFormData({ ...formData, foundedYear: e.target.value })}
+                 placeholder="2016"
+               />
              </div>
              <div className="grid grid-cols-2 gap-3">
                <div>

@@ -7,7 +7,6 @@ interface BusinessDescriptionCardProps {
   industryVertical?: string | null;
   businessSummary?: string | null;
   servicesOffered?: string[] | null;
-  specializedFocus?: string | null;
   onEdit: () => void;
   className?: string;
 }
@@ -16,11 +15,10 @@ export const BusinessDescriptionCard = ({
   industryVertical,
   businessSummary,
   servicesOffered,
-  specializedFocus,
   onEdit,
   className,
 }: BusinessDescriptionCardProps) => {
-  const hasContent = industryVertical || businessSummary || servicesOffered?.length || specializedFocus;
+  const hasContent = industryVertical || businessSummary || servicesOffered?.length;
 
   return (
     <Card className={cn(className)}>
@@ -67,14 +65,6 @@ export const BusinessDescriptionCard = ({
               </div>
             )}
 
-            {specializedFocus && (
-              <div>
-                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">
-                  Specialized Focus
-                </p>
-                <p className="text-sm">{specializedFocus}</p>
-              </div>
-            )}
           </>
         )}
       </CardContent>

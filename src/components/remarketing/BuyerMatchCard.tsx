@@ -184,8 +184,8 @@ const getMissingDataFields = (buyer?: ReMarketingBuyer): string[] => {
   }
   
   // Owner goals / preferences
-  if (!buyer.deal_breakers?.length && !buyer.deal_preferences) {
-    missing.push('Owner transition goals');
+  if (!buyer.acquisition_appetite) {
+    missing.push('Acquisition appetite');
   }
   
   // Activity data

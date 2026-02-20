@@ -29,7 +29,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { 
+import {
   ArrowLeft,
   BarChart3,
   Plus,
@@ -39,9 +39,11 @@ import {
   Phone,
   Linkedin,
   BarChart2,
-  Clock
+  Clock,
+  FileSignature
 } from "lucide-react";
 import { toast } from "sonner";
+import { BuyerAgreementsPanel } from "@/components/ma-intelligence/BuyerAgreementsPanel";
 import type { BuyerType } from "@/types/remarketing";
 import {
   BuyerDetailHeader,
@@ -53,7 +55,6 @@ import {
   DealStructureCard,
   CustomerEndMarketCard,
   AcquisitionHistoryCard,
-  KeyQuotesCard,
   TranscriptsListCard,
   EditBusinessDescriptionDialog,
   EditInvestmentCriteriaDialog,
@@ -79,8 +80,6 @@ interface BuyerData {
   target_revenue_max: number | null;
   target_ebitda_min: number | null;
   target_ebitda_max: number | null;
-  revenue_sweet_spot: number | null;
-  ebitda_sweet_spot: number | null;
   target_geographies: string[] | null;
   target_services: string[] | null;
   geographic_footprint: string[] | null;
@@ -98,10 +97,6 @@ interface BuyerData {
   fee_agreement_source?: string | null;
   industry_vertical: string | null;
   business_summary: string | null;
-  specialized_focus: string | null;
-  strategic_priorities: string[] | null;
-  deal_breakers: string[] | null;
-  deal_preferences: string | null;
   acquisition_appetite: string | null;
   acquisition_timeline: string | null;
   total_acquisitions: number | null;
@@ -110,11 +105,9 @@ interface BuyerData {
   customer_geographic_reach: string | null;
   customer_industries: string[] | null;
   target_customer_profile: string | null;
-  key_quotes: string[] | null;
   investment_date: string | null;
   founded_year?: number | null;
   num_employees?: number | null;
-  employee_range?: string | null;
   number_of_locations?: number | null;
   operating_locations?: string[] | null;
   service_regions?: string[] | null;
@@ -262,7 +255,6 @@ const ReMarketingBuyerDetail = () => {
       buyer.target_services?.length,
       buyer.business_summary,
       buyer.industry_vertical,
-      buyer.strategic_priorities?.length,
       buyer.acquisition_appetite,
     ];
     
@@ -279,7 +271,6 @@ const ReMarketingBuyerDetail = () => {
     if (!buyer.target_revenue_min && !buyer.target_revenue_max) missing.push("size criteria");
     if (!buyer.target_services?.length) missing.push("target services");
     if (!buyer.thesis_summary) missing.push("investment thesis");
-    if (!buyer.strategic_priorities?.length) missing.push("strategic priorities");
     if (!buyer.business_summary) missing.push("business summary");
     
     return missing;
@@ -667,7 +658,6 @@ const ReMarketingBuyerDetail = () => {
           hqCountry={buyer?.hq_country}
           foundedYear={buyer?.founded_year}
           employeeCount={buyer?.num_employees}
-          employeeRange={buyer?.employee_range}
           industryVertical={buyer?.industry_vertical}
           numberOfLocations={buyer?.number_of_locations}
           operatingLocations={buyer?.operating_locations}
@@ -701,6 +691,10 @@ const ReMarketingBuyerDetail = () => {
             <Users className="mr-1.5 h-3.5 w-3.5" />
             Contacts ({contacts?.length || 0})
           </TabsTrigger>
+          <TabsTrigger value="agreements" className="text-sm">
+            <FileSignature className="mr-1.5 h-3.5 w-3.5" />
+            Agreements
+          </TabsTrigger>
         </TabsList>
 
         {/* Intelligence Tab */}
@@ -718,7 +712,6 @@ const ReMarketingBuyerDetail = () => {
               industryVertical={buyer?.industry_vertical}
               businessSummary={buyer?.business_summary}
               servicesOffered={buyer?.target_services}
-              specializedFocus={buyer?.specialized_focus}
               onEdit={() => setActiveEditDialog('business')}
               className="bg-muted/30"
             />
@@ -726,8 +719,6 @@ const ReMarketingBuyerDetail = () => {
             <InvestmentCriteriaCard
               investmentThesis={buyer?.thesis_summary}
               thesisConfidence={buyer?.thesis_confidence}
-              strategicPriorities={buyer?.strategic_priorities}
-              dealBreakers={buyer?.deal_breakers}
               onEdit={() => setActiveEditDialog('investment')}
               className="bg-accent/20"
             />
@@ -761,11 +752,8 @@ const ReMarketingBuyerDetail = () => {
             <DealStructureCard
               minRevenue={buyer?.target_revenue_min}
               maxRevenue={buyer?.target_revenue_max}
-              revenueSweetSpot={buyer?.revenue_sweet_spot}
               minEbitda={buyer?.target_ebitda_min}
               maxEbitda={buyer?.target_ebitda_max}
-              ebitdaSweetSpot={buyer?.ebitda_sweet_spot}
-              dealPreferences={buyer?.deal_preferences}
               acquisitionAppetite={buyer?.acquisition_appetite}
               acquisitionTimeline={buyer?.acquisition_timeline}
               onEdit={() => setActiveEditDialog('dealStructure')}
@@ -779,9 +767,6 @@ const ReMarketingBuyerDetail = () => {
               className="bg-accent/20"
             />
           </div>
-
-          {/* Full Width: Key Quotes */}
-          <KeyQuotesCard quotes={buyer?.key_quotes} />
 
           {/* Full Width: Transcripts */}
           <TranscriptsListCard
@@ -989,6 +974,16 @@ const ReMarketingBuyerDetail = () => {
             </CardContent>
           </Card>
         </TabsContent>
+
+        {/* Agreements Tab */}
+        <TabsContent value="agreements">
+          <BuyerAgreementsPanel
+            buyerId={buyer?.id || ''}
+            marketplaceFirmId={buyer?.marketplace_firm_id || null}
+            hasFeeAgreement={buyer?.has_fee_agreement || false}
+            feeAgreementSource={buyer?.fee_agreement_source || null}
+          />
+        </TabsContent>
       </Tabs>
 
       {/* Add Contact Dialog */}
@@ -1065,7 +1060,6 @@ const ReMarketingBuyerDetail = () => {
           industryVertical: buyer?.industry_vertical,
           businessSummary: buyer?.business_summary,
           servicesOffered: buyer?.target_services,
-          specializedFocus: buyer?.specialized_focus,
         }}
         onSave={(data) => updateBuyerMutation.mutate(data)}
         isSaving={updateBuyerMutation.isPending}
@@ -1077,8 +1071,6 @@ const ReMarketingBuyerDetail = () => {
         data={{
           investmentThesis: buyer?.thesis_summary,
           thesisConfidence: buyer?.thesis_confidence,
-          strategicPriorities: buyer?.strategic_priorities,
-          dealBreakers: buyer?.deal_breakers,
         }}
         onSave={(data) => updateBuyerMutation.mutate(data)}
         isSaving={updateBuyerMutation.isPending}
@@ -1090,11 +1082,8 @@ const ReMarketingBuyerDetail = () => {
         data={{
           minRevenue: buyer?.target_revenue_min,
           maxRevenue: buyer?.target_revenue_max,
-          revenueSweetSpot: buyer?.revenue_sweet_spot,
           minEbitda: buyer?.target_ebitda_min,
           maxEbitda: buyer?.target_ebitda_max,
-          ebitdaSweetSpot: buyer?.ebitda_sweet_spot,
-          dealPreferences: buyer?.deal_preferences,
           acquisitionAppetite: buyer?.acquisition_appetite,
           acquisitionTimeline: buyer?.acquisition_timeline,
         }}
@@ -1145,7 +1134,6 @@ const ReMarketingBuyerDetail = () => {
         hqCountry={buyer?.hq_country}
         foundedYear={buyer?.founded_year}
         employeeCount={buyer?.num_employees}
-        employeeRange={buyer?.employee_range}
         industryVertical={buyer?.industry_vertical}
         numberOfLocations={buyer?.number_of_locations}
         onSave={async (data) => {
@@ -1159,7 +1147,6 @@ const ReMarketingBuyerDetail = () => {
           // These columns may not exist yet - only update if schema supports them
           if (data.founded_year !== undefined) updateData.founded_year = data.founded_year;
           if (data.num_employees !== undefined) updateData.num_employees = data.num_employees;
-          if (data.employee_range !== undefined) updateData.employee_range = data.employee_range;
           if (data.number_of_locations !== undefined) updateData.number_of_locations = data.number_of_locations;
           updateBuyerMutation.mutate(updateData);
         }}

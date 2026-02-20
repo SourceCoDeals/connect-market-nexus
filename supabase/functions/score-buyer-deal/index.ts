@@ -369,8 +369,9 @@ function calculateSizeScore(
   const buyerMaxRevenue = buyer.target_revenue_max;
   const buyerMinEbitda = buyer.target_ebitda_min;
   const buyerMaxEbitda = buyer.target_ebitda_max;
-  const revenueSweetSpot = buyer.revenue_sweet_spot;
-  const ebitdaSweetSpot = buyer.ebitda_sweet_spot;
+  // Compute sweet spots as midpoint of min/max (previously stored as separate fields)
+  const revenueSweetSpot = (buyerMinRevenue && buyerMaxRevenue) ? (buyerMinRevenue + buyerMaxRevenue) / 2 : null;
+  const ebitdaSweetSpot = (buyerMinEbitda && buyerMaxEbitda) ? (buyerMinEbitda + buyerMaxEbitda) / 2 : null;
 
   // Both deal revenue AND EBITDA are missing — differentiate by buyer flexibility
   if (dealRevenue == null && dealEbitda == null) {
@@ -796,11 +797,11 @@ async function calculateServiceScore(
   const buyerTargetIndustries = (buyer.target_industries || [])
     .filter(Boolean).map((s: string) => s?.toLowerCase().trim());
 
-  const buyerSpecializedFocus = (buyer.specialized_focus || '')
+  const buyerIndustryVertical = (buyer.industry_vertical || '')
     .toLowerCase().split(/[,;]/).map((s: string) => s.trim()).filter(Boolean);
 
-  // Combine buyer services for matching (include industries and focus as signals)
-  const allBuyerServices = [...new Set([...buyerTargetServices, ...buyerServicesOffered, ...buyerTargetIndustries, ...buyerSpecializedFocus])];
+  // Combine buyer services for matching (include industries and vertical as signals)
+  const allBuyerServices = [...new Set([...buyerTargetServices, ...buyerServicesOffered, ...buyerTargetIndustries, ...buyerIndustryVertical])];
 
   // STEP 1: Check hard disqualifiers
   const excludedServices = [
@@ -864,7 +865,7 @@ async function calculateServiceScore(
         const buyerHasAnyServiceInfo = buyerTargetServices.length > 0 ||
           buyerServicesOffered.length > 0 ||
           buyerTargetIndustries.length > 0 ||
-          buyerSpecializedFocus.length > 0;
+          buyerIndustryVertical.length > 0;
 
         if (!buyerHasAnyServiceInfo) {
           score = 55;
@@ -974,7 +975,7 @@ async function callServiceFitAI(
   const buyerServices = (buyer.target_services || []).filter(Boolean).join(', ');
   const buyerOffered = buyer.services_offered || '';
   const buyerIndustries = (buyer.target_industries || []).filter(Boolean).join(', ');
-  const buyerFocus = buyer.specialized_focus || '';
+  const buyerFocus = buyer.industry_vertical || '';
   const buyerCompanyName = buyer.company_name || buyer.pe_firm_name || '';
   const buyerWebsite = buyer.company_website || '';
   const universeIndustry = tracker?.industry || tracker?.name || '';
@@ -988,7 +989,7 @@ BUYER WEBSITE: ${buyerWebsite}
 BUYER TARGET SERVICES: ${buyerServices || 'Not specified'}
 BUYER CURRENT SERVICES: ${buyerOffered || 'Not specified'}
 BUYER TARGET INDUSTRIES: ${buyerIndustries || 'Not specified'}
-BUYER SPECIALIZED FOCUS: ${buyerFocus || 'Not specified'}
+BUYER INDUSTRY VERTICAL: ${buyerFocus || 'Not specified'}
 BUYER THESIS: ${(buyer.thesis_summary || '').substring(0, 200)}
 UNIVERSE INDUSTRY CONTEXT: ${universeIndustry || 'Not specified'}${customContext}
 
@@ -1028,12 +1029,12 @@ function calculateServiceOverlap(
   const dealServices = (listing.services || listing.categories || [listing.category])
     .filter(Boolean).map((s: string) => s?.toLowerCase().trim());
 
-  // Include target_industries and specialized_focus as additional buyer service signals
+  // Include target_industries and industry_vertical as additional buyer service signals
   const buyerServices = [
     ...(buyer.target_services || []),
     ...(buyer.target_industries || []),
     ...(buyer.services_offered || '').split(/[,;]/).filter(Boolean),
-    ...(buyer.specialized_focus || '').split(/[,;]/).filter(Boolean),
+    ...(buyer.industry_vertical || '').split(/[,;]/).filter(Boolean),
   ].map((s: string) => s?.toLowerCase().trim()).filter(Boolean);
 
   if (buyerServices.length === 0 || dealServices.length === 0) {
@@ -1099,7 +1100,6 @@ DEAL:
 BUYER:
 - Type: ${buyer.buyer_type || 'Unknown'}
 - Thesis: ${(buyer.thesis_summary || '').substring(0, 300)}
-- Deal Preferences: ${buyer.deal_preferences || 'Not specified'}
 - Buyer Type Norms: PE=majority recap+rollover+1-2yr transition, Platform=operators stay, Strategic=full buyout, Family Office=flexible${customContext}
 
 If buyer data is sparse, score based on buyer TYPE norms vs seller goals.
@@ -1141,7 +1141,6 @@ function ownerGoalsFallback(listing: any, buyer: any): { score: number; confiden
   const ownerGoals = (listing.owner_goals || listing.seller_motivation || '').toLowerCase();
   const buyerType = (buyer.buyer_type || '').toLowerCase();
   const thesis = (buyer.thesis_summary || '').toLowerCase();
-  const dealPrefs = (buyer.deal_preferences || '').toLowerCase();
 
   // Buyer-type norms lookup table
   const norms: Record<string, Record<string, number>> = {
@@ -1157,12 +1156,8 @@ function ownerGoalsFallback(listing: any, buyer: any): { score: number; confiden
   if (!ownerGoals) {
     // No owner goals — differentiate by buyer type and data richness
     let score = typeNorms.base;
-    // Buyers with explicit deal preferences or thesis get a slight edge (more data = more signal)
+    // Buyers with explicit thesis get a slight edge (more data = more signal)
     if (thesis.length > 50) score += 5;
-    if (dealPrefs.length > 10) score += 3;
-    // Check deal_breakers for any red flags
-    const dealBreakers = buyer.deal_breakers || [];
-    if (dealBreakers.length > 0) score -= 5;
     return { score: Math.max(30, Math.min(85, score)), confidence: 'low', reasoning: `No owner goals — ${buyerType || 'unknown'} type base score` };
   }
 
