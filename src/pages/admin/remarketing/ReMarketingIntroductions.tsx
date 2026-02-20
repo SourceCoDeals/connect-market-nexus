@@ -354,7 +354,7 @@ const ReMarketingIntroductions = () => {
                             <div className="flex items-center gap-3 cursor-pointer hover:bg-muted/50 p-1 -m-1 rounded">
                               <div>
                                 <Link 
-                                  to={`/admin/remarketing/buyers/${intro.buyer?.id}`}
+                                  to={`/admin/buyers/${intro.buyer?.id}`}
                                   className="font-medium hover:underline"
                                   onClick={(e) => e.stopPropagation()}
                                 >

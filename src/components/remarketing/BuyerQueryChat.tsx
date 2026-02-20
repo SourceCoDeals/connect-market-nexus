@@ -250,7 +250,7 @@ export const BuyerQueryChat = ({ universeId, className, defaultOpen = false }: B
                     {message.buyers.map((buyer) => (
                       <Link
                         key={buyer.id}
-                        to={`/admin/remarketing/buyers/${buyer.id}`}
+                        to={`/admin/buyers/${buyer.id}`}
                         className="block"
                       >
                         <div className="bg-background border rounded-lg p-3 hover:border-primary/50 transition-colors">

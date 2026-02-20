@@ -127,7 +127,7 @@ export function ResearchDealCard({
               <Button 
                 variant="ghost" 
                 size="sm" 
-                onClick={() => navigate(`/admin/remarketing/deals/${listing.id}`)}
+                onClick={() => navigate(`/admin/deals/${listing.id}`)}
                 className="h-8 w-8 p-0"
               >
                 <ExternalLink className="h-4 w-4" />
@@ -281,7 +281,7 @@ export function ResearchDealCard({
           <Button
             variant="outline"
             size="sm"
-            onClick={() => navigate(`/admin/remarketing/deals/${listing.id}`)}
+            onClick={() => navigate(`/admin/deals/${listing.id}`)}
             className="flex-1 h-9 text-[13px] font-medium"
           >
             View Deal

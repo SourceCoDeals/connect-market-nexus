@@ -327,7 +327,7 @@ export default function ReMarketingReferralPartners() {
                           key={partner.id}
                           className="cursor-pointer hover:bg-muted/50"
                           onClick={() =>
-                            navigate(`/admin/remarketing/referral-partners/${partner.id}`)
+                            navigate(`/admin/remarketing/leads/referrals/${partner.id}`)
                           }
                         >
                           <TableCell className="font-medium">

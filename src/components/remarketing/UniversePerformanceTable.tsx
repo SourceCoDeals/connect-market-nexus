@@ -104,7 +104,7 @@ export function UniversePerformanceTable({ data, className }: UniversePerformanc
                 </TableCell>
                 <TableCell className="text-right">
                   <Button variant="ghost" size="sm" asChild>
-                    <Link to={`/admin/remarketing/universes/${universe.id}`}>
+                    <Link to={`/admin/buyers/universes/${universe.id}`}>
                       <ArrowRight className="h-4 w-4" />
                     </Link>
                   </Button>
@@ -117,7 +117,7 @@ export function UniversePerformanceTable({ data, className }: UniversePerformanc
         {data.length > 10 && (
           <div className="mt-4 text-center">
             <Button variant="outline" size="sm" asChild>
-              <Link to="/admin/remarketing/universes">
+              <Link to="/admin/buyers/universes">
                 View All {data.length} Universes
               </Link>
             </Button>

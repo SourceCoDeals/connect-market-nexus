@@ -2,8 +2,8 @@
  * Unified Deal CSV Import Engine
  * 
  * This module provides a single, well-tested import system used by:
- * - /admin/remarketing/deals (DealImportDialog)
- * - /admin/remarketing/universes/:id (DealCSVImport)
+ * - /admin/deals (DealImportDialog)
+ * - /admin/buyers/universes/:id (DealCSVImport)
  */
 
 export * from './types';

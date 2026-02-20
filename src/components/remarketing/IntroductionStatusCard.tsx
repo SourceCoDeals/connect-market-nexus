@@ -94,7 +94,7 @@ export const IntroductionStatusCard = ({
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2">
                 <Link 
-                  to={`/admin/remarketing/buyers/${buyerId}`}
+                  to={`/admin/buyers/${buyerId}`}
                   className="font-medium hover:underline truncate"
                 >
                   {buyerName}

@@ -152,7 +152,7 @@ const ReMarketingBuyerDetail = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const queryClient = useQueryClient();
-  const backTo = (location.state as any)?.from || "/admin/remarketing/buyers";
+  const backTo = (location.state as any)?.from || "/admin/buyers";
   const isNew = id === 'new';
 
   const [isContactDialogOpen, setIsContactDialogOpen] = useState(false);
@@ -612,7 +612,7 @@ const ReMarketingBuyerDetail = () => {
       <div className="p-6 space-y-6">
         <div className="flex items-center gap-4">
           <Button variant="ghost" size="icon" asChild>
-            <Link to="/admin/remarketing/buyers">
+            <Link to="/admin/buyers">
               <ArrowLeft className="h-4 w-4" />
             </Link>
           </Button>
@@ -647,6 +647,7 @@ const ReMarketingBuyerDetail = () => {
         onEnrich={() => enrichMutation.mutate()}
         isEnriching={enrichMutation.isPending}
         backTo={backTo}
+        marketplaceFirmId={buyer?.marketplace_firm_id}
       />
 
       {/* Criteria Completeness Banner */}

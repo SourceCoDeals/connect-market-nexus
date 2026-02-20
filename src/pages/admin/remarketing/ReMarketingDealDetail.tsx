@@ -376,7 +376,7 @@ const ReMarketingDealDetail = () => {
             <Building2 className="h-12 w-12 mx-auto text-muted-foreground/50 mb-4" />
             <h3 className="font-semibold text-lg">Deal not found</h3>
             <p className="text-muted-foreground">The deal you're looking for doesn't exist.</p>
-            <Button variant="outline" className="mt-4" onClick={() => navigate('/admin/remarketing/deals')}>
+            <Button variant="outline" className="mt-4" onClick={() => navigate('/admin/deals')}>
               Back to All Deals
             </Button>
           </CardContent>

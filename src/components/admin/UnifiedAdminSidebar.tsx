@@ -173,23 +173,23 @@ export function UnifiedAdminSidebar({ collapsed, onCollapsedChange }: AdminSideb
           },
           {
             label: "CapTarget Deals",
-            href: "/admin/remarketing/captarget-deals",
+            href: "/admin/remarketing/leads/captarget",
             icon: <Crosshair className="h-4 w-4" />,
             separator: "Lead Sources",
           },
           {
             label: "GP Partner Deals",
-            href: "/admin/remarketing/gp-partner-deals",
+            href: "/admin/remarketing/leads/gp-partners",
             icon: <Briefcase className="h-4 w-4" />,
           },
           {
             label: "Valuation Leads",
-            href: "/admin/remarketing/valuation-leads",
+            href: "/admin/remarketing/leads/valuation",
             icon: <Calculator className="h-4 w-4" />,
           },
           {
             label: "Referral Partners",
-            href: "/admin/remarketing/referral-partners",
+            href: "/admin/remarketing/leads/referrals",
             icon: <Handshake className="h-4 w-4" />,
           },
         ],

@@ -143,7 +143,7 @@ export const QuickInsightsWidget = ({
           
           <div className="pt-2 border-t">
             <Button variant="ghost" size="sm" className="w-full text-xs" asChild>
-              <Link to="/admin/remarketing/analytics">
+              <Link to="/admin/analytics">
                 <BarChart3 className="h-3.5 w-3.5 mr-1" />
                 View Full Analytics
               </Link>
