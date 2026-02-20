@@ -176,7 +176,7 @@ export function BuyerAgreementsPanel({
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <span className="text-muted-foreground">Company:</span>{" "}
-                <span className="font-medium">{firmAgreement.company_name || '—'}</span>
+                <span className="font-medium">{(firmAgreement as any).company_name || '—'}</span>
               </div>
               <div>
                 <span className="text-muted-foreground">Domain:</span>{" "}
