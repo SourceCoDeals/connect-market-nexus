@@ -124,30 +124,58 @@ The platform needs a focused simplification effort before scaling further. The f
 
 | Severity | Issue | Location | Description |
 |----------|-------|----------|-------------|
-| **HIGH** | Deprecated field references | `score-buyer-deal/index.ts` | Algorithm still references `revenue_sweet_spot`, `ebitda_sweet_spot`, `specialized_focus`, `deal_preferences`, `deal_breakers` which are flagged for removal. Scoring will break when these columns are dropped. |
-| **HIGH** | AI non-determinism | `score-buyer-deal/index.ts` | Running the same buyer-deal pair twice can produce different scores due to Gemini's temperature setting. No averaging or consensus mechanism. |
+| **HIGH** | Deprecated field references still in code | `score-buyer-deal/index.ts:1548` | `revenue_sweet_spot` and `ebitda_sweet_spot` still referenced as fallbacks in `buyerHasSizeData` check. `key_quotes` referenced in data_completeness at line 1429 but field is DROPPED per migration `20260221000000_unified_buyer_system.sql`. Code handles nulls gracefully but creates dead-code confusion. |
+| **HIGH** | AI non-determinism (3 AI calls per score) | `score-buyer-deal/index.ts` | Service fit, owner goals, and thesis alignment all use Gemini. Running the same buyer-deal pair twice can produce different scores. No averaging, consensus, or seed parameter. |
+| **HIGH** | Data quality bonus disabled but code remains | `score-buyer-deal/index.ts:1313` | `DATA_QUALITY_BONUS_MAX: 10` defined in config but bonus calculation is DISABLED. Dead code path that could confuse future developers. |
 | **MEDIUM** | 2,156-line monolith | `score-buyer-deal/index.ts` | All scoring logic in a single file — difficult to test individual dimensions, modify weights, or add new scoring criteria. |
-| **MEDIUM** | Score staleness | `remarketing_scores` table | No automatic re-scoring when deal or buyer data changes. Scores can be stale if enrichment updates financials after scoring. |
-| **LOW** | Scoring weights history sparse | `scoring_weights_history` table | Limited entries suggest weights aren't being actively tuned based on deal outcomes. |
+| **MEDIUM** | Score staleness — no invalidation triggers | `remarketing_scores` table | No automatic re-scoring when deal or buyer data changes. Scores can be stale if enrichment updates financials after scoring. |
+| **MEDIUM** | Weight redistribution is invisible | `score-buyer-deal/index.ts:1543-1601` | When buyer lacks data for a dimension, weight silently redistributes to other dimensions. No UI indicator showing redistribution occurred or which dimensions absorbed extra weight. |
+| **LOW** | Scoring weights history not actively used | `scoring_weights_history` table | Populated during universe config changes, but scoring reads weights directly from `remarketing_buyer_universes` table — history is audit-only. |
 
-### Architecture
-```
-5 Scoring Dimensions:
-  1. Industry Alignment     — keyword/category matching
-  2. Size Fit               — revenue/EBITDA range overlap
-  3. Geographic Match        — state/region overlap scoring
-  4. Service Fit (AI)       — Gemini evaluates service compatibility
-  5. Owner Goals (AI)       — Gemini evaluates transition/cultural alignment
+### Architecture (Detailed from code audit)
 
-Composite Score = weighted average of 5 dimensions × 100
-Persisted to: remarketing_scores.composite_score
-Snapshots to: score_snapshots (for trend tracking)
+**SCORING_CONFIG** (`score-buyer-deal/index.ts:126-179`) — all tunable parameters:
 ```
+Tier Bands:        A ≥ 80, B ≥ 65, C ≥ 50, D ≥ 35, F < 35 or disqualified
+Size Tolerances:   ±10% exact, ±20% near, 70-90% slight below, >150% max = disqualify
+Size Multipliers:  exact=1.0, near=0.95, slight_below=0.7, heavy=0.3, above_max=0.7
+Service Mult:      score<20→0.4, <40→0.6, <60→0.8, <80→0.9, ≥80→1.0, zero=DISQUALIFY
+Bonuses:           thesis_max=20pts, custom_max=25pts, data_quality=DISABLED
+Learning:          penalty -5 to +25 range (from buyer_learning_history)
+Bulk Config:       batch=5, delay=300-600ms based on buyer count
+```
+
+**5 Scoring Dimensions:**
+
+| Dimension | Type | Weight | Description |
+|-----------|------|--------|-------------|
+| 1. Size Scoring | Deterministic | ~30% | Revenue/EBITDA range overlap with buyer's `target_revenue_min/max`, `target_ebitda_min/max`. Sweet spot = midpoint. Returns both score (0-100) AND multiplier (0.0-1.0 gate). |
+| 2. Geography | Deterministic + Adjacency | ~20% | Checks 6 data sources in priority order: `target_geographies` → `geographic_footprint` → `operating_locations` → `service_regions` → `customer_geographic_reach` → `hq_state`. Modes: critical (floor=0), preferred (floor=30), minimal (floor=50). |
+| 3. Service Fit | **AI (Gemini)** + keyword fallback | ~25% | Primary: Gemini evaluates service compatibility. Fallback: keyword + adjacency matching (80%+ overlap→90, 50-79%→75, 25-49%→55). Primary focus bonus: +10 for primary match. |
+| 4. Owner Goals | **AI (Gemini)** + norms fallback | ~15% | Primary: Gemini evaluates transition/cultural alignment. Fallback: buyer-type norms (PE base=55, platform varies by goal type). Special penalty: "no pe" with pe_firm buyer → -25. |
+| 5. Thesis Alignment | **AI (Gemini)** + pattern fallback | Bonus 0-20pts | Primary: Gemini tool_call scores 0-20. Fallback: pattern matching (roll-up=3pts, platform=3pts, recurring_revenue=2pts, etc.). |
+
+**Weight Redistribution** (`score-buyer-deal/index.ts:1543-1601`):
+When buyer lacks data for a dimension, weight is pooled and redistributed proportionally to dimensions WITH data. This happens silently — no UI visibility when weights rebalance.
+
+**Composite Assembly** (`score-buyer-deal/index.ts:1603-1772`):
+```
+weightedBase = Σ(dimension_score × dimension_weight) / effective_weight_sum
+gatedScore = weightedBase × size_multiplier × service_multiplier
+finalScore = clamp(0, 100, gatedScore + thesis_bonus + custom_bonus - learning_penalty)
+```
+
+**3 AI calls per single score** (service + owner_goals + thesis) running via `Promise.all()`. Each has 10s timeout, 3 retries with 2s exponential backoff. Best-case latency: ~30s per buyer-deal pair.
+
+**Score Persistence:**
+- Active scores → `remarketing_scores` (upserted, unique on listing_id + buyer_id + universe_id)
+- Audit trail → `score_snapshots` (immutable, version 'v5', fire-and-forget insert)
 
 ### Deal Quality vs Buyer-Deal Scoring
-- `calculate-deal-quality/index.ts` (468 lines) scores deals independently on data completeness, market attractiveness, and readiness
-- `score-buyer-deal/index.ts` (2,156 lines) scores the buyer-deal match
+- `calculate-deal-quality/index.ts` (468 lines) scores deals independently: revenue tier (0-75), EBITDA (0-15), industry multiplier, market score, LinkedIn employee count as proxy when financials missing
+- `score-buyer-deal/index.ts` (2,156 lines) scores the **buyer-deal match** across 5 dimensions
 - These are **complementary**, not redundant — quality indicates deal readiness, scoring indicates buyer fit
+- Deal quality has its own self-continuation for batch processing (offset-based, 200 per batch)
 
 ### Recommended Fixes
 1. **Remove deprecated field dependencies** — update scoring to use current schema fields before dropping the old columns
