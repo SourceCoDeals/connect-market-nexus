@@ -216,9 +216,10 @@ const ReMarketingDeals = () => {
             is_internal_deal
           `)
           .eq('remarketing_status', 'active')
-          .neq('deal_source', 'gp_partners')
-          .or('deal_source.neq.valuation_calculator,pushed_to_all_deals.eq.true')
-          .or('deal_source.neq.valuation_lead,pushed_to_all_deals.eq.true')
+          .or(
+            'deal_source.in.(marketplace,manual,referral,remarketing),' +
+            'and(deal_source.in.(captarget,valuation_calculator,valuation_lead),pushed_to_all_deals.eq.true)'
+          )
           .order('manual_rank_override', { ascending: true, nullsFirst: false })
           .order('deal_total_score', { ascending: false, nullsFirst: true })
           .order('created_at', { ascending: false })
