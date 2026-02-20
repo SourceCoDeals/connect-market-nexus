@@ -35,7 +35,7 @@ export const DealMarketplacePanel = ({
         .eq('listing_id', listingId);
 
       // Count views from analytics
-      const { count: viewCount, error: viewError } = await supabase
+      const { count: viewCount, error: viewError } = await (supabase as any)
         .from('listing_analytics')
         .select('*', { count: 'exact', head: true })
         .eq('listing_id', listingId)

@@ -367,7 +367,7 @@ const ReMarketingBuyers = () => {
         [b.hq_city, b.hq_state].filter(Boolean).join(' '),
         `"${(b.thesis_summary || '').replace(/"/g, '""').substring(0, 200)}"`,
         b.has_fee_agreement ? 'Yes' : 'No',
-        getNdaStatus(b.firm_agreement).signed ? 'Yes' : 'No',
+        b.nda_signed ? 'Yes' : 'No',
       ].join(','))
     ].join('\n');
     const blob = new Blob([csv], { type: 'text/csv' });
@@ -385,7 +385,7 @@ const ReMarketingBuyers = () => {
         <div>
           <h1 className="text-2xl font-bold text-foreground">All Buyers</h1>
           <p className="text-muted-foreground">
-            {tabCounts.all} buyers · {tabCounts.fully_signed} fully signed · {tabCounts.needs_enrichment} need enrichment
+            {tabCounts.all} buyers · {tabCounts.needs_agreements} need agreements · {tabCounts.needs_enrichment} need enrichment
           </p>
         </div>
         <div className="flex items-center gap-2">
