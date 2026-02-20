@@ -626,7 +626,7 @@ export default function ReMarketingReferralPartnerDetail() {
   if (!partner) {
     return (
       <div className="flex-1 p-6">
-        <Button variant="ghost" onClick={() => navigate("/admin/remarketing/referral-partners")}>
+        <Button variant="ghost" onClick={() => navigate("/admin/remarketing/leads/referrals")}>
           <ArrowLeft className="h-4 w-4 mr-2" />
           Back to Partners
         </Button>
@@ -654,7 +654,7 @@ export default function ReMarketingReferralPartnerDetail() {
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => navigate("/admin/remarketing/referral-partners")}
+            onClick={() => navigate("/admin/remarketing/leads/referrals")}
             className="mb-4"
           >
             <ArrowLeft className="h-4 w-4 mr-2" />
@@ -1075,7 +1075,7 @@ export default function ReMarketingReferralPartnerDetail() {
                         </TableCell>
                         <TableCell
                           className="font-medium"
-                          onClick={() => navigate(`/admin/remarketing/deals/${deal.id}`)}
+                          onClick={() => navigate(`/admin/deals/${deal.id}`)}
                         >
                           <div className="flex items-center gap-1.5">
                             {isEnriched && (
@@ -1090,7 +1090,7 @@ export default function ReMarketingReferralPartnerDetail() {
                         </TableCell>
                         <TableCell
                           className="text-sm text-muted-foreground"
-                          onClick={() => navigate(`/admin/remarketing/deals/${deal.id}`)}
+                          onClick={() => navigate(`/admin/deals/${deal.id}`)}
                         >
                           {deal.website ? (
                             <a
@@ -1108,13 +1108,13 @@ export default function ReMarketingReferralPartnerDetail() {
                         </TableCell>
                         <TableCell
                           className="text-sm text-muted-foreground"
-                          onClick={() => navigate(`/admin/remarketing/deals/${deal.id}`)}
+                          onClick={() => navigate(`/admin/deals/${deal.id}`)}
                         >
                           {deal.category || "-"}
                         </TableCell>
                         <TableCell
                           className="text-sm text-muted-foreground"
-                          onClick={() => navigate(`/admin/remarketing/deals/${deal.id}`)}
+                          onClick={() => navigate(`/admin/deals/${deal.id}`)}
                         >
                           {deal.address_city && deal.address_state
                             ? `${deal.address_city}, ${deal.address_state}`
@@ -1122,17 +1122,17 @@ export default function ReMarketingReferralPartnerDetail() {
                         </TableCell>
                         <TableCell
                           className="text-right text-sm"
-                          onClick={() => navigate(`/admin/remarketing/deals/${deal.id}`)}
+                          onClick={() => navigate(`/admin/deals/${deal.id}`)}
                         >
                           {formatCurrency(deal.revenue)}
                         </TableCell>
                         <TableCell
                           className="text-right text-sm"
-                          onClick={() => navigate(`/admin/remarketing/deals/${deal.id}`)}
+                          onClick={() => navigate(`/admin/deals/${deal.id}`)}
                         >
                           {formatCurrency(deal.ebitda)}
                         </TableCell>
-                        <TableCell onClick={() => navigate(`/admin/remarketing/deals/${deal.id}`)}>
+                        <TableCell onClick={() => navigate(`/admin/deals/${deal.id}`)}>
                           {deal.status === "active" ? (
                             <Badge className="bg-green-100 text-green-800 border-green-200">Active</Badge>
                           ) : deal.status === "pending_referral_review" ? (
@@ -1145,7 +1145,7 @@ export default function ReMarketingReferralPartnerDetail() {
                             <Badge variant="secondary">{deal.status || "Draft"}</Badge>
                           )}
                         </TableCell>
-                        <TableCell onClick={() => navigate(`/admin/remarketing/deals/${deal.id}`)}>
+                        <TableCell onClick={() => navigate(`/admin/deals/${deal.id}`)}>
                           {(() => {
                             const score = deal.deal_total_score;
                             if (score == null) return <span className="text-xs text-muted-foreground">-</span>;
@@ -1153,7 +1153,7 @@ export default function ReMarketingReferralPartnerDetail() {
                             return <span className={`text-sm font-semibold ${color}`}>{score}</span>;
                           })()}
                         </TableCell>
-                        <TableCell onClick={() => navigate(`/admin/remarketing/deals/${deal.id}`)}>
+                        <TableCell onClick={() => navigate(`/admin/deals/${deal.id}`)}>
                           {deal.main_contact_name ? (
                             <div className="text-xs space-y-0.5">
                               <div className="font-medium">{deal.main_contact_name}</div>
@@ -1174,7 +1174,7 @@ export default function ReMarketingReferralPartnerDetail() {
                             <span className="text-xs text-muted-foreground">-</span>
                           )}
                         </TableCell>
-                        <TableCell onClick={() => navigate(`/admin/remarketing/deals/${deal.id}`)}>
+                        <TableCell onClick={() => navigate(`/admin/deals/${deal.id}`)}>
                           {deal.linkedin_employee_count ? (
                             <div className="flex items-center gap-1 text-xs">
                               <Users className="h-3 w-3 text-blue-600" />
@@ -1184,12 +1184,12 @@ export default function ReMarketingReferralPartnerDetail() {
                             <span className="text-xs text-muted-foreground">-</span>
                           )}
                         </TableCell>
-                        <TableCell onClick={() => navigate(`/admin/remarketing/deals/${deal.id}`)}>
+                        <TableCell onClick={() => navigate(`/admin/deals/${deal.id}`)}>
                           <span className="text-xs text-muted-foreground">
                             {deal.linkedin_employee_range || "-"}
                           </span>
                         </TableCell>
-                        <TableCell onClick={() => navigate(`/admin/remarketing/deals/${deal.id}`)}>
+                        <TableCell onClick={() => navigate(`/admin/deals/${deal.id}`)}>
                           {deal.google_rating ? (
                             <div className="flex items-center gap-1 text-xs">
                               <Star className="h-3 w-3 text-amber-500 fill-amber-500" />
@@ -1199,7 +1199,7 @@ export default function ReMarketingReferralPartnerDetail() {
                             <span className="text-xs text-muted-foreground">-</span>
                           )}
                         </TableCell>
-                        <TableCell onClick={() => navigate(`/admin/remarketing/deals/${deal.id}`)}>
+                        <TableCell onClick={() => navigate(`/admin/deals/${deal.id}`)}>
                           {deal.google_review_count ? (
                             <span className="text-xs font-medium">{deal.google_review_count.toLocaleString()}</span>
                           ) : (
@@ -1208,7 +1208,7 @@ export default function ReMarketingReferralPartnerDetail() {
                         </TableCell>
                         <TableCell
                           className="text-sm text-muted-foreground"
-                          onClick={() => navigate(`/admin/remarketing/deals/${deal.id}`)}
+                          onClick={() => navigate(`/admin/deals/${deal.id}`)}
                         >
                           {format(new Date(deal.created_at), "MMM d, yyyy")}
                         </TableCell>
@@ -1220,7 +1220,7 @@ export default function ReMarketingReferralPartnerDetail() {
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
-                              <DropdownMenuItem onClick={() => navigate(`/admin/remarketing/deals/${deal.id}`)}>
+                              <DropdownMenuItem onClick={() => navigate(`/admin/deals/${deal.id}`)}>
                                 <ExternalLink className="h-3 w-3 mr-2" />
                                 View Deal
                               </DropdownMenuItem>

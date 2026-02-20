@@ -441,7 +441,7 @@ export const BuyerTableEnhanced = ({
                 <TableRow
                   key={buyer.id}
                   className={`cursor-pointer hover:bg-muted/50 group ${isSelected ? 'bg-muted/30' : ''}`}
-                  onClick={() => navigate(`/admin/remarketing/buyers/${buyer.id}`, universeId ? { state: { from: `/admin/remarketing/universes/${universeId}` } } : undefined)}
+                  onClick={() => navigate(`/admin/buyers/${buyer.id}`, universeId ? { state: { from: `/admin/buyers/universes/${universeId}` } } : undefined)}
                 >
                   {selectable && (
                     <TableCell

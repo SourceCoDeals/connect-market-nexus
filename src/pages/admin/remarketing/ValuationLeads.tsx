@@ -1013,8 +1013,8 @@ export default function ValuationLeads() {
   const handleRowClick = useCallback(
     async (lead: ValuationLead) => {
       if (lead.pushed_listing_id) {
-        navigate('/admin/remarketing/deals/' + lead.pushed_listing_id, {
-          state: { from: "/admin/remarketing/valuation-leads" },
+        navigate('/admin/deals/' + lead.pushed_listing_id, {
+          state: { from: "/admin/remarketing/leads/valuation" },
         });
         return;
       }
@@ -1064,8 +1064,8 @@ export default function ValuationLeads() {
       // Refresh so the table shows the updated listing_id
       queryClient.invalidateQueries({ queryKey: ["remarketing", "valuation-leads"] });
 
-      navigate('/admin/remarketing/deals/' + listingId, {
-        state: { from: "/admin/remarketing/valuation-leads" },
+      navigate('/admin/deals/' + listingId, {
+        state: { from: "/admin/remarketing/leads/valuation" },
       });
     },
     [navigate, queryClient]
@@ -2190,7 +2190,7 @@ export default function ValuationLeads() {
                             <DropdownMenuItem
                               onClick={() => {
                                 if (lead.pushed_listing_id) {
-                                  navigate('/admin/remarketing/deals/' + lead.pushed_listing_id, { state: { from: '/admin/remarketing/valuation-leads' } });
+                                  navigate('/admin/deals/' + lead.pushed_listing_id, { state: { from: '/admin/remarketing/leads/valuation' } });
                                 } else {
                                   handleRowClick(lead);
                                 }

@@ -551,7 +551,7 @@ export const UniverseDealsTable = ({
                   <TableRow
                     key={deal.id}
                     className={`cursor-pointer hover:bg-muted/50 ${isSelected ? 'bg-primary/5' : ''}`}
-                    onClick={() => navigate(`/admin/remarketing/deals/${deal.listing.id}`, universeId ? { state: { from: `/admin/remarketing/universes/${universeId}` } } : undefined)}
+                    onClick={() => navigate(`/admin/deals/${deal.listing.id}`, universeId ? { state: { from: `/admin/buyers/universes/${universeId}` } } : undefined)}
                   >
                     <TableCell style={{ width: w('checkbox') }}>
                       <Checkbox
@@ -698,7 +698,7 @@ export const UniverseDealsTable = ({
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={(e) => { e.stopPropagation(); navigate(`/admin/remarketing/deals/${deal.listing.id}`, universeId ? { state: { from: `/admin/remarketing/universes/${universeId}` } } : undefined); }}>
+                          <DropdownMenuItem onClick={(e) => { e.stopPropagation(); navigate(`/admin/deals/${deal.listing.id}`, universeId ? { state: { from: `/admin/buyers/universes/${universeId}` } } : undefined); }}>
                             <ExternalLink className="h-4 w-4 mr-2" />View Deal
                           </DropdownMenuItem>
                           {onScoreDeal && (

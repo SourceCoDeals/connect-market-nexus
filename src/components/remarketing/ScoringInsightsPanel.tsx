@@ -345,7 +345,7 @@ export const ScoringInsightsPanel = ({
             <div className="flex items-center gap-2 pt-2 border-t">
               {universeId && (
                 <Button variant="outline" size="sm" asChild>
-                  <Link to={`/admin/remarketing/universes/${universeId}/settings`}>
+                  <Link to={`/admin/buyers/universes/${universeId}/settings`}>
                     <Settings2 className="h-3.5 w-3.5 mr-1.5" />
                     Customize Scoring
                   </Link>

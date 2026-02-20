@@ -148,18 +148,8 @@
      }
    };
  
-   // Auto-trigger on mount/deal change (only once per deal)
-   useEffect(() => {
-     if (shouldEnrich && enabled && !hasTriggeredRef.current && deal?.id) {
-       hasTriggeredRef.current = true;
-       // Small delay to avoid blocking initial render
-       const timer = setTimeout(() => {
-         triggerEnrichment();
-       }, 1000);
-       
-       return () => clearTimeout(timer);
-     }
-   }, [shouldEnrich, enabled, deal?.id]);
+   // Auto-trigger DISABLED — enrichment is now manual-only.
+   // The triggerEnrichment() function is still available for manual button clicks.
  
    // Reset trigger flag when deal changes
    useEffect(() => {

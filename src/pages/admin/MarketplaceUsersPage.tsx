@@ -1,7 +1,9 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { useAdmin } from "@/hooks/use-admin";
-import { AlertCircle, RefreshCw, Building2, Loader2 } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { AlertCircle, RefreshCw, Building2, Loader2, Target } from "lucide-react";
 import { UsersTable } from "@/components/admin/UsersTable";
 import { MobileUsersTable } from "@/components/admin/MobileUsersTable";
 import { User } from "@/types";
@@ -21,6 +23,19 @@ const MarketplaceUsersPage = () => {
   const { isConnected } = useRealtimeAdmin();
   const [filteredUsers, setFilteredUsers] = useState<User[]>([]);
   const { markAsViewed } = useMarkUsersViewed();
+
+  // Buyer identity bridge: count remarketing buyers with marketplace links
+  const { data: linkedBuyerCount = 0 } = useQuery({
+    queryKey: ['remarketing-buyers-with-marketplace-link'],
+    queryFn: async () => {
+      const { count } = await supabase
+        .from('remarketing_buyers')
+        .select('id', { count: 'exact', head: true })
+        .not('marketplace_firm_id', 'is', null);
+      return count || 0;
+    },
+    staleTime: 60_000,
+  });
 
   useEffect(() => { markAsViewed(); }, []);
   useEffect(() => { setFilteredUsers(usersData); }, [usersData]);
@@ -67,6 +82,16 @@ const MarketplaceUsersPage = () => {
       </div>
 
       <div className="px-8 py-8">
+        {linkedBuyerCount > 0 && (
+          <div className="mb-4 flex items-center gap-2 text-sm text-muted-foreground bg-blue-50 border border-blue-200 rounded-lg px-4 py-2.5">
+            <Target className="h-4 w-4 text-blue-600 flex-shrink-0" />
+            <span>
+              <strong className="text-blue-700">{linkedBuyerCount}</strong> remarketing buyer{linkedBuyerCount !== 1 ? 's' : ''} linked to marketplace firms.{' '}
+              <Link to="/admin/buyers" className="text-blue-600 hover:underline font-medium">View All Buyers</Link>
+            </span>
+          </div>
+        )}
+
         <div className="mb-6">
           <EnhancedUserManagement
             users={usersData}

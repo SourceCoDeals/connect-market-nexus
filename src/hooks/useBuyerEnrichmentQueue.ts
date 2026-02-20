@@ -281,8 +281,8 @@ export function useBuyerEnrichmentQueue(universeId?: string) {
       }
     }, POLL_INTERVAL_MS);
 
-    // Trigger processor periodically
-    processingIntervalRef.current = setInterval(triggerProcessor, PROCESS_INTERVAL_MS);
+    // Auto-trigger DISABLED — enrichment is now manual-only.
+    // The processor runs only when explicitly triggered by user click.
   }, [fetchQueueStatus, triggerProcessor]);
 
   // Cancel enrichment

@@ -338,7 +338,7 @@ export const AddDealDialog = ({
       updateFiles([]);
       onDealCreated?.();
       onOpenChange(false);
-      navigate(`/admin/remarketing/deals/${listing.id}`);
+      navigate(`/admin/deals/${listing.id}`);
 
       if (userId && (filesToUpload.length > 0 || linkToSave)) {
         uploadTranscriptsInBackground(listing.id, userId, filesToUpload, linkToSave);
@@ -560,7 +560,7 @@ export const AddDealDialog = ({
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   onOpenChange(false);
-                                  navigate(`/admin/remarketing/deals/${listing.id}`);
+                                  navigate(`/admin/deals/${listing.id}`);
                                 }}
                               >
                                 <ExternalLink className="h-3.5 w-3.5 mr-1" />

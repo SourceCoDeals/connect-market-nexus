@@ -57,10 +57,10 @@ export function AdminNavbar({ className }: AdminNavbarProps) {
     },
     // Deals
     {
-      to: "/admin/remarketing/deals",
+      to: "/admin/deals",
       label: "All Deals",
       icon: <Building2 className="h-4 w-4 mr-2" />,
-      active: location.pathname.startsWith("/admin/remarketing/deals"),
+      active: location.pathname.startsWith("/admin/deals"),
       section: "Deals",
     },
     {
@@ -71,10 +71,10 @@ export function AdminNavbar({ className }: AdminNavbarProps) {
     },
     // Buyers
     {
-      to: "/admin/remarketing/buyers",
+      to: "/admin/buyers",
       label: "All Buyers",
       icon: <Users className="h-4 w-4 mr-2" />,
-      active: location.pathname.startsWith("/admin/remarketing/buyers"),
+      active: location.pathname.startsWith("/admin/buyers"),
       section: "Buyers",
     },
     {
@@ -122,10 +122,10 @@ export function AdminNavbar({ className }: AdminNavbarProps) {
     },
     // Analytics
     {
-      to: "/admin/remarketing/analytics",
+      to: "/admin/analytics",
       label: "Analytics",
       icon: <BarChart3 className="h-4 w-4 mr-2" />,
-      active: location.pathname.startsWith("/admin/remarketing/analytics") || location.pathname.startsWith("/admin/analytics"),
+      active: location.pathname.startsWith("/admin/analytics") || location.pathname.startsWith("/admin/analytics"),
       section: "Analytics",
     },
     // Admin

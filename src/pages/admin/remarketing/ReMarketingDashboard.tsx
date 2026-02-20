@@ -665,7 +665,7 @@ const ReMarketingDashboard = () => {
                   <tr key={deal.id} className="border-b border-gray-50 last:border-0">
                     <td className="py-2.5 pr-2 text-gray-400 font-medium">{i + 1}</td>
                     <td className="py-2.5 pr-3">
-                      <Link to={`/admin/remarketing/deals/${deal.id}`} className="font-medium text-gray-900 hover:text-blue-600 transition-colors">
+                      <Link to={`/admin/deals/${deal.id}`} className="font-medium text-gray-900 hover:text-blue-600 transition-colors">
                         {deal.internal_company_name || deal.title || "—"}
                       </Link>
                     </td>
@@ -735,7 +735,7 @@ const ReMarketingDashboard = () => {
               {universeMetrics.map(u => (
                 <div key={u.id} className="p-2.5 rounded-lg border border-gray-100 hover:bg-gray-50/50">
                   <div className="flex items-center justify-between">
-                    <Link to={`/admin/remarketing/universes/${u.id}`} className="text-sm font-medium text-gray-800 hover:text-blue-600 truncate">
+                    <Link to={`/admin/buyers/universes/${u.id}`} className="text-sm font-medium text-gray-800 hover:text-blue-600 truncate">
                       {u.name}
                     </Link>
                     <span className="text-xs text-gray-500 shrink-0 ml-2">{u.buyers} buyers</span>

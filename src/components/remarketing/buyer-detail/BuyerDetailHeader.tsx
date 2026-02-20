@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { ArrowLeft, Building2, ExternalLink, MapPin, Pencil, Sparkles, Calendar } from "lucide-react";
+import { ArrowLeft, Building2, ExternalLink, MapPin, Pencil, Sparkles, Calendar, Store } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { format, parseISO } from "date-fns";
@@ -17,6 +17,7 @@ interface BuyerDetailHeaderProps {
   onEnrich: () => void;
   isEnriching?: boolean;
   backTo?: string;
+  marketplaceFirmId?: string | null;
 }
 
 export const BuyerDetailHeader = ({
@@ -31,7 +32,8 @@ export const BuyerDetailHeader = ({
   onEdit,
   onEnrich,
   isEnriching = false,
-  backTo = "/admin/remarketing/buyers",
+  backTo = "/admin/buyers",
+  marketplaceFirmId,
 }: BuyerDetailHeaderProps) => {
   const hqLocation = [hqCity, hqState, hqCountry].filter(Boolean).join(", ");
   
@@ -82,6 +84,17 @@ export const BuyerDetailHeader = ({
                 <Building2 className="h-4 w-4" />
                 <span>{peFirmName}</span>
               </div>
+            )}
+
+            {/* Marketplace Identity Bridge */}
+            {marketplaceFirmId && (
+              <Link
+                to={`/admin/buyers/firm-agreements`}
+                className="inline-flex items-center gap-1.5 text-xs bg-blue-50 text-blue-700 border border-blue-200 rounded-full px-3 py-1 hover:bg-blue-100 transition-colors"
+              >
+                <Store className="h-3 w-3" />
+                Also a Marketplace Firm — View Agreement
+              </Link>
             )}
             
             {/* Platform Website + HQ Location + Investment Date */}
