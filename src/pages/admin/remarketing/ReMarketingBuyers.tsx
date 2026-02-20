@@ -58,10 +58,7 @@ import {
   ArrowDown,
   Check,
   Minus,
-  FileSignature,
-  Globe,
   Download,
-  Shield,
 } from "lucide-react";
 import { toast } from "sonner";
 import { BuyerCSVImport, IntelligenceBadge, ReMarketingChat } from "@/components/remarketing";
@@ -76,31 +73,7 @@ const BUYER_TYPES: { value: BuyerType; label: string }[] = [
   { value: 'other', label: 'Other' },
 ];
 
-type BuyerTab = 'all' | 'marketplace' | 'remarketing_only' | 'fully_signed' | 'needs_agreements' | 'needs_enrichment';
-
-/** Determine source of a buyer from extraction_sources JSON */
-function getBuyerSource(buyer: any): 'marketplace' | 'remarketing' | 'both' {
-  const sources = buyer.extraction_sources;
-  if (!sources || !Array.isArray(sources)) return 'remarketing';
-  const hasMarketplace = sources.some((s: any) =>
-    s?.type === 'marketplace_profile' || s?.type === 'marketplace_backfill'
-  );
-  const hasOtherSources = sources.some((s: any) =>
-    s?.type === 'website' || s?.type === 'transcript' || s?.type === 'csv'
-  );
-  if (hasMarketplace && hasOtherSources) return 'both';
-  if (hasMarketplace) return 'marketplace';
-  return 'remarketing';
-}
-
-/** Get NDA status from firm agreement data */
-function getNdaStatus(firmAgreement: any): { signed: boolean; signedAt: string | null } {
-  if (!firmAgreement) return { signed: false, signedAt: null };
-  return {
-    signed: firmAgreement.nda_signed === true,
-    signedAt: firmAgreement.nda_signed_at || null,
-  };
-}
+type BuyerTab = 'all' | 'pe_firm' | 'platform' | 'needs_agreements' | 'needs_enrichment';
 
 const ReMarketingBuyers = () => {
   const navigate = useNavigate();
@@ -125,7 +98,7 @@ const ReMarketingBuyers = () => {
     notes: "",
   });
 
-  // Fetch buyers with universe + firm agreement info
+  // Fetch buyers with universe info
   const { data: buyers, isLoading: buyersLoading } = useQuery({
     queryKey: ['remarketing', 'buyers', universeFilter],
     queryFn: async () => {
@@ -133,8 +106,7 @@ const ReMarketingBuyers = () => {
         .from('remarketing_buyers')
         .select(`
           *,
-          universe:remarketing_buyer_universes(id, name),
-          firm_agreement:firm_agreements!marketplace_firm_id(id, nda_signed, nda_signed_at, fee_agreement_signed, company_name)
+          universe:remarketing_buyer_universes(id, name)
         `)
         .eq('archived', false)
         .order('company_name');
@@ -184,20 +156,15 @@ const ReMarketingBuyers = () => {
 
   // Compute tab counts from loaded buyers
   const tabCounts = useMemo(() => {
-    if (!buyers) return { all: 0, marketplace: 0, remarketing_only: 0, fully_signed: 0, needs_agreements: 0, needs_enrichment: 0 };
-    let marketplace = 0, remarketing_only = 0, fully_signed = 0, needs_agreements = 0, needs_enrichment = 0;
+    if (!buyers) return { all: 0, pe_firm: 0, platform: 0, needs_agreements: 0, needs_enrichment: 0 };
+    let pe_firm = 0, platform = 0, needs_agreements = 0, needs_enrichment = 0;
     buyers.forEach((b: any) => {
-      const source = getBuyerSource(b);
-      if (source === 'marketplace' || source === 'both') marketplace++;
-      if (source === 'remarketing') remarketing_only++;
-
-      const nda = getNdaStatus(b.firm_agreement);
-      const hasFee = b.has_fee_agreement === true;
-      if (nda.signed && hasFee) fully_signed++;
-      if (!nda.signed || !hasFee) needs_agreements++;
+      if (b.buyer_type === 'pe_firm') pe_firm++;
+      if (b.buyer_type === 'platform' || !b.buyer_type) platform++;
+      if (!b.has_fee_agreement) needs_agreements++;
       if (b.data_completeness !== 'high') needs_enrichment++;
     });
-    return { all: buyers.length, marketplace, remarketing_only, fully_signed, needs_agreements, needs_enrichment };
+    return { all: buyers.length, pe_firm, platform, needs_agreements, needs_enrichment };
   }, [buyers]);
 
   // Create buyer mutation
@@ -282,27 +249,14 @@ const ReMarketingBuyers = () => {
 
     // Tab filter
     switch (activeTab) {
-      case 'marketplace':
-        result = result.filter(b => {
-          const src = getBuyerSource(b);
-          return src === 'marketplace' || src === 'both';
-        });
+      case 'pe_firm':
+        result = result.filter(b => b.buyer_type === 'pe_firm');
         break;
-      case 'remarketing_only':
-        result = result.filter(b => getBuyerSource(b) === 'remarketing');
+      case 'platform':
+        result = result.filter(b => b.buyer_type === 'platform' || !b.buyer_type);
         break;
-      case 'fully_signed': {
-        result = result.filter(b => {
-          const nda = getNdaStatus(b.firm_agreement);
-          return nda.signed && b.has_fee_agreement === true;
-        });
-        break;
-      }
       case 'needs_agreements':
-        result = result.filter(b => {
-          const nda = getNdaStatus(b.firm_agreement);
-          return !nda.signed || !b.has_fee_agreement;
-        });
+        result = result.filter(b => !b.has_fee_agreement);
         break;
       case 'needs_enrichment':
         result = result.filter(b => b.data_completeness !== 'high');
@@ -546,9 +500,8 @@ const ReMarketingBuyers = () => {
       <Tabs value={activeTab} onValueChange={(v) => { setActiveTab(v as BuyerTab); setSelectedIds(new Set()); }}>
         <TabsList className="flex-wrap h-auto gap-1">
           <TabsTrigger value="all">All Buyers ({tabCounts.all})</TabsTrigger>
-          <TabsTrigger value="marketplace">Marketplace ({tabCounts.marketplace})</TabsTrigger>
-          <TabsTrigger value="remarketing_only">Remarketing Only ({tabCounts.remarketing_only})</TabsTrigger>
-          <TabsTrigger value="fully_signed">Fully Signed ({tabCounts.fully_signed})</TabsTrigger>
+          <TabsTrigger value="pe_firm">PE Firms ({tabCounts.pe_firm})</TabsTrigger>
+          <TabsTrigger value="platform">Platforms ({tabCounts.platform})</TabsTrigger>
           <TabsTrigger value="needs_agreements">Needs Agreements ({tabCounts.needs_agreements})</TabsTrigger>
           <TabsTrigger value="needs_enrichment">Needs Enrichment ({tabCounts.needs_enrichment})</TabsTrigger>
         </TabsList>
@@ -614,13 +567,16 @@ const ReMarketingBuyers = () => {
                   />
                 </TableHead>
                 <TableHead className="w-[260px] cursor-pointer select-none hover:bg-muted/50" onClick={() => handleSort('company_name')}>
-                  <span className="flex items-center">Buyer <SortIcon column="company_name" /></span>
+                  <span className="flex items-center">Platform / Buyer <SortIcon column="company_name" /></span>
                 </TableHead>
-                <TableHead className="w-[70px]">Source</TableHead>
-                <TableHead className="w-[90px]">Type</TableHead>
-                <TableHead className="w-[70px]">NDA</TableHead>
+                <TableHead className="w-[180px] cursor-pointer select-none hover:bg-muted/50" onClick={() => handleSort('pe_firm_name')}>
+                  <span className="flex items-center">PE Firm <SortIcon column="pe_firm_name" /></span>
+                </TableHead>
+                <TableHead className="cursor-pointer select-none hover:bg-muted/50" onClick={() => handleSort('universe')}>
+                  <span className="flex items-center">Universe <SortIcon column="universe" /></span>
+                </TableHead>
+                <TableHead>Description</TableHead>
                 <TableHead className="w-[90px]">Fee Agmt</TableHead>
-                <TableHead>Thesis</TableHead>
                 <TableHead className="w-[130px]">Intel</TableHead>
                 <TableHead className="w-[50px]"></TableHead>
               </TableRow>
@@ -631,18 +587,17 @@ const ReMarketingBuyers = () => {
                   <TableRow key={i}>
                     <TableCell><Skeleton className="h-4 w-4" /></TableCell>
                     <TableCell><Skeleton className="h-10 w-48" /></TableCell>
-                    <TableCell><Skeleton className="h-5 w-12" /></TableCell>
+                    <TableCell><Skeleton className="h-5 w-24" /></TableCell>
+                    <TableCell><Skeleton className="h-5 w-24" /></TableCell>
+                    <TableCell><Skeleton className="h-4 w-48" /></TableCell>
                     <TableCell><Skeleton className="h-5 w-16" /></TableCell>
-                    <TableCell><Skeleton className="h-5 w-10" /></TableCell>
-                    <TableCell><Skeleton className="h-5 w-16" /></TableCell>
-                    <TableCell><Skeleton className="h-4 w-32" /></TableCell>
                     <TableCell><Skeleton className="h-5 w-20" /></TableCell>
                     <TableCell><Skeleton className="h-8 w-8" /></TableCell>
                   </TableRow>
                 ))
               ) : filteredBuyers.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={9} className="text-center py-12 text-muted-foreground">
+                  <TableCell colSpan={8} className="text-center py-12 text-muted-foreground">
                     <Users className="h-8 w-8 mx-auto mb-3 opacity-50" />
                     <p className="font-medium">No buyers found</p>
                     <p className="text-sm">Add buyers manually or import from CSV</p>
@@ -651,8 +606,6 @@ const ReMarketingBuyers = () => {
               ) : (
                 filteredBuyers.map((buyer: any) => {
                   const location = [buyer.hq_city, buyer.hq_state].filter(Boolean).join(', ');
-                  const source = getBuyerSource(buyer);
-                  const nda = getNdaStatus(buyer.firm_agreement);
 
                   return (
                     <TableRow
@@ -668,23 +621,23 @@ const ReMarketingBuyers = () => {
                         />
                       </TableCell>
 
-                      {/* Buyer Name Column */}
+                      {/* Platform / Buyer Column */}
                       <TableCell>
                         <div className="flex items-start gap-3">
-                          <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
+                          <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
                             {buyer.buyer_type === 'pe_firm' ? (
-                              <Building className="h-4 w-4 text-primary" />
+                              <Building className="h-5 w-5 text-primary" />
                             ) : (
-                              <Users className="h-4 w-4 text-primary" />
+                              <Users className="h-5 w-5 text-primary" />
                             )}
                           </div>
                           <div className="min-w-0">
-                            <div className="flex items-center gap-1.5">
-                              <span className="font-medium text-foreground truncate text-sm">
+                            <div className="flex items-center gap-2">
+                              <span className="font-medium text-foreground truncate">
                                 {buyer.company_name}
                               </span>
                               {buyer.data_completeness === 'high' && (
-                                <Badge className="bg-emerald-500 hover:bg-emerald-600 text-[10px] px-1 py-0 leading-tight">
+                                <Badge className="bg-emerald-500 hover:bg-emerald-600 text-xs px-1.5 py-0">
                                   Enriched
                                 </Badge>
                               )}
@@ -695,39 +648,68 @@ const ReMarketingBuyers = () => {
                                 {location}
                               </div>
                             )}
-                            {buyer.pe_firm_name && (
-                              <span className="text-xs text-muted-foreground">{buyer.pe_firm_name}</span>
+                            {buyer.company_website && (
+                              <a
+                                href={buyer.company_website}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-xs text-primary hover:underline flex items-center gap-1 mt-0.5"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                {buyer.company_website.replace(/^https?:\/\//, '').replace(/\/$/, '')}
+                                <ExternalLink className="h-3 w-3" />
+                              </a>
                             )}
                           </div>
                         </div>
                       </TableCell>
 
-                      {/* Source Column */}
+                      {/* PE Firm Column */}
                       <TableCell>
-                        {source === 'both' ? (
-                          <Badge variant="secondary" className="text-[10px] px-1.5 py-0">Both</Badge>
-                        ) : source === 'marketplace' ? (
-                          <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-blue-300 text-blue-700">Mkt</Badge>
+                        {buyer.pe_firm_name ? (
+                          <div className="flex items-center gap-2">
+                            <div className="h-6 w-6 rounded bg-muted flex items-center justify-center">
+                              <Building className="h-3 w-3 text-muted-foreground" />
+                            </div>
+                            <span className="text-sm">{buyer.pe_firm_name}</span>
+                          </div>
+                        ) : buyer.buyer_type === 'pe_firm' ? (
+                          <Badge variant="outline" className="text-xs">
+                            PE Firm
+                          </Badge>
                         ) : (
-                          <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-gray-300 text-gray-600">RM</Badge>
+                          <span className="text-sm text-muted-foreground">—</span>
                         )}
                       </TableCell>
 
-                      {/* Type Column */}
+                      {/* Universe Column */}
                       <TableCell>
-                        <span className="text-xs text-muted-foreground">
-                          {getBuyerTypeLabel(buyer.buyer_type)}
-                        </span>
-                      </TableCell>
-
-                      {/* NDA Column */}
-                      <TableCell>
-                        {nda.signed ? (
-                          <Badge variant="default" className="text-[10px] px-1.5 py-0 bg-green-600 hover:bg-green-700">
-                            <Shield className="h-3 w-3 mr-0.5" /> NDA
+                        {buyer.universe?.name ? (
+                          <Badge variant="secondary" className="text-xs">
+                            {buyer.universe.name}
                           </Badge>
                         ) : (
-                          <Minus className="h-4 w-4 text-muted-foreground/40" />
+                          <span className="text-muted-foreground text-sm">—</span>
+                        )}
+                      </TableCell>
+
+                      {/* Description Column */}
+                      <TableCell>
+                        {(buyer.business_summary || buyer.thesis_summary) ? (
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <p className="text-sm text-muted-foreground line-clamp-2 cursor-help">
+                                  {buyer.business_summary || buyer.thesis_summary}
+                                </p>
+                              </TooltipTrigger>
+                              <TooltipContent side="bottom" className="max-w-md whitespace-normal text-sm p-3">
+                                {buyer.business_summary || buyer.thesis_summary}
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        ) : (
+                          <span className="text-sm text-muted-foreground">—</span>
                         )}
                       </TableCell>
 
@@ -736,7 +718,7 @@ const ReMarketingBuyers = () => {
                         {buyer.has_fee_agreement ? (
                           <Badge
                             variant="default"
-                            className={`text-[10px] px-1.5 py-0 flex items-center gap-0.5 w-fit ${
+                            className={`text-xs px-1.5 py-0 flex items-center gap-1 w-fit ${
                               buyer.fee_agreement_source === 'pe_firm_inherited'
                                 ? 'bg-blue-600 hover:bg-blue-700'
                                 : buyer.fee_agreement_source === 'manual_override'
@@ -746,33 +728,13 @@ const ReMarketingBuyers = () => {
                           >
                             <Check className="h-3 w-3" />
                             {buyer.fee_agreement_source === 'pe_firm_inherited'
-                              ? `via PE`
+                              ? `via ${buyer.pe_firm_name || 'PE'}`
                               : buyer.fee_agreement_source === 'manual_override'
                               ? 'Manual'
                               : 'Signed'}
                           </Badge>
                         ) : (
                           <Minus className="h-4 w-4 text-muted-foreground/40" />
-                        )}
-                      </TableCell>
-
-                      {/* Thesis Column */}
-                      <TableCell>
-                        {(buyer.thesis_summary || buyer.business_summary) ? (
-                          <TooltipProvider>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <p className="text-xs text-muted-foreground line-clamp-2 cursor-help">
-                                  {buyer.thesis_summary || buyer.business_summary}
-                                </p>
-                              </TooltipTrigger>
-                              <TooltipContent side="bottom" className="max-w-md whitespace-normal text-sm p-3">
-                                {buyer.thesis_summary || buyer.business_summary}
-                              </TooltipContent>
-                            </Tooltip>
-                          </TooltipProvider>
-                        ) : (
-                          <span className="text-xs text-muted-foreground">—</span>
                         )}
                       </TableCell>
 
