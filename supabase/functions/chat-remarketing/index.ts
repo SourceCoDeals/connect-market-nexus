@@ -131,9 +131,9 @@ async function buildDealContext(supabase: any, listingId: string): Promise<strin
   }
 
   const [dealResult, buyersResult, scoresResult, universesResult, transcriptsResult] = await Promise.all([
-    supabase.from('listings').select('*').eq('id', listingId).single(),
-    supabase.from('remarketing_buyers').select('*').eq('archived', false).limit(150),
-    supabase.from('remarketing_scores').select('*').eq('listing_id', listingId),
+    supabase.from('listings').select('id, title, internal_company_name, location, geographic_states, revenue, ebitda, category, services, business_model, description, owner_goals, key_risks, location_count, employees').eq('id', listingId).single(),
+    supabase.from('remarketing_buyers').select('id, company_name, pe_firm_name, buyer_type, hq_city, hq_state, geographic_footprint, target_geographies, thesis_summary, business_summary, total_acquisitions, recent_acquisitions, acquisition_appetite, acquisition_timeline, target_revenue_min, target_revenue_max, target_ebitda_min, target_ebitda_max, target_services, target_industries, deal_breakers, strategic_priorities, has_fee_agreement, data_completeness, extraction_sources').eq('archived', false).limit(150),
+    supabase.from('remarketing_scores').select('id, buyer_id, listing_id, universe_id, composite_score, geography_score, size_score, service_score, status, fit_reasoning, interested, interested_at').eq('listing_id', listingId),
     supabase.from('remarketing_buyer_universes').select('id, name, ma_guide_content, fit_criteria, size_criteria, geography_criteria, service_criteria, scoring_behavior').eq('archived', false),
     supabase.from('call_transcripts').select('key_quotes, ceo_detected, extracted_insights, created_at, call_type').eq('listing_id', listingId).order('created_at', { ascending: false }).limit(3),
   ]);
@@ -275,7 +275,7 @@ INSTRUCTIONS:
 // Build context for all-deals queries
 async function buildDealsContext(supabase: any): Promise<string> {
   const [dealsResult, universesResult] = await Promise.all([
-    supabase.from('listings').select('*').eq('is_active', true).order('deal_total_score', { ascending: false, nullsFirst: false }).limit(100),
+    supabase.from('listings').select('id, title, internal_company_name, location, geographic_states, revenue, ebitda, category, services, business_model, description, owner_goals, key_risks, location_count, employees, deal_total_score, enriched_at, is_priority_target, created_at').eq('is_active', true).order('deal_total_score', { ascending: false, nullsFirst: false }).limit(100),
     supabase.from('remarketing_buyer_universes').select('id, name, ma_guide_content, fit_criteria, size_criteria, geography_criteria, service_criteria').eq('archived', false),
   ]);
 
@@ -347,7 +347,7 @@ INSTRUCTIONS:
 // Build context for all-buyers queries
 async function buildBuyersContext(supabase: any): Promise<string> {
   const [buyersResult, universesResult] = await Promise.all([
-    supabase.from('remarketing_buyers').select('*').eq('archived', false).order('alignment_score', { ascending: false, nullsFirst: false }).limit(150),
+    supabase.from('remarketing_buyers').select('id, company_name, pe_firm_name, pe_firm_website, buyer_type, hq_city, hq_state, geographic_footprint, target_geographies, thesis_summary, business_summary, target_services, target_industries, target_revenue_min, target_revenue_max, target_ebitda_min, target_ebitda_max, total_acquisitions, recent_acquisitions, acquisition_appetite, acquisition_timeline, deal_breakers, strategic_priorities, has_fee_agreement, data_completeness, alignment_score').eq('archived', false).order('alignment_score', { ascending: false, nullsFirst: false }).limit(150),
     supabase.from('remarketing_buyer_universes').select('id, name, ma_guide_content, fit_criteria, size_criteria, geography_criteria, service_criteria').eq('archived', false),
   ]);
 
@@ -439,10 +439,10 @@ async function buildUniverseContext(supabase: any, universeId: string): Promise<
   }
 
   const [universeResult, buyersResult, dealsResult, scoresResult] = await Promise.all([
-    supabase.from('remarketing_buyer_universes').select('*').eq('id', universeId).single(),
-    supabase.from('remarketing_buyers').select('*').eq('universe_id', universeId).eq('archived', false).limit(100),
+    supabase.from('remarketing_buyer_universes').select('id, name, ma_guide_content, fit_criteria, size_criteria, geography_criteria, service_criteria, scoring_behavior').eq('id', universeId).single(),
+    supabase.from('remarketing_buyers').select('id, company_name, pe_firm_name, buyer_type, hq_city, hq_state, geographic_footprint, target_geographies, thesis_summary, business_summary, target_services, target_industries, target_revenue_min, target_revenue_max, target_ebitda_min, target_ebitda_max, total_acquisitions, recent_acquisitions, acquisition_appetite, acquisition_timeline, deal_breakers, strategic_priorities, has_fee_agreement, data_completeness, extraction_sources').eq('universe_id', universeId).eq('archived', false).limit(100),
     supabase.from('remarketing_universe_deals').select('listing:listings(*)').eq('universe_id', universeId).eq('status', 'active'),
-    supabase.from('remarketing_scores').select('*').eq('universe_id', universeId),
+    supabase.from('remarketing_scores').select('id, buyer_id, listing_id, universe_id, composite_score, geography_score, size_score, service_score, status, fit_reasoning, interested, interested_at').eq('universe_id', universeId),
   ]);
 
   const universe = universeResult.data;

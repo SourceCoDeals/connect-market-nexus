@@ -16,10 +16,46 @@ Deno.serve(async (req: Request) => {
   const headers = getCorsHeaders(req);
 
   try {
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
-    );
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+
+    // SECURITY: Verify JWT and admin status
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      return new Response(
+        JSON.stringify({ error: 'Authorization header required' }),
+        { status: 401, headers: { ...headers, 'Content-Type': 'application/json' } },
+      );
+    }
+
+    const supabaseAnon = createClient(supabaseUrl, Deno.env.get('SUPABASE_ANON_KEY')!, {
+      global: { headers: { Authorization: authHeader } },
+    });
+    const { data: { user }, error: authError } = await supabaseAnon.auth.getUser();
+    if (authError || !user) {
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized' }),
+        { status: 401, headers: { ...headers, 'Content-Type': 'application/json' } },
+      );
+    }
+
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    // Verify admin via user_roles (source of truth)
+    const { data: adminCheck } = await supabase
+      .from('user_roles')
+      .select('role')
+      .eq('user_id', user.id)
+      .in('role', ['admin', 'owner'])
+      .limit(1)
+      .maybeSingle();
+
+    if (!adminCheck) {
+      return new Response(
+        JSON.stringify({ error: 'Admin access required' }),
+        { status: 403, headers: { ...headers, 'Content-Type': 'application/json' } },
+      );
+    }
 
     const body: ConvertRequest = await req.json();
     const { listing_id, buyer_id, score_id, stage_name } = body;

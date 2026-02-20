@@ -334,8 +334,18 @@ export function useNuclearAuth() {
       }
     }
 
+    // SECURITY: Strip privileged fields that users must never self-modify.
+    // is_admin is synced from user_roles via DB trigger; approval_status is admin-only.
+    const PRIVILEGED_FIELDS = [
+      'is_admin', 'approval_status', 'email_verified', 'role',
+      'id', 'email', 'created_at', 'updated_at',
+    ];
+    const safeData = Object.fromEntries(
+      Object.entries(restData).filter(([key]) => !PRIVILEGED_FIELDS.includes(key))
+    );
+
     const dbPayload: Record<string, any> = {
-      ...restData,
+      ...safeData,
       ...(normalizedWebsite !== undefined ? { website: normalizedWebsite } : {}),
       ...(preparedInvestmentSize !== undefined ? { investment_size: preparedInvestmentSize } : {}),
     };

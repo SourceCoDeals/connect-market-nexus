@@ -145,6 +145,55 @@ Deno.serve(async (req) => {
 
   try {
     console.log('[enrich-buyer] request received');
+
+    const supabaseUrl = Deno.env.get('SUPABASE_URL');
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+
+    if (!supabaseUrl || !supabaseServiceKey) {
+      return new Response(
+        JSON.stringify({ success: false, error: 'Server configuration error' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // SECURITY: Verify JWT and admin status
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      return new Response(
+        JSON.stringify({ success: false, error: 'Authorization header required' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const supabaseAnon = createClient(supabaseUrl, Deno.env.get('SUPABASE_ANON_KEY')!, {
+      global: { headers: { Authorization: authHeader } },
+    });
+    const { data: { user }, error: authError } = await supabaseAnon.auth.getUser();
+    if (authError || !user) {
+      return new Response(
+        JSON.stringify({ success: false, error: 'Unauthorized' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    // Verify admin via user_roles (source of truth)
+    const { data: adminCheck } = await supabase
+      .from('user_roles')
+      .select('role')
+      .eq('user_id', user.id)
+      .in('role', ['admin', 'owner'])
+      .limit(1)
+      .maybeSingle();
+
+    if (!adminCheck) {
+      return new Response(
+        JSON.stringify({ success: false, error: 'Admin access required' }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     const { buyerId, skipLock } = await req.json();
 
     if (!buyerId) {
@@ -156,17 +205,13 @@ Deno.serve(async (req) => {
 
     const firecrawlApiKey = Deno.env.get('FIRECRAWL_API_KEY');
     const geminiApiKey = Deno.env.get('GEMINI_API_KEY');
-    const supabaseUrl = Deno.env.get('SUPABASE_URL');
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
 
-    if (!firecrawlApiKey || !geminiApiKey || !supabaseUrl || !supabaseServiceKey) {
+    if (!firecrawlApiKey || !geminiApiKey) {
       return new Response(
         JSON.stringify({ success: false, error: 'Server configuration error - missing API keys (FIRECRAWL_API_KEY, GEMINI_API_KEY)' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
-
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
     _rateLimitConfig = { supabase };
 
     // Fetch buyer
