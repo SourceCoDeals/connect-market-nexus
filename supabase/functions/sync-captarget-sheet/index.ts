@@ -261,6 +261,40 @@ serve(async (req) => {
     return corsPreflightResponse(req);
   }
 
+  // ── Auth guard: require valid JWT + admin role ──
+  const authHeader = req.headers.get("Authorization") || "";
+  const callerToken = authHeader.replace("Bearer ", "").trim();
+  if (!callerToken) {
+    return new Response(
+      JSON.stringify({ error: "Unauthorized" }),
+      { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  }
+
+  const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+  const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+
+  const callerClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!, {
+    global: { headers: { Authorization: `Bearer ${callerToken}` } },
+  });
+  const { data: { user: callerUser }, error: callerError } = await callerClient.auth.getUser();
+  if (callerError || !callerUser) {
+    return new Response(
+      JSON.stringify({ error: "Unauthorized" }),
+      { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  }
+
+  const authSupabase = createClient(supabaseUrl, supabaseServiceKey);
+  const { data: isAdmin } = await authSupabase.rpc("is_admin", { _user_id: callerUser.id });
+  if (!isAdmin) {
+    return new Response(
+      JSON.stringify({ error: "Forbidden: admin access required" }),
+      { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  }
+  // ── End auth guard ──
+
   // deal_identifier is now handled by the DB trigger (auto_generate_deal_identifier_trigger)
   // which uses nextval('deal_identifier_seq') — no application-side generation needed.
 

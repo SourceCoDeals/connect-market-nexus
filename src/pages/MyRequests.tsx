@@ -64,7 +64,7 @@ const MyRequests = () => {
       return data;
     },
     enabled: !!user?.id,
-    staleTime: 0,
+    staleTime: 30_000, // 30 seconds — avoids aggressive refetch on every navigation
     refetchOnWindowFocus: true,
     refetchOnMount: 'always',
   });
