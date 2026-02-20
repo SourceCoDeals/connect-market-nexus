@@ -373,7 +373,7 @@ export function UnifiedAdminSidebar({ collapsed, onCollapsedChange }: AdminSideb
                 <button
                   onClick={() => toggleSection(section.id)}
                   className={cn(
-                    "flex items-center w-full px-2 py-1.5 text-xs font-semibold uppercase tracking-wider rounded-md transition-colors",
+                    "flex items-center w-full px-2 py-1.5 text-sm font-semibold uppercase tracking-wider rounded-md transition-colors",
                     isActive
                       ? "text-primary"
                       : "text-muted-foreground/70 hover:text-muted-foreground"
