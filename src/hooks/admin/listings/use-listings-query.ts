@@ -10,7 +10,7 @@ import { useTabAwareQuery } from '@/hooks/use-tab-aware-query';
 /**
  * Hook for fetching admin listings with status filtering and soft delete support
  */
-export function useListingsQuery(status?: 'active' | 'inactive' | 'all') {
+export function useListingsQuery(status?: 'active' | 'inactive' | 'all', enabled?: boolean) {
   const { user, authChecked } = useAuth();
 
   // Get cached auth state for more stable query enabling
@@ -24,7 +24,7 @@ export function useListingsQuery(status?: 'active' | 'inactive' | 'all') {
   })();
 
   const isAdminUser = user?.is_admin === true || cachedAuthState?.is_admin === true;
-  const shouldEnable = (authChecked || cachedAuthState) && isAdminUser;
+  const shouldEnable = (authChecked || cachedAuthState) && isAdminUser && (enabled !== false);
 
   return useTabAwareQuery(
     ['admin-listings', status],
@@ -40,7 +40,7 @@ export function useListingsQuery(status?: 'active' | 'inactive' | 'all') {
           
           let query = supabase
             .from('listings')
-            .select('*, hero_description')
+            .select('id, title, status, category, categories, revenue, ebitda, location, created_at, updated_at, deleted_at, hero_description, description, tags, image_url')
             .is('deleted_at', null);
           
           if (status && status !== 'all') {

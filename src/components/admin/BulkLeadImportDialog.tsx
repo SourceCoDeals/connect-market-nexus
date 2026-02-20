@@ -41,7 +41,7 @@ export const BulkLeadImportDialog = ({
   
   // Fetch active listings for mapping
   const { useListings } = useAdminListings();
-  const { data: listings = [], isLoading: listingsLoading } = useListings('active');
+  const { data: listings = [], isLoading: listingsLoading } = useListings('active', isOpen);
 
   const sourceOptions = [
     { value: "manual", label: "Manual Entry" },

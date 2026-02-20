@@ -96,7 +96,7 @@ interface DuplicateDeal {
 
 export function CreateDealModal({ open, onOpenChange, prefilledStageId, onDealCreated }: CreateDealModalProps) {
   const { data: stages } = useDealStages();
-  const { data: listings } = useListingsQuery('active');
+  const { data: listings } = useListingsQuery('active', open);
   const { data: adminProfilesMap } = useAdminProfiles();
   const { data: marketplaceUsers } = useMarketplaceUsers();
   const { data: marketplaceCompanies } = useMarketplaceCompanies();

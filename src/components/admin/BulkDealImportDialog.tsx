@@ -61,7 +61,7 @@ export function BulkDealImportDialog({ isOpen, onClose, onConfirm, isLoading }: 
   const [currentBatchId, setCurrentBatchId] = useState<string | null>(null);
   
   const { useListings } = useAdminListings();
-  const { data: listings } = useListings();
+  const { data: listings } = useListings(undefined, isOpen);
   const { undoImport, isUndoing } = useUndoBulkImport();
 
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
