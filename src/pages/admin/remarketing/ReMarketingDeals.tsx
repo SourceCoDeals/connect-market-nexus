@@ -166,58 +166,75 @@ const ReMarketingDeals = () => {
     refetchOnMount: 'always',
     staleTime: 30_000,
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('listings')
-        .select(`
-          id,
-          title,
-          location,
-          revenue,
-          ebitda,
-          status,
-          created_at,
-          category,
-          industry,
-          website,
-          internal_company_name,
-          internal_deal_memo_link,
-          geographic_states,
-          enriched_at,
-          full_time_employees,
-          linkedin_employee_count,
-          linkedin_employee_range,
-          google_review_count,
-          google_rating,
-          is_priority_target,
-          needs_buyer_universe,
-          deal_total_score,
-          seller_interest_score,
-          manual_rank_override,
-          address_city,
-          address_state,
-          referral_partner_id,
-          referral_partners(id, name),
-          deal_source,
-          deal_owner_id,
-          deal_owner:profiles!listings_deal_owner_id_fkey(id, first_name, last_name, email),
-          needs_owner_contact,
-          needs_owner_contact_at,
-          universe_build_flagged,
-          universe_build_flagged_at,
-          universe_build_flagged_by,
-          is_internal_deal
-        `)
-        .eq('remarketing_status', 'active')
-        .neq('deal_source', 'gp_partners')
-        .or('deal_source.neq.valuation_calculator,pushed_to_all_deals.eq.true')
-        .or('deal_source.neq.valuation_lead,pushed_to_all_deals.eq.true')
-        .order('manual_rank_override', { ascending: true, nullsFirst: false })
-        .order('deal_total_score', { ascending: false, nullsFirst: true })
-        .order('created_at', { ascending: false })
-        .limit(1500);
+      const BATCH = 1000;
+      const allRows: DealListing[] = [];
+      let offset = 0;
+      let hasMore = true;
 
-      if (error) throw error;
-      return (data as unknown) as DealListing[];
+      while (hasMore) {
+        const { data, error } = await supabase
+          .from('listings')
+          .select(`
+            id,
+            title,
+            description,
+            location,
+            revenue,
+            ebitda,
+            status,
+            created_at,
+            category,
+            industry,
+            website,
+            executive_summary,
+            service_mix,
+            internal_company_name,
+            internal_deal_memo_link,
+            geographic_states,
+            enriched_at,
+            full_time_employees,
+            linkedin_employee_count,
+            linkedin_employee_range,
+            google_review_count,
+            google_rating,
+            is_priority_target,
+            deal_total_score,
+            seller_interest_score,
+            manual_rank_override,
+            address_city,
+            address_state,
+            referral_partner_id,
+            referral_partners(id, name),
+            deal_source,
+            deal_owner_id,
+            deal_owner:profiles!listings_deal_owner_id_fkey(id, first_name, last_name, email),
+            needs_owner_contact,
+            needs_owner_contact_at,
+            universe_build_flagged,
+            universe_build_flagged_at,
+            universe_build_flagged_by,
+            is_internal_deal
+          `)
+          .eq('remarketing_status', 'active')
+          .neq('deal_source', 'gp_partners')
+          .or('deal_source.neq.valuation_calculator,pushed_to_all_deals.eq.true')
+          .or('deal_source.neq.valuation_lead,pushed_to_all_deals.eq.true')
+          .order('manual_rank_override', { ascending: true, nullsFirst: false })
+          .order('deal_total_score', { ascending: false, nullsFirst: true })
+          .order('created_at', { ascending: false })
+          .range(offset, offset + BATCH - 1);
+
+        if (error) throw error;
+        if (data && data.length > 0) {
+          allRows.push(...(data as unknown as DealListing[]));
+          offset += BATCH;
+          hasMore = data.length === BATCH;
+        } else {
+          hasMore = false;
+        }
+      }
+
+      return allRows;
     }
   });
 
