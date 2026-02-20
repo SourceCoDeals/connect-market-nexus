@@ -74,15 +74,17 @@ async function fetchListings(state: PaginationState) {
     throw error;
   }
 
-  const listings: Listing[] = (data || []).map(listing => ({
+  // Cast to any first because the Supabase TS types can't infer column types
+  // from a runtime string column list — the explicit allowlist is enforced above.
+  const listings: Listing[] = ((data || []) as any[]).map((listing: any) => ({
     ...listing,
     status: listing.status as ListingStatus,
     metric_3_type: (listing.metric_3_type as 'employees' | 'custom') || 'employees',
     ownerNotes: listing.owner_notes || '',
     createdAt: listing.created_at,
     updatedAt: listing.updated_at,
-    revenueFormatted: `$${(listing.revenue / 1000000).toFixed(1)}M`,
-    ebitdaFormatted: `$${(listing.ebitda / 1000000).toFixed(1)}M`,
+    revenueFormatted: `$${((listing.revenue || 0) / 1000000).toFixed(1)}M`,
+    ebitdaFormatted: `$${((listing.ebitda || 0) / 1000000).toFixed(1)}M`,
     multiples: {
       revenue: listing.ebitda > 0 ? (listing.revenue / listing.ebitda).toFixed(1) : 'N/A',
       value: listing.ebitda > 0 ? (listing.revenue / listing.ebitda).toFixed(1) : 'N/A',
