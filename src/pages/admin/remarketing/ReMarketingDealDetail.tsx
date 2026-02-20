@@ -62,6 +62,8 @@ import {
   BuyerHistoryDialog,
   EditFinancialsDialog,
   DealActivityLog,
+  DealPipelinePanel,
+  DealMarketplacePanel,
 } from "@/components/remarketing/deal-detail";
 
 const ReMarketingDealDetail = () => {
@@ -1249,6 +1251,17 @@ const ReMarketingDealDetail = () => {
           </div>
         </CardContent>
       </Card>
+
+      {/* Pipeline & Marketplace Panels */}
+      <div className="grid gap-6 lg:grid-cols-2">
+        <DealPipelinePanel listingId={dealId!} />
+        <DealMarketplacePanel
+          listingId={dealId!}
+          isInternalDeal={deal.is_internal_deal}
+          status={deal.status}
+          title={deal.title}
+        />
+      </div>
 
       {/* Description */}
       {deal.description && (

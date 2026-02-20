@@ -55,7 +55,7 @@ export interface ColumnWidths {
   select: number;
   rank: number;
   dealName: number;
-  
+
   referralSource: number;
   industry: number;
   buyerUniverse: number;
@@ -69,6 +69,7 @@ export interface ColumnWidths {
   googleRating: number;
   quality: number;
   engagement: number;
+  pipeline: number;
   dealOwner: number;
   added: number;
   priority: number;
@@ -79,7 +80,7 @@ export const DEFAULT_COLUMN_WIDTHS: ColumnWidths = {
   select: 40,
   rank: 60,
   dealName: 200,
-  
+
   referralSource: 120,
   industry: 120,
   buyerUniverse: 160,
@@ -93,6 +94,7 @@ export const DEFAULT_COLUMN_WIDTHS: ColumnWidths = {
   googleRating: 60,
   quality: 80,
   engagement: 130,
+  pipeline: 90,
   dealOwner: 130,
   added: 90,
   priority: 70,

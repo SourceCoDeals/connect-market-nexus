@@ -8,6 +8,8 @@ import {
   Download,
   Archive,
   Trash2,
+  Globe,
+  EyeOff,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
@@ -104,6 +106,52 @@ export const DealsBulkActions = ({
           >
             <Download className="h-4 w-4 mr-1" />
             Export CSV
+          </Button>
+
+          <div className="h-5 w-px bg-border" />
+
+          <Button
+            size="sm"
+            variant="outline"
+            className="text-green-600 border-green-200 hover:bg-green-50"
+            onClick={async () => {
+              const ids = Array.from(selectedDeals);
+              const { error } = await supabase
+                .from('listings')
+                .update({ is_internal_deal: false } as never)
+                .in('id', ids);
+              if (error) {
+                toast({ title: 'Error', description: 'Failed to list on marketplace', variant: 'destructive' });
+              } else {
+                toast({ title: 'Listed on Marketplace', description: `${ids.length} deal(s) listed` });
+                setSelectedDeals(new Set());
+                refetchListings();
+              }
+            }}
+          >
+            <Globe className="h-4 w-4 mr-1" />
+            List on Marketplace
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={async () => {
+              const ids = Array.from(selectedDeals);
+              const { error } = await supabase
+                .from('listings')
+                .update({ is_internal_deal: true } as never)
+                .in('id', ids);
+              if (error) {
+                toast({ title: 'Error', description: 'Failed to unlist from marketplace', variant: 'destructive' });
+              } else {
+                toast({ title: 'Unlisted from Marketplace', description: `${ids.length} deal(s) unlisted` });
+                setSelectedDeals(new Set());
+                refetchListings();
+              }
+            }}
+          >
+            <EyeOff className="h-4 w-4 mr-1" />
+            Unlist
           </Button>
 
           <div className="h-5 w-px bg-border" />

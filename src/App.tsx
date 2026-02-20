@@ -194,8 +194,8 @@ function App() {
                           <Route path="buyers/firm-agreements" element={<Navigate to="/admin/buyers?tab=needs_agreements" replace />} />
                           <Route path="buyers/deal-sourcing" element={<AdminDealSourcing />} />
 
-                          {/* MARKETPLACE */}
-                          <Route path="marketplace/listings" element={<AdminListings />} />
+                          {/* MARKETPLACE (listings absorbed into unified All Deals page) */}
+                          <Route path="marketplace/listings" element={<Navigate to="/admin/deals?tab=marketplace" replace />} />
                           <Route path="marketplace/requests" element={<AdminRequests />} />
                           <Route path="marketplace/users" element={<MarketplaceUsersPage />} />
 
@@ -246,7 +246,7 @@ function App() {
                           <Route path="settings/form-monitoring" element={<FormMonitoringPage />} />
 
                           {/* OLD ADMIN URL REDIRECTS */}
-                          <Route path="listings" element={<Navigate to="/admin/marketplace/listings" replace />} />
+                          <Route path="listings" element={<Navigate to="/admin/deals?tab=marketplace" replace />} />
                           <Route path="users" element={<Navigate to="/admin/marketplace/users" replace />} />
                           <Route path="firm-agreements" element={<Navigate to="/admin/buyers?tab=needs_agreements" replace />} />
                           <Route path="requests" element={<Navigate to="/admin/marketplace/requests" replace />} />
@@ -264,8 +264,9 @@ function App() {
                           <Route path="trackers/:id" element={<MATrackerDetail />} />
                           <Route path="buyers" element={<MAAllBuyers />} />
                           <Route path="buyers/:id" element={<MABuyerDetail />} />
-                          <Route path="deals" element={<MAAllDeals />} />
-                          <Route path="deals/:id" element={<MADealDetail />} />
+                          {/* Deals routes redirect to unified All Deals page */}
+                          <Route path="deals" element={<Navigate to="/admin/deals" replace />} />
+                          <Route path="deals/:id" element={<RedirectWithId to="/admin/deals/:id" />} />
                         </Route>
 
                         {/* Catch-all */}

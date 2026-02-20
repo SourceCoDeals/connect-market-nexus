@@ -131,11 +131,6 @@ export function UnifiedAdminSidebar({ collapsed, onCollapsedChange }: AdminSideb
             external: true,
           },
           {
-            label: "Listings",
-            href: "/admin/marketplace/listings",
-            icon: <Store className="h-4 w-4" />,
-          },
-          {
             label: "Connection Requests",
             href: "/admin/marketplace/requests",
             icon: <MessageSquare className="h-4 w-4" />,
