@@ -20,6 +20,16 @@ Deno.serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  // Require a valid caller token — only admins (using service role) may invoke this
+  const authHeader = req.headers.get('Authorization') || '';
+  const callerToken = authHeader.replace('Bearer ', '').trim();
+  if (!callerToken) {
+    return new Response(
+      JSON.stringify({ error: 'Unauthorized' }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 }
+    );
+  }
+
   try {
     // Create Supabase admin client
     const supabaseAdmin = createClient(
@@ -32,6 +42,29 @@ Deno.serve(async (req) => {
         }
       }
     )
+
+    // Verify the caller is an admin using the user's token (not service role)
+    const callerClient = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+      { global: { headers: { Authorization: `Bearer ${callerToken}` } } }
+    );
+    const { data: { user: callerUser }, error: callerError } = await callerClient.auth.getUser();
+    if (callerError || !callerUser) {
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 }
+      );
+    }
+
+    // Check admin role via DB function (server-side, not from JWT claims)
+    const { data: isAdmin } = await supabaseAdmin.rpc('is_admin', { _user_id: callerUser.id });
+    if (!isAdmin) {
+      return new Response(
+        JSON.stringify({ error: 'Forbidden: admin access required' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 403 }
+      );
+    }
 
     // Parse request body
     const { email, firstName, lastName, company, phoneNumber, buyerType }: CreateUserRequest = await req.json()
