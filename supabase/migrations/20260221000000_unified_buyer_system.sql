@@ -295,4 +295,5 @@ WHERE p.approval_status = 'approved'
          AND extract_domain(rb.company_website) = extract_domain(p.website))
         OR lower(trim(rb.company_name)) = lower(trim(COALESCE(NULLIF(TRIM(p.company_name), ''), NULLIF(TRIM(p.company), ''))))
       )
-  );
+  )
+ON CONFLICT DO NOTHING;
