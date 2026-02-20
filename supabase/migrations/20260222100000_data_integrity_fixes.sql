@@ -59,20 +59,24 @@ WHERE id IN (
         ORDER BY queued_at ASC
       ) AS rnk
     FROM enrichment_queue
-    WHERE status IN ('pending', 'running')
+    WHERE status IN ('pending', 'processing')
   ) ranked
   WHERE rnk > 1
 );
 
--- Step 2: Create unique index on active jobs only
--- Completed/failed jobs don't occupy the slot
+-- Step 2: Drop the old unconditional unique constraint if it exists.
+-- The old constraint prevents re-queueing a listing after completion/failure.
+ALTER TABLE enrichment_queue DROP CONSTRAINT IF EXISTS enrichment_queue_listing_unique;
+
+-- Step 3: Create partial unique index on active jobs only
+-- Completed/failed jobs don't occupy the slot, allowing re-queueing
 CREATE UNIQUE INDEX IF NOT EXISTS idx_enrichment_queue_single_active_job_per_listing
 ON enrichment_queue (listing_id)
-WHERE status IN ('pending', 'running');
+WHERE status IN ('pending', 'processing');
 
 COMMENT ON INDEX idx_enrichment_queue_single_active_job_per_listing IS
   'Enforces single active enrichment job per listing. '
-  'Only applies to pending/running jobs; completed jobs do not occupy slot.';
+  'Only applies to pending/processing jobs; completed/failed jobs do not occupy slot.';
 
 -- ============================================================================
 -- FINDING #2: Add uniqueness constraint on remarketing_buyers.email_domain
@@ -88,7 +92,14 @@ WITH duplicates_to_archive AS (
       ROW_NUMBER() OVER (
         PARTITION BY COALESCE(universe_id, '00000000-0000-0000-0000-000000000000'::uuid),
                      normalize_domain(email_domain)
-        ORDER BY data_completeness DESC NULLS LAST, created_at ASC
+        ORDER BY
+          CASE data_completeness
+            WHEN 'high' THEN 1
+            WHEN 'medium' THEN 2
+            WHEN 'low' THEN 3
+            ELSE 4
+          END ASC,
+          created_at ASC
       ) AS rnk
     FROM remarketing_buyers
     WHERE archived = false
