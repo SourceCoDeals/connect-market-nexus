@@ -43,7 +43,7 @@ export function LeadDetailsModal({ lead, isOpen, onClose }: LeadDetailsModalProp
               <CheckCircle2 className="h-4 w-4 text-green-600 dark:text-green-500" />
               <AlertDescription className="text-sm text-green-800 dark:text-green-300">
                 <Link 
-                  to="/admin/firm-agreements" 
+                  to="/admin/buyers/firm-agreements"
                   className="font-semibold hover:underline"
                 >
                   {firmInfo.firm_name}
@@ -157,7 +157,7 @@ export function LeadDetailsModal({ lead, isOpen, onClose }: LeadDetailsModalProp
                   <div className="flex items-center gap-2">
                     <Building2 className="h-4 w-4 text-muted-foreground" />
                     <Link 
-                      to="/admin/firm-agreements" 
+                      to="/admin/buyers/firm-agreements"
                       className="font-medium hover:underline"
                     >
                       {firmInfo.firm_name}

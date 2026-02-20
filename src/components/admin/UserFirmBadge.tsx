@@ -46,7 +46,7 @@ export function UserFirmBadge({ userId, compact = false }: UserFirmBadgeProps) {
     <TooltipProvider>
       <Tooltip>
         <TooltipTrigger asChild>
-          <Link to="/admin/firm-agreements">
+          <Link to="/admin/buyers/firm-agreements">
             <Badge variant="outline" className="cursor-pointer hover:bg-muted text-xs">
               {content}
             </Badge>

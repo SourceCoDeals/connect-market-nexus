@@ -112,7 +112,7 @@ export const DealReassignmentEmail = ({
         <Section style={buttonSection}>
           <Link
             style={button}
-            href={`https://marketplace.sourcecodeals.com/admin/pipeline?deal=${dealId}`}
+            href={`https://marketplace.sourcecodeals.com/admin/deals/pipeline?deal=${dealId}`}
           >
             View Deal
           </Link>

@@ -168,7 +168,7 @@ export function MyDealsTab() {
 
         <Button 
           size="sm"
-          onClick={() => navigate('/admin/pipeline')}
+          onClick={() => navigate('/admin/deals/pipeline')}
           className="h-9 bg-foreground text-background hover:bg-foreground/90"
         >
           Create Deal
@@ -201,7 +201,7 @@ export function MyDealsTab() {
           </p>
           {(!deals || deals.length === 0) && (
             <Button 
-              onClick={() => navigate('/admin/pipeline')}
+              onClick={() => navigate('/admin/deals/pipeline')}
               className="bg-foreground text-background hover:bg-foreground/90"
             >
               View Pipeline
@@ -214,7 +214,7 @@ export function MyDealsTab() {
             <EnhancedDealCard 
               key={deal.id} 
               deal={deal}
-              onDealClick={(dealId) => navigate(`/admin/pipeline?deal=${dealId}`)}
+              onDealClick={(dealId) => navigate(`/admin/deals/pipeline?deal=${dealId}`)}
             />
           ))}
         </div>

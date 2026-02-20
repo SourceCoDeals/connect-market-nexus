@@ -223,7 +223,7 @@ ${signature}`,
                 <p><strong>Message:</strong></p>
                 <p style="background: #f8f9fa; padding: 10px; border-radius: 4px;">${request.user_message || 'No message provided'}</p>
                 <p><strong>Submitted:</strong> ${timestamp}</p>
-                <a href="https://marketplace.sourcecodeals.com/admin/requests" 
+                <a href="https://marketplace.sourcecodeals.com/admin/marketplace/requests" 
                    style="display: inline-block; background-color: #007bff; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; margin: 16px 0;">
                   Review Request
                 </a>

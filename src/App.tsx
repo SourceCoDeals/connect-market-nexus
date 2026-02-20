@@ -74,8 +74,14 @@ const WebhooksPage = lazyWithRetry(() => import("@/pages/admin/settings/Webhooks
 const TranscriptAnalytics = lazyWithRetry(() => import("@/pages/admin/analytics/TranscriptAnalytics"));
 const EnrichmentTest = lazyWithRetry(() => import("@/pages/admin/EnrichmentTest"));
 
-// ReMarketing pages - lazy loaded (admin subsystem)
-const ReMarketingLayout = lazyWithRetry(() => import("@/components/remarketing").then(m => ({ default: m.ReMarketingLayout })));
+// New split pages (from AdminUsers and AdminDashboard)
+const MarketplaceUsers = lazyWithRetry(() => import("@/pages/admin/MarketplaceUsers"));
+const InternalTeam = lazyWithRetry(() => import("@/pages/admin/InternalTeam"));
+const OwnerLeadsPage = lazyWithRetry(() => import("@/pages/admin/OwnerLeadsPage"));
+const DataRecoveryPage = lazyWithRetry(() => import("@/pages/admin/DataRecoveryPage"));
+const FormMonitoringPage = lazyWithRetry(() => import("@/pages/admin/FormMonitoringPage"));
+
+// ReMarketing pages - lazy loaded (now rendered inside unified AdminLayout)
 const ReMarketingDashboard = lazyWithRetry(() => import("@/pages/admin/remarketing/ReMarketingDashboard"));
 const ReMarketingUniverses = lazyWithRetry(() => import("@/pages/admin/remarketing/ReMarketingUniverses"));
 const ReMarketingUniverseDetail = lazyWithRetry(() => import("@/pages/admin/remarketing/ReMarketingUniverseDetail"));
@@ -171,45 +177,72 @@ function App() {
             {/* Redirect /marketplace to / */}
             <Route path="/marketplace" element={<Navigate to="/" replace />} />
             
-            {/* Admin routes with AdminLayout - require admin */}
+            {/* ================================================================
+                UNIFIED ADMIN ROUTES — Single AdminLayout with combined sidebar.
+                All admin, remarketing, marketplace management, and settings
+                pages are children of this layout.
+                ================================================================ */}
             <Route path="/admin" element={<ProtectedRoute requireAdmin={true}><AdminLayout /></ProtectedRoute>}>
+
+              {/* Dashboard */}
               <Route index element={<AdminDashboard />} />
-              <Route path="listings" element={<AdminListings />} />
-              <Route path="users" element={<AdminUsers />} />
-              <Route path="firm-agreements" element={<FirmAgreements />} />
-              <Route path="requests" element={<AdminRequests />} />
-              <Route path="deal-sourcing" element={<AdminDealSourcing />} />
-              <Route path="pipeline" element={<AdminPipeline />} />
-              <Route path="notifications" element={<AdminNotifications />} />
-              <Route path="settings/webhooks" element={<WebhooksPage />} />
+              <Route path="dashboard" element={<AdminDashboard />} />
+
+              {/* ── Deals Section ── */}
+              <Route path="deals/pipeline" element={<AdminPipeline />} />
+
+              {/* ── Buyers Section ── */}
+              <Route path="buyers/firm-agreements" element={<FirmAgreements />} />
+              <Route path="buyers/deal-sourcing" element={<AdminDealSourcing />} />
+
+              {/* ── Marketplace Section ── */}
+              <Route path="marketplace/listings" element={<AdminListings />} />
+              <Route path="marketplace/requests" element={<AdminRequests />} />
+              <Route path="marketplace/users" element={<MarketplaceUsers />} />
+
+              {/* ── Remarketing Section (sub-routes kept at existing paths) ── */}
+              <Route path="remarketing" element={<ReMarketingDashboard />} />
+              <Route path="remarketing/universes" element={<ReMarketingUniverses />} />
+              <Route path="remarketing/universes/:id" element={<ReMarketingUniverseDetail />} />
+              <Route path="remarketing/deals" element={<ReMarketingDeals />} />
+              <Route path="remarketing/deals/:dealId" element={<ReMarketingDealDetail />} />
+              <Route path="remarketing/buyers" element={<ReMarketingBuyers />} />
+              <Route path="remarketing/buyers/:id" element={<ReMarketingBuyerDetail />} />
+              <Route path="remarketing/matching/:listingId" element={<ReMarketingDealMatching />} />
+              <Route path="remarketing/introductions/:listingId" element={<ReMarketingIntroductions />} />
+              <Route path="remarketing/analytics" element={<ReMarketingAnalytics />} />
+              <Route path="remarketing/captarget-deals" element={<CapTargetDeals />} />
+              <Route path="remarketing/captarget-deals/:dealId" element={<ReMarketingDealDetail />} />
+              <Route path="remarketing/gp-partner-deals" element={<GPPartnerDeals />} />
+              <Route path="remarketing/gp-partner-deals/:dealId" element={<ReMarketingDealDetail />} />
+              <Route path="remarketing/valuation-leads" element={<ValuationLeads />} />
+              <Route path="remarketing/referral-partners" element={<ReMarketingReferralPartners />} />
+              <Route path="remarketing/referral-partners/:partnerId" element={<ReMarketingReferralPartnerDetail />} />
+              <Route path="remarketing/activity-queue" element={<ReMarketingActivityQueue />} />
+
+              {/* ── Analytics Section ── */}
               <Route path="analytics/transcripts" element={<TranscriptAnalytics />} />
-              <Route path="enrichment-test" element={<EnrichmentTest />} />
-            </Route>
 
-            {/* Remarketing routes with dedicated ReMarketingLayout */}
-            <Route path="/admin/remarketing" element={<ProtectedRoute requireAdmin={true}><ReMarketingLayout /></ProtectedRoute>}>
-              <Route index element={<ReMarketingDashboard />} />
-              <Route path="universes" element={<ReMarketingUniverses />} />
-              <Route path="universes/:id" element={<ReMarketingUniverseDetail />} />
-              <Route path="deals" element={<ReMarketingDeals />} />
-              <Route path="deals/:dealId" element={<ReMarketingDealDetail />} />
-              <Route path="buyers" element={<ReMarketingBuyers />} />
-              <Route path="buyers/:id" element={<ReMarketingBuyerDetail />} />
-              <Route path="matching/:listingId" element={<ReMarketingDealMatching />} />
-              <Route path="introductions/:listingId" element={<ReMarketingIntroductions />} />
-              <Route path="analytics" element={<ReMarketingAnalytics />} />
-              
-              <Route path="captarget-deals" element={<CapTargetDeals />} />
-              <Route path="captarget-deals/:dealId" element={<ReMarketingDealDetail />} />
-              <Route path="gp-partner-deals" element={<GPPartnerDeals />} />
-              <Route path="gp-partner-deals/:dealId" element={<ReMarketingDealDetail />} />
-              <Route path="valuation-leads" element={<ValuationLeads />} />
-              
-              <Route path="referral-partners" element={<ReMarketingReferralPartners />} />
-              <Route path="referral-partners/:partnerId" element={<ReMarketingReferralPartnerDetail />} />
-              <Route path="activity-queue" element={<ReMarketingActivityQueue />} />
-              <Route path="settings" element={<ReMarketingSettings />} />
+              {/* ── Admin / Settings Section ── */}
+              <Route path="settings/team" element={<InternalTeam />} />
+              <Route path="settings/owner-leads" element={<OwnerLeadsPage />} />
+              <Route path="settings/notifications" element={<AdminNotifications />} />
+              <Route path="settings/webhooks" element={<WebhooksPage />} />
+              <Route path="settings/enrichment-test" element={<EnrichmentTest />} />
+              <Route path="settings/remarketing" element={<ReMarketingSettings />} />
+              <Route path="settings/data-recovery" element={<DataRecoveryPage />} />
+              <Route path="settings/form-monitoring" element={<FormMonitoringPage />} />
 
+              {/* ── Legacy redirects (old paths → new paths) ── */}
+              <Route path="users" element={<Navigate to="/admin/marketplace/users" replace />} />
+              <Route path="listings" element={<Navigate to="/admin/marketplace/listings" replace />} />
+              <Route path="requests" element={<Navigate to="/admin/marketplace/requests" replace />} />
+              <Route path="firm-agreements" element={<Navigate to="/admin/buyers/firm-agreements" replace />} />
+              <Route path="deal-sourcing" element={<Navigate to="/admin/buyers/deal-sourcing" replace />} />
+              <Route path="pipeline" element={<Navigate to="/admin/deals/pipeline" replace />} />
+              <Route path="notifications" element={<Navigate to="/admin/settings/notifications" replace />} />
+              <Route path="enrichment-test" element={<Navigate to="/admin/settings/enrichment-test" replace />} />
+              <Route path="remarketing/settings" element={<Navigate to="/admin/settings/remarketing" replace />} />
             </Route>
 
             {/* M&A Intelligence routes with dedicated MAIntelligenceLayout */}

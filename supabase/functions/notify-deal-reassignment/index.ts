@@ -89,7 +89,7 @@ const handler = async (req: Request): Promise<Response> => {
         </div>
 
         <div style="text-align: center; margin: 30px 0;">
-          <a href="https://marketplace.sourcecodeals.com/admin/pipeline?deal=${dealId}"
+          <a href="https://marketplace.sourcecodeals.com/admin/deals/pipeline?deal=${dealId}"
              style="background: #f59e0b; color: white; padding: 14px 28px; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 16px; display: inline-block; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
             Open Deal in Pipeline
           </a>

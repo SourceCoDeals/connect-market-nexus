@@ -72,7 +72,7 @@ export default function FirmAgreements() {
                 asChild
                 className="rounded-none border-b-2 border-transparent data-[state=active]:border-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none px-0 pb-2 pt-0 font-medium text-sm data-[state=active]:text-foreground text-muted-foreground hover:text-foreground transition-colors"
               >
-                <Link to="/admin/users" className="inline-flex items-center gap-2">
+                <Link to="/admin/marketplace/users" className="inline-flex items-center gap-2">
                   <Users className="h-4 w-4" />
                   Users
                 </Link>

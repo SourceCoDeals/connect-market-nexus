@@ -156,7 +156,7 @@ export const useDataQualityMonitor = () => {
         title: 'Low Data Completeness',
         message: `Only ${Math.round(metrics.dataCompletenessScore)}% of profile data is complete`,
         action: 'Launch Recovery Campaign',
-        actionUrl: '/admin/users',
+        actionUrl: '/admin/marketplace/users',
         priority: 'medium',
         createdAt: new Date()
       });
@@ -170,7 +170,7 @@ export const useDataQualityMonitor = () => {
         title: 'Incomplete User Profiles',
         message: `${metrics.incompleteProfiles} users have incomplete profiles`,
         action: 'Send Recovery Emails',
-        actionUrl: '/admin/users',
+        actionUrl: '/admin/marketplace/users',
         priority: 'medium',
         createdAt: new Date()
       });
