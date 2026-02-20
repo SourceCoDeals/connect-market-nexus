@@ -1,14 +1,21 @@
+import { useState } from "react";
 import { Outlet } from "react-router-dom";
 import { UnifiedAdminSidebar } from "./UnifiedAdminSidebar";
 import { AdminNavbar } from "./AdminNavbar";
 
 const AdminLayout = () => {
+  const [collapsed, setCollapsed] = useState(false);
+
   return (
     <div className="flex min-h-screen w-full bg-background">
-      {/* Unified sidebar - hidden on mobile */}
-      <div className="hidden md:flex flex-shrink-0 h-screen sticky top-0">
-        <UnifiedAdminSidebar collapsed={false} />
-      </div>
+      {/* Sidebar - hidden on mobile, fixed width on desktop */}
+      <aside
+        className={`hidden md:flex flex-col flex-shrink-0 h-screen sticky top-0 border-r border-border bg-card transition-all duration-200 ${
+          collapsed ? "w-16" : "w-56"
+        }`}
+      >
+        <UnifiedAdminSidebar collapsed={collapsed} onCollapsedChange={setCollapsed} />
+      </aside>
 
       <div className="flex flex-col flex-1 min-w-0">
         {/* Mobile nav */}
@@ -24,3 +31,4 @@ const AdminLayout = () => {
 };
 
 export default AdminLayout;
+
