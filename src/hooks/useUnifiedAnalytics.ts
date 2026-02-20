@@ -274,42 +274,48 @@ export function useUnifiedAnalytics(timeRangeDays: number = 30, filters: Analyti
         profilesResult,
         allConnectionsWithMilestonesResult,
       ] = await Promise.all([
-        // Current period sessions - include visitor_id, region, blog_landing_page and original_external_referrer for proper attribution
+        // Current period sessions - limit to 1000 most recent
         supabase
           .from('user_sessions')
           .select('id, session_id, user_id, visitor_id, referrer, original_external_referrer, blog_landing_page, utm_source, utm_medium, utm_campaign, utm_term, country, city, region, browser, os, device_type, session_duration_seconds, started_at, user_agent')
           .eq('is_bot', false)
           .eq('is_production', true)
           .gte('started_at', startDateStr)
-          .order('started_at', { ascending: false }),
+          .order('started_at', { ascending: false })
+          .limit(1000),
         
-        // Previous period sessions for trend
+        // Previous period sessions for trend - just need count so limit tightly
         supabase
           .from('user_sessions')
           .select('id, session_id, user_id, visitor_id, referrer, session_duration_seconds, started_at, user_agent')
           .eq('is_bot', false)
           .eq('is_production', true)
           .gte('started_at', prevStartDateStr)
-          .lt('started_at', startDateStr),
+          .lt('started_at', startDateStr)
+          .limit(1000),
         
         // Current period connections
         supabase
           .from('connection_requests')
           .select('id, user_id, listing_id, created_at')
-          .gte('created_at', startDateStr),
+          .gte('created_at', startDateStr)
+          .limit(500),
         
         // Previous period connections for trend
         supabase
           .from('connection_requests')
           .select('id')
           .gte('created_at', prevStartDateStr)
-          .lt('created_at', startDateStr),
+          .lt('created_at', startDateStr)
+          .limit(500),
         
-        // Page views for bounce rate calculation
+        // Page views for bounce rate calculation - limit to 2000 most recent
         supabase
           .from('page_views')
           .select('session_id, page_path, exit_page, created_at')
-          .gte('created_at', startDateStr),
+          .gte('created_at', startDateStr)
+          .order('created_at', { ascending: false })
+          .limit(2000),
         
         // Daily metrics from aggregated table
         supabase
@@ -327,17 +333,19 @@ export function useUnifiedAnalytics(timeRangeDays: number = 30, filters: Analyti
           .eq('is_production', true)
           .gte('last_active_at', twoMinutesAgo),
         
-        // Profiles for signups in the time range ONLY (CRITICAL FIX: must filter by date!)
+        // Profiles for signups in the time range ONLY
         supabase
           .from('profiles')
           .select('id, first_name, last_name, company, buyer_type, referral_source, referral_source_detail, created_at')
-          .gte('created_at', startDateStr),  // Only signups in the time range!
+          .gte('created_at', startDateStr)
+          .limit(200),
         
         // Query all connections with NDA/Fee Agreement status for real funnel data
         supabase
           .from('connection_requests')
           .select('id, user_id, lead_nda_signed, lead_fee_agreement_signed, created_at')
-          .gte('created_at', startDateStr),
+          .gte('created_at', startDateStr)
+          .limit(500),
       ]);
       
       const rawSessions = sessionsResult.data || [];

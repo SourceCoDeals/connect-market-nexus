@@ -45,19 +45,22 @@ export function useExitAnalysis(timeRangeDays: number = 30) {
       const now = new Date();
       const startDate = subDays(now, timeRangeDays);
       
-      // Fetch page views with exit data
+      // Fetch page views with exit data - limit to 2000 most recent
       const { data: pageViews, error: pvError } = await supabase
         .from('page_views')
         .select('page_path, exit_page, session_id, user_id, created_at')
-        .gte('created_at', startDate.toISOString());
+        .gte('created_at', startDate.toISOString())
+        .order('created_at', { ascending: false })
+        .limit(2000);
       
       if (pvError) throw pvError;
       
-      // Fetch connection requests for conversion correlation
+      // Fetch connection requests for conversion correlation - limit to 500
       const { data: conversions, error: convError } = await supabase
         .from('connection_requests')
         .select('user_id')
-        .gte('created_at', startDate.toISOString());
+        .gte('created_at', startDate.toISOString())
+        .limit(500);
       
       if (convError) throw convError;
       
