@@ -28,6 +28,7 @@ import {
   FileCheck,
   ChevronDown,
   ChevronRight,
+  ChevronLeft,
   Webhook,
   Brain,
   Wrench,
@@ -67,9 +68,10 @@ interface NavSection {
 
 interface AdminSidebarProps {
   collapsed: boolean;
+  onCollapsedChange?: (collapsed: boolean) => void;
 }
 
-export function UnifiedAdminSidebar({ collapsed }: AdminSidebarProps) {
+export function UnifiedAdminSidebar({ collapsed, onCollapsedChange }: AdminSidebarProps) {
   const location = useLocation();
   const { unviewedCount: unviewedDealSourcingCount } = useUnviewedDealSourcingCount();
   const { unviewedCount: unviewedConnectionRequestsCount } = useUnviewedConnectionRequests();
@@ -307,8 +309,23 @@ export function UnifiedAdminSidebar({ collapsed }: AdminSidebarProps) {
   return (
     <TooltipProvider delayDuration={0}>
       <div className="flex flex-col h-full">
+        {/* Collapse toggle */}
+        <div className="flex items-center justify-end px-2 pt-2 pb-1">
+          <button
+            onClick={() => onCollapsedChange?.(!collapsed)}
+            className="flex items-center justify-center h-7 w-7 rounded-md text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+            aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+          >
+            {collapsed ? (
+              <ChevronRight className="h-3.5 w-3.5" />
+            ) : (
+              <ChevronLeft className="h-3.5 w-3.5" />
+            )}
+          </button>
+        </div>
+
         {/* Dashboard - standalone top item */}
-        <div className="px-3 pt-2 pb-1">
+        <div className="px-3 pb-1">
           <SidebarLink
             href="/admin"
             icon={<LayoutDashboard className="h-4 w-4" />}
@@ -317,6 +334,7 @@ export function UnifiedAdminSidebar({ collapsed }: AdminSidebarProps) {
             collapsed={collapsed}
           />
         </div>
+
 
         {/* Scrollable sections */}
         <nav className="flex-1 overflow-y-auto px-3 py-1 space-y-0.5">
