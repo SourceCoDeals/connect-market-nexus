@@ -24,7 +24,7 @@ export interface DealListing {
   google_review_count: number | null;
   google_rating: number | null;
   is_priority_target: boolean | null;
-  needs_buyer_universe: boolean | null;
+  need_buyer_universe: boolean | null;
   need_to_contact_owner: boolean | null;
   deal_total_score: number | null;
   seller_interest_score: number | null;
@@ -130,7 +130,7 @@ export interface CapTargetDeal {
   google_review_count: number | null;
   captarget_status: string | null;
   is_priority_target: boolean | null;
-  needs_buyer_universe: boolean | null;
+  need_buyer_universe: boolean | null;
   need_to_contact_owner: boolean | null;
   category: string | null;
   executive_summary: string | null;
