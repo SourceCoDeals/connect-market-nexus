@@ -62,7 +62,7 @@ ALTER TABLE public.data_room_access
 CREATE INDEX IF NOT EXISTS idx_data_room_access_contact
   ON public.data_room_access(contact_id) WHERE contact_id IS NOT NULL;
 
--- Backfill contact_id for existing rows via remarketing_buyer_id
+-- Backfill contact_id for existing rows via remarketing_buyer_id (primary contact first)
 UPDATE public.data_room_access dra
 SET contact_id = c.id
 FROM public.contacts c
@@ -72,6 +72,22 @@ WHERE dra.contact_id IS NULL
   AND c.is_primary_at_firm = true
   AND c.contact_type = 'buyer'
   AND c.archived = false;
+
+-- Fallback: match any contact for the buyer (when no primary exists)
+UPDATE public.data_room_access dra
+SET contact_id = sub.contact_id
+FROM (
+  SELECT DISTINCT ON (dra2.id) dra2.id AS access_id, c2.id AS contact_id
+  FROM public.data_room_access dra2
+  JOIN public.contacts c2
+    ON c2.remarketing_buyer_id = dra2.remarketing_buyer_id
+    AND c2.contact_type = 'buyer'
+    AND c2.archived = false
+  WHERE dra2.contact_id IS NULL
+    AND dra2.remarketing_buyer_id IS NOT NULL
+  ORDER BY dra2.id, c2.created_at ASC
+) sub
+WHERE dra.id = sub.access_id;
 
 -- Also try to match marketplace users by profile_id
 UPDATE public.data_room_access dra
@@ -103,6 +119,21 @@ WHERE ro.contact_id IS NULL
   AND c.is_primary_at_firm = true
   AND c.contact_type = 'buyer'
   AND c.archived = false;
+
+-- Fallback: match any contact for the buyer (when no primary exists)
+UPDATE public.remarketing_outreach ro
+SET contact_id = sub.contact_id
+FROM (
+  SELECT DISTINCT ON (ro2.id) ro2.id AS outreach_id, c2.id AS contact_id
+  FROM public.remarketing_outreach ro2
+  JOIN public.contacts c2
+    ON c2.remarketing_buyer_id = ro2.buyer_id
+    AND c2.contact_type = 'buyer'
+    AND c2.archived = false
+  WHERE ro2.contact_id IS NULL
+  ORDER BY ro2.id, c2.created_at ASC
+) sub
+WHERE ro.id = sub.outreach_id;
 
 
 -- ============================================================================
@@ -192,17 +223,28 @@ SELECT
     WHEN 'manual_log' THEN 'pdf_download'
     ELSE 'pdf_download'
   END,
-  mdl.sent_by,
+  -- released_by: only use sent_by if a matching profiles row exists (FK safety)
+  CASE WHEN p_sender.id IS NOT NULL THEN mdl.sent_by ELSE NULL END,
   mdl.sent_at,
   mdl.notes,
-  c.id
+  -- contact_id: prefer primary, fall back to any contact for this buyer
+  COALESCE(c_primary.id, c_any.id)
 FROM public.memo_distribution_log mdl
 LEFT JOIN public.remarketing_buyers rb ON rb.id = mdl.remarketing_buyer_id
-LEFT JOIN public.contacts c
-  ON c.remarketing_buyer_id = mdl.remarketing_buyer_id
-  AND c.is_primary_at_firm = true
-  AND c.contact_type = 'buyer'
-  AND c.archived = false
+LEFT JOIN public.profiles p_sender ON p_sender.id = mdl.sent_by
+LEFT JOIN public.contacts c_primary
+  ON c_primary.remarketing_buyer_id = mdl.remarketing_buyer_id
+  AND c_primary.is_primary_at_firm = true
+  AND c_primary.contact_type = 'buyer'
+  AND c_primary.archived = false
+LEFT JOIN LATERAL (
+  SELECT c2.id FROM public.contacts c2
+  WHERE c2.remarketing_buyer_id = mdl.remarketing_buyer_id
+    AND c2.contact_type = 'buyer'
+    AND c2.archived = false
+  ORDER BY c2.created_at ASC
+  LIMIT 1
+) c_any ON c_primary.id IS NULL  -- only run fallback when no primary found
 WHERE NOT EXISTS (
   -- Prevent duplicate migration if this migration runs twice
   SELECT 1 FROM public.document_release_log drl
