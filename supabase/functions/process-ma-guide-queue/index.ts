@@ -16,6 +16,7 @@ const TOTAL_PHASES = 14;
 
    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+   const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY') || supabaseServiceKey;
    const supabase = createClient(supabaseUrl, supabaseServiceKey);
  
    try {
@@ -115,7 +116,7 @@ const TOTAL_PHASES = 14;
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',
-                'apikey': supabaseServiceKey,
+                'apikey': supabaseAnonKey,
                 'Authorization': `Bearer ${supabaseServiceKey}`,
               },
               body: JSON.stringify({ query, limit }),
@@ -237,11 +238,12 @@ const TOTAL_PHASES = 14;
     // Call generate-ma-guide for this batch
      console.log(`[process-ma-guide-queue] Calling generate-ma-guide for batch ${currentBatch}`);
 
+     const anonKeyForApiHeader = Deno.env.get('SUPABASE_ANON_KEY') || supabaseServiceKey;
      const response = await fetch(`${supabaseUrl}/functions/v1/generate-ma-guide`, {
        method: 'POST',
        headers: {
          'Content-Type': 'application/json',
-         'apikey': supabaseServiceKey,
+         'apikey': anonKeyForApiHeader,
          'Authorization': `Bearer ${supabaseServiceKey}`,
        },
        body: JSON.stringify({
@@ -326,11 +328,12 @@ const TOTAL_PHASES = 14;
       console.log(`[process-ma-guide-queue] Triggering next batch (${newPhasesCompleted}/${TOTAL_PHASES} phases done)`);
       // Small delay to avoid rate limiting, then fire-and-forget
       setTimeout(() => {
+        const selfAnonKey = Deno.env.get('SUPABASE_ANON_KEY') || supabaseServiceKey;
         fetch(`${supabaseUrl}/functions/v1/process-ma-guide-queue`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'apikey': supabaseServiceKey,
+            'apikey': selfAnonKey,
             'Authorization': `Bearer ${supabaseServiceKey}`,
           },
           body: JSON.stringify({ triggered_by: generation.id, batch: newPhasesCompleted }),

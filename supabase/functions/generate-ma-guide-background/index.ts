@@ -86,11 +86,12 @@ import { getCorsHeaders, corsPreflightResponse } from "../_shared/cors.ts";
  
      // Trigger immediate processing (fire and forget)
      // This gives instant feedback while cron handles continuation
+     const anonKey = Deno.env.get('SUPABASE_ANON_KEY') || supabaseServiceKey;
      fetch(`${supabaseUrl}/functions/v1/process-ma-guide-queue`, {
        method: 'POST',
        headers: {
          'Content-Type': 'application/json',
-         'apikey': supabaseServiceKey,
+         'apikey': anonKey,
          'Authorization': `Bearer ${supabaseServiceKey}`,
        },
        body: JSON.stringify({ triggered_by: generation.id }),
