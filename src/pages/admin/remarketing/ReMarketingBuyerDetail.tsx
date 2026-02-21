@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { BuyerDealHistoryPanel } from "@/components/admin/data-room/BuyerDealHistoryPanel";
 import { ExtractionSummaryDialog } from "@/components/remarketing/buyer-detail/ExtractionSummaryDialog";
 import { BuyerNotesSection } from "@/components/remarketing/buyer-detail/BuyerNotesSection";
 import { FirefliesTranscriptSearch } from "@/components/buyers/FirefliesTranscriptSearch";
@@ -40,7 +41,8 @@ import {
   Linkedin,
   BarChart2,
   Clock,
-  FileSignature
+  FileSignature,
+  FolderOpen
 } from "lucide-react";
 import { toast } from "sonner";
 import { BuyerAgreementsPanel } from "@/components/ma-intelligence/BuyerAgreementsPanel";
@@ -695,6 +697,10 @@ const ReMarketingBuyerDetail = () => {
             <FileSignature className="mr-1.5 h-3.5 w-3.5" />
             Agreements
           </TabsTrigger>
+          <TabsTrigger value="materials" className="text-sm">
+            <FolderOpen className="mr-1.5 h-3.5 w-3.5" />
+            Materials
+          </TabsTrigger>
         </TabsList>
 
         {/* Intelligence Tab */}
@@ -983,6 +989,10 @@ const ReMarketingBuyerDetail = () => {
             hasFeeAgreement={buyer?.has_fee_agreement || false}
             feeAgreementSource={buyer?.fee_agreement_source || null}
           />
+        </TabsContent>
+
+        <TabsContent value="materials">
+          <BuyerDealHistoryPanel buyerId={id!} />
         </TabsContent>
       </Tabs>
 

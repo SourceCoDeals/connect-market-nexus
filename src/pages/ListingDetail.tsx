@@ -41,6 +41,7 @@ import { CalendarIcon, DocumentIcon, BuildingIcon } from "@/components/icons/Met
 import { SimilarListingsCarousel } from "@/components/listing-detail/SimilarListingsCarousel";
 import { EnhancedSaveButton } from "@/components/listing-detail/EnhancedSaveButton";
 import { InternalCompanyInfoDisplay } from "@/components/admin/InternalCompanyInfoDisplay";
+import { BuyerDataRoom } from "@/components/marketplace/BuyerDataRoom";
 
 import { useQueryClient } from "@tanstack/react-query";
 
@@ -353,7 +354,7 @@ const ListingDetail = () => {
 
             {/* Financial Teaser */}
             <div className="py-8 border-t border-slate-100">
-              <BlurredFinancialTeaser 
+              <BlurredFinancialTeaser
                 onRequestConnection={handleRequestConnection}
                 isRequesting={isRequesting}
                 hasConnection={connectionExists}
@@ -362,7 +363,10 @@ const ListingDetail = () => {
               />
             </div>
 
-
+            {/* Buyer Data Room - shows memos and documents if buyer has access */}
+            {!isAdmin && user && (
+              <BuyerDataRoom dealId={id!} />
+            )}
 
             {isAdmin && listing.owner_notes && (
               <div className="document-section py-8 border-t border-slate-100">

@@ -3,6 +3,9 @@ import { useAuth } from "@/context/AuthContext";
 import { Navigate, useLocation } from "react-router-dom";
 import { Loader2 } from "lucide-react";
 import { useEffect, useState } from "react";
+import { useMFAChallengeRequired } from "@/hooks/use-mfa";
+import { MFAChallenge } from "@/components/auth/MFAChallenge";
+import { supabase } from "@/integrations/supabase/client";
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -17,9 +20,11 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   requireAdmin = false,
   requireApproved = true
 }) => {
-  const { user, isLoading, authChecked } = useAuth();
+  const { user, isLoading, authChecked, logout } = useAuth();
   const location = useLocation();
   const [timedOut, setTimedOut] = useState(false);
+  const { needsChallenge, isChecking } = useMFAChallengeRequired();
+  const [mfaVerified, setMfaVerified] = useState(false);
 
   // SECURITY: Prevent infinite loading spinner if auth never resolves
   useEffect(() => {
@@ -52,6 +57,29 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   // Check approval requirement (admin users bypass this)
   if (requireApproved && user.approval_status !== 'approved' && user.is_admin !== true) {
     return <Navigate to="/pending-approval" replace />;
+  }
+
+  // MFA enforcement for admin routes
+  if (requireAdmin && !isChecking && needsChallenge && !mfaVerified) {
+    return (
+      <MFAChallenge
+        onVerified={() => setMfaVerified(true)}
+        onCancel={async () => {
+          await supabase.auth.signOut();
+          logout();
+        }}
+      />
+    );
+  }
+
+  // Show loading while checking MFA for admin routes
+  if (requireAdmin && isChecking) {
+    return (
+      <div className="flex flex-col items-center justify-center gap-4 min-h-screen">
+        <Loader2 className="h-16 w-16 text-primary animate-spin" />
+        <p className="text-muted-foreground">Verifying security...</p>
+      </div>
+    );
   }
 
   return <>{children}</>;
