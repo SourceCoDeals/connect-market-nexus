@@ -224,6 +224,53 @@ export type Database = {
         }
         Relationships: []
       }
+      agreement_audit_log: {
+        Row: {
+          agreement_type: string
+          changed_by: string | null
+          created_at: string | null
+          document_url: string | null
+          firm_id: string
+          id: string
+          metadata: Json | null
+          new_status: string
+          notes: string | null
+          old_status: string | null
+        }
+        Insert: {
+          agreement_type: string
+          changed_by?: string | null
+          created_at?: string | null
+          document_url?: string | null
+          firm_id: string
+          id?: string
+          metadata?: Json | null
+          new_status: string
+          notes?: string | null
+          old_status?: string | null
+        }
+        Update: {
+          agreement_type?: string
+          changed_by?: string | null
+          created_at?: string | null
+          document_url?: string | null
+          firm_id?: string
+          id?: string
+          metadata?: Json | null
+          new_status?: string
+          notes?: string | null
+          old_status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agreement_audit_log_firm_id_fkey"
+            columns: ["firm_id"]
+            isOneToOne: false
+            referencedRelation: "firm_agreements"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       alert_delivery_logs: {
         Row: {
           alert_id: string
@@ -4094,29 +4141,49 @@ export type Database = {
           company_name_variations: Json | null
           created_at: string
           email_domain: string | null
+          fee_agreement_custom_terms: string | null
+          fee_agreement_deal_id: string | null
+          fee_agreement_document_url: string | null
           fee_agreement_email_sent: boolean | null
           fee_agreement_email_sent_at: string | null
           fee_agreement_email_sent_by: string | null
+          fee_agreement_expires_at: string | null
+          fee_agreement_redline_document_url: string | null
+          fee_agreement_redline_notes: string | null
+          fee_agreement_scope: string | null
+          fee_agreement_sent_at: string | null
           fee_agreement_signed: boolean | null
           fee_agreement_signed_at: string | null
           fee_agreement_signed_by: string | null
           fee_agreement_signed_by_name: string | null
+          fee_agreement_source: string | null
+          fee_agreement_status: string | null
           fee_docuseal_status: string | null
           fee_docuseal_submission_id: string | null
+          fee_inherited_from_firm_id: string | null
           fee_signed_document_url: string | null
           id: string
           member_count: number | null
           metadata: Json | null
+          nda_custom_terms: string | null
+          nda_document_url: string | null
           nda_docuseal_status: string | null
           nda_docuseal_submission_id: string | null
           nda_email_sent: boolean | null
           nda_email_sent_at: string | null
           nda_email_sent_by: string | null
+          nda_expires_at: string | null
+          nda_inherited_from_firm_id: string | null
+          nda_redline_document_url: string | null
+          nda_redline_notes: string | null
+          nda_sent_at: string | null
           nda_signed: boolean | null
           nda_signed_at: string | null
           nda_signed_by: string | null
           nda_signed_by_name: string | null
           nda_signed_document_url: string | null
+          nda_source: string | null
+          nda_status: string | null
           normalized_company_name: string
           primary_company_name: string
           updated_at: string
@@ -4126,29 +4193,49 @@ export type Database = {
           company_name_variations?: Json | null
           created_at?: string
           email_domain?: string | null
+          fee_agreement_custom_terms?: string | null
+          fee_agreement_deal_id?: string | null
+          fee_agreement_document_url?: string | null
           fee_agreement_email_sent?: boolean | null
           fee_agreement_email_sent_at?: string | null
           fee_agreement_email_sent_by?: string | null
+          fee_agreement_expires_at?: string | null
+          fee_agreement_redline_document_url?: string | null
+          fee_agreement_redline_notes?: string | null
+          fee_agreement_scope?: string | null
+          fee_agreement_sent_at?: string | null
           fee_agreement_signed?: boolean | null
           fee_agreement_signed_at?: string | null
           fee_agreement_signed_by?: string | null
           fee_agreement_signed_by_name?: string | null
+          fee_agreement_source?: string | null
+          fee_agreement_status?: string | null
           fee_docuseal_status?: string | null
           fee_docuseal_submission_id?: string | null
+          fee_inherited_from_firm_id?: string | null
           fee_signed_document_url?: string | null
           id?: string
           member_count?: number | null
           metadata?: Json | null
+          nda_custom_terms?: string | null
+          nda_document_url?: string | null
           nda_docuseal_status?: string | null
           nda_docuseal_submission_id?: string | null
           nda_email_sent?: boolean | null
           nda_email_sent_at?: string | null
           nda_email_sent_by?: string | null
+          nda_expires_at?: string | null
+          nda_inherited_from_firm_id?: string | null
+          nda_redline_document_url?: string | null
+          nda_redline_notes?: string | null
+          nda_sent_at?: string | null
           nda_signed?: boolean | null
           nda_signed_at?: string | null
           nda_signed_by?: string | null
           nda_signed_by_name?: string | null
           nda_signed_document_url?: string | null
+          nda_source?: string | null
+          nda_status?: string | null
           normalized_company_name: string
           primary_company_name: string
           updated_at?: string
@@ -4158,35 +4245,140 @@ export type Database = {
           company_name_variations?: Json | null
           created_at?: string
           email_domain?: string | null
+          fee_agreement_custom_terms?: string | null
+          fee_agreement_deal_id?: string | null
+          fee_agreement_document_url?: string | null
           fee_agreement_email_sent?: boolean | null
           fee_agreement_email_sent_at?: string | null
           fee_agreement_email_sent_by?: string | null
+          fee_agreement_expires_at?: string | null
+          fee_agreement_redline_document_url?: string | null
+          fee_agreement_redline_notes?: string | null
+          fee_agreement_scope?: string | null
+          fee_agreement_sent_at?: string | null
           fee_agreement_signed?: boolean | null
           fee_agreement_signed_at?: string | null
           fee_agreement_signed_by?: string | null
           fee_agreement_signed_by_name?: string | null
+          fee_agreement_source?: string | null
+          fee_agreement_status?: string | null
           fee_docuseal_status?: string | null
           fee_docuseal_submission_id?: string | null
+          fee_inherited_from_firm_id?: string | null
           fee_signed_document_url?: string | null
           id?: string
           member_count?: number | null
           metadata?: Json | null
+          nda_custom_terms?: string | null
+          nda_document_url?: string | null
           nda_docuseal_status?: string | null
           nda_docuseal_submission_id?: string | null
           nda_email_sent?: boolean | null
           nda_email_sent_at?: string | null
           nda_email_sent_by?: string | null
+          nda_expires_at?: string | null
+          nda_inherited_from_firm_id?: string | null
+          nda_redline_document_url?: string | null
+          nda_redline_notes?: string | null
+          nda_sent_at?: string | null
           nda_signed?: boolean | null
           nda_signed_at?: string | null
           nda_signed_by?: string | null
           nda_signed_by_name?: string | null
           nda_signed_document_url?: string | null
+          nda_source?: string | null
+          nda_status?: string | null
           normalized_company_name?: string
           primary_company_name?: string
           updated_at?: string
           website_domain?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "firm_agreements_fee_agreement_deal_id_fkey"
+            columns: ["fee_agreement_deal_id"]
+            isOneToOne: false
+            referencedRelation: "linkedin_manual_review_queue"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "firm_agreements_fee_agreement_deal_id_fkey"
+            columns: ["fee_agreement_deal_id"]
+            isOneToOne: false
+            referencedRelation: "listings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "firm_agreements_fee_agreement_deal_id_fkey"
+            columns: ["fee_agreement_deal_id"]
+            isOneToOne: false
+            referencedRelation: "listings_needing_enrichment"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "firm_agreements_fee_agreement_deal_id_fkey"
+            columns: ["fee_agreement_deal_id"]
+            isOneToOne: false
+            referencedRelation: "ranked_deals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "firm_agreements_fee_agreement_deal_id_fkey"
+            columns: ["fee_agreement_deal_id"]
+            isOneToOne: false
+            referencedRelation: "unmapped_primary_owners"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "firm_agreements_fee_inherited_from_firm_id_fkey"
+            columns: ["fee_inherited_from_firm_id"]
+            isOneToOne: false
+            referencedRelation: "firm_agreements"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "firm_agreements_nda_inherited_from_firm_id_fkey"
+            columns: ["nda_inherited_from_firm_id"]
+            isOneToOne: false
+            referencedRelation: "firm_agreements"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      firm_domain_aliases: {
+        Row: {
+          created_at: string | null
+          created_by: string | null
+          domain: string
+          firm_id: string
+          id: string
+          is_primary: boolean | null
+        }
+        Insert: {
+          created_at?: string | null
+          created_by?: string | null
+          domain: string
+          firm_id: string
+          id?: string
+          is_primary?: boolean | null
+        }
+        Update: {
+          created_at?: string | null
+          created_by?: string | null
+          domain?: string
+          firm_id?: string
+          id?: string
+          is_primary?: boolean | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "firm_domain_aliases_firm_id_fkey"
+            columns: ["firm_id"]
+            isOneToOne: false
+            referencedRelation: "firm_agreements"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       firm_members: {
         Row: {
@@ -4264,6 +4456,24 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      generic_email_domains: {
+        Row: {
+          added_at: string | null
+          added_by: string | null
+          domain: string
+        }
+        Insert: {
+          added_at?: string | null
+          added_by?: string | null
+          domain: string
+        }
+        Update: {
+          added_at?: string | null
+          added_by?: string | null
+          domain?: string
+        }
+        Relationships: []
       }
       global_activity_queue: {
         Row: {
@@ -9180,6 +9390,20 @@ export type Database = {
         }
         Returns: boolean
       }
+      check_agreement_coverage: {
+        Args: { p_agreement_type?: string; p_email: string }
+        Returns: {
+          agreement_status: string
+          coverage_source: string
+          expires_at: string
+          firm_id: string
+          firm_name: string
+          is_covered: boolean
+          parent_firm_name: string
+          signed_at: string
+          signed_by_name: string
+        }[]
+      }
       check_data_room_access: {
         Args: { p_category: string; p_deal_id: string; p_user_id: string }
         Returns: boolean
@@ -9402,6 +9626,21 @@ export type Database = {
           raw_business_categories: Json
           raw_payload: Json
           raw_target_locations: Json
+        }[]
+      }
+      get_my_agreement_status: {
+        Args: never
+        Returns: {
+          fee_coverage_source: string
+          fee_covered: boolean
+          fee_firm_name: string
+          fee_parent_firm_name: string
+          fee_status: string
+          nda_coverage_source: string
+          nda_covered: boolean
+          nda_firm_name: string
+          nda_parent_firm_name: string
+          nda_status: string
         }[]
       }
       get_or_create_firm: {
@@ -9699,6 +9938,25 @@ export type Database = {
           admin_notes?: string
           is_signed: boolean
           target_user_id: string
+        }
+        Returns: boolean
+      }
+      update_firm_agreement_status: {
+        Args: {
+          p_agreement_type: string
+          p_custom_terms?: string
+          p_deal_id?: string
+          p_document_url?: string
+          p_expires_at?: string
+          p_firm_id: string
+          p_new_status: string
+          p_notes?: string
+          p_redline_document_url?: string
+          p_redline_notes?: string
+          p_scope?: string
+          p_signed_by_name?: string
+          p_signed_by_user_id?: string
+          p_source?: string
         }
         Returns: boolean
       }
