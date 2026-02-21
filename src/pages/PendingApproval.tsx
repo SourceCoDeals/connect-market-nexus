@@ -26,6 +26,8 @@ const PendingApproval = () => {
 
   // Fetch NDA embed src when buyer has a firm but hasn't signed
   useEffect(() => {
+    let cancelled = false;
+
     const fetchNdaEmbed = async () => {
       if (!user || !ndaStatus?.hasFirm || ndaStatus?.ndaSigned || !ndaStatus?.firmId) return;
       if (ndaEmbedSrc || ndaLoading) return;
@@ -45,7 +47,7 @@ const PendingApproval = () => {
       } catch (err: any) {
         setNdaError(err.message);
       } finally {
-        setNdaLoading(false);
+        if (!cancelled) setNdaLoading(false);
       }
     };
 

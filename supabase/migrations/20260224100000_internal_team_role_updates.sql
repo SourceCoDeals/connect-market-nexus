@@ -8,6 +8,10 @@
 --   3. Allow admins to assign 'moderator' role (not just owner)
 -- ============================================================================
 
+-- ─── 0. Drop functions first (return type changed, CREATE OR REPLACE won't work) ───
+DROP FUNCTION IF EXISTS public.get_all_user_roles();
+DROP FUNCTION IF EXISTS public.change_user_role(uuid, app_role, text);
+
 -- ─── 1. Update get_all_user_roles to allow admin access ───
 -- Previously: only owner could call this
 -- Now: admin and owner can see all roles (needed for Internal Team page)
@@ -140,6 +144,8 @@ $function$;
 -- ─── 3. Update RLS on user_roles to allow admin read access ───
 
 DROP POLICY IF EXISTS "Owner can manage all roles" ON public.user_roles;
+DROP POLICY IF EXISTS "Owner and admin can view all roles" ON public.user_roles;
+DROP POLICY IF EXISTS "Owner can manage roles" ON public.user_roles;
 
 CREATE POLICY "Owner and admin can view all roles"
 ON public.user_roles

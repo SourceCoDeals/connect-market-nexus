@@ -25,10 +25,14 @@ export function NdaGateModal({ userId, firmId, onSigned }: NdaGateModalProps) {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    let cancelled = false;
+
     const fetchEmbedSrc = async () => {
       try {
         // Call buyer-facing edge function (no admin required)
         const { data, error: fnError } = await supabase.functions.invoke('get-buyer-nda-embed');
+
+        if (cancelled) return;
 
         if (fnError) {
           setError('Failed to prepare NDA signing form');
@@ -42,13 +46,18 @@ export function NdaGateModal({ userId, firmId, onSigned }: NdaGateModalProps) {
           setError('NDA signing form not available. Please contact support.');
         }
       } catch (err: any) {
-        setError(err.message || 'Something went wrong');
+        if (!cancelled) {
+          setError(err.message || 'Something went wrong');
+        }
       } finally {
-        setIsLoading(false);
+        if (!cancelled) {
+          setIsLoading(false);
+        }
       }
     };
 
     fetchEmbedSrc();
+    return () => { cancelled = true; };
   }, [userId, firmId]);
 
   const handleSigned = () => {

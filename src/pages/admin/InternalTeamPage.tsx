@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { useRoleManagement } from '@/hooks/permissions/useRoleManagement';
+import { useRoleManagement, type UserRoleEntry } from '@/hooks/permissions/useRoleManagement';
 import { usePermissions, type AppRole } from '@/hooks/permissions/usePermissions';
 import { TeamMemberCard } from '@/components/admin/permissions/TeamMemberCard';
 import { PermissionAuditLog } from '@/components/admin/permissions/PermissionAuditLog';
@@ -20,7 +20,7 @@ const InternalTeamPage = () => {
   // Filter to only show internal team members (owner, admin, moderator)
   const teamMembers = useMemo(() => {
     if (!allUserRoles) return [];
-    return (allUserRoles as any[]).filter((u) =>
+    return allUserRoles.filter((u) =>
       ['owner', 'admin', 'moderator'].includes(u.role)
     );
   }, [allUserRoles]);
@@ -28,7 +28,7 @@ const InternalTeamPage = () => {
   const filteredMembers = useMemo(() => {
     if (!search.trim()) return teamMembers;
     const q = search.toLowerCase();
-    return teamMembers.filter((m: any) =>
+    return teamMembers.filter((m) =>
       (m.user_email || '').toLowerCase().includes(q) ||
       (m.user_first_name || '').toLowerCase().includes(q) ||
       (m.user_last_name || '').toLowerCase().includes(q)
@@ -134,7 +134,7 @@ const InternalTeamPage = () => {
               </div>
             ) : (
               <div className="grid gap-3">
-                {filteredMembers.map((member: any) => (
+                {filteredMembers.map((member) => (
                   <TeamMemberCard
                     key={member.user_id}
                     user={toUserShape(member)}

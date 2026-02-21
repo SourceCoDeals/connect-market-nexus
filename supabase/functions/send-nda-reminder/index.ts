@@ -23,14 +23,10 @@ serve(async (req: Request) => {
     const brevoApiKey = Deno.env.get("BREVO_API_KEY");
     if (!brevoApiKey) {
       console.error("❌ BREVO_API_KEY not configured");
-      return new Response(JSON.stringify({ error: "BREVO_API_KEY not set" }), { status: 500 });
+      return new Response(JSON.stringify({ error: "Email service not configured" }), { status: 500 });
     }
 
     const now = new Date();
-    const threeDaysAgo = new Date(now.getTime() - 3 * 24 * 60 * 60 * 1000).toISOString();
-    const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
-    const threeDaysWindow = new Date(now.getTime() - 3.5 * 24 * 60 * 60 * 1000).toISOString();
-    const sevenDaysWindow = new Date(now.getTime() - 7.5 * 24 * 60 * 60 * 1000).toISOString();
 
     console.log("🔔 Running NDA reminder check...");
 
@@ -48,7 +44,7 @@ serve(async (req: Request) => {
 
     if (queryError) {
       console.error("❌ Query error:", queryError);
-      return new Response(JSON.stringify({ error: queryError.message }), { status: 500 });
+      return new Response(JSON.stringify({ error: "Database query failed" }), { status: 500 });
     }
 
     if (!pendingFirms?.length) {
@@ -57,7 +53,6 @@ serve(async (req: Request) => {
     }
 
     let remindersSent = 0;
-    const results: any[] = [];
 
     for (const firm of pendingFirms) {
       const sentAt = new Date(firm.nda_email_sent_at);
@@ -73,7 +68,7 @@ serve(async (req: Request) => {
 
       if (!reminderType) continue;
 
-      // Check if we already sent this reminder
+      // M3: Check if we already sent this reminder (dedup)
       const { data: existingLog } = await supabase
         .from("docuseal_webhook_log")
         .select("id")
@@ -82,7 +77,6 @@ serve(async (req: Request) => {
         .maybeSingle();
 
       if (existingLog) {
-        console.log(`⏭️ Already sent ${reminderType} reminder for ${firm.primary_company_name}`);
         continue;
       }
 
@@ -100,77 +94,84 @@ serve(async (req: Request) => {
         .join(" ") || "there";
 
       if (!recipientEmail) {
-        console.log(`⚠️ No email found for firm ${firm.primary_company_name}`);
         continue;
       }
+
+      // Sanitize firm name for email content
+      const safeFirmName = (firm.primary_company_name || "your company").replace(/<[^>]*>/g, "");
+      const safeRecipientName = recipientName.replace(/<[^>]*>/g, "");
 
       // Build reminder email
       const subject =
         reminderType === "3-day"
-          ? `Reminder: NDA Pending — ${firm.primary_company_name} | SourceCo`
-          : `Action Required: NDA Still Pending — ${firm.primary_company_name} | SourceCo`;
+          ? `Reminder: NDA Pending — ${safeFirmName} | SourceCo`
+          : `Action Required: NDA Still Pending — ${safeFirmName} | SourceCo`;
 
       const htmlContent =
         reminderType === "3-day"
           ? `<div style="font-family: Arial, sans-serif; color: #333; line-height: 1.6;">
-              <p>Hi ${recipientName},</p>
-              <p>This is a friendly reminder that your NDA for <strong>${firm.primary_company_name}</strong> is still pending signature.</p>
+              <p>Hi ${safeRecipientName},</p>
+              <p>This is a friendly reminder that your NDA for <strong>${safeFirmName}</strong> is still pending signature.</p>
               <p>Please check your email for the DocuSeal signing link, or reply to this email if you have any questions.</p>
               <br>
               <p>Best regards,<br><strong>SourceCo Team</strong></p>
             </div>`
           : `<div style="font-family: Arial, sans-serif; color: #333; line-height: 1.6;">
-              <p>Hi ${recipientName},</p>
-              <p>We noticed the NDA for <strong>${firm.primary_company_name}</strong> hasn't been signed yet. It's been a week since we sent it over.</p>
+              <p>Hi ${safeRecipientName},</p>
+              <p>We noticed the NDA for <strong>${safeFirmName}</strong> hasn't been signed yet. It's been a week since we sent it over.</p>
               <p>To continue accessing deal information, please sign the NDA at your earliest convenience. If you're experiencing any issues with the signing process, please let us know.</p>
               <br>
               <p>Best regards,<br><strong>SourceCo Team</strong></p>
             </div>`;
 
       try {
-        const brevoResponse = await fetch("https://api.brevo.com/v3/smtp/email", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "api-key": brevoApiKey,
-          },
-          body: JSON.stringify({
-            sender: { name: "SourceCo", email: "noreply@sourcecodeals.com" },
-            to: [{ email: recipientEmail, name: recipientName }],
-            subject,
-            htmlContent,
-            textContent: htmlContent.replace(/<[^>]*>/g, ""),
-          }),
-        });
+        // M1: Timeout on external API call
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 10000);
+
+        let brevoResponse: Response;
+        try {
+          brevoResponse = await fetch("https://api.brevo.com/v3/smtp/email", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "api-key": brevoApiKey,
+            },
+            body: JSON.stringify({
+              sender: { name: "SourceCo", email: "noreply@sourcecodeals.com" },
+              to: [{ email: recipientEmail, name: safeRecipientName }],
+              subject,
+              htmlContent,
+              textContent: htmlContent.replace(/<[^>]*>/g, ""),
+            }),
+            signal: controller.signal,
+          });
+        } finally {
+          clearTimeout(timeout);
+        }
 
         if (brevoResponse.ok) {
           remindersSent++;
-          results.push({
-            firm: firm.primary_company_name,
-            type: reminderType,
-            email: recipientEmail,
-            success: true,
-          });
 
-          // Log the reminder
+          // Log the reminder (dedup key for future checks)
           await supabase.from("docuseal_webhook_log").insert({
             event_type: `nda_reminder_${reminderType}`,
             external_id: firm.id,
             document_type: "nda",
-            submission_id: null,
-            raw_payload: { recipient: recipientEmail, reminder_type: reminderType },
+            submission_id: "reminder",
+            raw_payload: { reminder_type: reminderType },
             processed_at: new Date().toISOString(),
           });
-
-          console.log(`✅ Sent ${reminderType} reminder to ${recipientEmail} for ${firm.primary_company_name}`);
         } else {
           const errorText = await brevoResponse.text();
-          console.error(`❌ Brevo error for ${recipientEmail}:`, errorText);
-          results.push({ firm: firm.primary_company_name, type: reminderType, success: false, error: errorText });
+          console.error(`❌ Brevo error for firm ${firm.id}:`, errorText);
         }
       } catch (emailError: any) {
-        console.error(`❌ Email error for ${recipientEmail}:`, emailError);
-        results.push({ firm: firm.primary_company_name, type: reminderType, success: false, error: emailError.message });
+        if (emailError.name === "AbortError") {
+          console.error(`❌ Brevo timeout for firm ${firm.id}`);
+        } else {
+          console.error(`❌ Email error for firm ${firm.id}:`, emailError);
+        }
       }
     }
 
@@ -181,12 +182,11 @@ serve(async (req: Request) => {
         success: true,
         totalPending: pendingFirms.length,
         remindersSent,
-        results,
       }),
       { status: 200, headers: { "Content-Type": "application/json" } }
     );
   } catch (error: any) {
     console.error("❌ Error in send-nda-reminder:", error);
-    return new Response(JSON.stringify({ error: error.message }), { status: 500 });
+    return new Response(JSON.stringify({ error: "Internal server error" }), { status: 500 });
   }
 });

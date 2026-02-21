@@ -51,12 +51,14 @@ COMMENT ON TABLE public.docuseal_webhook_log IS
 ALTER TABLE public.docuseal_webhook_log ENABLE ROW LEVEL SECURITY;
 
 -- Admin read access
+DROP POLICY IF EXISTS "Admins can view webhook logs" ON public.docuseal_webhook_log;
 CREATE POLICY "Admins can view webhook logs"
   ON public.docuseal_webhook_log
   FOR SELECT TO authenticated
   USING (public.is_admin(auth.uid()));
 
 -- Service role insert (from edge functions)
+DROP POLICY IF EXISTS "Service role can insert webhook logs" ON public.docuseal_webhook_log;
 CREATE POLICY "Service role can insert webhook logs"
   ON public.docuseal_webhook_log
   FOR INSERT TO service_role

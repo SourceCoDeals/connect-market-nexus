@@ -11,6 +11,8 @@ import { requireAdmin } from "../_shared/auth.ts";
  * 3. Creates a DocuSeal NDA submission for e-signing
  */
 
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 interface ApprovalRequest {
   connectionRequestId: string;
 }
@@ -38,9 +40,17 @@ serve(async (req: Request) => {
 
     const { connectionRequestId }: ApprovalRequest = await req.json();
 
+    // H1: Input validation
     if (!connectionRequestId) {
       return new Response(
         JSON.stringify({ error: "connectionRequestId is required" }),
+        { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
+
+    if (!UUID_REGEX.test(connectionRequestId)) {
+      return new Response(
+        JSON.stringify({ error: "Invalid connectionRequestId format" }),
         { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
       );
     }
@@ -65,7 +75,6 @@ serve(async (req: Request) => {
     console.log("📝 Processing approval for connection request:", {
       id: cr.id,
       company: cr.lead_company,
-      email: cr.lead_email,
       existingFirmId: cr.firm_id,
     });
 
@@ -76,7 +85,6 @@ serve(async (req: Request) => {
 
     // Step 1: Find or create firm
     if (!firmId) {
-      // Try to find existing firm by email domain or company name
       let existingFirm = null;
 
       if (emailDomain) {
@@ -99,9 +107,7 @@ serve(async (req: Request) => {
 
       if (existingFirm) {
         firmId = existingFirm.id;
-        console.log("✅ Found existing firm:", firmId);
       } else {
-        // Create new firm
         const { data: newFirm, error: firmError } = await supabaseAdmin
           .from("firm_agreements")
           .insert({
@@ -123,7 +129,6 @@ serve(async (req: Request) => {
         }
 
         firmId = newFirm.id;
-        console.log("✅ Created new firm:", firmId);
       }
 
       // Link firm to connection request
@@ -153,8 +158,6 @@ serve(async (req: Request) => {
 
         if (memberError) {
           console.error("⚠️ Failed to create firm member:", memberError);
-        } else {
-          console.log("✅ Created firm member for user:", cr.user_id);
         }
       }
     }
@@ -168,7 +171,7 @@ serve(async (req: Request) => {
       try {
         const submissionPayload = {
           template_id: parseInt(ndaTemplateId),
-          send_email: true, // Send via email on approval
+          send_email: true,
           submitters: [
             {
               role: "First Party",
@@ -179,14 +182,24 @@ serve(async (req: Request) => {
           ],
         };
 
-        const docusealResponse = await fetch("https://api.docuseal.com/submissions", {
-          method: "POST",
-          headers: {
-            "X-Auth-Token": docusealApiKey,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(submissionPayload),
-        });
+        // M1: Timeout on external API call
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 15000);
+
+        let docusealResponse: Response;
+        try {
+          docusealResponse = await fetch("https://api.docuseal.com/submissions", {
+            method: "POST",
+            headers: {
+              "X-Auth-Token": docusealApiKey,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify(submissionPayload),
+            signal: controller.signal,
+          });
+        } finally {
+          clearTimeout(timeout);
+        }
 
         if (docusealResponse.ok) {
           const result = await docusealResponse.json();
@@ -195,7 +208,6 @@ serve(async (req: Request) => {
 
           ndaSubmission = { submissionId, slug: submitter.slug };
 
-          // Update firm with NDA submission
           await supabaseAdmin
             .from("firm_agreements")
             .update({
@@ -207,7 +219,6 @@ serve(async (req: Request) => {
             })
             .eq("id", firmId);
 
-          // Also update legacy fields on connection request
           await supabaseAdmin
             .from("connection_requests")
             .update({
@@ -218,7 +229,6 @@ serve(async (req: Request) => {
             })
             .eq("id", connectionRequestId);
 
-          // Log it
           await supabaseAdmin.from("docuseal_webhook_log").insert({
             event_type: "nda_auto_created_on_approval",
             submission_id: submissionId,
@@ -226,14 +236,16 @@ serve(async (req: Request) => {
             external_id: firmId,
             raw_payload: { connection_request_id: connectionRequestId, created_by: auth.userId },
           });
-
-          console.log("✅ DocuSeal NDA submission created:", submissionId);
         } else {
           const errorText = await docusealResponse.text();
           console.error("❌ DocuSeal NDA creation failed:", errorText);
         }
-      } catch (docuError) {
-        console.error("⚠️ DocuSeal NDA creation error:", docuError);
+      } catch (docuError: any) {
+        if (docuError.name === "AbortError") {
+          console.error("⚠️ DocuSeal NDA creation timed out");
+        } else {
+          console.error("⚠️ DocuSeal NDA creation error:", docuError);
+        }
       }
     } else {
       console.log("ℹ️ Skipping DocuSeal NDA — missing API key, template, or email");
@@ -251,7 +263,7 @@ serve(async (req: Request) => {
   } catch (error: any) {
     console.error("❌ Error in auto-create-firm-on-approval:", error);
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ error: "Internal server error" }),
       { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } }
     );
   }

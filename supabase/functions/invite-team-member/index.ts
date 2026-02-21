@@ -15,6 +15,8 @@ import { requireAdmin } from "../_shared/auth.ts";
  * Requires admin authentication.
  */
 
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 interface InviteRequest {
   email: string;
   first_name: string;
@@ -49,9 +51,17 @@ const handler = async (req: Request): Promise<Response> => {
     const body: InviteRequest = await req.json();
     const { email, first_name, last_name, role } = body;
 
+    // H1/H9: Input validation
     if (!email) {
       return new Response(
         JSON.stringify({ error: "Email is required" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    if (!EMAIL_REGEX.test(email)) {
+      return new Response(
+        JSON.stringify({ error: "Invalid email format" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -75,7 +85,7 @@ const handler = async (req: Request): Promise<Response> => {
 
     if (existingUser) {
       userId = existingUser.id;
-      console.log(`[invite-team-member] User ${normalizedEmail} already exists (${userId}), updating role`);
+      console.log(`[invite-team-member] User already exists (${userId}), updating role`);
     } else {
       // Create auth user with invite (sends magic link email)
       const { data: newUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
@@ -91,16 +101,16 @@ const handler = async (req: Request): Promise<Response> => {
       if (createError) {
         console.error("[invite-team-member] Failed to create auth user:", createError);
         return new Response(
-          JSON.stringify({ error: createError.message }),
+          JSON.stringify({ error: "Failed to create user account" }),
           { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
 
       userId = newUser.user.id;
-      console.log(`[invite-team-member] Created auth user ${normalizedEmail} (${userId})`);
+      console.log(`[invite-team-member] Created auth user (${userId})`);
     }
 
-    // Ensure profile exists with is_admin=true
+    // H4: Ensure profile exists with is_admin=true
     const { data: existingProfile } = await supabaseAdmin
       .from("profiles")
       .select("id")
@@ -108,7 +118,7 @@ const handler = async (req: Request): Promise<Response> => {
       .maybeSingle();
 
     if (existingProfile) {
-      await supabaseAdmin
+      const { error: profileUpdateError } = await supabaseAdmin
         .from("profiles")
         .update({
           is_admin: true,
@@ -119,8 +129,12 @@ const handler = async (req: Request): Promise<Response> => {
           updated_at: new Date().toISOString(),
         })
         .eq("id", userId);
+
+      if (profileUpdateError) {
+        console.error("[invite-team-member] Profile update failed:", profileUpdateError);
+      }
     } else {
-      await supabaseAdmin.from("profiles").insert({
+      const { error: profileInsertError } = await supabaseAdmin.from("profiles").insert({
         id: userId,
         email: normalizedEmail,
         first_name: first_name || "",
@@ -129,10 +143,13 @@ const handler = async (req: Request): Promise<Response> => {
         approval_status: "approved",
         email_verified: true,
       });
+
+      if (profileInsertError) {
+        console.error("[invite-team-member] Profile insert failed:", profileInsertError);
+      }
     }
 
-    // Assign role in user_roles table
-    // Delete existing role first
+    // H4: Assign role — delete then insert with fallback on failure
     await supabaseAdmin
       .from("user_roles")
       .delete()
@@ -147,6 +164,13 @@ const handler = async (req: Request): Promise<Response> => {
 
     if (roleError) {
       console.error("[invite-team-member] Failed to assign role:", roleError);
+      // Attempt to restore a default role to avoid leaving user in limbo
+      await supabaseAdmin.from("user_roles").insert({
+        user_id: userId,
+        role: "user",
+        granted_by: auth.userId,
+        reason: "Fallback role after invite failure",
+      });
     }
 
     // Log to audit
@@ -170,7 +194,6 @@ const handler = async (req: Request): Promise<Response> => {
 
       if (magicLinkError) {
         console.error("[invite-team-member] Magic link error:", magicLinkError);
-        // Non-fatal - user can still use forgot password flow
       }
     }
 
@@ -188,7 +211,7 @@ const handler = async (req: Request): Promise<Response> => {
   } catch (error: any) {
     console.error("[invite-team-member] Error:", error);
     return new Response(
-      JSON.stringify({ error: error.message || "Internal server error" }),
+      JSON.stringify({ error: "Internal server error" }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }

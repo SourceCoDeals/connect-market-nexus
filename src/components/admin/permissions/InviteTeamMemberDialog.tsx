@@ -31,8 +31,10 @@ export function InviteTeamMemberDialog({ open, onOpenChange }: InviteTeamMemberD
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
+  const isValidEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
+
   const handleSubmit = async () => {
-    if (!email.trim()) return;
+    if (!isValidEmail) return;
 
     setIsSubmitting(true);
     try {
@@ -177,7 +179,7 @@ export function InviteTeamMemberDialog({ open, onOpenChange }: InviteTeamMemberD
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button onClick={handleSubmit} disabled={!email.trim() || isSubmitting}>
+          <Button onClick={handleSubmit} disabled={!isValidEmail || isSubmitting}>
             {isSubmitting ? (
               <>
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />

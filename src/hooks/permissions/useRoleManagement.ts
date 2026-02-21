@@ -9,6 +9,16 @@ interface ChangeRoleParams {
   reason?: string;
 }
 
+export interface UserRoleEntry {
+  user_id: string;
+  user_email: string;
+  user_first_name: string | null;
+  user_last_name: string | null;
+  role: AppRole;
+  granted_at: string | null;
+  granted_by: string | null;
+}
+
 interface AuditLogEntry {
   id: string;
   target_user_id: string;
@@ -79,7 +89,7 @@ export const useRoleManagement = () => {
       const { data, error } = await supabase.rpc('get_all_user_roles');
 
       if (error) throw error;
-      return data;
+      return data as UserRoleEntry[];
     },
     staleTime: 1000 * 60 * 5, // 5 minutes
   });
