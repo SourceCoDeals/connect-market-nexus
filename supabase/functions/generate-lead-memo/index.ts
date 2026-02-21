@@ -92,11 +92,12 @@ Deno.serve(async (req: Request) => {
       });
     }
 
-    // Fetch transcripts
+    // Fetch transcripts (deal_transcripts schema: no 'summary' column)
     const { data: transcripts } = await supabaseAdmin
       .from("deal_transcripts")
-      .select("transcript_text, summary, extracted_data, call_date")
+      .select("transcript_text, extracted_data, call_date, title, extraction_status")
       .eq("listing_id", deal_id)
+      .not("extraction_status", "eq", "failed")
       .order("call_date", { ascending: false })
       .limit(5);
 
@@ -222,19 +223,25 @@ function buildDataContext(deal: any, transcripts: any[], valuationData: any): Da
     transcriptExcerpts = transcripts
       .map((t, i) => {
         const parts = [];
-        if (t.summary) parts.push(`Summary: ${t.summary}`);
-        if (t.extracted_data) parts.push(`Extracted: ${JSON.stringify(t.extracted_data)}`);
+        if (t.title) parts.push(`Title: ${t.title}`);
+        if (t.extracted_data) parts.push(`Extracted Insights: ${JSON.stringify(t.extracted_data)}`);
         if (t.transcript_text) {
-          // Take first 3000 chars of transcript
-          parts.push(`Transcript: ${t.transcript_text.substring(0, 3000)}`);
+          // Take first 4000 chars per transcript for better context
+          parts.push(`Transcript: ${t.transcript_text.substring(0, 4000)}`);
         }
         return `--- Call ${i + 1} (${t.call_date || "unknown date"}) ---\n${parts.join("\n")}`;
       })
       .join("\n\n");
   }
 
+  // General Notes (separate data source — broker notes, call summaries, etc.)
+  let notesExcerpt = "";
+  if (deal.internal_notes && deal.internal_notes.trim()) {
+    sources.push("general_notes");
+    notesExcerpt = deal.internal_notes;
+  }
+
   // Enrichment data (website scrape + LinkedIn)
-  sources.push("enrichment");
   const enrichmentFields = [
     "description", "executive_summary", "services", "service_mix",
     "geographic_states", "address_city", "address_state",
@@ -247,13 +254,14 @@ function buildDataContext(deal: any, transcripts: any[], valuationData: any): Da
     .filter(f => deal[f] != null && deal[f] !== "")
     .map(f => `${f}: ${JSON.stringify(deal[f])}`)
     .join("\n");
+  if (enrichmentData) sources.push("enrichment");
 
-  // Manual data entries
+  // Manual data entries (structured fields entered by admin)
   const manualFields = [
     "internal_company_name", "title", "website", "main_contact_name",
     "main_contact_email", "main_contact_phone", "main_contact_title",
     "owner_response", "seller_motivation", "owner_goals",
-    "transition_preferences", "internal_notes",
+    "transition_preferences",
     "revenue_breakdown", "asking_price", "valuation_multiple",
   ];
   const manualEntries = manualFields
@@ -280,7 +288,7 @@ function buildDataContext(deal: any, transcripts: any[], valuationData: any): Da
     deal,
     transcriptExcerpts,
     enrichmentData,
-    manualEntries,
+    manualEntries: manualEntries + (notesExcerpt ? `\n\n--- GENERAL NOTES ---\n${notesExcerpt}` : ""),
     valuationData: valuationStr,
     sources,
   };
@@ -342,11 +350,14 @@ ${context.transcriptExcerpts || "No transcripts available"}
 --- ENRICHMENT DATA (website scrape + LinkedIn) ---
 ${context.enrichmentData || "No enrichment data available"}
 
---- MANUAL DATA ENTRIES ---
-${context.manualEntries || "No manual entries"}
+--- MANUAL DATA ENTRIES & GENERAL NOTES ---
+${context.manualEntries || "No manual entries or notes"}
 
 --- VALUATION CALCULATOR DATA ---
 ${context.valuationData || "No valuation data"}
+
+DATA SOURCE PRIORITY: Transcripts > General Notes > Enrichment/Website > Manual entries.
+When sources conflict, prefer higher-priority sources. Synthesize all available data into a cohesive narrative.
 
 Generate the memo now. Return ONLY the JSON object with "sections" array.`;
 
