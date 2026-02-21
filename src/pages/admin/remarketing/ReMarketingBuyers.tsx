@@ -582,8 +582,22 @@ const ReMarketingBuyers = () => {
         <Card>
           <CardContent className="p-3 flex items-center gap-3">
             <span className="text-sm font-medium">{selectedIds.size} selected</span>
-            <Button size="sm" variant="outline" onClick={() => toast.info('Bulk enrich coming soon')}>
-              <Sparkles className="h-3.5 w-3.5 mr-1.5" /> Enrich Selected
+            <Button size="sm" variant="outline" disabled={enrichingIds.size > 0} onClick={async () => {
+              const ids = Array.from(selectedIds);
+              if (ids.length === 0) return;
+              setEnrichingIds(new Set(ids));
+              try {
+                const { queueBuyerEnrichment } = await import("@/lib/remarketing/queueEnrichment");
+                await queueBuyerEnrichment(ids);
+                queryClient.invalidateQueries({ queryKey: ['remarketing', 'buyers'] });
+              } catch (err) {
+                console.error('Bulk enrich failed:', err);
+                toast.error('Failed to queue enrichment');
+              } finally {
+                setEnrichingIds(new Set());
+              }
+            }}>
+              <Sparkles className="h-3.5 w-3.5 mr-1.5" /> {enrichingIds.size > 0 ? 'Enriching…' : 'Enrich Selected'}
             </Button>
             <Button size="sm" variant="outline" onClick={handleExportCSV}>
               <Download className="h-3.5 w-3.5 mr-1.5" /> Export CSV
