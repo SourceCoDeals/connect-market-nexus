@@ -198,7 +198,7 @@ const ReMarketingDeals = () => {
             google_review_count,
             google_rating,
             is_priority_target,
-            needs_buyer_universe,
+            need_buyer_universe,
             deal_total_score,
             seller_interest_score,
             manual_rank_override,
@@ -460,7 +460,7 @@ const ReMarketingDeals = () => {
     if (!engineFiltered) return [];
     return engineFiltered.filter(listing => {
       if (universeFilter === "needs_build") {
-        if (!listing.needs_buyer_universe) return false;
+        if (!listing.need_buyer_universe) return false;
       } else if (universeFilter !== "all") {
         const stats = scoreStats?.[listing.id];
         if (!stats || !stats.universeIds.has(universeFilter)) return false;
