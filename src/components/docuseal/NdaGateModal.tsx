@@ -36,7 +36,7 @@ export function NdaGateModal({ userId, firmId, onSigned }: NdaGateModalProps) {
 
         if (fnError) {
           setError('Failed to prepare NDA signing form');
-          console.error('DocuSeal submission error:', fnError);
+          console.error('DocuSeal submission error');
         } else if (data?.ndaSigned) {
           // Already signed, dismiss gate
           onSigned?.();
@@ -67,7 +67,7 @@ export function NdaGateModal({ userId, firmId, onSigned }: NdaGateModalProps) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-background/95 backdrop-blur-sm overflow-y-auto">
+    <div className="fixed inset-0 z-50 bg-background/95 backdrop-blur-sm overflow-y-auto" role="dialog" aria-modal="true" aria-labelledby="nda-gate-title">
       <div className="min-h-screen flex flex-col items-center justify-center p-4">
         <div className="w-full max-w-2xl space-y-6">
           {/* Header */}
@@ -75,7 +75,7 @@ export function NdaGateModal({ userId, firmId, onSigned }: NdaGateModalProps) {
             <div className="inline-flex p-3 rounded-full bg-primary/10">
               <Shield className="h-8 w-8 text-primary" />
             </div>
-            <h2 className="text-2xl font-bold">NDA Required</h2>
+            <h2 id="nda-gate-title" className="text-2xl font-bold">NDA Required</h2>
             <p className="text-muted-foreground max-w-md mx-auto">
               To view deal details, you need to sign a Non-Disclosure Agreement.
               This protects the confidential information of our deal partners.

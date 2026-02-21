@@ -41,6 +41,7 @@ export function useCreateDocuSealSubmission() {
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['firm-agreements'] });
+      queryClient.invalidateQueries({ queryKey: ['buyer-nda-status'] });
       const docType = variables.documentType === 'nda' ? 'NDA' : 'Fee Agreement';
       const method = variables.sendEmail ? 'sent via email' : 'ready for signing';
       toast({
@@ -114,7 +115,7 @@ export function useBuyerNdaStatus(userId: string | undefined) {
         .from('firm_agreements')
         .select('id, nda_signed, nda_docuseal_status, nda_docuseal_submission_id')
         .eq('id', membership.firm_id)
-        .single();
+        .maybeSingle();
 
       if (!firm) {
         return { hasFirm: false, ndaSigned: false, embedSrc: null, firmId: null };

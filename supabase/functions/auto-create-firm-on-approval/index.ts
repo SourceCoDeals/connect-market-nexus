@@ -72,6 +72,14 @@ serve(async (req: Request) => {
       );
     }
 
+    // Prevent duplicate processing of already-approved requests
+    if (cr.status !== "pending") {
+      return new Response(
+        JSON.stringify({ error: `Cannot approve: request is already ${cr.status}` }),
+        { status: 409, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
+
     console.log("📝 Processing approval for connection request:", {
       id: cr.id,
       company: cr.lead_company,

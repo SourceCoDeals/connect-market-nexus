@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -41,19 +41,31 @@ export function SendAgreementDialog({
   const [flow, setFlow] = useState<'embedded' | 'email'>('email');
   const createSubmission = useCreateDocuSealSubmission();
 
+  // Sync email state when dialog opens or buyer changes
+  useEffect(() => {
+    if (open) {
+      setEmail(buyerEmail);
+      setFlow('email');
+    }
+  }, [open, buyerEmail]);
+
   const docLabel = documentType === 'nda' ? 'NDA' : 'Fee Agreement';
   const isValidEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 
   const handleSend = async () => {
     if (!isValidEmail) return;
-    await createSubmission.mutateAsync({
-      firmId,
-      documentType,
-      buyerEmail: email,
-      buyerName,
-      sendEmail: flow === 'email',
-    });
-    onOpenChange(false);
+    try {
+      await createSubmission.mutateAsync({
+        firmId,
+        documentType,
+        buyerEmail: email,
+        buyerName,
+        sendEmail: flow === 'email',
+      });
+      onOpenChange(false);
+    } catch {
+      // Error toast shown by mutation's onError handler; dialog stays open for retry
+    }
   };
 
   return (

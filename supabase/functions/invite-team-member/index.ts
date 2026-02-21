@@ -149,28 +149,21 @@ const handler = async (req: Request): Promise<Response> => {
       }
     }
 
-    // H4: Assign role — delete then insert with fallback on failure
-    await supabaseAdmin
+    // Assign role — use upsert to avoid DELETE+INSERT race condition
+    const { error: roleError } = await supabaseAdmin
       .from("user_roles")
-      .delete()
-      .eq("user_id", userId);
-
-    const { error: roleError } = await supabaseAdmin.from("user_roles").insert({
-      user_id: userId,
-      role: role,
-      granted_by: auth.userId,
-      reason: `Invited as ${role === "admin" ? "Admin" : "Team Member"}`,
-    });
+      .upsert(
+        {
+          user_id: userId,
+          role: role,
+          granted_by: auth.userId,
+          reason: `Invited as ${role === "admin" ? "Admin" : "Team Member"}`,
+        },
+        { onConflict: "user_id" }
+      );
 
     if (roleError) {
       console.error("[invite-team-member] Failed to assign role:", roleError);
-      // Attempt to restore a default role to avoid leaving user in limbo
-      await supabaseAdmin.from("user_roles").insert({
-        user_id: userId,
-        role: "user",
-        granted_by: auth.userId,
-        reason: "Fallback role after invite failure",
-      });
     }
 
     // Log to audit

@@ -42,6 +42,7 @@ export const RoleSelector = ({ userId, currentRole, userEmail, disabled }: RoleS
   const { updateUserRole, isUpdating } = useRoleManagement();
 
   const handleRoleChange = (newRole: string) => {
+    if (newRole === currentRole) return;
     setSelectedRole(newRole as AppRole);
     setIsConfirmOpen(true);
   };

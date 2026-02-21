@@ -45,7 +45,7 @@ const roleConfig: Record<AppRole, {
 };
 
 export const RoleBadge = ({ role, showTooltip = true }: RoleBadgeProps) => {
-  const config = roleConfig[role];
+  const config = roleConfig[role] || roleConfig.user;
   const Icon = config.icon;
 
   const badge = (

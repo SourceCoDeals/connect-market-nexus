@@ -10,9 +10,17 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.47.10";
  */
 
 serve(async (req: Request) => {
-  // This is a cron job — no CORS, no auth needed (called by pg_cron)
+  // This is a cron job — verify shared secret to prevent unauthorized invocation
   if (req.method === "OPTIONS") {
     return new Response("ok", { status: 200 });
+  }
+
+  const cronSecret = Deno.env.get("CRON_SECRET");
+  if (cronSecret) {
+    const authHeader = req.headers.get("Authorization");
+    if (authHeader !== `Bearer ${cronSecret}`) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401 });
+    }
   }
 
   try {
