@@ -106,7 +106,7 @@ export function useEnrichmentProgress() {
       const totalActive = counts.pending + counts.processing;
       const isPaused = counts.paused > 0 && totalActive === 0;
       const totalCount = totalActive + counts.completed + counts.failed + counts.paused;
-      const isEnriching = counts.processing > 0 || (counts.pending > 0 && counts.completed > 0);
+      const isEnriching = counts.processing > 0 || counts.pending > 0;
       const successfulCount = counts.completed;
 
       // Track timing for rate calculation
