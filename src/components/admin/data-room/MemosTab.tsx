@@ -12,6 +12,7 @@
 import { useState, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import {
   FileText, Upload, Sparkles, Download, Trash2, RefreshCw,
@@ -133,6 +134,7 @@ function MemoSlotCard({
   const generateMemo = useGenerateMemo();
 
   const [isGenerating, setIsGenerating] = useState(false);
+  const [generateProgress, setGenerateProgress] = useState(0);
   const [isDownloadingDocx, setIsDownloadingDocx] = useState(false);
   const [confirmRemove, setConfirmRemove] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
@@ -189,15 +191,29 @@ function MemoSlotCard({
 
   const handleGenerateDraft = async () => {
     setIsGenerating(true);
+    setGenerateProgress(0);
+    // Simulate progress steps while AI generates
+    const progressInterval = setInterval(() => {
+      setGenerateProgress(prev => {
+        if (prev >= 90) return prev; // Cap at 90 until actually done
+        // Slow down as it approaches 90
+        const increment = prev < 30 ? 8 : prev < 60 ? 4 : 2;
+        return Math.min(prev + increment, 90);
+      });
+    }, 800);
     try {
       await generateMemo.mutateAsync({
         deal_id: dealId,
         memo_type: slotType,
         branding: 'sourceco',
       });
-      // Draft is now saved in lead_memos — the query will refetch automatically
+      setGenerateProgress(100);
+      // Brief pause to show 100%
+      await new Promise(r => setTimeout(r, 500));
     } finally {
+      clearInterval(progressInterval);
       setIsGenerating(false);
+      setGenerateProgress(0);
     }
   };
 
@@ -254,7 +270,29 @@ function MemoSlotCard({
           {/* ─── AI Draft Section ─── */}
           <div className="space-y-2">
             <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">AI Draft</p>
-            {hasDraft ? (
+            {isGenerating ? (
+              <div className="space-y-3 p-4 rounded-lg border bg-blue-50/30 dark:bg-blue-950/10">
+                <div className="flex items-center gap-3">
+                  <Loader2 className="h-5 w-5 text-blue-600 animate-spin flex-shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium">
+                      {hasDraft ? 'Regenerating' : 'Generating'} {slotType === 'anonymous_teaser' ? 'Anonymous Teaser' : 'Full Lead Memo'}…
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      {generateProgress < 30
+                        ? 'Analyzing deal data and transcripts…'
+                        : generateProgress < 60
+                        ? 'Drafting memo sections…'
+                        : generateProgress < 90
+                        ? 'Finalizing content…'
+                        : 'Almost done…'}
+                    </p>
+                  </div>
+                  <span className="text-xs font-medium text-blue-700">{generateProgress}%</span>
+                </div>
+                <Progress value={generateProgress} className="h-2" />
+              </div>
+            ) : hasDraft ? (
               <div className="space-y-2">
                 <div className="flex items-start gap-3 p-3 rounded-lg border bg-blue-50/50 dark:bg-blue-950/20">
                   <div className="h-9 w-9 rounded bg-blue-100 flex items-center justify-center flex-shrink-0">
