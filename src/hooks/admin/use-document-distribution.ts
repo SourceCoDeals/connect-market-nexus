@@ -493,6 +493,16 @@ export function useUploadDealDocument() {
 
       if (uploadError) throw uploadError;
 
+      // For teasers and full memos, mark previous versions as not current
+      if (documentType === 'anonymous_teaser' || documentType === 'full_detail_memo') {
+        await supabase
+          .from('deal_documents')
+          .update({ is_current: false, updated_at: new Date().toISOString() })
+          .eq('deal_id', dealId)
+          .eq('document_type', documentType)
+          .eq('is_current', true);
+      }
+
       // Insert document record
       const { data, error } = await supabase
         .from('deal_documents')
@@ -504,6 +514,7 @@ export function useUploadDealDocument() {
           file_path: filePath,
           file_size_bytes: file.size,
           mime_type: file.type || 'application/octet-stream',
+          is_current: true,
         })
         .select()
         .single();

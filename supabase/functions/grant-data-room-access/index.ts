@@ -119,7 +119,7 @@ Deno.serve(async (req: Request) => {
     // Check if an access record already exists for this deal + buyer_email
     const { data: existingAccess } = await supabaseAdmin
       .from("deal_data_room_access")
-      .select("id, access_token")
+      .select("id, access_token, granted_document_ids")
       .eq("deal_id", deal_id)
       .eq("buyer_email", buyer_email)
       .maybeSingle();
@@ -127,14 +127,26 @@ Deno.serve(async (req: Request) => {
     let accessRecord;
 
     if (existingAccess) {
+      // Generate new access_token on re-grant so old/revoked URLs no longer work
+      const newAccessToken = crypto.randomUUID().replaceAll("-", "");
+
+      // Merge document grants: if both old and new are specific lists, union them.
+      // If either is null (= all docs), keep null (= all docs).
+      let mergedDocumentIds: string[] | null = document_ids || null;
+      if (document_ids && document_ids.length > 0 && existingAccess.granted_document_ids && existingAccess.granted_document_ids.length > 0) {
+        const merged = new Set([...existingAccess.granted_document_ids, ...document_ids]);
+        mergedDocumentIds = [...merged];
+      }
+
       // Update existing record
       const { data: updated, error: updateError } = await supabaseAdmin
         .from("deal_data_room_access")
         .update({
+          access_token: newAccessToken,
           buyer_name,
           buyer_firm: buyer_firm || null,
           buyer_id: buyer_id || null,
-          granted_document_ids: document_ids || null,
+          granted_document_ids: mergedDocumentIds,
           granted_by: auth.userId,
           granted_at: new Date().toISOString(),
           is_active: true,
@@ -277,6 +289,7 @@ Deno.serve(async (req: Request) => {
       access_id: accessRecord.id,
       email_sent: emailResult.success,
       documents_granted: documentsToLog.length,
+      re_grant: !!existingAccess,
     };
 
     if (warning) {

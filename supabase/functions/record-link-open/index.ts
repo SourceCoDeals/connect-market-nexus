@@ -32,7 +32,7 @@ Deno.serve(async (req: Request) => {
     });
   }
 
-  if (req.method !== "GET") {
+  if (req.method !== "GET" && req.method !== "POST") {
     return new Response(JSON.stringify({ error: "Method not allowed" }), {
       status: 405,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -44,18 +44,32 @@ Deno.serve(async (req: Request) => {
   const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey);
 
   try {
-    // ── Extract link_token from URL path ──
-    // Supabase edge functions receive the path after the function name,
-    // e.g. /record-link-open/view/<token> or just /record-link-open/<token>
-    const url = new URL(req.url);
-    const pathSegments = url.pathname.split("/").filter(Boolean);
+    // ── Extract link_token from URL path (GET) or body (POST) ──
+    let linkToken: string | null = null;
 
-    // The link_token is the last path segment (handles both /view/:token and /:token)
-    const linkToken = pathSegments[pathSegments.length - 1];
+    if (req.method === "POST") {
+      try {
+        const body = await req.json();
+        linkToken = body.link_token || null;
+      } catch {
+        // Fall through to path extraction
+      }
+    }
 
-    if (!linkToken || linkToken === "record-link-open") {
+    if (!linkToken) {
+      // Supabase edge functions receive the path after the function name,
+      // e.g. /record-link-open/view/<token> or just /record-link-open/<token>
+      const url = new URL(req.url);
+      const pathSegments = url.pathname.split("/").filter(Boolean);
+      const lastSegment = pathSegments[pathSegments.length - 1];
+      if (lastSegment && lastSegment !== "record-link-open") {
+        linkToken = lastSegment;
+      }
+    }
+
+    if (!linkToken) {
       return new Response(
-        JSON.stringify({ error: "link_token is required in the URL path" }),
+        JSON.stringify({ error: "link_token is required" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }

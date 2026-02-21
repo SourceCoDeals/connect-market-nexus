@@ -123,6 +123,21 @@ Deno.serve(async (req: Request) => {
             { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
           );
         }
+        // Also verify the document is still active (not deleted/archived)
+        const { data: docActive, error: docActiveError } = await supabaseAdmin
+          .from("deal_documents")
+          .select("id")
+          .eq("id", documentId)
+          .eq("deal_id", accessRecord.deal_id)
+          .eq("status", "active")
+          .single();
+
+        if (docActiveError || !docActive) {
+          return new Response(
+            JSON.stringify({ error: "Access denied to this document" }),
+            { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
       } else {
         // No specific document_ids means all data_room_files for this deal are granted
         // Validate the document belongs to this deal and is a data_room_file
