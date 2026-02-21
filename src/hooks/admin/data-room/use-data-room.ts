@@ -316,11 +316,6 @@ export function useBulkUpdateAccess() {
 export function useDocumentUrl() {
   return useMutation({
     mutationFn: async ({ documentId, action = 'view' }: { documentId: string; action?: 'view' | 'download' }) => {
-      const response = await supabase.functions.invoke('data-room-download', {
-        body: {},
-        method: 'GET',
-      });
-
       // Use fetch directly since Supabase functions.invoke doesn't support GET with params well
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) throw new Error('Not authenticated');
