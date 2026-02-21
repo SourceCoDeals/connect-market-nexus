@@ -132,9 +132,8 @@ export default function EnrichmentQueue() {
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState("deals");
 
-  const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-
   const fetchStatsForTable = useCallback(async (table: 'enrichment_queue' | 'buyer_enrichment_queue' | 'remarketing_scoring_queue'): Promise<QueueStats> => {
+    const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
     const q = (status: string) => supabase.from(table).select('*', { count: 'exact', head: true }).eq('status', status).gte('queued_at', cutoff);
     const [p, pr, c, f] = await Promise.all([q('pending'), q('processing'), q('completed'), q('failed')]);
     return {
@@ -144,10 +143,11 @@ export default function EnrichmentQueue() {
       failed: f.count ?? 0,
       total: (p.count ?? 0) + (pr.count ?? 0) + (c.count ?? 0) + (f.count ?? 0),
     };
-  }, [cutoff]);
+  }, []);
 
   const fetchAll = useCallback(async () => {
     setLoading(true);
+    const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
     try {
       const [ds, bs, ss] = await Promise.all([
         fetchStatsForTable("enrichment_queue"),
@@ -190,7 +190,7 @@ export default function EnrichmentQueue() {
     } finally {
       setLoading(false);
     }
-  }, [fetchStatsForTable, cutoff]);
+  }, [fetchStatsForTable]);
 
   useEffect(() => {
     fetchAll();

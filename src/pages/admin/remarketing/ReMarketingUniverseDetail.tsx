@@ -67,6 +67,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { useBuyerEnrichment } from "@/hooks/useBuyerEnrichment";
 import { useBuyerEnrichmentQueue } from "@/hooks/useBuyerEnrichmentQueue";
 import { useDealEnrichment } from "@/hooks/useDealEnrichment";
+import { useEnrichmentProgress } from "@/hooks/useEnrichmentProgress";
 import { useAlignmentScoring } from "@/hooks/useAlignmentScoring";
 
 const ReMarketingUniverseDetail = () => {
@@ -136,13 +137,21 @@ const ReMarketingUniverseDetail = () => {
     reset: resetQueueEnrichment,
   } = useBuyerEnrichmentQueue(id);
 
-  // Use the deal enrichment hook for proper batch processing with progress tracking
+  // Use the deal enrichment hook for queuing deals
   const { 
     progress: dealEnrichmentProgress, 
     enrichDeals, 
     cancel: cancelDealEnrichment, 
     reset: resetDealEnrichment 
   } = useDealEnrichment(id);
+
+  // Use the queue-based deal enrichment progress for real-time tracking
+  const {
+    progress: dealQueueProgress,
+    cancelEnrichment: cancelDealQueueEnrichment,
+    pauseEnrichment: pauseDealEnrichment,
+    resumeEnrichment: resumeDealEnrichment,
+  } = useEnrichmentProgress();
 
   // Use the alignment scoring hook
   const {
@@ -957,17 +966,22 @@ const ReMarketingUniverseDetail = () => {
               </TabsContent>
 
               <TabsContent value="deals">
-                {/* Deal Enrichment Progress Bar */}
-                {dealEnrichmentProgress.isRunning && (
+                {/* Deal Enrichment Progress Bar — uses queue-based tracking for real-time updates */}
+                {(dealQueueProgress.isEnriching || dealQueueProgress.isPaused) && (
                   <div className="mb-4">
                     <EnrichmentProgressIndicator
-                      completedCount={dealEnrichmentProgress.current}
-                      totalCount={dealEnrichmentProgress.total}
-                      progress={dealEnrichmentProgress.total > 0 ? (dealEnrichmentProgress.current / dealEnrichmentProgress.total) * 100 : 0}
-                      estimatedTimeRemaining={dealEnrichmentProgress.total > 0 
-                        ? `~${Math.ceil((dealEnrichmentProgress.total - dealEnrichmentProgress.current) * 2 / 60)} min` 
-                        : undefined}
-                      processingRate={dealEnrichmentProgress.current > 0 ? 30 : 0}
+                      completedCount={dealQueueProgress.completedCount}
+                      totalCount={dealQueueProgress.totalCount}
+                      progress={dealQueueProgress.progress}
+                      estimatedTimeRemaining={dealQueueProgress.estimatedTimeRemaining}
+                      processingRate={dealQueueProgress.processingRate}
+                      itemLabel="deals"
+                      successfulCount={dealQueueProgress.successfulCount}
+                      failedCount={dealQueueProgress.failedCount}
+                      isPaused={dealQueueProgress.isPaused}
+                      onPause={pauseDealEnrichment}
+                      onResume={resumeDealEnrichment}
+                      onCancel={cancelDealQueueEnrichment}
                     />
                   </div>
                 )}
@@ -1022,7 +1036,15 @@ const ReMarketingUniverseDetail = () => {
                           )}
                           Score All Deals
                         </Button>
-                        {dealEnrichmentProgress.isRunning ? (
+                        {(dealQueueProgress.isEnriching || dealQueueProgress.isPaused) ? (
+                          <Button 
+                            variant="destructive" 
+                            size="sm"
+                            onClick={cancelDealQueueEnrichment}
+                          >
+                            Cancel Enrichment
+                          </Button>
+                        ) : dealEnrichmentProgress.isRunning ? (
                           <Button 
                             variant="destructive" 
                             size="sm"
