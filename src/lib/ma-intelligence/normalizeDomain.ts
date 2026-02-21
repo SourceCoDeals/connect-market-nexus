@@ -7,12 +7,20 @@
  * normalizeDomain("WWW.Example.COM") // "example.com"
  * normalizeDomain("http://example.com/page") // "example.com"
  */
+// Placeholder values that should be treated as NULL (matches SQL normalize_domain())
+const PLACEHOLDER_VALUES = new Set([
+  '<unknown>', 'unknown', 'n/a', 'tbd', 'pending', 'none', 'null',
+]);
+
 export function normalizeDomain(input: string | null | undefined): string | null {
   if (!input) return null;
 
   try {
     // Trim whitespace
     let domain = input.trim();
+
+    // Match SQL normalize_domain(): treat placeholder values as NULL
+    if (!domain || PLACEHOLDER_VALUES.has(domain.toLowerCase())) return null;
 
     // If it looks like a URL, parse it
     if (domain.includes('://') || domain.includes('/')) {

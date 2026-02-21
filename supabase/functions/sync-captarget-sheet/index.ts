@@ -99,10 +99,14 @@ async function fetchSheetRows(
  * Matches the DB's normalize_domain() SQL function exactly:
  * strips protocol, www., trailing dots, port, and path.
  */
+const PLACEHOLDER_VALUES = new Set([
+  '<unknown>', 'unknown', 'n/a', 'tbd', 'pending', 'none', 'null',
+]);
+
 function normalizeDomain(url: string | undefined | null): string | null {
   if (!url) return null;
   const trimmed = url.trim();
-  if (!trimmed || trimmed === "<UNKNOWN>") return null;
+  if (!trimmed || PLACEHOLDER_VALUES.has(trimmed.toLowerCase())) return null;
   let d = trimmed.toLowerCase();
   d = d.replace(/^[a-z]+:\/\//, "");  // strip protocol
   d = d.replace(/^www\./, "");          // strip www.

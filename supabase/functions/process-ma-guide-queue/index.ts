@@ -304,6 +304,7 @@ const TOTAL_PHASES = 14;
          .from('remarketing_buyer_universes')
          .update({
            ma_guide_content: newContent,
+           ma_guide_generated_at: new Date().toISOString(),
            ...(result.criteria ? { fit_criteria: result.criteria } : {})
          })
          .eq('id', generation.universe_id);

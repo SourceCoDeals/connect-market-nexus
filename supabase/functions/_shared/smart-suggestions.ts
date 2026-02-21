@@ -302,41 +302,52 @@ function countBuyerMentions(response: string): number {
 }
 
 /**
- * Cache suggestions for reuse
+ * Cache suggestions for reuse.
+ * Inserts one row per suggestion matching the chat_smart_suggestions schema:
+ *   suggestion_text (required), intent, context_type, universe_id, deal_id
  */
 export async function cacheSuggestions(
   supabase: SupabaseClient,
   context: SuggestionContext,
-  previousQuery: string,
+  _previousQuery: string,
   suggestions: Suggestion[]
 ): Promise<void> {
   try {
-    await supabase.from('chat_smart_suggestions').insert({
+    const rows = suggestions.map(s => ({
+      suggestion_text: s.text,
+      intent: s.intent || null,
       context_type: context.type,
       universe_id: context.universeId || null,
       deal_id: context.dealId || null,
-      previous_query: previousQuery,
-      suggestions: suggestions,
-      suggestion_reasoning: suggestions.map(s => s.reasoning).filter(Boolean).join('; ')
-    });
+    }));
+    if (rows.length > 0) {
+      await supabase.from('chat_smart_suggestions').insert(rows);
+    }
   } catch (error) {
     console.error('[smart-suggestions] Cache error:', error);
   }
 }
 
 /**
- * Track suggestion click
+ * Track suggestion click — increments times_clicked and marks was_selected
  */
 export async function trackSuggestionClick(
   supabase: SupabaseClient,
   suggestionId: string
 ): Promise<void> {
   try {
+    // Read current value, increment, and write back
+    const { data } = await supabase
+      .from('chat_smart_suggestions')
+      .select('times_clicked')
+      .eq('id', suggestionId)
+      .single();
+
     await supabase
       .from('chat_smart_suggestions')
       .update({
-        times_clicked: supabase.rpc('increment', { x: 1 }),
-        last_shown_at: new Date().toISOString()
+        times_clicked: (data?.times_clicked || 0) + 1,
+        was_selected: true,
       })
       .eq('id', suggestionId);
   } catch (error) {
