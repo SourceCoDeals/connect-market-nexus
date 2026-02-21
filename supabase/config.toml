@@ -218,5 +218,5 @@ verify_jwt = false
 verify_jwt = true
 [functions.send-nda-reminder]
 verify_jwt = false
-[functions.invite-team-member]
-verify_jwt = true
+[functions.get-buyer-nda-embed]
+verify_jwt = false

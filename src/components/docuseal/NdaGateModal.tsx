@@ -29,39 +29,19 @@ export function NdaGateModal({ userId, firmId, onSigned }: NdaGateModalProps) {
 
     const fetchEmbedSrc = async () => {
       try {
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('email, first_name, last_name')
-          .eq('id', userId)
-          .single();
-
-        if (cancelled) return;
-
-        if (!profile) {
-          setError('Could not load profile');
-          setIsLoading(false);
-          return;
-        }
-
-        const buyerName = `${profile.first_name || ''} ${profile.last_name || ''}`.trim();
-
-        const { data, error: fnError } = await supabase.functions.invoke('create-docuseal-submission', {
-          body: {
-            firm_id: firmId,
-            document_type: 'nda',
-            buyer_email: profile.email,
-            buyer_name: buyerName || profile.email,
-            send_email: false,
-          },
-        });
+        // Call buyer-facing edge function (no admin required)
+        const { data, error: fnError } = await supabase.functions.invoke('get-buyer-nda-embed');
 
         if (cancelled) return;
 
         if (fnError) {
           setError('Failed to prepare NDA signing form');
           console.error('DocuSeal submission error:', fnError);
-        } else if (data?.embed_src) {
-          setEmbedSrc(data.embed_src);
+        } else if (data?.ndaSigned) {
+          // Already signed, dismiss gate
+          onSigned?.();
+        } else if (data?.embedSrc) {
+          setEmbedSrc(data.embedSrc);
         } else {
           setError('NDA signing form not available. Please contact support.');
         }

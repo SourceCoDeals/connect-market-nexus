@@ -174,14 +174,10 @@ serve(async (req: Request) => {
           send_email: true,
           submitters: [
             {
-              role: "Signer",
+              role: "First Party",
               email: cr.lead_email,
               name: cr.lead_name || cr.lead_email.split("@")[0],
               external_id: firmId,
-              fields: [
-                { name: "Company Name", default_value: companyName },
-                { name: "Date", default_value: new Date().toISOString().split("T")[0] },
-              ],
             },
           ],
         };

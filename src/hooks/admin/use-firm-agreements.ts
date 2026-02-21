@@ -21,12 +21,12 @@ export interface FirmAgreement {
   nda_signed_by_name: string | null;
   nda_email_sent: boolean;
   nda_email_sent_at: string | null;
-  // DocuSeal e-signature fields
+  // DocuSeal fields
   nda_docuseal_submission_id: string | null;
-  nda_docuseal_status: string; // not_sent | sent | viewed | signed | declined
+  nda_docuseal_status: string | null;
   nda_signed_document_url: string | null;
   fee_docuseal_submission_id: string | null;
-  fee_docuseal_status: string; // not_sent | sent | viewed | signed | declined
+  fee_docuseal_status: string | null;
   fee_signed_document_url: string | null;
   member_count: number;
   metadata: Record<string, any>;

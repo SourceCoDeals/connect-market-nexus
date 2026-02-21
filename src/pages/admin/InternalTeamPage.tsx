@@ -36,17 +36,36 @@ const InternalTeamPage = () => {
   }, [teamMembers, search]);
 
   // Convert role data to User-compatible shape for TeamMemberCard
-  const toUserShape = (member: UserRoleEntry): User => ({
-    id: member.user_id,
-    email: member.user_email || '',
-    first_name: member.user_first_name || '',
-    last_name: member.user_last_name || '',
-    company: '',
-    created_at: member.granted_at || new Date().toISOString(),
-    is_admin: true,
-    approval_status: 'approved' as const,
-    email_verified: true,
-  });
+  const toUserShape = (member: any): User => {
+    const firstName = member.user_first_name || '';
+    const lastName = member.user_last_name || '';
+    const now = member.granted_at || new Date().toISOString();
+    return {
+      id: member.user_id,
+      email: member.user_email || '',
+      first_name: firstName,
+      last_name: lastName,
+      company: '',
+      website: '',
+      phone_number: '',
+      role: 'admin' as const,
+      buyer_type: 'individual' as const,
+      created_at: now,
+      updated_at: now,
+      is_admin: true,
+      approval_status: 'approved' as const,
+      email_verified: true,
+      get firstName() { return firstName; },
+      get lastName() { return lastName; },
+      get phoneNumber() { return ''; },
+      get isAdmin() { return true; },
+      get buyerType(): any { return 'individual'; },
+      get emailVerified() { return true; },
+      get isApproved() { return true; },
+      get createdAt() { return now; },
+      get updatedAt() { return now; },
+    };
+  };
 
   return (
     <div className="min-h-screen bg-background">
