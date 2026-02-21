@@ -44,7 +44,6 @@ import { InternalCompanyInfoDisplay } from "@/components/admin/InternalCompanyIn
 import { BuyerDataRoom } from "@/components/marketplace/BuyerDataRoom";
 import { NdaGateModal } from "@/components/docuseal/NdaGateModal";
 import { useBuyerNdaStatus } from "@/hooks/admin/use-docuseal";
-
 import { useQueryClient } from "@tanstack/react-query";
 
 const ListingDetail = () => {
@@ -71,8 +70,11 @@ const ListingDetail = () => {
   const { trackListingView, trackListingSave, trackConnectionRequest } = useAnalytics();
   
   const isAdmin = user?.is_admin === true;
+  
+  // NDA gate: check if buyer has signed NDA (skip for admins and unauthenticated)
   const { data: ndaStatus } = useBuyerNdaStatus(!isAdmin ? user?.id : undefined);
   const [ndaGateDismissed, setNdaGateDismissed] = useState(false);
+  const showNdaGate = !isAdmin && user && ndaStatus && ndaStatus.hasFirm && !ndaStatus.ndaSigned && !ndaGateDismissed;
 
   useEffect(() => {
     document.title = listing ? `${listing.title} | Marketplace` : "Listing Detail | Marketplace";
@@ -175,13 +177,11 @@ const ListingDetail = () => {
   // Use listing's image_url or fallback to default image
   const imageUrl = listing?.image_url || DEFAULT_IMAGE;
 
-  // NDA Gate: block deal detail for buyers who haven't signed NDA
-  const showNdaGate = !isAdmin && user && ndaStatus?.hasFirm && !ndaStatus.ndaSigned && !ndaGateDismissed;
-
+  // Show NDA gate modal for unsigned buyers
   if (showNdaGate && ndaStatus?.firmId) {
     return (
       <NdaGateModal
-        userId={user.id}
+        userId={user!.id}
         firmId={ndaStatus.firmId}
         onSigned={() => setNdaGateDismissed(true)}
       />
