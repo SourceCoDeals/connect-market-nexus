@@ -217,6 +217,28 @@ const ReMarketingBuyerDetail = () => {
     enabled: !isNew
   });
 
+  // DD-05: Fetch linked marketplace profile data (referral_source, deal_sourcing_methods)
+  const { data: linkedProfile } = useQuery({
+    queryKey: ['remarketing', 'linked-profile', buyer?.marketplace_firm_id],
+    queryFn: async () => {
+      if (!buyer?.marketplace_firm_id) return null;
+      // firm → firm_members → profiles
+      const { data: members } = await supabase
+        .from('firm_members')
+        .select('user_id')
+        .eq('firm_id', buyer.marketplace_firm_id)
+        .limit(1);
+      if (!members?.length) return null;
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('referral_source, referral_source_detail, deal_sourcing_methods, buyer_type, phone, linkedin_url')
+        .eq('id', members[0].user_id)
+        .maybeSingle();
+      return profile;
+    },
+    enabled: !!buyer?.marketplace_firm_id,
+  });
+
   // Fetch recent scores for this buyer
   const { data: recentScores = [] } = useQuery({
     queryKey: ['remarketing', 'buyer-scores', id],
@@ -644,6 +666,7 @@ const ReMarketingBuyerDetail = () => {
         isEnriching={enrichMutation.isPending}
         backTo={backTo}
         marketplaceFirmId={buyer?.marketplace_firm_id}
+        buyerType={buyer?.buyer_type}
       />
 
       {/* Criteria Completeness Banner */}
@@ -728,6 +751,10 @@ const ReMarketingBuyerDetail = () => {
             <InvestmentCriteriaCard
               investmentThesis={buyer?.thesis_summary}
               thesisConfidence={buyer?.thesis_confidence}
+              targetEbitdaMin={buyer?.target_ebitda_min}
+              targetEbitdaMax={buyer?.target_ebitda_max}
+              targetRevenueMin={buyer?.target_revenue_min}
+              targetRevenueMax={buyer?.target_revenue_max}
               onEdit={() => setActiveEditDialog('investment')}
               className="bg-accent/20"
             />
@@ -775,6 +802,43 @@ const ReMarketingBuyerDetail = () => {
               onEdit={() => setActiveEditDialog('acquisition')}
               className="bg-accent/20"
             />
+
+            {/* DD-05: Marketplace Signup Context — surfaces dead data from profiles table */}
+            {linkedProfile && (linkedProfile.referral_source || linkedProfile.deal_sourcing_methods) && (
+              <Card className="bg-blue-50/50 border-blue-100">
+                <CardHeader className="pb-2">
+                  <CardTitle className="flex items-center gap-2 text-base font-semibold text-blue-900">
+                    <Users className="h-4 w-4" />
+                    Marketplace Signup Data
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-2">
+                  {linkedProfile.referral_source && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-muted-foreground">How They Found Us</span>
+                      <div className="text-right">
+                        <Badge variant="outline" className="text-xs capitalize">
+                          {linkedProfile.referral_source.replace(/_/g, ' ')}
+                        </Badge>
+                        {linkedProfile.referral_source_detail && (
+                          <p className="text-xs text-muted-foreground mt-0.5">{linkedProfile.referral_source_detail}</p>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                  {linkedProfile.deal_sourcing_methods && Array.isArray(linkedProfile.deal_sourcing_methods) && linkedProfile.deal_sourcing_methods.length > 0 && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-muted-foreground">Deal Sourcing Methods</span>
+                      <div className="flex flex-wrap gap-1 justify-end">
+                        {(linkedProfile.deal_sourcing_methods as string[]).map((m: string) => (
+                          <Badge key={m} variant="secondary" className="text-xs">{m}</Badge>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            )}
           </div>
 
           {/* Full Width: Transcripts */}

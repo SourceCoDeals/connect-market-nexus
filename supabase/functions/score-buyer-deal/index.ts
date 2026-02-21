@@ -1633,11 +1633,29 @@ async function scoreSingleBuyer(
   // === Step k: Learning penalty ===
   const learningResult = calculateLearningPenalty(learningPattern);
 
+  // === Step k2: Revenue model match (DD-08) ===
+  // If buyer has a revenue quality preference and the deal has a known model, apply bonus/penalty
+  let businessModelScore = 0;
+  const buyerRevPref = (buyer.revenue_model || buyer.revenue_quality_preference || '').toLowerCase();
+  const dealModel = (listing.business_model || listing.revenue_model || '').toLowerCase();
+  const dealDesc = (listing.description || listing.executive_summary || '').toLowerCase();
+  const dealAllText = `${dealModel} ${dealDesc}`;
+  const dealIsRecurring = /recurring|subscription|contract|maintenance|managed|retainer|saas|membership/.test(dealAllText);
+  const dealIsProject = /project|one[\s-]?time|transactional|job[\s-]?based/.test(dealAllText);
+  const buyerPrefersRecurring = /recurring|subscription|contract|saas|membership/.test(buyerRevPref);
+
+  if (buyerPrefersRecurring && dealIsRecurring) {
+    businessModelScore = 5; // Bonus: buyer wants recurring and deal has it
+  } else if (buyerPrefersRecurring && dealIsProject) {
+    businessModelScore = -3; // Penalty: buyer wants recurring but deal is project-based
+  }
+
   // === Step l: Final assembly ===
   let finalScore = gatedScore
     + thesisResult.bonus
     + dataQualityResult.bonus
     + customResult.bonus
+    + businessModelScore
     - learningResult.penalty;
 
   finalScore = Math.max(0, Math.min(100, finalScore));
@@ -1756,7 +1774,7 @@ async function scoreSingleBuyer(
     owner_goals_score: ownerGoalsResult.score,
     acquisition_score: 0, // Not calculated — reserved for future use
     portfolio_score: 0,
-    business_model_score: 0,
+    business_model_score: businessModelScore,
     size_multiplier: sizeResult.multiplier,
     service_multiplier: serviceResult.multiplier,
     geography_mode_factor: geoResult.modeFactor,

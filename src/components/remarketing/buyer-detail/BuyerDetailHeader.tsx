@@ -18,6 +18,24 @@ interface BuyerDetailHeaderProps {
   isEnriching?: boolean;
   backTo?: string;
   marketplaceFirmId?: string | null;
+  buyerType?: string | null;
+}
+
+const BUYER_TYPE_STYLES: Record<string, string> = {
+  'pe': 'bg-purple-100 text-purple-800 border-purple-200',
+  'pe_firm': 'bg-purple-100 text-purple-800 border-purple-200',
+  'private_equity': 'bg-purple-100 text-purple-800 border-purple-200',
+  'independent_sponsor': 'bg-blue-100 text-blue-800 border-blue-200',
+  'corporate': 'bg-green-100 text-green-800 border-green-200',
+  'family_office': 'bg-amber-100 text-amber-800 border-amber-200',
+  'individual': 'bg-gray-100 text-gray-800 border-gray-200',
+  'search_fund': 'bg-teal-100 text-teal-800 border-teal-200',
+  'operator': 'bg-indigo-100 text-indigo-800 border-indigo-200',
+};
+
+function formatBuyerType(type: string): string {
+  return type.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
+    .replace(/\bPe\b/, 'PE').replace(/\bPe /g, 'PE ');
 }
 
 export const BuyerDetailHeader = ({
@@ -34,6 +52,7 @@ export const BuyerDetailHeader = ({
   isEnriching = false,
   backTo = "/admin/buyers",
   marketplaceFirmId,
+  buyerType,
 }: BuyerDetailHeaderProps) => {
   const hqLocation = [hqCity, hqState, hqCountry].filter(Boolean).join(", ");
   
@@ -67,11 +86,19 @@ export const BuyerDetailHeader = ({
           </Button>
           
           <div className="space-y-1">
-            {/* Company Name + Completeness Badge */}
+            {/* Company Name + Buyer Type + Completeness Badge */}
             <div className="flex items-center gap-3">
               <h1 className="text-2xl font-bold tracking-tight">{companyName}</h1>
-              <Badge 
-                variant="outline" 
+              {buyerType && (
+                <Badge
+                  variant="outline"
+                  className={`text-sm font-semibold ${BUYER_TYPE_STYLES[buyerType.toLowerCase()] || 'bg-muted text-muted-foreground'}`}
+                >
+                  {formatBuyerType(buyerType)}
+                </Badge>
+              )}
+              <Badge
+                variant="outline"
                 className={`text-sm font-medium ${getCompletenessColor(dataCompleteness)}`}
               >
                 {dataCompleteness}%

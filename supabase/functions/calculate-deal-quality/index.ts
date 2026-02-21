@@ -122,11 +122,15 @@ function calculateScoresFromData(deal: any): DealQualityScores {
     else if (employeeCount >= 3)  empPts = 12;
     else if (employeeCount > 0)   empPts = 6;
 
-    // Step 1-2: Employee scoring
-    const empScore = 0;
+    // Step 1-2: Employee scoring — empPts feeds directly into sizeScore
+    let empScore = empPts;
     if (employeeCount > 0) {
       linkedinBoost = empPts;
       notes.push(`${employeeSource}: ~${Math.round(employeeCount)} employees (size proxy)`);
+    } else {
+      // KI-03 fix: No LinkedIn data should NOT score zero — use fallback baseline
+      empScore = 3;
+      notes.push('No LinkedIn data — fallback baseline (3pts)');
     }
 
     // Step 3: Google review fallback — ONLY if zero employees AND <3 locations
@@ -145,8 +149,8 @@ function calculateScoresFromData(deal: any): DealQualityScores {
       }
     }
 
-    // Step 4: Combine and apply location floor
-    sizeScore = empScore > 0 ? empScore : reviewScore;
+    // Step 4: Combine — use employee score (or fallback), boost with reviews if higher
+    sizeScore = Math.max(empScore, reviewScore);
 
     if (locationCount >= 10)     sizeScore = Math.max(sizeScore, 60);
     else if (locationCount >= 5) sizeScore = Math.max(sizeScore, 50);
@@ -232,10 +236,17 @@ function calculateScoresFromData(deal: any): DealQualityScores {
   const description = (deal.description || deal.executive_summary || '').toLowerCase();
   const businessModel = (deal.business_model || '').toLowerCase();
   const allText = `${(deal.category || '')} ${(deal.service_mix || '')} ${businessModel} ${description}`.toLowerCase();
-  if (/recurring|subscription|contract|maintenance|managed/.test(allText)) {
-    marketScore += 2;
-    notes.push('recurring revenue model');
+
+  // DQ-07/DD-07: Recurring revenue is a major quality signal — boost appropriately
+  let recurringBonus = 0;
+  if (/subscription|saas|membership|recurring.*contract/.test(allText)) {
+    recurringBonus = 8; // Strong recurring: SaaS, subscriptions, memberships
+    notes.push('strong recurring revenue (+8)');
+  } else if (/contract|maintenance|managed|retainer|service.agreement/.test(allText)) {
+    recurringBonus = 5; // Contracted/maintenance recurring
+    notes.push('contracted recurring revenue (+5)');
   }
+  marketScore += recurringBonus;
 
   marketScore = Math.min(10, marketScore);
 
@@ -363,8 +374,9 @@ serve(async (req) => {
         enrichmentQueued = await queueDealsForEnrichment(dealIds, 'force recalculate all');
       }
     } else if (calculateAll) {
+      // KI-04 fix: Use self-continuation pattern to score ALL unscored deals, not just 50
       const { data: listings, error: listingsError } = await supabase
-        .from("listings").select("*").is("deal_total_score", null).limit(50);
+        .from("listings").select("*").is("deal_total_score", null).is("deleted_at", null).limit(BATCH_SIZE);
       if (listingsError) throw new Error("Failed to fetch listings");
       listingsToScore = listings || [];
     } else {
@@ -416,6 +428,22 @@ serve(async (req) => {
         completed_items: totalScoredSoFar,
         failed_items: errors,
       }).eq("id", globalQueueId);
+    }
+
+    // Self-continuation for calculateAll mode (KI-04: score ALL unscored, not just first batch)
+    if (calculateAll && listingsToScore.length === BATCH_SIZE) {
+      const selfUrl = `${supabaseUrl}/functions/v1/calculate-deal-quality`;
+      const anonKey = Deno.env.get("SUPABASE_ANON_KEY") || supabaseKey;
+      console.log(`[calculateAll] Batch of ${BATCH_SIZE} scored, continuing for remaining unscored deals...`);
+      fetch(selfUrl, {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${supabaseKey}`,
+          "apikey": anonKey,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ calculateAll: true }),
+      }).catch(() => {}); // fire-and-forget
     }
 
     // Self-continuation for batch mode
