@@ -76,6 +76,7 @@ const AdminNotifications = lazyWithRetry(() => import("@/pages/admin/AdminNotifi
 const WebhooksPage = lazyWithRetry(() => import("@/pages/admin/settings/WebhooksPage"));
 const TranscriptAnalytics = lazyWithRetry(() => import("@/pages/admin/analytics/TranscriptAnalytics"));
 const EnrichmentTest = lazyWithRetry(() => import("@/pages/admin/EnrichmentTest"));
+const EnrichmentQueue = lazyWithRetry(() => import("@/pages/admin/EnrichmentQueue"));
 const DataRecoveryPage = lazyWithRetry(() => import("@/pages/admin/DataRecoveryPage"));
 const FormMonitoringPage = lazyWithRetry(() => import("@/pages/admin/FormMonitoringPage"));
 
@@ -240,6 +241,7 @@ function App() {
                           <Route path="settings/owner-leads" element={<OwnerLeadsPage />} />
                           <Route path="settings/notifications" element={<AdminNotifications />} />
                           <Route path="settings/webhooks" element={<WebhooksPage />} />
+                          <Route path="settings/enrichment-queue" element={<EnrichmentQueue />} />
                           <Route path="settings/enrichment-test" element={<EnrichmentTest />} />
                           <Route path="settings/remarketing" element={<ReMarketingSettings />} />
                           <Route path="settings/data-recovery" element={<DataRecoveryPage />} />
