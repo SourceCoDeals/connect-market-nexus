@@ -198,3 +198,15 @@ verify_jwt = false
 verify_jwt = false
 [functions.score-industry-alignment]
 verify_jwt = false
+[functions.data-room-upload]
+verify_jwt = false
+[functions.data-room-download]
+verify_jwt = false
+[functions.data-room-access]
+verify_jwt = false
+[functions.generate-lead-memo]
+verify_jwt = false
+[functions.send-memo-email]
+verify_jwt = false
+[functions.draft-outreach-email]
+verify_jwt = false
