@@ -66,6 +66,15 @@ Deno.serve(async (req: Request) => {
       );
     }
 
+    // Basic email format validation
+    const emailTrimmed = buyer_email.trim().toLowerCase();
+    if (!emailTrimmed.includes("@") || emailTrimmed.indexOf("@") === 0 || emailTrimmed.indexOf("@") === emailTrimmed.length - 1) {
+      return new Response(
+        JSON.stringify({ error: "Invalid buyer_email format" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     // ── Fetch deal info ──
 
     const { data: deal, error: dealError } = await supabaseAdmin
@@ -83,7 +92,7 @@ Deno.serve(async (req: Request) => {
 
     // ── 1. Look up buyer NDA / fee agreement status ──
 
-    const emailDomain = buyer_email.split("@")[1]?.toLowerCase() || "";
+    const emailDomain = emailTrimmed.split("@")[1] || "";
     let ndaStatus: string | null = null;
     let feeAgreementStatus: string | null = null;
     let warning: string | undefined;
@@ -121,7 +130,7 @@ Deno.serve(async (req: Request) => {
       .from("deal_data_room_access")
       .select("id, access_token, granted_document_ids")
       .eq("deal_id", deal_id)
-      .eq("buyer_email", buyer_email)
+      .eq("buyer_email", emailTrimmed)
       .maybeSingle();
 
     let accessRecord;
@@ -174,7 +183,7 @@ Deno.serve(async (req: Request) => {
         .from("deal_data_room_access")
         .insert({
           deal_id,
-          buyer_email,
+          buyer_email: emailTrimmed,
           buyer_name,
           buyer_firm: buyer_firm || null,
           buyer_id: buyer_id || null,
@@ -242,7 +251,7 @@ Deno.serve(async (req: Request) => {
           buyer_id: buyer_id || null,
           buyer_name,
           buyer_firm: buyer_firm || null,
-          buyer_email,
+          buyer_email: emailTrimmed,
           release_method: "data_room_grant",
           nda_status_at_release: ndaStatus,
           fee_agreement_status_at_release: feeAgreementStatus,
@@ -263,7 +272,7 @@ Deno.serve(async (req: Request) => {
     const escapedBuyerName = escapeHtml(buyer_name);
 
     const emailResult = await sendViaBervo({
-      to: buyer_email,
+      to: emailTrimmed,
       toName: buyer_name,
       subject: `Data Room Access — Project ${deal.project_name || deal.title || "Confidential"}`,
       htmlContent: buildDataRoomEmailHtml(projectName, escapedBuyerName, dataRoomUrl),
@@ -278,7 +287,7 @@ Deno.serve(async (req: Request) => {
     }
 
     console.log(
-      `Data room access granted: deal ${deal_id} -> ${buyer_email} by admin ${auth.userId} (access_id: ${accessRecord.id}, documents: ${documentsToLog.length})`
+      `Data room access granted: deal ${deal_id} -> ${emailTrimmed} by admin ${auth.userId} (access_id: ${accessRecord.id}, documents: ${documentsToLog.length})`
     );
 
     // ── 5. Return response ──

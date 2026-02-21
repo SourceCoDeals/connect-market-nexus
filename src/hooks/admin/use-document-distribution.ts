@@ -122,7 +122,7 @@ export function useDealDocuments(dealId: string | undefined) {
         .from('deal_documents')
         .select('*')
         .eq('deal_id', dealId)
-        .neq('status', 'deleted')
+        .eq('status', 'active')
         .order('created_at', { ascending: false });
 
       if (error) throw error;
@@ -208,11 +208,13 @@ export function useRevokeTrackedLink() {
 
   return useMutation({
     mutationFn: async ({ linkId, dealId, reason }: { linkId: string; dealId: string; reason?: string }) => {
+      const { data: { user } } = await supabase.auth.getUser();
       const { error } = await supabase
         .from('document_tracked_links')
         .update({
           is_active: false,
           revoked_at: new Date().toISOString(),
+          revoked_by: user?.id || null,
           revoke_reason: reason || null,
         })
         .eq('id', linkId);
@@ -440,11 +442,13 @@ export function useRevokeDataRoomAccess() {
 
   return useMutation({
     mutationFn: async ({ accessId, dealId }: { accessId: string; dealId: string }) => {
+      const { data: { user } } = await supabase.auth.getUser();
       const { error } = await supabase
         .from('deal_data_room_access')
         .update({
           is_active: false,
           revoked_at: new Date().toISOString(),
+          revoked_by: user?.id || null,
         })
         .eq('id', accessId);
 
