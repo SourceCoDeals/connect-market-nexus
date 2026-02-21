@@ -1,4 +1,6 @@
 import { useState, useEffect } from "react";
+import { useEnrichmentProgress } from "@/hooks/useEnrichmentProgress";
+import { EnrichmentProgressIndicator } from "@/components/remarketing/EnrichmentProgressIndicator";
 import { supabase } from "@/integrations/supabase/client";
 import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { Card, CardContent } from "@/components/ui/card";
@@ -34,6 +36,7 @@ export function TrackerDealsTab({ trackerId, onDealCountChange }: TrackerDealsTa
   const [filterScore, setFilterScore] = useState<string>("all");
   const [scoringProgress, setScoringProgress] = useState<ScoringProgress | null>(null);
   const { toast } = useToast();
+  const { progress: enrichmentProgress, cancelEnrichment } = useEnrichmentProgress();
   const { user } = useAuth();
   const { startOrQueueMajorOp } = useGlobalGateCheck();
   const { completeOperation, updateProgress } = useGlobalActivityMutations();
@@ -368,6 +371,22 @@ export function TrackerDealsTab({ trackerId, onDealCountChange }: TrackerDealsTa
   return (
     <div className="space-y-4">
       <InterruptedSessionBanner trackerId={trackerId} />
+
+      {/* Enrichment Progress Bar */}
+      {(enrichmentProgress.isEnriching || enrichmentProgress.isPaused) && (
+        <EnrichmentProgressIndicator
+          completedCount={enrichmentProgress.completedCount}
+          totalCount={enrichmentProgress.totalCount}
+          progress={enrichmentProgress.progress}
+          estimatedTimeRemaining={enrichmentProgress.estimatedTimeRemaining}
+          processingRate={enrichmentProgress.processingRate}
+          itemLabel="deals"
+          successfulCount={enrichmentProgress.successfulCount}
+          failedCount={enrichmentProgress.failedCount}
+          isPaused={enrichmentProgress.isPaused}
+          onCancel={cancelEnrichment}
+        />
+      )}
 
       <TrackerDealsToolbar
         selectedCount={selectedDeals.size}

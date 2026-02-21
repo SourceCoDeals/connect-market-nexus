@@ -59,6 +59,8 @@ import {
   Download,
 } from "lucide-react";
 import { toast } from "sonner";
+import { useBuyerEnrichmentProgress } from "@/hooks/useBuyerEnrichmentProgress";
+import { EnrichmentProgressIndicator } from "@/components/remarketing/EnrichmentProgressIndicator";
 import { BuyerCSVImport, IntelligenceBadge, ReMarketingChat } from "@/components/remarketing";
 import type { BuyerType, DataCompleteness } from "@/types/remarketing";
 import { normalizeDomain } from "@/lib/ma-intelligence/normalizeDomain";
@@ -88,6 +90,7 @@ const ReMarketingBuyers = () => {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [currentPage, setCurrentPage] = useState(1);
   const [enrichingIds, setEnrichingIds] = useState<Set<string>>(new Set());
+  const { progress: buyerEnrichmentProgress, cancel: cancelBuyerEnrichment } = useBuyerEnrichmentProgress();
   const sortColumn = searchParams.get("sort") ?? "company_name";
   const sortDirection = (searchParams.get("dir") as "asc" | "desc") ?? "asc";
   // New buyer form state
@@ -565,6 +568,21 @@ const ReMarketingBuyers = () => {
           </Dialog>
         </div>
       </div>
+
+      {/* Buyer Enrichment Progress Bar */}
+      {buyerEnrichmentProgress.isEnriching && (
+        <EnrichmentProgressIndicator
+          completedCount={buyerEnrichmentProgress.completedCount}
+          totalCount={buyerEnrichmentProgress.totalCount}
+          progress={buyerEnrichmentProgress.progress}
+          estimatedTimeRemaining={buyerEnrichmentProgress.estimatedTimeRemaining}
+          processingRate={buyerEnrichmentProgress.processingRate}
+          itemLabel="buyers"
+          successfulCount={buyerEnrichmentProgress.completedCount - buyerEnrichmentProgress.failedCount}
+          failedCount={buyerEnrichmentProgress.failedCount}
+          onCancel={cancelBuyerEnrichment}
+        />
+      )}
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={handleTabChange}>
