@@ -26,7 +26,7 @@ export default defineConfig(({ mode }) => ({
           // Split large vendor chunks to reduce initial bundle size
           recharts: ['recharts'],
           tiptap: ['@tiptap/react', '@tiptap/starter-kit'],
-          mapbox: ['mapbox-gl', 'react-map-gl'],
+          mapbox: ['mapbox-gl'],
         },
       },
     },
