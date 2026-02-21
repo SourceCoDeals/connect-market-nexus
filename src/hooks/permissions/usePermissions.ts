@@ -2,7 +2,15 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/context/AuthContext';
 
-export type AppRole = 'owner' | 'admin' | 'user';
+export type AppRole = 'owner' | 'admin' | 'moderator' | 'user';
+
+/** Display label for each role. 'moderator' shows as 'Team Member' everywhere. */
+export const ROLE_DISPLAY_LABELS: Record<AppRole, string> = {
+  owner: 'Owner',
+  admin: 'Admin',
+  moderator: 'Team Member',
+  user: 'User',
+};
 
 export interface UserRole {
   id: string;
@@ -33,32 +41,60 @@ export const usePermissions = () => {
       return data as AppRole | null;
     },
     enabled: !!user?.id,
-    staleTime: 1000 * 60 * 5, // 5 minutes
+    staleTime: 1000 * 60 * 5,
   });
 
   const isOwner = userRole === 'owner';
   const isAdmin = userRole === 'admin' || isOwner;
+  const isTeamMember = userRole === 'moderator';
+  /** True for anyone on the internal team (owner, admin, or team member/moderator) */
+  const isInternalTeam = isAdmin || isTeamMember;
+
+  const roleHierarchy: Record<AppRole, number> = {
+    owner: 4,
+    admin: 3,
+    moderator: 2,
+    user: 1,
+  };
 
   const checkPermission = (requiredRole: AppRole): boolean => {
     if (!userRole) return false;
-
-    const roleHierarchy: Record<AppRole, number> = {
-      owner: 3,
-      admin: 2,
-      user: 1,
-    };
-
     return (roleHierarchy[userRole] || 0) >= (roleHierarchy[requiredRole] || 0);
   };
 
   const canManagePermissions = isOwner;
 
+  // Role-based capability checks
+  const canEditDeals = isAdmin;
+  const canApproveUsers = isAdmin;
+  const canSendAgreements = isAdmin;
+  const canManageConnectionRequests = isAdmin;
+  const canAccessSettings = isAdmin;
+  const canExportData = isAdmin;
+  const canInviteTeamMembers = isAdmin;
+  const canEditBuyers = isAdmin;
+  const canManageUniverses = isAdmin;
+  const canAccessDataRecovery = isAdmin;
+
   return {
     userRole,
     isOwner,
     isAdmin,
+    isTeamMember,
+    isInternalTeam,
     isLoading,
     checkPermission,
     canManagePermissions,
+    // Capability checks
+    canEditDeals,
+    canApproveUsers,
+    canSendAgreements,
+    canManageConnectionRequests,
+    canAccessSettings,
+    canExportData,
+    canInviteTeamMembers,
+    canEditBuyers,
+    canManageUniverses,
+    canAccessDataRecovery,
   };
 };

@@ -2,6 +2,7 @@ import { useState, useMemo } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/context/AuthContext";
+import { usePermissions } from "@/hooks/permissions/usePermissions";
 import {
   LayoutDashboard,
   Building2,
@@ -35,6 +36,8 @@ import {
   ExternalLink,
   Plus,
   ListChecks,
+  Contact,
+  ShieldCheck,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -73,6 +76,7 @@ interface AdminSidebarProps {
 
 export function UnifiedAdminSidebar({ collapsed, onCollapsedChange }: AdminSidebarProps) {
   const location = useLocation();
+  const { isAdmin: isFullAdmin, canAccessSettings } = usePermissions();
   const { unviewedCount: unviewedDealSourcingCount } = useUnviewedDealSourcingCount();
   const { unviewedCount: unviewedConnectionRequestsCount } = useUnviewedConnectionRequests();
   const { unviewedCount: unviewedUsersCount } = useUnviewedUsers();
@@ -117,6 +121,11 @@ export function UnifiedAdminSidebar({ collapsed, onCollapsedChange }: AdminSideb
             href: "/admin/buyers/deal-sourcing",
             icon: <Sparkles className="h-4 w-4" />,
             badge: unviewedDealSourcingCount,
+          },
+          {
+            label: "Buyer Contacts",
+            href: "/admin/buyers/contacts",
+            icon: <Contact className="h-4 w-4" />,
           },
         ],
       },
@@ -207,7 +216,7 @@ export function UnifiedAdminSidebar({ collapsed, onCollapsedChange }: AdminSideb
         icon: <Settings className="h-4 w-4" />,
         items: [
           {
-            label: "Internal Users & Team",
+            label: "Internal Team",
             href: "/admin/settings/team",
             icon: <UserCog className="h-4 w-4" />,
           },
@@ -222,31 +231,34 @@ export function UnifiedAdminSidebar({ collapsed, onCollapsedChange }: AdminSideb
             href: "/admin/settings/notifications",
             icon: <Bell className="h-4 w-4" />,
           },
-          {
-            label: "Webhook Settings",
-            href: "/admin/settings/webhooks",
-            icon: <Webhook className="h-4 w-4" />,
-          },
-          {
-            label: "Enrichment Queue",
-            href: "/admin/settings/enrichment-queue",
-            icon: <ListChecks className="h-4 w-4" />,
-          },
-          {
-            label: "Enrichment Test",
-            href: "/admin/settings/enrichment-test",
-            icon: <FlaskConical className="h-4 w-4" />,
-          },
-          {
-            label: "ReMarketing Settings",
-            href: "/admin/settings/remarketing",
-            icon: <Wrench className="h-4 w-4" />,
-          },
-          {
-            label: "Data Recovery",
-            href: "/admin/settings/data-recovery",
-            icon: <Database className="h-4 w-4" />,
-          },
+          // Settings pages hidden from team members (moderator role)
+          ...(canAccessSettings ? [
+            {
+              label: "Webhook Settings",
+              href: "/admin/settings/webhooks",
+              icon: <Webhook className="h-4 w-4" />,
+            },
+            {
+              label: "Enrichment Queue",
+              href: "/admin/settings/enrichment-queue",
+              icon: <ListChecks className="h-4 w-4" />,
+            },
+            {
+              label: "Enrichment Test",
+              href: "/admin/settings/enrichment-test",
+              icon: <FlaskConical className="h-4 w-4" />,
+            },
+            {
+              label: "ReMarketing Settings",
+              href: "/admin/settings/remarketing",
+              icon: <Wrench className="h-4 w-4" />,
+            },
+            {
+              label: "Data Recovery",
+              href: "/admin/settings/data-recovery",
+              icon: <Database className="h-4 w-4" />,
+            },
+          ] : []),
           {
             label: "Form Monitoring",
             href: "/admin/settings/form-monitoring",
@@ -265,6 +277,7 @@ export function UnifiedAdminSidebar({ collapsed, onCollapsedChange }: AdminSideb
       unviewedConnectionRequestsCount,
       unviewedUsersCount,
       unviewedOwnerLeadsCount,
+      canAccessSettings,
     ]
   );
 
