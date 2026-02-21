@@ -99,7 +99,7 @@ Deno.serve(async (req: Request) => {
       .eq("listing_id", deal_id)
       .not("extraction_status", "eq", "failed")
       .order("call_date", { ascending: false })
-      .limit(5);
+      .limit(10);
 
     // Fetch valuation data if applicable
     const { data: valuationData } = await supabaseAdmin
@@ -226,8 +226,8 @@ function buildDataContext(deal: any, transcripts: any[], valuationData: any): Da
         if (t.title) parts.push(`Title: ${t.title}`);
         if (t.extracted_data) parts.push(`Extracted Insights: ${JSON.stringify(t.extracted_data)}`);
         if (t.transcript_text) {
-          // Take first 4000 chars per transcript for better context
-          parts.push(`Transcript: ${t.transcript_text.substring(0, 4000)}`);
+          // Take first 8000 chars per transcript for comprehensive context
+          parts.push(`Transcript: ${t.transcript_text.substring(0, 8000)}`);
         }
         return `--- Call ${i + 1} (${t.call_date || "unknown date"}) ---\n${parts.join("\n")}`;
       })
@@ -296,6 +296,29 @@ function buildDataContext(deal: any, transcripts: any[], valuationData: any): Da
 
 // ─── AI Memo Generation ───
 
+// Banned words/phrases that must never appear in the output
+const BANNED_WORDS = [
+  "strong", "robust", "impressive", "attractive", "compelling",
+  "well-positioned", "significant opportunity", "poised for growth",
+  "track record of success", "best-in-class", "proven", "demonstrated",
+  "synergies", "uniquely positioned", "market leader",
+  "value creation opportunity",
+];
+
+// Post-process: strip any banned words that slipped through
+function enforceBannedWords(sections: MemoSection[]): MemoSection[] {
+  return sections.map(s => {
+    let content = s.content;
+    for (const banned of BANNED_WORDS) {
+      const regex = new RegExp(`\\b${banned}\\b`, "gi");
+      content = content.replace(regex, "");
+    }
+    // Clean up double spaces left by removals
+    content = content.replace(/  +/g, " ").replace(/ ,/g, ",").replace(/ \./g, ".");
+    return { ...s, content };
+  });
+}
+
 async function generateMemo(
   apiKey: string,
   context: DataContext,
@@ -304,60 +327,97 @@ async function generateMemo(
 ): Promise<MemoContent> {
   const isAnonymous = memoType === "anonymous_teaser";
 
-  const systemPrompt = `You are a senior M&A analyst at SourceCo, a tech-enabled investment bank. You are drafting a professional lead memo for a business being sold.
+  const systemPrompt = `You are a VP at a buy-side investment bank writing an investment memo for the partners at a private equity firm. This memo will go to the investment committee.
 
-MEMO TYPE: ${isAnonymous ? "Anonymous Teaser" : "Full Lead Memo"}
+Your writing is factual, clear, concise, and detailed. You never express opinions about the quality of the business. You never use words like "strong," "attractive," "impressive," "compelling," "well-positioned," or "robust." You present facts and let the reader form their own view.
 
-${isAnonymous ? `CRITICAL ANONYMITY RULES:
-- Do NOT include: company name, owner name, street address, website URL, email, phone number, or any client/customer names
-- Use "[Industry] Company" or a codename like "Project [Region]" as the reference
-- Location: State only, no city or address
-- Financial data: Use ranges (e.g., "$3M-$5M revenue") rather than exact figures
-- Services: Describe what they do without naming the specific company
-- Do NOT include any information that could identify the specific company` : `FULL MEMO RULES:
-- Include all identifying information: company name, owner, address, website, contact info
-- Use exact financial figures when available
-- Include complete operational details`}
+You show industry knowledge by using correct terminology naturally, not by making editorial comments about the market. You are comprehensive but not exhaustive. Every sentence conveys a fact the reader needs.
+
+ABSOLUTE RULES — NEVER VIOLATE THESE:
+- NEVER include these sections: Investment Highlights, Key Risks, Risk Factors, Strategic Rationale, Recommended Next Steps, Executive Summary, or Conclusion.
+- NEVER include a conclusion or summary paragraph at the end of the memo.
+- NEVER use these words/phrases: strong, robust, impressive, attractive, compelling, well-positioned, significant opportunity, poised for growth, track record of success, best-in-class, proven, demonstrated, synergies, uniquely positioned, market leader, value creation opportunity.
+- NEVER fabricate financial numbers, employee counts, or other factual data. If data is unavailable, flag it as [DATA NEEDED: description].
+- If a transcript mentions a number but it's ambiguous, flag it: [VERIFY: description of ambiguity].
+- Present financial data in table format using markdown tables, not inline text.
+- Let the numbers speak. "Revenue grew from $8.2M to $12.1M between 2022 and 2024" is correct. "The company has demonstrated impressive revenue growth" is wrong.
+
+${isAnonymous ? `MEMO TYPE: Anonymous Teaser (blind profile)
+
+CRITICAL ANONYMITY RULES:
+- NO company name — use a project codename like "Project [Region]" (e.g., "Project Southeast")
+- NO owner/CEO name
+- NO street address, city — state or region only (e.g., "Southeast U.S.")
+- NO website URL, email, or phone number
+- NO specific client or customer names
+- Financial data as ranges only (e.g., "$8M-$10M revenue")
+- Services described generically without identifying the specific company
+
+REQUIRED SECTIONS (follow this exact structure):
+1. key: "company_overview" / title: "Company Overview" — 2-3 paragraphs. What the company does, where it operates (region only), years in operation, employee count range. Factual narrative, not a sales pitch.
+2. key: "financial_overview" / title: "Financial Overview" — Revenue range, EBITDA range, margin range. Present as a table. Brief narrative context.
+3. key: "services_operations" / title: "Services & Operations" — What they do in detail (generic terms). Service line mix, operational footprint, certifications.
+4. key: "market_industry" / title: "Market & Industry" — Industry size, growth trends, competitive landscape. Factual data only.
+5. key: "transaction_overview" / title: "Transaction Overview" — What the owner is looking for: full sale, recap, partner. Timeline. No names.` : `MEMO TYPE: Full Lead Memo (confidential, post-NDA)
+
+Include all identifying information: company name, owner, address, website, contact details. Use exact financial figures.
+
+REQUIRED SECTIONS (follow this exact structure):
+1. key: "header_block" / title: "Header" — Company name (or codename), date, branding. Confidential disclaimer.
+2. key: "contact_information" / title: "Contact Information" — Company HQ address, phone, website. Owner/CEO name, email, phone.
+3. key: "company_overview" / title: "Company Overview" — 2-4 paragraphs. What the company does, where it operates, how long in business, employees, what makes it distinct. Factual narrative only.
+4. key: "ownership_management" / title: "Ownership & Management" — Owner/operator background, how they came to own, industry experience, day-to-day role, transaction goals.
+5. key: "services_operations" / title: "Services & Operations" — Detailed services, revenue mix by service, customer types, operational footprint, equipment, facilities, technology, certifications.
+6. key: "market_industry" / title: "Market & Industry" — Industry size, growth trends, competitive landscape, regulatory environment. Factual data only.
+7. key: "financial_overview" / title: "Financial Overview" — Revenue, EBITDA, margins for last 3 years (or available). YTD numbers. Revenue concentration. Capex. Working capital. Present as a table with brief narrative.
+8. key: "employees_workforce" / title: "Employees & Workforce" — Total headcount, breakdown by role, key personnel and tenure, compensation structure, union status.
+9. key: "facilities_locations" / title: "Facilities & Locations" — Number of locations, owned vs leased, lease terms, square footage, condition, planned expansions.
+10. key: "transaction_overview" / title: "Transaction Overview" — Full sale, majority recap, growth partner. Valuation expectations. Timeline. Broker involvement.`}
 
 OUTPUT FORMAT:
 Return a JSON object with a "sections" array. Each section has:
-- "key": snake_case identifier
-- "title": Display title
-- "content": Rich text content (use markdown formatting: **bold**, *italic*, bullet points with -, tables with |)
+- "key": snake_case identifier (as specified above)
+- "title": Display title (as specified above)
+- "content": Rich text content using markdown: **bold**, *italic*, bullet points with -, tables with | header | header |
 
-${isAnonymous ? `Required sections for Anonymous Teaser:
-1. company_overview - 2-3 paragraphs describing the business without naming it
-2. financial_overview - Revenue range, EBITDA range, margin percentage
-3. services_operations - What they do, service mix percentages
-4. market_position - Geographic presence (state only), competitive advantages
-5. transaction_notes - Owner goals, exit preferences, transition timeline` : `Required sections for Full Lead Memo:
-1. company_info - Company name, HQ address, website, employee count, contact info
-2. company_overview - 1-2 paragraphs describing the business
-3. business_overview - Founded date, industry experience, growth story, management
-4. financials - Revenue (current + prior years), EBITDA, margins, breakdown by service
-5. operations - Service details, facilities, locations, certifications, advantages
-6. customer_base - Mix (residential/commercial), key verticals, concentration
-7. valuation_and_plans - Ownership structure, exit goals, valuation expectations, timeline
-8. contact - Full contact details for the business owner`}
+=== FEW-SHOT EXAMPLES ===
 
-Write professionally but accessibly. Use concrete data where available. If data is missing for a section, write what you can and note what additional information would strengthen the memo.`;
+Example 1 — RIA/Wealth Management (Correct tone):
+Company Overview:
+"Brook Capital LLC is a fee-based registered investment advisory firm headquartered in Wayne, New Jersey. Founded in 2013 and originally based in New York City, the firm relocated to northern New Jersey in 2017. Brook Capital manages approximately $900 million in assets under management across more than 200 household client relationships, with an average client AUM of approximately $2-$3 million.
 
-  const userPrompt = `Generate a ${isAnonymous ? "anonymous teaser" : "full lead memo"} from the following deal data:
+The firm employs 11 individuals, including 7 licensed financial advisors. Brook Capital operates a fee-based model and does not engage in commission-based product sales. The firm provides comprehensive wealth management services including portfolio management, financial planning, tax planning, and estate planning."
 
---- TRANSCRIPT EXCERPTS (highest priority — most detailed and accurate) ---
-${context.transcriptExcerpts || "No transcripts available"}
+Example 2 — Defense Contractor (Correct terminology):
+Company Overview:
+"NES provides technical and engineering support services to the United States Navy, specializing in submarine maintenance, modernization, and repair. The company operates in close proximity to a major Navy shipyard and has maintained active contracts with the Department of Defense for over two decades.
 
---- ENRICHMENT DATA (website scrape + LinkedIn) ---
-${context.enrichmentData || "No enrichment data available"}
+The company holds the necessary security clearances and facility certifications required for classified defense work. NES maintains DCAA-compliant accounting systems. The workforce includes engineers, technicians, and project managers with specialized naval systems expertise."
 
---- MANUAL DATA ENTRIES & GENERAL NOTES ---
-${context.manualEntries || "No manual entries or notes"}
+Example 3 — Commercial Plumbing (Correct factual style):
+Financial Overview:
+"Revenue has ranged from approximately $15 million to $18 million over the past three fiscal years. EBITDA has been in the $2.5 million to $3.0 million range. The service and maintenance segment carries higher margins than the new construction segment, and ownership has been shifting the revenue mix toward recurring service contracts."
 
---- VALUATION CALCULATOR DATA ---
-${context.valuationData || "No valuation data"}
+Notice: No opinions. No "strong reputation." Facts about AUM, headcount, fee model, and owner goals speak for themselves.`;
+
+  const userPrompt = `Generate a ${isAnonymous ? "Anonymous Teaser" : "Full Lead Memo"} from the following company data.
+
+=== CALL TRANSCRIPTS (highest priority — richest source of detail) ===
+${context.transcriptExcerpts || "No transcripts available."}
+
+=== ENRICHMENT DATA (website scrape + LinkedIn) ===
+${context.enrichmentData || "No enrichment data available."}
+
+=== MANUAL DATA ENTRIES & GENERAL NOTES ===
+${context.manualEntries || "No manual entries or notes."}
+
+=== VALUATION CALCULATOR DATA ===
+${context.valuationData || "No valuation data."}
 
 DATA SOURCE PRIORITY: Transcripts > General Notes > Enrichment/Website > Manual entries.
-When sources conflict, prefer higher-priority sources. Synthesize all available data into a cohesive narrative.
+When sources conflict, prefer higher-priority sources. Flag conflicts with [VERIFY: description].
+
+Follow the memo template exactly. Use only the sections specified. Present financial data in a table. Flag any data gaps with [DATA NEEDED: description].
 
 Generate the memo now. Return ONLY the JSON object with "sections" array.`;
 
@@ -372,8 +432,8 @@ Generate the memo now. Return ONLY the JSON object with "sections" array.`;
           { role: "system", content: systemPrompt },
           { role: "user", content: userPrompt },
         ],
-        temperature: 0.4,
-        max_tokens: 8192,
+        temperature: 0.3,
+        max_tokens: 12288,
         response_format: { type: "json_object" },
       }),
     },
@@ -405,8 +465,11 @@ Generate the memo now. Return ONLY the JSON object with "sections" array.`;
     }
   }
 
+  // Post-process: enforce banned words removal
+  const cleanedSections = enforceBannedWords(parsed.sections || []);
+
   return {
-    sections: parsed.sections || [],
+    sections: cleanedSections,
     memo_type: memoType,
     branding,
     generated_at: new Date().toISOString(),

@@ -1,5 +1,10 @@
 import { useState } from "react";
-import { DataRoomTab } from "@/components/admin/data-room/DataRoomTab";
+import { MemosTab } from "@/components/admin/data-room/MemosTab";
+import { DocumentsPanel } from "@/components/admin/data-room/DocumentsPanel";
+import { AccessMatrixPanel } from "@/components/admin/data-room/AccessMatrixPanel";
+import { AuditLogPanel } from "@/components/admin/data-room/AuditLogPanel";
+import { DistributionLogPanel } from "@/components/admin/data-room/DistributionLogPanel";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { useParams, useNavigate, useLocation, Link } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -8,7 +13,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Separator } from "@/components/ui/separator";
 import { Progress } from "@/components/ui/progress";
 import {
   ArrowLeft,
@@ -30,6 +34,11 @@ import {
   X,
   Flag,
   PhoneCall,
+  BookOpen,
+  FileText,
+  ClipboardList,
+  Send,
+  FolderOpen,
 } from "lucide-react";
 import {
   Tooltip,
@@ -653,6 +662,34 @@ const ReMarketingDealDetail = () => {
         />
       )}
 
+      {/* ─── Tabbed Navigation ─── */}
+      <Tabs defaultValue="overview" className="space-y-6">
+        <TabsList className="grid w-full grid-cols-5">
+          <TabsTrigger value="overview" className="text-sm">
+            <Eye className="mr-1.5 h-3.5 w-3.5" />
+            Overview
+          </TabsTrigger>
+          <TabsTrigger value="memos" className="text-sm">
+            <BookOpen className="mr-1.5 h-3.5 w-3.5" />
+            Memos
+          </TabsTrigger>
+          <TabsTrigger value="data-room" className="text-sm">
+            <FolderOpen className="mr-1.5 h-3.5 w-3.5" />
+            Data Room
+          </TabsTrigger>
+          <TabsTrigger value="activity" className="text-sm">
+            <ClipboardList className="mr-1.5 h-3.5 w-3.5" />
+            Activity
+          </TabsTrigger>
+          <TabsTrigger value="distribution" className="text-sm">
+            <Send className="mr-1.5 h-3.5 w-3.5" />
+            Distribution
+          </TabsTrigger>
+        </TabsList>
+
+        {/* ════════════════ OVERVIEW TAB ════════════════ */}
+        <TabsContent value="overview" className="space-y-6">
+
       {/* Website & Actions */}
       {(() => {
         const needsContact = (deal as any)?.needs_owner_contact;
@@ -690,8 +727,8 @@ const ReMarketingDealDetail = () => {
                     </a>
                   </Button>
                 )}
-                <Button 
-                  variant="outline" 
+                <Button
+                  variant="outline"
                   className="gap-2"
                   onClick={handleEnrichFromWebsite}
                   disabled={isEnriching || !effectiveWebsite}
@@ -708,8 +745,8 @@ const ReMarketingDealDetail = () => {
                   dealCategory={deal?.category}
                   scoreCount={scoreStats?.count || 0}
                 />
-                <Button 
-                  variant="outline" 
+                <Button
+                  variant="outline"
                   className="gap-2"
                   onClick={() => setBuyerHistoryOpen(true)}
                 >
@@ -794,10 +831,8 @@ const ReMarketingDealDetail = () => {
         dealId={dealId!}
       />
 
-      {/* Company Overview (75%) + Activity Log (25%) side by side */}
-      <div className="grid grid-cols-4 gap-4 items-start">
-        <div className="col-span-3">
-          <CompanyOverviewCard
+      {/* Company Overview */}
+      <CompanyOverviewCard
             companyName={deal.internal_company_name || deal.title}
             website={effectiveWebsite}
             location={deal.location}
@@ -851,11 +886,6 @@ const ReMarketingDealDetail = () => {
               });
             }}
           />
-        </div>
-        <div className="col-span-1">
-          <DealActivityLog dealId={dealId!} maxHeight={480} />
-        </div>
-      </div>
 
       {/* Financial Overview - Full width below Company Overview */}
       <Card>
@@ -1212,57 +1242,6 @@ const ReMarketingDealDetail = () => {
         }}
       />
 
-      {/* Match Stats */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg flex items-center gap-2">
-            <Users className="h-5 w-5" />
-            Buyer Match Summary
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid gap-4 sm:grid-cols-4">
-            <div className="text-center p-4 rounded-lg bg-muted/50">
-              <div className="text-2xl font-bold">{scoreStats?.count || 0}</div>
-              <div className="text-sm text-muted-foreground">Total Matches</div>
-            </div>
-            <div className="text-center p-4 rounded-lg bg-green-50 dark:bg-green-950/20">
-              <div className="text-2xl font-bold text-green-600">{scoreStats?.approved || 0}</div>
-              <div className="text-sm text-muted-foreground">Approved</div>
-            </div>
-            <div className="text-center p-4 rounded-lg bg-red-50 dark:bg-red-950/20">
-              <div className="text-2xl font-bold text-red-600">{scoreStats?.passed || 0}</div>
-              <div className="text-sm text-muted-foreground">Passed</div>
-            </div>
-            <div className="text-center p-4 rounded-lg bg-primary/10">
-              <div className="text-2xl font-bold text-primary">
-                {scoreStats?.avgScore ? Math.round(scoreStats.avgScore) : '-'}
-              </div>
-              <div className="text-sm text-muted-foreground">Avg. Score</div>
-            </div>
-          </div>
-          <div className="mt-4 flex justify-center">
-            <Button asChild>
-              <Link to={`/admin/remarketing/matching/${dealId}`}>
-                <Target className="h-4 w-4 mr-2" />
-                View All Matches
-              </Link>
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Pipeline & Marketplace Panels */}
-      <div className="grid gap-6 lg:grid-cols-2">
-        <DealPipelinePanel listingId={dealId!} />
-        <DealMarketplacePanel
-          listingId={dealId!}
-          isInternalDeal={deal.is_internal_deal}
-          status={deal.status}
-          title={deal.title}
-        />
-      </div>
-
       {/* Description */}
       {deal.description && (
         <Card>
@@ -1294,8 +1273,6 @@ const ReMarketingDealDetail = () => {
         }}
       />
 
-
-
       {/* General Notes Section */}
       <GeneralNotesSection
         notes={deal.general_notes}
@@ -1310,9 +1287,9 @@ const ReMarketingDealDetail = () => {
               body: { dealId, notesText: notes },
               timeoutMs: 120_000,
             });
-            
+
             if (error) throw error;
-            
+
             if (data?.success) {
               toast.success(`Extracted ${data.fieldsUpdated?.length || 0} fields from notes`);
               queryClient.invalidateQueries({ queryKey: ['remarketing', 'deal', dealId] });
@@ -1337,30 +1314,97 @@ const ReMarketingDealDetail = () => {
         </span>
       </div>
 
-      {/* Data Room */}
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-base">Data Room</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <DataRoomTab
+        </TabsContent>
+
+        {/* ════════════════ MEMOS TAB ════════════════ */}
+        <TabsContent value="memos">
+          <MemosTab
             dealId={dealId!}
             dealTitle={deal.internal_company_name || deal.title}
-            isInternalDeal={deal.is_internal_deal}
           />
-        </CardContent>
-      </Card>
+        </TabsContent>
 
-      {/* AI Buyer Chat */}
-      <DealBuyerChat
-        listingId={dealId!}
-        dealName={deal.internal_company_name || deal.title}
-        dealGeography={deal.address_state ? [deal.address_state] : []}
-        dealRevenue={deal.revenue}
-        approvedCount={scoreStats?.approved || 0}
-        passedCount={scoreStats?.passed || 0}
-        pendingCount={(scoreStats?.count || 0) - (scoreStats?.approved || 0) - (scoreStats?.passed || 0)}
-      />
+        {/* ════════════════ DATA ROOM TAB ════════════════ */}
+        <TabsContent value="data-room" className="space-y-6">
+          <DocumentsPanel dealId={dealId!} />
+          <AccessMatrixPanel dealId={dealId!} />
+        </TabsContent>
+
+        {/* ════════════════ ACTIVITY TAB ════════════════ */}
+        <TabsContent value="activity" className="space-y-6">
+          <DealActivityLog dealId={dealId!} maxHeight={800} />
+          <AuditLogPanel dealId={dealId!} />
+        </TabsContent>
+
+        {/* ════════════════ DISTRIBUTION TAB ════════════════ */}
+        <TabsContent value="distribution" className="space-y-6">
+          {/* Buyer Match Summary */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Users className="h-5 w-5" />
+                Buyer Match Summary
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid gap-4 sm:grid-cols-4">
+                <div className="text-center p-4 rounded-lg bg-muted/50">
+                  <div className="text-2xl font-bold">{scoreStats?.count || 0}</div>
+                  <div className="text-sm text-muted-foreground">Total Matches</div>
+                </div>
+                <div className="text-center p-4 rounded-lg bg-green-50 dark:bg-green-950/20">
+                  <div className="text-2xl font-bold text-green-600">{scoreStats?.approved || 0}</div>
+                  <div className="text-sm text-muted-foreground">Approved</div>
+                </div>
+                <div className="text-center p-4 rounded-lg bg-red-50 dark:bg-red-950/20">
+                  <div className="text-2xl font-bold text-red-600">{scoreStats?.passed || 0}</div>
+                  <div className="text-sm text-muted-foreground">Passed</div>
+                </div>
+                <div className="text-center p-4 rounded-lg bg-primary/10">
+                  <div className="text-2xl font-bold text-primary">
+                    {scoreStats?.avgScore ? Math.round(scoreStats.avgScore) : '-'}
+                  </div>
+                  <div className="text-sm text-muted-foreground">Avg. Score</div>
+                </div>
+              </div>
+              <div className="mt-4 flex justify-center">
+                <Button asChild>
+                  <Link to={`/admin/remarketing/matching/${dealId}`}>
+                    <Target className="h-4 w-4 mr-2" />
+                    View All Matches
+                  </Link>
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Pipeline & Marketplace Panels */}
+          <div className="grid gap-6 lg:grid-cols-2">
+            <DealPipelinePanel listingId={dealId!} />
+            <DealMarketplacePanel
+              listingId={dealId!}
+              isInternalDeal={deal.is_internal_deal}
+              status={deal.status}
+              title={deal.title}
+            />
+          </div>
+
+          {/* Distribution Log */}
+          <DistributionLogPanel dealId={dealId!} />
+
+          {/* AI Buyer Chat */}
+          <DealBuyerChat
+            listingId={dealId!}
+            dealName={deal.internal_company_name || deal.title}
+            dealGeography={deal.address_state ? [deal.address_state] : []}
+            dealRevenue={deal.revenue}
+            approvedCount={scoreStats?.approved || 0}
+            passedCount={scoreStats?.passed || 0}
+            pendingCount={(scoreStats?.count || 0) - (scoreStats?.approved || 0) - (scoreStats?.passed || 0)}
+          />
+        </TabsContent>
+
+      </Tabs>
     </div>
   );
 };
