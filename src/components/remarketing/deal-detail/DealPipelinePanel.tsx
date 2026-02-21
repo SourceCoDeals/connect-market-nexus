@@ -4,9 +4,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { GitBranch, ExternalLink, Users } from "lucide-react";
+import { GitBranch, ExternalLink, Users, Shield, FileCheck } from "lucide-react";
 import { format } from "date-fns";
 import { Link } from "react-router-dom";
+import { AgreementStatusBadge } from "@/components/admin/firm-agreements/AgreementStatusBadge";
+import type { AgreementStatus } from "@/hooks/admin/use-firm-agreements";
 
 interface DealPipelineEntry {
   id: string;
@@ -129,15 +131,23 @@ export const DealPipelinePanel = ({ listingId }: { listingId: string }) => {
                     {entry.probability != null && (
                       <span>{entry.probability}% probability</span>
                     )}
-                    {entry.nda_status && entry.nda_status !== 'none' && (
-                      <Badge variant="outline" className="text-xs">
-                        NDA: {entry.nda_status}
-                      </Badge>
+                    {entry.nda_status && entry.nda_status !== 'none' && entry.nda_status !== 'not_sent' && (
+                      <span className="inline-flex items-center gap-1">
+                        <Shield className="h-3 w-3 text-muted-foreground" />
+                        <AgreementStatusBadge
+                          status={(entry.nda_status === 'not_sent' ? 'not_started' : entry.nda_status) as AgreementStatus}
+                          size="sm"
+                        />
+                      </span>
                     )}
-                    {entry.fee_agreement_status && entry.fee_agreement_status !== 'none' && (
-                      <Badge variant="outline" className="text-xs">
-                        Fee: {entry.fee_agreement_status}
-                      </Badge>
+                    {entry.fee_agreement_status && entry.fee_agreement_status !== 'none' && entry.fee_agreement_status !== 'not_sent' && (
+                      <span className="inline-flex items-center gap-1">
+                        <FileCheck className="h-3 w-3 text-muted-foreground" />
+                        <AgreementStatusBadge
+                          status={(entry.fee_agreement_status === 'not_sent' ? 'not_started' : entry.fee_agreement_status) as AgreementStatus}
+                          size="sm"
+                        />
+                      </span>
                     )}
                     <span>Added {format(new Date(entry.created_at), 'MMM d, yyyy')}</span>
                   </div>
