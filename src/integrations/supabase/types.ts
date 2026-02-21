@@ -2242,6 +2242,229 @@ export type Database = {
         }
         Relationships: []
       }
+      data_room_access: {
+        Row: {
+          can_view_data_room: boolean | null
+          can_view_full_memo: boolean | null
+          can_view_teaser: boolean | null
+          deal_id: string
+          expires_at: string | null
+          fee_agreement_override: boolean | null
+          fee_agreement_override_by: string | null
+          fee_agreement_override_reason: string | null
+          granted_at: string | null
+          granted_by: string | null
+          id: string
+          last_modified_at: string | null
+          last_modified_by: string | null
+          marketplace_user_id: string | null
+          remarketing_buyer_id: string | null
+          revoked_at: string | null
+        }
+        Insert: {
+          can_view_data_room?: boolean | null
+          can_view_full_memo?: boolean | null
+          can_view_teaser?: boolean | null
+          deal_id: string
+          expires_at?: string | null
+          fee_agreement_override?: boolean | null
+          fee_agreement_override_by?: string | null
+          fee_agreement_override_reason?: string | null
+          granted_at?: string | null
+          granted_by?: string | null
+          id?: string
+          last_modified_at?: string | null
+          last_modified_by?: string | null
+          marketplace_user_id?: string | null
+          remarketing_buyer_id?: string | null
+          revoked_at?: string | null
+        }
+        Update: {
+          can_view_data_room?: boolean | null
+          can_view_full_memo?: boolean | null
+          can_view_teaser?: boolean | null
+          deal_id?: string
+          expires_at?: string | null
+          fee_agreement_override?: boolean | null
+          fee_agreement_override_by?: string | null
+          fee_agreement_override_reason?: string | null
+          granted_at?: string | null
+          granted_by?: string | null
+          id?: string
+          last_modified_at?: string | null
+          last_modified_by?: string | null
+          marketplace_user_id?: string | null
+          remarketing_buyer_id?: string | null
+          revoked_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "data_room_access_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "linkedin_manual_review_queue"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "data_room_access_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "listings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "data_room_access_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "listings_needing_enrichment"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "data_room_access_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "ranked_deals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "data_room_access_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "unmapped_primary_owners"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "data_room_access_remarketing_buyer_id_fkey"
+            columns: ["remarketing_buyer_id"]
+            isOneToOne: false
+            referencedRelation: "remarketing_buyers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      data_room_audit_log: {
+        Row: {
+          action: string
+          created_at: string | null
+          deal_id: string
+          document_id: string | null
+          id: string
+          ip_address: unknown
+          metadata: Json | null
+          user_agent: string | null
+          user_id: string
+        }
+        Insert: {
+          action: string
+          created_at?: string | null
+          deal_id: string
+          document_id?: string | null
+          id?: string
+          ip_address?: unknown
+          metadata?: Json | null
+          user_agent?: string | null
+          user_id: string
+        }
+        Update: {
+          action?: string
+          created_at?: string | null
+          deal_id?: string
+          document_id?: string | null
+          id?: string
+          ip_address?: unknown
+          metadata?: Json | null
+          user_agent?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      data_room_documents: {
+        Row: {
+          allow_download: boolean | null
+          created_at: string | null
+          deal_id: string
+          document_category: string
+          file_name: string
+          file_size_bytes: number | null
+          file_type: string | null
+          folder_name: string
+          id: string
+          is_generated: boolean | null
+          storage_path: string
+          updated_at: string | null
+          uploaded_by: string | null
+          version: number | null
+        }
+        Insert: {
+          allow_download?: boolean | null
+          created_at?: string | null
+          deal_id: string
+          document_category: string
+          file_name: string
+          file_size_bytes?: number | null
+          file_type?: string | null
+          folder_name?: string
+          id?: string
+          is_generated?: boolean | null
+          storage_path: string
+          updated_at?: string | null
+          uploaded_by?: string | null
+          version?: number | null
+        }
+        Update: {
+          allow_download?: boolean | null
+          created_at?: string | null
+          deal_id?: string
+          document_category?: string
+          file_name?: string
+          file_size_bytes?: number | null
+          file_type?: string | null
+          folder_name?: string
+          id?: string
+          is_generated?: boolean | null
+          storage_path?: string
+          updated_at?: string | null
+          uploaded_by?: string | null
+          version?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "data_room_documents_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "linkedin_manual_review_queue"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "data_room_documents_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "listings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "data_room_documents_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "listings_needing_enrichment"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "data_room_documents_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "ranked_deals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "data_room_documents_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "unmapped_primary_owners"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       deal_activities: {
         Row: {
           activity_type: string
@@ -4333,6 +4556,134 @@ export type Database = {
           },
         ]
       }
+      lead_memo_versions: {
+        Row: {
+          content: Json
+          created_at: string | null
+          edited_by: string | null
+          html_content: string | null
+          id: string
+          memo_id: string
+          version: number
+        }
+        Insert: {
+          content: Json
+          created_at?: string | null
+          edited_by?: string | null
+          html_content?: string | null
+          id?: string
+          memo_id: string
+          version: number
+        }
+        Update: {
+          content?: Json
+          created_at?: string | null
+          edited_by?: string | null
+          html_content?: string | null
+          id?: string
+          memo_id?: string
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lead_memo_versions_memo_id_fkey"
+            columns: ["memo_id"]
+            isOneToOne: false
+            referencedRelation: "lead_memos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      lead_memos: {
+        Row: {
+          branding: string | null
+          content: Json
+          created_at: string | null
+          created_by: string | null
+          deal_id: string
+          generated_from: Json | null
+          html_content: string | null
+          id: string
+          memo_type: string
+          pdf_storage_path: string | null
+          published_at: string | null
+          published_by: string | null
+          status: string | null
+          updated_at: string | null
+          version: number | null
+        }
+        Insert: {
+          branding?: string | null
+          content?: Json
+          created_at?: string | null
+          created_by?: string | null
+          deal_id: string
+          generated_from?: Json | null
+          html_content?: string | null
+          id?: string
+          memo_type: string
+          pdf_storage_path?: string | null
+          published_at?: string | null
+          published_by?: string | null
+          status?: string | null
+          updated_at?: string | null
+          version?: number | null
+        }
+        Update: {
+          branding?: string | null
+          content?: Json
+          created_at?: string | null
+          created_by?: string | null
+          deal_id?: string
+          generated_from?: Json | null
+          html_content?: string | null
+          id?: string
+          memo_type?: string
+          pdf_storage_path?: string | null
+          published_at?: string | null
+          published_by?: string | null
+          status?: string | null
+          updated_at?: string | null
+          version?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lead_memos_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "linkedin_manual_review_queue"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lead_memos_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "listings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lead_memos_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "listings_needing_enrichment"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lead_memos_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "ranked_deals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lead_memos_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "unmapped_primary_owners"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       lead_sources: {
         Row: {
           created_at: string | null
@@ -5241,6 +5592,101 @@ export type Database = {
             columns: ["universe_id"]
             isOneToOne: false
             referencedRelation: "remarketing_buyer_universes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      memo_distribution_log: {
+        Row: {
+          channel: string
+          deal_id: string
+          email_address: string | null
+          email_subject: string | null
+          id: string
+          marketplace_user_id: string | null
+          memo_id: string | null
+          memo_type: string
+          notes: string | null
+          remarketing_buyer_id: string | null
+          sent_at: string | null
+          sent_by: string | null
+        }
+        Insert: {
+          channel: string
+          deal_id: string
+          email_address?: string | null
+          email_subject?: string | null
+          id?: string
+          marketplace_user_id?: string | null
+          memo_id?: string | null
+          memo_type: string
+          notes?: string | null
+          remarketing_buyer_id?: string | null
+          sent_at?: string | null
+          sent_by?: string | null
+        }
+        Update: {
+          channel?: string
+          deal_id?: string
+          email_address?: string | null
+          email_subject?: string | null
+          id?: string
+          marketplace_user_id?: string | null
+          memo_id?: string | null
+          memo_type?: string
+          notes?: string | null
+          remarketing_buyer_id?: string | null
+          sent_at?: string | null
+          sent_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "memo_distribution_log_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "linkedin_manual_review_queue"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "memo_distribution_log_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "listings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "memo_distribution_log_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "listings_needing_enrichment"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "memo_distribution_log_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "ranked_deals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "memo_distribution_log_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "unmapped_primary_owners"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "memo_distribution_log_memo_id_fkey"
+            columns: ["memo_id"]
+            isOneToOne: false
+            referencedRelation: "lead_memos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "memo_distribution_log_remarketing_buyer_id_fkey"
+            columns: ["remarketing_buyer_id"]
+            isOneToOne: false
+            referencedRelation: "remarketing_buyers"
             referencedColumns: ["id"]
           },
         ]
@@ -8680,6 +9126,10 @@ export type Database = {
         }
         Returns: boolean
       }
+      check_data_room_access: {
+        Args: { p_category: string; p_deal_id: string; p_user_id: string }
+        Returns: boolean
+      }
       check_orphaned_auth_users: {
         Args: never
         Returns: {
@@ -8738,6 +9188,21 @@ export type Database = {
           user_id: string
         }[]
       }
+      get_buyer_deal_history: {
+        Args: { p_buyer_id: string }
+        Returns: {
+          deal_category: string
+          deal_id: string
+          deal_title: string
+          has_data_room_access: boolean
+          has_full_memo_access: boolean
+          has_teaser_access: boolean
+          last_memo_sent_at: string
+          memos_sent: number
+          pipeline_stage: string
+          pipeline_stage_id: string
+        }[]
+      }
       get_connection_request_analytics: {
         Args: { time_range?: string }
         Returns: {
@@ -8757,6 +9222,40 @@ export type Database = {
           needs_review: boolean
           request_id: string
           user_email: string
+        }[]
+      }
+      get_deal_access_matrix: {
+        Args: { p_deal_id: string }
+        Returns: {
+          access_id: string
+          buyer_company: string
+          buyer_name: string
+          can_view_data_room: boolean
+          can_view_full_memo: boolean
+          can_view_teaser: boolean
+          expires_at: string
+          fee_agreement_override: boolean
+          fee_agreement_override_reason: string
+          fee_agreement_signed: boolean
+          granted_at: string
+          last_access_at: string
+          marketplace_user_id: string
+          remarketing_buyer_id: string
+          revoked_at: string
+        }[]
+      }
+      get_deal_distribution_log: {
+        Args: { p_deal_id: string }
+        Returns: {
+          buyer_company: string
+          buyer_name: string
+          channel: string
+          email_address: string
+          log_id: string
+          memo_type: string
+          notes: string
+          sent_at: string
+          sent_by_name: string
         }[]
       }
       get_deals_with_details: {
@@ -8926,6 +9425,18 @@ export type Database = {
       link_journey_to_user: {
         Args: { p_user_id: string; p_visitor_id: string }
         Returns: undefined
+      }
+      log_data_room_event: {
+        Args: {
+          p_action: string
+          p_deal_id: string
+          p_document_id?: string
+          p_ip_address?: unknown
+          p_metadata?: Json
+          p_user_agent?: string
+          p_user_id: string
+        }
+        Returns: string
       }
       log_enrichment_event: {
         Args: {

@@ -39,7 +39,7 @@ export function SendMemoDialog({ memo, dealId, onClose }: SendMemoDialogProps) {
     queryFn: async () => {
       let query = supabase
         .from('remarketing_buyers')
-        .select('id, company_name, pe_firm_name, email_domain, contact_email')
+        .select('id, company_name, pe_firm_name, email_domain')
         .eq('archived', false)
         .order('company_name')
         .limit(50);
@@ -56,7 +56,7 @@ export function SendMemoDialog({ memo, dealId, onClose }: SendMemoDialogProps) {
 
   const handleSelectBuyer = (buyer: any) => {
     setSelectedBuyerId(buyer.id);
-    setEmailAddress(buyer.contact_email || '');
+    setEmailAddress(buyer.email_domain ? `contact@${buyer.email_domain}` : '');
     setEmailSubject(`Deal Opportunity: ${memo.memo_type === 'anonymous_teaser' ? 'Anonymous Teaser' : 'Lead Memo'}`);
   };
 
@@ -113,8 +113,8 @@ export function SendMemoDialog({ memo, dealId, onClose }: SendMemoDialogProps) {
                     onClick={() => handleSelectBuyer(buyer)}
                   >
                     <p className="font-medium">{buyer.pe_firm_name || buyer.company_name}</p>
-                    {buyer.contact_email && (
-                      <p className="text-xs text-muted-foreground">{buyer.contact_email}</p>
+                    {buyer.email_domain && (
+                      <p className="text-xs text-muted-foreground">{buyer.email_domain}</p>
                     )}
                   </button>
                 ))}
