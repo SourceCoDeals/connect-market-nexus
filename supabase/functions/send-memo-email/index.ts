@@ -15,7 +15,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { requireAdmin } from "../_shared/auth.ts";
-import { sendBrevoEmail } from "../_shared/brevo-sender.ts";
+import { sendViaBervo } from "../_shared/brevo-sender.ts";
 
 Deno.serve(async (req: Request) => {
   const corsHeaders = getCorsHeaders(req);
@@ -91,11 +91,15 @@ Deno.serve(async (req: Request) => {
     const senderEmail = Deno.env.get("ADMIN_NOTIFICATION_EMAIL") || adminProfile?.email || "deals@sourceco.com";
 
     // Send email via Brevo
-    const emailResult = await sendBrevoEmail({
-      to: [{ email: email_address, name: buyer?.pe_firm_name || buyer?.company_name || email_address }],
+    const emailResult = await sendViaBervo({
+      to: email_address,
+      toName: buyer?.pe_firm_name || buyer?.company_name || email_address,
       subject: email_subject,
       htmlContent: wrapEmailHtml(email_body, senderName),
-      sender: { name: senderName, email: senderEmail },
+      senderName: senderName,
+      senderEmail: senderEmail,
+      replyToEmail: senderEmail,
+      replyToName: senderName,
     });
 
     if (!emailResult.success) {
