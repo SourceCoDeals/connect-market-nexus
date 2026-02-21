@@ -210,3 +210,11 @@ verify_jwt = false
 verify_jwt = false
 [functions.draft-outreach-email]
 verify_jwt = false
+[functions.create-docuseal-submission]
+verify_jwt = false
+[functions.docuseal-webhook-handler]
+verify_jwt = false
+[functions.auto-create-firm-on-approval]
+verify_jwt = false
+[functions.send-nda-reminder]
+verify_jwt = false
