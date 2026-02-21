@@ -42,7 +42,7 @@ export function InternalCompanyInfoSection({ control, dealIdentifier }: Internal
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <FormField
             control={control}
             name="internal_company_name"
@@ -53,14 +53,39 @@ export function InternalCompanyInfoSection({ control, dealIdentifier }: Internal
                   Real Company Name
                 </FormLabel>
                 <FormControl>
-                  <Input 
-                    placeholder="e.g., Acme Corporation" 
-                    {...field} 
+                  <Input
+                    placeholder="e.g., Acme Corporation"
+                    {...field}
                     className="border-slate-200 focus:border-slate-400 dark:border-slate-700 dark:focus:border-slate-500"
                   />
                 </FormControl>
                 <FormDescription>
                   The actual company name behind this anonymous listing
+                </FormDescription>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={control}
+            name="project_name"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel className="flex items-center gap-2">
+                  <FileText className="h-4 w-4" />
+                  Project Name
+                </FormLabel>
+                <FormControl>
+                  <Input
+                    placeholder="e.g., Project Restoration"
+                    {...field}
+                    value={field.value || ''}
+                    className="border-slate-200 focus:border-slate-400 dark:border-slate-700 dark:focus:border-slate-500"
+                  />
+                </FormControl>
+                <FormDescription>
+                  Anonymous codename for buyer-facing teasers
                 </FormDescription>
                 <FormMessage />
               </FormItem>
@@ -77,7 +102,7 @@ export function InternalCompanyInfoSection({ control, dealIdentifier }: Internal
                   Primary Owner/Lead
                 </FormLabel>
                 <FormControl>
-                  <Input 
+                  <Input
                     placeholder="e.g., John Smith (our team member)"
                     {...field}
                     className="border-slate-200 focus:border-slate-400 dark:border-slate-700 dark:focus:border-slate-500"

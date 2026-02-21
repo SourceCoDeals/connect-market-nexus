@@ -22,12 +22,13 @@ export interface AdminListing {
   image_url?: string | null;
   status: 'active' | 'inactive';
   status_tag?: string | null;
-  
+
   // Deal identifier for tracking
   deal_identifier?: string;
-  
+
   // Admin-only internal company information
   internal_company_name?: string;
+  project_name?: string | null;
   internal_primary_owner?: string; // Deprecated - use primary_owner_id
   primary_owner_id?: string | null; // UUID reference to profiles
   internal_salesforce_link?: string;
@@ -92,12 +93,13 @@ export interface CreateListingData {
   owner_notes?: string;
   status?: 'active' | 'inactive';
   status_tag?: string | null;
-  
+
   // Deal identifier for tracking
   deal_identifier?: string;
-  
+
   // Admin-only internal company information
   internal_company_name?: string;
+  project_name?: string | null;
   internal_primary_owner?: string; // Deprecated - use primary_owner_id
   primary_owner_id?: string | null; // UUID reference to profiles
   internal_salesforce_link?: string;

@@ -74,7 +74,7 @@ export function EditorInternalSection({ form, dealIdentifier }: EditorInternalSe
                 </p>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <FormField
                   control={form.control}
                   name="internal_company_name"
@@ -85,14 +85,39 @@ export function EditorInternalSection({ form, dealIdentifier }: EditorInternalSe
                         Real Company Name
                       </FormLabel>
                       <FormControl>
-                        <Input 
-                          placeholder="e.g., Acme Corporation" 
-                          {...field} 
+                        <Input
+                          placeholder="e.g., Acme Corporation"
+                          {...field}
                           className="bg-background border-border"
                         />
                       </FormControl>
                       <FormDescription>
                         The actual company name behind this listing
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="project_name"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="flex items-center gap-2">
+                        <FileText className="h-4 w-4" />
+                        Project Name
+                      </FormLabel>
+                      <FormControl>
+                        <Input
+                          placeholder="e.g., Project Restoration"
+                          {...field}
+                          value={field.value || ''}
+                          className="bg-background border-border"
+                        />
+                      </FormControl>
+                      <FormDescription>
+                        Anonymous codename for buyer-facing teasers
                       </FormDescription>
                       <FormMessage />
                     </FormItem>

@@ -55,7 +55,7 @@ export function MemosPanel({ dealId, dealTitle }: MemosPanelProps) {
   const generateMemo = useGenerateMemo();
   const publishMemo = usePublishMemo();
 
-  const [generateType, setGenerateType] = useState<'anonymous_teaser' | 'full_memo' | 'both'>('both');
+  const [generateType, setGenerateType] = useState<'anonymous_teaser' | 'full_memo'>('full_memo');
   const [branding, setBranding] = useState('sourceco');
   const [editingMemo, setEditingMemo] = useState<LeadMemo | null>(null);
   const [sendingMemo, setSendingMemo] = useState<LeadMemo | null>(null);
@@ -168,9 +168,8 @@ export function MemosPanel({ dealId, dealTitle }: MemosPanelProps) {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="anonymous_teaser">Anonymous Teaser</SelectItem>
-                  <SelectItem value="full_memo">Full Lead Memo</SelectItem>
-                  <SelectItem value="both">Both (Teaser + Full)</SelectItem>
+                  <SelectItem value="full_memo">Full Detail Memo (from transcripts)</SelectItem>
+                  <SelectItem value="anonymous_teaser">Anonymous Teaser (from uploaded PDF)</SelectItem>
                 </SelectContent>
               </Select>
             </div>

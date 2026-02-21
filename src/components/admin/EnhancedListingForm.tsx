@@ -85,6 +85,7 @@ const enhancedListingFormSchema = z.object({
   
   // Admin-only internal fields
   internal_company_name: z.string().optional(),
+  project_name: z.string().nullable().optional(),
   internal_primary_owner: z.string().optional(),
   internal_salesforce_link: z.string().optional(),
   internal_deal_memo_link: z.string().optional(),

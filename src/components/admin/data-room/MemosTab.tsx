@@ -67,18 +67,19 @@ export function MemosTab({ dealId, dealTitle }: MemosTabProps) {
       <MemoSlotCard
         dealId={dealId}
         dealTitle={dealTitle}
-        slotType="anonymous_teaser"
-        title="Anonymous Teaser"
-        description="One-page blind profile. No company name, no owner name, no identifying details. Used for initial interest gauging."
-        document={teaserDoc}
+        slotType="full_memo"
+        title="Full Detail Memo"
+        description="Internal document with all real names, exact locations, and complete detail. Generated from transcripts. Never sent to buyers."
+        document={fullMemoDoc}
       />
       <MemoSlotCard
         dealId={dealId}
         dealTitle={dealTitle}
-        slotType="full_memo"
-        title="Full Lead Memo"
-        description="Comprehensive investment memo. Includes company name, financials, operations detail. Sent after NDA execution."
-        document={fullMemoDoc}
+        slotType="anonymous_teaser"
+        title="Anonymous Teaser"
+        description="Buyer-facing document derived from the Full Detail Memo PDF. All identifying information removed. Sent before NDA."
+        document={teaserDoc}
+        requiresFullMemo={!fullMemoDoc}
       />
     </div>
   );
@@ -93,6 +94,7 @@ interface MemoSlotCardProps {
   title: string;
   description: string;
   document?: DataRoomDocument;
+  requiresFullMemo?: boolean;
 }
 
 function MemoSlotCard({
@@ -102,6 +104,7 @@ function MemoSlotCard({
   title,
   description,
   document,
+  requiresFullMemo = false,
 }: MemoSlotCardProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const uploadDocument = useUploadDocument();
@@ -278,6 +281,19 @@ function MemoSlotCard({
                 </Button>
               </div>
             </div>
+          ) : requiresFullMemo ? (
+            // ─── Requires Full Memo State ───
+            <div className="space-y-3">
+              <div className="flex items-center justify-center py-6 border-2 border-dashed rounded-lg bg-amber-50/50 border-amber-200">
+                <div className="text-center">
+                  <AlertCircle className="h-8 w-8 mx-auto text-amber-500 mb-2" />
+                  <p className="text-sm font-medium text-amber-800">Full Detail Memo required</p>
+                  <p className="text-xs text-amber-600 mt-1 max-w-[240px]">
+                    Upload a finalized Full Detail Memo PDF first. The Anonymous Teaser is generated from that document to ensure consistency.
+                  </p>
+                </div>
+              </div>
+            </div>
           ) : (
             // ─── Empty State ───
             <div className="space-y-3">
@@ -317,7 +333,10 @@ function MemoSlotCard({
               </div>
 
               <p className="text-xs text-muted-foreground text-center">
-                Generate an AI draft (.docx), edit in Word, save as PDF, then upload.
+                {slotType === 'full_memo'
+                  ? "Generate an AI draft (.docx) from transcripts, edit in Word, save as PDF, then upload."
+                  : "Generate an anonymous teaser from the uploaded Full Detail Memo PDF."
+                }
               </p>
             </div>
           )}

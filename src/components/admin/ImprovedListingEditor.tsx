@@ -43,6 +43,7 @@ const listingFormSchema = z.object({
   
   // Admin-only internal fields
   internal_company_name: z.string().nullable().optional(),
+  project_name: z.string().nullable().optional(),
   primary_owner_id: z.string().uuid().nullable().optional(),
   presented_by_admin_id: z.string().uuid().nullable().optional(),
   internal_salesforce_link: z.string().nullable().optional(),
