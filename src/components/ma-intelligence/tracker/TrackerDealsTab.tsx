@@ -121,7 +121,7 @@ export function TrackerDealsTab({ trackerId, onDealCountChange }: TrackerDealsTa
       setTimeout(() => {
         loadDeals();
         setSelectedDeals(new Set());
-      }, 2000);
+      }, 5000);
     } catch (error: any) {
       if (activityItem) {
         completeOperation.mutate({ id: activityItem.id, finalStatus: "failed" });
@@ -241,7 +241,7 @@ export function TrackerDealsTab({ trackerId, onDealCountChange }: TrackerDealsTa
         description: "Deal scoring in progress",
       });
 
-      setTimeout(() => loadDeals(), 2000);
+      setTimeout(loadDeals, 5000);
     } catch (error: any) {
       toast({
         title: "Scoring failed",
@@ -261,7 +261,7 @@ export function TrackerDealsTab({ trackerId, onDealCountChange }: TrackerDealsTa
         description: "Deal enrichment in progress",
       });
 
-      setTimeout(() => loadDeals(), 2000);
+      setTimeout(loadDeals, 5000);
     } catch (error: any) {
       toast({
         title: "Enrichment failed",

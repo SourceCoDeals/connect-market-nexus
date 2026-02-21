@@ -169,9 +169,10 @@ const ReMarketingBuyerDetail = () => {
         .from('remarketing_buyers')
         .select('*')
         .eq('id', id)
-        .single();
+        .maybeSingle();
       
       if (error) throw error;
+      if (!data) return null;
       return data as unknown as BuyerData;
     },
     enabled: !isNew

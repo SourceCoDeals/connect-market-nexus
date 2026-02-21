@@ -162,7 +162,7 @@ export function TrackerBuyersTab({ trackerId, onBuyerCountChange }: TrackerBuyer
         description: "Buyer enrichment in progress",
       });
 
-      setTimeout(() => loadBuyers(), 2000);
+      setTimeout(loadBuyers, 5000);
     } catch (error: any) {
       toast({
         title: "Enrichment failed",

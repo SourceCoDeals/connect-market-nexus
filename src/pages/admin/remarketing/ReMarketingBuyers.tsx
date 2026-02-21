@@ -136,20 +136,31 @@ const ReMarketingBuyers = () => {
   });
 
   // Fetch buyer IDs that have transcripts - needed to determine "Strong" vs "Some Intel"
+  // Scoped to current buyer set to avoid full table scan
+  const buyerIds = useMemo(() => (buyers || []).map((b: any) => b.id), [buyers]);
   const { data: buyerIdsWithTranscripts } = useQuery({
-    queryKey: ['remarketing', 'all-buyer-transcripts'],
+    queryKey: ['remarketing', 'buyer-transcript-ids', buyerIds.slice(0, 5)],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('buyer_transcripts')
-        .select('buyer_id');
+      if (buyerIds.length === 0) return new Set<string>();
       
-      if (error) {
-        console.error('Error fetching transcripts:', error);
-        return new Set<string>();
+      // Batch in chunks of 100 to stay within Supabase limits
+      const allIds: string[] = [];
+      for (let i = 0; i < buyerIds.length; i += 100) {
+        const chunk = buyerIds.slice(i, i + 100);
+        const { data, error } = await supabase
+          .from('buyer_transcripts')
+          .select('buyer_id')
+          .in('buyer_id', chunk);
+        if (error) {
+          console.error('Error fetching transcripts:', error);
+          continue;
+        }
+        allIds.push(...(data || []).map((t: any) => t.buyer_id));
       }
       
-      return new Set((data || []).map((t: any) => t.buyer_id));
+      return new Set(allIds);
     },
+    enabled: buyerIds.length > 0,
   });
 
   // Fetch universes for filter/dropdown
