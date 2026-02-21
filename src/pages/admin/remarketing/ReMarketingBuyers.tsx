@@ -442,16 +442,19 @@ const ReMarketingBuyers = () => {
             className="gap-1.5"
             disabled={selectedIds.size === 0 || enrichingIds.size > 0}
             onClick={async () => {
-              const ids = selectedIds.size > 0 ? Array.from(selectedIds) : [];
-              for (const id of ids) {
-                setEnrichingIds(prev => new Set(prev).add(id));
-                try {
-                  await supabase.functions.invoke('enrich-buyer', { body: { buyerId: id, force: false } });
-                } catch {}
-                setEnrichingIds(prev => { const n = new Set(prev); n.delete(id); return n; });
+              const ids = Array.from(selectedIds);
+              if (ids.length === 0) return;
+              setEnrichingIds(new Set(ids));
+              try {
+                const { queueBuyerEnrichment } = await import("@/lib/remarketing/queueEnrichment");
+                await queueBuyerEnrichment(ids);
+                queryClient.invalidateQueries({ queryKey: ['remarketing', 'buyers'] });
+              } catch (err) {
+                console.error('Bulk enrich failed:', err);
+                toast.error('Failed to queue enrichment');
+              } finally {
+                setEnrichingIds(new Set());
               }
-              queryClient.invalidateQueries({ queryKey: ['remarketing', 'buyers'] });
-              toast.success(`Enriched ${ids.length} buyers`);
             }}
           >
             <Sparkles className="h-3.5 w-3.5" />
