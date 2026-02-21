@@ -3644,35 +3644,35 @@ export type Database = {
           {
             foreignKeyName: "enrichment_queue_listing_id_fkey"
             columns: ["listing_id"]
-            isOneToOne: true
+            isOneToOne: false
             referencedRelation: "linkedin_manual_review_queue"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "enrichment_queue_listing_id_fkey"
             columns: ["listing_id"]
-            isOneToOne: true
+            isOneToOne: false
             referencedRelation: "listings"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "enrichment_queue_listing_id_fkey"
             columns: ["listing_id"]
-            isOneToOne: true
+            isOneToOne: false
             referencedRelation: "listings_needing_enrichment"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "enrichment_queue_listing_id_fkey"
             columns: ["listing_id"]
-            isOneToOne: true
+            isOneToOne: false
             referencedRelation: "ranked_deals"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "enrichment_queue_listing_id_fkey"
             columns: ["listing_id"]
-            isOneToOne: true
+            isOneToOne: false
             referencedRelation: "unmapped_primary_owners"
             referencedColumns: ["id"]
           },
@@ -8704,6 +8704,10 @@ export type Database = {
       }
       decrement_provider_concurrent: {
         Args: { p_provider: string }
+        Returns: undefined
+      }
+      delete_listing_cascade: {
+        Args: { p_listing_id: string }
         Returns: undefined
       }
       delete_user_completely: {
