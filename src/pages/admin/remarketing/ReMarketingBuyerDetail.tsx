@@ -433,14 +433,16 @@ const ReMarketingBuyerDetail = () => {
       fileUrl?: string;
       triggerExtract?: boolean;
     }) => {
-      // Use existing buyer_transcripts table (unified migration not executed yet)
       const { data, error } = await supabase
         .from('buyer_transcripts')
         .insert([
           {
             buyer_id: id,
-            fireflies_transcript_id: `manual-${Date.now()}`,
             title: fileName || 'Manual Transcript',
+            transcript_text: text || null,
+            source: source || 'manual',
+            file_url: fileUrl || null,
+            extraction_status: 'pending',
           } as any,
         ])
         .select('id')

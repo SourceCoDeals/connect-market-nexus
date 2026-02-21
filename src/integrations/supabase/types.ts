@@ -977,15 +977,20 @@ export type Database = {
           call_date: string | null
           created_at: string | null
           duration_minutes: number | null
-          fireflies_transcript_id: string
+          extracted_insights: Json | null
+          extraction_status: string | null
+          file_url: string | null
+          fireflies_transcript_id: string | null
           id: string
           key_points: string[] | null
           linked_at: string | null
           linked_by: string | null
           notes: string | null
           participants: Json | null
+          source: string | null
           summary: string | null
           title: string | null
+          transcript_text: string | null
           transcript_url: string | null
           updated_at: string | null
         }
@@ -995,15 +1000,20 @@ export type Database = {
           call_date?: string | null
           created_at?: string | null
           duration_minutes?: number | null
-          fireflies_transcript_id: string
+          extracted_insights?: Json | null
+          extraction_status?: string | null
+          file_url?: string | null
+          fireflies_transcript_id?: string | null
           id?: string
           key_points?: string[] | null
           linked_at?: string | null
           linked_by?: string | null
           notes?: string | null
           participants?: Json | null
+          source?: string | null
           summary?: string | null
           title?: string | null
+          transcript_text?: string | null
           transcript_url?: string | null
           updated_at?: string | null
         }
@@ -1013,15 +1023,20 @@ export type Database = {
           call_date?: string | null
           created_at?: string | null
           duration_minutes?: number | null
-          fireflies_transcript_id?: string
+          extracted_insights?: Json | null
+          extraction_status?: string | null
+          file_url?: string | null
+          fireflies_transcript_id?: string | null
           id?: string
           key_points?: string[] | null
           linked_at?: string | null
           linked_by?: string | null
           notes?: string | null
           participants?: Json | null
+          source?: string | null
           summary?: string | null
           title?: string | null
+          transcript_text?: string | null
           transcript_url?: string | null
           updated_at?: string | null
         }

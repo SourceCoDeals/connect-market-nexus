@@ -38,13 +38,11 @@ export const PLATFORM_OWNED_FIELDS = new Set([
 
 // Fields that may ONLY be populated from TRANSCRIPTS — NEVER from any website
 // Financial information must never be scraped from websites per policy.
-// This includes both actual company financials AND PE firm investment size criteria,
-// since website-sourced financial data is unreliable and may violate data policies.
+// NOTE: target_ebitda/revenue criteria moved to SHARED_FIELDS because PE firms
+// explicitly state acquisition criteria on websites. These are BUYER criteria,
+// not company financials — fundamentally different from deal revenue/EBITDA.
 export const TRANSCRIPT_ONLY_FIELDS = new Set([
   'num_platforms',
-  // Size criteria — financial data must NEVER come from website scraping
-  'target_revenue_min', 'target_revenue_max',
-  'target_ebitda_min', 'target_ebitda_max',
 ]);
 
 // Fields allowed to fall back from PE firm website when platform website is unavailable
@@ -57,6 +55,9 @@ export const PE_FALLBACK_ALLOWED_FIELDS = new Set([
 // Fields that can be populated from either source (shared/neutral)
 export const SHARED_FIELDS = new Set([
   'target_industries', 'target_services', 'target_geographies',
+  // Size criteria — PE firms explicitly state these on their websites
+  'target_revenue_min', 'target_revenue_max',
+  'target_ebitda_min', 'target_ebitda_max',
   'acquisition_timeline',
   'acquisition_appetite', 'acquisition_frequency',
   'recent_acquisitions', 'portfolio_companies', 'total_acquisitions',
