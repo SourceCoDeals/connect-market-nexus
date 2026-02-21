@@ -25,6 +25,7 @@ import {
   Database,
   ClipboardList,
   FileCheck,
+  ShieldCheck,
   ChevronDown,
   ChevronRight,
   ChevronLeft,
