@@ -2,11 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Mail, CheckCircle, Clock, LogOut, Loader2, AlertCircle, Info, RefreshCw } from 'lucide-react';
+import { Mail, CheckCircle, Clock, LogOut, Loader2, AlertCircle, Info, RefreshCw, Shield } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { cleanupAuthState } from '@/lib/auth-helpers';
+import { useBuyerNdaStatus } from '@/hooks/admin/use-docuseal';
+import { DocuSealSigningPanel } from '@/components/docuseal/DocuSealSigningPanel';
 
 const PendingApproval = () => {
   const navigate = useNavigate();
@@ -15,6 +17,50 @@ const PendingApproval = () => {
   const [isResending, setIsResending] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [isCheckingStatus, setIsCheckingStatus] = useState(false);
+  const [ndaEmbedSrc, setNdaEmbedSrc] = useState<string | null>(null);
+  const [ndaLoading, setNdaLoading] = useState(false);
+  const [ndaSigned, setNdaSigned] = useState(false);
+  const { data: ndaStatus } = useBuyerNdaStatus(user?.id);
+
+  // Fetch NDA embed src when buyer is approved and has an unsigned NDA
+  useEffect(() => {
+    const fetchNdaEmbed = async () => {
+      if (!user?.id || !ndaStatus?.hasFirm || ndaStatus.ndaSigned || ndaEmbedSrc) return;
+      if (user.approval_status !== 'approved') return;
+
+      setNdaLoading(true);
+      try {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('email, first_name, last_name')
+          .eq('id', user.id)
+          .single();
+
+        if (!profile || !ndaStatus.firmId) return;
+
+        const buyerName = `${profile.first_name || ''} ${profile.last_name || ''}`.trim();
+        const { data } = await supabase.functions.invoke('create-docuseal-submission', {
+          body: {
+            firm_id: ndaStatus.firmId,
+            document_type: 'nda',
+            buyer_email: profile.email,
+            buyer_name: buyerName || profile.email,
+            send_email: false,
+          },
+        });
+
+        if (data?.embed_src) {
+          setNdaEmbedSrc(data.embed_src);
+        }
+      } catch (err) {
+        console.error('Failed to fetch NDA embed:', err);
+      } finally {
+        setNdaLoading(false);
+      }
+    };
+
+    fetchNdaEmbed();
+  }, [user?.id, user?.approval_status, ndaStatus?.hasFirm, ndaStatus?.ndaSigned, ndaStatus?.firmId]);
 
   // Handle navigation for approved users
   useEffect(() => {
@@ -238,7 +284,7 @@ const PendingApproval = () => {
           </CardHeader>
           <CardContent className="space-y-4">
             {uiState === 'approved_pending' ? (
-              // Email is verified - show approval status
+              // Email is verified - show approval status + NDA signing if applicable
               <>
                 <div className="bg-amber-50 border border-amber-200 rounded-md p-4">
                   <div className="flex gap-3 items-center">
@@ -248,7 +294,7 @@ const PendingApproval = () => {
                     </p>
                   </div>
                 </div>
-                
+
                 {/* Application Progress Timeline */}
                 <div className="space-y-4">
                   <h4 className="text-sm font-medium text-center">Application Progress</h4>
@@ -282,6 +328,39 @@ const PendingApproval = () => {
                     </div>
                   </div>
                 </div>
+
+                {/* DocuSeal NDA Signing - shown when buyer is approved and has unsigned NDA */}
+                {ndaStatus?.hasFirm && !ndaStatus.ndaSigned && !ndaSigned && (
+                  <div className="border-t pt-4 mt-4">
+                    <div className="flex items-center gap-2 mb-3">
+                      <Shield className="h-4 w-4 text-primary" />
+                      <h4 className="text-sm font-medium">Sign NDA to Access Deals</h4>
+                    </div>
+                    {ndaLoading && (
+                      <div className="flex items-center justify-center py-8">
+                        <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                      </div>
+                    )}
+                    {ndaEmbedSrc && (
+                      <DocuSealSigningPanel
+                        embedSrc={ndaEmbedSrc}
+                        onCompleted={() => setNdaSigned(true)}
+                        title="Non-Disclosure Agreement"
+                        description="Sign to access deal details on the marketplace."
+                      />
+                    )}
+                  </div>
+                )}
+                {ndaSigned && (
+                  <div className="bg-green-50 border border-green-200 rounded-md p-4">
+                    <div className="flex gap-3 items-center">
+                      <CheckCircle className="h-5 w-5 text-green-600 flex-shrink-0" />
+                      <p className="text-green-800 text-sm">
+                        NDA signed successfully! You'll have full access to deal details once your account is approved.
+                      </p>
+                    </div>
+                  </div>
+                )}
               </>
             ) : (
               // Email not verified - show verification instructions and progress

@@ -1,4 +1,4 @@
-import { Crown, Shield, User } from 'lucide-react';
+import { Crown, Shield, User, Users } from 'lucide-react';
 import { AppRole } from '@/hooks/permissions/usePermissions';
 import {
   Tooltip,
@@ -29,6 +29,12 @@ const roleConfig: Record<AppRole, {
     icon: Shield,
     gradient: 'from-primary to-primary/70',
     description: 'Administrative access to manage users and content',
+  },
+  moderator: {
+    label: 'Team Member',
+    icon: Users,
+    gradient: 'from-blue-500 to-blue-400',
+    description: 'Team member with view access and limited actions',
   },
   user: {
     label: 'User',

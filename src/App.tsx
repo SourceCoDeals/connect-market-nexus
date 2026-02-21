@@ -68,6 +68,7 @@ const AdminListings = lazyWithRetry(() => import("@/pages/admin/AdminListings"))
 const AdminUsers = lazyWithRetry(() => import("@/pages/admin/AdminUsers"));
 const MarketplaceUsersPage = lazyWithRetry(() => import("@/pages/admin/MarketplaceUsersPage"));
 const InternalTeamPage = lazyWithRetry(() => import("@/pages/admin/InternalTeamPage"));
+const BuyerContactsPage = lazyWithRetry(() => import("@/pages/admin/BuyerContactsPage"));
 const OwnerLeadsPage = lazyWithRetry(() => import("@/pages/admin/OwnerLeadsPage"));
 const AdminRequests = lazyWithRetry(() => import("@/pages/admin/AdminRequests"));
 const AdminDealSourcing = lazyWithRetry(() => import("@/pages/admin/AdminDealSourcing"));
@@ -195,6 +196,7 @@ function App() {
                           <Route path="buyers/universes/:id" element={<ReMarketingUniverseDetail />} />
                           <Route path="buyers/firm-agreements" element={<Navigate to="/admin/buyers?tab=needs_agreements" replace />} />
                           <Route path="buyers/deal-sourcing" element={<AdminDealSourcing />} />
+                          <Route path="buyers/contacts" element={<BuyerContactsPage />} />
 
                           {/* MARKETPLACE (listings absorbed into unified All Deals page) */}
                           <Route path="marketplace/listings" element={<Navigate to="/admin/deals?tab=marketplace" replace />} />
