@@ -89,10 +89,12 @@ export function ReleaseModal({
     : buyers.find(b => b.id === selectedBuyer || b.email === selectedBuyer);
 
   const isAnonymousTeaser = document?.document_type === 'anonymous_teaser';
+  const buyerNdaStatus = currentBuyer && 'nda_status' in currentBuyer ? (currentBuyer as BuyerOption).nda_status : undefined;
+  const buyerFeeStatus = currentBuyer && 'fee_agreement_status' in currentBuyer ? (currentBuyer as BuyerOption).fee_agreement_status : undefined;
   const needsLegalWarning =
     !isAnonymousTeaser &&
     currentBuyer &&
-    (currentBuyer.nda_status !== 'signed' || currentBuyer.fee_agreement_status !== 'signed');
+    (buyerNdaStatus !== 'signed' || buyerFeeStatus !== 'signed');
 
   const canSubmit =
     document &&
@@ -270,16 +272,16 @@ export function ReleaseModal({
               <Label className="text-xs text-muted-foreground">Legal status</Label>
               <div className="flex gap-2">
                 <Badge
-                  variant={currentBuyer.nda_status === 'signed' ? 'default' : 'secondary'}
-                  className={currentBuyer.nda_status === 'signed' ? 'bg-green-100 text-green-800' : ''}
+                  variant={buyerNdaStatus === 'signed' ? 'default' : 'secondary'}
+                  className={buyerNdaStatus === 'signed' ? 'bg-green-100 text-green-800' : ''}
                 >
-                  NDA: {currentBuyer.nda_status || 'Unknown'}
+                  NDA: {buyerNdaStatus || 'Unknown'}
                 </Badge>
                 <Badge
-                  variant={currentBuyer.fee_agreement_status === 'signed' ? 'default' : 'secondary'}
-                  className={currentBuyer.fee_agreement_status === 'signed' ? 'bg-green-100 text-green-800' : ''}
+                  variant={buyerFeeStatus === 'signed' ? 'default' : 'secondary'}
+                  className={buyerFeeStatus === 'signed' ? 'bg-green-100 text-green-800' : ''}
                 >
-                  Fee Agreement: {currentBuyer.fee_agreement_status || 'Unknown'}
+                  Fee Agreement: {buyerFeeStatus || 'Unknown'}
                 </Badge>
               </div>
               {needsLegalWarning && (

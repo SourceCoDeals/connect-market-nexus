@@ -18,25 +18,6 @@ import {
 
 type Timeframe = "today" | "7d" | "14d" | "30d" | "90d" | "all";
 
-interface DealRow {
-  id: string;
-  title: string | null;
-  internal_company_name: string | null;
-  deal_source: string | null;
-  pushed_to_all_deals: boolean | null;
-  pushed_to_all_deals_at: string | null;
-  deal_total_score: number | null;
-  deal_owner_id: string | null;
-  enrichment_status: string | null;
-  enriched_at: string | null;
-  created_at: string;
-  revenue: number | null;
-  ebitda: number | null;
-  category: string | null;
-  address_state: string | null;
-  status: string | null;
-}
-
 // ─── Helpers ───
 
 function getFromDate(tf: Timeframe): string | null {
@@ -64,31 +45,12 @@ function scorePillClass(score: number | null): string {
   return "bg-gray-100 text-gray-600";
 }
 
-function isAllDealVisible(d: DealRow): boolean {
-  if ((d as any).remarketing_status === "archived" || (d as any).remarketing_status === "excluded") return false;
-  if (d.status === "archived" || d.status === "inactive") return false;
-  const src = d.deal_source;
-  if (src === "captarget" || src === "gp_partners" || src === "valuation_calculator") return d.pushed_to_all_deals === true;
-  return true;
-}
-
 function initials(first: string | null, last: string | null): string {
   return `${(first || "?")[0]}${(last || "")[0] || ""}`.toUpperCase();
 }
 
-// ─── Week helpers for chart ───
-
-function getISOWeekStart(date: Date): Date {
-  const d = new Date(date);
-  const day = d.getDay();
-  const diff = d.getDate() - day + (day === 0 ? -6 : 1);
-  d.setDate(diff);
-  d.setHours(0, 0, 0, 0);
-  return d;
-}
-
-function formatWeekLabel(date: Date): string {
-  return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+function formatWeekLabel(dateStr: string): string {
+  return new Date(dateStr).toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
 // ─── Source colors ───
@@ -119,37 +81,20 @@ const ReMarketingDashboard = () => {
 
   const { data: adminProfiles } = useAdminProfiles();
 
-  // ── Master query: fetch all listings with needed columns (paginated to avoid 1000-row limit) ──
-  const { data: allDeals, isLoading: dealsLoading } = useQuery({
-    queryKey: ["dashboard", "all-deals"],
+  // ── Single RPC call replaces 8+ sequential batch fetches ──
+  const { data: stats, isLoading: statsLoading } = useQuery({
+    queryKey: ["dashboard", "remarketing-stats", fromDate],
     queryFn: async () => {
-      const batchSize = 1000;
-      let offset = 0;
-      let hasMore = true;
-      const allData: DealRow[] = [];
-
-      while (hasMore) {
-        const { data, error } = await supabase
-          .from("listings")
-          .select("id, title, internal_company_name, deal_source, pushed_to_all_deals, pushed_to_all_deals_at, deal_total_score, deal_owner_id, enrichment_status, enriched_at, created_at, revenue, ebitda, category, address_state, status, remarketing_status")
-          .in("remarketing_status", ["active"])
-          .range(offset, offset + batchSize - 1);
-        if (error) throw error;
-        const typedData = (data as unknown) as DealRow[];
-        if (typedData && typedData.length > 0) {
-          allData.push(...typedData);
-          offset += batchSize;
-          hasMore = data.length === batchSize;
-        } else {
-          hasMore = false;
-        }
-      }
-      return allData;
+      const { data, error } = await supabase.rpc("get_remarketing_dashboard_stats", {
+        p_from_date: fromDate,
+      });
+      if (error) throw error;
+      return data as any;
     },
     staleTime: 30_000,
   });
 
-  // ── Buyer universes ──
+  // ── Buyer universes (small dataset, keep as-is) ──
   const { data: universes, isLoading: universesLoading } = useQuery({
     queryKey: ["dashboard", "universes"],
     queryFn: async () => {
@@ -163,7 +108,7 @@ const ReMarketingDashboard = () => {
     staleTime: 60_000,
   });
 
-  // ── Scores per universe ──
+  // ── Scores per universe (small dataset) ──
   const { data: scoreData } = useQuery({
     queryKey: ["dashboard", "scores"],
     queryFn: async () => {
@@ -176,7 +121,7 @@ const ReMarketingDashboard = () => {
     staleTime: 60_000,
   });
 
-  // ── Buyers per universe ──
+  // ── Buyers per universe (small dataset) ──
   const { data: buyerData } = useQuery({
     queryKey: ["dashboard", "buyers"],
     queryFn: async () => {
@@ -190,151 +135,15 @@ const ReMarketingDashboard = () => {
     staleTime: 60_000,
   });
 
-  // ── Computed metrics ──
-  const metrics = useMemo(() => {
-    if (!allDeals) return null;
-
-    const allVisible = allDeals.filter(isAllDealVisible);
-    const ct = allDeals.filter(d => d.deal_source === "captarget");
-    const gp = allDeals.filter(d => d.deal_source === "gp_partners");
-    const other = allDeals.filter(d => !["captarget", "gp_partners"].includes(d.deal_source || ""));
-
-    const inPeriod = (d: DealRow) => {
-      if (!fromDate) return true;
-      return d.created_at >= fromDate;
-    };
-    const pushedInPeriod = (d: DealRow) => {
-      if (!fromDate) return d.pushed_to_all_deals === true;
-      return d.pushed_to_all_deals === true && d.pushed_to_all_deals_at != null && d.pushed_to_all_deals_at >= fromDate;
-    };
-
-    // Card 1 - All Deals
-    const allDealsNewInPeriod = allVisible.filter(d => {
-      if (!fromDate) return true;
-      const src = d.deal_source;
-      if (src === "captarget" || src === "gp_partners") {
-        return d.pushed_to_all_deals_at != null && d.pushed_to_all_deals_at >= fromDate;
-      }
-      return d.created_at >= fromDate;
-    });
-
-    // Card 2 - CapTarget
-    const ctNew = ct.filter(inPeriod);
-    const ctPushed = ct.filter(d => d.pushed_to_all_deals === true);
-
-    // Card 3 - GP
-    const gpNew = gp.filter(inPeriod);
-    const gpPushed = gp.filter(d => d.pushed_to_all_deals === true);
-
-    // Card 4 - Other
-    const marketplace = other.filter(d => d.deal_source === "marketplace");
-    const manual = other.filter(d => !d.deal_source || d.deal_source === "manual");
-
-    // Card 5 - Enriched
-    const enriched = allDeals.filter(d => d.enrichment_status === "enriched" || (d.enriched_at && !d.enrichment_status));
-    const pending = allDeals.filter(d => d.enrichment_status === "pending");
-    const failed = allDeals.filter(d => d.enrichment_status === "failed");
-
-    // CT panel
-    const ctScored = ct.filter(d => d.deal_total_score != null);
-    const ctAvg = ctScored.length > 0 ? Math.round(ctScored.reduce((s, d) => s + (d.deal_total_score || 0), 0) / ctScored.length) : 0;
-    const ctApprovedInPeriod = ct.filter(pushedInPeriod);
-
-    // GP panel
-    const gpScored = gp.filter(d => d.deal_total_score != null);
-    const gpAvg = gpScored.length > 0 ? Math.round(gpScored.reduce((s, d) => s + (d.deal_total_score || 0), 0) / gpScored.length) : 0;
-    const gpApprovedInPeriod = gp.filter(pushedInPeriod);
-
-    // New by source
-    const newInPeriod = allDeals.filter(inPeriod);
-    const bySource: Record<string, number> = {};
-    newInPeriod.forEach(d => {
-      const src = d.deal_source || "manual";
-      bySource[src] = (bySource[src] || 0) + 1;
-    });
-
-    // Team assignments
-    const ownerCounts: Record<string, { total: number; enriched: number; scored: number }> = {};
-    allVisible.forEach(d => {
-      const oid = d.deal_owner_id || "__unassigned";
-      if (!ownerCounts[oid]) ownerCounts[oid] = { total: 0, enriched: 0, scored: 0 };
-      ownerCounts[oid].total++;
-      if (d.enrichment_status === "enriched" || d.enriched_at) ownerCounts[oid].enriched++;
-      if (d.deal_total_score != null) ownerCounts[oid].scored++;
-    });
-
-    // Top deals
-    const topDeals = allDeals
-      .filter(d => inPeriod(d) && d.deal_total_score != null)
-      .sort((a, b) => (b.deal_total_score || 0) - (a.deal_total_score || 0))
-      .slice(0, 8);
-
-    // Score distribution
-    const scored = allDeals.filter(d => d.deal_total_score != null);
-    const unscored = allDeals.length - scored.length;
-    const scoreBuckets = [
-      { label: "80–100", tag: "Top Tier", color: "#16a34a", count: scored.filter(d => d.deal_total_score! >= 80).length },
-      { label: "60–79", tag: "Strong", color: "#2563eb", count: scored.filter(d => d.deal_total_score! >= 60 && d.deal_total_score! < 80).length },
-      { label: "40–59", tag: "Average", color: "#ca8a04", count: scored.filter(d => d.deal_total_score! >= 40 && d.deal_total_score! < 60).length },
-      { label: "20–39", tag: "Below Avg", color: "#ea580c", count: scored.filter(d => d.deal_total_score! >= 20 && d.deal_total_score! < 40).length },
-      { label: "0–19", tag: "Low", color: "#94a3b8", count: scored.filter(d => d.deal_total_score! < 20).length + unscored },
-    ];
-
-    // Source breakdown (all deals visible)
-    const allSourceCounts: Record<string, number> = {};
-    allVisible.forEach(d => {
-      const src = d.deal_source || "manual";
-      allSourceCounts[src] = (allSourceCounts[src] || 0) + 1;
-    });
-
-    // Weekly chart data (always last 8 weeks)
-    const eightWeeksAgo = new Date();
-    eightWeeksAgo.setDate(eightWeeksAgo.getDate() - 56);
-    const weeklyData: Record<string, number> = {};
-    for (let i = 0; i < 8; i++) {
-      const ws = new Date();
-      ws.setDate(ws.getDate() - (7 - i) * 7);
-      const key = getISOWeekStart(ws).toISOString().slice(0, 10);
-      weeklyData[key] = 0;
-    }
-    allDeals.forEach(d => {
-      let addedDate: string | null = null;
-      if (d.deal_source === "captarget" || d.deal_source === "gp_partners") {
-        if (d.pushed_to_all_deals && d.pushed_to_all_deals_at) addedDate = d.pushed_to_all_deals_at;
-      } else {
-        addedDate = d.created_at;
-      }
-      if (!addedDate || addedDate < eightWeeksAgo.toISOString()) return;
-      const weekKey = getISOWeekStart(new Date(addedDate)).toISOString().slice(0, 10);
-      if (weekKey in weeklyData) weeklyData[weekKey]++;
-    });
-    const weeks = Object.entries(weeklyData).sort(([a], [b]) => a.localeCompare(b));
-
-    // Recent activity
-    const recentActivity = allDeals
-      .map(d => {
-        const events: { date: string; type: string; name: string; source: string | null }[] = [];
-        events.push({ date: d.created_at, type: "created", name: d.internal_company_name || d.title || "Unknown", source: d.deal_source });
-        if (d.pushed_to_all_deals && d.pushed_to_all_deals_at) {
-          events.push({ date: d.pushed_to_all_deals_at, type: "pushed", name: d.internal_company_name || d.title || "Unknown", source: d.deal_source });
-        }
-        return events;
-      })
-      .flat()
-      .sort((a, b) => b.date.localeCompare(a.date))
-      .slice(0, 5);
-
-    return {
-      allVisible, allDealsNewInPeriod,
-      ct, ctNew, ctPushed, ctAvg, ctApprovedInPeriod,
-      gp, gpNew, gpPushed, gpAvg, gpApprovedInPeriod,
-      other, marketplace, manual,
-      enriched, pending, failed,
-      bySource, ownerCounts, topDeals, scoreBuckets,
-      allSourceCounts, weeks, recentActivity,
-      totalScored: scored.length,
-    };
-  }, [allDeals, fromDate]);
+  // ── Extract metrics from RPC result ──
+  const cards = stats?.cards;
+  const newBySource = stats?.new_by_source || {};
+  const allBySource = stats?.all_by_source || {};
+  const teamData = stats?.team || [];
+  const scoreDist = stats?.score_dist;
+  const topDeals = stats?.top_deals || [];
+  const weeklyData = stats?.weekly || {};
+  const recentActivity = stats?.recent_activity || [];
 
   // ── Universe metrics ──
   const universeMetrics = useMemo(() => {
@@ -356,12 +165,22 @@ const ReMarketingDashboard = () => {
     { key: "all", label: "All" },
   ];
 
-  const loading = dealsLoading;
+  const loading = statsLoading;
+
+  // Score buckets from RPC
+  const scoreBuckets = scoreDist ? [
+    { label: "80–100", tag: "Top Tier", color: "#16a34a", count: scoreDist.tier_80_100 || 0 },
+    { label: "60–79", tag: "Strong", color: "#2563eb", count: scoreDist.tier_60_79 || 0 },
+    { label: "40–59", tag: "Average", color: "#ca8a04", count: scoreDist.tier_40_59 || 0 },
+    { label: "20–39", tag: "Below Avg", color: "#ea580c", count: scoreDist.tier_20_39 || 0 },
+    { label: "0–19", tag: "Low", color: "#94a3b8", count: scoreDist.tier_0_19 || 0 },
+  ] : [];
 
   // ── SVG Line Chart ──
   const WeeklyChart = () => {
-    if (!metrics) return <Skeleton className="h-48 w-full" />;
-    const { weeks } = metrics;
+    const weeks = Object.entries(weeklyData as Record<string, number>).sort(([a], [b]) => a.localeCompare(b));
+    if (weeks.length === 0) return <div className="text-center py-10 text-gray-400 text-sm">No data for chart</div>;
+
     const values = weeks.map(([, v]) => v);
     const max = Math.max(...values, 1);
     const total = values.reduce((s, v) => s + v, 0);
@@ -415,7 +234,7 @@ const ReMarketingDashboard = () => {
               <circle cx={p.x} cy={p.y} r="4" fill="white" stroke="#2563eb" strokeWidth="2" />
               <text x={p.x} y={p.y - 8} textAnchor="middle" className="fill-gray-700 font-medium" fontSize="9">{p.v}</text>
               <text x={p.x} y={PT + chartH + 14} textAnchor="middle" className="fill-gray-400" fontSize="8">
-                {formatWeekLabel(new Date(weeks[i][0]))}
+                {formatWeekLabel(weeks[i][0])}
               </text>
             </g>
           ))}
@@ -454,44 +273,38 @@ const ReMarketingDashboard = () => {
         <div className="grid gap-3 md:grid-cols-5">
           {[1, 2, 3, 4, 5].map(i => <Skeleton key={i} className="h-24 rounded-xl" />)}
         </div>
-      ) : metrics && (
+      ) : cards && (
         <div className="grid gap-3 md:grid-cols-5">
-          {/* All Deals */}
           <div className="rounded-xl border bg-gray-900 text-white px-4 py-3.5">
             <p className="text-[10px] uppercase tracking-widest text-gray-400">All Deals</p>
-            <p className="text-2xl font-bold mt-1">{metrics.allVisible.length}</p>
-            <p className="text-[11px] text-gray-400 mt-0.5">+{metrics.allDealsNewInPeriod.length} in period</p>
+            <p className="text-2xl font-bold mt-1">{cards.all_visible}</p>
+            <p className="text-[11px] text-gray-400 mt-0.5">+{cards.all_new_in_period} in period</p>
           </div>
-          {/* CapTarget */}
           <div className="rounded-xl border border-gray-200 bg-white px-4 py-3.5">
             <p className="text-[10px] uppercase tracking-widest text-gray-500">CapTarget</p>
-            <p className="text-2xl font-bold mt-1">{metrics.ct.length}</p>
-            <p className="text-[11px] text-gray-500 mt-0.5">+{metrics.ctNew.length} new · {metrics.ctPushed.length} pushed</p>
+            <p className="text-2xl font-bold mt-1">{cards.ct_total}</p>
+            <p className="text-[11px] text-gray-500 mt-0.5">+{cards.ct_new} new · {cards.ct_pushed} pushed</p>
           </div>
-          {/* GP Partners */}
           <div className="rounded-xl border border-gray-200 bg-white px-4 py-3.5">
             <p className="text-[10px] uppercase tracking-widest text-gray-500">GP Partners</p>
-            <p className="text-2xl font-bold mt-1">{metrics.gp.length}</p>
-            <p className="text-[11px] text-gray-500 mt-0.5">+{metrics.gpNew.length} new · {metrics.gpPushed.length} pushed</p>
+            <p className="text-2xl font-bold mt-1">{cards.gp_total}</p>
+            <p className="text-[11px] text-gray-500 mt-0.5">+{cards.gp_new} new · {cards.gp_pushed} pushed</p>
           </div>
-          {/* Referral / Other */}
           <div className="rounded-xl border border-gray-200 bg-white px-4 py-3.5">
             <p className="text-[10px] uppercase tracking-widest text-gray-500">Referral / Other</p>
-            <p className="text-2xl font-bold mt-1">{metrics.other.length}</p>
-            <p className="text-[11px] text-gray-500 mt-0.5">{metrics.marketplace.length} marketplace · {metrics.manual.length} manual</p>
+            <p className="text-2xl font-bold mt-1">{cards.other_total}</p>
+            <p className="text-[11px] text-gray-500 mt-0.5">{cards.marketplace_total} marketplace · {cards.manual_total} manual</p>
           </div>
-          {/* Enriched */}
           <div className="rounded-xl border border-gray-200 bg-white px-4 py-3.5">
             <p className="text-[10px] uppercase tracking-widest text-gray-500">Enriched</p>
-            <p className="text-2xl font-bold mt-1">{metrics.enriched.length}</p>
-            <p className="text-[11px] text-gray-500 mt-0.5">{metrics.pending.length} pending · {metrics.failed.length} failed</p>
+            <p className="text-2xl font-bold mt-1">{cards.enriched}</p>
+            <p className="text-[11px] text-gray-500 mt-0.5">{cards.pending_enrichment} pending · {cards.failed_enrichment} failed</p>
           </div>
         </div>
       )}
 
       {/* ROW 2: Weekly Chart + CT + GP */}
       <div className="grid gap-4 lg:grid-cols-4">
-        {/* Weekly line chart */}
         <div className="lg:col-span-2 bg-white rounded-xl border border-gray-200 p-5">
           {loading ? <Skeleton className="h-48 w-full" /> : <WeeklyChart />}
         </div>
@@ -499,25 +312,25 @@ const ReMarketingDashboard = () => {
         {/* CapTarget panel */}
         <div className="bg-white rounded-xl border border-gray-200 p-5">
           <h3 className="text-sm font-semibold uppercase tracking-wide text-gray-700 mb-4">CapTarget</h3>
-          {loading ? <Skeleton className="h-32 w-full" /> : metrics && (
+          {loading ? <Skeleton className="h-32 w-full" /> : cards && (
             <>
               <div className="grid grid-cols-3 gap-2 text-center">
                 <div>
-                  <p className="text-2xl font-bold text-blue-600">{metrics.ctNew.length}</p>
+                  <p className="text-2xl font-bold text-blue-600">{cards.ct_new}</p>
                   <p className="text-[10px] text-gray-500 uppercase">New Deals</p>
                 </div>
                 <div>
-                  <p className="text-2xl font-bold text-green-600">{metrics.ctApprovedInPeriod.length}</p>
+                  <p className="text-2xl font-bold text-green-600">{cards.ct_approved_in_period}</p>
                   <p className="text-[10px] text-gray-500 uppercase">Approved</p>
                 </div>
                 <div>
-                  <p className="text-2xl font-bold text-gray-800">{metrics.ctAvg}</p>
+                  <p className="text-2xl font-bold text-gray-800">{cards.ct_avg}</p>
                   <p className="text-[10px] text-gray-500 uppercase">Avg Score</p>
                 </div>
               </div>
               <div className="border-t mt-4 pt-3 flex items-center justify-between text-xs text-gray-500">
-                <span>{metrics.ct.length} total CapTarget deals</span>
-                <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${scorePillClass(metrics.ctAvg)}`}>{metrics.ctAvg}</span>
+                <span>{cards.ct_total} total CapTarget deals</span>
+                <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${scorePillClass(cards.ct_avg)}`}>{cards.ct_avg}</span>
               </div>
             </>
           )}
@@ -526,25 +339,25 @@ const ReMarketingDashboard = () => {
         {/* GP Partners panel */}
         <div className="bg-white rounded-xl border border-gray-200 p-5">
           <h3 className="text-sm font-semibold uppercase tracking-wide text-gray-700 mb-4">GP Partners</h3>
-          {loading ? <Skeleton className="h-32 w-full" /> : metrics && (
+          {loading ? <Skeleton className="h-32 w-full" /> : cards && (
             <>
               <div className="grid grid-cols-3 gap-2 text-center">
                 <div>
-                  <p className="text-2xl font-bold text-orange-600">{metrics.gpNew.length}</p>
+                  <p className="text-2xl font-bold text-orange-600">{cards.gp_new}</p>
                   <p className="text-[10px] text-gray-500 uppercase">New Deals</p>
                 </div>
                 <div>
-                  <p className="text-2xl font-bold text-green-600">{metrics.gpApprovedInPeriod.length}</p>
+                  <p className="text-2xl font-bold text-green-600">{cards.gp_approved_in_period}</p>
                   <p className="text-[10px] text-gray-500 uppercase">Approved</p>
                 </div>
                 <div>
-                  <p className="text-2xl font-bold text-gray-800">{metrics.gpAvg}</p>
+                  <p className="text-2xl font-bold text-gray-800">{cards.gp_avg}</p>
                   <p className="text-[10px] text-gray-500 uppercase">Avg Score</p>
                 </div>
               </div>
               <div className="border-t mt-4 pt-3 flex items-center justify-between text-xs text-gray-500">
-                <span>{metrics.gp.length} total GP Partners deals</span>
-                <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${scorePillClass(metrics.gpAvg)}`}>{metrics.gpAvg}</span>
+                <span>{cards.gp_total} total GP Partners deals</span>
+                <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${scorePillClass(cards.gp_avg)}`}>{cards.gp_avg}</span>
               </div>
             </>
           )}
@@ -557,23 +370,18 @@ const ReMarketingDashboard = () => {
         <div className="bg-white rounded-xl border border-gray-200 p-5">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-sm font-semibold uppercase tracking-wide text-gray-700">New Deals by Source</h3>
-            <span className="text-xs text-gray-400">{loading ? "..." : Object.values(metrics?.bySource || {}).reduce((a, b) => a + b, 0)} added</span>
+            <span className="text-xs text-gray-400">{loading ? "..." : Object.values(newBySource as Record<string, number>).reduce((a: number, b: number) => a + b, 0)} added</span>
           </div>
-          {loading ? <Skeleton className="h-32 w-full" /> : metrics && (() => {
-            const entries = Object.entries(metrics.bySource).sort(([, a], [, b]) => b - a);
+          {loading ? <Skeleton className="h-32 w-full" /> : (() => {
+            const entries = Object.entries(newBySource as Record<string, number>).sort(([, a], [, b]) => b - a);
             const total = entries.reduce((s, [, v]) => s + v, 0) || 1;
             return (
               <div>
-                {/* Stacked bar */}
                 <div className="flex h-3 rounded-full overflow-hidden bg-gray-100 mb-4">
                   {entries.map(([src, count]) => (
-                    <div
-                      key={src}
-                      style={{ width: `${(count / total) * 100}%`, backgroundColor: SOURCE_COLORS[src] || "#94a3b8" }}
-                    />
+                    <div key={src} style={{ width: `${(count / total) * 100}%`, backgroundColor: SOURCE_COLORS[src] || "#94a3b8" }} />
                   ))}
                 </div>
-                {/* Legend */}
                 <div className="space-y-2">
                   {entries.map(([src, count]) => (
                     <div key={src} className="flex items-center justify-between text-sm">
@@ -597,18 +405,19 @@ const ReMarketingDashboard = () => {
         <div className="bg-white rounded-xl border border-gray-200 p-5">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-sm font-semibold uppercase tracking-wide text-gray-700">Team Assignments</h3>
-            <span className="text-xs text-gray-400">{metrics?.allVisible.length || 0} deals</span>
+            <span className="text-xs text-gray-400">{cards?.all_visible || 0} deals</span>
           </div>
-          {loading ? <Skeleton className="h-32 w-full" /> : metrics && (() => {
-            const entries = Object.entries(metrics.ownerCounts)
-              .sort(([aId, a], [bId, b]) => {
-                if (aId === "__unassigned") return 1;
-                if (bId === "__unassigned") return -1;
+          {loading ? <Skeleton className="h-32 w-full" /> : (() => {
+            const entries = (teamData as any[])
+              .sort((a: any, b: any) => {
+                if (a.owner_id === "__unassigned") return 1;
+                if (b.owner_id === "__unassigned") return -1;
                 return b.total - a.total;
               });
             return (
               <div className="space-y-3 max-h-64 overflow-y-auto">
-                {entries.map(([oid, counts]) => {
+                {entries.map((item: any) => {
+                  const oid = item.owner_id;
                   const profile = oid !== "__unassigned" && adminProfiles ? adminProfiles[oid] : null;
                   const name = profile ? profile.displayName : "Unassigned";
                   const fi = profile ? initials(profile.first_name, profile.last_name) : "?";
@@ -619,9 +428,9 @@ const ReMarketingDashboard = () => {
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium text-gray-800 truncate">{name}</p>
-                        <p className="text-[11px] text-gray-500">{counts.enriched} enriched · {counts.scored} scored</p>
+                        <p className="text-[11px] text-gray-500">{item.enriched} enriched · {item.scored} scored</p>
                       </div>
-                      <span className="text-sm font-bold text-gray-800">{counts.total}</span>
+                      <span className="text-sm font-bold text-gray-800">{item.total}</span>
                     </div>
                   );
                 })}
@@ -639,12 +448,12 @@ const ReMarketingDashboard = () => {
         </div>
         {loading ? (
           <Skeleton className="h-48 w-full" />
-        ) : metrics && metrics.topDeals.length === 0 ? (
+        ) : topDeals.length === 0 ? (
           <div className="text-center py-10 text-gray-400">
             <BarChart3 className="mx-auto h-8 w-8 mb-2 opacity-40" />
             <p className="text-sm">No scored deals in this period</p>
           </div>
-        ) : metrics && (
+        ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
@@ -661,7 +470,7 @@ const ReMarketingDashboard = () => {
                 </tr>
               </thead>
               <tbody>
-                {metrics.topDeals.map((deal, i) => (
+                {topDeals.map((deal: any, i: number) => (
                   <tr key={deal.id} className="border-b border-gray-50 last:border-0">
                     <td className="py-2.5 pr-2 text-gray-400 font-medium">{i + 1}</td>
                     <td className="py-2.5 pr-3">
@@ -696,12 +505,12 @@ const ReMarketingDashboard = () => {
         <div className="bg-white rounded-xl border border-gray-200 p-5">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-sm font-semibold uppercase tracking-wide text-gray-700">Deals by Score</h3>
-            <span className="text-xs text-gray-400">{metrics?.totalScored || 0} scored</span>
+            <span className="text-xs text-gray-400">{cards?.total_scored || 0} scored</span>
           </div>
-          {loading ? <Skeleton className="h-40 w-full" /> : metrics && (
+          {loading ? <Skeleton className="h-40 w-full" /> : (
             <div className="space-y-3">
-              {metrics.scoreBuckets.map(b => {
-                const maxCount = Math.max(...metrics.scoreBuckets.map(x => x.count), 1);
+              {scoreBuckets.map(b => {
+                const maxCount = Math.max(...scoreBuckets.map(x => x.count), 1);
                 return (
                   <div key={b.label}>
                     <div className="flex items-center justify-between text-xs mb-1">
@@ -754,10 +563,10 @@ const ReMarketingDashboard = () => {
         <div className="bg-white rounded-xl border border-gray-200 p-5">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-sm font-semibold uppercase tracking-wide text-gray-700">All Deals by Source</h3>
-            <span className="text-xs text-gray-400">{metrics?.allVisible.length || 0} total</span>
+            <span className="text-xs text-gray-400">{cards?.all_visible || 0} total</span>
           </div>
-          {loading ? <Skeleton className="h-40 w-full" /> : metrics && (() => {
-            const entries = Object.entries(metrics.allSourceCounts).sort(([, a], [, b]) => b - a);
+          {loading ? <Skeleton className="h-40 w-full" /> : (() => {
+            const entries = Object.entries(allBySource as Record<string, number>).sort(([, a], [, b]) => b - a);
             const maxCount = Math.max(...entries.map(([, v]) => v), 1);
             return (
               <div>
@@ -781,9 +590,9 @@ const ReMarketingDashboard = () => {
                 <div className="border-t mt-4 pt-3">
                   <p className="text-[10px] uppercase tracking-wide text-gray-500 mb-2">Enrichment</p>
                   <div className="flex gap-2 flex-wrap">
-                    <Badge variant="outline" className="text-[10px] px-1.5 py-0 bg-green-50 text-green-700 border-green-200">{metrics.enriched.length} Enriched</Badge>
-                    <Badge variant="outline" className="text-[10px] px-1.5 py-0 bg-amber-50 text-amber-700 border-amber-200">{metrics.pending.length} Pending</Badge>
-                    <Badge variant="outline" className="text-[10px] px-1.5 py-0 bg-red-50 text-red-700 border-red-200">{metrics.failed.length} Failed</Badge>
+                    <Badge variant="outline" className="text-[10px] px-1.5 py-0 bg-green-50 text-green-700 border-green-200">{cards?.enriched || 0} Enriched</Badge>
+                    <Badge variant="outline" className="text-[10px] px-1.5 py-0 bg-amber-50 text-amber-700 border-amber-200">{cards?.pending_enrichment || 0} Pending</Badge>
+                    <Badge variant="outline" className="text-[10px] px-1.5 py-0 bg-red-50 text-red-700 border-red-200">{cards?.failed_enrichment || 0} Failed</Badge>
                   </div>
                 </div>
               </div>
@@ -797,11 +606,11 @@ const ReMarketingDashboard = () => {
             <h3 className="text-sm font-semibold uppercase tracking-wide text-gray-700">Recent Activity</h3>
             <Clock className="h-3.5 w-3.5 text-gray-400" />
           </div>
-          {loading ? <Skeleton className="h-40 w-full" /> : metrics && metrics.recentActivity.length === 0 ? (
+          {loading ? <Skeleton className="h-40 w-full" /> : recentActivity.length === 0 ? (
             <p className="text-sm text-gray-400 text-center py-6">No recent activity</p>
-          ) : metrics && (
+          ) : (
             <div className="space-y-3">
-              {metrics.recentActivity.map((ev, i) => {
+              {(recentActivity as any[]).map((ev: any, i: number) => {
                 const iconColor = ev.type === "pushed" ? "bg-green-100 text-green-600"
                   : ev.source === "captarget" ? "bg-blue-100 text-blue-600"
                   : ev.source === "gp_partners" ? "bg-orange-100 text-orange-600"
