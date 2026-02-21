@@ -42,8 +42,10 @@ export function SendAgreementDialog({
   const createSubmission = useCreateDocuSealSubmission();
 
   const docLabel = documentType === 'nda' ? 'NDA' : 'Fee Agreement';
+  const isValidEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 
   const handleSend = async () => {
+    if (!isValidEmail) return;
     await createSubmission.mutateAsync({
       firmId,
       documentType,
@@ -118,7 +120,7 @@ export function SendAgreementDialog({
           </Button>
           <Button
             onClick={handleSend}
-            disabled={!email || createSubmission.isPending}
+            disabled={!isValidEmail || createSubmission.isPending}
           >
             {createSubmission.isPending ? (
               <>

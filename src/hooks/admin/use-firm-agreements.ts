@@ -73,6 +73,7 @@ export interface FirmMember {
 export function useFirmAgreements() {
   return useQuery({
     queryKey: ['firm-agreements'],
+    staleTime: 60_000,
     queryFn: async () => {
       const { data, error } = await supabase
         .from('firm_agreements')
@@ -246,18 +247,16 @@ export function useUpdateFirmFeeAgreement() {
       return { previousData };
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['firm-agreements'] });
-      queryClient.invalidateQueries({ queryKey: ['firm-members'] });
-      queryClient.invalidateQueries({ queryKey: ['admin-users'] });
-      queryClient.invalidateQueries({ queryKey: ['connection-requests'] });
-      queryClient.invalidateQueries({ queryKey: ['deals'] });
-      
+      queryClient.invalidateQueries({ queryKey: ['firm-agreements'], refetchType: 'active' });
+      queryClient.invalidateQueries({ queryKey: ['firm-members'], refetchType: 'active' });
+      queryClient.invalidateQueries({ queryKey: ['admin-users'], refetchType: 'active' });
+
       toast({
         title: 'Success',
         description: 'Fee agreement status updated for firm',
       });
     },
-    onError: (error: any, variables, context) => {
+    onError: (error: any, _variables: any, context: any) => {
       if (context?.previousData) {
         queryClient.setQueryData(['firm-agreements'], context.previousData);
       }
@@ -317,18 +316,16 @@ export function useUpdateFirmNDA() {
       return { previousData };
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['firm-agreements'] });
-      queryClient.invalidateQueries({ queryKey: ['firm-members'] });
-      queryClient.invalidateQueries({ queryKey: ['admin-users'] });
-      queryClient.invalidateQueries({ queryKey: ['connection-requests'] });
-      queryClient.invalidateQueries({ queryKey: ['deals'] });
-      
+      queryClient.invalidateQueries({ queryKey: ['firm-agreements'], refetchType: 'active' });
+      queryClient.invalidateQueries({ queryKey: ['firm-members'], refetchType: 'active' });
+      queryClient.invalidateQueries({ queryKey: ['admin-users'], refetchType: 'active' });
+
       toast({
         title: 'Success',
         description: 'NDA status updated for firm',
       });
     },
-    onError: (error: any, variables, context) => {
+    onError: (error: any, _variables: any, context: any) => {
       if (context?.previousData) {
         queryClient.setQueryData(['firm-agreements'], context.previousData);
       }

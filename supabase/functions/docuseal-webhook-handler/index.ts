@@ -33,6 +33,16 @@ async function verifyWebhookSignature(
   }
 }
 
+// Validate that a URL is HTTPS and from a trusted domain
+function isValidDocumentUrl(url: string): boolean {
+  try {
+    const parsed = new URL(url);
+    return parsed.protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
 serve(async (req: Request) => {
   // Webhooks are POST only — no CORS needed (server-to-server)
   if (req.method !== "POST") {
@@ -41,16 +51,19 @@ serve(async (req: Request) => {
 
   try {
     const rawBody = await req.text();
-    const webhookSecret = Deno.env.get("DOCUSEAL_WEBHOOK_SECRET");
 
-    // Verify signature if secret is set
-    if (webhookSecret) {
-      const signature = req.headers.get("x-docuseal-signature");
-      const valid = await verifyWebhookSignature(rawBody, signature, webhookSecret);
-      if (!valid) {
-        console.error("❌ Invalid webhook signature");
-        return new Response(JSON.stringify({ error: "Invalid signature" }), { status: 401 });
-      }
+    // C1: Webhook signature verification is MANDATORY
+    const webhookSecret = Deno.env.get("DOCUSEAL_WEBHOOK_SECRET");
+    if (!webhookSecret) {
+      console.error("❌ DOCUSEAL_WEBHOOK_SECRET not configured");
+      return new Response(JSON.stringify({ error: "Webhook secret not configured" }), { status: 500 });
+    }
+
+    const signature = req.headers.get("x-docuseal-signature");
+    const valid = await verifyWebhookSignature(rawBody, signature, webhookSecret);
+    if (!valid) {
+      console.error("❌ Invalid webhook signature");
+      return new Response(JSON.stringify({ error: "Invalid signature" }), { status: 401 });
     }
 
     const payload = JSON.parse(rawBody);
@@ -91,11 +104,11 @@ serve(async (req: Request) => {
       .eq("fee_docuseal_submission_id", submissionId)
       .maybeSingle();
 
-    const firmId = ndaFirm?.id || feeFirm?.id;
-    const documentType = ndaFirm ? "nda" : feeFirm ? "fee_agreement" : null;
+    let firmId = ndaFirm?.id || feeFirm?.id;
+    let documentType = ndaFirm ? "nda" : feeFirm ? "fee_agreement" : null;
 
+    // M2: Only fall back to external_id if it matches a registered submission
     if (!firmId || !documentType) {
-      // Also try external_id as fallback
       if (submissionData.external_id) {
         const { data: extFirm } = await supabase
           .from("firm_agreements")
@@ -104,16 +117,23 @@ serve(async (req: Request) => {
           .maybeSingle();
 
         if (extFirm) {
-          console.log("✅ Found firm via external_id:", extFirm.id);
-          // Determine doc type from which column matches
-          const docType = extFirm.nda_docuseal_submission_id === submissionId ? "nda" : "fee_agreement";
-          await processEvent(supabase, eventType, extFirm.id, docType, submissionData, submissionId);
-          return new Response(JSON.stringify({ success: true }), { status: 200 });
+          // Only accept external_id if submission_id actually matches a registered column
+          if (extFirm.nda_docuseal_submission_id === submissionId) {
+            firmId = extFirm.id;
+            documentType = "nda";
+          } else if (extFirm.fee_docuseal_submission_id === submissionId) {
+            firmId = extFirm.id;
+            documentType = "fee_agreement";
+          } else {
+            console.warn("⚠️ external_id found but submission_id doesn't match any registered column");
+          }
         }
       }
 
-      console.warn("⚠️ No matching firm found for submission:", submissionId);
-      return new Response(JSON.stringify({ success: true, note: "No matching firm" }), { status: 200 });
+      if (!firmId || !documentType) {
+        console.warn("⚠️ No matching firm found for submission:", submissionId);
+        return new Response(JSON.stringify({ success: true, note: "No matching firm" }), { status: 200 });
+      }
     }
 
     await processEvent(supabase, eventType, firmId, documentType, submissionData, submissionId);
@@ -121,7 +141,8 @@ serve(async (req: Request) => {
     return new Response(JSON.stringify({ success: true }), { status: 200 });
   } catch (error: any) {
     console.error("❌ Webhook handler error:", error);
-    return new Response(JSON.stringify({ error: error.message }), { status: 500 });
+    // H2: Don't leak internal error details
+    return new Response(JSON.stringify({ error: "Internal server error" }), { status: 500 });
   }
 });
 
@@ -159,7 +180,7 @@ async function processEvent(
       docusealStatus = eventType;
   }
 
-  console.log(`📝 Processing ${eventType} for ${documentType} on firm ${firmId} → status: ${docusealStatus}`);
+  console.log(`📝 Processing ${eventType} for ${documentType} on firm ${firmId}`);
 
   // Build update payload
   const updates: Record<string, any> = {
@@ -172,9 +193,10 @@ async function processEvent(
     if (docusealStatus === "completed") {
       updates.nda_signed = true;
       updates.nda_signed_at = now;
-      // Extract signed document URL if available
-      if (submissionData.documents?.[0]?.url) {
-        updates.nda_signed_document_url = submissionData.documents[0].url;
+      // M4: Validate document URL before storing
+      const docUrl = submissionData.documents?.[0]?.url;
+      if (docUrl && isValidDocumentUrl(docUrl)) {
+        updates.nda_signed_document_url = docUrl;
       }
     }
   } else {
@@ -183,8 +205,9 @@ async function processEvent(
     if (docusealStatus === "completed") {
       updates.fee_agreement_signed = true;
       updates.fee_agreement_signed_at = now;
-      if (submissionData.documents?.[0]?.url) {
-        updates.fee_signed_document_url = submissionData.documents[0].url;
+      const docUrl = submissionData.documents?.[0]?.url;
+      if (docUrl && isValidDocumentUrl(docUrl)) {
+        updates.fee_signed_document_url = docUrl;
       }
     }
   }
@@ -196,8 +219,6 @@ async function processEvent(
 
   if (error) {
     console.error("❌ Failed to update firm_agreements:", error);
-  } else {
-    console.log(`✅ Updated firm ${firmId}: ${documentType} → ${docusealStatus}`);
   }
 
   // If completed, also sync to firm_members profiles
@@ -219,7 +240,6 @@ async function processEvent(
             .update({ ...profileUpdates, updated_at: now })
             .eq("id", member.user_id);
         }
-        console.log(`✅ Synced ${documentType} status to ${members.length} member profiles`);
       }
     } catch (syncError) {
       console.error("⚠️ Profile sync error:", syncError);

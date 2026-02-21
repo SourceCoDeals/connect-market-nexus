@@ -24,6 +24,8 @@ const PendingApproval = () => {
 
   // Fetch NDA embed src when buyer is approved and has an unsigned NDA
   useEffect(() => {
+    let cancelled = false;
+
     const fetchNdaEmbed = async () => {
       if (!user?.id || !ndaStatus?.hasFirm || ndaStatus.ndaSigned || ndaEmbedSrc) return;
       if (user.approval_status !== 'approved') return;
@@ -36,7 +38,7 @@ const PendingApproval = () => {
           .eq('id', user.id)
           .single();
 
-        if (!profile || !ndaStatus.firmId) return;
+        if (cancelled || !profile || !ndaStatus.firmId) return;
 
         const buyerName = `${profile.first_name || ''} ${profile.last_name || ''}`.trim();
         const { data } = await supabase.functions.invoke('create-docuseal-submission', {
@@ -49,17 +51,18 @@ const PendingApproval = () => {
           },
         });
 
-        if (data?.embed_src) {
+        if (!cancelled && data?.embed_src) {
           setNdaEmbedSrc(data.embed_src);
         }
       } catch (err) {
-        console.error('Failed to fetch NDA embed:', err);
+        if (!cancelled) console.error('Failed to fetch NDA embed:', err);
       } finally {
-        setNdaLoading(false);
+        if (!cancelled) setNdaLoading(false);
       }
     };
 
     fetchNdaEmbed();
+    return () => { cancelled = true; };
   }, [user?.id, user?.approval_status, ndaStatus?.hasFirm, ndaStatus?.ndaSigned, ndaStatus?.firmId]);
 
   // Handle navigation for approved users
@@ -82,54 +85,7 @@ const PendingApproval = () => {
     );
   }
 
-  // This should never execute now since users go to signup-success first
-  if (!user) {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-muted/30">
-        <div className="w-full max-w-md space-y-6">
-          <div className="flex flex-col items-center space-y-3">
-            <div className="flex items-center">
-              <img 
-                src="/lovable-uploads/b879fa06-6a99-4263-b973-b9ced4404acb.png" 
-                alt="SourceCo Logo" 
-                className="h-10 w-10 mr-3"
-              />
-              <div className="text-center">
-                <h1 className="text-2xl font-bold">SourceCo</h1>
-                <p className="text-lg text-muted-foreground font-light">Marketplace</p>
-              </div>
-            </div>
-          </div>
-          <Card>
-            <CardHeader>
-              <div className="flex justify-center mb-4">
-                <div className="p-3 rounded-full bg-green-100">
-                  <CheckCircle className="h-8 w-8 text-green-600" />
-                </div>
-              </div>
-              <CardTitle className="text-2xl font-bold text-center">Account Created!</CardTitle>
-              <CardDescription className="text-center">
-                Please verify your email to continue
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="bg-primary/5 border border-primary/20 rounded-md p-4">
-                <div className="flex gap-3 items-start">
-                  <Mail className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
-                  <div>
-                    <p className="text-sm font-medium">Check your email</p>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      We've sent a verification link to your email. Click it to activate your account.
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
-    );
-  }
+  // Dead code removed — isLoading || !user guard above handles this case
 
   const handleResendVerification = async () => {
     // Safety check - only allow resend for unverified users

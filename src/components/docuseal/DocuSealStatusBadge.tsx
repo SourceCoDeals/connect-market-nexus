@@ -89,7 +89,7 @@ export function DocuSealStatusBadge({
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <button className="inline-flex items-center gap-1 focus:outline-none">
+        <button className="inline-flex items-center gap-1 focus:outline-none" aria-label={`${label || config.label} status actions`}>
           {badge}
           <MoreHorizontal className="h-3 w-3 text-muted-foreground" />
         </button>
@@ -107,8 +107,8 @@ export function DocuSealStatusBadge({
             Resend
           </DropdownMenuItem>
         )}
-        {status === 'signed' && signedDocumentUrl && (
-          <DropdownMenuItem onClick={() => window.open(signedDocumentUrl, '_blank')}>
+        {status === 'signed' && signedDocumentUrl && signedDocumentUrl.startsWith('https://') && (
+          <DropdownMenuItem onClick={() => window.open(signedDocumentUrl, '_blank', 'noopener,noreferrer')}>
             <FileDown className="h-3.5 w-3.5 mr-2" />
             Download Signed Doc
           </DropdownMenuItem>

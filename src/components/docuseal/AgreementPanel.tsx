@@ -72,12 +72,12 @@ export function AgreementPanel({ firm, buyerEmail, buyerName }: AgreementPanelPr
                   Send NDA
                 </Button>
               )}
-              {firm.nda_signed_document_url && (
+              {firm.nda_signed_document_url && firm.nda_signed_document_url.startsWith('https://') && (
                 <Button
                   variant="ghost"
                   size="sm"
                   className="h-7 text-xs"
-                  onClick={() => window.open(firm.nda_signed_document_url!, '_blank')}
+                  onClick={() => window.open(firm.nda_signed_document_url!, '_blank', 'noopener,noreferrer')}
                 >
                   <FileDown className="h-3 w-3 mr-1" />
                   Download
@@ -117,12 +117,12 @@ export function AgreementPanel({ firm, buyerEmail, buyerName }: AgreementPanelPr
                   Send Fee Agreement
                 </Button>
               )}
-              {firm.fee_signed_document_url && (
+              {firm.fee_signed_document_url && firm.fee_signed_document_url.startsWith('https://') && (
                 <Button
                   variant="ghost"
                   size="sm"
                   className="h-7 text-xs"
-                  onClick={() => window.open(firm.fee_signed_document_url!, '_blank')}
+                  onClick={() => window.open(firm.fee_signed_document_url!, '_blank', 'noopener,noreferrer')}
                 >
                   <FileDown className="h-3 w-3 mr-1" />
                   Download
