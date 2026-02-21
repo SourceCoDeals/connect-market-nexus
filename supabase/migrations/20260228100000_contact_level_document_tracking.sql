@@ -213,9 +213,9 @@ INSERT INTO public.document_release_log
 SELECT
   mdl.deal_id,
   NULL,  -- no document_id on old records (column now nullable)
-  mdl.remarketing_buyer_id,
-  COALESCE(rb.company_name, mdl.channel, 'Unknown'),
-  rb.pe_firm_name,
+  COALESCE(mdl.remarketing_buyer_id, mdl.marketplace_user_id),
+  COALESCE(rb.company_name, p_buyer.first_name || ' ' || p_buyer.last_name, mdl.channel, 'Unknown'),
+  COALESCE(rb.pe_firm_name, p_buyer.company_name),
   mdl.email_address,
   CASE mdl.channel
     WHEN 'email' THEN 'tracked_link'
@@ -227,10 +227,11 @@ SELECT
   CASE WHEN p_sender.id IS NOT NULL THEN mdl.sent_by ELSE NULL END,
   mdl.sent_at,
   mdl.notes,
-  -- contact_id: prefer primary, fall back to any contact for this buyer
-  COALESCE(c_primary.id, c_any.id)
+  -- contact_id: prefer primary, fall back to any contact for this buyer, then marketplace user
+  COALESCE(c_primary.id, c_any.id, c_marketplace.id)
 FROM public.memo_distribution_log mdl
 LEFT JOIN public.remarketing_buyers rb ON rb.id = mdl.remarketing_buyer_id
+LEFT JOIN public.profiles p_buyer ON p_buyer.id = mdl.marketplace_user_id AND mdl.remarketing_buyer_id IS NULL
 LEFT JOIN public.profiles p_sender ON p_sender.id = mdl.sent_by
 LEFT JOIN public.contacts c_primary
   ON c_primary.remarketing_buyer_id = mdl.remarketing_buyer_id
@@ -244,7 +245,14 @@ LEFT JOIN LATERAL (
     AND c2.archived = false
   ORDER BY c2.created_at ASC
   LIMIT 1
-) c_any ON c_primary.id IS NULL  -- only run fallback when no primary found
+) c_any ON c_primary.id IS NULL AND mdl.remarketing_buyer_id IS NOT NULL
+-- Fallback for marketplace-user-only rows (no remarketing_buyer_id)
+LEFT JOIN public.contacts c_marketplace
+  ON c_marketplace.profile_id = mdl.marketplace_user_id
+  AND c_marketplace.contact_type = 'buyer'
+  AND c_marketplace.archived = false
+  AND mdl.remarketing_buyer_id IS NULL
+  AND mdl.marketplace_user_id IS NOT NULL
 WHERE NOT EXISTS (
   -- Prevent duplicate migration if this migration runs twice
   SELECT 1 FROM public.document_release_log drl
@@ -429,6 +437,104 @@ AS $$
   WHERE a.deal_id = p_deal_id
   ORDER BY a.granted_at DESC;
 $$;
+
+
+-- ============================================================================
+-- STEP 9: Update RLS policies for contact-based access
+-- ============================================================================
+-- Allow buyers to see data_room_access rows linked to their contact_id
+-- (in addition to the existing marketplace_user_id check).
+
+DROP POLICY IF EXISTS "Buyers can view own access" ON public.data_room_access;
+CREATE POLICY "Buyers can view own access"
+  ON public.data_room_access
+  FOR SELECT TO authenticated
+  USING (
+    marketplace_user_id = auth.uid()
+    OR contact_id IN (
+      SELECT c.id FROM public.contacts c WHERE c.profile_id = auth.uid()
+    )
+  );
+
+-- Allow buyers to see their own contact record in the contacts table
+DROP POLICY IF EXISTS "contacts_owner_select" ON public.contacts;
+CREATE POLICY "contacts_owner_select" ON public.contacts
+  FOR SELECT TO authenticated
+  USING (profile_id = auth.uid());
+
+
+-- ============================================================================
+-- STEP 10: Reverse sync trigger — listings.main_contact_* → contacts
+-- ============================================================================
+-- When listings flat fields are updated directly, keep the primary seller
+-- contact in the contacts table in sync.
+
+CREATE OR REPLACE FUNCTION public.sync_listing_contact_to_contacts()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  -- Only act when main_contact fields actually changed
+  IF (NEW.main_contact_name IS DISTINCT FROM OLD.main_contact_name
+      OR NEW.main_contact_email IS DISTINCT FROM OLD.main_contact_email
+      OR NEW.main_contact_phone IS DISTINCT FROM OLD.main_contact_phone
+      OR NEW.main_contact_title IS DISTINCT FROM OLD.main_contact_title)
+  THEN
+    -- Update the existing primary seller contact if one exists
+    UPDATE public.contacts
+    SET
+      first_name = COALESCE(
+        NULLIF(TRIM(split_part(NEW.main_contact_name, ' ', 1)), ''),
+        NEW.main_contact_name, first_name),
+      last_name = CASE
+        WHEN position(' ' IN COALESCE(NEW.main_contact_name, '')) > 0
+        THEN TRIM(substring(NEW.main_contact_name FROM position(' ' IN NEW.main_contact_name) + 1))
+        ELSE last_name END,
+      email = COALESCE(NULLIF(TRIM(lower(NEW.main_contact_email)), ''), email),
+      phone = COALESCE(NULLIF(TRIM(NEW.main_contact_phone), ''), phone),
+      title = COALESCE(NULLIF(TRIM(NEW.main_contact_title), ''), title),
+      updated_at = now()
+    WHERE listing_id = NEW.id
+      AND is_primary_seller_contact = true
+      AND contact_type = 'seller';
+
+    -- If no primary seller contact exists, create one (when we have a name)
+    IF NOT FOUND AND NEW.main_contact_name IS NOT NULL AND TRIM(NEW.main_contact_name) != '' THEN
+      INSERT INTO public.contacts
+        (first_name, last_name, email, phone, title,
+         contact_type, listing_id, is_primary_seller_contact, source)
+      VALUES (
+        COALESCE(NULLIF(TRIM(split_part(NEW.main_contact_name, ' ', 1)), ''), NEW.main_contact_name),
+        CASE WHEN position(' ' IN NEW.main_contact_name) > 0
+             THEN TRIM(substring(NEW.main_contact_name FROM position(' ' IN NEW.main_contact_name) + 1))
+             ELSE '' END,
+        NULLIF(TRIM(lower(NEW.main_contact_email)), ''),
+        NULLIF(TRIM(NEW.main_contact_phone), ''),
+        NULLIF(TRIM(NEW.main_contact_title), ''),
+        'seller', NEW.id, true, 'listing_sync'
+      )
+      ON CONFLICT (lower(email), listing_id) WHERE contact_type = 'seller' AND email IS NOT NULL AND archived = false
+        DO NOTHING;
+    END IF;
+  END IF;
+
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trg_sync_listing_to_contacts ON public.listings;
+CREATE TRIGGER trg_sync_listing_to_contacts
+  AFTER UPDATE ON public.listings
+  FOR EACH ROW
+  WHEN (
+    OLD.main_contact_name IS DISTINCT FROM NEW.main_contact_name
+    OR OLD.main_contact_email IS DISTINCT FROM NEW.main_contact_email
+    OR OLD.main_contact_phone IS DISTINCT FROM NEW.main_contact_phone
+    OR OLD.main_contact_title IS DISTINCT FROM NEW.main_contact_title
+  )
+  EXECUTE FUNCTION public.sync_listing_contact_to_contacts();
 
 
 -- ============================================================================

@@ -177,7 +177,12 @@ SELECT
   rbc.created_at
 FROM public.remarketing_buyer_contacts rbc
 JOIN public.remarketing_buyers rb ON rb.id = rbc.buyer_id
-ON CONFLICT DO NOTHING;
+ON CONFLICT (lower(email)) WHERE contact_type = 'buyer' AND email IS NOT NULL AND archived = false
+  DO UPDATE SET
+    remarketing_buyer_id = COALESCE(contacts.remarketing_buyer_id, EXCLUDED.remarketing_buyer_id),
+    firm_id = COALESCE(contacts.firm_id, EXCLUDED.firm_id),
+    is_primary_at_firm = contacts.is_primary_at_firm OR EXCLUDED.is_primary_at_firm,
+    updated_at = now();
 
 
 -- ============================================================================
