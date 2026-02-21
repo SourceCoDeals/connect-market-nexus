@@ -97,21 +97,18 @@ serve(async (req: Request) => {
       send_email: deliveryMode === "email",
       submitters: [
         {
-          role: "Signer",
+          role: "First Party",
           email: signerEmail,
           name: signerName,
           external_id: firmId,
-          fields: [
-            ...(firm?.primary_company_name
-              ? [{ name: "Company Name", default_value: firm.primary_company_name }]
-              : []),
-            ...(metadata.date
-              ? [{ name: "Date", default_value: metadata.date }]
-              : [{ name: "Date", default_value: new Date().toISOString().split("T")[0] }]),
-            ...Object.entries(metadata)
-              .filter(([k]) => k !== "date")
-              .map(([name, value]) => ({ name, default_value: value })),
-          ],
+          ...(Object.keys(metadata).length > 0
+            ? {
+                fields: Object.entries(metadata).map(([name, value]) => ({
+                  name,
+                  default_value: value,
+                })),
+              }
+            : {}),
         },
       ],
     };
