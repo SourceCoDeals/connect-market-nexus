@@ -55,7 +55,7 @@ export function useBuyerEnrichmentProgress() {
 
       const totalActive = pending + processing;
       const totalCount = totalActive + completed + failed;
-      const isEnriching = processing > 0 || (pending > 0 && completed > 0);
+      const isEnriching = processing > 0 || pending > 0;
 
       if (isEnriching && !startTimeRef.current) {
         startTimeRef.current = Date.now();
