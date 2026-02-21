@@ -4,6 +4,7 @@ import { DocumentsPanel } from "@/components/admin/data-room/DocumentsPanel";
 import { AccessMatrixPanel } from "@/components/admin/data-room/AccessMatrixPanel";
 import { AuditLogPanel } from "@/components/admin/data-room/AuditLogPanel";
 import { DistributionLogPanel } from "@/components/admin/data-room/DistributionLogPanel";
+import { DocumentDistributionTab } from "@/components/admin/document-distribution";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { useParams, useNavigate, useLocation, Link } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -654,7 +655,7 @@ const ReMarketingDealDetail = () => {
 
       {/* ─── Tabbed Navigation ─── */}
       <Tabs defaultValue="overview" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-2">
+        <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="overview" className="text-sm">
             <Eye className="mr-1.5 h-3.5 w-3.5" />
             Overview
@@ -662,6 +663,10 @@ const ReMarketingDealDetail = () => {
           <TabsTrigger value="data-room" className="text-sm">
             <FolderOpen className="mr-1.5 h-3.5 w-3.5" />
             Data Room
+          </TabsTrigger>
+          <TabsTrigger value="distribution" className="text-sm">
+            <Send className="mr-1.5 h-3.5 w-3.5" />
+            Distribution
           </TabsTrigger>
         </TabsList>
 
@@ -1407,6 +1412,14 @@ const ReMarketingDealDetail = () => {
               <AuditLogPanel dealId={dealId!} />
             </TabsContent>
           </Tabs>
+        </TabsContent>
+
+        {/* ════════════════ DISTRIBUTION TAB ════════════════ */}
+        <TabsContent value="distribution" className="space-y-6">
+          <DocumentDistributionTab
+            dealId={dealId!}
+            projectName={(deal as any)?.project_name}
+          />
         </TabsContent>
 
       </Tabs>

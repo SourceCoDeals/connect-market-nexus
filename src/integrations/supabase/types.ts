@@ -2527,6 +2527,144 @@ export type Database = {
           },
         ]
       }
+      deal_data_room_access: {
+        Row: {
+          id: string
+          deal_id: string
+          buyer_id: string | null
+          buyer_email: string
+          buyer_name: string
+          buyer_firm: string | null
+          access_token: string
+          granted_document_ids: string[] | null
+          is_active: boolean | null
+          revoked_at: string | null
+          revoked_by: string | null
+          nda_signed_at: string | null
+          fee_agreement_signed_at: string | null
+          granted_by: string
+          granted_at: string | null
+          last_accessed_at: string | null
+        }
+        Insert: {
+          id?: string
+          deal_id: string
+          buyer_id?: string | null
+          buyer_email: string
+          buyer_name: string
+          buyer_firm?: string | null
+          access_token?: string
+          granted_document_ids?: string[] | null
+          is_active?: boolean | null
+          revoked_at?: string | null
+          revoked_by?: string | null
+          nda_signed_at?: string | null
+          fee_agreement_signed_at?: string | null
+          granted_by: string
+          granted_at?: string | null
+          last_accessed_at?: string | null
+        }
+        Update: {
+          id?: string
+          deal_id?: string
+          buyer_id?: string | null
+          buyer_email?: string
+          buyer_name?: string
+          buyer_firm?: string | null
+          access_token?: string
+          granted_document_ids?: string[] | null
+          is_active?: boolean | null
+          revoked_at?: string | null
+          revoked_by?: string | null
+          nda_signed_at?: string | null
+          fee_agreement_signed_at?: string | null
+          granted_by?: string
+          granted_at?: string | null
+          last_accessed_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "deal_data_room_access_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "listings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "deal_data_room_access_buyer_id_fkey"
+            columns: ["buyer_id"]
+            isOneToOne: false
+            referencedRelation: "remarketing_buyers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      deal_documents: {
+        Row: {
+          id: string
+          deal_id: string
+          document_type: string
+          title: string
+          description: string | null
+          file_path: string | null
+          file_size_bytes: number | null
+          mime_type: string | null
+          version: number | null
+          is_current: boolean | null
+          status: string | null
+          created_by: string | null
+          created_at: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          id?: string
+          deal_id: string
+          document_type: string
+          title: string
+          description?: string | null
+          file_path?: string | null
+          file_size_bytes?: number | null
+          mime_type?: string | null
+          version?: number | null
+          is_current?: boolean | null
+          status?: string | null
+          created_by?: string | null
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          id?: string
+          deal_id?: string
+          document_type?: string
+          title?: string
+          description?: string | null
+          file_path?: string | null
+          file_size_bytes?: number | null
+          mime_type?: string | null
+          version?: number | null
+          is_current?: boolean | null
+          status?: string | null
+          created_by?: string | null
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "deal_documents_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "listings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "deal_documents_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       deal_activities: {
         Row: {
           activity_type: string
@@ -3637,6 +3775,159 @@ export type Database = {
           submitter_id?: string | null
         }
         Relationships: []
+      }
+      document_release_log: {
+        Row: {
+          id: string
+          deal_id: string
+          document_id: string
+          buyer_id: string | null
+          buyer_name: string
+          buyer_firm: string | null
+          buyer_email: string | null
+          release_method: string
+          nda_status_at_release: string | null
+          fee_agreement_status_at_release: string | null
+          released_by: string
+          released_at: string | null
+          tracked_link_id: string | null
+          first_opened_at: string | null
+          open_count: number | null
+          last_opened_at: string | null
+          release_notes: string | null
+        }
+        Insert: {
+          id?: string
+          deal_id: string
+          document_id: string
+          buyer_id?: string | null
+          buyer_name: string
+          buyer_firm?: string | null
+          buyer_email?: string | null
+          release_method: string
+          nda_status_at_release?: string | null
+          fee_agreement_status_at_release?: string | null
+          released_by: string
+          released_at?: string | null
+          tracked_link_id?: string | null
+          first_opened_at?: string | null
+          open_count?: number | null
+          last_opened_at?: string | null
+          release_notes?: string | null
+        }
+        Update: {
+          id?: string
+          deal_id?: string
+          document_id?: string
+          buyer_id?: string | null
+          buyer_name?: string
+          buyer_firm?: string | null
+          buyer_email?: string | null
+          release_method?: string
+          nda_status_at_release?: string | null
+          fee_agreement_status_at_release?: string | null
+          released_by?: string
+          released_at?: string | null
+          tracked_link_id?: string | null
+          first_opened_at?: string | null
+          open_count?: number | null
+          last_opened_at?: string | null
+          release_notes?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "document_release_log_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "listings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "document_release_log_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "deal_documents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      document_tracked_links: {
+        Row: {
+          id: string
+          deal_id: string
+          document_id: string
+          buyer_id: string | null
+          buyer_email: string
+          buyer_name: string
+          buyer_firm: string | null
+          link_token: string
+          is_active: boolean | null
+          revoked_at: string | null
+          revoked_by: string | null
+          revoke_reason: string | null
+          expires_at: string | null
+          first_opened_at: string | null
+          last_opened_at: string | null
+          open_count: number | null
+          created_by: string
+          created_at: string | null
+        }
+        Insert: {
+          id?: string
+          deal_id: string
+          document_id: string
+          buyer_id?: string | null
+          buyer_email: string
+          buyer_name: string
+          buyer_firm?: string | null
+          link_token?: string
+          is_active?: boolean | null
+          revoked_at?: string | null
+          revoked_by?: string | null
+          revoke_reason?: string | null
+          expires_at?: string | null
+          first_opened_at?: string | null
+          last_opened_at?: string | null
+          open_count?: number | null
+          created_by: string
+          created_at?: string | null
+        }
+        Update: {
+          id?: string
+          deal_id?: string
+          document_id?: string
+          buyer_id?: string | null
+          buyer_email?: string
+          buyer_name?: string
+          buyer_firm?: string | null
+          link_token?: string
+          is_active?: boolean | null
+          revoked_at?: string | null
+          revoked_by?: string | null
+          revoke_reason?: string | null
+          expires_at?: string | null
+          first_opened_at?: string | null
+          last_opened_at?: string | null
+          open_count?: number | null
+          created_by?: string
+          created_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "document_tracked_links_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "listings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "document_tracked_links_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "deal_documents"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       email_delivery_logs: {
         Row: {
@@ -5389,6 +5680,8 @@ export type Database = {
           part_time_employees: number | null
           presented_by_admin_id: string | null
           primary_owner_id: string | null
+          project_name: string | null
+          project_name_set_at: string | null
           published_at: string | null
           published_by_admin_id: string | null
           pushed_to_all_deals: boolean | null
@@ -5560,6 +5853,8 @@ export type Database = {
           part_time_employees?: number | null
           presented_by_admin_id?: string | null
           primary_owner_id?: string | null
+          project_name?: string | null
+          project_name_set_at?: string | null
           published_at?: string | null
           published_by_admin_id?: string | null
           pushed_to_all_deals?: boolean | null
@@ -5731,6 +6026,8 @@ export type Database = {
           part_time_employees?: number | null
           presented_by_admin_id?: string | null
           primary_owner_id?: string | null
+          project_name?: string | null
+          project_name_set_at?: string | null
           published_at?: string | null
           published_by_admin_id?: string | null
           pushed_to_all_deals?: boolean | null
@@ -5871,6 +6168,87 @@ export type Database = {
             columns: ["universe_id"]
             isOneToOne: false
             referencedRelation: "remarketing_buyer_universes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      marketplace_approval_queue: {
+        Row: {
+          id: string
+          connection_request_id: string
+          deal_id: string
+          buyer_name: string
+          buyer_email: string
+          buyer_firm: string | null
+          buyer_role: string | null
+          buyer_message: string | null
+          matched_buyer_id: string | null
+          match_confidence: string | null
+          status: string | null
+          reviewed_by: string | null
+          reviewed_at: string | null
+          decline_reason: string | null
+          decline_category: string | null
+          decline_email_sent: boolean | null
+          release_log_id: string | null
+          created_at: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          id?: string
+          connection_request_id: string
+          deal_id: string
+          buyer_name: string
+          buyer_email: string
+          buyer_firm?: string | null
+          buyer_role?: string | null
+          buyer_message?: string | null
+          matched_buyer_id?: string | null
+          match_confidence?: string | null
+          status?: string | null
+          reviewed_by?: string | null
+          reviewed_at?: string | null
+          decline_reason?: string | null
+          decline_category?: string | null
+          decline_email_sent?: boolean | null
+          release_log_id?: string | null
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          id?: string
+          connection_request_id?: string
+          deal_id?: string
+          buyer_name?: string
+          buyer_email?: string
+          buyer_firm?: string | null
+          buyer_role?: string | null
+          buyer_message?: string | null
+          matched_buyer_id?: string | null
+          match_confidence?: string | null
+          status?: string | null
+          reviewed_by?: string | null
+          reviewed_at?: string | null
+          decline_reason?: string | null
+          decline_category?: string | null
+          decline_email_sent?: boolean | null
+          release_log_id?: string | null
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "marketplace_approval_queue_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "listings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "marketplace_approval_queue_connection_request_id_fkey"
+            columns: ["connection_request_id"]
+            isOneToOne: false
+            referencedRelation: "connection_requests"
             referencedColumns: ["id"]
           },
         ]
