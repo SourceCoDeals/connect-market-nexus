@@ -49,7 +49,7 @@ export async function requireAdmin(
   const auth = await requireAuth(req);
   if (!auth.authenticated) return auth;
 
-  const { data: isAdmin } = await supabaseAdmin.rpc("is_admin", { _user_id: auth.userId });
+  const { data: isAdmin } = await supabaseAdmin.rpc("is_admin", { user_id: auth.userId });
   if (!isAdmin) {
     return { authenticated: true, isAdmin: false, userId: auth.userId, error: "Admin access required" };
   }
