@@ -86,7 +86,7 @@ CREATE INDEX IF NOT EXISTS idx_data_room_access_marketplace_user
 -- Fast lookup for active (non-revoked, non-expired) access
 CREATE INDEX IF NOT EXISTS idx_data_room_access_active
   ON public.data_room_access(deal_id)
-  WHERE revoked_at IS NULL AND (expires_at IS NULL OR expires_at > now());
+  WHERE revoked_at IS NULL AND expires_at IS NULL;
 
 COMMENT ON TABLE public.data_room_access IS
   'Per-buyer, per-deal access matrix with 3 independent toggles: '
@@ -402,7 +402,7 @@ AS $$
     a.id AS access_id,
     a.remarketing_buyer_id,
     a.marketplace_user_id,
-    COALESCE(rb.company_name, p.full_name, p.email) AS buyer_name,
+    COALESCE(rb.company_name, NULLIF(TRIM(p.first_name || ' ' || p.last_name), ''), p.email) AS buyer_name,
     COALESCE(rb.pe_firm_name, rb.company_name) AS buyer_company,
     a.can_view_teaser,
     a.can_view_full_memo,
@@ -452,11 +452,11 @@ SET search_path = public
 AS $$
   SELECT
     dl.id AS log_id,
-    COALESCE(rb.company_name, p.full_name, p.email) AS buyer_name,
+    COALESCE(rb.company_name, NULLIF(TRIM(p.first_name || ' ' || p.last_name), ''), p.email) AS buyer_name,
     COALESCE(rb.pe_firm_name, rb.company_name) AS buyer_company,
     dl.memo_type,
     dl.channel,
-    sp.full_name AS sent_by_name,
+    NULLIF(TRIM(sp.first_name || ' ' || sp.last_name), '') AS sent_by_name,
     dl.sent_at,
     dl.email_address,
     dl.notes
