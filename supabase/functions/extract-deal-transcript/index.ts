@@ -562,6 +562,7 @@ Return ONLY the JSON object. No markdown fences, no explanation.`;
       .update({
         extracted_data: extracted,
         processed_at: new Date().toISOString(),
+        extraction_status: 'completed',
       })
       .eq('id', transcriptId);
 
@@ -780,6 +781,22 @@ Return ONLY the JSON object. No markdown fences, no explanation.`;
   } catch (error) {
     console.error('Error in extract-deal-transcript:', error);
     const message = error instanceof Error ? error.message : 'Unknown error';
+
+    // Update transcript extraction_status to failed
+    try {
+      const bodyText = await req.clone().text().catch(() => '{}');
+      const { transcriptId: failedId } = JSON.parse(bodyText);
+      if (failedId) {
+        const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+        const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+        const sb = createClient(supabaseUrl, supabaseKey);
+        await sb.from('deal_transcripts').update({
+          extraction_status: 'failed',
+          extraction_error: message,
+        }).eq('id', failedId);
+      }
+    } catch (_) { /* best effort */ }
+
     return new Response(
       JSON.stringify({ error: message }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
