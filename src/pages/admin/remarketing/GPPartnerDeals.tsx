@@ -40,6 +40,8 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { toast as sonnerToast } from "sonner";
+import { useEnrichmentProgress } from "@/hooks/useEnrichmentProgress";
+import { EnrichmentProgressIndicator } from "@/components/remarketing/EnrichmentProgressIndicator";
 import {
   Building2,
   ArrowUpDown,
@@ -142,6 +144,7 @@ export default function GPPartnerDeals() {
   const { user } = useAuth();
   const { startOrQueueMajorOp } = useGlobalGateCheck();
   const { completeOperation, updateProgress } = useGlobalActivityMutations();
+  const { progress: enrichmentProgress, cancelEnrichment } = useEnrichmentProgress();
 
   // Admin profiles for deal owner assignment
   const { data: adminProfiles } = useAdminProfiles();
@@ -945,6 +948,22 @@ export default function GPPartnerDeals() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Enrichment Progress Bar */}
+      {(enrichmentProgress.isEnriching || enrichmentProgress.isPaused) && (
+        <EnrichmentProgressIndicator
+          completedCount={enrichmentProgress.completedCount}
+          totalCount={enrichmentProgress.totalCount}
+          progress={enrichmentProgress.progress}
+          estimatedTimeRemaining={enrichmentProgress.estimatedTimeRemaining}
+          processingRate={enrichmentProgress.processingRate}
+          itemLabel="deals"
+          successfulCount={enrichmentProgress.successfulCount}
+          failedCount={enrichmentProgress.failedCount}
+          isPaused={enrichmentProgress.isPaused}
+          onCancel={cancelEnrichment}
+        />
+      )}
 
       {/* Filters */}
       <FilterBar
