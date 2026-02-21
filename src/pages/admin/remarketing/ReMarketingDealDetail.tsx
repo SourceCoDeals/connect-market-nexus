@@ -655,7 +655,7 @@ const ReMarketingDealDetail = () => {
 
       {/* ─── Tabbed Navigation ─── */}
       <Tabs defaultValue="overview" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="overview" className="text-sm">
             <Eye className="mr-1.5 h-3.5 w-3.5" />
             Overview
@@ -663,10 +663,6 @@ const ReMarketingDealDetail = () => {
           <TabsTrigger value="data-room" className="text-sm">
             <FolderOpen className="mr-1.5 h-3.5 w-3.5" />
             Data Room
-          </TabsTrigger>
-          <TabsTrigger value="distribution" className="text-sm">
-            <Send className="mr-1.5 h-3.5 w-3.5" />
-            Distribution
           </TabsTrigger>
         </TabsList>
 
@@ -1414,13 +1410,6 @@ const ReMarketingDealDetail = () => {
           </Tabs>
         </TabsContent>
 
-        {/* ════════════════ DISTRIBUTION TAB ════════════════ */}
-        <TabsContent value="distribution" className="space-y-6">
-          <DocumentDistributionTab
-            dealId={dealId!}
-            projectName={(deal as any)?.project_name}
-          />
-        </TabsContent>
 
       </Tabs>
     </div>
