@@ -10289,6 +10289,10 @@ export type Database = {
           target_locations_dedup: Json
         }[]
       }
+      get_remarketing_dashboard_stats: {
+        Args: { p_from_date?: string }
+        Returns: Json
+      }
       get_simple_marketplace_analytics: {
         Args: { days_back?: number }
         Returns: {
