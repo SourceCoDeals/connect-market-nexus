@@ -7,6 +7,7 @@ import { format, parseISO } from "date-fns";
 interface BuyerDetailHeaderProps {
   companyName: string;
   peFirmName?: string | null;
+  peFirmId?: string | null;
   platformWebsite?: string | null;
   hqCity?: string | null;
   hqState?: string | null;
@@ -23,6 +24,7 @@ interface BuyerDetailHeaderProps {
 export const BuyerDetailHeader = ({
   companyName,
   peFirmName,
+  peFirmId,
   platformWebsite,
   hqCity,
   hqState,
@@ -81,10 +83,20 @@ export const BuyerDetailHeader = ({
             {/* PE Firm Name + Marketplace Badge */}
             <div className="flex items-center gap-3">
               {peFirmName && (
-                <div className="flex items-center gap-2 text-muted-foreground">
-                  <Building2 className="h-4 w-4" />
-                  <span>{peFirmName}</span>
-                </div>
+                peFirmId ? (
+                  <Link
+                    to={`/admin/buyers/pe-firms/${peFirmId}`}
+                    className="flex items-center gap-2 text-muted-foreground hover:text-primary transition-colors"
+                  >
+                    <Building2 className="h-4 w-4" />
+                    <span className="hover:underline">{peFirmName}</span>
+                  </Link>
+                ) : (
+                  <div className="flex items-center gap-2 text-muted-foreground">
+                    <Building2 className="h-4 w-4" />
+                    <span>{peFirmName}</span>
+                  </div>
+                )
               )}
               {marketplaceFirmId && (
                 <Link to="/admin/marketplace/users" className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 text-xs font-medium hover:bg-blue-100 transition-colors border border-blue-200">

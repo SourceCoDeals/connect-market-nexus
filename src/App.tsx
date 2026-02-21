@@ -91,6 +91,7 @@ const ReMarketingDeals = lazyWithRetry(() => import("@/pages/admin/remarketing/R
 const ReMarketingDealDetail = lazyWithRetry(() => import("@/pages/admin/remarketing/ReMarketingDealDetail"));
 const ReMarketingBuyers = lazyWithRetry(() => import("@/pages/admin/remarketing/ReMarketingBuyers"));
 const ReMarketingBuyerDetail = lazyWithRetry(() => import("@/pages/admin/remarketing/ReMarketingBuyerDetail"));
+const PEFirmDetail = lazyWithRetry(() => import("@/pages/admin/remarketing/PEFirmDetail"));
 const ReMarketingDealMatching = lazyWithRetry(() => import("@/pages/admin/remarketing/ReMarketingDealMatching"));
 const ReMarketingIntroductions = lazyWithRetry(() => import("@/pages/admin/remarketing/ReMarketingIntroductions"));
 const ReMarketingAnalytics = lazyWithRetry(() => import("@/pages/admin/remarketing/ReMarketingAnalytics"));
@@ -191,6 +192,8 @@ function App() {
 
                           {/* BUYERS */}
                           <Route path="buyers" element={<ReMarketingBuyers />} />
+                          <Route path="buyers/pe-firms" element={<Navigate to="/admin/buyers?tab=pe_firm" replace />} />
+                          <Route path="buyers/pe-firms/:id" element={<PEFirmDetail />} />
                           <Route path="buyers/:id" element={<ReMarketingBuyerDetail />} />
                           <Route path="buyers/universes" element={<ReMarketingUniverses />} />
                           <Route path="buyers/universes/:id" element={<ReMarketingUniverseDetail />} />

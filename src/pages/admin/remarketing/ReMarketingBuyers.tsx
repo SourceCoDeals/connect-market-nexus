@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams, Link } from "react-router-dom";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -70,10 +70,25 @@ const BUYER_TYPES: { value: BuyerType; label: string }[] = [
   { value: 'platform', label: 'Platform' },
   { value: 'strategic', label: 'Strategic' },
   { value: 'family_office', label: 'Family Office' },
+  { value: 'independent_sponsor', label: 'Independent Sponsor' },
+  { value: 'search_fund', label: 'Search Fund' },
   { value: 'other', label: 'Other' },
 ];
 
+// Sponsor-type buyer types that get the PE firm page treatment
+const SPONSOR_TYPES: BuyerType[] = ['pe_firm', 'independent_sponsor', 'search_fund', 'family_office'];
+
+const isSponsorType = (buyerType: string | null | undefined): boolean =>
+  SPONSOR_TYPES.includes(buyerType as BuyerType);
+
 type BuyerTab = 'all' | 'pe_firm' | 'platform' | 'needs_agreements' | 'needs_enrichment';
+
+// Helper to find a PE firm record by name in the buyers list
+const findPeFirmByName = (buyers: any[], firmName: string): any | null => {
+  return buyers?.find(
+    (b: any) => b.buyer_type === 'pe_firm' && b.company_name === firmName
+  ) || null;
+};
 
 const PAGE_SIZE = 50;
 
@@ -183,12 +198,24 @@ const ReMarketingBuyers = () => {
     if (!buyers) return { all: 0, pe_firm: 0, platform: 0, needs_agreements: 0, needs_enrichment: 0 };
     let pe_firm = 0, platform = 0, needs_agreements = 0, needs_enrichment = 0;
     buyers.forEach((b: any) => {
-      if (b.buyer_type === 'pe_firm') pe_firm++;
+      if (isSponsorType(b.buyer_type)) pe_firm++;
       if (b.buyer_type === 'platform' || !b.buyer_type) platform++;
       if (!b.has_fee_agreement) needs_agreements++;
       if (b.data_completeness !== 'high') needs_enrichment++;
     });
     return { all: buyers.length, pe_firm, platform, needs_agreements, needs_enrichment };
+  }, [buyers]);
+
+  // Calculate platform counts per PE firm (for the PE Firms tab)
+  const platformCountsByFirm = useMemo(() => {
+    if (!buyers) return new Map<string, number>();
+    const counts = new Map<string, number>();
+    buyers.forEach((b: any) => {
+      if (b.pe_firm_name && !isSponsorType(b.buyer_type)) {
+        counts.set(b.pe_firm_name, (counts.get(b.pe_firm_name) || 0) + 1);
+      }
+    });
+    return counts;
   }, [buyers]);
 
   // Create buyer mutation
@@ -274,7 +301,7 @@ const ReMarketingBuyers = () => {
     // Tab filter
     switch (activeTab) {
       case 'pe_firm':
-        result = result.filter(b => b.buyer_type === 'pe_firm');
+        result = result.filter(b => isSponsorType(b.buyer_type));
         break;
       case 'platform':
         result = result.filter(b => b.buyer_type === 'platform' || !b.buyer_type);
@@ -599,7 +626,7 @@ const ReMarketingBuyers = () => {
       <Tabs value={activeTab} onValueChange={handleTabChange}>
         <TabsList className="flex-wrap h-auto gap-1">
           <TabsTrigger value="all">All Buyers ({tabCounts.all})</TabsTrigger>
-          <TabsTrigger value="pe_firm">PE Firms ({tabCounts.pe_firm})</TabsTrigger>
+          <TabsTrigger value="pe_firm">Sponsors & Firms ({tabCounts.pe_firm})</TabsTrigger>
           <TabsTrigger value="platform">Platforms ({tabCounts.platform})</TabsTrigger>
           <TabsTrigger value="needs_agreements">Needs Agreements ({tabCounts.needs_agreements})</TabsTrigger>
           <TabsTrigger value="needs_enrichment">Needs Enrichment ({tabCounts.needs_enrichment})</TabsTrigger>
@@ -681,19 +708,35 @@ const ReMarketingBuyers = () => {
                 </TableHead>
                 <TableHead className="w-[48px] text-muted-foreground text-xs font-normal">#</TableHead>
                 <TableHead className="w-[260px] cursor-pointer select-none hover:bg-muted/50" onClick={() => handleSort('company_name')}>
-                  <span className="flex items-center">Platform / Buyer <SortIcon column="company_name" /></span>
+                  <span className="flex items-center">
+                    {activeTab === 'pe_firm' ? 'Firm Name' : 'Platform / Buyer'}
+                    <SortIcon column="company_name" />
+                  </span>
                 </TableHead>
-                <TableHead className="w-[180px] cursor-pointer select-none hover:bg-muted/50" onClick={() => handleSort('pe_firm_name')}>
-                  <span className="flex items-center">PE Firm <SortIcon column="pe_firm_name" /></span>
-                </TableHead>
-                <TableHead className="cursor-pointer select-none hover:bg-muted/50" onClick={() => handleSort('universe')}>
-                  <span className="flex items-center">Universe <SortIcon column="universe" /></span>
-                </TableHead>
-                <TableHead>Description</TableHead>
-                <TableHead className="w-[70px] text-center">Mktpl.</TableHead>
-                <TableHead className="w-[70px] text-center">Fee Agmt</TableHead>
-                <TableHead className="w-[60px] text-center">NDA</TableHead>
-                <TableHead className="w-[130px]">Intel</TableHead>
+                {activeTab === 'pe_firm' ? (
+                  <>
+                    <TableHead className="w-[140px]">Type</TableHead>
+                    <TableHead className="w-[110px] text-center">Platforms</TableHead>
+                    <TableHead className="w-[70px] text-center">Fee Agmt</TableHead>
+                    <TableHead className="w-[60px] text-center">NDA</TableHead>
+                    <TableHead className="w-[70px] text-center">Mktpl.</TableHead>
+                    <TableHead className="w-[130px]">Intel</TableHead>
+                  </>
+                ) : (
+                  <>
+                    <TableHead className="w-[180px] cursor-pointer select-none hover:bg-muted/50" onClick={() => handleSort('pe_firm_name')}>
+                      <span className="flex items-center">PE Firm <SortIcon column="pe_firm_name" /></span>
+                    </TableHead>
+                    <TableHead className="cursor-pointer select-none hover:bg-muted/50" onClick={() => handleSort('universe')}>
+                      <span className="flex items-center">Universe <SortIcon column="universe" /></span>
+                    </TableHead>
+                    <TableHead>Description</TableHead>
+                    <TableHead className="w-[70px] text-center">Mktpl.</TableHead>
+                    <TableHead className="w-[70px] text-center">Fee Agmt</TableHead>
+                    <TableHead className="w-[60px] text-center">NDA</TableHead>
+                    <TableHead className="w-[130px]">Intel</TableHead>
+                  </>
+                )}
                 <TableHead className="w-[50px]"></TableHead>
               </TableRow>
             </TableHeader>
@@ -725,13 +768,16 @@ const ReMarketingBuyers = () => {
               ) : (
                 pagedBuyers.map((buyer: any, pageIdx: number) => {
                   const globalIdx = (currentPage - 1) * PAGE_SIZE + pageIdx + 1;
-                  const location = [buyer.hq_city, buyer.hq_state].filter(Boolean).join(', ');
+                  const isSponsor = isSponsorType(buyer.buyer_type);
+                  const detailPath = isSponsor
+                    ? `/admin/buyers/pe-firms/${buyer.id}`
+                    : `/admin/buyers/${buyer.id}`;
 
                   return (
                     <TableRow
                       key={buyer.id}
                       className="cursor-pointer hover:bg-muted/50 group"
-                      onClick={() => navigate(`/admin/buyers/${buyer.id}`)}
+                      onClick={() => navigate(detailPath)}
                     >
                       {/* Checkbox */}
                       <TableCell onClick={(e) => e.stopPropagation()}>
@@ -746,10 +792,11 @@ const ReMarketingBuyers = () => {
                         {globalIdx}
                       </TableCell>
 
+                      {/* Name Column */}
                       <TableCell>
                         <div className="flex items-start gap-3">
                           <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
-                            {buyer.buyer_type === 'pe_firm' ? (
+                            {isSponsor ? (
                               <Building className="h-5 w-5 text-primary" />
                             ) : (
                               <Users className="h-5 w-5 text-primary" />
@@ -782,84 +829,149 @@ const ReMarketingBuyers = () => {
                         </div>
                       </TableCell>
 
-                      {/* PE Firm Column */}
-                      <TableCell>
-                        {buyer.pe_firm_name ? (
-                          <div className="flex items-center gap-2">
-                            <div className="h-6 w-6 rounded bg-muted flex items-center justify-center">
-                              <Building className="h-3 w-3 text-muted-foreground" />
-                            </div>
-                            <span className="text-sm">{buyer.pe_firm_name}</span>
-                          </div>
-                        ) : buyer.buyer_type === 'pe_firm' ? (
-                          <Badge variant="outline" className="text-xs">
-                            PE Firm
-                          </Badge>
-                        ) : (
-                          <span className="text-sm text-muted-foreground">—</span>
-                        )}
-                      </TableCell>
+                      {activeTab === 'pe_firm' ? (
+                        <>
+                          {/* Type Column (PE Firms tab) */}
+                          <TableCell>
+                            <Badge variant="outline" className="text-xs">
+                              {getBuyerTypeLabel(buyer.buyer_type)}
+                            </Badge>
+                          </TableCell>
 
-                      {/* Universe Column */}
-                      <TableCell>
-                        {buyer.universe?.name ? (
-                          <Badge variant="secondary" className="text-xs">
-                            {buyer.universe.name}
-                          </Badge>
-                        ) : (
-                          <span className="text-muted-foreground text-sm">—</span>
-                        )}
-                      </TableCell>
+                          {/* Platform Count Column */}
+                          <TableCell className="text-center">
+                            <span className="text-sm font-medium">
+                              {platformCountsByFirm.get(buyer.company_name) || 0}
+                            </span>
+                          </TableCell>
 
-                      {/* Description Column */}
-                      <TableCell>
-                        {(buyer.business_summary || buyer.thesis_summary) ? (
-                          <TooltipProvider>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <p className="text-sm text-muted-foreground line-clamp-2 cursor-help">
-                                  {buyer.business_summary || buyer.thesis_summary}
-                                </p>
-                              </TooltipTrigger>
-                              <TooltipContent side="bottom" className="max-w-md whitespace-normal text-sm p-3">
-                                {buyer.business_summary || buyer.thesis_summary}
-                              </TooltipContent>
-                            </Tooltip>
-                          </TooltipProvider>
-                        ) : (
-                          <span className="text-sm text-muted-foreground">—</span>
-                        )}
-                      </TableCell>
+                          {/* Fee Agreement Column */}
+                          <TableCell className="text-center">
+                            {buyer.has_fee_agreement
+                              ? <span className="text-xs font-medium text-green-600">Yes</span>
+                              : <span className="text-xs text-muted-foreground">No</span>}
+                          </TableCell>
 
-                      {/* Marketplace Column */}
-                      <TableCell className="text-center">
-                        {buyer.marketplace_firm_id
-                          ? <span className="text-xs font-medium text-green-600">Yes</span>
-                          : <span className="text-xs text-muted-foreground">No</span>}
-                      </TableCell>
+                          {/* NDA Column */}
+                          <TableCell className="text-center">
+                            {buyer.firm_agreement?.nda_signed
+                              ? <span className="text-xs font-medium text-green-600">Yes</span>
+                              : <span className="text-xs text-muted-foreground">No</span>}
+                          </TableCell>
 
-                      {/* Fee Agreement Column */}
-                      <TableCell className="text-center">
-                        {buyer.has_fee_agreement
-                          ? <span className="text-xs font-medium text-green-600">Yes</span>
-                          : <span className="text-xs text-muted-foreground">No</span>}
-                      </TableCell>
+                          {/* Marketplace Column */}
+                          <TableCell className="text-center">
+                            {buyer.marketplace_firm_id
+                              ? <span className="text-xs font-medium text-green-600">Yes</span>
+                              : <span className="text-xs text-muted-foreground">No</span>}
+                          </TableCell>
 
-                      {/* NDA Column */}
-                      <TableCell className="text-center">
-                        {buyer.firm_agreement?.nda_signed
-                          ? <span className="text-xs font-medium text-green-600">Yes</span>
-                          : <span className="text-xs text-muted-foreground">No</span>}
-                      </TableCell>
+                          {/* Intel Column */}
+                          <TableCell>
+                            <IntelligenceBadge
+                              completeness={buyer.data_completeness as DataCompleteness | null}
+                              hasTranscript={buyerIdsWithTranscripts?.has(buyer.id) || false}
+                              size="sm"
+                            />
+                          </TableCell>
+                        </>
+                      ) : (
+                        <>
+                          {/* PE Firm Column (All/Platform/other tabs) */}
+                          <TableCell onClick={(e) => e.stopPropagation()}>
+                            {buyer.pe_firm_name ? (
+                              (() => {
+                                const peFirm = findPeFirmByName(buyers || [], buyer.pe_firm_name);
+                                return peFirm ? (
+                                  <Link
+                                    to={`/admin/buyers/pe-firms/${peFirm.id}`}
+                                    className="flex items-center gap-2 hover:text-primary transition-colors"
+                                  >
+                                    <div className="h-6 w-6 rounded bg-muted flex items-center justify-center">
+                                      <Building className="h-3 w-3 text-muted-foreground" />
+                                    </div>
+                                    <span className="text-sm hover:underline">{buyer.pe_firm_name}</span>
+                                  </Link>
+                                ) : (
+                                  <div className="flex items-center gap-2">
+                                    <div className="h-6 w-6 rounded bg-muted flex items-center justify-center">
+                                      <Building className="h-3 w-3 text-muted-foreground" />
+                                    </div>
+                                    <span className="text-sm text-muted-foreground">{buyer.pe_firm_name}</span>
+                                  </div>
+                                );
+                              })()
+                            ) : isSponsor ? (
+                              <Badge variant="outline" className="text-xs">
+                                {getBuyerTypeLabel(buyer.buyer_type)}
+                              </Badge>
+                            ) : (
+                              <span className="text-sm text-muted-foreground">—</span>
+                            )}
+                          </TableCell>
 
-                      {/* Intel Column */}
-                      <TableCell>
-                        <IntelligenceBadge
-                          completeness={buyer.data_completeness as DataCompleteness | null}
-                          hasTranscript={buyerIdsWithTranscripts?.has(buyer.id) || false}
-                          size="sm"
-                        />
-                      </TableCell>
+                          {/* Universe Column */}
+                          <TableCell>
+                            {buyer.universe?.name ? (
+                              <Badge variant="secondary" className="text-xs">
+                                {buyer.universe.name}
+                              </Badge>
+                            ) : (
+                              <span className="text-muted-foreground text-sm">—</span>
+                            )}
+                          </TableCell>
+
+                          {/* Description Column */}
+                          <TableCell>
+                            {(buyer.business_summary || buyer.thesis_summary) ? (
+                              <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <p className="text-sm text-muted-foreground line-clamp-2 cursor-help">
+                                      {buyer.business_summary || buyer.thesis_summary}
+                                    </p>
+                                  </TooltipTrigger>
+                                  <TooltipContent side="bottom" className="max-w-md whitespace-normal text-sm p-3">
+                                    {buyer.business_summary || buyer.thesis_summary}
+                                  </TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+                            ) : (
+                              <span className="text-sm text-muted-foreground">—</span>
+                            )}
+                          </TableCell>
+
+                          {/* Marketplace Column */}
+                          <TableCell className="text-center">
+                            {buyer.marketplace_firm_id
+                              ? <span className="text-xs font-medium text-green-600">Yes</span>
+                              : <span className="text-xs text-muted-foreground">No</span>}
+                          </TableCell>
+
+                          {/* Fee Agreement Column */}
+                          <TableCell className="text-center">
+                            {buyer.has_fee_agreement
+                              ? <span className="text-xs font-medium text-green-600">Yes</span>
+                              : <span className="text-xs text-muted-foreground">No</span>}
+                          </TableCell>
+
+                          {/* NDA Column */}
+                          <TableCell className="text-center">
+                            {buyer.firm_agreement?.nda_signed
+                              ? <span className="text-xs font-medium text-green-600">Yes</span>
+                              : <span className="text-xs text-muted-foreground">No</span>}
+                          </TableCell>
+
+                          {/* Intel Column */}
+                          <TableCell>
+                            <IntelligenceBadge
+                              completeness={buyer.data_completeness as DataCompleteness | null}
+                              hasTranscript={buyerIdsWithTranscripts?.has(buyer.id) || false}
+                              size="sm"
+                            />
+                          </TableCell>
+                        </>
+                      )}
 
                       {/* Actions Column */}
                       <TableCell>
@@ -876,10 +988,10 @@ const ReMarketingBuyers = () => {
                           <DropdownMenuContent align="end">
                             <DropdownMenuItem onClick={(e) => {
                               e.stopPropagation();
-                              navigate(`/admin/buyers/${buyer.id}`);
+                              navigate(detailPath);
                             }}>
                               <Pencil className="h-4 w-4 mr-2" />
-                              Edit
+                              {isSponsor ? 'View Firm' : 'Edit'}
                             </DropdownMenuItem>
                             <DropdownMenuItem onClick={(e) => {
                               e.stopPropagation();
