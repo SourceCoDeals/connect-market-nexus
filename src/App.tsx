@@ -51,6 +51,7 @@ const ForgotPassword = lazyWithRetry(() => import("@/pages/ForgotPassword"));
 const ResetPassword = lazyWithRetry(() => import("@/pages/ResetPassword"));
 const Unauthorized = lazyWithRetry(() => import("@/pages/Unauthorized"));
 const ReferralTrackerPage = lazyWithRetry(() => import("@/pages/ReferralTrackerPage"));
+const DataRoomPortal = lazyWithRetry(() => import("@/pages/DataRoomPortal"));
 
 // Main app (buyer-facing)
 const Marketplace = lazyWithRetry(() => import("@/pages/Marketplace"));
@@ -81,6 +82,7 @@ const EnrichmentQueue = lazyWithRetry(() => import("@/pages/admin/EnrichmentQueu
 const DataRecoveryPage = lazyWithRetry(() => import("@/pages/admin/DataRecoveryPage"));
 const FormMonitoringPage = lazyWithRetry(() => import("@/pages/admin/FormMonitoringPage"));
 const SecuritySettings = lazyWithRetry(() => import("@/pages/admin/settings/SecuritySettings"));
+const GlobalApprovalsPage = lazyWithRetry(() => import("@/pages/admin/GlobalApprovalsPage"));
 
 // ReMarketing pages (now rendered inside AdminLayout via shared sidebar)
 const ReMarketingLayout = lazyWithRetry(() => import("@/components/remarketing").then(m => ({ default: m.ReMarketingLayout })));
@@ -168,6 +170,7 @@ function App() {
                         <Route path="/auth/callback" element={<AuthCallback />} />
                         <Route path="/unauthorized" element={<Unauthorized />} />
                         <Route path="/referrals/:shareToken" element={<ReferralTrackerPage />} />
+                        <Route path="/dataroom/:accessToken" element={<DataRoomPortal />} />
 
                         {/* ─── BUYER-FACING (unchanged) ─── */}
                         <Route path="/" element={<ProtectedRoute requireApproved={true}><MainLayout /></ProtectedRoute>}>
@@ -237,6 +240,9 @@ function App() {
                             <Route path="referral-partners" element={<Navigate to="/admin/remarketing/leads/referrals" replace />} />
                             <Route path="referral-partners/:partnerId" element={<RedirectWithId to="/admin/remarketing/leads/referrals/:partnerId" />} />
                           </Route>
+
+                          {/* APPROVALS */}
+                          <Route path="approvals" element={<GlobalApprovalsPage />} />
 
                           {/* ANALYTICS */}
                           <Route path="analytics" element={<ReMarketingAnalytics />} />
