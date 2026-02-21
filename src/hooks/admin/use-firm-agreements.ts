@@ -35,8 +35,8 @@ export interface FirmAgreement {
   fee_agreement_expires_at: string | null;
   nda_document_url: string | null;
   fee_agreement_document_url: string | null;
-  nda_source: AgreementSource;
-  fee_agreement_source_type: AgreementSource;
+  nda_source?: AgreementSource;
+  fee_agreement_source_type?: AgreementSource;
   nda_redline_notes: string | null;
   fee_agreement_redline_notes: string | null;
   nda_redline_document_url: string | null;
