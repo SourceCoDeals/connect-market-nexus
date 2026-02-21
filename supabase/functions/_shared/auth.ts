@@ -44,7 +44,7 @@ export async function requireAuth(req: Request): Promise<AuthResult> {
  */
 export async function requireAdmin(
   req: Request,
-  supabaseAdmin: SupabaseClient
+  supabaseAdmin: any
 ): Promise<AuthResult> {
   const auth = await requireAuth(req);
   if (!auth.authenticated) return auth;
