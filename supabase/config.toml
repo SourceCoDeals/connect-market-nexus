@@ -105,7 +105,7 @@ verify_jwt = false
 [functions.sync-missing-profiles]
 verify_jwt = false
 [functions.score-buyer-deal]
-verify_jwt = true
+verify_jwt = false
 [functions.map-csv-columns]
 verify_jwt = true
 [functions.enrich-buyer]
@@ -195,4 +195,6 @@ verify_jwt = false
 [functions.process-scoring-queue]
 verify_jwt = false
 [functions.generate-ma-guide-background]
+verify_jwt = false
+[functions.score-industry-alignment]
 verify_jwt = false
