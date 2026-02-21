@@ -6,6 +6,51 @@ import { withPerformanceMonitoring } from '@/lib/performance-monitor';
 import { useAuth } from '@/context/AuthContext';
 import { toStandardCategory, toStandardLocation } from '@/lib/standardization';
 
+// N02 FIX: Explicit safe columns for marketplace queries.
+// SELECT * was returning all 170 columns including confidential data
+// (internal_company_name, website, main_contact_*, internal_notes, etc.)
+// to any authenticated buyer who opens browser DevTools.
+// Only columns needed for the marketplace UI are listed here.
+const MARKETPLACE_SAFE_COLUMNS = [
+  'id',
+  'title',
+  'description',
+  'description_html',
+  'description_json',
+  'hero_description',
+  'category',
+  'categories',
+  'location',
+  'revenue',
+  'ebitda',
+  'image_url',
+  'status',
+  'status_tag',
+  'tags',
+  'created_at',
+  'updated_at',
+  'published_at',
+  'is_internal_deal',
+  'deleted_at',
+  'visible_to_buyer_types',
+  'acquisition_type',
+  'full_time_employees',
+  'part_time_employees',
+  'custom_metric_label',
+  'custom_metric_value',
+  'custom_metric_subtitle',
+  'metric_3_type',
+  'metric_3_custom_label',
+  'metric_3_custom_value',
+  'metric_3_custom_subtitle',
+  'metric_4_type',
+  'metric_4_custom_label',
+  'metric_4_custom_value',
+  'metric_4_custom_subtitle',
+  'revenue_metric_subtitle',
+  'ebitda_metric_subtitle',
+].join(', ');
+
 // Fetch listings with filters and pagination
 export const useListings = (filters: FilterOptions = {}) => {
   const { user, authChecked } = useAuth();
@@ -29,10 +74,10 @@ export const useListings = (filters: FilterOptions = {}) => {
             throw new Error('User approval required');
           }
           
-          // Start building the query
+          // Start building the query with explicit safe columns (N02 FIX)
           let query = supabase
             .from('listings')
-            .select('*, hero_description', { count: 'exact' });
+            .select(MARKETPLACE_SAFE_COLUMNS, { count: 'exact' });
           
           // Always filter to only show active, non-deleted listings in the marketplace
           query = query
@@ -207,9 +252,10 @@ export const useListing = (id: string | undefined) => {
             throw new Error('Authentication required for single listing');
           }
           
+          // N02 FIX: Use explicit safe columns instead of SELECT *
           const { data, error } = await supabase
             .from('listings')
-            .select('*, hero_description')
+            .select(MARKETPLACE_SAFE_COLUMNS)
             .eq('id', id)
             .is('deleted_at', null)
             .eq('is_internal_deal', false)

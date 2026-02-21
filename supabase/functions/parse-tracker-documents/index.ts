@@ -4,16 +4,15 @@ import { GEMINI_API_BASE } from "../_shared/ai-providers.ts";
 import { validateUrl, ssrfErrorResponse } from "../_shared/security.ts";
 import { encode as base64Encode } from "https://deno.land/std@0.168.0/encoding/base64.ts";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
+import { getCorsHeaders, corsPreflightResponse } from "../_shared/cors.ts";
 
 const GEMINI_MODEL = "gemini-2.0-flash";
 
 serve(async (req) => {
+  const corsHeaders = getCorsHeaders(req);
+
   if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+    return corsPreflightResponse(req);
   }
 
   try {
@@ -32,7 +31,7 @@ serve(async (req) => {
     const urlValidation = validateUrl(document_url);
     if (!urlValidation.valid) {
       console.error(`SSRF blocked for document URL: ${document_url} - ${urlValidation.reason}`);
-      return ssrfErrorResponse(urlValidation.reason || "Invalid URL");
+      return ssrfErrorResponse(urlValidation.reason || "Invalid URL", corsHeaders);
     }
 
     console.log("[parse-tracker-documents] Processing:", {

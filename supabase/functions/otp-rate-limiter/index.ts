@@ -2,10 +2,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+import { getCorsHeaders, corsPreflightResponse } from "../_shared/cors.ts";
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
 const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -31,19 +28,39 @@ const DEFAULT_WINDOW_MINUTES = 60; // 1 hour
 const DEFAULT_MAX_REQUESTS = 5;    // 5 OTP requests per hour
 
 const handler = async (req: Request): Promise<Response> => {
+  const corsHeaders = getCorsHeaders(req);
+
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+    return corsPreflightResponse(req);
   }
 
   try {
+    // AUTH: Require authenticated user to prevent arbitrary email lockout attacks
+    const authHeader = req.headers.get('Authorization');
+    if (authHeader) {
+      const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
+      const anonClient = createClient(supabaseUrl, supabaseAnonKey);
+      const { data: { user } } = await anonClient.auth.getUser(authHeader.replace('Bearer ', ''));
+      // If a token is provided but invalid, reject the request
+      if (!user) {
+        return new Response(JSON.stringify({ error: 'Invalid authentication token', allowed: false, remaining: 0 }), {
+          status: 401, headers: { 'Content-Type': 'application/json', ...corsHeaders },
+        });
+      }
+    }
+
     const { email, action, window_minutes = DEFAULT_WINDOW_MINUTES, max_requests = DEFAULT_MAX_REQUESTS }: OTPRateLimitRequest = await req.json();
-    
+
     if (!email || !action) {
       throw new Error('Email and action are required');
     }
+
+    // Prevent client from overriding rate limits with permissive values
+    const safeWindowMinutes = Math.min(window_minutes, DEFAULT_WINDOW_MINUTES);
+    const safeMaxRequests = Math.min(max_requests, DEFAULT_MAX_REQUESTS);
     
-    const windowStart = new Date(Date.now() - window_minutes * 60 * 1000);
-    const resetTime = new Date(Date.now() + window_minutes * 60 * 1000);
+    const windowStart = new Date(Date.now() - safeWindowMinutes * 60 * 1000);
+    const resetTime = new Date(Date.now() + safeWindowMinutes * 60 * 1000);
 
     // Check current rate limit status
     const { data: existingRecord, error: fetchError } = await supabase
@@ -65,7 +82,7 @@ const handler = async (req: Request): Promise<Response> => {
       recordId = existingRecord.id;
     }
 
-    const allowed = currentCount < max_requests;
+    const allowed = currentCount < safeMaxRequests;
 
     if (action === 'increment' && allowed) {
       if (existingRecord) {
@@ -97,10 +114,10 @@ const handler = async (req: Request): Promise<Response> => {
 
     const result: OTPRateLimitResult = {
       allowed,
-      remaining: Math.max(0, max_requests - currentCount),
+      remaining: Math.max(0, safeMaxRequests - currentCount),
       reset_time: resetTime.toISOString(),
       current_count: currentCount,
-      limit: max_requests,
+      limit: safeMaxRequests,
     };
 
     return new Response(JSON.stringify(result), {

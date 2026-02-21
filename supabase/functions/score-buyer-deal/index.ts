@@ -1426,7 +1426,7 @@ function assessDataCompleteness(buyer: any): { level: string; missingFields: str
   if (!buyer.target_geographies || buyer.target_geographies.length === 0) missing.push('Target geographies');
   if (!buyer.target_revenue_min && !buyer.target_revenue_max) missing.push('Target revenue range');
   if (!buyer.target_ebitda_min && !buyer.target_ebitda_max) missing.push('Target EBITDA range');
-  if (!buyer.key_quotes || buyer.key_quotes.length === 0) missing.push('Key quotes');
+  // F06 FIX: key_quotes was dropped in migration 20260221000000 — removed from completeness check
   if (!buyer.hq_state && !buyer.hq_city) missing.push('HQ location');
   if (!buyer.buyer_type) missing.push('Buyer type');
 
@@ -1543,9 +1543,10 @@ async function scoreSingleBuyer(
   // === Weight Redistribution for Missing Data ===
   // When buyer lacks data for a dimension, that dimension produces a flat neutral score.
   // To prevent clustering, redistribute its weight to dimensions that CAN differentiate.
+  // F06 FIX: Removed references to deprecated revenue_sweet_spot/ebitda_sweet_spot
+  // (dropped in migration 20260221000000). Sweet spot is computed dynamically from min/max.
   const buyerHasSizeData = buyer.target_revenue_min != null || buyer.target_revenue_max != null ||
-    buyer.target_ebitda_min != null || buyer.target_ebitda_max != null ||
-    buyer.revenue_sweet_spot != null || buyer.ebitda_sweet_spot != null;
+    buyer.target_ebitda_min != null || buyer.target_ebitda_max != null;
   
   const buyerHasGeoData = (buyer.target_geographies?.length > 0) ||
     (buyer.geographic_footprint?.length > 0) || (buyer.service_regions?.length > 0) ||

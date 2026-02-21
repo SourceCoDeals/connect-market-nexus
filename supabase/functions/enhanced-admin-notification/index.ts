@@ -2,10 +2,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+import { getCorsHeaders, corsPreflightResponse } from "../_shared/cors.ts";
 
 interface AdminNotificationRequest {
   first_name: string;
@@ -15,8 +12,10 @@ interface AdminNotificationRequest {
 }
 
 const handler = async (req: Request): Promise<Response> => {
+  const corsHeaders = getCorsHeaders(req);
+
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+    return corsPreflightResponse(req);
   }
 
   try {
@@ -49,6 +48,9 @@ const handler = async (req: Request): Promise<Response> => {
 
     const { first_name, last_name, email, company }: AdminNotificationRequest = await req.json();
 
+    // N08 FIX: Use env var for admin notification email instead of hardcoded address
+    const adminEmail = Deno.env.get('ADMIN_NOTIFICATION_EMAIL') || 'admin@sourcecoconnect.com';
+
     console.log(`Sending admin notification for new user: ${email}`);
 
     // Enhanced retry logic for email delivery
@@ -79,8 +81,8 @@ const handler = async (req: Request): Promise<Response> => {
                 "Content-Type": "application/json",
               },
               body: JSON.stringify({
-                from: "admin@yourdomain.com",
-                to: ["admin@yourdomain.com"],
+                from: adminEmail,
+                to: [adminEmail],
                 subject: "New User Registration - Action Required",
                 html: `
                   <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
@@ -124,9 +126,9 @@ const handler = async (req: Request): Promise<Response> => {
               body: JSON.stringify({
                 sender: {
                   name: "Admin Notifications",
-                  email: "admin@yourdomain.com"
+                  email: adminEmail
                 },
-                to: [{ email: "admin@yourdomain.com", name: "Admin" }],
+                to: [{ email: adminEmail, name: "Admin" }],
                 subject: "New User Registration - Action Required",
                 htmlContent: `
                   <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">

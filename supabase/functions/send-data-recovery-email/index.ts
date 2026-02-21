@@ -2,10 +2,8 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.4';
 import { Resend } from "resend";
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+import { getCorsHeaders, corsPreflightResponse } from "../_shared/cors.ts";
+import { requireAdmin, escapeHtml } from "../_shared/auth.ts";
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
 const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -19,12 +17,23 @@ interface DataRecoveryEmailRequest {
 }
 
 const handler = async (req: Request): Promise<Response> => {
+  const corsHeaders = getCorsHeaders(req);
+
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+    return corsPreflightResponse(req);
   }
 
   try {
+    // AUTH: Admin-only — sends data recovery emails to users
+    const auth = await requireAdmin(req, supabase);
+    if (!auth.isAdmin) {
+      return new Response(JSON.stringify({ error: auth.error }), {
+        status: auth.authenticated ? 403 : 401,
+        headers: { 'Content-Type': 'application/json', ...corsHeaders },
+      });
+    }
+
     const { userIds, template }: DataRecoveryEmailRequest = await req.json();
 
     console.log(`Processing data recovery emails for ${userIds.length} users`);
@@ -54,11 +63,11 @@ const handler = async (req: Request): Promise<Response> => {
             <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
               <h2 style="color: #333;">Complete Your Profile</h2>
               
-              <p>Hi ${user.first_name || 'there'},</p>
-              
+              <p>Hi ${escapeHtml(user.first_name || 'there')},</p>
+
               <p>We noticed that some important information is missing from your profile. To ensure you receive relevant opportunities and maintain your account in good standing, please complete the missing fields.</p>
-              
-              ${template}
+
+              ${escapeHtml(template)}
               
               <div style="margin: 30px 0;">
                 <a href="${supabaseUrl.replace('.supabase.co', '')}.lovableapp.com/profile" 

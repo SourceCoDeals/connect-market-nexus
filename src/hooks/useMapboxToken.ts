@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { supabase } from '@/integrations/supabase/client';
 
 // Module-level cache for the Mapbox token
 let cachedToken: string | null = null;
@@ -6,21 +7,11 @@ let tokenPromise: Promise<string | null> | null = null;
 
 async function fetchMapboxToken(): Promise<string | null> {
   try {
-    const response = await fetch(
-      'https://vhzipqarkmmfuqadefep.supabase.co/functions/v1/get-mapbox-token',
-      {
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      }
-    );
-    
-    if (response.ok) {
-      const data = await response.json();
-      if (data.token) {
-        cachedToken = data.token;
-        return data.token;
-      }
+    const { data, error } = await supabase.functions.invoke('get-mapbox-token');
+
+    if (!error && data?.token) {
+      cachedToken = data.token;
+      return data.token;
     }
     return null;
   } catch (error) {

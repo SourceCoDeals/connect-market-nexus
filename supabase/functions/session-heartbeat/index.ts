@@ -1,9 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+import { getCorsHeaders, corsPreflightResponse } from "../_shared/cors.ts";
 
 interface HeartbeatData {
   session_id: string;
@@ -15,18 +11,44 @@ interface HeartbeatData {
 }
 
 Deno.serve(async (req) => {
+  const corsHeaders = getCorsHeaders(req);
+
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders });
+    return corsPreflightResponse(req);
   }
 
   try {
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    // N04 FIX: Require authenticated user for session heartbeats
+    const authHeader = req.headers.get('Authorization') || '';
+    const token = authHeader.replace('Bearer ', '').trim();
 
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+
+    let authenticatedUserId: string | null = null;
+
+    if (token) {
+      const anonClient = createClient(supabaseUrl, supabaseAnonKey, {
+        global: { headers: { Authorization: `Bearer ${token}` } }
+      });
+      const { data: { user } } = await anonClient.auth.getUser();
+      if (user) {
+        authenticatedUserId = user.id;
+      }
+    }
+
+    if (!authenticatedUserId) {
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
     const body: HeartbeatData = await req.json();
-    
+
     if (!body.session_id) {
       return new Response(
         JSON.stringify({ error: 'session_id required' }),
@@ -45,7 +67,8 @@ Deno.serve(async (req) => {
           is_active: false,
           updated_at: now.toISOString(),
         })
-        .eq('session_id', body.session_id);
+        .eq('session_id', body.session_id)
+        .eq('user_id', authenticatedUserId); // N04 FIX: Only update own sessions
 
       if (endError) {
         console.error('Failed to end session:', endError);
@@ -62,9 +85,10 @@ Deno.serve(async (req) => {
       .from('user_sessions')
       .select('started_at, session_duration_seconds')
       .eq('session_id', body.session_id)
+      .eq('user_id', authenticatedUserId) // N04 FIX: Only read own sessions
       .order('created_at', { ascending: false })
       .limit(1);
-    
+
     const session = sessions?.[0] ?? null;
 
     if (selectError) {
@@ -78,8 +102,8 @@ Deno.serve(async (req) => {
       console.log('Session not found (will be created by track-session):', body.session_id);
 
       return new Response(
-        JSON.stringify({ 
-          success: true, 
+        JSON.stringify({
+          success: true,
           pending: true,
           message: 'Session will be created by track-session',
           last_active_at: now.toISOString()
@@ -99,10 +123,11 @@ Deno.serve(async (req) => {
         last_active_at: now.toISOString(),
         session_duration_seconds: durationSeconds,
         is_active: true,
-        user_id: body.user_id || undefined,
+        user_id: authenticatedUserId, // N04 FIX: Always use authenticated user_id
         updated_at: now.toISOString(),
       })
-      .eq('session_id', body.session_id);
+      .eq('session_id', body.session_id)
+      .eq('user_id', authenticatedUserId); // N04 FIX: Only update own sessions
 
     if (updateError) {
       console.error('Failed to update session heartbeat:', updateError);
@@ -112,8 +137,8 @@ Deno.serve(async (req) => {
     console.log(`Heartbeat: session ${body.session_id.substring(0, 20)}..., duration: ${durationSeconds}s`);
 
     return new Response(
-      JSON.stringify({ 
-        success: true, 
+      JSON.stringify({
+        success: true,
         duration_seconds: durationSeconds,
         last_active_at: now.toISOString()
       }),

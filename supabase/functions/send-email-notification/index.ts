@@ -3,6 +3,8 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { sendViaBervo } from "../_shared/brevo-sender.ts";
 
+import { getCorsHeaders, corsPreflightResponse } from "../_shared/cors.ts";
+
 /**
  * DEPRECATED: Consolidated into enhanced-email-delivery.
  *
@@ -14,12 +16,6 @@ import { sendViaBervo } from "../_shared/brevo-sender.ts";
  * New callers should use 'enhanced-email-delivery' directly.
  */
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
-};
-
 interface EmailNotificationRequest {
   type: 'approval' | 'rejection' | 'verification';
   email: string;
@@ -28,10 +24,12 @@ interface EmailNotificationRequest {
 }
 
 const handler = async (req: Request): Promise<Response> => {
+  const corsHeaders = getCorsHeaders(req);
+
   console.log("[send-email-notification] DEPRECATED — using shared brevo-sender");
 
   if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+    return corsPreflightResponse(req);
   }
 
   try {

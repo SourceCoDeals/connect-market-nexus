@@ -71,6 +71,13 @@ interface ClarificationContext {
   [key: string]: string | string[] | undefined;
 }
 
+// Helper to get the current session's access token for edge function calls
+const getSessionToken = async (): Promise<string> => {
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session?.access_token) throw new Error("Not authenticated");
+  return session.access_token;
+};
+
 // Helper function to save guide to Supporting Documents with direct DB persistence
 const saveGuideToDocuments = async (
   content: string,
@@ -87,7 +94,7 @@ const saveGuideToDocuments = async (
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          Authorization: `Bearer ${await getSessionToken()}`,
         },
         body: JSON.stringify({
           universeId,
@@ -586,7 +593,7 @@ export const AIResearchSection = ({
                method: "POST",
                headers: {
                  "Content-Type": "application/json",
-                 Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+                 Authorization: `Bearer ${await getSessionToken()}`,
                },
                body: JSON.stringify({ 
                  industry_name: industryName,
@@ -906,7 +913,7 @@ export const AIResearchSection = ({
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+            Authorization: `Bearer ${await getSessionToken()}`,
           },
           body: JSON.stringify({
             industry_name: industryName,

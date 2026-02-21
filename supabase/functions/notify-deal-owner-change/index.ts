@@ -5,10 +5,7 @@ import { renderAsync } from '@react-email/components';
 import { DealOwnerChangeEmail } from './_templates/deal-owner-change-email.tsx';
 import { sendViaBervo } from "../_shared/brevo-sender.ts";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
+import { getCorsHeaders, corsPreflightResponse } from "../_shared/cors.ts";
 
 interface DealOwnerChangeRequest {
   dealId: string;
@@ -24,8 +21,10 @@ interface DealOwnerChangeRequest {
 }
 
 const handler = async (req: Request): Promise<Response> => {
+  const corsHeaders = getCorsHeaders(req);
+
   if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+    return corsPreflightResponse(req);
   }
 
   try {

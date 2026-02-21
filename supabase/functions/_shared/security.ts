@@ -73,8 +73,9 @@ export async function checkRateLimit(
 
     if (error) {
       console.error('Rate limit check error:', error);
-      // Fail open on database errors to avoid blocking legitimate users
-      return { allowed: true, remaining: config.limit - 1, resetTime, currentCount: 1, limit: config.limit };
+      // N12 FIX: Fail CLOSED on database errors to prevent unlimited AI cost exposure.
+      // Under DB pressure, fail-open would remove all rate limiting protection.
+      return { allowed: false, remaining: 0, resetTime, currentCount: config.limit, limit: config.limit };
     }
 
     const currentCount = attempts?.length || 0;
@@ -121,8 +122,8 @@ export async function checkRateLimit(
     };
   } catch (error) {
     console.error('Rate limit error:', error);
-    // Fail open
-    return { allowed: true, remaining: config.limit - 1, resetTime, currentCount: 1, limit: config.limit };
+    // N12 FIX: Fail CLOSED on all errors to prevent unlimited AI cost exposure
+    return { allowed: false, remaining: 0, resetTime, currentCount: config.limit, limit: config.limit };
   }
 }
 
@@ -146,7 +147,8 @@ export async function checkGlobalRateLimit(
 
     if (error) {
       console.error('Global rate limit check error:', error);
-      return { allowed: true, remaining: config.limit - 1, resetTime, currentCount: 1, limit: config.limit };
+      // N12 FIX: Fail CLOSED on DB errors to prevent unlimited AI cost exposure
+      return { allowed: false, remaining: 0, resetTime, currentCount: config.limit, limit: config.limit };
     }
 
     const currentCount = count || 0;
@@ -165,7 +167,8 @@ export async function checkGlobalRateLimit(
     };
   } catch (error) {
     console.error('Global rate limit error:', error);
-    return { allowed: true, remaining: config.limit - 1, resetTime, currentCount: 1, limit: config.limit };
+    // N12 FIX: Fail CLOSED on all errors
+    return { allowed: false, remaining: 0, resetTime, currentCount: config.limit, limit: config.limit };
   }
 }
 
@@ -320,7 +323,7 @@ export function sanitizeStringArray(arr: unknown, maxItems: number = 100, maxIte
 /**
  * Create a rate limit exceeded response
  */
-export function rateLimitResponse(result: RateLimitResult, corsHeaders?: Record<string, string>): Response {
+export function rateLimitResponse(result: RateLimitResult, corsHeaders: Record<string, string>): Response {
   return new Response(
     JSON.stringify({
       error: 'Rate limit exceeded',
@@ -332,10 +335,7 @@ export function rateLimitResponse(result: RateLimitResult, corsHeaders?: Record<
     {
       status: 429,
       headers: {
-        ...(corsHeaders || {
-          'Access-Control-Allow-Origin': '*',
-          'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-        }),
+        ...corsHeaders,
         'Content-Type': 'application/json',
         'X-RateLimit-Limit': result.limit.toString(),
         'X-RateLimit-Remaining': result.remaining.toString(),
@@ -349,7 +349,7 @@ export function rateLimitResponse(result: RateLimitResult, corsHeaders?: Record<
 /**
  * Create an SSRF validation error response
  */
-export function ssrfErrorResponse(reason: string, corsHeaders?: Record<string, string>): Response {
+export function ssrfErrorResponse(reason: string, corsHeaders: Record<string, string>): Response {
   return new Response(
     JSON.stringify({
       error: 'Invalid URL',
@@ -359,10 +359,7 @@ export function ssrfErrorResponse(reason: string, corsHeaders?: Record<string, s
     {
       status: 400,
       headers: {
-        ...(corsHeaders || {
-          'Access-Control-Allow-Origin': '*',
-          'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-        }),
+        ...corsHeaders,
         'Content-Type': 'application/json',
       },
     }

@@ -1,6 +1,8 @@
 
 import { serve } from "https://deno.land/std@0.208.0/http/server.ts";
 
+import { getCorsHeaders, corsPreflightResponse } from "../_shared/cors.ts";
+
 /**
  * DEPRECATED: This function now proxies to enhanced-admin-notification.
  *
@@ -13,15 +15,11 @@ import { serve } from "https://deno.land/std@0.208.0/http/server.ts";
  * This proxy exists to avoid breaking any hidden callers (webhooks, triggers).
  */
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
-};
-
 const handler = async (req: Request): Promise<Response> => {
+  const corsHeaders = getCorsHeaders(req);
+
   if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+    return corsPreflightResponse(req);
   }
 
   console.log("[admin-notification] DEPRECATED — proxying to enhanced-admin-notification");

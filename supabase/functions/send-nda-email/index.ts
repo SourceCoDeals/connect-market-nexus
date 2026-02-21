@@ -2,10 +2,8 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.47.10';
 import { getAdminProfile } from "../_shared/admin-profiles.ts";
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+import { getCorsHeaders, corsPreflightResponse } from "../_shared/cors.ts";
+import { requireAdmin, escapeHtmlWithBreaks } from "../_shared/auth.ts";
 
 interface SendNDAEmailRequest {
   userId?: string;
@@ -46,9 +44,11 @@ const ADMIN_PROFILES: Record<string, any> = {
 };
 
 const handler = async (req: Request): Promise<Response> => {
+  const corsHeaders = getCorsHeaders(req);
+
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+    return corsPreflightResponse(req);
   }
 
   try {
@@ -104,6 +104,15 @@ const handler = async (req: Request): Promise<Response> => {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
+
+    // AUTH: Admin-only — sends emails with arbitrary content and attachments
+    const auth = await requireAdmin(req, supabaseAdmin);
+    if (!auth.isAdmin) {
+      return new Response(JSON.stringify({ error: auth.error }), {
+        status: auth.authenticated ? 403 : 401,
+        headers: { 'Content-Type': 'application/json', ...corsHeaders },
+      });
+    }
 
     // If firmId and sendToAllMembers, get all firm members
     let recipientEmails: Array<{email: string, userId: string, name?: string}> = [];
@@ -295,7 +304,7 @@ Return the signed document to proceed.`;
 ${signatureText}`;
 
     const htmlContent = `<div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
-${emailMessage.replace(/\n/g, '<br>')}
+${escapeHtmlWithBreaks(emailMessage)}
 <br><br>
 ${adminSignature}
 </div>`;

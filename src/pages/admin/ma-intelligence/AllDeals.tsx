@@ -104,8 +104,8 @@ export default function MAAllDeals() {
     // Map deals to our interface
     const mappedDeals: DealRow[] = ((dealsRes.data || []) as any[]).map((d) => ({
       id: d.id,
-      deal_name: d.contact_name || d.deal_name || 'Unknown Deal',
-      tracker_id: d.listing_id || d.tracker_id || '',
+      deal_name: d.title || 'Unknown Deal',
+      tracker_id: d.listing_id || '',
       company_website: d.company_website ?? null,
       company_overview: d.company_overview ?? null,
       geography: d.geography ?? null,

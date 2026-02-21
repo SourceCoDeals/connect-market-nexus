@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import * as bcrypt from "https://deno.land/x/bcrypt@v0.4.1/mod.ts";
 import { getCorsHeaders, corsPreflightResponse } from "../_shared/cors.ts";
+import { requireAdmin } from "../_shared/auth.ts";
 
 const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
 const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -20,6 +21,14 @@ serve(async (req) => {
 
     // Hash password utility (used by admin when creating partners)
     if (action === "hash-password") {
+      // AUTH: Admin-only — only admins create referral partner passwords
+      const auth = await requireAdmin(req, supabase);
+      if (!auth.isAdmin) {
+        return new Response(JSON.stringify({ error: auth.error }), {
+          status: auth.authenticated ? 403 : 401,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
       if (!password) {
         return new Response(
           JSON.stringify({ error: "Password required" }),
@@ -151,7 +160,7 @@ serve(async (req) => {
       const { data: listings } = await supabase
         .from("listings")
         .select(
-          "id, title, internal_company_name, category, revenue, ebitda, full_time_employees, location, status, is_priority_target, website, deal_total_score, main_contact_name, main_contact_title, main_contact_email, linkedin_employee_count, linkedin_employee_range"
+          "id, title, category, revenue, ebitda, full_time_employees, location, status, is_priority_target, website, linkedin_employee_count, linkedin_employee_range"
         )
         .eq("referral_partner_id", partner.id)
         .order("created_at", { ascending: false })

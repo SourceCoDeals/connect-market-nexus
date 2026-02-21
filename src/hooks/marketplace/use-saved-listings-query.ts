@@ -4,6 +4,19 @@ import { supabase } from '@/integrations/supabase/client';
 import { Listing, FilterOptions } from '@/types';
 import { createQueryKey } from '@/lib/query-keys';
 
+// N02 FIX: Explicit safe columns — avoid SELECT * exposing confidential data
+const MARKETPLACE_SAFE_COLUMNS = [
+  'id', 'title', 'description', 'description_html', 'description_json', 'hero_description',
+  'category', 'categories', 'location', 'revenue', 'ebitda', 'image_url',
+  'status', 'status_tag', 'tags', 'created_at', 'updated_at',
+  'published_at', 'is_internal_deal', 'deleted_at', 'visible_to_buyer_types',
+  'acquisition_type', 'full_time_employees', 'part_time_employees',
+  'custom_metric_label', 'custom_metric_value', 'custom_metric_subtitle',
+  'metric_3_type', 'metric_3_custom_label', 'metric_3_custom_value', 'metric_3_custom_subtitle',
+  'metric_4_type', 'metric_4_custom_label', 'metric_4_custom_value', 'metric_4_custom_subtitle',
+  'revenue_metric_subtitle', 'ebitda_metric_subtitle',
+].join(', ');
+
 export const useSavedListings = (filters: FilterOptions = {}) => {
   return useQuery({
     queryKey: createQueryKey.savedListings(filters),
@@ -31,7 +44,7 @@ export const useSavedListings = (filters: FilterOptions = {}) => {
         // Build the query for listings
         let query = supabase
           .from('listings')
-          .select('*', { count: 'exact' })
+          .select(MARKETPLACE_SAFE_COLUMNS, { count: 'exact' })
           .in('id', listingIds)
           .eq('status', 'active')
           .is('deleted_at', null)

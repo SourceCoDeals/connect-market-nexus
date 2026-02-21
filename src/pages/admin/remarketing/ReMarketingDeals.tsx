@@ -198,6 +198,7 @@ const ReMarketingDeals = () => {
             google_review_count,
             google_rating,
             is_priority_target,
+            needs_buyer_universe,
             deal_total_score,
             seller_interest_score,
             manual_rank_override,
@@ -746,29 +747,8 @@ const ReMarketingDeals = () => {
     if (!singleDeleteTarget) return;
     const { id: dealId, name: dealName } = singleDeleteTarget;
     try {
-      await supabase.from('alert_delivery_logs').delete().eq('listing_id', dealId);
-      await supabase.from('buyer_approve_decisions').delete().eq('listing_id', dealId);
-      await supabase.from('buyer_learning_history').delete().eq('listing_id', dealId);
-      await supabase.from('buyer_pass_decisions').delete().eq('listing_id', dealId);
-      await supabase.from('chat_conversations').delete().eq('listing_id', dealId);
-      await supabase.from('collection_items').delete().eq('listing_id', dealId);
-      await supabase.from('connection_requests').delete().eq('listing_id', dealId);
-      await supabase.from('deal_ranking_history').delete().eq('listing_id', dealId);
-      await supabase.from('deal_referrals').delete().eq('listing_id', dealId);
-      await supabase.from('deals').delete().eq('listing_id', dealId);
-      await supabase.from('deal_scoring_adjustments').delete().eq('listing_id', dealId);
-      await supabase.from('deal_transcripts').delete().eq('listing_id', dealId);
-      await supabase.from('enrichment_queue').delete().eq('listing_id', dealId);
-      await supabase.from('listing_analytics').delete().eq('listing_id', dealId);
-      await supabase.from('listing_conversations').delete().eq('listing_id', dealId);
-      await supabase.from('outreach_records').delete().eq('listing_id', dealId);
-      await supabase.from('owner_intro_notifications').delete().eq('listing_id', dealId);
-      await supabase.from('remarketing_outreach').delete().eq('listing_id', dealId);
-      await supabase.from('remarketing_scores').delete().eq('listing_id', dealId);
-      await supabase.from('remarketing_universe_deals').delete().eq('listing_id', dealId);
-      await supabase.from('saved_listings').delete().eq('listing_id', dealId);
-      await supabase.from('similar_deal_alerts').delete().eq('source_listing_id', dealId);
-      const { error } = await supabase.from('listings').delete().eq('id', dealId);
+      // N05 FIX: Use server-side cascade function instead of 27 sequential client DELETE calls
+      const { error } = await supabase.rpc('delete_listing_cascade', { p_listing_id: dealId });
       if (error) throw error;
       toast({ title: "Deal deleted", description: `${dealName} has been permanently deleted` });
       refetchListings();
