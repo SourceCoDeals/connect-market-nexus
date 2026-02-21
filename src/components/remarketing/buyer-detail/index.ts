@@ -24,3 +24,4 @@ export { EditCustomerInfoDialog } from './EditCustomerInfoDialog';
 export { EditAcquisitionHistoryDialog } from './EditAcquisitionHistoryDialog';
 export { EditBuyerCompanyOverviewDialog } from './EditBuyerCompanyOverviewDialog';
 export { EditBuyerServicesBusinessModelDialog } from './EditBuyerServicesBusinessModelDialog';
+export { ExtractionSummaryDialog } from './ExtractionSummaryDialog';

@@ -305,7 +305,7 @@ INSTRUCTIONS:
 // Build context for all-deals queries
 async function buildDealsContext(supabase: any): Promise<string> {
   const [dealsResult, universesResult] = await Promise.all([
-    supabase.from('listings').select('*').eq('is_active', true).order('deal_total_score', { ascending: false, nullsFirst: false }).limit(100),
+    supabase.from('listings').select('*').eq('status', 'active').order('deal_total_score', { ascending: false, nullsFirst: false }).limit(100),
     supabase.from('remarketing_buyer_universes').select('id, name, ma_guide_content, fit_criteria, size_criteria, geography_criteria, service_criteria').eq('archived', false),
   ]);
 
