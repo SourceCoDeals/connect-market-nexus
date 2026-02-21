@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams, Link } from "react-router-dom";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -69,9 +69,14 @@ const BUYER_TYPES: { value: BuyerType; label: string }[] = [
   { value: 'pe_firm', label: 'PE Firm' },
   { value: 'platform', label: 'Platform' },
   { value: 'strategic', label: 'Strategic' },
+  { value: 'independent_sponsor', label: 'Independent Sponsor' },
+  { value: 'search_fund', label: 'Search Fund' },
   { value: 'family_office', label: 'Family Office' },
   { value: 'other', label: 'Other' },
 ];
+
+// Types that get a PE Firm / Sponsor page
+const SPONSOR_TYPES = new Set(['pe_firm', 'independent_sponsor', 'search_fund', 'family_office']);
 
 type BuyerTab = 'all' | 'pe_firm' | 'platform' | 'needs_agreements' | 'needs_enrichment';
 
@@ -183,7 +188,7 @@ const ReMarketingBuyers = () => {
     if (!buyers) return { all: 0, pe_firm: 0, platform: 0, needs_agreements: 0, needs_enrichment: 0 };
     let pe_firm = 0, platform = 0, needs_agreements = 0, needs_enrichment = 0;
     buyers.forEach((b: any) => {
-      if (b.buyer_type === 'pe_firm') pe_firm++;
+      if (SPONSOR_TYPES.has(b.buyer_type)) pe_firm++;
       if (b.buyer_type === 'platform' || !b.buyer_type) platform++;
       if (!b.has_fee_agreement) needs_agreements++;
       if (b.data_completeness !== 'high') needs_enrichment++;
@@ -274,7 +279,7 @@ const ReMarketingBuyers = () => {
     // Tab filter
     switch (activeTab) {
       case 'pe_firm':
-        result = result.filter(b => b.buyer_type === 'pe_firm');
+        result = result.filter(b => SPONSOR_TYPES.has(b.buyer_type));
         break;
       case 'platform':
         result = result.filter(b => b.buyer_type === 'platform' || !b.buyer_type);
@@ -396,6 +401,29 @@ const ReMarketingBuyers = () => {
     const found = BUYER_TYPES.find(t => t.value === type);
     return found?.label || type || '-';
   };
+
+  // Build lookup: PE firm company_name → buyer record (for clickable PE firm links)
+  const peFirmByName = useMemo(() => {
+    const map = new Map<string, { id: string; company_name: string }>();
+    (buyers || []).forEach((b: any) => {
+      if (SPONSOR_TYPES.has(b.buyer_type)) {
+        map.set(b.company_name?.toLowerCase(), { id: b.id, company_name: b.company_name });
+      }
+    });
+    return map;
+  }, [buyers]);
+
+  // Platform counts per PE firm
+  const platformCountByFirm = useMemo(() => {
+    const map = new Map<string, number>();
+    (buyers || []).forEach((b: any) => {
+      if (b.pe_firm_name && !SPONSOR_TYPES.has(b.buyer_type)) {
+        const key = b.pe_firm_name.toLowerCase();
+        map.set(key, (map.get(key) || 0) + 1);
+      }
+    });
+    return map;
+  }, [buyers]);
 
   // Selection helpers
   const toggleSelect = (id: string) => {
@@ -599,7 +627,7 @@ const ReMarketingBuyers = () => {
       <Tabs value={activeTab} onValueChange={handleTabChange}>
         <TabsList className="flex-wrap h-auto gap-1">
           <TabsTrigger value="all">All Buyers ({tabCounts.all})</TabsTrigger>
-          <TabsTrigger value="pe_firm">PE Firms ({tabCounts.pe_firm})</TabsTrigger>
+          <TabsTrigger value="pe_firm">Sponsors & Firms ({tabCounts.pe_firm})</TabsTrigger>
           <TabsTrigger value="platform">Platforms ({tabCounts.platform})</TabsTrigger>
           <TabsTrigger value="needs_agreements">Needs Agreements ({tabCounts.needs_agreements})</TabsTrigger>
           <TabsTrigger value="needs_enrichment">Needs Enrichment ({tabCounts.needs_enrichment})</TabsTrigger>
@@ -731,7 +759,11 @@ const ReMarketingBuyers = () => {
                     <TableRow
                       key={buyer.id}
                       className="cursor-pointer hover:bg-muted/50 group"
-                      onClick={() => navigate(`/admin/buyers/${buyer.id}`)}
+                      onClick={() => navigate(
+                        SPONSOR_TYPES.has(buyer.buyer_type)
+                          ? `/admin/buyers/pe-firms/${buyer.id}`
+                          : `/admin/buyers/${buyer.id}`
+                      )}
                     >
                       {/* Checkbox */}
                       <TableCell onClick={(e) => e.stopPropagation()}>
@@ -784,17 +816,38 @@ const ReMarketingBuyers = () => {
 
                       {/* PE Firm Column */}
                       <TableCell>
-                        {buyer.pe_firm_name ? (
-                          <div className="flex items-center gap-2">
-                            <div className="h-6 w-6 rounded bg-muted flex items-center justify-center">
-                              <Building className="h-3 w-3 text-muted-foreground" />
+                        {buyer.pe_firm_name ? (() => {
+                          const firmRecord = peFirmByName.get(buyer.pe_firm_name.toLowerCase());
+                          return firmRecord ? (
+                            <Link
+                              to={`/admin/buyers/pe-firms/${firmRecord.id}`}
+                              className="flex items-center gap-2 hover:text-primary transition-colors group/firm"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <div className="h-6 w-6 rounded bg-purple-100 flex items-center justify-center">
+                                <Building className="h-3 w-3 text-purple-700" />
+                              </div>
+                              <span className="text-sm group-hover/firm:underline">{buyer.pe_firm_name}</span>
+                            </Link>
+                          ) : (
+                            <div className="flex items-center gap-2">
+                              <div className="h-6 w-6 rounded bg-muted flex items-center justify-center">
+                                <Building className="h-3 w-3 text-muted-foreground" />
+                              </div>
+                              <span className="text-sm text-muted-foreground">{buyer.pe_firm_name}</span>
                             </div>
-                            <span className="text-sm">{buyer.pe_firm_name}</span>
+                          );
+                        })() : SPONSOR_TYPES.has(buyer.buyer_type) ? (
+                          <div className="flex items-center gap-2">
+                            <Badge variant="outline" className="text-xs">
+                              {getBuyerTypeLabel(buyer.buyer_type)}
+                            </Badge>
+                            {platformCountByFirm.get(buyer.company_name?.toLowerCase()) > 0 && (
+                              <span className="text-xs text-muted-foreground">
+                                {platformCountByFirm.get(buyer.company_name?.toLowerCase())} platform{platformCountByFirm.get(buyer.company_name?.toLowerCase()) !== 1 ? 's' : ''}
+                              </span>
+                            )}
                           </div>
-                        ) : buyer.buyer_type === 'pe_firm' ? (
-                          <Badge variant="outline" className="text-xs">
-                            PE Firm
-                          </Badge>
                         ) : (
                           <span className="text-sm text-muted-foreground">—</span>
                         )}
@@ -876,10 +929,14 @@ const ReMarketingBuyers = () => {
                           <DropdownMenuContent align="end">
                             <DropdownMenuItem onClick={(e) => {
                               e.stopPropagation();
-                              navigate(`/admin/buyers/${buyer.id}`);
+                              navigate(
+                                SPONSOR_TYPES.has(buyer.buyer_type)
+                                  ? `/admin/buyers/pe-firms/${buyer.id}`
+                                  : `/admin/buyers/${buyer.id}`
+                              );
                             }}>
                               <Pencil className="h-4 w-4 mr-2" />
-                              Edit
+                              {SPONSOR_TYPES.has(buyer.buyer_type) ? 'View Firm' : 'Edit'}
                             </DropdownMenuItem>
                             <DropdownMenuItem onClick={(e) => {
                               e.stopPropagation();

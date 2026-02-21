@@ -182,7 +182,7 @@ export interface DocumentReference {
   auto_generated?: boolean;
 }
 
-export type BuyerType = 'pe_firm' | 'platform' | 'strategic' | 'family_office' | 'other';
+export type BuyerType = 'pe_firm' | 'platform' | 'strategic' | 'independent_sponsor' | 'search_fund' | 'family_office' | 'other';
 export type DataCompleteness = 'high' | 'medium' | 'low';
 export type ThesisConfidence = 'high' | 'medium' | 'low';
 export type ScoreTier = 'A' | 'B' | 'C' | 'D' | 'F';

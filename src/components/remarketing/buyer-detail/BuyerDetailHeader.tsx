@@ -1,4 +1,6 @@
 import { Link } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 import { ArrowLeft, Building2, ExternalLink, MapPin, Pencil, Sparkles, Calendar, Store } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -55,6 +57,24 @@ export const BuyerDetailHeader = ({
   buyerType,
 }: BuyerDetailHeaderProps) => {
   const hqLocation = [hqCity, hqState, hqCountry].filter(Boolean).join(", ");
+
+  // Look up the PE firm record so we can link to the firm page
+  const { data: peFirmRecord } = useQuery({
+    queryKey: ['remarketing', 'pe-firm-lookup', peFirmName],
+    queryFn: async () => {
+      if (!peFirmName) return null;
+      const { data } = await supabase
+        .from('remarketing_buyers')
+        .select('id, company_name')
+        .ilike('company_name', peFirmName)
+        .in('buyer_type', ['pe_firm', 'independent_sponsor', 'search_fund', 'family_office'])
+        .eq('archived', false)
+        .limit(1)
+        .maybeSingle();
+      return data;
+    },
+    enabled: !!peFirmName,
+  });
   
   const formatInvestmentDate = (dateStr: string | null | undefined) => {
     if (!dateStr) return null;
@@ -108,10 +128,20 @@ export const BuyerDetailHeader = ({
             {/* PE Firm Name + Marketplace Badge */}
             <div className="flex items-center gap-3">
               {peFirmName && (
-                <div className="flex items-center gap-2 text-muted-foreground">
-                  <Building2 className="h-4 w-4" />
-                  <span>{peFirmName}</span>
-                </div>
+                peFirmRecord ? (
+                  <Link
+                    to={`/admin/buyers/pe-firms/${peFirmRecord.id}`}
+                    className="flex items-center gap-2 text-primary hover:underline transition-colors"
+                  >
+                    <Building2 className="h-4 w-4" />
+                    <span>{peFirmName}</span>
+                  </Link>
+                ) : (
+                  <div className="flex items-center gap-2 text-muted-foreground">
+                    <Building2 className="h-4 w-4" />
+                    <span>{peFirmName}</span>
+                  </div>
+                )
               )}
               {marketplaceFirmId && (
                 <Link to="/admin/marketplace/users" className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 text-xs font-medium hover:bg-blue-100 transition-colors border border-blue-200">
