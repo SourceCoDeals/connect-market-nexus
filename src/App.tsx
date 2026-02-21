@@ -79,6 +79,7 @@ const EnrichmentTest = lazyWithRetry(() => import("@/pages/admin/EnrichmentTest"
 const EnrichmentQueue = lazyWithRetry(() => import("@/pages/admin/EnrichmentQueue"));
 const DataRecoveryPage = lazyWithRetry(() => import("@/pages/admin/DataRecoveryPage"));
 const FormMonitoringPage = lazyWithRetry(() => import("@/pages/admin/FormMonitoringPage"));
+const SecuritySettings = lazyWithRetry(() => import("@/pages/admin/settings/SecuritySettings"));
 
 // ReMarketing pages (now rendered inside AdminLayout via shared sidebar)
 const ReMarketingLayout = lazyWithRetry(() => import("@/components/remarketing").then(m => ({ default: m.ReMarketingLayout })));
@@ -246,6 +247,7 @@ function App() {
                           <Route path="settings/remarketing" element={<ReMarketingSettings />} />
                           <Route path="settings/data-recovery" element={<DataRecoveryPage />} />
                           <Route path="settings/form-monitoring" element={<FormMonitoringPage />} />
+                          <Route path="settings/security" element={<SecuritySettings />} />
 
                           {/* OLD ADMIN URL REDIRECTS */}
                           <Route path="listings" element={<Navigate to="/admin/deals?tab=marketplace" replace />} />

@@ -1,5 +1,5 @@
 import { useState } from "react";
-
+import { DataRoomTab } from "@/components/admin/data-room/DataRoomTab";
 import { useParams, useNavigate, useLocation, Link } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -1336,6 +1336,20 @@ const ReMarketingDealDetail = () => {
           Updated: {format(new Date(deal.updated_at), 'MMM d, yyyy')}
         </span>
       </div>
+
+      {/* Data Room */}
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base">Data Room</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <DataRoomTab
+            dealId={dealId!}
+            dealTitle={deal.internal_company_name || deal.title}
+            isInternalDeal={deal.is_internal_deal}
+          />
+        </CardContent>
+      </Card>
 
       {/* AI Buyer Chat */}
       <DealBuyerChat

@@ -252,6 +252,11 @@ export function UnifiedAdminSidebar({ collapsed, onCollapsedChange }: AdminSideb
             href: "/admin/settings/form-monitoring",
             icon: <FileCheck className="h-4 w-4" />,
           },
+          {
+            label: "Security & MFA",
+            href: "/admin/settings/security",
+            icon: <ShieldCheck className="h-4 w-4" />,
+          },
         ],
       },
     ],
