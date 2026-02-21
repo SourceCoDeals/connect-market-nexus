@@ -651,6 +651,23 @@ const ReMarketingDealDetail = () => {
         </div>
       </div>
 
+
+      {/* ─── Tabbed Navigation ─── */}
+      <Tabs defaultValue="overview" className="space-y-6">
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="overview" className="text-sm">
+            <Eye className="mr-1.5 h-3.5 w-3.5" />
+            Overview
+          </TabsTrigger>
+          <TabsTrigger value="data-room" className="text-sm">
+            <FolderOpen className="mr-1.5 h-3.5 w-3.5" />
+            Data Room
+          </TabsTrigger>
+        </TabsList>
+
+        {/* ════════════════ OVERVIEW TAB ════════════════ */}
+        <TabsContent value="overview" className="space-y-6">
+
       {/* Pipeline Summary Card - Shows conversion funnel */}
       {scoreStats && scoreStats.count > 0 && (
         <PipelineSummaryCard
@@ -661,34 +678,6 @@ const ReMarketingDealDetail = () => {
           closedWon={pipelineStats?.closedWon || 0}
         />
       )}
-
-      {/* ─── Tabbed Navigation ─── */}
-      <Tabs defaultValue="overview" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-5">
-          <TabsTrigger value="overview" className="text-sm">
-            <Eye className="mr-1.5 h-3.5 w-3.5" />
-            Overview
-          </TabsTrigger>
-          <TabsTrigger value="memos" className="text-sm">
-            <BookOpen className="mr-1.5 h-3.5 w-3.5" />
-            Memos
-          </TabsTrigger>
-          <TabsTrigger value="data-room" className="text-sm">
-            <FolderOpen className="mr-1.5 h-3.5 w-3.5" />
-            Data Room
-          </TabsTrigger>
-          <TabsTrigger value="activity" className="text-sm">
-            <ClipboardList className="mr-1.5 h-3.5 w-3.5" />
-            Activity
-          </TabsTrigger>
-          <TabsTrigger value="distribution" className="text-sm">
-            <Send className="mr-1.5 h-3.5 w-3.5" />
-            Distribution
-          </TabsTrigger>
-        </TabsList>
-
-        {/* ════════════════ OVERVIEW TAB ════════════════ */}
-        <TabsContent value="overview" className="space-y-6">
 
       {/* Website & Actions */}
       {(() => {
@@ -1316,92 +1305,115 @@ const ReMarketingDealDetail = () => {
 
         </TabsContent>
 
-        {/* ════════════════ MEMOS TAB ════════════════ */}
-        <TabsContent value="memos">
-          <MemosTab
-            dealId={dealId!}
-            dealTitle={deal.internal_company_name || deal.title}
-          />
-        </TabsContent>
-
         {/* ════════════════ DATA ROOM TAB ════════════════ */}
         <TabsContent value="data-room" className="space-y-6">
-          <DocumentsPanel dealId={dealId!} />
-          <AccessMatrixPanel dealId={dealId!} />
-        </TabsContent>
+          <Tabs defaultValue="memos" className="space-y-4">
+            <TabsList className="grid w-full grid-cols-5">
+              <TabsTrigger value="memos" className="text-sm">
+                <BookOpen className="mr-1.5 h-3.5 w-3.5" />
+                Memos
+              </TabsTrigger>
+              <TabsTrigger value="documents" className="text-sm">
+                <FileText className="mr-1.5 h-3.5 w-3.5" />
+                Documents
+              </TabsTrigger>
+              <TabsTrigger value="access" className="text-sm">
+                <Users className="mr-1.5 h-3.5 w-3.5" />
+                Access
+              </TabsTrigger>
+              <TabsTrigger value="distribution" className="text-sm">
+                <Send className="mr-1.5 h-3.5 w-3.5" />
+                Distribution
+              </TabsTrigger>
+              <TabsTrigger value="activity" className="text-sm">
+                <ClipboardList className="mr-1.5 h-3.5 w-3.5" />
+                Activity
+              </TabsTrigger>
+            </TabsList>
 
-        {/* ════════════════ ACTIVITY TAB ════════════════ */}
-        <TabsContent value="activity" className="space-y-6">
-          <DealActivityLog dealId={dealId!} maxHeight={800} />
-          <AuditLogPanel dealId={dealId!} />
-        </TabsContent>
+            <TabsContent value="memos">
+              <MemosTab
+                dealId={dealId!}
+                dealTitle={deal.internal_company_name || deal.title}
+              />
+            </TabsContent>
 
-        {/* ════════════════ DISTRIBUTION TAB ════════════════ */}
-        <TabsContent value="distribution" className="space-y-6">
-          {/* Buyer Match Summary */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg flex items-center gap-2">
-                <Users className="h-5 w-5" />
-                Buyer Match Summary
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid gap-4 sm:grid-cols-4">
-                <div className="text-center p-4 rounded-lg bg-muted/50">
-                  <div className="text-2xl font-bold">{scoreStats?.count || 0}</div>
-                  <div className="text-sm text-muted-foreground">Total Matches</div>
-                </div>
-                <div className="text-center p-4 rounded-lg bg-green-50 dark:bg-green-950/20">
-                  <div className="text-2xl font-bold text-green-600">{scoreStats?.approved || 0}</div>
-                  <div className="text-sm text-muted-foreground">Approved</div>
-                </div>
-                <div className="text-center p-4 rounded-lg bg-red-50 dark:bg-red-950/20">
-                  <div className="text-2xl font-bold text-red-600">{scoreStats?.passed || 0}</div>
-                  <div className="text-sm text-muted-foreground">Passed</div>
-                </div>
-                <div className="text-center p-4 rounded-lg bg-primary/10">
-                  <div className="text-2xl font-bold text-primary">
-                    {scoreStats?.avgScore ? Math.round(scoreStats.avgScore) : '-'}
+            <TabsContent value="documents" className="space-y-6">
+              <DocumentsPanel dealId={dealId!} />
+            </TabsContent>
+
+            <TabsContent value="access" className="space-y-6">
+              <AccessMatrixPanel dealId={dealId!} />
+            </TabsContent>
+
+            <TabsContent value="distribution" className="space-y-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    <Users className="h-5 w-5" />
+                    Buyer Match Summary
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid gap-4 sm:grid-cols-4">
+                    <div className="text-center p-4 rounded-lg bg-muted/50">
+                      <div className="text-2xl font-bold">{scoreStats?.count || 0}</div>
+                      <div className="text-sm text-muted-foreground">Total Matches</div>
+                    </div>
+                    <div className="text-center p-4 rounded-lg bg-green-50 dark:bg-green-950/20">
+                      <div className="text-2xl font-bold text-green-600">{scoreStats?.approved || 0}</div>
+                      <div className="text-sm text-muted-foreground">Approved</div>
+                    </div>
+                    <div className="text-center p-4 rounded-lg bg-red-50 dark:bg-red-950/20">
+                      <div className="text-2xl font-bold text-red-600">{scoreStats?.passed || 0}</div>
+                      <div className="text-sm text-muted-foreground">Passed</div>
+                    </div>
+                    <div className="text-center p-4 rounded-lg bg-primary/10">
+                      <div className="text-2xl font-bold text-primary">
+                        {scoreStats?.avgScore ? Math.round(scoreStats.avgScore) : '-'}
+                      </div>
+                      <div className="text-sm text-muted-foreground">Avg. Score</div>
+                    </div>
                   </div>
-                  <div className="text-sm text-muted-foreground">Avg. Score</div>
-                </div>
+                  <div className="mt-4 flex justify-center">
+                    <Button asChild>
+                      <Link to={`/admin/remarketing/matching/${dealId}`}>
+                        <Target className="h-4 w-4 mr-2" />
+                        View All Matches
+                      </Link>
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <div className="grid gap-6 lg:grid-cols-2">
+                <DealPipelinePanel listingId={dealId!} />
+                <DealMarketplacePanel
+                  listingId={dealId!}
+                  isInternalDeal={deal.is_internal_deal}
+                  status={deal.status}
+                  title={deal.title}
+                />
               </div>
-              <div className="mt-4 flex justify-center">
-                <Button asChild>
-                  <Link to={`/admin/remarketing/matching/${dealId}`}>
-                    <Target className="h-4 w-4 mr-2" />
-                    View All Matches
-                  </Link>
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
 
-          {/* Pipeline & Marketplace Panels */}
-          <div className="grid gap-6 lg:grid-cols-2">
-            <DealPipelinePanel listingId={dealId!} />
-            <DealMarketplacePanel
-              listingId={dealId!}
-              isInternalDeal={deal.is_internal_deal}
-              status={deal.status}
-              title={deal.title}
-            />
-          </div>
+              <DistributionLogPanel dealId={dealId!} />
 
-          {/* Distribution Log */}
-          <DistributionLogPanel dealId={dealId!} />
+              <DealBuyerChat
+                listingId={dealId!}
+                dealName={deal.internal_company_name || deal.title}
+                dealGeography={deal.address_state ? [deal.address_state] : []}
+                dealRevenue={deal.revenue}
+                approvedCount={scoreStats?.approved || 0}
+                passedCount={scoreStats?.passed || 0}
+                pendingCount={(scoreStats?.count || 0) - (scoreStats?.approved || 0) - (scoreStats?.passed || 0)}
+              />
+            </TabsContent>
 
-          {/* AI Buyer Chat */}
-          <DealBuyerChat
-            listingId={dealId!}
-            dealName={deal.internal_company_name || deal.title}
-            dealGeography={deal.address_state ? [deal.address_state] : []}
-            dealRevenue={deal.revenue}
-            approvedCount={scoreStats?.approved || 0}
-            passedCount={scoreStats?.passed || 0}
-            pendingCount={(scoreStats?.count || 0) - (scoreStats?.approved || 0) - (scoreStats?.passed || 0)}
-          />
+            <TabsContent value="activity" className="space-y-6">
+              <DealActivityLog dealId={dealId!} maxHeight={800} />
+              <AuditLogPanel dealId={dealId!} />
+            </TabsContent>
+          </Tabs>
         </TabsContent>
 
       </Tabs>
