@@ -19,15 +19,17 @@ const PendingApproval = () => {
   const [isCheckingStatus, setIsCheckingStatus] = useState(false);
   const [ndaEmbedSrc, setNdaEmbedSrc] = useState<string | null>(null);
   const [ndaLoading, setNdaLoading] = useState(false);
+  const [ndaError, setNdaError] = useState<string | null>(null);
   const [ndaSigned, setNdaSigned] = useState(false);
+  
   const { data: ndaStatus } = useBuyerNdaStatus(user?.id);
 
-  // Fetch NDA embed src when buyer is approved and has an unsigned NDA
+  // Fetch NDA embed src when buyer has a firm but hasn't signed
   useEffect(() => {
     const fetchNdaEmbed = async () => {
-      if (!user?.id || !ndaStatus?.hasFirm || ndaStatus.ndaSigned || ndaEmbedSrc) return;
-      if (user.approval_status !== 'approved') return;
-
+      if (!user || !ndaStatus?.hasFirm || ndaStatus?.ndaSigned || !ndaStatus?.firmId) return;
+      if (ndaEmbedSrc || ndaLoading) return;
+      
       setNdaLoading(true);
       try {
         const { data: profile } = await supabase
@@ -36,10 +38,10 @@ const PendingApproval = () => {
           .eq('id', user.id)
           .single();
 
-        if (!profile || !ndaStatus.firmId) return;
+        if (!profile) { setNdaError('Could not load profile'); return; }
 
         const buyerName = `${profile.first_name || ''} ${profile.last_name || ''}`.trim();
-        const { data } = await supabase.functions.invoke('create-docuseal-submission', {
+        const { data, error: fnError } = await supabase.functions.invoke('create-docuseal-submission', {
           body: {
             firm_id: ndaStatus.firmId,
             document_type: 'nda',
@@ -49,18 +51,21 @@ const PendingApproval = () => {
           },
         });
 
-        if (data?.embed_src) {
-          setNdaEmbedSrc(data.embed_src);
+        if (fnError) {
+          setNdaError('Failed to prepare NDA signing form');
+          console.error('DocuSeal error:', fnError);
+        } else if (data?.embedSrc) {
+          setNdaEmbedSrc(data.embedSrc);
         }
-      } catch (err) {
-        console.error('Failed to fetch NDA embed:', err);
+      } catch (err: any) {
+        setNdaError(err.message);
       } finally {
         setNdaLoading(false);
       }
     };
 
     fetchNdaEmbed();
-  }, [user?.id, user?.approval_status, ndaStatus?.hasFirm, ndaStatus?.ndaSigned, ndaStatus?.firmId]);
+  }, [user, ndaStatus, ndaEmbedSrc, ndaLoading]);
 
   // Handle navigation for approved users
   useEffect(() => {
@@ -82,57 +87,7 @@ const PendingApproval = () => {
     );
   }
 
-  // This should never execute now since users go to signup-success first
-  if (!user) {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-muted/30">
-        <div className="w-full max-w-md space-y-6">
-          <div className="flex flex-col items-center space-y-3">
-            <div className="flex items-center">
-              <img 
-                src="/lovable-uploads/b879fa06-6a99-4263-b973-b9ced4404acb.png" 
-                alt="SourceCo Logo" 
-                className="h-10 w-10 mr-3"
-              />
-              <div className="text-center">
-                <h1 className="text-2xl font-bold">SourceCo</h1>
-                <p className="text-lg text-muted-foreground font-light">Marketplace</p>
-              </div>
-            </div>
-          </div>
-          <Card>
-            <CardHeader>
-              <div className="flex justify-center mb-4">
-                <div className="p-3 rounded-full bg-green-100">
-                  <CheckCircle className="h-8 w-8 text-green-600" />
-                </div>
-              </div>
-              <CardTitle className="text-2xl font-bold text-center">Account Created!</CardTitle>
-              <CardDescription className="text-center">
-                Please verify your email to continue
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="bg-primary/5 border border-primary/20 rounded-md p-4">
-                <div className="flex gap-3 items-start">
-                  <Mail className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
-                  <div>
-                    <p className="text-sm font-medium">Check your email</p>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      We've sent a verification link to your email. Click it to activate your account.
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
-    );
-  }
-
   const handleResendVerification = async () => {
-    // Safety check - only allow resend for unverified users
     if (user.email_verified) {
       toast({
         title: "Email already verified",
@@ -144,9 +99,6 @@ const PendingApproval = () => {
     setIsResending(true);
     
     try {
-      console.log("Attempting to resend verification email for:", user.email);
-      
-      // Use Supabase's built-in resend functionality with logged-in user context
       const { error: resendError } = await supabase.auth.resend({
         type: 'signup',
         email: user.email,
@@ -156,20 +108,14 @@ const PendingApproval = () => {
       });
 
       if (resendError) {
-        console.error("Supabase resend failed:", resendError);
-        
-        // Handle specific error cases
         if (resendError.message?.includes('rate limit')) {
           throw new Error("Please wait a moment before requesting another verification email.");
         } else if (resendError.message?.includes('already verified')) {
-          // Refresh user profile to get latest verification status
           window.location.reload();
           return;
         } else {
           throw new Error(resendError.message || "Failed to resend verification email");
         }
-      } else {
-        console.log("✅ Supabase verification email resent successfully");
       }
 
       toast({
@@ -177,7 +123,6 @@ const PendingApproval = () => {
         description: "We've sent another verification email to your inbox. Please check your spam folder if you don't see it.",
       });
     } catch (error: any) {
-      console.error("Failed to resend verification email:", error);
       toast({
         variant: "destructive",
         title: "Failed to resend email", 
@@ -191,19 +136,10 @@ const PendingApproval = () => {
   const handleLogout = async () => {
     try {
       setIsLoggingOut(true);
-      console.log("Logging out from pending approval page");
-      
-      // Clean up auth state first
       await cleanupAuthState();
-      
-      // Sign out from Supabase
       await supabase.auth.signOut({ scope: 'global' });
-      
-      // Navigate directly to login to prevent flashing
       navigate('/login', { replace: true });
     } catch (error) {
-      console.error("Error during logout:", error);
-      // Force navigation even if logout fails
       navigate('/login', { replace: true });
     } finally {
       setIsLoggingOut(false);
@@ -221,7 +157,6 @@ const PendingApproval = () => {
           : "Your account is still pending approval.",
       });
     } catch (error) {
-      console.error("Failed to check status:", error);
       toast({
         variant: "destructive",
         title: "Failed to check status",
@@ -232,12 +167,11 @@ const PendingApproval = () => {
     }
   };
 
-  // Determine UI state based PURELY on user data - no URL parameters
   const getUIState = () => {
     if (user?.email_verified) {
-      return 'approved_pending'; // Email verified, waiting for admin approval
+      return 'approved_pending';
     } else {
-      return 'email_not_verified'; // Default state - email not verified yet
+      return 'email_not_verified';
     }
   };
 
@@ -284,7 +218,6 @@ const PendingApproval = () => {
           </CardHeader>
           <CardContent className="space-y-4">
             {uiState === 'approved_pending' ? (
-              // Email is verified - show approval status + NDA signing if applicable
               <>
                 <div className="bg-amber-50 border border-amber-200 rounded-md p-4">
                   <div className="flex gap-3 items-center">
@@ -294,7 +227,7 @@ const PendingApproval = () => {
                     </p>
                   </div>
                 </div>
-
+                
                 {/* Application Progress Timeline */}
                 <div className="space-y-4">
                   <h4 className="text-sm font-medium text-center">Application Progress</h4>
@@ -329,41 +262,47 @@ const PendingApproval = () => {
                   </div>
                 </div>
 
-                {/* DocuSeal NDA Signing - shown when buyer is approved and has unsigned NDA */}
-                {ndaStatus?.hasFirm && !ndaStatus.ndaSigned && !ndaSigned && (
-                  <div className="border-t pt-4 mt-4">
-                    <div className="flex items-center gap-2 mb-3">
+                {/* NDA Signing Section — shows when firm exists and NDA unsigned */}
+                {ndaStatus?.hasFirm && !ndaStatus?.ndaSigned && !ndaSigned && (
+                  <div className="space-y-3 pt-2">
+                    <div className="flex items-center gap-2 justify-center">
                       <Shield className="h-4 w-4 text-primary" />
-                      <h4 className="text-sm font-medium">Sign NDA to Access Deals</h4>
+                      <h4 className="text-sm font-medium">Sign Your NDA</h4>
                     </div>
+                    <p className="text-xs text-muted-foreground text-center">
+                      While you wait for approval, you can sign the NDA to speed up your onboarding.
+                    </p>
                     {ndaLoading && (
-                      <div className="flex items-center justify-center py-8">
-                        <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                      <div className="flex items-center justify-center py-4">
+                        <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                        <span className="text-xs text-muted-foreground ml-2">Loading signing form...</span>
+                      </div>
+                    )}
+                    {ndaError && (
+                      <div className="bg-destructive/10 border border-destructive/20 rounded-md p-3 text-center">
+                        <p className="text-xs text-destructive">{ndaError}</p>
                       </div>
                     )}
                     {ndaEmbedSrc && (
                       <DocuSealSigningPanel
                         embedSrc={ndaEmbedSrc}
                         onCompleted={() => setNdaSigned(true)}
-                        title="Non-Disclosure Agreement"
-                        description="Sign to access deal details on the marketplace."
+                        title=""
+                        description=""
                       />
                     )}
                   </div>
                 )}
-                {ndaSigned && (
-                  <div className="bg-green-50 border border-green-200 rounded-md p-4">
-                    <div className="flex gap-3 items-center">
-                      <CheckCircle className="h-5 w-5 text-green-600 flex-shrink-0" />
-                      <p className="text-green-800 text-sm">
-                        NDA signed successfully! You'll have full access to deal details once your account is approved.
-                      </p>
+                {(ndaStatus?.ndaSigned || ndaSigned) && (
+                  <div className="bg-green-50 border border-green-200 rounded-md p-3 text-center">
+                    <div className="flex items-center justify-center gap-2">
+                      <CheckCircle className="h-4 w-4 text-green-600" />
+                      <p className="text-sm font-medium text-green-800">NDA Signed ✓</p>
                     </div>
                   </div>
                 )}
               </>
             ) : (
-              // Email not verified - show verification instructions and progress
               <>
                 {/* Progress Timeline */}
                 <div className="space-y-4">
@@ -488,7 +427,6 @@ const PendingApproval = () => {
               >
                 adam.haile@sourcecodeals.com
               </a>
-
             </div>
           </CardFooter>
         </Card>
