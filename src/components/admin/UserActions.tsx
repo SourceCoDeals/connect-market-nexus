@@ -3,6 +3,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { useAdminUsers } from "@/hooks/admin/use-admin-users";
 import { useAdminEmail } from "@/hooks/admin/use-admin-email";
+import { useAutoCreateFirmOnApproval } from "@/hooks/admin/use-docuseal";
 import { ApprovalEmailDialog } from "./ApprovalEmailDialog";
 
 import { UserConfirmationDialog } from "./UserConfirmationDialog";
@@ -34,6 +35,8 @@ export function UserActions({ onUserStatusUpdated }: UserActionsProps) {
   const {
     sendCustomApprovalEmail
   } = useAdminEmail();
+
+  const autoCreateFirm = useAutoCreateFirmOnApproval();
   
   // Get actual mutation functions
   const updateUserStatusMutation = useUpdateUserStatus();
@@ -161,17 +164,25 @@ export function UserActions({ onUserStatusUpdated }: UserActionsProps) {
     // Step 1: Approve user FIRST - this happens immediately and independently
     try {
       await updateUserStatusMutation.mutateAsync({ userId: user.id, status: "approved" });
-      
+
       toast({
         title: "User approved",
         description: `${user.firstName} ${user.lastName} has been approved and can now access the marketplace`,
       });
-      
-      // Step 2: Send email as a separate, non-blocking operation
+
+      // Step 2: Auto-create firm agreement and prepare NDA signing
+      try {
+        await autoCreateFirm.mutateAsync({ userId: user.id });
+      } catch (firmError) {
+        console.error('Auto-create firm failed after approval:', firmError);
+        // Non-fatal - admin can manually create firm later
+      }
+
+      // Step 3: Send email as a separate, non-blocking operation
       try {
         await sendCustomApprovalEmail(user, options);
         toast({
-          title: "Email sent successfully", 
+          title: "Email sent successfully",
           description: `Welcome email delivered to ${user.email}`,
         });
       } catch (emailError) {
@@ -182,7 +193,7 @@ export function UserActions({ onUserStatusUpdated }: UserActionsProps) {
           description: 'User was approved successfully, but welcome email failed to send.',
         });
       }
-      
+
       if (onUserStatusUpdated) onUserStatusUpdated();
       
     } catch (approvalError) {

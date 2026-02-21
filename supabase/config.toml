@@ -198,3 +198,11 @@ verify_jwt = false
 verify_jwt = false
 [functions.score-industry-alignment]
 verify_jwt = false
+[functions.docuseal-webhook-handler]
+verify_jwt = false
+[functions.send-nda-reminder]
+verify_jwt = false
+[functions.auto-create-firm-on-approval]
+verify_jwt = true
+[functions.create-docuseal-submission]
+verify_jwt = true
