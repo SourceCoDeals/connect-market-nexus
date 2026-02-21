@@ -31,7 +31,8 @@ function isOriginAllowed(origin: string): boolean {
   if (allowed.includes(origin)) return true;
   // Allow Lovable preview/development domains for this project only
   if (/^https:\/\/[a-z0-9-]+\.lovableproject\.com$/.test(origin)) return true;
-  if (/^https:\/\/[a-z0-9]+-preview--connect-market-nexus\.lovable\.app$/.test(origin)) return true;
+  // Match all Lovable preview patterns: id-preview--<uuid>.lovable.app and <name>-preview--<project>.lovable.app
+  if (/^https:\/\/[a-z0-9-]+--[a-z0-9-]+\.lovable\.app$/.test(origin)) return true;
   return false;
 }
 
@@ -61,7 +62,7 @@ export function getCorsHeaders(req: Request): Record<string, string> {
   return {
     "Access-Control-Allow-Origin": reflectedOrigin,
     "Access-Control-Allow-Headers":
-      "authorization, x-client-info, apikey, content-type",
+      "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
     "Access-Control-Allow-Methods": "POST, OPTIONS",
     "Vary": "Origin",
   };

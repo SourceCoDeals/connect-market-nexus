@@ -75,30 +75,8 @@ const MarketplaceContent = () => {
   // Enhanced loading state that includes transitions
   const isPageTransitioning = isLoading;
   
-  console.log('🏪 [MARKETPLACE] Render state:', {
-    page: pagination.state.page,
-    perPage: pagination.state.perPage,
-    isLoading,
-    isTransitioning: false,
-    isPageTransitioning,
-    listingsCount: listings.length,
-    totalItems
-  });
-  
   const totalPages = Math.ceil(totalItems / pagination.state.perPage);
   const [viewType, setViewType] = useState<'grid' | 'list'>('grid');
-  
-  // Log pagination state changes for debugging
-  useEffect(() => {
-    console.log('🎯 Marketplace state:', {
-      currentPage: pagination.state.page,
-      perPage: pagination.state.perPage,
-      totalItems,
-      totalPages,
-      listingsCount: listings.length,
-      isLoading
-    });
-  }, [pagination.state.page, pagination.state.perPage, totalItems, totalPages, listings.length, isLoading]);
    
   // Error handling with toast notification
   useEffect(() => {
@@ -367,12 +345,8 @@ const MarketplaceContent = () => {
                         href="#"
                         onClick={(e) => {
                           e.preventDefault();
-                          console.log('🔄 [PAGINATION] Previous clicked - current:', currentPage, 'transitioning:', isPageTransitioning);
                           if (currentPage > 1 && !isPageTransitioning) {
-                            console.log('✅ [PAGINATION] Executing previous page:', currentPage - 1);
                             pagination.setPage(currentPage - 1);
-                          } else {
-                            console.log('❌ [PAGINATION] Previous blocked - first page or transitioning');
                           }
                         }}
                         className={cn(
@@ -392,12 +366,8 @@ const MarketplaceContent = () => {
                             href="#"
                             onClick={(e) => {
                               e.preventDefault();
-                              console.log('🔄 [PAGINATION] Page clicked:', pageNum, 'current:', currentPage, 'transitioning:', isPageTransitioning);
                               if (pageNum !== currentPage && !isPageTransitioning) {
-                                console.log('✅ [PAGINATION] Executing page change to:', pageNum);
                                 pagination.setPage(pageNum as number);
-                              } else {
-                                console.log('❌ [PAGINATION] Page change blocked - same page or transitioning');
                               }
                             }}
                             isActive={pageNum === currentPage}
@@ -417,12 +387,8 @@ const MarketplaceContent = () => {
                         href="#"
                         onClick={(e) => {
                           e.preventDefault();
-                          console.log('🔄 [PAGINATION] Next clicked - current:', currentPage, 'total:', totalPages, 'transitioning:', isPageTransitioning);
                           if (currentPage < totalPages && !isPageTransitioning) {
-                            console.log('✅ [PAGINATION] Executing next page:', currentPage + 1);
                             pagination.setPage(currentPage + 1);
-                          } else {
-                            console.log('❌ [PAGINATION] Next blocked - last page or transitioning');
                           }
                         }}
                         className={cn(

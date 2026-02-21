@@ -82,9 +82,13 @@ export function useBuyerEnrichment(universeId?: string) {
       const { queueBuyerEnrichment } = await import("@/lib/remarketing/queueEnrichment");
       const queued = await queueBuyerEnrichment(enrichableBuyers.map(b => b.id), universeId);
 
+      // Note: Don't set isRunning to false here — the queue-based progress hooks
+      // (useBuyerEnrichmentProgress / useBuyerEnrichmentQueue) track actual completion.
+      // We just report what was queued.
       setProgress(prev => ({
         ...prev,
         current: queued,
+        total: enrichableBuyers.length,
         successful: queued,
         isRunning: false,
       }));

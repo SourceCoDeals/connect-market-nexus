@@ -138,9 +138,8 @@ export default function DealDetail() {
         description: "Deal enrichment is running in the background",
       });
 
-      setTimeout(() => {
-        loadDeal();
-      }, 3000);
+      // Data will refresh via queue polling; do a deferred reload as fallback
+      setTimeout(loadDeal, 5000);
     } catch (error: any) {
       toast({
         title: "Error enriching deal",
@@ -163,9 +162,8 @@ export default function DealDetail() {
         description: "Deal scoring is running in the background",
       });
 
-      setTimeout(() => {
-        loadDeal();
-      }, 3000);
+      // Data will refresh via queue polling; do a deferred reload as fallback
+      setTimeout(loadDeal, 5000);
     } catch (error: any) {
       toast({
         title: "Error calculating score",

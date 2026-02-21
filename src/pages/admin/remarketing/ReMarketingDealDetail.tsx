@@ -307,10 +307,10 @@ const ReMarketingDealDetail = () => {
     } catch (error: any) {
       clearInterval(progressTimer);
       toast.error(error.message || "Failed to queue enrichment");
+      setIsEnriching(false);
+      setEnrichmentProgress(0);
+      setEnrichmentStage('');
     }
-    setIsEnriching(false);
-    setEnrichmentProgress(0);
-    setEnrichmentStage('');
   };
 
   const formatCurrency = (value: number | null) => {

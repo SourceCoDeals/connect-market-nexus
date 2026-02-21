@@ -78,9 +78,12 @@ export function useDealEnrichment(universeId?: string) {
       const { queueDealEnrichment } = await import("@/lib/remarketing/queueEnrichment");
       const queued = await queueDealEnrichment(enrichableDeals.map(d => d.listingId));
 
+      // Don't set isRunning to false — the queue-based progress hook
+      // (useEnrichmentProgress) tracks actual completion from the enrichment_queue table.
       setProgress(prev => ({
         ...prev,
         current: queued,
+        total: enrichableDeals.length,
         successful: queued,
         isRunning: false,
       }));

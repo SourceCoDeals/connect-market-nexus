@@ -41,6 +41,8 @@ import { cn } from "@/lib/utils";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { useGlobalGateCheck, useGlobalActivityMutations } from "@/hooks/remarketing/useGlobalActivityQueue";
 import { useAuth } from "@/context/AuthContext";
+import { useEnrichmentProgress } from "@/hooks/useEnrichmentProgress";
+import { EnrichmentProgressIndicator } from "@/components/remarketing/EnrichmentProgressIndicator";
 
 // Sub-components
 import { DealsKPICards } from "./components/DealsKPICards";
@@ -108,6 +110,7 @@ export default function CapTargetDeals() {
   const { user } = useAuth();
   const { startOrQueueMajorOp } = useGlobalGateCheck();
   const { completeOperation, updateProgress } = useGlobalActivityMutations();
+  const { progress: enrichmentProgress, cancelEnrichment } = useEnrichmentProgress();
   const { timeframe, setTimeframe, dateRange, isInRange } = useTimeframe("last_365d");
 
   // Filters
@@ -747,6 +750,22 @@ export default function CapTargetDeals() {
 
       {/* KPI Stats Cards */}
       <DealsKPICards totalDeals={kpiStats.totalDeals} priorityDeals={kpiStats.priorityDeals} avgScore={kpiStats.avgScore} needsScoring={kpiStats.needsScoring} />
+
+      {/* Enrichment Progress Bar */}
+      {(enrichmentProgress.isEnriching || enrichmentProgress.isPaused) && (
+        <EnrichmentProgressIndicator
+          completedCount={enrichmentProgress.completedCount}
+          totalCount={enrichmentProgress.totalCount}
+          progress={enrichmentProgress.progress}
+          estimatedTimeRemaining={enrichmentProgress.estimatedTimeRemaining}
+          processingRate={enrichmentProgress.processingRate}
+          itemLabel="deals"
+          successfulCount={enrichmentProgress.successfulCount}
+          failedCount={enrichmentProgress.failedCount}
+          isPaused={enrichmentProgress.isPaused}
+          onCancel={cancelEnrichment}
+        />
+      )}
 
       {/* Exclusion Log */}
       <CapTargetExclusionLog

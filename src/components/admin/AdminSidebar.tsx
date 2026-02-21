@@ -33,6 +33,7 @@ import {
   FileCheck,
   Brain,
   ExternalLink,
+  ListChecks,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -233,6 +234,11 @@ export function AdminSidebar({ collapsed }: AdminSidebarProps) {
             label: "Webhook Settings",
             href: "/admin/settings/webhooks",
             icon: <Webhook className="h-4 w-4" />,
+          },
+          {
+            label: "Enrichment Queue",
+            href: "/admin/settings/enrichment-queue",
+            icon: <ListChecks className="h-4 w-4" />,
           },
           {
             label: "Enrichment Test",
