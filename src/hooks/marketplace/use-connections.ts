@@ -240,7 +240,7 @@ export const useUserConnectionRequests = () => {
         const { data, error } = await supabase
           .from('connection_requests')
           .select(`
-            *,
+            id, created_at, updated_at, listing_id, status, user_id, user_message,
             listing:listing_id (
               id,
               title,

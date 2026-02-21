@@ -15,13 +15,10 @@ interface AuthResult {
 }
 
 /**
- * Verify the request has a valid authenticated admin user.
- * Uses the anon key to validate the JWT, then checks is_admin via RPC.
+ * Verify the request has a valid authenticated user (any role).
+ * Uses the anon key to validate the JWT.
  */
-export async function requireAdmin(
-  req: Request,
-  supabaseAdmin: SupabaseClient
-): Promise<AuthResult> {
+export async function requireAuth(req: Request): Promise<AuthResult> {
   const authHeader = req.headers.get("Authorization");
   if (!authHeader) {
     return { authenticated: false, isAdmin: false, error: "Authentication required" };
@@ -38,12 +35,26 @@ export async function requireAdmin(
     return { authenticated: false, isAdmin: false, error: "Invalid authentication token" };
   }
 
-  const { data: isAdmin } = await supabaseAdmin.rpc("is_admin", { _user_id: user.id });
+  return { authenticated: true, isAdmin: false, userId: user.id };
+}
+
+/**
+ * Verify the request has a valid authenticated admin user.
+ * Uses the anon key to validate the JWT, then checks is_admin via RPC.
+ */
+export async function requireAdmin(
+  req: Request,
+  supabaseAdmin: SupabaseClient
+): Promise<AuthResult> {
+  const auth = await requireAuth(req);
+  if (!auth.authenticated) return auth;
+
+  const { data: isAdmin } = await supabaseAdmin.rpc("is_admin", { _user_id: auth.userId });
   if (!isAdmin) {
-    return { authenticated: true, isAdmin: false, userId: user.id, error: "Admin access required" };
+    return { authenticated: true, isAdmin: false, userId: auth.userId, error: "Admin access required" };
   }
 
-  return { authenticated: true, isAdmin: true, userId: user.id };
+  return { authenticated: true, isAdmin: true, userId: auth.userId };
 }
 
 /**

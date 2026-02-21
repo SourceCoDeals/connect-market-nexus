@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 import { getCorsHeaders, corsPreflightResponse } from "../_shared/cors.ts";
+import { requireAdmin } from "../_shared/auth.ts";
 
 interface SendApprovalEmailRequest {
   userId: string;
@@ -36,6 +37,15 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+
+    // AUTH: Admin-only — sends approval emails
+    const auth = await requireAdmin(req, supabase);
+    if (!auth.isAdmin) {
+      return new Response(JSON.stringify({ error: auth.error }), {
+        status: auth.authenticated ? 403 : 401,
+        headers: { 'Content-Type': 'application/json', ...corsHeaders },
+      });
+    }
 
     const requestData: SendApprovalEmailRequest = await req.json();
     const { 

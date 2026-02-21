@@ -29,9 +29,9 @@ function isOriginAllowed(origin: string): boolean {
   if (!origin) return false;
   const allowed = getAllowedOrigins();
   if (allowed.includes(origin)) return true;
-  // Allow all Lovable preview/development domains
+  // Allow Lovable preview/development domains for this project only
   if (/^https:\/\/[a-z0-9-]+\.lovableproject\.com$/.test(origin)) return true;
-  if (/^https:\/\/[a-z0-9-]+-preview--[a-z0-9-]+\.lovable\.app$/.test(origin)) return true;
+  if (/^https:\/\/[a-z0-9]+-preview--connect-market-nexus\.lovable\.app$/.test(origin)) return true;
   return false;
 }
 

@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 
 import { getCorsHeaders, corsPreflightResponse } from "../_shared/cors.ts";
+import { requireAdmin, escapeHtmlWithBreaks } from "../_shared/auth.ts";
 
 interface AdminProfile {
   email: string;
@@ -95,6 +96,15 @@ const handler = async (req: Request): Promise<Response> => {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    // AUTH: Admin-only — sends fee agreement emails with attachments
+    const auth = await requireAdmin(req, supabase);
+    if (!auth.isAdmin) {
+      return new Response(JSON.stringify({ error: auth.error }), {
+        status: auth.authenticated ? 403 : 401,
+        headers: { 'Content-Type': 'application/json', ...corsHeaders },
+      });
+    }
 
     // If firmId and sendToAllMembers, get all firm members
     let recipientEmails: Array<{email: string, userId: string, name?: string}> = [];
@@ -256,7 +266,7 @@ ${signatureText}` : signatureText;
 
     // Build HTML content (required by Brevo API)
     const htmlContent = content ? `<div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
-${content.replace(/\n/g, '<br>')}
+${escapeHtmlWithBreaks(content)}
 <br><br>
 ${adminSignature}
 </div>` : `<div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">

@@ -16,7 +16,7 @@ export function useUserConnectionRequests(userId: string) {
 
       const { data: requests, error } = await supabase
         .from('connection_requests')
-        .select('*')
+        .select('id, created_at, updated_at, listing_id, status, user_id, firm_id, pipeline_stage_id, source, source_metadata, user_message, lead_name, lead_email, lead_phone, lead_company, lead_role, approved_at, approved_by, rejected_at, rejected_by, converted_at, converted_by, decision_at, decision_notes, stage_entered_at, on_hold_at, on_hold_by, followed_up, followed_up_at, followed_up_by, negative_followed_up, negative_followed_up_at, negative_followed_up_by, lead_nda_signed, lead_nda_signed_at, lead_nda_email_sent, lead_nda_email_sent_at, lead_fee_agreement_signed, lead_fee_agreement_signed_at, lead_fee_agreement_email_sent, lead_fee_agreement_email_sent_at, buyer_priority_score')
         .eq('user_id', userId)
         .in('status', ['pending', 'approved']) // Active requests that need follow-up tracking
         .order('created_at', { ascending: false });
@@ -35,8 +35,8 @@ export function useUserConnectionRequests(userId: string) {
       }
 
       const [{ data: allProfiles }, { data: allListings }] = await Promise.all([
-        supabase.from('profiles').select('*').in('id', [...allProfileIds]),
-        supabase.from('listings').select('*').in('id', [...allListingIds]),
+        supabase.from('profiles').select('id, email, first_name, last_name, company, company_name, phone_number, buyer_type, approval_status, is_admin, created_at, updated_at, email_verified, website, linkedin_profile, job_title, bio, business_categories, target_locations, revenue_range_min, revenue_range_max, investment_size, fund_size, aum, estimated_revenue, onboarding_completed, fee_agreement_signed, fee_agreement_signed_at, fee_agreement_email_sent, fee_agreement_email_sent_at, nda_signed, nda_signed_at, nda_email_sent, nda_email_sent_at').in('id', [...allProfileIds]),
+        supabase.from('listings').select('id, title, category, location, description, image_url, revenue, ebitda, full_time_employees, part_time_employees, acquisition_type, status, asking_price, gross_revenue, industry, created_at, updated_at').in('id', [...allListingIds]),
       ]);
 
       const profileMap = new Map((allProfiles || []).map(p => [p.id, p]));

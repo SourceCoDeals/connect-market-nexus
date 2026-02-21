@@ -2,6 +2,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 
 import { getCorsHeaders, corsPreflightResponse } from "../_shared/cors.ts";
+import { requireAuth, escapeHtml, escapeHtmlWithBreaks } from "../_shared/auth.ts";
 
 interface ConnectionNotificationRequest {
   type: 'user_confirmation' | 'admin_notification';
@@ -23,6 +24,15 @@ const handler = async (req: Request): Promise<Response> => {
   }
 
   try {
+    // AUTH: Requires authenticated user (users submit connection requests)
+    const auth = await requireAuth(req);
+    if (!auth.authenticated) {
+      return new Response(JSON.stringify({ error: auth.error }), {
+        status: 401,
+        headers: { 'Content-Type': 'application/json', ...corsHeaders },
+      });
+    }
+
     const requestData: ConnectionNotificationRequest = await req.json();
     
     const {
@@ -66,14 +76,14 @@ const handler = async (req: Request): Promise<Response> => {
             <h2 style="margin: 0 0 15px 0; color: #1e293b; font-size: 18px;">Request Details</h2>
             
             <div style="margin-bottom: 15px;">
-              <strong style="color: #475569;">Listing:</strong> ${listingTitle}
+              <strong style="color: #475569;">Listing:</strong> ${escapeHtml(listingTitle)}
             </div>
-            
+
             ${message ? `
             <div style="margin-top: 20px;">
               <strong style="color: #475569;">Your Message:</strong>
               <div style="background: white; padding: 15px; border-radius: 6px; margin-top: 8px; border-left: 4px solid #059669;">
-                ${message.replace(/\n/g, "<br>")}
+                ${escapeHtmlWithBreaks(message)}
               </div>
             </div>
             ` : ''}
@@ -120,18 +130,18 @@ const handler = async (req: Request): Promise<Response> => {
             <h2 style="margin: 0 0 15px 0; color: #1e293b; font-size: 18px;">Connection Details</h2>
             
             <div style="margin-bottom: 15px;">
-              <strong style="color: #475569;">From:</strong> ${requesterName} (${requesterEmail})
+              <strong style="color: #475569;">From:</strong> ${escapeHtml(requesterName)} (${escapeHtml(requesterEmail)})
             </div>
-            
+
             <div style="margin-bottom: 15px;">
-              <strong style="color: #475569;">Listing:</strong> ${listingTitle}
+              <strong style="color: #475569;">Listing:</strong> ${escapeHtml(listingTitle)}
             </div>
-            
+
             ${message ? `
             <div style="margin-top: 20px;">
               <strong style="color: #475569;">Message:</strong>
               <div style="background: white; padding: 15px; border-radius: 6px; margin-top: 8px; border-left: 4px solid #3b82f6;">
-                ${message.replace(/\n/g, "<br>")}
+                ${escapeHtmlWithBreaks(message)}
               </div>
             </div>
             ` : ''}
