@@ -109,9 +109,8 @@ export default function BuyerDetail() {
         description: "Buyer enrichment is running in the background",
       });
 
-      setTimeout(() => {
-        loadBuyer();
-      }, 3000);
+      // Data will refresh via queue polling; do a deferred reload as fallback
+      setTimeout(loadBuyer, 5000);
     } catch (error: any) {
       toast({
         title: "Error enriching buyer",

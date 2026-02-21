@@ -100,10 +100,11 @@ export function useTrackerData(trackerId: string | undefined): UseTrackerDataRes
       }));
       setBuyers(mappedBuyers);
 
-      // Fetch deals - use listing_id reference
+      // Fetch deals scoped to this tracker
       const { data: dealsData } = await supabase
         .from('deals')
         .select('*')
+        .eq('listing_id', trackerId)
         .order('created_at', { ascending: false });
 
       // Map to MADeal interface

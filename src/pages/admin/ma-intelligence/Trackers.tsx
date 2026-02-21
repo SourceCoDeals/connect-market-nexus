@@ -52,11 +52,12 @@ export default function MATrackers() {
 
     const withStats = await Promise.all(
       (trackersData || []).map(async (tracker: any) => {
-        const [buyersRes, dealsRes, transcriptsRes] = await Promise.all([
-          supabase.from("remarketing_buyers").select("id, data_completeness").eq("industry_tracker_id", tracker.id),
-          supabase.from("deals").select("id").eq("listing_id", tracker.id),
-          supabase.from("buyer_transcripts").select("buyer_id"),
-        ]);
+        const buyersRes = await supabase.from("remarketing_buyers").select("id, data_completeness").eq("industry_tracker_id", tracker.id);
+        const dealsRes = await supabase.from("deals").select("id").eq("listing_id", tracker.id);
+        const buyerIds = (buyersRes.data || []).map((b: any) => b.id);
+        const transcriptsRes = buyerIds.length > 0
+          ? await supabase.from("buyer_transcripts").select("buyer_id").in("buyer_id", buyerIds.slice(0, 100))
+          : { data: [] };
         const buyers = (buyersRes.data || []) as any[];
         const transcripts = transcriptsRes.data || [];
         const buyerIdsWithTranscripts = new Set(transcripts.map((t: any) => t.buyer_id));
