@@ -34,6 +34,7 @@ export interface TrackedLink {
   buyer_email: string;
   buyer_name: string;
   buyer_firm: string | null;
+  contact_id: string | null;
   link_token: string;
   is_active: boolean;
   revoked_at: string | null;
@@ -50,7 +51,7 @@ export interface TrackedLink {
 export interface ReleaseLogEntry {
   id: string;
   deal_id: string;
-  document_id: string;
+  document_id: string | null;
   buyer_id: string | null;
   buyer_name: string;
   buyer_firm: string | null;
@@ -58,13 +59,14 @@ export interface ReleaseLogEntry {
   release_method: 'tracked_link' | 'pdf_download' | 'auto_campaign' | 'data_room_grant';
   nda_status_at_release: string | null;
   fee_agreement_status_at_release: string | null;
-  released_by: string;
+  released_by: string | null;
   released_at: string;
   tracked_link_id: string | null;
   first_opened_at: string | null;
   open_count: number;
   last_opened_at: string | null;
   release_notes: string | null;
+  contact_id: string | null;
   // Joined fields
   document?: DealDocument;
   tracked_link?: TrackedLink;
