@@ -3540,6 +3540,42 @@ export type Database = {
           },
         ]
       }
+      docuseal_webhook_log: {
+        Row: {
+          created_at: string | null
+          document_type: string | null
+          event_type: string
+          external_id: string | null
+          id: string
+          processed_at: string | null
+          raw_payload: Json
+          submission_id: string
+          submitter_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          document_type?: string | null
+          event_type: string
+          external_id?: string | null
+          id?: string
+          processed_at?: string | null
+          raw_payload: Json
+          submission_id: string
+          submitter_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          document_type?: string | null
+          event_type?: string
+          external_id?: string | null
+          id?: string
+          processed_at?: string | null
+          raw_payload?: Json
+          submission_id?: string
+          submitter_id?: string | null
+        }
+        Relationships: []
+      }
       email_delivery_logs: {
         Row: {
           correlation_id: string
@@ -4065,9 +4101,14 @@ export type Database = {
           fee_agreement_signed_at: string | null
           fee_agreement_signed_by: string | null
           fee_agreement_signed_by_name: string | null
+          fee_docuseal_status: string | null
+          fee_docuseal_submission_id: string | null
+          fee_signed_document_url: string | null
           id: string
           member_count: number | null
           metadata: Json | null
+          nda_docuseal_status: string | null
+          nda_docuseal_submission_id: string | null
           nda_email_sent: boolean | null
           nda_email_sent_at: string | null
           nda_email_sent_by: string | null
@@ -4075,6 +4116,7 @@ export type Database = {
           nda_signed_at: string | null
           nda_signed_by: string | null
           nda_signed_by_name: string | null
+          nda_signed_document_url: string | null
           normalized_company_name: string
           primary_company_name: string
           updated_at: string
@@ -4091,9 +4133,14 @@ export type Database = {
           fee_agreement_signed_at?: string | null
           fee_agreement_signed_by?: string | null
           fee_agreement_signed_by_name?: string | null
+          fee_docuseal_status?: string | null
+          fee_docuseal_submission_id?: string | null
+          fee_signed_document_url?: string | null
           id?: string
           member_count?: number | null
           metadata?: Json | null
+          nda_docuseal_status?: string | null
+          nda_docuseal_submission_id?: string | null
           nda_email_sent?: boolean | null
           nda_email_sent_at?: string | null
           nda_email_sent_by?: string | null
@@ -4101,6 +4148,7 @@ export type Database = {
           nda_signed_at?: string | null
           nda_signed_by?: string | null
           nda_signed_by_name?: string | null
+          nda_signed_document_url?: string | null
           normalized_company_name: string
           primary_company_name: string
           updated_at?: string
@@ -4117,9 +4165,14 @@ export type Database = {
           fee_agreement_signed_at?: string | null
           fee_agreement_signed_by?: string | null
           fee_agreement_signed_by_name?: string | null
+          fee_docuseal_status?: string | null
+          fee_docuseal_submission_id?: string | null
+          fee_signed_document_url?: string | null
           id?: string
           member_count?: number | null
           metadata?: Json | null
+          nda_docuseal_status?: string | null
+          nda_docuseal_submission_id?: string | null
           nda_email_sent?: boolean | null
           nda_email_sent_at?: string | null
           nda_email_sent_by?: string | null
@@ -4127,6 +4180,7 @@ export type Database = {
           nda_signed_at?: string | null
           nda_signed_by?: string | null
           nda_signed_by_name?: string | null
+          nda_signed_document_url?: string | null
           normalized_company_name?: string
           primary_company_name?: string
           updated_at?: string
