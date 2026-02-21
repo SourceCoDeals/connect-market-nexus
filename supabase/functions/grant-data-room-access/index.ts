@@ -136,6 +136,7 @@ Deno.serve(async (req: Request) => {
           buyer_id: buyer_id || null,
           granted_document_ids: document_ids || null,
           granted_by: auth.userId,
+          granted_at: new Date().toISOString(),
           is_active: true,
           revoked_at: null,
           revoked_by: null,
@@ -149,7 +150,7 @@ Deno.serve(async (req: Request) => {
       if (updateError) {
         console.error("Failed to update data room access:", updateError);
         return new Response(
-          JSON.stringify({ error: "Failed to update data room access", details: updateError.message }),
+          JSON.stringify({ error: "Failed to update data room access" }),
           { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
@@ -177,7 +178,7 @@ Deno.serve(async (req: Request) => {
       if (insertError) {
         console.error("Failed to create data room access:", insertError);
         return new Response(
-          JSON.stringify({ error: "Failed to create data room access", details: insertError.message }),
+          JSON.stringify({ error: "Failed to create data room access" }),
           { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
@@ -195,7 +196,8 @@ Deno.serve(async (req: Request) => {
       const { data: docs, error: docsError } = await supabaseAdmin
         .from("deal_documents")
         .select("id, title")
-        .in("id", document_ids);
+        .in("id", document_ids)
+        .eq("deal_id", deal_id);
 
       if (docsError) {
         console.error("Failed to fetch granted documents:", docsError);
@@ -288,7 +290,7 @@ Deno.serve(async (req: Request) => {
   } catch (error) {
     console.error("Grant data room access error:", error);
     return new Response(
-      JSON.stringify({ error: "Internal server error", details: (error as Error).message }),
+      JSON.stringify({ error: "Internal server error" }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }

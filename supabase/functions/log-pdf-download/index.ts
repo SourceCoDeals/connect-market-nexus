@@ -73,12 +73,13 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    // ── Fetch document ──
+    // ── Fetch document (scoped to deal_id for ownership check) ──
 
     const { data: document, error: docError } = await supabaseAdmin
       .from("deal_documents")
-      .select("*")
+      .select("id, deal_id, document_type, file_path, title, status")
       .eq("id", document_id)
+      .eq("deal_id", deal_id)
       .single();
 
     if (docError || !document) {
@@ -143,7 +144,7 @@ Deno.serve(async (req: Request) => {
     if (releaseError) {
       console.error("Failed to create release log:", releaseError);
       return new Response(
-        JSON.stringify({ error: "Failed to log document release", details: releaseError.message }),
+        JSON.stringify({ error: "Failed to log document release" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }

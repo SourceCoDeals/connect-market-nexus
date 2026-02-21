@@ -42,7 +42,10 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
-    const { approval_queue_id, release_notes } = await req.json();
+    const body = await req.json();
+    // Accept both parameter names for compatibility
+    const approval_queue_id = body.approval_queue_id || body.queue_entry_id;
+    const release_notes = body.release_notes;
 
     if (!approval_queue_id) {
       return new Response(
@@ -51,27 +54,26 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    // 1. Fetch marketplace_approval_queue record and validate status
+    // 1. Atomically claim the record: set status = 'approved' WHERE status = 'pending'
+    //    This prevents TOCTOU race conditions (two admins approving simultaneously).
     const { data: queueRecord, error: queueError } = await supabaseAdmin
       .from("marketplace_approval_queue")
-      .select("*")
+      .update({
+        status: "approved",
+        reviewed_by: auth.userId,
+        reviewed_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      })
       .eq("id", approval_queue_id)
+      .eq("status", "pending")
+      .select()
       .single();
 
     if (queueError || !queueRecord) {
+      // Either not found or already processed by another admin
       return new Response(
-        JSON.stringify({ error: "Approval queue record not found" }),
-        { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    if (queueRecord.status !== "pending") {
-      return new Response(
-        JSON.stringify({
-          error: "Record is not pending",
-          current_status: queueRecord.status,
-        }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        JSON.stringify({ error: "Record not found or already processed" }),
+        { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
@@ -133,7 +135,7 @@ Deno.serve(async (req: Request) => {
     if (linkError || !trackedLink) {
       console.error("Failed to create tracked link:", linkError);
       return new Response(
-        JSON.stringify({ error: "Failed to create tracked link", details: linkError?.message }),
+        JSON.stringify({ error: "Failed to create tracked link" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -162,7 +164,7 @@ Deno.serve(async (req: Request) => {
     if (releaseError || !releaseLog) {
       console.error("Failed to create release log:", releaseError);
       return new Response(
-        JSON.stringify({ error: "Failed to create release log", details: releaseError?.message }),
+        JSON.stringify({ error: "Failed to create release log" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -186,20 +188,14 @@ Deno.serve(async (req: Request) => {
       // Continue — link and log are already created; email failure is non-fatal
     }
 
-    // 6. Update marketplace_approval_queue
+    // 6. Update queue record with release_log_id (status already set in step 1)
     const { error: updateError } = await supabaseAdmin
       .from("marketplace_approval_queue")
-      .update({
-        status: "approved",
-        reviewed_by: auth.userId,
-        reviewed_at: new Date().toISOString(),
-        release_log_id: releaseLog.id,
-        updated_at: new Date().toISOString(),
-      })
+      .update({ release_log_id: releaseLog.id })
       .eq("id", approval_queue_id);
 
     if (updateError) {
-      console.error("Failed to update approval queue:", updateError);
+      console.error("Failed to update approval queue release_log_id:", updateError);
     }
 
     return new Response(
@@ -214,7 +210,7 @@ Deno.serve(async (req: Request) => {
   } catch (error) {
     console.error("Approve marketplace buyer error:", error);
     return new Response(
-      JSON.stringify({ error: "Internal server error", details: (error as Error).message }),
+      JSON.stringify({ error: "Internal server error" }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }

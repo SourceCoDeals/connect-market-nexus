@@ -72,12 +72,13 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    // ── Fetch document ──
+    // ── Fetch document (scoped to deal_id for ownership check) ──
 
     const { data: document, error: docError } = await supabaseAdmin
       .from("deal_documents")
-      .select("*")
+      .select("id, deal_id, document_type, file_path, title, status")
       .eq("id", document_id)
+      .eq("deal_id", deal_id)
       .single();
 
     if (docError || !document) {
@@ -161,7 +162,6 @@ Deno.serve(async (req: Request) => {
         buyer_name,
         buyer_firm: buyer_firm || null,
         link_token: linkToken,
-        link_url: linkUrl,
         is_active: true,
         open_count: 0,
         created_by: auth.userId,
@@ -172,7 +172,7 @@ Deno.serve(async (req: Request) => {
     if (linkError) {
       console.error("Failed to create tracked link:", linkError);
       return new Response(
-        JSON.stringify({ error: "Failed to create tracked link", details: linkError.message }),
+        JSON.stringify({ error: "Failed to create tracked link" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -201,7 +201,7 @@ Deno.serve(async (req: Request) => {
     if (releaseError) {
       console.error("Failed to create release log:", releaseError);
       return new Response(
-        JSON.stringify({ error: "Failed to log document release", details: releaseError.message }),
+        JSON.stringify({ error: "Failed to log document release" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }

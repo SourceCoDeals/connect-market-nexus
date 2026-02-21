@@ -143,11 +143,12 @@ Deno.serve(async (req: Request) => {
         }
       }
 
-      // Fetch the document details
+      // Fetch the document details (scoped to deal for safety)
       const { data: document, error: docError } = await supabaseAdmin
         .from("deal_documents")
         .select("id, title, file_path")
         .eq("id", documentId)
+        .eq("deal_id", accessRecord.deal_id)
         .single();
 
       if (docError || !document) {

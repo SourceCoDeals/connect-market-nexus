@@ -334,6 +334,7 @@ export function useApproveMarketplaceBuyer() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['approval-queue'] });
+      queryClient.invalidateQueries({ queryKey: ['approval-queue-count'] });
       queryClient.invalidateQueries({ queryKey: ['release-log'] });
       toast.success('Buyer approved and teaser sent');
     },
@@ -353,10 +354,12 @@ export function useDeclineMarketplaceBuyer() {
       decline_reason?: string;
       send_decline_email?: boolean;
     }) => {
+      const { data: { user } } = await supabase.auth.getUser();
       const { error } = await supabase
         .from('marketplace_approval_queue')
         .update({
           status: 'declined',
+          reviewed_by: user?.id,
           decline_category: params.decline_category,
           decline_reason: params.decline_reason || null,
           decline_email_sent: params.send_decline_email || false,
@@ -369,6 +372,7 @@ export function useDeclineMarketplaceBuyer() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['approval-queue'] });
+      queryClient.invalidateQueries({ queryKey: ['approval-queue-count'] });
       toast.success('Buyer declined');
     },
     onError: (error: Error) => {

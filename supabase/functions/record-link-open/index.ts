@@ -96,41 +96,18 @@ Deno.serve(async (req: Request) => {
       }
     }
 
-    // ── Track the open ──
+    // ── Track the open (atomic increment via RPC to avoid race conditions) ──
 
-    const now = new Date().toISOString();
-    const isFirstOpen = !trackedLink.first_opened_at;
+    let isFirstOpen = !trackedLink.first_opened_at;
 
-    const updateData: Record<string, unknown> = {
-      open_count: (trackedLink.open_count || 0) + 1,
-      last_opened_at: now,
-    };
+    const { data: rpcResult, error: rpcError } = await supabaseAdmin
+      .rpc("increment_link_open_count", { p_link_id: trackedLink.id });
 
-    if (isFirstOpen) {
-      updateData.first_opened_at = now;
-    }
-
-    const { error: updateError } = await supabaseAdmin
-      .from("document_tracked_links")
-      .update(updateData)
-      .eq("id", trackedLink.id);
-
-    if (updateError) {
-      console.error("Failed to update tracked link open count:", updateError);
+    if (rpcError) {
+      console.error("Failed to increment open count:", rpcError);
       // Continue anyway — do not block the buyer from viewing the document
-    }
-
-    // ── If first open, also update the matching release log row ──
-
-    if (isFirstOpen) {
-      const { error: releaseUpdateError } = await supabaseAdmin
-        .from("document_release_log")
-        .update({ first_opened_at: now })
-        .eq("tracked_link_id", trackedLink.id);
-
-      if (releaseUpdateError) {
-        console.error("Failed to update release log first_opened_at:", releaseUpdateError);
-      }
+    } else if (rpcResult) {
+      isFirstOpen = rpcResult.first_open === true;
     }
 
     // ── Generate signed URL for the document ──
