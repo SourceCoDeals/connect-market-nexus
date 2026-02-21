@@ -274,16 +274,17 @@ export const useListing = (id: string | undefined) => {
           // Successfully fetched listing
           
           // Transform to Listing type with computed properties
-          const listing: Listing = {
-            ...data,
-            categories: data.categories || (data.category ? [data.category] : []),
-            metric_3_type: (data.metric_3_type as 'employees' | 'custom') || 'employees',
-            ownerNotes: data.owner_notes || '',
-            createdAt: data.created_at,
-            updatedAt: data.updated_at,
-            status: data.status as ListingStatus,
-            multiples: data.revenue > 0 ? {
-              revenue: (data.ebitda / data.revenue).toFixed(2),
+          const d = data as unknown as Record<string, any>;
+          const listing = {
+            ...(d as any),
+            categories: d.categories || (d.category ? [d.category] : []),
+            metric_3_type: (d.metric_3_type as 'employees' | 'custom') || 'employees',
+            ownerNotes: d.owner_notes || '',
+            createdAt: d.created_at,
+            updatedAt: d.updated_at,
+            status: d.status as ListingStatus,
+            multiples: d.revenue > 0 ? {
+              revenue: (d.ebitda / d.revenue).toFixed(2),
               value: '0'
             } : undefined,
             revenueFormatted: new Intl.NumberFormat('en-US', {
@@ -291,16 +292,16 @@ export const useListing = (id: string | undefined) => {
               currency: 'USD',
               minimumFractionDigits: 0,
               maximumFractionDigits: 0
-            }).format(data.revenue),
+            }).format(d.revenue),
             ebitdaFormatted: new Intl.NumberFormat('en-US', { 
               style: 'currency', 
               currency: 'USD',
               minimumFractionDigits: 0,
               maximumFractionDigits: 0
-            }).format(data.ebitda),
+            }).format(d.ebitda),
           };
           
-          return listing;
+          return listing as Listing;
         } catch (error: any) {
           console.error('💥 Error in useListing:', error);
           throw error;
