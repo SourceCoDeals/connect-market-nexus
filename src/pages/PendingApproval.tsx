@@ -32,30 +32,15 @@ const PendingApproval = () => {
       
       setNdaLoading(true);
       try {
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('email, first_name, last_name')
-          .eq('id', user.id)
-          .single();
-
-        if (!profile) { setNdaError('Could not load profile'); return; }
-
-        const buyerName = `${profile.first_name || ''} ${profile.last_name || ''}`.trim();
-        const { data, error: fnError } = await supabase.functions.invoke('create-docuseal-submission', {
-          body: {
-            firm_id: ndaStatus.firmId,
-            document_type: 'nda',
-            buyer_email: profile.email,
-            buyer_name: buyerName || profile.email,
-            send_email: false,
-          },
-        });
+        const { data, error: fnError } = await supabase.functions.invoke('get-buyer-nda-embed');
 
         if (fnError) {
           setNdaError('Failed to prepare NDA signing form');
           console.error('DocuSeal error:', fnError);
         } else if (data?.embedSrc) {
           setNdaEmbedSrc(data.embedSrc);
+        } else if (data?.ndaSigned) {
+          setNdaSigned(true);
         }
       } catch (err: any) {
         setNdaError(err.message);
