@@ -45,11 +45,13 @@ export default function MADashboard() {
 
       const trackersWithStats: TrackerWithStats[] = await Promise.all(
         (trackersData || []).map(async (tracker: any) => {
-          const [buyersResult, dealsResult, transcriptsResult] = await Promise.all([
-            supabase.from("remarketing_buyers").select("id, data_completeness").eq("industry_tracker_id", tracker.id),
-            supabase.from("deals").select("id").eq("listing_id", tracker.id),
-            supabase.from("buyer_transcripts").select("buyer_id"),
-          ]);
+          // Get buyer IDs first, then filter transcripts to only those buyers
+          const buyersResult = await supabase.from("remarketing_buyers").select("id, data_completeness").eq("industry_tracker_id", tracker.id);
+          const dealsResult = await supabase.from("deals").select("id").eq("listing_id", tracker.id);
+          const buyerIds = (buyersResult.data || []).map((b: any) => b.id);
+          const transcriptsResult = buyerIds.length > 0
+            ? await supabase.from("buyer_transcripts").select("buyer_id").in("buyer_id", buyerIds.slice(0, 100))
+            : { data: [] };
 
           const buyers = (buyersResult.data || []) as any[];
           const transcripts = transcriptsResult.data || [];
