@@ -2,7 +2,7 @@
  * generate-lead-memo: AI-generates a lead memo from deal data
  *
  * Admin-only. Collects all available deal data (transcripts, enrichment,
- * manual entries) and generates a structured memo via Gemini.
+ * manual entries) and generates a structured memo via Claude Sonnet.
  *
  * POST body:
  *   - deal_id: UUID
@@ -14,9 +14,9 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { requireAdmin } from "../_shared/auth.ts";
 import {
-  GEMINI_API_URL,
-  DEFAULT_GEMINI_MODEL,
-  getGeminiHeaders,
+  ANTHROPIC_API_URL,
+  DEFAULT_CLAUDE_MODEL,
+  getAnthropicHeaders,
   fetchWithAutoRetry,
 } from "../_shared/ai-providers.ts";
 
@@ -50,7 +50,7 @@ Deno.serve(async (req: Request) => {
 
   const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
   const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-  const geminiApiKey = Deno.env.get("GEMINI_API_KEY")!;
+  const anthropicApiKey = Deno.env.get("ANTHROPIC_API_KEY")!;
   const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey);
 
   const auth = await requireAdmin(req, supabaseAdmin);
@@ -116,7 +116,7 @@ Deno.serve(async (req: Request) => {
 
     if (memo_type === "anonymous_teaser" || memo_type === "both") {
       const teaserContent = await generateMemo(
-        geminiApiKey,
+        anthropicApiKey,
         dataContext,
         "anonymous_teaser",
         branding
@@ -147,7 +147,7 @@ Deno.serve(async (req: Request) => {
 
     if (memo_type === "full_memo" || memo_type === "both") {
       const fullContent = await generateMemo(
-        geminiApiKey,
+        anthropicApiKey,
         dataContext,
         "full_memo",
         branding
@@ -226,8 +226,8 @@ function buildDataContext(deal: any, transcripts: any[], valuationData: any): Da
         if (t.title) parts.push(`Title: ${t.title}`);
         if (t.extracted_data) parts.push(`Extracted Insights: ${JSON.stringify(t.extracted_data)}`);
         if (t.transcript_text) {
-          // Take first 8000 chars per transcript for comprehensive context
-          parts.push(`Transcript: ${t.transcript_text.substring(0, 8000)}`);
+          // Take first 25000 chars per transcript for comprehensive context
+          parts.push(`Transcript: ${t.transcript_text.substring(0, 25000)}`);
         }
         return `--- Call ${i + 1} (${t.call_date || "unknown date"}) ---\n${parts.join("\n")}`;
       })
@@ -422,19 +422,18 @@ Follow the memo template exactly. Use only the sections specified. Present finan
 Generate the memo now. Return ONLY the JSON object with "sections" array.`;
 
   const response = await fetchWithAutoRetry(
-    GEMINI_API_URL,
+    ANTHROPIC_API_URL,
     {
       method: "POST",
-      headers: getGeminiHeaders(apiKey),
+      headers: getAnthropicHeaders(apiKey),
       body: JSON.stringify({
-        model: DEFAULT_GEMINI_MODEL,
+        model: DEFAULT_CLAUDE_MODEL,
+        system: systemPrompt,
         messages: [
-          { role: "system", content: systemPrompt },
           { role: "user", content: userPrompt },
         ],
         temperature: 0.3,
-        max_tokens: 12288,
-        response_format: { type: "json_object" },
+        max_tokens: 16384,
       }),
     },
     { callerName: "generate-lead-memo", maxRetries: 2 }
@@ -442,11 +441,11 @@ Generate the memo now. Return ONLY the JSON object with "sections" array.`;
 
   if (!response.ok) {
     const errorText = await response.text();
-    throw new Error(`Gemini API error ${response.status}: ${errorText}`);
+    throw new Error(`Claude API error ${response.status}: ${errorText}`);
   }
 
   const result = await response.json();
-  const content = result.choices?.[0]?.message?.content;
+  const content = result.content?.[0]?.text;
 
   if (!content) {
     throw new Error("No content returned from AI");
