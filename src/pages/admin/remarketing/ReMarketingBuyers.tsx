@@ -440,9 +440,9 @@ const ReMarketingBuyers = () => {
             size="sm"
             variant="outline"
             className="gap-1.5"
-            disabled={selectedIds.size === 0 || enrichingIds.size > 0}
+            disabled={enrichingIds.size > 0 || filteredBuyers.length === 0}
             onClick={async () => {
-              const ids = Array.from(selectedIds);
+              const ids = selectedIds.size > 0 ? Array.from(selectedIds) : filteredBuyers.map((b: any) => b.id);
               if (ids.length === 0) return;
               setEnrichingIds(new Set(ids));
               try {
@@ -458,7 +458,7 @@ const ReMarketingBuyers = () => {
             }}
           >
             <Sparkles className="h-3.5 w-3.5" />
-            {enrichingIds.size > 0 ? `Enriching (${enrichingIds.size})…` : selectedIds.size > 0 ? `Enrich Selected (${selectedIds.size})` : 'Enrich Selected'}
+            {enrichingIds.size > 0 ? `Enriching…` : selectedIds.size > 0 ? `Enrich Selected (${selectedIds.size})` : 'Enrich All'}
           </Button>
           <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
             <DialogTrigger asChild>
