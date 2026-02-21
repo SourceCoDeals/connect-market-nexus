@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -32,6 +32,16 @@ export function InviteTeamMemberDialog({ open, onOpenChange }: InviteTeamMemberD
   const queryClient = useQueryClient();
 
   const isValidEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
+
+  // Reset form when dialog opens
+  useEffect(() => {
+    if (open) {
+      setEmail('');
+      setFirstName('');
+      setLastName('');
+      setRole('moderator');
+    }
+  }, [open]);
 
   const handleSubmit = async () => {
     if (!isValidEmail) return;

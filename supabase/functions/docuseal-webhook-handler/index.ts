@@ -27,7 +27,16 @@ async function verifyWebhookSignature(
     const expectedHex = Array.from(new Uint8Array(sig))
       .map((b) => b.toString(16).padStart(2, "0"))
       .join("");
-    return expectedHex === signature;
+    // Timing-safe comparison to prevent timing attacks
+    const encoder2 = new TextEncoder();
+    const a = encoder2.encode(expectedHex);
+    const b = encoder2.encode(signature);
+    if (a.length !== b.length) return false;
+    let result = 0;
+    for (let i = 0; i < a.length; i++) {
+      result |= a[i] ^ b[i];
+    }
+    return result === 0;
   } catch {
     return false;
   }
@@ -81,7 +90,7 @@ serve(async (req: Request) => {
     const submissionId = String(submissionData.submission_id || submissionData.id);
 
     // Log the raw webhook
-    await supabase.from("docuseal_webhook_log").insert({
+    const { error: logError } = await supabase.from("docuseal_webhook_log").insert({
       event_type: eventType,
       submission_id: submissionId,
       submitter_id: submissionData.submitter_id ? String(submissionData.submitter_id) : null,
@@ -89,6 +98,7 @@ serve(async (req: Request) => {
       raw_payload: payload,
       processed_at: new Date().toISOString(),
     });
+    if (logError) console.error("Failed to log webhook:", logError);
 
     // Find the firm that matches this submission
     // Check both nda and fee columns
@@ -177,7 +187,7 @@ async function processEvent(
       docusealStatus = "declined";
       break;
     default:
-      docusealStatus = eventType;
+      docusealStatus = eventType.replace(/[^a-z0-9._-]/gi, "").substring(0, 50);
   }
 
   console.log(`📝 Processing ${eventType} for ${documentType} on firm ${firmId}`);

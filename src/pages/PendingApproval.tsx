@@ -54,13 +54,15 @@ const PendingApproval = () => {
     fetchNdaEmbed();
   }, [user, ndaStatus, ndaEmbedSrc, ndaLoading]);
 
-  // Handle navigation for approved users
+  // Handle navigation for approved users (skip redirect if NDA signing is pending)
   useEffect(() => {
     if (user?.approval_status === 'approved') {
-      console.log("User is approved, redirecting to marketplace");
+      if (ndaStatus?.hasFirm && !ndaStatus?.ndaSigned && !ndaSigned) {
+        return; // Stay on page for NDA signing
+      }
       navigate('/', { replace: true });
     }
-  }, [user?.approval_status, navigate]);
+  }, [user?.approval_status, ndaStatus?.hasFirm, ndaStatus?.ndaSigned, ndaSigned, navigate]);
 
   // Show loading while auth is being determined
   if (isLoading || !user) {
@@ -86,6 +88,7 @@ const PendingApproval = () => {
     setIsResending(true);
     
     try {
+      // Resending verification email
       const { error: resendError } = await supabase.auth.resend({
         type: 'signup',
         email: user.email,
@@ -123,6 +126,7 @@ const PendingApproval = () => {
   const handleLogout = async () => {
     try {
       setIsLoggingOut(true);
+      // Logging out
       await cleanupAuthState();
       await supabase.auth.signOut({ scope: 'global' });
       navigate('/login', { replace: true });
@@ -139,9 +143,7 @@ const PendingApproval = () => {
       await refreshUserProfile();
       toast({
         title: "Status checked",
-        description: user?.approval_status === 'approved' 
-          ? "Your account has been approved!" 
-          : "Your account is still pending approval.",
+        description: "Your account status has been refreshed.",
       });
     } catch (error) {
       toast({

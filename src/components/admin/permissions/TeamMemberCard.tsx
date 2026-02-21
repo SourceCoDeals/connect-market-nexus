@@ -12,7 +12,7 @@ interface TeamMemberCardProps {
 }
 
 export const TeamMemberCard = ({ user, role }: TeamMemberCardProps) => {
-  const initials = `${user.first_name?.[0] || ''}${user.last_name?.[0] || ''}`.toUpperCase() || user.email[0].toUpperCase();
+  const initials = `${user.first_name?.[0] || ''}${user.last_name?.[0] || ''}`.toUpperCase() || (user.email?.[0] || '?').toUpperCase();
   
   // Map 'owner' to 'admin' for display
   const displayRole = role === 'owner' ? 'admin' : role;
