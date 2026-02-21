@@ -180,6 +180,24 @@ const ReMarketingBuyerDetail = () => {
     enabled: !isNew
   });
 
+  // Look up the PE firm record by name (for clickable PE firm link)
+  const { data: peFirmRecord } = useQuery({
+    queryKey: ['remarketing', 'pe-firm-lookup', buyer?.pe_firm_name],
+    queryFn: async () => {
+      if (!buyer?.pe_firm_name) return null;
+      const { data, error } = await supabase
+        .from('remarketing_buyers')
+        .select('id, company_name')
+        .eq('company_name', buyer.pe_firm_name)
+        .eq('buyer_type', 'pe_firm')
+        .eq('archived', false)
+        .maybeSingle();
+      if (error) return null;
+      return data;
+    },
+    enabled: !!buyer?.pe_firm_name,
+  });
+
   // Fetch contacts
   const { data: contacts = [] } = useQuery({
     queryKey: ['remarketing', 'contacts', id],
@@ -633,6 +651,7 @@ const ReMarketingBuyerDetail = () => {
       <BuyerDetailHeader
         companyName={buyer?.company_name || ""}
         peFirmName={buyer?.pe_firm_name}
+        peFirmId={peFirmRecord?.id || null}
         platformWebsite={buyer?.platform_website || buyer?.company_website}
         hqCity={buyer?.hq_city}
         hqState={buyer?.hq_state}

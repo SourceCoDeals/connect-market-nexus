@@ -106,6 +106,11 @@ export function AdminSidebar({ collapsed }: AdminSidebarProps) {
             icon: <Users className="h-4 w-4" />,
           },
           {
+            label: "PE Firms & Sponsors",
+            href: "/admin/buyers/pe-firms",
+            icon: <Building2 className="h-4 w-4" />,
+          },
+          {
             label: "Buyer Universes",
             href: "/admin/buyers/universes",
             icon: <Globe2 className="h-4 w-4" />,
