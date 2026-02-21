@@ -1,241 +1,262 @@
-import { serve } from "https://deno.land/std@0.208.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.47.10";
 import { getCorsHeaders, corsPreflightResponse } from "../_shared/cors.ts";
 import { requireAdmin } from "../_shared/auth.ts";
 
 /**
  * auto-create-firm-on-approval
- *
- * Called when admin approves a buyer. Ensures the buyer has:
- *   1. A firm_agreements row (creates one if missing)
- *   2. A firm_members link to that firm
- *   3. A prepared DocuSeal NDA submission (embedded, not emailed)
- *
- * Input: { user_id }
- * The function looks up the user's profile to get company/email info.
+ * When a connection request is approved, this function:
+ * 1. Creates (or finds) a firm_agreement for the buyer's company
+ * 2. Creates a firm_member linking the user to the firm
+ * 3. Creates a DocuSeal NDA submission for e-signing
  */
 
 interface ApprovalRequest {
-  user_id: string;
+  connectionRequestId: string;
 }
 
-const handler = async (req: Request): Promise<Response> => {
+serve(async (req: Request) => {
   const corsHeaders = getCorsHeaders(req);
 
   if (req.method === "OPTIONS") {
     return corsPreflightResponse(req);
   }
 
-  const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-  const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey);
-
-  // Auth check
-  const auth = await requireAdmin(req, supabaseAdmin);
-  if (!auth.isAdmin) {
-    return new Response(
-      JSON.stringify({ error: auth.error }),
-      {
-        status: auth.authenticated ? 403 : 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      }
-    );
-  }
-
   try {
-    const body: ApprovalRequest = await req.json();
-    const { user_id } = body;
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
 
-    if (!user_id) {
+    // Admin-only
+    const auth = await requireAdmin(req, supabaseAdmin);
+    if (!auth.isAdmin) {
+      return new Response(JSON.stringify({ error: auth.error }), {
+        status: auth.authenticated ? 403 : 401,
+        headers: { "Content-Type": "application/json", ...corsHeaders },
+      });
+    }
+
+    const { connectionRequestId }: ApprovalRequest = await req.json();
+
+    if (!connectionRequestId) {
       return new Response(
-        JSON.stringify({ error: "Missing required field: user_id" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        JSON.stringify({ error: "connectionRequestId is required" }),
+        { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
       );
     }
 
-    // 1. Get buyer profile
-    const { data: profile, error: profileError } = await supabaseAdmin
-      .from("profiles")
-      .select("id, email, first_name, last_name, company_name, company, buyer_type")
-      .eq("id", user_id)
+    // Fetch the connection request with user profile
+    const { data: cr, error: crError } = await supabaseAdmin
+      .from("connection_requests")
+      .select(`
+        id, user_id, lead_company, lead_email, lead_name, lead_role,
+        listing_id, firm_id, status
+      `)
+      .eq("id", connectionRequestId)
       .single();
 
-    if (profileError || !profile) {
+    if (crError || !cr) {
       return new Response(
-        JSON.stringify({ error: "User profile not found" }),
-        { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        JSON.stringify({ error: "Connection request not found" }),
+        { status: 404, headers: { "Content-Type": "application/json", ...corsHeaders } }
       );
     }
 
-    const companyName = profile.company_name || profile.company || `${profile.first_name} ${profile.last_name}`.trim();
-    const emailDomain = profile.email?.split("@")[1] || null;
-    const normalizedName = companyName.toLowerCase().replace(/[^a-z0-9]/g, "");
+    console.log("📝 Processing approval for connection request:", {
+      id: cr.id,
+      company: cr.lead_company,
+      email: cr.lead_email,
+      existingFirmId: cr.firm_id,
+    });
 
-    // 2. Check if firm already exists (match by email domain or normalized company name)
-    let firmId: string | null = null;
+    let firmId = cr.firm_id;
+    const companyName = cr.lead_company || "Unknown Company";
+    const normalizedName = companyName.toLowerCase().trim().replace(/[^a-z0-9\s]/g, "");
+    const emailDomain = cr.lead_email?.split("@")[1] || null;
 
-    // Try email domain match first
-    if (emailDomain) {
-      const { data: existingByDomain } = await supabaseAdmin
-        .from("firm_agreements")
-        .select("id")
-        .eq("email_domain", emailDomain)
-        .limit(1)
-        .maybeSingle();
-
-      if (existingByDomain) {
-        firmId = existingByDomain.id;
-      }
-    }
-
-    // Try normalized company name match
-    if (!firmId && normalizedName) {
-      const { data: existingByName } = await supabaseAdmin
-        .from("firm_agreements")
-        .select("id")
-        .eq("normalized_company_name", normalizedName)
-        .limit(1)
-        .maybeSingle();
-
-      if (existingByName) {
-        firmId = existingByName.id;
-      }
-    }
-
-    // 3. Create firm if none exists
+    // Step 1: Find or create firm
     if (!firmId) {
-      const { data: newFirm, error: createError } = await supabaseAdmin
-        .from("firm_agreements")
-        .insert({
-          primary_company_name: companyName,
-          normalized_company_name: normalizedName,
-          email_domain: emailDomain,
-          company_name_variations: [companyName],
-          nda_signed: false,
-          fee_agreement_signed: false,
-          nda_docuseal_status: "not_sent",
-          fee_docuseal_status: "not_sent",
-        })
-        .select("id")
-        .single();
+      // Try to find existing firm by email domain or company name
+      let existingFirm = null;
 
-      if (createError) {
-        console.error("[auto-create-firm] Failed to create firm:", createError);
-        return new Response(
-          JSON.stringify({ error: "Failed to create firm agreement record" }),
-          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
+      if (emailDomain) {
+        const { data } = await supabaseAdmin
+          .from("firm_agreements")
+          .select("id")
+          .eq("email_domain", emailDomain)
+          .maybeSingle();
+        existingFirm = data;
       }
 
-      firmId = newFirm.id;
-      console.log(`[auto-create-firm] Created firm ${firmId} for ${companyName}`);
-    }
+      if (!existingFirm) {
+        const { data } = await supabaseAdmin
+          .from("firm_agreements")
+          .select("id")
+          .eq("normalized_company_name", normalizedName)
+          .maybeSingle();
+        existingFirm = data;
+      }
 
-    // 4. Check if firm_members link already exists
-    const { data: existingMember } = await supabaseAdmin
-      .from("firm_members")
-      .select("id")
-      .eq("firm_id", firmId)
-      .eq("user_id", user_id)
-      .maybeSingle();
-
-    if (!existingMember) {
-      const { error: memberError } = await supabaseAdmin
-        .from("firm_members")
-        .insert({
-          firm_id: firmId,
-          user_id: user_id,
-          member_type: "marketplace_user",
-          is_primary_contact: true,
-        });
-
-      if (memberError) {
-        console.error("[auto-create-firm] Failed to create firm member:", memberError);
-        // Non-fatal - continue
+      if (existingFirm) {
+        firmId = existingFirm.id;
+        console.log("✅ Found existing firm:", firmId);
       } else {
-        console.log(`[auto-create-firm] Linked user ${user_id} to firm ${firmId}`);
+        // Create new firm
+        const { data: newFirm, error: firmError } = await supabaseAdmin
+          .from("firm_agreements")
+          .insert({
+            primary_company_name: companyName,
+            normalized_company_name: normalizedName,
+            email_domain: emailDomain,
+            nda_signed: false,
+            fee_agreement_signed: false,
+          })
+          .select("id")
+          .single();
+
+        if (firmError) {
+          console.error("❌ Failed to create firm:", firmError);
+          return new Response(
+            JSON.stringify({ error: "Failed to create firm agreement" }),
+            { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } }
+          );
+        }
+
+        firmId = newFirm.id;
+        console.log("✅ Created new firm:", firmId);
       }
+
+      // Link firm to connection request
+      await supabaseAdmin
+        .from("connection_requests")
+        .update({ firm_id: firmId, updated_at: new Date().toISOString() })
+        .eq("id", connectionRequestId);
     }
 
-    // 5. Check if NDA needs DocuSeal submission
-    const { data: firm } = await supabaseAdmin
-      .from("firm_agreements")
-      .select("nda_signed, nda_docuseal_status, nda_docuseal_submission_id")
-      .eq("id", firmId)
-      .single();
+    // Step 2: Create firm_member if user exists
+    if (cr.user_id) {
+      const { data: existingMember } = await supabaseAdmin
+        .from("firm_members")
+        .select("id")
+        .eq("firm_id", firmId)
+        .eq("user_id", cr.user_id)
+        .maybeSingle();
 
-    let embedSrc: string | null = null;
-
-    if (firm && !firm.nda_signed && !firm.nda_docuseal_submission_id) {
-      // Prepare embedded NDA submission (don't send email - buyer will sign in-app)
-      const docusealApiKey = Deno.env.get("DOCUSEAL_API_KEY");
-      const ndaTemplateId = Deno.env.get("DOCUSEAL_NDA_TEMPLATE_ID");
-
-      if (docusealApiKey && ndaTemplateId) {
-        try {
-          const externalId = `firm_${firmId}_nda`;
-          const docusealResponse = await fetch("https://api.docuseal.com/submissions", {
-            method: "POST",
-            headers: {
-              "X-Auth-Token": docusealApiKey,
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              template_id: parseInt(ndaTemplateId),
-              send_email: false,
-              submitters: [
-                {
-                  role: "First Party",
-                  email: profile.email,
-                  name: `${profile.first_name || ""} ${profile.last_name || ""}`.trim() || profile.email,
-                  external_id: externalId,
-                },
-              ],
-            }),
+      if (!existingMember) {
+        const { error: memberError } = await supabaseAdmin
+          .from("firm_members")
+          .insert({
+            firm_id: firmId,
+            user_id: cr.user_id,
+            role: cr.lead_role || "member",
           });
 
-          if (docusealResponse.ok) {
-            const submitters = await docusealResponse.json();
-            const submitter = Array.isArray(submitters) ? submitters[0] : submitters;
-            embedSrc = submitter.embed_src;
-
-            await supabaseAdmin
-              .from("firm_agreements")
-              .update({
-                nda_docuseal_submission_id: String(submitter.submission_id || submitter.id),
-                nda_docuseal_status: "sent",
-                updated_at: new Date().toISOString(),
-              })
-              .eq("id", firmId);
-
-            console.log(`[auto-create-firm] Prepared NDA submission for firm ${firmId}`);
-          } else {
-            console.error("[auto-create-firm] DocuSeal API error:", await docusealResponse.text());
-          }
-        } catch (docusealError: any) {
-          console.error("[auto-create-firm] DocuSeal error:", docusealError.message);
-          // Non-fatal - admin can trigger manually later
+        if (memberError) {
+          console.error("⚠️ Failed to create firm member:", memberError);
+        } else {
+          console.log("✅ Created firm member for user:", cr.user_id);
         }
       }
     }
 
+    // Step 3: Create DocuSeal NDA submission
+    let ndaSubmission = null;
+    const docusealApiKey = Deno.env.get("DOCUSEAL_API_KEY");
+    const ndaTemplateId = Deno.env.get("DOCUSEAL_NDA_TEMPLATE_ID");
+
+    if (docusealApiKey && ndaTemplateId && cr.lead_email) {
+      try {
+        const submissionPayload = {
+          template_id: parseInt(ndaTemplateId),
+          send_email: true, // Send via email on approval
+          submitters: [
+            {
+              role: "Signer",
+              email: cr.lead_email,
+              name: cr.lead_name || cr.lead_email.split("@")[0],
+              external_id: firmId,
+              fields: [
+                { name: "Company Name", default_value: companyName },
+                { name: "Date", default_value: new Date().toISOString().split("T")[0] },
+              ],
+            },
+          ],
+        };
+
+        const docusealResponse = await fetch("https://api.docuseal.com/submissions", {
+          method: "POST",
+          headers: {
+            "X-Auth-Token": docusealApiKey,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(submissionPayload),
+        });
+
+        if (docusealResponse.ok) {
+          const result = await docusealResponse.json();
+          const submitter = Array.isArray(result) ? result[0] : result;
+          const submissionId = String(submitter.submission_id || submitter.id);
+
+          ndaSubmission = { submissionId, slug: submitter.slug };
+
+          // Update firm with NDA submission
+          await supabaseAdmin
+            .from("firm_agreements")
+            .update({
+              nda_docuseal_submission_id: submissionId,
+              nda_docuseal_status: "pending",
+              nda_email_sent: true,
+              nda_email_sent_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+            })
+            .eq("id", firmId);
+
+          // Also update legacy fields on connection request
+          await supabaseAdmin
+            .from("connection_requests")
+            .update({
+              lead_nda_email_sent: true,
+              lead_nda_email_sent_at: new Date().toISOString(),
+              lead_nda_email_sent_by: auth.userId,
+              updated_at: new Date().toISOString(),
+            })
+            .eq("id", connectionRequestId);
+
+          // Log it
+          await supabaseAdmin.from("docuseal_webhook_log").insert({
+            event_type: "nda_auto_created_on_approval",
+            submission_id: submissionId,
+            document_type: "nda",
+            external_id: firmId,
+            raw_payload: { connection_request_id: connectionRequestId, created_by: auth.userId },
+          });
+
+          console.log("✅ DocuSeal NDA submission created:", submissionId);
+        } else {
+          const errorText = await docusealResponse.text();
+          console.error("❌ DocuSeal NDA creation failed:", errorText);
+        }
+      } catch (docuError) {
+        console.error("⚠️ DocuSeal NDA creation error:", docuError);
+      }
+    } else {
+      console.log("ℹ️ Skipping DocuSeal NDA — missing API key, template, or email");
+    }
+
     return new Response(
       JSON.stringify({
-        firm_id: firmId,
-        firm_created: !firmId,
-        member_linked: true,
-        nda_submission_prepared: !!embedSrc,
-        embed_src: embedSrc,
+        success: true,
+        firmId,
+        firmCreated: !cr.firm_id,
+        ndaSubmission,
       }),
-      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
     );
   } catch (error: any) {
-    console.error("[auto-create-firm] Error:", error);
+    console.error("❌ Error in auto-create-firm-on-approval:", error);
     return new Response(
-      JSON.stringify({ error: error.message || "Internal server error" }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      JSON.stringify({ error: error.message }),
+      { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } }
     );
   }
-};
-
-serve(handler);
+});

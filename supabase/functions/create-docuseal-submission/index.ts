@@ -1,170 +1,192 @@
-import { serve } from "https://deno.land/std@0.208.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.47.10";
 import { getCorsHeaders, corsPreflightResponse } from "../_shared/cors.ts";
 import { requireAdmin } from "../_shared/auth.ts";
 
 /**
  * create-docuseal-submission
- *
- * Creates a DocuSeal signing submission for NDA or Fee Agreement.
- * Supports two flows:
- *   - Embedded (send_email=false): Returns embed_src for inline signing
- *   - Email (send_email=true): DocuSeal sends email with signing link
- *
- * Input: { firm_id, document_type, buyer_email, buyer_name, send_email }
- * Output: { embed_src, submission_id, submitter_id }
+ * Creates a DocuSeal submission for NDA or Fee Agreement signing.
+ * Supports both embedded (iframe) and email delivery modes.
  */
 
 interface CreateSubmissionRequest {
-  firm_id: string;
-  document_type: "nda" | "fee_agreement";
-  buyer_email: string;
-  buyer_name: string;
-  send_email: boolean;
+  firmId: string;
+  documentType: "nda" | "fee_agreement";
+  signerEmail: string;
+  signerName: string;
+  deliveryMode?: "embedded" | "email"; // default: embedded
+  metadata?: Record<string, string>; // prefill fields
 }
 
-const handler = async (req: Request): Promise<Response> => {
+serve(async (req: Request) => {
   const corsHeaders = getCorsHeaders(req);
 
   if (req.method === "OPTIONS") {
     return corsPreflightResponse(req);
   }
 
-  const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-  const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey);
-
-  // Auth check
-  const auth = await requireAdmin(req, supabaseAdmin);
-  if (!auth.isAdmin) {
-    return new Response(
-      JSON.stringify({ error: auth.error }),
-      {
-        status: auth.authenticated ? 403 : 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      }
-    );
-  }
-
   try {
-    const body: CreateSubmissionRequest = await req.json();
-    const { firm_id, document_type, buyer_email, buyer_name, send_email } = body;
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Validate required fields
-    if (!firm_id || !document_type || !buyer_email) {
+    // Admin-only
+    const auth = await requireAdmin(req, supabaseAdmin);
+    if (!auth.isAdmin) {
+      return new Response(JSON.stringify({ error: auth.error }), {
+        status: auth.authenticated ? 403 : 401,
+        headers: { "Content-Type": "application/json", ...corsHeaders },
+      });
+    }
+
+    const {
+      firmId,
+      documentType,
+      signerEmail,
+      signerName,
+      deliveryMode = "embedded",
+      metadata = {},
+    }: CreateSubmissionRequest = await req.json();
+
+    if (!firmId || !documentType || !signerEmail || !signerName) {
       return new Response(
-        JSON.stringify({ error: "Missing required fields: firm_id, document_type, buyer_email" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        JSON.stringify({ error: "Missing required fields: firmId, documentType, signerEmail, signerName" }),
+        { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
       );
     }
 
-    if (!["nda", "fee_agreement"].includes(document_type)) {
-      return new Response(
-        JSON.stringify({ error: "document_type must be 'nda' or 'fee_agreement'" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    // Get DocuSeal config
+    // Resolve template ID
     const docusealApiKey = Deno.env.get("DOCUSEAL_API_KEY");
     if (!docusealApiKey) {
       return new Response(
-        JSON.stringify({ error: "DocuSeal API key not configured" }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        JSON.stringify({ error: "DOCUSEAL_API_KEY not configured" }),
+        { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } }
       );
     }
 
-    const templateId = document_type === "nda"
-      ? Deno.env.get("DOCUSEAL_NDA_TEMPLATE_ID")
-      : Deno.env.get("DOCUSEAL_FEE_TEMPLATE_ID");
+    const templateId =
+      documentType === "nda"
+        ? Deno.env.get("DOCUSEAL_NDA_TEMPLATE_ID")
+        : Deno.env.get("DOCUSEAL_FEE_TEMPLATE_ID");
 
     if (!templateId) {
       return new Response(
-        JSON.stringify({ error: `DocuSeal template ID not configured for ${document_type}` }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        JSON.stringify({ error: `Template ID not configured for ${documentType}` }),
+        { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } }
       );
     }
 
-    // Create DocuSeal submission
-    const externalId = `firm_${firm_id}_${document_type}`;
+    console.log(`📝 Creating DocuSeal submission`, {
+      firmId,
+      documentType,
+      signerEmail,
+      deliveryMode,
+      templateId,
+    });
 
+    // Look up firm info for prefill
+    const { data: firm } = await supabaseAdmin
+      .from("firm_agreements")
+      .select("primary_company_name, email_domain, website_domain")
+      .eq("id", firmId)
+      .single();
+
+    // Build DocuSeal submission payload
+    const submissionPayload: any = {
+      template_id: parseInt(templateId),
+      send_email: deliveryMode === "email",
+      submitters: [
+        {
+          role: "Signer",
+          email: signerEmail,
+          name: signerName,
+          external_id: firmId,
+          fields: [
+            ...(firm?.primary_company_name
+              ? [{ name: "Company Name", default_value: firm.primary_company_name }]
+              : []),
+            ...(metadata.date
+              ? [{ name: "Date", default_value: metadata.date }]
+              : [{ name: "Date", default_value: new Date().toISOString().split("T")[0] }]),
+            ...Object.entries(metadata)
+              .filter(([k]) => k !== "date")
+              .map(([name, value]) => ({ name, default_value: value })),
+          ],
+        },
+      ],
+    };
+
+    // Call DocuSeal API
     const docusealResponse = await fetch("https://api.docuseal.com/submissions", {
       method: "POST",
       headers: {
         "X-Auth-Token": docusealApiKey,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({
-        template_id: parseInt(templateId),
-        send_email: send_email,
-        submitters: [
-          {
-            role: "First Party",
-            email: buyer_email,
-            name: buyer_name || buyer_email,
-            external_id: externalId,
-          },
-        ],
-      }),
+      body: JSON.stringify(submissionPayload),
     });
 
     if (!docusealResponse.ok) {
       const errorText = await docusealResponse.text();
-      console.error("[create-docuseal-submission] DocuSeal API error:", docusealResponse.status, errorText);
+      console.error("❌ DocuSeal API error:", errorText);
       return new Response(
-        JSON.stringify({ error: "Failed to create DocuSeal submission", details: errorText }),
-        { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        JSON.stringify({ error: "DocuSeal API error", details: errorText }),
+        { status: 502, headers: { "Content-Type": "application/json", ...corsHeaders } }
       );
     }
 
-    const submitters = await docusealResponse.json();
-    const submitter = Array.isArray(submitters) ? submitters[0] : submitters;
+    const docusealResult = await docusealResponse.json();
+    console.log("✅ DocuSeal submission created:", docusealResult);
+
+    // The API returns an array of submitters; get the first one
+    const submitter = Array.isArray(docusealResult)
+      ? docusealResult[0]
+      : docusealResult;
+
+    const submissionId = String(submitter.submission_id || submitter.id);
+    const embedSrc = submitter.embed_src || null;
+    const slug = submitter.slug || null;
 
     // Update firm_agreements with submission info
-    const statusColumn = document_type === "nda" ? "nda_docuseal_status" : "fee_docuseal_status";
-    const submissionIdColumn = document_type === "nda" ? "nda_docuseal_submission_id" : "fee_docuseal_submission_id";
-    const emailSentColumn = document_type === "nda" ? "nda_email_sent" : "fee_agreement_email_sent";
-    const emailSentAtColumn = document_type === "nda" ? "nda_email_sent_at" : "fee_agreement_email_sent_at";
-
-    const updateData: Record<string, unknown> = {
-      [submissionIdColumn]: String(submitter.submission_id || submitter.id),
-      [statusColumn]: "sent",
-      updated_at: new Date().toISOString(),
-    };
-
-    if (send_email) {
-      updateData[emailSentColumn] = true;
-      updateData[emailSentAtColumn] = new Date().toISOString();
-    }
-
+    const columnPrefix = documentType === "nda" ? "nda" : "fee";
     const { error: updateError } = await supabaseAdmin
       .from("firm_agreements")
-      .update(updateData)
-      .eq("id", firm_id);
+      .update({
+        [`${columnPrefix}_docuseal_submission_id`]: submissionId,
+        [`${columnPrefix}_docuseal_status`]: "pending",
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", firmId);
 
     if (updateError) {
-      console.error("[create-docuseal-submission] DB update error:", updateError);
-      // Don't fail the request - the submission was created successfully
+      console.error("⚠️ Failed to update firm_agreements:", updateError);
     }
 
-    console.log(`[create-docuseal-submission] Created ${document_type} submission for firm ${firm_id}, send_email=${send_email}`);
+    // Log the webhook event
+    await supabaseAdmin.from("docuseal_webhook_log").insert({
+      event_type: "submission_created",
+      submission_id: submissionId,
+      document_type: documentType,
+      external_id: firmId,
+      raw_payload: { ...submitter, created_by: auth.userId },
+    });
 
     return new Response(
       JSON.stringify({
-        embed_src: submitter.embed_src,
-        submission_id: submitter.submission_id || submitter.id,
-        submitter_id: submitter.id,
-        status: "sent",
+        success: true,
+        submissionId,
+        embedSrc,
+        slug,
+        documentType,
+        deliveryMode,
       }),
-      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
     );
   } catch (error: any) {
-    console.error("[create-docuseal-submission] Error:", error);
+    console.error("❌ Error in create-docuseal-submission:", error);
     return new Response(
-      JSON.stringify({ error: error.message || "Internal server error" }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      JSON.stringify({ error: error.message }),
+      { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } }
     );
   }
-};
-
-serve(handler);
+});
