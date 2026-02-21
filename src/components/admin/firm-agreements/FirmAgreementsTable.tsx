@@ -17,15 +17,16 @@ import {
   DropdownMenuTrigger,
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
-import { useFirmAgreements, useFirmMembers, useAllFirmMembersForSearch, type FirmAgreement } from '@/hooks/admin/use-firm-agreements';
+import { useFirmAgreements, useFirmMembers, useAllFirmMembersForSearch, type FirmAgreement, type AgreementStatus } from '@/hooks/admin/use-firm-agreements';
 import { FirmAgreementToggles } from './FirmAgreementToggles';
+import { AgreementStatusDropdown } from './AgreementStatusDropdown';
 import { FirmBulkActions } from './FirmBulkActions';
 import { FirmManagementTools } from './FirmManagementTools';
 import { FirmMembersTable } from './FirmMembersTable';
 import { formatDistanceToNow } from 'date-fns';
 import { cn } from '@/lib/utils';
 
-type FilterTab = 'all' | 'both_signed' | 'partial' | 'none';
+type FilterTab = 'all' | 'both_signed' | 'partial' | 'none' | 'redlined' | 'sent';
 
 const BUYER_TYPE_LABELS: Record<string, string> = {
   privateEquity: 'Private Equity',
@@ -78,11 +79,16 @@ export function FirmAgreementsTable() {
 
     const matchesSearch = firmMatch || embeddedMemberMatch || indexedMemberMatch;
 
-    const matchesFilter = 
+    const ndaStatus = (firm.nda_status || (firm.nda_signed ? 'signed' : 'not_started')) as AgreementStatus;
+    const feeStatus = (firm.fee_agreement_status || (firm.fee_agreement_signed ? 'signed' : 'not_started')) as AgreementStatus;
+
+    const matchesFilter =
       activeTab === 'all' ||
-      (activeTab === 'both_signed' && firm.fee_agreement_signed && firm.nda_signed) ||
-      (activeTab === 'partial' && (firm.fee_agreement_signed !== firm.nda_signed)) ||
-      (activeTab === 'none' && !firm.fee_agreement_signed && !firm.nda_signed);
+      (activeTab === 'both_signed' && ndaStatus === 'signed' && feeStatus === 'signed') ||
+      (activeTab === 'partial' && (ndaStatus === 'signed') !== (feeStatus === 'signed')) ||
+      (activeTab === 'none' && ndaStatus === 'not_started' && feeStatus === 'not_started') ||
+      (activeTab === 'redlined' && (ndaStatus === 'redlined' || feeStatus === 'redlined' || ndaStatus === 'under_review' || feeStatus === 'under_review')) ||
+      (activeTab === 'sent' && (ndaStatus === 'sent' || feeStatus === 'sent'));
 
     // Firm type filter - check if any member has the selected buyer_type
     const matchesFirmType = firmTypeFilter === 'all' || 
@@ -94,11 +100,18 @@ export function FirmAgreementsTable() {
     return matchesSearch && matchesFilter && matchesFirmType;
   });
 
+  const getStatus = (f: FirmAgreement, type: 'nda' | 'fee'): AgreementStatus => {
+    if (type === 'nda') return (f.nda_status || (f.nda_signed ? 'signed' : 'not_started')) as AgreementStatus;
+    return (f.fee_agreement_status || (f.fee_agreement_signed ? 'signed' : 'not_started')) as AgreementStatus;
+  };
+
   const stats = {
     total: firms?.length || 0,
-    bothSigned: firms?.filter(f => f.fee_agreement_signed && f.nda_signed).length || 0,
-    partial: firms?.filter(f => f.fee_agreement_signed !== f.nda_signed).length || 0,
-    none: firms?.filter(f => !f.fee_agreement_signed && !f.nda_signed).length || 0,
+    bothSigned: firms?.filter(f => getStatus(f, 'nda') === 'signed' && getStatus(f, 'fee') === 'signed').length || 0,
+    partial: firms?.filter(f => (getStatus(f, 'nda') === 'signed') !== (getStatus(f, 'fee') === 'signed')).length || 0,
+    none: firms?.filter(f => getStatus(f, 'nda') === 'not_started' && getStatus(f, 'fee') === 'not_started').length || 0,
+    redlined: firms?.filter(f => ['redlined', 'under_review'].includes(getStatus(f, 'nda')) || ['redlined', 'under_review'].includes(getStatus(f, 'fee'))).length || 0,
+    sent: firms?.filter(f => getStatus(f, 'nda') === 'sent' || getStatus(f, 'fee') === 'sent').length || 0,
   };
 
   const handleExport = () => {
@@ -220,6 +233,18 @@ export function FirmAgreementsTable() {
             count={stats.partial}
             active={activeTab === 'partial'}
             onClick={() => setActiveTab('partial')}
+          />
+          <FilterTab
+            label="Sent"
+            count={stats.sent}
+            active={activeTab === 'sent'}
+            onClick={() => setActiveTab('sent')}
+          />
+          <FilterTab
+            label="Redlined / Review"
+            count={stats.redlined}
+            active={activeTab === 'redlined'}
+            onClick={() => setActiveTab('redlined')}
           />
           <FilterTab
             label="No Agreements"
@@ -436,19 +461,19 @@ function FirmRow({
 
         {/* Fee Agreement Status */}
         <div className="col-span-2">
-          <FirmAgreementToggles 
-            firm={firm} 
-            members={members || []} 
-            type="fee"
+          <AgreementStatusDropdown
+            firm={firm}
+            members={members || []}
+            agreementType="fee_agreement"
           />
         </div>
 
         {/* NDA Status */}
         <div className="col-span-2">
-          <FirmAgreementToggles 
-            firm={firm} 
-            members={members || []} 
-            type="nda"
+          <AgreementStatusDropdown
+            firm={firm}
+            members={members || []}
+            agreementType="nda"
           />
         </div>
 

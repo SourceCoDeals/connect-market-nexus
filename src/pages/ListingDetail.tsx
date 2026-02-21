@@ -44,6 +44,7 @@ import { InternalCompanyInfoDisplay } from "@/components/admin/InternalCompanyIn
 import { BuyerDataRoom } from "@/components/marketplace/BuyerDataRoom";
 import { NdaGateModal } from "@/components/docuseal/NdaGateModal";
 import { useBuyerNdaStatus } from "@/hooks/admin/use-docuseal";
+import { AgreementStatusBanner } from "@/components/marketplace/AgreementStatusBanner";
 import { useQueryClient } from "@tanstack/react-query";
 
 const ListingDetail = () => {
@@ -201,6 +202,13 @@ const ListingDetail = () => {
         </Link>
       </div>
       
+      {/* Agreement Status Banners (buyer-facing) */}
+      {!isAdmin && user && (
+        <div className="max-w-7xl mx-auto px-8 mb-4">
+          <AgreementStatusBanner />
+        </div>
+      )}
+
       {/* Main Content */}
       <div className="max-w-5xl mx-auto px-4 py-8">
         <div className="grid grid-cols-1 lg:grid-cols-10 gap-[42px]">
