@@ -1,19 +1,17 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import {
-import { getCorsHeaders, corsPreflightResponse } from "../_shared/cors.ts";
+import { DEFAULT_GEMINI_MODEL, callGeminiWithTool } from "../_shared/ai-providers.ts";
 
-  DEFAULT_GEMINI_MODEL,
-  callGeminiWithTool
-} from "../_shared/ai-providers.ts";
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+};
 
 interface ExtractTranscriptRequest {
-  // New API: pass text directly (preferred for buyer_transcripts)
   buyerId?: string;
   transcriptText?: string;
   source?: string;
-  transcriptId?: string; // ID of buyer_transcripts record to update
-  // Legacy API: lookup from call_transcripts table
+  transcriptId?: string;
   transcript_id?: string;
   entity_type?: 'deal' | 'buyer' | 'both';
 }
@@ -69,10 +67,8 @@ interface BuyerInsights {
 }
 
 serve(async (req) => {
-  const corsHeaders = getCorsHeaders(req);
-
   if (req.method === "OPTIONS") {
-    return corsPreflightResponse(req);
+    return new Response(null, { headers: corsHeaders });
   }
 
   try {
@@ -94,13 +90,10 @@ serve(async (req) => {
     const transcriptIdForTracking: string | undefined = transcriptId || transcript_id;
     const buyerTranscriptIdToUpdate: string | undefined = transcriptId;
 
-    // NEW API: Direct text passed from buyer_transcripts flow
     if (transcriptText && buyerId) {
       console.log(`[TranscriptExtraction] Processing direct text for buyer ${buyerId}`);
       transcriptTextToProcess = transcriptText;
-    }
-    // LEGACY API: Lookup from call_transcripts table
-    else if (transcript_id) {
+    } else if (transcript_id) {
       const { data: transcript, error: transcriptError } = await supabase
         .from('call_transcripts')
         .select('*')
@@ -118,7 +111,6 @@ serve(async (req) => {
       buyerIdToUpdate = transcript.buyer_id;
       listingIdToUpdate = transcript.listing_id;
 
-      // Update status to processing
       await supabase
         .from('call_transcripts')
         .update({ processing_status: 'processing', processed_at: new Date().toISOString() })
@@ -133,48 +125,32 @@ serve(async (req) => {
     const insights: Record<string, unknown> = {};
     const keyQuotes: string[] = [];
 
-    // Detect CEO involvement
     const ceoDetected = detectCEOInvolvement(transcriptTextToProcess);
     if (ceoDetected) {
       console.log(`[TranscriptExtraction] CEO detected in transcript`);
       insights.ceo_detected = true;
 
       if (buyerIdToUpdate && listingIdToUpdate) {
-        await createEngagementSignal(
-          supabase,
-          listingIdToUpdate,
-          buyerIdToUpdate,
-          'ceo_involvement',
-          40
-        );
+        await createEngagementSignal(supabase, listingIdToUpdate, buyerIdToUpdate, 'ceo_involvement', 40);
       }
     }
 
-    // Extract based on entity type
     if ((entity_type === 'deal' || entity_type === 'both') && listingIdToUpdate) {
       console.log(`[TranscriptExtraction] Extracting deal insights`);
       const dealInsights = await extractDealInsights(transcriptTextToProcess, GEMINI_API_KEY);
       insights.deal = dealInsights;
-
-      // Update listing with extracted data (source priority: transcript = 100)
-      await updateListingFromTranscript(
-        supabase,
-        listingIdToUpdate,
-        dealInsights,
-        transcriptIdForTracking || 'direct'
-      );
+      await updateListingFromTranscript(supabase, listingIdToUpdate, dealInsights, transcriptIdForTracking || 'direct');
     }
 
     if ((entity_type === 'buyer' || entity_type === 'both') && buyerIdToUpdate) {
       console.log(`[TranscriptExtraction] Extracting buyer insights for ${buyerIdToUpdate}`);
-      
-      // Fetch buyer context so the prompt can distinguish platform vs PE firm
+
       const { data: buyerContext } = await supabase
         .from('remarketing_buyers')
         .select('company_name, pe_firm_name')
         .eq('id', buyerIdToUpdate)
         .single();
-      
+
       const buyerInsights = await extractBuyerInsights(
         transcriptTextToProcess,
         GEMINI_API_KEY,
@@ -183,15 +159,8 @@ serve(async (req) => {
       );
       insights.buyer = buyerInsights;
 
-      // Update buyer with extracted data
-      await updateBuyerFromTranscript(
-        supabase,
-        buyerIdToUpdate,
-        buyerInsights,
-        transcriptIdForTracking || 'direct'
-      );
+      await updateBuyerFromTranscript(supabase, buyerIdToUpdate, buyerInsights, transcriptIdForTracking || 'direct');
 
-      // Update buyer_transcripts table if transcriptId was provided
       if (buyerTranscriptIdToUpdate) {
         const { error: transcriptUpdateError } = await supabase
           .from('buyer_transcripts')
@@ -210,7 +179,6 @@ serve(async (req) => {
       }
     }
 
-    // Update call_transcripts record if using legacy API
     if (transcriptIdForTracking && transcript_id) {
       const { error: updateError } = await supabase
         .from('call_transcripts')
@@ -247,7 +215,6 @@ serve(async (req) => {
   }
 });
 
-// Detect CEO/owner involvement in transcript
 function detectCEOInvolvement(transcript: string): boolean {
   const ceoPatterns = [
     /\bCEO\b/i,
@@ -259,18 +226,10 @@ function detectCEOInvolvement(transcript: string): boolean {
     /\bI (own|founded|built) (the|this) (business|company)/i,
     /\bI('m| am) the owner/i,
   ];
-
   return ceoPatterns.some(pattern => pattern.test(transcript));
 }
 
-// Create engagement signal for CEO involvement
-async function createEngagementSignal(
-  supabase: any,
-  listingId: string,
-  buyerId: string,
-  signalType: string,
-  signalValue: number
-) {
+async function createEngagementSignal(supabase: any, listingId: string, buyerId: string, signalType: string, signalValue: number) {
   const { error } = await supabase
     .from('engagement_signals')
     .insert({
@@ -281,17 +240,12 @@ async function createEngagementSignal(
       source: 'system_detected',
       notes: 'Auto-detected from call transcript',
     });
-
   if (error) {
     console.error("Failed to create engagement signal:", error);
   } else {
     console.log(`[EngagementSignal] Created ${signalType} signal (+${signalValue} pts)`);
   }
 }
-
-// ============================================================================
-// DEAL INSIGHTS EXTRACTION (Spec Section 4: Generic Transcript — Deal Insights)
-// ============================================================================
 
 async function extractDealInsights(transcriptText: string, apiKey: string): Promise<DealInsights> {
   const systemPrompt = `You are an M&A analyst extracting structured deal information from call transcripts. Your job is to pull out every financial metric, owner detail, and deal-relevant data point.
@@ -421,10 +375,6 @@ RULES:
   return (result.data as DealInsights) || {};
 }
 
-// ============================================================================
-// BUYER THESIS EXTRACTION (Spec Section 3: Generic Transcript — Buyer Thesis)
-// ============================================================================
-
 async function extractBuyerInsights(
   transcriptText: string,
   apiKey: string,
@@ -447,7 +397,6 @@ Some transcripts are calls where the BUYER is EVALUATING a potential acquisition
 - DO NOT extract the target company's data as if it belongs to the buyer
 - ONLY extract what you learn about the BUYER's acquisition criteria, strategy, and preferences
 - If the call is primarily about evaluating a target, set thesis_confidence to "insufficient" and leave services_offered, business_summary, operating_locations, and geographic_footprint EMPTY
-- The target's services, location, and financials are NOT the buyer's — they belong to the target
 
 DISTINGUISHING PLATFORM vs PE FIRM — USE THESE CONTEXTUAL SIGNALS:
 
@@ -575,7 +524,6 @@ If the transcript is primarily an evaluation of a target company (not a discussi
 
   const insights = (result.data as BuyerInsights) || {};
 
-  // Validate: if thesis_confidence is insufficient, ensure missing_information is populated
   if (insights.thesis_confidence === 'insufficient' && (!insights.missing_information || insights.missing_information.length === 0)) {
     insights.missing_information = [
       "What specific services/verticals are you targeting for add-ons?",
@@ -586,14 +534,11 @@ If the transcript is primarily an evaluation of a target company (not a discussi
     ];
   }
 
-  // CRITICAL: If thesis_confidence is insufficient, force-clear operational fields
-  // These are likely from the TARGET company, not the buyer
   if (insights.thesis_confidence === 'insufficient') {
     insights.business_summary = '';
     insights.services_offered = [];
     insights.operating_locations = [];
     insights.geographic_footprint = [];
-    // Keep thesis_summary blank too - insufficient means we don't have a real thesis
     insights.thesis_summary = '';
     insights.strategic_priorities = [];
   }
@@ -601,69 +546,32 @@ If the transcript is primarily an evaluation of a target company (not a discussi
   return insights;
 }
 
-// Update listing with extracted transcript data
-async function updateListingFromTranscript(
-  supabase: any,
-  listingId: string,
-  insights: DealInsights,
-  transcriptId: string
-) {
+async function updateListingFromTranscript(supabase: any, listingId: string, insights: DealInsights, transcriptId: string) {
   const updates: Record<string, unknown> = {};
 
   if (insights.financial_metrics?.revenue?.value) {
     updates.revenue = insights.financial_metrics.revenue.value;
-    if (insights.financial_metrics.revenue.confidence) {
-      updates.revenue_confidence = insights.financial_metrics.revenue.confidence;
-    }
-    if (insights.financial_metrics.revenue.source_quote) {
-      updates.revenue_source_quote = insights.financial_metrics.revenue.source_quote;
-    }
+    if (insights.financial_metrics.revenue.confidence) updates.revenue_confidence = insights.financial_metrics.revenue.confidence;
+    if (insights.financial_metrics.revenue.source_quote) updates.revenue_source_quote = insights.financial_metrics.revenue.source_quote;
   }
   if (insights.financial_metrics?.ebitda?.value) {
     updates.ebitda = insights.financial_metrics.ebitda.value;
-    if (insights.financial_metrics.ebitda.margin) {
-      updates.ebitda_margin = insights.financial_metrics.ebitda.margin;
-    }
-    if (insights.financial_metrics.ebitda.confidence) {
-      updates.ebitda_confidence = insights.financial_metrics.ebitda.confidence;
-    }
+    if (insights.financial_metrics.ebitda.margin) updates.ebitda_margin = insights.financial_metrics.ebitda.margin;
+    if (insights.financial_metrics.ebitda.confidence) updates.ebitda_confidence = insights.financial_metrics.ebitda.confidence;
   }
-  if (insights.owner_details?.motivation) {
-    updates.owner_goals = insights.owner_details.motivation;
-  }
-  if (insights.owner_details?.timeline) {
-    updates.transition_preferences = insights.owner_details.timeline;
-  }
-  if (insights.company_details?.industry) {
-    updates.industry = insights.company_details.industry;
-  }
-  if (insights.company_details?.employees) {
-    updates.full_time_employees = insights.company_details.employees;
-  }
-  if (insights.company_details?.founded) {
-    updates.founded_year = insights.company_details.founded;
-  }
-  if (insights.company_details?.services?.length) {
-    updates.services = insights.company_details.services;
-  }
-  if (insights.deal_details?.asking_price) {
-    updates.asking_price = insights.deal_details.asking_price;
-  }
-  if (insights.key_takeaways?.length) {
-    updates.financial_notes = insights.key_takeaways.join('\n');
-  }
-  if (insights.follow_up_needed?.length) {
-    updates.financial_followup_questions = insights.follow_up_needed;
-  }
+  if (insights.owner_details?.motivation) updates.owner_goals = insights.owner_details.motivation;
+  if (insights.owner_details?.timeline) updates.transition_preferences = insights.owner_details.timeline;
+  if (insights.company_details?.industry) updates.industry = insights.company_details.industry;
+  if (insights.company_details?.employees) updates.full_time_employees = insights.company_details.employees;
+  if (insights.company_details?.founded) updates.founded_year = insights.company_details.founded;
+  if (insights.company_details?.services?.length) updates.services = insights.company_details.services;
+  if (insights.deal_details?.asking_price) updates.asking_price = insights.deal_details.asking_price;
+  if (insights.key_takeaways?.length) updates.financial_notes = insights.key_takeaways.join('\n');
+  if (insights.follow_up_needed?.length) updates.financial_followup_questions = insights.follow_up_needed;
 
   if (Object.keys(updates).length > 0) {
     updates.extraction_sources = { transcript_id: transcriptId, extracted_at: new Date().toISOString() };
-
-    const { error } = await supabase
-      .from('listings')
-      .update(updates)
-      .eq('id', listingId);
-
+    const { error } = await supabase.from('listings').update(updates).eq('id', listingId);
     if (error) {
       console.error("Failed to update listing from transcript:", error);
     } else {
@@ -672,16 +580,7 @@ async function updateListingFromTranscript(
   }
 }
 
-// Update buyer with extracted transcript data
-// CRITICAL: This is the ONLY place thesis_summary should be saved from
-// CRITICAL: Merges with existing data — never overwrites good data with empty/insufficient data
-async function updateBuyerFromTranscript(
-  supabase: any,
-  buyerId: string,
-  insights: BuyerInsights,
-  transcriptId: string
-) {
-  // Fetch existing buyer data for merge logic
+async function updateBuyerFromTranscript(supabase: any, buyerId: string, insights: BuyerInsights, transcriptId: string) {
   const { data: existingBuyer } = await supabase
     .from('remarketing_buyers')
     .select('extraction_sources, thesis_summary, thesis_confidence, strategic_priorities, target_industries, services_offered, business_summary, operating_locations, geographic_footprint, key_quotes, target_geographies, acquisition_timeline')
@@ -691,62 +590,51 @@ async function updateBuyerFromTranscript(
   const existing = existingBuyer || {};
   const updates: Record<string, unknown> = {};
 
-  // Helper: only overwrite if new value is non-empty AND (existing is empty OR new is better)
-  const shouldUpdate = (field: string, newValue: unknown): boolean => {
+  const shouldUpdate = (_field: string, newValue: unknown): boolean => {
     if (newValue === null || newValue === undefined) return false;
     if (typeof newValue === 'string' && newValue.trim() === '') return false;
     if (Array.isArray(newValue) && newValue.length === 0) return false;
     return true;
   };
 
-  // Helper: merge arrays (union, deduplicated)
-  const mergeArrays = (existing: unknown, newArr: string[]): string[] => {
-    const existingArr = Array.isArray(existing) ? existing : [];
+  const mergeArrays = (existingVal: unknown, newArr: string[]): string[] => {
+    const existingArr = Array.isArray(existingVal) ? existingVal : [];
     const merged = new Set([...existingArr, ...newArr]);
     return Array.from(merged);
   };
 
-  // THESIS FIELDS - Only saved from transcripts, never from websites
-  // Only overwrite thesis if new one is meaningful (not insufficient)
   if (shouldUpdate('thesis_summary', insights.thesis_summary) && insights.thesis_confidence !== 'insufficient') {
-    // Only overwrite if existing is empty OR new confidence is higher/equal
     const existingConfidence = existing.thesis_confidence || '';
     const confidenceRank: Record<string, number> = { 'high': 4, 'medium': 3, 'low': 2, 'insufficient': 1, '': 0 };
     const existingRank = confidenceRank[existingConfidence] || 0;
     const newRank = confidenceRank[insights.thesis_confidence || ''] || 0;
-
     if (!existing.thesis_summary || newRank >= existingRank) {
       updates.thesis_summary = insights.thesis_summary;
       updates.thesis_confidence = insights.thesis_confidence;
     }
   }
 
-  // Strategic priorities — merge, don't overwrite
   if (insights.strategic_priorities?.length) {
     const merged = mergeArrays(existing.strategic_priorities, insights.strategic_priorities);
     if (merged.length > 0) updates.strategic_priorities = merged;
   }
 
-  // Target industries — merge
   if (insights.target_industries?.length) {
     const merged = mergeArrays(existing.target_industries, insights.target_industries);
     if (merged.length > 0) updates.target_industries = merged;
   }
 
-  // Handle structured geography — merge
   if (insights.target_geography?.states?.length) {
     const merged = mergeArrays(existing.target_geographies, insights.target_geography.states);
     if (merged.length > 0) updates.target_geographies = merged;
   }
 
-  // Acquisition timeline — only update if currently empty or new is more specific
   if (shouldUpdate('acquisition_timeline', insights.acquisition_timeline) && insights.acquisition_timeline !== 'insufficient') {
     if (!existing.acquisition_timeline || existing.acquisition_timeline === 'insufficient') {
       updates.acquisition_timeline = insights.acquisition_timeline;
     }
   }
 
-  // Deal structure — ONLY from transcripts
   if (insights.deal_size_range) {
     if (insights.deal_size_range.revenue_min) updates.target_revenue_min = insights.deal_size_range.revenue_min;
     if (insights.deal_size_range.revenue_max) updates.target_revenue_max = insights.deal_size_range.revenue_max;
@@ -754,19 +642,14 @@ async function updateBuyerFromTranscript(
     if (insights.deal_size_range.ebitda_max) updates.target_ebitda_max = insights.deal_size_range.ebitda_max;
   }
 
-  // Platform company operational details — ONLY update if non-empty (guards already in extractBuyerInsights)
   if (shouldUpdate('services_offered', insights.services_offered)) {
-    const newServices = Array.isArray(insights.services_offered)
-      ? insights.services_offered.join(', ')
-      : String(insights.services_offered);
-    // Only overwrite if existing is empty or new has more detail
+    const newServices = Array.isArray(insights.services_offered) ? insights.services_offered.join(', ') : String(insights.services_offered);
     if (!existing.services_offered || existing.services_offered.trim() === '') {
       updates.services_offered = newServices;
     }
   }
 
   if (shouldUpdate('business_summary', insights.business_summary)) {
-    // Only overwrite if existing is empty or new is longer (more detailed)
     if (!existing.business_summary || existing.business_summary.trim() === '') {
       updates.business_summary = insights.business_summary;
     } else if (insights.business_summary!.length > existing.business_summary.length) {
@@ -774,14 +657,12 @@ async function updateBuyerFromTranscript(
     }
   }
 
-  // Operating locations — merge
   if (insights.operating_locations?.length) {
     const existingLocs = Array.isArray(existing.operating_locations) ? existing.operating_locations : [];
     const merged = mergeArrays(existingLocs, insights.operating_locations);
     if (merged.length > 0) updates.operating_locations = merged;
   }
 
-  // Geographic footprint — merge
   if (insights.geographic_footprint?.length) {
     const existingGeo = Array.isArray(existing.geographic_footprint) ? existing.geographic_footprint : [];
     const merged = mergeArrays(existingGeo, insights.geographic_footprint);
@@ -790,23 +671,16 @@ async function updateBuyerFromTranscript(
 
   if (Object.keys(updates).length > 0) {
     const existingSources = (existing.extraction_sources || []) as any[];
-
-    // Mark extraction source as transcript (highest priority) - APPEND to array
     const newSource = {
       type: 'transcript',
       transcript_id: transcriptId,
       extracted_at: new Date().toISOString(),
       fields_extracted: Object.keys(updates).filter(k => k !== 'extraction_sources')
     };
-
     updates.extraction_sources = [...existingSources, newSource];
     updates.data_last_updated = new Date().toISOString();
 
-    const { error } = await supabase
-      .from('remarketing_buyers')
-      .update(updates)
-      .eq('id', buyerId);
-
+    const { error } = await supabase.from('remarketing_buyers').update(updates).eq('id', buyerId);
     if (error) {
       console.error("Failed to update buyer from transcript:", error);
     } else {
@@ -814,8 +688,6 @@ async function updateBuyerFromTranscript(
     }
   } else if (insights.thesis_confidence === 'insufficient') {
     const existingSources = (existing.extraction_sources || []) as any[];
-
-    // Log insufficient extraction but DON'T overwrite any existing data
     const insufficientUpdate: Record<string, unknown> = {
       extraction_sources: [
         ...existingSources,
@@ -830,11 +702,7 @@ async function updateBuyerFromTranscript(
       data_last_updated: new Date().toISOString(),
     };
 
-    const { error } = await supabase
-      .from('remarketing_buyers')
-      .update(insufficientUpdate)
-      .eq('id', buyerId);
-
+    const { error } = await supabase.from('remarketing_buyers').update(insufficientUpdate).eq('id', buyerId);
     if (error) {
       console.error("Failed to update buyer with insufficient status:", error);
     } else {

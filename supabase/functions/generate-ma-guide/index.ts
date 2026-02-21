@@ -1,13 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import {
+import { GEMINI_API_URL, getGeminiHeaders, DEFAULT_GEMINI_MODEL, callGeminiWithTool } from "../_shared/ai-providers.ts";
 import { getCorsHeaders, corsPreflightResponse } from "../_shared/cors.ts";
-
-  GEMINI_API_URL,
-  getGeminiHeaders,
-  DEFAULT_GEMINI_MODEL,
-  callGeminiWithTool
-} from "../_shared/ai-providers.ts";
 
 // Phase definitions for the 13-phase SSE streaming generator
 const GENERATION_PHASES = [
