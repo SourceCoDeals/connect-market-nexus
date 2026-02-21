@@ -4,23 +4,29 @@
 -- Fixes overly permissive USING(true) policies that allow any authenticated
 -- user to read/modify other users' data. Service role bypasses RLS entirely,
 -- so these "System can..." policies are unnecessary and dangerous.
+--
+-- IMPORTANT: Analytics tracking tables (page_views, user_events, etc.) support
+-- anonymous tracking where user_id is NULL. INSERT policies must allow this
+-- pattern: (user_id IS NULL OR auth.uid() = user_id) to prevent breakage
+-- while still blocking cross-user data injection.
 -- ============================================================================
 
 -- ============================================================================
 -- 1. user_sessions: Fix UPDATE policy (any user can update any session)
 -- ============================================================================
 DROP POLICY IF EXISTS "System can update sessions" ON public.user_sessions;
--- Replace with: users can only update their own sessions
+-- Users can only update their own sessions. Anonymous sessions (user_id IS NULL)
+-- can be updated by anyone (needed for session heartbeat before login).
 CREATE POLICY "Users can update own sessions"
   ON public.user_sessions FOR UPDATE
-  USING (auth.uid() = user_id)
-  WITH CHECK (auth.uid() = user_id);
+  USING (user_id IS NULL OR auth.uid() = user_id)
+  WITH CHECK (user_id IS NULL OR auth.uid() = user_id);
 
--- Also tighten INSERT: users can only insert sessions for themselves
+-- Tighten INSERT: allow own data or anonymous (null user_id) tracking
 DROP POLICY IF EXISTS "System can insert sessions" ON public.user_sessions;
 CREATE POLICY "Users can insert own sessions"
   ON public.user_sessions FOR INSERT
-  WITH CHECK (auth.uid() = user_id);
+  WITH CHECK (user_id IS NULL OR auth.uid() = user_id);
 
 -- ============================================================================
 -- 2. otp_rate_limits: Fix FOR ALL policy (any user can read/modify all OTP data)
@@ -37,7 +43,7 @@ CREATE POLICY "Admins can view OTP rate limits"
 -- ============================================================================
 DROP POLICY IF EXISTS "System can manage registration funnel" ON public.registration_funnel;
 -- INSERT needed during signup (user may not be fully authenticated yet)
-CREATE POLICY "Authenticated users can insert own funnel data"
+CREATE POLICY "Anyone can insert registration funnel data"
   ON public.registration_funnel FOR INSERT
   WITH CHECK (true);
 -- SELECT restricted to admins (the admin policy already exists)
@@ -70,33 +76,33 @@ CREATE POLICY "Admins can view cron logs"
 -- when running as authenticated context within SECURITY DEFINER functions)
 
 -- ============================================================================
--- 7. page_views: Tighten INSERT to own data only
+-- 7. page_views: Tighten INSERT — own data or anonymous tracking
 -- ============================================================================
 DROP POLICY IF EXISTS "System can insert page views" ON public.page_views;
 CREATE POLICY "Users can insert own page views"
   ON public.page_views FOR INSERT
-  WITH CHECK (auth.uid() = user_id);
+  WITH CHECK (user_id IS NULL OR auth.uid() = user_id);
 
 -- ============================================================================
--- 8. user_events: Tighten INSERT to own data only
+-- 8. user_events: Tighten INSERT — own data or anonymous tracking
 -- ============================================================================
 DROP POLICY IF EXISTS "System can insert events" ON public.user_events;
 CREATE POLICY "Users can insert own events"
   ON public.user_events FOR INSERT
-  WITH CHECK (auth.uid() = user_id);
+  WITH CHECK (user_id IS NULL OR auth.uid() = user_id);
 
 -- ============================================================================
--- 9. listing_analytics: Tighten INSERT to own data only
+-- 9. listing_analytics: Tighten INSERT — own data or anonymous tracking
 -- ============================================================================
 DROP POLICY IF EXISTS "System can insert listing analytics" ON public.listing_analytics;
 CREATE POLICY "Users can insert own listing analytics"
   ON public.listing_analytics FOR INSERT
-  WITH CHECK (auth.uid() = user_id);
+  WITH CHECK (user_id IS NULL OR auth.uid() = user_id);
 
 -- ============================================================================
--- 10. search_analytics: Tighten INSERT to own data only
+-- 10. search_analytics: Tighten INSERT — own data or anonymous tracking
 -- ============================================================================
 DROP POLICY IF EXISTS "System can insert search analytics" ON public.search_analytics;
 CREATE POLICY "Users can insert own search analytics"
   ON public.search_analytics FOR INSERT
-  WITH CHECK (auth.uid() = user_id);
+  WITH CHECK (user_id IS NULL OR auth.uid() = user_id);
