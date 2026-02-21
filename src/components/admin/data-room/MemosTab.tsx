@@ -88,6 +88,7 @@ export function MemosTab({ dealId, dealTitle }: MemosTabProps) {
         description="One-page blind profile. No company name, no owner name, no identifying details. Used for initial interest gauging."
         document={teaserDoc}
         draft={teaserDraft}
+        generateDisabledReason={!fullMemoDoc ? "Upload a Full Lead Memo PDF first before generating the teaser." : undefined}
       />
       <MemoSlotCard
         dealId={dealId}
@@ -112,6 +113,7 @@ interface MemoSlotCardProps {
   description: string;
   document?: DataRoomDocument;
   draft?: LeadMemo;
+  generateDisabledReason?: string;
 }
 
 function MemoSlotCard({
@@ -122,6 +124,7 @@ function MemoSlotCard({
   description,
   document,
   draft,
+  generateDisabledReason,
 }: MemoSlotCardProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const uploadDocument = useUploadDocument();
@@ -310,18 +313,23 @@ function MemoSlotCard({
                 </div>
               </div>
             ) : (
-              <Button
-                className="w-full"
-                onClick={handleGenerateDraft}
-                disabled={isGenerating}
-              >
-                {isGenerating ? (
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                ) : (
-                  <Sparkles className="h-4 w-4 mr-2" />
+              <div className="space-y-1.5">
+                <Button
+                  className="w-full"
+                  onClick={handleGenerateDraft}
+                  disabled={isGenerating || !!generateDisabledReason}
+                >
+                  {isGenerating ? (
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  ) : (
+                    <Sparkles className="h-4 w-4 mr-2" />
+                  )}
+                  Generate Draft
+                </Button>
+                {generateDisabledReason && (
+                  <p className="text-xs text-muted-foreground text-center">{generateDisabledReason}</p>
                 )}
-                Generate Draft
-              </Button>
+              </div>
             )}
           </div>
 
