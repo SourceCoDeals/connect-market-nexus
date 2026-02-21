@@ -299,13 +299,13 @@ function MemoSlotCard({
                     size="sm"
                     onClick={handleGenerateDraft}
                     disabled={isGenerating}
-                    title="Regenerate draft"
                   >
                     {isGenerating ? (
-                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
                     ) : (
-                      <RefreshCw className="h-3.5 w-3.5" />
+                      <RefreshCw className="h-3.5 w-3.5 mr-1.5" />
                     )}
+                    Regenerate
                   </Button>
                 </div>
               </div>
