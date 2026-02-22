@@ -112,12 +112,12 @@ export function AccessMatrixPanel({ dealId, projectName }: AccessMatrixPanelProp
     field: 'can_view_teaser' | 'can_view_full_memo' | 'can_view_data_room',
     newValue: boolean
   ) => {
-    // Full Memo and Data Room require a signed fee agreement — hard gate
-    if ((field === 'can_view_full_memo' || field === 'can_view_data_room') && newValue && !record.fee_agreement_signed) {
+    // Data Room requires a signed fee agreement — hard gate (no override)
+    if (field === 'can_view_data_room' && newValue && !record.fee_agreement_signed) {
       return;
     }
 
-    updateAccess.mutate({
+    const updates = {
       deal_id: dealId,
       remarketing_buyer_id: record.remarketing_buyer_id || undefined,
       marketplace_user_id: record.marketplace_user_id || undefined,
@@ -126,6 +126,7 @@ export function AccessMatrixPanel({ dealId, projectName }: AccessMatrixPanelProp
       can_view_data_room: field === 'can_view_data_room' ? newValue : record.can_view_data_room,
     };
 
+    // Full Memo without fee agreement — show warning with override option
     if (field === 'can_view_full_memo' && newValue && !record.fee_agreement_signed) {
       setPendingUpdate(updates);
       setShowFeeWarning(true);
