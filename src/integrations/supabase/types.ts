@@ -9654,14 +9654,11 @@ export type Database = {
           contact_id: string
           contact_title: string
           expires_at: string
-          fee_agreement_override: boolean
           fee_agreement_override_reason: string
           fee_agreement_signed: boolean
           granted_at: string
+          granted_by: string
           last_access_at: string
-          link_sent_at: string
-          link_sent_to_email: string
-          link_sent_via: string
           marketplace_user_id: string
           remarketing_buyer_id: string
           revoked_at: string
@@ -9679,64 +9676,6 @@ export type Database = {
           notes: string
           sent_at: string
           sent_by_name: string
-        }[]
-      }
-      get_deals_with_details: {
-        Args: never
-        Returns: {
-          assigned_to: string
-          buyer_company: string
-          buyer_connection_count: number
-          buyer_email: string
-          buyer_id: string
-          buyer_name: string
-          buyer_phone: string
-          buyer_type: string
-          company_deal_count: number
-          completed_tasks: number
-          connection_request_id: string
-          contact_company: string
-          contact_email: string
-          contact_name: string
-          contact_phone: string
-          contact_role: string
-          deal_buyer_priority_score: number
-          deal_created_at: string
-          deal_description: string
-          deal_expected_close_date: string
-          deal_followed_up: boolean
-          deal_followed_up_at: string
-          deal_followed_up_by: string
-          deal_id: string
-          deal_negative_followed_up: boolean
-          deal_negative_followed_up_at: string
-          deal_negative_followed_up_by: string
-          deal_priority: string
-          deal_probability: number
-          deal_source: string
-          deal_stage_entered_at: string
-          deal_title: string
-          deal_updated_at: string
-          deal_value: number
-          fee_agreement_status: string
-          last_activity_at: string
-          last_contact_at: string
-          listing_category: string
-          listing_deal_count: number
-          listing_ebitda: number
-          listing_id: string
-          listing_location: string
-          listing_real_company_name: string
-          listing_revenue: number
-          listing_title: string
-          nda_status: string
-          pending_tasks: number
-          stage_color: string
-          stage_id: string
-          stage_name: string
-          stage_position: number
-          total_activities: number
-          total_tasks: number
         }[]
       }
       get_feedback_analytics: {
@@ -9922,9 +9861,10 @@ export type Database = {
       }
       refresh_analytics_views: { Args: never; Returns: undefined }
       refresh_audit_materialized_views: { Args: never; Returns: undefined }
-      reset_all_admin_notifications:
-        | { Args: never; Returns: undefined }
-        | { Args: { admin_uuid: string }; Returns: undefined }
+      reset_all_admin_notifications: {
+        Args: { admin_uuid: string }
+        Returns: undefined
+      }
       reset_failed_enrichments: { Args: never; Returns: number }
       reset_stale_concurrent_counts: { Args: never; Returns: undefined }
       resolve_contact_agreement_status: {
