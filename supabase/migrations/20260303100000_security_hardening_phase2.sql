@@ -79,21 +79,32 @@ DROP POLICY IF EXISTS "Users can manage buyers" ON public.buyers;
 DROP POLICY IF EXISTS "Users can manage buyer_deal_scores" ON public.buyer_deal_scores;
 DROP POLICY IF EXISTS "Users can manage buyer_contacts" ON public.buyer_contacts;
 
--- B2. admin_notifications — replace authenticated INSERT with service_role INSERT
+-- B2. admin_notifications — replace open authenticated INSERT with scoped policies
+-- Old policy allowed ANY authenticated user to insert; new policies restrict to admin + service_role
 DROP POLICY IF EXISTS "Authenticated system can insert notifications" ON public.admin_notifications;
 CREATE POLICY "Service role can insert admin notifications"
   ON public.admin_notifications
   FOR INSERT
   TO service_role
   WITH CHECK (true);
+CREATE POLICY "Admins can insert admin notifications"
+  ON public.admin_notifications
+  FOR INSERT
+  TO authenticated
+  WITH CHECK (public.is_admin(auth.uid()));
 
--- B3. user_notifications — replace authenticated INSERT with service_role INSERT
+-- B3. user_notifications — replace open authenticated INSERT with scoped policies
 DROP POLICY IF EXISTS "Authenticated can insert user notifications" ON public.user_notifications;
 CREATE POLICY "Service role can insert user notifications"
   ON public.user_notifications
   FOR INSERT
   TO service_role
   WITH CHECK (true);
+CREATE POLICY "Admins can insert user notifications"
+  ON public.user_notifications
+  FOR INSERT
+  TO authenticated
+  WITH CHECK (public.is_admin(auth.uid()));
 
 -- B4. user_journeys — "Service role can manage journeys" is missing TO service_role
 DROP POLICY IF EXISTS "Service role can manage journeys" ON public.user_journeys;
