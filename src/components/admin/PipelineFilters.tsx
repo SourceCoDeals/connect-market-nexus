@@ -172,6 +172,14 @@ export function PipelineFilters({
     { value: 'not_signed', label: 'Fee Not Signed', count: requests.filter(r => !(r.lead_fee_agreement_signed || r.user?.fee_agreement_signed)).length },
   ];
 
+  const statusDropdownOptions = [
+    { value: 'all', label: 'All Statuses', count: statusCounts.all },
+    { value: 'pending', label: 'Pending', count: statusCounts.pending },
+    { value: 'approved', label: 'Approved', count: statusCounts.approved },
+    { value: 'rejected', label: 'Rejected', count: statusCounts.rejected },
+    { value: 'on_hold', label: 'On Hold', count: statusCounts.on_hold },
+  ];
+
   const statusOptions = [
     { value: 'all', label: 'All Requests', icon: Users, count: statusCounts.all },
     { value: 'pending', label: 'Pending', icon: Clock, count: statusCounts.pending },
@@ -285,6 +293,13 @@ export function PipelineFilters({
             value={feeAgreementFilter}
             options={feeAgreementOptions}
             onChange={(v) => onFeeAgreementFilterChange(v as FeeAgreementFilter)}
+          />
+          <FilterDropdown
+            label="Status"
+            icon={CheckCircle2}
+            value={statusFilter}
+            options={statusDropdownOptions}
+            onChange={(v) => onStatusFilterChange(v as StatusFilter)}
           />
         </div>
       </div>
