@@ -152,13 +152,21 @@ const PEFirmDetail = () => {
   });
 
   // Fetch deal scores across all platforms under this firm
-  const platformIds = useMemo(() => platforms.map((p: any) => p.id), [platforms]);
+  const platformIds = useMemo(() => platforms.map((p) => p.id), [platforms]);
   const { data: dealScores = [] } = useQuery({
     queryKey: ["remarketing", "pe-firm-deal-activity", platformIds],
     queryFn: async () => {
       if (platformIds.length === 0) return [];
 
-      const allScores: any[] = [];
+      const allScores: Array<{
+        id: string;
+        composite_score: number;
+        tier: string | null;
+        status: string | null;
+        created_at: string;
+        buyer_id: string;
+        listing: { id: string; title: string | null } | null;
+      }> = [];
       for (let i = 0; i < platformIds.length; i += 100) {
         const chunk = platformIds.slice(i, i + 100);
         const { data, error } = await supabase
@@ -221,16 +229,16 @@ const PEFirmDetail = () => {
   // Deal activity aggregation
   const dealStats = useMemo(() => {
     const totalScored = dealScores.length;
-    const approved = dealScores.filter((s: any) => s.status === "approved").length;
-    const pending = dealScores.filter((s: any) => s.status === "pending").length;
-    const passed = dealScores.filter((s: any) => s.status === "passed").length;
+    const approved = dealScores.filter((s) => s.status === "approved").length;
+    const pending = dealScores.filter((s) => s.status === "pending").length;
+    const passed = dealScores.filter((s) => s.status === "passed").length;
     const responseRate = totalScored > 0 ? Math.round((approved / totalScored) * 100) : 0;
     return { totalScored, approved, pending, passed, responseRate };
   }, [dealScores]);
 
   // Mutations
   const updateFirmMutation = useMutation({
-    mutationFn: async (data: Record<string, any>) => {
+    mutationFn: async (data: Record<string, unknown>) => {
       const { error } = await supabase
         .from("remarketing_buyers")
         .update(data)
@@ -502,7 +510,7 @@ const PEFirmDetail = () => {
             </Card>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {platforms.map((platform: any) => (
+              {platforms.map((platform) => (
                 <Card
                   key={platform.id}
                   className="cursor-pointer hover:border-primary/50 transition-colors"
@@ -521,9 +529,9 @@ const PEFirmDetail = () => {
                             </Badge>
                           )}
                         </div>
-                        {(platform as any).universe?.name && (
+                        {(platform.universe as { name?: string } | null)?.name && (
                           <Badge variant="secondary" className="text-xs">
-                            {(platform as any).universe.name}
+                            {(platform.universe as { name?: string } | null)?.name}
                           </Badge>
                         )}
                         {platform.company_website && (
@@ -602,7 +610,7 @@ const PEFirmDetail = () => {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {contacts.map((contact: any) => (
+                    {contacts.map((contact) => (
                       <TableRow key={contact.id}>
                         <TableCell className="font-medium">
                           {contact.name}
@@ -867,9 +875,9 @@ const PEFirmDetail = () => {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {dealScores.map((score: any) => {
+                    {dealScores.map((score) => {
                       const platform = platforms.find(
-                        (p: any) => p.id === score.buyer_id
+                        (p) => p.id === score.buyer_id
                       );
                       return (
                         <TableRow key={score.id}>
@@ -955,7 +963,7 @@ const PEFirmDetail = () => {
                 companyName={firm.company_name || ""}
                 peFirmName={firm.company_name}
                 platformWebsite={firm.company_website}
-                contacts={contacts.map((c: any) => ({ email: c.email }))}
+                contacts={contacts.map((c) => ({ email: c.email }))}
                 onTranscriptLinked={() => {
                   queryClient.invalidateQueries({
                     queryKey: ["remarketing", "transcripts", id],
@@ -981,7 +989,7 @@ const PEFirmDetail = () => {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {transcripts.map((t: any) => (
+                    {transcripts.map((t) => (
                       <TableRow key={t.id}>
                         <TableCell className="font-medium">
                           {t.title || t.file_name || "Transcript"}

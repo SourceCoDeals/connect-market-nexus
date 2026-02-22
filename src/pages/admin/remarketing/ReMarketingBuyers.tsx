@@ -296,7 +296,7 @@ const ReMarketingBuyers = () => {
   // Filter buyers by tab + search
   const filteredBuyers = useMemo(() => {
     if (!buyers) return [];
-    let result = buyers as any[];
+    let result = [...buyers];
 
     // Tab filter
     switch (activeTab) {
@@ -337,8 +337,8 @@ const ReMarketingBuyers = () => {
           valB = b.pe_firm_name?.toLowerCase() || '';
           break;
         case 'universe':
-          valA = (a as any).universe?.name?.toLowerCase() || '';
-          valB = (b as any).universe?.name?.toLowerCase() || '';
+          valA = (a.universe as { name?: string } | null)?.name?.toLowerCase() || '';
+          valB = (b.universe as { name?: string } | null)?.name?.toLowerCase() || '';
           break;
         default:
           valA = a.company_name?.toLowerCase() || '';

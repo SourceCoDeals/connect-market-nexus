@@ -86,11 +86,9 @@ export const useInitialSessionTracking = () => {
     const trackInitialSession = async () => {
       try {
         // Check if user is authenticated
-        const { data: { user } } = await supabase.auth.getUser();
+        const { data: { user }, error: authError } = await supabase.auth.getUser();
+        if (authError) throw authError;
         
-        console.log('🎯 Starting initial session tracking, sessionId:', sessionId);
-        console.log('🆔 Visitor ID:', visitorId);
-
         // Get GA4 client ID - try sync first, then async
         let ga4ClientId = getCurrentGA4ClientId();
         if (!ga4ClientId) {
@@ -183,10 +181,6 @@ export const useInitialSessionTracking = () => {
           ...firstTouchData,
         };
 
-        console.log('📤 Sending session data to track-session edge function');
-        console.log('🔗 GA4 Client ID:', ga4ClientId || 'not available');
-        console.log('📊 First-touch source:', firstTouchData.first_touch_source || 'current session');
-
         // Call edge function for IP geolocation and session creation
         const { data, error } = await supabase.functions.invoke('track-session', {
           body: trackingData,
@@ -197,12 +191,6 @@ export const useInitialSessionTracking = () => {
           // Fallback: create session directly without geo data
           await createSessionDirectly(trackingData);
           return;
-        }
-
-        if (data?.geo) {
-          console.log('✅ Session tracked with geo data:', data.geo);
-        } else {
-          console.log('✅ Session tracked (no geo data available)');
         }
 
         // Also track initial session for first-touch attribution (for authenticated users)
@@ -220,8 +208,6 @@ export const useInitialSessionTracking = () => {
     // Track first-touch attribution for authenticated users
     const trackInitialSessionForUser = async (userId: string, data: any) => {
       try {
-        console.log('📊 Tracking initial session for user:', userId);
-        
         const { error } = await supabase.functions.invoke('track-initial-session', {
           body: {
             user_id: userId,
@@ -241,8 +227,6 @@ export const useInitialSessionTracking = () => {
 
         if (error) {
           console.error('❌ Error tracking initial session:', error);
-        } else {
-          console.log('✅ Initial session tracked for user');
         }
       } catch (error) {
         console.error('❌ Error in trackInitialSessionForUser:', error);
@@ -252,7 +236,6 @@ export const useInitialSessionTracking = () => {
     // Removed fallback session creation - track-session edge function is the single source of truth
     // This prevents race conditions that skip journey upsert logic
     const createSessionDirectly = async (_data: any) => {
-      console.log('⚠️ Fallback session creation disabled - sessions created via edge function only');
       hasTracked.current = true;
     };
 

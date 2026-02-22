@@ -144,18 +144,20 @@ export function useJourneyDetail(visitorId: string) {
       if (journeyError) throw journeyError;
 
       // Get all sessions for this visitor
-      const { data: sessions } = await supabase
+      const { data: sessions, error: sessionsError } = await supabase
         .from('user_sessions')
         .select('*')
         .eq('session_id', journey?.last_session_id || '')
         .order('started_at', { ascending: true });
+      if (sessionsError) throw sessionsError;
 
       // Get page views from sessions
-      const { data: pageViews } = await supabase
+      const { data: pageViews, error: pageViewsError } = await supabase
         .from('page_views')
         .select('*')
         .eq('session_id', journey?.last_session_id || '')
         .order('viewed_at', { ascending: true });
+      if (pageViewsError) throw pageViewsError;
 
       return {
         journey,

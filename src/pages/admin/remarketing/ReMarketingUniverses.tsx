@@ -628,8 +628,8 @@ const ReMarketingUniverses = () => {
                               queryClient.invalidateQueries({ queryKey: ['remarketing'] });
                               toast.success(newVal ? "Fee agreement required" : "Fee agreement not required");
                             }}>
-                              <Handshake className={`h-4 w-4 mr-2 ${(universe as any).fee_agreement_required ? "text-green-600" : ""}`} />
-                              {(universe as any).fee_agreement_required ? "✓ Fee Agreement Required" : "Flag: Fee Agreement Required"}
+                              <Handshake className={`h-4 w-4 mr-2 ${universe.fee_agreement_required ? "text-green-600" : ""}`} />
+                              {universe.fee_agreement_required ? "✓ Fee Agreement Required" : "Flag: Fee Agreement Required"}
                             </DropdownMenuItem>
                             <DropdownMenuSeparator />
                             <DropdownMenuItem onClick={(e) => {

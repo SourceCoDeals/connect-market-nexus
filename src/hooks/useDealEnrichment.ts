@@ -94,7 +94,6 @@ export function useDealEnrichment(universeId?: string) {
 
       return { successful: queued, failed: 0, skipped: 0, creditsDepleted: false };
     } catch (error) {
-      console.error('Failed to queue deal enrichment:', error);
       toast.error('Failed to queue enrichment');
       setProgress(prev => ({ ...prev, isRunning: false }));
       return { successful: 0, failed: enrichableDeals.length, skipped: 0, creditsDepleted: false };

@@ -26,25 +26,23 @@ export function useNuclearAuth() {
     // Simple session check with self-healing for missing profiles
     const checkSession = async () => {
       try {
-        const { data: { session } } = await supabase.auth.getSession();
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+        if (sessionError) throw sessionError;
         
         if (!isMounted) return;
         
         if (session?.user) {
           // Fetch profile data directly
-          // eslint-disable-next-line prefer-const
-          let { data: profile, error: profileError } = await supabase
+          const { data: fetchedProfile, error: profileError } = await supabase
             .from('profiles')
             .select('*')
             .eq('id', session.user.id)
             .single();
 
           // Self-healing: if profile missing, create one from auth metadata
-          if (!profile && (profileError?.code === 'PGRST116' || !profileError)) {
-            console.log('Profile missing, attempting self-heal for:', session.user.email);
-            const newProfile = await selfHealProfile(session.user);
-            if (newProfile) profile = newProfile;
-          }
+          const profile = (!fetchedProfile && (profileError?.code === 'PGRST116' || !profileError))
+            ? await selfHealProfile(session.user)
+            : fetchedProfile;
 
           if (profile && isMounted) {
             const appUser = createUserObject(profile);
@@ -55,7 +53,6 @@ export function useNuclearAuth() {
             const currentSessionId = sessionStorage.getItem('session_id');
             
             if (visitorId) {
-              console.log('🔗 Linking journey to authenticated user:', session.user.id);
               supabase.rpc('link_journey_to_user', {
                 p_visitor_id: visitorId,
                 p_user_id: session.user.id
@@ -66,7 +63,6 @@ export function useNuclearAuth() {
             
             // Merge anonymous session with auth user (preserves geo data)
             if (currentSessionId) {
-              console.log('🔗 Merging session with user:', currentSessionId, '->', session.user.id);
               supabase
                 .from('user_sessions')
                 .update({ 
@@ -77,7 +73,6 @@ export function useNuclearAuth() {
                 .is('user_id', null) // Only update if not already linked
                 .then(({ error }) => {
                   if (error) console.error('Failed to merge session:', error);
-                  else console.log('✅ Session merged with user');
                 });
             }
           }
@@ -199,9 +194,9 @@ export function useNuclearAuth() {
           linkedin_profile: userData.linkedin_profile || '',
           ideal_target_description: userData.ideal_target_description || '',
           business_categories: Array.isArray(userData.business_categories) ? standardizeCategories(userData.business_categories) : [],
-          target_locations: Array.isArray(userData.target_locations) ? standardizeLocations(userData.target_locations as any) : [],
-          revenue_range_min: (userData.revenue_range_min as any) || '', 
-          revenue_range_max: (userData.revenue_range_max as any) || '',
+          target_locations: Array.isArray(userData.target_locations) ? standardizeLocations(userData.target_locations) : [],
+          revenue_range_min: userData.revenue_range_min || '',
+          revenue_range_max: userData.revenue_range_max || '',
           specific_business_search: userData.specific_business_search || '',
           // Missing job_title field
           job_title: userData.job_title || '',
@@ -212,7 +207,7 @@ export function useNuclearAuth() {
           investment_size: Array.isArray(userData.investment_size)
             ? userData.investment_size
             : userData.investment_size
-              ? [userData.investment_size as any]
+              ? [userData.investment_size as string]
               : [],
           aum: userData.aum || '',
           is_funded: userData.is_funded || '',
@@ -320,7 +315,7 @@ export function useNuclearAuth() {
     // Ensure investment_size is sent as proper JSON/array (not stringified)
     const { investment_size, ...restData } = data;
 
-    let preparedInvestmentSize: any = undefined;
+    let preparedInvestmentSize: string[] | undefined = undefined;
     if (Array.isArray(investment_size)) {
       preparedInvestmentSize = investment_size;
     } else if (typeof investment_size === 'string' && investment_size.trim() !== '') {
@@ -337,7 +332,7 @@ export function useNuclearAuth() {
       }
     }
 
-    const dbPayload: Record<string, any> = {
+    const dbPayload: Record<string, unknown> = {
       ...restData,
       ...(normalizedWebsite !== undefined ? { website: normalizedWebsite } : {}),
       ...(preparedInvestmentSize !== undefined ? { investment_size: preparedInvestmentSize } : {}),
@@ -358,14 +353,16 @@ export function useNuclearAuth() {
     if (error) throw error;
     
     // Simple refresh
-    const { data: { session } } = await supabase.auth.getSession();
+    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+    if (sessionError) throw sessionError;
     if (session?.user) {
-      const { data: profile } = await supabase
+      const { data: profile, error: profileError } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', session.user.id)
         .single();
-        
+      if (profileError) throw profileError;
+
       if (profile) {
         // Update user state with new data
         const updatedUser = createUserObject(profile);
@@ -375,13 +372,15 @@ export function useNuclearAuth() {
   };
 
   const refreshUserProfile = async () => {
-    const { data: { session } } = await supabase.auth.getSession();
+    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+    if (sessionError) throw sessionError;
     if (session?.user) {
-      const { data: profile } = await supabase
+      const { data: profile, error: profileError } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', session.user.id)
         .single();
+      if (profileError) throw profileError;
       if (profile) {
         const updatedUser = createUserObject(profile);
         setUser(updatedUser);

@@ -14,7 +14,7 @@ export function WebhookDeliveryLog({ webhookConfigId }: WebhookDeliveryLogProps)
     queryKey: ['webhook-deliveries', webhookConfigId],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('webhook_deliveries' as any)
+        .from('webhook_deliveries' as never)
         .select('*')
         .eq('webhook_config_id', webhookConfigId)
         .order('created_at', { ascending: false })
@@ -25,10 +25,10 @@ export function WebhookDeliveryLog({ webhookConfigId }: WebhookDeliveryLogProps)
     }
   });
 
-  const getStatusVariant = (status: string) => {
+  const getStatusVariant = (status: string): "default" | "secondary" | "destructive" | "outline" => {
     switch (status) {
       case 'delivered':
-        return 'success';
+        return 'default';
       case 'failed':
         return 'destructive';
       case 'retrying':
@@ -68,7 +68,7 @@ export function WebhookDeliveryLog({ webhookConfigId }: WebhookDeliveryLogProps)
             <TableRow key={delivery.id}>
               <TableCell className="font-mono text-xs">{delivery.event_type}</TableCell>
               <TableCell>
-                <Badge variant={getStatusVariant(delivery.status) as any}>
+                <Badge variant={getStatusVariant(delivery.status)}>
                   {delivery.status}
                 </Badge>
               </TableCell>

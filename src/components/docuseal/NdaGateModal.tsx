@@ -36,7 +36,6 @@ export function NdaGateModal({ userId, firmId, onSigned }: NdaGateModalProps) {
 
         if (fnError) {
           setError('Failed to prepare NDA signing form');
-          console.error('DocuSeal submission error');
         } else if (data?.ndaSigned) {
           // Already signed, dismiss gate
           onSigned?.();

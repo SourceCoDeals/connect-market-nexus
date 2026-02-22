@@ -71,7 +71,8 @@ export function useBulkDealImport() {
 
   const bulkImport = useMutation({
     mutationFn: async (data: BulkImportData): Promise<ImportResult> => {
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      if (authError) throw authError;
       if (!user) throw new Error('Not authenticated');
 
       const result: ImportResult = {
@@ -89,22 +90,24 @@ export function useBulkDealImport() {
       for (const deal of data.deals) {
         try {
           // ===== LEVEL 1: Check if user exists in profiles =====
-          const { data: profile } = await supabase
+          const { data: profile, error: profileError } = await supabase
             .from('profiles')
             .select('id, email, company, first_name, last_name, nda_signed, fee_agreement_signed, nda_email_sent, fee_agreement_email_sent')
             .eq('email', deal.email)
             .maybeSingle();
+          if (profileError) throw profileError;
 
           // ===== LEVEL 2 & 3: Check for duplicate connection requests =====
-          const { data: existingRequests } = await supabase
+          const { data: existingRequests, error: existingRequestsError } = await supabase
             .from('connection_requests')
             .select('id, status, user_message, created_at, user_id, lead_email')
             .eq('listing_id', data.listingId)
             .or(
-              profile?.id 
+              profile?.id
                 ? `user_id.eq.${profile.id},lead_email.eq.${deal.email}`
                 : `lead_email.eq.${deal.email}`
             );
+          if (existingRequestsError) throw existingRequestsError;
 
           if (existingRequests && existingRequests.length > 0) {
             const existingRequest = existingRequests[0];
@@ -134,13 +137,14 @@ export function useBulkDealImport() {
 
           // ===== LEVEL 4: Check for same company + same listing (different email) =====
           if (deal.companyName && deal.companyName.length > 3) {
-            const { data: companyRequests } = await supabase
+            const { data: companyRequests, error: companyRequestsError } = await supabase
               .from('connection_requests')
               .select('id, status, user_message, created_at, lead_email, lead_company')
               .eq('listing_id', data.listingId)
               .ilike('lead_company', `%${deal.companyName}%`)
               .neq('lead_email', deal.email)
               .limit(1);
+            if (companyRequestsError) throw companyRequestsError;
 
             if (companyRequests && companyRequests.length > 0) {
               const companyRequest = companyRequests[0];
@@ -160,12 +164,13 @@ export function useBulkDealImport() {
           }
 
           // ===== LEVEL 5: Check cross-source from inbound_leads =====
-          const { data: inboundLeads } = await supabase
+          const { data: inboundLeads, error: inboundLeadsError } = await supabase
             .from('inbound_leads')
             .select('id, email, converted_to_request_id, mapped_to_listing_id')
             .eq('email', deal.email)
             .not('converted_to_request_id', 'is', null)
             .limit(1);
+          if (inboundLeadsError) throw inboundLeadsError;
 
           if (inboundLeads && inboundLeads.length > 0 && inboundLeads[0].mapped_to_listing_id === data.listingId) {
             const inboundLead = inboundLeads[0];
@@ -260,7 +265,6 @@ export function useBulkDealImport() {
         toast.error(`Failed to import ${result.errors} row(s)`, {
           description: 'See error details in the import summary',
         });
-        console.error('Import errors:', result.details.errors);
       }
 
       if (result.duplicates > 0 && result.imported === 0) {

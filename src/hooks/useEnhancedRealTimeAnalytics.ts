@@ -232,6 +232,61 @@ function extractExternalReferrer(referrer: string | null): string | null {
   }
 }
 
+/** Session row shape from the user_sessions select query */
+interface SessionRow {
+  id: string;
+  session_id: string;
+  user_id: string | null;
+  visitor_id: string | null;
+  country: string | null;
+  country_code: string | null;
+  city: string | null;
+  region: string | null;
+  device_type: string | null;
+  browser: string | null;
+  os: string | null;
+  referrer: string | null;
+  utm_source: string | null;
+  user_agent: string | null;
+  session_duration_seconds: number | null;
+  last_active_at: string | null;
+  started_at: string;
+  is_active: boolean | null;
+  ga4_client_id: string | null;
+  first_touch_source: string | null;
+  first_touch_medium: string | null;
+  first_touch_campaign: string | null;
+  first_touch_landing_page: string | null;
+  first_touch_referrer: string | null;
+  is_bot: boolean | null;
+  lat: number | null;
+  lon: number | null;
+}
+
+/** Profile row shape from engagement lookup */
+interface ProfileRow {
+  id: string;
+  first_name: string | null;
+  last_name: string | null;
+  company: string | null;
+  company_name: string | null;
+  buyer_type: string | null;
+  job_title: string | null;
+  fee_agreement_signed: boolean | null;
+  nda_signed: boolean | null;
+}
+
+/** Engagement row shape */
+interface EngagementRow {
+  user_id: string;
+  listings_viewed: number | null;
+  listings_saved: number | null;
+  connections_requested: number | null;
+  session_count: number | null;
+  total_session_time: number | null;
+  search_count: number | null;
+}
+
 export function useEnhancedRealTimeAnalytics() {
   return useQuery({
     queryKey: ['enhanced-realtime-analytics'],
@@ -265,12 +320,12 @@ export function useEnhancedRealTimeAnalytics() {
       
       // CRITICAL FIX: Deduplicate sessions by session_id
       // The database may have duplicate rows for the same session_id
-      const sessionsRaw = sessionsResult.data || [];
-      const sessionMap = new Map<string, typeof sessionsRaw[0]>();
+      const sessionsRaw = (sessionsResult.data || []) as unknown as SessionRow[];
+      const sessionMap = new Map<string, SessionRow>();
       sessionsRaw.forEach(session => {
         // Additional client-side bot filtering for any that slip through
         // Check for outdated Chrome versions (Chrome 117-119 are 2+ years old)
-        const userAgent = (session as any).user_agent || '';
+        const userAgent = session.user_agent || '';
         const isLikelyBot = 
           /Chrome\/11[0-9]\./.test(userAgent) ||
           /HeadlessChrome/i.test(userAgent) ||
@@ -299,10 +354,11 @@ export function useEnhancedRealTimeAnalytics() {
       // Fetch sessions for page views to get their user_ids
       let pageViewSessions: Record<string, string | null> = {};
       if (pageViewSessionIds.length > 0) {
-        const { data: pvSessions } = await supabase
+        const { data: pvSessions, error: pvSessionsError } = await supabase
           .from('user_sessions')
           .select('session_id, user_id')
           .in('session_id', pageViewSessionIds);
+        if (pvSessionsError) throw pvSessionsError;
         
         pageViewSessions = (pvSessions || []).reduce((acc, s) => {
           acc[s.session_id] = s.user_id;
@@ -316,31 +372,33 @@ export function useEnhancedRealTimeAnalytics() {
       const userIds = [...new Set([...sessionUserIds, ...pageViewUserIds])];
       
       // Fetch profiles for logged-in users with real fields
-      let profiles: Record<string, any> = {};
+      let profiles: Record<string, ProfileRow> = {};
       if (userIds.length > 0) {
-        const { data: profileData } = await supabase
+        const { data: profileData, error: profileDataError } = await supabase
           .from('profiles')
           .select('id, first_name, last_name, company, company_name, buyer_type, job_title, fee_agreement_signed, nda_signed')
           .in('id', userIds);
-        
-        profiles = (profileData || []).reduce((acc, p) => {
+        if (profileDataError) throw profileDataError;
+
+        profiles = ((profileData || []) as unknown as ProfileRow[]).reduce((acc, p) => {
           acc[p.id] = p;
           return acc;
-        }, {} as Record<string, any>);
+        }, {} as Record<string, ProfileRow>);
       }
       
       // Fetch engagement data for users
-      let engagementData: Record<string, any> = {};
+      let engagementData: Record<string, EngagementRow> = {};
       if (userIds.length > 0) {
-        const { data: engagement } = await supabase
+        const { data: engagement, error: engagementError } = await supabase
           .from('engagement_scores')
           .select('user_id, listings_viewed, listings_saved, connections_requested, session_count, total_session_time, search_count')
           .in('user_id', userIds);
-        
-        engagementData = (engagement || []).reduce((acc, e) => {
+        if (engagementError) throw engagementError;
+
+        engagementData = ((engagement || []) as unknown as EngagementRow[]).reduce((acc, e) => {
           acc[e.user_id] = e;
           return acc;
-        }, {} as Record<string, any>);
+        }, {} as Record<string, EngagementRow>);
       }
       
       // Get current page AND build page sequence for each session
@@ -375,7 +433,7 @@ export function useEnhancedRealTimeAnalytics() {
       
       // Fetch cross-session visitor history for anonymous users
       const visitorIds = sessions
-        .map(s => (s as any).visitor_id)
+        .map(s => s.visitor_id)
         .filter(Boolean) as string[];
       
       const visitorHistory: Record<string, {
@@ -385,10 +443,11 @@ export function useEnhancedRealTimeAnalytics() {
       }> = {};
       
       if (visitorIds.length > 0) {
-        const { data: historicalSessions } = await supabase
+        const { data: historicalSessions, error: historicalSessionsError } = await supabase
           .from('user_sessions')
           .select('visitor_id, started_at, session_duration_seconds')
           .in('visitor_id', visitorIds);
+        if (historicalSessionsError) throw historicalSessionsError;
         
         // Build visitor history map
         (historicalSessions || []).forEach(hs => {
@@ -417,7 +476,7 @@ export function useEnhancedRealTimeAnalytics() {
       const activeUsers: EnhancedActiveUser[] = sessions.map(session => {
         const profile = session.user_id ? profiles[session.user_id] : null;
         const engagement = session.user_id ? engagementData[session.user_id] : null;
-        const visitorId = (session as any).visitor_id || null;
+        const visitorId = session.visitor_id || null;
         const vHistory = visitorId ? visitorHistory[visitorId] : null;
         
         const isAnonymous = !profile;
@@ -427,8 +486,8 @@ export function useEnhancedRealTimeAnalytics() {
         const displayName = realName || generateAnonymousName(session.session_id);
         
         // Get coordinates - prefer stored lat/lon from IP-API, fallback to city lookup
-        const storedLat = (session as any).lat;
-        const storedLon = (session as any).lon;
+        const storedLat = session.lat;
+        const storedLon = session.lon;
         let coordinates: { lat: number; lng: number } | null = null;
         
         if (typeof storedLat === 'number' && typeof storedLon === 'number') {
@@ -452,16 +511,16 @@ export function useEnhancedRealTimeAnalytics() {
         
         // Entry source - use first-touch if available, otherwise derive from referrer
         const entrySource = normalizeReferrer(
-          (session as any).first_touch_referrer || session.referrer, 
-          (session as any).first_touch_source || session.utm_source
+          session.first_touch_referrer || session.referrer, 
+          session.first_touch_source || session.utm_source
         );
         
         // Page sequence for this session
         const pageSequence = sessionPageSequence[session.session_id] || [];
-        const firstPagePath = (session as any).first_touch_landing_page || sessionFirstPage[session.session_id] || null;
+        const firstPagePath = session.first_touch_landing_page || sessionFirstPage[session.session_id] || null;
         
         // External referrer - extract the origin from first_touch_referrer if it's external
-        const externalReferrer = extractExternalReferrer((session as any).first_touch_referrer || session.referrer);
+        const externalReferrer = extractExternalReferrer(session.first_touch_referrer || session.referrer);
         
         return {
           sessionId: session.session_id,
@@ -486,9 +545,9 @@ export function useEnhancedRealTimeAnalytics() {
           entrySource,
           firstPagePath,
           pageSequence,
-          ga4ClientId: (session as any).ga4_client_id || null,
-          firstTouchSource: (session as any).first_touch_source || null,
-          firstTouchMedium: (session as any).first_touch_medium || null,
+          ga4ClientId: session.ga4_client_id || null,
+          firstTouchSource: session.first_touch_source || null,
+          firstTouchMedium: session.first_touch_medium || null,
           externalReferrer,
           // Current session
           sessionDurationSeconds: calculateDuration(session),

@@ -226,7 +226,6 @@ export const DealMergePanel = ({ onMappingsCreated }: DealMergePanelProps) => {
       
       toast.success(`Loaded ${deals.length} reference deals`);
     } catch (error) {
-      console.error('Failed to load reference deals:', error);
       toast.error('Failed to load reference deals');
     }
   };

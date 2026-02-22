@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -45,21 +45,17 @@ export function BuyerActivitySection({ buyerId }: BuyerActivitySectionProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const { toast } = useToast();
 
-  useEffect(() => {
-    loadActivities();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [buyerId]);
-
-  const loadActivities = async () => {
+  const loadActivities = useCallback(async () => {
     try {
       const activityEvents: ActivityEvent[] = [];
 
       // Load enrichment history from buyer_learning_history
-      const { data: enrichments } = await supabase
+      const { data: enrichments, error: enrichmentsError } = await supabase
         .from("buyer_learning_history")
         .select("*")
         .eq("buyer_id", buyerId)
         .order("created_at", { ascending: false });
+      if (enrichmentsError) throw enrichmentsError;
 
       enrichments?.forEach((enrich) => {
         activityEvents.push({
@@ -73,7 +69,7 @@ export function BuyerActivitySection({ buyerId }: BuyerActivitySectionProps) {
       });
 
       // Load deal approvals (selected_for_outreach = true)
-      const { data: approvals } = await supabase
+      const { data: approvals, error: approvalsError } = await supabase
         .from("buyer_deal_scores")
         .select(`
           *,
@@ -82,6 +78,7 @@ export function BuyerActivitySection({ buyerId }: BuyerActivitySectionProps) {
         .eq("buyer_id", buyerId)
         .eq("selected_for_outreach", true)
         .order("scored_at", { ascending: false });
+      if (approvalsError) throw approvalsError;
 
       approvals?.forEach((approval: any) => {
         activityEvents.push({
@@ -95,7 +92,7 @@ export function BuyerActivitySection({ buyerId }: BuyerActivitySectionProps) {
       });
 
       // Load passes
-      const { data: passes } = await supabase
+      const { data: passes, error: passesError } = await supabase
         .from("buyer_deal_scores")
         .select(`
           *,
@@ -104,6 +101,7 @@ export function BuyerActivitySection({ buyerId }: BuyerActivitySectionProps) {
         .eq("buyer_id", buyerId)
         .eq("passed_on_deal", true)
         .order("passed_at", { ascending: false });
+      if (passesError) throw passesError;
 
       passes?.forEach((pass: any) => {
         activityEvents.push({
@@ -117,11 +115,12 @@ export function BuyerActivitySection({ buyerId }: BuyerActivitySectionProps) {
       });
 
       // Load transcripts/calls
-      const { data: transcripts } = await supabase
+      const { data: transcripts, error: transcriptsError } = await supabase
         .from("call_intelligence")
         .select("*")
         .eq("buyer_id", buyerId)
         .order("call_date", { ascending: false });
+      if (transcriptsError) throw transcriptsError;
 
       transcripts?.forEach((transcript) => {
         activityEvents.push({
@@ -149,7 +148,11 @@ export function BuyerActivitySection({ buyerId }: BuyerActivitySectionProps) {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [buyerId, toast]);
+
+  useEffect(() => {
+    loadActivities();
+  }, [loadActivities]);
 
   const filteredActivities = useMemo(() => {
     let filtered = activities;

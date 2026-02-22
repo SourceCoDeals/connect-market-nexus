@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { Button } from "@/components/ui/button";
@@ -65,12 +65,7 @@ export function DealTranscriptsTab({ dealId }: DealTranscriptsTabProps) {
   const [selectedTranscript, setSelectedTranscript] = useState<Transcript | null>(null);
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
 
-  useEffect(() => {
-    loadTranscripts();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dealId]);
-
-  const loadTranscripts = async () => {
+  const loadTranscripts = useCallback(async () => {
     try {
       const { data, error } = await supabase
         .from("deal_transcripts")
@@ -89,7 +84,11 @@ export function DealTranscriptsTab({ dealId }: DealTranscriptsTabProps) {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [dealId, toast]);
+
+  useEffect(() => {
+    loadTranscripts();
+  }, [loadTranscripts]);
 
   const handleProcessTranscript = async (transcriptId: string) => {
     try {

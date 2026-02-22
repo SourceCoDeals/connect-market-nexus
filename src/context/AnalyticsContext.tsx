@@ -121,7 +121,8 @@ export function AnalyticsProvider({ children }: { children: React.ReactNode }) {
     // Listen to auth changes without circular dependency
     const checkAuth = async () => {
       try {
-        const { data: { session } } = await supabase.auth.getSession();
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+        if (sessionError) throw sessionError;
         setAuthState({
           user: session?.user || null,
           authChecked: true

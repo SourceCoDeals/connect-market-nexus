@@ -52,7 +52,7 @@ export function usePredictiveUserIntelligence(daysBack: number = 30) {
       startDate.setDate(startDate.getDate() - daysBack);
 
       // Get comprehensive user data
-      const { data: users } = await supabase
+      const { data: users, error: usersError } = await supabase
         .from('profiles')
         .select(`
           id, email, first_name, last_name, buyer_type, created_at, business_categories,
@@ -60,32 +60,37 @@ export function usePredictiveUserIntelligence(daysBack: number = 30) {
         `)
         .eq('approval_status', 'approved')
         .eq('email_verified', true);
+      if (usersError) throw usersError;
 
       if (!users) return { userScores: [], behaviorPatterns: [], engagementStrategies: [] };
 
       // Get user activity data
       // Filter out bots and dev traffic
-      const { data: sessions } = await supabase
+      const { data: sessions, error: sessionsError } = await supabase
         .from('user_sessions')
         .select('user_id, started_at, ended_at')
         .eq('is_bot', false)
         .eq('is_production', true)
         .gte('started_at', startDate.toISOString());
+      if (sessionsError) throw sessionsError;
 
-      const { data: analytics } = await supabase
+      const { data: analytics, error: analyticsError } = await supabase
         .from('listing_analytics')
         .select('user_id, listing_id, action_type, time_spent, created_at')
         .gte('created_at', startDate.toISOString());
+      if (analyticsError) throw analyticsError;
 
-      const { data: saves } = await supabase
+      const { data: saves, error: savesError } = await supabase
         .from('saved_listings')
         .select('user_id, created_at')
         .gte('created_at', startDate.toISOString());
+      if (savesError) throw savesError;
 
-      const { data: connections } = await supabase
+      const { data: connections, error: connectionsError } = await supabase
         .from('connection_requests')
         .select('user_id, status, created_at')
         .gte('created_at', startDate.toISOString());
+      if (connectionsError) throw connectionsError;
 
       // Calculate user scores
       const userScores: UserScore[] = users.map(user => {

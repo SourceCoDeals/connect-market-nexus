@@ -60,7 +60,6 @@ export function useAlignmentScoring(universeId: string | undefined) {
         setProgress((prev) => ({ ...prev, current: queued, successful: queued }));
         onComplete?.();
       } catch (error) {
-        console.error("Failed to queue alignment scoring:", error);
         toast.error("Failed to queue scoring. Please try again.");
       } finally {
         setIsScoring(false);

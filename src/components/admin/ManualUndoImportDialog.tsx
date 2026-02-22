@@ -69,36 +69,38 @@ export function ManualUndoImportDialog({ isOpen, onClose }: ManualUndoImportDial
 
       // Get admin names
       const adminIds = [...new Set(auditLogs?.map(log => log.admin_id).filter(Boolean) || [])];
-      const { data: adminProfiles } = await supabase
+      const { data: adminProfiles, error: adminProfilesError } = await supabase
         .from('profiles')
         .select('id, first_name, last_name, email')
         .in('id', adminIds);
+      if (adminProfilesError) throw adminProfilesError;
 
       const adminMap = new Map(
         adminProfiles?.map(p => [p.id, `${p.first_name || ''} ${p.last_name || ''}`.trim() || p.email]) || []
       );
 
       // Get listing titles
-      const listingIds = [...new Set(auditLogs?.map(log => (log.metadata as any)?.listing_id).filter(Boolean) || [])];
-      const { data: listings } = await supabase
+      const listingIds = [...new Set(auditLogs?.map(log => (log.metadata as Record<string, unknown>)?.listing_id as string).filter(Boolean) || [])];
+      const { data: listings, error: listingsError } = await supabase
         .from('listings')
         .select('id, title')
         .in('id', listingIds);
+      if (listingsError) throw listingsError;
 
       const listingMap = new Map(listings?.map(l => [l.id, l.title]) || []);
 
       // Transform audit logs into import batches
       const batches: ImportBatch[] = (auditLogs || []).map(log => {
-        const metadata = log.metadata as any;
+        const metadata = log.metadata as Record<string, unknown>;
         return {
           id: log.id,
-          csv_filename: metadata.csv_filename || 'Unknown',
-          listing_id: metadata.listing_id,
-          listing_title: listingMap.get(metadata.listing_id) || 'Unknown Listing',
-          imported_count: metadata.rows_imported || 0,
+          csv_filename: (metadata.csv_filename as string) || 'Unknown',
+          listing_id: metadata.listing_id as string,
+          listing_title: listingMap.get(metadata.listing_id as string) || 'Unknown Listing',
+          imported_count: (metadata.rows_imported as number) || 0,
           import_date: log.timestamp,
           admin_name: adminMap.get(log.admin_id) || 'Unknown Admin',
-          batch_id: metadata.batch_id,
+          batch_id: metadata.batch_id as string | undefined,
         };
       });
 
@@ -130,12 +132,12 @@ export function ManualUndoImportDialog({ isOpen, onClose }: ManualUndoImportDial
 
       if (error) throw error;
 
-      let filtered: any[] = [];
+      let filtered: typeof allRequests = [];
 
       // Strategy 1: Match by batch_id if available (newer imports)
       if (batch.batch_id) {
         filtered = (allRequests || []).filter(r => {
-          const md = r.source_metadata as any;
+          const md = r.source_metadata as Record<string, unknown> | null;
           return md?.batch_id === batch.batch_id && md?.import_method === 'csv_bulk_upload';
         });
       }
@@ -143,7 +145,7 @@ export function ManualUndoImportDialog({ isOpen, onClose }: ManualUndoImportDial
       // Strategy 2: Match by exact CSV filename (for imports without batch_id)
       if (filtered.length === 0 && batch.csv_filename) {
         filtered = (allRequests || []).filter(r => {
-          const md = r.source_metadata as any;
+          const md = r.source_metadata as Record<string, unknown> | null;
           return md?.import_method === 'csv_bulk_upload' && md?.csv_filename === batch.csv_filename;
         });
       }
@@ -181,7 +183,8 @@ export function ManualUndoImportDialog({ isOpen, onClose }: ManualUndoImportDial
       if (deleteError) throw deleteError;
 
       // Log the manual cleanup
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      if (authError) throw authError;
       if (user) {
         await supabase.from('audit_logs').insert({
           table_name: 'connection_requests',

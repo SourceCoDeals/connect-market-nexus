@@ -25,14 +25,14 @@ function deserializeFilters(raw: string | null): FilterState | null {
 }
 
 // ─── Value getter ───────────────────────────────────────────────
-function getFieldValue(item: any, fieldDef: FilterFieldDef): any {
+function getFieldValue(item: Record<string, unknown>, fieldDef: FilterFieldDef): unknown {
   if (fieldDef.accessor) return fieldDef.accessor(item);
   return item[fieldDef.key];
 }
 
 // ─── Evaluate a single rule ─────────────────────────────────────
 function evaluateRule(
-  item: any,
+  item: Record<string, unknown>,
   rule: FilterRule,
   fieldDef: FilterFieldDef | undefined
 ): boolean {
@@ -133,7 +133,7 @@ function evaluateRule(
 }
 
 // ─── Full-text search ───────────────────────────────────────────
-function matchesSearch(item: any, search: string, fields: FilterFieldDef[]): boolean {
+function matchesSearch(item: Record<string, unknown>, search: string, fields: FilterFieldDef[]): boolean {
   if (!search) return true;
   const lower = search.toLowerCase();
 
@@ -194,17 +194,18 @@ export function useFilterEngine<T>(
 
   const filteredItems = useMemo(() => {
     return items.filter((item) => {
+      const record = item as Record<string, unknown>;
       // 1. Full-text search
-      if (!matchesSearch(item, filterState.search, fieldDefinitions)) return false;
+      if (!matchesSearch(record, filterState.search, fieldDefinitions)) return false;
 
       // 2. Filter rules
       const { rules, conjunction } = filterState;
       if (rules.length === 0) return true;
 
       if (conjunction === "and") {
-        return rules.every((rule) => evaluateRule(item, rule, fieldMap.get(rule.field)));
+        return rules.every((rule) => evaluateRule(record, rule, fieldMap.get(rule.field)));
       } else {
-        return rules.some((rule) => evaluateRule(item, rule, fieldMap.get(rule.field)));
+        return rules.some((rule) => evaluateRule(record, rule, fieldMap.get(rule.field)));
       }
     });
   }, [items, filterState, fieldDefinitions, fieldMap]);
@@ -216,7 +217,7 @@ export function useFilterEngine<T>(
       if (!field.dynamicOptions) continue;
       const unique = new Set<string>();
       for (const item of items) {
-        const val = getFieldValue(item as any, field);
+        const val = getFieldValue(item as Record<string, unknown>, field);
         if (val != null && val !== "") {
           if (Array.isArray(val)) {
             val.forEach((v: string) => unique.add(String(v)));

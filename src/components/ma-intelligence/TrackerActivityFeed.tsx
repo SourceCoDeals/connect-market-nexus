@@ -99,12 +99,13 @@ export function TrackerActivityFeed({ trackerId }: TrackerActivityFeedProps) {
 
     try {
       // Fetch recent buyers
-      const { data: buyers } = await supabase
+      const { data: buyers, error: buyersError } = await supabase
         .from('buyers')
         .select('id, pe_firm_name, created_at, data_last_updated')
         .eq('tracker_id', trackerId)
         .order('created_at', { ascending: false })
         .limit(10);
+      if (buyersError) throw buyersError;
 
       buyers?.forEach((buyer) => {
         mockActivities.push({
@@ -129,11 +130,12 @@ export function TrackerActivityFeed({ trackerId }: TrackerActivityFeedProps) {
       });
 
       // Fetch recent deals from listings table
-      const { data: deals } = await supabase
+      const { data: deals, error: dealsError } = await supabase
         .from('listings')
         .select('id, title, created_at')
         .order('created_at', { ascending: false })
         .limit(10);
+      if (dealsError) throw dealsError;
 
       deals?.forEach((deal) => {
         mockActivities.push({

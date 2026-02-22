@@ -49,12 +49,10 @@ export function createUserObject(profile: any): UserWithDataIssues {
   
   // Handle completely invalid input - return minimal user
   if (!profile) {
-    console.warn('⚠️ createUserObject received null/undefined profile, returning minimal user');
     return createMinimalUser('unknown-' + Date.now(), '', issues.concat(['Profile was null/undefined']));
   }
   
   if (!profile.id) {
-    console.warn('⚠️ createUserObject received profile without ID:', profile);
     return createMinimalUser('unknown-' + Date.now(), profile.email || '', issues.concat(['Profile missing ID']));
   }
 
@@ -197,10 +195,6 @@ export function createUserObject(profile: any): UserWithDataIssues {
     get updatedAt() { return this.updated_at; },
   };
   
-  if (issues.length > 0) {
-    console.warn(`⚠️ User ${profile.id} has data issues:`, issues);
-  }
-  
   return user;
 }
 
@@ -291,5 +285,5 @@ export function validateUserData(user: User): { isValid: boolean; errors: string
 // Nuclear simplification: Remove all localStorage cleanup functions
 // Let Supabase handle all session management
 export async function cleanupAuthState(): Promise<void> {
-  console.log('🧹 Nuclear auth cleanup - letting Supabase handle everything');
+  // Nuclear auth cleanup - let Supabase handle everything
 }

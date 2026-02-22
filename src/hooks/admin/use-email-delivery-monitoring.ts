@@ -19,7 +19,6 @@ export function useEmailDeliveryMonitoring() {
     }));
 
     if (!result.success) {
-      console.error('📧 Email delivery failed:', result.error);
       toast({
         variant: 'destructive',
         title: 'Email delivery failed',

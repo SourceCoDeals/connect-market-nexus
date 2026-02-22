@@ -9,8 +9,6 @@ export function useRealtimeListings() {
   const [isConnected, setIsConnected] = useState(false);
 
   useEffect(() => {
-    console.log('🔴 Setting up real-time listings subscription');
-    
     const channel = supabase
       .channel('marketplace-listings-realtime')
       .on(
@@ -21,7 +19,6 @@ export function useRealtimeListings() {
           table: 'listings'
         },
         (payload) => {
-          console.log('🆕 New listing inserted:', payload.new);
           // Invalidate listings query to refetch data
           queryClient.invalidateQueries({ queryKey: ['listings'] });
         }
@@ -34,7 +31,6 @@ export function useRealtimeListings() {
           table: 'listings'
         },
         (payload) => {
-          console.log('📝 Listing updated:', payload.new);
           // Invalidate both marketplace and single listing queries
           queryClient.invalidateQueries({ queryKey: ['listings'] });
           queryClient.invalidateQueries({ queryKey: ['listing', payload.new.id] });
@@ -48,17 +44,14 @@ export function useRealtimeListings() {
           table: 'listings'
         },
         (payload) => {
-          console.log('🗑️ Listing deleted:', payload.old);
           queryClient.invalidateQueries({ queryKey: ['listings'] });
         }
       )
       .subscribe((status) => {
-        console.log('📡 Listings realtime status:', status);
         setIsConnected(status === 'SUBSCRIBED');
       });
 
     return () => {
-      console.log('🔌 Cleaning up listings realtime subscription');
       supabase.removeChannel(channel);
       setIsConnected(false);
     };

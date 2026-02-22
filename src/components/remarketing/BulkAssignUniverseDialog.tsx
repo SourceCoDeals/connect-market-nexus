@@ -56,15 +56,17 @@ export function BulkAssignUniverseDialog({
     setIsAssigning(true);
 
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      if (authError) throw authError;
 
       // Check which deals are already in this universe
-      const { data: existing } = await supabase
+      const { data: existing, error: existingError } = await supabase
         .from("remarketing_universe_deals")
         .select("listing_id")
         .eq("universe_id", selectedUniverse)
         .eq("status", "active")
         .in("listing_id", dealIds);
+      if (existingError) throw existingError;
 
       const existingIds = new Set((existing || []).map(e => e.listing_id));
       const newDealIds = dealIds.filter(id => !existingIds.has(id));
@@ -103,7 +105,6 @@ export function BulkAssignUniverseDialog({
       onOpenChange(false);
       onComplete();
     } catch (err) {
-      console.error("Bulk assign error:", err);
       toast.error("Failed to assign deals to universe");
     } finally {
       setIsAssigning(false);

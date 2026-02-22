@@ -5,8 +5,6 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Switch } from "@/components/ui/switch";
-import { Label } from "@/components/ui/label";
 import { 
   ChevronDown, 
   ChevronUp, 
@@ -22,21 +20,15 @@ import {
   MessageSquare,
   Shield,
   ExternalLink,
-  Settings
 } from "lucide-react";
 import { AdminConnectionRequest } from "@/types/admin";
-import { StatusIndicatorRow } from "./StatusIndicatorRow";
+import { User as AdminUsersUser } from "@/types/admin-users";
+import { useUnreadMessageCounts } from "@/hooks/use-connection-messages";
 import { ConnectionRequestActions } from "./ConnectionRequestActions";
 import { LeadRequestActions } from "./LeadRequestActions";
-import { DecisionNotesInline } from "./DecisionNotesInline";
 import { SourceBadge } from "./SourceBadge";
 import { SourceLeadContext } from "./SourceLeadContext";
 import { SourceFilter } from "./SourceFilter";
-import { useAdminSignature } from "@/hooks/admin/use-admin-signature";
-import { useAuth } from "@/context/AuthContext";
-import { getAdminProfile } from "@/lib/admin-profiles";
-import { useUpdateConnectionRequestStatus } from "@/hooks/admin/use-connection-request-status";
-import { useAdminProfiles } from '@/hooks/admin/use-admin-profiles';
 import { BuyerProfileHoverCard } from "./BuyerProfileHoverCard";
 import { ExpandableBusinessProfile } from "./ExpandableBusinessProfile";
 import { EnhancedBuyerProfile } from './EnhancedBuyerProfile';
@@ -120,19 +112,6 @@ const CleanTierDisplay = ({ user, leadRole }: { user: any; leadRole?: string }) 
     </div>
   );
 };
-
-// Decision Details Component
-function DecisionDetails({ adminId, timestamp, action }: { adminId: string; timestamp: string | null; action: string }) {
-  const { data: adminProfiles } = useAdminProfiles();
-  const admin = adminProfiles?.[adminId];
-  
-  return (
-    <span>
-      {action} by {admin?.displayName || 'Unknown Admin'}
-      {timestamp && ` on ${format(new Date(timestamp), 'MMM d, yyyy h:mm a')}`}
-    </span>
-  );
-}
 
 interface ConnectionRequestsTableProps {
   requests: AdminConnectionRequest[];
@@ -233,7 +212,7 @@ const RequestDetails = ({ request }: { request: AdminConnectionRequest }) => {
           {request.user ? (
             <>
               <EnhancedBuyerProfile user={request.user} />
-              <ExpandableBusinessProfile user={request.user as any} />
+              <ExpandableBusinessProfile user={request.user as unknown as AdminUsersUser} />
             </>
           ) : (
             <div className="space-y-3">
@@ -383,23 +362,13 @@ function ReactiveRequestCard({
   request,
   isExpanded,
   onToggleExpanded,
+  unreadCount = 0,
 }: {
   request: AdminConnectionRequest;
   isExpanded: boolean;
   onToggleExpanded: () => void;
+  unreadCount?: number;
 }) {
-  const { signature } = useAdminSignature();
-  const { user: authUser } = useAuth();
-  const updateConnectionRequestStatus = useUpdateConnectionRequestStatus();
-
-  const handleStatusChange = (id: string, status: 'approved' | 'rejected' | 'on_hold' | 'pending') => {
-    updateConnectionRequestStatus.mutate({
-      requestId: id,
-      status,
-      notes: undefined // Allow updates without requiring notes
-    });
-  };
-
   // Simplified card styling without status-based colors
   const getCardClassName = () => {
     return "border border-border/50 hover:border-border transition-colors";
@@ -414,7 +383,7 @@ function ReactiveRequestCard({
             <div className="space-y-2">
               <div className="flex items-center gap-3 flex-wrap">
                 {request.user ? (
-                  <BuyerProfileHoverCard user={request.user as any}>
+                  <BuyerProfileHoverCard user={request.user as unknown as AdminUsersUser}>
                     <h3 className="font-semibold cursor-pointer hover:text-primary transition-colors">
                       {request.user?.first_name} {request.user?.last_name}
                     </h3>
@@ -422,7 +391,7 @@ function ReactiveRequestCard({
                 ) : (
                   <div className="flex items-center gap-2">
                     <h3 className="font-semibold text-foreground">
-                      {request.lead_name || (request as any).source_metadata?.lead_name || 'Lead Contact'}
+                      {request.lead_name || (request.source_metadata as Record<string, string> | undefined)?.lead_name || 'Lead Contact'}
                     </h3>
                     <Badge variant="outline" className="text-xs">Lead-Only</Badge>
                   </div>
@@ -497,21 +466,15 @@ function ReactiveRequestCard({
             </div>
           </div>
 
-          {/* Status Indicators - show for both user and lead-only requests */}
-          <StatusIndicatorRow 
-            user={request.user} 
-            requestStatus={request.status}
-            followedUp={request.followed_up || false} 
-            negativeFollowedUp={request.negative_followed_up || false}
-            followedUpByAdmin={request.followedUpByAdmin}
-            negativeFollowedUpByAdmin={request.negativeFollowedUpByAdmin}
-            followedUpAt={request.followed_up_at}
-            negativeFollowedUpAt={request.negative_followed_up_at}
-            leadNdaSigned={request.lead_nda_signed}
-            leadNdaEmailSent={request.lead_nda_email_sent}
-            leadFeeAgreementSigned={request.lead_fee_agreement_signed}
-            leadFeeAgreementEmailSent={request.lead_fee_agreement_email_sent}
-          />
+          {/* Unread message indicator */}
+          {unreadCount > 0 && (
+            <div className="flex items-center gap-1.5 px-1">
+              <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />
+              <span className="text-xs font-medium text-primary">
+                {unreadCount} unread message{unreadCount !== 1 ? 's' : ''}
+              </span>
+            </div>
+          )}
 
           {/* Expanded Content */}
           {isExpanded && (
@@ -522,8 +485,7 @@ function ReactiveRequestCard({
                   user={request.user}
                   listing={request.listing}
                   requestId={request.id}
-                  followedUp={request.followed_up || false}
-                  negativeFollowedUp={request.negative_followed_up || false}
+                  requestStatus={request.status}
                 />
               ) : (
                 <LeadRequestActions request={request} />
@@ -534,106 +496,6 @@ function ReactiveRequestCard({
               {/* Mobile Layout (< 768px) */}
               <div className="block md:hidden">
                 <RequestDetails request={request} />
-
-                {/* Final Decision - Mobile */}
-                <div className="mt-6 pt-4 border-t border-border/40">
-                  <div className="flex items-center gap-2 pb-3 border-b border-border/30">
-                    <Shield className="h-3.5 w-3.5 text-muted-foreground" />
-                    <span className="text-xs font-semibold text-card-foreground">Final Decision</span>
-                  </div>
-                  
-                  <div className="grid grid-cols-1 gap-4 mt-4">
-                    {/* Approved */}
-                    <div className="space-y-3">
-                      <div className="flex items-center justify-between p-3 rounded-md border border-border/40 bg-background/50 hover:bg-accent/10 transition-colors">
-                        <div className="flex items-center gap-2">
-                          <div className={`w-2 h-2 rounded-full ${request.status === 'approved' ? 'bg-emerald-500' : 'bg-border'}`}></div>
-                          <span className="text-xs font-medium text-foreground">Approved</span>
-                        </div>
-                        <Switch
-                          id={`approved-${request.id}`}
-                          checked={request.status === 'approved'}
-                          onCheckedChange={(checked) => {
-                            handleStatusChange(request.id, checked ? 'approved' : 'pending');
-                          }}
-                          disabled={updateConnectionRequestStatus.isPending}
-                          className="scale-90 data-[state=checked]:bg-emerald-500"
-                        />
-                      </div>
-                      {request.status === 'approved' && request.approved_by && (
-                        <div className="text-xs text-muted-foreground/70 px-1">
-                          <DecisionDetails adminId={request.approved_by} timestamp={request.approved_at} action="approved" />
-                        </div>
-                      )}
-                      <DecisionNotesInline 
-                        requestId={request.id}
-                        currentNotes={request.admin_comment}
-                        isActive={request.status === 'approved'}
-                        label="approve"
-                      />
-                    </div>
-                    
-                    {/* Rejected */}
-                    <div className="space-y-3">
-                      <div className="flex items-center justify-between p-3 rounded-md border border-border/40 bg-background/50 hover:bg-accent/10 transition-colors">
-                        <div className="flex items-center gap-2">
-                          <div className={`w-2 h-2 rounded-full ${request.status === 'rejected' ? 'bg-destructive' : 'bg-border'}`}></div>
-                          <span className="text-xs font-medium text-foreground">Rejected</span>
-                        </div>
-                        <Switch
-                          id={`rejected-${request.id}`}
-                          checked={request.status === 'rejected'}
-                          onCheckedChange={(checked) => {
-                            handleStatusChange(request.id, checked ? 'rejected' : 'pending');
-                          }}
-                          disabled={updateConnectionRequestStatus.isPending}
-                          className="scale-90 data-[state=checked]:bg-destructive"
-                        />
-                      </div>
-                      {request.status === 'rejected' && request.rejected_by && (
-                        <div className="text-xs text-muted-foreground/70 px-1">
-                          <DecisionDetails adminId={request.rejected_by} timestamp={request.rejected_at} action="rejected" />
-                        </div>
-                      )}
-                      <DecisionNotesInline 
-                        requestId={request.id}
-                        currentNotes={request.admin_comment}
-                        isActive={request.status === 'rejected'}
-                        label="reject"
-                      />
-                    </div>
-                    
-                    {/* On Hold */}
-                    <div className="space-y-3">
-                      <div className="flex items-center justify-between p-3 rounded-md border border-border/40 bg-background/50 hover:bg-accent/10 transition-colors">
-                        <div className="flex items-center gap-2">
-                          <div className={`w-2 h-2 rounded-full ${request.status === 'on_hold' ? 'bg-amber-500' : 'bg-border'}`}></div>
-                          <span className="text-xs font-medium text-foreground">On Hold</span>
-                        </div>
-                        <Switch
-                          id={`on_hold-${request.id}`}
-                          checked={request.status === 'on_hold'}
-                          onCheckedChange={(checked) => {
-                            handleStatusChange(request.id, checked ? 'on_hold' : 'pending');
-                          }}
-                          disabled={updateConnectionRequestStatus.isPending}
-                          className="scale-90 data-[state=checked]:bg-amber-500"
-                        />
-                      </div>
-                      {request.status === 'on_hold' && request.on_hold_by && (
-                        <div className="text-xs text-muted-foreground/70 px-1">
-                          <DecisionDetails adminId={request.on_hold_by} timestamp={request.on_hold_at} action="put on hold" />
-                        </div>
-                      )}
-                      <DecisionNotesInline 
-                        requestId={request.id}
-                        currentNotes={request.admin_comment}
-                        isActive={request.status === 'on_hold'}
-                        label="put on hold"
-                      />
-                    </div>
-                  </div>
-                </div>
               </div>
 
               {/* Desktop/Tablet Layout (>= 768px) */}
@@ -645,7 +507,7 @@ function ReactiveRequestCard({
                      {request.user ? (
                        <>
                          <EnhancedBuyerProfile user={request.user} />
-                         <ExpandableBusinessProfile user={request.user as any} />
+                         <ExpandableBusinessProfile user={request.user as unknown as AdminUsersUser} />
                        </>
                      ) : (
                        /* Lead Information Section */
@@ -743,99 +605,18 @@ function ReactiveRequestCard({
                     </div>
                   </div>
 
-                  {/* Buyer Message & Final Decision - Combined Right Column */}
-                  <div className="space-y-4 lg:col-span-1 md:col-span-2">
-                    {/* Buyer Message Section */}
-                    {request.user_message && (
-                      <div className="space-y-3">
-                        <div className="flex items-center gap-2 pb-1 border-b border-border/40">
-                          <MessageSquare className="h-3.5 w-3.5 text-muted-foreground" />
-                          <span className="text-xs font-semibold text-card-foreground">Buyer Message</span>
-                        </div>
-                        <div className="border border-border/40 rounded-md p-3 bg-background/50 max-h-32 overflow-y-auto">
-                          <p className="text-xs text-foreground leading-relaxed whitespace-pre-wrap">{request.user_message}</p>
-                        </div>
+                  {/* Buyer Message */}
+                  {request.user_message && (
+                    <div className="space-y-3 lg:col-span-1 md:col-span-2">
+                      <div className="flex items-center gap-2 pb-1 border-b border-border/40">
+                        <MessageSquare className="h-3.5 w-3.5 text-muted-foreground" />
+                        <span className="text-xs font-semibold text-card-foreground">Buyer Message</span>
                       </div>
-                    )}
-
-                    {/* Final Decision Section - Now integrated in right column */}
-                    <div className="space-y-4 pt-4 border-t border-border/40">
-                      <div className="flex items-center gap-2 pb-2 border-b border-border/30">
-                        <Shield className="h-3.5 w-3.5 text-muted-foreground" />
-                        <span className="text-xs font-semibold text-card-foreground">Final Decision</span>
-                      </div>
-                      
-                      {/* Status Controls - Compact Horizontal Layout */}
-                      <div className="flex items-center gap-4 flex-wrap">
-                        <div className="flex items-center gap-2">
-                          <div className={`w-2 h-2 rounded-full ${request.status === 'approved' ? 'bg-emerald-500' : 'bg-border'}`}></div>
-                          <span className="text-xs font-medium text-foreground">Approved</span>
-                          <Switch
-                            id={`approved-desktop-${request.id}`}
-                            checked={request.status === 'approved'}
-                            onCheckedChange={(checked) => {
-                              handleStatusChange(request.id, checked ? 'approved' : 'pending');
-                            }}
-                            disabled={updateConnectionRequestStatus.isPending}
-                            className="scale-75 data-[state=checked]:bg-emerald-500"
-                          />
-                        </div>
-                        
-                        <div className="flex items-center gap-2">
-                          <div className={`w-2 h-2 rounded-full ${request.status === 'rejected' ? 'bg-destructive' : 'bg-border'}`}></div>
-                          <span className="text-xs font-medium text-foreground">Rejected</span>
-                          <Switch
-                            id={`rejected-desktop-${request.id}`}
-                            checked={request.status === 'rejected'}
-                            onCheckedChange={(checked) => {
-                              handleStatusChange(request.id, checked ? 'rejected' : 'pending');
-                            }}
-                            disabled={updateConnectionRequestStatus.isPending}
-                            className="scale-75 data-[state=checked]:bg-destructive"
-                          />
-                        </div>
-                        
-                        <div className="flex items-center gap-2">
-                          <div className={`w-2 h-2 rounded-full ${request.status === 'on_hold' ? 'bg-amber-500' : 'bg-border'}`}></div>
-                          <span className="text-xs font-medium text-foreground">On Hold</span>
-                          <Switch
-                            id={`on_hold-desktop-${request.id}`}
-                            checked={request.status === 'on_hold'}
-                            onCheckedChange={(checked) => {
-                              handleStatusChange(request.id, checked ? 'on_hold' : 'pending');
-                            }}
-                            disabled={updateConnectionRequestStatus.isPending}
-                            className="scale-75 data-[state=checked]:bg-amber-500"
-                          />
-                        </div>
-                      </div>
-
-                      {/* Decision Notes - Full Width in Right Column */}
-                      <div className="space-y-3">
-                        <DecisionNotesInline 
-                          requestId={request.id}
-                          currentNotes={request.admin_comment}
-                          isActive={request.status !== 'pending'}
-                          label={request.status === 'approved' ? 'Approval' : 
-                                 request.status === 'rejected' ? 'Rejection' : 'Hold'}
-                        />
-                        
-                        {request.status !== 'pending' && (
-                          <div className="text-xs text-muted-foreground/70">
-                            {request.status === 'approved' && request.approved_by && (
-                              <DecisionDetails adminId={request.approved_by} timestamp={request.approved_at} action="approved" />
-                            )}
-                            {request.status === 'rejected' && request.rejected_by && (
-                              <DecisionDetails adminId={request.rejected_by} timestamp={request.rejected_at} action="rejected" />
-                            )}
-                            {request.status === 'on_hold' && request.on_hold_by && (
-                              <DecisionDetails adminId={request.on_hold_by} timestamp={request.on_hold_at} action="put on hold" />
-                            )}
-                          </div>
-                        )}
+                      <div className="border border-border/40 rounded-md p-3 bg-background/50 max-h-32 overflow-y-auto">
+                        <p className="text-xs text-foreground leading-relaxed whitespace-pre-wrap">{request.user_message}</p>
                       </div>
                     </div>
-                  </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -855,7 +636,8 @@ export default function ConnectionRequestsTable({
   onSourcesChange
 }: ConnectionRequestsTableProps) {
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
-  
+  const { data: unreadCounts } = useUnreadMessageCounts();
+
   // Filter requests by selected sources
   const filteredRequests = selectedSources.length > 0 
     ? requests.filter(req => selectedSources.includes(req.source || 'marketplace'))
@@ -870,8 +652,6 @@ export default function ConnectionRequestsTable({
     }
     setExpandedRows(newExpanded);
   };
-
-  const [showAllCardActions, setShowAllCardActions] = useState(false);
 
   if (isLoading) {
     return <ConnectionRequestsTableSkeleton />;
@@ -932,6 +712,7 @@ export default function ConnectionRequestsTable({
             request={request}
             isExpanded={expandedRows.has(request.id)}
             onToggleExpanded={() => toggleExpanded(request.id)}
+            unreadCount={unreadCounts?.byRequest[request.id] || 0}
           />
         ))}
       </div>

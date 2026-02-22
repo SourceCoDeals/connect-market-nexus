@@ -41,13 +41,13 @@ export function EnhancedAnalyticsHealthDashboard() {
       const statusPromises = tables.map(async (table) => {
         try {
           const { count, error: countError } = await supabase
-            .from(table as any)
+            .from(table as never)
             .select('*', { count: 'exact', head: true });
           
           if (countError) throw countError;
 
           const { data: latest, error: latestError } = await supabase
-            .from(table as any)
+            .from(table as never)
             .select('created_at')
             .order('created_at', { ascending: false })
             .limit(1);
@@ -55,7 +55,7 @@ export function EnhancedAnalyticsHealthDashboard() {
           if (latestError) throw latestError;
 
           const recordCount = count || 0;
-          const lastInsert = (latest as any)?.[0]?.created_at;
+          const lastInsert = (latest as { created_at?: string }[] | null)?.[0]?.created_at;
           
           let status: 'healthy' | 'warning' | 'error' = 'healthy';
           
@@ -99,7 +99,6 @@ export function EnhancedAnalyticsHealthDashboard() {
       setLiveStats(stats);
 
     } catch (error: any) {
-      console.error('Failed to check analytics health:', error);
       toast({
         title: "Health Check Failed",
         description: error.message,
@@ -160,7 +159,6 @@ export function EnhancedAnalyticsHealthDashboard() {
         description: "Check results below",
       });
     } catch (error: any) {
-      console.error('Test failed:', error);
       logTestResult('Test Suite Execution', false, error.message);
     } finally {
       setIsTestingRunning(false);
@@ -177,7 +175,7 @@ export function EnhancedAnalyticsHealthDashboard() {
       const tables = ['page_views', 'listing_analytics', 'user_events', 'search_analytics'];
       
       for (const table of tables) {
-        const { error } = await supabase.from(table as any).delete().neq('id', '00000000-0000-0000-0000-000000000000');
+        const { error } = await supabase.from(table as never).delete().neq('id', '00000000-0000-0000-0000-000000000000');
         if (error) throw error;
       }
 
@@ -188,7 +186,6 @@ export function EnhancedAnalyticsHealthDashboard() {
 
       checkAnalyticsHealth();
     } catch (error: any) {
-      console.error('Failed to clear data:', error);
       toast({
         title: "Clear Failed",
         description: error.message,

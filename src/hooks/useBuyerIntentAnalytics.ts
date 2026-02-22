@@ -175,10 +175,11 @@ export function useBuyerIntentAnalytics(timeRangeDays: number = 30) {
       }).length;
       
       // Fetch engagement scores for average
-      const { data: engagementScores } = await supabase
+      const { data: engagementScores, error: engagementScoresError } = await supabase
         .from('engagement_scores')
         .select('score')
         .not('score', 'is', null);
+      if (engagementScoresError) throw engagementScoresError;
       
       const scores = engagementScores || [];
       const avgEngagementScore = scores.length > 0

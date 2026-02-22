@@ -68,7 +68,6 @@ export const FirefliesTranscriptSync = ({
       );
 
       if (error) {
-        console.error("Sync error:", error);
         throw error;
       }
 
@@ -103,7 +102,6 @@ export const FirefliesTranscriptSync = ({
       }
 
     } catch (error) {
-      console.error("Sync error:", error);
       toast.error(
         error instanceof Error
           ? `Failed to sync: ${error.message}`

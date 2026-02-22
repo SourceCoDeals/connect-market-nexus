@@ -6,7 +6,7 @@ interface BulkImportResult {
   successCount: number;
   failedCount: number;
   errors: string[];
-  createdLeads: any[];
+  createdLeads: Array<{ id: string; name?: string }>;
 }
 
 interface BulkMapAndConvertResult {
@@ -35,7 +35,7 @@ export function useEnhancedBulkLeadOperations() {
       shouldConvert?: boolean;
     }): Promise<BulkImportResult & BulkMapAndConvertResult> => {
       const errors: string[] = [];
-      const createdLeads: any[] = [];
+      const createdLeads: Array<{ id: string; name?: string }> = [];
       let successCount = 0;
       let failedCount = 0;
       let mappedCount = 0;
@@ -49,7 +49,7 @@ export function useEnhancedBulkLeadOperations() {
           successCount++;
         } catch (error) {
           failedCount++;
-          errors.push(`Failed to create lead ${leadData.name}: ${(error as any)?.message || 'Unknown error'}`);
+          errors.push(`Failed to create lead ${leadData.name}: ${error instanceof Error ? error.message : 'Unknown error'}`);
         }
       }
 
@@ -72,11 +72,11 @@ export function useEnhancedBulkLeadOperations() {
                 await convertLead.mutateAsync(createdLead.id);
                 convertedCount++;
               } catch (convertError) {
-                errors.push(`Failed to convert lead ${createdLead.name}: ${(convertError as any)?.message || 'Unknown error'}`);
+                errors.push(`Failed to convert lead ${createdLead.name}: ${convertError instanceof Error ? convertError.message : 'Unknown error'}`);
               }
             }
           } catch (mapError) {
-            errors.push(`Failed to map lead ${createdLead.name}: ${(mapError as any)?.message || 'Unknown error'}`);
+            errors.push(`Failed to map lead ${createdLead.name}: ${mapError instanceof Error ? mapError.message : 'Unknown error'}`);
           }
         }
       }
@@ -119,15 +119,13 @@ export function useEnhancedBulkLeadOperations() {
           title: "Some operations failed",
           description: `${errors.length} error(s) occurred. Check the console for details.`,
         });
-        console.error('Bulk import errors:', errors);
       }
     },
     onError: (error) => {
-      console.error('Bulk import failed:', error);
       toast({
         variant: "destructive",
         title: "Bulk import failed",
-        description: (error as any)?.message || "Could not complete the bulk import operation",
+        description: error instanceof Error ? error.message : "Could not complete the bulk import operation",
       });
     },
   });

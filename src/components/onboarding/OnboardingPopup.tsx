@@ -29,11 +29,8 @@ const OnboardingPopup = ({ isOpen, onClose, userId }: OnboardingPopupProps) => {
         .single();
 
       if (checkError) {
-        console.error('❌ Error checking user profile:', checkError);
-        
         // If user not found, they might not be properly authenticated
         if (checkError.code === 'PGRST116') {
-          console.error('❌ User profile not found - possible auth issue');
           toast({
             variant: "destructive",
             title: "Authentication Error",
@@ -63,7 +60,6 @@ const OnboardingPopup = ({ isOpen, onClose, userId }: OnboardingPopupProps) => {
         .eq('id', userId);
 
       if (updateError) {
-        console.error('❌ Error updating onboarding status:', updateError);
         toast({
           variant: "destructive",
           title: "Error",
@@ -85,7 +81,6 @@ const OnboardingPopup = ({ isOpen, onClose, userId }: OnboardingPopupProps) => {
       onClose();
       
     } catch (error) {
-      console.error('💥 Exception during onboarding completion:', error);
       toast({
         variant: "destructive",
         title: "Error",

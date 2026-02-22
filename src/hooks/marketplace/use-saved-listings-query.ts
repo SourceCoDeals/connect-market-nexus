@@ -22,7 +22,8 @@ export const useSavedListings = (filters: FilterOptions = {}) => {
     queryKey: createQueryKey.savedListings(filters),
     queryFn: async () => {
       try {
-        const { data: { session } } = await supabase.auth.getSession();
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+        if (sessionError) throw sessionError;
         if (!session) throw new Error('You must be logged in to view saved listings');
         
         const userId = session.user.id;
@@ -134,7 +135,6 @@ export const useSavedListings = (filters: FilterOptions = {}) => {
           totalCount: count || 0
         };
       } catch (error: any) {
-        console.error('Error fetching saved listings:', error);
         throw error;
       }
     },

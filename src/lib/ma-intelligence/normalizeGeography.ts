@@ -142,7 +142,6 @@ export function normalizeGeography(input: string[] | string | null | undefined):
 
     // Skip garbage data patterns
     if (SKIP_PATTERNS.some(pattern => pattern.test(trimmed))) {
-      console.log(`[normalizeGeography] Skipping garbage: "${item}"`);
       continue;
     }
 
@@ -166,7 +165,6 @@ export function normalizeGeography(input: string[] | string | null | undefined):
 
     // Handle common misspellings
     if (MISSPELLINGS[lower]) {
-      console.log(`[normalizeGeography] Fixed misspelling: "${item}" → "${MISSPELLINGS[lower]}"`);
       normalized.push(MISSPELLINGS[lower]);
       continue;
     }
@@ -174,14 +172,12 @@ export function normalizeGeography(input: string[] | string | null | undefined):
     // Check if it's a regional term (Midwest, Southeast, etc.)
     const regionStates = REGION_TO_STATES[lower];
     if (regionStates) {
-      console.log(`[normalizeGeography] Expanding region "${item}" to states: ${regionStates.join(', ')}`);
       normalized.push(...regionStates);
       continue;
     }
 
     // "national"/"nationwide"/"USA" → all 50 states
     if (['national', 'nationwide', 'usa', 'us', 'united states', 'all states'].includes(lower)) {
-      console.log(`[normalizeGeography] Expanding "${item}" to all 50 states`);
       normalized.push(...ALL_US_STATES);
       continue;
     }
@@ -191,7 +187,6 @@ export function normalizeGeography(input: string[] | string | null | undefined):
     if (statesMatch) {
       const count = parseInt(statesMatch[1], 10);
       if (count >= 30) {
-        console.log(`[normalizeGeography] Expanding "${item}" (${count} states) to all 50`);
         normalized.push(...ALL_US_STATES);
         continue;
       }
@@ -215,7 +210,6 @@ export function normalizeGeography(input: string[] | string | null | undefined):
       // Check if it's a full state name
       const stateAbbrev = STATE_NAME_TO_ABBREV[cleanedState];
       if (stateAbbrev) {
-        console.log(`[normalizeGeography] Extracted "${stateAbbrev}" from "${item}"`);
         normalized.push(stateAbbrev);
         continue;
       }
@@ -233,7 +227,6 @@ export function normalizeGeography(input: string[] | string | null | undefined):
         }
       }
       if (allValid && parts.length > 1) {
-        console.log(`[normalizeGeography] Parsed space-separated from "${item}"`);
         continue;
       }
     }

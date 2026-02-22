@@ -266,10 +266,10 @@ export function TranscriptAddDialog({
           className={`border-2 border-dashed rounded-lg p-4 text-center cursor-pointer transition-colors ${
             addMutationPending ? 'bg-muted/50 cursor-not-allowed' : 'hover:bg-muted/50'
           }`}
-          onClick={() => !addMutationPending && (fileInputRef.current as any)?.click()}
+          onClick={() => !addMutationPending && fileInputRef.current?.click()}
         >
           <input
-            ref={fileInputRef as any}
+            ref={fileInputRef}
             type="file"
             accept=".pdf,.txt,.doc,.docx,.vtt,.srt"
             onChange={onFileUpload}

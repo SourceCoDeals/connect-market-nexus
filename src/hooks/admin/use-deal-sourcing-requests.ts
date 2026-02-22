@@ -111,7 +111,6 @@ export const useDealSourcingRequests = (filters?: DealSourcingFilters) => {
       const { data, error } = await query;
 
       if (error) {
-        console.error('Error fetching deal sourcing requests:', error);
         toast({
           title: "Error Loading Requests",
           description: error.message || "Failed to load deal sourcing requests. Please try again.",

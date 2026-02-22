@@ -171,7 +171,8 @@ export function DealBuyerChat({
     abortControllerRef.current = new AbortController();
 
     try {
-      const { data: sessionData } = await supabase.auth.getSession();
+      const { data: sessionData, error: authError } = await supabase.auth.getSession();
+      if (authError) throw authError;
       if (!sessionData.session) {
         throw new Error("You must be logged in to use chat");
       }
@@ -317,7 +318,6 @@ export function DealBuyerChat({
       if (error instanceof Error && error.name === "AbortError") {
         return; // User cancelled, don't show error
       }
-      console.error("Chat error:", error);
       const errorMessage: Message = {
         id: `error-${Date.now()}`,
         role: "assistant",
@@ -495,7 +495,6 @@ export function DealBuyerChat({
                                 onClick={() => {
                                   // Try to find buyer by name in children
                                   const text = String(children);
-                                  console.log("Clicked buyer:", text);
                                 }}
                               >
                                 {children}

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useEnrichmentProgress } from "@/hooks/useEnrichmentProgress";
 import { EnrichmentProgressIndicator } from "@/components/remarketing/EnrichmentProgressIndicator";
 import { supabase } from "@/integrations/supabase/client";
@@ -41,14 +41,7 @@ export function TrackerDealsTab({ trackerId, onDealCountChange }: TrackerDealsTa
   const { startOrQueueMajorOp } = useGlobalGateCheck();
   const { completeOperation, updateProgress } = useGlobalActivityMutations();
 
-  useEffect(() => {
-    if (trackerId && trackerId !== 'new') {
-      loadDeals();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [trackerId]);
-
-  const loadDeals = async () => {
+  const loadDeals = useCallback(async () => {
     if (!trackerId || trackerId === 'new') return;
 
     setIsLoading(true);
@@ -61,7 +54,7 @@ export function TrackerDealsTab({ trackerId, onDealCountChange }: TrackerDealsTa
 
       if (error) throw error;
 
-      setDeals(data as any[] || []);
+      setDeals((data || []) as MADeal[]);
       onDealCountChange?.(data?.length || 0);
     } catch (error: any) {
       toast({
@@ -72,7 +65,13 @@ export function TrackerDealsTab({ trackerId, onDealCountChange }: TrackerDealsTa
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [trackerId, onDealCountChange, toast]);
+
+  useEffect(() => {
+    if (trackerId && trackerId !== 'new') {
+      loadDeals();
+    }
+  }, [trackerId, loadDeals]);
 
   const handleBulkEnrich = async () => {
     const dealIds = Array.from(selectedDeals);

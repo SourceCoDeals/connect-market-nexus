@@ -42,8 +42,6 @@ export const useOnboarding = () => {
   }, [user, authChecked]);
 
   const completeOnboarding = async () => {
-    console.log('✅ Onboarding completed - bulletproof approach');
-    
     // 1. Immediate localStorage update (never fails, instant UI update)
     localStorage.setItem(ONBOARDING_KEY, 'true');
     
@@ -58,7 +56,6 @@ export const useOnboarding = () => {
             .from('profiles')
             .update({ onboarding_completed: true, updated_at: new Date().toISOString() })
             .eq('id', user.id);
-          console.log('📊 Onboarding completion synced to database');
         } catch (error) {
           console.warn('⚠️ Failed to sync onboarding to database (non-critical):', error);
           // Don't show error to user - localStorage is source of truth

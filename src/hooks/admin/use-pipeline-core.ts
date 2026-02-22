@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from 'react';
 import { useDeals, useDealStages, Deal } from '@/hooks/admin/use-deals';
-import { useDealFilters } from '@/hooks/admin/use-deal-filters';
+import { useDealFilters, DealStatusFilter, DocumentStatusFilter, BuyerTypeFilter, SortOption } from '@/hooks/admin/use-deal-filters';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { supabase } from '@/integrations/supabase/client';
 import { usePipelineViews, PipelineView } from './use-pipeline-views';
@@ -29,7 +29,8 @@ export function usePipelineCore() {
   // Get current admin ID
   useEffect(() => {
     const getCurrentUser = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      if (authError) throw authError;
       setCurrentAdminId(user?.id);
     };
     getCurrentUser();
@@ -56,28 +57,16 @@ export function usePipelineCore() {
     }
     
     // Filter and sort stages based on view's stage_config
-    const stageIds = selectedView.stage_config.map((config: any) => config.stageId);
+    const stageIds = selectedView.stage_config.map((config) => config.stageId);
     const filteredStages = allStages.filter(stage => stageIds.includes(stage.id));
-    
+
     // Sort by view's custom position
     return filteredStages.sort((a, b) => {
-      const aConfig = selectedView.stage_config.find((c: any) => c.stageId === a.id);
-      const bConfig = selectedView.stage_config.find((c: any) => c.stageId === b.id);
+      const aConfig = selectedView.stage_config.find((c) => c.stageId === a.id);
+      const bConfig = selectedView.stage_config.find((c) => c.stageId === b.id);
       return (aConfig?.position || 0) - (bConfig?.position || 0);
     });
   }, [allStages, currentViewId, pipelineViews]);
-  
-  // Debug logging
-  console.log('Pipeline Core Debug:', {
-    dealsLoading,
-    stagesLoading,
-    dealsCount: deals?.length || 0,
-    allStagesCount: allStages?.length || 0,
-    filteredStagesCount: stages?.length || 0,
-    currentViewId,
-    dealsError: dealsError?.message,
-    stagesError: stagesError?.message
-  });
   
   // Filtering
   const filterHook = useDealFilters(deals || [], currentAdminId);
@@ -95,9 +84,9 @@ export function usePipelineCore() {
     // Apply saved filters with proper type casting and null checks
     try {
       if (config.searchQuery !== undefined) filterHook.setSearchQuery(config.searchQuery);
-      if (config.statusFilter) filterHook.setStatusFilter(config.statusFilter as any);
-      if (config.documentStatusFilter) filterHook.setDocumentStatusFilter(config.documentStatusFilter as any);
-      if (config.buyerTypeFilter) filterHook.setBuyerTypeFilter(config.buyerTypeFilter as any);
+      if (config.statusFilter) filterHook.setStatusFilter(config.statusFilter as DealStatusFilter);
+      if (config.documentStatusFilter) filterHook.setDocumentStatusFilter(config.documentStatusFilter as DocumentStatusFilter);
+      if (config.buyerTypeFilter) filterHook.setBuyerTypeFilter(config.buyerTypeFilter as BuyerTypeFilter);
       if (config.companyFilter && Array.isArray(config.companyFilter)) filterHook.setCompanyFilter(config.companyFilter);
       if (config.adminFilter) filterHook.setAdminFilter(config.adminFilter);
       if (config.listingFilter) filterHook.setListingFilter(config.listingFilter);
@@ -115,7 +104,7 @@ export function usePipelineCore() {
           end: config.lastActivityRange.end ? new Date(config.lastActivityRange.end) : null,
         });
       }
-      if (config.sortOption) filterHook.setSortOption(config.sortOption as any);
+      if (config.sortOption) filterHook.setSortOption(config.sortOption as SortOption);
     } catch (error) {
       console.error('[Pipeline Core] Error loading filter config:', error);
     }
@@ -123,18 +112,8 @@ export function usePipelineCore() {
 
   // Derive selected deal from id for absolute correctness
   const selectedDeal = useMemo(() => {
-    console.log('[Pipeline Core] Deriving selectedDeal', { 
-      selectedDealId, 
-      hasDeals: !!filteredAndSortedDeals,
-      dealsCount: filteredAndSortedDeals?.length 
-    });
     if (!filteredAndSortedDeals || !selectedDealId) return null;
     const found = filteredAndSortedDeals.find(d => d.deal_id === selectedDealId);
-    console.log('[Pipeline Core] Found deal?', { 
-      selectedDealId, 
-      found: !!found,
-      title: found?.title 
-    });
     return found || null;
   }, [filteredAndSortedDeals, selectedDealId]);
   
@@ -219,12 +198,6 @@ export function usePipelineCore() {
   
   // Actions
   const handleDealSelect = (deal: Deal) => {
-    console.log('[Pipeline Core] handleDealSelect called', { 
-      dealId: deal.deal_id, 
-      title: deal.title,
-      contact: deal.contact_name,
-      company: deal.contact_company 
-    });
     setSelectedDealId(deal.deal_id);
   };
   

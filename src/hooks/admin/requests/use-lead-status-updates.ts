@@ -7,20 +7,22 @@ import { logDealActivity } from '@/lib/deal-activity-logger';
 const getVisitorIdForRequest = async (requestId: string): Promise<string | null> => {
   try {
     // Get the user_id from connection request
-    const { data: request } = await supabase
+    const { data: request, error: requestError } = await supabase
       .from('connection_requests')
       .select('user_id')
       .eq('id', requestId)
       .single();
+    if (requestError) throw requestError;
     
     if (!request?.user_id) return null;
     
     // Try to find visitor_id in user_journeys for this user
-    const { data: journey } = await supabase
+    const { data: journey, error: journeyError } = await supabase
       .from('user_journeys')
       .select('visitor_id')
       .eq('user_id', request.user_id)
       .maybeSingle();
+    if (journeyError) throw journeyError;
     
     return journey?.visitor_id || null;
   } catch {
@@ -83,11 +85,12 @@ export const useUpdateLeadNDAStatus = () => {
       queryClient.invalidateQueries({ queryKey: ['admin-users'] });
       
       // Log activity if this connection request has a deal
-      const { data: deal } = await supabase
+      const { data: deal, error: dealError } = await supabase
         .from('deals')
         .select('id, contact_name')
         .eq('connection_request_id', requestId)
         .maybeSingle();
+      if (dealError) throw dealError;
       
       if (deal) {
         await logDealActivity({
@@ -105,7 +108,6 @@ export const useUpdateLeadNDAStatus = () => {
       if (value) {
         const visitorId = await getVisitorIdForRequest(requestId);
         if (visitorId) {
-          console.log('📍 Recording nda_signed_at milestone for visitor:', visitorId);
           await supabase.rpc('update_journey_milestone', {
             p_visitor_id: visitorId,
             p_milestone_key: 'nda_signed_at',
@@ -168,11 +170,12 @@ export const useUpdateLeadNDAEmailStatus = () => {
       queryClient.invalidateQueries({ queryKey: ['firm-members'] });
       
       // Log activity if this connection request has a deal
-      const { data: deal } = await supabase
+      const { data: deal, error: dealError } = await supabase
         .from('deals')
         .select('id, contact_name')
         .eq('connection_request_id', requestId)
         .maybeSingle();
+      if (dealError) throw dealError;
       
       if (deal) {
         await logDealActivity({
@@ -241,11 +244,12 @@ export const useUpdateLeadFeeAgreementStatus = () => {
       queryClient.invalidateQueries({ queryKey: ['admin-users'] });
       
       // Log activity if this connection request has a deal
-      const { data: deal } = await supabase
+      const { data: deal, error: dealError } = await supabase
         .from('deals')
         .select('id, contact_name')
         .eq('connection_request_id', requestId)
         .maybeSingle();
+      if (dealError) throw dealError;
       
       if (deal) {
         await logDealActivity({
@@ -263,7 +267,6 @@ export const useUpdateLeadFeeAgreementStatus = () => {
       if (value) {
         const visitorId = await getVisitorIdForRequest(requestId);
         if (visitorId) {
-          console.log('📍 Recording fee_agreement_at milestone for visitor:', visitorId);
           await supabase.rpc('update_journey_milestone', {
             p_visitor_id: visitorId,
             p_milestone_key: 'fee_agreement_at',
@@ -326,11 +329,12 @@ export const useUpdateLeadFeeAgreementEmailStatus = () => {
       queryClient.invalidateQueries({ queryKey: ['firm-members'] });
       
       // Log activity if this connection request has a deal
-      const { data: deal } = await supabase
+      const { data: deal, error: dealError } = await supabase
         .from('deals')
         .select('id, contact_name')
         .eq('connection_request_id', requestId)
         .maybeSingle();
+      if (dealError) throw dealError;
       
       if (deal) {
         await logDealActivity({

@@ -9,7 +9,8 @@ export function useMyDeals() {
   return useQuery({
     queryKey: ['my-deals'],
     queryFn: async () => {
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      if (authError) throw authError;
       
       if (!user?.id) {
         throw new Error('User not authenticated');
@@ -41,7 +42,8 @@ export function useMyDealStats() {
   return useQuery({
     queryKey: ['my-deal-stats'],
     queryFn: async () => {
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      if (authError) throw authError;
       
       if (!user?.id) {
         throw new Error('User not authenticated');

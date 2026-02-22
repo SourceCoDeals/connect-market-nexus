@@ -17,7 +17,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { AdminListing } from "@/types/admin";
-import { formatCurrency, cn } from "@/lib/utils";
+import { cn } from "@/lib/utils";
+import { formatCurrency } from "@/lib/currency-utils";
 import { DealScoreBadge } from "@/components/ma-intelligence/DealScoreBadge";
 
 interface ResearchDealCardProps {
@@ -43,17 +44,17 @@ export function ResearchDealCard({
   const ebitda = Number(listing.ebitda) || 0;
   const margin = revenue > 0 ? Math.round((ebitda / revenue) * 100) : 0;
   
-  // Type assertions for extended fields
-  const executiveSummary = (listing as any).executive_summary;
-  const serviceMix = (listing as any).service_mix;
-  const geographicStates = (listing as any).geographic_states;
-  const enrichedAt = (listing as any).enriched_at;
-  const dealTotalScore = (listing as any).deal_total_score;
-  const linkedinEmployeeCount = (listing as any).linkedin_employee_count;
-  const googleRating = (listing as any).google_rating;
-  const googleReviewsCount = (listing as any).google_reviews_count;
-  const companyWebsite = (listing as any).company_website;
-  const isPriorityTarget = (listing as any).is_priority_target;
+  // Extended enrichment fields
+  const executiveSummary = listing.executive_summary;
+  const serviceMix = listing.service_mix;
+  const geographicStates = listing.geographic_states;
+  const enrichedAt = listing.enriched_at;
+  const dealTotalScore = listing.deal_total_score;
+  const linkedinEmployeeCount = listing.linkedin_employee_count;
+  const googleRating = listing.google_rating;
+  const googleReviewsCount = listing.google_reviews_count;
+  const companyWebsite = listing.company_website;
+  const isPriorityTarget = listing.is_priority_target;
   
   const qualityScore = dealTotalScore || null;
   const isEnriched = !!enrichedAt;

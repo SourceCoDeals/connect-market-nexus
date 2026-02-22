@@ -274,7 +274,7 @@ export default function CapTargetDeals() {
   const filteredDeals = useMemo(() => {
     const sorted = [...engineFiltered];
     sorted.sort((a, b) => {
-      let valA: any, valB: any;
+      let valA: string | number, valB: string | number;
       switch (sortColumn) {
         case "company_name":
           valA = (a.internal_company_name || a.title || "").toLowerCase();
@@ -415,7 +415,8 @@ export default function CapTargetDeals() {
     sonnerToast.success(`Queued ${targets.length} deals for enrichment`);
 
     try {
-      const { data: result } = await supabase.functions.invoke("process-enrichment-queue", { body: { source: "captarget_bulk" } });
+      const { data: result, error: resultError } = await supabase.functions.invoke("process-enrichment-queue", { body: { source: "captarget_bulk" } });
+      if (resultError) throw resultError;
       if (result?.synced > 0 || result?.processed > 0) {
         const totalDone = (result?.synced || 0) + (result?.processed || 0);
         if (activityItem) updateProgress.mutate({ id: activityItem.id, completedItems: totalDone });
@@ -510,7 +511,8 @@ export default function CapTargetDeals() {
     setSelectedIds(new Set());
 
     try {
-      const { data: result } = await supabase.functions.invoke("process-enrichment-queue", { body: { source: "captarget_selected" } });
+      const { data: result, error: resultError } = await supabase.functions.invoke("process-enrichment-queue", { body: { source: "captarget_selected" } });
+      if (resultError) throw resultError;
       if (result?.synced > 0 || result?.processed > 0) {
         const totalDone = (result?.synced || 0) + (result?.processed || 0);
         if (activityItem) updateProgress.mutate({ id: activityItem.id, completedItems: totalDone });
@@ -550,14 +552,14 @@ export default function CapTargetDeals() {
     setIsArchiving(true);
     try {
       const dealIds = Array.from(selectedIds);
-      const { error } = await supabase.from('listings').update({ captarget_status: 'inactive' } as any).in('id', dealIds);
+      const { error } = await supabase.from('listings').update({ captarget_status: 'inactive' }).in('id', dealIds);
       if (error) throw error;
       toast({ title: 'Deals Archived', description: `${dealIds.length} deal(s) have been moved to Inactive` });
       setSelectedIds(new Set());
       setShowArchiveDialog(false);
       await queryClient.invalidateQueries({ queryKey: ["remarketing", "captarget-deals"] });
-    } catch (err: any) {
-      toast({ variant: 'destructive', title: 'Archive Failed', description: err.message });
+    } catch (err: unknown) {
+      toast({ variant: 'destructive', title: 'Archive Failed', description: err instanceof Error ? err.message : 'Unknown error' });
     } finally { setIsArchiving(false); }
   }, [selectedIds, toast, queryClient]);
 
@@ -577,8 +579,8 @@ export default function CapTargetDeals() {
       setSelectedIds(new Set());
       setShowDeleteDialog(false);
       await queryClient.invalidateQueries({ queryKey: ["remarketing", "captarget-deals"] });
-    } catch (err: any) {
-      toast({ variant: 'destructive', title: 'Delete Failed', description: err.message });
+    } catch (err: unknown) {
+      toast({ variant: 'destructive', title: 'Delete Failed', description: err instanceof Error ? err.message : 'Unknown error' });
     } finally { setIsDeleting(false); }
   }, [selectedIds, toast, queryClient]);
 
@@ -602,7 +604,7 @@ export default function CapTargetDeals() {
   const { data: exclusionLog } = useQuery({
     queryKey: ["captarget-exclusion-log"],
     queryFn: async () => {
-      const { data, error } = await (supabase as any)
+      const { data, error } = await supabase
         .from("captarget_sync_exclusions")
         .select("id, company_name, exclusion_reason, exclusion_category, source, excluded_at")
         .order("excluded_at", { ascending: false })
@@ -623,8 +625,8 @@ export default function CapTargetDeals() {
       setCleanupResultOpen(true);
       refetch();
       queryClient.invalidateQueries({ queryKey: ["captarget-exclusion-log"] });
-    } catch (e: any) {
-      sonnerToast.error("Cleanup failed", { description: e.message });
+    } catch (e: unknown) {
+      sonnerToast.error("Cleanup failed", { description: e instanceof Error ? e.message : 'Unknown error' });
     } finally { setIsCleaningUp(false); }
   };
 
@@ -659,8 +661,8 @@ export default function CapTargetDeals() {
       setSyncSummary({ inserted: totalInserted, updated: totalUpdated, skipped: totalSkipped, excluded: totalExcluded, status: "success" });
       setSyncSummaryOpen(true);
       refetch();
-    } catch (e: any) {
-      setSyncSummary({ inserted: totalInserted, updated: totalUpdated, skipped: totalSkipped, excluded: totalExcluded, status: "error", message: e.message });
+    } catch (e: unknown) {
+      setSyncSummary({ inserted: totalInserted, updated: totalUpdated, skipped: totalSkipped, excluded: totalExcluded, status: "error", message: e instanceof Error ? e.message : 'Unknown error' });
       setSyncSummaryOpen(true);
     } finally {
       setIsSyncing(false);

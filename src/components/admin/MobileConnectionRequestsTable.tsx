@@ -4,7 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { formatDistanceToNow } from 'date-fns';
-import { AdminConnectionRequest } from '@/types/admin';
+import { AdminConnectionRequest, AdminListing } from '@/types/admin';
 import { MessageSquare, User, Building, MapPin, DollarSign, Clipboard } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { InternalCompanyInfoDisplay } from './InternalCompanyInfoDisplay';
@@ -126,13 +126,13 @@ const MobileRequestCard = ({
         </div>
         
         {/* Deal Identifier */}
-        {(request.listing as any)?.deal_identifier && (
+        {request.listing?.deal_identifier && (
           <div className="mt-2 pt-2 border-t border-border/30">
             <div className="flex items-center gap-2">
               <Clipboard className="h-3 w-3 text-orange-600" />
               <span className="text-xs font-medium text-orange-700 dark:text-orange-400">Deal ID:</span>
               <code className="text-xs font-mono bg-orange-100 dark:bg-orange-900 px-1.5 py-0.5 rounded text-orange-800 dark:text-orange-200">
-                {(request.listing as any).deal_identifier}
+                {request.listing.deal_identifier}
               </code>
             </div>
           </div>
@@ -140,7 +140,7 @@ const MobileRequestCard = ({
       </div>
       
       {/* Internal Company Info Display */}
-      {request.listing && <InternalCompanyInfoDisplay listing={request.listing as any} />}
+      {request.listing && <InternalCompanyInfoDisplay listing={request.listing as unknown as AdminListing} />}
 
       {/* Message */}
       {request.user_message && (

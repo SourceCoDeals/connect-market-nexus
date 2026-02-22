@@ -29,7 +29,6 @@ export function useRealtimeAdmin() {
           table: 'profiles'
         },
         (payload) => {
-          console.log('👤 New user registered:', payload.new);
           toast({
             title: '👤 New User Registration',
             description: `${payload.new.first_name} ${payload.new.last_name} has registered`,
@@ -45,7 +44,6 @@ export function useRealtimeAdmin() {
           table: 'connection_requests'
         },
         (payload) => {
-          console.log('🔗 New connection request for admin:', payload.new);
           toast({
             title: '🔗 New Connection Request',
             description: 'A new connection request requires review',
@@ -62,7 +60,6 @@ export function useRealtimeAdmin() {
           table: 'connection_requests'
         },
         (payload) => {
-          console.log('🔄 Connection request updated:', payload);
           queryClient.refetchQueries({ queryKey: ['connection-requests'], type: 'active' });
           queryClient.refetchQueries({ queryKey: ['connection-request-details'], type: 'active' });
           queryClient.refetchQueries({ queryKey: ['deals'], type: 'active' });
@@ -76,7 +73,6 @@ export function useRealtimeAdmin() {
           table: 'listings'
         },
         (payload) => {
-          console.log('📋 New listing created:', payload.new);
           toast({
             title: '📋 New Listing Created',
             description: `"${payload.new.title}" has been added`,
@@ -92,8 +88,6 @@ export function useRealtimeAdmin() {
           table: 'profiles'
         },
         (payload) => {
-          console.log('🔄 User profile updated:', payload.new);
-          
           // Enhanced status change notifications (consolidated from enhanced hook)
           if (payload.old?.approval_status !== payload.new?.approval_status) {
             const status = payload.new.approval_status;
@@ -123,7 +117,6 @@ export function useRealtimeAdmin() {
           table: 'profiles'
         },
         (payload) => {
-          console.log('🗑️ User profile deleted:', payload.old);
           const userName = `${payload.old.first_name} ${payload.old.last_name}`;
           toast({
             title: '🗑️ User Deleted',
@@ -140,7 +133,6 @@ export function useRealtimeAdmin() {
           table: 'deals'
         },
         (payload) => {
-          console.log('💼 Deal updated:', payload);
           queryClient.refetchQueries({ queryKey: ['deals'], type: 'active' });
           queryClient.invalidateQueries({ queryKey: ['deal-activities'] });
         }
@@ -153,7 +145,6 @@ export function useRealtimeAdmin() {
           table: 'deal_tasks'
         },
         (payload) => {
-          console.log('✅ Deal task updated:', payload);
           queryClient.refetchQueries({ queryKey: ['deal-tasks'], type: 'active' });
           queryClient.refetchQueries({ queryKey: ['deals'], type: 'active' });
         }
@@ -166,7 +157,6 @@ export function useRealtimeAdmin() {
           table: 'connection_request_stages'
         },
         (payload) => {
-          console.log('🔄 Connection request stage updated:', payload);
           queryClient.refetchQueries({ queryKey: ['connection-request-stages'], type: 'active' });
         }
       )
@@ -178,7 +168,6 @@ export function useRealtimeAdmin() {
           table: 'firm_agreements'
         },
         (payload) => {
-          console.log('🏢 Firm agreement updated:', payload);
           queryClient.refetchQueries({ queryKey: ['firm-agreements'], type: 'active' });
           queryClient.invalidateQueries({ queryKey: ['admin-users'] });
           queryClient.invalidateQueries({ queryKey: ['connection-requests'] });
@@ -194,19 +183,16 @@ export function useRealtimeAdmin() {
           table: 'firm_members'
         },
         (payload) => {
-          console.log('👥 Firm member updated:', payload);
           queryClient.refetchQueries({ queryKey: ['firm-members'], type: 'active' });
           queryClient.invalidateQueries({ queryKey: ['firm-agreements'] });
           queryClient.invalidateQueries({ queryKey: ['admin-users'] });
         }
       )
       .subscribe((status) => {
-        console.log('📡 Consolidated admin notifications realtime status:', status);
         setIsConnected(status === 'SUBSCRIBED');
       });
 
     return () => {
-      console.log('🔌 Cleaning up consolidated admin realtime subscription');
       supabase.removeChannel(channel);
       setIsConnected(false);
     };

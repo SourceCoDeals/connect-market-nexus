@@ -60,6 +60,7 @@ interface BuyerRow {
   target_geographies?: string[];
   geographic_footprint?: string[];
   has_fee_agreement?: boolean | null;
+  fee_agreement_source?: string | null;
   alignment_score?: number | null;
   alignment_reasoning?: string | null;
   alignment_checked_at?: string | null;
@@ -388,7 +389,7 @@ export const BuyerTableEnhanced = ({
                   checked={isAllSelected}
                   ref={(ref) => {
                     if (ref) {
-                      (ref as any).indeterminate = isSomeSelected;
+                      (ref as unknown as HTMLInputElement).indeterminate = isSomeSelected;
                     }
                   }}
                   onCheckedChange={handleSelectAll}
@@ -486,17 +487,17 @@ export const BuyerTableEnhanced = ({
                             <Badge
                               variant="default"
                               className={`text-xs px-1.5 py-0 flex items-center gap-1 ${
-                                (buyer as any).fee_agreement_source === 'pe_firm_inherited'
+                                buyer.fee_agreement_source === 'pe_firm_inherited'
                                   ? 'bg-blue-600 hover:bg-blue-700'
-                                  : (buyer as any).fee_agreement_source === 'manual_override'
+                                  : buyer.fee_agreement_source === 'manual_override'
                                   ? 'bg-amber-600 hover:bg-amber-700'
                                   : 'bg-green-600 hover:bg-green-700'
                               }`}
                             >
                               <DollarSign className="h-3 w-3" />
-                              {(buyer as any).fee_agreement_source === 'pe_firm_inherited'
+                              {buyer.fee_agreement_source === 'pe_firm_inherited'
                                 ? `via ${buyer.pe_firm_name || 'PE Firm'}`
-                                : (buyer as any).fee_agreement_source === 'manual_override'
+                                : buyer.fee_agreement_source === 'manual_override'
                                 ? 'Manual'
                                 : 'Fee Agreed'}
                             </Badge>

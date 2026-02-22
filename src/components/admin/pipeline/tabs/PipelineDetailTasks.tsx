@@ -59,14 +59,14 @@ export function PipelineDetailTasks({ deal }: PipelineDetailTasksProps) {
   const handleStatusChange = (taskId: string, status: string) => {
     updateTask.mutate({ 
       taskId, 
-      updates: { status: status as any }
+      updates: { status: status as 'open' | 'in_progress' | 'reopened' | 'na' | 'resolved' }
     });
   };
 
   const handlePriorityChange = (taskId: string, priority: string) => {
     updateTask.mutate({ 
       taskId, 
-      updates: { priority: priority as any }
+      updates: { priority: priority as 'low' | 'medium' | 'high' }
     });
   };
 

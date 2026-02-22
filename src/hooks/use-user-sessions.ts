@@ -16,31 +16,34 @@ export const useUserSessions = (userId: string | null) => {
       if (!userId) return [];
 
       // Fetch page views with session data
-      const { data: pageViews } = await supabase
+      const { data: pageViews, error: pvError } = await supabase
         .from("page_views")
         .select("session_id, created_at")
         .eq("user_id", userId)
         .not("session_id", "is", null)
         .order("created_at", { ascending: false })
         .limit(100);
+      if (pvError) throw pvError;
 
       // Fetch listing analytics with session data
-      const { data: listingAnalytics } = await supabase
+      const { data: listingAnalytics, error: laError } = await supabase
         .from("listing_analytics")
         .select("session_id, created_at")
         .eq("user_id", userId)
         .not("session_id", "is", null)
         .order("created_at", { ascending: false })
         .limit(100);
+      if (laError) throw laError;
 
       // Fetch user events with session data
-      const { data: userEvents } = await supabase
+      const { data: userEvents, error: ueError } = await supabase
         .from("user_events")
         .select("session_id, created_at")
         .eq("user_id", userId)
         .not("session_id", "is", null)
         .order("created_at", { ascending: false })
         .limit(100);
+      if (ueError) throw ueError;
 
       // Combine all session data
       const allSessions = [

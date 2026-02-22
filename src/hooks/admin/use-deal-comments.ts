@@ -33,13 +33,16 @@ export function useDealComments(dealId: string) {
 
       if (error) throw error;
 
-      return (data || []).map((comment: any) => ({
-        ...comment,
-        admin_name: comment.profiles?.first_name || comment.profiles?.last_name
-          ? `${comment.profiles?.first_name ?? ''} ${comment.profiles?.last_name ?? ''}`.trim()
-          : (comment.profiles?.email || 'Unknown'),
-        admin_email: comment.profiles?.email || '',
-      })) as DealComment[];
+      return (data || []).map((comment) => {
+        const profiles = comment.profiles as { first_name?: string; last_name?: string; email?: string } | null;
+        return {
+          ...comment,
+          admin_name: profiles?.first_name || profiles?.last_name
+            ? `${profiles?.first_name ?? ''} ${profiles?.last_name ?? ''}`.trim()
+            : (profiles?.email || 'Unknown'),
+          admin_email: profiles?.email || '',
+        };
+      }) as DealComment[];
     },
   });
 }
@@ -58,7 +61,8 @@ export function useCreateDealComment() {
       commentText: string;
       mentionedAdmins?: string[];
     }) => {
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      if (authError) throw authError;
       if (!user) throw new Error('Not authenticated');
 
       const { data, error } = await supabase
@@ -83,8 +87,7 @@ export function useCreateDealComment() {
       });
     },
     onError: (error) => {
-      console.error('Create comment error:', error);
-      const msg = (error as any)?.message || (typeof error === 'string' ? error : JSON.stringify(error));
+      const msg = error instanceof Error ? error.message : (typeof error === 'string' ? error : JSON.stringify(error));
       toast({
         title: 'Error',
         description: `Failed to add comment: ${msg}`,

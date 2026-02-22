@@ -444,7 +444,7 @@ export const BuyerMatchCard = ({
               )}
               
               {/* Fee Status Badge - cross-referenced with marketplace firm_agreements */}
-              {(firmFeeAgreement?.signed || (buyer as any)?.has_fee_agreement) ? (
+              {(firmFeeAgreement?.signed || buyer?.has_fee_agreement) ? (
                 <TooltipProvider>
                   <Tooltip>
                     <TooltipTrigger asChild>
@@ -475,8 +475,8 @@ export const BuyerMatchCard = ({
                 {getBuyerLocationDisplay(buyer)}
               </span>
               
-              {(buyer?.company_website || (buyer as any)?.platform_website) && (() => {
-                const siteUrl = buyer?.company_website || (buyer as any)?.platform_website;
+              {buyer?.company_website && (() => {
+                const siteUrl = buyer.company_website;
                 return (
                   <a 
                     href={siteUrl.startsWith('http') ? siteUrl : `https://${siteUrl}`}
@@ -492,24 +492,24 @@ export const BuyerMatchCard = ({
                 );
               })()}
               
-              {(buyer as any)?.pe_firm_website && (
-                <a 
-                  href={(buyer as any).pe_firm_website.startsWith('http') ? (buyer as any).pe_firm_website : `https://${(buyer as any).pe_firm_website}`}
-                  target="_blank" 
+              {buyer?.pe_firm_website && (
+                <a
+                  href={buyer.pe_firm_website.startsWith('http') ? buyer.pe_firm_website : `https://${buyer.pe_firm_website}`}
+                  target="_blank"
                   rel="noopener noreferrer"
                   className="flex items-center gap-1 hover:underline"
                 >
                   <Building2 className="h-3.5 w-3.5" />
                   <span className="truncate max-w-[180px]">
-                    {(buyer as any).pe_firm_website.replace(/^https?:\/\/(www\.)?/, '').split('/')[0]}
+                    {buyer.pe_firm_website.replace(/^https?:\/\/(www\.)?/, '').split('/')[0]}
                   </span>
                 </a>
               )}
-              
-              {(buyer as any)?.pe_firm_name && (
+
+              {buyer?.pe_firm_name && (
                 <span className="flex items-center gap-1">
                   <Landmark className="h-3.5 w-3.5" />
-                  {(buyer as any).pe_firm_name}
+                  {buyer.pe_firm_name}
                 </span>
               )}
             </div>

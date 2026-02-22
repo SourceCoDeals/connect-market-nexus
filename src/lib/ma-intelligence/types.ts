@@ -116,6 +116,8 @@ export interface MABuyer {
   platform_only: boolean | null;
   has_fee_agreement: boolean | null;
   fee_agreement_status: 'Active' | 'Expired' | 'None' | null;
+  fee_agreement_source: string | null;
+  marketplace_firm_id: string | null;
   last_call_date: string | null;
   call_history: CallRecord[] | null;
   created_at: string;

@@ -159,13 +159,6 @@ export const useListings = (filters: FilterOptions = {}) => {
           const { data, error, count } = await query;
           
           if (error) {
-            console.error('❌ Error fetching marketplace listings:', error);
-            console.error('❌ Error details:', {
-              message: error.message,
-              details: error.details,
-              hint: error.hint,
-              code: error.code
-            });
             throw error;
           }
           
@@ -219,7 +212,6 @@ export const useListings = (filters: FilterOptions = {}) => {
             totalCount: count || 0
           };
         } catch (error: any) {
-          console.error('💥 Error in useListings:', error);
           throw error;
         }
       });
@@ -262,7 +254,6 @@ export const useListing = (id: string | undefined) => {
             .maybeSingle();
           
           if (error) {
-            console.error('❌ Error fetching single listing:', error);
             throw error;
           }
           
@@ -274,9 +265,9 @@ export const useListing = (id: string | undefined) => {
           // Successfully fetched listing
           
           // Transform to Listing type with computed properties
-          const d = data as unknown as Record<string, any>;
+          const d = data as unknown as Record<string, unknown> & { categories?: string[]; category?: string; metric_3_type?: string; owner_notes?: string; created_at: string; updated_at: string; status: string; revenue: number; ebitda: number };
           const listing = {
-            ...(d as any),
+            ...d,
             categories: d.categories || (d.category ? [d.category] : []),
             metric_3_type: (d.metric_3_type as 'employees' | 'custom') || 'employees',
             ownerNotes: d.owner_notes || '',
@@ -303,7 +294,6 @@ export const useListing = (id: string | undefined) => {
           
           return listing as Listing;
         } catch (error: any) {
-          console.error('💥 Error in useListing:', error);
           throw error;
         }
       });

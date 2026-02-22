@@ -112,11 +112,12 @@ export async function selfHealProfile(
 
   // Check if the profile already exists to avoid overwriting privileged fields
   // (e.g., approval_status could be 'approved' — self-heal must not reset it to 'pending')
-  const { data: existingProfile } = await supabase
+  const { data: existingProfile, error: existingProfileError } = await supabase
     .from('profiles')
     .select('id, approval_status')
     .eq('id', authUser.id)
     .maybeSingle();
+  if (existingProfileError) throw existingProfileError;
 
   if (existingProfile) {
     // Profile exists — preserve approval_status and only fill in missing data
@@ -129,11 +130,9 @@ export async function selfHealProfile(
       .single();
 
     if (updateError) {
-      console.error('Self-heal profile update failed:', updateError);
       return null;
     }
 
-    console.log('Self-healed existing profile (approval_status preserved)');
     return updatedProfile;
   }
 
@@ -145,10 +144,8 @@ export async function selfHealProfile(
     .single();
 
   if (insertError) {
-    console.error('Self-heal profile creation failed:', insertError);
     return null;
   }
 
-  console.log('Self-healed profile created successfully');
   return newProfile;
 }

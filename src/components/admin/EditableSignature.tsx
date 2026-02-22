@@ -27,8 +27,8 @@ export function EditableSignature({ onSignatureChange, showInline = false }: Edi
     if (signature) {
       setHtmlSignature(signature.signature_html);
       setTextSignature(signature.signature_text);
-      setPhoneNumber((signature as any).phone_number || '');
-      setCalendlyUrl((signature as any).calendly_url || '');
+      setPhoneNumber(signature.phone_number || '');
+      setCalendlyUrl(signature.calendly_url || '');
       onSignatureChange?.(signature.signature_html, signature.signature_text);
     }
   }, [signature, onSignatureChange]);
@@ -53,8 +53,8 @@ export function EditableSignature({ onSignatureChange, showInline = false }: Edi
     if (signature) {
       setHtmlSignature(signature.signature_html);
       setTextSignature(signature.signature_text);
-      setPhoneNumber((signature as any).phone_number || '');
-      setCalendlyUrl((signature as any).calendly_url || '');
+      setPhoneNumber(signature.phone_number || '');
+      setCalendlyUrl(signature.calendly_url || '');
     }
     setIsEditing(false);
   };

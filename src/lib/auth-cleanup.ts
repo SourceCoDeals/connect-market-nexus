@@ -19,8 +19,7 @@ export const cleanupAuthState = () => {
       });
     }
     
-    console.log('✅ Auth state cleanup completed');
   } catch (error) {
-    console.error('Auth cleanup error:', error);
+    // Auth cleanup error - silently continue
   }
 };

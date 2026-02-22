@@ -5,7 +5,7 @@
  * Allows users to resume previous conversations or start new ones.
  */
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
@@ -44,13 +44,7 @@ export function ConversationHistory({
   const [isLoading, setIsLoading] = useState(true);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
-  // Load conversations for this context
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => {
-    loadConversations();
-  }, [context.type, context.dealId, context.universeId]);
-
-  const loadConversations = async () => {
+  const loadConversations = useCallback(async () => {
     setIsLoading(true);
     try {
       const { success, conversations: data } = await loadConversationsByContext(
@@ -66,7 +60,12 @@ export function ConversationHistory({
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [context]);
+
+  // Load conversations for this context
+  useEffect(() => {
+    loadConversations();
+  }, [loadConversations]);
 
   const handleDelete = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation(); // Prevent selecting the conversation

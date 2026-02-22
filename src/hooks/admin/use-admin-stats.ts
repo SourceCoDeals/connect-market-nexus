@@ -72,7 +72,6 @@ export function useAdminStats() {
             approvedConnections: approvedConnections || 0,
           } as AdminStats;
         } catch (error: any) {
-          console.error("Error getting admin stats:", error);
           toast({
             variant: 'destructive',
             title: 'Error loading stats',
@@ -183,7 +182,6 @@ export function useAdminStats() {
           
           return activities.slice(0, 10); // Return 10 most recent activities
         } catch (error: any) {
-          console.error("Error loading recent activities:", error);
           toast({
             variant: 'destructive',
             title: 'Error loading activities',

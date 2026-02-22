@@ -119,7 +119,6 @@ export const UnlinkedListingsWidget = () => {
     },
     onError: (error) => {
       toast.error("Failed to link listing");
-      console.error(error);
     },
   });
 
@@ -138,7 +137,6 @@ export const UnlinkedListingsWidget = () => {
         toast.info("No strong universe matches found - select manually");
       }
     } catch (error) {
-      console.error("Failed to get suggestions:", error);
       toast.error("Failed to get AI suggestions");
     } finally {
       setIsSuggesting(false);

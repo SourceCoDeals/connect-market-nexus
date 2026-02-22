@@ -8,6 +8,7 @@ import { Deal } from '@/hooks/admin/use-deals';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { getRelevantFieldsForBuyerType, FIELD_LABELS } from '@/lib/buyer-type-fields';
+import type { BuyerType } from '@/types';
 import { useAssociatedRequests } from '@/hooks/admin/use-associated-requests';
 import { Label } from '@/components/ui/label';
 
@@ -29,11 +30,12 @@ export function PipelineDetailBuyer({ deal }: PipelineDetailBuyerProps) {
     queryFn: async () => {
       if (!deal.contact_email) return null;
       
-      const { data: userProfile } = await supabase
+      const { data: userProfile, error: userProfileError } = await supabase
         .from('profiles')
         .select('id')
         .eq('email', deal.contact_email)
         .maybeSingle();
+      if (userProfileError) throw userProfileError;
       
       return userProfile?.id || null;
     },
@@ -47,20 +49,22 @@ export function PipelineDetailBuyer({ deal }: PipelineDetailBuyerProps) {
     queryFn: async () => {
       if (!deal.contact_email) return null;
       
-      const { data: connectionRequest } = await supabase
+      const { data: connectionRequest, error: connectionRequestError } = await supabase
         .from('connection_requests')
         .select('*')
         .eq('lead_email', deal.contact_email)
         .limit(1)
         .single();
+      if (connectionRequestError) throw connectionRequestError;
       
       if (!connectionRequest?.user_id) return null;
 
-      const { data: profile } = await supabase
+      const { data: profile, error: profileError } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', connectionRequest.user_id)
         .single();
+      if (profileError) throw profileError;
       
       if (!profile) return connectionRequest;
       
@@ -105,7 +109,7 @@ export function PipelineDetailBuyer({ deal }: PipelineDetailBuyerProps) {
       const userId = buyerProfile?.user_id || resolvedUserId;
       if (!userId) return [];
       
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('saved_listings')
         .select(`
           *,
@@ -113,7 +117,8 @@ export function PipelineDetailBuyer({ deal }: PipelineDetailBuyerProps) {
         `)
         .eq('user_id', userId)
         .order('created_at', { ascending: false});
-      
+      if (error) throw error;
+
       return data || [];
     },
     enabled: !!(buyerProfile?.user_id || resolvedUserId),
@@ -310,14 +315,14 @@ export function PipelineDetailBuyer({ deal }: PipelineDetailBuyerProps) {
                   )}
 
                   {/* All other buyer-specific fields */}
-                  {profile.buyer_type && getRelevantFieldsForBuyerType(profile.buyer_type as any)
+                  {profile.buyer_type && getRelevantFieldsForBuyerType(profile.buyer_type as BuyerType)
                     .filter(field => !['email', 'phone_number', 'linkedin_profile', 'first_name', 'last_name', 
                                        'business_categories', 'target_locations', 'ideal_target_description',
                                        'specific_business_search', 'deal_intent', 'include_keywords',
                                        'fund_size', 'investment_size', 'aum', 'deploying_capital_now',
                                        'target_deal_size_min', 'target_deal_size_max'].includes(field))
                     .map((field) => {
-                      const value = formatFieldValue(field, (profile as any)[field]);
+                      const value = formatFieldValue(field, (profile as Record<string, unknown>)[field]);
                       if (!value) return null;
                       
                       return (

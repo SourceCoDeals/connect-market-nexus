@@ -83,10 +83,10 @@ export const TranscriptsListCard = ({
     const form = new FormData();
     form.append('file', file);
     const { data, error } = await supabase.functions.invoke('parse-transcript-file', {
-      body: form as any,
+      body: form,
     });
     if (error) throw new Error(error.message || 'Failed to parse file');
-    return String((data as any)?.text || '');
+    return String((data as Record<string, unknown>)?.text || '');
   };
 
   const validateFile = (file: File): boolean => {
@@ -249,7 +249,6 @@ export const TranscriptsListCard = ({
           await new Promise(r => setTimeout(r, 1500));
         }
       } catch (err: any) {
-        console.error(`Failed to upload ${file.name}:`, err);
         toast({ title: `Failed: ${file.name}`, description: err.message, variant: "destructive" });
       }
     }

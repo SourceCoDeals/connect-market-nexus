@@ -55,7 +55,6 @@ export function useUpdateOwnerLeadStatus() {
       });
     },
     onError: (error) => {
-      console.error("Error updating lead status:", error);
       toast({
         variant: "destructive",
         title: "Error",
@@ -85,7 +84,6 @@ export function useUpdateOwnerLeadContacted() {
       });
     },
     onError: (error) => {
-      console.error("Error updating contact status:", error);
       toast({
         variant: "destructive",
         title: "Error",

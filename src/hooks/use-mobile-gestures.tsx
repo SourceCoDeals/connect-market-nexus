@@ -189,8 +189,8 @@ export function usePullToRefresh(onRefresh: () => void | Promise<void>, threshol
 
   useEffect(() => {
     const element = document.body;
-    const touchStartHandler = (e: TouchEvent) => handleTouchStart(e as any);
-    const touchMoveHandler = (e: TouchEvent) => handleTouchMove(e as any);
+    const touchStartHandler = (e: TouchEvent) => handleTouchStart(e as unknown as React.TouchEvent);
+    const touchMoveHandler = (e: TouchEvent) => handleTouchMove(e as unknown as React.TouchEvent);
     const touchEndHandler = () => handleTouchEnd();
     
     element.addEventListener('touchstart', touchStartHandler, { passive: true });

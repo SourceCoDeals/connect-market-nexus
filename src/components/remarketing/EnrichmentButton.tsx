@@ -51,9 +51,9 @@ export const EnrichmentButton = ({
     },
     onError: (error: Error) => {
       setEnrichmentResult('error');
-      const anyErr = error as any;
-      const status = anyErr?.context?.status as number | undefined;
-      const json = anyErr?.context?.json as any | undefined;
+      const anyErr = error as Error & { context?: { status?: number; json?: { error?: string; resetTime?: string } } };
+      const status = anyErr?.context?.status;
+      const json = anyErr?.context?.json;
       const msg = json?.error || error.message;
       const reset = json?.resetTime ? ` (reset: ${new Date(json.resetTime).toLocaleTimeString()})` : '';
       toast.error('Enrichment failed', {

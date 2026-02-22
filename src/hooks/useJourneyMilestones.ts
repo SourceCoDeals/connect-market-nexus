@@ -35,7 +35,6 @@ export function useJourneyMilestones() {
         return false;
       }
 
-      console.log('📍 Milestone recorded:', milestone);
       return true;
     } catch (error) {
       console.error('Error recording milestone:', error);
@@ -60,7 +59,6 @@ export function useJourneyMilestones() {
         return false;
       }
 
-      console.log('🔗 Journey linked to user:', userId);
       return true;
     } catch (error) {
       console.error('Error linking journey to user:', error);

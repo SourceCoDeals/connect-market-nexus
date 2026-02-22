@@ -76,10 +76,11 @@ export default function ReMarketingReferralPartners() {
       // Fetch actual deal counts from listings table
       const partnerIds = (data || []).map((p: any) => p.id);
       if (partnerIds.length > 0) {
-        const { data: listings } = await supabase
+        const { data: listings, error: listingsError } = await supabase
           .from("listings")
           .select("referral_partner_id")
           .in("referral_partner_id", partnerIds);
+        if (listingsError) throw listingsError;
         
         const countMap: Record<string, number> = {};
         listings?.forEach((l: any) => {
@@ -151,10 +152,11 @@ export default function ReMarketingReferralPartners() {
       crypto.getRandomValues(array);
       const password = Array.from(array, (b) => chars[b % chars.length]).join("");
 
-      const { data: hashResult } = await supabase.functions.invoke(
+      const { data: hashResult, error: hashResultError } = await supabase.functions.invoke(
         "validate-referral-access",
         { body: { action: "hash-password", password } }
       );
+      if (hashResultError) throw hashResultError;
 
       const hash = hashResult?.hash || password;
 

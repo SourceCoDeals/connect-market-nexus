@@ -34,7 +34,6 @@ export function DealAlertsOverview() {
         `);
 
       if (alertError) {
-        console.error('Error fetching deal alerts:', alertError);
         throw alertError;
       }
 
@@ -69,8 +68,8 @@ export function DealAlertsOverview() {
       // Get top categories from criteria
       const categoryCount: Record<string, number> = {};
       alertData.forEach(alert => {
-        const criteria = alert.criteria as any;
-        const category = criteria?.category;
+        const criteria = alert.criteria as Record<string, unknown> | null;
+        const category = criteria?.category as string | undefined;
         if (category && category !== 'all') {
           categoryCount[category] = (categoryCount[category] || 0) + 1;
         }

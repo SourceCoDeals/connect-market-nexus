@@ -27,7 +27,6 @@ export function useUpdateDecisionNotes() {
       });
     },
     onError: (error) => {
-      console.log('Decision note update failed:', error);
       toast({
         title: "Error",
         description: "Failed to save decision note. Please try again.",
@@ -54,12 +53,12 @@ export function useUserNotes(userId: string) {
       if (error) throw error;
       
       return (data || []).map(note => {
-        const admin = note.admin as any;
-        
+        const admin = note.admin as { first_name?: string; last_name?: string; email?: string } | null;
+
         return {
           ...note,
-          admin_name: admin ? 
-            `${admin.first_name || ''} ${admin.last_name || ''}`.trim() || admin.email || 'Unknown Admin' : 
+          admin_name: admin ?
+            `${admin.first_name || ''} ${admin.last_name || ''}`.trim() || admin.email || 'Unknown Admin' :
             'Unknown Admin',
           admin_email: admin?.email || '',
         };
@@ -97,7 +96,6 @@ export function useCreateUserNote() {
       });
     },
     onError: (error) => {
-      console.error('Note creation failed:', error);
       toast({
         title: "Error",
         description: "Failed to create note. Please try again.",
@@ -132,7 +130,6 @@ export function useUpdateUserNote() {
       });
     },
     onError: (error) => {
-      console.error('Note update failed:', error);
       toast({
         title: "Error",
         description: "Failed to update note. Please try again.",

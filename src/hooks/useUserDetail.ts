@@ -169,11 +169,12 @@ export function useUserDetail(visitorId: string | null) {
       const sixMonthsAgo = subDays(new Date(), 180).toISOString();
       
       // First, determine if this is a user_id or visitor_id by checking profiles
-      const { data: profile } = await supabase
+      const { data: profile, error: profileError } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', visitorId)
         .maybeSingle();
+      if (profileError) throw profileError;
       
       const isUserId = !!profile;
       
@@ -197,28 +198,31 @@ export function useUserDetail(visitorId: string | null) {
       
       // First fetch sessions to get session IDs for anonymous users
       const sessionsResult = await sessionsQuery;
+      if (sessionsResult.error) throw sessionsResult.error;
       const sessions = sessionsResult.data || [];
       
       // Fetch page views - for anonymous users, query by session_id
       let pageViews: any[] = [];
       if (isUserId) {
-        const { data } = await supabase
+        const { data, error: pageViewsError } = await supabase
           .from('page_views')
           .select('*')
           .eq('user_id', visitorId)
           .gte('created_at', sixMonthsAgo)
           .order('created_at', { ascending: true });
+        if (pageViewsError) throw pageViewsError;
         pageViews = data || [];
       } else if (sessions.length > 0) {
         // For anonymous visitors, fetch page views by session IDs
         const sessionIds = sessions.map(s => s.session_id).filter(Boolean);
         if (sessionIds.length > 0) {
-          const { data } = await supabase
+          const { data, error: pageViewsError } = await supabase
             .from('page_views')
             .select('*')
             .in('session_id', sessionIds)
             .gte('created_at', sixMonthsAgo)
             .order('created_at', { ascending: true });
+          if (pageViewsError) throw pageViewsError;
           pageViews = data || [];
         }
       }
@@ -226,11 +230,12 @@ export function useUserDetail(visitorId: string | null) {
       // Only fetch connections for registered users
       let connections: any[] = [];
       if (isUserId) {
-        const { data } = await supabase
+        const { data, error: connectionsError } = await supabase
           .from('connection_requests')
           .select('id, created_at, listing_id')
           .eq('user_id', visitorId)
           .order('created_at', { ascending: true });
+        if (connectionsError) throw connectionsError;
         connections = data || [];
       }
       

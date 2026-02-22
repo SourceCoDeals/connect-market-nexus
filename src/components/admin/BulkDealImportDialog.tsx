@@ -258,7 +258,8 @@ export function BulkDealImportDialog({ isOpen, onClose, onConfirm, isLoading }: 
       
       // Log to audit_logs
       try {
-        const { data: { user } } = await supabase.auth.getUser();
+        const { data: { user }, error: authError } = await supabase.auth.getUser();
+        if (authError) throw authError;
         if (user) {
           await supabase.from('audit_logs').insert({
             table_name: 'connection_requests',
@@ -383,15 +384,17 @@ export function BulkDealImportDialog({ isOpen, onClose, onConfirm, isLoading }: 
 
         case 'create': {
           // Create new request anyway (force duplicate)
-          const { data: { user } } = await supabase.auth.getUser();
+          const { data: { user }, error: authError } = await supabase.auth.getUser();
+          if (authError) throw authError;
           if (!user) throw new Error('Not authenticated');
 
           // Check if user exists in profiles
-          const { data: profile } = await supabase
+          const { data: profile, error: profileError } = await supabase
             .from('profiles')
             .select('id, email, company, nda_signed, fee_agreement_signed')
             .eq('email', deal.email)
             .maybeSingle();
+          if (profileError) throw profileError;
 
           const { error: createError } = await supabase
             .from('connection_requests')

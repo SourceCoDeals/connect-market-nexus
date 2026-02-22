@@ -49,7 +49,7 @@ export function PipelineViewDialog({ open, onOpenChange }: PipelineViewDialogPro
   const [orderedStageIds, setOrderedStageIds] = useState<string[]>([]);
 
   const form = useForm<ViewFormData>({
-    resolver: zodResolver(viewSchema as any),
+    resolver: zodResolver(viewSchema),
     defaultValues: {
       name: '',
       description: '',
@@ -68,8 +68,7 @@ export function PipelineViewDialog({ open, onOpenChange }: PipelineViewDialogPro
         setOrderedStageIds(stages.map(s => s.id));
       }
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, stages]);
+  }, [open, stages, form]);
 
   // Update ordered stages when selection changes
   useEffect(() => {
@@ -83,8 +82,7 @@ export function PipelineViewDialog({ open, onOpenChange }: PipelineViewDialogPro
       }
     });
     return () => subscription.unsubscribe();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [form.watch, orderedStageIds]);
+  }, [form, orderedStageIds]);
 
   const moveStageUp = (index: number) => {
     if (index === 0) return;

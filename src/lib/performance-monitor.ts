@@ -2,6 +2,16 @@
 import { supabase } from '@/integrations/supabase/client';
 import { errorLogger } from './error-logger';
 
+interface PerformanceMemory {
+  jsHeapSizeLimit: number;
+  totalJSHeapSize: number;
+  usedJSHeapSize: number;
+}
+
+interface PerformanceWithMemory extends Performance {
+  memory?: PerformanceMemory;
+}
+
 interface MemoryUsage {
   total: number;
   used: number;
@@ -109,8 +119,8 @@ export async function withPerformanceMonitoring<T>(
 
 function getMemoryUsage(): MemoryUsage {
   // In browser environment, use performance.memory if available
-  if (typeof window !== 'undefined' && 'performance' in window && 'memory' in (window.performance as any)) {
-    const memory = (window.performance as any).memory;
+  if (typeof window !== 'undefined' && 'performance' in window && 'memory' in (window.performance as PerformanceWithMemory)) {
+    const memory = (window.performance as PerformanceWithMemory).memory!;
     return {
       total: memory.jsHeapSizeLimit || 0,
       used: memory.usedJSHeapSize || 0,
@@ -146,7 +156,7 @@ export async function refreshAnalyticsViews(): Promise<void> {
       await errorLogger.info('Refreshing analytics materialized views');
       
       // Use the refresh function that was created in the migration
-      const { error } = await supabase.rpc('refresh_analytics_views' as any);
+      const { error } = await supabase.rpc('refresh_analytics_views');
       
       if (error) {
         await errorLogger.error('Error refreshing analytics views', { error: error.message });
@@ -154,9 +164,9 @@ export async function refreshAnalyticsViews(): Promise<void> {
       }
       
       await errorLogger.info('Analytics views refreshed successfully');
-    } catch (error: any) {
-      await errorLogger.error('Failed to refresh analytics views', { 
-        error: error instanceof Error ? error.message : String(error) 
+    } catch (error: unknown) {
+      await errorLogger.error('Failed to refresh analytics views', {
+        error: error instanceof Error ? error.message : String(error)
       });
       throw error;
     }

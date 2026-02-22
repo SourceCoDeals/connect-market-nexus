@@ -525,7 +525,7 @@ const Signup = () => {
         buyer_type: buyerType as BuyerType,
         ideal_target_description: idealTargetDescription,
         business_categories: businessCategories,
-        target_locations: targetLocations as any,
+        target_locations: targetLocations,
         revenue_range_min: revenueRangeMin || undefined,
         revenue_range_max: revenueRangeMax || undefined,
         specific_business_search: specificBusinessSearch,

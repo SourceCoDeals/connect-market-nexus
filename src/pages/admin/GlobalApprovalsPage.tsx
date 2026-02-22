@@ -79,7 +79,7 @@ export default function GlobalApprovalsPage() {
   const { data: entries, isLoading } = useQuery({
     queryKey: ['global-approval-queue', filter],
     queryFn: async () => {
-      let query = (supabase as any)
+      let query = supabase
         .from('marketplace_approval_queue')
         .select(`
           *,
@@ -98,7 +98,8 @@ export default function GlobalApprovalsPage() {
       const { data, error } = await query;
       if (error) throw error;
 
-      return (data || []).map((entry: any) => ({
+      type QueueEntryWithListing = (typeof data)[number];
+      return (data || []).map((entry: QueueEntryWithListing) => ({
         ...entry,
         deal_title: entry.listings?.internal_company_name || entry.listings?.title || 'Unknown Deal',
         project_name: entry.listings?.project_name,
@@ -131,8 +132,9 @@ export default function GlobalApprovalsPage() {
       reason: string;
       sendEmail: boolean;
     }) => {
-      const { data: { user } } = await supabase.auth.getUser();
-      const { error } = await (supabase as any)
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      if (authError) throw authError;
+      const { error } = await supabase
         .from('marketplace_approval_queue')
         .update({
           status: 'declined',

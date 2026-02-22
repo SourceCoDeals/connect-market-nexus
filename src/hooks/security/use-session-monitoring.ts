@@ -103,7 +103,6 @@ export const useSessionMonitoring = () => {
         variant: "default",
       });
     } catch (error) {
-      console.error('Failed to invalidate old sessions:', error);
       toast({
         title: "Error",
         description: "Failed to clean up old sessions.",

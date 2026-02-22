@@ -73,13 +73,14 @@ export function useReMarketingAnalytics(daysBack: number = 30) {
       if (scoresError) throw scoresError;
       
       // Fetch scores with universe info for period
-      const { data: periodScores } = await supabase
+      const { data: periodScores, error: periodScoresError } = await supabase
         .from('remarketing_scores')
         .select(`
           *,
           universe:remarketing_buyer_universes(id, name)
         `)
         .gte('created_at', startDate.toISOString());
+      if (periodScoresError) throw periodScoresError;
       
       // Fetch buyers count
       const { count: buyerCount } = await supabase
@@ -88,15 +89,17 @@ export function useReMarketingAnalytics(daysBack: number = 30) {
         .eq('archived', false);
       
       // Fetch universes
-      const { data: universes } = await supabase
+      const { data: universes, error: universesError } = await supabase
         .from('remarketing_buyer_universes')
         .select('id, name')
         .eq('archived', false);
+      if (universesError) throw universesError;
       
       // Fetch outreach records
-      const { data: outreachData } = await supabase
+      const { data: outreachData, error: outreachDataError } = await supabase
         .from('outreach_records')
         .select('*');
+      if (outreachDataError) throw outreachDataError;
       
       const scores = allScores || [];
       const period = periodScores || [];

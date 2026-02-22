@@ -16,43 +16,26 @@ export default function AuthCallback() {
   useEffect(() => {
     const handleCallback = async () => {
       try {
-        console.log('📧 Email verification callback - processing...');
-        
         // SECURITY: Use getUser() for server-side validation instead of getSession()
         // getSession() trusts the local JWT; getUser() verifies with Supabase Auth server
         const { data: { user: authUser }, error } = await supabase.auth.getUser();
 
         if (error) {
-          console.error('Auth error:', error);
           throw error;
         }
 
         if (authUser) {
-          console.log('✅ User verified server-side, checking profile...');
-
           // Get latest profile data to see if verification was successful
-          // eslint-disable-next-line prefer-const
-          let { data: profile, error: profileError } = await supabase
+          const { data: fetchedProfile, error: profileError } = await supabase
             .from('profiles')
             .select('email_verified, approval_status, is_admin, first_name, last_name, email')
             .eq('id', authUser.id)
             .single();
 
           // Self-healing: if profile missing, create one from auth metadata
-          if (!profile && (profileError?.code === 'PGRST116' || !profileError)) {
-            console.log('Profile missing in callback, attempting self-heal for:', authUser.email);
-            const newProfile = await selfHealProfile(
-              authUser,
-              'email_verified, approval_status, is_admin, first_name, last_name, email'
-            );
-            if (newProfile) profile = newProfile;
-          }
-
-          console.log('📋 Profile data:', { 
-            email_verified: profile?.email_verified, 
-            approval_status: profile?.approval_status,
-            is_admin: profile?.is_admin 
-          });
+          const profile = (!fetchedProfile && (profileError?.code === 'PGRST116' || !profileError))
+            ? await selfHealProfile(authUser, 'email_verified, approval_status, is_admin, first_name, last_name, email')
+            : fetchedProfile;
 
           // Check if this is a fresh email verification (user just verified their email)
           const userJustVerified = authUser.email_confirmed_at && profile?.email_verified;
@@ -65,7 +48,6 @@ export default function AuthCallback() {
                 firstName: profile.first_name || '',
                 lastName: profile.last_name || ''
               });
-              console.log('✅ Verification success email sent');
             } catch (emailError) {
               // Don't block the flow if email fails - just log it
               console.error('Failed to send verification success email:', emailError);
@@ -81,11 +63,9 @@ export default function AuthCallback() {
             navigate('/pending-approval');
           }
         } else {
-          console.log('⚠️ No session found, redirecting to login');
           navigate('/login');
         }
       } catch (err: any) {
-        console.error('Auth callback error:', err);
         setError(err.message || 'Authentication failed');
       } finally {
         setIsLoading(false);

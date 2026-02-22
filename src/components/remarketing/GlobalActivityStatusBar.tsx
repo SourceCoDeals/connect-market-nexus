@@ -40,7 +40,7 @@ function OperationRow({ item, showControls }: { item: GlobalActivityQueueItem; s
     ? Math.round(((item.completed_items + item.failed_items) / item.total_items) * 100)
     : 0;
   const label = OPERATION_TYPE_LABELS[item.operation_type] || item.operation_type;
-  const userName = (item.profiles as any)?.full_name || "Unknown";
+  const userName = item.profiles?.full_name || "Unknown";
   const eta = estimateETA(item);
 
   return (

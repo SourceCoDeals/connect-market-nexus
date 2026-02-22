@@ -249,20 +249,8 @@ export function PipelineKanbanCard({ deal, onDealClick, isDragging }: PipelineKa
 
   const handleCardClick = () => {
     if (isBeingDragged) {
-      console.log('[Pipeline Card] Click ignored - card is being dragged');
       return;
     }
-    console.log('[Pipeline Card] Card clicked - FULL DEAL OBJECT:', deal);
-    console.log('[Pipeline Card] Card clicked properties check:', {
-      has_deal_id: 'deal_id' in deal,
-      has_id: 'id' in deal,
-      actual_deal_id: deal.deal_id,
-      actual_id: (deal as any).id,
-      title: deal.title,
-      listing_title: deal.listing_title,
-      contact: deal.contact_name,
-      company: deal.contact_company
-    });
     onDealClick(deal);
   };
 

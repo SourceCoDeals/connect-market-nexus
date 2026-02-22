@@ -136,26 +136,27 @@ export const AddDealDialog = ({
     queryKey: ['existing-remarketing-deal-ids'],
     queryFn: async () => {
       // Get all listing IDs that have scores or are internal deals
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('listings')
         .select('id')
         .eq('is_internal_deal', true);
+      if (error) throw error;
       return new Set((data || []).map(d => d.id));
     },
     enabled: open && activeTab === "marketplace",
   });
 
-  const handleAddFromMarketplace = async (listing: any) => {
+  const handleAddFromMarketplace = async (listing: typeof marketplaceListings[number]) => {
     setAddingToRemarketing(listing.id);
     try {
-      const updateData: Record<string, any> = { is_internal_deal: true };
+      const updateData: Record<string, unknown> = { is_internal_deal: true };
       if (referralPartnerId) {
         updateData.referral_partner_id = referralPartnerId;
         updateData.status = 'pending_referral_review';
       }
       const { error } = await supabase
         .from('listings')
-        .update(updateData as any)
+        .update(updateData as never)
         .eq('id', listing.id);
 
       if (error) throw error;
@@ -165,8 +166,8 @@ export const AddDealDialog = ({
       queryClient.invalidateQueries({ queryKey: ['remarketing', 'deals'] });
       queryClient.invalidateQueries({ queryKey: ['listings'] });
       queryClient.invalidateQueries({ queryKey: ['existing-remarketing-deal-ids'] });
-    } catch (err: any) {
-      toast.error(`Failed to add: ${err.message}`);
+    } catch (err: unknown) {
+      toast.error(`Failed to add: ${(err as Error).message}`);
     } finally {
       setAddingToRemarketing(null);
     }
@@ -188,7 +189,7 @@ export const AddDealDialog = ({
           title: "Linked Transcript",
           created_by: userId,
           source: 'link',
-        } as any);
+        } as never);
       } catch (err) {
         console.error("Transcript link error:", err);
       }
@@ -246,7 +247,7 @@ export const AddDealDialog = ({
           title: file.name,
           created_by: userId,
           source: 'file_upload',
-        } as any);
+        } as never);
 
         uploaded++;
         toast.info(`Uploading ${uploaded}/${files.length} transcripts...`, { id: toastId, duration: Infinity });
@@ -266,17 +267,19 @@ export const AddDealDialog = ({
 
   const createDealMutation = useMutation({
     mutationFn: async () => {
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      if (authError) throw authError;
 
       // Check for duplicate deal by website domain
       const websiteUrl = formData.website?.trim();
       if (websiteUrl) {
         const normalizedInput = normalizeDomain(websiteUrl);
         if (normalizedInput) {
-          const { data: existingListings } = await supabase
+          const { data: existingListings, error: existingListingsError } = await supabase
             .from("listings")
             .select("id, title, internal_company_name, website")
             .not("website", "is", null);
+          if (existingListingsError) throw existingListingsError;
 
           const duplicate = existingListings?.find(
             (l) => l.website && normalizeDomain(l.website) === normalizedInput
@@ -291,7 +294,7 @@ export const AddDealDialog = ({
         }
       }
 
-      const insertData: Record<string, any> = {
+      const insertData: Record<string, unknown> = {
         title: formData.title,
         website: formData.website || null,
         location: formData.location || null,
@@ -314,7 +317,7 @@ export const AddDealDialog = ({
 
       const { data: listing, error } = await supabase
         .from("listings")
-        .insert(insertData as any)
+        .insert(insertData as never)
         .select()
         .single();
 
@@ -351,7 +354,6 @@ export const AddDealDialog = ({
       }
     },
     onError: (error) => {
-      console.error("Failed to create deal:", error);
       toast.error(`Failed to create deal: ${error.message}`);
     },
   });
@@ -394,7 +396,7 @@ export const AddDealDialog = ({
           </DialogDescription>
         </DialogHeader>
 
-        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="flex-1 overflow-hidden flex flex-col">
+        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "marketplace" | "new")} className="flex-1 overflow-hidden flex flex-col">
           <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="marketplace">From Marketplace</TabsTrigger>
             <TabsTrigger value="new">Create New</TabsTrigger>

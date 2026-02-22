@@ -119,7 +119,6 @@ export function FirmManagementTools() {
       setSourceFirmId('');
       setTargetFirmId('');
     } catch (error: any) {
-      console.error('Error merging firms:', error);
       toast({
         title: 'Error',
         description: error.message || 'Failed to merge firms',
@@ -149,11 +148,12 @@ export function FirmManagementTools() {
       if (userError) throw new Error('User not found');
 
       // Check if already linked to a firm
-      const { data: existingMember } = await supabase
+      const { data: existingMember, error: existingMemberError } = await supabase
         .from('firm_members')
         .select('firm_id')
         .eq('user_id', user.id)
         .single();
+      if (existingMemberError) throw existingMemberError;
 
       if (existingMember) {
         toast({
@@ -215,7 +215,6 @@ export function FirmManagementTools() {
       setUserEmail('');
       setSelectedFirmId('');
     } catch (error: any) {
-      console.error('Error linking user:', error);
       toast({
         title: 'Error',
         description: error.message || 'Failed to link user to firm',

@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -53,12 +53,7 @@ export function DealActivitySection({ dealId }: DealActivitySectionProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const { toast } = useToast();
 
-  useEffect(() => {
-    loadActivities();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dealId]);
-
-  const loadActivities = async () => {
+  const loadActivities = useCallback(async () => {
     try {
       const activityEvents: ActivityEvent[] = [];
 
@@ -66,7 +61,7 @@ export function DealActivitySection({ dealId }: DealActivitySectionProps) {
       // For now, we'll create activities from related tables
 
       // Load buyer approvals (selected_for_outreach = true)
-      const { data: approvals } = await supabase
+      const { data: approvals, error: approvalsError } = await supabase
         .from("buyer_deal_scores")
         .select(`
           *,
@@ -75,6 +70,7 @@ export function DealActivitySection({ dealId }: DealActivitySectionProps) {
         .eq("deal_id", dealId)
         .eq("selected_for_outreach", true)
         .order("scored_at", { ascending: false });
+      if (approvalsError) throw approvalsError;
 
       approvals?.forEach((approval: any) => {
         activityEvents.push({
@@ -90,7 +86,7 @@ export function DealActivitySection({ dealId }: DealActivitySectionProps) {
       });
 
       // Load buyer passes
-      const { data: passes } = await supabase
+      const { data: passes, error: passesError } = await supabase
         .from("buyer_deal_scores")
         .select(`
           *,
@@ -99,6 +95,7 @@ export function DealActivitySection({ dealId }: DealActivitySectionProps) {
         .eq("deal_id", dealId)
         .eq("passed_on_deal", true)
         .order("passed_at", { ascending: false });
+      if (passesError) throw passesError;
 
       passes?.forEach((pass: any) => {
         activityEvents.push({
@@ -114,7 +111,7 @@ export function DealActivitySection({ dealId }: DealActivitySectionProps) {
       });
 
       // Load scoring events
-      const { data: scorings } = await supabase
+      const { data: scorings, error: scoringsError } = await supabase
         .from("buyer_deal_scores")
         .select(`
           *,
@@ -124,6 +121,7 @@ export function DealActivitySection({ dealId }: DealActivitySectionProps) {
         .not("composite_score", "is", null)
         .order("scored_at", { ascending: false })
         .limit(20);
+      if (scoringsError) throw scoringsError;
 
       scorings?.forEach((scoring: any) => {
         activityEvents.push({
@@ -139,11 +137,12 @@ export function DealActivitySection({ dealId }: DealActivitySectionProps) {
       });
 
       // Load transcripts
-      const { data: transcriptsData } = await supabase
+      const { data: transcriptsData, error: transcriptsDataError } = await supabase
         .from("deal_transcripts")
         .select("*")
         .eq("listing_id", dealId)
         .order("created_at", { ascending: false });
+      if (transcriptsDataError) throw transcriptsDataError;
 
       const transcripts = (transcriptsData || []) as unknown as { id: string; title?: string; created_at: string }[];
       
@@ -173,7 +172,11 @@ export function DealActivitySection({ dealId }: DealActivitySectionProps) {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [dealId, toast]);
+
+  useEffect(() => {
+    loadActivities();
+  }, [loadActivities]);
 
   const filteredActivities = useMemo(() => {
     let filtered = activities;

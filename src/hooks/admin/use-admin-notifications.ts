@@ -30,7 +30,8 @@ export function useAdminNotifications() {
   const query = useQuery({
     queryKey: ['admin-notifications'],
     queryFn: async () => {
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      if (authError) throw authError;
       if (!user) throw new Error('Not authenticated');
 
       const { data, error } = await supabase
@@ -149,7 +150,8 @@ export function useMarkAllNotificationsAsRead() {
 
   return useMutation({
     mutationFn: async () => {
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      if (authError) throw authError;
       if (!user) throw new Error('Not authenticated');
 
       const { error } = await supabase

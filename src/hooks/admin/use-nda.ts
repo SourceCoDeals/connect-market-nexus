@@ -205,16 +205,6 @@ export const useLogNDAEmail = () => {
       adminName, 
       listingTitle 
     }: LogNDAEmailParams) => {
-      console.log('🚀 Sending NDA email with data:', {
-        userId,
-        userEmail,
-        adminId,
-        adminEmail,
-        adminName,
-        hasCustomMessage: !!customMessage,
-        hasCustomSignature: !!customSignatureText
-      });
-
       // Send email via edge function (which also handles database logging)
       const { data, error } = await supabase.functions.invoke('send-nda-email', {
         body: {
@@ -232,11 +222,9 @@ export const useLogNDAEmail = () => {
       });
 
       if (error) {
-        console.error('❌ NDA email sending failed:', error);
         throw error;
       }
 
-      console.log('✅ NDA email sent successfully:', data);
       return data;
     },
     onMutate: async ({ userId }) => {
@@ -251,12 +239,10 @@ export const useLogNDAEmail = () => {
       return { previousUsers, previousRequests };
     },
     onSuccess: () => {
-      console.log('🔄 NDA email hook success - waiting before invalidating queries...');
       // Add a delay to ensure edge function database updates have completed
       setTimeout(() => {
         queryClient.invalidateQueries({ queryKey: ['admin-users'] });
         queryClient.invalidateQueries({ queryKey: ['connection-requests'] });
-        console.log('✅ Queries invalidated after NDA email success');
       }, 1000);
       
       toast({

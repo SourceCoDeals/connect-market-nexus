@@ -186,7 +186,6 @@ const ReMarketingUniverseDetail = () => {
     queryFn: async () => {
       if (isNew) return [];
       
-      console.log('[BuyerQuery] Fetching buyers for universe:', id);
       const { data, error } = await supabase
         .from('remarketing_buyers')
         .select('id, company_name, company_website, platform_website, pe_firm_website, buyer_type, pe_firm_name, hq_city, hq_state, business_summary, thesis_summary, data_completeness, target_geographies, geographic_footprint, service_regions, operating_locations, alignment_score, alignment_reasoning, alignment_checked_at, has_fee_agreement')
@@ -195,10 +194,8 @@ const ReMarketingUniverseDetail = () => {
         .order('alignment_score', { ascending: false, nullsFirst: false });
       
       if (error) {
-        console.error('[BuyerQuery] Error fetching buyers:', error);
         throw error;
       }
-      console.log('[BuyerQuery] Fetched', data?.length || 0, 'buyers');
       return data || [];
     },
     enabled: !isNew,
@@ -220,7 +217,6 @@ const ReMarketingUniverseDetail = () => {
         .in('buyer_id', buyerIds);
       
       if (error) {
-        console.error('Error fetching transcripts:', error);
         return new Set<string>();
       }
       
@@ -253,15 +249,10 @@ const ReMarketingUniverseDetail = () => {
         },
         (payload) => {
           // Refetch buyers list on any change (INSERT, UPDATE, DELETE)
-          console.log('[Realtime] Buyer change detected:', payload.eventType);
           refetchBuyers();
         }
       )
-      .subscribe((status) => {
-        if (status === "SUBSCRIBED") {
-          console.log('[Realtime] Subscribed to universe buyers');
-        }
-      });
+      .subscribe();
     
     channelRef.current = channel;
     
@@ -279,7 +270,7 @@ const ReMarketingUniverseDetail = () => {
     queryFn: async () => {
       if (isNew) return [];
       
-      const result = await (supabase as any)
+      const result = await supabase
         .from('remarketing_universe_deals')
         .select(`
           id,
@@ -371,7 +362,7 @@ const ReMarketingUniverseDetail = () => {
       setMaGuideContent(universe.ma_guide_content || '');
       
       // Load saved target buyer types from DB, fall back to defaults if empty
-      const savedBuyerTypes = (universe as any).target_buyer_types as TargetBuyerTypeConfig[];
+      const savedBuyerTypes = universe.target_buyer_types as TargetBuyerTypeConfig[] | null;
       if (savedBuyerTypes && savedBuyerTypes.length > 0) {
         setTargetBuyerTypes(savedBuyerTypes);
       }
@@ -389,7 +380,6 @@ const ReMarketingUniverseDetail = () => {
       
       // If there's substantial guide content but no document entry, create one
       if (guideContent && guideContent.length > 1000 && !hasGuideDoc) {
-        console.log('[ReMarketingUniverseDetail] Guide exists but no document entry - syncing to Supporting Documents');
         
         try {
           // Call edge function to upload HTML to storage
@@ -436,7 +426,6 @@ const ReMarketingUniverseDetail = () => {
 
           // Update local state for immediate UI feedback
           setDocuments(updatedDocs);
-          console.log('[ReMarketingUniverseDetail] Guide synced to Supporting Documents successfully');
         } catch (error) {
           console.error('[ReMarketingUniverseDetail] Error syncing guide to documents:', error);
         }
@@ -505,7 +494,6 @@ const ReMarketingUniverseDetail = () => {
         toast.success(`Parsed criteria with ${Math.round((data.confidence || 0.5) * 100)}% confidence`);
       }
     } catch (error) {
-      console.error('Failed to parse criteria:', error);
       toast.error('Failed to parse criteria');
     } finally {
       setIsParsing(false);
@@ -609,11 +597,12 @@ const ReMarketingUniverseDetail = () => {
     const newStatus = !currentStatus;
 
     // Fetch the buyer to get website/firm info for marketplace bridging
-    const { data: buyer } = await supabase
+    const { data: buyer, error: buyerError } = await supabase
       .from('remarketing_buyers')
       .select('id, company_name, company_website, pe_firm_name, pe_firm_website, buyer_type')
       .eq('id', buyerId)
-      .single() as any;
+      .single();
+    if (buyerError) throw buyerError;
 
     if (!buyer) {
       toast.error('Buyer not found');
@@ -630,18 +619,19 @@ const ReMarketingUniverseDetail = () => {
         const firmWebsite = buyer.pe_firm_website || buyer.company_website;
 
         if (firmName) {
-          const { data: createdFirmId } = await supabase.rpc('get_or_create_firm', {
+          const { data: createdFirmId, error: createdFirmIdError } = await supabase.rpc('get_or_create_firm', {
             p_company_name: firmName,
             p_website: firmWebsite,
             p_email: null,
           });
+          if (createdFirmIdError) throw createdFirmIdError;
 
           if (createdFirmId) {
             firmId = createdFirmId;
             // Link the buyer to the marketplace firm
             await supabase
               .from('remarketing_buyers')
-              .update({ marketplace_firm_id: firmId } as any)
+              .update({ marketplace_firm_id: firmId })
               .eq('id', buyerId);
           }
         }
@@ -663,7 +653,7 @@ const ReMarketingUniverseDetail = () => {
         .update({
           has_fee_agreement: true,
           fee_agreement_source: firmId ? 'marketplace_synced' : 'manual_override',
-        } as any)
+        })
         .eq('id', buyerId);
 
       if (error) {
@@ -684,7 +674,7 @@ const ReMarketingUniverseDetail = () => {
         .update({
           has_fee_agreement: false,
           fee_agreement_source: null,
-        } as any)
+        })
         .eq('id', buyerId);
 
       if (error) {
@@ -1153,7 +1143,7 @@ const ReMarketingUniverseDetail = () => {
                   // Add the auto-generated guide document to the documents list
                   setDocuments(prev => {
                     // Remove any existing auto-generated guide to avoid duplicates
-                    const filtered = prev.filter(d => !(d as any).type || (d as any).type !== 'ma_guide');
+                    const filtered = prev.filter(d => !d.type || d.type !== 'ma_guide');
                     return [...filtered, doc];
                   });
                 }}
@@ -1468,10 +1458,11 @@ const ReMarketingUniverseDetail = () => {
             
             // Auto-score new buyers against all deals in universe
             if (id) {
-              const { data: deals } = await supabase
+              const { data: deals, error: dealsError } = await supabase
                 .from('remarketing_universe_deals')
                 .select('listing_id')
                 .eq('universe_id', id);
+              if (dealsError) throw dealsError;
               if (deals && deals.length > 0) {
                 const { queueDealScoring } = await import("@/lib/remarketing/queueScoring");
                 await queueDealScoring({ universeId: id!, listingIds: deals.map(d => d.listing_id) });

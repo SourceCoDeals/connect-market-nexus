@@ -86,7 +86,7 @@ export default function DealDetail() {
         .single();
 
       if (error) throw error;
-      const dealData = data as any;
+      const dealData = data as unknown as MADeal & { tracker: { id: string; name: string } | null };
       setDeal(dealData);
       setTracker(dealData.tracker);
       setFormData(dealData);

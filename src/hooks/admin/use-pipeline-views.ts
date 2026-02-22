@@ -2,11 +2,16 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
+export interface StageConfig {
+  stageId: string;
+  position: number;
+}
+
 export interface PipelineView {
   id: string;
   name: string;
   description?: string;
-  stage_config: any[];
+  stage_config: StageConfig[];
   filter_config?: {
     searchQuery?: string;
     statusFilter?: string;
@@ -49,7 +54,7 @@ export function useCreatePipelineView() {
     mutationFn: async (view: {
       name: string;
       description?: string;
-      stage_config: any[];
+      stage_config: StageConfig[];
       is_default?: boolean;
     }) => {
       const { data, error } = await supabase
@@ -68,7 +73,7 @@ export function useCreatePipelineView() {
         description: 'Your pipeline view has been created successfully.',
       });
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({
         title: 'Error creating view',
         description: error.message,
@@ -92,7 +97,7 @@ export function useUpdatePipelineView() {
     }) => {
       const { data, error } = await supabase
         .from('pipeline_views')
-        .update(updates as any) // Cast to any to handle JSONB types
+        .update(updates as Record<string, unknown>) // Cast to handle JSONB types
         .eq('id', id)
         .select()
         .single();
@@ -113,7 +118,7 @@ export function useUpdatePipelineView() {
         description: message,
       });
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({
         title: 'Error updating view',
         description: error.message,
@@ -143,7 +148,7 @@ export function useDeletePipelineView() {
         description: 'Pipeline view deleted successfully.',
       });
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({
         title: 'Error deleting view',
         description: error.message,

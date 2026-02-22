@@ -32,14 +32,12 @@ export function useToggleListingStatus() {
           .single();
         
         if (error) {
-          console.error('Error updating listing status:', error);
           throw error;
         }
         
         // Listing status updated
         return data as AdminListing;
       } catch (error: any) {
-        console.error('Error updating listing status:', error);
         throw error;
       }
     },
@@ -81,7 +79,6 @@ export function useToggleListingStatus() {
       });
     },
     onError: (error: any) => {
-      console.error('Error in toggle listing status mutation:', error);
       toast({
         variant: 'destructive',
         title: 'Error Updating Status',

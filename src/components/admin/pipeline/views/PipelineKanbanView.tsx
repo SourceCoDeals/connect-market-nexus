@@ -44,7 +44,7 @@ export function PipelineKanbanView({ pipeline, onOpenCreateDeal }: PipelineKanba
   const { toast } = useToast();
   
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => setCurrentUserId(data.user?.id || null)).catch(() => {});
+    supabase.auth.getUser().then(({ data }) => setCurrentUserId(data.user?.id || null)).catch(() => null);
   }, []);
   
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }));
@@ -109,7 +109,7 @@ export function PipelineKanbanView({ pipeline, onOpenCreateDeal }: PipelineKanba
         }
 
         // Fetch listing data with primary owner
-        const { data: listingData } = await supabase
+        const { data: listingData, error: listingDataError } = await supabase
           .from('listings')
           .select(`
             id,
@@ -118,6 +118,7 @@ export function PipelineKanbanView({ pipeline, onOpenCreateDeal }: PipelineKanba
           `)
           .eq('id', deal.listing_id)
           .single();
+        if (listingDataError) throw listingDataError;
         
         if (!listingData) {
           toast({
@@ -132,11 +133,12 @@ export function PipelineKanbanView({ pipeline, onOpenCreateDeal }: PipelineKanba
         // Fetch deal owner if assigned
         let dealOwner = null;
         if (deal.assigned_to) {
-          const { data: ownerData } = await supabase
+          const { data: ownerData, error: ownerDataError } = await supabase
             .from('profiles')
             .select('id, first_name, last_name, email')
             .eq('id', deal.assigned_to)
             .single();
+          if (ownerDataError) throw ownerDataError;
           
           if (ownerData) {
             dealOwner = {
@@ -170,7 +172,6 @@ export function PipelineKanbanView({ pipeline, onOpenCreateDeal }: PipelineKanba
         setActiveId(null);
         return;
       } catch (error) {
-        console.error('Error checking owner intro requirements:', error);
         toast({
           title: 'Error',
           description: 'Failed to verify owner information. Please try again.',
@@ -259,7 +260,6 @@ export function PipelineKanbanView({ pipeline, onOpenCreateDeal }: PipelineKanba
 
       setOwnerAssignmentNeeded(null);
     } catch (error) {
-      console.error('Failed to assign owner:', error);
       const { toast } = await import('@/hooks/use-toast');
       toast({
         title: 'Error',
@@ -308,7 +308,6 @@ export function PipelineKanbanView({ pipeline, onOpenCreateDeal }: PipelineKanba
       
       setOwnerIntroConfig(null);
     } catch (error) {
-      console.error('Failed to configure owners:', error);
       toast({
         title: 'Error',
         description: 'Failed to update owner information.',

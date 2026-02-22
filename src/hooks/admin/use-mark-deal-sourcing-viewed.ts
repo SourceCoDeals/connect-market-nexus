@@ -6,7 +6,8 @@ export function useMarkDealSourcingAsViewed() {
 
   return useMutation({
     mutationFn: async () => {
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      if (authError) throw authError;
       if (!user) throw new Error('Not authenticated');
 
       const { error } = await supabase

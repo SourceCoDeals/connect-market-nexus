@@ -37,7 +37,6 @@ export function useCategoriesQuery() {
         .order('name');
       
       if (error) {
-        console.error('Error fetching categories:', error);
         throw error;
       }
       
@@ -61,7 +60,6 @@ export function useCreateCategory() {
         .single();
       
       if (error) {
-        console.error('Error creating category:', error);
         throw error;
       }
       
@@ -100,7 +98,6 @@ export function useUpdateCategory() {
         .single();
       
       if (error) {
-        console.error('Error updating category:', error);
         throw error;
       }
       
@@ -137,7 +134,6 @@ export function useDeleteCategory() {
         .eq('id', id);
       
       if (error) {
-        console.error('Error deleting category:', error);
         throw error;
       }
     },

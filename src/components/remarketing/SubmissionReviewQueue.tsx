@@ -164,7 +164,7 @@ export function SubmissionReviewQueue({
                       <TableCell className="font-medium">{sub.company_name}</TableCell>
                       {showPartnerColumn && (
                         <TableCell className="text-muted-foreground">
-                          {(sub.referral_partners as any)?.name || "-"}
+                          {(sub.referral_partners as { name?: string } | undefined)?.name || "-"}
                         </TableCell>
                       )}
                       <TableCell>

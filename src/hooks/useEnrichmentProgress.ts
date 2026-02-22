@@ -89,13 +89,14 @@ export function useEnrichmentProgress() {
       // Only fetch error details if there are failed items (and limit to 50)
       let errorItems: DealEnrichmentError[] = [];
       if (counts.failed > 0) {
-        const { data: failedData } = await supabase
+        const { data: failedData, error: failedDataError } = await supabase
           .from('enrichment_queue')
           .select('listing_id, last_error')
           .eq('status', 'failed')
           .gte('queued_at', cutoff)
           .not('last_error', 'is', null)
           .limit(50);
+        if (failedDataError) throw failedDataError;
 
         errorItems = (failedData ?? []).map((row) => ({
           listingId: row.listing_id,

@@ -307,7 +307,7 @@ export const StageManagementModal = ({ open, onOpenChange }: StageManagementModa
   }, [stages]);
 
   const form = useForm<StageFormData>({
-    resolver: zodResolver(stageSchema as any),
+    resolver: zodResolver(stageSchema),
     defaultValues: {
       name: '',
       description: '',
@@ -316,7 +316,7 @@ export const StageManagementModal = ({ open, onOpenChange }: StageManagementModa
   });
 
   const editForm = useForm<StageFormData>({
-    resolver: zodResolver(stageSchema as any),
+    resolver: zodResolver(stageSchema),
   });
 
   React.useEffect(() => {
@@ -388,10 +388,11 @@ export const StageManagementModal = ({ open, onOpenChange }: StageManagementModa
     if (window.confirm(confirmMessage)) {
       try {
         // First, fetch all pipeline views that include this stage
-        const { data: views } = await supabase
+        const { data: views, error: viewsError } = await supabase
           .from('pipeline_views')
           .select('id, stage_config')
           .eq('is_active', true);
+        if (viewsError) throw viewsError;
         
         // Delete the stage
         await deleteStageMutation.mutateAsync(stageId);
@@ -417,7 +418,6 @@ export const StageManagementModal = ({ open, onOpenChange }: StageManagementModa
           description: "The stage has been successfully deleted and removed from all views.",
         });
       } catch (error: any) {
-        console.error('Failed to delete stage:', error);
         toast({
           title: "Failed to delete stage",
           description: error?.message || "An error occurred while deleting the stage.",

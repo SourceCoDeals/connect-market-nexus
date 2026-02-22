@@ -32,12 +32,19 @@ export const SimpleNDADialog = ({ open, onOpenChange, user, listing, onSendEmail
   // Reset and preload concise template on open
   useEffect(() => {
     if (open && user) {
-      setCustomSubject(quickTemplate.subject);
-      setCustomMessage(quickTemplate.message);
+      const adminName = currentUser?.first_name || 'SourceCo Team';
+      setCustomSubject("NDA Required");
+      setCustomMessage(`${user.first_name || user.email},
+
+When you get a chance, please review and sign the attached NDA.
+
+Thanks!
+
+Best regards,
+${adminName}`);
       setCustomSignatureText("");
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, user]);
+  }, [open, user, currentUser]);
 
   const handleSend = async () => {
     if (!user) return;

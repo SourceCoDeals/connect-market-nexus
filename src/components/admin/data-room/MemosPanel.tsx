@@ -78,7 +78,7 @@ export function MemosPanel({ dealId, dealTitle }: MemosPanelProps) {
 
   const handleExportPdf = (memo: LeadMemo) => {
     // Generate PDF from memo content client-side
-    const sections = (memo.content as any)?.sections || [];
+    const sections = (memo.content as { sections?: Array<{ title: string; content: string }> } | null)?.sections || [];
     const brandName = BRANDING_OPTIONS.find(b => b.value === memo.branding)?.label || 'SourceCo';
     const isAnonymous = memo.memo_type === 'anonymous_teaser';
 

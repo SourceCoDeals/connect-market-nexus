@@ -183,13 +183,11 @@ export function initGA4(measurementId: string = GA4_MEASUREMENT_ID): void {
   
   // Don't initialize if already present or in development without explicit flag
   if (measurementId === 'G-XXXXXXXXXX') {
-    console.log('[GA4] Skipping initialization - no measurement ID configured');
     return;
   }
 
   // Check if gtag is already loaded
   if (typeof window.gtag === 'function') {
-    console.log('[GA4] Already initialized');
     return;
   }
 
@@ -214,6 +212,4 @@ export function initGA4(measurementId: string = GA4_MEASUREMENT_ID): void {
     send_page_view: false, // We'll send page views manually for SPA
     cookie_domain: '.sourcecodeals.com', // Share cookies across subdomains
   });
-
-  console.log(`[GA4] Initialized with measurement ID: ${measurementId}`);
 }

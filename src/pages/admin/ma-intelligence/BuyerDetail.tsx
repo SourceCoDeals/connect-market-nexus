@@ -82,7 +82,7 @@ export default function BuyerDetail() {
         .single();
 
       if (error) throw error;
-      const buyerData = data as any as MABuyer;
+      const buyerData = data as unknown as MABuyer;
       setBuyer(buyerData);
       setFormData(buyerData);
     } catch (error: any) {
@@ -179,12 +179,13 @@ export default function BuyerDetail() {
 
     try {
       // Check if a score record exists
-      const { data: existingScore } = await supabase
+      const { data: existingScore, error: existingScoreError } = await supabase
         .from("buyer_deal_scores")
         .select("id")
         .eq("buyer_id", buyer.id)
         .eq("deal_id", dealId)
         .single();
+      if (existingScoreError) throw existingScoreError;
 
       if (existingScore) {
         // Update existing record
@@ -1534,7 +1535,7 @@ export default function BuyerDetail() {
 
         {/* Agreements Tab */}
         <TabsContent value="agreements">
-          <BuyerAgreementsPanel buyerId={buyer.id} marketplaceFirmId={(buyer as any).marketplace_firm_id} hasFeeAgreement={buyer.has_fee_agreement || false} feeAgreementSource={(buyer as any).fee_agreement_source} />
+          <BuyerAgreementsPanel buyerId={buyer.id} marketplaceFirmId={buyer.marketplace_firm_id} hasFeeAgreement={buyer.has_fee_agreement || false} feeAgreementSource={buyer.fee_agreement_source} />
         </TabsContent>
 
         <TabsContent value="deal-history">

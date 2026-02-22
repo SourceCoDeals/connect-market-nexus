@@ -67,10 +67,11 @@ export function useAssociatedRequests(
 
           const profileMap = new Map<string, any>();
           if (userIds.length > 0) {
-            const { data: profs } = await supabase
+            const { data: profs, error: profsError } = await supabase
               .from('profiles')
               .select('id,email,first_name,last_name,company')
               .in('id', userIds as string[]);
+            if (profsError) throw profsError;
             (profs || []).forEach((p: any) => profileMap.set(p.id, p));
           }
 
@@ -101,11 +102,12 @@ export function useAssociatedRequests(
       // If no connection request but we have a company, find colleagues by company name
       if (contactCompany) {
         // Step 1: Find profiles with this company
-        const { data: profiles } = await supabase
+        const { data: profiles, error: profilesError } = await supabase
           .from('profiles')
           .select('id, email')
           .eq('company', contactCompany)
           .eq('approval_status', 'approved');
+        if (profilesError) throw profilesError;
 
         const profileIds = (profiles || []).map(p => p.id);
 
@@ -164,10 +166,11 @@ export function useAssociatedRequests(
         const userIds = Array.from(new Set((crData || []).map((r: any) => r.user_id).filter(Boolean)));
         const profileMap = new Map<string, any>();
         if (userIds.length > 0) {
-          const { data: profs } = await supabase
+          const { data: profs, error: profsError } = await supabase
             .from('profiles')
             .select('id,email,first_name,last_name,company')
             .in('id', userIds as string[]);
+          if (profsError) throw profsError;
           (profs || []).forEach((p: any) => profileMap.set(p.id, p));
         }
 

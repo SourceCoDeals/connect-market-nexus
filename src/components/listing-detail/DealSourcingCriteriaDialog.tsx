@@ -79,7 +79,6 @@ export const DealSourcingCriteriaDialog = ({ open, onOpenChange, user }: DealSou
         setIsSubmitting(false);
       }, 500);
     } catch (error) {
-      console.error("Error submitting deal sourcing request:", error);
       toast({
         title: "❌ Submission Failed",
         description: error instanceof Error ? error.message : "Please try again or contact support.",

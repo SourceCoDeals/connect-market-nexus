@@ -36,32 +36,34 @@ export function sanitizeListingInsert<T extends Record<string, unknown>>(data: T
 
   // CRITICAL: Ensure required NOT NULL fields have valid values
   // These defaults prevent database constraint violations
+  // Use record-style access since we're working with dynamic keys from CSV import
+  const record = out as Record<string, unknown>;
 
   // description: required string, default to title if missing
-  if (typeof (out as any).description !== 'string' || !(out as any).description?.trim()) {
-    (out as any).description = (out as any).title || '';
+  if (typeof record.description !== 'string' || !(record.description as string)?.trim()) {
+    record.description = (record.title as string) || '';
   }
 
   // revenue: required number, default to 0
-  if (typeof (out as any).revenue !== 'number' || isNaN((out as any).revenue)) {
-    (out as any).revenue = 0;
+  if (typeof record.revenue !== 'number' || isNaN(record.revenue as number)) {
+    record.revenue = 0;
   }
 
   // ebitda: required number, default to 0
-  if (typeof (out as any).ebitda !== 'number' || isNaN((out as any).ebitda)) {
-    (out as any).ebitda = 0;
+  if (typeof record.ebitda !== 'number' || isNaN(record.ebitda as number)) {
+    record.ebitda = 0;
   }
 
   // location: required string, ensure it exists
   // This should already be set by the caller (DealImportDialog/DealCSVImport)
   // but add a final fallback to prevent constraint violations
-  if (typeof (out as any).location !== 'string' || !(out as any).location?.trim()) {
-    (out as any).location = 'Unknown';
+  if (typeof record.location !== 'string' || !(record.location as string)?.trim()) {
+    record.location = 'Unknown';
   }
 
   // category: required string, ensure it exists
-  if (typeof (out as any).category !== 'string' || !(out as any).category?.trim()) {
-    (out as any).category = 'Other';
+  if (typeof record.category !== 'string' || !(record.category as string)?.trim()) {
+    record.category = 'Other';
   }
 
   return out;

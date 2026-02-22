@@ -19,7 +19,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { AdminListing } from "@/types/admin";
 import ListingStatusTag from "@/components/listing/ListingStatusTag";
-import { formatCurrency, cn } from "@/lib/utils";
+import { cn } from "@/lib/utils";
+import { formatCurrency } from "@/lib/currency-utils";
 import { CategoryLocationBadges } from "@/components/shared/CategoryLocationBadges";
 import { StatusTagSwitcher } from "./StatusTagSwitcher";
 import { BUYER_TYPE_OPTIONS } from "@/lib/signup-field-options";

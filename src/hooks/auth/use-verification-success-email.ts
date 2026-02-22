@@ -25,15 +25,12 @@ export const useVerificationSuccessEmail = () => {
       });
 
       if (error) {
-        console.error('Error sending verification success email:', error);
         throw error;
       }
 
       // Verification success email sent successfully
       return data;
     } catch (error: any) {
-      console.error('Failed to send verification success email:', error);
-      
       // Don't show toast errors for this as it's a background operation
       // The user shouldn't be interrupted by email sending failures
       

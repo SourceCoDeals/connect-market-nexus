@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -77,12 +77,7 @@ export function BuyerDealHistoryTab({ buyerId }: BuyerDealHistoryTabProps) {
   const [filterStatus, setFilterStatus] = useState<FilterStatus>("all");
   const { toast } = useToast();
 
-  useEffect(() => {
-    loadDealScores();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [buyerId]);
-
-  const loadDealScores = async () => {
+  const loadDealScores = useCallback(async () => {
     try {
       const { data: scoresData, error: scoresError } = await supabase
         .from("buyer_deal_scores")
@@ -95,10 +90,11 @@ export function BuyerDealHistoryTab({ buyerId }: BuyerDealHistoryTabProps) {
       // Load deal info (deals table uses 'title', not 'deal_name')
       const dealIds = scoresData?.map((s) => s.deal_id) || [];
       
-      const { data: dealsData } = await supabase
+      const { data: dealsData, error: dealsDataError } = await supabase
         .from("deals")
         .select("id, title, listing_id")
         .in("id", dealIds);
+      if (dealsDataError) throw dealsDataError;
 
       // For now, skip tracker lookup since deals don't have tracker_id
       // Map data
@@ -125,7 +121,11 @@ export function BuyerDealHistoryTab({ buyerId }: BuyerDealHistoryTabProps) {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [buyerId, toast]);
+
+  useEffect(() => {
+    loadDealScores();
+  }, [loadDealScores]);
 
   const filteredDealScores = useMemo(() => {
     switch (filterStatus) {

@@ -47,7 +47,6 @@ export const useRequestConnection = () => {
         // Record milestone for user journey tracking
         const visitorId = localStorage.getItem(VISITOR_ID_KEY);
         if (visitorId) {
-          console.log('📍 Recording first_connection_at milestone');
           supabase.rpc('update_journey_milestone', {
             p_visitor_id: visitorId,
             p_milestone_key: 'first_connection_at',
@@ -119,7 +118,6 @@ export const useRequestConnection = () => {
         
         return parsedResult;
       } catch (error: any) {
-        console.error('Error requesting connection:', error);
         throw error;
       }
     },

@@ -147,7 +147,7 @@ const ReMarketingBuyerDetail = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const queryClient = useQueryClient();
-  const backTo = (location.state as any)?.from || "/admin/buyers";
+  const backTo = (location.state as { from?: string } | null)?.from || "/admin/buyers";
   const isNew = id === 'new';
 
   const [isContactDialogOpen, setIsContactDialogOpen] = useState(false);
@@ -343,17 +343,18 @@ const ReMarketingBuyerDetail = () => {
           const firmWebsite = buyer.pe_firm_website || buyer.company_website;
 
           if (firmName) {
-            const { data: createdFirmId } = await supabase.rpc('get_or_create_firm', {
+            const { data: createdFirmId, error: createdFirmIdError } = await supabase.rpc('get_or_create_firm', {
               p_company_name: firmName,
               p_website: firmWebsite,
               p_email: null,
             });
+            if (createdFirmIdError) throw createdFirmIdError;
 
             if (createdFirmId) {
               firmId = createdFirmId;
               await supabase
                 .from('remarketing_buyers')
-                .update({ marketplace_firm_id: firmId } as any)
+                .update({ marketplace_firm_id: firmId })
                 .eq('id', id);
             }
           }
@@ -373,7 +374,7 @@ const ReMarketingBuyerDetail = () => {
           .update({
             has_fee_agreement: true,
             fee_agreement_source: firmId ? 'marketplace_synced' : 'manual_override',
-          } as any)
+          })
           .eq('id', id);
         if (error) throw error;
       } else {
@@ -387,7 +388,7 @@ const ReMarketingBuyerDetail = () => {
           .update({
             has_fee_agreement: false,
             fee_agreement_source: null,
-          } as any)
+          })
           .eq('id', id);
         if (error) throw error;
       }
@@ -461,7 +462,7 @@ const ReMarketingBuyerDetail = () => {
             source: source || 'manual',
             file_url: fileUrl || null,
             extraction_status: 'pending',
-          } as any,
+          },
         ])
         .select('id')
         .single();
@@ -494,11 +495,12 @@ const ReMarketingBuyerDetail = () => {
           sourceToUse = transcript.source || 'call';
         } else {
           // Fetch from DB as fallback - use existing buyer_transcripts table
-          const { data } = await supabase
+          const { data, error: transcriptError } = await supabase
             .from('buyer_transcripts')
             .select('transcript_text, source')
             .eq('id', params.transcriptId)
             .single();
+          if (transcriptError) throw transcriptError;
           const result = data as unknown as { transcript_text?: string; source?: string } | null;
           textToExtract = result?.transcript_text || '';
           sourceToUse = result?.source || 'call';

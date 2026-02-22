@@ -76,7 +76,6 @@ export function useCreateAssociatedContact() {
       });
     },
     onError: (error) => {
-      console.error('Error creating associated contact:', error);
       toast({
         variant: "destructive",
         title: "Failed to add contact",

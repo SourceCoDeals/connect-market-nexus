@@ -18,7 +18,8 @@ export const useSaveListingMutation = () => {
       action: 'save' | 'unsave' 
     }) => {
       try {
-        const { data: { session } } = await supabase.auth.getSession();
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+        if (sessionError) throw sessionError;
         if (!session) throw new Error('You must be logged in to save listings');
         
         const userId = session.user.id;
@@ -46,7 +47,6 @@ export const useSaveListingMutation = () => {
           return { success: true };
         }
       } catch (error: any) {
-        console.error(`Error ${action === 'save' ? 'saving' : 'unsaving'} listing:`, error);
         throw error;
       }
     },
@@ -76,7 +76,8 @@ export const useAllSavedListingIds = () => {
     queryKey: ['saved-listing-ids'],
     queryFn: async () => {
       try {
-        const { data: { session } } = await supabase.auth.getSession();
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+        if (sessionError) throw sessionError;
         if (!session) return new Set<string>();
         
         const { data, error } = await supabase
@@ -106,7 +107,8 @@ export const useSavedStatus = (listingId: string | undefined, savedIds?: Set<str
       if (!listingId) return false;
       
       try {
-        const { data: { session } } = await supabase.auth.getSession();
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+        if (sessionError) throw sessionError;
         if (!session) return false;
         
         const { data, error } = await supabase

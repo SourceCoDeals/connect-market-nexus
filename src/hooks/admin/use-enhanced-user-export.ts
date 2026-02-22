@@ -18,7 +18,7 @@ export const useEnhancedUserExport = () => {
     
     allBuyerTypes.forEach(buyerType => {
       // Use a type assertion since we know admin is a valid value
-      const fields = getRelevantFieldsForBuyerType(buyerType as any);
+      const fields = getRelevantFieldsForBuyerType(buyerType);
       fields.forEach(field => {
         if (!['first_name', 'last_name', 'email', 'company'].includes(field)) {
           allRelevantFields.add(field);
@@ -36,7 +36,7 @@ export const useEnhancedUserExport = () => {
       const userBuyerType = user.buyer_type || 'corporate';
       const relevantFields = user.is_admin 
         ? ['first_name', 'last_name', 'email', 'company', 'phone_number']
-        : getRelevantFieldsForBuyerType(userBuyerType as any);
+        : getRelevantFieldsForBuyerType(userBuyerType);
 
       const row = [
         user.id,

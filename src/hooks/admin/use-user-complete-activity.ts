@@ -13,8 +13,8 @@ export interface UserTimelineActivity {
   description: string;
   metadata?: {
     status?: string;
-    listing?: any;
-    admin?: any;
+    listing?: { id?: string; title?: string } | null;
+    admin?: { first_name?: string; last_name?: string; name?: string } | null;
     action_type?: string;
     page_path?: string;
     duration?: number;
@@ -33,11 +33,12 @@ export function useUserCompleteActivity(userId: string) {
       const activities: UserTimelineActivity[] = [];
 
       // Fetch user profile for system events
-      const { data: userProfile } = await supabase
+      const { data: userProfile, error: userProfileError } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', userId)
         .single();
+      if (userProfileError) throw userProfileError;
 
       if (userProfile) {
         // Account creation
@@ -76,19 +77,21 @@ export function useUserCompleteActivity(userId: string) {
       }
 
       // Fetch connection requests with enhanced data
-      const { data: connectionRequests } = await supabase
+      const { data: connectionRequests, error: connectionRequestsError } = await supabase
         .from('connection_requests')
         .select('*')
         .eq('user_id', userId)
         .order('created_at', { ascending: false });
+      if (connectionRequestsError) throw connectionRequestsError;
 
       if (connectionRequests) {
         for (const request of connectionRequests) {
-          const { data: listingData } = await supabase
+          const { data: listingData, error: listingDataError } = await supabase
             .from('listings')
             .select('title, id')
             .eq('id', request.listing_id)
             .single();
+          if (listingDataError) throw listingDataError;
 
           // Initial connection request
           activities.push({
@@ -108,11 +111,12 @@ export function useUserCompleteActivity(userId: string) {
           if (request.followed_up && request.followed_up_at) {
             let followUpAdmin = null;
             if (request.followed_up_by) {
-              const { data: adminData } = await supabase
+              const { data: adminData, error: adminDataError } = await supabase
                 .from('profiles')
                 .select('first_name, last_name')
                 .eq('id', request.followed_up_by)
                 .single();
+              if (adminDataError) throw adminDataError;
               followUpAdmin = adminData;
             }
 
@@ -132,20 +136,21 @@ export function useUserCompleteActivity(userId: string) {
           }
 
           // Negative follow-up (if any)
-          if ((request as any).negative_followed_up && (request as any).negative_followed_up_at) {
+          if (request.negative_followed_up && request.negative_followed_up_at) {
             let negativeFollowUpAdmin = null;
-            if ((request as any).negative_followed_up_by) {
-              const { data: adminData } = await supabase
+            if (request.negative_followed_up_by) {
+              const { data: adminData, error: adminDataError } = await supabase
                 .from('profiles')
                 .select('first_name, last_name')
-                .eq('id', (request as any).negative_followed_up_by)
+                .eq('id', request.negative_followed_up_by)
                 .single();
+              if (adminDataError) throw adminDataError;
               negativeFollowUpAdmin = adminData;
             }
 
             activities.push({
               id: `rejection-${request.id}`,
-              timestamp: (request as any).negative_followed_up_at,
+              timestamp: request.negative_followed_up_at,
               type: 'connection_request',
               title: 'Rejection Notice Sent',
               description: `Admin sent rejection notice for "${listingData?.title || 'Unknown Listing'}"`,
@@ -161,7 +166,7 @@ export function useUserCompleteActivity(userId: string) {
       }
 
       // Fetch saved listings
-      const { data: savedListings } = await supabase
+      const { data: savedListings, error: savedListingsError } = await supabase
         .from('saved_listings')
         .select(`
           id,
@@ -171,6 +176,7 @@ export function useUserCompleteActivity(userId: string) {
         `)
         .eq('user_id', userId)
         .order('created_at', { ascending: false });
+      if (savedListingsError) throw savedListingsError;
 
       if (savedListings) {
         savedListings.forEach(saved => {
@@ -189,7 +195,7 @@ export function useUserCompleteActivity(userId: string) {
       }
 
       // Fetch listing analytics (views, interactions)
-      const { data: listingAnalytics } = await supabase
+      const { data: listingAnalytics, error: listingAnalyticsError } = await supabase
         .from('listing_analytics')
         .select('*')
         .eq('user_id', userId)
@@ -199,11 +205,13 @@ export function useUserCompleteActivity(userId: string) {
       if (listingAnalytics) {
         for (const analytic of listingAnalytics) {
           if (analytic.listing_id) {
-            const { data: listingData } = await supabase
+            const { data: listingData, error: listingDataError } = await supabase
               .from('listings')
               .select('title')
               .eq('id', analytic.listing_id)
               .single();
+      if (listingAnalyticsError) throw listingAnalyticsError;
+            if (listingDataError) throw listingDataError;
 
             activities.push({
               id: `analytics-${analytic.id}`,
@@ -222,11 +230,12 @@ export function useUserCompleteActivity(userId: string) {
       }
 
       // Fetch NDA logs
-      const { data: ndaLogs } = await supabase
+      const { data: ndaLogs, error: ndaLogsError } = await supabase
         .from('nda_logs')
         .select('*')
         .eq('user_id', userId)
         .order('created_at', { ascending: false });
+      if (ndaLogsError) throw ndaLogsError;
 
       if (ndaLogs) {
         ndaLogs.forEach(log => {
@@ -263,11 +272,12 @@ export function useUserCompleteActivity(userId: string) {
       }
 
       // Fetch Fee Agreement logs
-      const { data: feeAgreementLogs } = await supabase
+      const { data: feeAgreementLogs, error: feeAgreementLogsError } = await supabase
         .from('fee_agreement_logs')
         .select('*')
         .eq('user_id', userId)
         .order('created_at', { ascending: false });
+      if (feeAgreementLogsError) throw feeAgreementLogsError;
 
       if (feeAgreementLogs) {
         feeAgreementLogs.forEach(log => {

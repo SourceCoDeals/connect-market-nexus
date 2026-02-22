@@ -59,6 +59,7 @@ const Marketplace = lazyWithRetry(() => import("@/pages/Marketplace"));
 const Profile = lazyWithRetry(() => import("@/pages/Profile"));
 const ListingDetail = lazyWithRetry(() => import("@/pages/ListingDetail"));
 const MyRequests = lazyWithRetry(() => import("@/pages/MyRequests"));
+const BuyerMessages = lazyWithRetry(() => import("@/pages/BuyerMessages"));
 const SavedListings = lazyWithRetry(() => import("@/pages/SavedListings"));
 
 // Admin layout
@@ -85,6 +86,7 @@ const FormMonitoringPage = lazyWithRetry(() => import("@/pages/admin/FormMonitor
 const SecuritySettings = lazyWithRetry(() => import("@/pages/admin/settings/SecuritySettings"));
 const GlobalApprovalsPage = lazyWithRetry(() => import("@/pages/admin/GlobalApprovalsPage"));
 const SystemTestRunner = lazyWithRetry(() => import("@/pages/admin/SystemTestRunner"));
+const MessageCenter = lazyWithRetry(() => import("@/pages/admin/MessageCenter"));
 
 // ReMarketing pages (now rendered inside AdminLayout via shared sidebar)
 const ReMarketingLayout = lazyWithRetry(() => import("@/components/remarketing").then(m => ({ default: m.ReMarketingLayout })));
@@ -180,7 +182,9 @@ function App() {
                           <Route index element={<Marketplace />} />
                           <Route path="profile" element={<Profile />} />
                           <Route path="listing/:id" element={<ListingDetail />} />
-                          <Route path="my-requests" element={<MyRequests />} />
+                          <Route path="my-deals" element={<MyRequests />} />
+                          <Route path="my-requests" element={<Navigate to="/my-deals" replace />} />
+                          <Route path="messages" element={<BuyerMessages />} />
                           <Route path="saved-listings" element={<SavedListings />} />
                         </Route>
                         <Route path="/marketplace" element={<Navigate to="/" replace />} />
@@ -210,6 +214,7 @@ function App() {
                           {/* MARKETPLACE (listings absorbed into unified All Deals page) */}
                           <Route path="marketplace/listings" element={<Navigate to="/admin/deals?tab=marketplace" replace />} />
                           <Route path="marketplace/requests" element={<AdminRequests />} />
+                          <Route path="marketplace/messages" element={<MessageCenter />} />
                           <Route path="marketplace/users" element={<MarketplaceUsersPage />} />
 
                           {/* REMARKETING (GlobalActivityStatusBar lives in ReMarketingLayout wrapper) */}

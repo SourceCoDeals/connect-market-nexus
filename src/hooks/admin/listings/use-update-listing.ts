@@ -22,15 +22,10 @@ export function useUpdateListing() {
       image?: File | null;
     }) => {
       try {
-        console.log('[UPDATE LISTING] Starting update for listing ID:', id);
-        console.log('[UPDATE LISTING] Data being sent:', listing);
-        console.log('[UPDATE LISTING] Image provided:', !!image);
-        
         // Ensure bucket exists before attempting upload
         if (image) {
           const bucketExists = await ensureListingsBucketExists();
           if (!bucketExists) {
-            console.warn("Storage bucket setup failed, proceeding without image");
             toast({
               title: 'Storage not ready',
               description: 'The listing will be updated without changing the image.',
@@ -50,15 +45,10 @@ export function useUpdateListing() {
           .select()
           .single();
         
-        console.log('[UPDATE LISTING] Supabase response - data:', data);
-        console.log('[UPDATE LISTING] Supabase response - error:', error);
-        
         if (error) {
-          console.error("[UPDATE LISTING] Error updating listing:", error);
           throw error;
         }
         if (!data) {
-          console.error('[UPDATE LISTING] No data returned - possibly no rows matched!');
           throw new Error('Update failed: No listing found with that ID or insufficient permissions. Please verify the listing exists and you have admin access.');
         }
         
@@ -85,7 +75,6 @@ export function useUpdateListing() {
               .single();
             
             if (updateError) {
-              console.error("Error updating listing with image URL:", updateError);
               toast({
                 variant: 'destructive',
                 title: 'Image Update Partial Failure',
@@ -96,7 +85,6 @@ export function useUpdateListing() {
               updatedListing = updatedData;
             }
           } catch (imageError: any) {
-            console.error('Error handling image update:', imageError);
             toast({
               variant: 'destructive',
               title: 'Image Upload Failed',
@@ -107,7 +95,6 @@ export function useUpdateListing() {
         
         return updatedListing as AdminListing;
       } catch (error: any) {
-        console.error('Error updating listing:', error);
         throw error;
       }
     },

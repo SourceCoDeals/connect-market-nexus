@@ -1,6 +1,7 @@
 import { useEffect, useState, useMemo, useCallback } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import type { Database } from "@/integrations/supabase/types";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -102,22 +103,24 @@ export default function MAAllDeals() {
     ]);
 
     // Map deals to our interface
-    const mappedDeals: DealRow[] = ((dealsRes.data || []) as any[]).map((d) => ({
-      id: d.id,
-      deal_name: d.title || 'Unknown Deal',
-      tracker_id: d.listing_id || '',
-      company_website: d.company_website ?? null,
-      company_overview: d.company_overview ?? null,
-      geography: d.geography ?? null,
-      revenue: d.revenue ?? null,
-      ebitda_amount: d.ebitda_amount ?? null,
-      ebitda_percentage: d.ebitda_percentage ?? null,
-      deal_score: d.deal_score ?? null,
-      status: d.status ?? null,
-      last_enriched_at: d.last_enriched_at ?? null,
-      created_at: d.created_at,
-      priority_rank: d.priority_rank ?? null,
-      source: d.source ?? null,
+    // deals table may have columns not yet in generated Supabase types
+    type DealRecord = Record<string, unknown>;
+    const mappedDeals: DealRow[] = ((dealsRes.data || []) as DealRecord[]).map((d) => ({
+      id: d.id as string,
+      deal_name: (d.title as string) || 'Unknown Deal',
+      tracker_id: (d.listing_id as string) || '',
+      company_website: (d.company_website as string) ?? null,
+      company_overview: (d.company_overview as string) ?? null,
+      geography: (d.geography as string[]) ?? null,
+      revenue: (d.revenue as number) ?? null,
+      ebitda_amount: (d.ebitda_amount as number) ?? null,
+      ebitda_percentage: (d.ebitda_percentage as number) ?? null,
+      deal_score: (d.deal_score as number) ?? null,
+      status: (d.status as string) ?? null,
+      last_enriched_at: (d.last_enriched_at as string) ?? null,
+      created_at: d.created_at as string,
+      priority_rank: (d.priority_rank as number) ?? null,
+      source: (d.source as string) ?? null,
     }));
     // Sort by priority_rank (nulls last) as default ordering
     mappedDeals.sort((a, b) => {
@@ -128,13 +131,13 @@ export default function MAAllDeals() {
     setDeals(mappedDeals);
 
     const trackerMap: Record<string, TrackerInfo> = {};
-    ((trackersRes.data || []) as any[]).forEach((t) => {
-      trackerMap[t.id] = { id: t.id, industry_name: t.name || t.industry_name || 'Unknown' };
+    (trackersRes.data || []).forEach((t) => {
+      trackerMap[t.id] = { id: t.id, industry_name: t.name || 'Unknown' };
     });
     setTrackers(trackerMap);
 
     const counts: Record<string, BuyerCounts> = {};
-    ((scoresRes.data || []) as any[]).forEach((score) => {
+    (scoresRes.data || []).forEach((score) => {
       if (!counts[score.listing_id]) {
         counts[score.listing_id] = { approved: 0, interested: 0, passed: 0 };
       }
@@ -156,7 +159,9 @@ export default function MAAllDeals() {
     e.preventDefault();
     e.stopPropagation();
 
-    const { error } = await supabase.from("deals").update({ status: "Archived" } as any).eq("id", dealId);
+    // status column not yet in generated Supabase types
+    type DealsUpdate = Database["public"]["Tables"]["deals"]["Update"];
+    const { error } = await supabase.from("deals").update({ status: "Archived" } as DealsUpdate).eq("id", dealId);
     if (error) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
       return;
@@ -228,7 +233,7 @@ export default function MAAllDeals() {
     try {
       // Update each deal's priority_rank individually (cast to bypass types until migration runs)
       const updatePromises = updates.map((u) =>
-        supabase.from("deals").update({ priority_rank: u.priority_rank } as any).eq("id", u.id)
+        supabase.from("deals").update({ priority_rank: u.priority_rank } as Database["public"]["Tables"]["deals"]["Update"]).eq("id", u.id)
       );
       const results = await Promise.all(updatePromises);
       const error = results.find((r) => r.error)?.error;

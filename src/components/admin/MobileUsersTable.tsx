@@ -270,7 +270,7 @@ const MobileUserCard = ({
           {(user.revenue_range_min || user.revenue_range_max) && (
             <div className="text-sm">
               <span className="font-medium">Revenue Range:</span>{" "}
-              {formatFinancialRange(user.revenue_range_min as any, user.revenue_range_max as any)}
+              {formatFinancialRange(user.revenue_range_min, user.revenue_range_max)}
             </div>
           )}
         </div>
@@ -338,7 +338,6 @@ export const MobileUsersTable = ({
         .single();
 
       if (profileError || !adminProfile) {
-        console.error('Mobile: Failed to fetch admin profile:', profileError);
         throw new Error('Failed to fetch admin profile');
       }
 

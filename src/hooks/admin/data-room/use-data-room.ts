@@ -55,10 +55,10 @@ export interface LeadMemo {
   deal_id: string;
   memo_type: 'anonymous_teaser' | 'full_memo';
   branding: string;
-  content: any;
+  content: Record<string, unknown>;
   html_content: string | null;
   status: 'draft' | 'published' | 'archived';
-  generated_from: any;
+  generated_from: Record<string, unknown> | null;
   version: number;
   pdf_storage_path: string | null;
   published_at: string | null;
@@ -86,7 +86,7 @@ export interface AuditLogEntry {
   document_id: string | null;
   user_id: string;
   action: string;
-  metadata: any;
+  metadata: Record<string, unknown> | null;
   ip_address: string | null;
   user_agent: string | null;
   created_at: string;
@@ -137,7 +137,8 @@ export function useUploadDocument() {
       formData.append('document_category', documentCategory);
       formData.append('allow_download', String(allowDownload));
 
-      const { data: { session } } = await supabase.auth.getSession();
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      if (sessionError) throw sessionError;
       if (!session) throw new Error('Not authenticated');
 
       const response = await fetch(
@@ -174,11 +175,12 @@ export function useDeleteDocument() {
   return useMutation({
     mutationFn: async ({ documentId, dealId }: { documentId: string; dealId: string }) => {
       // Delete from storage first
-      const { data: doc } = await supabase
+      const { data: doc, error: docError } = await supabase
         .from('data_room_documents')
         .select('storage_path')
         .eq('id', documentId)
         .single();
+      if (docError) throw docError;
 
       if (doc?.storage_path) {
         await supabase.storage.from('deal-data-rooms').remove([doc.storage_path]);
@@ -235,7 +237,8 @@ export function useUpdateAccess() {
       fee_agreement_override_reason?: string;
       expires_at?: string;
     }) => {
-      const { data: { session } } = await supabase.auth.getSession();
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      if (sessionError) throw sessionError;
       if (!session) throw new Error('Not authenticated');
 
       const response = await supabase.functions.invoke('data-room-access', {
@@ -245,7 +248,7 @@ export function useUpdateAccess() {
       if (response.error) throw new Error(response.error.message);
 
       // Check for fee agreement warning
-      const data = response.data as any;
+      const data = response.data as Record<string, unknown> | null;
       if (data?.error === 'fee_agreement_required') {
         throw new Error('FEE_AGREEMENT_REQUIRED');
       }
@@ -269,7 +272,8 @@ export function useRevokeAccess() {
 
   return useMutation({
     mutationFn: async ({ accessId, dealId }: { accessId: string; dealId: string }) => {
-      const { data: { session } } = await supabase.auth.getSession();
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      if (sessionError) throw sessionError;
       if (!session) throw new Error('Not authenticated');
 
       const response = await supabase.functions.invoke('data-room-access', {
@@ -324,7 +328,8 @@ export function useDocumentUrl() {
   return useMutation({
     mutationFn: async ({ documentId, action = 'view' }: { documentId: string; action?: 'view' | 'download' }) => {
       // Use fetch directly since Supabase functions.invoke doesn't support GET with params well
-      const { data: { session } } = await supabase.auth.getSession();
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      if (sessionError) throw sessionError;
       if (!session) throw new Error('Not authenticated');
 
       const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/data-room-download?document_id=${documentId}&action=${action}`;
@@ -394,19 +399,21 @@ export function useUpdateMemo() {
   return useMutation({
     mutationFn: async ({ memoId, content, htmlContent, dealId }: {
       memoId: string;
-      content: any;
+      content: Record<string, unknown>;
       htmlContent: string;
       dealId: string;
     }) => {
       // Save current version
-      const { data: currentMemo } = await supabase
+      const { data: currentMemo, error: currentMemoError } = await supabase
         .from('lead_memos')
         .select('version, content, html_content')
         .eq('id', memoId)
         .single();
+      if (currentMemoError) throw currentMemoError;
 
       if (currentMemo) {
-        const { data: { user } } = await supabase.auth.getUser();
+        const { data: { user }, error: authError } = await supabase.auth.getUser();
+        if (authError) throw authError;
         await supabase.from('lead_memo_versions').insert({
           memo_id: memoId,
           version: currentMemo.version,
@@ -445,7 +452,8 @@ export function usePublishMemo() {
 
   return useMutation({
     mutationFn: async ({ memoId, dealId }: { memoId: string; dealId: string }) => {
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      if (authError) throw authError;
 
       const { error } = await supabase
         .from('lead_memos')
@@ -499,7 +507,8 @@ export function useLogManualSend() {
       memo_type: 'anonymous_teaser' | 'full_memo';
       notes?: string;
     }) => {
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      if (authError) throw authError;
 
       const { error } = await supabase
         .from('memo_distribution_log')

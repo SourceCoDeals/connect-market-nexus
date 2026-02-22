@@ -52,7 +52,7 @@ export function DocumentDistributionTab({
     queryKey: ['distribution-buyers'],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('remarketing_buyers' as any)
+        .from('remarketing_buyers' as never)
         .select('id, company_name, remarketing_buyer_contacts(name, email, is_primary)')
         .eq('archived', false)
         .order('company_name')

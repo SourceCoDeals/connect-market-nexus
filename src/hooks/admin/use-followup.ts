@@ -20,7 +20,7 @@ export const useUpdateNegativeFollowup = () => {
 
   return useMutation({
     mutationFn: async ({ requestId, isFollowedUp, notes }: UpdateNegativeFollowupParams) => {
-      const { data, error } = await (supabase as any).rpc('update_connection_request_negative_followup', {
+      const { data, error } = await supabase.rpc('update_connection_request_negative_followup' as 'update_connection_request_followup', {
         request_id: requestId,
         is_followed_up: isFollowedUp,
         admin_notes: notes
@@ -35,14 +35,14 @@ export const useUpdateNegativeFollowup = () => {
       const previousRequests = queryClient.getQueryData(['connection-requests']);
 
       // Optimistically update connection requests
-      queryClient.setQueryData(['connection-requests'], (old: any) => {
-        if (!old) return old;
-        return old.map((request: any) => 
-          request.id === requestId 
-            ? { 
-                ...request, 
+      queryClient.setQueryData(['connection-requests'], (old: unknown) => {
+        if (!Array.isArray(old)) return old;
+        return old.map((request: Record<string, unknown>) =>
+          request.id === requestId
+            ? {
+                ...request,
                 negative_followed_up: isFollowedUp,
-                negative_followed_up_at: isFollowedUp ? new Date().toISOString() : null 
+                negative_followed_up_at: isFollowedUp ? new Date().toISOString() : null
               }
             : request
         );
@@ -90,14 +90,14 @@ export const useUpdateFollowup = () => {
       const previousRequests = queryClient.getQueryData(['connection-requests']);
 
       // Optimistically update connection requests
-      queryClient.setQueryData(['connection-requests'], (old: any) => {
-        if (!old) return old;
-        return old.map((request: any) => 
-          request.id === requestId 
-            ? { 
-                ...request, 
+      queryClient.setQueryData(['connection-requests'], (old: unknown) => {
+        if (!Array.isArray(old)) return old;
+        return old.map((request: Record<string, unknown>) =>
+          request.id === requestId
+            ? {
+                ...request,
                 followed_up: isFollowedUp,
-                followed_up_at: isFollowedUp ? new Date().toISOString() : null 
+                followed_up_at: isFollowedUp ? new Date().toISOString() : null
               }
             : request
         );

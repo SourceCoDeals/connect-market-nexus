@@ -7,8 +7,10 @@ export default function TranscriptAnalytics() {
   const { data: health = [], isLoading } = useQuery({
     queryKey: ['transcript-health'],
     queryFn: async () => {
+      // transcript_extraction_health is a view not in generated Supabase types
+      type UntypedTable = Parameters<typeof supabase.from>[0];
       const { data, error } = await supabase
-        .from('transcript_extraction_health' as any)
+        .from('transcript_extraction_health' as UntypedTable)
         .select('*');
 
       if (error) throw error;

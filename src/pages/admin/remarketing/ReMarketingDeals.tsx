@@ -327,8 +327,8 @@ const ReMarketingDeals = () => {
         .limit(5000);
       if (error) throw error;
       const map: Record<string, { id: string; name: string }[]> = {};
-      data?.forEach((row: any) => {
-        const u = row.remarketing_buyer_universes as any;
+      data?.forEach((row) => {
+        const u = row.remarketing_buyer_universes as { id: string; name: string } | null;
         if (!u || !u.name) return;
         if (!map[row.listing_id]) map[row.listing_id] = [];
         map[row.listing_id].push({ id: u.id, name: u.name });
@@ -726,7 +726,7 @@ const ReMarketingDeals = () => {
   const handleArchiveDeal = useCallback(async (dealId: string, dealName: string) => {
     const { error } = await supabase
       .from('listings')
-      .update({ remarketing_status: 'archived' } as any)
+      .update({ remarketing_status: 'archived' })
       .eq('id', dealId);
     if (error) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
@@ -793,7 +793,7 @@ const ReMarketingDeals = () => {
         universe_build_flagged: newStatus,
         universe_build_flagged_at: newStatus ? now : null,
         universe_build_flagged_by: newStatus ? user?.id : null,
-      } as any)
+      })
       .eq('id', dealId);
     if (error) {
       setLocalOrder(prev => prev.map(deal =>
@@ -835,7 +835,7 @@ const ReMarketingDeals = () => {
       const dealIds = Array.from(selectedDeals);
       const { error } = await supabase
         .from('listings')
-        .update({ remarketing_status: 'archived' } as any)
+        .update({ remarketing_status: 'archived' })
         .in('id', dealIds);
       if (error) throw error;
       toast({ title: "Deals archived", description: `${dealIds.length} deal(s) have been archived` });

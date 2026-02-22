@@ -216,6 +216,7 @@ export interface ReMarketingBuyer {
   // Whispers parity fields
   pe_firm_name?: string | null;
   pe_firm_website?: string | null;
+  email_domain?: string | null;
   has_fee_agreement?: boolean;
   hq_city?: string | null;
   hq_state?: string | null;

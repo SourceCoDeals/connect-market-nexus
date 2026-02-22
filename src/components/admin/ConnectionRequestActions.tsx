@@ -1,672 +1,599 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
-import { Label } from "@/components/ui/label";
-import { 
-  FileText, 
-  Shield, 
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Tooltip, TooltipContent, TooltipProvider, TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
+  FileText,
+  Shield,
   CheckCircle,
-  Clock,
   XCircle,
-  Mail,
-  ExternalLink,
   MessageSquare,
   Send,
-  CheckCheck
+  Lock,
+  Eye,
+  FolderOpen,
+  Undo2,
 } from "lucide-react";
 import { UserNotesSection } from "./UserNotesSection";
-import { DecisionNotesInline } from "./DecisionNotesInline";
 import { User as UserType, Listing } from "@/types";
-import { SimpleFeeAgreementDialog } from "./SimpleFeeAgreementDialog";
-import { SimpleNDADialog } from "./SimpleNDADialog";
-import { BulkFollowupConfirmation } from "./BulkFollowupConfirmation";
 import { BuyerDealsOverview } from "./BuyerDealsOverview";
-import { useUpdateNDA, useUpdateNDAEmailSent } from "@/hooks/admin/use-nda";
-import { useUpdateFeeAgreement, useUpdateFeeAgreementEmailSent } from "@/hooks/admin/use-fee-agreement";
-import { useUpdateFollowup, useUpdateNegativeFollowup } from "@/hooks/admin/use-followup";
-import { useUpdateApprovalStatus, useUpdateRejectionStatus } from "@/hooks/admin/use-approval-status";
+import { useUpdateConnectionRequestStatus } from "@/hooks/admin/use-connection-request-status";
 import { useUserConnectionRequests } from "@/hooks/admin/use-user-connection-requests";
-import { useBulkFollowup } from "@/hooks/admin/use-bulk-followup";
+import { useUpdateAccess } from "@/hooks/admin/data-room/use-data-room";
+import {
+  useConnectionMessages,
+  useSendMessage,
+  useMarkMessagesReadByAdmin,
+} from "@/hooks/use-connection-messages";
 import { useToast } from "@/hooks/use-toast";
-import { useAdminSignature } from "@/hooks/admin/use-admin-signature";
-import { useAuth } from "@/context/AuthContext";
-import { getAdminProfile } from "@/lib/admin-profiles";
-import { formatDistanceToNow, format } from 'date-fns';
-
+import { supabase } from "@/integrations/supabase/client";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { formatDistanceToNow } from "date-fns";
 
 interface ConnectionRequestActionsProps {
   user: UserType;
   listing?: Listing;
   requestId?: string;
+  requestStatus?: "pending" | "approved" | "rejected" | "on_hold";
+  // Legacy props — kept for call-site compatibility
   followedUp?: boolean;
   negativeFollowedUp?: boolean;
   onEmailSent?: () => void;
-  onLocalStateUpdate?: (updatedUser: UserType, updatedFollowedUp?: boolean, updatedNegativeFollowedUp?: boolean) => void;
+  onLocalStateUpdate?: (
+    updatedUser: UserType,
+    updatedFollowedUp?: boolean,
+    updatedNegativeFollowedUp?: boolean
+  ) => void;
 }
 
-export function ConnectionRequestActions({ 
-  user, 
-  listing, 
-  requestId, 
-  followedUp = false, 
-  negativeFollowedUp = false,
-  onEmailSent,
-  onLocalStateUpdate 
+export function ConnectionRequestActions({
+  user,
+  listing,
+  requestId,
+  requestStatus = "pending",
 }: ConnectionRequestActionsProps) {
   const { toast } = useToast();
-  const { signature } = useAdminSignature();
-  const { user: authUser } = useAuth();
-  const [showFeeDialog, setShowFeeDialog] = useState(false);
-  const [showNDADialog, setShowNDADialog] = useState(false);
-  const [showBulkFollowupDialog, setShowBulkFollowupDialog] = useState(false);
-  const [bulkFollowupType, setBulkFollowupType] = useState<'positive' | 'negative'>('positive');
-  
-  // Local state for immediate UI updates
-  const [localUser, setLocalUser] = useState(user);
-  const [localFollowedUp, setLocalFollowedUp] = useState(followedUp);
-  const [localNegativeFollowedUp, setLocalNegativeFollowedUp] = useState(negativeFollowedUp);
+  const queryClient = useQueryClient();
+  const updateStatus = useUpdateConnectionRequestStatus();
+  const updateAccess = useUpdateAccess();
+  const sendMessage = useSendMessage();
 
-  // Fetch all connection requests for this user
-  const { data: userRequests = [], refetch: refetchUserRequests } = useUserConnectionRequests(user.id);
-  const hasMultipleRequests = userRequests.length > 1;
-  
-  // Get current request for admin attribution
-  const currentRequest = userRequests.find(req => req.id === requestId);
+  const [showRejectNote, setShowRejectNote] = useState(false);
+  const [rejectNote, setRejectNote] = useState("");
 
-  // Sync local state when bulk operations complete
-  useEffect(() => {
-    if (userRequests && requestId) {
-      const currentRequest = userRequests.find(req => req.id === requestId);
-      if (currentRequest) {
-        setLocalFollowedUp(currentRequest.followed_up || false);
-        setLocalNegativeFollowedUp(currentRequest.negative_followed_up || false);
+  // Fetch all connection requests for this user (for BuyerDealsOverview)
+  const { data: userRequests = [] } = useUserConnectionRequests(user.id);
+
+  // Fetch current data room access for this buyer + listing
+  const { data: accessRecord } = useQuery({
+    queryKey: ["buyer-access", listing?.id, user.id],
+    queryFn: async () => {
+      if (!listing?.id) return null;
+      const { data, error } = await supabase
+        .from("data_room_access")
+        .select("id, can_view_teaser, can_view_full_memo, can_view_data_room")
+        .eq("deal_id", listing.id)
+        .eq("marketplace_user_id", user.id)
+        .is("revoked_at", null)
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!listing?.id,
+  });
+
+  const hasFeeAgreement = user.fee_agreement_signed || false;
+  const hasNDA = user.nda_signed || false;
+
+  // ─── Decision Handlers ───
+
+  const handleAccept = async () => {
+    if (!requestId) return;
+    try {
+      await updateStatus.mutateAsync({ requestId, status: "approved" });
+      await sendMessage.mutateAsync({
+        connection_request_id: requestId,
+        body: "Request accepted. We will begin the documentation process.",
+        sender_role: "admin",
+        message_type: "decision",
+      });
+      toast({ title: "Request approved", description: "Buyer has been notified." });
+    } catch (err) {
+      toast({
+        title: "Action failed",
+        description: err instanceof Error ? err.message : "Could not complete the action.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleReject = async () => {
+    if (!requestId) return;
+    const note = rejectNote.trim();
+    try {
+      await updateStatus.mutateAsync({
+        requestId,
+        status: "rejected",
+        notes: note || undefined,
+      });
+      await sendMessage.mutateAsync({
+        connection_request_id: requestId,
+        body: note || "Request declined.",
+        sender_role: "admin",
+        message_type: "decision",
+      });
+      setShowRejectNote(false);
+      setRejectNote("");
+      toast({ title: "Request declined", description: "Buyer has been notified." });
+    } catch (err) {
+      toast({
+        title: "Action failed",
+        description: err instanceof Error ? err.message : "Could not complete the action.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleResetToPending = () => {
+    if (!requestId) return;
+    updateStatus.mutate({ requestId, status: "pending" });
+  };
+
+  // ─── Document Access ───
+
+  const handleDocumentAccessToggle = (
+    field: "can_view_teaser" | "can_view_full_memo" | "can_view_data_room",
+    newValue: boolean
+  ) => {
+    if (!listing?.id) return;
+    if (
+      (field === "can_view_full_memo" || field === "can_view_data_room") &&
+      newValue &&
+      !hasFeeAgreement
+    ) {
+      toast({
+        title: "Fee Agreement Required",
+        description:
+          "A signed fee agreement is required before releasing the full memo or data room access.",
+        variant: "destructive",
+      });
+      return;
+    }
+    updateAccess.mutate(
+      {
+        deal_id: listing.id,
+        marketplace_user_id: user.id,
+        can_view_teaser:
+          field === "can_view_teaser"
+            ? newValue
+            : (accessRecord?.can_view_teaser ?? false),
+        can_view_full_memo:
+          field === "can_view_full_memo"
+            ? newValue
+            : (accessRecord?.can_view_full_memo ?? false),
+        can_view_data_room:
+          field === "can_view_data_room"
+            ? newValue
+            : (accessRecord?.can_view_data_room ?? false),
+      },
+      {
+        onSuccess: () => {
+          queryClient.invalidateQueries({
+            queryKey: ["buyer-access", listing?.id, user.id],
+          });
+        },
       }
-    }
-  }, [userRequests, requestId]);
-
-  // Sync with props when they change
-  useEffect(() => {
-    setLocalUser(user);
-  }, [user]);
-
-  useEffect(() => {
-    setLocalFollowedUp(followedUp);
-  }, [followedUp]);
-
-  useEffect(() => {
-    setLocalNegativeFollowedUp(negativeFollowedUp);
-  }, [negativeFollowedUp]);
-  
-  const updateNDA = useUpdateNDA();
-  const updateNDAEmailSent = useUpdateNDAEmailSent();
-  const updateFeeAgreement = useUpdateFeeAgreement();
-  const updateFeeAgreementEmailSent = useUpdateFeeAgreementEmailSent();
-  const updateFollowup = useUpdateFollowup();
-  const updateNegativeFollowup = useUpdateNegativeFollowup();
-  const bulkFollowup = useBulkFollowup();
-
-  const getStatusIndicator = (sent: boolean, signed: boolean, sentAt?: string, signedAt?: string) => {
-    if (signed && signedAt) {
-      const timeAgo = formatDistanceToNow(new Date(signedAt), { addSuffix: true });
-      return (
-        <div className="flex items-center gap-1.5 text-xs text-muted-foreground" title={`Signed ${timeAgo}`}>
-          <div className="w-1.5 h-1.5 rounded-full bg-emerald-500"></div>
-          <span className="font-medium text-foreground">Signed</span>
-          <span className="text-muted-foreground/60">{timeAgo}</span>
-        </div>
-      );
-    }
-    if (sent && sentAt) {
-      const timeAgo = formatDistanceToNow(new Date(sentAt), { addSuffix: true });
-      return (
-        <div className="flex items-center gap-1.5 text-xs text-muted-foreground" title={`Sent ${timeAgo}`}>
-          <div className="w-1.5 h-1.5 rounded-full bg-blue-500"></div>
-          <span className="font-medium text-foreground">Sent</span>
-          <span className="text-muted-foreground/60">{timeAgo}</span>
-        </div>
-      );
-    }
-    return (
-      <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-        <div className="w-1.5 h-1.5 rounded-full bg-amber-500"></div>
-        <span className="font-medium text-foreground">Required</span>
-      </div>
     );
   };
 
-  const getAdminName = (adminProfile?: { first_name?: string; last_name?: string; email?: string }) => {
-    if (!adminProfile) return 'Admin';
-    
-    // Prioritize database profile data (first_name + last_name)
-    if (adminProfile.first_name || adminProfile.last_name) {
-      return [adminProfile.first_name, adminProfile.last_name].filter(Boolean).join(' ');
+  // ─── Status dot helper ───
+
+  const getDocStatusDot = (signed: boolean) => (
+    <div
+      className={`w-2 h-2 rounded-full ${
+        signed ? "bg-emerald-500" : "bg-amber-500"
+      }`}
+    />
+  );
+
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        {/* ── Left Column ── */}
+        <div className="lg:col-span-2 space-y-4">
+
+          {/* Decision — pending only */}
+          {requestStatus === "pending" && requestId && (
+            <div className="bg-card border border-border/40 rounded-lg p-4 shadow-sm">
+              <h3 className="text-sm font-semibold text-card-foreground flex items-center gap-2 mb-4">
+                <Shield className="h-4 w-4 text-primary" />
+                Decision
+              </h3>
+              {!showRejectNote ? (
+                <div className="flex items-center gap-3">
+                  <Button
+                    onClick={handleAccept}
+                    disabled={updateStatus.isPending}
+                    className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                    size="sm"
+                  >
+                    <CheckCircle className="h-4 w-4 mr-2" />
+                    Accept
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => setShowRejectNote(true)}
+                    disabled={updateStatus.isPending}
+                    className="border-destructive/30 text-destructive hover:bg-destructive/10"
+                    size="sm"
+                  >
+                    <XCircle className="h-4 w-4 mr-2" />
+                    Reject
+                  </Button>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <Textarea
+                    value={rejectNote}
+                    onChange={(e) => setRejectNote(e.target.value)}
+                    placeholder="Add a reason for rejecting this request..."
+                    className="text-xs min-h-[60px] resize-none"
+                  />
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={handleReject}
+                      disabled={updateStatus.isPending}
+                    >
+                      <XCircle className="h-3 w-3 mr-1.5" />
+                      Confirm Reject
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setShowRejectNote(false);
+                        setRejectNote("");
+                      }}
+                    >
+                      Cancel
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Status banner — non-pending */}
+          {requestStatus !== "pending" && requestId && (
+            <div
+              className={`flex items-center justify-between py-2 px-4 rounded-lg border ${
+                requestStatus === "approved"
+                  ? "bg-emerald-50 border-emerald-200 dark:bg-emerald-950/30 dark:border-emerald-800"
+                  : requestStatus === "rejected"
+                    ? "bg-red-50 border-red-200 dark:bg-red-950/30 dark:border-red-800"
+                    : "bg-amber-50 border-amber-200 dark:bg-amber-950/30 dark:border-amber-800"
+              }`}
+            >
+              <div className="flex items-center gap-2">
+                {requestStatus === "approved" && (
+                  <CheckCircle className="h-4 w-4 text-emerald-600" />
+                )}
+                {requestStatus === "rejected" && (
+                  <XCircle className="h-4 w-4 text-destructive" />
+                )}
+                {requestStatus === "on_hold" && (
+                  <Shield className="h-4 w-4 text-amber-600" />
+                )}
+                <span className="text-sm font-medium capitalize">
+                  {requestStatus === "on_hold" ? "On Hold" : requestStatus}
+                </span>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleResetToPending}
+                disabled={updateStatus.isPending}
+                className="text-xs h-7"
+              >
+                <Undo2 className="h-3 w-3 mr-1" />
+                Reset to Pending
+              </Button>
+            </div>
+          )}
+
+          {/* Read-only document status — accepted only */}
+          {requestStatus === "approved" && (
+            <div className="bg-card border border-border/40 rounded-lg p-4 shadow-sm">
+              <h3 className="text-sm font-semibold text-card-foreground flex items-center gap-2 mb-3">
+                <FileText className="h-4 w-4 text-primary" />
+                Document Status
+              </h3>
+              <div className="space-y-2">
+                <div className="flex items-center justify-between py-1.5 px-3 rounded-md bg-background/50">
+                  <div className="flex items-center gap-2">
+                    <Shield className="h-3.5 w-3.5 text-muted-foreground" />
+                    <span className="text-xs font-medium">NDA</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    {getDocStatusDot(hasNDA)}
+                    <span className="text-xs text-muted-foreground">
+                      {hasNDA ? "Signed" : "Required"}
+                    </span>
+                  </div>
+                </div>
+                <div className="flex items-center justify-between py-1.5 px-3 rounded-md bg-background/50">
+                  <div className="flex items-center gap-2">
+                    <FileText className="h-3.5 w-3.5 text-muted-foreground" />
+                    <span className="text-xs font-medium">Fee Agreement</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    {getDocStatusDot(hasFeeAgreement)}
+                    <span className="text-xs text-muted-foreground">
+                      {hasFeeAgreement ? "Signed" : "Required"}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Document Access — accepted + listing */}
+          {requestStatus === "approved" && listing && (
+            <TooltipProvider>
+              <div className="bg-card border border-border/40 rounded-lg p-4 shadow-sm">
+                <h3 className="text-sm font-semibold text-card-foreground flex items-center gap-2 mb-3">
+                  <Eye className="h-4 w-4 text-primary" />
+                  Document Access
+                </h3>
+                <div className="space-y-2">
+                  {/* Anonymous Teaser */}
+                  <div className="flex items-center justify-between py-2 px-3 rounded-md border border-border/50 bg-background/50">
+                    <div className="flex items-center gap-2">
+                      <FileText className="h-3.5 w-3.5 text-muted-foreground" />
+                      <span className="text-xs font-medium">
+                        Anonymous Teaser
+                      </span>
+                    </div>
+                    <Switch
+                      checked={accessRecord?.can_view_teaser ?? false}
+                      onCheckedChange={(checked) =>
+                        handleDocumentAccessToggle("can_view_teaser", checked)
+                      }
+                      disabled={updateAccess.isPending}
+                      className="scale-90"
+                    />
+                  </div>
+
+                  {/* Full Memo */}
+                  <div className="flex items-center justify-between py-2 px-3 rounded-md border border-border/50 bg-background/50">
+                    <div className="flex items-center gap-2">
+                      <FileText className="h-3.5 w-3.5 text-muted-foreground" />
+                      <span className="text-xs font-medium">
+                        Full Detail Memo
+                      </span>
+                      {!hasFeeAgreement && (
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Lock className="h-3 w-3 text-amber-500" />
+                          </TooltipTrigger>
+                          <TooltipContent side="top" className="text-xs">
+                            Requires signed fee agreement
+                          </TooltipContent>
+                        </Tooltip>
+                      )}
+                    </div>
+                    <Switch
+                      checked={accessRecord?.can_view_full_memo ?? false}
+                      onCheckedChange={(checked) =>
+                        handleDocumentAccessToggle("can_view_full_memo", checked)
+                      }
+                      disabled={updateAccess.isPending || !hasFeeAgreement}
+                      className="scale-90"
+                    />
+                  </div>
+
+                  {/* Data Room */}
+                  <div className="flex items-center justify-between py-2 px-3 rounded-md border border-border/50 bg-background/50">
+                    <div className="flex items-center gap-2">
+                      <FolderOpen className="h-3.5 w-3.5 text-muted-foreground" />
+                      <span className="text-xs font-medium">Data Room</span>
+                      {!hasFeeAgreement && (
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Lock className="h-3 w-3 text-amber-500" />
+                          </TooltipTrigger>
+                          <TooltipContent side="top" className="text-xs">
+                            Requires signed fee agreement
+                          </TooltipContent>
+                        </Tooltip>
+                      )}
+                    </div>
+                    <Switch
+                      checked={accessRecord?.can_view_data_room ?? false}
+                      onCheckedChange={(checked) =>
+                        handleDocumentAccessToggle("can_view_data_room", checked)
+                      }
+                      disabled={updateAccess.isPending || !hasFeeAgreement}
+                      className="scale-90"
+                    />
+                  </div>
+
+                  {!hasFeeAgreement && (
+                    <p className="text-[11px] text-amber-600 flex items-center gap-1 px-1">
+                      <Lock className="h-3 w-3" />
+                      Sign a fee agreement to unlock full memo and data room
+                      access
+                    </p>
+                  )}
+                </div>
+              </div>
+            </TooltipProvider>
+          )}
+
+          {/* Compact Message Thread */}
+          {requestId && (
+            <CompactMessageThread connectionRequestId={requestId} />
+          )}
+        </div>
+
+        {/* ── Right Column ── */}
+        <div className="space-y-4">
+          <div className="max-w-sm">
+            <UserNotesSection
+              userId={user.id}
+              userName={`${user.first_name} ${user.last_name}`}
+            />
+          </div>
+          {userRequests.length > 1 && (
+            <div className="max-w-sm">
+              <BuyerDealsOverview
+                requests={userRequests}
+                currentRequestId={requestId}
+              />
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Compact Message Thread ───
+
+function CompactMessageThread({
+  connectionRequestId,
+}: {
+  connectionRequestId: string;
+}) {
+  const { data: messages = [] } = useConnectionMessages(connectionRequestId);
+  const sendMsg = useSendMessage();
+  const markRead = useMarkMessagesReadByAdmin();
+  const [newMessage, setNewMessage] = useState("");
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Mark messages as read when viewing
+  useEffect(() => {
+    if (connectionRequestId) {
+      markRead.mutate(connectionRequestId);
     }
-    
-    // Fall back to hardcoded admin profiles if email is available but no name in database
-    if (adminProfile.email) {
-      const staticProfile = getAdminProfile(adminProfile.email);
-      if (staticProfile?.name) {
-        return staticProfile.name;
-      }
-    }
-    
-    return 'Admin';
-  };
+  }, [connectionRequestId, messages.length, markRead]);
 
-  const getFollowUpMailto = () => {
-    if (!listing) return '';
+  // Auto-scroll to bottom
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
 
-    const subject = `Moving to Owner Introduction - ${listing.title}`;
-    const body = `Hi ${user.first_name},
-
-Your "${listing.title}" connection request is moving to the introduction phase.
-
-Key Financials:
-• Revenue: $${listing.revenue?.toLocaleString()}
-• EBITDA: $${listing.ebitda?.toLocaleString()}
-• Location: ${listing.location}
-
-Schedule your walkthrough call here: https://tidycal.com/tomosmughan/30-minute-meeting
-
-We'll discuss the business details, answer your questions, and set up the owner introduction.
-
-${signature?.signature_text || `Best regards,
-SourceCo Team`}`;
-
-    return `mailto:${user.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-  };
-
-  const getNegativeFollowUpMailto = () => {
-    if (!listing) return '';
-
-    const subject = `${listing.title}: current status + next steps`;
-
-    // Build dynamic admin display name
-    let adminDisplayName = '';
-    const adminEmail = authUser?.email || '';
-    const adminProfile = adminEmail ? getAdminProfile(adminEmail) : null;
-    if (adminProfile?.name) {
-      adminDisplayName = adminProfile.name;
-    } else if (authUser?.firstName || authUser?.lastName) {
-      adminDisplayName = [authUser?.firstName, authUser?.lastName].filter(Boolean).join(' ');
-    }
-
-    const signatureSection = adminDisplayName ? `\nThank you, \n${adminDisplayName}` : '';
-
-    const bodyBase = `Hi ${user.first_name},
-
-Appreciate your interest in ${listing.title}. It's currently in diligence with another party. Because this is an off‑market process, we don't run parallel buyers unless the seller widens the circle.
-
-In the meantime, we will:
-
-· Prioritize you for like‑for‑like, founder‑led opportunities
-· Send you weekly alerts with new matching deals added based on your mandate
-
-If the status changes post‑diligence, we'll reach out immediately.`;
-
-    const body = signatureSection ? `${bodyBase}\n\n${signatureSection}` : bodyBase;
-
-    return `mailto:${user.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-  };
-
-  const handleNDASignedToggle = (checked: boolean) => {
-    const updatedUser = { 
-      ...localUser, 
-      nda_signed: checked,
-      nda_signed_at: checked ? new Date().toISOString() : null 
-    };
-    // Immediate UI update
-    setLocalUser(updatedUser);
-    onLocalStateUpdate?.(updatedUser);
-    
-    updateNDA.mutate({
-      userId: user.id,
-      isSigned: checked
+  const handleSend = () => {
+    if (!newMessage.trim()) return;
+    sendMsg.mutate({
+      connection_request_id: connectionRequestId,
+      body: newMessage.trim(),
+      sender_role: "admin",
     });
-  };
-
-  const handleNDAEmailSentToggle = (checked: boolean) => {
-    const updatedUser = { 
-      ...localUser, 
-      nda_email_sent: checked,
-      nda_email_sent_at: checked ? new Date().toISOString() : null 
-    };
-    // Immediate UI update
-    setLocalUser(updatedUser);
-    onLocalStateUpdate?.(updatedUser);
-    
-    updateNDAEmailSent.mutate({
-      userId: user.id,
-      isSent: checked
-    });
-  };
-
-  const handleFeeAgreementSignedToggle = (checked: boolean) => {
-    const updatedUser = { 
-      ...localUser, 
-      fee_agreement_signed: checked,
-      fee_agreement_signed_at: checked ? new Date().toISOString() : null 
-    };
-    // Immediate UI update
-    setLocalUser(updatedUser);
-    onLocalStateUpdate?.(updatedUser);
-    
-    updateFeeAgreement.mutate({
-      userId: user.id,
-      isSigned: checked
-    });
-  };
-
-  const handleFeeAgreementEmailSentToggle = (checked: boolean) => {
-    const updatedUser = { 
-      ...localUser, 
-      fee_agreement_email_sent: checked,
-      fee_agreement_email_sent_at: checked ? new Date().toISOString() : null 
-    };
-    // Immediate UI update
-    setLocalUser(updatedUser);
-    onLocalStateUpdate?.(updatedUser);
-    
-    updateFeeAgreementEmailSent.mutate({
-      userId: user.id,
-      isSent: checked
-    });
-  };
-
-  const handleFollowUpToggle = (checked: boolean) => {
-    if (checked && hasMultipleRequests) {
-      setBulkFollowupType('positive');
-      setShowBulkFollowupDialog(true);
-      return;
-    }
-
-    // Mutual exclusivity: if enabling positive, disable negative
-    if (checked && localNegativeFollowedUp) {
-      setLocalNegativeFollowedUp(false);
-      updateNegativeFollowup.mutate({
-        requestId,
-        isFollowedUp: false
-      });
-    }
-
-    // Single request or unchecking - handle immediately
-    setLocalFollowedUp(checked);
-    onLocalStateUpdate?.(localUser, checked, checked ? false : localNegativeFollowedUp);
-    
-    updateFollowup.mutate({
-      requestId,
-      isFollowedUp: checked,
-      notes: checked ? `Follow-up initiated by admin on ${new Date().toLocaleDateString()}` : undefined
-    });
-  };
-
-  const handleNegativeFollowUpToggle = (checked: boolean) => {
-    if (checked && hasMultipleRequests) {
-      setBulkFollowupType('negative');
-      setShowBulkFollowupDialog(true);
-      return;
-    }
-
-    // Mutual exclusivity: if enabling negative, disable positive
-    if (checked && localFollowedUp) {
-      setLocalFollowedUp(false);
-      updateFollowup.mutate({
-        requestId,
-        isFollowedUp: false
-      });
-    }
-
-    // Single request or unchecking - handle immediately
-    setLocalNegativeFollowedUp(checked);
-    onLocalStateUpdate?.(localUser, checked ? false : localFollowedUp, checked);
-    
-    updateNegativeFollowup.mutate({
-      requestId,
-      isFollowedUp: checked,
-      notes: checked ? `Negative follow-up initiated by admin on ${new Date().toLocaleDateString()}` : undefined
-    });
-  };
-
-  const handleBulkFollowupConfirm = (excludedRequestIds: string[]) => {
-    const requestIdsToUpdate = userRequests
-      .filter(req => !excludedRequestIds.includes(req.id))
-      .map(req => req.id);
-
-    bulkFollowup.mutate({
-      requestIds: requestIdsToUpdate,
-      isFollowedUp: true,
-      followupType: bulkFollowupType
-    }, {
-      onSuccess: () => {
-        // Update local state based on current request
-        if (requestIdsToUpdate.includes(requestId || '')) {
-          if (bulkFollowupType === 'positive') {
-            setLocalFollowedUp(true);
-            onLocalStateUpdate?.(localUser, true, localNegativeFollowedUp);
-          } else {
-            setLocalNegativeFollowedUp(true);
-            onLocalStateUpdate?.(localUser, localFollowedUp, true);
-          }
-        }
-        setShowBulkFollowupDialog(false);
-      }
-    });
+    setNewMessage("");
   };
 
   return (
-    <>
-      <div className="space-y-4">
-        {/* Compact two-column layout */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-          {/* Left Column: Actions & Status */}
-          <div className="lg:col-span-2 space-y-4">
-            
-            {/* Compact Actions Card */}
-            <div className="bg-card border border-border/40 rounded-lg p-4 shadow-sm">
-              <div className="mb-4">
-                <h3 className="text-sm font-semibold text-card-foreground flex items-center gap-2">
-                  <Mail className="h-4 w-4 text-primary" />
-                  Actions
-                </h3>
-              </div>
-              
-              {/* Compact Action Grid */}
-              <div className="grid grid-cols-3 gap-2 mb-4">
-                <Button
-                  variant={localFollowedUp ? "default" : "outline"}
-                  size="sm"
-                  asChild
-                  className="h-8 text-xs px-2"
-                >
-                  <a 
-                    href={getFollowUpMailto()}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    <MessageSquare className="h-3 w-3 mr-1" />
-                    Follow Up
-                  </a>
-                </Button>
+    <div className="bg-card border border-border/40 rounded-lg p-4 shadow-sm">
+      <h3 className="text-sm font-semibold text-card-foreground flex items-center gap-2 mb-3">
+        <MessageSquare className="h-4 w-4 text-primary" />
+        Messages
+        {messages.length > 0 && (
+          <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
+            {messages.length}
+          </Badge>
+        )}
+      </h3>
 
-                <Button
-                  variant={localNegativeFollowedUp ? "default" : "outline"}
-                  size="sm"
-                  asChild
-                  className="h-8 text-xs px-2"
-                >
-                  <a 
-                    href={getNegativeFollowUpMailto()}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    <XCircle className="h-3 w-3 mr-1" />
-                    Reject
-                  </a>
-                </Button>
-
-                <Button
-                  variant="outline"
-                  size="sm"
-                  asChild
-                  className="h-8 text-xs px-2"
-                >
-                  <a 
-                    href={`mailto:${user.email}?subject=${encodeURIComponent('Connection Request On Hold')}&body=${encodeURIComponent(`Hi ${user.first_name},\n\nYour connection request is currently on hold. We'll update you as soon as there's any change.\n\nBest regards,\nSourceCo Team`)}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    <Clock className="h-3 w-3 mr-1" />
-                    Hold
-                  </a>
-                </Button>
-              </div>
-              
-              <div className="grid grid-cols-2 gap-2">
-                <Button
-                  variant={localUser.fee_agreement_email_sent ? "secondary" : "default"}
-                  size="sm"
-                  onClick={() => setShowFeeDialog(true)}
-                  className="h-8 text-xs"
-                >
-                  <FileText className="h-3 w-3 mr-1" />
-                  Fee Agreement
-                </Button>
-                
-                <Button
-                  variant={localUser.nda_email_sent ? "secondary" : "default"}
-                  size="sm"
-                  onClick={() => setShowNDADialog(true)}
-                  className="h-8 text-xs"
-                >
-                  <Shield className="h-3 w-3 mr-1" />
-                  NDA
-                </Button>
+      {/* Message list */}
+      <div className="max-h-48 overflow-y-auto space-y-2 mb-3">
+        {messages.length === 0 ? (
+          <p className="text-xs text-muted-foreground italic py-2">
+            No messages yet. Start the conversation below.
+          </p>
+        ) : (
+          messages.map((msg) => (
+            <div
+              key={msg.id}
+              className={`flex ${
+                msg.message_type === "decision" || msg.message_type === "system"
+                  ? "justify-center"
+                  : msg.sender_role === "admin"
+                    ? "justify-end"
+                    : "justify-start"
+              }`}
+            >
+              <div
+                className={`max-w-[80%] rounded-lg px-3 py-2 text-xs ${
+                  msg.message_type === "decision" ||
+                  msg.message_type === "system"
+                    ? "bg-muted/50 text-muted-foreground italic"
+                    : msg.sender_role === "admin"
+                      ? "bg-primary/10 text-foreground"
+                      : "bg-accent/50 text-foreground"
+                }`}
+              >
+                {msg.message_type !== "system" &&
+                  msg.message_type !== "decision" && (
+                    <div className="flex items-center gap-1.5 mb-0.5">
+                      <span className="font-medium">
+                        {msg.sender_role === "admin"
+                          ? "You"
+                          : msg.sender?.first_name || "Buyer"}
+                      </span>
+                      <span className="text-muted-foreground/50 text-[10px]">
+                        {formatDistanceToNow(new Date(msg.created_at), {
+                          addSuffix: true,
+                        })}
+                      </span>
+                    </div>
+                  )}
+                <p className="leading-relaxed">{msg.body}</p>
+                {(msg.message_type === "system" ||
+                  msg.message_type === "decision") && (
+                  <span className="text-muted-foreground/50 text-[10px] block mt-0.5">
+                    {formatDistanceToNow(new Date(msg.created_at), {
+                      addSuffix: true,
+                    })}
+                  </span>
+                )}
               </div>
             </div>
-
-            {/* Document & Status Management */}
-            <div className="bg-card border border-border/40 rounded-lg p-4 shadow-sm">
-              <div className="mb-4">
-                <h3 className="text-sm font-semibold text-card-foreground flex items-center gap-2">
-                  <CheckCircle className="h-4 w-4 text-success" />
-                  Status
-                </h3>
-              </div>
-              
-              <div className="space-y-3">
-                {/* Fee Agreement Row */}
-                <div className="flex items-center justify-between py-2 px-3 rounded-md border border-border/50 bg-background/50 hover:bg-accent/20 transition-colors">
-                  <div className="flex items-center gap-2">
-                    <div className="flex items-center gap-2 min-w-[100px]">
-                      <FileText className="h-3.5 w-3.5 text-muted-foreground" />
-                      <span className="text-xs font-medium text-foreground">Fee Agreement</span>
-                    </div>
-                    {getStatusIndicator(
-                      localUser.fee_agreement_email_sent || false, 
-                      localUser.fee_agreement_signed || false, 
-                      localUser.fee_agreement_email_sent_at, 
-                      localUser.fee_agreement_signed_at
-                    )}
-                  </div>
-                  <div className="flex items-center gap-4">
-                    <div className="flex items-center gap-2">
-                      <Label htmlFor={`fee-sent-${user.id}`} className="text-xs font-medium text-muted-foreground">Sent</Label>
-                      <Switch
-                        id={`fee-sent-${user.id}`}
-                        checked={localUser.fee_agreement_email_sent || false}
-                        onCheckedChange={handleFeeAgreementEmailSentToggle}
-                        disabled={updateFeeAgreementEmailSent.isPending}
-                        className="scale-90"
-                      />
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Label htmlFor={`fee-signed-${user.id}`} className="text-xs font-medium text-muted-foreground">Signed</Label>
-                      <Switch
-                        id={`fee-signed-${user.id}`}
-                        checked={localUser.fee_agreement_signed || false}
-                        onCheckedChange={handleFeeAgreementSignedToggle}
-                        disabled={updateFeeAgreement.isPending}
-                        className="scale-90"
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                {/* NDA Row */}
-                <div className="flex items-center justify-between py-2 px-3 rounded-md border border-border/50 bg-background/50 hover:bg-accent/20 transition-colors">
-                  <div className="flex items-center gap-2">
-                    <div className="flex items-center gap-2 min-w-[100px]">
-                      <Shield className="h-3.5 w-3.5 text-muted-foreground" />
-                      <span className="text-xs font-medium text-foreground">NDA</span>
-                    </div>
-                    {getStatusIndicator(
-                      localUser.nda_email_sent || false, 
-                      localUser.nda_signed || false, 
-                      localUser.nda_email_sent_at, 
-                      localUser.nda_signed_at
-                    )}
-                  </div>
-                  <div className="flex items-center gap-4">
-                    <div className="flex items-center gap-2">
-                      <Label htmlFor={`nda-sent-${user.id}`} className="text-xs font-medium text-muted-foreground">Sent</Label>
-                      <Switch
-                        id={`nda-sent-${user.id}`}
-                        checked={localUser.nda_email_sent || false}
-                        onCheckedChange={handleNDAEmailSentToggle}
-                        disabled={updateNDAEmailSent.isPending}
-                        className="scale-90"
-                      />
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Label htmlFor={`nda-signed-${user.id}`} className="text-xs font-medium text-muted-foreground">Signed</Label>
-                      <Switch
-                        id={`nda-signed-${user.id}`}
-                        checked={localUser.nda_signed || false}
-                        onCheckedChange={handleNDASignedToggle}
-                        disabled={updateNDA.isPending}
-                        className="scale-90"
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                 {/* Follow-up Row */}
-                 <div className="flex items-center justify-between py-2 px-3 rounded-md border border-border/50 bg-background/50 hover:bg-accent/20 transition-colors">
-                   <div className="flex items-center gap-2">
-                     <div className="flex items-center gap-2 min-w-[100px]">
-                       <MessageSquare className="h-3.5 w-3.5 text-muted-foreground" />
-                       <span className="text-xs font-medium text-foreground">Follow-up</span>
-                     </div>
-                      {/* Follow-up Status Indicator */}
-                      {localFollowedUp ? (
-                        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                          <div className="w-1.5 h-1.5 rounded-full bg-emerald-500"></div>
-                          <span className="font-medium text-foreground">Positive</span>
-                        </div>
-                      ) : localNegativeFollowedUp ? (
-                        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                          <div className="w-1.5 h-1.5 rounded-full bg-destructive"></div>
-                          <span className="font-medium text-foreground">Negative</span>
-                        </div>
-                      ) : (
-                        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                          <div className="w-1.5 h-1.5 rounded-full bg-amber-500"></div>
-                          <span className="font-medium text-foreground">Required</span>
-                        </div>
-                      )}
-                   </div>
-                   <div className="flex flex-col items-end gap-2">
-                     {/* Timestamp and Admin Name */}
-                     {((localFollowedUp && currentRequest?.followed_up_at) || (localNegativeFollowedUp && currentRequest?.negative_followed_up_at)) && (
-                       <div className="text-xs text-muted-foreground/60 text-right">
-                         {localFollowedUp && currentRequest?.followed_up_at && (
-                           <>
-                             {formatDistanceToNow(new Date(currentRequest.followed_up_at), { addSuffix: true })}
-                             {currentRequest.followedUpByAdmin && (
-                               <span className="font-medium"> by {getAdminName(currentRequest.followedUpByAdmin)}</span>
-                             )}
-                           </>
-                         )}
-                         {localNegativeFollowedUp && currentRequest?.negative_followed_up_at && (
-                           <>
-                             {formatDistanceToNow(new Date(currentRequest.negative_followed_up_at), { addSuffix: true })}
-                             {currentRequest.negativeFollowedUpByAdmin && (
-                               <span className="font-medium"> by {getAdminName(currentRequest.negativeFollowedUpByAdmin)}</span>
-                             )}
-                           </>
-                         )}
-                       </div>
-                     )}
-                     {/* Toggle Controls */}
-                     <div className="flex items-center gap-4">
-                       <div className="flex items-center gap-2">
-                         <Label htmlFor={`positive-followup-${user.id}`} className="text-xs font-medium text-muted-foreground">Positive</Label>
-                         <Switch
-                           id={`positive-followup-${user.id}`}
-                           checked={localFollowedUp}
-                           onCheckedChange={handleFollowUpToggle}
-                           disabled={updateFollowup.isPending}
-                           className="scale-90"
-                         />
-                       </div>
-                        <div className="flex items-center gap-2">
-                          <Label htmlFor={`negative-followup-${user.id}`} className="text-xs font-medium text-muted-foreground">Negative</Label>
-                          <Switch
-                            id={`negative-followup-${user.id}`}
-                            checked={localNegativeFollowedUp}
-                            onCheckedChange={handleNegativeFollowUpToggle}
-                            disabled={updateNegativeFollowup.isPending}
-                            className="scale-90"
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-               </div>
-             </div>
-           </div>
-
-          {/* Right Column: Buyer Information */}
-          <div className="space-y-4">
-            {/* General Notes */}
-            <div className="max-w-sm">
-              <UserNotesSection userId={user.id} userName={`${user.first_name} ${user.last_name}`} />
-            </div>
-
-            {/* Other Active Interests */}
-            {userRequests && userRequests.length > 1 && (
-              <div className="max-w-sm">
-                <BuyerDealsOverview 
-                  requests={userRequests} 
-                  currentRequestId={requestId}
-                />
-              </div>
-            )}
-          </div>
-        </div>
-
+          ))
+        )}
+        <div ref={messagesEndRef} />
       </div>
 
-      {/* Dialogs */}
-      <SimpleFeeAgreementDialog
-        user={user}
-        listing={listing}
-        isOpen={showFeeDialog}
-        onClose={() => {
-          setShowFeeDialog(false);
-          onEmailSent?.();
-        }}
-        onSendEmail={async () => {
-          // Placeholder - implement if needed for this component
-          console.log('Fee agreement email sent');
-        }}
-      />
-
-      <SimpleNDADialog
-        open={showNDADialog}
-        onOpenChange={(open) => {
-          setShowNDADialog(open);
-          if (!open) onEmailSent?.();
-        }}
-        user={user}
-        listing={listing}
-        onSendEmail={async () => {
-          onEmailSent?.();
-        }}
-      />
-
-      <BulkFollowupConfirmation
-        open={showBulkFollowupDialog}
-        onOpenChange={setShowBulkFollowupDialog}
-        requests={userRequests}
-        followupType={bulkFollowupType}
-        onConfirm={handleBulkFollowupConfirm}
-        isLoading={bulkFollowup.isPending}
-      />
-    </>
+      {/* Send input */}
+      <div className="flex gap-2">
+        <input
+          type="text"
+          value={newMessage}
+          onChange={(e) => setNewMessage(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && !e.shiftKey) {
+              e.preventDefault();
+              handleSend();
+            }
+          }}
+          placeholder="Type a message..."
+          className="flex-1 text-xs border border-border/50 rounded-md px-3 py-2 bg-background focus:outline-none focus:ring-1 focus:ring-primary/30"
+        />
+        <Button
+          size="sm"
+          onClick={handleSend}
+          disabled={!newMessage.trim() || sendMsg.isPending}
+          className="h-8 px-3"
+        >
+          <Send className="h-3 w-3" />
+        </Button>
+      </div>
+    </div>
   );
 }

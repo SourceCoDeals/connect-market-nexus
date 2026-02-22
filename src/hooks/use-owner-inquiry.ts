@@ -39,7 +39,6 @@ export function useOwnerInquiry() {
         });
 
       if (error) {
-        console.error("Error submitting owner inquiry:", error);
         toast({
           variant: "destructive",
           title: "Submission failed",
@@ -73,7 +72,6 @@ export function useOwnerInquiry() {
       });
       return true;
     } catch (err) {
-      console.error("Error submitting owner inquiry:", err);
       toast({
         variant: "destructive",
         title: "Submission failed",

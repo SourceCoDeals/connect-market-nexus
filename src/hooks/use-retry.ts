@@ -72,7 +72,6 @@ export function useRetry<T extends any[], R>(
 
           // Check if we should retry this error
           if (!finalConfig.retryCondition(lastError, attempt)) {
-            console.log('🚫 Retry condition failed, stopping retries');
             break;
           }
 
@@ -83,7 +82,6 @@ export function useRetry<T extends any[], R>(
               finalConfig.maxDelay
             );
             
-            console.log(`⏳ Waiting ${delay}ms before retry...`);
             await new Promise(resolve => setTimeout(resolve, delay));
           }
         }

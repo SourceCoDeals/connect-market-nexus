@@ -1,14 +1,13 @@
 /**
  * Chat Analytics & Feedback Client Utilities
  *
- * We use `as any` on the supabase client because the generated types
- * for chat_analytics require fields that may differ from the runtime
- * schema. The tables and RPC functions exist in the database (created
- * by chatbot_v6_restructured migration). The cast bypasses the
- * TypeScript-level type mismatch only.
+ * The chat_analytics, chat_feedback tables and RPC functions exist in the
+ * database (created by chatbot_v6_restructured migration). The typed
+ * Supabase client is used directly for table operations.
  */
 
 import { supabase } from './client';
+import type { SupabaseClient } from '@supabase/supabase-js';
 
 export interface LogAnalyticsOptions {
   conversationId: string;
@@ -31,13 +30,22 @@ export interface SubmitFeedbackOptions {
   feedbackText?: string;
 }
 
-const db = supabase as any;
+interface AnalyticsSummaryRow {
+  total_queries: number;
+  avg_response_time_ms: number;
+  total_tokens: number;
+  unique_conversations: number;
+  continuation_rate: number;
+  positive_feedback_rate: number;
+  most_common_intent: string;
+  tools_used_count: number;
+}
 
 export async function logChatAnalytics(
   options: LogAnalyticsOptions
 ): Promise<{ success: boolean; analyticsId?: string; error?: string }> {
   try {
-    const { data, error } = await db
+    const { data, error } = await supabase
       .from('chat_analytics')
       .insert({
         conversation_id: options.conversationId,
@@ -71,7 +79,7 @@ export async function submitFeedback(
   options: SubmitFeedbackOptions
 ): Promise<{ success: boolean; feedbackId?: string; error?: string }> {
   try {
-    const { data, error } = await db
+    const { data, error } = await supabase
       .from('chat_feedback')
       .insert({
         conversation_id: options.conversationId,
@@ -113,7 +121,8 @@ export async function getAnalyticsSummary(
   error?: string;
 }> {
   try {
-    const { data, error } = await db.rpc('get_chat_analytics_summary', {
+    // get_chat_analytics_summary is not yet in the generated types - use untyped client for this RPC
+    const { data, error } = await (supabase as unknown as SupabaseClient).rpc('get_chat_analytics_summary', {
       p_context_type: contextType || null,
       p_days: days,
     });
@@ -123,7 +132,8 @@ export async function getAnalyticsSummary(
       return { success: false, error: error.message };
     }
 
-    return { success: true, summary: data?.[0] };
+    const rows = data as AnalyticsSummaryRow[] | null;
+    return { success: true, summary: rows?.[0] };
   } catch (err) {
     console.error('[chat-analytics] Summary error:', err);
     return { success: false, error: String(err) };
@@ -135,15 +145,20 @@ export async function markUserContinued(
   messageIndex: number
 ): Promise<void> {
   try {
-    const { data } = await db
+    const { data, error } = await supabase
       .from('chat_analytics')
       .select('id')
       .eq('conversation_id', conversationId)
       .order('created_at', { ascending: false })
       .limit(10);
 
+    if (error) {
+      console.error('[chat-analytics] Mark continued query error:', error);
+      return;
+    }
+
     if (data && data[messageIndex]) {
-      await db
+      await supabase
         .from('chat_analytics')
         .update({ user_continued: true })
         .eq('id', data[messageIndex].id);

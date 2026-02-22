@@ -9,20 +9,19 @@ function getBuyerSyncStamp(b: Partial<MABuyer> | null | undefined): string {
   // Prefer server-maintained fields if present.
   // remarketing_buyers rows typically have created_at + data_last_updated.
   return (
-    (b as any)?.data_last_updated ||
-    (b as any)?.updated_at ||
-    (b as any)?.created_at ||
+    b?.data_last_updated ||
+    b?.created_at ||
     ""
   );
 }
 
-function sortByCreatedAtDesc(a: any, b: any) {
+function sortByCreatedAtDesc(a: MABuyer, b: MABuyer) {
   const at = new Date(a?.created_at || 0).getTime();
   const bt = new Date(b?.created_at || 0).getTime();
   return bt - at;
 }
 
-function mergeBuyerById(current: MABuyer[], incoming: any, eventType: string): MABuyer[] {
+function mergeBuyerById(current: MABuyer[], incoming: Record<string, unknown>, eventType: string): MABuyer[] {
   const id = incoming?.id as string | undefined;
   if (!id) return current;
 
@@ -31,7 +30,7 @@ function mergeBuyerById(current: MABuyer[], incoming: any, eventType: string): M
   }
 
   const next = current.filter((b) => b.id !== id);
-  next.unshift(incoming as MABuyer);
+  next.unshift(incoming as unknown as MABuyer);
   next.sort(sortByCreatedAtDesc);
   return next;
 }
@@ -100,9 +99,9 @@ export function useRealtimeTrackerBuyers(params: {
           table: "remarketing_buyers",
           filter: `industry_tracker_id=eq.${trackerId}`,
         },
-        (payload: any) => {
+        (payload: { eventType: string; old: Record<string, unknown>; new: Record<string, unknown> }) => {
           // Realtime can deliver INSERT for upserts; we dedupe by id.
-          const eventType = payload?.eventType as string;
+          const eventType = payload?.eventType;
           const row = eventType === "DELETE" ? payload?.old : payload?.new;
           if (!row) return;
 

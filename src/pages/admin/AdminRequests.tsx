@@ -160,7 +160,6 @@ const AdminRequests = () => {
         });
       }
     } catch (error) {
-      console.error("Error updating request:", error);
       toast({
         variant: "destructive",
         title: "Update failed",
@@ -197,7 +196,6 @@ const AdminRequests = () => {
         setSelectedRequest(null);
         setActionType(null);
       } catch (error) {
-        console.error("Error updating request:", error);
         toast({
           variant: "destructive",
           title: "Update failed",
@@ -362,7 +360,6 @@ const AdminRequests = () => {
                 isLoading={isLeadsLoading}
                 onMapToListing={(lead) => {
                   // This will open the LeadMappingDialog - the actual mapping happens in the dialog
-                  console.log('Map lead to listing:', lead);
                 }}
                 onConvertToRequest={(leadId) => convertLeadToRequest(leadId)}
                 onArchive={(leadId) => archiveLead(leadId)}

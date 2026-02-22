@@ -156,7 +156,6 @@ export const CRMExportPanel = ({
       
       onExportComplete?.();
     } catch (error) {
-      console.error('Export failed:', error);
       toast.error('Export failed. Please try again.');
     } finally {
       setIsExporting(false);

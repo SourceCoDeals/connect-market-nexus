@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
@@ -32,57 +32,6 @@ export function FormMonitoringTab() {
   const [isLoading, setIsLoading] = useState(true);
   const [timeRange, setTimeRange] = useState<'24h' | '7d' | '30d'>('7d');
   const [lastUpdate, setLastUpdate] = useState<Date>(new Date());
-
-  useEffect(() => {
-    loadMetrics();
-    const interval = setInterval(() => {
-      loadMetrics();
-      setLastUpdate(new Date());
-    }, 30000);
-
-    return () => clearInterval(interval);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [timeRange]);
-
-  const loadMetrics = async () => {
-    setIsLoading(true);
-    try {
-      const endDate = new Date();
-      const startDate = new Date();
-      
-      switch (timeRange) {
-        case '24h':
-          startDate.setHours(startDate.getHours() - 24);
-          break;
-        case '7d':
-          startDate.setDate(startDate.getDate() - 7);
-          break;
-        case '30d':
-          startDate.setDate(startDate.getDate() - 30);
-          break;
-      }
-
-      const { data: profilesData, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .gte('created_at', startDate.toISOString())
-        .is('deleted_at', null);
-
-      if (error) throw error;
-
-      const processedMetrics = processMetrics(profilesData || []);
-      setMetrics(processedMetrics);
-    } catch (error) {
-      console.error('Error loading form metrics:', error);
-      toast({
-        variant: 'destructive',
-        title: 'Error loading metrics',
-        description: 'Failed to load form validation metrics'
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   const processMetrics = (profiles: any[]): FormMetrics => {
     const totalSignups = profiles.length;
@@ -122,6 +71,55 @@ export function FormMonitoringTab() {
       buyerTypeDistribution,
     };
   };
+
+  const loadMetrics = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const endDate = new Date();
+      const startDate = new Date();
+
+      switch (timeRange) {
+        case '24h':
+          startDate.setHours(startDate.getHours() - 24);
+          break;
+        case '7d':
+          startDate.setDate(startDate.getDate() - 7);
+          break;
+        case '30d':
+          startDate.setDate(startDate.getDate() - 30);
+          break;
+      }
+
+      const { data: profilesData, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .gte('created_at', startDate.toISOString())
+        .is('deleted_at', null);
+
+      if (error) throw error;
+
+      const processedMetrics = processMetrics(profilesData || []);
+      setMetrics(processedMetrics);
+    } catch (error) {
+      toast({
+        variant: 'destructive',
+        title: 'Error loading metrics',
+        description: 'Failed to load form validation metrics'
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  }, [timeRange]);
+
+  useEffect(() => {
+    loadMetrics();
+    const interval = setInterval(() => {
+      loadMetrics();
+      setLastUpdate(new Date());
+    }, 30000);
+
+    return () => clearInterval(interval);
+  }, [loadMetrics]);
 
   const getHealthStatus = (rate: number) => {
     if (rate >= 90) return { label: 'Excellent', variant: 'default' as const, color: 'text-success' };

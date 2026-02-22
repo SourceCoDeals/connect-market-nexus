@@ -367,10 +367,11 @@ export function useUnifiedAnalytics(timeRangeDays: number = 30, filters: Analyti
       
       let allProfilesForUsers: Array<{ id: string; first_name: string | null; last_name: string | null; company: string | null }> = [];
       if (allUserIdsFromSessions.size > 0) {
-        const { data: allProfilesData } = await supabase
+        const { data: allProfilesData, error: allProfilesError } = await supabase
           .from('profiles')
           .select('id, first_name, last_name, company')
           .in('id', Array.from(allUserIdsFromSessions));
+        if (allProfilesError) throw allProfilesError;
         allProfilesForUsers = allProfilesData || [];
       }
       
@@ -409,13 +410,14 @@ export function useUnifiedAnalytics(timeRangeDays: number = 30, filters: Analyti
       };
       let firstSessions: FirstSessionData[] = [];
       if (profileIds.length > 0) {
-        const { data: firstSessionsData } = await supabase
+        const { data: firstSessionsData, error: firstSessionsError } = await supabase
           .from('user_sessions')
           .select('id, session_id, user_id, visitor_id, referrer, original_external_referrer, blog_landing_page, utm_source, utm_medium, utm_campaign, utm_term, country, city, region, browser, os, device_type, started_at, user_agent')
           .eq('is_bot', false)
           .eq('is_production', true)
           .in('user_id', profileIds)
           .order('started_at', { ascending: true });
+        if (firstSessionsError) throw firstSessionsError;
         firstSessions = firstSessionsData || [];
       }
       
@@ -530,7 +532,7 @@ export function useUnifiedAnalytics(timeRangeDays: number = 30, filters: Analyti
             uniqueSessions = uniqueSessions.filter(s => s.city === filter.value);
           }
           if (filter.type === 'region') {
-            uniqueSessions = uniqueSessions.filter(s => (s as any).region === filter.value);
+            uniqueSessions = uniqueSessions.filter(s => s.region === filter.value);
           }
           if (filter.type === 'browser') {
             uniqueSessions = uniqueSessions.filter(s => s.browser === filter.value);
@@ -632,7 +634,7 @@ export function useUnifiedAnalytics(timeRangeDays: number = 30, filters: Analyti
               if (firstSession?.city !== filter.value) return false;
             }
             if (filter.type === 'region') {
-              if ((firstSession as any)?.region !== filter.value) return false;
+              if (firstSession?.region !== filter.value) return false;
             }
             if (filter.type === 'browser') {
               if (firstSession?.browser !== filter.value) return false;
@@ -786,13 +788,14 @@ export function useUnifiedAnalytics(timeRangeDays: number = 30, filters: Analyti
       type ConnectionSessionType = typeof sessions[0];
       let connectionUserSessions: ConnectionSessionType[] = [];
       if (connectionUserIds.size > 0) {
-        const { data } = await supabase
+        const { data, error: sessionError } = await supabase
           .from('user_sessions')
           .select('id, session_id, user_id, visitor_id, referrer, original_external_referrer, blog_landing_page, utm_source, utm_medium, utm_campaign, utm_term, country, city, region, browser, os, device_type, session_duration_seconds, started_at, user_agent')
           .eq('is_bot', false)
           .eq('is_production', true)
           .in('user_id', Array.from(connectionUserIds))
           .order('started_at', { ascending: false });
+        if (sessionError) throw sessionError;
         connectionUserSessions = (data || []) as ConnectionSessionType[];
       }
       
@@ -1052,7 +1055,7 @@ export function useUnifiedAnalytics(timeRangeDays: number = 30, filters: Analyti
         }
         
         // Region aggregation - use the actual region field
-        const region = (s as any).region;
+        const region = s.region;
         if (region) {
           const regionKey = `${region}, ${country}`;
           if (!regionVisitors[regionKey]) {
@@ -1076,7 +1079,7 @@ export function useUnifiedAnalytics(timeRangeDays: number = 30, filters: Analyti
               cityConnections[cityKey] = (cityConnections[cityKey] || 0) + 1;
             }
             
-            const region = (userSession as any).region;
+            const region = userSession.region;
             if (region) {
               const regionKey = `${region}, ${country}`;
               regionConnections[regionKey] = (regionConnections[regionKey] || 0) + 1;
@@ -1097,7 +1100,7 @@ export function useUnifiedAnalytics(timeRangeDays: number = 30, filters: Analyti
             citySignups[cityKey] = (citySignups[cityKey] || 0) + 1;
           }
           
-          const region = (firstSession as any).region;
+          const region = firstSession.region;
           if (region) {
             const regionKey = `${region}, ${country}`;
             regionSignups[regionKey] = (regionSignups[regionKey] || 0) + 1;
@@ -1514,7 +1517,7 @@ export function useUnifiedAnalytics(timeRangeDays: number = 30, filters: Analyti
         // NO FILTERS: Use pre-aggregated data from daily_metrics table for performance
         formattedDailyMetrics = dailyMetrics.map(m => ({
           date: m.date,
-          visitors: (m as any).unique_visitors || 0,
+          visitors: (m as Record<string, unknown>).unique_visitors as number || 0,
           sessions: m.total_sessions || 0,
           connections: m.connection_requests || 0,
           bounceRate: m.bounce_rate || 0,

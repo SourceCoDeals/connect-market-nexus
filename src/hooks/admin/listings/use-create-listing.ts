@@ -50,20 +50,13 @@ export function useCreateListing() {
           is_internal_deal: true,
         };
 
-        console.log('Inserting listing data:', JSON.stringify(insertData, null, 2));
-
-        console.log('Inserting listing data:', JSON.stringify(insertData, null, 2));
-
         const { data, error } = await supabase
           .from('listings')
           .insert(insertData)
           .select()
           .single();
         
-        console.log('Insert result:', { data, error });
-        
         if (error) {
-          console.error("Error inserting listing:", error);
           throw error;
         }
         if (!data) throw new Error('No data returned from insert');
@@ -92,7 +85,6 @@ export function useCreateListing() {
               .single();
             
             if (updateError) {
-              console.error("Error updating listing with image URL:", updateError);
               // Don't throw here, we already have the listing created
               toast({
                 variant: 'destructive',
@@ -104,7 +96,6 @@ export function useCreateListing() {
               updatedListing = updatedData;
             }
           } catch (imageError: any) {
-            console.error('Error handling image:', imageError);
             toast({
               variant: 'destructive',
               title: 'Image Upload Failed',
@@ -115,7 +106,6 @@ export function useCreateListing() {
         
         return updatedListing as AdminListing;
       } catch (error: any) {
-        console.error('Error creating listing:', error);
         throw error;
       }
     },
@@ -162,7 +152,6 @@ export function useCreateListing() {
       });
     },
     onError: (error: any) => {
-      console.error('Error in create listing mutation:', error);
       toast({
         variant: 'destructive',
         title: 'Error Creating Listing',

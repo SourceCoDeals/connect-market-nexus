@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import type { Database } from "@/integrations/supabase/types";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -73,7 +74,7 @@ export default function TrackerDetail() {
     if (!id) return;
 
     try {
-      const { data, error } = await (supabase as any)
+      const { data, error } = await supabase
         .from("industry_trackers")
         .select("*")
         .eq("id", id)
@@ -83,7 +84,7 @@ export default function TrackerDetail() {
 
       setTracker({
         ...data,
-        industry_name: data.name || data.industry_name || 'Unknown',
+        industry_name: data.name || 'Unknown',
       });
 
       // Load counts
@@ -112,18 +113,18 @@ export default function TrackerDetail() {
     try {
       if (tracker.id === 'new') {
         // Create new tracker
-        const { data, error } = await (supabase as any)
+        type TrackerInsert = Database["public"]["Tables"]["industry_trackers"]["Insert"];
+        const { data, error } = await supabase
           .from("industry_trackers")
           .insert({
-            name: updates.name || updates.industry_name,
+            name: updates.name || updates.industry_name || '',
             description: updates.description,
             is_active: true,
             size_criteria: updates.size_criteria,
             service_criteria: updates.service_criteria,
             geography_criteria: updates.geography_criteria,
-            scoring_behavior: updates.scoring_behavior,
-            kpi_config: updates.kpi_config,
-          })
+            kpi_scoring_config: updates.kpi_config,
+          } as TrackerInsert)
           .select()
           .single();
 
@@ -133,9 +134,10 @@ export default function TrackerDetail() {
         navigate(`/admin/ma-intelligence/trackers/${data.id}`);
       } else {
         // Update existing tracker
-        const { error } = await (supabase as any)
+        type TrackerUpdate = Database["public"]["Tables"]["industry_trackers"]["Update"];
+        const { error } = await supabase
           .from("industry_trackers")
-          .update(updates)
+          .update(updates as TrackerUpdate)
           .eq("id", tracker.id);
 
         if (error) throw error;
@@ -156,7 +158,7 @@ export default function TrackerDetail() {
     if (!tracker || tracker.id === 'new') return;
 
     try {
-      const { error } = await (supabase as any)
+      const { error } = await supabase
         .from("industry_trackers")
         .update({ is_active: !tracker.is_active })
         .eq("id", tracker.id);

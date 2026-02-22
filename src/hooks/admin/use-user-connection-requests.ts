@@ -30,7 +30,7 @@ export function useUserConnectionRequests(userId: string) {
       for (const req of requests) {
         allProfileIds.add(req.user_id);
         if (req.followed_up_by) allProfileIds.add(req.followed_up_by);
-        if ((req as any).negative_followed_up_by) allProfileIds.add((req as any).negative_followed_up_by);
+        if (req.negative_followed_up_by) allProfileIds.add(req.negative_followed_up_by);
         allListingIds.add(req.listing_id);
       }
 
@@ -49,8 +49,8 @@ export function useUserConnectionRequests(userId: string) {
         const followedUpByAdmin = request.followed_up_by
           ? (profileMap.get(request.followed_up_by) ? createUserObject(profileMap.get(request.followed_up_by)!) : null)
           : null;
-        const negativeFollowedUpByAdmin = (request as any).negative_followed_up_by
-          ? (profileMap.get((request as any).negative_followed_up_by) ? createUserObject(profileMap.get((request as any).negative_followed_up_by)!) : null)
+        const negativeFollowedUpByAdmin = request.negative_followed_up_by
+          ? (profileMap.get(request.negative_followed_up_by) ? createUserObject(profileMap.get(request.negative_followed_up_by)!) : null)
           : null;
 
         const user = userData ? createUserObject(userData) : null;
@@ -63,7 +63,7 @@ export function useUserConnectionRequests(userId: string) {
           user,
           listing,
           source: (request.source as 'marketplace' | 'webflow' | 'manual' | 'import' | 'api' | 'website' | 'referral' | 'cold_outreach' | 'networking' | 'linkedin' | 'email') || 'marketplace',
-          source_metadata: (request.source_metadata as Record<string, any>) || {},
+          source_metadata: (request.source_metadata as Record<string, unknown>) || {},
           followedUpByAdmin,
           negativeFollowedUpByAdmin
         };

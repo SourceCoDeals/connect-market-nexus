@@ -136,7 +136,6 @@ export function AddTranscriptDialog({
     ms: number,
     label: string
   ): Promise<T> => {
-    const startedAt = Date.now();
     let t: number | undefined;
 
     const timeout = new Promise<never>((_, reject) => {
@@ -148,10 +147,6 @@ export function AddTranscriptDialog({
     try {
       // Ensure we're racing a real Promise (avoids edge cases with thenables)
       return await Promise.race([fn(), timeout]);
-    } catch (err) {
-      const elapsed = Date.now() - startedAt;
-      console.error(`[AddTranscriptDialog] ${label} failed after ${elapsed}ms`, err);
-      throw err;
     } finally {
       if (t) window.clearTimeout(t);
     }
@@ -168,8 +163,8 @@ export function AddTranscriptDialog({
       'File upload'
     );
 
-    if ((uploadRes as any)?.error) {
-      throw (uploadRes as any).error;
+    if ((uploadRes as { error?: Error })?.error) {
+      throw (uploadRes as { error: Error }).error;
     }
 
     const {
@@ -252,12 +247,12 @@ export function AddTranscriptDialog({
                     transcript_url: fileUrl,
                     call_date: formData.call_date ? new Date(formData.call_date).toISOString() : null,
                     transcript_text: safeTranscriptText,
-                  }) as any,
+                  }) as never,
               20_000,
               'Saving transcript'
             );
 
-            if ((res as any)?.error) throw (res as any).error;
+            if ((res as { error?: Error })?.error) throw (res as { error: Error }).error;
 
             setSelectedFiles((prev) =>
               prev.map((item, idx) => (idx === i ? { ...item, status: 'success' } : item))
@@ -337,12 +332,12 @@ export function AddTranscriptDialog({
                 transcript_url: formData.transcript_link || null,
                 call_date: formData.call_date ? new Date(formData.call_date).toISOString() : null,
                 transcript_text: safeText,
-              }) as any,
+              }) as never,
           20_000,
           'Saving transcript'
         );
 
-        if ((res as any)?.error) throw (res as any).error;
+        if ((res as { error?: Error })?.error) throw (res as { error: Error }).error;
 
         toast({
           title: 'Transcript added',
@@ -361,7 +356,6 @@ export function AddTranscriptDialog({
         onClose();
       }
     } catch (error: any) {
-      console.error('[AddTranscriptDialog] Submit failed:', error);
       toast({
         title: 'Error adding transcript',
         description: error?.message || 'Unknown error',

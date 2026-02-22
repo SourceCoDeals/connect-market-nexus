@@ -119,7 +119,7 @@ export function CreateDealModal({ open, onOpenChange, prefilledStageId, onDealCr
   } | null>(null);
 
   const form = useForm<CreateDealFormData>({
-    resolver: zodResolver(createDealSchema as any),
+    resolver: zodResolver(createDealSchema),
     defaultValues: {
       title: '',
       description: '',
@@ -256,21 +256,23 @@ export function CreateDealModal({ open, onOpenChange, prefilledStageId, onDealCr
       if (connectionRequestId && data.contact_company) {
         try {
           // Find profiles with this company
-          const { data: companyProfiles } = await supabase
+          const { data: companyProfiles, error: companyProfilesError } = await supabase
             .from('profiles')
             .select('id')
             .eq('company', data.contact_company)
             .eq('approval_status', 'approved');
+          if (companyProfilesError) throw companyProfilesError;
           
           if (companyProfiles && companyProfiles.length > 0) {
             const userIds = companyProfiles.map(p => p.id);
             
             // Find other connection requests from users in this company OR with same company name
-            const { data: sameCompanyRequests } = await supabase
+            const { data: sameCompanyRequests, error: sameCompanyRequestsError } = await supabase
               .from('connection_requests')
               .select('id')
               .neq('id', connectionRequestId)
               .or(`user_id.in.(${userIds.join(',')}),lead_company.eq.${data.contact_company}`);
+            if (sameCompanyRequestsError) throw sameCompanyRequestsError;
             
             if (sameCompanyRequests && sameCompanyRequests.length > 0) {
               // Create bidirectional associations
@@ -305,8 +307,6 @@ export function CreateDealModal({ open, onOpenChange, prefilledStageId, onDealCr
               
               if (assocError) {
                 console.error('[CreateDealModal] Failed to create associations:', assocError);
-              } else {
-                console.log('[CreateDealModal] Created', associations.length / 2, 'bidirectional associations');
               }
             }
           }
@@ -352,7 +352,6 @@ export function CreateDealModal({ open, onOpenChange, prefilledStageId, onDealCr
       setSelectedUserId(null);
       onOpenChange(false);
     } catch (error) {
-      console.error('Error creating deal:', error);
       // Error toast already shown by useCreateDeal
     }
   };
@@ -418,7 +417,6 @@ export function CreateDealModal({ open, onOpenChange, prefilledStageId, onDealCr
         email: template.sampleUserEmail,
       });
       
-      console.log('[CreateDealModal] Auto-populated fields from company template:', template);
     }
   };
 
@@ -445,11 +443,8 @@ export function CreateDealModal({ open, onOpenChange, prefilledStageId, onDealCr
   // Format user options for combobox
   const userOptions = React.useMemo(() => {
     if (!marketplaceUsers || marketplaceUsers.length === 0) {
-      console.log('[CreateDealModal] No marketplace users available');
       return [];
     }
-    
-    console.log('[CreateDealModal] Formatting', marketplaceUsers.length, 'marketplace users for combobox');
     
     return marketplaceUsers.map(user => {
       const firstName = user.first_name || '';
@@ -794,9 +789,7 @@ export function CreateDealModal({ open, onOpenChange, prefilledStageId, onDealCr
                               emptyText="No companies found"
                               searchPlaceholder="Search companies..."
                               allowCustomValue={true}
-                              onCustomValueCreate={(newCompany) => {
-                                console.log('[CreateDealModal] Creating new company:', newCompany);
-                              }}
+                              onCustomValueCreate={() => {}}
                             />
                           </FormControl>
                           

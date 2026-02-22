@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -73,7 +73,8 @@ interface ClarificationContext {
 
 // Helper to get the current session's access token for edge function calls
 const getSessionToken = async (): Promise<string> => {
-  const { data: { session } } = await supabase.auth.getSession();
+  const { data: { session }, error } = await supabase.auth.getSession();
+  if (error) throw error;
   if (!session?.access_token) throw new Error("Not authenticated");
   return session.access_token;
 };
@@ -125,9 +126,9 @@ const saveGuideToDocuments = async (
     }
 
     // 3. Build updated documents array (replace any existing ma_guide)
-    const currentDocs = (universe?.documents as any[]) || [];
+    const currentDocs = (universe?.documents as DocumentReference[]) || [];
     const filteredDocs = currentDocs.filter(
-      d => !(d as any).type || (d as any).type !== 'ma_guide'
+      d => !d.type || d.type !== 'ma_guide'
     );
     const updatedDocs = [...filteredDocs, data.document];
 
@@ -152,7 +153,6 @@ const saveGuideToDocuments = async (
     return data.document.url;
 
   } catch (error) {
-    console.error('Error saving guide to documents:', error);
     toast.error(`Failed to save guide: ${(error as Error).message}`);
     return null;
   }
@@ -290,8 +290,8 @@ export const AIResearchSection = ({
 
       if (readError) throw readError;
 
-      const currentDocs = (universe?.documents as any[]) || [];
-      const filteredDocs = currentDocs.filter((d: any) => !d.type || d.type !== 'ma_guide');
+      const currentDocs = (universe?.documents as DocumentReference[]) || [];
+      const filteredDocs = currentDocs.filter((d: DocumentReference) => !d.type || d.type !== 'ma_guide');
       const updatedDocs = [...filteredDocs, guideDoc];
 
       // 4. Save to database — set ma_guide_content to a marker so the system knows a guide exists
@@ -314,7 +314,6 @@ export const AIResearchSection = ({
 
       toast.success(`Guide "${file.name}" uploaded successfully. Use "Enrich from Documents" or "Extract from Guide" to pull criteria.`);
     } catch (err) {
-      console.error('Guide upload error:', err);
       toast.error(`Failed to upload guide: ${(err as Error).message}`);
     } finally {
       setIsUploadingGuide(false);
@@ -322,12 +321,11 @@ export const AIResearchSection = ({
     }
   };
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (universeName && !industryName) {
       setIndustryName(universeName);
     }
-  }, [universeName]);
+  }, [universeName, industryName]);
 
   useEffect(() => {
     if (existingContent) {
@@ -336,11 +334,14 @@ export const AIResearchSection = ({
     }
   }, [existingContent]);
 
+  // Ref to hold latest checkExistingGeneration to avoid stale closures in effect
+  const checkExistingGenerationRef = useRef(checkExistingGeneration);
+  checkExistingGenerationRef.current = checkExistingGeneration;
+
   // Check for existing generation in progress on mount
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (universeId) {
-      checkExistingGeneration();
+      checkExistingGenerationRef.current();
     }
   }, [universeId]);
 
@@ -474,7 +475,6 @@ export const AIResearchSection = ({
 
       if (!generation) {
         // Row not found yet — keep polling (it may still be inserting)
-        console.log('[AIResearchSection] Generation not found yet, retrying...');
         return;
       }
 
@@ -674,7 +674,6 @@ export const AIResearchSection = ({
       setClarifyAnswers(initialAnswers);
 
     } catch (error) {
-      console.error('Clarification error:', error);
       toast.error(`Failed to get clarifying questions: ${(error as Error).message}. Please check your Gemini API key.`);
       // Stay in idle state so the user can retry - don't silently skip to generation
        setClarifyingStatus({ isLoading: false, retryCount: 0, waitingSeconds: 0, error: (error as Error).message });
@@ -836,14 +835,16 @@ export const AIResearchSection = ({
       // Save clarification context to the universe so the queue processor can use it
       // (process-ma-guide-queue reads ma_guide_qa_context from the universe row)
       if (universeId && Object.keys(clarificationContext).length > 0) {
-        await supabase
+        const { error: ctxError } = await supabase
           .from('remarketing_buyer_universes')
           .update({ ma_guide_qa_context: clarificationContext })
           .eq('id', universeId);
+        if (ctxError) throw ctxError;
       }
 
       // Start background generation
-      const { data: sessionData } = await supabase.auth.getSession();
+      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+      if (sessionError) throw sessionError;
       const token = sessionData?.session?.access_token;
       const response = await fetch(
         `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-ma-guide-background`,
@@ -1151,9 +1152,10 @@ export const AIResearchSection = ({
                 if (errorCode === 'rate_limited') {
                   // Throw with rate limit flag so catch block handles retry with backoff
                   const err = new Error(event.message);
-                  (err as any).isRateLimited = true;
-                  (err as any).retryAfterMs = event.retry_after_ms || 30000;
-                  throw err;
+                  const rateLimitErr = new Error(event.message) as Error & { isRateLimited: boolean; retryAfterMs: number };
+                  rateLimitErr.isRateLimited = true;
+                  rateLimitErr.retryAfterMs = event.retry_after_ms || 30000;
+                  throw rateLimitErr;
                 }
                 throw new Error(event.message);
               }
@@ -1191,8 +1193,9 @@ export const AIResearchSection = ({
         const timeoutError = new Error(
           `Stream ended unexpectedly during batch ${batchIndex + 1}. This usually means the edge function hit a hard timeout or the connection was closed.`
         );
-        (timeoutError as any).code = 'function_timeout';
-        throw timeoutError;
+        const augmentedError = timeoutError as Error & { code: string };
+        augmentedError.code = 'function_timeout';
+        throw augmentedError;
       }
 
       // Chain to next batch OUTSIDE the stream handler (after stream fully closes).
@@ -1232,13 +1235,14 @@ export const AIResearchSection = ({
         setState('idle');
         setErrorDetails(null);
       } else {
-        const message = (error as Error).message || 'Unknown error';
-        const errorCode = (error as any).code || 'unknown';
+        const typedError = error as Error & { code?: string; isRateLimited?: boolean; retryAfterMs?: number };
+        const message = typedError.message || 'Unknown error';
+        const errorCode = typedError.code || 'unknown';
 
         // Auto-retry on likely transient stream cut-offs or rate limits so the user doesn't need to manually resume.
         const isStreamCutoff = message.includes('Stream ended unexpectedly during batch') || errorCode === 'function_timeout';
-        const isRateLimited = 
-          (error as any).isRateLimited || 
+        const isRateLimited =
+          typedError.isRateLimited ||
           message.includes('Rate limit') ||
           message.includes('rate_limited') ||
           message.includes('RESOURCE_EXHAUSTED');
@@ -1255,7 +1259,7 @@ export const AIResearchSection = ({
 
           // Add extra delay for later batches (batch 8+) that are more likely to timeout
           const batchPenalty = batchIndex >= 8 ? 5000 * (batchIndex - 7) : 0; // 5s, 10s, 15s extra for batches 8, 9, 10...
-          const backoffMs = (error as any).retryAfterMs || (baseBackoff + batchPenalty);
+          const backoffMs = typedError.retryAfterMs || (baseBackoff + batchPenalty);
 
           toast.info(
             isRateLimited
@@ -1270,8 +1274,6 @@ export const AIResearchSection = ({
           await generateBatch(batchIndex, previousContent, clarificationContext);
           return;
         }
-
-        console.error('Generation error:', error);
 
         // Determine outcome type for summary
         const outcomeType = isRateLimited ? 'rate_limited' : (isStreamCutoff ? 'timeout' : 'error');
@@ -1296,7 +1298,7 @@ export const AIResearchSection = ({
             batchIndex,
             phaseName: phaseName || undefined,
             isRecoverable: isRateLimited || isStreamCutoff,
-            retryAfterMs: isRateLimited ? ((error as any).retryAfterMs || 30000) : undefined,
+            retryAfterMs: isRateLimited ? (typedError.retryAfterMs || 30000) : undefined,
             savedWordCount: batchWordCount, // Use local tracking, not stale React state
             timestamp: Date.now()
           });
@@ -1382,7 +1384,6 @@ export const AIResearchSection = ({
       toast.success(`Criteria extracted successfully (${confidence}% confidence)`, { duration: 5000 });
 
     } catch (error) {
-      console.error('Criteria extraction error:', error);
       toast.error(`Failed to extract criteria: ${(error as Error).message}`);
     } finally {
       setIsExtracting(false);

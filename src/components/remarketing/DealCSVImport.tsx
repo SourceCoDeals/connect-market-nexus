@@ -104,16 +104,12 @@ export const DealCSVImport = ({
         const columns = metaColumns.length > 0 ? metaColumns : fallbackColumns;
 
         if (columns.length === 0) {
-          console.error('[DealCSVImport] No CSV headers detected (meta.fields empty + row keys empty).');
           toast.error('Could not detect CSV headers', {
             description: 'Please verify the file has a header row and is a valid CSV.'
           });
           reset();
           return;
         }
-        
-        // Log parsed columns for debugging
-        console.log(`[DealCSVImport] Parsed ${columns.length} columns:`, columns);
         
         // Try AI mapping
         setIsMapping(true);
@@ -131,8 +127,6 @@ export const DealCSVImport = ({
           // CRITICAL: Merge AI mappings with full column list
           // This ensures all parsed columns are visible even if AI returns partial list
           const [merged, stats] = mergeColumnMappings(columns, mappingResult?.mappings);
-          
-          console.log(`[DealCSVImport] Merge stats: AI returned ${stats.aiReturnedCount}, filled ${stats.filledCount}`);
           
           setColumnMappings(merged);
           setMappingStats(stats);
@@ -165,7 +159,8 @@ export const DealCSVImport = ({
 
   const importMutation = useMutation({
     mutationFn: async () => {
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      if (authError) throw authError;
       const results = { imported: 0, errors: [] as string[] };
 
       for (let i = 0; i < csvData.length; i++) {
@@ -210,8 +205,6 @@ export const DealCSVImport = ({
             
             const trimmedValue = value.trim();
             if (!trimmedValue) return;
-            
-            console.log(`Mapping: ${csvColumn} -> ${mapping.targetField} = "${trimmedValue}"`);
             
             if (numericFields.includes(mapping.targetField)) {
               // Parse numeric values (remove $, commas, M/K suffixes, etc.)
@@ -294,18 +287,10 @@ export const DealCSVImport = ({
             listingData.address_country = "US";
           }
 
-          // Log what we're about to insert for debugging
-          console.log(`Row ${i + 1} listingData:`, JSON.stringify(listingData, null, 2));
-
           // Must have a title
           if (!listingData.title) {
             results.errors.push(`Row ${i + 1}: Missing company name (check CSV column mapping)`);
             continue;
-          }
-
-          // Website is optional - deals without website won't get AI enrichment
-          if (!listingData.website) {
-            console.log(`Row ${i + 1}: No website - deal will be imported but won't receive AI enrichment`);
           }
 
           // listings.location is NOT NULL in schema; set a safe default.
@@ -350,7 +335,6 @@ export const DealCSVImport = ({
 
           results.imported++;
         } catch (error) {
-          console.error(`Row ${i + 1} error:`, error);
           results.errors.push(`Row ${i + 1}: ${(error as Error).message}`);
         }
       }
@@ -369,11 +353,9 @@ export const DealCSVImport = ({
         // The database trigger has already queued these, but we can also trigger the processor
         supabase.functions.invoke("process-enrichment-queue", {
           body: {},
-        }).then(({ data, error }) => {
+        }).then(({ error }) => {
           if (error) {
             console.error("Enrichment queue processing error:", error);
-          } else {
-            console.log("Enrichment queue processed:", data);
           }
         });
       }

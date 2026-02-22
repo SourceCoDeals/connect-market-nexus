@@ -121,110 +121,101 @@ export function useDeals() {
   return useQuery({
     queryKey: ['deals'],
     queryFn: async () => {
-      console.log('Fetching deals with direct query...');
-      const { data, error } = await supabase
-        .from('deals')
-        .select(`
-          *,
-          deal_stages ( id, name, color, position, stage_type ),
-          listings ( id, title, revenue, ebitda, location, category, real_company_name ),
-          profiles:assigned_to ( id, first_name, last_name, email )
-        `)
-        .is('deleted_at', null)
-        .order('created_at', { ascending: false });
-      
-      const rows = (data || []) as any[];
-      console.log('Query Response:', { count: rows.length, error: error?.message });
+      const { data, error } = await supabase.rpc('get_deals_with_details' as 'get_stage_deal_count');
       if (error) {
-        console.error('Deals Query Error:', error);
         throw error;
       }
-      
+      const rows = (data || []) as unknown as Record<string, unknown>[];
+
       // Map RPC response to Deal interface
-      return (rows || []).map((row: any, index: number) => {
-        if (index === 0) {
-          console.log('[useDeals] First row:', Object.keys(row));
-        }
-        const stage = row.deal_stages;
-        const listing = row.listings;
-        const assignee = row.profiles;
+      return rows.map((row) => {
         return {
-          deal_id: row.id,
-          title: row.title ?? listing?.title ?? 'Deal',
-          deal_description: row.description,
-          deal_value: Number(row.value ?? 0),
-          deal_priority: row.priority ?? 'medium',
-          deal_probability: Number(row.probability ?? 50),
-          deal_expected_close_date: row.expected_close_date,
-          deal_source: row.source ?? 'manual',
-          source: row.source ?? 'manual',
-          deal_created_at: row.created_at,
-          deal_updated_at: row.updated_at,
-          deal_stage_entered_at: row.stage_entered_at ?? row.created_at,
+          // Core deal fields (prefer new RPC names, fallback to old)
+          deal_id: row.deal_id ?? row.id ?? row.connection_request_id ?? row.listing_id,
+          title: row.title ?? row.listing_title ?? 'Deal',
+          deal_description: row.deal_description ?? row.description,
+          deal_value: Number(row.deal_value ?? row.value ?? 0),
+          deal_priority: row.deal_priority ?? row.priority ?? 'medium',
+          deal_probability: Number(row.deal_probability ?? row.probability ?? 50),
+          deal_expected_close_date: row.deal_expected_close_date ?? row.expected_close_date,
+          deal_source: row.deal_source ?? row.source ?? 'manual',
+          source: row.deal_source ?? row.source ?? 'manual',
+          deal_created_at: row.deal_created_at ?? row.created_at,
+          deal_updated_at: row.deal_updated_at ?? row.updated_at,
+          deal_stage_entered_at: row.deal_stage_entered_at ?? row.stage_entered_at ?? row.deal_created_at ?? row.created_at,
 
-          stage_id: stage?.id ?? row.stage_id,
-          stage_name: stage?.name,
-          stage_color: stage?.color,
-          stage_position: stage?.position,
+          // Stage
+          stage_id: row.stage_id,
+          stage_name: row.stage_name,
+          stage_color: row.stage_color,
+          stage_position: row.stage_position,
 
+          // Listing
           listing_id: row.listing_id,
-          listing_title: listing?.title,
-          listing_revenue: Number(listing?.revenue ?? 0),
-          listing_ebitda: Number(listing?.ebitda ?? 0),
-          listing_location: listing?.location,
-          listing_category: listing?.category,
-          listing_real_company_name: listing?.real_company_name,
+          listing_title: row.listing_title,
+          listing_revenue: Number(row.listing_revenue ?? 0),
+          listing_ebitda: Number(row.listing_ebitda ?? 0),
+          listing_location: row.listing_location,
+          listing_category: row.listing_category,
+          listing_real_company_name: row.listing_real_company_name ?? row.internal_company_name,
 
+          // Contact
           contact_name: row.contact_name,
           contact_email: row.contact_email,
           contact_company: row.contact_company,
           contact_phone: row.contact_phone,
           contact_role: row.contact_role,
 
+          // Document/status
           nda_status: row.nda_status ?? 'not_sent',
           fee_agreement_status: row.fee_agreement_status ?? 'not_sent',
-          followed_up: row.followed_up ?? false,
-          followed_up_at: row.followed_up_at,
-          followed_up_by: row.followed_up_by,
-          negative_followed_up: row.negative_followed_up ?? false,
-          negative_followed_up_at: row.negative_followed_up_at,
-          negative_followed_up_by: row.negative_followed_up_by,
+          followed_up: (row.followed_up ?? row.deal_followed_up) ?? false,
+          followed_up_at: row.followed_up_at ?? row.deal_followed_up_at,
+          followed_up_by: row.followed_up_by ?? row.deal_followed_up_by,
+          negative_followed_up: (row.negative_followed_up ?? row.deal_negative_followed_up) ?? false,
+          negative_followed_up_at: row.negative_followed_up_at ?? row.deal_negative_followed_up_at,
+          negative_followed_up_by: row.negative_followed_up_by ?? row.deal_negative_followed_up_by,
 
+          // Assignment
           assigned_to: row.assigned_to,
-          assigned_admin_name: assignee ? `${assignee.first_name ?? ''} ${assignee.last_name ?? ''}`.trim() : null,
-          assigned_admin_email: assignee?.email,
+          assigned_admin_name: row.assigned_admin_name,
+          assigned_admin_email: row.assigned_admin_email,
 
-          total_tasks: 0,
-          pending_tasks: 0,
-          completed_tasks: 0,
-          pending_tasks_count: 0,
-          completed_tasks_count: 0,
+          // Tasks and activity
+          total_tasks: Number(row.total_tasks ?? row.total_tasks_count ?? 0),
+          pending_tasks: Number(row.pending_tasks ?? row.pending_tasks_count ?? 0),
+          completed_tasks: Number(row.completed_tasks ?? row.completed_tasks_count ?? 0),
+          pending_tasks_count: Number(row.pending_tasks ?? row.pending_tasks_count ?? 0),
+          completed_tasks_count: Number(row.completed_tasks ?? row.completed_tasks_count ?? 0),
 
-          activity_count: 0,
-          total_activities_count: 0,
-          last_activity_at: null,
+          activity_count: Number(row.activity_count ?? row.total_activities ?? row.total_activities_count ?? 0),
+          total_activities_count: Number(row.activity_count ?? row.total_activities ?? row.total_activities_count ?? 0),
+          last_activity_at: row.last_activity_at,
 
-          buyer_name: row.contact_name,
-          buyer_email: row.contact_email,
-          buyer_company: row.contact_company,
-          buyer_type: null,
-          buyer_phone: row.contact_phone,
-          buyer_priority_score: Number(row.buyer_priority_score ?? 0),
+          // Buyer
+          buyer_name: row.buyer_name,
+          buyer_email: row.buyer_email,
+          buyer_company: row.buyer_company,
+          buyer_type: row.buyer_type,
+          buyer_phone: row.buyer_phone,
+          buyer_priority_score: Number(row.buyer_priority_score ?? row.deal_buyer_priority_score ?? 0),
 
+          // Extras
           connection_request_id: row.connection_request_id,
-          company_deal_count: 0,
-          listing_deal_count: 1,
-          buyer_connection_count: 1,
-          buyer_id: null,
-          last_contact_at: null,
-          last_contact_type: null,
+          company_deal_count: Number(row.company_deal_count ?? 0),
+          listing_deal_count: Number(row.listing_deal_count ?? 1),
+          buyer_connection_count: Number(row.buyer_connection_count ?? 1),
+          buyer_id: row.buyer_id,
+          last_contact_at: row.last_contact_at,
+          last_contact_type: row.last_contact_type,
 
+          // Remarketing bridge
           remarketing_buyer_id: row.remarketing_buyer_id ?? null,
           remarketing_score_id: row.remarketing_score_id ?? null,
         };
       }) as Deal[];
     },
-    staleTime: 30000, // 30 seconds
+    staleTime: 30000,
   });
 }
 
@@ -260,7 +251,6 @@ export function useStageDealCount(stageId: string | undefined) {
         .rpc('get_stage_deal_count', { stage_uuid: stageId });
       
       if (error) {
-        console.error('[useStageDealCount] Error:', error);
         throw error;
       }
       
@@ -284,15 +274,14 @@ export function useUpdateDealStage() {
       currentAdminId?: string;
       skipOwnerCheck?: boolean;
     }) => {
-      console.log('[useUpdateDealStage] Calling RPC with:', { dealId, stageId, currentAdminId });
-      
       // If not skipping owner check, verify ownership first
       if (!skipOwnerCheck && currentAdminId) {
-        const { data: dealData } = await supabase
+        const { data: dealData, error: dealDataError } = await supabase
           .from('deals')
           .select('assigned_to, title, assigned_admin:profiles!deals_assigned_to_fkey(first_name, last_name)')
           .eq('id', dealId)
           .single();
+        if (dealDataError) throw dealDataError;
 
         // Check if someone else owns this deal
         if (dealData?.assigned_to && dealData.assigned_to !== currentAdminId) {
@@ -313,13 +302,12 @@ export function useUpdateDealStage() {
       }
       
       // Use new RPC function with ownership logic
-      const { data, error } = await supabase.rpc('move_deal_stage_with_ownership' as any, {
+      const { data, error } = await supabase.rpc('move_deal_stage_with_ownership' as 'get_stage_deal_count', {
         p_deal_id: dealId,
         p_new_stage_id: stageId,
         p_current_admin_id: currentAdminId
       });
       
-      console.log('[useUpdateDealStage] RPC result:', { data, error: error?.message });
       if (error) throw error;
       return data;
     },
@@ -339,35 +327,38 @@ export function useUpdateDealStage() {
       }
       return { previousDeals };
     },
-    onSuccess: async (data: any, variables) => {
+    onSuccess: async (data: unknown, variables) => {
+      const result = data as Record<string, unknown> | null;
       // Handle ownership assignment notifications
-      if (data?.owner_assigned) {
+      if (result?.owner_assigned) {
         toast({
           title: 'Deal Assigned',
           description: 'You have been assigned as the owner of this deal.',
         });
       }
       
-      if (data?.different_owner_warning) {
+      if (result?.different_owner_warning) {
         toast({
           title: 'Different Owner',
-          description: `This deal is owned by ${data.previous_owner_name || 'another admin'}. They will be notified of this change.`,
+          description: `This deal is owned by ${result.previous_owner_name || 'another admin'}. They will be notified of this change.`,
           variant: 'default',
         });
-        
+
         // Send email notification to original owner
         const deals = queryClient.getQueryData<Deal[]>(['deals']);
         const deal = deals?.find(d => d.deal_id === variables.dealId);
-        
-        if (deal && data.previous_owner_id && data.previous_owner_name) {
+
+        if (deal && result.previous_owner_id && result.previous_owner_name) {
           try {
             // Get current admin info
-            const { data: { user } } = await supabase.auth.getUser();
-            const { data: currentAdmin } = await supabase
+            const { data: { user }, error: authError } = await supabase.auth.getUser();
+            if (authError) throw authError;
+            const { data: currentAdmin, error: currentAdminError } = await supabase
               .from('profiles')
               .select('first_name, last_name')
               .eq('id', user?.id)
               .single();
+            if (currentAdminError) throw currentAdminError;
             
             const currentAdminName = currentAdmin 
               ? `${currentAdmin.first_name} ${currentAdmin.last_name}`.trim()
@@ -377,12 +368,12 @@ export function useUpdateDealStage() {
               body: {
                 dealId: deal.deal_id,
                 dealTitle: deal.title,
-                previousOwnerId: data.previous_owner_id,
-                previousOwnerName: data.previous_owner_name,
+                previousOwnerId: result.previous_owner_id,
+                previousOwnerName: result.previous_owner_name,
                 modifyingAdminId: user?.id,
                 modifyingAdminName: currentAdminName,
-                oldStageName: data.old_stage_name,
-                newStageName: data.new_stage_name,
+                oldStageName: result.old_stage_name,
+                newStageName: result.new_stage_name,
                 listingTitle: deal.listing_title,
                 companyName: deal.listing_real_company_name
               }
@@ -393,9 +384,9 @@ export function useUpdateDealStage() {
           }
         }
       }
-      
+
       // Check if moved to "Owner intro requested" stage and trigger email
-      const newStageName = data?.new_stage_name;
+      const newStageName = result?.new_stage_name as string | undefined;
       if (newStageName === 'Owner intro requested') {
         const deals = queryClient.getQueryData<Deal[]>(['deals']);
         const deal = deals?.find(d => d.deal_id === variables.dealId);
@@ -403,11 +394,12 @@ export function useUpdateDealStage() {
         if (deal && deal.listing_id) {
           try {
             // Get deal owner info
-            const { data: ownerData } = await supabase
+            const { data: ownerData, error: ownerDataError } = await supabase
               .from('profiles')
               .select('first_name, last_name, email')
               .eq('id', deal.assigned_to)
               .single();
+            if (ownerDataError) throw ownerDataError;
 
             const dealOwnerName = ownerData 
               ? `${ownerData.first_name} ${ownerData.last_name}`.trim()
@@ -463,25 +455,25 @@ export function useUpdateDealStage() {
       queryClient.invalidateQueries({ queryKey: ['deals'] });
       queryClient.invalidateQueries({ queryKey: ['deal-activities'] });
       
-      if (!data?.owner_assigned && !data?.different_owner_warning) {
+      if (!result?.owner_assigned && !result?.different_owner_warning) {
         toast({
           title: 'Deal Updated',
           description: 'Deal stage has been updated successfully.',
         });
       }
     },
-    onError: (error: any, _vars, context) => {
+    onError: (error: unknown, _vars, context) => {
       // Don't show error toast for OWNER_WARNING - that's handled by the dialog
-      if (error?.type === 'OWNER_WARNING') {
+      if (error && typeof error === 'object' && 'type' in error && (error as Record<string, unknown>).type === 'OWNER_WARNING') {
         return;
       }
-      
+
       if (context?.previousDeals) {
         queryClient.setQueryData(['deals'], context.previousDeals);
       }
       toast({
         title: 'Error',
-        description: `Failed to update deal stage: ${error?.message || 'Unknown error'}`,
+        description: `Failed to update deal stage: ${error instanceof Error ? error.message : 'Unknown error'}`,
         variant: 'destructive',
       });
     },
@@ -495,22 +487,22 @@ export function useUpdateDeal() {
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: async ({ dealId, updates }: { dealId: string; updates: any }) => {
+    mutationFn: async ({ dealId, updates }: { dealId: string; updates: Record<string, unknown> }) => {
       // Special handling for owner changes - use dedicated RPC to avoid view/column issues
       const isOwnerChangeOnly = updates.assigned_to !== undefined && Object.keys(updates).length === 1;
       
       if (isOwnerChangeOnly) {
-        const { data: { user } } = await supabase.auth.getUser();
+        const { data: { user }, error: authError } = await supabase.auth.getUser();
+        if (authError) throw authError;
         if (!user) throw new Error('Not authenticated');
 
-        const { data, error } = await (supabase as any).rpc('update_deal_owner', {
+        const { data, error } = await supabase.rpc('update_deal_owner' as 'get_stage_deal_count', {
           p_deal_id: dealId,
           p_assigned_to: updates.assigned_to === 'unassigned' || updates.assigned_to === '' ? null : updates.assigned_to,
           p_actor_id: user.id
         });
         
         if (error) {
-          console.error('[useUpdateDeal] Owner change RPC error:', error);
           throw error;
         }
         
@@ -588,7 +580,6 @@ export function useUpdateDeal() {
         .single();
       
       if (error) {
-        console.error('[useUpdateDeal] Update error:', error);
         throw error;
       }
       return data;
@@ -613,24 +604,27 @@ export function useUpdateDeal() {
       
       return { previousDeals };
     },
-    onSuccess: async (data, { dealId, updates }) => {
+    onSuccess: async (data: unknown, { dealId, updates }) => {
+      const ownerResult = data as Record<string, unknown> | null;
       // Note: Assignment logging is now handled by the update_deal_owner RPC
       const isOwnerChangeOnly = updates.assigned_to !== undefined && Object.keys(updates).length === 1;
-      
+
       // If owner was changed (not just stage move), notify the previous owner
-      if (isOwnerChangeOnly && data?.owner_changed && data.previous_owner_id) {
+      if (isOwnerChangeOnly && ownerResult?.owner_changed && ownerResult.previous_owner_id) {
         try {
           const deals = queryClient.getQueryData<Deal[]>(['deals']);
           const deal = deals?.find(d => d.deal_id === dealId);
           
           if (deal) {
             // Get current admin info
-            const { data: { user } } = await supabase.auth.getUser();
-            const { data: currentAdmin } = await supabase
+            const { data: { user }, error: authError } = await supabase.auth.getUser();
+            if (authError) throw authError;
+            const { data: currentAdmin, error: currentAdminError } = await supabase
               .from('profiles')
               .select('first_name, last_name, email')
               .eq('id', user?.id)
               .single();
+            if (currentAdminError) throw currentAdminError;
             
             const currentAdminName = currentAdmin 
               ? `${currentAdmin.first_name} ${currentAdmin.last_name}`.trim()
@@ -640,19 +634,18 @@ export function useUpdateDeal() {
               body: {
                 dealId: deal.deal_id,
                 dealTitle: deal.title,
-                previousOwnerId: data.previous_owner_id,
-                previousOwnerName: data.previous_owner_name,
+                previousOwnerId: ownerResult.previous_owner_id,
+                previousOwnerName: ownerResult.previous_owner_name,
                 modifyingAdminId: user?.id,
                 modifyingAdminName: currentAdminName,
                 modifyingAdminEmail: currentAdmin?.email,
-                oldStageName: data.stage_name || deal.stage_name,
-                newStageName: data.stage_name || deal.stage_name, // Same stage, just owner change
+                oldStageName: (ownerResult.stage_name as string) || deal.stage_name,
+                newStageName: (ownerResult.stage_name as string) || deal.stage_name, // Same stage, just owner change
                 listingTitle: deal.listing_title,
                 companyName: deal.listing_real_company_name
               }
             });
             
-            console.log('Owner change notification sent to:', data.previous_owner_name);
           }
         } catch (error) {
           console.error('Failed to send owner change notification:', error);
@@ -667,20 +660,20 @@ export function useUpdateDeal() {
           : 'Deal has been updated successfully.',
       });
     },
-    onError: (error: any, _, context) => {
+    onError: (error: unknown, _, context) => {
       // Don't show error toast for OWNER_WARNING - that's handled by the dialog
-      if (error?.type === 'OWNER_WARNING') {
+      if (error && typeof error === 'object' && 'type' in error && (error as Record<string, unknown>).type === 'OWNER_WARNING') {
         return;
       }
-      
+
       // Rollback on error
       if (context?.previousDeals) {
         queryClient.setQueryData(['deals'], context.previousDeals);
       }
-      
+
       toast({
         title: 'Error',
-        description: `Failed to update deal: ${error?.message || 'Unknown error'}`,
+        description: `Failed to update deal: ${error instanceof Error ? error.message : 'Unknown error'}`,
         variant: 'destructive',
       });
     },
@@ -701,7 +694,7 @@ export function useCreateDeal() {
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: async (deal: any) => {
+    mutationFn: async (deal: Record<string, unknown>) => {
       const { data, error } = await supabase
         .from('deals')
         .insert(deal)
@@ -730,7 +723,7 @@ export function useCreateDealStage() {
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: async (stage: any) => {
+    mutationFn: async (stage: Omit<DealStage, 'id' | 'created_at' | 'updated_at'>) => {
       const { data, error } = await supabase
         .from('deal_stages')
         .insert(stage)
@@ -762,7 +755,7 @@ export function useUpdateDealStageData() {
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: async ({ stageId, updates }: { stageId: string; updates: any }) => {
+    mutationFn: async ({ stageId, updates }: { stageId: string; updates: Partial<Omit<DealStage, 'id' | 'created_at' | 'updated_at'>> }) => {
       const { data, error } = await supabase
         .from('deal_stages')
         .update(updates)

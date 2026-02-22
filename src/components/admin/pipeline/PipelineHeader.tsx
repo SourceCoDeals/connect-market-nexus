@@ -305,7 +305,7 @@ export function PipelineHeader({ pipeline, onOpenCreateDeal, onOpenBulkImport, o
         {/* Stage Filter - Dynamic from database */}
         <Select
           value={pipeline.statusFilter}
-          onValueChange={(value) => pipeline.setStatusFilter(value as any)}
+          onValueChange={(value) => pipeline.setStatusFilter(value as 'all' | 'active_only' | 'closed_won' | 'closed_lost' | 'closed')}
         >
           <SelectTrigger className="w-[140px] h-9">
             <SelectValue placeholder="All Stages" />
@@ -460,7 +460,7 @@ export function PipelineHeader({ pipeline, onOpenCreateDeal, onOpenBulkImport, o
         {/* Sort Order Filter */}
         <Select
           value={pipeline.sortOption}
-          onValueChange={(value) => pipeline.setSortOption(value as any)}
+          onValueChange={(value) => pipeline.setSortOption(value as 'newest' | 'oldest' | 'priority' | 'value' | 'probability' | 'stage_entered' | 'last_activity')}
         >
           <SelectTrigger className="w-[160px] h-9">
             <SelectValue placeholder="Sort by" />

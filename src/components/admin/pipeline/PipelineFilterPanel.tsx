@@ -376,7 +376,7 @@ export function PipelineFilterPanel({ pipeline }: PipelineFilterPanelProps) {
                 <AccordionContent className="pb-4">
                   <Select
                     value={pipeline.sortOption}
-                    onValueChange={(value) => pipeline.setSortOption(value as any)}
+                    onValueChange={(value) => pipeline.setSortOption(value as 'newest' | 'oldest' | 'priority' | 'value' | 'probability' | 'stage_entered' | 'last_activity')}
                   >
                     <SelectTrigger className="w-full h-9">
                       <SelectValue placeholder="Sort by" />
@@ -562,7 +562,7 @@ export function PipelineFilterPanel({ pipeline }: PipelineFilterPanelProps) {
                     <label className="text-sm font-medium mb-2 block">Buyer Type</label>
                     <Select
                       value={pipeline.buyerTypeFilter}
-                      onValueChange={(value) => pipeline.setBuyerTypeFilter(value as any)}
+                      onValueChange={(value) => pipeline.setBuyerTypeFilter(value as 'all' | 'privateEquity' | 'familyOffice' | 'searchFund' | 'corporate' | 'individual' | 'independentSponsor' | 'advisor' | 'businessOwner')}
                     >
                       <SelectTrigger className="w-full">
                         <SelectValue placeholder="All buyer types" />
@@ -588,7 +588,7 @@ export function PipelineFilterPanel({ pipeline }: PipelineFilterPanelProps) {
                     <label className="text-sm font-medium mb-2 block">Documents</label>
                     <Select
                       value={pipeline.documentStatusFilter}
-                      onValueChange={(value) => pipeline.setDocumentStatusFilter(value as any)}
+                      onValueChange={(value) => pipeline.setDocumentStatusFilter(value as 'all' | 'nda_signed' | 'fee_signed' | 'both_signed' | 'none_signed' | 'overdue_followup')}
                     >
                       <SelectTrigger className="w-full">
                         <SelectValue placeholder="All documents" />

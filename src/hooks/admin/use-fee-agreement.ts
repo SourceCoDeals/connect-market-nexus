@@ -204,13 +204,6 @@ export const useLogFeeAgreementEmail = () => {
       adminEmail,
       adminName 
     }: LogFeeAgreementEmailParams) => {
-      console.log('🚀 Sending fee agreement email with data:', {
-        userId,
-        userEmail,
-        hasCustomContent: !!(subject || content),
-        attachmentCount: attachments?.length || 0
-      });
-
       // Send email via edge function (which also handles database logging)
       const { data, error } = await supabase.functions.invoke('send-fee-agreement-email', {
         body: {
@@ -228,12 +221,10 @@ export const useLogFeeAgreementEmail = () => {
       });
 
       if (error) {
-        console.error('❌ Fee agreement email sending failed:', error);
         throw error;
       }
 
       // The edge function handles database logging, so we don't need a separate RPC call
-      console.log('✅ Fee agreement email sent successfully:', data);
       return data;
     },
     onMutate: async ({ userId }) => {

@@ -22,7 +22,6 @@ export function useUpdateOwnerLeadNotes() {
       });
     },
     onError: (error) => {
-      console.error("Error updating lead notes:", error);
       toast({
         variant: "destructive",
         title: "Error",

@@ -92,7 +92,6 @@ export const BuyerTableToolbar = ({
   const [enrichElapsed, setEnrichElapsed] = useState(0);
   const enrichStartRef = useRef<number | null>(null);
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (isEnriching && enrichmentProgress && enrichmentProgress.current > 0) {
       if (!enrichStartRef.current) {
@@ -108,7 +107,7 @@ export const BuyerTableToolbar = ({
       enrichStartRef.current = null;
       setEnrichElapsed(0);
     }
-  }, [isEnriching, enrichmentProgress?.current, enrichmentProgress?.startedAt]);
+  }, [isEnriching, enrichmentProgress]);
 
   const getEnrichETA = () => {
     if (!enrichmentProgress || enrichmentProgress.current === 0 || enrichElapsed === 0) return null;
@@ -126,7 +125,6 @@ export const BuyerTableToolbar = ({
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const alignmentStartTimeRef = useRef<number | null>(null);
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (isScoringAlignment && alignmentProgress && alignmentProgress.current > 0) {
       // Set start time on first progress update
@@ -146,7 +144,7 @@ export const BuyerTableToolbar = ({
       alignmentStartTimeRef.current = null;
       setElapsedSeconds(0);
     }
-  }, [isScoringAlignment, alignmentProgress?.current, alignmentProgress?.startTime]);
+  }, [isScoringAlignment, alignmentProgress]);
 
   // Calculate ETA
   const getTimeEstimate = () => {

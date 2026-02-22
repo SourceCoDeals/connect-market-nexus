@@ -47,14 +47,7 @@ export function useEnhancedFeedback() {
   const { toast } = useToast();
 
   const submitFeedback = async (feedbackData: EnhancedFeedbackData) => {
-    console.log('🚀 Starting feedback submission:', { 
-      category: feedbackData.category, 
-      messageLength: feedbackData.message?.length,
-      userExists: !!user 
-    });
-
     if (!user) {
-      console.error('❌ No authenticated user found');
       toast({
         title: "Authentication required",
         description: "You must be logged in to submit feedback.",
@@ -75,12 +68,8 @@ export function useEnhancedFeedback() {
     setIsLoading(true);
     
     try {
-      console.log('📝 Processing feedback submission...');
-      
       // Use category directly without complex mapping
       const category = feedbackData.category || 'general';
-      
-      console.log('📊 Using category:', category);
       
       // Insert feedback into database
       const feedbackPayload = {
@@ -95,8 +84,6 @@ export function useEnhancedFeedback() {
         parent_message_id: feedbackData.parentMessageId || undefined,
       };
 
-      console.log('📊 Feedback payload prepared');
-
       const { data: feedback, error: insertError } = await supabase
         .from("feedback_messages")
         .insert(feedbackPayload)
@@ -104,7 +91,6 @@ export function useEnhancedFeedback() {
         .single();
 
       if (insertError) {
-        console.error('❌ Database insertion failed:', insertError);
         toast({
           title: "Submission failed",
           description: "Failed to save your message. Please try again.",
@@ -114,7 +100,6 @@ export function useEnhancedFeedback() {
       }
 
       if (!feedback) {
-        console.error('❌ No feedback data returned after insertion');
         toast({
           title: "Submission failed",
           description: "Failed to save feedback. Please try again.",
@@ -123,20 +108,17 @@ export function useEnhancedFeedback() {
         throw new Error("Failed to save feedback - no data returned");
       }
 
-      console.log('✅ Feedback saved successfully:', feedback.id);
-
       // Get user profile for email
-      const { data: profile } = await supabase
+      const { data: profile, error: profileError } = await supabase
         .from('profiles')
         .select('first_name, last_name, email')
         .eq('id', user.id)
         .single();
+      if (profileError) throw profileError;
 
       const userName = profile ? `${profile.first_name} ${profile.last_name}`.trim() : '';
       const userEmail = profile?.email || user.email;
       
-      console.log('📧 Sending confirmation email to:', userEmail);
-
       // Simple success message based on category
       const getSuccessMessage = (category: string) => {
         const messages = {
@@ -198,12 +180,9 @@ export function useEnhancedFeedback() {
         console.warn("⚠️ Admin notification failed (non-critical)");
       }
 
-      console.log('🎉 Feedback submission completed successfully');
       return feedback;
 
     } catch (error: any) {
-      console.error("💥 Error in feedback submission:", error);
-      
       // Generic error handling
       if (!error.message.includes("Database error") && !error.message.includes("Message is required")) {
         toast({
@@ -220,15 +199,12 @@ export function useEnhancedFeedback() {
 
   const getFeedbackWithUserDetails = async (): Promise<FeedbackMessageWithUser[]> => {
     try {
-      console.log('📊 Fetching feedback with user details...');
-      
       const { data: messages, error: messagesError } = await supabase
         .from("feedback_messages")
         .select("*")
         .order("created_at", { ascending: false });
 
       if (messagesError) {
-        console.error('❌ Error fetching feedback messages:', messagesError);
         throw messagesError;
       }
 
@@ -237,12 +213,12 @@ export function useEnhancedFeedback() {
         .select("id, email, first_name, last_name, company, phone_number");
 
       if (profilesError) {
-        console.error('❌ Error fetching profiles:', profilesError);
         throw profilesError;
       }
 
       const result = (messages || []).map(msg => {
         const profile = profiles?.find(p => p.id === msg.user_id);
+        const record = msg as Record<string, unknown>;
         return {
           ...msg,
           user_email: profile?.email || '',
@@ -250,17 +226,16 @@ export function useEnhancedFeedback() {
           user_last_name: profile?.last_name || '',
           user_company: profile?.company || '',
           user_phone_number: profile?.phone_number || '',
-          attachments: (msg as any).attachments || [],
-          read_by_user: (msg as any).read_by_user || false,
-          read_by_admin: (msg as any).read_by_admin || false,
-          is_internal_note: (msg as any).is_internal_note || false,
-          thread_id: (msg as any).thread_id || msg.id,
-          parent_message_id: (msg as any).parent_message_id || null,
-          satisfaction_rating: (msg as any).satisfaction_rating || null,
+          attachments: (record.attachments as unknown[]) || [],
+          read_by_user: (record.read_by_user as boolean) || false,
+          read_by_admin: (record.read_by_admin as boolean) || false,
+          is_internal_note: (record.is_internal_note as boolean) || false,
+          thread_id: (record.thread_id as string) || msg.id,
+          parent_message_id: (record.parent_message_id as string | null) || null,
+          satisfaction_rating: (record.satisfaction_rating as number | null) || null,
         };
       });
 
-      console.log('✅ Successfully fetched feedback with user details:', result.length);
       return result as FeedbackMessageWithUser[];
     } catch (error) {
       console.error("❌ Error fetching feedback with user details:", error);

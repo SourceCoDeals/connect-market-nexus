@@ -81,7 +81,7 @@ export function DataRoomFilesTab({ dealId, projectName, buyers = [] }: DataRoomF
 
   const handleDelete = async (docId: string) => {
     const { error } = await supabase
-      .from('deal_documents' as any)
+      .from('deal_documents' as never)
       .update({ status: 'deleted', updated_at: new Date().toISOString() })
       .eq('id', docId);
     if (error) {
@@ -94,9 +94,13 @@ export function DataRoomFilesTab({ dealId, projectName, buyers = [] }: DataRoomF
 
   const handlePreview = async (filePath: string | null) => {
     if (!filePath) return;
-    const { data } = await supabase.storage
+    const { data, error } = await supabase.storage
       .from('deal-documents')
       .createSignedUrl(filePath, 60);
+    if (error) {
+      toast.error('Failed to generate preview URL');
+      return;
+    }
     if (data?.signedUrl) window.open(data.signedUrl, '_blank');
   };
 

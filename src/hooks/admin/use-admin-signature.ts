@@ -7,6 +7,8 @@ interface AdminSignaturePreference {
   admin_id: string;
   signature_html: string;
   signature_text: string;
+  phone_number?: string;
+  calendly_url?: string;
   created_at: string;
   updated_at: string;
 }
@@ -63,10 +65,11 @@ export function useAdminSignature() {
 
   const updateSignatureMutation = useMutation({
     mutationFn: async ({ signature_html, signature_text, phone_number, calendly_url }: UpdateSignatureParams) => {
-      const { data: existingSignature } = await supabase
+      const { data: existingSignature, error: existingSignatureError } = await supabase
         .from('admin_signature_preferences')
         .select('id')
         .single();
+      if (existingSignatureError) throw existingSignatureError;
 
       if (existingSignature) {
         // Update existing signature
@@ -111,7 +114,6 @@ export function useAdminSignature() {
       queryClient.invalidateQueries({ queryKey: ['admin-signature'] });
     },
     onError: (error: any) => {
-      console.error('Failed to update signature:', error);
       toast({
         variant: 'destructive',
         title: 'Update Failed',

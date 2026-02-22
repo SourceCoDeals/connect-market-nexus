@@ -168,7 +168,8 @@ export default function EnrichmentQueue() {
       const dealListingIds = (dealRes.data || []).map((d: any) => d.listing_id).filter(Boolean);
       let dealLabels: Record<string, string> = {};
       if (dealListingIds.length > 0) {
-        const { data: listings } = await supabase.from("listings").select("id, internal_company_name, title").in("id", dealListingIds.slice(0, 100));
+        const { data: listings, error: listingsError } = await supabase.from("listings").select("id, internal_company_name, title").in("id", dealListingIds.slice(0, 100));
+        if (listingsError) throw listingsError;
         (listings || []).forEach((l: any) => { dealLabels[l.id] = l.internal_company_name || l.title || l.id.slice(0, 8); });
       }
       setDealItems((dealRes.data || []).map((d: any) => ({ ...d, label: dealLabels[d.listing_id] || d.listing_id?.slice(0, 8) || "—" })));
@@ -177,7 +178,8 @@ export default function EnrichmentQueue() {
       const buyerIds = (buyerRes.data || []).map((b: any) => b.buyer_id).filter(Boolean);
       let buyerLabels: Record<string, string> = {};
       if (buyerIds.length > 0) {
-        const { data: buyers } = await supabase.from("remarketing_buyers").select("id, company_name").in("id", buyerIds.slice(0, 100));
+        const { data: buyers, error: buyersError } = await supabase.from("remarketing_buyers").select("id, company_name").in("id", buyerIds.slice(0, 100));
+        if (buyersError) throw buyersError;
         (buyers || []).forEach((b: any) => { buyerLabels[b.id] = b.company_name || b.id.slice(0, 8); });
       }
       setBuyerItems((buyerRes.data || []).map((b: any) => ({ ...b, label: buyerLabels[b.buyer_id] || b.buyer_id?.slice(0, 8) || "—" })));

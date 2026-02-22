@@ -23,7 +23,7 @@ export async function deleteBuyerWithRelated(buyerId: string): Promise<{ error: 
     
     if (error) {
       // Fallback - try buyers table if it exists
-      const result = await (supabase as any).from("buyers").delete().eq("id", buyerId);
+      const result = await supabase.from("buyers").delete().eq("id", buyerId);
       error = result.error;
     }
 
@@ -63,10 +63,11 @@ export async function deleteDealWithRelated(dealId: string): Promise<{ error: Er
 export async function deleteTrackerWithRelated(trackerId: string): Promise<{ error: Error | null }> {
   try {
     // Get all buyers for this tracker from remarketing_buyers
-    const { data: buyers } = await supabase
+    const { data: buyers, error: buyersError } = await supabase
       .from("remarketing_buyers")
       .select("id")
       .eq("industry_tracker_id", trackerId);
+    if (buyersError) throw buyersError;
 
     // Delete all buyer-related records
     if (buyers && buyers.length > 0) {
@@ -89,10 +90,11 @@ export async function deleteTrackerWithRelated(trackerId: string): Promise<{ err
     await supabase.from("remarketing_buyers").delete().eq("industry_tracker_id", trackerId);
 
     // Get all deals for this tracker (using listing_id reference if applicable)
-    const { data: deals } = await supabase
+    const { data: deals, error: dealsError } = await supabase
       .from("deals")
       .select("id")
       .eq("listing_id", trackerId);
+    if (dealsError) throw dealsError;
 
     // Delete all deal-related records
     if (deals && deals.length > 0) {
@@ -109,10 +111,10 @@ export async function deleteTrackerWithRelated(trackerId: string): Promise<{ err
     await supabase.from("deals").delete().eq("listing_id", trackerId);
 
     // Delete remarketing_buyer_universes for this tracker
-    await (supabase as any).from("remarketing_buyer_universes").delete().eq("industry_tracker_id", trackerId);
+    await supabase.from("remarketing_buyer_universes").delete().eq("industry_tracker_id", trackerId);
 
     // Finally delete the tracker
-    const { error } = await (supabase as any).from("industry_trackers").delete().eq("id", trackerId);
+    const { error } = await supabase.from("industry_trackers").delete().eq("id", trackerId);
 
     if (error) throw error;
 
@@ -129,10 +131,11 @@ export async function deleteTrackerWithRelated(trackerId: string): Promise<{ err
 export async function deleteUniverseWithRelated(universeId: string): Promise<{ error: Error | null }> {
   try {
     // Get all buyers for this universe
-    const { data: buyers } = await supabase
+    const { data: buyers, error: buyersError } = await supabase
       .from("remarketing_buyers")
       .select("id")
       .eq("universe_id", universeId);
+    if (buyersError) throw buyersError;
 
     // Delete all buyer-related records
     if (buyers && buyers.length > 0) {

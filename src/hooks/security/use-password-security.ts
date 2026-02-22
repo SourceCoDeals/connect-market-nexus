@@ -28,7 +28,6 @@ export const usePasswordSecurity = (password: string, email?: string) => {
         const breach = await PasswordSecurity.checkBreaches(password);
         setBreachResult(breach);
       } catch (err) {
-        console.error('Password security check failed:', err);
         setError('Unable to validate password security');
       } finally {
         setIsLoading(false);

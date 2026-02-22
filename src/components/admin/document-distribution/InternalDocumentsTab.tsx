@@ -26,9 +26,13 @@ export function InternalDocumentsTab({ dealId }: InternalDocumentsTabProps) {
       toast.error('No file available for preview');
       return;
     }
-    const { data } = await supabase.storage
+    const { data, error } = await supabase.storage
       .from('deal-documents')
       .createSignedUrl(filePath, 60);
+    if (error) {
+      toast.error('Failed to generate preview URL');
+      return;
+    }
     if (data?.signedUrl) {
       window.open(data.signedUrl, '_blank');
     }
@@ -39,9 +43,13 @@ export function InternalDocumentsTab({ dealId }: InternalDocumentsTabProps) {
       toast.error('No file available for download');
       return;
     }
-    const { data } = await supabase.storage
+    const { data, error } = await supabase.storage
       .from('deal-documents')
       .createSignedUrl(filePath, 60);
+    if (error) {
+      toast.error('Failed to generate download URL');
+      return;
+    }
     if (data?.signedUrl) {
       const link = document.createElement('a');
       link.href = data.signedUrl;

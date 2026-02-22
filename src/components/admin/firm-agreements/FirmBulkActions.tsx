@@ -16,14 +16,16 @@ export function FirmBulkActions({ firmId, firmName, memberCount }: FirmBulkActio
 
   const logEmailAction = async (type: 'nda' | 'fee', recipientEmails: string[]) => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      if (authError) throw authError;
       if (!user) return;
 
-      const { data: adminProfile } = await supabase
+      const { data: adminProfile, error: adminProfileError } = await supabase
         .from('profiles')
         .select('email, first_name, last_name')
         .eq('id', user.id)
         .single();
+      if (adminProfileError) throw adminProfileError;
 
       // Log to the appropriate table
       const logTable = type === 'nda' ? 'nda_logs' : 'fee_agreement_logs';
@@ -48,8 +50,6 @@ export function FirmBulkActions({ firmId, firmName, memberCount }: FirmBulkActio
         });
       }
 
-      console.log(`✅ Logged ${type.toUpperCase()} email action for ${recipientEmails.length} recipients at ${new Date().toISOString()}`);
-      
       return adminProfile;
     } catch (error) {
       console.error('Error logging email action:', error);

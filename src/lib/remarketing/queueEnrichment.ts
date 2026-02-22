@@ -13,11 +13,12 @@ export async function queueDealEnrichment(dealIds: string[], force = true): Prom
   if (dealIds.length === 0) return 0;
 
   // Check which are already queued
-  const { data: existing } = await supabase
+  const { data: existing, error: existingError } = await supabase
     .from("enrichment_queue")
     .select("listing_id")
     .in("status", ["pending", "processing"])
     .in("listing_id", dealIds);
+  if (existingError) throw existingError;
 
   const existingSet = new Set((existing || []).map((e: any) => e.listing_id));
   const newIds = dealIds.filter(id => !existingSet.has(id));
@@ -65,11 +66,12 @@ export async function queueBuyerEnrichment(buyerIds: string[], universeId?: stri
   if (buyerIds.length === 0) return 0;
 
   // Check which are already queued
-  const { data: existing } = await supabase
+  const { data: existing, error: existingError } = await supabase
     .from("buyer_enrichment_queue")
     .select("buyer_id")
     .in("status", ["pending", "processing"])
     .in("buyer_id", buyerIds);
+  if (existingError) throw existingError;
 
   const existingSet = new Set((existing || []).map((e: any) => e.buyer_id));
   const newIds = buyerIds.filter(id => !existingSet.has(id));

@@ -20,8 +20,6 @@ export function useRecentUserActivity() {
   return useQuery({
     queryKey: ['user-activity'],
     queryFn: async () => {
-      console.log('🔍 Fetching recent user activity...');
-      
       // Get recent listing analytics with user info
       const { data: listingActivity, error: listingError } = await supabase
         .from('listing_analytics')
@@ -126,7 +124,6 @@ export function useRecentUserActivity() {
         .filter(activity => activity.user_id && activity.email !== 'Unknown User')
         .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
-      console.log(`✅ Found ${validActivities.length} user activities`);
       return validActivities;
     },
     refetchInterval: 5 * 60 * 1000, // Refetch every 5 minutes (was 30s)

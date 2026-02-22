@@ -14,16 +14,12 @@ export const ensureListingsBucketExists = async (): Promise<boolean> => {
     const { data: buckets, error: listError } = await supabase.storage.listBuckets();
     
     if (listError) {
-      console.error('Error listing buckets:', listError);
       return false;
     }
     
     const bucketExists = buckets?.some(bucket => bucket.name === LISTINGS_BUCKET);
     
-    console.log(`Checking if ${LISTINGS_BUCKET} bucket exists:`, bucketExists ? "Yes" : "No");
-    
     if (!bucketExists) {
-      console.log(`Creating ${LISTINGS_BUCKET} storage bucket...`);
       
       try {
         const { error: createError } = await supabase.storage
@@ -34,15 +30,10 @@ export const ensureListingsBucketExists = async (): Promise<boolean> => {
           });
         
         if (createError) {
-          console.error('Error creating bucket:', createError);
           return false;
         }
-        
-        console.log(`${LISTINGS_BUCKET} bucket created successfully`);
       } catch (err) {
-        console.error('Exception creating bucket:', err);
         // If we get an RLS violation, the bucket might already exist but not be visible to this user
-        console.log('Attempting to proceed assuming bucket exists...');
       }
     }
     
@@ -53,17 +44,14 @@ export const ensureListingsBucketExists = async (): Promise<boolean> => {
         .getPublicUrl('test-permissions.txt');
       
       if (!data) {
-        console.error('Error confirming public access: No data returned');
         return false;
       }
       
       return true;
     } catch (err) {
-      console.error('Exception checking public access:', err);
       return false;
     }
   } catch (error: any) {
-    console.error('Error in ensureListingsBucketExists:', error);
     return false;
   }
 };
@@ -76,15 +64,11 @@ export const ensureListingsBucketExists = async (): Promise<boolean> => {
  */
 export const uploadListingImage = async (file: File, listingId: string): Promise<string> => {
   try {
-    console.log(`Starting image upload for listing ${listingId}...`);
-    
     // Generate a unique file name
     const fileExt = file.name.split('.').pop() || 'jpg';
     const fileName = `${listingId}/${Date.now()}.${fileExt}`;
     const fullPath = `${listingId}/${Date.now()}.${fileExt}`;
-    
-    console.log(`Uploading file to ${LISTINGS_BUCKET}/${fullPath}`);
-    
+
     // Upload the file
     const { data: uploadData, error: uploadError } = await supabase.storage
       .from(LISTINGS_BUCKET)
@@ -94,18 +78,13 @@ export const uploadListingImage = async (file: File, listingId: string): Promise
       });
     
     if (uploadError) {
-      console.error('Upload error:', uploadError);
       throw uploadError;
     }
-    
-    console.log('File uploaded successfully:', uploadData?.path);
-    
+
     // Get the public URL
     const { data: urlData } = supabase.storage
       .from(LISTINGS_BUCKET)
       .getPublicUrl(fullPath);
-    
-    console.log('Generated public URL:', urlData.publicUrl);
     
     if (!urlData.publicUrl) {
       throw new Error('Failed to get public URL');
@@ -113,7 +92,6 @@ export const uploadListingImage = async (file: File, listingId: string): Promise
     
     return urlData.publicUrl;
   } catch (error: any) {
-    console.error('Error uploading image:', error);
     toast({
       variant: 'destructive',
       title: 'Image upload failed',
@@ -136,7 +114,6 @@ export const deleteListingImages = async (listingId: string): Promise<boolean> =
       .list(`${listingId}`);
     
     if (listError) {
-      console.error('Error listing files:', listError);
       return false;
     }
     
@@ -148,14 +125,12 @@ export const deleteListingImages = async (listingId: string): Promise<boolean> =
         .remove(filePaths);
       
       if (deleteError) {
-        console.error('Error deleting files:', deleteError);
         return false;
       }
     }
     
     return true;
   } catch (error) {
-    console.error('Error deleting images:', error);
     return false;
   }
 };
