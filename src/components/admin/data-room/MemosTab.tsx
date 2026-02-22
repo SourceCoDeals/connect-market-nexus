@@ -16,8 +16,10 @@ import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import {
   FileText, Upload, Sparkles, Download, Trash2, RefreshCw,
-  Loader2, FileUp, CheckCircle2, Calendar, Eye, BookOpen,
+  Loader2, FileUp, CheckCircle2, Calendar, Eye, BookOpen, Send,
 } from 'lucide-react';
+import { ReleaseModal } from '@/components/admin/document-distribution/ReleaseModal';
+import type { DealDocument } from '@/hooks/admin/use-document-distribution';
 import {
   useDataRoomDocuments,
   useUploadDocument,
@@ -146,6 +148,25 @@ function MemoSlotCard({
   const [isDownloadingDocx, setIsDownloadingDocx] = useState(false);
   const [confirmRemove, setConfirmRemove] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
+  const [releaseModalOpen, setReleaseModalOpen] = useState(false);
+
+  // Adapt DataRoomDocument to DealDocument for the ReleaseModal
+  const releaseDocument: DealDocument | null = document ? {
+    id: document.id,
+    deal_id: document.deal_id,
+    document_type: document.document_category === 'anonymous_teaser' ? 'anonymous_teaser' : 'full_detail_memo',
+    title: document.file_name,
+    description: null,
+    file_path: document.storage_path,
+    file_size_bytes: document.file_size_bytes,
+    mime_type: document.file_type || 'application/pdf',
+    version: document.version,
+    is_current: true,
+    status: document.status,
+    created_by: document.uploaded_by,
+    created_at: document.created_at,
+    updated_at: document.updated_at,
+  } : null;
 
   const hasDocument = !!document;
   const hasDraft = !!draft;
@@ -429,6 +450,14 @@ function MemoSlotCard({
                     </div>
                   </div>
                 </div>
+                <Button
+                  size="sm"
+                  className="w-full mb-2"
+                  onClick={() => setReleaseModalOpen(true)}
+                >
+                  <Send className="h-3.5 w-3.5 mr-1.5" />
+                  Send to Buyer
+                </Button>
                 <div className="flex gap-2">
                   <Button
                     variant="outline"
@@ -542,6 +571,14 @@ function MemoSlotCard({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Release Modal */}
+      <ReleaseModal
+        open={releaseModalOpen}
+        onOpenChange={setReleaseModalOpen}
+        document={releaseDocument}
+        dealId={dealId}
+      />
     </>
   );
 }
