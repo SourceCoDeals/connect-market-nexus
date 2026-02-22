@@ -151,46 +151,50 @@ BEGIN
   END IF;
 END $$;
 
--- C2. engagement_signals — uses raw_user_meta_data->>'role' instead of is_admin()
-DROP POLICY IF EXISTS "Admin full access to engagement signals" ON public.engagement_signals;
-CREATE POLICY "Admin full access to engagement signals"
-  ON public.engagement_signals
-  FOR ALL
-  TO authenticated
-  USING (public.is_admin(auth.uid()));
+-- C2. engagement_signals — conditional: table may not exist in all environments
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'engagement_signals') THEN
+    EXECUTE 'DROP POLICY IF EXISTS "Admin full access to engagement signals" ON public.engagement_signals';
+    EXECUTE 'CREATE POLICY "Admin full access to engagement signals" ON public.engagement_signals FOR ALL TO authenticated USING (public.is_admin(auth.uid()))';
+  END IF;
+END $$;
 
--- C3. captarget_sync_exclusions — uses profiles.role = 'admin' instead of is_admin()
-DROP POLICY IF EXISTS "Admin users can view captarget sync exclusions" ON public.captarget_sync_exclusions;
-CREATE POLICY "Admin users can view captarget sync exclusions"
-  ON public.captarget_sync_exclusions
-  FOR SELECT
-  TO authenticated
-  USING (public.is_admin(auth.uid()));
+-- C3. captarget_sync_exclusions
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'captarget_sync_exclusions') THEN
+    EXECUTE 'DROP POLICY IF EXISTS "Admin users can view captarget sync exclusions" ON public.captarget_sync_exclusions';
+    EXECUTE 'CREATE POLICY "Admin users can view captarget sync exclusions" ON public.captarget_sync_exclusions FOR SELECT TO authenticated USING (public.is_admin(auth.uid()))';
+  END IF;
+END $$;
 
--- C4. captarget_sync_log — uses profiles.role = 'admin' instead of is_admin()
-DROP POLICY IF EXISTS "Admin users can view captarget sync logs" ON public.captarget_sync_log;
-CREATE POLICY "Admin users can view captarget sync logs"
-  ON public.captarget_sync_log
-  FOR SELECT
-  TO authenticated
-  USING (public.is_admin(auth.uid()));
+-- C4. captarget_sync_log
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'captarget_sync_log') THEN
+    EXECUTE 'DROP POLICY IF EXISTS "Admin users can view captarget sync logs" ON public.captarget_sync_log';
+    EXECUTE 'CREATE POLICY "Admin users can view captarget sync logs" ON public.captarget_sync_log FOR SELECT TO authenticated USING (public.is_admin(auth.uid()))';
+  END IF;
+END $$;
 
--- C5. remarketing_scoring_queue — uses profiles.role = 'admin' instead of is_admin()
-DROP POLICY IF EXISTS "Admins can manage scoring queue" ON public.remarketing_scoring_queue;
-CREATE POLICY "Admins can manage scoring queue"
-  ON public.remarketing_scoring_queue
-  FOR ALL
-  TO authenticated
-  USING (public.is_admin(auth.uid()))
-  WITH CHECK (public.is_admin(auth.uid()));
+-- C5. remarketing_scoring_queue
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'remarketing_scoring_queue') THEN
+    EXECUTE 'DROP POLICY IF EXISTS "Admins can manage scoring queue" ON public.remarketing_scoring_queue';
+    EXECUTE 'CREATE POLICY "Admins can manage scoring queue" ON public.remarketing_scoring_queue FOR ALL TO authenticated USING (public.is_admin(auth.uid())) WITH CHECK (public.is_admin(auth.uid()))';
+  END IF;
+END $$;
 
--- C6. remarketing_scores — "scores_select_policy" uses auth.jwt() ->> 'is_admin'
-DROP POLICY IF EXISTS "scores_select_policy" ON public.remarketing_scores;
-CREATE POLICY "scores_select_policy"
-  ON public.remarketing_scores
-  FOR SELECT
-  TO authenticated
-  USING (deleted_at IS NULL OR public.is_admin(auth.uid()));
+-- C6. remarketing_scores
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'remarketing_scores') THEN
+    EXECUTE 'DROP POLICY IF EXISTS "scores_select_policy" ON public.remarketing_scores';
+    EXECUTE 'CREATE POLICY "scores_select_policy" ON public.remarketing_scores FOR SELECT TO authenticated USING (deleted_at IS NULL OR public.is_admin(auth.uid()))';
+  END IF;
+END $$;
 
 -- ============================================================================
 -- SECTION D: Add Auth Checks to Unprotected SECURITY DEFINER RPCs (P1)
