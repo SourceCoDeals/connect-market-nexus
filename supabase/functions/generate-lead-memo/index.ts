@@ -78,6 +78,22 @@ Deno.serve(async (req: Request) => {
       );
     }
 
+    // GUARD: Anonymous Teaser requires a Final PDF of the Full Lead Memo
+    if (memo_type === "anonymous_teaser" || memo_type === "both") {
+      const { data: fullMemoPdf } = await supabaseAdmin
+        .from("data_room_documents")
+        .select("id")
+        .eq("deal_id", deal_id)
+        .eq("document_category", "full_memo")
+        .limit(1);
+      if (!fullMemoPdf?.length) {
+        return new Response(
+          JSON.stringify({ error: "Cannot generate Anonymous Teaser until a Final PDF of the Full Lead Memo has been uploaded." }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+    }
+
     // Fetch all deal data
     const { data: deal, error: dealError } = await supabaseAdmin
       .from("listings")
