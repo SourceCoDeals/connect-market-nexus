@@ -1338,7 +1338,7 @@ const ReMarketingDealDetail = () => {
             </TabsContent>
 
             <TabsContent value="access" className="space-y-6">
-              <AccessMatrixPanel dealId={dealId!} />
+              <AccessMatrixPanel dealId={dealId!} projectName={deal.project_name} />
             </TabsContent>
 
             <TabsContent value="distribution" className="space-y-6">
