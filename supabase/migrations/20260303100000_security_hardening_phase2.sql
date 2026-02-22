@@ -130,12 +130,14 @@ CREATE POLICY "Service role can manage captarget sync exclusions"
 -- ============================================================================
 
 -- C1. call_transcripts — uses raw_user_meta_data->>'role' instead of is_admin()
-DROP POLICY IF EXISTS "Admin full access to call transcripts" ON public.call_transcripts;
-CREATE POLICY "Admin full access to call transcripts"
-  ON public.call_transcripts
-  FOR ALL
-  TO authenticated
-  USING (public.is_admin(auth.uid()));
+-- Wrapped in conditional: table may not exist in all environments
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'call_transcripts') THEN
+    EXECUTE 'DROP POLICY IF EXISTS "Admin full access to call transcripts" ON public.call_transcripts';
+    EXECUTE 'CREATE POLICY "Admin full access to call transcripts" ON public.call_transcripts FOR ALL TO authenticated USING (public.is_admin(auth.uid()))';
+  END IF;
+END $$;
 
 -- C2. engagement_signals — uses raw_user_meta_data->>'role' instead of is_admin()
 DROP POLICY IF EXISTS "Admin full access to engagement signals" ON public.engagement_signals;

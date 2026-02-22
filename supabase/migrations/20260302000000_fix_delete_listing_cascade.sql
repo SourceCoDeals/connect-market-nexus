@@ -49,7 +49,10 @@ BEGIN
   DELETE FROM public.buyer_learning_history WHERE listing_id = p_listing_id;
   DELETE FROM public.buyer_pass_decisions WHERE listing_id = p_listing_id;
   DELETE FROM public.buyer_deal_scores WHERE deal_id = p_listing_id::text;
-  DELETE FROM public.call_transcripts WHERE listing_id = p_listing_id;
+  -- call_transcripts: table may not exist in all environments
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'call_transcripts') THEN
+    DELETE FROM public.call_transcripts WHERE listing_id = p_listing_id;
+  END IF;
   DELETE FROM public.chat_conversations WHERE listing_id = p_listing_id;
   DELETE FROM public.collection_items WHERE listing_id = p_listing_id;
   DELETE FROM public.connection_requests WHERE listing_id = p_listing_id;
