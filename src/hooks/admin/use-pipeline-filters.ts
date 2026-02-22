@@ -3,11 +3,15 @@ import { AdminConnectionRequest } from '@/types/admin';
 
 export type StatusFilter = 'all' | 'pending' | 'approved' | 'rejected' | 'on_hold';
 export type BuyerTypeFilter = 'all' | 'privateEquity' | 'familyOffice' | 'searchFund' | 'corporate' | 'individual' | 'independentSponsor' | 'advisor' | 'businessOwner';
+export type NdaFilter = 'all' | 'signed' | 'not_signed' | 'sent';
+export type FeeAgreementFilter = 'all' | 'signed' | 'not_signed' | 'sent';
 export type SortOption = 'newest' | 'oldest' | 'buyer_priority' | 'deal_size' | 'approval_date';
 
 export function usePipelineFilters(requests: AdminConnectionRequest[]) {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [buyerTypeFilter, setBuyerTypeFilter] = useState<BuyerTypeFilter>('all');
+  const [ndaFilter, setNdaFilter] = useState<NdaFilter>('all');
+  const [feeAgreementFilter, setFeeAgreementFilter] = useState<FeeAgreementFilter>('all');
   const [sortOption, setSortOption] = useState<SortOption>('newest');
 
   // Buyer type priority mapping (higher number = higher priority)
@@ -36,6 +40,35 @@ export function usePipelineFilters(requests: AdminConnectionRequest[]) {
     if (buyerTypeFilter !== 'all') {
       filtered = filtered.filter(request => request.user?.buyer_type === buyerTypeFilter);
     }
+
+    // Apply NDA filter
+    if (ndaFilter !== 'all') {
+      filtered = filtered.filter(request => {
+        const ndaSigned = request.lead_nda_signed || request.user?.nda_signed;
+        const ndaSent = request.lead_nda_email_sent || request.user?.nda_email_sent;
+        switch (ndaFilter) {
+          case 'signed': return !!ndaSigned;
+          case 'not_signed': return !ndaSigned;
+          case 'sent': return !!ndaSent && !ndaSigned;
+          default: return true;
+        }
+      });
+    }
+
+    // Apply Fee Agreement filter
+    if (feeAgreementFilter !== 'all') {
+      filtered = filtered.filter(request => {
+        const feeSigned = request.lead_fee_agreement_signed || request.user?.fee_agreement_signed;
+        const feeSent = request.lead_fee_agreement_email_sent || request.user?.fee_agreement_email_sent;
+        switch (feeAgreementFilter) {
+          case 'signed': return !!feeSigned;
+          case 'not_signed': return !feeSigned;
+          case 'sent': return !!feeSent && !feeSigned;
+          default: return true;
+        }
+      });
+    }
+
 
     // Apply sorting
     const sorted = [...filtered].sort((a, b) => {
@@ -85,15 +118,19 @@ export function usePipelineFilters(requests: AdminConnectionRequest[]) {
     });
 
     return sorted;
-  }, [requests, statusFilter, buyerTypeFilter, sortOption]);
+  }, [requests, statusFilter, buyerTypeFilter, ndaFilter, feeAgreementFilter, sortOption]);
 
   return {
     statusFilter,
     buyerTypeFilter,
+    ndaFilter,
+    feeAgreementFilter,
     sortOption,
     filteredAndSortedRequests,
     setStatusFilter,
     setBuyerTypeFilter,
+    setNdaFilter,
+    setFeeAgreementFilter,
     setSortOption,
   };
 }
