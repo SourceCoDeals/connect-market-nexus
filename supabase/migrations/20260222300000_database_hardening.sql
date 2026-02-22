@@ -123,7 +123,10 @@ IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public'
       FOREIGN KEY (deal_id) REFERENCES public.deals(id) ON DELETE CASCADE;
 END IF;
 
-IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'deal_transcripts') THEN
+IF EXISTS (
+  SELECT 1 FROM information_schema.columns
+  WHERE table_schema = 'public' AND table_name = 'deal_transcripts' AND column_name = 'deal_id'
+) THEN
   DELETE FROM public.deal_transcripts WHERE deal_id NOT IN (SELECT id FROM public.deals);
   ALTER TABLE public.deal_transcripts
     DROP CONSTRAINT IF EXISTS deal_transcripts_deal_id_fkey,
@@ -216,7 +219,10 @@ IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public'
   CREATE INDEX IF NOT EXISTS idx_deal_documents_deal_id ON public.deal_documents(deal_id);
 END IF;
 
-IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'deal_transcripts') THEN
+IF EXISTS (
+  SELECT 1 FROM information_schema.columns
+  WHERE table_schema = 'public' AND table_name = 'deal_transcripts' AND column_name = 'deal_id'
+) THEN
   CREATE INDEX IF NOT EXISTS idx_deal_transcripts_deal_id ON public.deal_transcripts(deal_id);
 END IF;
 
