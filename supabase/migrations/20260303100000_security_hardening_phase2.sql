@@ -388,13 +388,16 @@ $$;
 
 -- D4. get_deal_access_matrix(uuid) — admin-only deal access view
 --     Converted from SQL to plpgsql to add auth guard
+--     Uses latest signature from 20260228100000 (contact_id, contact_title, access_token)
 CREATE OR REPLACE FUNCTION public.get_deal_access_matrix(p_deal_id UUID)
 RETURNS TABLE (
   access_id UUID,
   remarketing_buyer_id UUID,
   marketplace_user_id UUID,
+  contact_id UUID,
   buyer_name TEXT,
   buyer_company TEXT,
+  contact_title TEXT,
   can_view_teaser BOOLEAN,
   can_view_full_memo BOOLEAN,
   can_view_data_room BOOLEAN,
@@ -404,7 +407,8 @@ RETURNS TABLE (
   granted_at TIMESTAMPTZ,
   revoked_at TIMESTAMPTZ,
   expires_at TIMESTAMPTZ,
-  last_access_at TIMESTAMPTZ
+  last_access_at TIMESTAMPTZ,
+  access_token UUID
 )
 LANGUAGE plpgsql
 STABLE
@@ -422,15 +426,32 @@ BEGIN
     a.id AS access_id,
     a.remarketing_buyer_id,
     a.marketplace_user_id,
-    COALESCE(rb.company_name, NULLIF(TRIM(p.first_name || ' ' || p.last_name), ''), p.email) AS buyer_name,
-    COALESCE(rb.pe_firm_name, rb.company_name) AS buyer_company,
+    a.contact_id,
+    COALESCE(
+      NULLIF(TRIM(c.first_name || ' ' || c.last_name), ''),
+      rb.company_name,
+      NULLIF(TRIM(p.first_name || ' ' || p.last_name), ''),
+      p.email
+    ) AS buyer_name,
+    COALESCE(
+      fa.primary_company_name,
+      rb.pe_firm_name,
+      rb.company_name
+    ) AS buyer_company,
+    c.title AS contact_title,
     a.can_view_teaser,
     a.can_view_full_memo,
     a.can_view_data_room,
     COALESCE(
-      (SELECT fa.fee_agreement_signed FROM public.firm_agreements fa
-       WHERE fa.website_domain = rb.company_website
-         OR fa.email_domain = rb.email_domain
+      (SELECT fac.fee_agreement_status = 'signed'
+       FROM public.firm_agreements fac
+       WHERE fac.id = c.firm_id
+       LIMIT 1),
+      (SELECT fal.fee_agreement_status = 'signed'
+       FROM public.firm_agreements fal
+       WHERE (fal.email_domain = rb.email_domain OR fal.website_domain IS NOT NULL)
+         AND rb.email_domain IS NOT NULL
+         AND fal.email_domain = rb.email_domain
        LIMIT 1),
       false
     ) AS fee_agreement_signed,
@@ -439,12 +460,17 @@ BEGIN
     a.granted_at,
     a.revoked_at,
     a.expires_at,
-    (SELECT MAX(al.created_at) FROM public.data_room_audit_log al
-     WHERE al.deal_id = a.deal_id
-       AND al.user_id = COALESCE(a.marketplace_user_id, a.remarketing_buyer_id::uuid)
-       AND al.action IN ('view_document', 'download_document', 'view_data_room')
-    ) AS last_access_at
+    COALESCE(
+      a.last_access_at,
+      (SELECT MAX(al.created_at) FROM public.data_room_audit_log al
+       WHERE al.deal_id = a.deal_id
+         AND al.user_id = COALESCE(a.marketplace_user_id, a.remarketing_buyer_id::uuid)
+         AND al.action IN ('view_document', 'download_document', 'view_data_room'))
+    ) AS last_access_at,
+    a.access_token
   FROM public.data_room_access a
+  LEFT JOIN public.contacts c ON c.id = a.contact_id
+  LEFT JOIN public.firm_agreements fa ON fa.id = c.firm_id
   LEFT JOIN public.remarketing_buyers rb ON rb.id = a.remarketing_buyer_id
   LEFT JOIN public.profiles p ON p.id = a.marketplace_user_id
   WHERE a.deal_id = p_deal_id
