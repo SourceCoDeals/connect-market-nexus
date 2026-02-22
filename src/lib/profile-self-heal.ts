@@ -4,7 +4,7 @@ import { User as SupabaseUser } from '@supabase/supabase-js';
 /**
  * Parse arrays safely from auth metadata (handles JSON strings, arrays, and fallback).
  */
-export function parseArray(val: any): any[] {
+export function parseArray(val: unknown): unknown[] {
   if (Array.isArray(val)) return val;
   if (typeof val === 'string' && val.startsWith('[')) {
     try { return JSON.parse(val); } catch { return []; }
@@ -15,7 +15,7 @@ export function parseArray(val: any): any[] {
 /**
  * Helper to read a metadata field with camelCase fallback.
  */
-function meta(obj: Record<string, any>, snake: string, camel: string, fallback: any = ''): any {
+function meta(obj: Record<string, unknown>, snake: string, camel: string, fallback: unknown = ''): unknown {
   return obj[snake] || obj[camel] || fallback;
 }
 
@@ -107,7 +107,7 @@ export function buildProfileFromMetadata(authUser: SupabaseUser) {
 export async function selfHealProfile(
   authUser: SupabaseUser,
   selectColumns = '*'
-): Promise<any | null> {
+): Promise<Record<string, unknown> | null> {
   const payload = buildProfileFromMetadata(authUser);
 
   // Check if the profile already exists to avoid overwriting privileged fields

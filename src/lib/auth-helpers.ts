@@ -44,7 +44,7 @@ function safeArray(value: unknown): string[] {
  * NEVER THROWS - always returns a valid User object.
  * Sets _hasDataIssues flag if data was malformed.
  */
-export function createUserObject(profile: any): UserWithDataIssues {
+export function createUserObject(profile: Record<string, unknown>): UserWithDataIssues {
   const issues: string[] = [];
   
   // Handle completely invalid input - return minimal user

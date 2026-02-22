@@ -795,7 +795,7 @@ Return ONLY the JSON object. No markdown fences, no explanation.`;
           extraction_error: message,
         }).eq('id', failedId);
       }
-    } catch (_) { /* best effort */ }
+    } catch (error) { console.error('Failed to update extraction status:', error); }
 
     return new Response(
       JSON.stringify({ error: message }),

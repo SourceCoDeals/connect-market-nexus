@@ -14,7 +14,7 @@ export interface AdminListing {
   part_time_employees?: number;
   description: string;
   description_html?: string;
-  description_json?: any;
+  description_json?: Record<string, unknown> | null;
   hero_description?: string | null;
   tags: string[];
   owner_notes?: string;
@@ -41,15 +41,15 @@ export interface AdminListing {
   management_depth?: string;
   revenue_model_breakdown?: Record<string, number>;
   customer_concentration?: number;
-  market_position?: Record<string, any>;
-  transaction_preferences?: Record<string, any>;
+  market_position?: Record<string, unknown>;
+  transaction_preferences?: Record<string, unknown>;
   growth_drivers?: string[];
   key_risks?: string[];
   investment_thesis?: string;
   seller_involvement_preference?: string;
   timeline_preference?: string;
   visible_to_buyer_types?: string[] | null;
-  
+
   // Enhanced metrics fields
   custom_metric_label?: string | null;
   custom_metric_value?: string | null;
@@ -64,10 +64,10 @@ export interface AdminListing {
   metric_4_custom_subtitle?: string | null;
   revenue_metric_subtitle?: string | null;
   ebitda_metric_subtitle?: string | null;
-  
+
   // Deal advisor
   presented_by_admin_id?: string | null;
-  
+
   // Publishing status
   is_internal_deal?: boolean;
   published_at?: string | null;
@@ -104,10 +104,10 @@ export interface CreateListingData {
   owner_notes?: string;
   status?: 'active' | 'inactive';
   status_tag?: string | null;
-  
+
   // Deal identifier for tracking
   deal_identifier?: string;
-  
+
   // Admin-only internal company information
   internal_company_name?: string;
   internal_primary_owner?: string; // Deprecated - use primary_owner_id
@@ -116,15 +116,15 @@ export interface CreateListingData {
   internal_deal_memo_link?: string;
   internal_contact_info?: string;
   internal_notes?: string;
-  
+
   // New investor-focused fields
   ownership_structure?: string;
   seller_motivation?: string;
   management_depth?: string;
   revenue_model_breakdown?: Record<string, number>;
   customer_concentration?: number;
-  market_position?: Record<string, any>;
-  transaction_preferences?: Record<string, any>;
+  market_position?: Record<string, unknown>;
+  transaction_preferences?: Record<string, unknown>;
   growth_drivers?: string[];
   key_risks?: string[];
   investment_thesis?: string;
@@ -170,7 +170,7 @@ export interface AdminConnectionRequest {
   // Phase 4: Source tracking fields
   source: 'marketplace' | 'webflow' | 'manual' | 'import' | 'api' | 'website' | 'referral' | 'cold_outreach' | 'networking' | 'linkedin' | 'email';
   source_lead_id?: string;
-  source_metadata?: Record<string, any>;
+  source_metadata?: Record<string, unknown>;
   converted_by?: string;
   converted_at?: string;
   // Lead-only request fields (when user_id is null)

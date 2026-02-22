@@ -173,7 +173,7 @@ export interface Listing {
   ebitda: number;
   description: string;
   description_html?: string;
-  description_json?: any;
+  description_json?: Record<string, unknown> | null;
   hero_description?: string | null;
   tags: string[];
   owner_notes?: string;

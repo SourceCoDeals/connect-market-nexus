@@ -111,6 +111,7 @@ export async function deleteTrackerWithRelated(trackerId: string): Promise<{ err
     await supabase.from("deals").delete().eq("listing_id", trackerId);
 
     // Delete remarketing_buyer_universes for this tracker
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- table may not be in generated types yet
     await (supabase.from("remarketing_buyer_universes") as any).delete().eq("industry_tracker_id", trackerId);
 
     // Finally delete the tracker

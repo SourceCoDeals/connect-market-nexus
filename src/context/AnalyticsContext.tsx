@@ -2,14 +2,15 @@ import React, { createContext, useContext, useEffect, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useSessionContext } from '@/contexts/SessionContext';
+import type { User as SupabaseUser } from '@supabase/supabase-js';
 
 interface AnalyticsContextType {
-  trackEvent: (eventType: string, eventData?: any) => Promise<boolean>;
+  trackEvent: (eventType: string, eventData?: Record<string, unknown>) => Promise<boolean>;
   trackPageView: (pagePath: string) => Promise<boolean>;
   trackListingView: (listingId: string) => Promise<boolean>;
   trackListingSave: (listingId: string) => Promise<boolean>;
   trackConnectionRequest: (listingId: string) => Promise<boolean>;
-  trackSearch: (query: string, filters?: any, results?: number) => Promise<boolean>;
+  trackSearch: (query: string, filters?: Record<string, unknown>, results?: number) => Promise<boolean>;
   getAnalyticsHealth: () => Promise<{
     totalInsertions: number;
     failedInsertions: number;
@@ -39,10 +40,10 @@ const MAX_RETRIES = 3;
 
 // Retry with exponential backoff
 const retryWithBackoff = async (
-  fn: () => Promise<any>, 
+  fn: () => Promise<unknown>,
   maxRetries = MAX_RETRIES,
   delay = 1000
-): Promise<{ success: boolean; error?: any }> => {
+): Promise<{ success: boolean; error?: unknown }> => {
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     try {
       await fn();
@@ -106,7 +107,7 @@ export function AnalyticsProvider({ children }: { children: React.ReactNode }) {
   
   // PHASE 1: Remove circular dependency - defer auth usage with local state
   const [authState, setAuthState] = React.useState<{
-    user: any | null;
+    user: SupabaseUser | null;
     authChecked: boolean;
   }>({ user: null, authChecked: false });
 
@@ -158,7 +159,7 @@ export function AnalyticsProvider({ children }: { children: React.ReactNode }) {
     }
   }, [location.pathname]);
 
-  const trackEvent = async (eventType: string, eventData?: any): Promise<boolean> => {
+  const trackEvent = async (eventType: string, eventData?: Record<string, unknown>): Promise<boolean> => {
     if (!sessionIdRef.current) {
       console.warn('❌ No session ID for event:', eventType);
       return false;
@@ -340,7 +341,7 @@ export function AnalyticsProvider({ children }: { children: React.ReactNode }) {
     return result.success;
   };
 
-  const trackSearch = async (query: string, filters?: any, results?: number): Promise<boolean> => {
+  const trackSearch = async (query: string, filters?: Record<string, unknown>, results?: number): Promise<boolean> => {
     if (!sessionIdRef.current) {
       console.warn('❌ No session ID for search:', query);
       return false;

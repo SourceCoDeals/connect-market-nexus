@@ -20,7 +20,7 @@ export async function queueDealEnrichment(dealIds: string[], force = true): Prom
     .in("listing_id", dealIds);
   if (existingError) throw existingError;
 
-  const existingSet = new Set((existing || []).map((e: any) => e.listing_id));
+  const existingSet = new Set((existing || []).map((e: { listing_id: string }) => e.listing_id));
   const newIds = dealIds.filter(id => !existingSet.has(id));
 
   if (newIds.length === 0) {
@@ -73,7 +73,7 @@ export async function queueBuyerEnrichment(buyerIds: string[], universeId?: stri
     .in("buyer_id", buyerIds);
   if (existingError) throw existingError;
 
-  const existingSet = new Set((existing || []).map((e: any) => e.buyer_id));
+  const existingSet = new Set((existing || []).map((e: { buyer_id: string }) => e.buyer_id));
   const newIds = buyerIds.filter(id => !existingSet.has(id));
 
   if (newIds.length === 0) {

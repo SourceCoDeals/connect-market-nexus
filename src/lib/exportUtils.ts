@@ -163,6 +163,7 @@ export async function exportDealsToCSV(dealIds: string[]): Promise<{ success: bo
     enriched_at: d.enriched_at ? new Date(d.enriched_at).toLocaleDateString() : "",
   }));
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- column keys are a superset of the row type
   exportToCSV(rows, `deals-export-${new Date().toISOString().slice(0, 10)}`, DEAL_EXPORT_COLUMNS as any);
   return { success: true, count: rows.length };
 }

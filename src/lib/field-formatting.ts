@@ -60,7 +60,7 @@ const BOOLEAN_FIELDS = [
 /**
  * Format a field value for display in admin interfaces
  */
-export function formatFieldValue(fieldKey: string, value: any): string {
+export function formatFieldValue(fieldKey: string, value: unknown): string {
   if (value === null || value === undefined || value === '') {
     return '—';
   }
@@ -108,7 +108,7 @@ export function formatFieldValue(fieldKey: string, value: any): string {
 /**
  * Format a field value for CSV export (no HTML, proper escaping)
  */
-export function formatFieldValueForExport(fieldKey: string, value: any): string {
+export function formatFieldValueForExport(fieldKey: string, value: unknown): string {
   if (value === null || value === undefined || value === '') {
     return '';
   }
@@ -143,7 +143,7 @@ export function formatFieldValueForExport(fieldKey: string, value: any): string 
 /**
  * Get all relevant fields for a buyer type with proper formatting
  */
-export function getFormattedUserFields(user: any, _buyerType: string) {
+export function getFormattedUserFields(user: Record<string, unknown>, _buyerType: string) {
   const fields: Record<string, string> = {};
   
   // Get all user fields and format them
