@@ -5,7 +5,6 @@ export type StatusFilter = 'all' | 'pending' | 'approved' | 'rejected' | 'on_hol
 export type BuyerTypeFilter = 'all' | 'privateEquity' | 'familyOffice' | 'searchFund' | 'corporate' | 'individual' | 'independentSponsor' | 'advisor' | 'businessOwner';
 export type NdaFilter = 'all' | 'signed' | 'not_signed' | 'sent';
 export type FeeAgreementFilter = 'all' | 'signed' | 'not_signed' | 'sent';
-export type FollowUpFilter = 'all' | 'followed_up' | 'not_followed_up';
 export type SortOption = 'newest' | 'oldest' | 'buyer_priority' | 'deal_size' | 'approval_date';
 
 export function usePipelineFilters(requests: AdminConnectionRequest[]) {
@@ -13,7 +12,6 @@ export function usePipelineFilters(requests: AdminConnectionRequest[]) {
   const [buyerTypeFilter, setBuyerTypeFilter] = useState<BuyerTypeFilter>('all');
   const [ndaFilter, setNdaFilter] = useState<NdaFilter>('all');
   const [feeAgreementFilter, setFeeAgreementFilter] = useState<FeeAgreementFilter>('all');
-  const [followUpFilter, setFollowUpFilter] = useState<FollowUpFilter>('all');
   const [sortOption, setSortOption] = useState<SortOption>('newest');
 
   // Buyer type priority mapping (higher number = higher priority)
@@ -71,16 +69,6 @@ export function usePipelineFilters(requests: AdminConnectionRequest[]) {
       });
     }
 
-    // Apply Follow-up filter
-    if (followUpFilter !== 'all') {
-      filtered = filtered.filter(request => {
-        switch (followUpFilter) {
-          case 'followed_up': return !!request.followed_up;
-          case 'not_followed_up': return !request.followed_up;
-          default: return true;
-        }
-      });
-    }
 
     // Apply sorting
     const sorted = [...filtered].sort((a, b) => {
@@ -130,21 +118,19 @@ export function usePipelineFilters(requests: AdminConnectionRequest[]) {
     });
 
     return sorted;
-  }, [requests, statusFilter, buyerTypeFilter, ndaFilter, feeAgreementFilter, followUpFilter, sortOption]);
+  }, [requests, statusFilter, buyerTypeFilter, ndaFilter, feeAgreementFilter, sortOption]);
 
   return {
     statusFilter,
     buyerTypeFilter,
     ndaFilter,
     feeAgreementFilter,
-    followUpFilter,
     sortOption,
     filteredAndSortedRequests,
     setStatusFilter,
     setBuyerTypeFilter,
     setNdaFilter,
     setFeeAgreementFilter,
-    setFollowUpFilter,
     setSortOption,
   };
 }
