@@ -51,18 +51,18 @@ export const useUpdateLeadNDAStatus = () => {
       await queryClient.cancelQueries({ queryKey: ['connection-requests'] });
       await queryClient.cancelQueries({ queryKey: ['deals'] });
       
-      const previousRequests = queryClient.getQueryData<any>(['connection-requests']);
-      const previousDeals = queryClient.getQueryData<any>(['deals']);
-      
-      queryClient.setQueryData(['connection-requests'], (old: any) => {
-        if (!old) return old;
-        return old.map((r: any) => r.id === requestId ? { ...r, lead_nda_signed: value, lead_nda_signed_at: value ? new Date().toISOString() : null } : r);
+      const previousRequests = queryClient.getQueryData<unknown>(['connection-requests']);
+      const previousDeals = queryClient.getQueryData<unknown>(['deals']);
+
+      queryClient.setQueryData(['connection-requests'], (old: unknown) => {
+        if (!Array.isArray(old)) return old;
+        return old.map((r: Record<string, unknown>) => r.id === requestId ? { ...r, lead_nda_signed: value, lead_nda_signed_at: value ? new Date().toISOString() : null } : r);
       });
-      
-      queryClient.setQueryData(['deals'], (old: any) => {
-        if (!old) return old;
-        return old.map((deal: any) => 
-          deal.connection_request_id === requestId 
+
+      queryClient.setQueryData(['deals'], (old: unknown) => {
+        if (!Array.isArray(old)) return old;
+        return old.map((deal: Record<string, unknown>) =>
+          deal.connection_request_id === requestId
             ? { ...deal, nda_status: value ? 'signed' : 'not_sent' }
             : deal
         );
@@ -137,18 +137,18 @@ export const useUpdateLeadNDAEmailStatus = () => {
       await queryClient.cancelQueries({ queryKey: ['connection-requests'] });
       await queryClient.cancelQueries({ queryKey: ['deals'] });
       
-      const previousRequests = queryClient.getQueryData<any>(['connection-requests']);
-      const previousDeals = queryClient.getQueryData<any>(['deals']);
-      
-      queryClient.setQueryData(['connection-requests'], (old: any) => {
-        if (!old) return old;
-        return old.map((r: any) => r.id === requestId ? { ...r, lead_nda_email_sent: value, lead_nda_email_sent_at: value ? new Date().toISOString() : null } : r);
+      const previousRequests = queryClient.getQueryData<unknown>(['connection-requests']);
+      const previousDeals = queryClient.getQueryData<unknown>(['deals']);
+
+      queryClient.setQueryData(['connection-requests'], (old: unknown) => {
+        if (!Array.isArray(old)) return old;
+        return old.map((r: Record<string, unknown>) => r.id === requestId ? { ...r, lead_nda_email_sent: value, lead_nda_email_sent_at: value ? new Date().toISOString() : null } : r);
       });
-      
-      queryClient.setQueryData(['deals'], (old: any) => {
-        if (!old) return old;
-        return old.map((deal: any) => 
-          deal.connection_request_id === requestId 
+
+      queryClient.setQueryData(['deals'], (old: unknown) => {
+        if (!Array.isArray(old)) return old;
+        return old.map((deal: Record<string, unknown>) =>
+          deal.connection_request_id === requestId
             ? { ...deal, nda_status: value ? 'sent' : 'not_sent' }
             : deal
         );
@@ -210,18 +210,18 @@ export const useUpdateLeadFeeAgreementStatus = () => {
       await queryClient.cancelQueries({ queryKey: ['connection-requests'] });
       await queryClient.cancelQueries({ queryKey: ['deals'] });
       
-      const previousRequests = queryClient.getQueryData<any>(['connection-requests']);
-      const previousDeals = queryClient.getQueryData<any>(['deals']);
-      
-      queryClient.setQueryData(['connection-requests'], (old: any) => {
-        if (!old) return old;
-        return old.map((r: any) => r.id === requestId ? { ...r, lead_fee_agreement_signed: value, lead_fee_agreement_signed_at: value ? new Date().toISOString() : null } : r);
+      const previousRequests = queryClient.getQueryData<unknown>(['connection-requests']);
+      const previousDeals = queryClient.getQueryData<unknown>(['deals']);
+
+      queryClient.setQueryData(['connection-requests'], (old: unknown) => {
+        if (!Array.isArray(old)) return old;
+        return old.map((r: Record<string, unknown>) => r.id === requestId ? { ...r, lead_fee_agreement_signed: value, lead_fee_agreement_signed_at: value ? new Date().toISOString() : null } : r);
       });
-      
-      queryClient.setQueryData(['deals'], (old: any) => {
-        if (!old) return old;
-        return old.map((deal: any) => 
-          deal.connection_request_id === requestId 
+
+      queryClient.setQueryData(['deals'], (old: unknown) => {
+        if (!Array.isArray(old)) return old;
+        return old.map((deal: Record<string, unknown>) =>
+          deal.connection_request_id === requestId
             ? { ...deal, fee_agreement_status: value ? 'signed' : 'not_sent' }
             : deal
         );
@@ -296,18 +296,18 @@ export const useUpdateLeadFeeAgreementEmailStatus = () => {
       await queryClient.cancelQueries({ queryKey: ['connection-requests'] });
       await queryClient.cancelQueries({ queryKey: ['deals'] });
       
-      const previousRequests = queryClient.getQueryData<any>(['connection-requests']);
-      const previousDeals = queryClient.getQueryData<any>(['deals']);
-      
-      queryClient.setQueryData(['connection-requests'], (old: any) => {
-        if (!old) return old;
-        return old.map((r: any) => r.id === requestId ? { ...r, lead_fee_agreement_email_sent: value, lead_fee_agreement_email_sent_at: value ? new Date().toISOString() : null } : r);
+      const previousRequests = queryClient.getQueryData<unknown>(['connection-requests']);
+      const previousDeals = queryClient.getQueryData<unknown>(['deals']);
+
+      queryClient.setQueryData(['connection-requests'], (old: unknown) => {
+        if (!Array.isArray(old)) return old;
+        return old.map((r: Record<string, unknown>) => r.id === requestId ? { ...r, lead_fee_agreement_email_sent: value, lead_fee_agreement_email_sent_at: value ? new Date().toISOString() : null } : r);
       });
-      
-      queryClient.setQueryData(['deals'], (old: any) => {
-        if (!old) return old;
-        return old.map((deal: any) => 
-          deal.connection_request_id === requestId 
+
+      queryClient.setQueryData(['deals'], (old: unknown) => {
+        if (!Array.isArray(old)) return old;
+        return old.map((deal: Record<string, unknown>) =>
+          deal.connection_request_id === requestId
             ? { ...deal, fee_agreement_status: value ? 'sent' : 'not_sent' }
             : deal
         );
