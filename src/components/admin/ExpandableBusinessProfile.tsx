@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { User } from "@/types/admin-users";
+import { User as BuyerMetricsUser } from "@/types";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -56,8 +57,8 @@ export const ExpandableBusinessProfile: React.FC<ExpandableBusinessProfileProps>
   const investmentSize = Array.isArray(user.investment_size) 
     ? user.investment_size.join(', ') 
     : user.investment_size?.replace(/\$/g, '').replace(/,/g, '') || '';
-  const primaryMetrics = getPrimaryMetrics(user as any);
-  const tierInfo = getBuyerTier(user as any);
+  const primaryMetrics = getPrimaryMetrics(user as unknown as BuyerMetricsUser);
+  const tierInfo = getBuyerTier(user as unknown as BuyerMetricsUser);
 
   return (
     <div className={className}>

@@ -20,7 +20,6 @@ export function useSimpleMarketplaceAnalytics(daysBack: number = 30) {
       });
 
       if (error) {
-        console.error('Error fetching simple analytics:', error);
         throw error;
       }
 

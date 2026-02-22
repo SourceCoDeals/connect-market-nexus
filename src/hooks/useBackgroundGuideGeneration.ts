@@ -70,7 +70,6 @@ export function useBackgroundGuideGeneration({
       }
     } catch (err) {
       // No existing generation, that's fine
-      console.log('No existing generation found');
     }
   };
 
@@ -113,7 +112,6 @@ export function useBackgroundGuideGeneration({
       startPolling(data.generation_id);
 
     } catch (error: any) {
-      console.error('Failed to start generation:', error);
       toast.error(error.message || 'Failed to start guide generation');
       setIsGenerating(false);
       if (onError) {
@@ -190,8 +188,6 @@ export function useBackgroundGuideGeneration({
   };
 
   const handleGenerationComplete = (generation: GenerationStatus) => {
-    console.log('Generation completed:', generation);
-
     if (pollIntervalRef.current) {
       clearInterval(pollIntervalRef.current);
       pollIntervalRef.current = null;
@@ -210,8 +206,6 @@ export function useBackgroundGuideGeneration({
   };
 
   const handleGenerationFailed = (generation: GenerationStatus) => {
-    console.error('Generation failed:', generation.error);
-
     if (pollIntervalRef.current) {
       clearInterval(pollIntervalRef.current);
       pollIntervalRef.current = null;

@@ -105,7 +105,6 @@ export function useBuyerEnrichment(universeId?: string) {
 
       return { successful: queued, failed: 0, creditsDepleted: false, summary };
     } catch (error) {
-      console.error('Failed to queue enrichment:', error);
       toast.error('Failed to queue enrichment');
       setProgress(prev => ({ ...prev, isRunning: false }));
       return { successful: 0, failed: enrichableBuyers.length, creditsDepleted: false };

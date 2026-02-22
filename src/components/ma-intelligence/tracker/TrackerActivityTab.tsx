@@ -140,7 +140,7 @@ export function TrackerActivityTab({ trackerId }: TrackerActivityTabProps) {
                 </SelectContent>
               </Select>
 
-              <Select value={dateRange} onValueChange={(value) => setDateRange(value as any)}>
+              <Select value={dateRange} onValueChange={(value) => setDateRange(value as 'today' | 'week' | 'month' | 'all')}>
                 <SelectTrigger className="w-[150px]">
                   <SelectValue placeholder="Time range" />
                 </SelectTrigger>

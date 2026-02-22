@@ -45,22 +45,22 @@ export default function MATrackers() {
   }, []);
 
   const loadTrackers = async () => {
-    const { data: trackersData } = await (supabase as any)
+    const { data: trackersData } = await supabase
       .from("industry_trackers")
       .select("*")
       .order("updated_at", { ascending: false });
 
     const withStats = await Promise.all(
-      (trackersData || []).map(async (tracker: any) => {
+      (trackersData || []).map(async (tracker) => {
         const buyersRes = await supabase.from("remarketing_buyers").select("id, data_completeness").eq("industry_tracker_id", tracker.id);
         const dealsRes = await supabase.from("deals").select("id").eq("listing_id", tracker.id);
-        const buyerIds = (buyersRes.data || []).map((b: any) => b.id);
+        const buyerIds = (buyersRes.data || []).map((b) => b.id);
         const transcriptsRes = buyerIds.length > 0
           ? await supabase.from("buyer_transcripts").select("buyer_id").in("buyer_id", buyerIds.slice(0, 100))
-          : { data: [] };
-        const buyers = (buyersRes.data || []) as any[];
+          : { data: [] as Array<{ buyer_id: string }> };
+        const buyers = buyersRes.data || [];
         const transcripts = transcriptsRes.data || [];
-        const buyerIdsWithTranscripts = new Set(transcripts.map((t: any) => t.buyer_id));
+        const buyerIdsWithTranscripts = new Set(transcripts.map((t) => t.buyer_id));
         
         // Count enriched buyers (high or medium data_completeness)
         const enrichedCount = buyers.filter(b => 
@@ -72,7 +72,7 @@ export default function MATrackers() {
         
         return {
           id: tracker.id,
-          industry_name: tracker.name || tracker.industry_name || 'Unknown',
+          industry_name: tracker.name || 'Unknown',
           archived: !tracker.is_active,
           updated_at: tracker.updated_at,
           buyer_count: buyers.length,
@@ -89,7 +89,7 @@ export default function MATrackers() {
   const handleArchiveToggle = async (e: React.MouseEvent, tracker: TrackerWithStats) => {
     e.stopPropagation();
     // Use is_active (inverted) since is_archived doesn't exist in schema
-    const { error } = await (supabase as any)
+    const { error } = await supabase
       .from("industry_trackers")
       .update({ is_active: tracker.archived }) // If archived, set active; if active, set inactive
       .eq("id", tracker.id);

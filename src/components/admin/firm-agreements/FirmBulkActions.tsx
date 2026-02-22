@@ -48,8 +48,6 @@ export function FirmBulkActions({ firmId, firmName, memberCount }: FirmBulkActio
         });
       }
 
-      console.log(`✅ Logged ${type.toUpperCase()} email action for ${recipientEmails.length} recipients at ${new Date().toISOString()}`);
-      
       return adminProfile;
     } catch (error) {
       console.error('Error logging email action:', error);

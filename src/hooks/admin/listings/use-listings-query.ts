@@ -50,7 +50,6 @@ export function useListingsQuery(status?: 'active' | 'inactive' | 'all', enabled
           const { data, error } = await query.order('created_at', { ascending: false });
 
           if (error) {
-            console.error('❌ Supabase error fetching admin listings:', error);
             throw error;
           }
           
@@ -63,7 +62,6 @@ export function useListingsQuery(status?: 'active' | 'inactive' | 'all', enabled
           
           return mappedData as AdminListing[];
         } catch (error: any) {
-          console.error('💥 Error fetching admin listings:', error);
           toast({
             variant: 'destructive',
             title: 'Error fetching listings',

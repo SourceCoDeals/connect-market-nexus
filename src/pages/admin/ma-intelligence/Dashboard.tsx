@@ -35,7 +35,7 @@ export default function MADashboard() {
   const loadDashboardData = async () => {
     setIsLoading(true);
     try {
-      const { data: trackersData, error: trackersError } = await (supabase as any)
+      const { data: trackersData, error: trackersError } = await supabase
         .from("industry_trackers")
         .select("*")
         .eq("is_active", true)
@@ -44,18 +44,18 @@ export default function MADashboard() {
       if (trackersError) throw trackersError;
 
       const trackersWithStats: TrackerWithStats[] = await Promise.all(
-        (trackersData || []).map(async (tracker: any) => {
+        (trackersData || []).map(async (tracker) => {
           // Get buyer IDs first, then filter transcripts to only those buyers
           const buyersResult = await supabase.from("remarketing_buyers").select("id, data_completeness").eq("industry_tracker_id", tracker.id);
           const dealsResult = await supabase.from("deals").select("id").eq("listing_id", tracker.id);
-          const buyerIds = (buyersResult.data || []).map((b: any) => b.id);
+          const buyerIds = (buyersResult.data || []).map((b) => b.id);
           const transcriptsResult = buyerIds.length > 0
             ? await supabase.from("buyer_transcripts").select("buyer_id").in("buyer_id", buyerIds.slice(0, 100))
-            : { data: [] };
+            : { data: [] as Array<{ buyer_id: string }> };
 
-          const buyers = (buyersResult.data || []) as any[];
+          const buyers = buyersResult.data || [];
           const transcripts = transcriptsResult.data || [];
-          const buyerIdsWithTranscripts = new Set(transcripts.map((t: any) => t.buyer_id));
+          const buyerIdsWithTranscripts = new Set(transcripts.map((t) => t.buyer_id));
           
           // Count enriched buyers (high or medium data_completeness)
           const enrichedCount = buyers.filter(b => 
@@ -67,7 +67,7 @@ export default function MADashboard() {
 
           return {
             id: tracker.id,
-            industry_name: tracker.name || tracker.industry_name || 'Unknown',
+            industry_name: tracker.name || 'Unknown',
             buyer_count: buyers.length,
             deal_count: dealsResult.data?.length || 0,
             enriched_count: enrichedCount,

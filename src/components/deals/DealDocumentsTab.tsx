@@ -294,7 +294,7 @@ export function DealDocumentsTab({ requestId, requestStatus, dealId }: DealDocum
                   />
                 ) : (
                   <div className="space-y-2">
-                    {((memo.content as any)?.sections || []).map((section: any, i: number) => (
+                    {((memo.content as { sections?: Array<{ title: string; content: string }> } | null)?.sections || []).map((section: { title: string; content: string }, i: number) => (
                       <div key={i}>
                         <h4 className="font-medium text-xs text-slate-900 mb-0.5">{section.title}</h4>
                         <p className="text-xs text-slate-600 whitespace-pre-wrap">{section.content}</p>

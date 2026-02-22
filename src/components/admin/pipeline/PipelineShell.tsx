@@ -81,18 +81,12 @@ export function PipelineShell() {
   React.useEffect(() => {
     const handleOpenDealFromNotification = (event: CustomEvent) => {
       const { dealId, tab } = event.detail;
-      console.log('[PipelineShell] Opening deal from notification:', { dealId, tab });
-      
       if (dealId) {
         // Find the deal
         const deal = pipeline.deals.find(d => d.deal_id === dealId);
         if (deal) {
           pipeline.setSelectedDeal(deal);
           
-          // If tab is specified, set it in the detail panel (via URL params handled by detail panel)
-          if (tab) {
-            console.log('[PipelineShell] Tab specified:', tab);
-          }
         } else {
           console.warn('[PipelineShell] Deal not found:', dealId);
         }
@@ -116,7 +110,6 @@ export function PipelineShell() {
     const tab = urlParams.get('tab');
     
     if (dealId && pipeline.deals.length > 0) {
-      console.log('[PipelineShell] Opening deal from URL params:', { dealId, tab });
       const deal = pipeline.deals.find(d => d.deal_id === dealId);
       if (deal) {
         pipeline.setSelectedDeal(deal);
@@ -125,7 +118,6 @@ export function PipelineShell() {
         hasProcessedUrlParams.current = true;
         const newUrl = window.location.pathname;
         window.history.replaceState(null, '', newUrl);
-        console.log('[PipelineShell] Cleared URL params to prevent re-processing');
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps

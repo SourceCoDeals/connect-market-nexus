@@ -533,14 +533,12 @@ export function UsersTable({
         for (const file of emailData.attachments) {
           // Enhanced validation - stricter size limit and type checking
           if (file.size > 10 * 1024 * 1024) { // 10MB limit for safety
-            console.warn(`📎 File ${file.name} exceeds 10MB limit (${Math.round(file.size / 1024 / 1024)}MB), skipping`);
             alert(`File "${file.name}" is too large. Please use files under 10MB.`);
             continue;
           }
 
           // Validate file type - only allow PDFs
           if (!file.type.includes('pdf') && !file.name.toLowerCase().endsWith('.pdf')) {
-            console.warn(`📎 File ${file.name} is not a PDF (${file.type}), skipping`);
             alert(`File "${file.name}" must be a PDF document.`);
             continue;
           }
@@ -577,7 +575,6 @@ export function UsersTable({
             
             // File processed successfully
           } catch (attachError) {
-            console.error(`❌ Error processing attachment ${file.name}:`, attachError);
             alert(`Failed to process "${file.name}". Please try again or use a different file.`);
           }
         }
@@ -603,7 +600,6 @@ export function UsersTable({
       });
 
       if (emailError) {
-        console.error('Edge function error:', emailError);
         const errorMessage = emailError.message || 'Failed to send email';
         toast({
           title: "Email Failed",
@@ -614,7 +610,6 @@ export function UsersTable({
       }
 
       if (!emailResult?.success) {
-        console.error('Email sending failed:', emailResult);
         const errorMessage = emailResult?.error || 'Email sending failed';
         toast({
           title: "Email Failed", 
@@ -633,7 +628,6 @@ export function UsersTable({
       // Edge function handles all logging - no additional logging needed
       // Fee agreement email sent successfully
     } catch (error) {
-      console.error('❌ Fee agreement email error:', error);
       throw error;
     }
   };
@@ -694,7 +688,7 @@ export function UsersTable({
                       {!isLoadingRoles && (() => {
                         const role = getUserRole(user.id);
                         // Fallback to legacy profile flag while migrating
-                        const effectiveRole: AppRole = role === 'user' && (user as any)?.is_admin === true ? 'admin' : role;
+                        const effectiveRole: AppRole = role === 'user' && user?.is_admin === true ? 'admin' : role;
                         // Map 'owner' to 'admin' for display
                         const displayRole = effectiveRole === 'owner' ? 'admin' : effectiveRole;
                         

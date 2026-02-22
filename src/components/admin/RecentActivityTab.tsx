@@ -34,7 +34,7 @@ export function RecentActivityTab() {
     }
   };
 
-  const getActivityBadgeColor = (type: string) => {
+  const getActivityBadgeColor = (type: string): "default" | "secondary" | "destructive" | "outline" => {
     switch (type) {
       case 'signup': return 'default';
       case 'listing_view': return 'secondary';
@@ -162,7 +162,7 @@ export function RecentActivityTab() {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1">
                       <p className="font-medium text-sm truncate">{activity.user_name}</p>
-                      <Badge variant={getActivityBadgeColor(activity.activity_type) as any} className="text-xs">
+                      <Badge variant={getActivityBadgeColor(activity.activity_type)} className="text-xs">
                         {activity.activity_type.replace('_', ' ')}
                       </Badge>
                     </div>

@@ -973,7 +973,6 @@ export function DealTranscriptSection({ dealId, transcripts, isLoading, dealInfo
         setFirefliesSearchInfo(`Found ${newResults.length} transcript${newResults.length !== 1 ? 's' : ''}${isCompanyDomain ? ` with @${domain} contacts` : ''}`);
       }
     } catch (err) {
-      console.error('Fireflies search error:', err);
       toast.error('Failed to search Fireflies');
       setFirefliesSearchInfo('');
     } finally {
@@ -1042,7 +1041,6 @@ export function DealTranscriptSection({ dealId, transcripts, isLoading, dealInfo
       setSelectedFirefliesIds(new Set());
 
     } catch (err) {
-      console.error('Fireflies import error:', err);
       toast.error('Failed to import transcripts', { id: toastId });
     } finally {
       setFirefliesImporting(false);

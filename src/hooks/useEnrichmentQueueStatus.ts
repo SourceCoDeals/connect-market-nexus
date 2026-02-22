@@ -42,7 +42,6 @@ export function useEnrichmentQueueStatus({
     const poll = async () => {
       // Stop after max duration
       if (startedAtRef.current && Date.now() - startedAtRef.current > MAX_POLL_DURATION_MS) {
-        console.log('[EnrichmentQueueStatus] Max poll duration reached, stopping');
         stopPolling();
         return;
       }

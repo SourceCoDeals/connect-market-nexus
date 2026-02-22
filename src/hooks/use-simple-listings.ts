@@ -5,8 +5,6 @@ import { Listing, ListingStatus } from '@/types';
 import { expandLocations } from '@/lib/location-hierarchy';
 
 async function fetchListings(state: PaginationState) {
-  console.log('🔍 Fetching listings for state:', state);
-
   // Explicit buyer-safe column list — excludes internal admin fields
   const BUYER_VISIBLE_COLUMNS = [
     'id', 'title', 'description', 'description_html', 'hero_description',
@@ -62,7 +60,6 @@ async function fetchListings(state: PaginationState) {
 
   // Apply pagination
   const offset = (state.page - 1) * state.perPage;
-  console.log('📊 Pagination:', { page: state.page, perPage: state.perPage, offset });
   query = query.range(offset, offset + state.perPage - 1);
 
   // Order by creation date
@@ -74,9 +71,13 @@ async function fetchListings(state: PaginationState) {
     throw error;
   }
 
-  // Cast to any first because the Supabase TS types can't infer column types
+  // Cast through unknown because the Supabase TS types can't infer column types
   // from a runtime string column list — the explicit allowlist is enforced above.
-  const listings: Listing[] = ((data || []) as any[]).map((listing: any) => ({
+  type ListingRow = Record<string, unknown> & {
+    status: string; metric_3_type: string | null; owner_notes: string | null;
+    created_at: string; updated_at: string; revenue: number; ebitda: number;
+  };
+  const listings: Listing[] = ((data || []) as unknown as ListingRow[]).map((listing) => ({
     ...listing,
     status: listing.status as ListingStatus,
     metric_3_type: (listing.metric_3_type as 'employees' | 'custom') || 'employees',
@@ -90,8 +91,6 @@ async function fetchListings(state: PaginationState) {
       value: listing.ebitda > 0 ? (listing.revenue / listing.ebitda).toFixed(1) : 'N/A',
     },
   }));
-
-  console.log('✅ Fetched listings:', { count: listings.length, totalItems: count });
 
   return {
     listings,
@@ -120,12 +119,9 @@ async function fetchMetadata() {
 }
 
 export function useSimpleListings(state: PaginationState) {
-  console.log('🎯 [LISTINGS] Hook called with state:', state);
-  
   return useQuery({
     queryKey: ['simple-listings', state.page, state.perPage, state.search, state.category, state.location, state.revenueMin, state.revenueMax, state.ebitdaMin, state.ebitdaMax],
     queryFn: () => {
-      console.log('📡 [LISTINGS] Fetching data for state:', state);
       console.time('listings-fetch');
       return fetchListings(state).finally(() => {
         console.timeEnd('listings-fetch');

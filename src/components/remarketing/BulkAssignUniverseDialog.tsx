@@ -103,7 +103,6 @@ export function BulkAssignUniverseDialog({
       onOpenChange(false);
       onComplete();
     } catch (err) {
-      console.error("Bulk assign error:", err);
       toast.error("Failed to assign deals to universe");
     } finally {
       setIsAssigning(false);

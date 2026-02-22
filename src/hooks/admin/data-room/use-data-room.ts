@@ -55,10 +55,10 @@ export interface LeadMemo {
   deal_id: string;
   memo_type: 'anonymous_teaser' | 'full_memo';
   branding: string;
-  content: any;
+  content: Record<string, unknown>;
   html_content: string | null;
   status: 'draft' | 'published' | 'archived';
-  generated_from: any;
+  generated_from: Record<string, unknown> | null;
   version: number;
   pdf_storage_path: string | null;
   published_at: string | null;
@@ -86,7 +86,7 @@ export interface AuditLogEntry {
   document_id: string | null;
   user_id: string;
   action: string;
-  metadata: any;
+  metadata: Record<string, unknown> | null;
   ip_address: string | null;
   user_agent: string | null;
   created_at: string;
@@ -245,7 +245,7 @@ export function useUpdateAccess() {
       if (response.error) throw new Error(response.error.message);
 
       // Check for fee agreement warning
-      const data = response.data as any;
+      const data = response.data as Record<string, unknown> | null;
       if (data?.error === 'fee_agreement_required') {
         throw new Error('FEE_AGREEMENT_REQUIRED');
       }
@@ -394,7 +394,7 @@ export function useUpdateMemo() {
   return useMutation({
     mutationFn: async ({ memoId, content, htmlContent, dealId }: {
       memoId: string;
-      content: any;
+      content: Record<string, unknown>;
       htmlContent: string;
       dealId: string;
     }) => {

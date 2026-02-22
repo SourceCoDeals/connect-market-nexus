@@ -134,7 +134,7 @@ export function AccessMatrixPanel({ dealId, projectName }: AccessMatrixPanelProp
         display_name: b.company_name || b.pe_firm_name || 'Unknown',
         subtitle: b.email_domain || null,
         buyer_type: b.buyer_type,
-        has_fee_agreement: !!(b.firm_agreement as any)?.fee_agreement_signed,
+        has_fee_agreement: !!(b.firm_agreement as { fee_agreement_signed?: boolean } | null)?.fee_agreement_signed,
         entry_type: 'firm' as const,
       }));
 

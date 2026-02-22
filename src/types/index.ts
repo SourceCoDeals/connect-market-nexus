@@ -215,7 +215,16 @@ export interface Listing {
   revenue_metric_subtitle?: string | null;
   ebitda_metric_subtitle?: string | null;
   presented_by_admin_id?: string | null;
-  
+
+  // Seller/deal context fields
+  ownership_structure?: string | null;
+  management_depth?: string | null;
+  seller_motivation?: string | null;
+  timeline_preference?: string | null;
+  seller_involvement_preference?: string | null;
+  cash_flow?: number | null;
+  custom_sections?: Array<{ title: string; description: string }> | null;
+
   // Computed properties (aliases for snake_case properties)
   readonly ownerNotes: string;
   readonly createdAt: string;

@@ -15,14 +15,12 @@ export function useDeleteListing() {
       try {
         // Soft deleting listing
         
-        // Use the soft delete function that was created in the migration
-        // Type assertion to work around the types not being updated yet
-        const { data, error } = await supabase.rpc('soft_delete_listing' as any, {
+        // Use the soft delete function
+        const { data, error } = await supabase.rpc('soft_delete_listing', {
           listing_id: id
         });
         
         if (error) {
-          console.error('Error soft deleting listing:', error);
           throw error;
         }
         
@@ -40,8 +38,7 @@ export function useDeleteListing() {
         }
         
         return id;
-      } catch (error: any) {
-        console.error('Error deleting listing:', error);
+      } catch (error: unknown) {
         throw error;
       }
     },
@@ -49,13 +46,13 @@ export function useDeleteListing() {
       queryClient.invalidateQueries({ queryKey: ['admin-listings'] });
       queryClient.invalidateQueries({ queryKey: ['listings'] });
       queryClient.invalidateQueries({ queryKey: ['listing', id] });
-      
+
       toast({
         title: 'Listing Deleted',
         description: 'The listing has been safely archived and removed from public view.',
       });
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({
         variant: 'destructive',
         title: 'Error Deleting Listing',

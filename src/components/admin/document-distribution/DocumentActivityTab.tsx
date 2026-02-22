@@ -105,7 +105,7 @@ export function DocumentActivityTab({ dealId }: DocumentActivityTabProps) {
       {/* Controls */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <Select value={filterBy} onValueChange={v => { setFilterBy(v as any); setFilterValue(''); }}>
+          <Select value={filterBy} onValueChange={v => { setFilterBy(v as 'all' | 'buyer' | 'document'); setFilterValue(''); }}>
             <SelectTrigger className="w-32 h-8 text-sm">
               <Filter className="h-3 w-3 mr-1" />
               <SelectValue />

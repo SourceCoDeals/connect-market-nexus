@@ -99,7 +99,6 @@ export const FirefliesTranscriptSearch = ({
       );
 
       if (error) {
-        console.error("Search error:", error);
         throw error;
       }
 
@@ -115,7 +114,6 @@ export const FirefliesTranscriptSearch = ({
       }
 
     } catch (error) {
-      console.error("Search error:", error);
       toast.error(
         error instanceof Error
           ? `Search failed: ${error.message}`
@@ -150,7 +148,6 @@ export const FirefliesTranscriptSearch = ({
         if (error.code === '23505') { // Unique constraint violation
           toast.info("This transcript is already linked to this buyer");
         } else {
-          console.error("Link error:", error);
           throw error;
         }
       } else {
@@ -174,7 +171,6 @@ export const FirefliesTranscriptSearch = ({
       }
 
     } catch (error) {
-      console.error("Link error:", error);
       toast.error(
         error instanceof Error
           ? `Failed to link: ${error.message}`

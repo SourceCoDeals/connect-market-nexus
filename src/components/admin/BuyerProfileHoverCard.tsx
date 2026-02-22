@@ -1,5 +1,6 @@
 import React from "react";
 import { User } from "@/types/admin-users";
+import { User as BuyerMetricsUser } from "@/types";
 import {
   HoverCard,
   HoverCardContent,
@@ -63,7 +64,7 @@ const CredibilityIndicators: React.FC<{ user: User }> = ({ user }) => {
   const emailStatus = getEmailDomainStatus(user.email);
   const hasLinkedIn = !!user.linkedin_profile;
   const hasWebsite = !!user.website;
-  const completionDetails = getProfileCompletionDetails(user as any);
+  const completionDetails = getProfileCompletionDetails(user as unknown as BuyerMetricsUser);
   const dataCompleteness = completionDetails.percentage;
   
   return (
@@ -105,12 +106,12 @@ export const BuyerProfileHoverCard: React.FC<BuyerProfileHoverCardProps> = ({
     return <>{children}</>;
   }
 
-  const tierInfo = getBuyerTier(user as any); // Type conversion for buyer-metrics compatibility
+  const tierInfo = getBuyerTier(user as unknown as BuyerMetricsUser);
   const investmentSize = Array.isArray(user.investment_size) 
     ? user.investment_size.join(', ') 
     : formatInvestmentSize(user.investment_size);
   const revenueRange = formatFinancialRange(user.revenue_range_min, user.revenue_range_max);
-  const primaryMetrics = getPrimaryMetrics(user as any);
+  const primaryMetrics = getPrimaryMetrics(user as unknown as BuyerMetricsUser);
   
   // Truncate description for hover preview
   const truncateText = (text: string, maxLength = 200) => {

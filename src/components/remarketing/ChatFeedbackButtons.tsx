@@ -74,7 +74,7 @@ export function ChatFeedbackButtons({
       conversationId,
       messageIndex,
       rating,
-      issueType: issueType as any,
+      issueType: issueType as 'incorrect' | 'incomplete' | 'hallucination' | 'poor_formatting' | 'missing_data' | 'slow_response' | 'other',
       feedbackText: feedbackText.trim() || undefined,
     });
 

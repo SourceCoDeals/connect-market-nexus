@@ -64,7 +64,7 @@ export function usePerformanceMetrics(): PerformanceMetrics {
         // Estimate network speed based on connection API
         let networkSpeed: 'slow' | 'medium' | 'fast' = 'medium';
         if ('connection' in navigator) {
-          const connection = (navigator as any).connection;
+          const connection = (navigator as Navigator & { connection?: { effectiveType?: string } }).connection;
           if (connection) {
             const effectiveType = connection.effectiveType;
             if (effectiveType === 'slow-2g' || effectiveType === '2g') {

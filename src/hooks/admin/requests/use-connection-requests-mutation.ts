@@ -107,7 +107,6 @@ export function useConnectionRequestsMutation() {
         
         return fullRequestData;
       } catch (error: any) {
-        console.error("Error updating connection request:", error);
         throw error;
       }
     },

@@ -1,6 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-const sb = supabase as any;
 import { toast } from '@/hooks/use-toast';
 
 export interface InboundLead {
@@ -63,7 +62,7 @@ export function useInboundLeadsQuery() {
   return useQuery<InboundLead[]>({
     queryKey: ['inbound-leads'],
     queryFn: async () => {
-      const { data, error } = await sb
+      const { data, error } = await supabase
         .from('inbound_leads')
         .select('*')
         .order('created_at', { ascending: false });
@@ -149,7 +148,7 @@ const calculateLeadScore = (lead: Partial<CreateInboundLeadData>): number => {
 export function useCheckDuplicates() {
   return async (leadEmail: string, leadCompany: string, listingId: string): Promise<DuplicateCheckResult> => {
     try {
-      const { data: existingRequests, error } = await sb
+      const { data: existingRequests, error } = await supabase
         .from('connection_requests')
         .select(`
           id,
@@ -167,7 +166,7 @@ export function useCheckDuplicates() {
       const sameFirmRequests = [];
 
       for (const request of existingRequests || []) {
-        const profile = (request as any).profiles;
+        const profile = (request as Record<string, unknown>).profiles as { email: string; company: string | null };
         
         // Check for exact email match (case-insensitive)
         if (profile.email && profile.email.toLowerCase() === leadEmail.toLowerCase()) {
@@ -203,7 +202,6 @@ export function useCheckDuplicates() {
       };
       
     } catch (error) {
-      console.error('Error checking duplicates:', error);
       return { hasDuplicates: false };
     }
   };
@@ -218,7 +216,7 @@ export function useCreateInboundLead() {
       // Calculate enhanced priority score
       const priority_score = calculateLeadScore(leadData);
       
-      const { data, error } = await sb
+      const { data, error } = await supabase
         .from('inbound_leads')
         .insert([{ ...leadData, priority_score }])
         .select()
@@ -235,7 +233,6 @@ export function useCreateInboundLead() {
       });
     },
     onError: (error) => {
-      console.error('Error creating inbound lead:', error);
       toast({
         variant: "destructive",
         title: "Failed to create lead",
@@ -253,12 +250,12 @@ export function useMapLeadToListing() {
   return useMutation({
     mutationFn: async ({ leadId, listingId, listingTitle, skipDuplicateCheck = false }: MapLeadToListingData & { skipDuplicateCheck?: boolean }) => {
       // Get current admin user ID
-      const { data: { user }, error: authError } = await sb.auth.getUser();
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
       if (authError || !user) throw new Error('Authentication required');
 
       // Get lead data for duplicate checking
       if (!skipDuplicateCheck) {
-        const { data: leadData, error: leadError } = await sb
+        const { data: leadData, error: leadError } = await supabase
           .from('inbound_leads')
           .select('email, company_name')
           .eq('id', leadId)
@@ -274,7 +271,7 @@ export function useMapLeadToListing() {
         }
       }
 
-      const { data, error } = await sb
+      const { data, error } = await supabase
         .from('inbound_leads')
         .update({
           mapped_to_listing_id: listingId,
@@ -299,7 +296,6 @@ export function useMapLeadToListing() {
       });
     },
     onError: (error) => {
-      console.error('Error mapping lead to listing:', error);
       toast({
         variant: "destructive",
         title: "Failed to map lead",
@@ -316,7 +312,7 @@ export function useConvertLeadToRequest() {
   return useMutation({
     mutationFn: async (leadId: string) => {
       // Get the lead to extract the listing ID
-      const { data: lead, error: leadError } = await sb
+      const { data: lead, error: leadError } = await supabase
         .from('inbound_leads')
         .select('mapped_to_listing_id')
         .eq('id', leadId)
@@ -327,7 +323,7 @@ export function useConvertLeadToRequest() {
       }
 
       // Use the new RPC function to handle conversion and merging
-      const { data: requestId, error } = await sb.rpc('convert_inbound_lead_to_request', {
+      const { data: requestId, error } = await supabase.rpc('convert_inbound_lead_to_request', {
         p_lead_id: leadId,
         p_listing_id: lead.mapped_to_listing_id
       });
@@ -345,11 +341,10 @@ export function useConvertLeadToRequest() {
       });
     },
     onError: (error) => {
-      console.error('[ConvertLeadToRequest] Error:', error);
       toast({
         variant: 'destructive',
         title: 'Failed to convert lead',
-        description: (error as any)?.message || 'Could not convert the lead to connection request',
+        description: error instanceof Error ? error.message : 'Could not convert the lead to connection request',
       });
     },
   });
@@ -361,7 +356,7 @@ export function useArchiveInboundLead() {
 
   return useMutation({
     mutationFn: async (leadId: string) => {
-      const { data, error } = await sb
+      const { data, error } = await supabase
         .from('inbound_leads')
         .update({
           status: 'archived',
@@ -382,7 +377,6 @@ export function useArchiveInboundLead() {
       });
     },
     onError: (error) => {
-      console.error('Error archiving lead:', error);
       toast({
         variant: "destructive",
         title: "Failed to archive lead",

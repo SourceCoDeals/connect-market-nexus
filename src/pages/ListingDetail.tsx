@@ -6,6 +6,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useAnalytics } from "@/context/AnalyticsContext";
 import { useClickTracking } from "@/hooks/use-click-tracking";
 import { supabase } from "@/integrations/supabase/client";
+import type { Json } from "@/integrations/supabase/types";
 import { useSessionContext } from "@/contexts/SessionContext";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -105,11 +106,10 @@ const ListingDetail = () => {
           user_id: user?.id || null,
           session_id: sessionId,
           action_type: 'view',
-          clicked_elements: clickData as any,
+          clicked_elements: clickData as Json,
         }]);
-        console.log('📊 Flushed click data for listing:', id, clickData);
       } catch (error) {
-        console.error('Failed to flush click data:', error);
+        // silently fail - non-critical analytics
       }
     };
 
@@ -293,7 +293,7 @@ const ListingDetail = () => {
             </div>
 
             {/* Ownership Structure */}
-            {((listing as any).ownership_structure || (listing as any).seller_motivation) && (
+            {(listing.ownership_structure || listing.seller_motivation) && (
               <div className="document-section py-8 border-t border-slate-100">
                 <div className="space-y-5">
                   <h2 className="text-sm font-medium leading-5 mb-4">Ownership & Transaction Overview</h2>
@@ -309,23 +309,23 @@ const ListingDetail = () => {
                         <div>
                           <h4 className="text-base font-semibold text-slate-900 mb-2">Current Ownership Structure</h4>
                           <p className="document-subtitle">
-                            {(listing as any).ownership_structure === 'individual' && 'Individual founder-owner operating the business with full control and deep operational knowledge.'}
-                            {(listing as any).ownership_structure === 'family' && 'Family-owned enterprise with established governance and multi-generational involvement.'}
-                            {(listing as any).ownership_structure === 'corporate' && 'Corporate-owned subsidiary with professional management structure and reporting protocols.'}
-                            {(listing as any).ownership_structure === 'private_equity' && 'Private equity-backed company with institutional ownership and growth capital experience.'}
-                            {!(listing as any).ownership_structure && 'Established business ownership with proven operational track record.'}
+                            {listing.ownership_structure === 'individual' && 'Individual founder-owner operating the business with full control and deep operational knowledge.'}
+                            {listing.ownership_structure === 'family' && 'Family-owned enterprise with established governance and multi-generational involvement.'}
+                            {listing.ownership_structure === 'corporate' && 'Corporate-owned subsidiary with professional management structure and reporting protocols.'}
+                            {listing.ownership_structure === 'private_equity' && 'Private equity-backed company with institutional ownership and growth capital experience.'}
+                            {!listing.ownership_structure && 'Established business ownership with proven operational track record.'}
                           </p>
                         </div>
                         
-                        {(listing as any).seller_motivation && (
+                        {listing.seller_motivation && (
                           <div>
                             <h4 className="text-base font-semibold text-slate-900 mb-2">Transaction Motivation</h4>
                             <p className="document-subtitle">
-                              Owner is seeking a {(listing as any).seller_motivation === 'retirement' && 'retirement-focused exit with comprehensive succession planning and knowledge transfer'}
-                              {(listing as any).seller_motivation === 'succession' && 'strategic succession partnership ensuring long-term business continuity and growth'}
-                              {(listing as any).seller_motivation === 'growth_capital' && 'growth capital partnership while maintaining significant ownership and operational control'}
-                              {(listing as any).seller_motivation === 'liquidity_event' && 'partial liquidity event while retaining operational involvement and upside participation'}
-                              {!(listing as any).seller_motivation && 'strategic partnership to accelerate growth and market expansion'}.
+                              Owner is seeking a {listing.seller_motivation === 'retirement' && 'retirement-focused exit with comprehensive succession planning and knowledge transfer'}
+                              {listing.seller_motivation === 'succession' && 'strategic succession partnership ensuring long-term business continuity and growth'}
+                              {listing.seller_motivation === 'growth_capital' && 'growth capital partnership while maintaining significant ownership and operational control'}
+                              {listing.seller_motivation === 'liquidity_event' && 'partial liquidity event while retaining operational involvement and upside participation'}
+                              {!listing.seller_motivation && 'strategic partnership to accelerate growth and market expansion'}.
                             </p>
                           </div>
                         )}
@@ -337,26 +337,26 @@ const ListingDetail = () => {
             )}
 
             {/* Transaction Preferences */}
-            {((listing as any).seller_motivation || (listing as any).timeline_preference || (listing as any).seller_involvement_preference) && (
+            {(listing.seller_motivation || listing.timeline_preference || listing.seller_involvement_preference) && (
               <div className="document-section py-8 border-t border-slate-100">
                 <div className="space-y-4">
                   <span className="document-label">Transaction Preferences</span>
-                  {(listing as any).seller_motivation && (
+                  {listing.seller_motivation && (
                     <div className="space-y-2">
                       <span className="text-xs text-slate-500 uppercase tracking-wider">Seller Motivation</span>
-                      <p className="document-subtitle">{(listing as any).seller_motivation}</p>
+                      <p className="document-subtitle">{listing.seller_motivation}</p>
                     </div>
                   )}
-                  {(listing as any).timeline_preference && (
+                  {listing.timeline_preference && (
                     <div className="space-y-2">
                       <span className="text-xs text-slate-500 uppercase tracking-wider">Timeline Preference</span>
-                      <p className="document-subtitle">{(listing as any).timeline_preference}</p>
+                      <p className="document-subtitle">{listing.timeline_preference}</p>
                     </div>
                   )}
-                  {(listing as any).seller_involvement_preference && (
+                  {listing.seller_involvement_preference && (
                     <div className="space-y-2">
                       <span className="text-xs text-slate-500 uppercase tracking-wider">Post-Sale Role</span>
-                      <p className="document-subtitle">{(listing as any).seller_involvement_preference}</p>
+                      <p className="document-subtitle">{listing.seller_involvement_preference}</p>
                     </div>
                   )}
                 </div>
@@ -367,10 +367,10 @@ const ListingDetail = () => {
           {listing && <SimilarListingsCarousel currentListing={listing} />}
 
           {/* Custom Sections */}
-            {(listing as any).custom_sections && Array.isArray((listing as any).custom_sections) && (listing as any).custom_sections.length > 0 && (
+            {listing.custom_sections && Array.isArray(listing.custom_sections) && listing.custom_sections.length > 0 && (
               <div className="document-section py-8 border-t border-slate-100">
                 <div className="space-y-6">
-                  {(listing as any).custom_sections.map((section: any, index: number) => (
+                  {listing.custom_sections.map((section: { title: string; description: string }, index: number) => (
                     <CustomSection key={index} section={section} />
                   ))}
                 </div>
@@ -472,7 +472,7 @@ const ListingDetail = () => {
 
                 {/* Deal Advisor Card */}
                 <DealAdvisorCard
-                  presentedByAdminId={(listing as any).presented_by_admin_id}
+                  presentedByAdminId={listing.presented_by_admin_id}
                   listingId={id!}
                 />
                 

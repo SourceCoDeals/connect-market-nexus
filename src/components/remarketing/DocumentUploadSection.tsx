@@ -108,7 +108,6 @@ export const DocumentUploadSection = ({
         toast.success(`${newDocuments.length} document(s) uploaded`);
       }
     } catch (error) {
-      console.error('Upload error:', error);
       toast.error('Failed to upload document');
     } finally {
       setIsUploading(false);
@@ -124,7 +123,7 @@ export const DocumentUploadSection = ({
   };
 
   const handleEnrichFromDocuments = async () => {
-    const enrichableDocs = documents.filter(d => (d as any).type !== 'ma_guide');
+    const enrichableDocs = documents.filter(d => d.type !== 'ma_guide');
     if (enrichableDocs.length === 0) {
       toast.error('No documents to enrich from');
       return;
@@ -159,8 +158,8 @@ export const DocumentUploadSection = ({
       try {
         // Resolve the actual storage path — priority: path field > url extraction > fallback
         let storagePath: string;
-        if ((doc as any).path) {
-          storagePath = (doc as any).path;
+        if (doc.path) {
+          storagePath = doc.path;
         } else if (doc.url) {
           const urlParts = doc.url.split('/universe-documents/');
           storagePath = urlParts.length > 1 ? decodeURIComponent(urlParts[1]) : doc.url;
@@ -168,15 +167,12 @@ export const DocumentUploadSection = ({
           storagePath = `${universeId}/${doc.name}`;
         }
 
-        console.log(`[ENRICH] Doc "${doc.name}" → storage path: "${storagePath}"`);
-
         // Pre-check: verify the file actually exists in storage before calling the edge function
         const { data: headData, error: headError } = await supabase.storage
           .from('universe-documents')
           .download(storagePath);
 
         if (headError || !headData) {
-          console.warn(`[ENRICH] File not found in storage: "${storagePath}" — skipping. Error:`, headError);
           toast.error(`"${doc.name}" not found in storage — please re-upload this file`);
           failures++;
           continue;

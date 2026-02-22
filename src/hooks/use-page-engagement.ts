@@ -64,7 +64,6 @@ export function usePageEngagement(userId?: string | null) {
         exit_page: isExit,
       });
 
-      console.log(`📊 Page engagement flushed: ${currentPathRef.current}, time: ${timeOnPage}s, scroll: ${engagement.maxScrollDepth}%`);
     } catch (error) {
       console.error('Failed to flush page engagement:', error);
     }

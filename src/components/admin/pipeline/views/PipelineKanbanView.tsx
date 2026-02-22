@@ -170,7 +170,6 @@ export function PipelineKanbanView({ pipeline, onOpenCreateDeal }: PipelineKanba
         setActiveId(null);
         return;
       } catch (error) {
-        console.error('Error checking owner intro requirements:', error);
         toast({
           title: 'Error',
           description: 'Failed to verify owner information. Please try again.',
@@ -259,7 +258,6 @@ export function PipelineKanbanView({ pipeline, onOpenCreateDeal }: PipelineKanba
 
       setOwnerAssignmentNeeded(null);
     } catch (error) {
-      console.error('Failed to assign owner:', error);
       const { toast } = await import('@/hooks/use-toast');
       toast({
         title: 'Error',
@@ -308,7 +306,6 @@ export function PipelineKanbanView({ pipeline, onOpenCreateDeal }: PipelineKanba
       
       setOwnerIntroConfig(null);
     } catch (error) {
-      console.error('Failed to configure owners:', error);
       toast({
         title: 'Error',
         description: 'Failed to update owner information.',

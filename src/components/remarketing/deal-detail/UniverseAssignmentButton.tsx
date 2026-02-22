@@ -90,7 +90,6 @@ export function UniverseAssignmentButton({
       setSelectedUniverse("");
     },
     onError: (error) => {
-      console.error("Failed to assign deal:", error);
       toast.error("Failed to assign deal to universe");
     },
   });
@@ -112,7 +111,6 @@ export function UniverseAssignmentButton({
       queryClient.invalidateQueries({ queryKey: ["remarketing", "deal-universe", dealId] });
     },
     onError: (error) => {
-      console.error("Failed to unassign deal:", error);
       toast.error("Failed to remove deal from universe");
     },
   });

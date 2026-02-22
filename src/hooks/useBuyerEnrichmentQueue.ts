@@ -154,7 +154,6 @@ export function useBuyerEnrichmentQueue(universeId?: string) {
       await supabase.functions.invoke('process-buyer-enrichment-queue');
     } catch (error) {
       // Silent fail - processor will be triggered again on next interval
-      console.log('Processor trigger failed, will retry:', error);
     }
   }, []);
 
@@ -242,7 +241,6 @@ export function useBuyerEnrichmentQueue(universeId?: string) {
       startPolling();
 
     } catch (error) {
-      console.error('Failed to queue buyers:', error);
       toast.error('Failed to queue buyers for enrichment');
     }
   }, [universeId, triggerProcessor]);

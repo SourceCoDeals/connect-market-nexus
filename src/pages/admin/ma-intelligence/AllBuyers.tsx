@@ -44,23 +44,25 @@ export default function MAAllBuyers() {
     ]);
 
     const trackerMap: Record<string, string> = {};
-    ((trackersRes.data || []) as any[]).forEach((t) => {
+    (trackersRes.data || []).forEach((t) => {
       trackerMap[t.id] = t.name || t.industry_name || 'Unknown';
     });
     setTrackers(trackerMap);
 
     // Map remarketing_buyers to BuyerRow interface
-    const mappedBuyers: BuyerRow[] = ((buyersRes.data || []) as any[]).map((b) => ({
-      id: b.id,
-      pe_firm_name: b.company_name || b.pe_firm_name || 'Unknown',
-      platform_company_name: b.platform_company_name ?? null,
-      platform_website: b.platform_website ?? null,
-      thesis_summary: b.thesis_summary ?? null,
-      thesis_confidence: b.thesis_confidence ?? null,
-      industry_vertical: b.industry_vertical ?? null,
-      tracker_id: b.industry_tracker_id || b.tracker_id || '',
-      has_fee_agreement: b.has_fee_agreement ?? null,
-      fee_agreement_status: b.fee_agreement_status ?? null,
+    // remarketing_buyers may have columns not in generated types
+    type BuyerRecord = Record<string, unknown>;
+    const mappedBuyers: BuyerRow[] = ((buyersRes.data || []) as BuyerRecord[]).map((b) => ({
+      id: b.id as string,
+      pe_firm_name: (b.company_name as string) || (b.pe_firm_name as string) || 'Unknown',
+      platform_company_name: (b.platform_company_name as string) ?? null,
+      platform_website: (b.platform_website as string) ?? null,
+      thesis_summary: (b.thesis_summary as string) ?? null,
+      thesis_confidence: (b.thesis_confidence as string) ?? null,
+      industry_vertical: (b.industry_vertical as string) ?? null,
+      tracker_id: (b.industry_tracker_id as string) || (b.tracker_id as string) || '',
+      has_fee_agreement: (b.has_fee_agreement as boolean) ?? null,
+      fee_agreement_status: (b.fee_agreement_status as string) ?? null,
     }));
     setBuyers(mappedBuyers);
     setIsLoading(false);

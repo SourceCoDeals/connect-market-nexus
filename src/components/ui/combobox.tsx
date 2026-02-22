@@ -57,16 +57,6 @@ export function Combobox({
     (option) => option.value.toLowerCase() === searchValue.toLowerCase()
   );
   
-  React.useEffect(() => {
-    console.log('[Combobox] State changed:', {
-      open,
-      optionsCount: options.length,
-      hasValue: !!value,
-      selectedLabel: selectedOption?.label,
-      disabled
-    });
-  }, [open, options.length, value, selectedOption, disabled]);
-
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>

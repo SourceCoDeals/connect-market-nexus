@@ -39,7 +39,7 @@ export const EnhancedSignupForm: React.FC = () => {
   const [currentStep, setCurrentStep] = useState(0);
 
   const form = useForm<SignupFormData>({
-    resolver: zodResolver(signupFormSchema as any),
+    resolver: zodResolver(signupFormSchema as Parameters<typeof zodResolver>[0]),
     defaultValues: {
       email: '',
       password: '',
@@ -55,8 +55,6 @@ export const EnhancedSignupForm: React.FC = () => {
 
   const onSubmit = async (data: SignupFormData) => {
     try {
-      console.log('Form submission data:', data);
-      
       // Transform data to match User interface
       const userData = {
         email: data.email,

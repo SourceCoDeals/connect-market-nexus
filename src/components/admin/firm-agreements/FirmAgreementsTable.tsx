@@ -94,7 +94,7 @@ export function FirmAgreementsTable() {
     const matchesFirmType = firmTypeFilter === 'all' || 
       (membersForSearch || []).some(m => 
         m.firm_id === firm.id && 
-        (m.user as any)?.buyer_type === firmTypeFilter
+        (m.user as { buyer_type?: string } | null)?.buyer_type === firmTypeFilter
       );
 
     return matchesSearch && matchesFilter && matchesFirmType;

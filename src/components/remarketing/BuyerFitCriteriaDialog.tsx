@@ -255,7 +255,6 @@ ${buyerTypesText}
       
       setAiPrompt("");
     } catch (error) {
-      console.error('AI edit failed:', error);
       toast.error('AI processing failed. Please edit manually.');
     } finally {
       setIsProcessing(false);

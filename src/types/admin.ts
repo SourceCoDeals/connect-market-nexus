@@ -72,7 +72,19 @@ export interface AdminListing {
   is_internal_deal?: boolean;
   published_at?: string | null;
   published_by_admin_id?: string | null;
-  
+
+  // Enrichment fields
+  executive_summary?: string | null;
+  service_mix?: string[] | null;
+  geographic_states?: string[] | null;
+  enriched_at?: string | null;
+  deal_total_score?: number | null;
+  linkedin_employee_count?: number | null;
+  google_rating?: number | null;
+  google_reviews_count?: number | null;
+  company_website?: string | null;
+  is_priority_target?: boolean | null;
+
   created_at: string;
   updated_at: string;
 }

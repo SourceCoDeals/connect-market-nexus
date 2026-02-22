@@ -17,7 +17,7 @@ export interface User {
   created_at: string;
   updated_at: string;
   deleted_at?: string;
-  business_categories?: any; // Keep as any for now due to JSONB complexity
+  business_categories?: string[] | null;
   revenue_range_min?: number;
   revenue_range_max?: number;
   onboarding_completed?: boolean;

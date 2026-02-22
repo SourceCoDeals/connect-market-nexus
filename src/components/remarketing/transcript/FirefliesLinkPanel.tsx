@@ -101,8 +101,8 @@ export function FirefliesLinkPanel({
         </TabsContent>
 
         <TabsContent value="upload" className="space-y-2">
-          <input ref={ffFileInputRef as any} type="file" accept=".pdf,.doc,.docx,.txt,.vtt,.srt,.md" multiple onChange={onFfFileUpload} className="hidden" />
-          <Button variant="outline" className="w-full h-16 border-dashed" onClick={() => (ffFileInputRef.current as any)?.click()} disabled={ffUploading}>
+          <input ref={ffFileInputRef} type="file" accept=".pdf,.doc,.docx,.txt,.vtt,.srt,.md" multiple onChange={onFfFileUpload} className="hidden" />
+          <Button variant="outline" className="w-full h-16 border-dashed" onClick={() => ffFileInputRef.current?.click()} disabled={ffUploading}>
             {ffUploading ? (
               <div className="flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" /><span className="text-sm">Uploading...</span></div>
             ) : (

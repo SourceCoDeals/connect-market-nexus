@@ -36,7 +36,6 @@ export function useAdminEmail() {
       );
       
       if (error) {
-        console.error("❌ Error sending user approval notification:", error);
         trackEmailDelivery(correlationId, {
           success: false,
           error: error.message || 'Failed to send approval email'
@@ -45,7 +44,6 @@ export function useAdminEmail() {
       }
       
       if (data && !data.success) {
-        console.error("❌ Failed to send user approval email:", data.message);
         trackEmailDelivery(correlationId, {
           success: false,
           error: data.message || 'Failed to send approval email'
@@ -67,7 +65,6 @@ export function useAdminEmail() {
       
       return true;
     } catch (error) {
-      console.error("💥 Failed to send user approval email:", error);
       trackEmailDelivery(correlationId, {
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error'
@@ -107,7 +104,6 @@ export function useAdminEmail() {
       );
       
       if (error) {
-        console.error("❌ Error sending user rejection notification:", error);
         trackEmailDelivery(correlationId, {
           success: false,
           error: error.message || 'Failed to send rejection email'
@@ -116,7 +112,6 @@ export function useAdminEmail() {
       }
       
       if (data && !data.success) {
-        console.error("❌ Failed to send user rejection email:", data.message);
         trackEmailDelivery(correlationId, {
           success: false,
           error: data.message || 'Failed to send rejection email'
@@ -138,7 +133,6 @@ export function useAdminEmail() {
       
       return true;
     } catch (error) {
-      console.error("💥 Failed to send user rejection email:", error);
       trackEmailDelivery(correlationId, {
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error'
@@ -364,7 +358,6 @@ export function useAdminEmail() {
       });
 
       if (error || (data && !data.success)) {
-        console.error("❌ Error sending approval email:", error || data?.message);
         trackEmailDelivery(correlationId, {
           success: false,
           error: error?.message || data?.message || 'Failed to send email'
@@ -372,7 +365,6 @@ export function useAdminEmail() {
         throw new Error(error?.message || data?.message || 'Failed to send email');
       }
 
-      console.log("✅ Approval email sent successfully");
       trackEmailDelivery(correlationId, {
         success: true,
         messageId: data?.messageId,
@@ -381,7 +373,6 @@ export function useAdminEmail() {
       
       return true;
     } catch (error) {
-      console.error("💥 Failed to send approval email:", error);
       trackEmailDelivery(correlationId, {
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error'

@@ -96,7 +96,6 @@ const FilterPanel = ({
 
   // Helper functions to handle filter changes
   const handleSearchChange = (value: string) => {
-    console.log('🎯 [FILTER PANEL] Search change:', value);
     onFilterChange({ search: value });
     
     // Track search analytics when search term is used
@@ -106,17 +105,14 @@ const FilterPanel = ({
   };
 
   const handleCategoryChange = (value: string) => {
-    console.log('🎯 [FILTER PANEL] Category change:', value);
     onFilterChange({ category: value });
   };
 
   const handleLocationChange = (value: string) => {
-    console.log('🎯 [FILTER PANEL] Location change:', value);
     onFilterChange({ location: value });
   };
 
   const handleRevenueRangeChange = (rangeLabel: string) => {
-    console.log('🎯 [FILTER PANEL] Revenue range change:', rangeLabel);
     const range = REVENUE_RANGES.find(r => r.label === rangeLabel);
     if (range?.value) {
       onFilterChange({ 
@@ -129,7 +125,6 @@ const FilterPanel = ({
   };
 
   const handleEbitdaRangeChange = (rangeLabel: string) => {
-    console.log('🎯 [FILTER PANEL] EBITDA range change:', rangeLabel);
     const range = EBITDA_RANGES.find(r => r.label === rangeLabel);
     if (range?.value) {
       onFilterChange({ 
@@ -142,7 +137,6 @@ const FilterPanel = ({
   };
 
   const handleResetFilters = () => {
-    console.log('🧹 [FILTER PANEL] Reset button clicked - calling parent resetFilters');
     onResetFilters();
   };
 

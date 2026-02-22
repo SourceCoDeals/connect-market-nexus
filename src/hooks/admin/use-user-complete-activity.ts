@@ -13,8 +13,8 @@ export interface UserTimelineActivity {
   description: string;
   metadata?: {
     status?: string;
-    listing?: any;
-    admin?: any;
+    listing?: { id?: string; title?: string } | null;
+    admin?: { first_name?: string; last_name?: string; name?: string } | null;
     action_type?: string;
     page_path?: string;
     duration?: number;
@@ -132,20 +132,20 @@ export function useUserCompleteActivity(userId: string) {
           }
 
           // Negative follow-up (if any)
-          if ((request as any).negative_followed_up && (request as any).negative_followed_up_at) {
+          if (request.negative_followed_up && request.negative_followed_up_at) {
             let negativeFollowUpAdmin = null;
-            if ((request as any).negative_followed_up_by) {
+            if (request.negative_followed_up_by) {
               const { data: adminData } = await supabase
                 .from('profiles')
                 .select('first_name, last_name')
-                .eq('id', (request as any).negative_followed_up_by)
+                .eq('id', request.negative_followed_up_by)
                 .single();
               negativeFollowUpAdmin = adminData;
             }
 
             activities.push({
               id: `rejection-${request.id}`,
-              timestamp: (request as any).negative_followed_up_at,
+              timestamp: request.negative_followed_up_at,
               type: 'connection_request',
               title: 'Rejection Notice Sent',
               description: `Admin sent rejection notice for "${listingData?.title || 'Unknown Listing'}"`,

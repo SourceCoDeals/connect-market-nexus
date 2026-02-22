@@ -119,7 +119,6 @@ export function FirmManagementTools() {
       setSourceFirmId('');
       setTargetFirmId('');
     } catch (error: any) {
-      console.error('Error merging firms:', error);
       toast({
         title: 'Error',
         description: error.message || 'Failed to merge firms',
@@ -215,7 +214,6 @@ export function FirmManagementTools() {
       setUserEmail('');
       setSelectedFirmId('');
     } catch (error: any) {
-      console.error('Error linking user:', error);
       toast({
         title: 'Error',
         description: error.message || 'Failed to link user to firm',

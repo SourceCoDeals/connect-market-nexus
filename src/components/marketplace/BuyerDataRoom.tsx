@@ -186,7 +186,7 @@ export function BuyerDataRoom({ dealId }: BuyerDataRoomProps) {
                     />
                   ) : (
                     <div className="space-y-3">
-                      {((memo.content as any)?.sections || []).map((section: any, i: number) => (
+                      {((memo.content as { sections?: Array<{ title: string; content: string }> } | null)?.sections || []).map((section: { title: string; content: string }, i: number) => (
                         <div key={i}>
                           <h4 className="font-medium text-sm mb-1">{section.title}</h4>
                           <p className="text-sm text-muted-foreground whitespace-pre-wrap">

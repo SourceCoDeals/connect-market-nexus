@@ -32,21 +32,18 @@ adam.haile@sourcecodeals.com`,
       });
       
       if (error) {
-        console.error('Error sending test email:', error);
         toast({
           title: "Error",
           description: `Failed to send test email: ${error.message}`,
           variant: "destructive",
         });
       } else {
-        console.log('Test email sent successfully:', data);
         toast({
           title: "Success",
           description: "Test connection approval email sent to ahaile14@gmail.com",
         });
       }
     } catch (error) {
-      console.error('Failed to send test email:', error);
       toast({
         title: "Error",
         description: "Failed to send test email",

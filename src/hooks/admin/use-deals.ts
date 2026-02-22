@@ -121,15 +121,14 @@ export function useDeals() {
   return useQuery({
     queryKey: ['deals'],
     queryFn: async () => {
-      const { data, error } = await supabase.rpc('get_deals_with_details' as any);
-      const rows = data as any[];
+      const { data, error } = await supabase.rpc('get_deals_with_details' as 'get_stage_deal_count');
       if (error) {
-        console.error('Deals RPC Error:', error);
         throw error;
       }
+      const rows = (data || []) as unknown as Record<string, unknown>[];
 
       // Map RPC response to Deal interface
-      return (rows || []).map((row: any) => {
+      return rows.map((row) => {
         return {
           // Core deal fields (prefer new RPC names, fallback to old)
           deal_id: row.deal_id ?? row.id ?? row.connection_request_id ?? row.listing_id,
@@ -252,7 +251,6 @@ export function useStageDealCount(stageId: string | undefined) {
         .rpc('get_stage_deal_count', { stage_uuid: stageId });
       
       if (error) {
-        console.error('[useStageDealCount] Error:', error);
         throw error;
       }
       
@@ -276,8 +274,6 @@ export function useUpdateDealStage() {
       currentAdminId?: string;
       skipOwnerCheck?: boolean;
     }) => {
-      console.log('[useUpdateDealStage] Calling RPC with:', { dealId, stageId, currentAdminId });
-      
       // If not skipping owner check, verify ownership first
       if (!skipOwnerCheck && currentAdminId) {
         const { data: dealData } = await supabase
@@ -305,13 +301,12 @@ export function useUpdateDealStage() {
       }
       
       // Use new RPC function with ownership logic
-      const { data, error } = await supabase.rpc('move_deal_stage_with_ownership' as any, {
+      const { data, error } = await supabase.rpc('move_deal_stage_with_ownership' as 'get_stage_deal_count', {
         p_deal_id: dealId,
         p_new_stage_id: stageId,
         p_current_admin_id: currentAdminId
       });
       
-      console.log('[useUpdateDealStage] RPC result:', { data, error: error?.message });
       if (error) throw error;
       return data;
     },
@@ -331,27 +326,28 @@ export function useUpdateDealStage() {
       }
       return { previousDeals };
     },
-    onSuccess: async (data: any, variables) => {
+    onSuccess: async (data: unknown, variables) => {
+      const result = data as Record<string, unknown> | null;
       // Handle ownership assignment notifications
-      if (data?.owner_assigned) {
+      if (result?.owner_assigned) {
         toast({
           title: 'Deal Assigned',
           description: 'You have been assigned as the owner of this deal.',
         });
       }
       
-      if (data?.different_owner_warning) {
+      if (result?.different_owner_warning) {
         toast({
           title: 'Different Owner',
-          description: `This deal is owned by ${data.previous_owner_name || 'another admin'}. They will be notified of this change.`,
+          description: `This deal is owned by ${result.previous_owner_name || 'another admin'}. They will be notified of this change.`,
           variant: 'default',
         });
-        
+
         // Send email notification to original owner
         const deals = queryClient.getQueryData<Deal[]>(['deals']);
         const deal = deals?.find(d => d.deal_id === variables.dealId);
-        
-        if (deal && data.previous_owner_id && data.previous_owner_name) {
+
+        if (deal && result.previous_owner_id && result.previous_owner_name) {
           try {
             // Get current admin info
             const { data: { user } } = await supabase.auth.getUser();
@@ -369,12 +365,12 @@ export function useUpdateDealStage() {
               body: {
                 dealId: deal.deal_id,
                 dealTitle: deal.title,
-                previousOwnerId: data.previous_owner_id,
-                previousOwnerName: data.previous_owner_name,
+                previousOwnerId: result.previous_owner_id,
+                previousOwnerName: result.previous_owner_name,
                 modifyingAdminId: user?.id,
                 modifyingAdminName: currentAdminName,
-                oldStageName: data.old_stage_name,
-                newStageName: data.new_stage_name,
+                oldStageName: result.old_stage_name,
+                newStageName: result.new_stage_name,
                 listingTitle: deal.listing_title,
                 companyName: deal.listing_real_company_name
               }
@@ -385,9 +381,9 @@ export function useUpdateDealStage() {
           }
         }
       }
-      
+
       // Check if moved to "Owner intro requested" stage and trigger email
-      const newStageName = data?.new_stage_name;
+      const newStageName = result?.new_stage_name as string | undefined;
       if (newStageName === 'Owner intro requested') {
         const deals = queryClient.getQueryData<Deal[]>(['deals']);
         const deal = deals?.find(d => d.deal_id === variables.dealId);
@@ -455,25 +451,25 @@ export function useUpdateDealStage() {
       queryClient.invalidateQueries({ queryKey: ['deals'] });
       queryClient.invalidateQueries({ queryKey: ['deal-activities'] });
       
-      if (!data?.owner_assigned && !data?.different_owner_warning) {
+      if (!result?.owner_assigned && !result?.different_owner_warning) {
         toast({
           title: 'Deal Updated',
           description: 'Deal stage has been updated successfully.',
         });
       }
     },
-    onError: (error: any, _vars, context) => {
+    onError: (error: unknown, _vars, context) => {
       // Don't show error toast for OWNER_WARNING - that's handled by the dialog
-      if (error?.type === 'OWNER_WARNING') {
+      if (error && typeof error === 'object' && 'type' in error && (error as Record<string, unknown>).type === 'OWNER_WARNING') {
         return;
       }
-      
+
       if (context?.previousDeals) {
         queryClient.setQueryData(['deals'], context.previousDeals);
       }
       toast({
         title: 'Error',
-        description: `Failed to update deal stage: ${error?.message || 'Unknown error'}`,
+        description: `Failed to update deal stage: ${error instanceof Error ? error.message : 'Unknown error'}`,
         variant: 'destructive',
       });
     },
@@ -487,7 +483,7 @@ export function useUpdateDeal() {
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: async ({ dealId, updates }: { dealId: string; updates: any }) => {
+    mutationFn: async ({ dealId, updates }: { dealId: string; updates: Record<string, unknown> }) => {
       // Special handling for owner changes - use dedicated RPC to avoid view/column issues
       const isOwnerChangeOnly = updates.assigned_to !== undefined && Object.keys(updates).length === 1;
       
@@ -495,14 +491,13 @@ export function useUpdateDeal() {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) throw new Error('Not authenticated');
 
-        const { data, error } = await (supabase as any).rpc('update_deal_owner', {
+        const { data, error } = await supabase.rpc('update_deal_owner' as 'get_stage_deal_count', {
           p_deal_id: dealId,
           p_assigned_to: updates.assigned_to === 'unassigned' || updates.assigned_to === '' ? null : updates.assigned_to,
           p_actor_id: user.id
         });
         
         if (error) {
-          console.error('[useUpdateDeal] Owner change RPC error:', error);
           throw error;
         }
         
@@ -580,7 +575,6 @@ export function useUpdateDeal() {
         .single();
       
       if (error) {
-        console.error('[useUpdateDeal] Update error:', error);
         throw error;
       }
       return data;
@@ -605,12 +599,13 @@ export function useUpdateDeal() {
       
       return { previousDeals };
     },
-    onSuccess: async (data, { dealId, updates }) => {
+    onSuccess: async (data: unknown, { dealId, updates }) => {
+      const ownerResult = data as Record<string, unknown> | null;
       // Note: Assignment logging is now handled by the update_deal_owner RPC
       const isOwnerChangeOnly = updates.assigned_to !== undefined && Object.keys(updates).length === 1;
-      
+
       // If owner was changed (not just stage move), notify the previous owner
-      if (isOwnerChangeOnly && data?.owner_changed && data.previous_owner_id) {
+      if (isOwnerChangeOnly && ownerResult?.owner_changed && ownerResult.previous_owner_id) {
         try {
           const deals = queryClient.getQueryData<Deal[]>(['deals']);
           const deal = deals?.find(d => d.deal_id === dealId);
@@ -632,19 +627,18 @@ export function useUpdateDeal() {
               body: {
                 dealId: deal.deal_id,
                 dealTitle: deal.title,
-                previousOwnerId: data.previous_owner_id,
-                previousOwnerName: data.previous_owner_name,
+                previousOwnerId: ownerResult.previous_owner_id,
+                previousOwnerName: ownerResult.previous_owner_name,
                 modifyingAdminId: user?.id,
                 modifyingAdminName: currentAdminName,
                 modifyingAdminEmail: currentAdmin?.email,
-                oldStageName: data.stage_name || deal.stage_name,
-                newStageName: data.stage_name || deal.stage_name, // Same stage, just owner change
+                oldStageName: (ownerResult.stage_name as string) || deal.stage_name,
+                newStageName: (ownerResult.stage_name as string) || deal.stage_name, // Same stage, just owner change
                 listingTitle: deal.listing_title,
                 companyName: deal.listing_real_company_name
               }
             });
             
-            console.log('Owner change notification sent to:', data.previous_owner_name);
           }
         } catch (error) {
           console.error('Failed to send owner change notification:', error);
@@ -659,20 +653,20 @@ export function useUpdateDeal() {
           : 'Deal has been updated successfully.',
       });
     },
-    onError: (error: any, _, context) => {
+    onError: (error: unknown, _, context) => {
       // Don't show error toast for OWNER_WARNING - that's handled by the dialog
-      if (error?.type === 'OWNER_WARNING') {
+      if (error && typeof error === 'object' && 'type' in error && (error as Record<string, unknown>).type === 'OWNER_WARNING') {
         return;
       }
-      
+
       // Rollback on error
       if (context?.previousDeals) {
         queryClient.setQueryData(['deals'], context.previousDeals);
       }
-      
+
       toast({
         title: 'Error',
-        description: `Failed to update deal: ${error?.message || 'Unknown error'}`,
+        description: `Failed to update deal: ${error instanceof Error ? error.message : 'Unknown error'}`,
         variant: 'destructive',
       });
     },
@@ -693,7 +687,7 @@ export function useCreateDeal() {
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: async (deal: any) => {
+    mutationFn: async (deal: Record<string, unknown>) => {
       const { data, error } = await supabase
         .from('deals')
         .insert(deal)
@@ -722,7 +716,7 @@ export function useCreateDealStage() {
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: async (stage: any) => {
+    mutationFn: async (stage: Omit<DealStage, 'id' | 'created_at' | 'updated_at'>) => {
       const { data, error } = await supabase
         .from('deal_stages')
         .insert(stage)
@@ -754,7 +748,7 @@ export function useUpdateDealStageData() {
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: async ({ stageId, updates }: { stageId: string; updates: any }) => {
+    mutationFn: async ({ stageId, updates }: { stageId: string; updates: Partial<Omit<DealStage, 'id' | 'created_at' | 'updated_at'>> }) => {
       const { data, error } = await supabase
         .from('deal_stages')
         .update(updates)

@@ -24,7 +24,7 @@ export const useBulkFollowup = () => {
           if (error) throw error;
           return data;
         } else {
-          const { data, error } = await (supabase as any).rpc('update_connection_request_negative_followup', {
+          const { data, error } = await supabase.rpc('update_connection_request_negative_followup' as 'update_connection_request_followup', {
             request_id: requestId,
             is_followed_up: isFollowedUp,
           });
@@ -44,10 +44,10 @@ export const useBulkFollowup = () => {
       const previousUserRequests = queryClient.getQueryData(['user-connection-requests']);
 
       // Optimistically update main connection requests
-      queryClient.setQueryData(['connection-requests'], (old: any) => {
-        if (!old) return old;
-        return old.map((request: any) => {
-          if (requestIds.includes(request.id)) {
+      queryClient.setQueryData(['connection-requests'], (old: unknown) => {
+        if (!Array.isArray(old)) return old;
+        return old.map((request: Record<string, unknown>) => {
+          if (requestIds.includes(request.id as string)) {
             if (followupType === 'positive') {
               return {
                 ...request,
@@ -67,10 +67,10 @@ export const useBulkFollowup = () => {
       });
 
       // Optimistically update user-specific queries
-      queryClient.setQueriesData({ queryKey: ['user-connection-requests'] }, (old: any) => {
-        if (!old) return old;
-        return old.map((request: any) => {
-          if (requestIds.includes(request.id)) {
+      queryClient.setQueriesData({ queryKey: ['user-connection-requests'] }, (old: unknown) => {
+        if (!Array.isArray(old)) return old;
+        return old.map((request: Record<string, unknown>) => {
+          if (requestIds.includes(request.id as string)) {
             if (followupType === 'positive') {
               return {
                 ...request,

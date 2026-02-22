@@ -31,12 +31,10 @@ export function useNotificationEmailSender() {
           return;
         }
 
-        console.log(`[Email Sender] Processing ${pendingNotifications.length} pending emails`);
-
         // Process each notification
         for (const notification of pendingNotifications) {
           try {
-            const metadata = notification.metadata as any;
+            const metadata = notification.metadata as Record<string, unknown>;
             
             // Call edge function to send email
             const { error: emailError } = await supabase.functions.invoke('notify-deal-reassignment', {
@@ -73,7 +71,6 @@ export function useNotificationEmailSender() {
               })
               .eq('id', notification.id);
 
-            console.log('[Email Sender] Email sent successfully for notification:', notification.id);
           } catch (error) {
             console.error('[Email Sender] Error processing notification:', notification.id, error);
           }

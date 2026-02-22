@@ -143,8 +143,6 @@ export function useMarketplaceCompanies() {
           return a.value.localeCompare(b.value);
         });
 
-      console.log('[useMarketplaceCompanies] Found', companies.length, 'unique companies from', data?.length, 'profiles');
-      
       return companies;
     },
     staleTime: 5 * 60 * 1000, // 5 minutes

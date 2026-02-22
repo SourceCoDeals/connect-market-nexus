@@ -45,7 +45,6 @@ export function useMFA() {
         setStatus("disabled");
       }
     } catch (err: any) {
-      console.error("MFA fetch factors error:", err);
       setError(err.message || "Failed to fetch MFA status");
     } finally {
       setIsLoading(false);

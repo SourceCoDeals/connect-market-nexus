@@ -73,7 +73,6 @@ export function FormMonitoringTab() {
       const processedMetrics = processMetrics(profilesData || []);
       setMetrics(processedMetrics);
     } catch (error) {
-      console.error('Error loading form metrics:', error);
       toast({
         variant: 'destructive',
         title: 'Error loading metrics',

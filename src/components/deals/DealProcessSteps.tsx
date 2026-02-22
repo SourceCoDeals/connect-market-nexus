@@ -44,7 +44,7 @@ export function DealProcessSteps({
     // Treat everything else as pending: 'pending', 'under_review', 'submitted', 'processing', etc.
     return 'pending';
   };
-  const normalizedStatus = normalizeStatus(requestStatus as any);
+  const normalizedStatus = normalizeStatus(requestStatus);
   const getSteps = (): ProcessStep[] => {
     switch (normalizedStatus) {
       case 'pending':
@@ -299,7 +299,7 @@ export function DealProcessSteps({
                     <DealReviewPanel
                       requestId={requestId || ''}
                       userMessage={userMessage}
-                      onMessageUpdate={onMessageUpdate as any}
+                      onMessageUpdate={onMessageUpdate!}
                       isProfileComplete={isProfileComplete}
                       profileCompletionPercentage={profileCompletionPercentage}
                     />

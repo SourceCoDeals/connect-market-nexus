@@ -113,7 +113,7 @@ export const AddDealToUniverseDialog = ({
     queryFn: async (): Promise<ListingOption[]> => {
       // Fetch ONLY internal listings (is_internal_deal = true)
       // This prevents accidentally adding marketplace listings which would corrupt their visibility
-      const result = await (supabase as any)
+      const result = await supabase
         .from("listings")
         .select("id, title, internal_company_name, location, revenue, ebitda, enriched_at, geographic_states, website, internal_deal_memo_link, is_internal_deal")
         .is("deleted_at", null)
@@ -124,7 +124,7 @@ export const AddDealToUniverseDialog = ({
       if (result.error) throw result.error;
 
       // Fetch universe associations for all listings
-      const universeResult = await (supabase as any)
+      const universeResult = await supabase
         .from("remarketing_universe_deals")
         .select(`
           listing_id,
@@ -209,7 +209,6 @@ export const AddDealToUniverseDialog = ({
       onOpenChange(false);
     },
     onError: (error) => {
-      console.error("Failed to add deals:", error);
       toast.error("Failed to add deals to universe");
     },
   });
@@ -224,7 +223,7 @@ export const AddDealToUniverseDialog = ({
       if (!user) throw new Error("You must be signed in to create a deal.");
 
       // Admin-only guard (matches RLS policies on listings/universe_deals/deal_transcripts)
-      const { data: profile, error: profileError } = await (supabase as any)
+      const { data: profile, error: profileError } = await supabase
         .from("profiles")
         .select("is_admin")
         .eq("id", user.id)
@@ -320,7 +319,6 @@ export const AddDealToUniverseDialog = ({
               .upload(filePath, file);
             
             if (uploadError) {
-              console.error("Transcript upload error:", uploadError);
               toast.error(`Failed to upload ${file.name}`);
               continue;
             }
@@ -403,7 +401,6 @@ export const AddDealToUniverseDialog = ({
           body: { dealId: listing.id },
         }).then(({ data, error }) => {
           if (error) {
-            console.error("Enrichment error:", error);
             toast.error("Enrichment failed", { id: `enrich-${listing.id}` });
             return;
           }
@@ -436,7 +433,6 @@ export const AddDealToUniverseDialog = ({
       onOpenChange(false);
     },
       onError: (error: any) => {
-        console.error("Failed to create deal:", error);
         const message =
           typeof error?.message === "string" && error.message.trim()
             ? error.message

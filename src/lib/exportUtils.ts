@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
  * Utility functions for exporting data to CSV
  */
 
-export function exportToCSV<T extends Record<string, any>>(
+export function exportToCSV<T extends Record<string, unknown>>(
   data: T[],
   filename: string,
   columns?: { key: keyof T; label: string }[]
@@ -53,6 +53,43 @@ function formatHeader(key: string): string {
     .split(' ')
     .map(word => word.charAt(0).toUpperCase() + word.slice(1))
     .join(' ');
+}
+
+interface DealExportRow {
+  id: string;
+  deal_identifier: string | null;
+  title: string;
+  internal_company_name: string | null;
+  website: string | null;
+  deal_source: string | null;
+  industry: string | null;
+  category: string;
+  description: string;
+  executive_summary: string | null;
+  location: string;
+  address_city: string | null;
+  address_state: string | null;
+  revenue: number;
+  ebitda: number;
+  full_time_employees: number | null;
+  linkedin_employee_count: number | null;
+  linkedin_employee_range: string | null;
+  google_review_count: number | null;
+  google_rating: number | null;
+  deal_total_score: number | null;
+  seller_interest_score: number | null;
+  is_priority_target: boolean | null;
+  status: string;
+  deal_owner_id: string | null;
+  main_contact_name: string | null;
+  main_contact_title: string | null;
+  main_contact_email: string | null;
+  main_contact_phone: string | null;
+  enriched_at: string | null;
+  created_at: string;
+  referral_partner_id: string | null;
+  referral_partners: { name: string } | null;
+  deal_owner: { first_name: string | null; last_name: string | null } | null;
 }
 
 const DEAL_EXPORT_COLUMNS: { key: string; label: string }[] = [
@@ -115,7 +152,7 @@ export async function exportDealsToCSV(dealIds: string[]): Promise<{ success: bo
   if (error) return { success: false, count: 0, error: error.message };
   if (!data || data.length === 0) return { success: false, count: 0, error: "No data found" };
 
-  const rows = (data as any[]).map((d) => ({
+  const rows = (data as DealExportRow[]).map((d) => ({
     ...d,
     referral_partner_name: d.referral_partners?.name || "",
     deal_owner_name: d.deal_owner

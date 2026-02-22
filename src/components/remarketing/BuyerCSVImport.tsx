@@ -517,7 +517,7 @@ export const BuyerCSVImport = ({ universeId, onComplete, open: controlledOpen, o
       if (buyersToInsert.length > 0) {
         const { data, error } = await supabase
           .from('remarketing_buyers')
-          .insert(buyersToInsert as any)
+          .insert(buyersToInsert as never)
           .select('id, platform_website, pe_firm_website, company_website');
 
         if (error) {
@@ -593,7 +593,6 @@ export const BuyerCSVImport = ({ universeId, onComplete, open: controlledOpen, o
       setImportResults(prev => ({ ...prev, enriched: queued }));
       toast.success(`Queued ${queued} buyers for background enrichment`);
     } catch (error) {
-      console.error('Failed to queue enrichment:', error);
       toast.error('Failed to queue enrichment');
     }
   };

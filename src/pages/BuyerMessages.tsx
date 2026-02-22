@@ -61,7 +61,7 @@ function useBuyerThreads() {
 
       for (const msg of messages) {
         const reqId = msg.connection_request_id;
-        const req = msg.request as any;
+        const req = msg.request as { id: string; status: string; listing_id: string; listing: { title: string; category: string | null } | null } | null;
 
         if (!threadMap.has(reqId)) {
           threadMap.set(reqId, {

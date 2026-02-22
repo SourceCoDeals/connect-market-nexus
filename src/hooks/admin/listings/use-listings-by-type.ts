@@ -62,7 +62,6 @@ export function useListingsByType(type: ListingType, status?: 'active' | 'inacti
           const { data, error } = await query.order('created_at', { ascending: false });
 
           if (error) {
-            console.error('❌ Supabase error fetching listings by type:', error);
             throw error;
           }
           
@@ -73,7 +72,6 @@ export function useListingsByType(type: ListingType, status?: 'active' | 'inacti
           
           return mappedData as AdminListing[];
         } catch (error: any) {
-          console.error('💥 Error fetching listings by type:', error);
           toast({
             variant: 'destructive',
             title: 'Error fetching listings',

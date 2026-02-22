@@ -260,7 +260,6 @@ export function useBulkDealImport() {
         toast.error(`Failed to import ${result.errors} row(s)`, {
           description: 'See error details in the import summary',
         });
-        console.error('Import errors:', result.details.errors);
       }
 
       if (result.duplicates > 0 && result.imported === 0) {

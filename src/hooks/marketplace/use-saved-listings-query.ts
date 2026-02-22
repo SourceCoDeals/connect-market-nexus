@@ -134,7 +134,6 @@ export const useSavedListings = (filters: FilterOptions = {}) => {
           totalCount: count || 0
         };
       } catch (error: any) {
-        console.error('Error fetching saved listings:', error);
         throw error;
       }
     },

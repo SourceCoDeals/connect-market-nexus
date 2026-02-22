@@ -22,6 +22,7 @@ import {
   ExternalLink,
 } from "lucide-react";
 import { AdminConnectionRequest } from "@/types/admin";
+import { User as AdminUsersUser } from "@/types/admin-users";
 import { useUnreadMessageCounts } from "@/hooks/use-connection-messages";
 import { ConnectionRequestActions } from "./ConnectionRequestActions";
 import { LeadRequestActions } from "./LeadRequestActions";
@@ -211,7 +212,7 @@ const RequestDetails = ({ request }: { request: AdminConnectionRequest }) => {
           {request.user ? (
             <>
               <EnhancedBuyerProfile user={request.user} />
-              <ExpandableBusinessProfile user={request.user as any} />
+              <ExpandableBusinessProfile user={request.user as unknown as AdminUsersUser} />
             </>
           ) : (
             <div className="space-y-3">
@@ -382,7 +383,7 @@ function ReactiveRequestCard({
             <div className="space-y-2">
               <div className="flex items-center gap-3 flex-wrap">
                 {request.user ? (
-                  <BuyerProfileHoverCard user={request.user as any}>
+                  <BuyerProfileHoverCard user={request.user as unknown as AdminUsersUser}>
                     <h3 className="font-semibold cursor-pointer hover:text-primary transition-colors">
                       {request.user?.first_name} {request.user?.last_name}
                     </h3>
@@ -390,7 +391,7 @@ function ReactiveRequestCard({
                 ) : (
                   <div className="flex items-center gap-2">
                     <h3 className="font-semibold text-foreground">
-                      {request.lead_name || (request as any).source_metadata?.lead_name || 'Lead Contact'}
+                      {request.lead_name || (request.source_metadata as Record<string, string> | undefined)?.lead_name || 'Lead Contact'}
                     </h3>
                     <Badge variant="outline" className="text-xs">Lead-Only</Badge>
                   </div>
@@ -506,7 +507,7 @@ function ReactiveRequestCard({
                      {request.user ? (
                        <>
                          <EnhancedBuyerProfile user={request.user} />
-                         <ExpandableBusinessProfile user={request.user as any} />
+                         <ExpandableBusinessProfile user={request.user as unknown as AdminUsersUser} />
                        </>
                      ) : (
                        /* Lead Information Section */

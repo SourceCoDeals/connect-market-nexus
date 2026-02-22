@@ -530,7 +530,7 @@ export function useUnifiedAnalytics(timeRangeDays: number = 30, filters: Analyti
             uniqueSessions = uniqueSessions.filter(s => s.city === filter.value);
           }
           if (filter.type === 'region') {
-            uniqueSessions = uniqueSessions.filter(s => (s as any).region === filter.value);
+            uniqueSessions = uniqueSessions.filter(s => s.region === filter.value);
           }
           if (filter.type === 'browser') {
             uniqueSessions = uniqueSessions.filter(s => s.browser === filter.value);
@@ -632,7 +632,7 @@ export function useUnifiedAnalytics(timeRangeDays: number = 30, filters: Analyti
               if (firstSession?.city !== filter.value) return false;
             }
             if (filter.type === 'region') {
-              if ((firstSession as any)?.region !== filter.value) return false;
+              if (firstSession?.region !== filter.value) return false;
             }
             if (filter.type === 'browser') {
               if (firstSession?.browser !== filter.value) return false;
@@ -1052,7 +1052,7 @@ export function useUnifiedAnalytics(timeRangeDays: number = 30, filters: Analyti
         }
         
         // Region aggregation - use the actual region field
-        const region = (s as any).region;
+        const region = s.region;
         if (region) {
           const regionKey = `${region}, ${country}`;
           if (!regionVisitors[regionKey]) {
@@ -1076,7 +1076,7 @@ export function useUnifiedAnalytics(timeRangeDays: number = 30, filters: Analyti
               cityConnections[cityKey] = (cityConnections[cityKey] || 0) + 1;
             }
             
-            const region = (userSession as any).region;
+            const region = userSession.region;
             if (region) {
               const regionKey = `${region}, ${country}`;
               regionConnections[regionKey] = (regionConnections[regionKey] || 0) + 1;
@@ -1097,7 +1097,7 @@ export function useUnifiedAnalytics(timeRangeDays: number = 30, filters: Analyti
             citySignups[cityKey] = (citySignups[cityKey] || 0) + 1;
           }
           
-          const region = (firstSession as any).region;
+          const region = firstSession.region;
           if (region) {
             const regionKey = `${region}, ${country}`;
             regionSignups[regionKey] = (regionSignups[regionKey] || 0) + 1;
@@ -1514,7 +1514,7 @@ export function useUnifiedAnalytics(timeRangeDays: number = 30, filters: Analyti
         // NO FILTERS: Use pre-aggregated data from daily_metrics table for performance
         formattedDailyMetrics = dailyMetrics.map(m => ({
           date: m.date,
-          visitors: (m as any).unique_visitors || 0,
+          visitors: (m as Record<string, unknown>).unique_visitors as number || 0,
           sessions: m.total_sessions || 0,
           connections: m.connection_requests || 0,
           bounceRate: m.bounce_rate || 0,

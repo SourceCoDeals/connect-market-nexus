@@ -36,10 +36,11 @@ export function useInboundLeadFirm(leadId: string | null) {
       if (!data) return null;
       
       // Type guard: check if firm property exists
-      const firmData = data as any;
+      type FirmRow = { id: string; primary_company_name: string | null; fee_agreement_signed: boolean; nda_signed: boolean };
+      const firmData = data as { firm_id: string | null; firm: FirmRow | FirmRow[] | null };
       if (!firmData.firm) return null;
 
-      const firm = Array.isArray(firmData.firm) ? firmData.firm[0] : firmData.firm;
+      const firm: FirmRow = Array.isArray(firmData.firm) ? firmData.firm[0] : firmData.firm;
 
       return {
         firm_id: firm.id,

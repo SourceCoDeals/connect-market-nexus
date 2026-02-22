@@ -26,7 +26,7 @@ interface MemoEditorProps {
 export function MemoEditor({ memo, dealId, onClose }: MemoEditorProps) {
   const updateMemo = useUpdateMemo();
 
-  const initialSections = (memo.content as any)?.sections || [];
+  const initialSections = (memo.content as { sections?: MemoSection[] } | null)?.sections || [];
   const [sections, setSections] = useState<MemoSection[]>(initialSections);
 
   const handleSectionChange = useCallback((index: number, field: 'title' | 'content', value: string) => {
@@ -60,7 +60,7 @@ export function MemoEditor({ memo, dealId, onClose }: MemoEditorProps) {
 
   const handleSave = () => {
     const content = {
-      ...((memo.content as any) || {}),
+      ...((memo.content as Record<string, unknown>) || {}),
       sections,
     };
 

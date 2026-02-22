@@ -104,8 +104,6 @@ export function useRobustListingCreation() {
       sendDealAlerts?: boolean;
       targetType?: 'marketplace' | 'research';
     }) => {
-      console.log('🚀 Starting robust listing creation...');
-      
       try {
         // Step 1: Validate and sanitize all input data
         const sanitizedCategories = sanitizeArrayField(listing.categories);
@@ -180,8 +178,6 @@ export function useRobustListingCreation() {
           ebitda_metric_subtitle: listing.ebitda_metric_subtitle || null,
         };
 
-        console.log('📋 Sanitized listing data:', JSON.stringify(databaseInsert, null, 2));
-
         // Step 3: Insert listing with isolated transaction
         const { data: insertedListing, error: insertError } = await supabase
           .from('listings')
@@ -190,7 +186,6 @@ export function useRobustListingCreation() {
           .single();
 
         if (insertError) {
-          console.error('❌ Database insert error:', insertError);
           throw new Error(`Database error: ${insertError.message}`);
         }
 
@@ -198,14 +193,11 @@ export function useRobustListingCreation() {
           throw new Error('No data returned from database insert');
         }
 
-        console.log('✅ Listing created successfully:', insertedListing.id);
-
         // Step 4: Handle image upload separately (isolated from main transaction)
         let finalListing = insertedListing;
         
         if (image) {
           try {
-            console.log('📷 Starting image upload...');
             const publicUrl = await uploadListingImage(image, insertedListing.id);
             
             // Update listing with image URL
@@ -220,18 +212,15 @@ export function useRobustListingCreation() {
               .single();
 
             if (updateError) {
-              console.warn('⚠️ Image URL update failed:', updateError);
               toast({
                 variant: 'destructive',
                 title: 'Partial Success',
                 description: 'Listing created but image attachment failed. You can edit the listing to add an image.',
               });
             } else {
-              console.log('✅ Image attached successfully');
               finalListing = updatedListing;
             }
           } catch (imageError: any) {
-            console.warn('⚠️ Image upload failed:', imageError);
             toast({
               variant: 'destructive',
               title: 'Image Upload Failed',
@@ -243,11 +232,9 @@ export function useRobustListingCreation() {
         // Step 5: Handle deal alerts separately (completely isolated)
         if (sendDealAlerts) {
           try {
-            console.log('📧 Triggering deal alerts...');
             // Call deal alerts function separately to avoid transaction interference
             await triggerDealAlertsForListing(finalListing);
           } catch (alertError: any) {
-            console.warn('⚠️ Deal alerts failed:', alertError);
             // Don't fail the entire operation for deal alerts
             toast({
               title: 'Listing Created',
@@ -259,13 +246,10 @@ export function useRobustListingCreation() {
         return finalListing as AdminListing;
 
       } catch (error: any) {
-        console.error('💥 Listing creation failed:', error);
         throw new Error(error.message || 'Failed to create listing');
       }
     },
     onSuccess: (data) => {
-      console.log('🎉 Listing creation completed successfully');
-      
       // Clear all relevant caches
       const queriesToInvalidate = [
         ['admin-listings'],
@@ -284,7 +268,6 @@ export function useRobustListingCreation() {
       });
     },
     onError: (error: any) => {
-      console.error('❌ Listing creation mutation failed:', error);
       toast({
         variant: 'destructive',
         title: 'Failed to Create Listing',
@@ -306,13 +289,10 @@ async function triggerDealAlertsForListing(listing: any): Promise<void> {
       });
 
     if (error) {
-      console.warn('Deal alerts matching failed:', error);
       return;
     }
 
     if (matchingAlerts && matchingAlerts.length > 0) {
-      console.log(`Found ${matchingAlerts.length} matching alerts`);
-      
       // Process instant alerts
       for (const alert of matchingAlerts) {
         if (alert.alert_frequency === 'instant') {
@@ -343,15 +323,13 @@ async function triggerDealAlertsForListing(listing: any): Promise<void> {
               throw functionError;
             }
             
-            console.log(`✅ Deal alert sent for user ${alert.user_id}`);
           } catch (emailError) {
-            console.warn(`Failed to send deal alert for user ${alert.user_id}:`, emailError);
+            // Deal alert email failed for this user
           }
         }
       }
     }
   } catch (error) {
-    console.warn('Deal alerts processing failed:', error);
     throw error;
   }
 }

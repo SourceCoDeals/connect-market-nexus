@@ -18,7 +18,7 @@ export const useUpdateConnectionRequestStatus = () => {
 
   return useMutation({
     mutationFn: async ({ requestId, status, notes }: UpdateConnectionRequestStatusParams) => {
-      const adminId = (user as any)?.id as string | undefined;
+      const adminId = user?.id as string | undefined;
       const now = new Date().toISOString();
 
       // Build mutually exclusive update payload safely on the client
@@ -65,14 +65,14 @@ export const useUpdateConnectionRequestStatus = () => {
         queryClient.cancelQueries({ queryKey: QUERY_KEYS.userConnectionRequests }),
       ]);
 
-      const prevAdmin = queryClient.getQueryData<any[]>(QUERY_KEYS.admin.connectionRequests);
+      const prevAdmin = queryClient.getQueryData<Record<string, unknown>[]>(QUERY_KEYS.admin.connectionRequests);
 
       // Optimistic update on admin list
-      queryClient.setQueryData<any[]>(QUERY_KEYS.admin.connectionRequests, (old) => {
-        if (!old) return old as any;
+      queryClient.setQueryData<Record<string, unknown>[]>(QUERY_KEYS.admin.connectionRequests, (old) => {
+        if (!old) return [];
         const now = new Date().toISOString();
-        const adminId = (user as any)?.id;
-        return old.map((req: any) =>
+        const adminId = user?.id;
+        return old.map((req) =>
           req.id === requestId
             ? {
                 ...req,
@@ -117,7 +117,7 @@ export const useUpdateConnectionRequestStatus = () => {
       toast({
         variant: 'destructive',
         title: 'Update failed',
-        description: (err as any)?.message || 'Could not update request status',
+        description: err instanceof Error ? err.message : 'Could not update request status',
       });
     },
   });

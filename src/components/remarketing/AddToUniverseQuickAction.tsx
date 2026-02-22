@@ -86,7 +86,6 @@ export const AddToUniverseQuickAction = ({
       toast.success("Deal added to universe");
       onUniverseAdded();
     } catch (error) {
-      console.error("Failed to add deal:", error);
       toast.error("Failed to add deal to universe");
     } finally {
       setIsAdding(false);

@@ -147,7 +147,7 @@ const Profile = () => {
   const handleLocationChange = (values: string[]) => {
     setFormData((prev) => ({
       ...prev,
-      target_locations: values as any,
+      target_locations: values,
     }));
   };
 
@@ -195,8 +195,8 @@ const Profile = () => {
         revenue_range_min: formData.revenue_range_min || null,
         revenue_range_max: formData.revenue_range_max || null,
         // Standardize business categories and target locations
-        business_categories: formData.business_categories ? standardizeCategories(formData.business_categories as any) : [],
-        target_locations: formData.target_locations ? standardizeLocations(formData.target_locations as any) : [],
+        business_categories: formData.business_categories ? standardizeCategories(formData.business_categories) : [],
+        target_locations: formData.target_locations ? standardizeLocations(Array.isArray(formData.target_locations) ? formData.target_locations : [formData.target_locations]) : [],
       };
       
       await updateUserProfile(normalizedData);
@@ -442,7 +442,7 @@ const Profile = () => {
                             id="fund_size" 
                             name="fund_size" 
                             value={formData.fund_size || ""} 
-                            onChange={(value) => handleInputChange({ target: { name: 'fund_size', value } } as any)}
+                            onChange={(value) => handleSelectChange(value, 'fund_size')}
                             fieldType="fund"
                             currencyMode="millions"
                           />
@@ -453,7 +453,7 @@ const Profile = () => {
                             id="aum" 
                             name="aum" 
                             value={formData.aum || ""} 
-                            onChange={(value) => handleInputChange({ target: { name: 'aum', value } } as any)}
+                            onChange={(value) => handleSelectChange(value, 'aum')}
                             fieldType="aum"
                             currencyMode="millions"
                           />
@@ -468,7 +468,7 @@ const Profile = () => {
                           id="estimated_revenue" 
                           name="estimated_revenue" 
                           value={formData.estimated_revenue || ""} 
-                          onChange={(value) => handleInputChange({ target: { name: 'estimated_revenue', value } } as any)}
+                          onChange={(value) => handleSelectChange(value, 'estimated_revenue')}
                           fieldType="revenue"
                           currencyMode="millions"
                         />
@@ -1109,10 +1109,10 @@ const Profile = () => {
                          name="revenue_range_min"
                          placeholder="Minimum revenue"
                          value={formData.revenue_range_min || ""}
-                         onChange={(value) => setFormData(prev => ({ ...prev, revenue_range_min: value as any }))}
+                         onChange={(value) => setFormData(prev => ({ ...prev, revenue_range_min: value }))}
                        />
                      </div>
-                     
+
                      <div className="space-y-2">
                        <Label htmlFor="revenue_range_max">Revenue Range (Max)</Label>
                        <CurrencyInput
@@ -1120,7 +1120,7 @@ const Profile = () => {
                          name="revenue_range_max"
                          placeholder="Maximum revenue"
                          value={formData.revenue_range_max || ""}
-                         onChange={(value) => setFormData(prev => ({ ...prev, revenue_range_max: value as any }))}
+                         onChange={(value) => setFormData(prev => ({ ...prev, revenue_range_max: value }))}
                        />
                      </div>
                   </div>

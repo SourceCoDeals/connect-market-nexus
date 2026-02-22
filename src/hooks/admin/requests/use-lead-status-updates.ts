@@ -105,7 +105,6 @@ export const useUpdateLeadNDAStatus = () => {
       if (value) {
         const visitorId = await getVisitorIdForRequest(requestId);
         if (visitorId) {
-          console.log('📍 Recording nda_signed_at milestone for visitor:', visitorId);
           await supabase.rpc('update_journey_milestone', {
             p_visitor_id: visitorId,
             p_milestone_key: 'nda_signed_at',
@@ -263,7 +262,6 @@ export const useUpdateLeadFeeAgreementStatus = () => {
       if (value) {
         const visitorId = await getVisitorIdForRequest(requestId);
         if (visitorId) {
-          console.log('📍 Recording fee_agreement_at milestone for visitor:', visitorId);
           await supabase.rpc('update_journey_milestone', {
             p_visitor_id: visitorId,
             p_milestone_key: 'fee_agreement_at',

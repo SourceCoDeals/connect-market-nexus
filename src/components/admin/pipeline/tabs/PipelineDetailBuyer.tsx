@@ -8,6 +8,7 @@ import { Deal } from '@/hooks/admin/use-deals';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { getRelevantFieldsForBuyerType, FIELD_LABELS } from '@/lib/buyer-type-fields';
+import type { BuyerType } from '@/types';
 import { useAssociatedRequests } from '@/hooks/admin/use-associated-requests';
 import { Label } from '@/components/ui/label';
 
@@ -310,14 +311,14 @@ export function PipelineDetailBuyer({ deal }: PipelineDetailBuyerProps) {
                   )}
 
                   {/* All other buyer-specific fields */}
-                  {profile.buyer_type && getRelevantFieldsForBuyerType(profile.buyer_type as any)
+                  {profile.buyer_type && getRelevantFieldsForBuyerType(profile.buyer_type as BuyerType)
                     .filter(field => !['email', 'phone_number', 'linkedin_profile', 'first_name', 'last_name', 
                                        'business_categories', 'target_locations', 'ideal_target_description',
                                        'specific_business_search', 'deal_intent', 'include_keywords',
                                        'fund_size', 'investment_size', 'aum', 'deploying_capital_now',
                                        'target_deal_size_min', 'target_deal_size_max'].includes(field))
                     .map((field) => {
-                      const value = formatFieldValue(field, (profile as any)[field]);
+                      const value = formatFieldValue(field, (profile as Record<string, unknown>)[field]);
                       if (!value) return null;
                       
                       return (

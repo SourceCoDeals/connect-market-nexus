@@ -70,8 +70,8 @@ export const CriteriaReviewPanel = ({
     setIsLoading(true);
     try {
       // Use type assertion to bypass missing table type definition
-      const { data, error } = await (supabase as any)
-        .from('criteria_extraction_sources')
+      const { data, error } = await supabase
+        .from('criteria_extraction_sources' as never)
         .select('*')
         .eq('universe_id', universeId)
         .eq('extraction_status', 'completed')
@@ -89,7 +89,6 @@ export const CriteriaReviewPanel = ({
       );
       setSelectedSources(unapplied);
     } catch (error: any) {
-      console.error('Failed to load sources:', error);
       toast.error('Failed to load extraction sources');
     } finally {
       setIsLoading(false);
@@ -145,8 +144,8 @@ export const CriteriaReviewPanel = ({
       if (updateError) throw updateError;
 
       // Mark sources as applied - use type assertion
-      const { error: markError } = await (supabase as any)
-        .from('criteria_extraction_sources')
+      const { error: markError } = await supabase
+        .from('criteria_extraction_sources' as never)
         .update({
           applied_to_criteria: true,
           applied_at: new Date().toISOString()
@@ -156,7 +155,7 @@ export const CriteriaReviewPanel = ({
       if (markError) throw markError;
 
       // Create history record - use type assertion
-      await (supabase as any).from('criteria_extraction_history').insert({
+      await supabase.from('criteria_extraction_history' as never).insert({
         universe_id: universeId,
         change_type: 'synthesis',
         changed_sections: ['size_criteria', 'geography_criteria', 'service_criteria', 'buyer_types_criteria'],
@@ -171,7 +170,6 @@ export const CriteriaReviewPanel = ({
       loadSources();
       onApplyComplete?.();
     } catch (error: any) {
-      console.error('Failed to apply criteria:', error);
       toast.error('Failed to apply criteria', {
         description: error.message
       });

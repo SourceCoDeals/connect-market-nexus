@@ -46,7 +46,6 @@ export const useSaveListingMutation = () => {
           return { success: true };
         }
       } catch (error: any) {
-        console.error(`Error ${action === 'save' ? 'saving' : 'unsaving'} listing:`, error);
         throw error;
       }
     },

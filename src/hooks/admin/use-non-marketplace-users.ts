@@ -80,6 +80,8 @@ export function useNonMarketplaceUsers() {
 
       if (profilesError) throw profilesError;
 
+      type FirmRelation = { id: string; primary_company_name: string | null } | Array<{ id: string; primary_company_name: string | null }> | null;
+
       // Create a map of emails to aggregate data
       const emailMap = new Map<string, {
         emails: Set<string>;
@@ -88,9 +90,9 @@ export function useNonMarketplaceUsers() {
         roles: Set<string>;
         phones: Set<string>;
         firms: Set<{ id: string; name: string }>;
-        connection_requests: any[];
-        inbound_leads: any[];
-        deals: any[];
+        connection_requests: NonNullable<typeof connectionRequests>;
+        inbound_leads: NonNullable<typeof inboundLeads>;
+        deals: NonNullable<typeof deals>;
         earliest_date: string;
       }>();
 
@@ -122,14 +124,14 @@ export function useNonMarketplaceUsers() {
         if (cr.lead_phone) data.phones.add(cr.lead_phone);
         
         // Extract firm info from nested relation
-        const firmData = (cr as any).firm_agreements;
-        if (firmData && cr.firm_id) {
-          const firmName = Array.isArray(firmData) ? firmData[0]?.primary_company_name : firmData?.primary_company_name;
+        const crFirmData = (cr as Record<string, unknown>).firm_agreements as FirmRelation;
+        if (crFirmData && cr.firm_id) {
+          const firmName = Array.isArray(crFirmData) ? crFirmData[0]?.primary_company_name : crFirmData?.primary_company_name;
           if (firmName) {
             data.firms.add({ id: cr.firm_id, name: firmName });
           }
         }
-        
+
         data.connection_requests.push(cr);
         if (cr.created_at < data.earliest_date) data.earliest_date = cr.created_at;
       });
@@ -162,14 +164,14 @@ export function useNonMarketplaceUsers() {
         if (il.phone_number) data.phones.add(il.phone_number);
         
         // Extract firm info from nested relation
-        const firmData = (il as any).firm_agreements;
-        if (firmData && il.firm_id) {
-          const firmName = Array.isArray(firmData) ? firmData[0]?.primary_company_name : firmData?.primary_company_name;
+        const ilFirmData = (il as Record<string, unknown>).firm_agreements as FirmRelation;
+        if (ilFirmData && il.firm_id) {
+          const firmName = Array.isArray(ilFirmData) ? ilFirmData[0]?.primary_company_name : ilFirmData?.primary_company_name;
           if (firmName) {
             data.firms.add({ id: il.firm_id, name: firmName });
           }
         }
-        
+
         data.inbound_leads.push(il);
         if (il.created_at < data.earliest_date) data.earliest_date = il.created_at;
       });

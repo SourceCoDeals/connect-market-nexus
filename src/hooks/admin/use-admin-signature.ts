@@ -7,6 +7,8 @@ interface AdminSignaturePreference {
   admin_id: string;
   signature_html: string;
   signature_text: string;
+  phone_number?: string;
+  calendly_url?: string;
   created_at: string;
   updated_at: string;
 }
@@ -111,7 +113,6 @@ export function useAdminSignature() {
       queryClient.invalidateQueries({ queryKey: ['admin-signature'] });
     },
     onError: (error: any) => {
-      console.error('Failed to update signature:', error);
       toast({
         variant: 'destructive',
         title: 'Update Failed',

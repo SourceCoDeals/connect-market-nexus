@@ -1,7 +1,6 @@
 // M&A Intelligence Module - Utility Exports
 export * from './activityTypes';
 export * from './cascadeDelete';
-export * from './criteriaValidation';
 export * from './csvParser';
 export * from './errors';
 export * from './extractionSources';
@@ -14,14 +13,10 @@ export type {
   MABuyer,
   MADeal,
   IntelligenceCoverage,
-} from './types';
-
-export { getIntelligenceCoverage } from './types';
-
-// Re-export criteria schema types explicitly
-export type {
   SizeCriteria,
   ServiceCriteria,
   GeographyCriteria,
   BuyerTypesCriteria,
-} from './criteriaSchema';
+} from './types';
+
+export { getIntelligenceCoverage } from './types';

@@ -317,7 +317,6 @@ export function DealBuyerChat({
       if (error instanceof Error && error.name === "AbortError") {
         return; // User cancelled, don't show error
       }
-      console.error("Chat error:", error);
       const errorMessage: Message = {
         id: `error-${Date.now()}`,
         role: "assistant",
@@ -495,7 +494,6 @@ export function DealBuyerChat({
                                 onClick={() => {
                                   // Try to find buyer by name in children
                                   const text = String(children);
-                                  console.log("Clicked buyer:", text);
                                 }}
                               >
                                 {children}

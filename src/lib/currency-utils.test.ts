@@ -46,8 +46,8 @@ describe('parseCurrency', () => {
   it('returns 0 for invalid inputs', () => {
     expect(parseCurrency('')).toBe(0);
     expect(parseCurrency('abc')).toBe(0);
-    expect(parseCurrency(null as any)).toBe(0);
-    expect(parseCurrency(undefined as any)).toBe(0);
+    expect(parseCurrency(null as unknown as string)).toBe(0);
+    expect(parseCurrency(undefined as unknown as string)).toBe(0);
   });
 });
 

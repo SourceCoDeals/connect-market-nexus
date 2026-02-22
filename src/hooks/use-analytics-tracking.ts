@@ -225,12 +225,6 @@ export function useAnalyticsTracking() {
         .order('created_at', { ascending: false })
         .limit(1);
 
-      console.log('📊 Search result click tracked:', {
-        listingId,
-        positionClicked,
-        timeToClickMs,
-        searchSessionId,
-      });
     } catch (error) {
       console.error('Failed to track search result click:', error);
     }

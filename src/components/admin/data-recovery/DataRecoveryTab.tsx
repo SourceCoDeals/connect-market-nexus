@@ -166,7 +166,6 @@ The Team`);
 
       setSelectedUsers([]);
     } catch (error) {
-      console.error('Error sending recovery emails:', error);
       toast({
         variant: 'destructive',
         title: 'Failed to send emails',

@@ -76,7 +76,6 @@ export const FirefliesManualLink = ({
         toast.success(`Found ${data.results.length} matching call${data.results.length !== 1 ? 's' : ''}`, { id: toastId });
       }
     } catch (error) {
-      console.error("Search error:", error);
       toast.error(error instanceof Error ? `Search failed: ${error.message}` : "Failed to search Fireflies", { id: toastId });
     } finally {
       setLoading(false);
@@ -110,7 +109,6 @@ export const FirefliesManualLink = ({
         onTranscriptLinked?.();
       }
     } catch (error) {
-      console.error("Link error:", error);
       toast.error(error instanceof Error ? `Failed to link: ${error.message}` : "Failed to link transcript");
     } finally {
       setLinking(null);
@@ -152,7 +150,6 @@ export const FirefliesManualLink = ({
         onTranscriptLinked?.();
       }
     } catch (error) {
-      console.error("Link error:", error);
       toast.error(error instanceof Error ? `Failed: ${error.message}` : "Failed to link transcript", { id: toastId });
     } finally {
       setLinkingUrl(false);
@@ -223,7 +220,6 @@ export const FirefliesManualLink = ({
           successCount++;
         }
       } catch (error) {
-        console.error("Upload error:", error);
         toast.error(`Failed to upload ${file.name}`, { id: toastId });
       }
     }

@@ -68,7 +68,6 @@ export const TrackerNotesSection = ({
         toast.success(`Extracted criteria with ${Math.round((data.confidence || 0.5) * 100)}% confidence`);
       }
     } catch (error) {
-      console.error('Failed to analyze notes:', error);
       toast.error('Failed to analyze notes');
     } finally {
       setIsAnalyzing(false);

@@ -186,7 +186,6 @@ export function UserActions({ onUserStatusUpdated }: UserActionsProps) {
           description: `Welcome email delivered to ${user.email}`,
         });
       } catch (emailError) {
-        console.error('Email sending failed after approval:', emailError);
         toast({
           variant: 'default',
           title: 'Email sending failed',
@@ -197,7 +196,6 @@ export function UserActions({ onUserStatusUpdated }: UserActionsProps) {
       if (onUserStatusUpdated) onUserStatusUpdated();
       
     } catch (approvalError) {
-      console.error('User approval failed:', approvalError);
       toast({
         variant: 'destructive',
         title: 'Approval failed',

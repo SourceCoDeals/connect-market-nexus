@@ -82,7 +82,7 @@ export default function BuyerDetail() {
         .single();
 
       if (error) throw error;
-      const buyerData = data as any as MABuyer;
+      const buyerData = data as unknown as MABuyer;
       setBuyer(buyerData);
       setFormData(buyerData);
     } catch (error: any) {
@@ -1534,7 +1534,7 @@ export default function BuyerDetail() {
 
         {/* Agreements Tab */}
         <TabsContent value="agreements">
-          <BuyerAgreementsPanel buyerId={buyer.id} marketplaceFirmId={(buyer as any).marketplace_firm_id} hasFeeAgreement={buyer.has_fee_agreement || false} feeAgreementSource={(buyer as any).fee_agreement_source} />
+          <BuyerAgreementsPanel buyerId={buyer.id} marketplaceFirmId={buyer.marketplace_firm_id} hasFeeAgreement={buyer.has_fee_agreement || false} feeAgreementSource={buyer.fee_agreement_source} />
         </TabsContent>
 
         <TabsContent value="deal-history">

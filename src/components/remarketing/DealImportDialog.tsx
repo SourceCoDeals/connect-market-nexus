@@ -122,16 +122,12 @@ export function DealImportDialog({
         const columns = metaColumns.length > 0 ? metaColumns : fallbackColumns;
 
         if (columns.length === 0) {
-          console.error('[DealImportDialog] No CSV headers detected (meta.fields empty + row keys empty).');
           toast.error('Could not detect CSV headers', {
             description: 'Please verify the file has a header row and is a valid CSV.'
           });
           reset();
           return;
         }
-        
-        // Log parsed columns for debugging
-        console.log(`[DealImportDialog] Parsed ${columns.length} columns:`, columns);
         
         // Get sample data for context
         const sampleData = data.slice(0, 3);
@@ -156,16 +152,11 @@ export function DealImportDialog({
 
           // Helps verify which backend deployment the UI is actually hitting
           setMappingVersion(mappingResult?._version ?? null);
-          if (mappingResult?._version) {
-            console.log("map-csv-columns version:", mappingResult._version);
-          }
 
           // CRITICAL: Merge AI mappings with full column list
           // This ensures all parsed columns are visible even if AI returns partial list
           const [merged, stats] = mergeColumnMappings(columns, mappingResult?.mappings);
-          
-          console.log(`[DealImportDialog] Merge stats: AI returned ${stats.aiReturnedCount}, filled ${stats.filledCount}`);
-          
+
           // Warn if AI returned incomplete mappings
           if (stats.filledCount > 0) {
             console.warn(
@@ -249,36 +240,26 @@ export function DealImportDialog({
           // Revenue/EBITDA/Description are NOT NULL in `listings`, but CSVs often omit them.
           // Default them safely instead of failing the entire row.
           if (typeof listingData.revenue !== 'number' || Number.isNaN(listingData.revenue)) {
-            (listingData as any).revenue = 0;
+            (listingData as Record<string, unknown>).revenue = 0;
           }
           if (typeof listingData.ebitda !== 'number' || Number.isNaN(listingData.ebitda)) {
-            (listingData as any).ebitda = 0;
+            (listingData as Record<string, unknown>).ebitda = 0;
           }
           if (typeof listingData.description !== 'string') {
-            (listingData as any).description = '';
+            (listingData as Record<string, unknown>).description = '';
           }
 
           // Normalize website for dedup (ensures DB unique constraint catches variants)
-          if ((listingData as any).website) {
-            const normalized = normalizeDomain((listingData as any).website as string);
+          if ((listingData as Record<string, unknown>).website) {
+            const normalized = normalizeDomain((listingData as Record<string, unknown>).website as string);
             if (normalized) {
-              (listingData as any).website = normalized;
+              (listingData as Record<string, unknown>).website = normalized;
             }
           }
 
-          // Log what we're importing for debugging
-          console.log(`Row ${i + 2} import data:`, {
-            title: listingData.title,
-            website: listingData.website,
-            address_city: listingData.address_city,
-            address_state: listingData.address_state,
-            revenue: listingData.revenue,
-            ebitda: listingData.ebitda,
-          });
-
           // Inject referral partner ID AFTER sanitization (critical — not part of CSV fields)
           if (referralPartnerId) {
-            (listingData as any).referral_partner_id = referralPartnerId;
+            (listingData as Record<string, unknown>).referral_partner_id = referralPartnerId;
           }
 
           // Insert the listing
@@ -313,7 +294,6 @@ export function DealImportDialog({
         }
       }
     } catch (error) {
-      console.error("Import failed:", error);
       toast.error(`Import failed: ${(error as Error).message}`);
       setStep("preview");
     } finally {

@@ -1,8 +1,9 @@
 import { formatCurrency } from "@/lib/currency-utils";
 import { FileDown } from "lucide-react";
+import type { Listing } from "@/types";
 
 interface ExecutiveSummaryGeneratorProps {
-  listing: any;
+  listing: Listing;
 }
 
 export const ExecutiveSummaryGenerator = ({ listing }: ExecutiveSummaryGeneratorProps) => {
@@ -151,37 +152,37 @@ export const ExecutiveSummaryGenerator = ({ listing }: ExecutiveSummaryGenerator
             </div>
           </div>
 
-          ${(listing as any).ownership_structure || (listing as any).management_depth ? `
+          ${listing.ownership_structure || listing.management_depth ? `
             <div class="section">
               <div class="section-title">Current Structure</div>
-              ${(listing as any).ownership_structure ? `
+              ${listing.ownership_structure ? `
                 <div class="metric">
                   <div class="metric-label">Ownership Type</div>
-                  <div class="metric-value">${(listing as any).ownership_structure}</div>
+                  <div class="metric-value">${listing.ownership_structure}</div>
                 </div>
               ` : ''}
-              ${(listing as any).management_depth ? `
+              ${listing.management_depth ? `
                 <div class="metric">
                   <div class="metric-label">Management Depth</div>
-                  <div class="metric-value">${(listing as any).management_depth}</div>
+                  <div class="metric-value">${listing.management_depth}</div>
                 </div>
               ` : ''}
             </div>
           ` : ''}
 
-          ${(listing as any).seller_motivation || (listing as any).timeline_preference ? `
+          ${listing.seller_motivation || listing.timeline_preference ? `
             <div class="section">
               <div class="section-title">Transaction Preferences</div>
-              ${(listing as any).seller_motivation ? `
+              ${listing.seller_motivation ? `
                 <div class="metric">
                   <div class="metric-label">Seller Motivation</div>
-                  <div class="metric-value">${(listing as any).seller_motivation}</div>
+                  <div class="metric-value">${listing.seller_motivation}</div>
                 </div>
               ` : ''}
-              ${(listing as any).timeline_preference ? `
+              ${listing.timeline_preference ? `
                 <div class="metric">
                   <div class="metric-label">Timeline</div>
-                  <div class="metric-value">${(listing as any).timeline_preference}</div>
+                  <div class="metric-value">${listing.timeline_preference}</div>
                 </div>
               ` : ''}
             </div>

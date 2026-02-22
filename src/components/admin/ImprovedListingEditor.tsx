@@ -179,16 +179,9 @@ export function ImprovedListingEditor({
   const [imageError, setImageError] = useState<string | null>(null);
 
   const form = useForm<ListingFormInput, any, ListingFormValues>({
-    resolver: zodResolver(listingFormSchema as any),
+    resolver: zodResolver(listingFormSchema),
     defaultValues: convertListingToFormInput(listing),
   });
-
-  // Debug form validation errors
-  useEffect(() => {
-    if (Object.keys(form.formState.errors).length > 0) {
-      console.log('[FORM] Validation errors:', form.formState.errors);
-    }
-  }, [form.formState.errors]);
 
   const handleImageSelect = (file: File | null) => {
     if (file) {
@@ -221,7 +214,6 @@ export function ImprovedListingEditor({
   };
 
   const onValidationError = (errors: any) => {
-    console.log('[FORM] onValidationError called with:', errors);
     const errorCount = Object.keys(errors).length;
     const errorFields = Object.keys(errors).join(', ');
     toast({
@@ -243,7 +235,7 @@ export function ImprovedListingEditor({
         const errorCount = Object.keys(errors).length;
         const errorFields = Object.keys(errors).map(key => {
           const error = errors[key as keyof typeof errors];
-          return `${key}: ${(error as any)?.message || 'Invalid'}`;
+          return `${key}: ${(error as { message?: string })?.message || 'Invalid'}`;
         }).join(', ');
         
         toast({
@@ -265,9 +257,8 @@ export function ImprovedListingEditor({
       await handleSubmit({
         ...formData,
         location: transformedLocation,
-      } as any);
+      } as ListingFormValues);
     } catch (error) {
-      console.error('[FORM] Validation error caught:', error);
       toast({
         variant: "destructive",
         title: "Validation Error",
@@ -278,10 +269,6 @@ export function ImprovedListingEditor({
 
   const handleSubmit = async (formData: ListingFormValues) => {
     try {
-      console.log('[EDITOR] Raw form data from Zod:', formData);
-      console.log('[EDITOR] Revenue type:', typeof formData.revenue, 'Value:', formData.revenue);
-      console.log('[EDITOR] EBITDA type:', typeof formData.ebitda, 'Value:', formData.ebitda);
-      
       if (imageError) {
         toast({
           variant: "destructive",
@@ -325,10 +312,6 @@ export function ImprovedListingEditor({
         internal_notes: formData.internal_notes || null,
       };
       
-      console.log('[EDITOR] Transformed data being sent:', transformedData);
-      console.log('[EDITOR] Is image changed:', isImageChanged);
-      console.log('[EDITOR] Selected image:', selectedImage);
-      
       await onSubmit(transformedData, isImageChanged ? selectedImage : undefined);
       
       if (!listing) {
@@ -338,7 +321,6 @@ export function ImprovedListingEditor({
         setIsImageChanged(false);
       }
     } catch (error: any) {
-      console.error('[EDITOR] Form submission error:', error);
       toast({
         variant: "destructive",
         title: "Error",

@@ -50,6 +50,10 @@ interface AddPartnerDialogProps {
     phone: string | null;
     notes: string | null;
     is_active: boolean | null;
+    partner_type?: string;
+    linkedin?: string;
+    website?: string;
+    contact_name?: string;
   } | null;
 }
 
@@ -85,14 +89,14 @@ export function AddPartnerDialog({
   useEffect(() => {
     if (editingPartner) {
       setForm({
-        partner_type: (editingPartner as any).partner_type || "person",
+        partner_type: (editingPartner.partner_type as PartnerType) || "person",
         name: editingPartner.name,
         company: editingPartner.company || "",
         email: editingPartner.email || "",
         phone: editingPartner.phone || "",
-        linkedin: (editingPartner as any).linkedin || "",
-        website: (editingPartner as any).website || "",
-        contact_name: (editingPartner as any).contact_name || "",
+        linkedin: editingPartner.linkedin || "",
+        website: editingPartner.website || "",
+        contact_name: editingPartner.contact_name || "",
         notes: editingPartner.notes || "",
         is_active: editingPartner.is_active ?? true,
       });

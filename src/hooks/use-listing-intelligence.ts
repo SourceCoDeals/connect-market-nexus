@@ -250,7 +250,7 @@ export function useListingJourneys(listingId?: string) {
           journeys.push({
             listing_id: listing.id,
             listing_title: listing.title,
-            user_journeys: userJourneys as any[]
+            user_journeys: userJourneys as ListingJourney['user_journeys']
           });
         }
       }

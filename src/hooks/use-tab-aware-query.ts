@@ -78,8 +78,6 @@ export function useTabAwareQuery<TData = unknown, TError = Error>(
       
       // Only refetch if explicitly requested and enough time has passed
       if (timeSinceVisible >= minVisibleTimeBeforeRefetch && !queryResult.isFetching) {
-        console.log(`🔄 Tab aware refetch for query:`, queryKey);
-        
         // Small delay to avoid race conditions
         const timeoutId = setTimeout(() => {
           queryResult.refetch();

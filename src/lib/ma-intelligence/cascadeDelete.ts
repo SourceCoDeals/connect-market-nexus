@@ -23,7 +23,7 @@ export async function deleteBuyerWithRelated(buyerId: string): Promise<{ error: 
     
     if (error) {
       // Fallback - try buyers table if it exists
-      const result = await (supabase as any).from("buyers").delete().eq("id", buyerId);
+      const result = await supabase.from("buyers").delete().eq("id", buyerId);
       error = result.error;
     }
 
@@ -109,10 +109,10 @@ export async function deleteTrackerWithRelated(trackerId: string): Promise<{ err
     await supabase.from("deals").delete().eq("listing_id", trackerId);
 
     // Delete remarketing_buyer_universes for this tracker
-    await (supabase as any).from("remarketing_buyer_universes").delete().eq("industry_tracker_id", trackerId);
+    await supabase.from("remarketing_buyer_universes").delete().eq("industry_tracker_id", trackerId);
 
     // Finally delete the tracker
-    const { error } = await (supabase as any).from("industry_trackers").delete().eq("id", trackerId);
+    const { error } = await supabase.from("industry_trackers").delete().eq("id", trackerId);
 
     if (error) throw error;
 

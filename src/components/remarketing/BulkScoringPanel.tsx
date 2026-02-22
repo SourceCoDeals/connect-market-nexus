@@ -119,7 +119,6 @@ export const BulkScoringPanel = ({
       
       onScoringComplete();
     } catch (error) {
-      console.error('Scoring error:', error);
       toast.error('Failed to score buyers');
       setProgressMessage("Scoring failed");
     } finally {

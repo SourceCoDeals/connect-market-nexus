@@ -160,7 +160,6 @@ export const MAGuideEditor = ({
         toast.success('MA Guide generated');
       }
     } catch (error) {
-      console.error('Failed to generate MA Guide:', error);
       toast.error('Failed to generate - using template instead');
       // Fallback to combining templates
       const combined = Object.values(MA_GUIDE_TEMPLATES).join('\n\n<hr />\n\n');

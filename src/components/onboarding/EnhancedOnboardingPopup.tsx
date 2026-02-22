@@ -129,7 +129,6 @@ const EnhancedOnboardingPopup = ({ isOpen, onClose, userId }: EnhancedOnboarding
       onClose();
       
     } catch (error) {
-      console.error('Error completing onboarding:', error);
       toast({
         variant: "destructive",
         title: "Error",

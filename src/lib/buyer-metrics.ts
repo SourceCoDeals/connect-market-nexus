@@ -546,7 +546,7 @@ export function getProfileCompletionDetails(user: User | null): {
   const requiredFields = relevantFields.filter(f => !optionalFields.includes(f));
 
   const isCompleteField = (key: string) => {
-    const value = (user as any)[key];
+    const value = user[key as keyof User];
     if (key === 'business_categories' || key === 'target_locations') {
       return Array.isArray(value) && value.length > 0;
     }

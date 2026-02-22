@@ -129,17 +129,16 @@ export function EnhancedFeedbackManagement() {
           created_at: msg.created_at,
           updated_at: msg.updated_at,
           page_url: msg.page_url,
-          satisfaction_rating: (msg as any).satisfaction_rating || null,
+          satisfaction_rating: (msg as Record<string, unknown>).satisfaction_rating as number | null || null,
           user_email: userProfile?.email || 'Unknown',
           user_first_name: userProfile?.first_name || 'Unknown',
           user_last_name: userProfile?.last_name || 'User',
-          read_by_admin: (msg as any).read_by_admin || false
+          read_by_admin: (msg as Record<string, unknown>).read_by_admin as boolean || false
         };
       });
 
       setFeedbackMessages(messagesWithProfiles);
     } catch (error) {
-      console.error('Error loading feedback messages:', error);
       toast({
         title: "Error",
         description: "Failed to load feedback messages.",
@@ -225,7 +224,6 @@ export function EnhancedFeedbackManagement() {
       setResponseText('');
       loadFeedbackMessages();
     } catch (error) {
-      console.error('Error sending response:', error);
       toast({
         title: "Error",
         description: "Failed to send response. Please try again.",
@@ -240,7 +238,7 @@ export function EnhancedFeedbackManagement() {
     try {
       await supabase
         .from('feedback_messages')
-        .update({ status: 'read' } as any)
+        .update({ status: 'read' } as never)
         .eq('id', messageId);
       
       loadFeedbackMessages();

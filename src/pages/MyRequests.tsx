@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { useAuth } from "@/context/AuthContext";
+import type { User } from "@/types";
 import { useMarketplace } from "@/hooks/use-marketplace";
 import { AlertCircle, FileText, MessageSquare, FolderOpen } from "lucide-react";
 import {
@@ -83,13 +84,13 @@ const MyRequests = () => {
     refetchOnMount: 'always',
   });
 
-  const profileForCalc = useMemo(() => {
-    const src: any = freshProfile ?? user;
-    if (!src) return null as any;
+  const profileForCalc = useMemo((): User | null => {
+    const src = (freshProfile ?? user) as (User | null);
+    if (!src) return null;
     return {
       ...src,
       company: src.company ?? src.company_name ?? '',
-    } as any;
+    };
   }, [freshProfile, user]);
 
   // Set selected deal from URL parameter or default to first request

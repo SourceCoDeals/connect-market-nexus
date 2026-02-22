@@ -46,7 +46,6 @@ export function InterruptedSessionBanner({ trackerId }: InterruptedSessionBanner
   const handleResume = () => {
     // Resume the interrupted operation
     // This would trigger the appropriate enrichment/scoring operation
-    console.log("Resuming session:", session);
     handleDismiss();
   };
 

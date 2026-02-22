@@ -30,14 +30,6 @@ export function PipelineDetailPanel({ pipeline }: PipelineDetailPanelProps) {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const navigate = useNavigate();
 
-  console.log('[Pipeline Detail Panel] Rendering with selectedDeal', { 
-    hasSelectedDeal: !!selectedDeal,
-    dealId: selectedDeal?.deal_id,
-    title: selectedDeal?.title,
-    contact: selectedDeal?.contact_name,
-    company: selectedDeal?.contact_company
-  });
-
   if (!selectedDeal) {
     return (
       <div className="w-[900px] max-w-[95vw] border-l bg-background flex items-center justify-center shadow-2xl flex-shrink-0 overflow-y-auto overflow-x-hidden">

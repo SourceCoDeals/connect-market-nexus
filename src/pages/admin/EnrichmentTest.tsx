@@ -1,5 +1,6 @@
 import { useState, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import type { Database } from "@/integrations/supabase/types";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -207,7 +208,7 @@ function DealEnrichSection({ addLog }: { addLog: (m: string, d?: number, ok?: bo
     try {
       // Fetch before
       const { data: bData } = await supabase.from("listings").select("*").eq("id", dealId).single();
-      setBefore(bData as any);
+      setBefore(bData as Record<string, unknown> | null);
 
       // Call enrich-deal
       const { data, error: fnErr } = await supabase.functions.invoke("enrich-deal", {
@@ -224,7 +225,7 @@ function DealEnrichSection({ addLog }: { addLog: (m: string, d?: number, ok?: bo
 
       // Fetch after
       const { data: aData } = await supabase.from("listings").select("*").eq("id", dealId).single();
-      setAfter(aData as any);
+      setAfter(aData as Record<string, unknown> | null);
 
       const fieldsUpdated = data?.fieldsUpdated?.length ?? 0;
       addLog(`enrich-deal for ${dealId.slice(0, 8)}… (${fieldsUpdated} fields updated)`, dur);
@@ -315,7 +316,7 @@ function BuyerEnrichSection({ addLog }: { addLog: (m: string, d?: number, ok?: b
     const t0 = Date.now();
     try {
       const { data: bData } = await supabase.from("buyers").select("*").eq("id", buyerId).single();
-      setBefore(bData as any);
+      setBefore(bData as Record<string, unknown> | null);
 
       const controller = new AbortController();
       const timer = setTimeout(() => controller.abort(), 180_000);
@@ -334,7 +335,7 @@ function BuyerEnrichSection({ addLog }: { addLog: (m: string, d?: number, ok?: b
       setResponse(data);
 
       const { data: aData } = await supabase.from("buyers").select("*").eq("id", buyerId).single();
-      setAfter(aData as any);
+      setAfter(aData as Record<string, unknown> | null);
 
       addLog(
         `enrich-buyer for ${buyerId.slice(0, 8)}… (${data?.fieldsExtracted ?? "?"} fields, ${data?.dataCompleteness ?? "?"})`,
@@ -412,14 +413,17 @@ function ProvenanceSection({ addLog }: { addLog: (m: string, d?: number, ok?: bo
       if (!bData) throw new Error("Deal not found");
 
       // Fetch extraction sources
+      // extraction_sources table is not in generated Supabase types;
+      // use type assertion on the untyped table name
+      type UntypedTable = Parameters<typeof supabase.from>[0];
       const { data: srcData } = await supabase
-        .from("extraction_sources" as any)
+        .from("extraction_sources" as UntypedTable)
         .select("*")
         .eq("listing_id", dealId);
       const sourceMap: Record<string, string> = {};
       if (Array.isArray(srcData)) {
-        srcData.forEach((s: any) => {
-          if (s.field_name && s.source_type) sourceMap[s.field_name] = s.source_type;
+        (srcData as Array<Record<string, unknown>>).forEach((s) => {
+          if (s.field_name && s.source_type) sourceMap[String(s.field_name)] = String(s.source_type);
         });
       }
 
@@ -525,7 +529,7 @@ function ScoringSection({ addLog }: { addLog: (m: string, d?: number, ok?: boole
   const [loading, setLoading] = useState(false);
   const [response, setResponse] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
-  const [scores, setScores] = useState<Record<string, unknown> | null>(null);
+  const [scores, setScores] = useState<{ deal_total_score: number | null; deal_size_score: number | null } | null>(null);
 
   const run = async () => {
     if (!dealId.trim()) return;
@@ -551,8 +555,8 @@ function ScoringSection({ addLog }: { addLog: (m: string, d?: number, ok?: boole
         .select("deal_total_score, deal_size_score")
         .eq("id", dealId)
         .single();
-      setScores(listing as any);
-      addLog(`calculate-deal-quality for ${dealId.slice(0, 8)}… (score: ${(listing as any)?.deal_total_score ?? "—"})`, dur);
+      setScores(listing);
+      addLog(`calculate-deal-quality for ${dealId.slice(0, 8)}… (score: ${listing?.deal_total_score ?? "—"})`, dur);
     } catch (e: any) {
       const dur = Date.now() - t0;
       setError(e.message);
@@ -562,7 +566,7 @@ function ScoringSection({ addLog }: { addLog: (m: string, d?: number, ok?: boole
     }
   };
 
-  const totalScore = (scores as any)?.deal_total_score ?? 0;
+  const totalScore = scores?.deal_total_score ?? 0;
 
   return (
     <SectionCard title="Scoring Verification" icon={<BarChart3 className="h-5 w-5" />}>
@@ -589,7 +593,7 @@ function ScoringSection({ addLog }: { addLog: (m: string, d?: number, ok?: boole
           </div>
           <Progress value={Number(totalScore)} className="h-3" />
           <div className="text-xs text-muted-foreground">
-            Size Score: {(scores as any)?.deal_size_score ?? "—"}
+            Size Score: {scores?.deal_size_score ?? "—"}
           </div>
         </div>
       )}
@@ -603,7 +607,7 @@ function ScoringSection({ addLog }: { addLog: (m: string, d?: number, ok?: boole
 function QueueSection({ addLog }: { addLog: (m: string, d?: number, ok?: boolean) => void }) {
   const [loading, setLoading] = useState(false);
   const [triggerLoading, setTriggerLoading] = useState(false);
-  const [queue, setQueue] = useState<any[] | null>(null);
+  const [queue, setQueue] = useState<Database["public"]["Tables"]["enrichment_queue"]["Row"][] | null>(null);
   const [count, setCount] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -612,12 +616,12 @@ function QueueSection({ addLog }: { addLog: (m: string, d?: number, ok?: boolean
     setError(null);
     try {
       const { data, count: c, error: qErr } = await supabase
-        .from("enrichment_queue" as any)
+        .from("enrichment_queue")
         .select("*", { count: "exact" })
         .order("queued_at", { ascending: false })
         .limit(20);
       if (qErr) throw qErr;
-      setQueue(data as any[]);
+      setQueue(data);
       setCount(c);
       addLog(`Fetched queue — ${c ?? 0} total items`);
     } catch (e: any) {
@@ -688,7 +692,7 @@ function QueueSection({ addLog }: { addLog: (m: string, d?: number, ok?: boolean
               </TableRow>
             </TableHeader>
             <TableBody>
-              {queue.map((item: any, i: number) => (
+              {queue.map((item, i) => (
                 <TableRow key={i}>
                   <TableCell className="font-mono text-xs">{item.listing_id ?? item.id}</TableCell>
                   <TableCell>

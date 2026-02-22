@@ -311,7 +311,7 @@ export function InvestmentFitScore({ revenue, ebitda, category, location }: Inve
             <div className="flex justify-between">
               <span className="text-slate-500">Revenue Range:</span> 
               <span className="text-slate-900 text-right max-w-[60%]">
-                {formatFinancialRange(user.revenue_range_min as any, user.revenue_range_max as any)}
+                {formatFinancialRange(user.revenue_range_min, user.revenue_range_max)}
               </span>
             </div>
             <div className="flex justify-between">

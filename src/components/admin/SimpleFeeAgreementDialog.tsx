@@ -129,7 +129,6 @@ export function SimpleFeeAgreementDialog({
           content: base64Content
         });
       } catch (error) {
-        console.error(`Error converting ${file.name}:`, error);
         toast.error(`Failed to process ${file.name}`);
       }
     }
@@ -166,7 +165,6 @@ export function SimpleFeeAgreementDialog({
       toast.success("Fee agreement email sent!");
       handleClose();
     } catch (error: any) {
-      console.error("Error sending email:", error);
       toast.error(error.message || "Failed to send email");
     } finally {
       setIsSending(false);

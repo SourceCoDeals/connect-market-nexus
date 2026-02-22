@@ -54,8 +54,13 @@ const STORAGE_KEY = "sourceco-system-test-results";
 
 // ── Helpers ──
 
+// Dynamic table name type for test helper functions
+type SupabaseTableName = Parameters<typeof supabase.from>[0];
+
 async function assertQuery(query: string, description: string) {
-  const { error } = await supabase.rpc("execute_readonly_query" as any, { query_text: query });
+  // execute_readonly_query RPC is not in generated Supabase types
+  type RpcName = Parameters<typeof supabase.rpc>[0];
+  const { error } = await supabase.rpc("execute_readonly_query" as RpcName, { query_text: query } as Record<string, unknown>);
   // Fallback: just run a direct query if RPC doesn't exist
   if (error?.message?.includes("function") && error?.message?.includes("does not exist")) {
     // Can't use raw SQL from client, so we'll use the table API
@@ -65,16 +70,16 @@ async function assertQuery(query: string, description: string) {
 }
 
 async function columnExists(table: string, column: string) {
-  const { data, error } = await (supabase.from(table as any).select(column) as any).limit(1);
+  const { data, error } = await supabase.from(table as SupabaseTableName).select(column).limit(1);
   if (error) throw new Error(`Column '${column}' check on '${table}' failed: ${error.message}`);
 }
 
 async function tableReadable(table: string) {
-  const { error } = await (supabase.from(table as any).select("id") as any).limit(1);
+  const { error } = await supabase.from(table as SupabaseTableName).select("id").limit(1);
   if (error) throw new Error(`Table '${table}' not readable: ${error.message}`);
 }
 
-async function invokeEdgeFunction(name: string, body?: any) {
+async function invokeEdgeFunction(name: string, body?: Record<string, unknown>) {
   const { data, error } = await supabase.functions.invoke(name, {
     body: body || {},
   });
@@ -144,7 +149,7 @@ function buildTests(): TestDef[] {
     // Try calling the RPC with a dummy ID — expect "not found" not "function does not exist"
     const { error } = await supabase.rpc("resolve_contact_agreement_status", {
       p_contact_id: "00000000-0000-0000-0000-000000000000",
-    } as any);
+    });
     if (error?.message?.includes("does not exist")) {
       throw new Error("RPC resolve_contact_agreement_status does not exist");
     }
@@ -239,7 +244,7 @@ function buildTests(): TestDef[] {
     if (!testContactId) throw new Error("No test contact created");
     const { data, error } = await supabase.rpc("resolve_contact_agreement_status", {
       p_contact_id: testContactId,
-    } as any);
+    });
     if (error && !error.message.includes("does not exist")) throw new Error(error.message);
     // If RPC exists, check the result
     if (data) {
@@ -435,7 +440,7 @@ function buildTests(): TestDef[] {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) throw new Error("Not authenticated");
 
-    const { data, error } = await (supabase
+    const { data, error } = await supabase
       .from("document_release_log")
       .insert({
         deal_id: listings[0].id,
@@ -443,9 +448,9 @@ function buildTests(): TestDef[] {
         release_method: "pdf_download",
         released_by: user.id,
         buyer_name: "QA Test Buyer",
-      } as any)
+      })
       .select("id")
-      .single() as any);
+      .single();
     if (error) throw new Error(error.message);
     ctx.createdReleaseLogIds.push(data.id);
   });
@@ -484,7 +489,7 @@ function buildTests(): TestDef[] {
     }
 
     const token = crypto.randomUUID();
-    const { data, error } = await (supabase
+    const { data, error } = await supabase
       .from("document_tracked_links")
       .insert({
         deal_id: listings[0].id,
@@ -494,9 +499,9 @@ function buildTests(): TestDef[] {
         link_token: token,
         document_id: docId,
         created_by: (await supabase.auth.getUser()).data.user?.id || "",
-      } as any)
+      })
       .select("id, link_token")
-      .single() as any);
+      .single();
     if (error) throw new Error(error.message);
     ctx.createdTrackedLinkIds.push(data.id);
   });
