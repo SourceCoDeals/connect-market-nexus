@@ -362,7 +362,7 @@ const ReMarketingUniverseDetail = () => {
       setMaGuideContent(universe.ma_guide_content || '');
       
       // Load saved target buyer types from DB, fall back to defaults if empty
-      const savedBuyerTypes = universe.target_buyer_types as TargetBuyerTypeConfig[] | null;
+      const savedBuyerTypes = universe.target_buyer_types as unknown as TargetBuyerTypeConfig[] | null;
       if (savedBuyerTypes && savedBuyerTypes.length > 0) {
         setTargetBuyerTypes(savedBuyerTypes);
       }
@@ -599,7 +599,7 @@ const ReMarketingUniverseDetail = () => {
     // Fetch the buyer to get website/firm info for marketplace bridging
     const { data: buyer, error: buyerError } = await supabase
       .from('remarketing_buyers')
-      .select('id, company_name, company_website, pe_firm_name, pe_firm_website, buyer_type')
+      .select('id, company_name, company_website, pe_firm_name, pe_firm_website, buyer_type, marketplace_firm_id, fee_agreement_source')
       .eq('id', buyerId)
       .single();
     if (buyerError) throw buyerError;

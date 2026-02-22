@@ -36,7 +36,7 @@ export function useToggleListingStatus() {
         }
         
         // Listing status updated
-        return data as AdminListing;
+        return data as unknown as AdminListing;
       } catch (error: any) {
         throw error;
       }

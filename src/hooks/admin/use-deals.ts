@@ -302,11 +302,11 @@ export function useUpdateDealStage() {
       }
       
       // Use new RPC function with ownership logic
-      const { data, error } = await supabase.rpc('move_deal_stage_with_ownership' as 'get_stage_deal_count', {
+      const { data, error } = await supabase.rpc('move_deal_stage_with_ownership' as any, {
         p_deal_id: dealId,
         p_new_stage_id: stageId,
         p_current_admin_id: currentAdminId
-      });
+      } as any);
       
       if (error) throw error;
       return data;
@@ -496,11 +496,11 @@ export function useUpdateDeal() {
         if (authError) throw authError;
         if (!user) throw new Error('Not authenticated');
 
-        const { data, error } = await supabase.rpc('update_deal_owner' as 'get_stage_deal_count', {
+        const { data, error } = await supabase.rpc('update_deal_owner' as any, {
           p_deal_id: dealId,
           p_assigned_to: updates.assigned_to === 'unassigned' || updates.assigned_to === '' ? null : updates.assigned_to,
           p_actor_id: user.id
-        });
+        } as any);
         
         if (error) {
           throw error;
@@ -697,7 +697,7 @@ export function useCreateDeal() {
     mutationFn: async (deal: Record<string, unknown>) => {
       const { data, error } = await supabase
         .from('deals')
-        .insert(deal)
+        .insert(deal as any)
         .select()
         .single();
       

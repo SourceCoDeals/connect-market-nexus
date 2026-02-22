@@ -5,7 +5,7 @@ import { AdminConnectionRequest } from '@/types/admin';
 import { toast } from '@/hooks/use-toast';
 import { useAdminEmail } from '../use-admin-email';
 import { createUserObject } from '@/lib/auth-helpers';
-import { ListingStatus } from '@/types';
+import { Listing, ListingStatus } from '@/types';
 import { invalidateConnectionRequests } from '@/lib/query-client-helpers';
 
 /**
@@ -90,7 +90,7 @@ export function useConnectionRequestsMutation() {
           },
           revenueFormatted: new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(listingData.revenue),
           ebitdaFormatted: new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(listingData.ebitda)
-        } : null;
+        } as unknown as Listing : null;
         
         // Create the final request object with proper type safety
         const fullRequestData: AdminConnectionRequest = {

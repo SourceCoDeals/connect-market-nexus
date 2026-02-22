@@ -108,7 +108,7 @@ function evaluateRule(
 
   // Date operators
   if (fieldDef.type === "date") {
-    const d = raw ? new Date(raw) : null;
+    const d = raw ? new Date(raw as any) : null;
     if (!d) return false;
 
     if (op === "is" && val) {

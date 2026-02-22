@@ -33,18 +33,19 @@ function useBuyerThreads() {
       const { data: messages, error } = await supabase
         .from("connection_messages")
         .select(`
-          id, connection_request_id, sender_role, body, is_read_by_buyer, created_at,
+          id, connection_request_id, is_admin, message_text, read_at, created_at,
           request:connection_requests!inner(
             id, status, listing_id,
             listing:listings!connection_requests_listing_id_fkey(title, category)
           )
-        `)
+        ` as any)
         .order("created_at", { ascending: false })
         .limit(1000);
 
       if (error || !messages) return [];
 
-      // Group by connection_request_id and build thread summaries
+      const rows = messages as any[];
+
       // Group by connection_request_id and build thread summaries
       const threadMap = new Map<string, {
         connection_request_id: string;
@@ -59,7 +60,7 @@ function useBuyerThreads() {
         unread_count: number;
       }>();
 
-      for (const msg of messages) {
+      for (const msg of rows) {
         const reqId = msg.connection_request_id;
         const req = msg.request as { id: string; status: string; listing_id: string; listing: { title: string; category: string | null } | null } | null;
 

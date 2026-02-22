@@ -104,7 +104,7 @@ export function useCreateListing() {
           }
         }
         
-        return updatedListing as AdminListing;
+        return updatedListing as unknown as AdminListing;
       } catch (error: any) {
         throw error;
       }

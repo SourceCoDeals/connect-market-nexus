@@ -64,8 +64,8 @@ export function WebhookSettings({ universeId }: WebhookSettingsProps) {
   const addMutation = useMutation({
     mutationFn: async () => {
       // webhook_configs may not be in generated types yet - using 'as never' for table name
-      const { error } = await supabase
-        .from('webhook_configs' as never)
+      const { error } = await (supabase as any)
+        .from('webhook_configs')
         .insert({
           universe_id: universeId || null,
           name: formData.name,
@@ -92,8 +92,8 @@ export function WebhookSettings({ universeId }: WebhookSettingsProps) {
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
       // webhook_configs may not be in generated types yet - using 'as never' for table name
-      const { error } = await supabase
-        .from('webhook_configs' as never)
+      const { error } = await (supabase as any)
+        .from('webhook_configs')
         .delete()
         .eq('id', id);
 
@@ -112,8 +112,8 @@ export function WebhookSettings({ universeId }: WebhookSettingsProps) {
   const toggleMutation = useMutation({
     mutationFn: async ({ id, enabled }: { id: string; enabled: boolean }) => {
       // webhook_configs may not be in generated types yet - using 'as never' for table name
-      const { error } = await supabase
-        .from('webhook_configs' as never)
+      const { error } = await (supabase as any)
+        .from('webhook_configs')
         .update({ enabled })
         .eq('id', id);
 

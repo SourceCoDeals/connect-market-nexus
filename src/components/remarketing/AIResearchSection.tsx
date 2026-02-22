@@ -27,7 +27,7 @@ import {
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
-import { SizeCriteria, GeographyCriteria, ServiceCriteria, BuyerTypesCriteria, TargetBuyerTypeConfig } from "@/types/remarketing";
+import { SizeCriteria, GeographyCriteria, ServiceCriteria, BuyerTypesCriteria, TargetBuyerTypeConfig, DocumentReference } from "@/types/remarketing";
 import { GuideGenerationErrorPanel, type ErrorDetails } from "./GuideGenerationErrorPanel";
 import { GenerationSummaryPanel, type GenerationSummary } from "./GenerationSummaryPanel";
 import { useGuideGenerationState } from "@/hooks/remarketing/useGuideGenerationState";
@@ -126,7 +126,7 @@ const saveGuideToDocuments = async (
     }
 
     // 3. Build updated documents array (replace any existing ma_guide)
-    const currentDocs = (universe?.documents as DocumentReference[]) || [];
+    const currentDocs = (universe?.documents as unknown as DocumentReference[]) || [];
     const filteredDocs = currentDocs.filter(
       d => !d.type || d.type !== 'ma_guide'
     );
@@ -290,7 +290,7 @@ export const AIResearchSection = ({
 
       if (readError) throw readError;
 
-      const currentDocs = (universe?.documents as DocumentReference[]) || [];
+      const currentDocs = (universe?.documents as unknown as DocumentReference[]) || [];
       const filteredDocs = currentDocs.filter((d: DocumentReference) => !d.type || d.type !== 'ma_guide');
       const updatedDocs = [...filteredDocs, guideDoc];
 
@@ -298,7 +298,7 @@ export const AIResearchSection = ({
       const { error: updateError } = await supabase
         .from('remarketing_buyer_universes')
         .update({
-          documents: updatedDocs,
+          documents: updatedDocs as any,
           ma_guide_content: `[Uploaded Guide: ${file.name}]`,
           updated_at: new Date().toISOString(),
         })
@@ -335,8 +335,7 @@ export const AIResearchSection = ({
   }, [existingContent]);
 
   // Ref to hold latest checkExistingGeneration to avoid stale closures in effect
-  const checkExistingGenerationRef = useRef(checkExistingGeneration);
-  checkExistingGenerationRef.current = checkExistingGeneration;
+  const checkExistingGenerationRef = useRef<(() => Promise<void>) | null>(null);
 
   // Check for existing generation in progress on mount
   useEffect(() => {
@@ -428,6 +427,9 @@ export const AIResearchSection = ({
       console.error('[AIResearchSection] checkExistingGeneration failed:', err);
     }
   };
+
+  // Keep ref in sync with latest function
+  checkExistingGenerationRef.current = checkExistingGeneration;
 
   const resumeBackgroundGeneration = (generationId: string) => {
     // Clear any existing poll interval

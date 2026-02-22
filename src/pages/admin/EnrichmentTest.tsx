@@ -421,8 +421,8 @@ function ProvenanceSection({ addLog }: { addLog: (m: string, d?: number, ok?: bo
       // extraction_sources table is not in generated Supabase types;
       // use type assertion on the untyped table name
       type UntypedTable = Parameters<typeof supabase.from>[0];
-      const { data: srcData, error: srcDataError } = await supabase
-        .from("extraction_sources" as UntypedTable)
+      const { data: srcData, error: srcDataError } = await (supabase as any)
+        .from("extraction_sources")
         .select("*")
         .eq("listing_id", dealId);
       if (srcDataError) throw srcDataError;

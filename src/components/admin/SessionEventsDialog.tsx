@@ -37,7 +37,7 @@ export default function SessionEventsDialog({
     : '';
 
   const getIcon = (iconName: string) => {
-    const Icon = (LucideIcons as Record<string, React.FC<{ className?: string }>>)[iconName] || LucideIcons.Circle;
+    const Icon = (LucideIcons as unknown as Record<string, React.FC<{ className?: string }>>)[iconName] || LucideIcons.Circle;
     return Icon;
   };
 

@@ -189,7 +189,7 @@ export function useBuyerEnrichmentQueue(universeId?: string) {
         operationType: 'buyer_enrichment',
         totalItems: enrichableBuyers.length,
         description: `Enrich ${enrichableBuyers.length} buyers`,
-        userId: sessionData?.user?.id || 'unknown',
+        userId: userData?.user?.id || 'unknown',
       });
       if (queued) {
         // Another major op is running — ours was queued and will auto-start later

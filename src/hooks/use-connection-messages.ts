@@ -67,12 +67,12 @@ export function useConnectionMessages(connectionRequestId: string | undefined) {
         .select(`
           *,
           sender:profiles!connection_messages_sender_id_fkey(first_name, last_name, email)
-        `)
+        ` as any)
         .eq('connection_request_id', connectionRequestId)
         .order('created_at', { ascending: true });
 
       if (error) throw error;
-      return (data || []) as ConnectionMessage[];
+      return (data || []) as unknown as ConnectionMessage[];
     },
     enabled: !!connectionRequestId,
   });
@@ -99,13 +99,11 @@ export function useSendMessage() {
         .insert({
           connection_request_id: params.connection_request_id,
           sender_id: user.id,
-          sender_role: params.sender_role,
-          body: params.body,
-          message_type: params.message_type || 'message',
-          // Auto-mark as read by the sender
-          is_read_by_admin: params.sender_role === 'admin',
-          is_read_by_buyer: params.sender_role === 'buyer',
-        })
+          is_admin: params.sender_role === 'admin',
+          message_text: params.body,
+          // read_at: mark as read by sender immediately
+          read_at: new Date().toISOString(),
+        } as any)
         .select()
         .single();
 
@@ -131,9 +129,9 @@ export function useMarkMessagesReadByAdmin() {
     mutationFn: async (connectionRequestId: string) => {
       const { error } = await supabase
         .from('connection_messages')
-        .update({ is_read_by_admin: true })
+        .update({ read_at: new Date().toISOString() } as any)
         .eq('connection_request_id', connectionRequestId)
-        .eq('is_read_by_admin', false);
+        .is('read_at', null);
 
       if (error) throw error;
     },
@@ -156,9 +154,9 @@ export function useMarkMessagesReadByBuyer() {
     mutationFn: async (connectionRequestId: string) => {
       const { error } = await supabase
         .from('connection_messages')
-        .update({ is_read_by_buyer: true })
+        .update({ read_at: new Date().toISOString() } as any)
         .eq('connection_request_id', connectionRequestId)
-        .eq('is_read_by_buyer', false);
+        .is('read_at', null);
 
       if (error) throw error;
     },
@@ -178,11 +176,11 @@ export function useUnreadMessageCounts() {
     queryKey: ['unread-message-counts'],
     queryFn: async () => {
       // Fetch all unread-by-admin messages grouped by request
-      const { data, error } = await supabase
+      const { data, error } = await (supabase
         .from('connection_messages')
-        .select('connection_request_id')
-        .eq('is_read_by_admin', false)
-        .eq('sender_role', 'buyer');
+        .select('connection_request_id') as any)
+        .is('read_at', null)
+        .eq('is_admin', false);
 
       if (error) throw error;
 
@@ -205,11 +203,11 @@ export function useUnreadBuyerMessageCounts() {
   return useQuery({
     queryKey: ['unread-buyer-message-counts'],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase
         .from('connection_messages')
-        .select('connection_request_id')
-        .eq('is_read_by_buyer', false)
-        .eq('sender_role', 'admin');
+        .select('connection_request_id') as any)
+        .is('read_at', null)
+        .eq('is_admin', true);
 
       if (error) throw error;
 
@@ -249,14 +247,13 @@ export function useMessageCenterThreads() {
       const { data: messages, error } = await supabase
         .from('connection_messages')
         .select(`
-          id, connection_request_id, sender_role, body, message_type,
-          is_read_by_admin, created_at,
+          id, connection_request_id, is_admin, message_text, read_at, created_at,
           request:connection_requests!inner(
             id, status, user_id, listing_id,
             user:profiles!connection_requests_user_id_fkey(first_name, last_name, email, company),
             listing:listings!connection_requests_listing_id_fkey(title)
           )
-        `)
+        ` as any)
         .order('created_at', { ascending: false })
         .limit(2000);
 

@@ -49,7 +49,7 @@ export function PipelineViewDialog({ open, onOpenChange }: PipelineViewDialogPro
   const [orderedStageIds, setOrderedStageIds] = useState<string[]>([]);
 
   const form = useForm<ViewFormData>({
-    resolver: zodResolver(viewSchema),
+    resolver: zodResolver(viewSchema as any),
     defaultValues: {
       name: '',
       description: '',

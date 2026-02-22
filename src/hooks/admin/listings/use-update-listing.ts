@@ -40,7 +40,7 @@ export function useUpdateListing() {
           .update({
             ...listing,
             updated_at: new Date().toISOString(),
-          })
+          } as any)
           .eq('id', id)
           .select()
           .single();
@@ -93,7 +93,7 @@ export function useUpdateListing() {
           }
         }
         
-        return updatedListing as AdminListing;
+        return updatedListing as unknown as AdminListing;
       } catch (error: any) {
         throw error;
       }

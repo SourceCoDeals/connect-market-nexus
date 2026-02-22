@@ -791,7 +791,7 @@ export default function ValuationLeads() {
             lead_score: row.lead_score != null ? Number(row.lead_score) : null,
             readiness_score: row.readiness_score != null ? Number(row.readiness_score) : null,
             locations_count: row.locations_count != null ? Number(row.locations_count) : null,
-          }));
+          })) as unknown as ValuationLead[];
           allData.push(...normalized);
           offset += batchSize;
           hasMore = data.length === batchSize;

@@ -60,10 +60,10 @@ export function ResearchDealCard({
   const isEnriched = !!enrichedAt;
   
   // Parse geographic states
-  const states = Array.isArray(geographicStates) 
-    ? geographicStates.slice(0, 3) 
-    : typeof geographicStates === 'string' 
-      ? geographicStates.split(',').slice(0, 3).map(s => s.trim())
+  const states = Array.isArray(geographicStates)
+    ? geographicStates.slice(0, 3)
+    : typeof geographicStates === 'string'
+      ? (geographicStates as unknown as string).split(',').slice(0, 3).map((s: string) => s.trim())
       : [];
 
   // Score color classes

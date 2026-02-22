@@ -53,7 +53,7 @@ export function TrackerBuyersTab({ trackerId, onBuyerCountChange }: TrackerBuyer
 
       if (error) throw error;
 
-      setBuyers((data || []) as MABuyer[]);
+      setBuyers((data || []) as unknown as MABuyer[]);
       onBuyerCountChange?.(data?.length || 0);
     } catch (error: any) {
       toast({

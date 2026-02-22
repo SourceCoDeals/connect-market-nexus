@@ -144,17 +144,17 @@ export const CriteriaReviewPanel = ({
 
       // Mark sources as applied - use type assertion
       const { error: markError } = await supabase
-        .from('criteria_extraction_sources' as never)
+        .from('criteria_extraction_sources')
         .update({
           applied_to_criteria: true,
           applied_at: new Date().toISOString()
-        })
+        } as any)
         .in('id', Array.from(selectedSources));
 
       if (markError) throw markError;
 
       // Create history record - use type assertion
-      await supabase.from('criteria_extraction_history' as never).insert({
+      await (supabase.from('criteria_extraction_history' as never) as any).insert({
         universe_id: universeId,
         change_type: 'synthesis',
         changed_sections: ['size_criteria', 'geography_criteria', 'service_criteria', 'buyer_types_criteria'],

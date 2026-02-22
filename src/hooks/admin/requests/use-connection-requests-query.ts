@@ -88,10 +88,10 @@ export function useConnectionRequestsQuery() {
         if (listingsRes.error) console.error('Error fetching listings batch:', listingsRes.error);
 
         const profilesById = new Map<string, NonNullable<typeof profilesRes.data>[number]>();
-        (profilesRes.data ?? []).forEach(p => profilesById.set(p.id, p));
+        (profilesRes.data ?? []).forEach(p => profilesById.set(p.id as string, p));
 
         const listingsById = new Map<string, NonNullable<typeof listingsRes.data>[number]>();
-        (listingsRes.data ?? []).forEach(l => listingsById.set(l.id, l));
+        (listingsRes.data ?? []).forEach(l => listingsById.set(l.id as string, l));
 
         const enhancedRequests: AdminConnectionRequest[] = requests.map((request) => {
           const userData = profilesById.get(request.user_id);

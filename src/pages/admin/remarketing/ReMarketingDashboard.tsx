@@ -18,6 +18,74 @@ import {
 
 type Timeframe = "today" | "7d" | "14d" | "30d" | "90d" | "all";
 
+interface DashboardCards {
+  all_visible: number;
+  all_new_in_period: number;
+  ct_total: number;
+  ct_new: number;
+  ct_pushed: number;
+  ct_approved_in_period: number;
+  ct_avg: number;
+  gp_total: number;
+  gp_new: number;
+  gp_pushed: number;
+  gp_approved_in_period: number;
+  gp_avg: number;
+  other_total: number;
+  marketplace_total: number;
+  manual_total: number;
+  enriched: number;
+  pending_enrichment: number;
+  failed_enrichment: number;
+  total_scored: number;
+}
+
+interface DashboardScoreDist {
+  tier_80_100: number;
+  tier_60_79: number;
+  tier_40_59: number;
+  tier_20_39: number;
+  tier_0_19: number;
+}
+
+interface DashboardTeamEntry {
+  owner_id: string;
+  total: number;
+  enriched: number;
+  scored: number;
+}
+
+interface DashboardTopDeal {
+  id: string;
+  internal_company_name: string | null;
+  title: string | null;
+  deal_source: string | null;
+  category: string | null;
+  revenue: number | null;
+  ebitda: number | null;
+  deal_total_score: number | null;
+  address_state: string | null;
+  created_at: string;
+}
+
+interface DashboardActivityEvent {
+  type: string;
+  source: string;
+  name: string;
+  date: string;
+}
+
+interface DashboardStats {
+  cards: DashboardCards;
+  new_by_source: Record<string, number>;
+  all_by_source: Record<string, number>;
+  team: DashboardTeamEntry[];
+  score_dist: DashboardScoreDist;
+  top_deals: DashboardTopDeal[];
+  weekly: Record<string, number>;
+  recent_activity: DashboardActivityEvent[];
+}
+
 // ─── Helpers ───
 
 function getFromDate(tf: Timeframe): string | null {
@@ -86,20 +154,9 @@ const ReMarketingDashboard = () => {
     queryKey: ["dashboard", "remarketing-stats", fromDate],
     queryFn: async () => {
       const { data, error } = await supabase.rpc("get_remarketing_dashboard_stats", {
-        p_from_date: fromDate,
+        p_from_date: fromDate ?? undefined,
       });
       if (error) throw error;
-      // RPC returns untyped JSON; define the shape based on usage
-      interface DashboardStats {
-        cards: Record<string, unknown>;
-        new_by_source: Record<string, number>;
-        all_by_source: Record<string, number>;
-        team: Array<Record<string, unknown>>;
-        score_dist: Record<string, number>;
-        top_deals: Array<Record<string, unknown>>;
-        weekly: Record<string, number>;
-        recent_activity: Array<Record<string, unknown>>;
-      }
       return data as unknown as DashboardStats;
     },
     staleTime: 30_000,
@@ -189,7 +246,7 @@ const ReMarketingDashboard = () => {
 
   // ── SVG Line Chart ──
   const WeeklyChart = () => {
-    const weeks = Object.entries(weeklyData as Record<string, number>).sort(([a], [b]) => a.localeCompare(b));
+    const weeks = Object.entries(weeklyData).sort(([a], [b]) => a.localeCompare(b));
     if (weeks.length === 0) return <div className="text-center py-10 text-gray-400 text-sm">No data for chart</div>;
 
     const values = weeks.map(([, v]) => v);
@@ -381,10 +438,10 @@ const ReMarketingDashboard = () => {
         <div className="bg-white rounded-xl border border-gray-200 p-5">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-sm font-semibold uppercase tracking-wide text-gray-700">New Deals by Source</h3>
-            <span className="text-xs text-gray-400">{loading ? "..." : Object.values(newBySource as Record<string, number>).reduce((a: number, b: number) => a + b, 0)} added</span>
+            <span className="text-xs text-gray-400">{loading ? "..." : Object.values(newBySource).reduce((a, b) => a + b, 0)} added</span>
           </div>
           {loading ? <Skeleton className="h-32 w-full" /> : (() => {
-            const entries = Object.entries(newBySource as Record<string, number>).sort(([, a], [, b]) => b - a);
+            const entries = Object.entries(newBySource).sort(([, a], [, b]) => b - a);
             const total = entries.reduce((s, [, v]) => s + v, 0) || 1;
             return (
               <div>
@@ -423,11 +480,11 @@ const ReMarketingDashboard = () => {
               .sort((a, b) => {
                 if (a.owner_id === "__unassigned") return 1;
                 if (b.owner_id === "__unassigned") return -1;
-                return (b.total as number) - (a.total as number);
+                return b.total - a.total;
               });
             return (
               <div className="space-y-3 max-h-64 overflow-y-auto">
-                {entries.map((item: any) => {
+                {entries.map((item) => {
                   const oid = item.owner_id;
                   const profile = oid !== "__unassigned" && adminProfiles ? adminProfiles[oid] : null;
                   const name = profile ? profile.displayName : "Unassigned";
@@ -481,7 +538,7 @@ const ReMarketingDashboard = () => {
                 </tr>
               </thead>
               <tbody>
-                {topDeals.map((deal: any, i: number) => (
+                {topDeals.map((deal, i) => (
                   <tr key={deal.id} className="border-b border-gray-50 last:border-0">
                     <td className="py-2.5 pr-2 text-gray-400 font-medium">{i + 1}</td>
                     <td className="py-2.5 pr-3">
@@ -577,7 +634,7 @@ const ReMarketingDashboard = () => {
             <span className="text-xs text-gray-400">{cards?.all_visible || 0} total</span>
           </div>
           {loading ? <Skeleton className="h-40 w-full" /> : (() => {
-            const entries = Object.entries(allBySource as Record<string, number>).sort(([, a], [, b]) => b - a);
+            const entries = Object.entries(allBySource).sort(([, a], [, b]) => b - a);
             const maxCount = Math.max(...entries.map(([, v]) => v), 1);
             return (
               <div>
