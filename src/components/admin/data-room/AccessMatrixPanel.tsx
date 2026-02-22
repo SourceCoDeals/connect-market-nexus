@@ -26,7 +26,7 @@ import {
 import {
   Shield, UserPlus, AlertTriangle, Loader2, Ban, Link2, Mail,
   Copy, ChevronDown, ChevronRight, Clock, Check,
-  ExternalLink, Send,
+  ExternalLink, Send, Building2, User,
 } from 'lucide-react';
 import {
   useDataRoomAccess,
@@ -74,24 +74,82 @@ export function AccessMatrixPanel({ dealId, projectName }: AccessMatrixPanelProp
   } | null>(null);
   const [overrideReason, setOverrideReason] = useState('');
 
-  // Fetch available buyers for add dialog
+  // Fetch available buyers (firms + contacts) for add dialog
   const { data: availableBuyers = [] } = useQuery({
     queryKey: ['available-buyers-for-access', dealId, buyerSearch],
     queryFn: async () => {
-      let query = supabase
+      // Fetch firms from remarketing_buyers
+      let firmsQuery = supabase
         .from('remarketing_buyers')
-        .select('id, company_name, pe_firm_name, email_domain')
+        .select(`
+          id, company_name, pe_firm_name, email_domain, buyer_type,
+          firm_agreement:firm_agreements!remarketing_buyers_marketplace_firm_id_fkey(
+            fee_agreement_signed
+          )
+        `)
         .eq('archived', false)
         .order('company_name')
-        .limit(50);
+        .limit(100);
 
       if (buyerSearch) {
-        query = query.or(`company_name.ilike.%${buyerSearch}%,pe_firm_name.ilike.%${buyerSearch}%`);
+        firmsQuery = firmsQuery.or(`company_name.ilike.%${buyerSearch}%,pe_firm_name.ilike.%${buyerSearch}%`);
       }
 
-      const { data, error } = await query;
-      if (error) throw error;
-      return data;
+      // Fetch individual contacts from remarketing_buyer_contacts
+      let contactsQuery = supabase
+        .from('remarketing_buyer_contacts')
+        .select(`
+          id, name, email, role,
+          buyer:remarketing_buyers!inner(id, company_name, pe_firm_name, buyer_type, archived)
+        `)
+        .eq('buyer.archived', false)
+        .order('name')
+        .limit(100);
+
+      if (buyerSearch) {
+        contactsQuery = contactsQuery.or(`name.ilike.%${buyerSearch}%,email.ilike.%${buyerSearch}%`);
+      }
+
+      const [firmsResult, contactsResult] = await Promise.all([
+        firmsQuery,
+        contactsQuery,
+      ]);
+
+      if (firmsResult.error) throw firmsResult.error;
+
+      // Normalize into a unified list
+      type UnifiedBuyer = {
+        id: string;
+        remarketing_buyer_id: string;
+        display_name: string;
+        subtitle: string | null;
+        buyer_type: string | null;
+        has_fee_agreement: boolean;
+        entry_type: 'firm' | 'contact';
+      };
+
+      const firms: UnifiedBuyer[] = (firmsResult.data || []).map((b: any) => ({
+        id: b.id,
+        remarketing_buyer_id: b.id,
+        display_name: b.company_name || b.pe_firm_name || 'Unknown',
+        subtitle: b.email_domain || null,
+        buyer_type: b.buyer_type,
+        has_fee_agreement: !!(b.firm_agreement as any)?.fee_agreement_signed,
+        entry_type: 'firm' as const,
+      }));
+
+      const contacts: UnifiedBuyer[] = (contactsResult.data || []).map((c: any) => ({
+        id: `contact:${c.id}`,
+        remarketing_buyer_id: c.buyer?.id,
+        display_name: c.name,
+        subtitle: c.role ? `${c.role} at ${c.buyer?.company_name || c.buyer?.pe_firm_name || ''}` : (c.buyer?.company_name || c.buyer?.pe_firm_name || null),
+        buyer_type: c.buyer?.buyer_type || null,
+        has_fee_agreement: false,
+        entry_type: 'contact' as const,
+      }));
+
+      // Firms first, then contacts
+      return [...firms, ...contacts];
     },
     enabled: showAddBuyer,
   });
@@ -141,10 +199,19 @@ export function AccessMatrixPanel({ dealId, projectName }: AccessMatrixPanelProp
   };
 
   const handleAddBuyers = () => {
-    addBuyerSelected.forEach(buyerId => {
+    // Resolve selected IDs to remarketing_buyer_ids (contacts map to their parent firm)
+    const buyerIdsToAdd = new Set<string>();
+    addBuyerSelected.forEach(selectedId => {
+      const buyer = availableBuyers.find(b => b.id === selectedId);
+      if (buyer?.remarketing_buyer_id) {
+        buyerIdsToAdd.add(buyer.remarketing_buyer_id);
+      }
+    });
+
+    buyerIdsToAdd.forEach(rmBuyerId => {
       updateAccess.mutate({
         deal_id: dealId,
-        remarketing_buyer_id: buyerId,
+        remarketing_buyer_id: rmBuyerId,
         can_view_teaser: true,
         can_view_full_memo: false,
         can_view_data_room: false,
@@ -718,23 +785,26 @@ export function AccessMatrixPanel({ dealId, projectName }: AccessMatrixPanelProp
           setBuyerSearch('');
         }
       }}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle>Add Buyers to Data Room</DialogTitle>
             <DialogDescription>
-              Select one or more buyers to grant initial teaser access. You can configure their access toggles after adding.
+              Select buyers or contacts to grant initial teaser access. Full memo and data room access requires a signed fee agreement.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
             <Input
-              placeholder="Search by company or firm name..."
+              placeholder="Search by company, firm, or contact name..."
               value={buyerSearch}
               onChange={(e) => setBuyerSearch(e.target.value)}
             />
-            <div className="max-h-64 overflow-y-auto space-y-1 border rounded-md p-1">
+            <div className="max-h-72 overflow-y-auto space-y-1 border rounded-md p-1">
               {availableBuyers.map(buyer => {
-                const alreadyAdded = activeRecords.some(r => r.remarketing_buyer_id === buyer.id);
+                const alreadyAdded = activeRecords.some(r =>
+                  r.remarketing_buyer_id === buyer.remarketing_buyer_id
+                );
                 const isSelected = addBuyerSelected.has(buyer.id);
+                const typeLabel = buyer.buyer_type?.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()) || null;
                 return (
                   <button
                     key={buyer.id}
@@ -750,18 +820,37 @@ export function AccessMatrixPanel({ dealId, projectName }: AccessMatrixPanelProp
                     disabled={alreadyAdded}
                   >
                     <Checkbox checked={isSelected || alreadyAdded} disabled={alreadyAdded} className="pointer-events-none" />
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium truncate">{buyer.company_name || buyer.pe_firm_name}</p>
-                      {buyer.email_domain && (
-                        <p className="text-xs text-muted-foreground">{buyer.email_domain}</p>
+                    <div className="flex-shrink-0">
+                      {buyer.entry_type === 'contact' ? (
+                        <User className="h-4 w-4 text-muted-foreground" />
+                      ) : (
+                        <Building2 className="h-4 w-4 text-muted-foreground" />
                       )}
                     </div>
-                    {alreadyAdded && <Badge variant="secondary" className="text-xs flex-shrink-0">Added</Badge>}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <p className="font-medium truncate">{buyer.display_name}</p>
+                        {typeLabel && (
+                          <Badge variant="outline" className="text-[10px] px-1.5 py-0 flex-shrink-0">{typeLabel}</Badge>
+                        )}
+                      </div>
+                      {buyer.subtitle && (
+                        <p className="text-xs text-muted-foreground truncate">{buyer.subtitle}</p>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-1 flex-shrink-0">
+                      {buyer.has_fee_agreement && (
+                        <Badge variant="default" className="bg-green-100 text-green-800 text-[10px] px-1.5 py-0">Fee Agmt</Badge>
+                      )}
+                      {alreadyAdded && <Badge variant="secondary" className="text-xs">Added</Badge>}
+                    </div>
                   </button>
                 );
               })}
               {availableBuyers.length === 0 && (
-                <p className="text-sm text-muted-foreground text-center py-4">No buyers found</p>
+                <p className="text-sm text-muted-foreground text-center py-4">
+                  {buyerSearch ? 'No buyers match your search' : 'No buyers found'}
+                </p>
               )}
             </div>
             {addBuyerSelected.size > 0 && (
