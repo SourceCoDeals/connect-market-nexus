@@ -85,6 +85,7 @@ const FormMonitoringPage = lazyWithRetry(() => import("@/pages/admin/FormMonitor
 const SecuritySettings = lazyWithRetry(() => import("@/pages/admin/settings/SecuritySettings"));
 const GlobalApprovalsPage = lazyWithRetry(() => import("@/pages/admin/GlobalApprovalsPage"));
 const SystemTestRunner = lazyWithRetry(() => import("@/pages/admin/SystemTestRunner"));
+const MessageCenter = lazyWithRetry(() => import("@/pages/admin/MessageCenter"));
 
 // ReMarketing pages (now rendered inside AdminLayout via shared sidebar)
 const ReMarketingLayout = lazyWithRetry(() => import("@/components/remarketing").then(m => ({ default: m.ReMarketingLayout })));
@@ -210,6 +211,7 @@ function App() {
                           {/* MARKETPLACE (listings absorbed into unified All Deals page) */}
                           <Route path="marketplace/listings" element={<Navigate to="/admin/deals?tab=marketplace" replace />} />
                           <Route path="marketplace/requests" element={<AdminRequests />} />
+                          <Route path="marketplace/messages" element={<MessageCenter />} />
                           <Route path="marketplace/users" element={<MarketplaceUsersPage />} />
 
                           {/* REMARKETING (GlobalActivityStatusBar lives in ReMarketingLayout wrapper) */}

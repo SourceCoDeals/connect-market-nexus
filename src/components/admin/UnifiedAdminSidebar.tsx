@@ -38,6 +38,7 @@ import {
   Plus,
   ListChecks,
   Contact,
+  Mail,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -51,6 +52,7 @@ import { useUnviewedDealSourcingCount } from "@/hooks/admin/use-unviewed-deal-so
 import { useUnviewedConnectionRequests } from "@/hooks/admin/use-unviewed-connection-requests";
 import { useUnviewedUsers } from "@/hooks/admin/use-unviewed-users";
 import { useUnviewedOwnerLeads } from "@/hooks/admin/use-unviewed-owner-leads";
+import { useUnreadMessageCounts } from "@/hooks/use-connection-messages";
 
 interface NavItem {
   label: string;
@@ -81,6 +83,7 @@ export function UnifiedAdminSidebar({ collapsed, onCollapsedChange }: AdminSideb
   const { unviewedCount: unviewedConnectionRequestsCount } = useUnviewedConnectionRequests();
   const { unviewedCount: unviewedUsersCount } = useUnviewedUsers();
   const { unviewedCount: unviewedOwnerLeadsCount } = useUnviewedOwnerLeads();
+  const { data: unreadMessages } = useUnreadMessageCounts();
 
   const sections: NavSection[] = useMemo(
     () => [
@@ -145,6 +148,12 @@ export function UnifiedAdminSidebar({ collapsed, onCollapsedChange }: AdminSideb
             href: "/admin/marketplace/requests",
             icon: <MessageSquare className="h-4 w-4" />,
             badge: unviewedConnectionRequestsCount,
+          },
+          {
+            label: "Messages",
+            href: "/admin/marketplace/messages",
+            icon: <Mail className="h-4 w-4" />,
+            badge: unreadMessages?.total || 0,
           },
           {
             label: "Marketplace Users",
