@@ -1,7 +1,6 @@
 
 import { Outlet } from "react-router-dom";
 import Navbar from "./Navbar";
-import { FeedbackWidget } from "./feedback/FeedbackWidget";
 
 interface MainLayoutProps {
   children?: React.ReactNode;
@@ -14,7 +13,6 @@ const MainLayout = ({ children }: MainLayoutProps) => {
       <main className="flex-1">
         {children || <Outlet />}
       </main>
-      <FeedbackWidget />
     </div>
   );
 };
