@@ -113,7 +113,25 @@ DROP TABLE IF EXISTS public.profile_data_snapshots CASCADE;
 
 
 -- ============================================================================
--- PART 5: Clean up dead shared edge function modules
+-- PART 5: Drop dead/debug database functions
+-- ============================================================================
+-- Found by trigger/function audit: never called by any code path.
+
+-- Debug function: test admin authentication — diagnostic only
+DROP FUNCTION IF EXISTS public.test_admin_status();
+
+-- Debug function: debug fee agreement updates — diagnostic only
+DROP FUNCTION IF EXISTS public.debug_fee_agreement_update();
+
+-- One-time validation function: ran once at schema creation
+DROP FUNCTION IF EXISTS public.validate_analytics_schema();
+
+-- NOTE: refresh_analytics_views() is a STUB (does nothing, just raises NOTICE)
+-- but it IS called from src/lib/performance-monitor.ts — leave as no-op for now
+
+
+-- ============================================================================
+-- PART 6: Clean up dead shared edge function modules
 -- ============================================================================
 -- proactive-recommendations.ts and smart-suggestions.ts are never imported.
 -- They can't be dropped via SQL, but we note them here for the code cleanup.
@@ -130,9 +148,11 @@ DROP TABLE IF EXISTS public.profile_data_snapshots CASCADE;
 --                       chat_smart_suggestions, pe_firm_contacts, platform_contacts,
 --                       tracker_activity_logs, listing_personal_notes,
 --                       profile_data_snapshots
---   5 functions dropped: capture_signup_snapshot, get_latest_profile_snapshot,
+--   8 functions dropped: capture_signup_snapshot, get_latest_profile_snapshot,
 --                         preview_profile_data_restoration,
---                         restore_profile_data_automated, get_profiles_with_history
+--                         restore_profile_data_automated, get_profiles_with_history,
+--                         test_admin_status, debug_fee_agreement_update,
+--                         validate_analytics_schema
 --   1 trigger dropped:  on_profile_created_capture_snapshot
 --   1 view dropped:     profiles_with_history (if it still existed)
 -- ============================================================================

@@ -180,6 +180,30 @@ firm_agreements UPDATE
 
 3. **Add error logging** — triggers that fail silently are dangerous. Add `RAISE WARNING` or log to `cron_job_logs` on failure.
 
+### Duplicate Trigger Inventory (from audit)
+
+These triggers have 2-8 versions across migrations — only the latest is active but the history creates confusion:
+
+| Trigger | Versions | Tables | Issue |
+|---------|----------|--------|-------|
+| `set_chat_conversations_updated_at` | 8 | chat_conversations | Recreated across 4 chatbot migration attempts |
+| `auto_enrich_new_listing` / `auto_enrich_updated_listing` | 5+4 | listings | May cause duplicate enrichment jobs |
+| `auto_create_deal_from_connection_request` | 4 | connection_requests | 2 different function names for same logic |
+| `sync_connection_request_firm_trigger` | 4 | connection_requests | Rapid iteration on Oct 27 |
+| `auto_generate_deal_identifier` | 3 | deals | 2 different trigger names |
+| `update_deal_priority_trigger` | 2 | deals | Created hours apart |
+
+### Dead Functions Inventory (from audit)
+
+| Function | Status | Notes |
+|----------|--------|-------|
+| `test_admin_status()` | **Dropped in Phase 0** | Debug diagnostic |
+| `debug_fee_agreement_update()` | **Dropped in Phase 0** | Debug diagnostic |
+| `validate_analytics_schema()` | **Dropped in Phase 0** | One-time migration validator |
+| `refresh_analytics_views()` | **Stub — no-op** | Called by performance-monitor.ts but does nothing |
+| `delete_user_completely()` | Active (7 versions) | Only latest is active; consolidate |
+| `get_marketplace_analytics()` | Likely dead | Superseded by `get_simple_marketplace_analytics()` |
+
 ### Risk: Medium — need to identify all trigger execution paths first
 
 ---
