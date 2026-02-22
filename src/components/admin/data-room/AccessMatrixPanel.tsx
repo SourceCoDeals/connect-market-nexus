@@ -3,7 +3,7 @@
  *
  * Features:
  * - Table of buyers with teaser/full memo/data room checkboxes
- * - Fee agreement warning when enabling full memo without signed agreement
+ * - Full Memo and Data Room are hard-gated: require signed fee agreement (no override)
  * - Bulk toggle for multiple buyers
  * - Revoke access
  * - Add buyer dialog
@@ -15,12 +15,11 @@ import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table';
 import {
-  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
+  Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog';
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
@@ -28,7 +27,10 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import {
-  Shield, UserPlus, Users, AlertTriangle, Loader2, Ban, Clock,
+  Tooltip, TooltipContent, TooltipProvider, TooltipTrigger,
+} from '@/components/ui/tooltip';
+import {
+  Shield, UserPlus, Loader2, Ban, Lock,
 } from 'lucide-react';
 import {
   useDataRoomAccess,
@@ -37,6 +39,7 @@ import {
   useBulkUpdateAccess,
   DataRoomAccessRecord,
 } from '@/hooks/admin/data-room/use-data-room';
+import { toast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery } from '@tanstack/react-query';
 
@@ -51,9 +54,6 @@ export function AccessMatrixPanel({ dealId }: AccessMatrixPanelProps) {
   const bulkUpdate = useBulkUpdateAccess();
 
   const [showAddBuyer, setShowAddBuyer] = useState(false);
-  const [showFeeWarning, setShowFeeWarning] = useState(false);
-  const [pendingUpdate, setPendingUpdate] = useState<any>(null);
-  const [overrideReason, setOverrideReason] = useState('');
   const [selectedBuyers, setSelectedBuyers] = useState<Set<string>>(new Set());
   const [searchQuery, setSearchQuery] = useState('');
   const [buyerSearch, setBuyerSearch] = useState('');
@@ -92,35 +92,19 @@ export function AccessMatrixPanel({ dealId }: AccessMatrixPanelProps) {
     field: 'can_view_teaser' | 'can_view_full_memo' | 'can_view_data_room',
     newValue: boolean
   ) => {
-    const updates = {
+    // Full Memo and Data Room require a signed fee agreement — hard gate
+    if ((field === 'can_view_full_memo' || field === 'can_view_data_room') && newValue && !record.fee_agreement_signed) {
+      return;
+    }
+
+    updateAccess.mutate({
       deal_id: dealId,
       remarketing_buyer_id: record.remarketing_buyer_id || undefined,
       marketplace_user_id: record.marketplace_user_id || undefined,
       can_view_teaser: field === 'can_view_teaser' ? newValue : record.can_view_teaser,
       can_view_full_memo: field === 'can_view_full_memo' ? newValue : record.can_view_full_memo,
       can_view_data_room: field === 'can_view_data_room' ? newValue : record.can_view_data_room,
-    };
-
-    // Check fee agreement for full memo
-    if (field === 'can_view_full_memo' && newValue && !record.fee_agreement_signed) {
-      setPendingUpdate(updates);
-      setShowFeeWarning(true);
-      return;
-    }
-
-    updateAccess.mutate(updates);
-  };
-
-  const handleFeeOverride = () => {
-    if (pendingUpdate) {
-      updateAccess.mutate({
-        ...pendingUpdate,
-        fee_agreement_override_reason: overrideReason,
-      });
-    }
-    setShowFeeWarning(false);
-    setPendingUpdate(null);
-    setOverrideReason('');
+    });
   };
 
   const handleAddBuyer = (buyerId: string) => {
@@ -135,13 +119,26 @@ export function AccessMatrixPanel({ dealId }: AccessMatrixPanelProps) {
   };
 
   const handleBulkToggle = (field: 'can_view_teaser' | 'can_view_full_memo' | 'can_view_data_room', value: boolean) => {
-    const buyerIds = Array.from(selectedBuyers).map(id => {
-      const record = activeRecords.find(r => r.access_id === id);
-      return {
-        remarketing_buyer_id: record?.remarketing_buyer_id || undefined,
-        marketplace_user_id: record?.marketplace_user_id || undefined,
-      };
-    });
+    // For full memo / data room, only include buyers with signed fee agreements
+    const eligibleRecords = Array.from(selectedBuyers)
+      .map(id => activeRecords.find(r => r.access_id === id))
+      .filter((record): record is DataRoomAccessRecord => {
+        if (!record) return false;
+        if ((field === 'can_view_full_memo' || field === 'can_view_data_room') && value && !record.fee_agreement_signed) {
+          return false;
+        }
+        return true;
+      });
+
+    if (eligibleRecords.length === 0) {
+      toast({ title: 'No eligible buyers', description: 'Selected buyers need a signed fee agreement first.', variant: 'destructive' });
+      return;
+    }
+
+    const buyerIds = eligibleRecords.map(record => ({
+      remarketing_buyer_id: record.remarketing_buyer_id || undefined,
+      marketplace_user_id: record.marketplace_user_id || undefined,
+    }));
 
     bulkUpdate.mutate({
       deal_id: dealId,
@@ -202,6 +199,7 @@ export function AccessMatrixPanel({ dealId }: AccessMatrixPanelProps) {
               No buyers have been granted access yet
             </div>
           ) : (
+            <TooltipProvider>
             <Table>
               <TableHeader>
                 <TableRow>
@@ -257,20 +255,46 @@ export function AccessMatrixPanel({ dealId }: AccessMatrixPanelProps) {
                       />
                     </TableCell>
                     <TableCell className="text-center">
-                      <Checkbox
-                        checked={record.can_view_full_memo}
-                        onCheckedChange={(checked) =>
-                          handleToggle(record, 'can_view_full_memo', !!checked)
-                        }
-                      />
+                      {record.fee_agreement_signed ? (
+                        <Checkbox
+                          checked={record.can_view_full_memo}
+                          onCheckedChange={(checked) =>
+                            handleToggle(record, 'can_view_full_memo', !!checked)
+                          }
+                        />
+                      ) : (
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <span className="inline-flex items-center justify-center">
+                              <Lock className="h-3.5 w-3.5 text-muted-foreground" />
+                            </span>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>Fee agreement required</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      )}
                     </TableCell>
                     <TableCell className="text-center">
-                      <Checkbox
-                        checked={record.can_view_data_room}
-                        onCheckedChange={(checked) =>
-                          handleToggle(record, 'can_view_data_room', !!checked)
-                        }
-                      />
+                      {record.fee_agreement_signed ? (
+                        <Checkbox
+                          checked={record.can_view_data_room}
+                          onCheckedChange={(checked) =>
+                            handleToggle(record, 'can_view_data_room', !!checked)
+                          }
+                        />
+                      ) : (
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <span className="inline-flex items-center justify-center">
+                              <Lock className="h-3.5 w-3.5 text-muted-foreground" />
+                            </span>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>Fee agreement required</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      )}
                     </TableCell>
                     <TableCell className="text-center">
                       {record.fee_agreement_signed ? (
@@ -323,49 +347,10 @@ export function AccessMatrixPanel({ dealId }: AccessMatrixPanelProps) {
                 ))}
               </TableBody>
             </Table>
+            </TooltipProvider>
           )}
         </CardContent>
       </Card>
-
-      {/* Fee Agreement Warning Dialog */}
-      <Dialog open={showFeeWarning} onOpenChange={setShowFeeWarning}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <AlertTriangle className="h-5 w-5 text-amber-500" />
-              Fee Agreement Required
-            </DialogTitle>
-            <DialogDescription>
-              This buyer does not have a signed fee agreement. Releasing the full memo reveals the company name.
-              Do you want to proceed anyway?
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-3">
-            <label className="text-sm font-medium">Override reason (required)</label>
-            <Textarea
-              placeholder="Why is it okay to share the full memo without a fee agreement?"
-              value={overrideReason}
-              onChange={(e) => setOverrideReason(e.target.value)}
-            />
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => {
-              setShowFeeWarning(false);
-              setPendingUpdate(null);
-              setOverrideReason('');
-            }}>
-              Cancel
-            </Button>
-            <Button
-              onClick={handleFeeOverride}
-              disabled={!overrideReason.trim()}
-              className="bg-amber-600 hover:bg-amber-700"
-            >
-              Override & Grant Access
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
       {/* Add Buyer Dialog */}
       <Dialog open={showAddBuyer} onOpenChange={setShowAddBuyer}>
