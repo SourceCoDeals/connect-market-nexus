@@ -1,10 +1,9 @@
 import { useState, useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAdmin } from "@/hooks/use-admin";
-import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Search, Users, Inbox } from "lucide-react";
+import { Users, Inbox } from "lucide-react";
 import { AdminConnectionRequest } from "@/types/admin";
 import ConnectionRequestsTable from "@/components/admin/ConnectionRequestsTable";
 import { MobileConnectionRequestsTable } from "@/components/admin/MobileConnectionRequestsTable";
@@ -103,14 +102,12 @@ const AdminRequests = () => {
     buyerTypeFilter,
     ndaFilter,
     feeAgreementFilter,
-    followUpFilter,
     sortOption,
     filteredAndSortedRequests: pipelineFilteredRequests,
     setStatusFilter,
     setBuyerTypeFilter,
     setNdaFilter,
     setFeeAgreementFilter,
-    setFollowUpFilter,
     setSortOption,
   } = usePipelineFilters(requests);
   
@@ -263,48 +260,30 @@ const AdminRequests = () => {
             {/* Pipeline Metrics */}
             <PipelineMetricsCard requests={requests} />
             
-            {/* Pipeline Filters */}
+            {/* Pipeline Filters (includes search and sort) */}
             <PipelineFilters 
               requests={requests}
               statusFilter={statusFilter}
               buyerTypeFilter={buyerTypeFilter}
               ndaFilter={ndaFilter}
               feeAgreementFilter={feeAgreementFilter}
-              followUpFilter={followUpFilter}
               sortOption={sortOption}
+              searchQuery={searchQuery}
               onStatusFilterChange={setStatusFilter}
               onBuyerTypeFilterChange={(filter) => setBuyerTypeFilter(filter)}
               onNdaFilterChange={setNdaFilter}
               onFeeAgreementFilterChange={setFeeAgreementFilter}
-              onFollowUpFilterChange={setFollowUpFilter}
               onSortChange={(sort) => setSortOption(sort)}
-            />
-
-            {/* Quick Actions Bar */}
-            <QuickActionsBar 
-              requests={requests} 
-              onBulkAction={(action, requestIds) => {
-                console.log('Bulk action:', action, requestIds);
-                // TODO: Implement bulk actions
-              }} 
+              onSearchChange={setSearchQuery}
             />
             
-            {/* Filters and View Switcher */}
+            {/* Listing Filter and View Switcher */}
             <div className="flex flex-col sm:flex-row gap-4">
               <ListingFilterSelect
                 requests={requests}
                 selectedListingId={selectedListingId}
                 onListingChange={setSelectedListingId}
               />
-              <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-                <Input
-                  placeholder="Search requests..."
-                  className="pl-10"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                />
-              </div>
               {selectedListingId && (
                 <ViewSwitcher 
                   viewMode={viewMode} 
@@ -318,7 +297,7 @@ const AdminRequests = () => {
               <Badge variant="secondary" className="text-xs font-medium px-3 py-1.5">
                 Showing: <span className="font-semibold ml-1">{filteredRequests.length}</span>
               </Badge>
-              {(statusFilter !== 'all' || buyerTypeFilter !== 'all' || ndaFilter !== 'all' || feeAgreementFilter !== 'all' || followUpFilter !== 'all' || searchQuery || selectedListingId) && (
+              {(statusFilter !== 'all' || buyerTypeFilter !== 'all' || ndaFilter !== 'all' || feeAgreementFilter !== 'all' || searchQuery || selectedListingId) && (
                 <Badge variant="outline" className="text-xs font-medium px-3 py-1.5">
                   of {requests.length} total
                 </Badge>
@@ -341,11 +320,6 @@ const AdminRequests = () => {
               {feeAgreementFilter !== 'all' && (
                 <Badge variant="outline" className="text-xs font-medium px-3 py-1.5 bg-secondary/10 text-secondary-foreground border-secondary/20">
                   Fee: {feeAgreementFilter.replace('_', ' ')}
-                </Badge>
-              )}
-              {followUpFilter !== 'all' && (
-                <Badge variant="outline" className="text-xs font-medium px-3 py-1.5 bg-secondary/10 text-secondary-foreground border-secondary/20">
-                  Follow-up: {followUpFilter.replace('_', ' ')}
                 </Badge>
               )}
             </div>

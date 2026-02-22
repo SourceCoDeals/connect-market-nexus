@@ -10,6 +10,7 @@ import {
   DropdownMenuContent,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Input } from "@/components/ui/input";
 import { 
   CheckCircle2, 
   Clock, 
@@ -20,7 +21,7 @@ import {
   Calendar,
   FileText,
   Shield,
-  MessageSquare,
+  Search,
 } from "lucide-react";
 import { AdminConnectionRequest } from "@/types/admin";
 
@@ -28,7 +29,6 @@ export type StatusFilter = 'all' | 'pending' | 'approved' | 'rejected' | 'on_hol
 export type BuyerTypeFilter = 'all' | 'privateEquity' | 'familyOffice' | 'searchFund' | 'corporate' | 'individual' | 'independentSponsor' | 'advisor' | 'businessOwner';
 export type NdaFilter = 'all' | 'signed' | 'not_signed' | 'sent';
 export type FeeAgreementFilter = 'all' | 'signed' | 'not_signed' | 'sent';
-export type FollowUpFilter = 'all' | 'followed_up' | 'not_followed_up';
 export type SortOption = 'newest' | 'oldest' | 'buyer_priority' | 'deal_size' | 'approval_date';
 
 interface PipelineFiltersProps {
@@ -37,14 +37,14 @@ interface PipelineFiltersProps {
   buyerTypeFilter: BuyerTypeFilter;
   ndaFilter: NdaFilter;
   feeAgreementFilter: FeeAgreementFilter;
-  followUpFilter: FollowUpFilter;
   sortOption: SortOption;
+  searchQuery: string;
   onStatusFilterChange: (filter: StatusFilter) => void;
   onBuyerTypeFilterChange: (filter: BuyerTypeFilter) => void;
   onNdaFilterChange: (filter: NdaFilter) => void;
   onFeeAgreementFilterChange: (filter: FeeAgreementFilter) => void;
-  onFollowUpFilterChange: (filter: FollowUpFilter) => void;
   onSortChange: (sort: SortOption) => void;
+  onSearchChange: (query: string) => void;
 }
 
 function FilterDropdown({ 
@@ -128,14 +128,14 @@ export function PipelineFilters({
   buyerTypeFilter,
   ndaFilter,
   feeAgreementFilter,
-  followUpFilter,
   sortOption,
+  searchQuery,
   onStatusFilterChange,
   onBuyerTypeFilterChange,
   onNdaFilterChange,
   onFeeAgreementFilterChange,
-  onFollowUpFilterChange,
-  onSortChange
+  onSortChange,
+  onSearchChange,
 }: PipelineFiltersProps) {
   
   const statusCounts = {
@@ -172,12 +172,6 @@ export function PipelineFilters({
     { value: 'not_signed', label: 'Fee Not Signed', count: requests.filter(r => !(r.lead_fee_agreement_signed || r.user?.fee_agreement_signed)).length },
   ];
 
-  const followUpOptions = [
-    { value: 'all', label: 'All Follow-up Status' },
-    { value: 'followed_up', label: 'Followed Up', count: requests.filter(r => r.followed_up).length },
-    { value: 'not_followed_up', label: 'Not Followed Up', count: requests.filter(r => !r.followed_up).length },
-  ];
-
   const statusOptions = [
     { value: 'all', label: 'All Requests', icon: Users, count: statusCounts.all },
     { value: 'pending', label: 'Pending', icon: Clock, count: statusCounts.pending },
@@ -197,6 +191,42 @@ export function PipelineFilters({
   return (
     <div className="bg-card border border-border rounded-lg">
       <div className="px-6 py-4">
+        {/* Top row: Search + Sort */}
+        <div className="flex items-center gap-3 mb-3">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+            <Input
+              placeholder="Search requests..."
+              className="pl-10 h-9 bg-background border-border/60"
+              value={searchQuery}
+              onChange={(e) => onSearchChange(e.target.value)}
+            />
+          </div>
+          <Select value={sortOption} onValueChange={(value) => onSortChange(value as SortOption)}>
+            <SelectTrigger className="w-40 h-9">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent className="bg-popover border border-border rounded-lg shadow-lg">
+              <div className="p-3 border-b border-border">
+                <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                  Sort By
+                </div>
+              </div>
+              <div className="p-2">
+                {sortOptions.map((option) => (
+                  <SelectItem 
+                    key={option.value} 
+                    value={option.value}
+                    className="px-3 py-2 hover:bg-muted rounded-md cursor-pointer"
+                  >
+                    <span className="font-medium">{option.label}</span>
+                  </SelectItem>
+                ))}
+              </div>
+            </SelectContent>
+          </Select>
+        </div>
+
         {/* Status Filter Pills */}
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-1">
@@ -231,33 +261,6 @@ export function PipelineFilters({
               );
             })}
           </div>
-
-          {/* Sort */}
-          <Select value={sortOption} onValueChange={(value) => onSortChange(value as SortOption)}>
-            <SelectTrigger className="w-36 h-auto p-0 border-0 bg-transparent hover:bg-transparent focus:ring-0">
-              <div className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors duration-200">
-                <SelectValue />
-              </div>
-            </SelectTrigger>
-            <SelectContent className="bg-popover border border-border rounded-lg shadow-lg">
-              <div className="p-3 border-b border-border">
-                <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                  Sort By
-                </div>
-              </div>
-              <div className="p-2">
-                {sortOptions.map((option) => (
-                  <SelectItem 
-                    key={option.value} 
-                    value={option.value}
-                    className="px-3 py-2 hover:bg-muted rounded-md cursor-pointer"
-                  >
-                    <span className="font-medium">{option.label}</span>
-                  </SelectItem>
-                ))}
-              </div>
-            </SelectContent>
-          </Select>
         </div>
 
         {/* Secondary Filters Row */}
@@ -282,13 +285,6 @@ export function PipelineFilters({
             value={feeAgreementFilter}
             options={feeAgreementOptions}
             onChange={(v) => onFeeAgreementFilterChange(v as FeeAgreementFilter)}
-          />
-          <FilterDropdown
-            label="Follow-up"
-            icon={MessageSquare}
-            value={followUpFilter}
-            options={followUpOptions}
-            onChange={(v) => onFollowUpFilterChange(v as FollowUpFilter)}
           />
         </div>
       </div>
