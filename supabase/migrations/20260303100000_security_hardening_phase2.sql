@@ -394,7 +394,7 @@ CREATE OR REPLACE FUNCTION public.reset_all_admin_notifications()
 RETURNS void
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path TO 'public'
+SET search_path = public
 AS $$
 BEGIN
   -- Auth guard: admin-only
@@ -416,6 +416,7 @@ CREATE OR REPLACE FUNCTION public.restore_soft_deleted(
 RETURNS BOOLEAN
 LANGUAGE plpgsql
 SECURITY DEFINER
+SET search_path = public
 AS $$
 BEGIN
   -- Auth guard: admin-only
@@ -458,7 +459,6 @@ RETURNS TABLE (
   access_token UUID
 )
 LANGUAGE plpgsql
-STABLE
 SECURITY DEFINER
 SET search_path = public
 AS $$
@@ -511,7 +511,7 @@ BEGIN
       a.last_access_at,
       (SELECT MAX(al.created_at) FROM public.data_room_audit_log al
        WHERE al.deal_id = a.deal_id
-         AND al.user_id = COALESCE(a.marketplace_user_id, a.remarketing_buyer_id::uuid)
+         AND al.user_id = COALESCE(a.marketplace_user_id, a.remarketing_buyer_id)
          AND al.action IN ('view_document', 'download_document', 'view_data_room'))
     ) AS last_access_at,
     a.access_token
@@ -541,7 +541,6 @@ RETURNS TABLE (
   notes TEXT
 )
 LANGUAGE plpgsql
-STABLE
 SECURITY DEFINER
 SET search_path = public
 AS $$
@@ -588,7 +587,6 @@ RETURNS TABLE (
   pipeline_stage_id UUID
 )
 LANGUAGE plpgsql
-STABLE
 SECURITY DEFINER
 SET search_path = public
 AS $$
@@ -609,7 +607,7 @@ BEGIN
     COALESCE(
       (SELECT COUNT(*) FROM public.memo_distribution_log dl
        WHERE dl.deal_id = l.id AND dl.remarketing_buyer_id = p_buyer_id),
-      0
+      0::bigint
     ) AS memos_sent,
     (SELECT MAX(dl.sent_at) FROM public.memo_distribution_log dl
      WHERE dl.deal_id = l.id AND dl.remarketing_buyer_id = p_buyer_id
