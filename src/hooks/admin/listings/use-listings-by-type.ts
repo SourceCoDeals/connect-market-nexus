@@ -70,7 +70,7 @@ export function useListingsByType(type: ListingType, status?: 'active' | 'inacti
             categories: listing.categories || (listing.category ? [listing.category] : [])
           }));
           
-          return mappedData as AdminListing[];
+          return mappedData as unknown as AdminListing[];
         } catch (error: any) {
           toast({
             variant: 'destructive',

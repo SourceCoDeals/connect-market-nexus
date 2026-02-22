@@ -163,6 +163,6 @@ export async function exportDealsToCSV(dealIds: string[]): Promise<{ success: bo
     enriched_at: d.enriched_at ? new Date(d.enriched_at).toLocaleDateString() : "",
   }));
 
-  exportToCSV(rows, `deals-export-${new Date().toISOString().slice(0, 10)}`, DEAL_EXPORT_COLUMNS);
+  exportToCSV(rows, `deals-export-${new Date().toISOString().slice(0, 10)}`, DEAL_EXPORT_COLUMNS as any);
   return { success: true, count: rows.length };
 }

@@ -147,7 +147,7 @@ const ReMarketingDashboard = () => {
   });
 
   // ── Extract metrics from RPC result ──
-  const cards = stats?.cards;
+  const cards = stats?.cards as Record<string, any> | undefined;
   const newBySource = stats?.new_by_source || {};
   const allBySource = stats?.all_by_source || {};
   const teamData = stats?.team || [];
@@ -634,12 +634,12 @@ const ReMarketingDashboard = () => {
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-xs text-gray-800 truncate">
-                        {ev.type === "pushed" ? "Pushed to All Deals" : "Deal created"}: <span className="font-medium">{ev.name}</span>
+                        {ev.type === "pushed" ? "Pushed to All Deals" : "Deal created"}: <span className="font-medium">{String(ev.name)}</span>
                       </p>
                       <div className="flex items-center gap-2 mt-0.5">
-                        <DealSourceBadge source={ev.source} />
+                        <DealSourceBadge source={String(ev.source)} />
                         <span className="text-[10px] text-gray-400">
-                          {formatDistanceToNow(new Date(ev.date), { addSuffix: true })}
+                          {formatDistanceToNow(new Date(String(ev.date)), { addSuffix: true })}
                         </span>
                       </div>
                     </div>

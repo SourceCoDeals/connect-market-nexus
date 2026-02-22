@@ -97,8 +97,8 @@ export function useConnectionRequestsMutation() {
           ...requestData,
           status: typedStatus,
           user,
-          listing,
-          source: (requestData.source as 'marketplace' | 'webflow' | 'manual' | 'import' | 'api' | 'website' | 'referral' | 'cold_outreach' | 'networking' | 'linkedin' | 'email') || 'marketplace',
+          listing: listing as any,
+          source: (requestData.source as any) || 'marketplace',
           source_metadata: (requestData.source_metadata as Record<string, any>) || {}
         };
         

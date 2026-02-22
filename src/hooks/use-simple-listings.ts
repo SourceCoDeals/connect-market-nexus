@@ -77,7 +77,7 @@ async function fetchListings(state: PaginationState) {
     status: string; metric_3_type: string | null; owner_notes: string | null;
     created_at: string; updated_at: string; revenue: number; ebitda: number;
   };
-  const listings: Listing[] = ((data || []) as unknown as ListingRow[]).map((listing) => ({
+  const listings = ((data || []) as unknown as ListingRow[]).map((listing) => ({
     ...listing,
     status: listing.status as ListingStatus,
     metric_3_type: (listing.metric_3_type as 'employees' | 'custom') || 'employees',
@@ -90,7 +90,7 @@ async function fetchListings(state: PaginationState) {
       revenue: listing.ebitda > 0 ? (listing.revenue / listing.ebitda).toFixed(1) : 'N/A',
       value: listing.ebitda > 0 ? (listing.revenue / listing.ebitda).toFixed(1) : 'N/A',
     },
-  }));
+  })) as unknown as Listing[];
 
   return {
     listings,

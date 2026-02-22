@@ -362,7 +362,7 @@ const ReMarketingUniverseDetail = () => {
       setMaGuideContent(universe.ma_guide_content || '');
       
       // Load saved target buyer types from DB, fall back to defaults if empty
-      const savedBuyerTypes = universe.target_buyer_types as TargetBuyerTypeConfig[] | null;
+      const savedBuyerTypes = universe.target_buyer_types as unknown as TargetBuyerTypeConfig[] | null;
       if (savedBuyerTypes && savedBuyerTypes.length > 0) {
         setTargetBuyerTypes(savedBuyerTypes);
       }
@@ -611,7 +611,7 @@ const ReMarketingUniverseDetail = () => {
 
     if (newStatus) {
       // TURNING ON: Write to both remarketing_buyers AND firm_agreements
-      let firmId = buyer.marketplace_firm_id;
+      let firmId = (buyer as any).marketplace_firm_id;
 
       if (!firmId) {
         // Try to find or create the firm in marketplace via get_or_create_firm()
@@ -664,7 +664,7 @@ const ReMarketingUniverseDetail = () => {
       toast.success('Fee agreement marked — synced to marketplace');
     } else {
       // TURNING OFF: Only allow removal of manual overrides
-      if (buyer.fee_agreement_source === 'marketplace_synced' || buyer.fee_agreement_source === 'pe_firm_inherited') {
+      if ((buyer as any).fee_agreement_source === 'marketplace_synced' || (buyer as any).fee_agreement_source === 'pe_firm_inherited') {
         toast.error('This fee agreement comes from the marketplace. Remove it from the Firm Agreements page instead.');
         return;
       }

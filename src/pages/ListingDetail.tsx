@@ -106,7 +106,7 @@ const ListingDetail = () => {
           user_id: user?.id || null,
           session_id: sessionId,
           action_type: 'view',
-          clicked_elements: clickData as Json,
+          clicked_elements: clickData as unknown as Json,
         }]);
       } catch (error) {
         // silently fail - non-critical analytics

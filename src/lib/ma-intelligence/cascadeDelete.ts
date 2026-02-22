@@ -111,7 +111,7 @@ export async function deleteTrackerWithRelated(trackerId: string): Promise<{ err
     await supabase.from("deals").delete().eq("listing_id", trackerId);
 
     // Delete remarketing_buyer_universes for this tracker
-    await supabase.from("remarketing_buyer_universes").delete().eq("industry_tracker_id", trackerId);
+    await (supabase.from("remarketing_buyer_universes") as any).delete().eq("industry_tracker_id", trackerId);
 
     // Finally delete the tracker
     const { error } = await supabase.from("industry_trackers").delete().eq("id", trackerId);

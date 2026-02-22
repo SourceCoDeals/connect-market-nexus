@@ -41,7 +41,7 @@ export function usePipelineViews() {
         .order('is_default', { ascending: false });
 
       if (error) throw error;
-      return data as PipelineView[];
+      return data as unknown as PipelineView[];
     },
   });
 }
@@ -59,7 +59,7 @@ export function useCreatePipelineView() {
     }) => {
       const { data, error } = await supabase
         .from('pipeline_views')
-        .insert(view)
+        .insert(view as any)
         .select()
         .single();
 

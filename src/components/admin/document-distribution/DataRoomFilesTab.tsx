@@ -81,8 +81,8 @@ export function DataRoomFilesTab({ dealId, projectName, buyers = [] }: DataRoomF
 
   const handleDelete = async (docId: string) => {
     const { error } = await supabase
-      .from('deal_documents' as never)
-      .update({ status: 'deleted', updated_at: new Date().toISOString() })
+      .from('deal_documents' as any)
+      .update({ status: 'deleted', updated_at: new Date().toISOString() } as any)
       .eq('id', docId);
     if (error) {
       toast.error('Failed to delete document');
