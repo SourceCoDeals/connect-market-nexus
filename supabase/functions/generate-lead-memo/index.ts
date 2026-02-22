@@ -92,13 +92,12 @@ Deno.serve(async (req: Request) => {
       });
     }
 
-    // Fetch transcripts (deal_transcripts schema: no 'summary' column)
+    // Fetch transcripts (deal_transcripts columns: transcript_text, extracted_data, source, created_at)
     const { data: transcripts } = await supabaseAdmin
       .from("deal_transcripts")
-      .select("transcript_text, extracted_data, call_date, title, extraction_status")
+      .select("transcript_text, extracted_data, source, created_at")
       .eq("listing_id", deal_id)
-      .not("extraction_status", "eq", "failed")
-      .order("call_date", { ascending: false })
+      .order("created_at", { ascending: false })
       .limit(10);
 
     // Fetch valuation data if applicable
@@ -223,13 +222,14 @@ function buildDataContext(deal: any, transcripts: any[], valuationData: any): Da
     transcriptExcerpts = transcripts
       .map((t, i) => {
         const parts = [];
-        if (t.title) parts.push(`Title: ${t.title}`);
+        if (t.source) parts.push(`Source: ${t.source}`);
         if (t.extracted_data) parts.push(`Extracted Insights: ${JSON.stringify(t.extracted_data)}`);
         if (t.transcript_text) {
           // Take first 25000 chars per transcript for comprehensive context
           parts.push(`Transcript: ${t.transcript_text.substring(0, 25000)}`);
         }
-        return `--- Call ${i + 1} (${t.call_date || "unknown date"}) ---\n${parts.join("\n")}`;
+        const dateStr = t.created_at ? new Date(t.created_at).toLocaleDateString() : "unknown date";
+        return `--- Call ${i + 1} (${dateStr}) ---\n${parts.join("\n")}`;
       })
       .join("\n\n");
   }
