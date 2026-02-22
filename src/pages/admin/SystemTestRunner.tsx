@@ -116,8 +116,8 @@ function buildTests(): TestDef[] {
     });
   }
 
-  add(C1, "remarketing_buyers has firm_id column", async () => {
-    await columnExists("remarketing_buyers", "firm_id");
+  add(C1, "remarketing_buyers has marketplace_firm_id column", async () => {
+    await columnExists("remarketing_buyers", "marketplace_firm_id");
   });
 
   add(C1, "data_room_access has contact_id column", async () => {
@@ -175,11 +175,11 @@ function buildTests(): TestDef[] {
     if (!count || count === 0) throw new Error("No buyer contacts found");
   });
 
-  add(C1, "firm_id match ran on remarketing_buyers", async () => {
+  add(C1, "marketplace_firm_id match ran on remarketing_buyers", async () => {
     const { count, error } = await supabase
       .from("remarketing_buyers")
       .select("id", { count: "exact", head: true })
-      .not("firm_id", "is", null);
+      .not("marketplace_firm_id", "is", null);
     if (error) throw new Error(error.message);
     // This is informational — only fail if firm_agreements exist but no matches
     if (!count || count === 0) {
@@ -187,7 +187,7 @@ function buildTests(): TestDef[] {
         .from("firm_agreements")
         .select("id", { count: "exact", head: true });
       if (faCount && faCount > 0) {
-        throw new Error("firm_agreements exist but no remarketing_buyers have firm_id set");
+        throw new Error("firm_agreements exist but no remarketing_buyers have marketplace_firm_id set");
       }
     }
   });
@@ -565,10 +565,15 @@ function buildTests(): TestDef[] {
   const C11 = "11. Data Room Portal";
 
   add(C11, "record-data-room-view edge function — invalid token returns error", async () => {
-    const data = await invokeEdgeFunction("record-data-room-view", {
-      access_token: "00000000-0000-0000-0000-000000000000",
+    // This function uses GET, so we need to call it differently
+    const url = `${SUPABASE_URL}/functions/v1/record-data-room-view?access_token=00000000-0000-0000-0000-000000000000`;
+    const res = await fetch(url, {
+      headers: {
+        "apikey": SUPABASE_PUBLISHABLE_KEY,
+      },
     });
-    // Should return structured error, not crash
+    // Should return a structured response (even if 4xx), not a 500 crash
+    if (res.status >= 500) throw new Error(`Server error: ${res.status}`);
   });
 
   // ═══════════════════════════════════════════
