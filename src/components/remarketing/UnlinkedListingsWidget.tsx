@@ -117,7 +117,7 @@ export const UnlinkedListingsWidget = () => {
       setSelectedUniverse("");
       setSuggestions([]);
     },
-    onError: (error) => {
+    onError: () => {
       toast.error("Failed to link listing");
     },
   });

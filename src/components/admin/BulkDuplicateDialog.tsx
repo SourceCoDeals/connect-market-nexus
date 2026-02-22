@@ -1,4 +1,3 @@
-import React from 'react';
 import {
   Dialog,
   DialogContent,
@@ -109,13 +108,13 @@ export function BulkDuplicateDialog({
         <div className="flex-1 min-h-0 px-8 py-6">
           <ScrollArea className="h-[400px] -mx-8 px-8">
             <div className="space-y-3 pr-4">
-              {duplicates.map((dup, index) => {
+              {duplicates.map((dup, _index) => {
                 const { deal, duplicateInfo } = dup;
                 const typeInfo = getDuplicateTypeLabel(duplicateInfo.type);
 
                 return (
                   <div
-                    key={index}
+                    key={`${deal.name}-${deal.csvRowNumber}`}
                     className="group relative rounded-xl border bg-card p-5 transition-all hover:border-primary/20 hover:shadow-sm"
                   >
                     {/* Top Row */}

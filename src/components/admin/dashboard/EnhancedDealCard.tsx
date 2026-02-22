@@ -3,14 +3,9 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 // No icon imports needed
 import { formatDistanceToNow } from 'date-fns';
-import { useState, useMemo } from 'react';
-import { cn } from '@/lib/utils';
+import { useMemo } from 'react';
 import { useDealActivities } from '@/hooks/admin/use-deal-activities';
-import { useUpdateDeal } from '@/hooks/admin/use-update-deal';
-import { logDealActivity } from '@/lib/deal-activity-logger';
 import { ActivityTimelineItem } from './ActivityTimelineItem';
-import { QuickNoteInput } from './QuickNoteInput';
-import { useQueryClient } from '@tanstack/react-query';
 
 interface Deal {
   id: string;

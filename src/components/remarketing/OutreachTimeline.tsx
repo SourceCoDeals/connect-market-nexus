@@ -52,7 +52,6 @@ export const OutreachTimeline = ({ outreach, className }: OutreachTimelineProps)
   }
 
   // Find the furthest step completed
-  const completedSteps = timelineSteps.filter(step => outreach[step.key]);
   
   return (
     <div className={cn("space-y-3", className)}>

@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table';
-import { FileText, Send, Loader2, Shield, CheckCircle, XCircle } from 'lucide-react';
+import { FileText, Send, Loader2, CheckCircle, XCircle } from 'lucide-react';
 import { useBuyerDealHistory } from '@/hooks/admin/data-room/use-data-room';
 
 interface BuyerDealHistoryPanelProps {

@@ -5,7 +5,6 @@ import { Button } from "@/components/ui/button";
 import { 
   MessageSquare, 
   AlertTriangle, 
-  Clock, 
   RefreshCw,
   ExternalLink 
 } from "lucide-react";

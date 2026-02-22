@@ -1,4 +1,3 @@
-import React from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -16,12 +15,6 @@ interface PipelineDetailBuyerProps {
   deal: Deal;
 }
 
-// Date safety helpers
-const isValidDate = (value: any) => {
-  if (!value) return false;
-  const date = new Date(value);
-  return !isNaN(date.getTime());
-};
 
 export function PipelineDetailBuyer({ deal }: PipelineDetailBuyerProps) {
   // Phase 2: Resolve user_id from email (for both marketplace and lead-based deals)
@@ -168,7 +161,7 @@ export function PipelineDetailBuyer({ deal }: PipelineDetailBuyerProps) {
     }
   };
 
-  const formatFieldValue = (key: string, value: any) => {
+  const formatFieldValue = (_key: string, value: unknown) => {
     if (!value) return null;
     if (Array.isArray(value)) {
       if (value.length === 0) return null;
@@ -222,9 +215,9 @@ export function PipelineDetailBuyer({ deal }: PipelineDetailBuyerProps) {
                     <div className="space-y-2">
                       <p className="text-xs text-muted-foreground uppercase tracking-wider">Business Categories</p>
                       <div className="flex flex-wrap gap-1">
-                        {profile.business_categories.map((category: string, index: number) => (
+                        {profile.business_categories.map((category, index: number) => (
                           <Badge key={index} variant="secondary" className="text-xs">
-                            {category}
+                            {String(category)}
                           </Badge>
                         ))}
                       </div>
@@ -236,9 +229,9 @@ export function PipelineDetailBuyer({ deal }: PipelineDetailBuyerProps) {
                     <div className="space-y-2">
                       <p className="text-xs text-muted-foreground uppercase tracking-wider">Target Locations</p>
                       <div className="flex flex-wrap gap-1">
-                        {profile.target_locations.map((location: string, index: number) => (
+                        {profile.target_locations.map((location, index: number) => (
                           <Badge key={index} variant="outline" className="text-xs">
-                            {location}
+                            {String(location)}
                           </Badge>
                         ))}
                       </div>
@@ -523,7 +516,7 @@ export function PipelineDetailBuyer({ deal }: PipelineDetailBuyerProps) {
               <div className="space-y-1">
                 <p className="text-xs text-muted-foreground">Buyer Type</p>
                 <p className="text-sm text-foreground">
-                  {getBuyerTypeLabel(deal.buyer_type || profile?.buyer_type, deal.contact_role)}
+                  {getBuyerTypeLabel(deal.buyer_type ?? (profile?.buyer_type ?? undefined), deal.contact_role ?? undefined)}
                 </p>
               </div>
 

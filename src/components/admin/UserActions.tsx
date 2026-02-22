@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { useAdminUsers } from "@/hooks/admin/use-admin-users";
 import { useAdminEmail } from "@/hooks/admin/use-admin-email";
@@ -24,7 +23,6 @@ interface DialogState {
 
 export function UserActions({ onUserStatusUpdated }: UserActionsProps) {
   const { toast } = useToast();
-  const queryClient = useQueryClient();
   
   const {
     useUpdateUserStatus,
@@ -199,7 +197,7 @@ export function UserActions({ onUserStatusUpdated }: UserActionsProps) {
       toast({
         variant: 'destructive',
         title: 'Approval failed',
-        description: approvalError.message || 'Failed to approve user. Please try again.',
+        description: (approvalError instanceof Error ? approvalError.message : undefined) || 'Failed to approve user. Please try again.',
       });
     }
   };

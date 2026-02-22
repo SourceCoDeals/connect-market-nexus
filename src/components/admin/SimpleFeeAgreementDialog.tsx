@@ -8,7 +8,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { 
   FileText, 
-  Upload, 
   X, 
   User, 
   Mail, 
@@ -17,7 +16,6 @@ import {
 } from "lucide-react";
 import { User as UserType, Listing } from "@/types";
 import { useAuth } from "@/context/AuthContext";
-import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { EditableSignature } from "@/components/admin/EditableSignature";
 // Hook removed - edge function handles both email sending and database logging
@@ -45,7 +43,6 @@ Best regards,
 
 export function SimpleFeeAgreementDialog({
   user,
-  listing,
   isOpen,
   onClose,
   onSendEmail
@@ -274,7 +271,7 @@ export function SimpleFeeAgreementDialog({
                 {attachments.length > 0 && (
                   <div className="space-y-2">
                     {attachments.map((file, index) => (
-                      <div key={index} className="flex items-center justify-between p-2 bg-muted rounded">
+                      <div key={file.name} className="flex items-center justify-between p-2 bg-muted rounded">
                         <div className="flex items-center gap-2">
                           <FileText className="h-4 w-4" />
                           <span className="text-sm">{file.name}</span>
@@ -299,7 +296,7 @@ export function SimpleFeeAgreementDialog({
             {/* Email Signature */}
             <EditableSignature 
               showInline
-              onSignatureChange={(html, text) => {
+              onSignatureChange={(_html, text) => {
                 setCustomSignatureText(text);
               }}
             />

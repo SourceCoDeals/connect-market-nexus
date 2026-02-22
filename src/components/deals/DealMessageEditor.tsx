@@ -13,8 +13,8 @@ interface DealMessageEditorProps {
 }
 
 export function DealMessageEditor({ 
-  requestId, 
-  initialMessage, 
+  requestId: _requestId,
+  initialMessage,
   onMessageUpdate,
   className 
 }: DealMessageEditorProps) {

@@ -1,6 +1,5 @@
-import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts';
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 import { TierDistribution } from '@/hooks/useReMarketingAnalytics';
 import { BarChart3 } from 'lucide-react';
 
@@ -88,8 +87,8 @@ export function TierDistributionChart({ data, className }: TierDistributionChart
                     label={renderCustomLabel}
                     labelLine={false}
                   >
-                    {chartData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.fill} />
+                    {chartData.map((entry) => (
+                      <Cell key={entry.name} fill={entry.fill} />
                     ))}
                   </Pie>
                   <Tooltip content={<CustomTooltip />} />

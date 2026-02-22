@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -303,7 +302,7 @@ export function TranscriptAddDialog({
             </div>
             <div className="space-y-2 max-h-40 overflow-y-auto">
               {selectedFiles.map((sf, idx) => (
-                <div key={idx} className="flex items-center gap-2 text-sm bg-background rounded p-2">
+                <div key={sf.file.name} className="flex items-center gap-2 text-sm bg-background rounded p-2">
                   {sf.status === 'processing' ? (
                     <Loader2 className="h-4 w-4 animate-spin text-primary" />
                   ) : sf.status === 'done' ? (

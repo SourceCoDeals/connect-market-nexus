@@ -1,5 +1,4 @@
-import React from 'react';
-import { STANDARDIZED_CATEGORIES, StandardizedCategory } from '@/lib/financial-parser';
+import { STANDARDIZED_CATEGORIES } from '@/lib/financial-parser';
 import {
   Select,
   SelectContent,

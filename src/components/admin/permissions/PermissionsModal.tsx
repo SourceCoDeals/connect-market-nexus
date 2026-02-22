@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { useAdmin } from '@/hooks/admin';
 import { useRoleManagement } from '@/hooks/permissions/useRoleManagement';
-import { User } from '@/types';
 import {
   Dialog,
   DialogContent,

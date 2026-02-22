@@ -97,8 +97,8 @@ export const KeyQuotesCard = ({
 
             <div className="space-y-4">
               {editedQuotes.map((quote, index) => (
-                <div 
-                  key={index}
+                <div
+                  key={quote}
                   className="relative pl-4 pr-8 border-l-4 border-amber-400 py-2 bg-muted/30 rounded-r"
                 >
                   <p className="text-sm italic">"{quote}"</p>
@@ -120,9 +120,9 @@ export const KeyQuotesCard = ({
                   onChange={(e) => setNewQuote(e.target.value)}
                   className="min-h-[80px]"
                 />
-                <Button 
-                  variant="outline" 
-                  size="sm" 
+                <Button
+                  variant="outline"
+                  size="sm"
                   onClick={handleAddQuote}
                   disabled={!newQuote.trim()}
                 >
@@ -164,18 +164,18 @@ export const KeyQuotesCard = ({
         </div>
       </CardHeader>
       <CardContent className="space-y-3">
-        {displayQuotes.map((quote, index) => (
-          <div 
-            key={index}
+        {displayQuotes.map((quote) => (
+          <div
+            key={quote}
             className="pl-4 border-l-4 border-amber-400 py-1"
           >
             <p className="text-sm text-muted-foreground italic">"{quote}"</p>
           </div>
         ))}
-        
+
         {remainingCount > 0 && !showAll && (
-          <Button 
-            variant="ghost" 
+          <Button
+            variant="ghost"
             className="w-full text-muted-foreground"
             onClick={() => setShowAll(true)}
           >
@@ -183,10 +183,10 @@ export const KeyQuotesCard = ({
             <ChevronDown className="ml-2 h-4 w-4" />
           </Button>
         )}
-        
+
         {showAll && quotes.length > 3 && (
-          <Button 
-            variant="ghost" 
+          <Button
+            variant="ghost"
             className="w-full text-muted-foreground"
             onClick={() => setShowAll(false)}
           >
@@ -206,8 +206,8 @@ export const KeyQuotesCard = ({
 
           <div className="space-y-4">
             {editedQuotes.map((quote, index) => (
-              <div 
-                key={index}
+              <div
+                key={quote}
                 className="relative pl-4 pr-8 border-l-4 border-amber-400 py-2 bg-muted/30 rounded-r"
               >
                 <p className="text-sm italic">"{quote}"</p>

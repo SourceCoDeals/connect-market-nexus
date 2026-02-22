@@ -218,7 +218,7 @@ export function BulkDealImportDialog({ isOpen, onClose, onConfirm, isLoading }: 
           setParsedDeals(deals);
           setParseErrors(errors);
         },
-        error: (error) => {
+        error: (error: Error) => {
           setParseErrors([`CSV parsing error: ${error.message}`]);
         },
       });
@@ -496,8 +496,8 @@ export function BulkDealImportDialog({ isOpen, onClose, onConfirm, isLoading }: 
               <AlertCircle className="h-4 w-4" />
               <AlertDescription>
                 <ul className="list-disc list-inside">
-                  {parseErrors.map((error, i) => (
-                    <li key={i}>{error}</li>
+                  {parseErrors.map((error) => (
+                    <li key={error}>{error}</li>
                   ))}
                 </ul>
               </AlertDescription>
@@ -540,9 +540,9 @@ export function BulkDealImportDialog({ isOpen, onClose, onConfirm, isLoading }: 
                       </tr>
                     </thead>
                     <tbody>
-                      {parsedDeals.map((deal, index) => (
+                      {parsedDeals.map((deal) => (
                         <tr
-                          key={index}
+                          key={deal.csvRowNumber}
                           className={deal.isValid ? 'hover:bg-muted/50' : 'bg-destructive/10'}
                         >
                           <td className="px-3 py-2">
@@ -581,8 +581,8 @@ export function BulkDealImportDialog({ isOpen, onClose, onConfirm, isLoading }: 
                   <div className="text-xs space-y-1 text-muted-foreground max-h-24 overflow-y-auto">
                     {parsedDeals
                       .filter(d => !d.isValid)
-                      .map((deal, i) => (
-                        <div key={i}>
+                      .map((deal) => (
+                        <div key={deal.csvRowNumber}>
                           Row {deal.csvRowNumber}: {deal.errors.join(', ')}
                         </div>
                       ))}
@@ -646,8 +646,8 @@ export function BulkDealImportDialog({ isOpen, onClose, onConfirm, isLoading }: 
                   <div className="space-y-2 max-h-32 overflow-y-auto">
                     {importResult.details.imported
                       .filter(i => i.linkedToUser)
-                      .map((imp, i) => (
-                        <div key={i} className="flex items-center justify-between text-sm py-2 px-3 rounded-md bg-background/50">
+                      .map((imp) => (
+                        <div key={imp.userEmail || imp.userName} className="flex items-center justify-between text-sm py-2 px-3 rounded-md bg-background/50">
                           <div className="flex items-center gap-2">
                             <div className="font-medium">{imp.userName || imp.userEmail}</div>
                             {imp.userCompany && (
@@ -673,8 +673,8 @@ export function BulkDealImportDialog({ isOpen, onClose, onConfirm, isLoading }: 
                     Error Details
                   </div>
                   <div className="space-y-1 max-h-32 overflow-y-auto text-xs text-muted-foreground">
-                    {importResult.details.errors.map((err, i) => (
-                      <div key={i} className="py-1">
+                    {importResult.details.errors.map((err) => (
+                      <div key={err.deal.csvRowNumber} className="py-1">
                         <span className="font-medium">Row {err.deal.csvRowNumber}:</span> {err.error}
                       </div>
                     ))}

@@ -1,11 +1,12 @@
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { ScrollArea } from "@/components/ui/scroll-area";
+
+
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Textarea } from "@/components/ui/textarea";
 import { 
@@ -17,7 +18,6 @@ import {
   Check,
   X,
   AlertCircle,
-  Download,
   RefreshCw,
   MessageSquare,
    ArrowRight,
@@ -183,15 +183,14 @@ export const AIResearchSection = ({
   const [content, setContent] = useState(existingContent || "");
   const [wordCount, setWordCount] = useState(0);
   const [qualityResult, setQualityResult] = useState<QualityResult | null>(null);
-  const [extractedCriteria, setExtractedCriteria] = useState<ExtractedCriteria | null>(null);
+  const [, setExtractedCriteria] = useState<ExtractedCriteria | null>(null);
   const [missingElements, setMissingElements] = useState<string[]>([]);
   const contentRef = useRef<HTMLDivElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
 
   // Database persistence for guide generation (survives page reload/navigation)
   const { 
-    dbProgress, 
-    isLoadingProgress, 
+    isLoadingProgress,
     saveProgress: saveProgressToDb, 
     markCompleted: markCompletedInDb, 
     clearProgress: clearProgressInDb,
@@ -223,7 +222,7 @@ export const AIResearchSection = ({
      waitingSeconds: number;
      error: string | null;
    }>({ isLoading: false, retryCount: 0, waitingSeconds: 0, error: null });
-   const clarifyTimeoutRef = useRef<number | null>(null);
+   const clarifyTimeoutRef = useRef<number | null>(null); void clarifyTimeoutRef;
 
   // Auto-retry configuration (prevents manual Resume for transient stream cut-offs)
   const MAX_BATCH_RETRIES = 5; // Increased from 3 to 5 for better reliability
@@ -241,7 +240,7 @@ export const AIResearchSection = ({
   const pollStartTimeRef = useRef<number | null>(null);
 
   // Criteria extraction state
-  const [isExtracting, setIsExtracting] = useState(false);
+  const [, setIsExtracting] = useState(false);
 
   // Upload guide state
   const guideFileInputRef = useRef<HTMLInputElement>(null);
@@ -1153,7 +1152,6 @@ export const AIResearchSection = ({
                 }
                 if (errorCode === 'rate_limited') {
                   // Throw with rate limit flag so catch block handles retry with backoff
-                  const err = new Error(event.message);
                   const rateLimitErr = new Error(event.message) as Error & { isRateLimited: boolean; retryAfterMs: number };
                   rateLimitErr.isRateLimited = true;
                   rateLimitErr.retryAfterMs = event.retry_after_ms || 30000;
@@ -1391,6 +1389,8 @@ export const AIResearchSection = ({
       setIsExtracting(false);
     }
   };
+
+  void handleExtractCriteria;
 
   // Error panel handlers
   const handleErrorRetry = () => {
@@ -1780,8 +1780,8 @@ export const AIResearchSection = ({
                   <span className="font-medium">Generating additional content for:</span>
                 </div>
                 <ul className="text-sm text-muted-foreground list-disc list-inside">
-                  {missingElements.map((elem, i) => (
-                    <li key={i}>{elem}</li>
+                  {missingElements.map((elem) => (
+                    <li key={elem}>{elem}</li>
                   ))}
                 </ul>
               </div>

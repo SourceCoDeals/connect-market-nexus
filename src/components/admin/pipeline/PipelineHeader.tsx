@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -39,12 +39,11 @@ import {
   ArrowUpDown,
   EyeOff,
 } from 'lucide-react';
-import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { usePipelineCore, ViewMode } from '@/hooks/admin/use-pipeline-core';
 import { useAdminProfiles } from '@/hooks/admin/use-admin-profiles';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { PIPELINE_FEATURES, DISABLED_FEATURE_MESSAGE } from '@/config/pipeline-features';
+import { DISABLED_FEATURE_MESSAGE } from '@/config/pipeline-features';
 
 
 interface PipelineHeaderProps {

@@ -46,7 +46,6 @@ interface AdminListingCardProps {
 export function AdminListingCard({
   listing,
   viewMode,
-  listingType,
   isSelected,
   onSelect,
   onEdit,
@@ -321,8 +320,8 @@ export function AdminListingCard({
                     <>
                       <p className="font-semibold mb-1">Visible only to:</p>
                       <ul className="list-disc list-inside">
-                        {visibleBuyerTypeLabels.map((label, i) => (
-                          <li key={i}>{label}</li>
+                        {visibleBuyerTypeLabels.map((label) => (
+                          <li key={label}>{label}</li>
                         ))}
                       </ul>
                     </>
@@ -363,7 +362,7 @@ export function AdminListingCard({
             <div>
               <div className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground/70 mb-2">Status Tag</div>
               <StatusTagSwitcher
-                currentValue={listing.status_tag}
+                currentValue={listing.status_tag ?? null}
                 onChange={(value) => onStatusTagChange(listing.id, value)}
               />
             </div>
@@ -476,8 +475,8 @@ export function AdminListingCard({
               <div>
                 <div className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground/70 mb-2">Tags</div>
                 <div className="flex flex-wrap gap-1">
-                  {listing.tags.map((tag, index) => (
-                    <Badge key={index} variant="secondary" className="text-xs">
+                  {listing.tags.map((tag) => (
+                    <Badge key={tag} variant="secondary" className="text-xs">
                       {tag}
                     </Badge>
                   ))}

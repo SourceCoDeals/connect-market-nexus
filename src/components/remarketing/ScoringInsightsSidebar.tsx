@@ -55,7 +55,7 @@ const categoryConfig = [
 
 export const ScoringInsightsSidebar = ({
   universeId,
-  universeName,
+  universeName: _universeName,
   weights,
   outcomeStats,
   decisionCount,

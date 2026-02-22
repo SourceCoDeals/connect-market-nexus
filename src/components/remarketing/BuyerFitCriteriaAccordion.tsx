@@ -15,7 +15,6 @@ import {
   TargetBuyerTypeConfig,
   DocumentReference 
 } from "@/types/remarketing";
-import { supabase } from "@/integrations/supabase/client";
 import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { toast } from "sonner";
 

@@ -180,14 +180,14 @@ export const WeightSuggestionsPanel = ({
                       )}
                     </div>
                     
-                    {analysis.suggestions.map((suggestion, index) => {
+                    {analysis.suggestions.map((suggestion) => {
                       const conf = confidenceConfig[suggestion.confidence];
                       const ConfIcon = conf.icon;
                       const isIncrease = suggestion.suggestedWeight > suggestion.currentWeight;
-                      
+
                       return (
                         <div
-                          key={index}
+                          key={suggestion.dimension}
                           className="p-3 rounded-lg bg-muted/50 border space-y-2"
                         >
                           <div className="flex items-start justify-between gap-2">
@@ -255,8 +255,8 @@ export const WeightSuggestionsPanel = ({
                       <Lightbulb className="h-3 w-3" />
                       Insights
                     </h4>
-                    {analysis.insights.map((insight, index) => (
-                      <p key={index} className="text-xs text-muted-foreground pl-4">
+                    {analysis.insights.map((insight) => (
+                      <p key={insight} className="text-xs text-muted-foreground pl-4">
                         • {insight}
                       </p>
                     ))}

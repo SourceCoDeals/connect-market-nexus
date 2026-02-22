@@ -52,8 +52,8 @@ export function DiscoveryJourneyPath({
         <div className="absolute left-[14px] top-4 bottom-4 w-px bg-border" />
         
         <div className="space-y-3">
-          {steps.map((step, index) => (
-            <div key={index} className="flex items-center gap-3 relative">
+          {steps.map((step) => (
+            <div key={step.label} className="flex items-center gap-3 relative">
               {/* Icon container */}
               <div className={cn(
                 "w-7 h-7 rounded-full flex items-center justify-center border flex-shrink-0 bg-background z-10",

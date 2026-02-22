@@ -99,8 +99,8 @@ export const BuyerServicesBusinessModelCard = ({
                   <p className="text-sm leading-relaxed">{services.text}</p>
                 ) : services.items ? (
                   <div className="flex flex-wrap gap-1.5">
-                    {services.items.map((service, i) => (
-                      <Badge key={i} variant="secondary" className="text-xs">
+                    {services.items.map((service) => (
+                      <Badge key={service} variant="secondary" className="text-xs">
                         {service}
                       </Badge>
                     ))}

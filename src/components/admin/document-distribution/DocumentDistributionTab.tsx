@@ -40,7 +40,6 @@ interface DocumentDistributionTabProps {
 
 export function DocumentDistributionTab({
   dealId,
-  dealTitle,
   projectName,
   buyers: buyersProp,
 }: DocumentDistributionTabProps) {
@@ -62,7 +61,6 @@ export function DocumentDistributionTab({
 
       return (data || []).flatMap((buyer: any) => {
         const contacts = buyer.remarketing_buyer_contacts || [];
-        const primary = contacts.find((c: any) => c.is_primary);
 
         if (contacts.length === 0) {
           // Firm with no contacts — still list it

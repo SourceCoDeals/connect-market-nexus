@@ -80,18 +80,18 @@ export function useMyDealStats() {
       const activeDealCount = activeDeals.length;
 
       // Need attention: not followed up OR stale (7+ days in same stage)
-      const needAttention = activeDeals.filter(d => 
-        !d.followed_up || new Date(d.stage_entered_at) < weekAgo
+      const needAttention = activeDeals.filter(d =>
+        !d.followed_up || (d.stage_entered_at && new Date(d.stage_entered_at) < weekAgo)
       ).length;
 
       // This week: created or updated in last 7 days
-      const thisWeek = activeDeals.filter(d => 
-        new Date(d.created_at) >= weekAgo || new Date(d.updated_at) >= weekAgo
+      const thisWeek = activeDeals.filter(d =>
+        (d.created_at && new Date(d.created_at) >= weekAgo) || (d.updated_at && new Date(d.updated_at) >= weekAgo)
       ).length;
 
       // Stale deals (7+ days, only active)
-      const staleDeals = activeDeals.filter(d => 
-        new Date(d.stage_entered_at) < weekAgo
+      const staleDeals = activeDeals.filter(d =>
+        d.stage_entered_at && new Date(d.stage_entered_at) < weekAgo
       ).length;
 
       // Needs follow-up (only active)

@@ -1,7 +1,7 @@
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { AlertCircle, AlertTriangle, CheckCircle, Info } from "lucide-react";
-import { validateCriteria, CriteriaValidationResult } from "@/lib/criteriaValidation";
+import { validateCriteria } from "@/lib/criteriaValidation";
 import { SizeCriteria, GeographyCriteria, ServiceCriteria, BuyerTypesCriteria, ScoringBehavior } from "@/types/remarketing";
 
 interface CriteriaValidationAlertProps {
@@ -55,8 +55,8 @@ export const CriteriaValidationAlert = ({
         <AlertTitle>Cannot Score - Missing Required Fields</AlertTitle>
         <AlertDescription>
           <ul className="list-disc list-inside mt-2 space-y-1">
-            {validation.blockers.map((blocker, i) => (
-              <li key={i}>{blocker.message}</li>
+            {validation.blockers.map((blocker) => (
+              <li key={blocker.message}>{blocker.message}</li>
             ))}
           </ul>
         </AlertDescription>
@@ -77,16 +77,16 @@ export const CriteriaValidationAlert = ({
         </AlertTitle>
         <AlertDescription>
           <ul className="list-disc list-inside mt-2 space-y-1">
-            {validation.warnings.map((warning, i) => (
-              <li key={i}>{warning.message}</li>
+            {validation.warnings.map((warning) => (
+              <li key={warning.message}>{warning.message}</li>
             ))}
           </ul>
           {validation.suggestions.length > 0 && (
             <div className="mt-3 pt-3 border-t border-border">
               <span className="font-medium">Suggestions:</span>
               <ul className="list-disc list-inside mt-1 space-y-1 text-sm">
-                {validation.suggestions.slice(0, 3).map((suggestion, i) => (
-                  <li key={i}>{suggestion.message}</li>
+                {validation.suggestions.slice(0, 3).map((suggestion) => (
+                  <li key={suggestion.message}>{suggestion.message}</li>
                 ))}
               </ul>
             </div>

@@ -110,7 +110,7 @@ export function useBackgroundGuideGeneration({
       toast.success('Guide generation started. You can navigate away - it will continue in the background.');
 
       // Start polling for progress
-      startPolling(data.generation_id);
+      startPolling(data!.generation_id);
 
     } catch (error: any) {
       toast.error(error.message || 'Failed to start guide generation');

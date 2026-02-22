@@ -207,11 +207,11 @@ No body shops doing only paint work."
                     <div className="space-y-1">
                       <h5 className="text-sm font-medium text-muted-foreground">Geography</h5>
                       <div className="flex flex-wrap gap-1">
-                        {extractedCriteria.geography_criteria.target_regions?.map((region, i) => (
-                          <Badge key={i} variant="secondary" className="text-xs">{region}</Badge>
+                        {extractedCriteria.geography_criteria.target_regions?.map((region) => (
+                          <Badge key={region} variant="secondary" className="text-xs">{region}</Badge>
                         ))}
-                        {extractedCriteria.geography_criteria.target_states?.slice(0, 5).map((state, i) => (
-                          <Badge key={i} variant="outline" className="text-xs">{state}</Badge>
+                        {extractedCriteria.geography_criteria.target_states?.slice(0, 5).map((state) => (
+                          <Badge key={state} variant="outline" className="text-xs">{state}</Badge>
                         ))}
                         {(extractedCriteria.geography_criteria.target_states?.length || 0) > 5 && (
                           <Badge variant="outline" className="text-xs">+{(extractedCriteria.geography_criteria.target_states?.length || 0) - 5} more</Badge>
@@ -228,24 +228,24 @@ No body shops doing only paint work."
                         {extractedCriteria.service_criteria.primary_focus && extractedCriteria.service_criteria.primary_focus.length > 0 && (
                           <div className="flex flex-wrap gap-1">
                             <span className="text-xs text-primary font-medium">Primary:</span>
-                            {extractedCriteria.service_criteria.primary_focus.map((s, i) => (
-                              <Badge key={i} variant="default" className="text-xs">{s}</Badge>
+                            {extractedCriteria.service_criteria.primary_focus.map((s) => (
+                              <Badge key={s} variant="default" className="text-xs">{s}</Badge>
                             ))}
                           </div>
                         )}
                         {extractedCriteria.service_criteria.required_services && extractedCriteria.service_criteria.required_services.length > 0 && (
                           <div className="flex flex-wrap gap-1">
                             <span className="text-xs text-muted-foreground">Required:</span>
-                            {extractedCriteria.service_criteria.required_services.map((s, i) => (
-                              <Badge key={i} variant="secondary" className="text-xs">{s}</Badge>
+                            {extractedCriteria.service_criteria.required_services.map((s) => (
+                              <Badge key={s} variant="secondary" className="text-xs">{s}</Badge>
                             ))}
                           </div>
                         )}
                         {extractedCriteria.service_criteria.excluded_services && extractedCriteria.service_criteria.excluded_services.length > 0 && (
                           <div className="flex flex-wrap gap-1">
                             <span className="text-xs text-destructive">Excluded:</span>
-                            {extractedCriteria.service_criteria.excluded_services.map((s, i) => (
-                              <Badge key={i} variant="destructive" className="text-xs">{s}</Badge>
+                            {extractedCriteria.service_criteria.excluded_services.map((s) => (
+                              <Badge key={s} variant="destructive" className="text-xs">{s}</Badge>
                             ))}
                           </div>
                         )}
@@ -258,8 +258,8 @@ No body shops doing only paint work."
                     <div className="space-y-1">
                       <h5 className="text-sm font-medium text-muted-foreground">Keywords</h5>
                       <div className="flex flex-wrap gap-1">
-                        {extractedCriteria.extracted_keywords.map((kw, i) => (
-                          <Badge key={i} variant="outline" className="text-xs">{kw}</Badge>
+                        {extractedCriteria.extracted_keywords.map((kw) => (
+                          <Badge key={kw} variant="outline" className="text-xs">{kw}</Badge>
                         ))}
                       </div>
                     </div>

@@ -1,4 +1,4 @@
-import { Loader2, Sparkles } from 'lucide-react';
+import { Sparkles } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 import { Card, CardContent } from '@/components/ui/card';
 

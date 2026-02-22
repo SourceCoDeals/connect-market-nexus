@@ -155,8 +155,8 @@ export const CategoryLocationBadges = ({
   if (variant === "text-only") {
     return (
       <div className={`flex items-center gap-2 ${className}`}>
-        {standardCategories.map((cat, index) => (
-          <span key={index} className="text-xs font-medium text-gray-600 tracking-wide">
+        {standardCategories.map((cat) => (
+          <span key={cat} className="text-xs font-medium text-gray-600 tracking-wide">
             {cat}
           </span>
         ))}
@@ -175,8 +175,8 @@ export const CategoryLocationBadges = ({
   if (variant === "inline") {
     return (
       <div className={`flex items-center gap-2 text-sm text-slate-500 ${className}`}>
-        {standardCategories.map((cat, index) => (
-          <span key={index}>{cat}</span>
+        {standardCategories.map((cat) => (
+          <span key={cat}>{cat}</span>
         ))}
         {standardLocation && (
           <>
@@ -197,8 +197,8 @@ export const CategoryLocationBadges = ({
       {/* Acquisition Type badge - FIRST */}
       <AcquisitionTypeBadge type={acquisitionType} />
       
-      {standardCategories.map((standardCategory, index) => (
-        <div key={index} className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-white border border-slate-200/80 shadow-[0_1px_2px_rgba(0,0,0,0.06)]">
+      {standardCategories.map((standardCategory) => (
+        <div key={standardCategory} className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-white border border-slate-200/80 shadow-[0_1px_2px_rgba(0,0,0,0.06)]">
           {getCategoryIcon(standardCategory)}
           <span className="text-[11px] font-medium text-slate-700 tracking-[0.02em]">
             {standardCategory}

@@ -1,5 +1,4 @@
-import { useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -16,7 +15,6 @@ import {
   ArrowRight,
   BarChart3,
 } from "lucide-react";
-import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
 interface LearningInsightsPanelProps {
@@ -57,8 +55,6 @@ export const LearningInsightsPanel = ({
   onApplySuggestion,
   className 
 }: LearningInsightsPanelProps) => {
-  const queryClient = useQueryClient();
-
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ['remarketing', 'learning-insights', universeId],
     queryFn: async () => {
@@ -73,7 +69,7 @@ export const LearningInsightsPanel = ({
     staleTime: 5 * 60 * 1000, // 5 minutes
   });
 
-  const hasEnoughData = data?.analysis?.totalDecisions >= 10;
+  const hasEnoughData = (data?.analysis?.totalDecisions ?? 0) >= 10;
 
   if (isLoading) {
     return (
@@ -144,12 +140,12 @@ export const LearningInsightsPanel = ({
             </div>
 
             {/* Top Pass Reasons */}
-            {data?.analysis?.topPassCategories?.length > 0 && (
+            {(data?.analysis?.topPassCategories?.length ?? 0) > 0 && (
               <div className="space-y-2">
                 <h4 className="text-sm font-medium">Why Buyers Are Passed</h4>
                 <div className="space-y-1">
-                  {data.analysis.topPassCategories.slice(0, 5).map((cat, i) => (
-                    <div key={i} className="flex items-center justify-between text-sm">
+                  {data?.analysis?.topPassCategories?.slice(0, 5).map((cat) => (
+                    <div key={cat.category} className="flex items-center justify-between text-sm">
                       <span className="text-muted-foreground">{cat.category}</span>
                       <Badge variant="outline" className="text-xs">
                         {cat.count} ({cat.percentage}%)
@@ -161,12 +157,12 @@ export const LearningInsightsPanel = ({
             )}
 
             {/* Weight Suggestions */}
-            {data?.suggestions?.length > 0 && (
+            {(data?.suggestions?.length ?? 0) > 0 && (
               <div className="space-y-3">
                 <h4 className="text-sm font-medium">Suggested Weight Adjustments</h4>
-                {data.suggestions.map((suggestion, i) => (
-                  <div 
-                    key={i} 
+                {data?.suggestions?.map((suggestion) => (
+                  <div
+                    key={suggestion.category}
                     className="p-3 rounded-lg border bg-muted/30 space-y-2"
                   >
                     <div className="flex items-center justify-between">

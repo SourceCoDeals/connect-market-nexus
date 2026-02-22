@@ -219,7 +219,7 @@ export function KPIConfigPanel({ trackerId, tracker, onSave }: KPIConfigPanelPro
                 </TableRow>
               ) : (
                 kpis.map((kpi, index) => (
-                  <TableRow key={index}>
+                  <TableRow key={kpi.name || `kpi-${index}`}>
                     <TableCell>
                       <Input
                         value={kpi.name}
@@ -311,7 +311,7 @@ export function KPIConfigPanel({ trackerId, tracker, onSave }: KPIConfigPanelPro
                 </p>
                 <div className="space-y-2">
                   {kpis.map((kpi, index) => (
-                    <div key={index} className="flex items-center justify-between text-sm">
+                    <div key={kpi.name || `kpi-preview-${index}`} className="flex items-center justify-between text-sm">
                       <div className="flex items-center gap-2">
                         <span className="font-medium">{kpi.name || `KPI ${index + 1}`}</span>
                         <Badge variant="secondary" className="text-xs">

@@ -35,7 +35,7 @@ export default function ResetPassword() {
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [loading, setLoading] = useState(false);
-  const { strengthResult, breachResult, isSecure } = usePasswordSecurity(password);
+  const { strengthResult, isSecure } = usePasswordSecurity(password);
 
   useEffect(() => setSEO(), []);
 

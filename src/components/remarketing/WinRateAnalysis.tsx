@@ -1,4 +1,3 @@
-import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
@@ -61,7 +60,7 @@ const formatCurrency = (value: number) => {
   return `$${value.toFixed(0)}`;
 };
 
-const CustomTooltip = ({ active, payload, label }: any) => {
+const CustomTooltip = ({ active, payload, label: _label }: any) => {
   if (active && payload && payload.length) {
     const data = payload[0].payload;
     return (
@@ -179,10 +178,10 @@ export const WinRateAnalysis = ({
                 <YAxis type="category" dataKey="segment" width={60} />
                 <Tooltip content={<CustomTooltip />} />
                 <Bar dataKey="winRate" radius={[0, 4, 4, 0]}>
-                  {byTier.map((entry, index) => (
-                    <Cell 
-                      key={`cell-${index}`} 
-                      fill={TIER_COLORS[entry.segment as keyof typeof TIER_COLORS] || 'hsl(220, 9%, 46%)'} 
+                  {byTier.map((entry) => (
+                    <Cell
+                      key={entry.segment}
+                      fill={TIER_COLORS[entry.segment as keyof typeof TIER_COLORS] || 'hsl(220, 9%, 46%)'}
                     />
                   ))}
                 </Bar>

@@ -27,7 +27,7 @@ interface ChatFeedbackButtonsProps {
 export function ChatFeedbackButtons({
   conversationId,
   messageIndex,
-  messageContent,
+  messageContent: _messageContent,
   className,
 }: ChatFeedbackButtonsProps) {
   const [rating, setRating] = useState<1 | -1 | null>(null);

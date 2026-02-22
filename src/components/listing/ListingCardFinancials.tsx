@@ -1,5 +1,4 @@
 
-import { extractFinancialMetrics } from "@/lib/financial-parser";
 
 interface ListingCardFinancialsProps {
   revenue: number;
@@ -14,13 +13,12 @@ interface ListingCardFinancialsProps {
 const ListingCardFinancials = ({ 
   revenue, 
   ebitda, 
-  description = "", 
+  description: _description = "",
   formatCurrency,
   fullTimeEmployees = 0,
   partTimeEmployees = 0,
   viewType = "grid"
 }: ListingCardFinancialsProps) => {
-  const extractedMetrics = extractFinancialMetrics(description);
   const ebitdaMargin = revenue > 0 ? ((ebitda / revenue) * 100) : 0;
   const totalEmployees = fullTimeEmployees + partTimeEmployees;
   

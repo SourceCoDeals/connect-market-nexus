@@ -90,8 +90,8 @@ interface CreateDealModalProps {
 interface DuplicateDeal {
   id: string;
   title: string;
-  contact_name: string;
-  created_at: string;
+  contact_name: string | null;
+  created_at: string | null;
 }
 
 export function CreateDealModal({ open, onOpenChange, prefilledStageId, onDealCreated }: CreateDealModalProps) {
@@ -1001,7 +1001,7 @@ export function CreateDealModal({ open, onOpenChange, prefilledStageId, onDealCr
                   <div key={dup.id} className="text-sm">
                     <div className="font-medium text-foreground">{dup.title}</div>
                     <div className="text-muted-foreground">
-                      Contact: {dup.contact_name} • Created: {format(new Date(dup.created_at), 'PP')}
+                      Contact: {dup.contact_name ?? 'N/A'} • Created: {dup.created_at ? format(new Date(dup.created_at), 'PP') : 'N/A'}
                     </div>
                   </div>
                 ))}

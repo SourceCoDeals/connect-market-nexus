@@ -67,9 +67,9 @@ function useBuyerThreads() {
           threadMap.set(reqId, {
             connection_request_id: reqId,
             deal_title: req?.listing?.title || "Untitled Deal",
-            deal_category: req?.listing?.category,
-            request_status: req?.status || "pending",
-            listing_id: req?.listing_id,
+            deal_category: req?.listing?.category ?? undefined,
+            request_status: req?.status ?? "pending",
+            listing_id: req?.listing_id ?? '',
             messages_count: 0,
             last_message_body: msg.body,
             last_message_at: msg.created_at,

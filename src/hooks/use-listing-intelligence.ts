@@ -110,10 +110,10 @@ export function useListingIntelligence(daysBack: number = 30) {
 
         listingPerformance.push({
           id: listing.id,
-          title: listing.title,
-          category: listing.category,
-          revenue: listing.revenue,
-          ebitda: listing.ebitda,
+          title: listing.title ?? '',
+          category: listing.category ?? '',
+          revenue: listing.revenue ?? 0,
+          ebitda: listing.ebitda ?? 0,
           created_at: listing.created_at,
           views,
           saves,

@@ -456,7 +456,7 @@ export function useTaskReviewers(taskId?: string) {
 // Add reviewer to task
 export function useAddTaskReviewer() {
   const queryClient = useQueryClient();
-  const { toast } = useToast();
+  const { toast: _toast } = useToast();
 
   return useMutation({
     mutationFn: async ({ taskId, adminId }: { taskId: string; adminId: string }) => {
@@ -481,7 +481,7 @@ export function useAddTaskReviewer() {
 // Remove reviewer from task
 export function useRemoveTaskReviewer() {
   const queryClient = useQueryClient();
-  const { toast } = useToast();
+  const { toast: _toast } = useToast();
 
   return useMutation({
     mutationFn: async ({ taskId, adminId }: { taskId: string; adminId: string }) => {

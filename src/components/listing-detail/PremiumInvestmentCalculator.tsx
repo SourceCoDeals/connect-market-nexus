@@ -1,12 +1,6 @@
 import { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { TrendingUp, Calculator, Download, BarChart3 } from "lucide-react";
-import { Separator } from "@/components/ui/separator";
 
 interface PremiumInvestmentCalculatorProps {
   revenue: number;
@@ -41,58 +35,15 @@ export function PremiumInvestmentCalculator({
   const currentValuation = adjustedEbitda * exitMultiple[0];
   const futureEbitda = adjustedEbitda * Math.pow(1 + adjustedGrowth / 100, timeHorizon[0]);
   const futureValuation = futureEbitda * exitMultiple[0];
-  const totalReturn = ((futureValuation - currentValuation) / currentValuation) * 100;
   const annualizedReturn = (Math.pow(futureValuation / currentValuation, 1 / timeHorizon[0]) - 1) * 100;
 
   // Leverage calculations
   const equityInvestment = currentValuation / (1 + leverageRatio[0]);
   const debtFinancing = currentValuation - equityInvestment;
-  const leveragedReturn = ((futureValuation - debtFinancing) / equityInvestment - 1) * 100;
   const leveragedAnnualizedReturn = (Math.pow((futureValuation - debtFinancing) / equityInvestment, 1 / timeHorizon[0]) - 1) * 100;
 
   // Industry benchmarks (mock data for demonstration)
-  const industryBenchmarks = {
-    medianMultiple: 4.8,
-    medianGrowth: 12,
-    medianMargin: (ebitda / revenue) * 100
-  };
 
-  const exportCalculations = () => {
-    const data = {
-      scenario,
-      assumptions: {
-        exitMultiple: exitMultiple[0],
-        growthRate: adjustedGrowth,
-        timeHorizon: timeHorizon[0],
-        leverageRatio: leverageRatio[0]
-      },
-      currentMetrics: {
-        revenue: formatCurrency(revenue),
-        ebitda: formatCurrency(adjustedEbitda),
-        valuation: formatCurrency(currentValuation)
-      },
-      projectedMetrics: {
-        futureEbitda: formatCurrency(futureEbitda),
-        futureValuation: formatCurrency(futureValuation),
-        totalReturn: `${totalReturn.toFixed(1)}%`,
-        annualizedReturn: `${annualizedReturn.toFixed(1)}%`
-      },
-      leverageAnalysis: {
-        equityRequired: formatCurrency(equityInvestment),
-        debtFinancing: formatCurrency(debtFinancing),
-        leveragedReturn: `${leveragedReturn.toFixed(1)}%`,
-        leveragedIRR: `${leveragedAnnualizedReturn.toFixed(1)}%`
-      }
-    };
-    
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'investment-analysis.json';
-    a.click();
-    URL.revokeObjectURL(url);
-  };
 
   return (
     <div className="border border-sourceco-form bg-sourceco-background p-6 space-y-6">

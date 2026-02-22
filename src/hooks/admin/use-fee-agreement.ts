@@ -96,7 +96,7 @@ export const useUpdateFeeAgreement = () => {
         description: "The fee agreement status has been successfully updated.",
       });
     },
-    onError: (err, variables, context) => {
+    onError: (_err, _variables, context) => {
       queryClient.setQueryData(['admin-users'], context?.previousUsers);
       queryClient.setQueryData(['connection-requests'], context?.previousRequests);
       toast({
@@ -175,7 +175,7 @@ export const useUpdateFeeAgreementEmailSent = () => {
         description: "The fee agreement email status has been successfully updated.",
       });
     },
-    onError: (err, variables, context) => {
+    onError: (_err, _variables, context) => {
       queryClient.setQueryData(['admin-users'], context?.previousUsers);
       queryClient.setQueryData(['connection-requests'], context?.previousRequests);
       toast({
@@ -195,8 +195,8 @@ export const useLogFeeAgreementEmail = () => {
     mutationFn: async ({ 
       userId, 
       userEmail, 
-      notes, 
-      subject, 
+      notes: _notes,
+      subject,
       content, 
       attachments, 
       customSignatureText,
@@ -274,7 +274,7 @@ export const useLogFeeAgreementEmail = () => {
         description: "The fee agreement email has been sent and logged.",
       });
     },
-    onError: (err, variables, context) => {
+    onError: (_err, _variables, context) => {
       queryClient.setQueryData(['admin-users'], context?.previousUsers);
       queryClient.setQueryData(['connection-requests'], context?.previousRequests);
       toast({

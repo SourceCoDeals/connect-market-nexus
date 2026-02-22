@@ -118,9 +118,9 @@ export const CriteriaExtractionSummaryDialog = ({
                     Extracted Criteria
                   </p>
                   <div className="grid gap-2">
-                    {extractedItems.map((item, idx) => (
-                      <div 
-                        key={idx}
+                    {extractedItems.map((item) => (
+                      <div
+                        key={item.label}
                         className="flex items-center justify-between p-2 rounded-lg bg-muted/50"
                       >
                         <div className="flex items-center gap-2">
@@ -152,8 +152,8 @@ export const CriteriaExtractionSummaryDialog = ({
                   </p>
                   <ScrollArea className="h-[100px] rounded-lg border p-3">
                     <div className="space-y-1">
-                      {warnings.map((warning, idx) => (
-                        <p key={idx} className="text-xs text-amber-600 dark:text-amber-400">
+                      {warnings.map((warning) => (
+                        <p key={warning} className="text-xs text-amber-600 dark:text-amber-400">
                           • {warning}
                         </p>
                       ))}

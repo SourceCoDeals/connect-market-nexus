@@ -492,7 +492,7 @@ export function AddTranscriptDialog({
                 <ScrollArea className="max-h-[200px]">
                   <div className="space-y-2 pr-2">
                     {selectedFiles.map((sf, index) => (
-                      <div key={index} className="flex items-center gap-2 p-2 bg-muted/50 rounded-lg border">
+                      <div key={sf.file.name} className="flex items-center gap-2 p-2 bg-muted/50 rounded-lg border">
                         {sf.status === 'pending' && (
                           <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
                         )}

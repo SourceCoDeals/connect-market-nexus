@@ -66,11 +66,10 @@ export const uploadListingImage = async (file: File, listingId: string): Promise
   try {
     // Generate a unique file name
     const fileExt = file.name.split('.').pop() || 'jpg';
-    const fileName = `${listingId}/${Date.now()}.${fileExt}`;
     const fullPath = `${listingId}/${Date.now()}.${fileExt}`;
 
     // Upload the file
-    const { data: uploadData, error: uploadError } = await supabase.storage
+    const { error: uploadError } = await supabase.storage
       .from(LISTINGS_BUCKET)
       .upload(fullPath, file, {
         cacheControl: '3600',

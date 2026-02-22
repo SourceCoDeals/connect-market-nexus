@@ -11,8 +11,7 @@ import {
 } from '@/components/ui/dialog';
 import { useUpdateFirmFeeAgreement, useUpdateFirmNDA, type FirmAgreement, type FirmMember } from '@/hooks/admin/use-firm-agreements';
 import { FirmSignerSelector } from './FirmSignerSelector';
-import { Loader2, Check, X, FileCheck, Shield, User, Calendar } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { Loader2, Check, X } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';

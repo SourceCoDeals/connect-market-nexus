@@ -183,7 +183,7 @@ export const BuyerFitCriteriaDialog = ({
   onSizeCriteriaChange,
   onGeographyCriteriaChange,
   onServiceCriteriaChange,
-  onTargetBuyerTypesChange,
+  onTargetBuyerTypesChange: _onTargetBuyerTypesChange,
   universeName,
 }: BuyerFitCriteriaDialogProps) => {
   const [aiPrompt, setAiPrompt] = useState("");

@@ -1,9 +1,7 @@
 import { useState } from 'react';
-import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { FileText, Plus, Edit, Save, X } from 'lucide-react';
+import { FileText, Plus, Edit } from 'lucide-react';
 import { useUserNotes, useCreateUserNote, useUpdateUserNote, UserNote } from '@/hooks/admin/use-connection-notes';
 import { formatDistanceToNow } from 'date-fns';
 
@@ -12,7 +10,7 @@ interface UserNotesSectionProps {
   userName: string;
 }
 
-export function UserNotesSection({ userId, userName }: UserNotesSectionProps) {
+export function UserNotesSection({ userId }: UserNotesSectionProps) {
   const [isCreating, setIsCreating] = useState(false);
   const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
   const [newNoteText, setNewNoteText] = useState('');

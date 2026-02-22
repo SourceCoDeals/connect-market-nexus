@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
@@ -6,14 +6,13 @@ import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
-import { Mail, Send, Clock, Check, User, Calendar, CheckCheck, XCircle } from 'lucide-react';
+import { Mail, CheckCheck } from 'lucide-react';
 import { Deal } from '@/hooks/admin/use-deals';
 import { formatDistanceToNow } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useDealEmails } from '@/hooks/admin/use-deal-emails';
 import { useUpdateDealFollowup } from '@/hooks/admin/use-deal-followup';
-import { useQueryClient } from '@tanstack/react-query';
 import { useAdminProfiles } from '@/hooks/admin/use-admin-profiles';
 
 interface PipelineDetailCommunicationProps {
@@ -28,7 +27,6 @@ export function PipelineDetailCommunication({ deal }: PipelineDetailCommunicatio
   });
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
-  const queryClient = useQueryClient();
   const { data: realEmailHistory = [], refetch: refetchEmails } = useDealEmails(deal.deal_id);
   const updateDealFollowup = useUpdateDealFollowup();
   const { data: allAdminProfiles } = useAdminProfiles();
@@ -122,31 +120,6 @@ export function PipelineDetailCommunication({ deal }: PipelineDetailCommunicatio
     status: email.status,
     sent_by: 'Admin' // Enhanced to show actual admin name from email metadata
   }));
-
-  const getEmailTypeIcon = (type: string) => {
-    switch (type) {
-      case 'nda':
-      case 'fee_agreement':
-        return '📄';
-      case 'followup':
-        return '🔄';
-      default:
-        return '✉️';
-    }
-  };
-
-  const getEmailTypeBadge = (type: string) => {
-    switch (type) {
-      case 'nda':
-        return <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-200">NDA</Badge>;
-      case 'fee_agreement':
-        return <Badge variant="outline" className="text-xs bg-purple-50 text-purple-700 border-purple-200">Fee Agreement</Badge>;
-      case 'followup':
-        return <Badge variant="outline" className="text-xs bg-green-50 text-green-700 border-green-200">Follow-up</Badge>;
-      default:
-        return <Badge variant="outline" className="text-xs border-border/60">Custom</Badge>;
-    }
-  };
 
   const handleFollowupToggle = async (type: 'positive' | 'negative', newValue: boolean) => {
     if (type === 'positive') {

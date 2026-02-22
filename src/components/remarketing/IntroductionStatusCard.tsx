@@ -2,7 +2,6 @@ import { format } from "date-fns";
 import { Link } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   Select,
@@ -12,16 +11,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
-  Building2,
   ExternalLink,
   Phone,
   FileText,
   FileCheck,
   Calendar,
-  CheckCircle2,
-  XCircle,
-  Clock,
-} from "lucide-react";
+  } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ScoreBadge, ScoreTierBadge } from "@/components/remarketing";
 import type { ScoreTier } from "@/types/remarketing";

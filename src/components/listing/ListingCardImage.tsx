@@ -1,7 +1,5 @@
 import { ImageIcon } from "lucide-react";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
-import { Badge } from "@/components/ui/badge";
-import { ArrowRight } from "lucide-react";
 import { useState, useEffect } from "react";
 import { DEFAULT_IMAGE } from "@/lib/storage-utils";
 

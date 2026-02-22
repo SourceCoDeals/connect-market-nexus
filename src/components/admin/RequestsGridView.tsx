@@ -9,18 +9,15 @@ import {
   User, 
   Building2, 
   Mail, 
-  Phone,
   CheckCircle, 
   XCircle, 
   Clock,
   AlertTriangle,
   ChevronDown,
   ChevronUp,
-  ExternalLink
 } from "lucide-react";
 import { AdminConnectionRequest } from "@/types/admin";
 import { useUpdateConnectionRequestStatus } from "@/hooks/admin/use-connection-request-status";
-import { useAuth } from "@/context/AuthContext";
 import { useAdminProfiles } from "@/hooks/admin/use-admin-profiles";
 
 interface RequestsGridViewProps {
@@ -80,7 +77,6 @@ const BuyerCard = ({
   request: AdminConnectionRequest;
 }) => {
   const [isExpanded, setIsExpanded] = useState(false);
-  const { user } = useAuth();
   const updateStatus = useUpdateConnectionRequestStatus();
   
   // Fetch admin profiles for decision makers

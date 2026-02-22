@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { CheckCircle, Clock, FileText, User, Calendar, Phone, Mail, AlertTriangle, Pencil, Trash2, MessageSquare } from 'lucide-react';
+import { Pencil, Trash2, MessageSquare } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { Deal } from '@/hooks/admin/use-deals';
 import { useAdminProfiles } from '@/hooks/admin/use-admin-profiles';
@@ -11,7 +11,6 @@ import { useUpdateDeal } from '@/hooks/admin/use-deals';
 import { useUpdateLeadNDAStatus, useUpdateLeadFeeAgreementStatus } from '@/hooks/admin/requests/use-lead-status-updates';
 import { useUpdateDealFollowup } from '@/hooks/admin/use-deal-followup';
 import { supabase } from '@/integrations/supabase/client';
-import { useQuery } from '@tanstack/react-query';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { CheckCheck } from 'lucide-react';
@@ -26,7 +25,6 @@ interface PipelineDetailOverviewProps {
 
 export function PipelineDetailOverview({ deal }: PipelineDetailOverviewProps) {
   const { data: allAdminProfiles, isLoading: adminProfilesLoading } = useAdminProfiles();
-  const assignedAdmin = deal.assigned_to && allAdminProfiles ? allAdminProfiles[deal.assigned_to] : null;
   const updateDeal = useUpdateDeal();
   const updateDealFollowup = useUpdateDealFollowup();
   
@@ -227,22 +225,7 @@ export function PipelineDetailOverview({ deal }: PipelineDetailOverviewProps) {
     });
   };
 
-  
 
-  const getStatusInfo = (status?: string) => {
-    switch (status) {
-      case 'signed':
-        return { icon: CheckCircle, label: 'Signed', color: 'text-emerald-600', bg: 'bg-emerald-50' };
-      case 'sent':
-        return { icon: Clock, label: 'Sent', color: 'text-blue-600', bg: 'bg-blue-50' };
-      case 'not_sent':
-      default:
-        return { icon: AlertTriangle, label: 'Not Sent', color: 'text-amber-600', bg: 'bg-amber-50' };
-    }
-  };
-
-  const ndaStatus = getStatusInfo(deal.nda_status);
-  const feeStatus = getStatusInfo(deal.fee_agreement_status);
 
   return (
     <div className="flex-1 overflow-auto">

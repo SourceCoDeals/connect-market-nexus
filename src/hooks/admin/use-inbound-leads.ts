@@ -178,7 +178,7 @@ export function useCheckDuplicates() {
         }
         
         // Check for same company/domain
-        const normalizedExistingCompany = normalizeCompanyName(profile.company);
+        const normalizedExistingCompany = normalizeCompanyName(profile.company ?? undefined);
         const existingDomain = getEmailDomain(profile.email);
         
         const isSameFirm = (
@@ -232,7 +232,7 @@ export function useCreateInboundLead() {
         description: "Inbound lead has been successfully created",
       });
     },
-    onError: (error) => {
+    onError: (_error) => {
       toast({
         variant: "destructive",
         title: "Failed to create lead",
@@ -295,7 +295,7 @@ export function useMapLeadToListing() {
         description: "Lead has been successfully mapped to listing",
       });
     },
-    onError: (error) => {
+    onError: (_error) => {
       toast({
         variant: "destructive",
         title: "Failed to map lead",
@@ -376,7 +376,7 @@ export function useArchiveInboundLead() {
         description: "Lead has been archived",
       });
     },
-    onError: (error) => {
+    onError: (_error) => {
       toast({
         variant: "destructive",
         title: "Failed to archive lead",

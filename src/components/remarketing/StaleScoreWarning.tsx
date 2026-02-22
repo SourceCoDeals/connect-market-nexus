@@ -124,13 +124,13 @@ export const StaleScoreWarning = ({
           </p>
           
           <div className="flex flex-wrap gap-2">
-            {changes.map((change, index) => {
+            {changes.map((change) => {
               const Icon = change.icon;
               const isPositive = change.percentChange && change.percentChange > 0;
               
               return (
                 <div
-                  key={index}
+                  key={change.field}
                   className={cn(
                     'inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-xs font-medium',
                     isPositive 

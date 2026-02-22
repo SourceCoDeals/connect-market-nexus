@@ -32,7 +32,7 @@ export function DealProcessStepper({ steps, className }: DealProcessStepperProps
 
         {/* Step Markers */}
         <div className="relative flex justify-between">
-          {steps.map((step, index) => (
+          {steps.map((step) => (
             <div key={step.id} className="flex flex-col items-center">
               {/* Step Circle */}
               <div className="relative mb-2">

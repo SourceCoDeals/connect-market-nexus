@@ -1,14 +1,11 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Plus, CheckCircle2, Circle, Clock, User, Calendar, AlertTriangle, Check } from 'lucide-react';
+import { Circle, Clock, User, Calendar } from 'lucide-react';
 import { Deal } from '@/hooks/admin/use-deals';
-import { useDealTasks, useCreateDealTask, useUpdateDealTask, useCompleteDealTask, useDeleteDealTask, DealTask, useTaskReviewers } from '@/hooks/admin/use-deal-tasks';
+import { useDealTasks, useCreateDealTask, useUpdateDealTask, useDeleteDealTask } from '@/hooks/admin/use-deal-tasks';
 import { useAdminProfiles } from '@/hooks/admin/use-admin-profiles';
 import { formatDistanceToNow } from 'date-fns';
 import { TaskActionsMenu } from './task-management/TaskActionsMenu';
@@ -31,7 +28,6 @@ export function PipelineDetailTasks({ deal }: PipelineDetailTasksProps) {
   const { data: adminProfiles } = useAdminProfiles();
   const createTask = useCreateDealTask();
   const updateTask = useUpdateDealTask();
-  const completeTask = useCompleteDealTask();
   const deleteTask = useDeleteDealTask();
 
   const handleCreateTask = async () => {
@@ -72,15 +68,6 @@ export function PipelineDetailTasks({ deal }: PipelineDetailTasksProps) {
 
   const handleDeleteTask = (taskId: string) => {
     deleteTask.mutate(taskId);
-  };
-
-  const getPriorityColor = (priority: string) => {
-    switch (priority) {
-      case 'high': return 'text-red-600 bg-red-50';
-      case 'medium': return 'text-amber-600 bg-amber-50';
-      case 'low': return 'text-green-600 bg-green-50';
-      default: return 'text-muted-foreground bg-muted/50';
-    }
   };
 
   const getStatusColor = (status: string) => {

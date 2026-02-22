@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { logDealActivity } from '@/lib/deal-activity-logger';
+// deal-activity-logger imported for future use
 
 export interface Deal {
   deal_id: string;
@@ -356,14 +356,14 @@ export function useUpdateDealStage() {
             const { data: currentAdmin, error: currentAdminError } = await supabase
               .from('profiles')
               .select('first_name, last_name')
-              .eq('id', user?.id)
+              .eq('id', user?.id ?? '')
               .single();
             if (currentAdminError) throw currentAdminError;
-            
-            const currentAdminName = currentAdmin 
+
+            const currentAdminName = currentAdmin
               ? `${currentAdmin.first_name} ${currentAdmin.last_name}`.trim()
               : 'Another admin';
-            
+
             await supabase.functions.invoke('notify-deal-owner-change', {
               body: {
                 dealId: deal.deal_id,
@@ -397,7 +397,7 @@ export function useUpdateDealStage() {
             const { data: ownerData, error: ownerDataError } = await supabase
               .from('profiles')
               .select('first_name, last_name, email')
-              .eq('id', deal.assigned_to)
+              .eq('id', deal.assigned_to ?? '')
               .single();
             if (ownerDataError) throw ownerDataError;
 
@@ -622,11 +622,11 @@ export function useUpdateDeal() {
             const { data: currentAdmin, error: currentAdminError } = await supabase
               .from('profiles')
               .select('first_name, last_name, email')
-              .eq('id', user?.id)
+              .eq('id', user?.id ?? '')
               .single();
             if (currentAdminError) throw currentAdminError;
-            
-            const currentAdminName = currentAdmin 
+
+            const currentAdminName = currentAdmin
               ? `${currentAdmin.first_name} ${currentAdmin.last_name}`.trim()
               : 'Another admin';
             
@@ -822,7 +822,7 @@ export function useSoftDeleteDeal() {
     mutationFn: async ({ dealId, reason }: { dealId: string; reason?: string }) => {
       const { data, error } = await supabase.rpc('soft_delete_deal', {
         deal_id: dealId,
-        deletion_reason: reason || null,
+        deletion_reason: reason ?? undefined,
       });
       
       if (error) throw error;

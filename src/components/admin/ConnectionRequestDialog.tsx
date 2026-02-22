@@ -36,13 +36,7 @@ export function ConnectionRequestDialog({
 
   const getTitle = () => {
     if (!selectedRequest) return "Connection Request";
-    
-    const userName = selectedRequest.user 
-      ? `${selectedRequest.user.first_name} ${selectedRequest.user.last_name}`
-      : "User";
-    
-    const listingTitle = selectedRequest.listing?.title || "Listing";
-    
+
     switch (actionType) {
       case "approve":
         return `Approve Connection Request`;

@@ -78,7 +78,7 @@ export function ActivityCalendar({ days, className }: ActivityCalendarProps) {
         {/* Month labels */}
         <div className="flex gap-0.5 mb-1">
           {['J', 'F', 'M', 'A', 'M', 'J'].map((m, i) => (
-            <span key={i} className="text-[8px] text-muted-foreground w-6 text-center">{m}</span>
+            <span key={`month-${i}-${m}`} className="text-[8px] text-muted-foreground w-6 text-center">{m}</span>
           ))}
         </div>
         

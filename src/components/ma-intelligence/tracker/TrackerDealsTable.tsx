@@ -2,7 +2,6 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -21,7 +20,6 @@ import {
 import { DealScoreBadge } from "../DealScoreBadge";
 import {
   RefreshCw,
-  ExternalLink,
   MoreHorizontal,
   Sparkles,
   Archive,

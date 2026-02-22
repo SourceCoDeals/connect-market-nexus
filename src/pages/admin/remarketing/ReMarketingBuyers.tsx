@@ -55,7 +55,6 @@ import {
   ArrowUpDown,
   ArrowUp,
   ArrowDown,
-  Check,
   Download,
 } from "lucide-react";
 import { toast } from "sonner";

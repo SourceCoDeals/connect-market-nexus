@@ -12,7 +12,7 @@ interface DealDocumentPreviewProps {
   onViewAll: () => void;
 }
 
-export function DealDocumentPreview({ requestId, requestStatus, dealId, onViewAll }: DealDocumentPreviewProps) {
+export function DealDocumentPreview({ requestId: _requestId, requestStatus, dealId, onViewAll }: DealDocumentPreviewProps) {
   const { user } = useAuth();
 
   const isPending = requestStatus === "pending";
@@ -25,7 +25,7 @@ export function DealDocumentPreview({ requestId, requestStatus, dealId, onViewAl
         .from("data_room_access")
         .select("can_view_teaser, can_view_full_memo, can_view_data_room, fee_agreement_override")
         .eq("deal_id", dealId)
-        .eq("marketplace_user_id", user?.id)
+        .eq("marketplace_user_id", user?.id ?? '')
         .is("revoked_at", null)
         .maybeSingle();
 

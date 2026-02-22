@@ -1,7 +1,3 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
-import { Building2, Users, Clock, Target, HandHeart } from "lucide-react";
 import { AdminListing } from "@/types/admin";
 
 interface OwnershipTransactionCardProps {
@@ -9,46 +5,8 @@ interface OwnershipTransactionCardProps {
 }
 
 export function OwnershipTransactionCard({ listing }: OwnershipTransactionCardProps) {
-  const getOwnershipIcon = (type?: string) => {
-    switch (type) {
-      case 'individual':
-        return <Users className="h-4 w-4" />;
-      case 'family':
-        return <HandHeart className="h-4 w-4" />;
-      case 'corporate':
-        return <Building2 className="h-4 w-4" />;
-      default:
-        return <Building2 className="h-4 w-4" />;
-    }
-  };
 
-  const getMotivationColor = (motivation?: string) => {
-    switch (motivation) {
-      case 'retirement':
-        return 'secondary';
-      case 'succession':
-        return 'outline';
-      case 'growth_capital':
-        return 'default';
-      case 'liquidity_event':
-        return 'destructive';
-      default:
-        return 'outline';
-    }
-  };
 
-  const getManagementBadgeColor = (depth?: string) => {
-    switch (depth) {
-      case 'succession_ready':
-        return 'default';
-      case 'management_team':
-        return 'secondary';
-      case 'owner_operated':
-        return 'outline';
-      default:
-        return 'outline';
-    }
-  };
 
   return (
     <div className="border border-slate-200 bg-white p-6 space-y-6">

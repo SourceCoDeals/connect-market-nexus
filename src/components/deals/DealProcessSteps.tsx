@@ -1,6 +1,5 @@
 import { cn } from "@/lib/utils";
-import { Link } from "react-router-dom";
-import { ArrowRight, CheckCircle2, Clock, XCircle, Info } from "lucide-react";
+import { Info } from "lucide-react";
 import {
   Tooltip,
   TooltipContent,
@@ -131,18 +130,6 @@ export function DealProcessSteps({
 
   const steps = getSteps();
 
-  const getStepIcon = (status: ProcessStep['status'], stepId: string) => {
-    if (status === 'completed') {
-      if (stepId === 'declined') {
-        return <XCircle className="w-5 h-5" />;
-      }
-      return <CheckCircle2 className="w-5 h-5" />;
-    }
-    if (status === 'active') {
-      return <Clock className="w-5 h-5" />;
-    }
-    return <div className="w-2 h-2 rounded-full bg-slate-300" />;
-  };
 
   const getStatusMessage = () => {
     switch (normalizedStatus) {
@@ -172,8 +159,7 @@ export function DealProcessSteps({
         };
     }
   };
-
-  const statusInfo = getStatusMessage();
+  void getStatusMessage;
 
   return (
     <TooltipProvider>
@@ -298,7 +284,7 @@ export function DealProcessSteps({
                    normalizedStatus === 'pending' && (
                     <DealReviewPanel
                       requestId={requestId || ''}
-                      userMessage={userMessage}
+                      userMessage={userMessage ?? null}
                       onMessageUpdate={onMessageUpdate!}
                       isProfileComplete={isProfileComplete}
                       profileCompletionPercentage={profileCompletionPercentage}

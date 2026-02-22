@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState, useRef } from 'react';
+import { createContext, useContext, useState } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { useUTMParams, UTMParams } from '@/hooks/use-utm-params';
 

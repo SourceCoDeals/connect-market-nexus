@@ -129,8 +129,8 @@ export const AdditionalCriteriaDisplay = ({
               <div>
                 <span className="text-muted-foreground text-xs block mb-1">Required</span>
                 <div className="flex flex-wrap gap-1">
-                  {serviceCriteria.required_services.map((service, idx) => (
-                    <Badge key={idx} variant="secondary" className="text-xs">
+                  {serviceCriteria.required_services.map((service) => (
+                    <Badge key={service} variant="secondary" className="text-xs">
                       {service}
                     </Badge>
                   ))}
@@ -141,8 +141,8 @@ export const AdditionalCriteriaDisplay = ({
               <div>
                 <span className="text-muted-foreground text-xs block mb-1">Excluded</span>
                 <div className="flex flex-wrap gap-1">
-                  {serviceCriteria.excluded_services.map((service, idx) => (
-                    <Badge key={idx} variant="destructive" className="text-xs">
+                  {serviceCriteria.excluded_services.map((service) => (
+                    <Badge key={service} variant="destructive" className="text-xs">
                       {service}
                     </Badge>
                   ))}
@@ -183,8 +183,8 @@ export const AdditionalCriteriaDisplay = ({
               <div>
                 <span className="text-muted-foreground text-xs block mb-1">Required Regions</span>
                 <div className="flex flex-wrap gap-1">
-                  {geographyCriteria.target_regions.map((region, idx) => (
-                    <Badge key={idx} variant="secondary" className="text-xs">
+                  {geographyCriteria.target_regions.map((region) => (
+                    <Badge key={region} variant="secondary" className="text-xs">
                       {region}
                     </Badge>
                   ))}
@@ -195,8 +195,8 @@ export const AdditionalCriteriaDisplay = ({
               <div>
                 <span className="text-muted-foreground text-xs block mb-1">Target States</span>
                 <div className="flex flex-wrap gap-1">
-                  {geographyCriteria.target_states.slice(0, 6).map((state, idx) => (
-                    <Badge key={idx} variant="outline" className="text-xs">
+                  {geographyCriteria.target_states.slice(0, 6).map((state) => (
+                    <Badge key={state} variant="outline" className="text-xs">
                       {state}
                     </Badge>
                   ))}

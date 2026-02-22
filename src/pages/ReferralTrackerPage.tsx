@@ -23,7 +23,6 @@ import {
   Loader2,
   Lock,
   Building2,
-  Handshake,
   ChevronDown,
   Users,
 } from "lucide-react";

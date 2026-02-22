@@ -1,4 +1,3 @@
-import React from 'react';
 import { Deal } from '@/hooks/admin/use-deals';
 
 interface PipelineKanbanCardOverlayProps {

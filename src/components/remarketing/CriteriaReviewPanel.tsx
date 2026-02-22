@@ -6,21 +6,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
-import {
   CheckCircle2,
-  AlertTriangle,
   Merge,
-  Eye,
   Loader2,
   ChevronDown,
   ChevronUp
@@ -428,8 +415,8 @@ export const CriteriaReviewPanel = ({
                         <div>
                           <div className="font-medium mb-1">Buyer Types</div>
                           <div className="text-muted-foreground space-y-1">
-                            {source.extracted_data.buyer_types_criteria.buyer_types.map((bt: any, idx: number) => (
-                              <div key={idx}>
+                            {source.extracted_data.buyer_types_criteria.buyer_types.map((bt: any) => (
+                              <div key={bt.profile_name}>
                                 {bt.priority_rank}. {bt.profile_name} ({bt.buyer_type})
                               </div>
                             ))}

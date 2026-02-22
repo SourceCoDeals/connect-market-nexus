@@ -18,7 +18,7 @@ export function useRealtimeConnections() {
           schema: 'public',
           table: 'connection_requests'
         },
-        (payload) => {
+        (_payload) => {
           // Invalidate all connection-related queries
           queryClient.invalidateQueries({ queryKey: ['connection-status'] });
           queryClient.invalidateQueries({ queryKey: ['user-connection-requests'] });

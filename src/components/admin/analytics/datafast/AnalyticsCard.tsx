@@ -39,7 +39,7 @@ export function AnalyticsCard({
       {/* Tab Header */}
       <div className="flex items-center justify-between px-5 pt-4 pb-3 border-b border-border/30">
         <div className="flex items-center gap-1">
-          {tabs.map((tab, index) => (
+          {tabs.map((tab, _index) => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}

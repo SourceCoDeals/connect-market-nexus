@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { DocuSealStatusBadge } from './DocuSealStatusBadge';
 import { SendAgreementDialog } from './SendAgreementDialog';
-import { Shield, FileCheck, Send, FileDown } from 'lucide-react';
+import { Shield, Send, FileDown } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import type { FirmAgreement } from '@/hooks/admin/use-firm-agreements';
 import type { DocuSealStatus } from '@/hooks/admin/use-docuseal';

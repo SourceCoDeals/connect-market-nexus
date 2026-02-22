@@ -1,6 +1,6 @@
  import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
  import { Button } from "@/components/ui/button";
- import { CheckCircle2, FileText, Download, ExternalLink, Sparkles } from "lucide-react";
+ import { CheckCircle2, FileText, ExternalLink, Sparkles } from "lucide-react";
  
  interface GuideCompletionDialogProps {
    open: boolean;

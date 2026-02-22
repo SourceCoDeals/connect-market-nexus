@@ -16,15 +16,13 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Separator } from '@/components/ui/separator';
 import {
-  BookOpen, Sparkles, FileText, Send, Download, Eye, Edit,
+  BookOpen, Sparkles, FileText, Send, Download, Edit,
   Loader2, CheckCircle, Clock, Archive,
 } from 'lucide-react';
 import {
   useLeadMemos,
   useGenerateMemo,
-  useUpdateMemo,
   usePublishMemo,
   LeadMemo,
 } from '@/hooks/admin/data-room/use-data-room';

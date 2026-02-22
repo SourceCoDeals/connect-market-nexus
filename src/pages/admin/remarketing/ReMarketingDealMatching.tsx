@@ -1,13 +1,11 @@
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { useAuth } from "@/context/AuthContext";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
@@ -22,7 +20,6 @@ import {
   ArrowLeft,
   Sparkles,
   Check,
-  X,
   MapPin,
   DollarSign,
   Briefcase,
@@ -45,16 +42,11 @@ import {
   BulkActionsToolbar,
   ScoringProgressIndicator,
   EmailPreviewDialog,
-  QuickInsightsWidget,
-  EngagementHeatmapInsight,
-  StaleScoreWarning,
-  WeightSuggestionsPanel,
   type OutreachStatus,
   ReMarketingChat,
 } from "@/components/remarketing";
 import { AddToUniverseQuickAction } from "@/components/remarketing/AddToUniverseQuickAction";
 import { useBackgroundScoringProgress } from "@/hooks/useBackgroundScoringProgress";
-import type { ScoreTier, DataCompleteness } from "@/types/remarketing";
 
 type SortOption = 'score' | 'geography' | 'score_geo';
 type FilterTab = 'all' | 'approved' | 'passed' | 'outreach';
@@ -104,9 +96,9 @@ const ReMarketingDealMatching = () => {
       const { data, error } = await supabase
         .from('listings')
         .select('*')
-        .eq('id', listingId)
+        .eq('id', listingId!)
         .single();
-      
+
       if (error) throw error;
       return data;
     },
@@ -123,9 +115,9 @@ const ReMarketingDealMatching = () => {
           universe_id,
           universe:remarketing_buyer_universes(id, name, geography_weight, size_weight, service_weight, owner_goals_weight)
         `)
-        .eq('listing_id', listingId)
+        .eq('listing_id', listingId!)
         .eq('status', 'active');
-      
+
       if (error) throw error;
       return (data || []).map(d => d.universe).filter(Boolean) as Array<{
         id: string;
@@ -147,10 +139,10 @@ const ReMarketingDealMatching = () => {
       const { data, error } = await supabase
         .from('deal_scoring_adjustments')
         .select('*')
-        .eq('listing_id', listingId)
+        .eq('listing_id', listingId!)
         .eq('adjustment_type', 'custom_instructions')
         .single();
-      
+
       if (error && error.code !== 'PGRST116') throw error;
       return data;
     },
@@ -172,7 +164,7 @@ const ReMarketingDealMatching = () => {
   }, [linkedUniverses, selectedUniverse]);
 
   // Fetch ALL existing scores for this listing (from all universes)
-  const { data: allScores, isLoading: scoresLoading, refetch: refetchScores } = useQuery({
+  const { data: allScores, isLoading: scoresLoading } = useQuery({
     queryKey: ['remarketing', 'scores', listingId],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -185,7 +177,7 @@ const ReMarketingDealMatching = () => {
           ),
           universe:remarketing_buyer_universes(id, name)
         `)
-        .eq('listing_id', listingId)
+        .eq('listing_id', listingId!)
         .order('composite_score', { ascending: false });
 
       if (error) throw error;
@@ -268,8 +260,8 @@ const ReMarketingDealMatching = () => {
       const { data, error } = await supabase
         .from('remarketing_outreach')
         .select('*')
-        .eq('listing_id', listingId);
-      
+        .eq('listing_id', listingId!);
+
       if (error) throw error;
       return data || [];
     },
@@ -341,30 +333,13 @@ const ReMarketingDealMatching = () => {
   // Get active outreach score IDs
   const activeOutreachScoreIds = useMemo(() => {
     return outreachRecords
-      ?.filter(o => !['pending', 'closed_won', 'closed_lost'].includes(o.status))
+      ?.filter(o => !['pending', 'closed_won', 'closed_lost'].includes(o.status ?? ''))
       .map(o => o.score_id) || [];
   }, [outreachRecords]);
 
   // Count outreach
   const outreachCount = activeOutreachScoreIds.length;
 
-  // Compute pass reasons for insights
-  const passReasons = useMemo(() => {
-    const passed = scores?.filter(s => s.status === 'passed' && s.pass_category) || [];
-    const counts: Record<string, number> = {};
-    for (const s of passed) {
-      counts[s.pass_category!] = (counts[s.pass_category!] || 0) + 1;
-    }
-    return Object.entries(counts)
-      .map(([category, count]) => ({ category, count }))
-      .sort((a, b) => b.count - a.count);
-  }, [scores]);
-
-  // Calculate average score for insights
-  const averageScore = useMemo(() => {
-    if (!scores || scores.length === 0) return 0;
-    return Math.round(scores.reduce((sum, s) => sum + (s.composite_score || 0), 0) / scores.length);
-  }, [scores]);
 
   // Filter and sort scores
   const filteredScores = useMemo(() => {
@@ -437,7 +412,7 @@ const ReMarketingDealMatching = () => {
     try {
       await supabase.from('buyer_learning_history').insert({
         buyer_id: scoreData.buyer_id,
-        listing_id: listingId,
+        listing_id: listingId!,
         universe_id: scoreData.universe_id,
         score_id: scoreData.id,
         action,
@@ -516,7 +491,7 @@ const ReMarketingDealMatching = () => {
           try {
             await supabase.from('remarketing_outreach').upsert({
               score_id: id,
-              listing_id: listingId,
+              listing_id: listingId!,
               buyer_id: scoreData.buyer_id,
               status: 'pending',
               created_by: user?.id,
@@ -546,7 +521,7 @@ const ReMarketingDealMatching = () => {
   });
 
   // Bulk score using edge function
-  const handleBulkScore = async (instructions?: string) => {
+  const handleBulkScore = async (_instructions?: string) => {
     if (!selectedUniverse) {
       toast.error('Please select a universe first');
       return;
@@ -557,7 +532,7 @@ const ReMarketingDealMatching = () => {
 
     try {
       const { queueDealScoring } = await import("@/lib/remarketing/queueScoring");
-      await queueDealScoring({ universeId: selectedUniverse, listingIds: [listingId] });
+      await queueDealScoring({ universeId: selectedUniverse, listingIds: [listingId!] });
 
       setScoringProgress(100);
       queryClient.invalidateQueries({ queryKey: ['remarketing', 'scores', listingId] });
@@ -579,7 +554,7 @@ const ReMarketingDealMatching = () => {
       await supabase
         .from('deal_scoring_adjustments')
         .upsert({
-          listing_id: listingId,
+          listing_id: listingId!,
           adjustment_type: 'custom_instructions',
           adjustment_value: 0,
           reason: instructions,
@@ -602,7 +577,7 @@ const ReMarketingDealMatching = () => {
       await supabase
         .from('deal_scoring_adjustments')
         .delete()
-        .eq('listing_id', listingId)
+        .eq('listing_id', listingId!)
         .eq('adjustment_type', 'custom_instructions');
     } catch (error) {
       console.error('Failed to clear custom instructions:', error);
@@ -654,7 +629,7 @@ const ReMarketingDealMatching = () => {
     try {
       const { error } = await supabase.from('remarketing_outreach').upsert({
         score_id: scoreId,
-        listing_id: listingId,
+        listing_id: listingId!,
         buyer_id: scoreData?.buyer_id,
         status: 'pending',
         created_by: user?.id,
@@ -763,7 +738,7 @@ const ReMarketingDealMatching = () => {
     
     const { error } = await supabase.from('remarketing_outreach').upsert({
       score_id: scoreId,
-      listing_id: listingId,
+      listing_id: listingId!,
       buyer_id: score.buyer_id,
       status,
       notes,
@@ -801,7 +776,7 @@ const ReMarketingDealMatching = () => {
       const { data, error } = await supabase
         .from('deals')
         .select('id, remarketing_buyer_id')
-        .eq('listing_id', listingId)
+        .eq('listing_id', listingId!)
         .not('remarketing_buyer_id', 'is', null)
         .is('deleted_at', null);
       if (error) throw error;
@@ -847,11 +822,6 @@ const ReMarketingDealMatching = () => {
       console.error('Failed to move to pipeline:', err);
       toast.error(err?.message || 'Failed to move buyer to pipeline');
     }
-  };
-
-  // Handle rescore trigger (for stale score warning)
-  const handleRescore = () => {
-    handleBulkScore();
   };
 
   if (listingLoading) {
@@ -946,8 +916,8 @@ const ReMarketingDealMatching = () => {
               <div>
                 <p className="text-muted-foreground">Services</p>
                 <p className="font-medium">
-                  {listing.services?.length > 0
-                    ? listing.services.slice(0, 3).join(', ') + (listing.services.length > 3 ? ` +${listing.services.length - 3}` : '')
+                  {(listing.services?.length ?? 0) > 0
+                    ? listing.services!.slice(0, 3).join(', ') + (listing.services!.length > 3 ? ` +${listing.services!.length - 3}` : '')
                     : listing.category || '—'}
                 </p>
               </div>
@@ -1053,7 +1023,7 @@ const ReMarketingDealMatching = () => {
         if (!listing.revenue) missingFields.push('Revenue');
         if (!listing.ebitda) missingFields.push('EBITDA');
         if (!listing.location?.trim()) missingFields.push('Location');
-        if (!(listing.services?.length > 0 || listing.categories?.length > 0 || listing.category?.trim())) missingFields.push('Services/Category');
+        if (!((listing.services?.length ?? 0) > 0 || (listing.categories?.length ?? 0) > 0 || listing.category?.trim())) missingFields.push('Services/Category');
         if (!(listing.hero_description?.trim() || listing.description?.trim() || listing.executive_summary?.trim())) missingFields.push('Description');
 
         if (missingFields.length === 0) return null;
@@ -1247,7 +1217,7 @@ const ReMarketingDealMatching = () => {
                 <BuyerMatchCard
                   key={score.id}
                   score={score}
-                  dealLocation={listing.location}
+                  dealLocation={listing.location ?? undefined}
                   isSelected={selectedIds.has(score.id)}
                   isHighlighted={highlightedBuyerIds.includes(score.buyer?.id || '')}
                   onSelect={handleSelect}
@@ -1257,7 +1227,7 @@ const ReMarketingDealMatching = () => {
                   onOutreachUpdate={handleOutreachUpdate}
                   onViewed={handleScoreViewed}
                   onMoveToPipeline={handleMoveToPipeline}
-                  outreach={outreach ? { status: outreach.status as OutreachStatus, contacted_at: outreach.contacted_at, notes: outreach.notes } : undefined}
+                  outreach={outreach ? { status: outreach.status as OutreachStatus, contacted_at: outreach.contacted_at ?? undefined, notes: outreach.notes ?? undefined } : undefined}
                   isPending={updateScoreMutation.isPending}
                   universeName={selectedUniverse === 'all' ? score.universe?.name : undefined}
                   firmFeeAgreement={feeAgreementLookup.get(score.id)}
@@ -1286,20 +1256,20 @@ const ReMarketingDealMatching = () => {
         buyers={(scores?.filter(s => selectedIds.has(s.id)) || []).map(s => ({
           buyerId: s.buyer?.id || '',
           buyerName: s.buyer?.company_name || 'Unknown',
-          companyWebsite: s.buyer?.company_website || undefined,
-          peFirmName: s.buyer?.pe_firm_name,
-          contacts: s.buyer?.contacts?.map((c: any) => ({ name: c.name || '', email: c.email })) || [],
-          fitReasoning: s.fit_reasoning || undefined,
+          companyWebsite: s.buyer?.company_website ?? undefined,
+          peFirmName: s.buyer?.pe_firm_name ?? undefined,
+          contacts: (s.buyer?.contacts as unknown as { name?: string; email: string | null }[] | undefined)?.map((c) => ({ name: c.name || '', email: c.email })) || [],
+          fitReasoning: s.fit_reasoning ?? undefined,
           compositeScore: s.composite_score,
         }))}
         deal={{
           id: listing?.id || '',
           title: listing?.title || '',
-          location: listing?.location || undefined,
-          revenue: listing?.revenue || undefined,
-          ebitda: listing?.ebitda || undefined,
-          category: listing?.category || undefined,
-          description: listing?.hero_description || undefined,
+          location: listing?.location ?? undefined,
+          revenue: listing?.revenue ?? undefined,
+          ebitda: listing?.ebitda ?? undefined,
+          category: listing?.category ?? undefined,
+          description: listing?.hero_description ?? undefined,
         }}
       />
 

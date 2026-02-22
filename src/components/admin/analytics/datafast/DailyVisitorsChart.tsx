@@ -51,7 +51,6 @@ export function DailyVisitorsChart({ data }: DailyVisitorsChartProps) {
     }));
   }, [data]);
 
-  const maxVisitors = Math.max(...data.map(d => d.visitors), 1);
   const maxConnections = Math.max(...data.map(d => d.connections), 1);
 
   return (

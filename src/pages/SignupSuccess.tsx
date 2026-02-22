@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link, useSearchParams, useNavigate } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { CheckCircle, Mail, ArrowRight, Clock, Shield } from "lucide-react";
@@ -9,7 +9,6 @@ import { CountdownTimer } from "@/components/ui/countdown-timer";
 
 const SignupSuccess = () => {
   const [searchParams] = useSearchParams();
-  const navigate = useNavigate();
   const [isResending, setIsResending] = useState(false);
   const [emailVerified, setEmailVerified] = useState(false);
   const [rateLimitRemaining, setRateLimitRemaining] = useState(0);

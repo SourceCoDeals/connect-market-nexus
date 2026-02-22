@@ -1,6 +1,5 @@
-import React from 'react';
 import { Badge } from '@/components/ui/badge';
-import { Building2, Users, FileCheck, FileSignature } from 'lucide-react';
+import { Building2, FileCheck, FileSignature } from 'lucide-react';
 import { useInboundLeadFirm } from '@/hooks/admin/use-inbound-lead-firm';
 import {
   Tooltip,

@@ -1,6 +1,5 @@
-import { FormField, FormItem, FormControl, FormLabel } from "@/components/ui/form";
+import { FormField, FormItem, FormControl } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { UseFormReturn } from "react-hook-form";
 import { EnhancedCurrencyInput } from "@/components/ui/enhanced-currency-input";
 import { EDITOR_DESIGN } from "@/lib/editor-design-system";

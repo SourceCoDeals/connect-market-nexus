@@ -192,7 +192,7 @@ export function useNonMarketplaceUsers() {
             connection_requests: [],
             inbound_leads: [],
             deals: [],
-            earliest_date: deal.created_at,
+            earliest_date: deal.created_at ?? new Date().toISOString(),
           });
         }
 
@@ -203,7 +203,7 @@ export function useNonMarketplaceUsers() {
         if (deal.contact_role) data.roles.add(deal.contact_role);
         if (deal.contact_phone) data.phones.add(deal.contact_phone);
         data.deals.push(deal);
-        if (deal.created_at < data.earliest_date) data.earliest_date = deal.created_at;
+        if (deal.created_at && deal.created_at < data.earliest_date) data.earliest_date = deal.created_at;
       });
 
       // Convert to NonMarketplaceUser array
@@ -267,8 +267,8 @@ export function useNonMarketplaceUsers() {
           deals_count: data.deals.length,
           nda_status: ndaStatus,
           fee_agreement_status: feeAgreementStatus,
-          potential_profile_id: profileMatch?.id || null,
-          potential_profile_name: profileMatch ? `${profileMatch.first_name} ${profileMatch.last_name}` : null,
+          potential_profile_id: null,
+          potential_profile_name: null,
           associated_records: {
             connection_requests: data.connection_requests,
             inbound_leads: data.inbound_leads,

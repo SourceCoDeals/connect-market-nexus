@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef } from "react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -40,7 +40,6 @@ import { v4 as uuidv4 } from "uuid";
 
 // Sub-components
 import { FirefliesLinkPanel } from "./transcript/FirefliesLinkPanel";
-import { ExtractedIntelligenceView } from "./transcript/ExtractedIntelligenceView";
 import { TranscriptAddDialog } from "./transcript/TranscriptAddDialog";
 import { EnrichmentProgressCard } from "./transcript/EnrichmentProgressCard";
 import { TranscriptListItem } from "./transcript/TranscriptListItem";
@@ -111,7 +110,7 @@ export function DealTranscriptSection({ dealId, transcripts, isLoading, dealInfo
   // Fireflies sync state
   const [syncLoading, setSyncLoading] = useState(false);
   const [lastSynced, setLastSynced] = useState<Date | null>(null);
-  const [linkedCount, setLinkedCount] = useState(transcripts?.filter((t: any) => t.source === 'fireflies').length || 0);
+  const [, setLinkedCount] = useState(transcripts?.filter((t) => t.source === 'fireflies').length || 0);
 
   // Fireflies manual link state
   const [ffQuery, setFfQuery] = useState(companyName || '');
@@ -122,7 +121,6 @@ export function DealTranscriptSection({ dealId, transcripts, isLoading, dealInfo
   const [linkingUrl, setLinkingUrl] = useState(false);
   const [ffUploading, setFfUploading] = useState(false);
   const ffFileInputRef = useRef<HTMLInputElement>(null);
-  const [showLinkPanel, setShowLinkPanel] = useState(false);
 
   // Fireflies sync handler
   const handleFirefliesSync = async () => {
@@ -341,7 +339,6 @@ export function DealTranscriptSection({ dealId, transcripts, isLoading, dealInfo
 
   // === Add Dialog state ===
   const [selectedFiles, setSelectedFiles] = useState<{file: File; title: string; status: 'pending' | 'processing' | 'done' | 'error'; text?: string}[]>([]);
-  const [isUploadingFile, setIsUploadingFile] = useState(false);
   const [isMultiFileMode, setIsMultiFileMode] = useState(false);
   const [processingProgress, setProcessingProgress] = useState({ current: 0, total: 0 });
 

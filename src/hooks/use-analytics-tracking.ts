@@ -46,7 +46,7 @@ export function useAnalyticsTracking() {
   // Remove duplicate session creation to prevent race conditions with journey tracking
 
   // Track page views (Supabase + GA4)
-  const trackPageView = useCallback(async ({ pagePath, pageTitle, referrer }: TrackPageViewParams) => {
+  const trackPageView = useCallback(async ({ pagePath, pageTitle, referrer: _referrer }: TrackPageViewParams) => {
     try {
       // Track in GA4
       trackGA4PageView(pagePath, pageTitle || document.title);
@@ -173,7 +173,7 @@ export function useAnalyticsTracking() {
     searchQuery: string,
     filters: Record<string, any>,
     resultsCount: number,
-    noResults: boolean = false,
+    noResults = false,
     searchSessionId?: string
   ) => {
     try {
@@ -206,7 +206,7 @@ export function useAnalyticsTracking() {
 
   // Track search result click (when user clicks on a search result)
   const trackSearchResultClick = useCallback(async (
-    listingId: string,
+    _listingId: string,
     searchSessionId: string,
     positionClicked: number,
     timeToClickMs: number,
@@ -320,21 +320,3 @@ function getScrollDepth(): number {
   return scrollHeight > 0 ? Math.round((scrollTop / scrollHeight) * 100) : 100;
 }
 
-function getBrowserName(): string {
-  const userAgent = navigator.userAgent;
-  if (userAgent.includes('Chrome')) return 'Chrome';
-  if (userAgent.includes('Firefox')) return 'Firefox';
-  if (userAgent.includes('Safari')) return 'Safari';
-  if (userAgent.includes('Edge')) return 'Edge';
-  return 'Unknown';
-}
-
-function getOSName(): string {
-  const userAgent = navigator.userAgent;
-  if (userAgent.includes('Windows')) return 'Windows';
-  if (userAgent.includes('Mac')) return 'macOS';
-  if (userAgent.includes('Linux')) return 'Linux';
-  if (userAgent.includes('Android')) return 'Android';
-  if (userAgent.includes('iOS')) return 'iOS';
-  return 'Unknown';
-}

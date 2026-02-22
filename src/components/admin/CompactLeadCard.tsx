@@ -6,15 +6,12 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { 
   Mail, 
-  Phone, 
   Building2, 
   User, 
   MapPin,
   Archive,
   ArrowRight,
-  Check,
   AlertTriangle,
-  MoreHorizontal,
   Eye
 } from "lucide-react";
 import { InboundLead } from "@/hooks/admin/use-inbound-leads";

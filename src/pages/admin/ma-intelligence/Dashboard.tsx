@@ -98,7 +98,7 @@ export default function MADashboard() {
   };
 
   const totalBuyers = trackers.reduce((sum, t) => sum + t.buyer_count, 0);
-  const totalDeals = trackers.reduce((sum, t) => sum + t.deal_count, 0);
+  void trackers.reduce((sum: number, t: { deal_count: number }) => sum + t.deal_count, 0); // totalDeals
   const totalEnriched = trackers.reduce((sum, t) => sum + t.enriched_count, 0);
   const totalTranscripts = trackers.reduce((sum, t) => sum + t.transcript_count, 0);
   // Two-tier intel: website (up to 50%) + transcripts (up to 50%)

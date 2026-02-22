@@ -1,15 +1,14 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { User } from "@/types";
-import { CheckCircle, XCircle, MoreHorizontal, UserCheck, UserPlus, UserMinus, Trash2, ChevronDown, ChevronRight, ExternalLink, Mail, Building, UserIcon, Linkedin, Download, Shield, Search } from "lucide-react";
+import { CheckCircle, MoreHorizontal, UserCheck, Trash2, ChevronDown, ChevronRight, ExternalLink, Mail, Building, UserIcon, Linkedin, Shield, Search } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { formatDistanceToNow } from "date-fns";
-import { Skeleton } from "@/components/ui/skeleton";
 import { UserSavedListings } from "./UserSavedListings";
 import { UserDataCompleteness } from "./UserDataCompleteness";
 import { DualFeeAgreementToggle } from "./DualFeeAgreementToggle";
@@ -19,7 +18,7 @@ import { SimpleNDADialog } from "./SimpleNDADialog";
 import { UserActivityTimeline } from "./UserActivityTimeline";
 import { UserFirmBadge } from "./UserFirmBadge";
 
-import { getFieldCategories, FIELD_LABELS, SOURCING_FIELDS } from '@/lib/buyer-type-fields';
+import { getFieldCategories, FIELD_LABELS } from '@/lib/buyer-type-fields';
 import { formatFieldValue } from '@/lib/field-formatting';
 import { useEnhancedUserExport } from '@/hooks/admin/use-enhanced-user-export';
 import { useLogFeeAgreementEmail } from '@/hooks/admin/use-fee-agreement';
@@ -101,7 +100,7 @@ const UserDetails = ({ user }: { user: User }) => {
                   {categoryName === 'Financial Information' && ` (${user.buyer_type})`}
                 </h4>
                 <div className="pl-6 grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                  {fields.map((fieldKey) => {
+                  {fields.map((fieldKey: string) => {
                     const fieldLabel = FIELD_LABELS[fieldKey as keyof typeof FIELD_LABELS] || fieldKey;
                     const fieldValue = user[fieldKey as keyof User];
                     
@@ -308,14 +307,12 @@ const UserDetails = ({ user }: { user: User }) => {
 };
 
 // Component for user action buttons
-function UserActionButtons({ 
-  user, 
-  onApprove, 
-  onMakeAdmin,
-  onRevokeAdmin,
+function UserActionButtons({
+  user,
+  onApprove,
   onDelete,
-  isLoading 
-}: { 
+  isLoading,
+}: {
   user: User;
   onApprove: (user: User) => void;
   onMakeAdmin: (user: User) => void;
@@ -479,8 +476,8 @@ export function UsersTable({
   const [expandedUserId, setExpandedUserId] = useState<string | null>(null);
   const [selectedUserForEmail, setSelectedUserForEmail] = useState<User | null>(null);
   const [selectedUserForNDA, setSelectedUserForNDA] = useState<User | null>(null);
-  const { exportUsersToCSV } = useEnhancedUserExport();
-  const { canManagePermissions } = usePermissions();
+  useEnhancedUserExport();
+  usePermissions();
   const { allUserRoles, isLoadingRoles } = useRoleManagement();
 
   const getUserRole = (userId: string): AppRole => {
@@ -490,147 +487,7 @@ export function UsersTable({
   };
   const logEmailMutation = useLogFeeAgreementEmail();
   const logNDAEmail = useLogNDAEmail();
-  const { toast } = useToast();
   const { user: currentAuthUser } = useAuth();
-  
-  const handleSendEmail = async (emailData: {
-    userId: string;
-    userEmail: string;
-    subject: string;
-    content: string;
-    attachments?: File[];
-    useTemplate: boolean;
-  }) => {
-    // Sending fee agreement email
-    try {
-      // Get current admin user info first
-      const { data: { user: currentUser }, error: authError } = await supabase.auth.getUser();
-      if (authError || !currentUser) {
-        throw new Error('Authentication required. Please refresh and try again.');
-      }
-
-      const { data: adminProfile, error: profileError } = await supabase
-        .from('profiles')
-        .select('email, first_name, last_name')
-        .eq('id', currentUser.id)
-        .single();
-
-      if (profileError || !adminProfile) {
-        throw new Error('Admin profile not found. Please contact support.');
-      }
-
-      if (!adminProfile.first_name || !adminProfile.last_name || !adminProfile.email) {
-        throw new Error('Incomplete admin profile. Please complete your profile first.');
-      }
-
-      const adminName = `${adminProfile.first_name} ${adminProfile.last_name}`;
-
-      // Process attachments with validation
-      const processedAttachments = [];
-      if (emailData.attachments && emailData.attachments.length > 0) {
-        // Processing attachments
-        
-        for (const file of emailData.attachments) {
-          // Enhanced validation - stricter size limit and type checking
-          if (file.size > 10 * 1024 * 1024) { // 10MB limit for safety
-            alert(`File "${file.name}" is too large. Please use files under 10MB.`);
-            continue;
-          }
-
-          // Validate file type - only allow PDFs
-          if (!file.type.includes('pdf') && !file.name.toLowerCase().endsWith('.pdf')) {
-            alert(`File "${file.name}" must be a PDF document.`);
-            continue;
-          }
-
-          try {
-            // Processing attachment
-            const buffer = await file.arrayBuffer();
-            
-            // Validate buffer size
-            if (buffer.byteLength === 0) {
-              console.warn(`📎 File ${file.name} is empty, skipping`);
-              continue;
-            }
-            
-            // Convert to base64 with proper encoding
-            const uint8Array = new Uint8Array(buffer);
-            let binaryString = '';
-            for (let i = 0; i < uint8Array.length; i++) {
-              binaryString += String.fromCharCode(uint8Array[i]);
-            }
-            const base64 = btoa(binaryString);
-            
-            // Validate base64 encoding worked
-            if (!base64 || base64.length === 0) {
-              console.error(`📎 Failed to encode ${file.name} to base64`);
-              continue;
-            }
-            
-            processedAttachments.push({
-              name: file.name,
-              content: base64,
-              type: file.type || 'application/pdf'
-            });
-            
-            // File processed successfully
-          } catch (attachError) {
-            alert(`Failed to process "${file.name}". Please try again or use a different file.`);
-          }
-        }
-      }
-
-      const requestPayload = {
-        userId: emailData.userId,
-        userEmail: emailData.userEmail,
-        subject: emailData.subject,
-        content: emailData.content,
-        useTemplate: emailData.useTemplate,
-        adminId: currentUser.id,
-        adminEmail: adminProfile.email,
-        adminName: adminName,
-        attachments: processedAttachments
-      };
-
-      // Sending email request
-
-      // Send the email via edge function
-      const { data: emailResult, error: emailError } = await supabase.functions.invoke('send-fee-agreement-email', {
-        body: requestPayload
-      });
-
-      if (emailError) {
-        const errorMessage = emailError.message || 'Failed to send email';
-        toast({
-          title: "Email Failed",
-          description: errorMessage,
-          variant: "destructive",
-        });
-        throw new Error(errorMessage);
-      }
-
-      if (!emailResult?.success) {
-        const errorMessage = emailResult?.error || 'Email sending failed';
-        toast({
-          title: "Email Failed", 
-          description: errorMessage,
-          variant: "destructive",
-        });
-        throw new Error(errorMessage);
-      }
-
-      // Email sent successfully
-      toast({
-        title: "Email Sent",
-        description: `Fee agreement email sent successfully to ${emailData.userEmail}`,
-      });
-
-      // Edge function handles all logging - no additional logging needed
-      // Fee agreement email sent successfully
-    } catch (error) {
-      throw error;
-    }
-  };
   
   const toggleExpand = (userId: string) => {
     setExpandedUserId(expandedUserId === userId ? null : userId);

@@ -12,7 +12,6 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Search, Plus, Sparkles, Target, FileUp, MoreVertical, GitMerge, Pause, Play } from "lucide-react";
@@ -48,7 +47,7 @@ export function TrackerBuyersToolbar({
   onFilterCoverageChange,
   onAddBuyer,
   onBulkEnrich,
-  onBulkScore,
+  onBulkScore: _onBulkScore,
   onDedupe,
   enrichmentProgress,
   onPauseEnrichment,
@@ -135,7 +134,7 @@ export function TrackerBuyersToolbar({
           <Button
             onClick={onBulkEnrich}
             variant="secondary"
-            disabled={isEnriching}
+            disabled={isEnriching ?? undefined}
           >
             <Sparkles className="w-4 h-4 mr-2" />
             Enrich ({selectedCount})

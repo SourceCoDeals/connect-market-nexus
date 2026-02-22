@@ -29,10 +29,10 @@ interface DuplicateGroup {
   buyers: Array<{
     id: string;
     pe_firm_name: string;
-    platform_company_name?: string;
-    pe_firm_website?: string;
+    platform_company_name?: string | null;
+    pe_firm_website?: string | null;
     created_at: string;
-    data_last_updated?: string;
+    data_last_updated?: string | null;
     has_enriched_data: boolean;
   }>;
   similarity: number;

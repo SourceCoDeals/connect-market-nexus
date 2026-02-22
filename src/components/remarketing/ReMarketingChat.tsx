@@ -515,9 +515,9 @@ export function ReMarketingChat({
               </div>
               <div className="space-y-2">
                 <p className="text-sm text-muted-foreground px-1">Try asking:</p>
-                {exampleQueries.map((example, i) => (
+                {exampleQueries.map((example) => (
                   <Button
-                    key={i}
+                    key={example}
                     variant="outline"
                     size="sm"
                     className="w-full justify-start text-sm h-auto py-2.5 px-3"

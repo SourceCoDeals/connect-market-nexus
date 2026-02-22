@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import {
   Select,
   SelectContent,
@@ -46,10 +46,9 @@ interface PipelineViewSwitcherProps {
   stages?: any[];
 }
 
-export function PipelineViewSwitcher({ 
-  currentViewId, 
-  onViewChange, 
-  onSaveCurrentView, 
+export function PipelineViewSwitcher({
+  currentViewId,
+  onViewChange,
   getCurrentFilterConfig,
   stages = []
 }: PipelineViewSwitcherProps) {

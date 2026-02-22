@@ -243,7 +243,7 @@ function formatPageLabel(path: string): string {
   return cleanPath.charAt(0).toUpperCase() + cleanPath.slice(1);
 }
 
-function extractCategory(path: string): string | null {
+function extractCategory(_path: string): string | null {
   // This would need to be enhanced based on actual URL structure
   // For now, return null and let it be "Unknown"
   return null;

@@ -1,4 +1,4 @@
-import { Building2, TrendingUp, Users, DollarSign, MapPin, ExternalLink, Gem, Info } from "lucide-react";
+import { TrendingUp, Users, DollarSign, MapPin, ExternalLink, Gem, Info } from "lucide-react";
 import { cn, formatCompactCurrency } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Link } from "react-router-dom";

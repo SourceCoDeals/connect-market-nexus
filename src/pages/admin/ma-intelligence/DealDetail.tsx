@@ -230,7 +230,7 @@ export default function DealDetail() {
     }
   };
 
-  const handleSaveSection = async (section: string) => {
+  const handleSaveSection = async (_section: string) => {
     if (!deal) return;
 
     try {
@@ -276,7 +276,7 @@ export default function DealDetail() {
     }
   };
 
-  const handleCancelEdit = (section: string) => {
+  const handleCancelEdit = (_section: string) => {
     setEditingSection(null);
     setFormData(deal || {});
   };
@@ -998,8 +998,8 @@ export default function DealDetail() {
                   <div className="text-sm font-medium mb-1">Geographic Footprint</div>
                   <div className="flex flex-wrap gap-1">
                     {deal.geography && deal.geography.length > 0 ? (
-                      deal.geography.map((location, i) => (
-                        <Badge key={i} variant="secondary">
+                      deal.geography.map((location) => (
+                        <Badge key={location} variant="secondary">
                           {location}
                         </Badge>
                       ))

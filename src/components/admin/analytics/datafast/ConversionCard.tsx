@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { AnalyticsCard } from "./AnalyticsCard";
 import { AnalyticsTooltip } from "./AnalyticsTooltip";
-import { ArrowRight, User, Building2, Clock, Monitor, Smartphone, Globe, Check, FileText, Link2, ChevronRight } from "lucide-react";
+import { ArrowRight, User, Clock, Monitor, Smartphone, Globe, Check, FileText, Link2, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ActivityDots } from "./ActivityDots";
 import { UserDetailPanel } from "./UserDetailPanel";
@@ -173,8 +173,8 @@ function FunnelVisualization({ stages, overallConversion }: { stages: FunnelStag
       
       {/* Flow arrows */}
       <div className="flex justify-center gap-8 pt-2">
-        {stages.slice(0, -1).map((_, i) => (
-          <ArrowRight key={i} className="h-4 w-4 text-muted-foreground" />
+        {stages.slice(0, -1).map((stage) => (
+          <ArrowRight key={`arrow-${stage.name}`} className="h-4 w-4 text-muted-foreground" />
         ))}
       </div>
     </div>

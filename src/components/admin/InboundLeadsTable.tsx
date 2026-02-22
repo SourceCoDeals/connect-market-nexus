@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
@@ -11,7 +10,7 @@ import {
   Search,
   CheckSquare
 } from "lucide-react";
-import { InboundLead, useCreateInboundLead, useMapLeadToListing, useConvertLeadToRequest, useArchiveInboundLead, DuplicateCheckResult } from "@/hooks/admin/use-inbound-leads";
+import { InboundLead, useCreateInboundLead, useMapLeadToListing, useConvertLeadToRequest, DuplicateCheckResult } from "@/hooks/admin/use-inbound-leads";
 import { useEnhancedBulkLeadOperations } from "@/hooks/admin/use-enhanced-bulk-lead-operations";
 import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -61,12 +60,11 @@ const InboundLeadsTableEmpty = () => (
   </Card>
 );
 
-export const InboundLeadsTable = ({ 
-  leads, 
-  isLoading, 
-  onMapToListing, 
-  onConvertToRequest, 
-  onArchive 
+export const InboundLeadsTable = ({
+  leads,
+  isLoading,
+  onConvertToRequest,
+  onArchive
 }: InboundLeadsTableProps) => {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isBulkImportDialogOpen, setIsBulkImportDialogOpen] = useState(false);
@@ -87,8 +85,7 @@ export const InboundLeadsTable = ({
   
   const { mutate: createLead, isPending: isCreating } = useCreateInboundLead();
   const { mutate: mapLeadToListing, isPending: isMapping } = useMapLeadToListing();
-  const { mutate: convertLead, isPending: isConverting } = useConvertLeadToRequest();
-  const { mutate: archiveLead, isPending: isArchiving } = useArchiveInboundLead();
+  const { mutate: convertLead, isPending: _isConverting } = useConvertLeadToRequest();
   
   // Enhanced bulk operations
   const { bulkImportWithMapping, isLoading: isBulkOperationLoading } = useEnhancedBulkLeadOperations();

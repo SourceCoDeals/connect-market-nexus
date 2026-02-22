@@ -1,7 +1,6 @@
 import { useState, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import {
   Table,
   TableBody,
@@ -219,8 +218,8 @@ export function ReferralCSVUpload({
               </TableRow>
             </TableHeader>
             <TableBody>
-              {parsedRows.map((row, i) => (
-                <TableRow key={i}>
+              {parsedRows.map((row) => (
+                <TableRow key={row.company_name}>
                   <TableCell className="font-medium">{row.company_name}</TableCell>
                   <TableCell className="text-sm">{row.industry || "-"}</TableCell>
                   <TableCell className="text-sm">{formatCurrency(row.revenue)}</TableCell>

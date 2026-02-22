@@ -1,9 +1,7 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { STANDARDIZED_LOCATIONS } from '@/lib/financial-parser';
-import { LOCATION_DESCRIPTIONS } from '@/lib/field-helpers';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Check, ChevronsUpDown, MapPin } from 'lucide-react';
+import { Check, ChevronsUpDown } from 'lucide-react';
 import { cn } from "@/lib/utils";
 import {
   Command,

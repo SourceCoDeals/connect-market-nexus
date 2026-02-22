@@ -12,7 +12,7 @@ interface AdminListingSidebarProps {
 }
 
 export function AdminListingSidebar({ 
-  listing, 
+  listing: _listing, 
   onUserViewToggle, 
   userViewEnabled,
   onEditModeToggle,

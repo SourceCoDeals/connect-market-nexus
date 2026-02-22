@@ -47,7 +47,7 @@ export function useRetry<T extends any[], R>(
         canRetry: true,
       }));
 
-      let lastError: Error;
+      let lastError: Error = new Error('All retries failed');
 
       for (let attempt = 0; attempt <= finalConfig.maxRetries; attempt++) {
         try {
@@ -154,7 +154,7 @@ export const retryConditions = {
   },
 
   // Exponential backoff with jitter
-  withJitter: (error: any, attemptNumber: number) => {
+  withJitter: (_error: unknown, attemptNumber: number) => {
     // Add randomness to prevent thundering herd
     const jitter = Math.random() * 0.1; // 10% jitter
     const shouldRetry = Math.random() > jitter;

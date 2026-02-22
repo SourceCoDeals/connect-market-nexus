@@ -4,7 +4,6 @@ import { DocumentsPanel } from "@/components/admin/data-room/DocumentsPanel";
 import { AccessMatrixPanel } from "@/components/admin/data-room/AccessMatrixPanel";
 import { AuditLogPanel } from "@/components/admin/data-room/AuditLogPanel";
 import { DistributionLogPanel } from "@/components/admin/data-room/DistributionLogPanel";
-import { DocumentDistributionTab } from "@/components/admin/document-distribution";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { useParams, useNavigate, useLocation, Link } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -28,7 +27,6 @@ import {
   Users,
   History,
   Loader2,
-  CheckCircle2,
   Pencil,
   AlertTriangle,
   Eye,
@@ -36,7 +34,6 @@ import {
   Flag,
   PhoneCall,
   BookOpen,
-  FileText,
   ClipboardList,
   Send,
   FolderOpen,
@@ -95,7 +92,7 @@ const ReMarketingDealDetail = () => {
       const { data, error } = await supabase
         .from('listings')
         .select('*')
-        .eq('id', dealId)
+        .eq('id', dealId!)
         .maybeSingle();
 
       if (error) throw error;
@@ -112,7 +109,7 @@ const ReMarketingDealDetail = () => {
       const { data, error } = await supabase
         .from('remarketing_scores')
         .select('composite_score, status, tier')
-        .eq('listing_id', dealId);
+        .eq('listing_id', dealId!);
 
       if (error) throw error;
 
@@ -136,7 +133,7 @@ const ReMarketingDealDetail = () => {
       const { data, error } = await supabase
         .from('remarketing_outreach')
         .select('status')
-        .eq('listing_id', dealId);
+        .eq('listing_id', dealId!);
 
       if (error) throw error;
 
@@ -159,7 +156,7 @@ const ReMarketingDealDetail = () => {
       const { data, error } = await supabase
         .from('deal_transcripts')
         .select('*')
-        .eq('listing_id', dealId)
+        .eq('listing_id', dealId!)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
@@ -174,7 +171,7 @@ const ReMarketingDealDetail = () => {
       const { error } = await supabase
         .from('listings')
         .update(updates)
-        .eq('id', dealId);
+        .eq('id', dealId!);
 
       if (error) throw error;
     },
@@ -195,7 +192,7 @@ const ReMarketingDealDetail = () => {
           universe_build_flagged_at: flagged ? new Date().toISOString() : null,
           universe_build_flagged_by: flagged ? user?.id : null,
         })
-        .eq('id', dealId);
+        .eq('id', dealId!);
       if (error) throw error;
     },
     onSuccess: (_, flagged) => {
@@ -217,7 +214,7 @@ const ReMarketingDealDetail = () => {
           needs_owner_contact_at: flagged ? new Date().toISOString() : null,
           needs_owner_contact_by: flagged ? user?.id : null,
         })
-        .eq('id', dealId);
+        .eq('id', dealId!);
       if (error) throw error;
     },
     onSuccess: (_, flagged) => {
@@ -229,7 +226,7 @@ const ReMarketingDealDetail = () => {
   });
 
   // Extract website URL from internal_deal_memo_link
-  const extractWebsiteFromMemo = (memoLink: string | null): string | null => {
+  const extractWebsiteFromMemo = (memoLink: string | null | undefined): string | null => {
     if (!memoLink) return null;
     
     // Skip SharePoint/OneDrive links
@@ -310,7 +307,7 @@ const ReMarketingDealDetail = () => {
 
     try {
       const { queueDealEnrichment } = await import("@/lib/remarketing/queueEnrichment");
-      await queueDealEnrichment([dealId]);
+      await queueDealEnrichment([dealId!]);
 
       clearInterval(progressTimer);
       setEnrichmentProgress(100);
@@ -492,7 +489,7 @@ const ReMarketingDealDetail = () => {
                         pushed_to_all_deals: true,
                         pushed_to_all_deals_at: new Date().toISOString(),
                       })
-                      .eq('id', dealId);
+                      .eq('id', dealId!);
                     if (error) {
                       toast.error('Failed to push deal');
                     } else {
@@ -1248,11 +1245,11 @@ const ReMarketingDealDetail = () => {
 
       <DealTranscriptSection
         dealId={dealId!}
-        transcripts={transcripts || []}
+        transcripts={(transcripts || []) as unknown as import("./types").DealTranscript[]}
         isLoading={transcriptsLoading}
         dealInfo={{
           company_name: deal.internal_company_name || deal.title,
-          main_contact_email: deal.main_contact_email,
+          main_contact_email: deal.main_contact_email ?? undefined,
         }}
         contactEmail={deal.main_contact_email ?? null}
         contactName={deal.main_contact_name ?? null}
@@ -1406,7 +1403,7 @@ const ReMarketingDealDetail = () => {
                 listingId={dealId!}
                 dealName={deal.internal_company_name || deal.title}
                 dealGeography={deal.address_state ? [deal.address_state] : []}
-                dealRevenue={deal.revenue}
+                dealRevenue={deal.revenue ?? undefined}
                 approvedCount={scoreStats?.approved || 0}
                 passedCount={scoreStats?.passed || 0}
                 pendingCount={(scoreStats?.count || 0) - (scoreStats?.approved || 0) - (scoreStats?.passed || 0)}

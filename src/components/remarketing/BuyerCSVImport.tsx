@@ -1,8 +1,6 @@
 import { useState, useCallback, useMemo } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
@@ -32,10 +30,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { 
-  Upload, 
-  FileSpreadsheet, 
-  Check, 
-  X, 
+  Upload,
+  FileSpreadsheet,
   Loader2,
   Sparkles,
   AlertCircle,
@@ -134,7 +130,7 @@ export const BuyerCSVImport = ({ universeId, onComplete, open: controlledOpen, o
   };
   const [step, setStep] = useState<'upload' | 'mapping' | 'preview' | 'dedupe' | 'importing' | 'enriching'>('upload');
   const [csvData, setCsvData] = useState<CSVRow[]>([]);
-  const [csvHeaders, setCsvHeaders] = useState<string[]>([]);
+  const [_csvHeaders, setCsvHeaders] = useState<string[]>([]);
   const [mappings, setMappings] = useState<ColumnMapping[]>([]);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [importProgress, setImportProgress] = useState(0);
@@ -501,7 +497,7 @@ export const BuyerCSVImport = ({ universeId, onComplete, open: controlledOpen, o
     const batchSize = 10;
     let success = 0;
     let errors = 0;
-    const insertedBuyers: Array<{ id: string; platform_website?: string; pe_firm_website?: string; company_website?: string }> = [];
+    const insertedBuyers: Array<{ id: string; platform_website?: string | null; pe_firm_website?: string | null; company_website?: string | null }> = [];
 
     // Filter out skipped duplicates
     const dataToImport = validRows.filter(({ index }) => !skipDuplicates.has(index));
@@ -557,7 +553,7 @@ export const BuyerCSVImport = ({ universeId, onComplete, open: controlledOpen, o
   };
 
   const triggerBulkEnrichment = async (
-    buyers: Array<{ id: string; platform_website?: string; pe_firm_website?: string; company_website?: string }>
+    buyers: Array<{ id: string; platform_website?: string | null; pe_firm_website?: string | null; company_website?: string | null }>
   ) => {
     setStep('enriching');
     setEnrichmentProgress({ current: 0, total: buyers.length });
@@ -577,13 +573,6 @@ export const BuyerCSVImport = ({ universeId, onComplete, open: controlledOpen, o
       toast.info('Enrichment queued — another operation is running. It will start automatically.');
       return;
     }
-
-    let enriched = 0;
-    let failed = 0;
-    let creditsDepleted = false;
-
-    const BATCH_SIZE = 5;
-    const BATCH_DELAY_MS = 1000;
 
     // Queue all buyers for background enrichment
     try {
@@ -821,8 +810,8 @@ export const BuyerCSVImport = ({ universeId, onComplete, open: controlledOpen, o
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {validRows.slice(0, 5).map(({ index, row }) => (
-                          <TableRow key={index}>
+                        {validRows.slice(0, 5).map(({ index: rowIndex, row }) => (
+                          <TableRow key={rowIndex}>
                             {mappings.filter(m => m.targetField).slice(0, 5).map(m => (
                               <TableCell key={m.csvColumn} className="text-xs truncate max-w-[150px]">
                                 {row[m.csvColumn] || '—'}

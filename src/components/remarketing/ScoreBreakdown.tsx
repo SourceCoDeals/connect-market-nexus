@@ -79,7 +79,7 @@ export const ScoreBreakdown = ({
   if (compact) {
     return (
       <div className={cn("flex items-center gap-3", className)}>
-        {primaryCategories.map(({ key, label, icon: Icon }) => {
+        {primaryCategories.map(({ key, label: _label, icon: Icon }) => {
           const score = scores[key];
           return (
             <div key={key} className="flex items-center gap-1">

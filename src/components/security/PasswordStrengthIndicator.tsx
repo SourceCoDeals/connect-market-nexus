@@ -117,8 +117,8 @@ export const PasswordStrengthIndicator: React.FC<PasswordStrengthIndicatorProps>
 
       {showDetails && strengthResult.feedback.length > 0 && (
         <div className="space-y-1">
-          {strengthResult.feedback.map((feedback, index) => (
-            <div key={index} className="flex items-start gap-2 text-sm">
+          {strengthResult.feedback.map((feedback) => (
+            <div key={feedback} className="flex items-start gap-2 text-sm">
               {strengthResult.meets_policy ? (
                 <CheckCircle className="h-4 w-4 text-green-500 mt-0.5 flex-shrink-0" />
               ) : (

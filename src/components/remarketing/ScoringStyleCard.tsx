@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Settings2, ChevronDown, Sparkles, Save } from "lucide-react";
+import { Settings2, ChevronDown, Save } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { ScoringBehavior } from "@/types/remarketing";
 

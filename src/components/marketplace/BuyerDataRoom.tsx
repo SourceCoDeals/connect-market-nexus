@@ -44,7 +44,7 @@ export function BuyerDataRoom({ dealId }: BuyerDataRoomProps) {
         .from('data_room_access')
         .select('can_view_teaser, can_view_full_memo, can_view_data_room')
         .eq('deal_id', dealId)
-        .eq('marketplace_user_id', user?.id)
+        .eq('marketplace_user_id', user?.id ?? '')
         .is('revoked_at', null)
         .maybeSingle();
 
@@ -55,7 +55,7 @@ export function BuyerDataRoom({ dealId }: BuyerDataRoomProps) {
   });
 
   // Fetch documents (RLS will filter based on access)
-  const { data: documents = [], isLoading } = useQuery({
+  const { data: documents = [], isLoading: _isLoading } = useQuery({
     queryKey: ['buyer-data-room-documents', dealId],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -188,8 +188,8 @@ export function BuyerDataRoom({ dealId }: BuyerDataRoomProps) {
                     />
                   ) : (
                     <div className="space-y-3">
-                      {((memo.content as { sections?: Array<{ title: string; content: string }> } | null)?.sections || []).map((section: { title: string; content: string }, i: number) => (
-                        <div key={i}>
+                      {((memo.content as { sections?: Array<{ title: string; content: string }> } | null)?.sections || []).map((section: { title: string; content: string }) => (
+                        <div key={section.title}>
                           <h4 className="font-medium text-sm mb-1">{section.title}</h4>
                           <p className="text-sm text-muted-foreground whitespace-pre-wrap">
                             {section.content}

@@ -104,9 +104,9 @@ export function useUpdateDealComment() {
   return useMutation({
     mutationFn: async ({ 
       commentId, 
-      commentText, 
+      commentText,
       mentionedAdmins,
-      dealId 
+      dealId: _dealId
     }: { 
       commentId: string; 
       commentText: string; 
@@ -148,7 +148,7 @@ export function useDeleteDealComment() {
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: async ({ commentId, dealId }: { commentId: string; dealId: string }) => {
+    mutationFn: async ({ commentId, dealId: _dealId }: { commentId: string; dealId: string }) => {
       const { error } = await supabase
         .from('deal_comments')
         .delete()

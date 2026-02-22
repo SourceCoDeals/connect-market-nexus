@@ -43,7 +43,7 @@ export function useRealtimeAdmin() {
           schema: 'public',
           table: 'connection_requests'
         },
-        (payload) => {
+        () => {
           toast({
             title: '🔗 New Connection Request',
             description: 'A new connection request requires review',
@@ -59,7 +59,7 @@ export function useRealtimeAdmin() {
           schema: 'public',
           table: 'connection_requests'
         },
-        (payload) => {
+        (_payload) => {
           queryClient.refetchQueries({ queryKey: ['connection-requests'], type: 'active' });
           queryClient.refetchQueries({ queryKey: ['connection-request-details'], type: 'active' });
           queryClient.refetchQueries({ queryKey: ['deals'], type: 'active' });
@@ -132,7 +132,7 @@ export function useRealtimeAdmin() {
           schema: 'public',
           table: 'deals'
         },
-        (payload) => {
+        (_payload) => {
           queryClient.refetchQueries({ queryKey: ['deals'], type: 'active' });
           queryClient.invalidateQueries({ queryKey: ['deal-activities'] });
         }
@@ -144,7 +144,7 @@ export function useRealtimeAdmin() {
           schema: 'public',
           table: 'deal_tasks'
         },
-        (payload) => {
+        (_payload) => {
           queryClient.refetchQueries({ queryKey: ['deal-tasks'], type: 'active' });
           queryClient.refetchQueries({ queryKey: ['deals'], type: 'active' });
         }
@@ -156,7 +156,7 @@ export function useRealtimeAdmin() {
           schema: 'public',
           table: 'connection_request_stages'
         },
-        (payload) => {
+        (_payload) => {
           queryClient.refetchQueries({ queryKey: ['connection-request-stages'], type: 'active' });
         }
       )
@@ -167,7 +167,7 @@ export function useRealtimeAdmin() {
           schema: 'public',
           table: 'firm_agreements'
         },
-        (payload) => {
+        (_payload) => {
           queryClient.refetchQueries({ queryKey: ['firm-agreements'], type: 'active' });
           queryClient.invalidateQueries({ queryKey: ['admin-users'] });
           queryClient.invalidateQueries({ queryKey: ['connection-requests'] });
@@ -182,7 +182,7 @@ export function useRealtimeAdmin() {
           schema: 'public',
           table: 'firm_members'
         },
-        (payload) => {
+        (_payload) => {
           queryClient.refetchQueries({ queryKey: ['firm-members'], type: 'active' });
           queryClient.invalidateQueries({ queryKey: ['firm-agreements'] });
           queryClient.invalidateQueries({ queryKey: ['admin-users'] });

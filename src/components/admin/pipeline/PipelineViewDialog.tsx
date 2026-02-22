@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod/v3';
@@ -77,7 +77,7 @@ export function PipelineViewDialog({ open, onOpenChange }: PipelineViewDialogPro
         // Keep order, but add new selections to end and remove deselected
         const newSelected = value.selectedStages;
         const currentOrdered = orderedStageIds.filter(id => newSelected.includes(id));
-        const newIds = newSelected.filter(id => !orderedStageIds.includes(id));
+        const newIds = newSelected.filter((id): id is string => id !== undefined && !orderedStageIds.includes(id));
         setOrderedStageIds([...currentOrdered, ...newIds]);
       }
     });

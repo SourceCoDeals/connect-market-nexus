@@ -64,7 +64,7 @@ export const DocumentUploadSection = ({
   const [isEnriching, setIsEnriching] = useState(false);
   const [enrichProgress, setEnrichProgress] = useState({ current: 0, total: 0, successes: 0, failures: 0 });
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [activeQueueId, setActiveQueueId] = useState<string | null>(null);
+  const [, setActiveQueueId] = useState<string | null>(null);
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;

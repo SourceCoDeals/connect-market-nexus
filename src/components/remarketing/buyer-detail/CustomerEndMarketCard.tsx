@@ -70,8 +70,8 @@ export const CustomerEndMarketCard = ({
                   Customer Industries
                 </p>
                 <div className="flex flex-wrap gap-2">
-                  {customerIndustries.map((industry, index) => (
-                    <Badge key={index} variant="outline" className="text-sm">
+                  {customerIndustries.map((industry) => (
+                    <Badge key={industry} variant="outline" className="text-sm">
                       {industry}
                     </Badge>
                   ))}

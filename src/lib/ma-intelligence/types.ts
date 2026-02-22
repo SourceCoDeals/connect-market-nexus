@@ -11,7 +11,7 @@ import type {
   GeographyCriteria as BaseGeographyCriteria,
   BuyerTypesCriteria as BaseBuyerTypesCriteria,
   ScoringBehavior as BaseScoringBehavior,
-  AcquisitionRecord as BaseAcquisitionRecord,
+  AcquisitionRecord as _BaseAcquisitionRecord,
   ExtractionSource as BaseExtractionSource,
   DataCompleteness,
   ThesisConfidence,

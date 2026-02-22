@@ -103,12 +103,12 @@ const ListingCard = ({ listing, viewType, savedIds, connectionMap }: ListingCard
           >
           <div className={`relative ${viewType === "list" ? "shrink-0" : ""}`}>
             <div className="relative overflow-hidden">
-              <ListingCardImage 
-                imageUrl={listing.image_url} 
+              <ListingCardImage
+                imageUrl={listing.image_url ?? null}
                 title={listing.title}
                 viewType={viewType}
               />
-              <ListingStatusTag status={listing.status_tag} />
+              <ListingStatusTag status={listing.status_tag ?? null} />
               
               {/* Approved badge - smaller pill at top of image, fully visible */}
               {connectionExists && connectionStatus?.status === "approved" && (

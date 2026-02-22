@@ -46,7 +46,6 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { BuyerAgreementsPanel } from "@/components/ma-intelligence/BuyerAgreementsPanel";
-import type { BuyerType } from "@/types/remarketing";
 import {
   BuyerDetailHeader,
   CriteriaCompletenessBanner,
@@ -144,7 +143,7 @@ type EditDialogType = 'business' | 'investment' | 'dealStructure' | 'geographic'
 
 const ReMarketingBuyerDetail = () => {
   const { id } = useParams<{ id: string }>();
-  const navigate = useNavigate();
+  useNavigate();
   const location = useLocation();
   const queryClient = useQueryClient();
   const backTo = (location.state as { from?: string } | null)?.from || "/admin/buyers";
@@ -170,7 +169,7 @@ const ReMarketingBuyerDetail = () => {
       const { data, error } = await supabase
         .from('remarketing_buyers')
         .select('*')
-        .eq('id', id)
+        .eq('id', id!)
         .maybeSingle();
       
       if (error) throw error;
@@ -207,7 +206,7 @@ const ReMarketingBuyerDetail = () => {
       const { data, error } = await supabase
         .from('remarketing_buyer_contacts')
         .select('*')
-        .eq('buyer_id', id)
+        .eq('buyer_id', id!)
         .order('is_primary', { ascending: false });
       
       if (error) throw error;
@@ -226,7 +225,7 @@ const ReMarketingBuyerDetail = () => {
       const { data, error } = await supabase
         .from('buyer_transcripts')
         .select('*')
-        .eq('buyer_id', id)
+        .eq('buyer_id', id!)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
@@ -251,7 +250,7 @@ const ReMarketingBuyerDetail = () => {
           created_at,
           listing:listings(id, title)
         `)
-        .eq('buyer_id', id)
+        .eq('buyer_id', id!)
         .order('created_at', { ascending: false })
         .limit(10);
       
@@ -317,7 +316,7 @@ const ReMarketingBuyerDetail = () => {
       const { error } = await supabase
         .from('remarketing_buyers')
         .update(data)
-        .eq('id', id);
+        .eq('id', id!);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -345,8 +344,8 @@ const ReMarketingBuyerDetail = () => {
           if (firmName) {
             const { data: createdFirmId, error: createdFirmIdError } = await supabase.rpc('get_or_create_firm', {
               p_company_name: firmName,
-              p_website: firmWebsite,
-              p_email: null,
+              p_website: firmWebsite ?? undefined,
+              p_email: undefined,
             });
             if (createdFirmIdError) throw createdFirmIdError;
 
@@ -355,7 +354,7 @@ const ReMarketingBuyerDetail = () => {
               await supabase
                 .from('remarketing_buyers')
                 .update({ marketplace_firm_id: firmId })
-                .eq('id', id);
+                .eq('id', id!);
             }
           }
         }
@@ -364,7 +363,7 @@ const ReMarketingBuyerDetail = () => {
           await supabase.rpc('update_fee_agreement_firm_status', {
             p_firm_id: firmId,
             p_is_signed: true,
-            p_signed_by_user_id: null,
+            p_signed_by_user_id: undefined,
             p_signed_at: new Date().toISOString(),
           });
         }
@@ -375,7 +374,7 @@ const ReMarketingBuyerDetail = () => {
             has_fee_agreement: true,
             fee_agreement_source: firmId ? 'marketplace_synced' : 'manual_override',
           })
-          .eq('id', id);
+          .eq('id', id!);
         if (error) throw error;
       } else {
         // TURNING OFF: Only remove manual overrides
@@ -389,7 +388,7 @@ const ReMarketingBuyerDetail = () => {
             has_fee_agreement: false,
             fee_agreement_source: null,
           })
-          .eq('id', id);
+          .eq('id', id!);
         if (error) throw error;
       }
     },
@@ -407,7 +406,7 @@ const ReMarketingBuyerDetail = () => {
     mutationFn: async () => {
       const { error } = await supabase
         .from('remarketing_buyer_contacts')
-        .insert([{ ...newContact, buyer_id: id }]);
+        .insert([{ ...newContact, buyer_id: id! }]);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -456,7 +455,7 @@ const ReMarketingBuyerDetail = () => {
         .from('buyer_transcripts')
         .insert([
           {
-            buyer_id: id,
+            buyer_id: id!,
             title: fileName || 'Manual Transcript',
             transcript_text: text || null,
             source: source || 'manual',
@@ -690,7 +689,7 @@ const ReMarketingBuyerDetail = () => {
           onEdit={() => setActiveEditDialog('companyOverview')}
         />
         <MainContactCard
-          contacts={contacts}
+          contacts={contacts as unknown as { id: string; name: string; email?: string | null; phone?: string | null; role?: string | null; linkedin_url?: string | null; is_primary?: boolean }[]}
           onAddContact={() => setIsContactDialogOpen(true)}
           hasFeeAgreement={buyer?.has_fee_agreement || false}
           onFeeAgreementChange={(value) => updateFeeAgreementMutation.mutate(value)}
@@ -801,7 +800,7 @@ const ReMarketingBuyerDetail = () => {
           {/* Full Width: Transcripts */}
           <TranscriptsListCard
             transcripts={transcripts}
-            buyerId={buyer.id}
+            buyerId={buyer!.id}
             onAddTranscript={(text, source, fileName, fileUrl, triggerExtract) =>
               addTranscriptMutation.mutateAsync({ text, source, fileName, fileUrl, triggerExtract })
             }

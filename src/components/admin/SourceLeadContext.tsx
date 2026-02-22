@@ -2,7 +2,6 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { 
   Building2, 
-  Mail, 
   User, 
   MessageSquare, 
   ExternalLink, 

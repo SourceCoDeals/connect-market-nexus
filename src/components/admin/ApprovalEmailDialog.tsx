@@ -7,7 +7,6 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { 
   CheckCircle, 
-  Send, 
   User, 
   Mail
 } from "lucide-react";

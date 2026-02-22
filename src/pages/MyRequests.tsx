@@ -52,7 +52,7 @@ const MyRequests = () => {
   const { data: requests = [], isLoading, error } = useUserConnectionRequests();
   const updateMessage = useUpdateConnectionMessage();
   const isMobile = useIsMobile();
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchParams] = useSearchParams();
   const [selectedDeal, setSelectedDeal] = useState<string | null>(null);
   const [innerTab, setInnerTab] = useState<Record<string, string>>({});
   const { unreadByRequest } = useUserNotifications();
@@ -240,10 +240,6 @@ const MyRequests = () => {
       </div>
     );
   }
-
-  const activeRequest = selectedDeal
-    ? requests.find(req => req.id === selectedDeal)
-    : requests[0];
 
   return (
     <div className="w-full bg-white min-h-screen">

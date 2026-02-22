@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback, useRef, useEffect } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
 import { formatCompactCurrency } from "@/lib/utils";
 import { DealImportDialog } from "@/components/remarketing/DealImportDialog";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -58,9 +58,7 @@ import {
   Target,
   Calculator,
   Plus,
-  Upload,
   FileSpreadsheet,
-  AlertCircle,
   XCircle,
   MoreHorizontal,
   ExternalLink,
@@ -272,7 +270,6 @@ export default function GPPartnerDeals() {
     filteredItems: engineFiltered,
     filterState,
     setFilterState,
-    activeFilterCount,
     dynamicOptions,
     filteredCount,
     totalCount: engineTotal,

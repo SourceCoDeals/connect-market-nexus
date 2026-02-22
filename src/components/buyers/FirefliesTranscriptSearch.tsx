@@ -59,8 +59,8 @@ interface SearchResult {
 export const FirefliesTranscriptSearch = ({
   buyerId,
   companyName,
-  peFirmName,
-  platformWebsite,
+  peFirmName: _peFirmName,
+  platformWebsite: _platformWebsite,
   contacts,
   onTranscriptLinked,
 }: FirefliesTranscriptSearchProps) => {
@@ -283,8 +283,8 @@ export const FirefliesTranscriptSearch = ({
                 {/* Keywords */}
                 {result.keywords.length > 0 && (
                   <div className="flex flex-wrap gap-1">
-                    {result.keywords.slice(0, 5).map((keyword, i) => (
-                      <Badge key={i} variant="outline" className="text-xs">
+                    {result.keywords.slice(0, 5).map((keyword) => (
+                      <Badge key={keyword} variant="outline" className="text-xs">
                         {keyword}
                       </Badge>
                     ))}

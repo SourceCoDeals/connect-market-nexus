@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useIsMobile } from './use-mobile';
 
 interface LazyComponentOptions {
@@ -108,8 +108,8 @@ export function usePerformanceMetrics(): PerformanceMetrics {
 }
 
 export function useOptimizedQuery<T>(
-  queryFn: () => Promise<T>,
-  dependencies: any[] = [],
+  _queryFn: () => Promise<T>,
+  _dependencies: unknown[] = [],
   options: { enabled?: boolean; staleTime?: number; cacheTime?: number } = {}
 ) {
   const { networkSpeed } = usePerformanceMetrics();
@@ -172,7 +172,6 @@ export function useMobileTableOptimization<T>(
   data: T[],
   itemsPerPage: number = 10
 ) {
-  const isMobile = useIsMobile();
   const { enableVirtualization } = useNetworkAwareLoading();
   const [currentPage, setCurrentPage] = useState(0);
   

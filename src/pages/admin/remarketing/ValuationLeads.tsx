@@ -5,7 +5,6 @@ import { formatCompactCurrency } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table,
@@ -41,7 +40,6 @@ import { useEnrichmentProgress } from "@/hooks/useEnrichmentProgress";
 import { EnrichmentProgressIndicator, DealEnrichmentSummaryDialog } from "@/components/remarketing";
 import { useAuth } from "@/context/AuthContext";
 import {
-  Building2,
   ArrowUpDown,
   CheckCircle2,
   Loader2,
@@ -62,12 +60,11 @@ import {
   ExternalLink,
   Star,
   Download,
-  Trash2,
   EyeOff,
   Phone,
   Network,
 } from "lucide-react";
-import { format, formatDistanceToNow } from "date-fns";
+import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 
 // ─── Types ───
@@ -313,7 +310,7 @@ function segmentWords(input: string): string {
 }
 
 /** Format a date string as a relative age: "4d ago", "2mo ago", "1y ago" */
-function formatAge(dateStr: string): string {
+export function formatAge(dateStr: string): string {
   const now = new Date();
   const date = new Date(dateStr);
   const diffMs = now.getTime() - date.getTime();
@@ -822,7 +819,6 @@ export default function ValuationLeads() {
     filteredItems: engineFiltered,
     filterState,
     setFilterState,
-    activeFilterCount,
     dynamicOptions,
     filteredCount,
     totalCount: engineTotal,
@@ -1957,7 +1953,7 @@ export default function ValuationLeads() {
                     />
                   </TableHead>
                   <TableHead className="w-[40px] text-center text-muted-foreground">#</TableHead>
-                  {(["company","description"] as const).map((col, i) => (
+                  {(["company","description"] as const).map((col) => (
                     <TableHead key={col} className="relative overflow-visible" style={{ width: colWidths[col] }}>
                       {col === "company" ? <SortHeader column="display_name">Company</SortHeader> : "Description"}
                       <div onMouseDown={(e) => startResize(col, e)} className="absolute right-0 top-0 h-full w-1.5 cursor-col-resize hover:bg-primary/30 active:bg-primary/50 select-none z-10" />

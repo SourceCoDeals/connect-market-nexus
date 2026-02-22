@@ -1,6 +1,6 @@
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import { CheckCircle2, AlertCircle, Info, HelpCircle } from "lucide-react";
+import { CheckCircle2, AlertCircle, Info } from "lucide-react";
 import {
   Tooltip,
   TooltipContent,
@@ -144,8 +144,8 @@ export const IntelligenceBadge = ({
               <div className="pt-1 border-t">
                 <p className="text-xs font-medium mb-1">Missing data:</p>
                 <ul className="text-xs text-muted-foreground space-y-0.5">
-                  {displayedMissingFields.map((field, i) => (
-                    <li key={i}>• {field}</li>
+                  {displayedMissingFields.map((field) => (
+                    <li key={field}>• {field}</li>
                   ))}
                   {remainingCount > 0 && (
                     <li className="text-muted-foreground/70">+{remainingCount} more...</li>

@@ -4,7 +4,6 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Separator } from "@/components/ui/separator";
 import {
   Dialog,
   DialogContent,
@@ -379,8 +378,8 @@ export const CompanyOverviewCard = ({
                 value={
                   fullAddress ? (
                     <div className="max-w-[180px]">
-                      {fullAddress.map((line, i) => (
-                        <div key={i}>{line}</div>
+                      {fullAddress.map((line) => (
+                        <div key={line}>{line}</div>
                       ))}
                     </div>
                   ) : (

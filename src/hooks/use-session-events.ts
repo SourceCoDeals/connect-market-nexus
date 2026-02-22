@@ -88,14 +88,14 @@ export const useSessionEvents = (sessionId: string | null, userId: string | null
         pageViews.forEach((pv) => {
           allEvents.push({
             id: pv.id,
-            timestamp: pv.created_at,
+            timestamp: pv.created_at ?? new Date().toISOString(),
             source: 'page_view',
             type: 'view',
             description: formatEventDescription('page_view', pv),
             icon: getEventIcon('page_view', null, null),
             metadata: {
-              page_path: pv.page_path,
-              page_title: pv.page_title,
+              page_path: pv.page_path ?? undefined,
+              page_title: pv.page_title ?? undefined,
             },
           });
         });
@@ -106,18 +106,18 @@ export const useSessionEvents = (sessionId: string | null, userId: string | null
         userEvents.forEach((ue) => {
           allEvents.push({
             id: ue.id,
-            timestamp: ue.created_at,
+            timestamp: ue.created_at ?? new Date().toISOString(),
             source: 'user_event',
-            type: ue.event_action || ue.event_type,
+            type: ue.event_action ?? ue.event_type ?? '',
             description: formatEventDescription('user_event', ue),
             icon: getEventIcon('user_event', ue.event_action, null),
             metadata: {
-              event_action: ue.event_action,
-              event_category: ue.event_category,
-              event_label: ue.event_label,
-              page_path: ue.page_path,
-              element_id: ue.element_id,
-              element_class: ue.element_class,
+              event_action: ue.event_action ?? undefined,
+              event_category: ue.event_category ?? undefined,
+              event_label: ue.event_label ?? undefined,
+              page_path: ue.page_path ?? undefined,
+              element_id: ue.element_id ?? undefined,
+              element_class: ue.element_class ?? undefined,
             },
           });
         });

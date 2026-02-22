@@ -1,6 +1,5 @@
-import { Shield, FileText, MessageSquare, CheckCircle, Clock, Send, CheckCheck, XCircle, AlertTriangle } from "lucide-react";
+import { Shield, FileText, MessageSquare, Clock, Send, CheckCheck, XCircle, AlertTriangle } from "lucide-react";
 import { User } from "@/types";
-import { format } from "date-fns";
 
 interface StatusIndicatorRowProps {
   user?: User | null; // Now optional for lead-only requests
@@ -18,15 +17,11 @@ interface StatusIndicatorRowProps {
   leadFeeAgreementEmailSent?: boolean;
 }
 
-export const StatusIndicatorRow = ({ 
-  user, 
+export const StatusIndicatorRow = ({
+  user,
   requestStatus,
-  followedUp, 
-  negativeFollowedUp = false, 
-  followedUpByAdmin, 
-  negativeFollowedUpByAdmin,
-  followedUpAt,
-  negativeFollowedUpAt,
+  followedUp,
+  negativeFollowedUp = false,
   leadNdaSigned,
   leadNdaEmailSent,
   leadFeeAgreementSigned,

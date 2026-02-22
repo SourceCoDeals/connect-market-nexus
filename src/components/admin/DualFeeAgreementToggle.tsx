@@ -2,7 +2,7 @@ import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { Mail, FileText, Clock, Check, X, Loader2 } from "lucide-react";
+import { Mail, FileText, Clock, Loader2 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { User } from "@/types";
 import { useUpdateFeeAgreement, useUpdateFeeAgreementEmailSent } from "@/hooks/admin/use-fee-agreement";

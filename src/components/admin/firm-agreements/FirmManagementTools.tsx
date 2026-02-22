@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Settings, GitMerge, Link as LinkIcon, AlertTriangle, Check, X, FileCheck, Shield } from 'lucide-react';
+import { GitMerge, Link as LinkIcon, AlertTriangle, Check, X, FileCheck, Shield } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -90,8 +90,8 @@ export function FirmManagementTools() {
       const { error: syncError } = await supabase.rpc('update_fee_agreement_firm_status', {
         p_firm_id: targetFirmId,
         p_is_signed: targetFirm?.fee_agreement_signed || false,
-        p_signed_by_user_id: targetFirm?.fee_agreement_signed_by,
-        p_signed_at: targetFirm?.fee_agreement_signed ? (targetFirm?.fee_agreement_signed_at || new Date().toISOString()) : null,
+        p_signed_by_user_id: targetFirm?.fee_agreement_signed_by ?? undefined,
+        p_signed_at: targetFirm?.fee_agreement_signed ? (targetFirm?.fee_agreement_signed_at ?? new Date().toISOString()) : undefined,
       });
 
       if (syncError) console.warn('Warning: Could not sync fee agreements after merge:', syncError);
@@ -99,8 +99,8 @@ export function FirmManagementTools() {
       const { error: ndaSyncError } = await supabase.rpc('update_nda_firm_status', {
         p_firm_id: targetFirmId,
         p_is_signed: targetFirm?.nda_signed || false,
-        p_signed_by_user_id: targetFirm?.nda_signed_by,
-        p_signed_at: targetFirm?.nda_signed ? (targetFirm?.nda_signed_at || new Date().toISOString()) : null,
+        p_signed_by_user_id: targetFirm?.nda_signed_by ?? undefined,
+        p_signed_at: targetFirm?.nda_signed ? (targetFirm?.nda_signed_at ?? new Date().toISOString()) : undefined,
       });
 
       if (ndaSyncError) console.warn('Warning: Could not sync NDAs after merge:', ndaSyncError);

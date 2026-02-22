@@ -1,12 +1,11 @@
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Check, X, Eye, Send, Clock, FileDown, MoreHorizontal, AlertCircle } from 'lucide-react';
+import { Check, Eye, Send, Clock, FileDown, MoreHorizontal, AlertCircle } from 'lucide-react';
 import type { DocuSealStatus } from '@/hooks/admin/use-docuseal';
 
 interface DocuSealStatusBadgeProps {

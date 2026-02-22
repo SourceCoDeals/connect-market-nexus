@@ -1,5 +1,5 @@
 
-import React from 'react';
+
 import { useDroppable } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
@@ -35,16 +35,6 @@ export function PipelineKanbanColumn({ stage, deals, onDealClick, onOpenCreateDe
   
   const sortableItems = deals.map(d => `deal:${d.deal_id}`);
   
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-      notation: value >= 1000000 ? 'compact' : 'standard',
-    }).format(value);
-  };
-
   // Dynamic progression calculation based on active stages
   const isClosedWon = stage.name.toLowerCase().includes('closed') && stage.name.toLowerCase().includes('won');
   const isClosedLost = stage.name.toLowerCase().includes('closed') && stage.name.toLowerCase().includes('lost');

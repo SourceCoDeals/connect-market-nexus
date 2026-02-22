@@ -10,7 +10,7 @@ export interface UserWithDataIssues extends User {
 /**
  * Safely parse JSON, returning fallback on failure
  */
-function safeJsonParse<T>(value: unknown, fallback: T): T {
+export function safeJsonParse<T>(value: unknown, fallback: T): T {
   if (value === null || value === undefined) return fallback;
   if (typeof value !== 'string') return value as T;
   try {

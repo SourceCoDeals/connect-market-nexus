@@ -23,7 +23,7 @@ interface UserMenuProps {
   onNavigateToAdmin: () => void;
 }
 
-const UserMenu = ({ user, isAdmin, isMobile, handleLogout, onNavigateToAdmin }: UserMenuProps) => {
+const UserMenu = ({ user, isAdmin, isMobile, handleLogout: _handleLogout, onNavigateToAdmin }: UserMenuProps) => {
   const { logout } = useAuth();
   
   const getInitials = (firstName: string, lastName: string) => {

@@ -3,7 +3,7 @@ import { useDeals, useDealStages, Deal } from '@/hooks/admin/use-deals';
 import { useDealFilters, DealStatusFilter, DocumentStatusFilter, BuyerTypeFilter, SortOption } from '@/hooks/admin/use-deal-filters';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { supabase } from '@/integrations/supabase/client';
-import { usePipelineViews, PipelineView } from './use-pipeline-views';
+import { usePipelineViews } from './use-pipeline-views';
 
 export type ViewMode = 'kanban' | 'list' | 'table';
 
@@ -37,8 +37,8 @@ export function usePipelineCore() {
   }, []);
   
   // Data fetching - include all stages (including closed won/lost)
-  const { data: deals, isLoading: dealsLoading, error: dealsError } = useDeals();
-  const { data: allStages, isLoading: stagesLoading, error: stagesError } = useDealStages(true); // Include all stages
+  const { data: deals, isLoading: dealsLoading, error: _dealsError } = useDeals();
+  const { data: allStages, isLoading: stagesLoading, error: _stagesError } = useDealStages(true); // Include all stages
   const { data: pipelineViews = [] } = usePipelineViews();
   
   // Filter stages based on current view with custom ordering

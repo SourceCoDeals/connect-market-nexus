@@ -1,6 +1,4 @@
 import { useState, useCallback, useRef } from 'react';
-import { supabase } from '@/integrations/supabase/client';
-import { invokeWithTimeout } from '@/lib/invoke-with-timeout';
 import { toast } from 'sonner';
 import { useQueryClient } from '@tanstack/react-query';
 
@@ -23,9 +21,6 @@ export interface DealEnrichmentProgress {
   creditsDepleted: boolean;
 }
 
-const BATCH_SIZE = 3;
-const BATCH_DELAY_MS = 1500;
-
 export function useDealEnrichment(universeId?: string) {
   const queryClient = useQueryClient();
   const cancelledRef = useRef(false);
@@ -41,14 +36,6 @@ export function useDealEnrichment(universeId?: string) {
     isCancelled: false,
     creditsDepleted: false,
   });
-
-  const updateStatus = useCallback((dealId: string, status: DealEnrichmentStatus) => {
-    setProgress(prev => {
-      const newStatuses = new Map(prev.statuses);
-      newStatuses.set(dealId, status);
-      return { ...prev, statuses: newStatuses };
-    });
-  }, []);
 
   const enrichDeals = useCallback(async (
     deals: Array<{ id: string; listingId: string; enrichedAt?: string | null; hasWebsite?: boolean }>

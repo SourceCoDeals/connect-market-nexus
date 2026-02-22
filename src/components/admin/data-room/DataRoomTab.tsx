@@ -24,7 +24,7 @@ interface DataRoomTabProps {
   isInternalDeal?: boolean;
 }
 
-export function DataRoomTab({ dealId, dealTitle, isInternalDeal }: DataRoomTabProps) {
+export function DataRoomTab({ dealId, dealTitle }: DataRoomTabProps) {
   const [activeTab, setActiveTab] = useState('documents');
 
   return (

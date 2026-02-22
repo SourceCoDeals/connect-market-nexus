@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { subDays, format, startOfDay, getHours, getDay } from "date-fns";
+import { subDays, format, getHours, getDay } from "date-fns";
 
 export interface TrafficAnalyticsData {
   // Session volume over time
@@ -87,7 +87,7 @@ export function useTrafficAnalytics(timeRangeDays: number = 30) {
       const dailyVolume: Record<string, { sessions: number; users: Set<string> }> = {};
       
       sessionData.forEach(session => {
-        const dayKey = format(new Date(session.created_at), 'MMM d');
+        const dayKey = format(new Date(session.created_at ?? Date.now()), 'MMM d');
         if (!dailyVolume[dayKey]) {
           dailyVolume[dayKey] = { sessions: 0, users: new Set() };
         }
@@ -167,7 +167,7 @@ export function useTrafficAnalytics(timeRangeDays: number = 30) {
       // Activity heatmap
       const heatmapData: Record<string, number> = {};
       sessionData.forEach(session => {
-        const date = new Date(session.created_at);
+        const date = new Date(session.created_at ?? Date.now());
         const dayOfWeek = getDay(date);
         const hour = getHours(date);
         const key = `${dayOfWeek}-${hour}`;
@@ -199,7 +199,7 @@ export function useTrafficAnalytics(timeRangeDays: number = 30) {
       // Find peak hour
       const hourCounts: Record<number, number> = {};
       sessionData.forEach(session => {
-        const hour = getHours(new Date(session.created_at));
+        const hour = getHours(new Date(session.created_at ?? Date.now()));
         hourCounts[hour] = (hourCounts[hour] || 0) + 1;
       });
       const peakHour = Object.entries(hourCounts)

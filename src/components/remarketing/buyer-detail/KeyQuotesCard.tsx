@@ -28,9 +28,9 @@ export const KeyQuotesCard = ({
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
-        {displayQuotes.map((quote, index) => (
-          <div 
-            key={index}
+        {displayQuotes.map((quote) => (
+          <div
+            key={quote}
             className="pl-4 border-l-4 border-amber-400 py-1"
           >
             <p className="text-sm text-muted-foreground italic">"{quote}"</p>

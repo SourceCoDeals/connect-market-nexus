@@ -1,7 +1,5 @@
-import { Badge } from "@/components/ui/badge";
-import { DollarSign, MapPin, Building2, TrendingUp, CheckCircle2, AlertCircle } from "lucide-react";
+import { CheckCircle2, AlertCircle } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
-import { Check } from "lucide-react";
 import ListingStatusTag from "@/components/listing/ListingStatusTag";
 import ListingCardBadges from "@/components/listing/ListingCardBadges";
 import ListingCardTitle from "@/components/listing/ListingCardTitle";
@@ -85,8 +83,8 @@ export function EditorLivePreview({ formValues, imagePreview }: EditorLivePrevie
           </div>
           <Progress value={quality.score} className="h-2" />
           <div className="space-y-2">
-            {quality.items.map((item, idx) => (
-              <div key={idx} className="flex items-center gap-2 text-sm">
+            {quality.items.map((item) => (
+              <div key={item.label} className="flex items-center gap-2 text-sm">
                 {item.complete ? (
                   <CheckCircle2 className="h-4 w-4 text-success" />
                 ) : (

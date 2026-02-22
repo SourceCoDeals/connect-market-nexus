@@ -1,4 +1,3 @@
-import React from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Building2, Users, FileCheck, FileSignature } from 'lucide-react';
 import { useConnectionRequestFirm } from '@/hooks/admin/use-connection-request-firm';

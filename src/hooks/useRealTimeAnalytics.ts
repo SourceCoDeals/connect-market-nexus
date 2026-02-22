@@ -79,7 +79,7 @@ export function useRealTimeAnalytics() {
         userId: s.user_id,
         country: s.country,
         city: s.city,
-        lastActiveAt: s.last_active_at || s.started_at,
+        lastActiveAt: s.last_active_at ?? s.started_at ?? new Date().toISOString(),
         durationSeconds: s.session_duration_seconds || 0,
       }));
       

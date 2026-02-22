@@ -45,7 +45,7 @@ export const TargetBuyerTypesPanel = ({
   onBuyerTypesChange,
   readOnly = false,
 }: TargetBuyerTypesPanelProps) => {
-  const [editingType, setEditingType] = useState<TargetBuyerTypeConfig | null>(null);
+  const [, setEditingType] = useState<TargetBuyerTypeConfig | null>(null);
 
   const handleToggle = (id: string, enabled: boolean) => {
     if (onBuyerTypesChange && !readOnly) {

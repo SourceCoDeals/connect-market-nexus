@@ -34,9 +34,9 @@ export function SmartSuggestions({
         <span>You might want to ask:</span>
       </div>
       <div className="flex flex-wrap gap-2">
-        {suggestions.map((suggestion, index) => (
+        {suggestions.map((suggestion) => (
           <Button
-            key={index}
+            key={suggestion.text}
             variant="outline"
             size="sm"
             className="h-auto py-2 px-3 text-sm text-left justify-start hover:bg-accent"

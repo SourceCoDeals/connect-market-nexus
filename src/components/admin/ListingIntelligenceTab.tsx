@@ -1,10 +1,9 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Search, TrendingUp, TrendingDown, Eye, Heart, MessageSquare, AlertCircle, CheckCircle, Clock } from "lucide-react";
+import { Search, TrendingUp, Eye, Heart, MessageSquare, AlertCircle, CheckCircle } from "lucide-react";
 import { useState } from "react";
 import { useListingIntelligence, useListingJourneys } from "@/hooks/use-listing-intelligence";
 
@@ -305,8 +304,8 @@ export function ListingIntelligenceTab() {
                           </Badge>
                         </div>
                         <div className="space-y-1">
-                          {listing.optimization_suggestions.map((suggestion, index) => (
-                            <p key={index} className="text-xs text-red-700">• {suggestion}</p>
+                          {listing.optimization_suggestions.map((suggestion) => (
+                            <p key={suggestion} className="text-xs text-red-700">• {suggestion}</p>
                           ))}
                         </div>
                       </div>

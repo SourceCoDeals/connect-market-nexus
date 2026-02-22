@@ -1,4 +1,3 @@
-import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
@@ -22,11 +21,7 @@ import {
   Building2, 
   UserCircle,
   Filter,
-  Clock,
   CheckCircle2,
-  FileText,
-  Users,
-  ShieldCheck,
   Target,
   XCircle,
   Save,

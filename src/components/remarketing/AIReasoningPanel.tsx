@@ -115,9 +115,9 @@ export const AIReasoningPanel = ({
               <div>
                 <h4 className="text-sm font-medium text-muted-foreground mb-2">Target Geographies</h4>
                 <div className="flex flex-wrap gap-1">
-                  {targetGeographies.slice(0, 5).map((geo, i) => (
-                    <span 
-                      key={i} 
+                  {targetGeographies.slice(0, 5).map((geo) => (
+                    <span
+                      key={geo}
                       className="inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-blue-100 text-blue-700"
                     >
                       {geo}
@@ -136,9 +136,9 @@ export const AIReasoningPanel = ({
               <div>
                 <h4 className="text-sm font-medium text-muted-foreground mb-2">Target Services</h4>
                 <div className="flex flex-wrap gap-1">
-                  {targetServices.slice(0, 5).map((service, i) => (
-                    <span 
-                      key={i} 
+                  {targetServices.slice(0, 5).map((service) => (
+                    <span
+                      key={service}
                       className="inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-purple-100 text-purple-700"
                     >
                       {service}

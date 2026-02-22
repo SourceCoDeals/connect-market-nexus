@@ -11,7 +11,6 @@ import {
   type FilterFieldDef,
   type FilterRule,
   type Operator,
-  type OperatorDef,
   OPERATORS_BY_TYPE,
 } from "./filter-definitions";
 import { TextValueInput, NumberValueInput, SelectValueInput, DateValueInput, UserValueInput } from "./value-inputs";

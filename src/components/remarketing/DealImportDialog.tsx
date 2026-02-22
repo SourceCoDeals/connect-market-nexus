@@ -46,7 +46,6 @@ import { normalizeDomain } from "@/lib/ma-intelligence/normalizeDomain";
 // Import from unified import engine
 import {
   type ColumnMapping,
-  type ImportValidationError,
   type MergeStats,
   DEAL_IMPORT_FIELDS,
   normalizeHeader,
@@ -79,7 +78,7 @@ export function DealImportDialog({
   hideFromAllDeals,
 }: DealImportDialogProps) {
   const [step, setStep] = useState<ImportStep>("upload");
-  const [file, setFile] = useState<File | null>(null);
+  const [, setFile] = useState<File | null>(null);
   const [csvData, setCsvData] = useState<Record<string, string>[]>([]);
   const [columnMappings, setColumnMappings] = useState<ColumnMapping[]>([]);
   const [mappingStats, setMappingStats] = useState<MergeStats | null>(null);
@@ -547,7 +546,7 @@ export function DealImportDialog({
                   </TableHeader>
                   <TableBody>
                     {csvData.slice(0, 10).map((row, i) => (
-                      <TableRow key={i}>
+                      <TableRow key={`row-${i}`}>
                         <TableCell className="text-muted-foreground">{i + 1}</TableCell>
                         {columnMappings
                           .filter((m) => m.targetField)
@@ -638,8 +637,8 @@ export function DealImportDialog({
                             {otherErrors.length} failed to import:
                           </p>
                           <ScrollArea className="h-32 border rounded p-2">
-                            {otherErrors.slice(0, 10).map((err, i) => (
-                              <p key={i} className="text-xs text-muted-foreground">
+                            {otherErrors.slice(0, 10).map((err) => (
+                              <p key={err} className="text-xs text-muted-foreground">
                                 {err}
                               </p>
                             ))}

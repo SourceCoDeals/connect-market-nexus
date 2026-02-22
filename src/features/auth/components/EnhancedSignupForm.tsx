@@ -975,7 +975,7 @@ export const EnhancedSignupForm: React.FC = () => {
           case 'searchFund':
             return watch('searchType') &&
                    watch('acqEquityBand') &&
-                   watch('financingPlan')?.length > 0 &&
+                   (watch('financingPlan')?.length ?? 0) > 0 &&
                    watch('flexSub2mEbitda') !== undefined;
           case 'privateEquity':
             return watch('deployingCapitalNow');
@@ -985,7 +985,7 @@ export const EnhancedSignupForm: React.FC = () => {
             return watch('discretionType');
           case 'independentSponsor':
             return watch('committedEquityBand') &&
-                   watch('equitySource')?.length > 0 &&
+                   (watch('equitySource')?.length ?? 0) > 0 &&
                    watch('flexSubXmEbitda') !== undefined;
           case 'individual':
             return watch('fundingSource') && watch('needsLoan') && watch('idealTarget');

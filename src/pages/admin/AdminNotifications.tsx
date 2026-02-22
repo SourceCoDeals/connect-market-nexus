@@ -1,4 +1,4 @@
-import { Bell, CheckCheck, Clock, ListTodo, Trash2 } from 'lucide-react';
+import { Bell, CheckCheck, Clock, ListTodo } from 'lucide-react';
 import { useAdminNotifications, useMarkNotificationAsRead, useMarkAllNotificationsAsRead } from '@/hooks/admin/use-admin-notifications';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';

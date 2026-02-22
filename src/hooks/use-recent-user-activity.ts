@@ -131,7 +131,7 @@ export function useRecentUserActivity() {
         ...(listingAnalytics?.map(l => l.user_id) || []),
         ...(pageViews?.map(p => p.user_id) || []),
         ...(userEvents?.map(e => e.user_id) || [])
-      ].filter(Boolean);
+      ].filter((id): id is string => id !== null && id !== undefined);
 
       const { data: profiles, error: profilesError } = await supabase
         .from('profiles')
@@ -143,17 +143,17 @@ export function useRecentUserActivity() {
 
       // Process listing analytics
       listingAnalytics?.forEach(item => {
-        const profile = profileMap.get(item.user_id!);
+        const profile = item.user_id ? profileMap.get(item.user_id) : undefined;
         const session = sessionMap.get(item.session_id || '');
         if (profile) {
           activities.push({
             id: `listing-${item.id}`,
             activity_type: 'listing_action',
-            action_type: item.action_type,
-            created_at: item.created_at,
-            email: profile.email,
-            first_name: profile.first_name || '',
-            last_name: profile.last_name || '',
+            action_type: item.action_type ?? undefined,
+            created_at: item.created_at ?? new Date().toISOString(),
+            email: profile.email ?? '',
+            first_name: (profile.first_name ?? '') || '',
+            last_name: (profile.last_name ?? '') || '',
             listing_title: item.listings?.title || 'Unknown Listing',
             session_id: item.session_id || undefined,
             referrer: session?.referrer || undefined,
@@ -163,9 +163,9 @@ export function useRecentUserActivity() {
             utm_campaign: session?.utm_campaign || undefined,
             marketing_channel: session?.marketing_channel || undefined,
             user_id: item.user_id || undefined,
-            user_name: `${profile.first_name} ${profile.last_name}`.trim(),
+            user_name: `${profile.first_name ?? ''} ${profile.last_name ?? ''}`.trim(),
             description: `${item.action_type} ${item.listings?.title || 'listing'}`,
-            user_created_at: profile.created_at || undefined,
+            user_created_at: profile.created_at ?? undefined,
             current_utm_source: item.utm_source || undefined,
             current_utm_medium: item.utm_medium || undefined,
             current_utm_campaign: item.utm_campaign || undefined,
@@ -184,10 +184,10 @@ export function useRecentUserActivity() {
           activities.push({
             id: `page-${item.id}`,
             activity_type: 'page_view',
-            created_at: item.created_at,
-            email: profile.email,
-            first_name: profile.first_name || '',
-            last_name: profile.last_name || '',
+            created_at: item.created_at ?? new Date().toISOString(),
+            email: profile.email ?? '',
+            first_name: profile.first_name ?? '',
+            last_name: profile.last_name ?? '',
             page_path: item.page_path,
             page_title: item.page_title || undefined,
             session_id: item.session_id || undefined,
@@ -221,11 +221,11 @@ export function useRecentUserActivity() {
           activities.push({
             id: `event-${item.id}`,
             activity_type: 'user_event',
-            action_type: item.event_action,
-            created_at: item.created_at,
-            email: profile.email,
-            first_name: profile.first_name || '',
-            last_name: profile.last_name || '',
+            action_type: item.event_action ?? undefined,
+            created_at: item.created_at ?? new Date().toISOString(),
+            email: profile.email ?? '',
+            first_name: profile.first_name ?? '',
+            last_name: profile.last_name ?? '',
             page_path: item.page_path || undefined,
             session_id: item.session_id || undefined,
             referrer: session?.referrer || undefined,

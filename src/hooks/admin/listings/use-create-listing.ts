@@ -15,8 +15,8 @@ export function useCreateListing() {
     mutationFn: async ({
       listing,
       image,
-      sendDealAlerts,
-      targetType,
+      sendDealAlerts: _sendDealAlerts,
+      targetType: _targetType,
     }: {
       listing: Omit<AdminListing, 'id' | 'created_at' | 'updated_at'>;
       image?: File | null;

@@ -14,7 +14,6 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { Plus, Loader2, Link2, Upload, X, FileText, Search, Building2, MapPin, DollarSign, Check, Users, ChevronDown, ChevronUp, ExternalLink, Globe, ArrowRight } from "lucide-react";
 import { toast } from "sonner";
@@ -27,7 +26,6 @@ interface AddDealDialogProps {
   referralPartnerId?: string;
 }
 
-const SUPPORTED_EXTENSIONS = ['txt', 'vtt', 'srt', 'pdf', 'doc', 'docx'];
 const TEXT_EXTENSIONS = ['txt', 'vtt', 'srt'];
 const DOC_EXTENSIONS = ['pdf', 'doc', 'docx'];
 
@@ -132,7 +130,7 @@ export const AddDealDialog = ({
   );
 
   // Check which listings are already remarketing deals
-  const { data: existingDealIds } = useQuery({
+  const { data: _existingDealIds } = useQuery({
     queryKey: ['existing-remarketing-deal-ids'],
     queryFn: async () => {
       // Get all listing IDs that have scores or are internal deals
@@ -754,7 +752,7 @@ export const AddDealDialog = ({
                         {transcriptFiles.length} file{transcriptFiles.length > 1 ? 's' : ''} selected
                       </p>
                       {transcriptFiles.map((file, index) => (
-                        <div key={`${file.name}-${index}`} className="flex items-center gap-2 p-2 bg-muted rounded-md">
+                        <div key={file.name} className="flex items-center gap-2 p-2 bg-muted rounded-md">
                           <FileText className="h-4 w-4 shrink-0 text-primary" />
                           <span className="text-sm flex-1 truncate">{file.name}</span>
                           <span className="text-xs text-muted-foreground shrink-0">

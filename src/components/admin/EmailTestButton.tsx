@@ -11,7 +11,7 @@ export function EmailTestButton() {
     setIsSending(true);
     
     try {
-      const { data, error } = await supabase.functions.invoke('send-user-notification', {
+      const { error } = await supabase.functions.invoke('send-user-notification', {
         body: {
           email: 'ahaile14@gmail.com',
           subject: '✅ Connection Request Approved',

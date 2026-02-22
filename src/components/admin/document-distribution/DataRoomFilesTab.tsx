@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
   Upload, FileText, File, FileSpreadsheet, FileImage,
-  Send, Trash2, Loader2, Users, Download,
+  Send, Trash2, Users, Download,
 } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 import {

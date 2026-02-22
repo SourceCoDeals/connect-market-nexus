@@ -13,7 +13,7 @@ interface BuyerAgreementsPanelProps {
 }
 
 export function BuyerAgreementsPanel({
-  buyerId,
+  buyerId: _buyerId,
   marketplaceFirmId,
   hasFeeAgreement,
   feeAgreementSource,

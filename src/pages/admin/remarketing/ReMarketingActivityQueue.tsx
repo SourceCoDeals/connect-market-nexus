@@ -148,8 +148,8 @@ function ErrorLogSection({ errorLog, failedCount }: { errorLog: GlobalActivityEr
       </CollapsibleTrigger>
       <CollapsibleContent>
         <div className="mt-2 space-y-1 max-h-40 overflow-y-auto">
-          {errorLog.map((entry, i) => (
-            <div key={i} className="text-xs bg-destructive/10 text-destructive rounded px-2 py-1 font-mono">
+          {errorLog.map((entry) => (
+            <div key={entry.itemId} className="text-xs bg-destructive/10 text-destructive rounded px-2 py-1 font-mono">
               <span className="text-muted-foreground">{entry.itemId}: </span>
               {entry.error}
             </div>
@@ -212,8 +212,8 @@ function HistoryRow({ item }: { item: GlobalActivityQueueItem }) {
       {hasErrors && (
         <CollapsibleContent>
           <div className="ml-7 mb-2 space-y-1">
-            {item.error_log.map((entry, i) => (
-              <div key={i} className="text-xs bg-destructive/10 text-destructive rounded px-2 py-1 font-mono">
+            {item.error_log.map((entry) => (
+              <div key={entry.itemId} className="text-xs bg-destructive/10 text-destructive rounded px-2 py-1 font-mono">
                 <span className="text-muted-foreground">{entry.itemId}: </span>
                 {entry.error}
               </div>
@@ -226,7 +226,7 @@ function HistoryRow({ item }: { item: GlobalActivityQueueItem }) {
 }
 
 export default function ReMarketingActivityQueue() {
-  const { runningOp, pausedOp, queuedOps, recentHistory, isLoading } = useGlobalActivityQueue();
+  const { runningOp, pausedOp, queuedOps, recentHistory } = useGlobalActivityQueue();
   const { cancelOperation } = useGlobalActivityMutations();
   const [historyFilter, setHistoryFilter] = useState<"all" | "today" | "week">("all");
 

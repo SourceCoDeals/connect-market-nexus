@@ -11,7 +11,6 @@ interface EditorCoreDetailsSectionProps {
 }
 
 export function EditorCoreDetailsSection({ form }: EditorCoreDetailsSectionProps) {
-  const acquisitionType = form.watch('acquisition_type');
 
   return (
     <div className={EDITOR_DESIGN.sectionSpacing}>

@@ -1,6 +1,4 @@
-import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
@@ -124,9 +122,9 @@ const DEFAULT_BEHAVIOR: ScoringBehavior = {
 
 export const ScoringBehaviorPanelEnhanced = ({
   scoringBehavior,
-  weights,
+  weights: _weights,
   onScoringBehaviorChange,
-  onWeightsChange,
+  onWeightsChange: _onWeightsChange,
   onSave,
   readOnly = false,
 }: ScoringBehaviorPanelEnhancedProps) => {

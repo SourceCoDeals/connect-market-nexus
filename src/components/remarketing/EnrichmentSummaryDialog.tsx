@@ -79,9 +79,9 @@ export const EnrichmentSummaryDialog = ({
               </div>
               <ScrollArea className="h-[200px] rounded-lg border p-3">
                 <div className="space-y-2">
-                  {summary.errors.map((err, idx) => (
-                    <div 
-                      key={idx} 
+                  {summary.errors.map((err) => (
+                    <div
+                      key={err.buyerId}
                       className="text-sm p-2 rounded bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900"
                     >
                       <div className="font-medium text-red-700 dark:text-red-400 truncate">

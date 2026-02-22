@@ -164,8 +164,8 @@ export function CapTargetExclusionLog({
             {cleanupResult?.sample && cleanupResult.sample.length > 0 && (
               <div className="max-h-48 overflow-y-auto text-xs space-y-1">
                 <p className="font-medium text-muted-foreground">Sample of removed companies:</p>
-                {cleanupResult.sample.map((s: any, i: number) => (
-                  <p key={i} className="text-muted-foreground">
+                {cleanupResult.sample.map((s: any) => (
+                  <p key={s.company} className="text-muted-foreground">
                     <span className="font-medium text-foreground">{s.company}</span> — {s.reason}
                   </p>
                 ))}

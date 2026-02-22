@@ -89,7 +89,7 @@ export const EnhancedInvestmentCalculator: React.FC<EnhancedInvestmentCalculator
   };
 
   const exportAnalysis = () => {
-    const analysis = Object.entries(scenarios).map(([key, scenario]) => ({
+    const analysis = Object.entries(scenarios).map(([, scenario]) => ({
       scenario: scenario.name,
       ...calculateMetrics(scenario)
     }));

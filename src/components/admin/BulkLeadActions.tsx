@@ -3,13 +3,11 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Progress } from "@/components/ui/progress";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { MapPin, ArrowRight, CheckCircle, AlertCircle, Loader2 } from "lucide-react";
+import { MapPin, ArrowRight, AlertCircle, Loader2 } from "lucide-react";
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from "@/integrations/supabase/client";
 import { InboundLead } from "@/hooks/admin/use-inbound-leads";
-import { toast } from "@/hooks/use-toast";
 
 interface BulkLeadActionsProps {
   selectedLeads: InboundLead[];

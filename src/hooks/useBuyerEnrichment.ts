@@ -1,6 +1,5 @@
 import { useState, useCallback } from 'react';
 import { toast } from 'sonner';
-import { useQueryClient } from '@tanstack/react-query';
 
 export interface EnrichmentStatus {
   buyerId: string;
@@ -42,8 +41,6 @@ export interface EnrichmentSummary {
 }
 
 export function useBuyerEnrichment(universeId?: string) {
-  const queryClient = useQueryClient();
-
   const [progress, setProgress] = useState<EnrichmentProgress>({
     current: 0,
     total: 0,

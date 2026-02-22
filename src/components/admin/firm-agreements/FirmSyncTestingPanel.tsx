@@ -384,9 +384,9 @@ export function FirmSyncTestingPanel() {
         )}
 
         <div className="space-y-2">
-          {testResults.map((result, index) => (
-            <div 
-              key={index}
+          {testResults.map((result) => (
+            <div
+              key={result.name}
               className={cn(
                 "flex items-start justify-between p-3 rounded-lg border transition-colors",
                 result.status === 'passed' && "bg-emerald-500/5 border-emerald-500/20",

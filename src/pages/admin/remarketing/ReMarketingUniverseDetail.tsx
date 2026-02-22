@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -18,7 +18,6 @@ import {
   UniverseTemplates,
   BuyerTableEnhanced,
   UniverseDealsTable,
-  TargetBuyerTypesPanel,
   BuyerTableToolbar,
   AddDealToUniverseDialog,
   DealCSVImport,
@@ -33,7 +32,6 @@ import {
   ReMarketingChat
 } from "@/components/remarketing";
 import { AddBuyerToUniverseDialog } from "@/components/remarketing/AddBuyerToUniverseDialog";
-import type { EnrichmentSummary } from "@/hooks/useBuyerEnrichment";
 import { 
   SizeCriteria, 
   GeographyCriteria, 
@@ -75,8 +73,6 @@ const ReMarketingUniverseDetail = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const isNew = id === 'new';
-  const aiResearchRef = useRef<{ scrollIntoView: () => void }>(null);
-
   const [formData, setFormData] = useState({
     name: '',
     description: '',
@@ -106,25 +102,17 @@ const ReMarketingUniverseDetail = () => {
   const [importDealsDialogOpen, setImportDealsDialogOpen] = useState(false);
   const [isScoringAllDeals, setIsScoringAllDeals] = useState(false);
   const [showCriteriaEdit, setShowCriteriaEdit] = useState(false);
-  const [buyerProfilesOpen, setBuyerProfilesOpen] = useState(false);
   const [documentsOpen, setDocumentsOpen] = useState(false);
-  const [showAIResearch, setShowAIResearch] = useState(false);
   const [isParsing, setIsParsing] = useState(false);
   const [importBuyersDialogOpen, setImportBuyersDialogOpen] = useState(false);
   const [addBuyerDialogOpen, setAddBuyerDialogOpen] = useState(false);
-  const [isDeduping, setIsDeduping] = useState(false);
   const [showBuyerEnrichDialog, setShowBuyerEnrichDialog] = useState(false);
    const [selectedBuyerIds, setSelectedBuyerIds] = useState<string[]>([]);
    const [isRemovingSelected, setIsRemovingSelected] = useState(false);
    const [editingHeader, setEditingHeader] = useState(false);
 
   // Use the enrichment hook for proper batch processing with progress tracking (legacy - for direct enrichment)
-  const { 
-    progress: legacyEnrichmentProgress, 
-    enrichBuyers: legacyEnrichBuyers, 
-    cancel: legacyCancelEnrichment, 
-    reset: legacyResetEnrichment 
-  } = useBuyerEnrichment(id);
+  useBuyerEnrichment(id);
 
   // Use the queue-based enrichment for persistent background processing
   const {
@@ -171,9 +159,9 @@ const ReMarketingUniverseDetail = () => {
       const { data, error } = await supabase
         .from('remarketing_buyer_universes')
         .select('*')
-        .eq('id', id)
+        .eq('id', id!)
         .single();
-      
+
       if (error) throw error;
       return data;
     },
@@ -181,7 +169,7 @@ const ReMarketingUniverseDetail = () => {
   });
 
   // Fetch buyers in this universe
-  const { data: buyers, refetch: refetchBuyers, isLoading: buyersLoading } = useQuery({
+  const { data: buyers, refetch: refetchBuyers } = useQuery({
     queryKey: ['remarketing', 'buyers', 'universe', id],
     queryFn: async () => {
       if (isNew) return [];
@@ -189,7 +177,7 @@ const ReMarketingUniverseDetail = () => {
       const { data, error } = await supabase
         .from('remarketing_buyers')
         .select('id, company_name, company_website, platform_website, pe_firm_website, buyer_type, pe_firm_name, hq_city, hq_state, business_summary, thesis_summary, data_completeness, target_geographies, geographic_footprint, service_regions, operating_locations, alignment_score, alignment_reasoning, alignment_checked_at, has_fee_agreement')
-        .eq('universe_id', id)
+        .eq('universe_id', id!)
         .eq('archived', false)
         .order('alignment_score', { ascending: false, nullsFirst: false });
       
@@ -247,7 +235,7 @@ const ReMarketingUniverseDetail = () => {
           table: "remarketing_buyers",
           filter: `universe_id=eq.${id}`,
         },
-        (payload) => {
+        (_payload) => {
           // Refetch buyers list on any change (INSERT, UPDATE, DELETE)
           refetchBuyers();
         }
@@ -284,7 +272,7 @@ const ReMarketingUniverseDetail = () => {
             deal_total_score, seller_interest_score
           )
         `)
-        .eq('universe_id', id)
+        .eq('universe_id', id!)
         .eq('status', 'active')
         .order('added_at', { ascending: false });
       
@@ -306,7 +294,7 @@ const ReMarketingUniverseDetail = () => {
       const { data: scores, error } = await supabase
         .from('remarketing_scores')
         .select('listing_id, status, composite_score')
-        .eq('universe_id', id)
+        .eq('universe_id', id!)
         .in('listing_id', listingIds);
       
       if (error) throw error;
@@ -528,7 +516,7 @@ const ReMarketingUniverseDetail = () => {
         const { error } = await supabase
           .from('remarketing_buyer_universes')
           .update(saveData)
-          .eq('id', id);
+          .eq('id', id!);
         
         if (error) throw error;
       }
@@ -621,8 +609,8 @@ const ReMarketingUniverseDetail = () => {
         if (firmName) {
           const { data: createdFirmId, error: createdFirmIdError } = await supabase.rpc('get_or_create_firm', {
             p_company_name: firmName,
-            p_website: firmWebsite,
-            p_email: null,
+            p_website: firmWebsite ?? undefined,
+            p_email: undefined,
           });
           if (createdFirmIdError) throw createdFirmIdError;
 
@@ -642,7 +630,7 @@ const ReMarketingUniverseDetail = () => {
         await supabase.rpc('update_fee_agreement_firm_status', {
           p_firm_id: firmId,
           p_is_signed: true,
-          p_signed_by_user_id: null,
+          p_signed_by_user_id: undefined,
           p_signed_at: new Date().toISOString(),
         });
       }
@@ -923,7 +911,7 @@ const ReMarketingUniverseDetail = () => {
                   </CardHeader>
                   <CardContent className="p-0">
                     <BuyerTableEnhanced
-                      buyers={filteredBuyers}
+                      buyers={filteredBuyers as unknown as { id: string; company_name: string; [key: string]: unknown }[]}
                       showPEColumn={true}
                       buyerIdsWithTranscripts={buyerIdsWithTranscripts}
                       selectable={true}
@@ -1091,10 +1079,10 @@ const ReMarketingUniverseDetail = () => {
                   </CardHeader>
                   <CardContent className="p-0">
                     <UniverseDealsTable
-                      deals={universeDeals || []}
+                      deals={(universeDeals || []) as unknown as { id: string; added_at: string; status: string; listing: { id: string; title: string; [key: string]: unknown }; }[]}
                       engagementStats={dealEngagementStats || {}}
                       universeId={id}
-                      onRemoveDeal={async (dealId, listingId) => {
+                      onRemoveDeal={async (dealId, _listingId) => {
                         try {
                           await supabase
                             .from('remarketing_universe_deals')

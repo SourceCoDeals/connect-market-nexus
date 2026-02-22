@@ -1,10 +1,7 @@
-import React, { useMemo, useState } from 'react';
-import { Users, UserCheck, UserX, Clock, BarChart3, Filter, Download, Mail, CheckCircle2 } from 'lucide-react';
+import { useMemo } from 'react';
+import { Users, UserCheck, Clock, BarChart3 } from 'lucide-react';
 import { StripeStatsSection } from '../analytics/StripeStatsSection';
 import { User } from '@/types';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 
 interface UserOverviewTabProps {
   users: User[];
@@ -14,12 +11,11 @@ interface UserOverviewTabProps {
   rejectedCount: number;
 }
 
-export function UserOverviewTab({ 
-  users, 
-  totalUsers, 
-  pendingCount, 
+export function UserOverviewTab({
+  users,
+  totalUsers,
+  pendingCount,
   approvedCount,
-  rejectedCount 
 }: UserOverviewTabProps) {
 
   // Calculate trends (real data based on last week)
@@ -135,45 +131,6 @@ export function UserOverviewTab({
         : 'All profiles complete'
     },
   ];
-
-  const filterPresets = [
-    {
-      id: 'needs-attention',
-      label: 'Needs Attention',
-      description: 'Pending approvals and incomplete profiles',
-      count: pendingCount + analytics.incompleteProfiles,
-      variant: 'secondary' as const,
-    },
-    {
-      id: 'recent-signups',
-      label: 'Recent Signups',
-      description: 'New users in the last 3 days',
-      count: analytics.recentSignups,
-      variant: 'secondary' as const,
-    },
-    {
-      id: 'incomplete-profiles',
-      label: 'Incomplete Profiles',
-      description: 'Less than 80% complete',
-      count: analytics.incompleteProfiles,
-      variant: 'outline' as const,
-    },
-  ];
-
-  const actionItems = [
-    {
-      label: 'Pending Approvals',
-      count: pendingCount,
-      action: 'Review Now',
-      variant: 'secondary' as const,
-    },
-    {
-      label: 'Incomplete Profiles',
-      count: analytics.incompleteProfiles,
-      action: 'Send Reminder',
-      variant: 'outline' as const,
-    },
-  ].filter(item => item.count > 0);
 
   return (
     <div className="space-y-8">

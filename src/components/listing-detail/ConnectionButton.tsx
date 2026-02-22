@@ -21,10 +21,10 @@ const ConnectionButton = ({
   isAdmin,
   handleRequestConnection,
   listingTitle,
-  listingId,
+  listingId: _listingId,
 }: ConnectionButtonProps) => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const { connectionsConnected } = useRealtime();
+  const { connectionsConnected: _connectionsConnected } = useRealtime();
 
   const handleDialogSubmit = (message: string) => {
     handleRequestConnection(message);

@@ -10,7 +10,7 @@ interface EnhancedCurrencyInputProps extends Omit<React.ComponentProps<"input">,
   showSuffix?: boolean;
 }
 
-const formatCurrency = (value: string, mode: 'millions' | 'thousands' | 'auto'): string => {
+const formatCurrency = (value: string, _mode: 'millions' | 'thousands' | 'auto'): string => {
   // Remove all non-digit characters
   const digits = value.replace(/\D/g, '');
   if (!digits) return '';
@@ -21,9 +21,9 @@ const formatCurrency = (value: string, mode: 'millions' | 'thousands' | 'auto'):
   return num.toLocaleString();
 };
 
-const getSuffix = (mode: 'millions' | 'thousands' | 'auto', fieldType: string): string => {
+const getSuffix = (_mode: 'millions' | 'thousands' | 'auto', fieldType: string): string => {
   if (fieldType === 'fund' || fieldType === 'aum') return '$M';
-  if (fieldType === 'revenue') return '$M'; 
+  if (fieldType === 'revenue') return '$M';
   if (fieldType === 'dealSize') return '$M';
   return '$M'; // Default to millions for financial fields
 };

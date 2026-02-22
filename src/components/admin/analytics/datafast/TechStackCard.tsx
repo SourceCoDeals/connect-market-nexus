@@ -106,11 +106,11 @@ export function TechStackCard({ browsers, operatingSystems, devices }: TechStack
           <div className="space-y-1">
             {activeTab === 'browser' && (
               <>
-                {sortedBrowsers.slice(0, 6).map((browser, i) => {
+                {sortedBrowsers.slice(0, 6).map((browser) => {
                   const isActive = hasFilter('browser', browser.name);
                   return (
                     <AnalyticsTooltip
-                      key={`${browser.name}-${i}`}
+                      key={browser.name}
                       title={browser.name}
                       rows={[
                         { label: 'Visitors', value: browser.visitors.toLocaleString() },
@@ -150,11 +150,11 @@ export function TechStackCard({ browsers, operatingSystems, devices }: TechStack
             
             {activeTab === 'os' && (
               <>
-                {sortedOS.slice(0, 6).map((os, i) => {
+                {sortedOS.slice(0, 6).map((os) => {
                   const isActive = hasFilter('os', os.name);
                   return (
                     <AnalyticsTooltip
-                      key={`${os.name}-${i}`}
+                      key={os.name}
                       title={os.name}
                       rows={[
                         { label: 'Visitors', value: os.visitors.toLocaleString() },
@@ -194,11 +194,11 @@ export function TechStackCard({ browsers, operatingSystems, devices }: TechStack
             
             {activeTab === 'device' && (
               <>
-                {sortedDevices.map((device, i) => {
+                {sortedDevices.map((device) => {
                   const isActive = hasFilter('device', device.type);
                   return (
                     <AnalyticsTooltip
-                      key={`${device.type}-${i}`}
+                      key={device.type}
                       title={device.type}
                       rows={[
                         { label: 'Visitors', value: device.visitors.toLocaleString() },

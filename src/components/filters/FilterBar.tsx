@@ -1,14 +1,12 @@
 import { useState, useCallback } from "react";
-import { Search, X, ChevronDown, ChevronUp } from "lucide-react";
+import { Search, ChevronDown, ChevronUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import {
   type FilterFieldDef,
   type FilterRule,
   type FilterState,
-  type Operator,
   OPERATORS_BY_TYPE,
   EMPTY_FILTER_STATE,
 } from "./filter-definitions";

@@ -75,7 +75,7 @@ export function useCreateAssociatedContact() {
         description: "Associated contact has been successfully added",
       });
     },
-    onError: (error) => {
+    onError: (_error) => {
       toast({
         variant: "destructive",
         title: "Failed to add contact",

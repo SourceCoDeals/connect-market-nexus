@@ -57,7 +57,7 @@ const AdminDashboard = () => {
 
   return (
     <ErrorBoundary
-      onError={(error, errorInfo) => {
+      onError={(error, _errorInfo) => {
         adminErrorHandler(error, 'dashboard loading');
       }}
     >

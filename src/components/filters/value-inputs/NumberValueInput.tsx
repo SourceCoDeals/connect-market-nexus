@@ -15,6 +15,7 @@ function formatDisplay(val: string, isCurrency: boolean): string {
   if (isCurrency) return num.toLocaleString();
   return val;
 }
+void formatDisplay;
 
 export function NumberValueInput({
   value,

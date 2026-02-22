@@ -1,5 +1,4 @@
 import { useState, useEffect, useCallback } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,7 +8,6 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Upload, FileText, Trash2, Loader2, FileCheck, AlertCircle, Brain } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import type { TrackerDocument } from "@/lib/ma-intelligence/types";
 
 interface TrackerDocumentsTabProps {
   trackerId: string;
@@ -30,7 +28,7 @@ export function TrackerDocumentsTab({ trackerId }: TrackerDocumentsTabProps) {
   const [documents, setDocuments] = useState<Document[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isUploading, setIsUploading] = useState(false);
-  const [isProcessing, setIsProcessing] = useState<string | null>(null);
+  const [isProcessing] = useState<string | null>(null);
   const { toast } = useToast();
 
   const loadDocuments = useCallback(async () => {
@@ -80,7 +78,7 @@ export function TrackerDocumentsTab({ trackerId }: TrackerDocumentsTabProps) {
     }
   };
 
-  const handleProcessDocument = async (documentId: string) => {
+  const handleProcessDocument = async (_documentId: string) => {
     // Stub - table doesn't exist yet
     toast({
       title: "Feature coming soon",
@@ -89,7 +87,8 @@ export function TrackerDocumentsTab({ trackerId }: TrackerDocumentsTabProps) {
     });
   };
 
-  const handleDeleteDocument = async (documentId: string, fileUrl: string) => {
+
+  const handleDeleteDocument = async (_documentId: string, _fileUrl: string) => {
     // Stub - table doesn't exist yet
     toast({
       title: "Feature coming soon",

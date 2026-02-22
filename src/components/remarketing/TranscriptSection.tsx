@@ -32,7 +32,6 @@ import {
   MessageSquare,
 } from "lucide-react";
 import { toast } from "sonner";
-import { cn } from "@/lib/utils";
 
 interface TranscriptSectionProps {
   buyerId: string;
@@ -71,7 +70,7 @@ const SOURCE_OPTIONS = [
   { value: 'other', label: 'Other' },
 ];
 
-export const TranscriptSection = ({ buyerId, buyerName }: TranscriptSectionProps) => {
+export const TranscriptSection = ({ buyerId, buyerName: _buyerName }: TranscriptSectionProps) => {
   const queryClient = useQueryClient();
   const [transcriptText, setTranscriptText] = useState("");
   const [source, setSource] = useState("call");
@@ -248,15 +247,15 @@ Example:
                       {/* Extracted Fields */}
                       <div className="grid gap-3 sm:grid-cols-2">
                         {/* Geographies */}
-                        {transcript.extracted_data?.target_geographies?.length > 0 && (
+                        {(transcript.extracted_data?.target_geographies?.length ?? 0) > 0 && (
                           <div className="space-y-1">
                             <div className="flex items-center gap-1 text-xs font-medium text-muted-foreground">
                               <MapPin className="h-3 w-3" />
                               Target Geographies
                             </div>
                             <div className="flex flex-wrap gap-1">
-                              {transcript.extracted_data.target_geographies.map((geo, i) => (
-                                <Badge key={i} variant="secondary" className="text-xs">
+                              {transcript.extracted_data?.target_geographies?.map((geo) => (
+                                <Badge key={geo} variant="secondary" className="text-xs">
                                   {geo}
                                 </Badge>
                               ))}
@@ -265,15 +264,15 @@ Example:
                         )}
 
                         {/* Services */}
-                        {transcript.extracted_data?.target_services?.length > 0 && (
+                        {(transcript.extracted_data?.target_services?.length ?? 0) > 0 && (
                           <div className="space-y-1">
                             <div className="flex items-center gap-1 text-xs font-medium text-muted-foreground">
                               <Briefcase className="h-3 w-3" />
                               Target Services
                             </div>
                             <div className="flex flex-wrap gap-1">
-                              {transcript.extracted_data.target_services.map((svc, i) => (
-                                <Badge key={i} variant="secondary" className="text-xs">
+                              {transcript.extracted_data?.target_services?.map((svc) => (
+                                <Badge key={svc} variant="secondary" className="text-xs">
                                   {svc}
                                 </Badge>
                               ))}

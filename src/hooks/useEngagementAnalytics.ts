@@ -93,9 +93,6 @@ export function useEngagementAnalytics(timeRangeDays: number = 30) {
       const saved = savedResult.data || [];
       const referrerData = referrerResult.data || [];
       
-      // Create listing lookup
-      const listingMap = new Map(listings.map(l => [l.id, l]));
-      
       // Count views by listing
       const viewCounts: Record<string, number> = {};
       const timeSpentByListing: Record<string, number[]> = {};

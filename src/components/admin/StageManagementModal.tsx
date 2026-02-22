@@ -51,7 +51,7 @@ import {
 import { useDealStages, useCreateDealStage, useUpdateDealStageData, useDeleteDealStage, useStageDealCount } from '@/hooks/admin/use-deals';
 import { DealStage } from '@/hooks/admin/use-deals';
 import { useToast } from '@/hooks/use-toast';
-import { AlertCircle, Lock } from 'lucide-react';
+import { Lock } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 
 const stageSchema = z.object({

@@ -92,8 +92,8 @@ interface HeroStatsSectionProps {
 export function HeroStatsSection({ stats }: HeroStatsSectionProps) {
   return (
     <div className="grid grid-cols-1 gap-element sm:grid-cols-2 lg:grid-cols-4">
-      {stats.map((stat, index) => (
-        <StatCard key={index} {...stat} />
+      {stats.map((stat) => (
+        <StatCard key={stat.label} {...stat} />
       ))}
     </div>
   );

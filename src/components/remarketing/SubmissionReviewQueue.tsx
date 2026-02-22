@@ -2,7 +2,6 @@ import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import {
   Table,
   TableBody,
@@ -31,7 +30,7 @@ import {
 import { format } from "date-fns";
 import { toast } from "sonner";
 
-interface Submission {
+export interface Submission {
   id: string;
   referral_partner_id: string;
   company_name: string;
@@ -45,7 +44,7 @@ interface Submission {
   contact_phone: string | null;
   notes: string | null;
   status: string;
-  created_at: string;
+  created_at: string | null;
   referral_partners?: { name: string } | null;
 }
 
@@ -187,7 +186,7 @@ export function SubmissionReviewQueue({
                       <TableCell className="text-right text-sm">{formatCurrency(sub.ebitda)}</TableCell>
                       <TableCell className="text-sm">{sub.location || "-"}</TableCell>
                       <TableCell className="text-sm text-muted-foreground">
-                        {format(new Date(sub.created_at), "MMM d, yyyy")}
+                        {sub.created_at ? format(new Date(sub.created_at), "MMM d, yyyy") : "-"}
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>

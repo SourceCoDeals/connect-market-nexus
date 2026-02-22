@@ -39,14 +39,6 @@ import { DuplicateChannelWarning } from './DuplicateChannelWarning';
 import { MessageConflictDisplay } from './MessageConflictDisplay';
 import { ConnectionRequestFirmBadge } from './ConnectionRequestFirmBadge';
 
-// Helper function to format listing display name (Title/Company Name)
-const formatListingForDisplay = (title: string, companyName?: string | null): string => {
-  if (companyName && companyName.trim()) {
-    return `${title}/${companyName}`;
-  }
-  return title;
-};
-
 // Enhanced company name formatting with real company in bold and clickable listing
 const formatEnhancedCompanyName = (title: string, companyName?: string | null, listingId?: string) => {
   const content = companyName && companyName.trim() ? (
@@ -483,7 +475,7 @@ function ReactiveRequestCard({
               {request.user ? (
                 <ConnectionRequestActions
                   user={request.user}
-                  listing={request.listing}
+                  listing={request.listing ?? undefined}
                   requestId={request.id}
                   requestStatus={request.status}
                 />

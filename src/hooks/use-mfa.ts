@@ -133,7 +133,11 @@ export function useMFA() {
     const { data, error: alError } =
       await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
     if (alError) throw alError;
-    return data;
+    return {
+      currentLevel: data.currentLevel ?? 'aal1',
+      nextLevel: data.nextLevel ?? null,
+      currentAuthenticationMethods: data.currentAuthenticationMethods,
+    };
   };
 
   return {

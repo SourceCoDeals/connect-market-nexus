@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { useRoleManagement, type UserRoleEntry } from '@/hooks/permissions/useRoleManagement';
+import { useRoleManagement } from '@/hooks/permissions/useRoleManagement';
 import { usePermissions, type AppRole } from '@/hooks/permissions/usePermissions';
 import { TeamMemberCard } from '@/components/admin/permissions/TeamMemberCard';
 import { PermissionAuditLog } from '@/components/admin/permissions/PermissionAuditLog';

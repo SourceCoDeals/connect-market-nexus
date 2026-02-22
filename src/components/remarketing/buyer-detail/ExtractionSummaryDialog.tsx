@@ -152,8 +152,8 @@ export function ExtractionSummaryDialog({
                 {merged.services_offered?.length ? (
                   <Section icon={Briefcase} label="Services Offered">
                     <div className="flex flex-wrap gap-1.5">
-                      {merged.services_offered.map((s, i) => (
-                        <Badge key={i} variant="secondary" className="text-xs">{s}</Badge>
+                      {merged.services_offered.map((s) => (
+                        <Badge key={s} variant="secondary" className="text-xs">{s}</Badge>
                       ))}
                     </div>
                   </Section>
@@ -163,8 +163,8 @@ export function ExtractionSummaryDialog({
                 {merged.target_industries?.length ? (
                   <Section icon={TrendingUp} label="Target Industries">
                     <div className="flex flex-wrap gap-1.5">
-                      {merged.target_industries.map((s, i) => (
-                        <Badge key={i} variant="outline" className="text-xs">{s}</Badge>
+                      {merged.target_industries.map((s) => (
+                        <Badge key={s} variant="outline" className="text-xs">{s}</Badge>
                       ))}
                     </div>
                   </Section>
@@ -210,7 +210,7 @@ export function ExtractionSummaryDialog({
                 {merged.missing_information?.length ? (
                   <Section icon={AlertTriangle} label="Missing Information">
                     <ul className="list-disc pl-4 space-y-0.5 text-muted-foreground">
-                      {merged.missing_information.slice(0, 8).map((m, i) => <li key={i}>{m}</li>)}
+                      {merged.missing_information.slice(0, 8).map((m) => <li key={m}>{m}</li>)}
                     </ul>
                   </Section>
                 ) : null}
@@ -233,7 +233,7 @@ export function ExtractionSummaryDialog({
                 <div className="space-y-1">
                   <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Per-transcript status</p>
                   {results.map((r, i) => (
-                    <div key={i} className="flex items-center gap-2 text-xs">
+                    <div key={r.fileName} className="flex items-center gap-2 text-xs">
                       {r.error ? (
                         <AlertTriangle className="h-3 w-3 text-destructive shrink-0" />
                       ) : (

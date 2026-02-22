@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -220,7 +219,7 @@ export default function BuyerDetail() {
     }
   };
 
-  const handleSaveSection = async (section: string) => {
+  const handleSaveSection = async (_section: string) => {
     if (!buyer) return;
 
     try {
@@ -271,7 +270,7 @@ export default function BuyerDetail() {
     }
   };
 
-  const handleCancelEdit = (section: string) => {
+  const handleCancelEdit = (_section: string) => {
     setEditingSection(null);
     setFormData(buyer || {});
   };
@@ -732,8 +731,8 @@ export default function BuyerDetail() {
                   <div className="text-sm font-medium mb-1">Target Services</div>
                   <div className="flex flex-wrap gap-1">
                     {buyer.target_services && buyer.target_services.length > 0 ? (
-                      buyer.target_services.map((service, i) => (
-                        <Badge key={i} variant="secondary">
+                      buyer.target_services.map((service) => (
+                        <Badge key={service} variant="secondary">
                           {service}
                         </Badge>
                       ))
@@ -746,8 +745,8 @@ export default function BuyerDetail() {
                   <div className="text-sm font-medium mb-1">Required Capabilities</div>
                   <div className="flex flex-wrap gap-1">
                     {buyer.required_capabilities && buyer.required_capabilities.length > 0 ? (
-                      buyer.required_capabilities.map((cap, i) => (
-                        <Badge key={i} variant="secondary">
+                      buyer.required_capabilities.map((cap) => (
+                        <Badge key={cap} variant="secondary">
                           {cap}
                         </Badge>
                       ))
@@ -760,8 +759,8 @@ export default function BuyerDetail() {
                   <div className="text-sm font-medium mb-1">Target Industries</div>
                   <div className="flex flex-wrap gap-1">
                     {buyer.target_industries && buyer.target_industries.length > 0 ? (
-                      buyer.target_industries.map((ind, i) => (
-                        <Badge key={i} variant="secondary">
+                      buyer.target_industries.map((ind) => (
+                        <Badge key={ind} variant="secondary">
                           {ind}
                         </Badge>
                       ))
@@ -774,8 +773,8 @@ export default function BuyerDetail() {
                   <div className="text-sm font-medium mb-1">Industry Exclusions</div>
                   <div className="flex flex-wrap gap-1">
                     {buyer.industry_exclusions && buyer.industry_exclusions.length > 0 ? (
-                      buyer.industry_exclusions.map((exc, i) => (
-                        <Badge key={i} variant="outline">
+                      buyer.industry_exclusions.map((exc) => (
+                        <Badge key={exc} variant="outline">
                           {exc}
                         </Badge>
                       ))
@@ -795,8 +794,8 @@ export default function BuyerDetail() {
                   <div className="flex flex-wrap gap-1">
                     {buyer.business_model_exclusions &&
                     buyer.business_model_exclusions.length > 0 ? (
-                      buyer.business_model_exclusions.map((exc, i) => (
-                        <Badge key={i} variant="outline">
+                      buyer.business_model_exclusions.map((exc) => (
+                        <Badge key={exc} variant="outline">
                           {exc}
                         </Badge>
                       ))
@@ -1017,8 +1016,8 @@ export default function BuyerDetail() {
                   <div className="text-sm font-medium mb-1">Geographic Footprint</div>
                   <div className="flex flex-wrap gap-1">
                     {buyer.geographic_footprint && buyer.geographic_footprint.length > 0 ? (
-                      buyer.geographic_footprint.map((loc, i) => (
-                        <Badge key={i} variant="secondary">
+                      buyer.geographic_footprint.map((loc) => (
+                        <Badge key={loc} variant="secondary">
                           {loc}
                         </Badge>
                       ))
@@ -1031,8 +1030,8 @@ export default function BuyerDetail() {
                   <div className="text-sm font-medium mb-1">Target Geographies</div>
                   <div className="flex flex-wrap gap-1">
                     {buyer.target_geographies && buyer.target_geographies.length > 0 ? (
-                      buyer.target_geographies.map((geo, i) => (
-                        <Badge key={i} variant="secondary">
+                      buyer.target_geographies.map((geo) => (
+                        <Badge key={geo} variant="secondary">
                           {geo}
                         </Badge>
                       ))
@@ -1045,8 +1044,8 @@ export default function BuyerDetail() {
                   <div className="text-sm font-medium mb-1">Geographic Exclusions</div>
                   <div className="flex flex-wrap gap-1">
                     {buyer.geographic_exclusions && buyer.geographic_exclusions.length > 0 ? (
-                      buyer.geographic_exclusions.map((exc, i) => (
-                        <Badge key={i} variant="outline">
+                      buyer.geographic_exclusions.map((exc) => (
+                        <Badge key={exc} variant="outline">
                           {exc}
                         </Badge>
                       ))
@@ -1076,8 +1075,8 @@ export default function BuyerDetail() {
                   <div className="flex flex-wrap gap-1">
                     {buyer.other_office_locations &&
                     buyer.other_office_locations.length > 0 ? (
-                      buyer.other_office_locations.map((loc, i) => (
-                        <Badge key={i} variant="secondary">
+                      buyer.other_office_locations.map((loc) => (
+                        <Badge key={loc} variant="secondary">
                           {loc}
                         </Badge>
                       ))
@@ -1369,8 +1368,8 @@ export default function BuyerDetail() {
                   <div className="text-sm font-medium mb-1">Portfolio Companies</div>
                   <div className="flex flex-wrap gap-1">
                     {buyer.portfolio_companies && buyer.portfolio_companies.length > 0 ? (
-                      buyer.portfolio_companies.map((company, i) => (
-                        <Badge key={i} variant="secondary">
+                      buyer.portfolio_companies.map((company) => (
+                        <Badge key={company} variant="secondary">
                           {company}
                         </Badge>
                       ))
@@ -1383,8 +1382,8 @@ export default function BuyerDetail() {
                   <div>
                     <div className="text-sm font-medium mb-2">Recent Acquisitions</div>
                     <div className="space-y-3">
-                      {buyer.recent_acquisitions.map((acq, i) => (
-                        <div key={i} className="border-l-2 pl-3 space-y-1">
+                      {buyer.recent_acquisitions.map((acq) => (
+                        <div key={acq.company} className="border-l-2 pl-3 space-y-1">
                           <div className="font-medium text-sm">{acq.company}</div>
                           {acq.date && (
                             <div className="text-xs text-muted-foreground">{acq.date}</div>

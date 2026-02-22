@@ -105,7 +105,7 @@ export function useUpdatePipelineView() {
       if (error) throw error;
       return data;
     },
-    onSuccess: (data, variables) => {
+    onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ['pipeline-views'] });
       
       // Show different message if saving filter config

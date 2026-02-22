@@ -1,5 +1,5 @@
 import React from 'react';
-import { User, ExternalLink, Linkedin, Trophy, CheckCircle, AlertCircle, XCircle } from 'lucide-react';
+import { User, ExternalLink, CheckCircle, AlertCircle, XCircle } from 'lucide-react';
 import { User as UserType } from '@/types';
 import { getBuyerTier, getPrimaryMetrics, getProfileCompletionDetails, BuyerMetric } from '@/lib/buyer-metrics';
 import { formatInvestmentSize } from '@/lib/currency-utils';
@@ -108,8 +108,8 @@ export const EnhancedBuyerProfile: React.FC<EnhancedBuyerProfileProps> = ({
         </div>
 
         {/* Dynamic metrics based on buyer type */}
-        {metrics.map((metric, index) => (
-          <MetricRow key={`${metric.label}-${index}`} metric={metric} />
+        {metrics.map((metric) => (
+          <MetricRow key={metric.label} metric={metric} />
         ))}
 
         {/* Data restoration indicator for restored fields */}

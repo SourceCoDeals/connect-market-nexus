@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { subDays, format, startOfDay, endOfDay } from 'date-fns';
+import { subDays, format } from 'date-fns';
 
 export interface TierDistribution {
   tier: string;
