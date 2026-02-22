@@ -10,18 +10,14 @@
  */
 
 import { useState, useRef } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import {
   FileText, Upload, Sparkles, Download, Trash2, RefreshCw,
-  Loader2, FileUp, CheckCircle2, Calendar, Eye, BookOpen, Send,
+  Loader2, FileUp, CheckCircle2, Calendar, Eye, BookOpen,
 } from 'lucide-react';
-import { ReleaseModal } from '@/components/admin/document-distribution/ReleaseModal';
-import type { DealDocument } from '@/hooks/admin/use-document-distribution';
 import {
   useDataRoomDocuments,
   useUploadDocument,
@@ -65,34 +61,6 @@ export function MemosTab({ dealId, dealTitle, projectName }: MemosTabProps) {
   const { data: documents = [], isLoading: docsLoading } = useDataRoomDocuments(dealId);
   const { data: memos = [], isLoading: memosLoading } = useLeadMemos(dealId);
 
-  // Fetch buyers for the release modal
-  const { data: buyers = [] } = useQuery({
-    queryKey: ['distribution-buyers-memo', dealId],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('remarketing_buyers' as any)
-        .select('id, company_name, remarketing_buyer_contacts(name, email, is_primary)')
-        .eq('archived', false)
-        .order('company_name')
-        .limit(200);
-
-      if (error) throw error;
-
-      return (data || []).flatMap((buyer: any) => {
-        const contacts = buyer.remarketing_buyer_contacts || [];
-        if (contacts.length === 0) {
-          return [{ id: buyer.id, name: buyer.company_name, email: '', firm: buyer.company_name }];
-        }
-        return contacts.map((c: any) => ({
-          id: buyer.id,
-          name: c.name || buyer.company_name,
-          email: c.email || '',
-          firm: buyer.company_name,
-        }));
-      });
-    },
-  });
-
   // Find the most recent PDF for each slot
   const teaserDoc = documents.find(d => d.document_category === 'anonymous_teaser');
   const fullMemoDoc = documents.find(d => d.document_category === 'full_memo');
@@ -121,7 +89,6 @@ export function MemosTab({ dealId, dealTitle, projectName }: MemosTabProps) {
         dealId={dealId}
         dealTitle={dealTitle}
         projectName={projectName}
-        buyers={buyers}
         slotType="anonymous_teaser"
         title="Anonymous Teaser"
         description="One-page blind profile. No company name, no owner name, no identifying details. Used for initial interest gauging."
@@ -134,7 +101,6 @@ export function MemosTab({ dealId, dealTitle, projectName }: MemosTabProps) {
         dealId={dealId}
         dealTitle={dealTitle}
         projectName={projectName}
-        buyers={buyers}
         slotType="full_memo"
         title="Full Lead Memo"
         description="Comprehensive investment memo. Includes company name, financials, operations detail. Sent after NDA execution."
@@ -151,7 +117,6 @@ interface MemoSlotCardProps {
   dealId: string;
   dealTitle?: string;
   projectName?: string | null;
-  buyers?: any[];
   slotType: MemoSlotType;
   title: string;
   description: string;
@@ -166,7 +131,6 @@ function MemoSlotCard({
   dealId,
   dealTitle,
   projectName,
-  buyers = [],
   slotType,
   title,
   description,
@@ -187,26 +151,6 @@ function MemoSlotCard({
   const [isDownloadingDocx, setIsDownloadingDocx] = useState(false);
   const [confirmRemove, setConfirmRemove] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
-  const [releaseModalOpen, setReleaseModalOpen] = useState(false);
-
-  // Adapt DataRoomDocument to DealDocument for the ReleaseModal
-  const releaseDocument: DealDocument | null = document ? {
-    id: document.id,
-    deal_id: document.deal_id,
-    document_type: document.document_category === 'anonymous_teaser' ? 'anonymous_teaser' : 'full_detail_memo',
-    title: slotType === 'anonymous_teaser' ? 'Anonymous Teaser' : 'Full Lead Memo',
-    description: null,
-    file_path: document.storage_path,
-    file_size_bytes: document.file_size_bytes,
-    mime_type: document.file_type || 'application/pdf',
-    version: document.version,
-    is_current: true,
-    status: document.status,
-    created_by: document.uploaded_by,
-    created_at: document.created_at,
-    updated_at: document.updated_at,
-  } : null;
-
   const hasDocument = !!document;
   const hasDraft = !!draft;
 
@@ -489,14 +433,6 @@ function MemoSlotCard({
                     </div>
                   </div>
                 </div>
-                <Button
-                  size="sm"
-                  className="w-full mb-2"
-                  onClick={() => setReleaseModalOpen(true)}
-                >
-                  <Send className="h-3.5 w-3.5 mr-1.5" />
-                  Send to Buyer
-                </Button>
                 <div className="flex gap-2">
                   <Button
                     variant="outline"
@@ -611,15 +547,6 @@ function MemoSlotCard({
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Release Modal */}
-      <ReleaseModal
-        open={releaseModalOpen}
-        onOpenChange={setReleaseModalOpen}
-        document={releaseDocument}
-        dealId={dealId}
-        projectName={projectName}
-        buyers={buyers}
-      />
     </>
   );
 }
