@@ -54,11 +54,12 @@ import { Separator } from '@/components/ui/separator';
 interface MemosTabProps {
   dealId: string;
   dealTitle?: string;
+  projectName?: string | null;
 }
 
 type MemoSlotType = 'anonymous_teaser' | 'full_memo';
 
-export function MemosTab({ dealId, dealTitle }: MemosTabProps) {
+export function MemosTab({ dealId, dealTitle, projectName }: MemosTabProps) {
   const { data: documents = [], isLoading: docsLoading } = useDataRoomDocuments(dealId);
   const { data: memos = [], isLoading: memosLoading } = useLeadMemos(dealId);
 
@@ -89,6 +90,7 @@ export function MemosTab({ dealId, dealTitle }: MemosTabProps) {
       <MemoSlotCard
         dealId={dealId}
         dealTitle={dealTitle}
+        projectName={projectName}
         slotType="anonymous_teaser"
         title="Anonymous Teaser"
         description="One-page blind profile. No company name, no owner name, no identifying details. Used for initial interest gauging."
@@ -100,6 +102,7 @@ export function MemosTab({ dealId, dealTitle }: MemosTabProps) {
       <MemoSlotCard
         dealId={dealId}
         dealTitle={dealTitle}
+        projectName={projectName}
         slotType="full_memo"
         title="Full Lead Memo"
         description="Comprehensive investment memo. Includes company name, financials, operations detail. Sent after NDA execution."
@@ -115,6 +118,7 @@ export function MemosTab({ dealId, dealTitle }: MemosTabProps) {
 interface MemoSlotCardProps {
   dealId: string;
   dealTitle?: string;
+  projectName?: string | null;
   slotType: MemoSlotType;
   title: string;
   description: string;
@@ -128,6 +132,7 @@ interface MemoSlotCardProps {
 function MemoSlotCard({
   dealId,
   dealTitle,
+  projectName,
   slotType,
   title,
   description,
@@ -155,7 +160,7 @@ function MemoSlotCard({
     id: document.id,
     deal_id: document.deal_id,
     document_type: document.document_category === 'anonymous_teaser' ? 'anonymous_teaser' : 'full_detail_memo',
-    title: document.file_name,
+    title: slotType === 'anonymous_teaser' ? 'Anonymous Teaser' : 'Full Lead Memo',
     description: null,
     file_path: document.storage_path,
     file_size_bytes: document.file_size_bytes,
@@ -578,6 +583,7 @@ function MemoSlotCard({
         onOpenChange={setReleaseModalOpen}
         document={releaseDocument}
         dealId={dealId}
+        projectName={projectName}
       />
     </>
   );

@@ -1332,6 +1332,7 @@ const ReMarketingDealDetail = () => {
               <MemosTab
                 dealId={dealId!}
                 dealTitle={deal.internal_company_name || deal.title}
+                projectName={deal.project_name}
               />
               <DocumentsPanel dealId={dealId!} />
             </TabsContent>
