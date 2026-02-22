@@ -1,4 +1,5 @@
 import { FolderOpen, ArrowRight, Lock, FileText, Shield, CheckCircle2, Clock } from "lucide-react";
+// Note: NDA status shown in full Documents tab (requires edge function call); preview only shows fee agreement
 import { Badge } from "@/components/ui/badge";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -116,16 +117,6 @@ export function DealDocumentPreview({ requestId, requestStatus, dealId, onViewAl
         <div className="flex items-center gap-3">
           <Shield className="h-3.5 w-3.5 text-slate-400 shrink-0" />
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-xs text-slate-600">NDA:</span>
-            <Badge variant="secondary" className={`text-[10px] px-1.5 py-0 h-4 ${
-              access?.fee_agreement_signed !== undefined
-                ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-                : "bg-slate-50 text-slate-500 border-slate-200"
-            }`}>
-              <CheckCircle2 className="h-2.5 w-2.5 mr-0.5" />
-              Signed
-            </Badge>
-            <span className="text-slate-300">|</span>
             <span className="text-xs text-slate-600">Fee Agreement:</span>
             {access?.fee_agreement_signed ? (
               <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4 bg-emerald-50 text-emerald-700 border-emerald-200">

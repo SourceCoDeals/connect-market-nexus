@@ -256,7 +256,8 @@ export function useMessageCenterThreads() {
             listing:listings!connection_requests_listing_id_fkey(title)
           )
         `)
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: false })
+        .limit(2000);
 
       if (error) throw error;
 

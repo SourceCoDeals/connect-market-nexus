@@ -14,15 +14,13 @@ import {
   useConnectionMessages,
   useSendMessage,
   useMarkMessagesReadByBuyer,
-  useUnreadBuyerMessageCounts,
-  type MessageThread,
 } from "@/hooks/use-connection-messages";
 import { useAuth } from "@/context/AuthContext";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { formatDistanceToNow } from "date-fns";
 
-// Fetch buyer's threads from connection_requests + messages
+// Fetch buyer's threads — single batch query instead of N+1
 function useBuyerThreads() {
   const { user } = useAuth();
 
@@ -31,22 +29,24 @@ function useBuyerThreads() {
     queryFn: async () => {
       if (!user?.id) return [];
 
-      // Get all connection requests for this buyer that have messages
-      const { data: requests, error: reqError } = await supabase
-        .from("connection_requests")
-        .select(
-          `
-          id, status, listing_id, created_at,
-          listing:listings!connection_requests_listing_id_fkey(id, title, category)
-        `
-        )
-        .eq("user_id", user.id)
-        .order("created_at", { ascending: false });
+      // Single query: get all messages for this buyer's requests with joined request + listing data
+      const { data: messages, error } = await supabase
+        .from("connection_messages")
+        .select(`
+          id, connection_request_id, sender_role, body, is_read_by_buyer, created_at,
+          request:connection_requests!inner(
+            id, status, listing_id,
+            listing:listings!connection_requests_listing_id_fkey(title, category)
+          )
+        `)
+        .order("created_at", { ascending: false })
+        .limit(1000);
 
-      if (reqError || !requests) return [];
+      if (error || !messages) return [];
 
-      // Get messages for each request
-      const threads: Array<{
+      // Group by connection_request_id and build thread summaries
+      // Group by connection_request_id and build thread summaries
+      const threadMap = new Map<string, {
         connection_request_id: string;
         deal_title: string;
         deal_category?: string;
@@ -57,47 +57,38 @@ function useBuyerThreads() {
         last_message_at: string;
         last_sender_role: string;
         unread_count: number;
-      }> = [];
+      }>();
 
-      for (const req of requests) {
-        const { data: msgs } = await supabase
-          .from("connection_messages")
-          .select("id, body, sender_role, is_read_by_buyer, created_at")
-          .eq("connection_request_id", req.id)
-          .order("created_at", { ascending: false })
-          .limit(1);
+      for (const msg of messages) {
+        const reqId = msg.connection_request_id;
+        const req = msg.request as any;
 
-        if (!msgs || msgs.length === 0) continue;
+        if (!threadMap.has(reqId)) {
+          threadMap.set(reqId, {
+            connection_request_id: reqId,
+            deal_title: req?.listing?.title || "Untitled Deal",
+            deal_category: req?.listing?.category,
+            request_status: req?.status || "pending",
+            listing_id: req?.listing_id,
+            messages_count: 0,
+            last_message_body: msg.body,
+            last_message_at: msg.created_at,
+            last_sender_role: msg.sender_role,
+            unread_count: 0,
+          });
+        }
 
-        const { count: unreadCount } = await supabase
-          .from("connection_messages")
-          .select("id", { count: "exact", head: true })
-          .eq("connection_request_id", req.id)
-          .eq("sender_role", "admin")
-          .eq("is_read_by_buyer", false);
+        const thread = threadMap.get(reqId)!;
+        thread.messages_count++;
 
-        const { count: totalCount } = await supabase
-          .from("connection_messages")
-          .select("id", { count: "exact", head: true })
-          .eq("connection_request_id", req.id);
-
-        const lastMsg = msgs[0];
-        threads.push({
-          connection_request_id: req.id,
-          deal_title: (req.listing as any)?.title || "Untitled Deal",
-          deal_category: (req.listing as any)?.category,
-          request_status: req.status,
-          listing_id: req.listing_id,
-          messages_count: totalCount || 0,
-          last_message_body: lastMsg.body,
-          last_message_at: lastMsg.created_at,
-          last_sender_role: lastMsg.sender_role,
-          unread_count: unreadCount || 0,
-        });
+        // Count unread (admin messages not read by buyer)
+        if (msg.sender_role === "admin" && !msg.is_read_by_buyer) {
+          thread.unread_count++;
+        }
       }
 
       // Sort: unread first, then by most recent message
-      threads.sort((a, b) => {
+      return Array.from(threadMap.values()).sort((a, b) => {
         if (a.unread_count > 0 && b.unread_count === 0) return -1;
         if (a.unread_count === 0 && b.unread_count > 0) return 1;
         return (
@@ -105,8 +96,6 @@ function useBuyerThreads() {
           new Date(a.last_message_at).getTime()
         );
       });
-
-      return threads;
     },
     enabled: !!user?.id,
     staleTime: 30000,
@@ -114,7 +103,7 @@ function useBuyerThreads() {
 }
 
 export default function BuyerMessages() {
-  const { data: threads = [], isLoading } = useBuyerThreads();
+  const { data: threads = [], isLoading, error } = useBuyerThreads();
   const [searchParams, setSearchParams] = useSearchParams();
   const [selectedThreadId, setSelectedThreadId] = useState<string | null>(
     searchParams.get("deal") || null
@@ -158,7 +147,12 @@ export default function BuyerMessages() {
 
       {/* Content */}
       <div className="px-4 sm:px-8 pb-8 max-w-7xl mx-auto">
-        {isLoading ? (
+        {error ? (
+          <div className="border border-slate-200 rounded-xl bg-white flex flex-col items-center justify-center py-16">
+            <p className="text-sm text-red-600 mb-1">Failed to load messages</p>
+            <p className="text-xs text-slate-500">Please try refreshing the page.</p>
+          </div>
+        ) : isLoading ? (
           <BuyerMessagesSkeleton />
         ) : threads.length === 0 ? (
           <BuyerMessagesEmpty />

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { RichTextDisplay } from "@/components/ui/rich-text-display";
 import {
   FileText,
   File,
@@ -286,9 +287,10 @@ export function DealDocumentsTab({ requestId, requestStatus, dealId }: DealDocum
                   </span>
                 </div>
                 {memo.html_content ? (
-                  <div
-                    className="prose prose-sm max-w-none text-slate-700"
-                    dangerouslySetInnerHTML={{ __html: memo.html_content }}
+                  <RichTextDisplay
+                    content={memo.html_content}
+                    className="prose-sm text-slate-700"
+                    compact
                   />
                 ) : (
                   <div className="space-y-2">

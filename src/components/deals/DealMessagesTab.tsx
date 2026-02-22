@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import { MessageSquare, Send, Lock } from "lucide-react";
 import {
   useConnectionMessages,
@@ -14,7 +15,7 @@ interface DealMessagesTabProps {
 }
 
 export function DealMessagesTab({ requestId, requestStatus }: DealMessagesTabProps) {
-  const { data: messages = [] } = useConnectionMessages(requestId);
+  const { data: messages = [], isLoading: messagesLoading } = useConnectionMessages(requestId);
   const sendMsg = useSendMessage();
   const markRead = useMarkMessagesReadByBuyer();
   const [newMessage, setNewMessage] = useState("");
@@ -39,11 +40,19 @@ export function DealMessagesTab({ requestId, requestStatus }: DealMessagesTabPro
 
   const handleSend = () => {
     if (!newMessage.trim() || !canSend) return;
-    sendMsg.mutate({
-      connection_request_id: requestId,
-      body: newMessage.trim(),
-      sender_role: "buyer",
-    });
+    sendMsg.mutate(
+      {
+        connection_request_id: requestId,
+        body: newMessage.trim(),
+        sender_role: "buyer",
+      },
+      {
+        onError: () => {
+          // Restore the message if send failed so user can retry
+          setNewMessage(newMessage.trim());
+        },
+      }
+    );
     setNewMessage("");
   };
 
@@ -92,7 +101,13 @@ export function DealMessagesTab({ requestId, requestStatus }: DealMessagesTabPro
 
       {/* Messages */}
       <div className="min-h-[300px] max-h-[500px] overflow-y-auto px-5 py-4 space-y-3 flex-1">
-        {messages.length === 0 ? (
+        {messagesLoading ? (
+          <div className="space-y-3 py-4">
+            <div className="flex justify-start"><Skeleton className="h-10 w-48 rounded-xl" /></div>
+            <div className="flex justify-end"><Skeleton className="h-10 w-40 rounded-xl" /></div>
+            <div className="flex justify-start"><Skeleton className="h-10 w-56 rounded-xl" /></div>
+          </div>
+        ) : messages.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full py-12">
             <p className="text-sm text-slate-400 text-center">
               {canSend

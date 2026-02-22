@@ -90,33 +90,51 @@ export function ConnectionRequestActions({
 
   // ─── Decision Handlers ───
 
-  const handleAccept = () => {
+  const handleAccept = async () => {
     if (!requestId) return;
-    updateStatus.mutate({ requestId, status: "approved" });
-    sendMessage.mutate({
-      connection_request_id: requestId,
-      body: "Request accepted. We will begin the documentation process.",
-      sender_role: "admin",
-      message_type: "decision",
-    });
+    try {
+      await updateStatus.mutateAsync({ requestId, status: "approved" });
+      await sendMessage.mutateAsync({
+        connection_request_id: requestId,
+        body: "Request accepted. We will begin the documentation process.",
+        sender_role: "admin",
+        message_type: "decision",
+      });
+      toast({ title: "Request approved", description: "Buyer has been notified." });
+    } catch (err) {
+      toast({
+        title: "Action failed",
+        description: err instanceof Error ? err.message : "Could not complete the action.",
+        variant: "destructive",
+      });
+    }
   };
 
-  const handleReject = () => {
+  const handleReject = async () => {
     if (!requestId) return;
     const note = rejectNote.trim();
-    updateStatus.mutate({
-      requestId,
-      status: "rejected",
-      notes: note || undefined,
-    });
-    sendMessage.mutate({
-      connection_request_id: requestId,
-      body: note || "Request declined.",
-      sender_role: "admin",
-      message_type: "decision",
-    });
-    setShowRejectNote(false);
-    setRejectNote("");
+    try {
+      await updateStatus.mutateAsync({
+        requestId,
+        status: "rejected",
+        notes: note || undefined,
+      });
+      await sendMessage.mutateAsync({
+        connection_request_id: requestId,
+        body: note || "Request declined.",
+        sender_role: "admin",
+        message_type: "decision",
+      });
+      setShowRejectNote(false);
+      setRejectNote("");
+      toast({ title: "Request declined", description: "Buyer has been notified." });
+    } catch (err) {
+      toast({
+        title: "Action failed",
+        description: err instanceof Error ? err.message : "Could not complete the action.",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleResetToPending = () => {
