@@ -1,16 +1,5 @@
 /**
  * AccessMatrixPanel: Buyer access management with tracked link distribution
- *
- * Features:
- * - Table of buyers with teaser/full memo/data room checkboxes
- * - Send tracked link (copy or email) per buyer
- * - Link tracking columns (sent date, method, email)
- * - Fee agreement warning when enabling full memo without signed agreement
- * - Bulk toggle for multiple buyers
- * - Expiration date picker
- * - Expandable audit history per buyer
- * - Improved add buyer dialog with multi-select
- * - Revoke access
  */
 
 import { useState } from 'react';
@@ -19,11 +8,12 @@ import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table';
 import {
-  Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
+  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog';
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
@@ -31,14 +21,11 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import {
-  Popover, PopoverContent, PopoverTrigger,
-} from '@/components/ui/popover';
-import {
-  Collapsible, CollapsibleContent, CollapsibleTrigger,
-} from '@/components/ui/collapsible';
+  Tooltip, TooltipContent, TooltipProvider, TooltipTrigger,
+} from '@/components/ui/tooltip';
 import {
   Shield, UserPlus, AlertTriangle, Loader2, Ban, Link2, Mail,
-  Copy, ChevronDown, ChevronRight, CalendarIcon, Clock, Check,
+  Copy, ChevronDown, ChevronRight, Clock, Check,
   ExternalLink, Send,
 } from 'lucide-react';
 import {
@@ -48,7 +35,6 @@ import {
   useBulkUpdateAccess,
   DataRoomAccessRecord,
 } from '@/hooks/admin/data-room/use-data-room';
-import { toast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
@@ -77,6 +63,16 @@ export function AccessMatrixPanel({ dealId, projectName }: AccessMatrixPanelProp
   const [expirationRecord, setExpirationRecord] = useState<DataRoomAccessRecord | null>(null);
   const [expirationDate, setExpirationDate] = useState<Date | undefined>();
   const [addBuyerSelected, setAddBuyerSelected] = useState<Set<string>>(new Set());
+  const [showFeeWarning, setShowFeeWarning] = useState(false);
+  const [pendingUpdate, setPendingUpdate] = useState<{
+    deal_id: string;
+    remarketing_buyer_id?: string;
+    marketplace_user_id?: string;
+    can_view_teaser: boolean;
+    can_view_full_memo: boolean;
+    can_view_data_room: boolean;
+  } | null>(null);
+  const [overrideReason, setOverrideReason] = useState('');
 
   // Fetch available buyers for add dialog
   const { data: availableBuyers = [] } = useQuery({
@@ -112,11 +108,6 @@ export function AccessMatrixPanel({ dealId, projectName }: AccessMatrixPanelProp
     field: 'can_view_teaser' | 'can_view_full_memo' | 'can_view_data_room',
     newValue: boolean
   ) => {
-    // Data Room requires a signed fee agreement — hard gate (no override)
-    if (field === 'can_view_data_room' && newValue && !record.fee_agreement_signed) {
-      return;
-    }
-
     const updates = {
       deal_id: dealId,
       remarketing_buyer_id: record.remarketing_buyer_id || undefined,
@@ -126,8 +117,8 @@ export function AccessMatrixPanel({ dealId, projectName }: AccessMatrixPanelProp
       can_view_data_room: field === 'can_view_data_room' ? newValue : record.can_view_data_room,
     };
 
-    // Full Memo without fee agreement — show warning with override option
-    if (field === 'can_view_full_memo' && newValue && !record.fee_agreement_signed) {
+    // Full Memo and Data Room require a signed fee agreement — warn
+    if ((field === 'can_view_full_memo' || field === 'can_view_data_room') && newValue && !record.fee_agreement_signed) {
       setPendingUpdate(updates);
       setShowFeeWarning(true);
       return;
@@ -138,10 +129,11 @@ export function AccessMatrixPanel({ dealId, projectName }: AccessMatrixPanelProp
 
   const handleFeeOverride = () => {
     if (pendingUpdate) {
-      updateAccess.mutate({
+      const params: Parameters<typeof updateAccess.mutate>[0] = {
         ...pendingUpdate,
         fee_agreement_override_reason: overrideReason,
-      });
+      };
+      updateAccess.mutate(params);
     }
     setShowFeeWarning(false);
     setPendingUpdate(null);
@@ -238,7 +230,6 @@ export function AccessMatrixPanel({ dealId, projectName }: AccessMatrixPanelProp
   };
 
   const handleBulkToggle = (field: 'can_view_teaser' | 'can_view_full_memo' | 'can_view_data_room', value: boolean) => {
-    // For full memo / data room, only include buyers with signed fee agreements
     const eligibleRecords = Array.from(selectedBuyers)
       .map(id => activeRecords.find(r => r.access_id === id))
       .filter((record): record is DataRoomAccessRecord => {
@@ -250,7 +241,7 @@ export function AccessMatrixPanel({ dealId, projectName }: AccessMatrixPanelProp
       });
 
     if (eligibleRecords.length === 0) {
-      toast({ title: 'No eligible buyers', description: 'Selected buyers need a signed fee agreement first.', variant: 'destructive' });
+      toast.error('No eligible buyers. Selected buyers need a signed fee agreement first.');
       return;
     }
 
@@ -482,7 +473,6 @@ export function AccessMatrixPanel({ dealId, projectName }: AccessMatrixPanelProp
                         </TableCell>
                         <TableCell>
                           <div className="flex items-center gap-1">
-                            {/* Copy Link */}
                             <Button
                               variant="ghost"
                               size="icon"
@@ -492,7 +482,6 @@ export function AccessMatrixPanel({ dealId, projectName }: AccessMatrixPanelProp
                             >
                               <Link2 className="h-3.5 w-3.5" />
                             </Button>
-                            {/* Send via Email */}
                             <Button
                               variant="ghost"
                               size="icon"
@@ -505,7 +494,6 @@ export function AccessMatrixPanel({ dealId, projectName }: AccessMatrixPanelProp
                             >
                               <Send className="h-3.5 w-3.5" />
                             </Button>
-                            {/* Set Expiration */}
                             <Button
                               variant="ghost"
                               size="icon"
@@ -518,7 +506,6 @@ export function AccessMatrixPanel({ dealId, projectName }: AccessMatrixPanelProp
                             >
                               <Clock className="h-3.5 w-3.5" />
                             </Button>
-                            {/* Revoke */}
                             <AlertDialog>
                               <AlertDialogTrigger asChild>
                                 <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive">
@@ -546,7 +533,6 @@ export function AccessMatrixPanel({ dealId, projectName }: AccessMatrixPanelProp
                           </div>
                         </TableCell>
                       </TableRow>
-                      {/* Expanded audit row */}
                       {isExpanded && (
                         <TableRow key={`${record.access_id}-detail`}>
                           <TableCell colSpan={10} className="bg-muted/30 py-3 px-6">
@@ -591,7 +577,6 @@ export function AccessMatrixPanel({ dealId, projectName }: AccessMatrixPanelProp
                                   </div>
                                 )}
                               </div>
-                              {/* Access Token */}
                               {record.access_token && (
                                 <div className="mt-2 pt-2 border-t">
                                   <p className="text-xs text-muted-foreground">
@@ -703,7 +688,7 @@ export function AccessMatrixPanel({ dealId, projectName }: AccessMatrixPanelProp
             <Textarea
               placeholder="Why is it okay to share the full memo without a fee agreement?"
               value={overrideReason}
-              onChange={(e) => setOverrideReason(e.target.value)}
+              onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setOverrideReason(e.target.value)}
             />
           </div>
           <DialogFooter>
@@ -725,7 +710,7 @@ export function AccessMatrixPanel({ dealId, projectName }: AccessMatrixPanelProp
         </DialogContent>
       </Dialog>
 
-      {/* Add Buyer Dialog — improved with multi-select */}
+      {/* Add Buyer Dialog */}
       <Dialog open={showAddBuyer} onOpenChange={(open) => {
         setShowAddBuyer(open);
         if (!open) {

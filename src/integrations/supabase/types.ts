@@ -9925,6 +9925,7 @@ export type Database = {
       reset_all_admin_notifications:
         | { Args: never; Returns: undefined }
         | { Args: { admin_uuid: string }; Returns: undefined }
+      reset_failed_enrichments: { Args: never; Returns: number }
       reset_stale_concurrent_counts: { Args: never; Returns: undefined }
       resolve_contact_agreement_status: {
         Args: { p_contact_id: string }
