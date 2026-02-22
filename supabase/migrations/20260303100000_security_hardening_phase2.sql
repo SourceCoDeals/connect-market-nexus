@@ -219,6 +219,7 @@ $c6$;
 -- ============================================================================
 
 -- D1. get_deals_with_details() — admin-only deal pipeline view
+DROP FUNCTION IF EXISTS public.get_deals_with_details();
 CREATE OR REPLACE FUNCTION public.get_deals_with_details()
 RETURNS TABLE (
   deal_id uuid,
@@ -388,6 +389,7 @@ END;
 $$;
 
 -- D2. reset_all_admin_notifications() — admin-only bulk reset
+DROP FUNCTION IF EXISTS public.reset_all_admin_notifications();
 CREATE OR REPLACE FUNCTION public.reset_all_admin_notifications()
 RETURNS void
 LANGUAGE plpgsql
@@ -406,6 +408,7 @@ $$;
 
 -- D3. restore_soft_deleted(text, uuid) — admin-only record restoration
 --     Particularly sensitive: uses EXECUTE format() with table name
+DROP FUNCTION IF EXISTS public.restore_soft_deleted(text, uuid);
 CREATE OR REPLACE FUNCTION public.restore_soft_deleted(
   p_table_name TEXT,
   p_record_id UUID
@@ -432,6 +435,7 @@ $$;
 -- D4. get_deal_access_matrix(uuid) — admin-only deal access view
 --     Converted from SQL to plpgsql to add auth guard
 --     Uses latest signature from 20260228100000 (contact_id, contact_title, access_token)
+DROP FUNCTION IF EXISTS public.get_deal_access_matrix(uuid);
 CREATE OR REPLACE FUNCTION public.get_deal_access_matrix(p_deal_id UUID)
 RETURNS TABLE (
   access_id UUID,
@@ -523,6 +527,7 @@ $$;
 
 -- D5. get_deal_distribution_log(uuid) — admin-only distribution history
 --     Converted from SQL to plpgsql to add auth guard
+DROP FUNCTION IF EXISTS public.get_deal_distribution_log(uuid);
 CREATE OR REPLACE FUNCTION public.get_deal_distribution_log(p_deal_id UUID)
 RETURNS TABLE (
   log_id UUID,
@@ -568,6 +573,7 @@ $$;
 
 -- D6. get_buyer_deal_history(uuid) — admin-only buyer history view
 --     Converted from SQL to plpgsql to add auth guard
+DROP FUNCTION IF EXISTS public.get_buyer_deal_history(uuid);
 CREATE OR REPLACE FUNCTION public.get_buyer_deal_history(p_buyer_id UUID)
 RETURNS TABLE (
   deal_id UUID,
