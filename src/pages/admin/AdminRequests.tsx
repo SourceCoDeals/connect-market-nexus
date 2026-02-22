@@ -101,10 +101,16 @@ const AdminRequests = () => {
   const {
     statusFilter,
     buyerTypeFilter,
+    ndaFilter,
+    feeAgreementFilter,
+    followUpFilter,
     sortOption,
     filteredAndSortedRequests: pipelineFilteredRequests,
     setStatusFilter,
     setBuyerTypeFilter,
+    setNdaFilter,
+    setFeeAgreementFilter,
+    setFollowUpFilter,
     setSortOption,
   } = usePipelineFilters(requests);
   
@@ -262,9 +268,15 @@ const AdminRequests = () => {
               requests={requests}
               statusFilter={statusFilter}
               buyerTypeFilter={buyerTypeFilter}
+              ndaFilter={ndaFilter}
+              feeAgreementFilter={feeAgreementFilter}
+              followUpFilter={followUpFilter}
               sortOption={sortOption}
               onStatusFilterChange={setStatusFilter}
               onBuyerTypeFilterChange={(filter) => setBuyerTypeFilter(filter)}
+              onNdaFilterChange={setNdaFilter}
+              onFeeAgreementFilterChange={setFeeAgreementFilter}
+              onFollowUpFilterChange={setFollowUpFilter}
               onSortChange={(sort) => setSortOption(sort)}
             />
 
@@ -306,7 +318,7 @@ const AdminRequests = () => {
               <Badge variant="secondary" className="text-xs font-medium px-3 py-1.5">
                 Showing: <span className="font-semibold ml-1">{filteredRequests.length}</span>
               </Badge>
-              {(statusFilter !== 'all' || buyerTypeFilter !== 'all' || searchQuery || selectedListingId) && (
+              {(statusFilter !== 'all' || buyerTypeFilter !== 'all' || ndaFilter !== 'all' || feeAgreementFilter !== 'all' || followUpFilter !== 'all' || searchQuery || selectedListingId) && (
                 <Badge variant="outline" className="text-xs font-medium px-3 py-1.5">
                   of {requests.length} total
                 </Badge>
@@ -319,6 +331,21 @@ const AdminRequests = () => {
               {buyerTypeFilter !== 'all' && (
                 <Badge variant="outline" className="text-xs font-medium px-3 py-1.5 bg-secondary/10 text-secondary-foreground border-secondary/20">
                   Type: {buyerTypeFilter === 'privateEquity' ? 'PE' : buyerTypeFilter}
+                </Badge>
+              )}
+              {ndaFilter !== 'all' && (
+                <Badge variant="outline" className="text-xs font-medium px-3 py-1.5 bg-secondary/10 text-secondary-foreground border-secondary/20">
+                  NDA: {ndaFilter.replace('_', ' ')}
+                </Badge>
+              )}
+              {feeAgreementFilter !== 'all' && (
+                <Badge variant="outline" className="text-xs font-medium px-3 py-1.5 bg-secondary/10 text-secondary-foreground border-secondary/20">
+                  Fee: {feeAgreementFilter.replace('_', ' ')}
+                </Badge>
+              )}
+              {followUpFilter !== 'all' && (
+                <Badge variant="outline" className="text-xs font-medium px-3 py-1.5 bg-secondary/10 text-secondary-foreground border-secondary/20">
+                  Follow-up: {followUpFilter.replace('_', ' ')}
                 </Badge>
               )}
             </div>
