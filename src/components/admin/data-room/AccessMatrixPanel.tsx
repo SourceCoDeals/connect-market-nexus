@@ -19,12 +19,11 @@ import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table';
 import {
-  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
+  Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog';
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
@@ -49,6 +48,7 @@ import {
   useBulkUpdateAccess,
   DataRoomAccessRecord,
 } from '@/hooks/admin/data-room/use-data-room';
+import { toast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
@@ -68,9 +68,6 @@ export function AccessMatrixPanel({ dealId, projectName }: AccessMatrixPanelProp
   const queryClient = useQueryClient();
 
   const [showAddBuyer, setShowAddBuyer] = useState(false);
-  const [showFeeWarning, setShowFeeWarning] = useState(false);
-  const [pendingUpdate, setPendingUpdate] = useState<any>(null);
-  const [overrideReason, setOverrideReason] = useState('');
   const [selectedBuyers, setSelectedBuyers] = useState<Set<string>>(new Set());
   const [searchQuery, setSearchQuery] = useState('');
   const [buyerSearch, setBuyerSearch] = useState('');
@@ -115,7 +112,12 @@ export function AccessMatrixPanel({ dealId, projectName }: AccessMatrixPanelProp
     field: 'can_view_teaser' | 'can_view_full_memo' | 'can_view_data_room',
     newValue: boolean
   ) => {
-    const updates = {
+    // Full Memo and Data Room require a signed fee agreement — hard gate
+    if ((field === 'can_view_full_memo' || field === 'can_view_data_room') && newValue && !record.fee_agreement_signed) {
+      return;
+    }
+
+    updateAccess.mutate({
       deal_id: dealId,
       remarketing_buyer_id: record.remarketing_buyer_id || undefined,
       marketplace_user_id: record.marketplace_user_id || undefined,
@@ -235,13 +237,26 @@ export function AccessMatrixPanel({ dealId, projectName }: AccessMatrixPanelProp
   };
 
   const handleBulkToggle = (field: 'can_view_teaser' | 'can_view_full_memo' | 'can_view_data_room', value: boolean) => {
-    const buyerIds = Array.from(selectedBuyers).map(id => {
-      const record = activeRecords.find(r => r.access_id === id);
-      return {
-        remarketing_buyer_id: record?.remarketing_buyer_id || undefined,
-        marketplace_user_id: record?.marketplace_user_id || undefined,
-      };
-    });
+    // For full memo / data room, only include buyers with signed fee agreements
+    const eligibleRecords = Array.from(selectedBuyers)
+      .map(id => activeRecords.find(r => r.access_id === id))
+      .filter((record): record is DataRoomAccessRecord => {
+        if (!record) return false;
+        if ((field === 'can_view_full_memo' || field === 'can_view_data_room') && value && !record.fee_agreement_signed) {
+          return false;
+        }
+        return true;
+      });
+
+    if (eligibleRecords.length === 0) {
+      toast({ title: 'No eligible buyers', description: 'Selected buyers need a signed fee agreement first.', variant: 'destructive' });
+      return;
+    }
+
+    const buyerIds = eligibleRecords.map(record => ({
+      remarketing_buyer_id: record.remarketing_buyer_id || undefined,
+      marketplace_user_id: record.marketplace_user_id || undefined,
+    }));
 
     bulkUpdate.mutate({
       deal_id: dealId,
@@ -330,6 +345,7 @@ export function AccessMatrixPanel({ dealId, projectName }: AccessMatrixPanelProp
               No buyers have been granted access yet
             </div>
           ) : (
+            <TooltipProvider>
             <Table>
               <TableHeader>
                 <TableRow>
@@ -591,6 +607,7 @@ export function AccessMatrixPanel({ dealId, projectName }: AccessMatrixPanelProp
                 })}
               </TableBody>
             </Table>
+            </TooltipProvider>
           )}
         </CardContent>
       </Card>

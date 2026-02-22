@@ -1,11 +1,12 @@
 /**
- * DocumentsPanel: Document upload, organization, and management
+ * DocumentsPanel: Data room file upload, organization, and management
+ *
+ * Handles supporting documents only (financials, legal, ops, etc.).
+ * Memo PDFs (teaser + full memo) are managed by the MemosTab.
  *
  * Features:
  * - Drag-and-drop file upload
  * - Folder organization (Financials, Legal, Operations, etc.)
- * - Category assignment (anonymous_teaser, full_memo, data_room)
- * - View-only toggle per document
  * - File preview via signed URLs
  */
 
@@ -19,7 +20,6 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import {
   Upload, FileText, File, FileSpreadsheet, FileImage,
   Trash2, Download, Eye, FolderPlus, Loader2, EyeOff,
-  ExternalLink,
 } from 'lucide-react';
 import {
   useDataRoomDocuments,
@@ -30,16 +30,6 @@ import {
 } from '@/hooks/admin/data-room/use-data-room';
 
 const DEFAULT_FOLDERS = ['Financials', 'Legal', 'Operations', 'Marketing', 'General'];
-const CATEGORY_LABELS: Record<string, string> = {
-  anonymous_teaser: 'Teaser',
-  full_memo: 'Full Memo',
-  data_room: 'Data Room',
-};
-const CATEGORY_COLORS: Record<string, string> = {
-  anonymous_teaser: 'bg-blue-100 text-blue-800',
-  full_memo: 'bg-purple-100 text-purple-800',
-  data_room: 'bg-green-100 text-green-800',
-};
 
 interface DocumentsPanelProps {
   dealId: string;
@@ -52,18 +42,20 @@ export function DocumentsPanel({ dealId }: DocumentsPanelProps) {
   const documentUrlMutation = useDocumentUrl();
 
   const [selectedFolder, setSelectedFolder] = useState('General');
-  const [selectedCategory, setSelectedCategory] = useState<'anonymous_teaser' | 'full_memo' | 'data_room'>('data_room');
   const [customFolder, setCustomFolder] = useState('');
   const [showNewFolder, setShowNewFolder] = useState(false);
   const [isDragOver, setIsDragOver] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Get unique folders from existing documents
-  const existingFolders = [...new Set(documents.map(d => d.folder_name))];
+  // Only show data room files — memo PDFs are managed by the MemosTab
+  const dataRoomDocs = documents.filter(d => d.document_category === 'data_room');
+
+  // Get unique folders from existing data room documents
+  const existingFolders = [...new Set(dataRoomDocs.map(d => d.folder_name))];
   const allFolders = [...new Set([...DEFAULT_FOLDERS, ...existingFolders])].sort();
 
   // Group documents by folder
-  const documentsByFolder = documents.reduce((acc, doc) => {
+  const documentsByFolder = dataRoomDocs.reduce((acc, doc) => {
     if (!acc[doc.folder_name]) acc[doc.folder_name] = [];
     acc[doc.folder_name].push(doc);
     return acc;
@@ -77,14 +69,14 @@ export function DocumentsPanel({ dealId }: DocumentsPanelProps) {
         file,
         dealId,
         folderName: folder,
-        documentCategory: selectedCategory,
+        documentCategory: 'data_room',
       });
     }
 
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
-  }, [dealId, selectedFolder, selectedCategory, customFolder, showNewFolder, uploadMutation]);
+  }, [dealId, selectedFolder, customFolder, showNewFolder, uploadMutation]);
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -151,24 +143,14 @@ export function DocumentsPanel({ dealId }: DocumentsPanelProps) {
       {/* Upload Section */}
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="text-base">Upload Documents</CardTitle>
+          <CardTitle className="text-base">Data Room Files</CardTitle>
+          <p className="text-xs text-muted-foreground">
+            Supporting documents for due diligence (financials, legal, operations, etc.)
+          </p>
         </CardHeader>
         <CardContent className="space-y-4">
-          {/* Category and Folder Selection */}
+          {/* Folder Selection */}
           <div className="flex gap-3">
-            <div className="flex-1">
-              <label className="text-xs font-medium text-muted-foreground mb-1 block">Category</label>
-              <Select value={selectedCategory} onValueChange={(v: any) => setSelectedCategory(v)}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="data_room">Data Room Documents</SelectItem>
-                  <SelectItem value="anonymous_teaser">Anonymous Teaser</SelectItem>
-                  <SelectItem value="full_memo">Full Memo</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
             <div className="flex-1">
               <label className="text-xs font-medium text-muted-foreground mb-1 block">Folder</label>
               {showNewFolder ? (
@@ -240,11 +222,11 @@ export function DocumentsPanel({ dealId }: DocumentsPanelProps) {
       </Card>
 
       {/* Document List by Folder */}
-      {documents.length === 0 ? (
+      {dataRoomDocs.length === 0 ? (
         <Card>
           <CardContent className="py-8 text-center text-muted-foreground">
             <FileText className="mx-auto h-8 w-8 mb-2" />
-            No documents uploaded yet
+            No data room files uploaded yet
           </CardContent>
         </Card>
       ) : (
@@ -272,9 +254,6 @@ export function DocumentsPanel({ dealId }: DocumentsPanelProps) {
                           {new Date(doc.created_at).toLocaleDateString()}
                         </p>
                       </div>
-                      <Badge className={CATEGORY_COLORS[doc.document_category] || ''} variant="secondary">
-                        {CATEGORY_LABELS[doc.document_category]}
-                      </Badge>
                       {!doc.allow_download && (
                         <Badge variant="outline" className="text-xs">
                           <EyeOff className="h-3 w-3 mr-1" />

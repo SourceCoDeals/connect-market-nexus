@@ -5,6 +5,9 @@
 -- IMPORTANT: All SECURITY DEFINER functions that write to connection_requests or
 -- saved_listings already bypass RLS (by design), so enabling RLS on these tables
 -- will NOT break existing write paths through RPCs/edge functions.
+--
+-- IDEMPOTENCY: All CREATE POLICY preceded by DROP POLICY IF EXISTS.
+-- Tables that may not exist in all environments are wrapped in conditional DO $ blocks.
 
 BEGIN;
 
@@ -15,6 +18,7 @@ BEGIN;
 -- A1. saved_listings — currently has NO RLS, any authenticated user can read/write all rows
 ALTER TABLE public.saved_listings ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Users can manage own saved listings" ON public.saved_listings;
 CREATE POLICY "Users can manage own saved listings"
   ON public.saved_listings
   FOR ALL
@@ -22,12 +26,14 @@ CREATE POLICY "Users can manage own saved listings"
   USING (auth.uid() = user_id)
   WITH CHECK (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Admins can manage all saved listings" ON public.saved_listings;
 CREATE POLICY "Admins can manage all saved listings"
   ON public.saved_listings
   FOR ALL
   TO authenticated
   USING (public.is_admin(auth.uid()));
 
+DROP POLICY IF EXISTS "Service role full access to saved listings" ON public.saved_listings;
 CREATE POLICY "Service role full access to saved listings"
   ON public.saved_listings
   FOR ALL
@@ -38,30 +44,35 @@ CREATE POLICY "Service role full access to saved listings"
 -- A2. connection_requests — THE deals table, currently has NO RLS
 ALTER TABLE public.connection_requests ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Users can view own connection requests" ON public.connection_requests;
 CREATE POLICY "Users can view own connection requests"
   ON public.connection_requests
   FOR SELECT
   TO authenticated
   USING (auth.uid() = user_id OR public.is_admin(auth.uid()));
 
+DROP POLICY IF EXISTS "Users can insert own connection requests" ON public.connection_requests;
 CREATE POLICY "Users can insert own connection requests"
   ON public.connection_requests
   FOR INSERT
   TO authenticated
   WITH CHECK (auth.uid() = user_id OR public.is_admin(auth.uid()));
 
+DROP POLICY IF EXISTS "Users can update own connection requests" ON public.connection_requests;
 CREATE POLICY "Users can update own connection requests"
   ON public.connection_requests
   FOR UPDATE
   TO authenticated
   USING (auth.uid() = user_id OR public.is_admin(auth.uid()));
 
+DROP POLICY IF EXISTS "Admins can delete connection requests" ON public.connection_requests;
 CREATE POLICY "Admins can delete connection requests"
   ON public.connection_requests
   FOR DELETE
   TO authenticated
   USING (public.is_admin(auth.uid()));
 
+DROP POLICY IF EXISTS "Service role full access to connection requests" ON public.connection_requests;
 CREATE POLICY "Service role full access to connection requests"
   ON public.connection_requests
   FOR ALL
@@ -82,11 +93,13 @@ DROP POLICY IF EXISTS "Users can manage buyer_contacts" ON public.buyer_contacts
 -- B2. admin_notifications — replace open authenticated INSERT with scoped policies
 -- Old policy allowed ANY authenticated user to insert; new policies restrict to admin + service_role
 DROP POLICY IF EXISTS "Authenticated system can insert notifications" ON public.admin_notifications;
+DROP POLICY IF EXISTS "Service role can insert admin notifications" ON public.admin_notifications;
 CREATE POLICY "Service role can insert admin notifications"
   ON public.admin_notifications
   FOR INSERT
   TO service_role
   WITH CHECK (true);
+DROP POLICY IF EXISTS "Admins can insert admin notifications" ON public.admin_notifications;
 CREATE POLICY "Admins can insert admin notifications"
   ON public.admin_notifications
   FOR INSERT
@@ -95,11 +108,13 @@ CREATE POLICY "Admins can insert admin notifications"
 
 -- B3. user_notifications — replace open authenticated INSERT with scoped policies
 DROP POLICY IF EXISTS "Authenticated can insert user notifications" ON public.user_notifications;
+DROP POLICY IF EXISTS "Service role can insert user notifications" ON public.user_notifications;
 CREATE POLICY "Service role can insert user notifications"
   ON public.user_notifications
   FOR INSERT
   TO service_role
   WITH CHECK (true);
+DROP POLICY IF EXISTS "Admins can insert user notifications" ON public.user_notifications;
 CREATE POLICY "Admins can insert user notifications"
   ON public.user_notifications
   FOR INSERT
@@ -116,67 +131,81 @@ CREATE POLICY "Service role can manage journeys"
   WITH CHECK (true);
 
 -- B5. captarget_sync_exclusions — "Service role can manage" is missing TO service_role
-DROP POLICY IF EXISTS "Service role can manage captarget sync exclusions" ON public.captarget_sync_exclusions;
-CREATE POLICY "Service role can manage captarget sync exclusions"
-  ON public.captarget_sync_exclusions
-  FOR ALL
-  TO service_role
-  USING (true)
-  WITH CHECK (true);
+-- Wrapped in conditional block: table may not exist in all environments
+DO $b5$
+BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'captarget_sync_exclusions') THEN
+    EXECUTE 'DROP POLICY IF EXISTS "Service role can manage captarget sync exclusions" ON public.captarget_sync_exclusions';
+    EXECUTE 'CREATE POLICY "Service role can manage captarget sync exclusions" ON public.captarget_sync_exclusions FOR ALL TO service_role USING (true) WITH CHECK (true)';
+  END IF;
+END
+$b5$;
 
 -- ============================================================================
 -- SECTION C: Standardize Admin Check Patterns (P1)
 -- Replace non-canonical admin checks with public.is_admin(auth.uid())
+-- All wrapped in conditional blocks: these tables may not exist in all environments
 -- ============================================================================
 
 -- C1. call_transcripts — uses raw_user_meta_data->>'role' instead of is_admin()
-DROP POLICY IF EXISTS "Admin full access to call transcripts" ON public.call_transcripts;
-CREATE POLICY "Admin full access to call transcripts"
-  ON public.call_transcripts
-  FOR ALL
-  TO authenticated
-  USING (public.is_admin(auth.uid()));
+DO $c1$
+BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'call_transcripts') THEN
+    EXECUTE 'DROP POLICY IF EXISTS "Admin full access to call transcripts" ON public.call_transcripts';
+    EXECUTE 'CREATE POLICY "Admin full access to call transcripts" ON public.call_transcripts FOR ALL TO authenticated USING (public.is_admin(auth.uid()))';
+  END IF;
+END
+$c1$;
 
 -- C2. engagement_signals — uses raw_user_meta_data->>'role' instead of is_admin()
-DROP POLICY IF EXISTS "Admin full access to engagement signals" ON public.engagement_signals;
-CREATE POLICY "Admin full access to engagement signals"
-  ON public.engagement_signals
-  FOR ALL
-  TO authenticated
-  USING (public.is_admin(auth.uid()));
+DO $c2$
+BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'engagement_signals') THEN
+    EXECUTE 'DROP POLICY IF EXISTS "Admin full access to engagement signals" ON public.engagement_signals';
+    EXECUTE 'CREATE POLICY "Admin full access to engagement signals" ON public.engagement_signals FOR ALL TO authenticated USING (public.is_admin(auth.uid()))';
+  END IF;
+END
+$c2$;
 
 -- C3. captarget_sync_exclusions — uses profiles.role = 'admin' instead of is_admin()
-DROP POLICY IF EXISTS "Admin users can view captarget sync exclusions" ON public.captarget_sync_exclusions;
-CREATE POLICY "Admin users can view captarget sync exclusions"
-  ON public.captarget_sync_exclusions
-  FOR SELECT
-  TO authenticated
-  USING (public.is_admin(auth.uid()));
+DO $c3$
+BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'captarget_sync_exclusions') THEN
+    EXECUTE 'DROP POLICY IF EXISTS "Admin users can view captarget sync exclusions" ON public.captarget_sync_exclusions';
+    EXECUTE 'CREATE POLICY "Admin users can view captarget sync exclusions" ON public.captarget_sync_exclusions FOR SELECT TO authenticated USING (public.is_admin(auth.uid()))';
+  END IF;
+END
+$c3$;
 
 -- C4. captarget_sync_log — uses profiles.role = 'admin' instead of is_admin()
-DROP POLICY IF EXISTS "Admin users can view captarget sync logs" ON public.captarget_sync_log;
-CREATE POLICY "Admin users can view captarget sync logs"
-  ON public.captarget_sync_log
-  FOR SELECT
-  TO authenticated
-  USING (public.is_admin(auth.uid()));
+DO $c4$
+BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'captarget_sync_log') THEN
+    EXECUTE 'DROP POLICY IF EXISTS "Admin users can view captarget sync logs" ON public.captarget_sync_log';
+    EXECUTE 'CREATE POLICY "Admin users can view captarget sync logs" ON public.captarget_sync_log FOR SELECT TO authenticated USING (public.is_admin(auth.uid()))';
+  END IF;
+END
+$c4$;
 
 -- C5. remarketing_scoring_queue — uses profiles.role = 'admin' instead of is_admin()
-DROP POLICY IF EXISTS "Admins can manage scoring queue" ON public.remarketing_scoring_queue;
-CREATE POLICY "Admins can manage scoring queue"
-  ON public.remarketing_scoring_queue
-  FOR ALL
-  TO authenticated
-  USING (public.is_admin(auth.uid()))
-  WITH CHECK (public.is_admin(auth.uid()));
+DO $c5$
+BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'remarketing_scoring_queue') THEN
+    EXECUTE 'DROP POLICY IF EXISTS "Admins can manage scoring queue" ON public.remarketing_scoring_queue';
+    EXECUTE 'CREATE POLICY "Admins can manage scoring queue" ON public.remarketing_scoring_queue FOR ALL TO authenticated USING (public.is_admin(auth.uid())) WITH CHECK (public.is_admin(auth.uid()))';
+  END IF;
+END
+$c5$;
 
 -- C6. remarketing_scores — "scores_select_policy" uses auth.jwt() ->> 'is_admin'
-DROP POLICY IF EXISTS "scores_select_policy" ON public.remarketing_scores;
-CREATE POLICY "scores_select_policy"
-  ON public.remarketing_scores
-  FOR SELECT
-  TO authenticated
-  USING (deleted_at IS NULL OR public.is_admin(auth.uid()));
+DO $c6$
+BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'remarketing_scores') THEN
+    EXECUTE 'DROP POLICY IF EXISTS "scores_select_policy" ON public.remarketing_scores';
+    EXECUTE 'CREATE POLICY "scores_select_policy" ON public.remarketing_scores FOR SELECT TO authenticated USING (deleted_at IS NULL OR public.is_admin(auth.uid()))';
+  END IF;
+END
+$c6$;
 
 -- ============================================================================
 -- SECTION D: Add Auth Checks to Unprotected SECURITY DEFINER RPCs (P1)

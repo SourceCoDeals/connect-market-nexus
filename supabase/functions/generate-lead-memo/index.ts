@@ -108,7 +108,7 @@ Deno.serve(async (req: Request) => {
       });
     }
 
-    // Fetch transcripts (deal_transcripts schema: no 'summary' column)
+    // Fetch transcripts
     const { data: transcripts } = await supabaseAdmin
       .from("deal_transcripts")
       .select("transcript_text, extracted_data, call_date, title, extraction_status")
@@ -380,8 +380,7 @@ REQUIRED SECTIONS (follow this exact structure):
 1. key: "company_overview" / title: "Company Overview" — 2-3 paragraphs. What the company does, where it operates (region only), years in operation, employee count range. Factual narrative, not a sales pitch.
 2. key: "financial_overview" / title: "Financial Overview" — Revenue range, EBITDA range, margin range. Present as a table. Brief narrative context.
 3. key: "services_operations" / title: "Services & Operations" — What they do in detail (generic terms). Service line mix, operational footprint, certifications.
-4. key: "market_industry" / title: "Market & Industry" — Industry size, growth trends, competitive landscape. Factual data only.
-5. key: "transaction_overview" / title: "Transaction Overview" — What the owner is looking for: full sale, recap, partner. Timeline. No names.` : `MEMO TYPE: Full Lead Memo (confidential, post-NDA)
+4. key: "transaction_overview" / title: "Transaction Overview" — What the owner is looking for: full sale, recap, partner. Timeline. No names.` : `MEMO TYPE: Full Lead Memo (confidential, post-NDA)
 
 Include all identifying information: company name, owner, address, website, contact details. Use exact financial figures.
 
@@ -391,11 +390,10 @@ REQUIRED SECTIONS (follow this exact structure):
 3. key: "company_overview" / title: "Company Overview" — 2-4 paragraphs. What the company does, where it operates, how long in business, employees, what makes it distinct. Factual narrative only.
 4. key: "ownership_management" / title: "Ownership & Management" — Owner/operator background, how they came to own, industry experience, day-to-day role, transaction goals.
 5. key: "services_operations" / title: "Services & Operations" — Detailed services, revenue mix by service, customer types, operational footprint, equipment, facilities, technology, certifications.
-6. key: "market_industry" / title: "Market & Industry" — Industry size, growth trends, competitive landscape, regulatory environment. Factual data only.
-7. key: "financial_overview" / title: "Financial Overview" — Revenue, EBITDA, margins for last 3 years (or available). YTD numbers. Revenue concentration. Capex. Working capital. Present as a table with brief narrative.
-8. key: "employees_workforce" / title: "Employees & Workforce" — Total headcount, breakdown by role, key personnel and tenure, compensation structure, union status.
-9. key: "facilities_locations" / title: "Facilities & Locations" — Number of locations, owned vs leased, lease terms, square footage, condition, planned expansions.
-10. key: "transaction_overview" / title: "Transaction Overview" — Full sale, majority recap, growth partner. Valuation expectations. Timeline. Broker involvement.`}
+6. key: "financial_overview" / title: "Financial Overview" — Revenue, EBITDA, margins for last 3 years (or available). YTD numbers. Revenue concentration. Capex. Working capital. Present as a table with brief narrative.
+7. key: "employees_workforce" / title: "Employees & Workforce" — Total headcount, breakdown by role, key personnel and tenure, compensation structure, union status.
+8. key: "facilities_locations" / title: "Facilities & Locations" — Number of locations, owned vs leased, lease terms, square footage, condition, planned expansions.
+9. key: "transaction_overview" / title: "Transaction Overview" — Full sale, majority recap, growth partner. Valuation expectations. Timeline. Broker involvement.`}
 
 OUTPUT FORMAT:
 Return a JSON object with a "sections" array. Each section has:
