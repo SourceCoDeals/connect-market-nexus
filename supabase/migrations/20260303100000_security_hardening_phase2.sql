@@ -185,6 +185,9 @@ CREATE POLICY "scores_select_policy"
 -- ============================================================================
 
 -- D1. get_deals_with_details() — admin-only deal pipeline view
+-- NOTE: Must DROP first because return type changes (deal_metadata column removed).
+DROP FUNCTION IF EXISTS public.get_deals_with_details();
+
 CREATE OR REPLACE FUNCTION public.get_deals_with_details()
 RETURNS TABLE (
   deal_id uuid,
@@ -398,6 +401,9 @@ $$;
 -- D4. get_deal_access_matrix(uuid) — admin-only deal access view
 --     Converted from SQL to plpgsql to add auth guard
 --     Uses latest signature from 20260228100000 (contact_id, contact_title, access_token)
+-- NOTE: DROP first in case earlier migration didn't run or return type differs.
+DROP FUNCTION IF EXISTS public.get_deal_access_matrix(uuid);
+
 CREATE OR REPLACE FUNCTION public.get_deal_access_matrix(p_deal_id UUID)
 RETURNS TABLE (
   access_id UUID,

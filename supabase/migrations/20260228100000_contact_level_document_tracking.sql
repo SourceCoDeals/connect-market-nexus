@@ -351,6 +351,9 @@ GRANT EXECUTE ON FUNCTION public.resolve_contact_agreement_status TO service_rol
 -- ============================================================================
 -- Adds contact_id, contact_name, contact_title to the returned columns.
 -- Falls back to the old buyer_name logic when contact_id is NULL.
+-- NOTE: Must DROP first because return type changes (15 → 18 columns).
+
+DROP FUNCTION IF EXISTS public.get_deal_access_matrix(uuid);
 
 CREATE OR REPLACE FUNCTION public.get_deal_access_matrix(p_deal_id UUID)
 RETURNS TABLE (
