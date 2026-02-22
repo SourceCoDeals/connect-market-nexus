@@ -369,25 +369,20 @@ function buildTests(): TestDef[] {
   });
 
   add(C5, "Create + read access record", async (ctx) => {
-    // Get a deal
-    const { data: deals } = await supabase.from("deals").select("id").limit(1);
-    if (!deals?.length) throw new Error("No deals found");
-    ctx.testDealId = deals[0].id;
+    // deal_id FK references listings, not deals
+    const { data: listings } = await supabase.from("listings").select("id").limit(1);
+    if (!listings?.length) throw new Error("No listings found");
+    ctx.testDealId = listings[0].id;
 
     // Get or create a contact
     const { data: contacts } = await supabase.from("contacts").select("id").limit(1);
-    let contactId: string;
-    if (contacts?.length) {
-      contactId = contacts[0].id;
-    } else {
-      throw new Error("No contacts exist to test access matrix");
-    }
+    if (!contacts?.length) throw new Error("No contacts exist to test access matrix");
 
     const { data, error } = await supabase
       .from("data_room_access")
       .insert({
         deal_id: ctx.testDealId,
-        contact_id: contactId,
+        contact_id: contacts[0].id,
         can_view_teaser: true,
       })
       .select("id, access_token")
@@ -432,9 +427,10 @@ function buildTests(): TestDef[] {
   });
 
   add(C6, "Create release log entry with contact_id", async (ctx) => {
-    const { data: deals } = await supabase.from("deals").select("id").limit(1);
+    // deal_id FK references listings, not deals
+    const { data: listings } = await supabase.from("listings").select("id").limit(1);
     const { data: contacts } = await supabase.from("contacts").select("id").limit(1);
-    if (!deals?.length || !contacts?.length) throw new Error("Need deals + contacts");
+    if (!listings?.length || !contacts?.length) throw new Error("Need listings + contacts");
 
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) throw new Error("Not authenticated");
@@ -442,7 +438,7 @@ function buildTests(): TestDef[] {
     const { data, error } = await (supabase
       .from("document_release_log")
       .insert({
-        deal_id: deals[0].id,
+        deal_id: listings[0].id,
         contact_id: contacts[0].id,
         release_method: "pdf_download",
         released_by: user.id,
@@ -471,19 +467,27 @@ function buildTests(): TestDef[] {
   });
 
   add(C7, "Create tracked link", async (ctx) => {
-    const { data: deals } = await supabase.from("deals").select("id").limit(1);
+    // deal_id FK references listings
+    const { data: listings } = await supabase.from("listings").select("id").limit(1);
     const { data: contacts } = await supabase.from("contacts").select("id, email").limit(1);
-    if (!deals?.length || !contacts?.length) throw new Error("Need deals + contacts");
+    if (!listings?.length || !contacts?.length) throw new Error("Need listings + contacts");
 
-    // Get a document
-    const { data: docs } = await supabase.from("deal_documents").select("id").limit(1);
-    const docId = docs?.[0]?.id || null;
+    // Get a document (required — document_id is NOT NULL)
+    const { data: docs } = await supabase.from("data_room_documents").select("id").limit(1);
+    if (!docs?.length) {
+      // Try deal_documents as fallback
+      const { data: dealDocs } = await supabase.from("deal_documents").select("id").limit(1);
+      if (!dealDocs?.length) throw new Error("No documents exist to create tracked link (document_id is NOT NULL)");
+      var docId = dealDocs[0].id;
+    } else {
+      var docId = docs[0].id;
+    }
 
     const token = crypto.randomUUID();
     const { data, error } = await (supabase
       .from("document_tracked_links")
       .insert({
-        deal_id: deals[0].id,
+        deal_id: listings[0].id,
         contact_id: contacts[0].id,
         buyer_email: contacts[0].email || "qa@test.local",
         buyer_name: "QA Test Buyer",
