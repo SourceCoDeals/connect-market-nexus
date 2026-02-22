@@ -9,23 +9,16 @@
 -- 1. RLS for tables that don't have it yet
 -- ============================================
 
--- geographic_adjacency: reference data, admin-only write, public read
-ALTER TABLE IF EXISTS public.geographic_adjacency ENABLE ROW LEVEL SECURITY;
-DROP POLICY IF EXISTS "Anyone can read geographic adjacency" ON public.geographic_adjacency;
-CREATE POLICY "Anyone can read geographic adjacency"
-  ON public.geographic_adjacency FOR SELECT TO authenticated
-  USING (true);
-DROP POLICY IF EXISTS "Admins can manage geographic adjacency" ON public.geographic_adjacency;
-CREATE POLICY "Admins can manage geographic adjacency"
-  ON public.geographic_adjacency FOR ALL TO authenticated
-  USING (EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin'));
-
 -- enrichment_queue: admin-only
-ALTER TABLE IF EXISTS public.enrichment_queue ENABLE ROW LEVEL SECURITY;
-DROP POLICY IF EXISTS "Admins can manage enrichment queue" ON public.enrichment_queue;
-CREATE POLICY "Admins can manage enrichment queue"
-  ON public.enrichment_queue FOR ALL TO authenticated
-  USING (EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin'));
+DO $$ BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'enrichment_queue') THEN
+    ALTER TABLE public.enrichment_queue ENABLE ROW LEVEL SECURITY;
+    DROP POLICY IF EXISTS "Admins can manage enrichment queue" ON public.enrichment_queue;
+    CREATE POLICY "Admins can manage enrichment queue"
+      ON public.enrichment_queue FOR ALL TO authenticated
+      USING (EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin'));
+  END IF;
+END $$;
 
 -- ============================================
 -- 2. Add ON DELETE to critical foreign keys
