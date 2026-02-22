@@ -192,7 +192,7 @@ DO $$
 BEGIN
   IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'remarketing_scores') THEN
     EXECUTE 'DROP POLICY IF EXISTS "scores_select_policy" ON public.remarketing_scores';
-    EXECUTE 'CREATE POLICY "scores_select_policy" ON public.remarketing_scores FOR SELECT TO authenticated USING (deleted_at IS NULL OR public.is_admin(auth.uid()))';
+    EXECUTE 'CREATE POLICY "scores_select_policy" ON public.remarketing_scores FOR SELECT TO authenticated USING (rejected_at IS NULL OR public.is_admin(auth.uid()))';
   END IF;
 END $$;
 
