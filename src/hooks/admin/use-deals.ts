@@ -122,15 +122,16 @@ export function useDeals() {
     queryKey: ['deals'],
     queryFn: async () => {
       console.log('Fetching deals with RPC...');
-      const { data, error } = await supabase.rpc('get_deals_with_details');
-      console.log('RPC Response:', { data: data?.length || 0, error: error?.message });
+      const { data, error } = await supabase.rpc('get_deals_with_details' as any);
+      const rows = data as any[];
+      console.log('RPC Response:', { data: rows?.length || 0, error: error?.message });
       if (error) {
         console.error('Deals RPC Error:', error);
         throw error;
       }
       
       // Map RPC response to Deal interface
-      return (data || []).map((row: any, index: number) => {
+      return (rows || []).map((row: any, index: number) => {
         if (index === 0) {
           console.log('[useDeals] First RPC row:', {
             keys: Object.keys(row),
