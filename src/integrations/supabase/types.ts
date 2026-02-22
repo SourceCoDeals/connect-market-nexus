@@ -1702,34 +1702,37 @@ export type Database = {
       }
       connection_messages: {
         Row: {
+          body: string
           connection_request_id: string
           created_at: string
           id: string
-          is_admin: boolean
-          message_text: string
-          read_at: string | null
+          is_read_by_admin: boolean
+          is_read_by_buyer: boolean
+          message_type: string
           sender_id: string
-          updated_at: string
+          sender_role: string
         }
         Insert: {
+          body: string
           connection_request_id: string
           created_at?: string
           id?: string
-          is_admin?: boolean
-          message_text: string
-          read_at?: string | null
+          is_read_by_admin?: boolean
+          is_read_by_buyer?: boolean
+          message_type?: string
           sender_id: string
-          updated_at?: string
+          sender_role: string
         }
         Update: {
+          body?: string
           connection_request_id?: string
           created_at?: string
           id?: string
-          is_admin?: boolean
-          message_text?: string
-          read_at?: string | null
+          is_read_by_admin?: boolean
+          is_read_by_buyer?: boolean
+          message_type?: string
           sender_id?: string
-          updated_at?: string
+          sender_role?: string
         }
         Relationships: [
           {
@@ -1737,6 +1740,13 @@ export type Database = {
             columns: ["connection_request_id"]
             isOneToOne: false
             referencedRelation: "connection_requests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "connection_messages_sender_id_fkey"
+            columns: ["sender_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
