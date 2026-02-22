@@ -222,6 +222,8 @@ These triggers have 2-8 versions across migrations — only the latest is active
 
 4. **Duplicate hooks** — `use-marketplace-analytics.ts` and `use-simple-marketplace-analytics.ts` both call the same RPC.
 
+5. **9 orphaned hooks removed in Phase 0**: `use-conversion-analytics.ts`, `use-deal-referrals.ts`, `use-feedback.ts`, `use-marketplace-analytics.ts`, `use-realtime-feedback.ts`, `use-revenue-intelligence.ts`, `use-storage-status.ts`, `use-url-sort.ts`, `use-user-behavior-analytics.ts` — zero imports anywhere in codebase.
+
 ### Plan
 1. **Regenerate types** after migrations run
 2. **Consolidate duplicate hooks** (marketplace analytics)
@@ -246,6 +248,25 @@ Key data duplication patterns that create sync/staleness risks:
 | Deal description | `listings.description` | `deals.description`, `listings.description_html` (computed), `listings.description_json` (rich text) | Trigger for HTML; manual for deals | `deals.description` rarely set |
 
 These should be addressed incrementally during Phases 1-3.
+
+---
+
+## Appendix: Distribution Log Split (from audit)
+
+**Status:** Half-migrated — functional but inconsistent.
+
+Data was migrated from `memo_distribution_log` → `document_release_log` (migration `20260228100000`), but the read/write paths were NOT updated:
+- **Writes:** `useLogManualSend()` still inserts into `memo_distribution_log`
+- **Reads:** `get_deal_distribution_log()` RPC still reads from `memo_distribution_log`
+- **Reads:** `get_buyer_deal_history()` RPC still reads from `memo_distribution_log`
+- **Result:** System works (reads/writes are consistent on `memo_distribution_log`), but `document_release_log` is missing post-migration manual sends
+
+### Consolidation Plan (Phase 2)
+1. Add `'manual_send'` to `document_release_log.release_method` CHECK constraint
+2. Update `get_deal_distribution_log()` to read from `document_release_log` (map `release_method` → display labels)
+3. Update `get_buyer_deal_history()` to read from `document_release_log`
+4. Update `useLogManualSend()` to write to `document_release_log`
+5. Keep `memo_distribution_log` as read-only archive, stop writing
 
 ---
 
