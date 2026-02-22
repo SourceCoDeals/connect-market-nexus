@@ -99,7 +99,7 @@ export function DealMatchedBuyersTab({ dealId }: DealMatchedBuyersTabProps) {
         .order("composite_score", { ascending: false, nullsFirst: false });
 
       if (error) throw error;
-      setBuyerScores((data as BuyerScore[]) || []);
+      setBuyerScores((data as unknown as BuyerScore[]) || []);
     } catch (error: any) {
       toast({
         title: "Error loading buyer matches",

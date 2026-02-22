@@ -85,7 +85,7 @@ export default function TrackerDetail() {
       setTracker({
         ...data,
         industry_name: data.name || 'Unknown',
-      });
+      } as any);
 
       // Load counts
       const [buyersRes, dealsRes] = await Promise.all([

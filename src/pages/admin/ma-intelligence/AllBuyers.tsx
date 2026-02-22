@@ -45,7 +45,7 @@ export default function MAAllBuyers() {
 
     const trackerMap: Record<string, string> = {};
     (trackersRes.data || []).forEach((t) => {
-      trackerMap[t.id] = t.name || t.industry_name || 'Unknown';
+      trackerMap[t.id] = t.name || 'Unknown';
     });
     setTrackers(trackerMap);
 

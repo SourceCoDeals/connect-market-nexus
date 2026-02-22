@@ -50,7 +50,7 @@ export function DealDocumentsTab({ requestId, requestStatus, dealId }: DealDocum
     queryFn: async () => {
       const { data, error } = await supabase
         .from("data_room_access")
-        .select("can_view_teaser, can_view_full_memo, can_view_data_room, fee_agreement_signed")
+        .select("can_view_teaser, can_view_full_memo, can_view_data_room, fee_agreement_override")
         .eq("deal_id", dealId)
         .eq("marketplace_user_id", user?.id)
         .is("revoked_at", null)
@@ -255,7 +255,7 @@ export function DealDocumentsTab({ requestId, requestStatus, dealId }: DealDocum
               <FileText className="h-4 w-4 text-slate-400" />
               <span className="text-sm text-slate-700">Fee Agreement</span>
             </div>
-            {access?.fee_agreement_signed ? (
+            {access?.fee_agreement_override ? (
               <Badge variant="secondary" className="bg-emerald-50 text-emerald-700 border-emerald-200 text-xs">
                 <CheckCircle2 className="h-3 w-3 mr-1" />
                 Signed

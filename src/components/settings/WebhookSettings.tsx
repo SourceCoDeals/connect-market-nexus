@@ -65,7 +65,7 @@ export function WebhookSettings({ universeId }: WebhookSettingsProps) {
     mutationFn: async () => {
       // webhook_configs may not be in generated types yet - using 'as never' for table name
       const { error } = await supabase
-        .from('webhook_configs' as never)
+        .from('webhook_configs' as any)
         .insert({
           universe_id: universeId || null,
           name: formData.name,
@@ -73,7 +73,7 @@ export function WebhookSettings({ universeId }: WebhookSettingsProps) {
           secret: formData.secret || null,
           event_types: formData.event_types,
           enabled: true
-        });
+        } as any);
 
       if (error) throw error;
     },
@@ -113,8 +113,8 @@ export function WebhookSettings({ universeId }: WebhookSettingsProps) {
     mutationFn: async ({ id, enabled }: { id: string; enabled: boolean }) => {
       // webhook_configs may not be in generated types yet - using 'as never' for table name
       const { error } = await supabase
-        .from('webhook_configs' as never)
-        .update({ enabled })
+        .from('webhook_configs' as any)
+        .update({ enabled } as any)
         .eq('id', id);
 
       if (error) throw error;

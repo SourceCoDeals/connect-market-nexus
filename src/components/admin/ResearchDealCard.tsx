@@ -63,7 +63,7 @@ export function ResearchDealCard({
   const states = Array.isArray(geographicStates) 
     ? geographicStates.slice(0, 3) 
     : typeof geographicStates === 'string' 
-      ? geographicStates.split(',').slice(0, 3).map(s => s.trim())
+      ? (geographicStates as string).split(',').slice(0, 3).map((s: string) => s.trim())
       : [];
 
   // Score color classes

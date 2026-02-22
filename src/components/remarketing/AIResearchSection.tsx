@@ -126,7 +126,7 @@ const saveGuideToDocuments = async (
     }
 
     // 3. Build updated documents array (replace any existing ma_guide)
-    const currentDocs = (universe?.documents as DocumentReference[]) || [];
+    const currentDocs = (universe?.documents as any[]) || [];
     const filteredDocs = currentDocs.filter(
       d => !d.type || d.type !== 'ma_guide'
     );
@@ -290,8 +290,8 @@ export const AIResearchSection = ({
 
       if (readError) throw readError;
 
-      const currentDocs = (universe?.documents as DocumentReference[]) || [];
-      const filteredDocs = currentDocs.filter((d: DocumentReference) => !d.type || d.type !== 'ma_guide');
+      const currentDocs = (universe?.documents as any[]) || [];
+      const filteredDocs = currentDocs.filter((d: any) => !d.type || d.type !== 'ma_guide');
       const updatedDocs = [...filteredDocs, guideDoc];
 
       // 4. Save to database — set ma_guide_content to a marker so the system knows a guide exists
@@ -335,8 +335,7 @@ export const AIResearchSection = ({
   }, [existingContent]);
 
   // Ref to hold latest checkExistingGeneration to avoid stale closures in effect
-  const checkExistingGenerationRef = useRef(checkExistingGeneration);
-  checkExistingGenerationRef.current = checkExistingGeneration;
+  const checkExistingGenerationRef = useRef<any>(null);
 
   // Check for existing generation in progress on mount
   useEffect(() => {
@@ -428,6 +427,9 @@ export const AIResearchSection = ({
       console.error('[AIResearchSection] checkExistingGeneration failed:', err);
     }
   };
+
+  // Update ref after function is defined
+  checkExistingGenerationRef.current = checkExistingGeneration;
 
   const resumeBackgroundGeneration = (generationId: string) => {
     // Clear any existing poll interval

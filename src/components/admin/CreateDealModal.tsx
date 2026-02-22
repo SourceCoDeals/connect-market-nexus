@@ -119,7 +119,7 @@ export function CreateDealModal({ open, onOpenChange, prefilledStageId, onDealCr
   } | null>(null);
 
   const form = useForm<CreateDealFormData>({
-    resolver: zodResolver(createDealSchema),
+    resolver: zodResolver(createDealSchema as any),
     defaultValues: {
       title: '',
       description: '',

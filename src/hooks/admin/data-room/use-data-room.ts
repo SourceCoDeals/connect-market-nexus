@@ -427,7 +427,7 @@ export function useUpdateMemo() {
       const { error } = await supabase
         .from('lead_memos')
         .update({
-          content,
+          content: content as any,
           html_content: htmlContent,
           version: (currentMemo?.version || 1) + 1,
           updated_at: new Date().toISOString(),

@@ -54,7 +54,7 @@ export function TrackerDealsTab({ trackerId, onDealCountChange }: TrackerDealsTa
 
       if (error) throw error;
 
-      setDeals((data || []) as MADeal[]);
+      setDeals((data || []) as unknown as MADeal[]);
       onDealCountChange?.(data?.length || 0);
     } catch (error: any) {
       toast({

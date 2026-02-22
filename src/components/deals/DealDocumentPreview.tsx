@@ -23,7 +23,7 @@ export function DealDocumentPreview({ requestId, requestStatus, dealId, onViewAl
     queryFn: async () => {
       const { data, error } = await supabase
         .from("data_room_access")
-        .select("can_view_teaser, can_view_full_memo, can_view_data_room, fee_agreement_signed")
+        .select("can_view_teaser, can_view_full_memo, can_view_data_room, fee_agreement_override")
         .eq("deal_id", dealId)
         .eq("marketplace_user_id", user?.id)
         .is("revoked_at", null)
@@ -118,7 +118,7 @@ export function DealDocumentPreview({ requestId, requestStatus, dealId, onViewAl
           <Shield className="h-3.5 w-3.5 text-slate-400 shrink-0" />
           <div className="flex items-center gap-2 flex-wrap">
             <span className="text-xs text-slate-600">Fee Agreement:</span>
-            {access?.fee_agreement_signed ? (
+            {access?.fee_agreement_override ? (
               <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4 bg-emerald-50 text-emerald-700 border-emerald-200">
                 <CheckCircle2 className="h-2.5 w-2.5 mr-0.5" />
                 Signed

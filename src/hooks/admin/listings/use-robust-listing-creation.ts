@@ -243,7 +243,7 @@ export function useRobustListingCreation() {
           }
         }
 
-        return finalListing as AdminListing;
+        return finalListing as unknown as AdminListing;
 
       } catch (error: any) {
         throw new Error(error.message || 'Failed to create listing');

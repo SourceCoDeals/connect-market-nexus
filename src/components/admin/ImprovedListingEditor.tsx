@@ -179,7 +179,7 @@ export function ImprovedListingEditor({
   const [imageError, setImageError] = useState<string | null>(null);
 
   const form = useForm<ListingFormInput, any, ListingFormValues>({
-    resolver: zodResolver(listingFormSchema),
+    resolver: zodResolver(listingFormSchema as any),
     defaultValues: convertListingToFormInput(listing),
   });
 
@@ -257,7 +257,7 @@ export function ImprovedListingEditor({
       await handleSubmit({
         ...formData,
         location: transformedLocation,
-      } as ListingFormValues);
+      } as unknown as ListingFormValues);
     } catch (error) {
       toast({
         variant: "destructive",

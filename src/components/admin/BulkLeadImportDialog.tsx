@@ -147,7 +147,7 @@ Date	Name	Email address	Company name	Phone number	Role	Message
         phone_number: phoneIndex >= 0 ? values[phoneIndex] || '' : '',
         role: roleIndex >= 0 ? values[roleIndex] || '' : '',
         message: messageIndex >= 0 ? values[messageIndex] || '' : '',
-        source: selectedSource as 'marketplace' | 'webflow' | 'manual' | 'import' | 'api' | 'website' | 'referral' | 'cold_outreach' | 'networking' | 'linkedin' | 'email',
+        source: selectedSource as any,
         source_form_name: 'bulk_import',
       };
 

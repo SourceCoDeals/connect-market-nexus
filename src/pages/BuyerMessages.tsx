@@ -30,8 +30,8 @@ function useBuyerThreads() {
       if (!user?.id) return [];
 
       // Single query: get all messages for this buyer's requests with joined request + listing data
-      const { data: messages, error } = await supabase
-        .from("connection_messages")
+      const { data: messages, error } = await (supabase
+        .from("connection_messages") as any)
         .select(`
           id, connection_request_id, sender_role, body, is_read_by_buyer, created_at,
           request:connection_requests!inner(
