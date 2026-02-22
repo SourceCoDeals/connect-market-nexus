@@ -58,7 +58,7 @@ export function ReleaseModal({
   buyers = [],
   defaultMethod = 'tracked_link',
 }: ReleaseModalProps) {
-  const [selectedBuyer, setSelectedBuyer] = useState<string>('');
+  const [selectedBuyer, setSelectedBuyer] = useState<string | undefined>(undefined);
   const [customBuyer, setCustomBuyer] = useState({ name: '', email: '', firm: '' });
   const [showCustomBuyer, setShowCustomBuyer] = useState(false);
   const [method, setMethod] = useState<'tracked_link' | 'pdf_download'>(defaultMethod);
@@ -74,7 +74,7 @@ export function ReleaseModal({
   // Reset state when modal opens
   useEffect(() => {
     if (open) {
-      setSelectedBuyer('');
+      setSelectedBuyer(undefined);
       setCustomBuyer({ name: '', email: '', firm: '' });
       setShowCustomBuyer(false);
       setMethod(defaultMethod);
