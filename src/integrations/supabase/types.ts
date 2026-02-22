@@ -1700,6 +1700,47 @@ export type Database = {
         }
         Relationships: []
       }
+      connection_messages: {
+        Row: {
+          connection_request_id: string
+          created_at: string
+          id: string
+          is_admin: boolean
+          message_text: string
+          read_at: string | null
+          sender_id: string
+          updated_at: string
+        }
+        Insert: {
+          connection_request_id: string
+          created_at?: string
+          id?: string
+          is_admin?: boolean
+          message_text: string
+          read_at?: string | null
+          sender_id: string
+          updated_at?: string
+        }
+        Update: {
+          connection_request_id?: string
+          created_at?: string
+          id?: string
+          is_admin?: boolean
+          message_text?: string
+          read_at?: string | null
+          sender_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "connection_messages_connection_request_id_fkey"
+            columns: ["connection_request_id"]
+            isOneToOne: false
+            referencedRelation: "connection_requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       connection_request_contacts: {
         Row: {
           created_at: string
