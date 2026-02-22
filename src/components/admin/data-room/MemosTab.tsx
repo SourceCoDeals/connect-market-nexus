@@ -79,6 +79,9 @@ export function MemosTab({ dealId, dealTitle }: MemosTabProps) {
     );
   }
 
+  // Anonymous Teaser is fully locked until a Full Lead Memo Final PDF exists
+  const teaserLocked = !fullMemoDoc;
+
   return (
     <div className="grid gap-6 md:grid-cols-2">
       <MemoSlotCard
@@ -88,8 +91,9 @@ export function MemosTab({ dealId, dealTitle }: MemosTabProps) {
         title="Anonymous Teaser"
         description="One-page blind profile. No company name, no owner name, no identifying details. Used for initial interest gauging."
         document={teaserDoc}
-        draft={teaserDraft}
-        generateDisabledReason={!fullMemoDoc ? "Upload a Full Lead Memo PDF first before generating the teaser." : undefined}
+        draft={teaserLocked ? undefined : teaserDraft}
+        locked={teaserLocked}
+        lockedMessage="Upload a Final PDF for the Full Lead Memo before drafting the Anonymous Teaser."
       />
       <MemoSlotCard
         dealId={dealId}
@@ -115,6 +119,8 @@ interface MemoSlotCardProps {
   document?: DataRoomDocument;
   draft?: LeadMemo;
   generateDisabledReason?: string;
+  locked?: boolean;
+  lockedMessage?: string;
 }
 
 function MemoSlotCard({
@@ -126,6 +132,8 @@ function MemoSlotCard({
   document,
   draft,
   generateDisabledReason,
+  locked,
+  lockedMessage,
 }: MemoSlotCardProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const uploadDocument = useUploadDocument();
@@ -267,6 +275,31 @@ function MemoSlotCard({
           <p className="text-xs text-muted-foreground mt-1">{description}</p>
         </CardHeader>
         <CardContent className="space-y-4">
+          {locked ? (
+            /* ─── Locked State: entire card is disabled ─── */
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">AI Draft</p>
+                <div className="flex items-center justify-center py-6 border-2 border-dashed rounded-lg bg-muted/20 opacity-60">
+                  <div className="text-center space-y-1">
+                    <FileText className="h-6 w-6 mx-auto text-muted-foreground/40" />
+                    <p className="text-xs text-muted-foreground">{lockedMessage}</p>
+                  </div>
+                </div>
+              </div>
+              <Separator />
+              <div className="space-y-2">
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Final PDF</p>
+                <div className="flex items-center justify-center py-4 border-2 border-dashed rounded-lg bg-muted/20 opacity-60">
+                  <div className="text-center">
+                    <FileUp className="h-6 w-6 mx-auto text-muted-foreground/40 mb-1" />
+                    <p className="text-xs text-muted-foreground">Requires Full Lead Memo PDF first</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : (
+          <>
           {/* ─── AI Draft Section ─── */}
           <div className="space-y-2">
             <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">AI Draft</p>
@@ -473,6 +506,8 @@ function MemoSlotCard({
             className="hidden"
             onChange={handleFileChange}
           />
+          </>
+          )}
         </CardContent>
       </Card>
 
