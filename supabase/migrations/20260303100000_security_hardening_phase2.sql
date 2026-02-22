@@ -15,6 +15,7 @@ BEGIN;
 -- A1. saved_listings — currently has NO RLS, any authenticated user can read/write all rows
 ALTER TABLE public.saved_listings ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Users can manage own saved listings" ON public.saved_listings;
 CREATE POLICY "Users can manage own saved listings"
   ON public.saved_listings
   FOR ALL
@@ -22,12 +23,14 @@ CREATE POLICY "Users can manage own saved listings"
   USING (auth.uid() = user_id)
   WITH CHECK (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Admins can manage all saved listings" ON public.saved_listings;
 CREATE POLICY "Admins can manage all saved listings"
   ON public.saved_listings
   FOR ALL
   TO authenticated
   USING (public.is_admin(auth.uid()));
 
+DROP POLICY IF EXISTS "Service role full access to saved listings" ON public.saved_listings;
 CREATE POLICY "Service role full access to saved listings"
   ON public.saved_listings
   FOR ALL
@@ -38,30 +41,35 @@ CREATE POLICY "Service role full access to saved listings"
 -- A2. connection_requests — THE deals table, currently has NO RLS
 ALTER TABLE public.connection_requests ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Users can view own connection requests" ON public.connection_requests;
 CREATE POLICY "Users can view own connection requests"
   ON public.connection_requests
   FOR SELECT
   TO authenticated
   USING (auth.uid() = user_id OR public.is_admin(auth.uid()));
 
+DROP POLICY IF EXISTS "Users can insert own connection requests" ON public.connection_requests;
 CREATE POLICY "Users can insert own connection requests"
   ON public.connection_requests
   FOR INSERT
   TO authenticated
   WITH CHECK (auth.uid() = user_id OR public.is_admin(auth.uid()));
 
+DROP POLICY IF EXISTS "Users can update own connection requests" ON public.connection_requests;
 CREATE POLICY "Users can update own connection requests"
   ON public.connection_requests
   FOR UPDATE
   TO authenticated
   USING (auth.uid() = user_id OR public.is_admin(auth.uid()));
 
+DROP POLICY IF EXISTS "Admins can delete connection requests" ON public.connection_requests;
 CREATE POLICY "Admins can delete connection requests"
   ON public.connection_requests
   FOR DELETE
   TO authenticated
   USING (public.is_admin(auth.uid()));
 
+DROP POLICY IF EXISTS "Service role full access to connection requests" ON public.connection_requests;
 CREATE POLICY "Service role full access to connection requests"
   ON public.connection_requests
   FOR ALL
@@ -82,11 +90,13 @@ DROP POLICY IF EXISTS "Users can manage buyer_contacts" ON public.buyer_contacts
 -- B2. admin_notifications — replace open authenticated INSERT with scoped policies
 -- Old policy allowed ANY authenticated user to insert; new policies restrict to admin + service_role
 DROP POLICY IF EXISTS "Authenticated system can insert notifications" ON public.admin_notifications;
+DROP POLICY IF EXISTS "Service role can insert admin notifications" ON public.admin_notifications;
 CREATE POLICY "Service role can insert admin notifications"
   ON public.admin_notifications
   FOR INSERT
   TO service_role
   WITH CHECK (true);
+DROP POLICY IF EXISTS "Admins can insert admin notifications" ON public.admin_notifications;
 CREATE POLICY "Admins can insert admin notifications"
   ON public.admin_notifications
   FOR INSERT
@@ -95,11 +105,13 @@ CREATE POLICY "Admins can insert admin notifications"
 
 -- B3. user_notifications — replace open authenticated INSERT with scoped policies
 DROP POLICY IF EXISTS "Authenticated can insert user notifications" ON public.user_notifications;
+DROP POLICY IF EXISTS "Service role can insert user notifications" ON public.user_notifications;
 CREATE POLICY "Service role can insert user notifications"
   ON public.user_notifications
   FOR INSERT
   TO service_role
   WITH CHECK (true);
+DROP POLICY IF EXISTS "Admins can insert user notifications" ON public.user_notifications;
 CREATE POLICY "Admins can insert user notifications"
   ON public.user_notifications
   FOR INSERT
