@@ -18,7 +18,6 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { supabase } from "@/integrations/supabase/client";
 import { 
   Sparkles, 
   Loader2, 
@@ -283,8 +282,8 @@ export const BulkScoringPanel = ({
 
             {lastResult.errors && lastResult.errors.length > 0 && (
               <div className="text-xs text-amber-600 bg-amber-50 rounded p-2">
-                {lastResult.errors.slice(0, 3).map((err, i) => (
-                  <p key={i}>• {err}</p>
+                {lastResult.errors.slice(0, 3).map((err) => (
+                  <p key={err}>• {err}</p>
                 ))}
                 {lastResult.errors.length > 3 && (
                   <p>... and {lastResult.errors.length - 3} more</p>

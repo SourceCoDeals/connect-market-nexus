@@ -74,7 +74,7 @@ export const IndustryKPIPanel = ({
 }: IndustryKPIPanelProps) => {
   const [isOpen, setIsOpen] = useState(false);
   const [showAddDialog, setShowAddDialog] = useState(false);
-  const [editingKPI, setEditingKPI] = useState<IndustryKPI | null>(null);
+  const [, setEditingKPI] = useState<IndustryKPI | null>(null);
   const [selectedTemplate, setSelectedTemplate] = useState<string>('');
 
   const handleAddKPI = (kpi: IndustryKPI) => {

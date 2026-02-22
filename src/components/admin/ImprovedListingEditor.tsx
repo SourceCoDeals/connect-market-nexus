@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { toast } from "@/hooks/use-toast";
 import { z } from "zod/v3";
 import { useForm } from "react-hook-form";
@@ -6,9 +6,8 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { AdminListing } from "@/types/admin";
 import { Button } from "@/components/ui/button";
 import { Form } from "@/components/ui/form";
-import { parseCurrency, formatNumber } from "@/lib/currency-utils";
-import { Loader2, Save, Eye, Globe, Target } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { parseCurrency } from "@/lib/currency-utils";
+import { Loader2, Save, Target } from "lucide-react";
 
 // Import section components
 import { EditorTopBar } from "./editor-sections/EditorTopBar";
@@ -17,7 +16,6 @@ import { EditorDescriptionSection } from "./editor-sections/EditorDescriptionSec
 import { EditorHeroDescriptionSection } from "./editor-sections/EditorHeroDescriptionSection";
 import { EditorVisualsSection } from "./editor-sections/EditorVisualsSection";
 import { EditorInternalCard } from "./editor-sections/EditorInternalCard";
-import { EDITOR_DESIGN } from "@/lib/editor-design-system";
 
 // Form schema - location accepts array from select component and transforms to string
 const listingFormSchema = z.object({
@@ -171,17 +169,20 @@ export function ImprovedListingEditor({
   onSubmit,
   listing,
   isLoading = false,
-  targetType,
 }: ImprovedListingEditorProps) {
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(listing?.image_url || null);
   const [isImageChanged, setIsImageChanged] = useState(false);
   const [imageError, setImageError] = useState<string | null>(null);
 
-  const form = useForm<ListingFormInput, any, ListingFormValues>({
-    resolver: zodResolver(listingFormSchema as any),
+  const form = useForm<ListingFormInput, unknown, ListingFormValues>({
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    resolver: zodResolver(listingFormSchema as unknown as Parameters<typeof zodResolver>[0]),
     defaultValues: convertListingToFormInput(listing),
   });
+
+  // Cast for child components that accept UseFormReturn<any>
+  const formForSections = form as unknown as import('react-hook-form').UseFormReturn<Record<string, unknown>>;
 
   const handleImageSelect = (file: File | null) => {
     if (file) {
@@ -213,16 +214,6 @@ export function ImprovedListingEditor({
     setImageError(null);
   };
 
-  const onValidationError = (errors: any) => {
-    const errorCount = Object.keys(errors).length;
-    const errorFields = Object.keys(errors).join(', ');
-    toast({
-      variant: "destructive",
-      title: "Validation Error",
-      description: `Please fix ${errorCount} error(s): ${errorFields}`,
-    });
-  };
-
   // Manual submit handler that validates first and shows errors
   const handleFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -232,7 +223,6 @@ export function ImprovedListingEditor({
       
       if (!isValid) {
         const errors = form.formState.errors;
-        const errorCount = Object.keys(errors).length;
         const errorFields = Object.keys(errors).map(key => {
           const error = errors[key as keyof typeof errors];
           return `${key}: ${(error as { message?: string })?.message || 'Invalid'}`;
@@ -343,25 +333,25 @@ export function ImprovedListingEditor({
           )}
           
           {/* TOP BAR - Critical fields */}
-          <EditorTopBar form={form} />
-          
+          <EditorTopBar form={formForSections} />
+
           {/* MAIN CONTENT - Card grid */}
           <div className="grid grid-cols-[1fr_540px] gap-8 mb-6">
               {/* Left: Financial */}
-              <EditorFinancialCard form={form} />
-              
+              <EditorFinancialCard form={formForSections} />
+
               {/* Right: Internal */}
-              <EditorInternalCard form={form} dealIdentifier={listing?.deal_identifier} />
+              <EditorInternalCard form={formForSections} dealIdentifier={listing?.deal_identifier} />
             </div>
-            
+
             {/* FULL WIDTH - Description */}
             <div className="mb-6">
-              <EditorDescriptionSection form={form} />
+              <EditorDescriptionSection form={formForSections} />
             </div>
-            
+
             {/* FULL WIDTH - Hero Description */}
             <div className="mb-6">
-              <EditorHeroDescriptionSection form={form} />
+              <EditorHeroDescriptionSection form={formForSections} />
             </div>
             
             {/* FULL WIDTH - Image */}

@@ -5,7 +5,7 @@ import { FilterOptions, PaginationState } from "@/types";
 import ListingCard from "@/components/ListingCard";
 import { Button } from "@/components/ui/button";
 import { LayoutGrid, LayoutList, ChevronLeft, ChevronRight } from "lucide-react";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Select,
   SelectContent,
@@ -14,7 +14,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "@/hooks/use-toast";
-import { Skeleton } from "@/components/ui/skeleton";
 import { useAllSavedListingIds } from "@/hooks/marketplace/use-saved-listings";
 import { useAllConnectionStatuses } from "@/hooks/marketplace/use-connections";
 

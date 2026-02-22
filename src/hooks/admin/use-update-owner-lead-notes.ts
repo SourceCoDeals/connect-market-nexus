@@ -21,7 +21,7 @@ export function useUpdateOwnerLeadNotes() {
         description: "Lead notes have been updated.",
       });
     },
-    onError: (error) => {
+    onError: (_error) => {
       toast({
         variant: "destructive",
         title: "Error",

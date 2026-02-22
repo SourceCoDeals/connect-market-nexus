@@ -2,7 +2,6 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "@/hooks/use-toast";
-import { z } from "zod/v3";
 import bradDaughertyImage from '@/assets/brad-daugherty.png';
 import sfcLogo from '@/assets/sfc-logo.png';
 import { Button } from "@/components/ui/button";
@@ -31,14 +30,11 @@ const steps = [
   "Buyer Profile",
 ];
 
-import { STANDARDIZED_CATEGORIES } from "@/lib/financial-parser";
-import { MultiCategorySelect } from "@/components/ui/category-select";
-import { MultiLocationSelect } from "@/components/ui/location-select";
 import { EnhancedMultiCategorySelect } from "@/components/ui/enhanced-category-select";
 import { EnhancedMultiLocationSelect } from "@/components/ui/enhanced-location-select";
 import { EnhancedCurrencyInput } from "@/components/ui/enhanced-currency-input";
 import { FIELD_HELPERS } from "@/lib/field-helpers";
-import { REVENUE_RANGES, FUND_AUM_RANGES, INVESTMENT_RANGES, DEAL_SIZE_RANGES } from "@/lib/currency-ranges";
+import { REVENUE_RANGES, DEAL_SIZE_RANGES } from "@/lib/currency-ranges";
 import { InvestmentSizeSelect } from "@/components/ui/investment-size-select";
 import { 
   DEPLOYING_CAPITAL_OPTIONS,
@@ -237,11 +233,6 @@ const Signup = () => {
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleBuyerSpecificChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
-  };
-
   const handleBuyerTypeChange = (value: string) => {
     setFormData((prev) => ({
       ...prev,
@@ -263,15 +254,6 @@ const Signup = () => {
       geographicFocus: "",
       industryExpertise: "",
       dealStructurePreference: "",
-    }));
-  };
-
-  const handleBusinessCategoryChange = (categoryValue: string, checked: boolean) => {
-    setFormData((prev) => ({
-      ...prev,
-      businessCategories: checked
-        ? [...prev.businessCategories, categoryValue]
-        : prev.businessCategories.filter((cat) => cat !== categoryValue),
     }));
   };
 
@@ -1676,8 +1658,8 @@ const Signup = () => {
           {validationErrors.length > 0 && (
             <div className="bg-destructive/10 border border-destructive/20 text-destructive p-4 rounded-lg mb-6">
               <ul className="list-disc pl-4 space-y-1 text-sm">
-                {validationErrors.map((error, index) => (
-                  <li key={index}>{error}</li>
+                {validationErrors.map((error) => (
+                  <li key={error}>{error}</li>
                 ))}
               </ul>
             </div>

@@ -21,29 +21,29 @@ export function useRecentUserActivity() {
     queryKey: ['user-activity'],
     queryFn: async () => {
       // Get recent listing analytics with user info
-      const { data: listingActivity, error: listingError } = await supabase
+      const { data: listingActivity } = await supabase
         .from('listing_analytics')
         .select('*')
         .order('created_at', { ascending: false })
         .limit(20);
 
-      const { data: pageActivity, error: pageError } = await supabase
+      const { data: pageActivity } = await supabase
         .from('page_views')
         .select('*')
         .order('created_at', { ascending: false })
         .limit(20);
 
-      const { data: userEvents, error: eventsError } = await supabase
+      const { data: userEvents } = await supabase
         .from('user_events')
         .select('*')
         .order('created_at', { ascending: false })
         .limit(20);
 
       // Get all unique user IDs
-      const userIds = new Set([
-        ...(listingActivity || []).map(item => item.user_id).filter(Boolean),
-        ...(pageActivity || []).map(item => item.user_id).filter(Boolean),
-        ...(userEvents || []).map(item => item.user_id).filter(Boolean),
+      const userIds = new Set<string>([
+        ...(listingActivity || []).map(item => item.user_id).filter((id): id is string => id !== null && id !== undefined),
+        ...(pageActivity || []).map(item => item.user_id).filter((id): id is string => id !== null && id !== undefined),
+        ...(userEvents || []).map(item => item.user_id).filter((id): id is string => id !== null && id !== undefined),
       ]);
 
       // Get user profiles in one query
@@ -57,7 +57,7 @@ export function useRecentUserActivity() {
       }
 
       // Get listings for listing activities
-      const listingIds = (listingActivity || []).map(item => item.listing_id).filter(Boolean);
+      const listingIds = (listingActivity || []).map(item => item.listing_id).filter((id): id is string => id !== null && id !== undefined);
       const { data: listings, error: listingsError } = await supabase
         .from('listings')
         .select('id, title')
@@ -74,46 +74,46 @@ export function useRecentUserActivity() {
       // Combine and format all activities
       const activities: UserActivity[] = [
         ...(listingActivity || []).map(item => {
-          const profile = profileMap.get(item.user_id);
-          const listing = listingMap.get(item.listing_id);
+          const profile = item.user_id ? profileMap.get(item.user_id) : undefined;
+          const listing = item.listing_id ? listingMap.get(item.listing_id) : undefined;
           return {
             id: item.id,
-            created_at: item.created_at,
-            user_id: item.user_id,
+            created_at: item.created_at ?? new Date().toISOString(),
+            user_id: item.user_id ?? '',
             activity_type: 'listing_action',
-            action_type: item.action_type,
-            listing_id: item.listing_id,
-            email: profile?.email || 'Unknown User',
-            first_name: profile?.first_name || '',
-            last_name: profile?.last_name || '',
-            listing_title: listing?.title || 'Unknown Listing',
+            action_type: item.action_type ?? undefined,
+            listing_id: item.listing_id ?? undefined,
+            email: profile?.email ?? 'Unknown User',
+            first_name: (profile?.first_name ?? '') || '',
+            last_name: (profile?.last_name ?? '') || '',
+            listing_title: listing?.title ?? 'Unknown Listing',
           };
         }),
         ...(pageActivity || []).map(item => {
-          const profile = profileMap.get(item.user_id);
+          const profile = item.user_id ? profileMap.get(item.user_id) : undefined;
           return {
             id: item.id,
-            created_at: item.created_at,
-            user_id: item.user_id,
+            created_at: item.created_at ?? new Date().toISOString(),
+            user_id: item.user_id ?? '',
             activity_type: 'page_view',
-            page_path: item.page_path,
-            email: profile?.email || 'Unknown User',
-            first_name: profile?.first_name || '',
-            last_name: profile?.last_name || '',
+            page_path: item.page_path ?? undefined,
+            email: profile?.email ?? 'Unknown User',
+            first_name: (profile?.first_name ?? '') || '',
+            last_name: (profile?.last_name ?? '') || '',
           };
         }),
         ...(userEvents || []).map(item => {
-          const profile = profileMap.get(item.user_id);
+          const profile = item.user_id ? profileMap.get(item.user_id) : undefined;
           return {
             id: item.id,
-            created_at: item.created_at,
-            user_id: item.user_id,
+            created_at: item.created_at ?? new Date().toISOString(),
+            user_id: item.user_id ?? '',
             activity_type: 'user_event',
-            action_type: `${item.event_type}_${item.event_action}`,
-            page_path: item.page_path,
-            email: profile?.email || 'Unknown User',
-            first_name: profile?.first_name || '',
-            last_name: profile?.last_name || '',
+            action_type: `${item.event_type ?? ''}_${item.event_action ?? ''}`,
+            page_path: item.page_path ?? undefined,
+            email: profile?.email ?? 'Unknown User',
+            first_name: (profile?.first_name ?? '') || '',
+            last_name: (profile?.last_name ?? '') || '',
             metadata: item.metadata,
           };
         })

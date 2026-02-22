@@ -1,17 +1,13 @@
-
-import { useState, useEffect } from "react";
 import { FilterOptions } from "@/types";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Slider } from "@/components/ui/slider";
 import { Filter, DollarSign, Bell } from "lucide-react";
 import { useAnalyticsTracking } from "@/hooks/use-analytics-tracking";
 import { CreateDealAlertDialog } from "./deal-alerts/CreateDealAlertDialog";
 import { STANDARDIZED_CATEGORIES, STANDARDIZED_LOCATIONS } from "@/lib/financial-parser";
-import { toStandardCategory, toStandardLocation } from "@/lib/standardization";
 
 // Filter panel props
 export interface FilterPanelProps {
@@ -62,8 +58,8 @@ const FilterPanel = ({
   onResetFilters,
   totalListings,
   filteredCount,
-  categories = [],
-  locations = [],
+  categories: _categories = [],
+  locations: _locations = [],
   currentFilters
 }: FilterPanelProps) => {
   const { trackSearch } = useAnalyticsTracking();

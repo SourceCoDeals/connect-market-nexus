@@ -15,7 +15,6 @@ import {
 import { Badge } from "@/components/ui/badge";
 import AcquisitionTypeBadge from "@/components/listing/AcquisitionTypeBadge";
 import ListingStatusTag from "@/components/listing/ListingStatusTag";
-import { useAdminProfiles } from "@/hooks/admin/use-admin-profiles";
 import { ADMIN_PROFILES } from "@/lib/admin-profiles";
 
 interface EditorBasicInfoSectionProps {

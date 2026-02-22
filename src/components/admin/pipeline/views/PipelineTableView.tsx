@@ -1,5 +1,4 @@
 
-import React from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -12,15 +11,10 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { 
-  DollarSign, 
-  Calendar, 
-  User,
-  Building2,
   MoreVertical,
   ArrowUpDown
 } from 'lucide-react';
 import { usePipelineCore } from '@/hooks/admin/use-pipeline-core';
-import { Deal } from '@/hooks/admin/use-deals';
 import { formatDistanceToNow } from 'date-fns';
 
 interface PipelineTableViewProps {

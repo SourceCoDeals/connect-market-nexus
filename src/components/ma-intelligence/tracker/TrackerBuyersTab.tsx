@@ -1,13 +1,12 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Loader2 } from "lucide-react";
 import { TrackerBuyersToolbar } from "./TrackerBuyersToolbar";
 import { TrackerBuyersTable } from "./TrackerBuyersTable";
 import { AddBuyerDialog } from "./AddBuyerDialog";
 import { DedupeDialog } from "./DedupeDialog";
-import { InterruptedSessionBanner, saveSessionState, clearSessionState } from "./InterruptedSessionBanner";
+import { InterruptedSessionBanner, clearSessionState } from "./InterruptedSessionBanner";
 import { useToast } from "@/hooks/use-toast";
 import type { MABuyer } from "@/lib/ma-intelligence/types";
 import { useRealtimeTrackerBuyers } from "@/hooks/ma-intelligence/useRealtimeTrackerBuyers";
@@ -38,7 +37,7 @@ export function TrackerBuyersTab({ trackerId, onBuyerCountChange }: TrackerBuyer
   const { toast } = useToast();
   const { user } = useAuth();
   const { startOrQueueMajorOp } = useGlobalGateCheck();
-  const { completeOperation, updateProgress } = useGlobalActivityMutations();
+  const { completeOperation, updateProgress: _updateProgress } = useGlobalActivityMutations();
 
   const loadBuyers = useCallback(async () => {
     if (!trackerId || trackerId === 'new') return;

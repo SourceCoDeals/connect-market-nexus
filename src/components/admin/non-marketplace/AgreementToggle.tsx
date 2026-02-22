@@ -82,8 +82,8 @@ export const AgreementToggle = ({ user, type, checked }: AgreementToggleProps) =
         const { error } = await supabase.rpc(rpcName, {
           p_firm_id: user.firm_id,
           p_is_signed: isSigned,
-          p_signed_by_user_id: isSigned ? signerId : null,
-          p_signed_at: isSigned ? new Date().toISOString() : null,
+          p_signed_by_user_id: isSigned ? (signerId ?? undefined) : undefined,
+          p_signed_at: isSigned ? new Date().toISOString() : undefined,
         });
         if (error) throw error;
       } else {

@@ -38,7 +38,7 @@ export interface DealSourcingFilters {
 }
 
 export const useDealSourcingRequests = (filters?: DealSourcingFilters) => {
-  const { user, authChecked, isAdmin } = useAuth();
+  const { user: _user, authChecked, isAdmin } = useAuth();
 
   // Get cached auth state for more stable query enabling
   const cachedAuthState = (() => {

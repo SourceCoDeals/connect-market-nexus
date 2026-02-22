@@ -1,4 +1,3 @@
-import React from 'react';
 import DOMPurify from 'dompurify';
 import { cn } from '@/lib/utils';
 

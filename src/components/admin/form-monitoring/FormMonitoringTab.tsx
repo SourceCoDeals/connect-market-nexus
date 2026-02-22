@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
@@ -75,7 +75,6 @@ export function FormMonitoringTab() {
   const loadMetrics = useCallback(async () => {
     setIsLoading(true);
     try {
-      const endDate = new Date();
       const startDate = new Date();
 
       switch (timeRange) {
@@ -138,7 +137,6 @@ export function FormMonitoringTab() {
     );
   }
 
-  const healthStatus = getHealthStatus(metrics.completionRate);
   const totalErrors = metrics.validationErrors.reduce((sum, error) => sum + error.errorCount, 0);
 
   const stats = [
@@ -312,8 +310,8 @@ export function FormMonitoringTab() {
                 impact: 'High',
                 effort: 'Medium',
               },
-            ].map((rec, index) => (
-              <div key={index} className="p-4 bg-background border rounded-lg">
+            ].map((rec) => (
+              <div key={rec.title} className="p-4 bg-background border rounded-lg">
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-1">
@@ -433,8 +431,8 @@ export function FormMonitoringTab() {
             <CardContent>
               {metrics.validationErrors.length > 0 ? (
                 <div className="space-y-3">
-                  {metrics.validationErrors.map((error, index) => (
-                    <div key={index} className="flex items-center justify-between p-4 border rounded-lg">
+                  {metrics.validationErrors.map((error) => (
+                    <div key={`${error.field}-${error.errorType}`} className="flex items-center justify-between p-4 border rounded-lg">
                       <div className="flex items-center gap-3">
                         <XCircle className="h-5 w-5 text-destructive flex-shrink-0" />
                         <div>

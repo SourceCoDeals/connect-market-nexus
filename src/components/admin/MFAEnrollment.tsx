@@ -17,7 +17,7 @@ import { Shield, ShieldCheck, ShieldOff, Loader2, Copy, Check } from "lucide-rea
 import { toast } from "sonner";
 
 export function MFAEnrollment() {
-  const { status, factors, isLoading, error, enroll, verify, unenroll, refresh } = useMFA();
+  const { factors, isLoading, error, enroll, verify, unenroll, refresh } = useMFA();
   const [enrollData, setEnrollData] = useState<{
     id: string;
     qr_code: string;

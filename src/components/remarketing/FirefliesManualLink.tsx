@@ -386,8 +386,8 @@ export const FirefliesManualLink = ({
                       {result.summary && <p className="text-xs text-muted-foreground line-clamp-2">{result.summary}</p>}
                       {result.keywords.length > 0 && (
                         <div className="flex flex-wrap gap-1">
-                          {result.keywords.slice(0, 4).map((keyword, i) => (
-                            <Badge key={i} variant="outline" className="text-xs">{keyword}</Badge>
+                          {result.keywords.slice(0, 4).map((keyword) => (
+                            <Badge key={keyword} variant="outline" className="text-xs">{keyword}</Badge>
                           ))}
                         </div>
                       )}

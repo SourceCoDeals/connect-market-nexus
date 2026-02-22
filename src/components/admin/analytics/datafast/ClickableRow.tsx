@@ -1,6 +1,6 @@
 import { ReactNode } from "react";
 import { Filter } from "lucide-react";
-import { useAnalyticsFilters, FilterType, AnalyticsFilter } from "@/contexts/AnalyticsFiltersContext";
+import { useAnalyticsFilters, AnalyticsFilter } from "@/contexts/AnalyticsFiltersContext";
 import { cn } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 

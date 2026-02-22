@@ -46,7 +46,7 @@ export function AdminNavbar({ className }: AdminNavbarProps) {
   const { unviewedCount: unviewedDealSourcingCount } = useUnviewedDealSourcingCount();
   const { unviewedCount: unviewedConnectionRequestsCount } = useUnviewedConnectionRequests();
   const { unviewedCount: unviewedUsersCount } = useUnviewedUsers();
-  const { unviewedCount: unviewedOwnerLeadsCount } = useUnviewedOwnerLeads();
+  const { unviewedCount: _unviewedOwnerLeadsCount } = useUnviewedOwnerLeads();
 
   const navItems: MobileNavItem[] = [
     {

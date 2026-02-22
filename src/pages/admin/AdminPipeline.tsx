@@ -1,4 +1,3 @@
-import React from 'react';
 import { PipelineShell } from '@/components/admin/pipeline/PipelineShell';
 import { AdminErrorBoundary } from '@/components/admin/AdminErrorBoundary';
 

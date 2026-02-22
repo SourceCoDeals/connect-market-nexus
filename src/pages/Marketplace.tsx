@@ -1,15 +1,14 @@
-import { useEffect, useCallback, useState, useMemo } from "react";
+import { useEffect, useCallback, useState } from "react";
 import { useSimplePagination } from '@/hooks/use-simple-pagination';
 import { useSimpleListings, useListingMetadata } from '@/hooks/use-simple-listings';
 import { useOnboarding } from "@/hooks/use-onboarding";
-import { FilterOptions } from "@/types";
 import ListingCard from "@/components/ListingCard";
 import FilterPanel from "@/components/FilterPanel";
 import OnboardingPopup from "@/components/onboarding/OnboardingPopup";
 import { SearchSessionProvider } from "@/contexts/SearchSessionContext";
 import { useSearchSession } from "@/hooks/use-search-session";
 import { Button } from "@/components/ui/button";
-import { LayoutGrid, LayoutList, ChevronLeft, ChevronRight } from "lucide-react";
+import { LayoutGrid, LayoutList } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { LoadingSpinner } from "@/components/LoadingSpinner";
 import { useAllSavedListingIds } from "@/hooks/marketplace/use-saved-listings";
@@ -130,35 +129,6 @@ const MarketplaceContent = () => {
     
     return result;
   }, [currentPage, totalPages]);
-
-  const renderSkeletons = () => {
-    return Array(pagination.state.perPage || 8)
-      .fill(0)
-      .map((_, index) => (
-        <div
-          key={`skeleton-${index}`}
-          className="bg-white rounded-lg border border-border overflow-hidden h-full flex flex-col"
-        >
-          <div className="p-6">
-            <div className="flex space-x-2 mb-2">
-              <div className="h-6 w-16 bg-muted rounded skeleton"></div>
-              <div className="h-6 w-20 bg-muted rounded skeleton"></div>
-            </div>
-            <div className="h-7 w-4/5 bg-muted rounded mb-4 skeleton"></div>
-            <div className="grid grid-cols-2 gap-2 mb-4">
-              <div className="h-16 bg-muted rounded skeleton"></div>
-              <div className="h-16 bg-muted rounded skeleton"></div>
-            </div>
-            <div className="space-y-2 mb-6">
-              <div className="h-4 w-full bg-muted rounded skeleton"></div>
-              <div className="h-4 w-11/12 bg-muted rounded skeleton"></div>
-              <div className="h-4 w-4/5 bg-muted rounded skeleton"></div>
-            </div>
-            <div className="h-10 w-full bg-muted rounded skeleton"></div>
-          </div>
-        </div>
-      ));
-  };
 
   // Only show loading while auth is being checked - don't let onboarding block the UI
   if (!authChecked) {

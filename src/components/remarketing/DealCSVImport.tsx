@@ -41,7 +41,6 @@ import {
   type MergeStats,
   DEAL_IMPORT_FIELDS,
   normalizeHeader,
-  processRow,
   mergeColumnMappings,
   sanitizeListingInsert,
 } from "@/lib/deal-csv-import";
@@ -58,12 +57,12 @@ type ImportStep = "upload" | "mapping" | "preview" | "importing" | "complete";
 
 export const DealCSVImport = ({
   universeId,
-  universeName,
+  universeName: _universeName,
   onImportComplete,
 }: DealCSVImportProps) => {
   const queryClient = useQueryClient();
   const [step, setStep] = useState<ImportStep>("upload");
-  const [file, setFile] = useState<File | null>(null);
+  const [, setFile] = useState<File | null>(null);
   const [csvData, setCsvData] = useState<Record<string, string>[]>([]);
   const [columnMappings, setColumnMappings] = useState<ColumnMapping[]>([]);
   const [mappingStats, setMappingStats] = useState<MergeStats | null>(null);
@@ -580,7 +579,7 @@ export const DealCSVImport = ({
                 </TableHeader>
                 <TableBody>
                   {csvData.slice(0, 10).map((row, i) => (
-                    <TableRow key={i}>
+                    <TableRow key={`row-${i}`}>
                       <TableCell className="text-muted-foreground">{i + 1}</TableCell>
                       {columnMappings
                         .filter((m) => m.targetField)
@@ -638,8 +637,8 @@ export const DealCSVImport = ({
             {importResults.errors.length > 0 && (
               <ScrollArea className="max-h-32 w-full border rounded-lg p-4 mt-4">
                 <div className="space-y-1 text-sm text-destructive">
-                  {importResults.errors.map((error, i) => (
-                    <p key={i}>{error}</p>
+                  {importResults.errors.map((error) => (
+                    <p key={error}>{error}</p>
                   ))}
                 </div>
               </ScrollArea>

@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Activity, Pause, Play, X, ChevronDown, ChevronUp, AlertCircle, CheckCircle2, Clock, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -11,7 +11,6 @@ import {
 } from "@/hooks/remarketing/useGlobalActivityQueue";
 import { OPERATION_TYPE_LABELS } from "@/types/remarketing";
 import type { GlobalActivityQueueItem } from "@/types/remarketing";
-import { cn } from "@/lib/utils";
 
 function formatTimeAgo(dateStr: string): string {
   const diff = Date.now() - new Date(dateStr).getTime();

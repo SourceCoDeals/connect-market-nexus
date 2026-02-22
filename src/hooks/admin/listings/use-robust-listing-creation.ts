@@ -97,7 +97,7 @@ export function useRobustListingCreation() {
       listing,
       image,
       sendDealAlerts,
-      targetType,
+      targetType: _targetType,
     }: {
       listing: Omit<AdminListing, 'id' | 'created_at' | 'updated_at'>;
       image?: File | null;
@@ -308,7 +308,7 @@ async function triggerDealAlertsForListing(listing: any): Promise<void> {
 
           // Trigger edge function
           try {
-            const { data, error: functionError } = await supabase.functions.invoke('send-deal-alert', {
+            const { error: functionError } = await supabase.functions.invoke('send-deal-alert', {
               body: {
                 alert_id: alert.alert_id,
                 user_email: alert.user_email,

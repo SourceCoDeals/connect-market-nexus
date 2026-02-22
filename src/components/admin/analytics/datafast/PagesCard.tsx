@@ -100,11 +100,11 @@ export function PagesCard({ topPages, entryPages, exitPages, blogEntryPages }: P
           <div className="space-y-1">
             {activeTab === 'page' && (
               <>
-                {topPages.slice(0, 8).map((page, i) => {
+                {topPages.slice(0, 8).map((page) => {
                   const isActive = hasFilter('page', page.path);
                   return (
                     <AnalyticsTooltip
-                      key={`${page.path}-${i}`}
+                      key={page.path}
                       title={page.path}
                       rows={[
                         { label: 'Visitors', value: page.visitors.toLocaleString() },
@@ -139,11 +139,11 @@ export function PagesCard({ topPages, entryPages, exitPages, blogEntryPages }: P
             
             {activeTab === 'entry' && (
               <>
-                {mergedEntryPages.slice(0, 8).map((page, i) => {
+                {mergedEntryPages.slice(0, 8).map((page) => {
                   const isActive = hasFilter('page', page.path);
                   return (
                     <AnalyticsTooltip
-                      key={`${page.path}-${i}`}
+                      key={page.path}
                       title={page.path}
                       rows={[
                         { label: 'Entries', value: page.visitors.toLocaleString() },
@@ -188,11 +188,11 @@ export function PagesCard({ topPages, entryPages, exitPages, blogEntryPages }: P
             
             {activeTab === 'exit' && (
               <>
-                {exitPages.slice(0, 8).map((page, i) => {
+                {exitPages.slice(0, 8).map((page) => {
                   const isActive = hasFilter('page', page.path);
                   return (
                     <AnalyticsTooltip
-                      key={`${page.path}-${i}`}
+                      key={page.path}
                       title={page.path}
                       rows={[
                         { label: 'Exits', value: page.exits.toLocaleString() },

@@ -9,22 +9,11 @@ import { supabase } from "@/integrations/supabase/client";
 import type { Json } from "@/integrations/supabase/types";
 import { useSessionContext } from "@/contexts/SessionContext";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { RichTextDisplay } from "@/components/ui/rich-text-display";
 import {
-  Building2,
   ChevronLeft,
-  AlertTriangle,
-  ImageIcon,
-  MapPin,
-  Share2,
   ExternalLink,
-  Sparkles,
 } from "lucide-react";
-import { DEFAULT_IMAGE } from "@/lib/storage-utils";
 import { formatCurrency } from "@/lib/currency-utils";
-import ListingInfo from "@/components/listing-detail/ListingInfo";
 import ConnectionButton from "@/components/listing-detail/ConnectionButton";
 import BlurredFinancialTeaser from "@/components/listing-detail/BlurredFinancialTeaser";
 import { EnhancedInvestorDashboard } from "@/components/listing-detail/EnhancedInvestorDashboard";
@@ -35,10 +24,7 @@ import { EnhancedFinancialGrid } from "@/components/listing-detail/EnhancedFinan
 import { DealAdvisorCard } from "@/components/listing-detail/DealAdvisorCard";
 import { DealSourcingCriteriaDialog } from "@/components/listing-detail/DealSourcingCriteriaDialog";
 
-import { EditableTitle } from "@/components/listing-detail/EditableTitle";
 import { EditableDescription } from "@/components/listing-detail/EditableDescription";
-import { CategoryLocationBadges } from "@/components/shared/CategoryLocationBadges";
-import { CalendarIcon, DocumentIcon, BuildingIcon } from "@/components/icons/MetricIcons";
 import { SimilarListingsCarousel } from "@/components/listing-detail/SimilarListingsCarousel";
 import { EnhancedSaveButton } from "@/components/listing-detail/EnhancedSaveButton";
 import { InternalCompanyInfoDisplay } from "@/components/admin/InternalCompanyInfoDisplay";
@@ -46,14 +32,11 @@ import { BuyerDataRoom } from "@/components/marketplace/BuyerDataRoom";
 import { NdaGateModal } from "@/components/docuseal/NdaGateModal";
 import { useBuyerNdaStatus } from "@/hooks/admin/use-docuseal";
 import { AgreementStatusBanner } from "@/components/marketplace/AgreementStatusBanner";
-import { useQueryClient } from "@tanstack/react-query";
 
 const ListingDetail = () => {
   const { id } = useParams<{ id: string }>();
   const { user } = useAuth();
   const [showDealSourcingDialog, setShowDealSourcingDialog] = useState(false);
-  
-  const queryClient = useQueryClient();
   
   // Click tracking for engagement analytics
   const { getClickData, resetTracking } = useClickTracking(true);
@@ -175,9 +158,6 @@ const ListingDetail = () => {
   // Extract isInactive safely with fallback to false if status is undefined
   const isInactive = listing?.status === "inactive";
   
-  // Use listing's image_url or fallback to default image
-  const imageUrl = listing?.image_url || DEFAULT_IMAGE;
-
   // Show NDA gate modal for unsigned buyers
   if (showNdaGate && ndaStatus?.firmId) {
     return (
@@ -244,7 +224,7 @@ const ListingDetail = () => {
                   listing.metric_3_type === 'custom' && listing.metric_3_custom_label ? {
                     label: listing.metric_3_custom_label,
                     value: listing.metric_3_custom_value || '',
-                    subtitle: listing.metric_3_custom_subtitle
+                    subtitle: listing.metric_3_custom_subtitle ?? undefined
                   } : {
                     label: "Team Size",
                     value: `${(listing.full_time_employees || 0) + (listing.part_time_employees || 0)}`,
@@ -254,7 +234,7 @@ const ListingDetail = () => {
                   listing.metric_4_type === 'custom' && listing.metric_4_custom_label ? {
                     label: listing.metric_4_custom_label,
                     value: listing.metric_4_custom_value || '',
-                    subtitle: listing.metric_4_custom_subtitle
+                    subtitle: listing.metric_4_custom_subtitle ?? undefined
                   } : {
                     label: "EBITDA Margin",
                     value: listing.revenue > 0 ? `${((listing.ebitda / listing.revenue) * 100).toFixed(1)}%` : '0%',
@@ -266,13 +246,13 @@ const ListingDetail = () => {
 
             {/* Internal Company Information - Admin Only */}
             {isAdmin && listing && (
-              <InternalCompanyInfoDisplay listing={listing} />
+              <InternalCompanyInfoDisplay listing={listing as unknown as import("@/types/admin").AdminListing} />
             )}
 
             {/* Financial Summary */}
             <div>
-              <EnhancedInvestorDashboard 
-                listing={listing}
+              <EnhancedInvestorDashboard
+                listing={listing as unknown as import("@/types/admin").AdminListing}
                 formatCurrency={formatCurrency}
               />
             </div>
@@ -370,8 +350,8 @@ const ListingDetail = () => {
             {listing.custom_sections && Array.isArray(listing.custom_sections) && listing.custom_sections.length > 0 && (
               <div className="document-section py-8 border-t border-slate-100">
                 <div className="space-y-6">
-                  {listing.custom_sections.map((section: { title: string; description: string }, index: number) => (
-                    <CustomSection key={index} section={section} />
+                  {listing.custom_sections.map((section: { title: string; description: string }) => (
+                    <CustomSection key={section.title} section={section} />
                   ))}
                 </div>
               </div>

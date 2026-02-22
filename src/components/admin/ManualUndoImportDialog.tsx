@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { AlertTriangle, Trash2, FileText, Calendar, User, Package } from 'lucide-react';
@@ -20,7 +20,7 @@ interface ImportBatch {
   listing_id: string;
   listing_title: string;
   imported_count: number;
-  import_date: string;
+  import_date: string | null;
   admin_name: string;
   batch_id?: string;
 }
@@ -41,7 +41,7 @@ export function ManualUndoImportDialog({ isOpen, onClose }: ManualUndoImportDial
     if (!strictMode) return requestsToDelete;
     const expected = selectedBatch.imported_count || 0;
     if (expected === 0 || requestsToDelete.length <= expected) return requestsToDelete;
-    const targetTime = new Date(selectedBatch.import_date).getTime();
+    const targetTime = new Date(selectedBatch.import_date ?? 0).getTime();
     return [...requestsToDelete]
       .sort((a, b) => Math.abs(new Date(a.created_at).getTime() - targetTime) - Math.abs(new Date(b.created_at).getTime() - targetTime))
       .slice(0, expected);
@@ -68,7 +68,7 @@ export function ManualUndoImportDialog({ isOpen, onClose }: ManualUndoImportDial
       if (auditError) throw auditError;
 
       // Get admin names
-      const adminIds = [...new Set(auditLogs?.map(log => log.admin_id).filter(Boolean) || [])];
+      const adminIds = [...new Set(auditLogs?.map(log => log.admin_id).filter((id): id is string => id !== null) || [])];
       const { data: adminProfiles, error: adminProfilesError } = await supabase
         .from('profiles')
         .select('id, first_name, last_name, email')
@@ -99,7 +99,7 @@ export function ManualUndoImportDialog({ isOpen, onClose }: ManualUndoImportDial
           listing_title: listingMap.get(metadata.listing_id as string) || 'Unknown Listing',
           imported_count: (metadata.rows_imported as number) || 0,
           import_date: log.timestamp,
-          admin_name: adminMap.get(log.admin_id) || 'Unknown Admin',
+          admin_name: (log.admin_id ? adminMap.get(log.admin_id) : undefined) || 'Unknown Admin',
           batch_id: metadata.batch_id as string | undefined,
         };
       });
@@ -285,7 +285,7 @@ export function ManualUndoImportDialog({ isOpen, onClose }: ManualUndoImportDial
                             </div>
                             <div className="flex items-center gap-2">
                               <Calendar className="h-3 w-3" />
-                              <span>{format(new Date(batch.import_date), 'MMM d, yyyy h:mm a')}</span>
+                              <span>{batch.import_date ? format(new Date(batch.import_date), 'MMM d, yyyy h:mm a') : 'N/A'}</span>
                             </div>
                             <div className="flex items-center gap-2">
                               <User className="h-3 w-3" />
@@ -326,7 +326,7 @@ export function ManualUndoImportDialog({ isOpen, onClose }: ManualUndoImportDial
                   <div>
                     <div className="text-muted-foreground mb-1">Imported On</div>
                     <div className="font-medium">
-                      {format(new Date(selectedBatch.import_date), 'MMM d, yyyy h:mm a')}
+                      {selectedBatch.import_date ? format(new Date(selectedBatch.import_date), 'MMM d, yyyy h:mm a') : 'N/A'}
                     </div>
                   </div>
                   <div>

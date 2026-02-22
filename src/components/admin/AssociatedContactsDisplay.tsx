@@ -1,9 +1,8 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { Separator } from "@/components/ui/separator";
 import { ChevronDown, ChevronUp, Users, Mail, Phone, Building2, User, Plus } from "lucide-react";
 import { useAssociatedContactsQuery } from "@/hooks/admin/use-associated-contacts";
 import { AdminConnectionRequest } from "@/types/admin";
@@ -73,7 +72,7 @@ export const AssociatedContactsDisplay = ({
             Other contacts from the same firm interested in this listing:
           </div>
           
-          {contacts?.map((contact, index) => (
+          {contacts?.map((contact, _index) => (
             <Card key={contact.id} className="border border-border/30">
               <CardContent className="p-3">
                 <div className="space-y-2">

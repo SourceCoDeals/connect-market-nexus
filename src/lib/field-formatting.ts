@@ -143,7 +143,7 @@ export function formatFieldValueForExport(fieldKey: string, value: any): string 
 /**
  * Get all relevant fields for a buyer type with proper formatting
  */
-export function getFormattedUserFields(user: any, buyerType: string) {
+export function getFormattedUserFields(user: any, _buyerType: string) {
   const fields: Record<string, string> = {};
   
   // Get all user fields and format them

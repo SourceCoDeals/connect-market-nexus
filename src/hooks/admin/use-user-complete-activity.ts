@@ -1,8 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { AdminConnectionRequest } from '@/types/admin';
-import { createUserObject } from '@/lib/auth-helpers';
-import { createListingFromData } from '@/utils/user-helpers';
 import { createQueryKey } from '@/lib/query-keys';
 
 export interface UserTimelineActivity {
@@ -44,7 +41,7 @@ export function useUserCompleteActivity(userId: string) {
         // Account creation
         activities.push({
           id: `signup-${userId}`,
-          timestamp: userProfile.created_at,
+          timestamp: userProfile.created_at ?? new Date().toISOString(),
           type: 'system_event',
           title: 'Account Created',
           description: 'User signed up to the platform',
@@ -55,7 +52,7 @@ export function useUserCompleteActivity(userId: string) {
         if (userProfile.email_verified) {
           activities.push({
             id: `verified-${userId}`,
-            timestamp: userProfile.created_at, // Approximate, could be later
+            timestamp: userProfile.created_at ?? new Date().toISOString(), // Approximate, could be later
             type: 'system_event',
             title: 'Email Verified',
             description: 'User verified their email address',
@@ -67,7 +64,7 @@ export function useUserCompleteActivity(userId: string) {
         if (userProfile.approval_status === 'approved') {
           activities.push({
             id: `approved-${userId}`,
-            timestamp: userProfile.updated_at,
+            timestamp: userProfile.updated_at ?? new Date().toISOString(),
             type: 'system_event',
             title: 'Account Approved',
             description: 'User account was approved by admin',
@@ -215,14 +212,14 @@ export function useUserCompleteActivity(userId: string) {
 
             activities.push({
               id: `analytics-${analytic.id}`,
-              timestamp: analytic.created_at,
+              timestamp: analytic.created_at ?? new Date().toISOString(),
               type: 'listing_interaction',
               title: `${analytic.action_type === 'view' ? 'Viewed' : 'Interacted with'} Listing`,
               description: `${analytic.action_type === 'view' ? 'Viewed' : 'Interacted with'} "${listingData?.title || 'Unknown Listing'}"`,
               metadata: {
                 listing: listingData,
                 action_type: analytic.action_type,
-                duration: analytic.time_spent
+                duration: analytic.time_spent ?? undefined
               }
             });
           }

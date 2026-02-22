@@ -26,7 +26,7 @@ export function JourneyPath({ pages, className }: JourneyPathProps) {
   return (
     <div className={cn("flex items-center gap-1 overflow-x-auto py-1.5 scrollbar-hide", className)}>
       {displayPages.map((page, i) => (
-        <div key={i} className="flex items-center gap-1 flex-shrink-0">
+        <div key={`${page}-${i}`} className="flex items-center gap-1 flex-shrink-0">
           {page === '...' ? (
             <span className="text-muted-foreground/40 text-xs px-1">•••</span>
           ) : (

@@ -1,10 +1,9 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Skeleton } from "@/components/ui/skeleton";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Table,
@@ -31,7 +30,6 @@ import {
 } from "@/components/ui/dialog";
 import { 
   Link as LinkIcon, 
-  Plus, 
   Check, 
   X, 
   Building2, 
@@ -398,7 +396,6 @@ export const DealMergePanel = ({ onMappingsCreated }: DealMergePanelProps) => {
                   <TableBody>
                     {referenceDeals.map((deal) => {
                       const mapping = mappings.find(m => m.referenceDealId === deal.id);
-                      const matchedListing = listings?.find(l => l.id === mapping?.listingId);
                       
                       return (
                         <TableRow key={deal.id}>

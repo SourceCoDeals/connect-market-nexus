@@ -69,7 +69,7 @@ export function useUpdateFollowupStatus() {
 
 export function useMarkFollowupOverdue() {
   const queryClient = useQueryClient();
-  const { toast } = useToast();
+  const { toast: _toast } = useToast();
 
   return useMutation({
     mutationFn: async (dealId: string) => {
@@ -98,9 +98,9 @@ export function useCreateStageTask() {
 
   return useMutation({
     mutationFn: async ({ 
-      dealId, 
-      stageId, 
-      taskTemplate 
+      dealId,
+      stageId: _stageId,
+      taskTemplate
     }: { 
       dealId: string; 
       stageId: string;

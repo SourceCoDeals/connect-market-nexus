@@ -110,7 +110,7 @@ export function AddPartnerDialog({
       const password = generatePassword();
 
       // Hash password via edge function
-      const { data: hashResult, error: hashError } = await supabase.functions.invoke(
+      const { data: hashResult, error: _hashError } = await supabase.functions.invoke(
         "validate-referral-access",
         { body: { action: "hash-password", password } }
       );

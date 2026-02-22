@@ -30,7 +30,7 @@ interface WebhookSettingsProps {
 export function WebhookSettings({ universeId }: WebhookSettingsProps) {
   const queryClient = useQueryClient();
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
-  const [isTestDialogOpen, setIsTestDialogOpen] = useState(false);
+  const [, setIsTestDialogOpen] = useState(false);
   const [selectedWebhook, setSelectedWebhook] = useState<WebhookConfig | null>(null);
 
   const [formData, setFormData] = useState({

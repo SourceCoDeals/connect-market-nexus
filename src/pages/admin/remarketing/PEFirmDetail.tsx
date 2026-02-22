@@ -40,16 +40,12 @@ import {
   Mail,
   Plus,
   Trash2,
-  Sparkles,
   FileSignature,
-  Clock,
   MessageSquare,
 } from "lucide-react";
 import { toast } from "sonner";
-import { IntelligenceBadge } from "@/components/remarketing";
 import { BuyerNotesSection } from "@/components/remarketing/buyer-detail/BuyerNotesSection";
 import { FirefliesTranscriptSearch } from "@/components/buyers/FirefliesTranscriptSearch";
-import type { DataCompleteness } from "@/types/remarketing";
 
 const PEFirmDetail = () => {
   const { id } = useParams<{ id: string }>();
@@ -93,7 +89,7 @@ const PEFirmDetail = () => {
           )
         `
         )
-        .eq("id", id)
+        .eq("id", id!)
         .maybeSingle();
 
       if (error) throw error;
@@ -143,7 +139,7 @@ const PEFirmDetail = () => {
       const { data, error } = await supabase
         .from("remarketing_buyer_contacts")
         .select("*")
-        .eq("buyer_id", id)
+        .eq("buyer_id", id!)
         .order("is_primary", { ascending: false });
 
       if (error) throw error;
@@ -204,7 +200,7 @@ const PEFirmDetail = () => {
       const { data, error } = await supabase
         .from("buyer_transcripts")
         .select("*")
-        .eq("buyer_id", id)
+        .eq("buyer_id", id!)
         .order("created_at", { ascending: false });
 
       if (error) throw error;
@@ -242,7 +238,7 @@ const PEFirmDetail = () => {
       const { error } = await supabase
         .from("remarketing_buyers")
         .update(data)
-        .eq("id", id);
+        .eq("id", id!);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -258,7 +254,7 @@ const PEFirmDetail = () => {
     mutationFn: async () => {
       const { error } = await supabase
         .from("remarketing_buyer_contacts")
-        .insert([{ ...newContact, buyer_id: id }]);
+        .insert([{ ...newContact, buyer_id: id! }]);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -737,10 +733,10 @@ const PEFirmDetail = () => {
                 <CardTitle className="text-base">Target Industries</CardTitle>
               </CardHeader>
               <CardContent>
-                {firm.target_industries?.length > 0 ? (
+                {(firm.target_industries?.length ?? 0) > 0 ? (
                   <div className="flex flex-wrap gap-1.5">
-                    {firm.target_industries.map((ind: string, i: number) => (
-                      <Badge key={i} variant="secondary" className="text-xs">
+                    {firm.target_industries!.map((ind: string) => (
+                      <Badge key={ind} variant="secondary" className="text-xs">
                         {ind}
                       </Badge>
                     ))}
@@ -764,7 +760,7 @@ const PEFirmDetail = () => {
                     <span className="text-muted-foreground">Revenue Range:</span>
                     <p className="font-medium">
                       {firm.target_revenue_min || firm.target_revenue_max
-                        ? `$${(firm.target_revenue_min / 1000000)?.toFixed(1) || "?"}M – $${(firm.target_revenue_max / 1000000)?.toFixed(1) || "?"}M`
+                        ? `$${(firm.target_revenue_min ? (firm.target_revenue_min / 1000000).toFixed(1) : "?")}M – $${(firm.target_revenue_max ? (firm.target_revenue_max / 1000000).toFixed(1) : "?")}M`
                         : "Not specified"}
                     </p>
                   </div>
@@ -772,7 +768,7 @@ const PEFirmDetail = () => {
                     <span className="text-muted-foreground">EBITDA Range:</span>
                     <p className="font-medium">
                       {firm.target_ebitda_min || firm.target_ebitda_max
-                        ? `$${(firm.target_ebitda_min / 1000000)?.toFixed(1) || "?"}M – $${(firm.target_ebitda_max / 1000000)?.toFixed(1) || "?"}M`
+                        ? `$${(firm.target_ebitda_min ? (firm.target_ebitda_min / 1000000).toFixed(1) : "?")}M – $${(firm.target_ebitda_max ? (firm.target_ebitda_max / 1000000).toFixed(1) : "?")}M`
                         : "Not specified"}
                     </p>
                   </div>
@@ -794,10 +790,10 @@ const PEFirmDetail = () => {
                 <CardTitle className="text-base">Geographic Focus</CardTitle>
               </CardHeader>
               <CardContent>
-                {firm.target_geographies?.length > 0 ? (
+                {(firm.target_geographies?.length ?? 0) > 0 ? (
                   <div className="flex flex-wrap gap-1.5">
-                    {firm.target_geographies.map((geo: string, i: number) => (
-                      <Badge key={i} variant="secondary" className="text-xs">
+                    {firm.target_geographies!.map((geo: string) => (
+                      <Badge key={geo} variant="secondary" className="text-xs">
                         {geo}
                       </Badge>
                     ))}
@@ -963,7 +959,7 @@ const PEFirmDetail = () => {
                 companyName={firm.company_name || ""}
                 peFirmName={firm.company_name}
                 platformWebsite={firm.company_website}
-                contacts={contacts.map((c) => ({ email: c.email }))}
+                contacts={contacts.filter((c) => c.email).map((c) => ({ email: c.email! }))}
                 onTranscriptLinked={() => {
                   queryClient.invalidateQueries({
                     queryKey: ["remarketing", "transcripts", id],
@@ -1000,7 +996,7 @@ const PEFirmDetail = () => {
                           </Badge>
                         </TableCell>
                         <TableCell className="text-muted-foreground">
-                          {new Date(t.created_at).toLocaleDateString()}
+                          {t.created_at ? new Date(t.created_at).toLocaleDateString() : '—'}
                         </TableCell>
                       </TableRow>
                     ))}

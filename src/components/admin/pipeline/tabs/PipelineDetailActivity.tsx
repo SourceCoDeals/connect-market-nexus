@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { ArrowRight, Calendar, CheckCircle, Mail, User, Shield, LayoutList, Edit } from 'lucide-react';
+import { useState } from 'react';
+import { Calendar, Shield, LayoutList } from 'lucide-react';
 import { Deal } from '@/hooks/admin/use-deals';
 import { formatDistanceToNow, format } from 'date-fns';
 import { useDealActivities } from '@/hooks/admin/use-deal-activities';

@@ -5,7 +5,6 @@ import { Progress } from "@/components/ui/progress";
 import { Upload, FileText, CheckCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { normalizeDomain } from "@/lib/ma-intelligence/normalizeDomain";
 
 interface ContactCSVImportProps {
   trackerId: string;

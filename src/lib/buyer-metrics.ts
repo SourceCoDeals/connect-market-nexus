@@ -1,5 +1,5 @@
 import { BuyerType, User } from '@/types';
-import { parseCurrency, formatCurrency, formatInvestmentSize, formatRevenueRange } from './currency-utils';
+import { parseCurrency, formatCurrency, formatRevenueRange } from './currency-utils';
 import { processUrl } from './url-utils';
 import { getRelevantFieldsForBuyerType } from './buyer-type-fields';
 
@@ -131,7 +131,7 @@ export function getPrimaryMetrics(user: User | null): BuyerMetric[] {
     metrics.push({
       label: 'Company',
       value: user.company,
-      isClickable: hasWebsite,
+      isClickable: !!hasWebsite,
       href: hasWebsite ? processUrl(user.website) : undefined,
       completeness: 'complete'
     });
@@ -482,7 +482,7 @@ export function getDataCompleteness(user: User | null): number {
 /**
  * Handle missing data with consistent messaging
  */
-export function handleMissingData(value: string | null | undefined, label: string): string {
+export function handleMissingData(value: string | null | undefined, _label: string): string {
   if (!value || value.trim() === '') {
     return 'Not disclosed';
   }

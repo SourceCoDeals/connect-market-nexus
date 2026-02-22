@@ -19,7 +19,7 @@ interface ListingsTabContentProps {
 }
 
 export function ListingsTabContent({ type, onEdit, onCreateNew }: ListingsTabContentProps) {
-  const { data: listings = [], isLoading, refetch } = useListingsByType(type);
+  const { data: listings = [], isLoading } = useListingsByType(type);
   const { useToggleListingStatus, useDeleteListing, useUpdateListing } = useAdmin();
   const { mutate: toggleStatus } = useToggleListingStatus();
   const { mutate: deleteListing } = useDeleteListing();
@@ -35,9 +35,7 @@ export function ListingsTabContent({ type, onEdit, onCreateNew }: ListingsTabCon
     filteredItems: filteredByEngine,
     filterState,
     setFilterState,
-    activeFilterCount,
     totalCount,
-    filteredCount,
     dynamicOptions,
   } = useFilterEngine(listings, ADMIN_LISTING_FIELDS);
 

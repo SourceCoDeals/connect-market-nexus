@@ -14,11 +14,6 @@ import {
   HeadingLevel,
   AlignmentType,
   BorderStyle,
-  TableRow,
-  TableCell,
-  Table,
-  WidthType,
-  ShadingType,
 } from 'docx';
 import { saveAs } from 'file-saver';
 
@@ -238,18 +233,14 @@ function parseContentToParagraphs(content: string): Paragraph[] {
   const paragraphs: Paragraph[] = [];
   const lines = content.split('\n');
 
-  let inList = false;
-
   for (const line of lines) {
     const trimmed = line.trim();
     if (!trimmed) {
-      inList = false;
       continue;
     }
 
     // Bullet points
     if (trimmed.startsWith('- ') || trimmed.startsWith('* ')) {
-      inList = true;
       paragraphs.push(
         new Paragraph({
           bullet: { level: 0 },

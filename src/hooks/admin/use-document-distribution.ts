@@ -209,7 +209,7 @@ export function useRevokeTrackedLink() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ linkId, dealId, reason }: { linkId: string; dealId: string; reason?: string }) => {
+    mutationFn: async ({ linkId, dealId: _dealId, reason }: { linkId: string; dealId: string; reason?: string }) => {
       const { data: { user }, error: authError } = await supabase.auth.getUser();
       if (authError) throw authError;
       const { error } = await supabase
@@ -445,7 +445,7 @@ export function useRevokeDataRoomAccess() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ accessId, dealId }: { accessId: string; dealId: string }) => {
+    mutationFn: async ({ accessId, dealId: _dealId }: { accessId: string; dealId: string }) => {
       const { data: { user }, error: authError } = await supabase.auth.getUser();
       if (authError) throw authError;
       const { error } = await supabase

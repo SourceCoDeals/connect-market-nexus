@@ -138,11 +138,9 @@ function normalizeReferrer(referrer: string | null, utmSource: string | null): s
   
   // Parse as URL for accurate domain matching
   let hostname = '';
-  let pathname = '';
   try {
     const url = new URL(source.startsWith('http') ? source : `https://${source}`);
     hostname = url.hostname.replace('www.', '');
-    pathname = url.pathname;
   } catch {
     // If it can't parse as URL, check if source itself matches known patterns
     hostname = source;
@@ -291,7 +289,6 @@ export function useEnhancedRealTimeAnalytics() {
   return useQuery({
     queryKey: ['enhanced-realtime-analytics'],
     queryFn: async (): Promise<EnhancedRealTimeData> => {
-      const twoMinutesAgo = new Date(Date.now() - 2 * 60 * 1000).toISOString();
       const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
       
       // Fetch active sessions with profile data - include new GA4, first-touch fields, and visitor_id
@@ -349,7 +346,7 @@ export function useEnhancedRealTimeAnalytics() {
       const pageViews = pageViewsResult.data || [];
       
       // Get unique session IDs from page views to fetch their user_ids
-      const pageViewSessionIds = [...new Set(pageViews.map(pv => pv.session_id).filter(Boolean))];
+      const pageViewSessionIds = [...new Set(pageViews.map(pv => pv.session_id).filter((id): id is string => id !== null))];
       
       // Fetch sessions for page views to get their user_ids
       let pageViewSessions: Record<string, string | null> = {};
@@ -428,7 +425,7 @@ export function useEnhancedRealTimeAnalytics() {
       // Reverse sequences to be in chronological order, first page is the landing page
       Object.keys(sessionPageSequence).forEach(sid => {
         sessionPageSequence[sid] = sessionPageSequence[sid].reverse();
-        sessionFirstPage[sid] = sessionPageSequence[sid][0] || null;
+        sessionFirstPage[sid] = sessionPageSequence[sid][0] || '';
       });
       
       // Fetch cross-session visitor history for anonymous users
@@ -457,7 +454,7 @@ export function useEnhancedRealTimeAnalytics() {
           if (!visitorHistory[vid]) {
             visitorHistory[vid] = {
               totalSessions: 0,
-              firstSeen: hs.started_at,
+              firstSeen: hs.started_at ?? new Date().toISOString(),
               totalTime: 0,
             };
           }
@@ -466,7 +463,7 @@ export function useEnhancedRealTimeAnalytics() {
           visitorHistory[vid].totalTime += hs.session_duration_seconds || 0;
           
           // Track earliest session
-          if (new Date(hs.started_at) < new Date(visitorHistory[vid].firstSeen)) {
+          if (hs.started_at && new Date(hs.started_at) < new Date(visitorHistory[vid].firstSeen)) {
             visitorHistory[vid].firstSeen = hs.started_at;
           }
         });
@@ -639,8 +636,8 @@ export function useEnhancedRealTimeAnalytics() {
               externalReferrer: null,
               // Session
               sessionDurationSeconds: 0,
-              lastActiveAt: pv.created_at,
-              currentPage: pv.page_path,
+              lastActiveAt: pv.created_at ?? new Date().toISOString(),
+              currentPage: pv.page_path ?? '',
               sessionStatus: getSessionStatus(pv.created_at),
               listingsViewed: engagement?.listings_viewed || 0,
               listingsSaved: engagement?.listings_saved || 0,
@@ -661,9 +658,9 @@ export function useEnhancedRealTimeAnalytics() {
         return {
           id: `event-${i}`,
           type: 'page_view' as const,
-          user: matchingUser || createDefaultUser(pv.session_id || `anon-${i}`, pv.page_path, pv.created_at),
-          pagePath: pv.page_path,
-          timestamp: pv.created_at,
+          user: matchingUser || createDefaultUser(pv.session_id || `anon-${i}`, pv.page_path ?? '', pv.created_at ?? new Date().toISOString()),
+          pagePath: pv.page_path ?? '',
+          timestamp: pv.created_at ?? new Date().toISOString(),
         };
       });
       

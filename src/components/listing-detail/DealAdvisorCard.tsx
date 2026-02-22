@@ -17,7 +17,7 @@ interface DealAdvisorCardProps {
 
 export function DealAdvisorCard({ presentedByAdminId, listingId }: DealAdvisorCardProps) {
   const { data: adminProfiles } = useAdminProfiles();
-  const { data: connectionStatus } = useConnectionStatus(listingId);
+  const { data: _connectionStatus } = useConnectionStatus(listingId);
   
   // Get the advisor profile from database admin profiles
   let advisorProfile = {

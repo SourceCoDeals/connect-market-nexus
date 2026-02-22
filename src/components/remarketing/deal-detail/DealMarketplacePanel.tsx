@@ -3,9 +3,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Globe, Eye, EyeOff, ExternalLink, MessageSquare } from "lucide-react";
+import { Globe, Eye, EyeOff } from "lucide-react";
 import { toast } from "sonner";
-import { format } from "date-fns";
 import { Link } from "react-router-dom";
 
 interface DealMarketplacePanelProps {
@@ -19,7 +18,7 @@ export const DealMarketplacePanel = ({
   listingId,
   isInternalDeal,
   status,
-  title,
+  title: _title,
 }: DealMarketplacePanelProps) => {
   const queryClient = useQueryClient();
   const isListed = isInternalDeal === false && status === 'active';

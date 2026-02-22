@@ -1,7 +1,6 @@
 
 import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { Listing } from '@/types';
 import { useQueryClient } from '@tanstack/react-query';
 
 export function useRealtimeListings() {
@@ -18,7 +17,7 @@ export function useRealtimeListings() {
           schema: 'public',
           table: 'listings'
         },
-        (payload) => {
+        (_payload) => {
           // Invalidate listings query to refetch data
           queryClient.invalidateQueries({ queryKey: ['listings'] });
         }
@@ -43,7 +42,7 @@ export function useRealtimeListings() {
           schema: 'public',
           table: 'listings'
         },
-        (payload) => {
+        (_payload) => {
           queryClient.invalidateQueries({ queryKey: ['listings'] });
         }
       )

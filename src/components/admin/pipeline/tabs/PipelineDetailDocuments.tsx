@@ -1,4 +1,3 @@
-import React from 'react';
 import { Switch } from '@/components/ui/switch';
 import { User, Mail, FileText, Check, Clock } from 'lucide-react';
 import { Deal } from '@/hooks/admin/use-deals';
@@ -126,7 +125,7 @@ export function PipelineDetailDocuments({ deal }: PipelineDetailDocumentsProps) 
         <div className="flex-1 space-y-6 max-w-3xl">
           {/* Firm Warning if applicable */}
           <DealFirmWarning 
-            connectionRequestId={deal.connection_request_id} 
+            connectionRequestId={deal.connection_request_id ?? null}
             actionType="fee_agreement" 
           />
           

@@ -59,8 +59,8 @@ export const GeographicFootprintCard = ({
               Physical Presence
             </p>
             <div className="flex flex-wrap gap-1.5">
-              {geographicFootprint.map((state, i) => (
-                <Badge key={i} variant="default" className="text-xs">
+              {geographicFootprint.map((state) => (
+                <Badge key={state} variant="default" className="text-xs">
                   {state}
                 </Badge>
               ))}
@@ -75,8 +75,8 @@ export const GeographicFootprintCard = ({
               Service Coverage
             </p>
             <div className="flex flex-wrap gap-1.5">
-              {serviceRegions.map((state, i) => (
-                <Badge key={i} variant="secondary" className="text-xs">
+              {serviceRegions.map((state) => (
+                <Badge key={state} variant="secondary" className="text-xs">
                   {state}
                 </Badge>
               ))}
@@ -113,8 +113,8 @@ export const GeographicFootprintCard = ({
               Target Acquisition Geographies
             </p>
             <div className="flex flex-wrap gap-2">
-              {targetGeographies.map((geo, index) => (
-                <Badge key={index} variant="outline" className="text-sm">
+              {targetGeographies.map((geo) => (
+                <Badge key={geo} variant="outline" className="text-sm">
                   {geo}
                 </Badge>
               ))}

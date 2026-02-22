@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -236,8 +236,8 @@ const MobileUserCard = ({
             <div className="text-sm">
               <div className="font-medium mb-1">Business Categories:</div>
               <div className="flex flex-wrap gap-1">
-                {user.business_categories.slice(0, 3).map((category, index) => (
-                  <Badge key={index} variant="secondary" className="text-xs">
+                {user.business_categories.slice(0, 3).map((category) => (
+                  <Badge key={category} variant="secondary" className="text-xs">
                     {category.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
                   </Badge>
                 ))}
@@ -255,8 +255,8 @@ const MobileUserCard = ({
               <span className="font-medium">Target Locations:</span>{" "}
               {Array.isArray(user.target_locations) ? (
                 <div className="flex flex-wrap gap-1 mt-1">
-                  {user.target_locations.map((loc, index) => (
-                    <Badge key={index} variant="secondary" className="text-xs">
+                  {user.target_locations.map((loc) => (
+                    <Badge key={loc} variant="secondary" className="text-xs">
                       {loc}
                     </Badge>
                   ))}
@@ -308,8 +308,6 @@ export const MobileUsersTable = ({
   onRevokeAdmin,
   onDelete,
   isLoading,
-  onSendFeeAgreement,
-  onSendNDAEmail
 }: MobileUsersTableProps) => {
   const [selectedUserForEmail, setSelectedUserForEmail] = useState<User | null>(null);
   const [selectedUserForNDA, setSelectedUserForNDA] = useState<User | null>(null);
@@ -424,7 +422,7 @@ export const MobileUsersTable = ({
         onOpenChange={(open) => !open && setSelectedUserForNDA(null)}
         user={selectedUserForNDA}
         onSendEmail={async (user) => {
-          const { data, error } = await supabase.functions.invoke('send-nda-email', {
+          const { error } = await supabase.functions.invoke('send-nda-email', {
             body: { userEmail: user.email, userId: user.id }
           });
           if (error) throw error;

@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -73,10 +73,10 @@ const getExampleQueries = (
 export function DealBuyerChat({
   listingId,
   dealName,
-  dealGeography,
-  dealRevenue,
+  dealGeography: _dealGeography,
+  dealRevenue: _dealRevenue,
   onHighlightBuyers,
-  onBuyerClick,
+  onBuyerClick: _onBuyerClick,
   approvedCount = 0,
   passedCount = 0,
   pendingCount = 0,
@@ -101,7 +101,7 @@ export function DealBuyerChat({
     conversationId,
     save: saveConversation,
     startNew: startNewConversation,
-    isSaving,
+    isSaving: _isSaving,
   } = useChatPersistence({
     context: { type: 'deal', dealId: listingId },
     autoLoad: true,
@@ -454,9 +454,9 @@ export function DealBuyerChat({
               </div>
               <div className="space-y-2">
                 <p className="text-xs text-muted-foreground px-1">Try asking:</p>
-                {exampleQueries.map((example, i) => (
+                {exampleQueries.map((example) => (
                   <Button
-                    key={i}
+                    key={example}
                     variant="outline"
                     size="sm"
                     className="w-full justify-start text-xs h-auto py-2 px-3"
@@ -494,7 +494,7 @@ export function DealBuyerChat({
                                 className="font-semibold text-primary cursor-pointer hover:underline"
                                 onClick={() => {
                                   // Try to find buyer by name in children
-                                  const text = String(children);
+                                  void String(children);
                                 }}
                               >
                                 {children}

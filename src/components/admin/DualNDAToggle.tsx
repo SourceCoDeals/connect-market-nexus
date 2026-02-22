@@ -3,7 +3,7 @@ import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { Mail, FileText, Clock, ShieldCheck } from "lucide-react";
+import { Mail, Clock, ShieldCheck } from "lucide-react";
 import { User } from "@/types";
 import { useUpdateNDA, useUpdateNDAEmailSent } from "@/hooks/admin/use-nda";
 import { formatDistanceToNow } from "date-fns";

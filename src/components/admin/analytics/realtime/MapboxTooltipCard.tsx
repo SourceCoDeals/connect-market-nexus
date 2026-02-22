@@ -18,7 +18,7 @@ function getAvatarUrl(user: EnhancedActiveUser): string {
   return `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(seed)}&backgroundColor=b6e3f4,c0aede,d1d4f9,ffd5dc,ffdfbf`;
 }
 
-function getDisplayReferrer(referrer: string | null, utmSource: string | null, entrySource: string): { icon: string; name: string } {
+function getDisplayReferrer(_referrer: string | null, _utmSource: string | null, entrySource: string): { icon: string; name: string } {
   // Use the normalized entrySource from the analytics hook
   const sourceIcons: Record<string, string> = {
     'Google': '🔍',

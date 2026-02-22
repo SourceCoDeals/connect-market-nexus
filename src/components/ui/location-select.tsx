@@ -1,5 +1,4 @@
-import React from 'react';
-import { STANDARDIZED_LOCATIONS, StandardizedLocation } from '@/lib/financial-parser';
+import { STANDARDIZED_LOCATIONS } from '@/lib/financial-parser';
 import {
   Select,
   SelectContent,

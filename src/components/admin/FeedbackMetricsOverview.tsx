@@ -16,7 +16,6 @@ export function FeedbackMetricsOverview({
   unreadCount,
   responseRate,
   averageResponseTime,
-  categoryBreakdown,
   priorityBreakdown
 }: FeedbackMetricsOverviewProps) {
   const responseRateChange = responseRate > 75 ? 'positive' : responseRate > 50 ? 'neutral' : 'negative';

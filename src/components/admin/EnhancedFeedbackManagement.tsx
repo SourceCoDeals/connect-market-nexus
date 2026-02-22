@@ -1,27 +1,23 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { useState, useEffect, useCallback } from 'react';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Separator } from '@/components/ui/separator';
-import { 
-  Search, 
-  Send, 
-  MessageSquare, 
-  AlertTriangle, 
-  CheckCircle, 
+import {
+  Search,
+  Send,
+  MessageSquare,
+  AlertTriangle,
+  CheckCircle,
   Clock,
   Star,
   User,
   Calendar,
   FileText,
   Reply,
-  TrendingUp,
   BarChart
 } from 'lucide-react';
 import { FeedbackMetricsOverview } from './FeedbackMetricsOverview';
@@ -75,7 +71,7 @@ export function EnhancedFeedbackManagement() {
       if (error) throw error;
 
       // Batch-fetch all user profiles in one query instead of N+1
-      const userIds = [...new Set((messages || []).filter(m => m.user_id).map(m => m.user_id))];
+      const userIds = [...new Set((messages || []).filter(m => m.user_id).map(m => m.user_id))].filter((id): id is string => id !== null);
       const { data: profiles } = userIds.length > 0
         ? await supabase.from('profiles').select('id, email, first_name, last_name').in('id', userIds)
         : { data: [] };
@@ -87,20 +83,20 @@ export function EnhancedFeedbackManagement() {
         return {
           id: msg.id,
           message: msg.message,
-          category: msg.category,
-          priority: msg.priority,
+          category: msg.category ?? 'general',
+          priority: msg.priority ?? 'normal',
           status: msg.status,
-          user_id: msg.user_id,
+          user_id: msg.user_id ?? '',
           admin_id: msg.admin_id,
           admin_response: msg.admin_response,
           created_at: msg.created_at,
           updated_at: msg.updated_at,
           page_url: msg.page_url,
-          satisfaction_rating: (msg as Record<string, unknown>).satisfaction_rating as number | null || null,
+          satisfaction_rating: (msg as Record<string, unknown>).satisfaction_rating as number | null ?? null,
           user_email: userProfile?.email || 'Unknown',
           user_first_name: userProfile?.first_name || 'Unknown',
           user_last_name: userProfile?.last_name || 'User',
-          read_by_admin: (msg as Record<string, unknown>).read_by_admin as boolean || false
+          read_by_admin: (msg as Record<string, unknown>).read_by_admin as boolean ?? false
         };
       });
 
@@ -171,7 +167,7 @@ export function EnhancedFeedbackManagement() {
     setIsProcessing(true);
     try {
       // Use the email sending edge function
-      const { data, error } = await supabase.functions.invoke('send-feedback-email', {
+      const { error } = await supabase.functions.invoke('send-feedback-email', {
         body: {
           to: selectedMessage.user_email,
           subject: `Re: Your feedback - ${selectedMessage.category}`,
@@ -194,15 +190,17 @@ export function EnhancedFeedbackManagement() {
         .eq('id', selectedMessage.id);
 
       // Create notification for admin
-      await supabase
-        .from('admin_notifications')
-        .insert({
-          admin_id: user?.id,
-          feedback_id: selectedMessage.id,
-          notification_type: 'response_sent',
-          title: 'Response Sent',
-          message: `Response sent to ${selectedMessage.user_first_name} ${selectedMessage.user_last_name}`
-        });
+      if (user?.id) {
+        await supabase
+          .from('admin_notifications')
+          .insert({
+            admin_id: user.id,
+            feedback_id: selectedMessage.id,
+            notification_type: 'response_sent',
+            title: 'Response Sent',
+            message: `Response sent to ${selectedMessage.user_first_name} ${selectedMessage.user_last_name}`
+          });
+      }
 
       toast({
         title: "Response sent",

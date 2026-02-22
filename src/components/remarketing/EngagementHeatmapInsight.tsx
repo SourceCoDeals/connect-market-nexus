@@ -24,16 +24,6 @@ interface EngagementHeatmapInsightProps {
   className?: string;
 }
 
-interface EngagementBucket {
-  level: 'hot' | 'warm' | 'stale' | 'cold' | 'new';
-  label: string;
-  count: number;
-  approvedCount: number;
-  icon: typeof Flame;
-  color: string;
-  bgColor: string;
-}
-
 const categorizeEngagement = (lastViewedAt: string | null): 'hot' | 'warm' | 'stale' | 'cold' | 'new' => {
   if (!lastViewedAt) return 'new';
   
@@ -50,7 +40,7 @@ const categorizeEngagement = (lastViewedAt: string | null): 'hot' | 'warm' | 'st
 
 export const EngagementHeatmapInsight = ({
   scores,
-  outreachRecords = [],
+  outreachRecords: _outreachRecords = [],
   className,
 }: EngagementHeatmapInsightProps) => {
   const buckets = useMemo(() => {
@@ -210,11 +200,11 @@ export const EngagementHeatmapInsight = ({
             {/* Insights */}
             {insights.length > 0 && (
               <div className="space-y-1.5 pt-2 border-t">
-                {insights.map((insight, index) => {
+                {insights.map((insight) => {
                   const Icon = insight.icon;
                   return (
                     <div
-                      key={index}
+                      key={insight.message}
                       className={cn(
                         'flex items-center gap-2 text-xs',
                         insight.type === 'warning' && 'text-amber-600',

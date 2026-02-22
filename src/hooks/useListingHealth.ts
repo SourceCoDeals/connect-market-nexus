@@ -98,7 +98,7 @@ export function useListingHealth() {
         if (a.action_type === 'view' && a.listing_id) {
           viewCounts[a.listing_id] = (viewCounts[a.listing_id] || 0) + 1;
           
-          const date = new Date(a.created_at);
+          const date = new Date(a.created_at ?? Date.now());
           if (!firstView[a.listing_id] || date < firstView[a.listing_id]) {
             firstView[a.listing_id] = date;
           }

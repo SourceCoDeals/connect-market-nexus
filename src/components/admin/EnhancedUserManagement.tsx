@@ -1,16 +1,13 @@
-import React, { useState, useMemo, useEffect } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { useState, useMemo, useEffect } from 'react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
 import { User } from '@/types';
 import { Search, Download, UserCheck } from 'lucide-react';
 import { UserOverviewTab } from './user-overview/UserOverviewTab';
 import { formatFieldValueForExport } from '@/lib/field-formatting';
 import { getProfileCompletionDetails } from '@/lib/buyer-metrics';
-import { cn } from '@/lib/utils';
 
 interface EnhancedUserManagementProps {
   users: User[];
@@ -25,10 +22,6 @@ interface EnhancedUserManagementProps {
 export function EnhancedUserManagement({
   users,
   onApprove,
-  onMakeAdmin,
-  onRevokeAdmin,
-  onDelete,
-  isLoading,
   onFilteredUsersChange
 }: EnhancedUserManagementProps) {
   const [searchQuery, setSearchQuery] = useState('');

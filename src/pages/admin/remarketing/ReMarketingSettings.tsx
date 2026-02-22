@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Settings, GitMerge, ChevronDown } from 'lucide-react';
 import { DealMergePanel } from '@/components/remarketing';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';

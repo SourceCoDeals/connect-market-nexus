@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { X, ArrowLeft } from 'lucide-react';
@@ -104,9 +104,6 @@ const OnboardingPopup = ({ isOpen, onClose, userId }: OnboardingPopupProps) => {
     }
   };
 
-  const handleSkip = () => {
-    handleClose();
-  };
 
   return (
     <Dialog open={isOpen} onOpenChange={() => {}} modal={true}>

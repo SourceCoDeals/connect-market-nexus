@@ -6,7 +6,6 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
 // No icon imports needed
-import { formatCompactCurrency } from '@/lib/utils';
 import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 
@@ -25,18 +24,26 @@ export function MyDealsTab() {
     let filtered = [...deals];
     const terminalStages = ['Closed Won', 'Closed Lost'];
     
+    const getStageName = (stage: unknown): string | null => {
+      if (!stage) return null;
+      if (Array.isArray(stage)) return stage[0]?.name ?? null;
+      return (stage as { name: string }).name;
+    };
+
     // Apply filters
     switch (filter) {
       case 'active':
         // Show only non-closed deals
         filtered = filtered.filter(d => {
-          const isTerminal = d.stage && terminalStages.includes(d.stage.name);
+          const stageName = getStageName(d.stage);
+          const isTerminal = stageName && terminalStages.includes(stageName);
           return !isTerminal;
         });
         break;
       case 'needs-follow-up':
         filtered = filtered.filter(d => {
-          const isTerminal = d.stage && terminalStages.includes(d.stage.name);
+          const stageName = getStageName(d.stage);
+          const isTerminal = stageName && terminalStages.includes(stageName);
           return !isTerminal && !d.followed_up;
         });
         break;
@@ -44,23 +51,25 @@ export function MyDealsTab() {
         const weekAgo = new Date();
         weekAgo.setDate(weekAgo.getDate() - 7);
         filtered = filtered.filter(d => {
-          const isTerminal = d.stage && terminalStages.includes(d.stage.name);
-          return !isTerminal && new Date(d.stage_entered_at) < weekAgo;
+          const stageName = getStageName(d.stage);
+          const isTerminal = stageName && terminalStages.includes(stageName);
+          return !isTerminal && new Date(d.stage_entered_at ?? 0) < weekAgo;
         });
         break;
       }
       case 'closed':
         // Show only closed deals
-        filtered = filtered.filter(d => 
-          d.stage && terminalStages.includes(d.stage.name)
-        );
+        filtered = filtered.filter(d => {
+          const stageName = getStageName(d.stage);
+          return stageName && terminalStages.includes(stageName);
+        });
         break;
     }
-    
+
     // Apply sorting
     switch (sortBy) {
       case 'recent':
-        filtered.sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime());
+        filtered.sort((a, b) => new Date(b.updated_at ?? 0).getTime() - new Date(a.updated_at ?? 0).getTime());
         break;
       case 'value':
         filtered.sort((a, b) => (Number(b.value) || 0) - (Number(a.value) || 0));
@@ -69,10 +78,12 @@ export function MyDealsTab() {
         const weekAgoUrgency = new Date();
         weekAgoUrgency.setDate(weekAgoUrgency.getDate() - 7);
         filtered.sort((a, b) => {
-          const aIsTerminal = a.stage && terminalStages.includes(a.stage.name);
-          const bIsTerminal = b.stage && terminalStages.includes(b.stage.name);
-          const aStale = !aIsTerminal && new Date(a.stage_entered_at) < weekAgoUrgency ? 1 : 0;
-          const bStale = !bIsTerminal && new Date(b.stage_entered_at) < weekAgoUrgency ? 1 : 0;
+          const aStageName = getStageName(a.stage);
+          const bStageName = getStageName(b.stage);
+          const aIsTerminal = aStageName && terminalStages.includes(aStageName);
+          const bIsTerminal = bStageName && terminalStages.includes(bStageName);
+          const aStale = !aIsTerminal && new Date(a.stage_entered_at ?? 0) < weekAgoUrgency ? 1 : 0;
+          const bStale = !bIsTerminal && new Date(b.stage_entered_at ?? 0) < weekAgoUrgency ? 1 : 0;
           const aFollowUp = !a.followed_up ? 1 : 0;
           const bFollowUp = !b.followed_up ? 1 : 0;
           return (bStale + bFollowUp) - (aStale + aFollowUp);
@@ -103,26 +114,26 @@ export function MyDealsTab() {
         stats={[
           {
             label: 'Active Deals',
-            value: stats.activeDeals,
+            value: stats?.activeDeals ?? 0,
             description: 'Currently in pipeline',
             onClick: () => setFilter('active'),
             isActive: filter === 'active',
           },
           {
             label: 'Need Attention',
-            value: stats.needAttention,
+            value: stats?.needAttention ?? 0,
             description: 'Require follow-up',
             onClick: () => setFilter('needs-follow-up'),
             isActive: filter === 'needs-follow-up',
           },
           {
             label: 'This Week',
-            value: stats.thisWeek,
+            value: stats?.thisWeek ?? 0,
             description: 'Created or updated',
           },
           {
             label: 'Stale Deals',
-            value: stats.staleDeals,
+            value: stats?.staleDeals ?? 0,
             description: '7+ days in stage',
             onClick: () => setFilter('stale'),
             isActive: filter === 'stale',
@@ -131,10 +142,10 @@ export function MyDealsTab() {
       />
 
       {/* Priority Banner - Only show if there are active deals needing attention */}
-      {stats.needAttention > 0 && filter !== 'closed' && (
-        <DealPriorityBanner 
-          staleDeals={stats.staleDeals} 
-          needsFollowUp={stats.needsFollowUp} 
+      {(stats?.needAttention ?? 0) > 0 && filter !== 'closed' && (
+        <DealPriorityBanner
+          staleDeals={stats?.staleDeals ?? 0}
+          needsFollowUp={stats?.needsFollowUp ?? 0}
         />
       )}
 
@@ -211,9 +222,9 @@ export function MyDealsTab() {
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           {filteredAndSortedDeals.map((deal) => (
-            <EnhancedDealCard 
-              key={deal.id} 
-              deal={deal}
+            <EnhancedDealCard
+              key={deal.id}
+              deal={deal as unknown as Parameters<typeof EnhancedDealCard>[0]['deal']}
               onDealClick={(dealId) => navigate(`/admin/deals/pipeline?deal=${dealId}`)}
             />
           ))}

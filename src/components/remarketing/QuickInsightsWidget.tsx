@@ -123,11 +123,11 @@ export const QuickInsightsWidget = ({
       
       <CollapsibleContent>
         <div className="px-3 pb-3 space-y-2">
-          {insights.map((insight, i) => {
+          {insights.map((insight) => {
             const Icon = insight.icon;
             return (
               <div
-                key={i}
+                key={insight.message}
                 className={cn(
                   "flex items-start gap-2 text-sm p-2 rounded-md",
                   insight.type === 'warning' && "bg-amber-50 text-amber-800",

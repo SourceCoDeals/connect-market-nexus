@@ -55,18 +55,19 @@ export const useUserSessions = (userId: string | null) => {
       // Group by session_id and count events
       const sessionMap = new Map<string, { timestamp: string; count: number }>();
 
-      allSessions.forEach((item) => {
+      allSessions.forEach((item: { session_id: string | null; created_at: string | null }) => {
         if (item.session_id) {
+          const created = item.created_at ?? new Date().toISOString();
           const existing = sessionMap.get(item.session_id);
           if (existing) {
             // Keep the earliest timestamp
-            if (new Date(item.created_at) < new Date(existing.timestamp)) {
-              existing.timestamp = item.created_at;
+            if (new Date(created) < new Date(existing.timestamp)) {
+              existing.timestamp = created;
             }
             existing.count++;
           } else {
             sessionMap.set(item.session_id, {
-              timestamp: item.created_at,
+              timestamp: created,
               count: 1,
             });
           }

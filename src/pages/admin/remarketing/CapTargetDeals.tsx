@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback, useRef, useEffect } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useSearchParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
@@ -104,7 +104,6 @@ type SortColumn =
 type SortDirection = "asc" | "desc";
 
 export default function CapTargetDeals() {
-  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const { user } = useAuth();
@@ -114,10 +113,10 @@ export default function CapTargetDeals() {
   const { timeframe, setTimeframe, dateRange, isInRange } = useTimeframe("last_365d");
 
   // Filters
-  const [search, setSearch] = useState("");
-  const [pushedFilter, setPushedFilter] = useState<string>("all");
+  const [search] = useState("");
+  const [pushedFilter] = useState<string>("all");
   const [hidePushed, setHidePushed] = useState(false);
-  const [sourceTabFilter, setSourceTabFilter] = useState<string>("all");
+  const [sourceTabFilter] = useState<string>("all");
   const [statusTab, setStatusTab] = useState<"all" | "active" | "inactive">("all");
 
   // Sorting – persisted in URL so navigating back restores the sort
@@ -267,7 +266,7 @@ export default function CapTargetDeals() {
 
   const {
     filteredItems: engineFiltered, filterState, setFilterState,
-    activeFilterCount, dynamicOptions, filteredCount, totalCount: engineTotal,
+    dynamicOptions, filteredCount, totalCount: engineTotal,
   } = useFilterEngine(tabItems, CAPTARGET_FIELDS);
 
   // Sort the engine-filtered results

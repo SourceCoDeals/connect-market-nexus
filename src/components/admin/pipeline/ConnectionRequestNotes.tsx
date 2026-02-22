@@ -1,4 +1,3 @@
-import React from 'react';
 import { MessageSquare, FileText } from 'lucide-react';
 import { ConnectionRequestDetails } from '@/hooks/admin/use-connection-request-details';
 

@@ -31,10 +31,8 @@ import {
   Target,
   Mail,
   Calendar,
-  Phone,
   ArrowRightCircle,
 } from "lucide-react";
-import { ScoreTierBadge, getTierFromScore } from "./ScoreTierBadge";
 import { IntelligenceBadge } from "./IntelligenceBadge";
 import { OutreachStatusDialog, type OutreachStatus } from "./OutreachStatusDialog";
 import type { ScoreTier, DataCompleteness, ReMarketingBuyer } from "@/types/remarketing";
@@ -293,7 +291,6 @@ export const BuyerMatchCard = ({
   };
   
   const buyer = score.buyer;
-  const tier = score.tier || getTierFromScore(score.composite_score);
   const disqualified = isDisqualified(score);
   // Prefer backend missing_fields, fallback to client-side calculation
   const missingData = score.missing_fields && score.missing_fields.length > 0

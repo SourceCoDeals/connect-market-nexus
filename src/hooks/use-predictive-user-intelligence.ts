@@ -104,7 +104,7 @@ export function usePredictiveUserIntelligence(daysBack: number = 30) {
         const avgSessionDuration = userSessions.length > 0 
           ? userSessions.reduce((sum, s) => {
               const duration = s.ended_at 
-                ? (new Date(s.ended_at).getTime() - new Date(s.started_at).getTime()) / 1000 / 60
+                ? (new Date(s.ended_at).getTime() - new Date(s.started_at ?? s.ended_at).getTime()) / 1000 / 60
                 : 30; // Default 30 minutes if no end time
               return sum + duration;
             }, 0) / userSessions.length
@@ -113,8 +113,6 @@ export function usePredictiveUserIntelligence(daysBack: number = 30) {
         const listingViews = userAnalytics.filter(a => a.action_type === 'view').length;
         const savesCount = userSaves.length;
         const connectionRequests = userConnections.length;
-        const approvedConnections = userConnections.filter(c => c.status === 'approved').length;
-
         // Calculate engagement level
         let engagementLevel: UserScore['engagement_level'] = 'inactive';
         if (totalSessions > 20 && listingViews > 50) engagementLevel = 'power_user';
@@ -143,8 +141,9 @@ export function usePredictiveUserIntelligence(daysBack: number = 30) {
         // Calculate days since last activity
         const lastActivity = Math.max(
           ...[...userSessions.map(s => s.started_at), ...userAnalytics.map(a => a.created_at), ...userSaves.map(s => s.created_at), ...userConnections.map(c => c.created_at)]
+            .filter((date): date is string => date !== null)
             .map(date => new Date(date).getTime()),
-          new Date(user.created_at).getTime()
+          new Date(user.created_at ?? Date.now()).getTime()
         );
         const daysSinceLastActivity = Math.floor((Date.now() - lastActivity) / (1000 * 60 * 60 * 24));
 

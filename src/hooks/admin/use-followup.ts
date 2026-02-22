@@ -58,7 +58,7 @@ export const useUpdateNegativeFollowup = () => {
         description: "The negative follow-up status has been successfully updated.",
       });
     },
-    onError: (err, variables, context) => {
+    onError: (_err, _variables, context) => {
       queryClient.setQueryData(['connection-requests'], context?.previousRequests);
       toast({
         variant: "destructive",
@@ -113,7 +113,7 @@ export const useUpdateFollowup = () => {
         description: "The follow-up status has been successfully updated.",
       });
     },
-    onError: (err, variables, context) => {
+    onError: (_err, _variables, context) => {
       queryClient.setQueryData(['connection-requests'], context?.previousRequests);
       toast({
         variant: "destructive",

@@ -10,7 +10,7 @@ interface FirmBulkActionsProps {
   memberCount: number;
 }
 
-export function FirmBulkActions({ firmId, firmName, memberCount }: FirmBulkActionsProps) {
+export function FirmBulkActions({ firmId, firmName }: FirmBulkActionsProps) {
   const { toast } = useToast();
   const { data: members, isLoading } = useFirmMembers(firmId);
 

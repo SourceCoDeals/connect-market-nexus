@@ -51,17 +51,6 @@ export function MapboxGlobeMap({
   // Use cached Mapbox token hook
   const { token: mapboxToken, isLoading: tokenLoading } = useMapboxToken();
 
-  // Calculate buyer breakdown (real M&A data)
-  const buyerBreakdown: BuyerBreakdown = {
-    loggedInCount: users.filter(u => !u.isAnonymous).length,
-    loggedInPercent: users.length > 0 
-      ? Math.round((users.filter(u => !u.isAnonymous).length / users.length) * 100) 
-      : 0,
-    ndaSignedCount: users.filter(u => u.ndaSigned).length,
-    feeAgreementCount: users.filter(u => u.feeAgreementSigned).length,
-    connectionsThisHour: users.reduce((sum, u) => sum + u.connectionsSent, 0),
-  };
-  
   // Use pre-normalized entrySource from useEnhancedRealTimeAnalytics
   const referrerBreakdown = users.reduce((acc, user) => {
     const source = user.entrySource || 'Direct';

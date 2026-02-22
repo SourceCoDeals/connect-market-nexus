@@ -37,7 +37,7 @@ interface BuyerDocument {
   created_at: string;
 }
 
-export function DealDocumentsTab({ requestId, requestStatus, dealId }: DealDocumentsTabProps) {
+export function DealDocumentsTab({ requestId: _requestId, requestStatus, dealId }: DealDocumentsTabProps) {
   const { user } = useAuth();
   const [loadingDoc, setLoadingDoc] = useState<string | null>(null);
 
@@ -52,7 +52,7 @@ export function DealDocumentsTab({ requestId, requestStatus, dealId }: DealDocum
         .from("data_room_access")
         .select("can_view_teaser, can_view_full_memo, can_view_data_room, fee_agreement_override")
         .eq("deal_id", dealId)
-        .eq("marketplace_user_id", user?.id)
+        .eq("marketplace_user_id", user?.id ?? '')
         .is("revoked_at", null)
         .maybeSingle();
 
@@ -296,8 +296,8 @@ export function DealDocumentsTab({ requestId, requestStatus, dealId }: DealDocum
                   />
                 ) : (
                   <div className="space-y-2">
-                    {((memo.content as { sections?: Array<{ title: string; content: string }> } | null)?.sections || []).map((section: { title: string; content: string }, i: number) => (
-                      <div key={i}>
+                    {((memo.content as { sections?: Array<{ title: string; content: string }> } | null)?.sections || []).map((section: { title: string; content: string }) => (
+                      <div key={section.title}>
                         <h4 className="font-medium text-xs text-slate-900 mb-0.5">{section.title}</h4>
                         <p className="text-xs text-slate-600 whitespace-pre-wrap">{section.content}</p>
                       </div>

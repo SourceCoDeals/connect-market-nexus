@@ -65,7 +65,6 @@ export function AuditLogPanel({ dealId }: AuditLogPanelProps) {
           <div className="space-y-2 max-h-[600px] overflow-y-auto">
             {logs.map(log => {
               const actionInfo = ACTION_LABELS[log.action] || { label: log.action, color: 'bg-gray-100 text-gray-800' };
-              const metadata = log.metadata || {};
 
               return (
                 <div key={log.id} className="flex items-start gap-3 py-2 border-b last:border-0">

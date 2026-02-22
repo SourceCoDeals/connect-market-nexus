@@ -88,7 +88,7 @@ export function useAdminStats() {
           } as AdminStats;
         }
       },
-      enabled: authChecked && user && isAdmin,
+      enabled: authChecked && !!user && isAdmin,
     });
   };
 
@@ -130,8 +130,8 @@ export function useAdminStats() {
           
           if (connections && connections.length > 0) {
             // Batch-fetch user and listing details instead of N+1 queries
-            const userIds = [...new Set(connections.map(c => c.user_id))];
-            const listingIds = [...new Set(connections.map(c => c.listing_id))];
+            const userIds = [...new Set(connections.map(c => c.user_id))].filter((id): id is string => id !== null);
+            const listingIds = [...new Set(connections.map(c => c.listing_id))].filter((id): id is string => id !== null);
 
             const [{ data: users }, { data: listings }] = await Promise.all([
               supabase.from('profiles').select('id, first_name, last_name').in('id', userIds),
@@ -142,7 +142,7 @@ export function useAdminStats() {
             const listingMap = new Map((listings || []).map(l => [l.id, l]));
 
             const connectionActivities = connections.map(connection => {
-              const userData = userMap.get(connection.user_id);
+              const userData = connection.user_id ? userMap.get(connection.user_id) : undefined;
               const listingData = listingMap.get(connection.listing_id);
               const userName = userData ? `${userData.first_name} ${userData.last_name}` : 'Unknown User';
               const listingTitle = listingData?.title || 'Unknown Listing';
@@ -152,7 +152,7 @@ export function useAdminStats() {
                 type: "connection_request" as const,
                 description: `New connection request for ${listingTitle} from ${userName}`,
                 timestamp: connection.created_at,
-                user_id: connection.user_id,
+                user_id: connection.user_id ?? undefined,
               };
             });
 
@@ -190,7 +190,7 @@ export function useAdminStats() {
           return [];
         }
       },
-      enabled: authChecked && user && isAdmin,
+      enabled: authChecked && !!user && isAdmin,
     });
   };
 

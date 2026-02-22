@@ -45,10 +45,8 @@ import {
   Trash2,
   Loader2,
   Mail,
-  Phone,
   Linkedin,
-  FileText,
-} from "lucide-react";
+  } from "lucide-react";
 
 interface BuyerContact {
   id: string;

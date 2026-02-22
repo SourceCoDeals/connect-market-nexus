@@ -7,7 +7,7 @@ import { useMarkDealSourcingAsViewed } from '@/hooks/admin/use-mark-deal-sourcin
 import { Loader2, Sparkles } from 'lucide-react';
 
 export default function AdminDealSourcing() {
-  const [filters, setFilters] = useState<DealSourcingFilters>({});
+  const [filters] = useState<DealSourcingFilters>({});
   const { data: requests, isLoading } = useDealSourcingRequests(filters);
   const markAsViewed = useMarkDealSourcingAsViewed();
 

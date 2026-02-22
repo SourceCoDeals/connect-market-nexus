@@ -9,12 +9,10 @@ import {
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { 
-  Filter, 
   X, 
   SlidersHorizontal,
   Search
 } from "lucide-react";
-import { cn } from "@/lib/utils";
 
 export interface ScoreFiltersState {
   status: string;

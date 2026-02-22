@@ -106,8 +106,8 @@ const InvestorFinancialDashboard = ({
             <div>
               <h4 className="font-medium text-sm mb-2">Key Investment Highlights</h4>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                {investmentThesis.keyStrengths.map((strength, index) => (
-                  <div key={index} className="flex items-center gap-2 text-xs">
+                {investmentThesis.keyStrengths.map((strength) => (
+                  <div key={strength} className="flex items-center gap-2 text-xs">
                     <div className="w-1.5 h-1.5 bg-primary rounded-full flex-shrink-0" />
                     <span className="text-foreground/80">{strength}</span>
                   </div>
@@ -139,8 +139,8 @@ const InvestorFinancialDashboard = ({
             <div>
               <h4 className="font-medium text-sm mb-3 text-primary">Growth Drivers</h4>
               <div className="space-y-2">
-                {extractedMetrics.growthDrivers.map((driver, index) => (
-                  <Badge key={index} variant="secondary" className="text-xs mr-2 mb-1">
+                {extractedMetrics.growthDrivers.map((driver) => (
+                  <Badge key={driver} variant="secondary" className="text-xs mr-2 mb-1">
                     {driver.charAt(0).toUpperCase() + driver.slice(1)}
                   </Badge>
                 ))}

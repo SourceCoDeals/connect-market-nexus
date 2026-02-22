@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
@@ -20,11 +20,11 @@ interface SimpleNDADialogProps {
   onSendEmail: (user: UserType, options?: { subject?: string; message?: string; customSignatureHtml?: string; customSignatureText?: string }) => Promise<void>;
 }
 
-export const SimpleNDADialog = ({ open, onOpenChange, user, listing, onSendEmail }: SimpleNDADialogProps) => {
+export const SimpleNDADialog = ({ open, onOpenChange, user, onSendEmail }: SimpleNDADialogProps) => {
   const [customSubject, setCustomSubject] = useState("");
   const [customMessage, setCustomMessage] = useState("");
   const [customSignatureText, setCustomSignatureText] = useState("");
-  const [selectedTemplate, setSelectedTemplate] = useState<'quick' | 'standard' | 'executive'>('standard');
+  const [_selectedTemplate, _setSelectedTemplate] = useState<'quick' | 'standard' | 'executive'>('standard');
   const [isSending, setIsSending] = useState(false);
   
   const { user: currentUser } = useAuth();
@@ -197,7 +197,7 @@ ${adminName}`
             {/* Email Signature */}
             <EditableSignature 
               showInline
-              onSignatureChange={(html, text) => {
+              onSignatureChange={(_html, text) => {
                 setCustomSignatureText(text);
               }}
             />

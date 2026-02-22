@@ -52,8 +52,6 @@ export const DealTableRow = ({
   formatCurrency,
   formatWebsiteDomain,
   getEffectiveWebsite,
-  formatGeographyBadges,
-  getScoreTrendIcon,
   columnWidths,
   isSelected,
   onToggleSelect,

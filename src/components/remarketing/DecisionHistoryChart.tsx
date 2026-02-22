@@ -12,7 +12,6 @@ import {
   Legend,
 } from "recharts";
 import { CheckCircle2, XCircle, TrendingUp } from "lucide-react";
-import { cn } from "@/lib/utils";
 import { format, parseISO, subDays } from "date-fns";
 
 interface DecisionRecord {

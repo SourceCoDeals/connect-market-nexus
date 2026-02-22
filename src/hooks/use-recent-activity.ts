@@ -81,7 +81,7 @@ export function useRecentActivity(limit: number = 50) {
         ...(saves?.map(s => s.user_id) || []),
         ...(connections?.map(c => c.user_id) || []),
         ...(searches?.map(s => s.user_id) || [])
-      ].filter(Boolean);
+      ].filter((id): id is string => id !== null && id !== undefined);
 
       const { data: profiles, error: profilesError } = await supabase
         .from('profiles')
@@ -95,28 +95,28 @@ export function useRecentActivity(limit: number = 50) {
       signups?.forEach(signup => {
         activities.push({
           id: `signup-${signup.id}`,
-          timestamp: signup.created_at,
-          user_email: signup.email,
-          user_name: `${signup.first_name} ${signup.last_name}`.trim() || signup.email,
+          timestamp: signup.created_at ?? new Date().toISOString(),
+          user_email: signup.email ?? '',
+          user_name: (`${signup.first_name ?? ''} ${signup.last_name ?? ''}`.trim()) || (signup.email ?? ''),
           activity_type: 'signup',
-          description: `New user registered: ${signup.first_name} ${signup.last_name}`
+          description: `New user registered: ${signup.first_name ?? ''} ${signup.last_name ?? ''}`
         });
       });
 
       // Process listing views
       listingViews?.forEach(view => {
-        const profile = profileMap.get(view.user_id!);
+        const profile = view.user_id ? profileMap.get(view.user_id) : undefined;
         if (profile) {
           activities.push({
             id: `view-${view.id}`,
-            timestamp: view.created_at,
-            user_email: profile.email,
-            user_name: `${profile.first_name} ${profile.last_name}`.trim() || profile.email,
+            timestamp: view.created_at ?? new Date().toISOString(),
+            user_email: profile.email ?? '',
+            user_name: (`${profile.first_name ?? ''} ${profile.last_name ?? ''}`.trim()) || (profile.email ?? ''),
             activity_type: 'listing_view',
             description: `Viewed listing: ${view.listings?.title || 'Unknown listing'}`,
             metadata: {
-              listing_title: view.listings?.title,
-              listing_id: view.listing_id
+              listing_title: view.listings?.title ?? undefined,
+              listing_id: view.listing_id ?? undefined
             }
           });
         }
@@ -128,13 +128,13 @@ export function useRecentActivity(limit: number = 50) {
         if (profile) {
           activities.push({
             id: `save-${save.id}`,
-            timestamp: save.created_at,
-            user_email: profile.email,
-            user_name: `${profile.first_name} ${profile.last_name}`.trim() || profile.email,
+            timestamp: save.created_at ?? new Date().toISOString(),
+            user_email: profile.email ?? '',
+            user_name: (`${profile.first_name ?? ''} ${profile.last_name ?? ''}`.trim()) || (profile.email ?? ''),
             activity_type: 'save',
             description: `Saved listing: ${save.listings?.title || 'Unknown listing'}`,
             metadata: {
-              listing_title: save.listings?.title,
+              listing_title: save.listings?.title ?? undefined,
               listing_id: save.listing_id
             }
           });
@@ -143,17 +143,18 @@ export function useRecentActivity(limit: number = 50) {
 
       // Process connection requests
       connections?.forEach(connection => {
+        if (!connection.user_id) return;
         const profile = profileMap.get(connection.user_id);
         if (profile) {
           activities.push({
             id: `connection-${connection.id}`,
-            timestamp: connection.created_at,
-            user_email: profile.email,
-            user_name: `${profile.first_name} ${profile.last_name}`.trim() || profile.email,
+            timestamp: connection.created_at ?? new Date().toISOString(),
+            user_email: profile.email ?? '',
+            user_name: (`${profile.first_name ?? ''} ${profile.last_name ?? ''}`.trim()) || (profile.email ?? ''),
             activity_type: 'connection_request',
             description: `Requested connection for: ${connection.listings?.title || 'Unknown listing'}`,
             metadata: {
-              listing_title: connection.listings?.title,
+              listing_title: connection.listings?.title ?? undefined,
               listing_id: connection.listing_id
             }
           });
@@ -162,17 +163,18 @@ export function useRecentActivity(limit: number = 50) {
 
       // Process searches
       searches?.forEach(search => {
-        const profile = profileMap.get(search.user_id!);
+        if (!search.user_id) return;
+        const profile = profileMap.get(search.user_id);
         if (profile) {
           activities.push({
             id: `search-${search.id}`,
-            timestamp: search.created_at,
-            user_email: profile.email,
-            user_name: `${profile.first_name} ${profile.last_name}`.trim() || profile.email,
+            timestamp: search.created_at ?? new Date().toISOString(),
+            user_email: profile.email ?? '',
+            user_name: (`${profile.first_name ?? ''} ${profile.last_name ?? ''}`.trim()) || (profile.email ?? ''),
             activity_type: 'search',
             description: `Searched for: "${search.search_query}" (${search.results_count} results)`,
             metadata: {
-              search_query: search.search_query
+              search_query: search.search_query ?? undefined
             }
           });
         }

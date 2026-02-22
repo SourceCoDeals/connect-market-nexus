@@ -34,12 +34,11 @@ import {
   type AgreementSource,
 } from '@/hooks/admin/use-firm-agreements';
 import {
-  ChevronDown, Send, AlertTriangle, Clock, Check, Ban, Timer, X, Upload,
+  ChevronDown, X,
   Loader2,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
-import { useToast } from '@/hooks/use-toast';
 
 // Define valid transitions per status
 const VALID_TRANSITIONS: Record<AgreementStatus, AgreementStatus[]> = {
@@ -60,7 +59,6 @@ interface AgreementStatusDropdownProps {
 
 export function AgreementStatusDropdown({ firm, members, agreementType }: AgreementStatusDropdownProps) {
   const updateStatus = useUpdateAgreementStatus();
-  const { toast } = useToast();
 
   const currentStatus = (agreementType === 'nda' ? firm.nda_status : firm.fee_agreement_status) as AgreementStatus;
   const validNextStatuses = VALID_TRANSITIONS[currentStatus] || [];
@@ -76,7 +74,7 @@ export function AgreementStatusDropdown({ firm, members, agreementType }: Agreem
   const [source, setSource] = useState<AgreementSource>('platform');
 
   const [localMembers, setLocalMembers] = useState<FirmMember[] | null>(null);
-  const [membersLoading, setMembersLoading] = useState(false);
+  const [_membersLoading, setMembersLoading] = useState(false);
 
   const effectiveMembers = localMembers || members;
 

@@ -20,7 +20,7 @@ export function ListingHeader({
   userViewEnabled,
   isInactive 
 }: ListingHeaderProps) {
-  const imageData = getListingImage(listing.image_url, listing.category);
+  const imageData = getListingImage(listing.image_url ?? null, listing.category);
   
   // Format listed date
   const formatListedDate = () => {

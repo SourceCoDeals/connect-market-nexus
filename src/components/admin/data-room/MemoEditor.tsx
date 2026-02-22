@@ -3,11 +3,10 @@
  */
 
 import { useState, useCallback } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Separator } from '@/components/ui/separator';
 import { ArrowLeft, Save, Loader2, Plus, Trash2, GripVertical } from 'lucide-react';
 import { LeadMemo, useUpdateMemo } from '@/hooks/admin/data-room/use-data-room';
 
@@ -108,7 +107,7 @@ export function MemoEditor({ memo, dealId, onClose }: MemoEditorProps) {
 
       {/* Sections */}
       {sections.map((section, index) => (
-        <Card key={section.key || index}>
+        <Card key={section.key || section.title}>
           <CardHeader className="pb-2">
             <div className="flex items-center gap-2">
               <GripVertical className="h-4 w-4 text-muted-foreground cursor-grab" />

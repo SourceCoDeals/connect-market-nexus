@@ -30,7 +30,7 @@ export function useAdminUsers() {
         // Users with _hasDataIssues flag will still be visible in admin
         return profilesData?.map(profile => createUserObject(profile)) || [];
       },
-      enabled: authChecked && user && isAdmin,
+      enabled: authChecked && !!user && isAdmin,
       retry: 3,
       retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
       staleTime: 1 * 1000,
@@ -65,7 +65,7 @@ export function useAdminUsers() {
 
     return useMutation({
       mutationFn: execute,
-      onSuccess: ({ status, userId }) => {
+      onSuccess: ({ status: _status, userId: _userId }) => {
         // Success - the optimistic update in UserActions is the source of truth
         // Just invalidate to ensure eventual consistency
         queryClient.invalidateQueries({ queryKey: ['admin-users'] });
@@ -199,7 +199,7 @@ export function useAdminUsers() {
 
         return { userId, isAdmin: true, result: data };
       },
-      onSuccess: ({ userId }) => {
+      onSuccess: ({ userId: _userId }) => {
         toast({
           title: 'User promoted to admin',
           description: 'User has been granted admin privileges.',
@@ -230,7 +230,7 @@ export function useAdminUsers() {
 
         return { userId, isAdmin: false, result: data };
       },
-      onSuccess: ({ userId }) => {
+      onSuccess: ({ userId: _userId }) => {
         toast({
           title: 'Admin privileges revoked',
           description: 'User no longer has admin privileges.',

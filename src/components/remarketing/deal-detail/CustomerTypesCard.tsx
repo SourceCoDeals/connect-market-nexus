@@ -61,7 +61,6 @@ export const CustomerTypesCard = ({
     setIsEditOpen(true);
   };
 
-  const hasAnyData = customerTypes || customerConcentration || customerGeography;
 
   return (
     <>

@@ -3,7 +3,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Search, Download, DollarSign } from "lucide-react";
+import { Search, Download } from "lucide-react";
 import { OwnerLead, formatRevenueRange, formatSaleTimeline } from "@/hooks/admin/use-owner-leads";
 import { format } from "date-fns";
 

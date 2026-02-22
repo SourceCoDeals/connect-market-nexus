@@ -4,37 +4,21 @@ import { User as BuyerMetricsUser } from "@/types";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { 
-  ChevronDown, 
-  ChevronUp, 
-  Target, 
-  Building2, 
-  MapPin, 
+import {
+  ChevronDown,
+  ChevronUp,
+  Target,
+  Building2,
+  MapPin,
   DollarSign,
-  ExternalLink,
-  Check,
-  X,
-  Mail,
-  TrendingUp
 } from "lucide-react";
 import { BusinessCategoriesDisplay } from "./BuyerProfileHoverCard";
-import { formatFinancialRange, getPrimaryMetrics, getDataCompleteness, getBuyerTier } from "@/lib/buyer-metrics";
-import { processUrl } from "@/lib/url-utils";
-import { formatCurrency } from "@/lib/currency-utils";
+import { formatFinancialRange, getPrimaryMetrics, getBuyerTier } from "@/lib/buyer-metrics";
 
 interface ExpandableBusinessProfileProps {
   user: User | null | undefined;
   className?: string;
 }
-
-const getEmailDomainStatus = (email?: string | null) => {
-  if (!email) return { status: 'missing', color: 'text-amber-500' };
-  if (email.includes('@gmail.com') || email.includes('@yahoo.com') || email.includes('@hotmail.com')) {
-    return { status: 'personal', color: 'text-red-500' };
-  }
-  return { status: 'company', color: 'text-green-500' };
-};
-
 
 export const ExpandableBusinessProfile: React.FC<ExpandableBusinessProfileProps> = ({
   user,
@@ -54,9 +38,6 @@ export const ExpandableBusinessProfile: React.FC<ExpandableBusinessProfileProps>
   if (!hasBusinessInfo) return null;
 
   const revenueRange = formatFinancialRange(user.revenue_range_min, user.revenue_range_max);
-  const investmentSize = Array.isArray(user.investment_size) 
-    ? user.investment_size.join(', ') 
-    : user.investment_size?.replace(/\$/g, '').replace(/,/g, '') || '';
   const primaryMetrics = getPrimaryMetrics(user as unknown as BuyerMetricsUser);
   const tierInfo = getBuyerTier(user as unknown as BuyerMetricsUser);
 
@@ -92,8 +73,8 @@ export const ExpandableBusinessProfile: React.FC<ExpandableBusinessProfileProps>
                   <Badge variant="outline" className="text-xs">{tierInfo.badge}</Badge>
                 </div>
                 <div className="grid grid-cols-1 gap-1">
-                  {primaryMetrics.map((metric, index) => (
-                    <div key={index} className="flex items-center justify-between text-xs bg-muted/30 p-2 rounded">
+                  {primaryMetrics.map((metric) => (
+                    <div key={metric.label} className="flex items-center justify-between text-xs bg-muted/30 p-2 rounded">
                       <span className="text-muted-foreground">{metric.label}:</span>
                       <span className="font-medium">{metric.value}</span>
                     </div>

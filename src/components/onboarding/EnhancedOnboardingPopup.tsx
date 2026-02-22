@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
@@ -195,8 +195,8 @@ const EnhancedOnboardingPopup = ({ isOpen, onClose, userId }: EnhancedOnboarding
           </div>
 
           <div className="space-y-3">
-            {currentStepData.content.points.map((point, index) => (
-              <div key={index} className="flex items-start gap-3 p-3 bg-slate-50 rounded-lg border border-slate-100">
+            {currentStepData.content.points.map((point) => (
+              <div key={point} className="flex items-start gap-3 p-3 bg-slate-50 rounded-lg border border-slate-100">
                 <CheckCircle className="h-5 w-5 text-green-600 mt-0.5 flex-shrink-0" />
                 <p className="text-sm text-slate-700">{point}</p>
               </div>

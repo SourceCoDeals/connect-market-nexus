@@ -1,12 +1,9 @@
-import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { 
   Timer, 
   Zap, 
-  TrendingUp,
-  TrendingDown,
   Target,
   ArrowRight,
   Clock,
@@ -89,7 +86,7 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 
 export const OutreachVelocityDashboard = ({
   velocityTrends,
-  stageVelocities,
+  stageVelocities: _stageVelocities,
   summary,
   benchmarks = DEFAULT_BENCHMARKS,
   className

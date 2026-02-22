@@ -132,8 +132,8 @@ export const DealSourcingCriteriaDialog = ({ open, onOpenChange, user }: DealSou
               <div className="space-y-2 sm:space-y-2.5">
                 <div className="text-[10px] font-semibold text-foreground/40 uppercase tracking-[0.08em]">Target Industries</div>
                 <div className="flex flex-wrap gap-1.5 sm:gap-2">
-                  {(showAllIndustries ? user.business_categories : user.business_categories.slice(0, INITIAL_INDUSTRIES_DISPLAY)).map((category, index) => (
-                    <Badge key={index} variant="secondary" className="bg-secondary/50 text-foreground/80 hover:bg-secondary text-[12px] sm:text-[13px] px-2.5 sm:px-3 py-0.5 sm:py-1 font-normal">{category}</Badge>
+                  {(showAllIndustries ? user.business_categories : user.business_categories.slice(0, INITIAL_INDUSTRIES_DISPLAY)).map((category) => (
+                    <Badge key={category} variant="secondary" className="bg-secondary/50 text-foreground/80 hover:bg-secondary text-[12px] sm:text-[13px] px-2.5 sm:px-3 py-0.5 sm:py-1 font-normal">{category}</Badge>
                   ))}
                   {user.business_categories.length > INITIAL_INDUSTRIES_DISPLAY && (
                     <button onClick={() => setShowAllIndustries(!showAllIndustries)} className="text-[12px] sm:text-[13px] text-primary hover:text-primary/80 transition-colors font-medium flex items-center gap-1">
@@ -240,8 +240,8 @@ export const DealSourcingCriteriaDialog = ({ open, onOpenChange, user }: DealSou
                 <div className="space-y-2">
                   <div className="text-[10px] font-semibold text-foreground/40 uppercase tracking-[0.08em]">Exclusions</div>
                   <div className="flex flex-wrap gap-1.5 sm:gap-2">
-                    {user.exclusions.map((exclusion, index) => (
-                      <Badge key={index} variant="outline" className="text-[12px] sm:text-[13px] px-2.5 sm:px-3 py-0.5 sm:py-1 font-normal">{exclusion}</Badge>
+                    {user.exclusions.map((exclusion) => (
+                      <Badge key={exclusion} variant="outline" className="text-[12px] sm:text-[13px] px-2.5 sm:px-3 py-0.5 sm:py-1 font-normal">{exclusion}</Badge>
                     ))}
                   </div>
                 </div>
@@ -251,8 +251,8 @@ export const DealSourcingCriteriaDialog = ({ open, onOpenChange, user }: DealSou
                 <div className="space-y-2">
                   <div className="text-[10px] font-semibold text-foreground/40 uppercase tracking-[0.08em]">Include Keywords</div>
                   <div className="flex flex-wrap gap-1.5 sm:gap-2">
-                    {user.include_keywords.map((keyword, index) => (
-                      <Badge key={index} variant="secondary" className="bg-secondary/50 text-foreground/80 hover:bg-secondary text-[12px] sm:text-[13px] px-2.5 sm:px-3 py-0.5 sm:py-1 font-normal">{keyword}</Badge>
+                    {user.include_keywords.map((keyword) => (
+                      <Badge key={keyword} variant="secondary" className="bg-secondary/50 text-foreground/80 hover:bg-secondary text-[12px] sm:text-[13px] px-2.5 sm:px-3 py-0.5 sm:py-1 font-normal">{keyword}</Badge>
                     ))}
                   </div>
                 </div>

@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { Image as ImageIcon, Upload, X } from "lucide-react";
+import { Image as ImageIcon } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { useRef } from "react";
 import { EDITOR_DESIGN } from "@/lib/editor-design-system";

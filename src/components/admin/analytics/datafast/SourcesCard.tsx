@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState } from "react";
 import { AnalyticsCard, SortToggle, SortValue } from "./AnalyticsCard";
 import { AnalyticsTooltip } from "./AnalyticsTooltip";
 import { PieChart, Pie, Cell, ResponsiveContainer } from "recharts";

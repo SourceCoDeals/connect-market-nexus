@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -13,12 +13,10 @@ import {
   Building2,
   MapPin,
   Briefcase,
-  ExternalLink,
   Sparkles,
   X,
   Minimize2,
-  Maximize2,
-} from "lucide-react";
+  } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Link } from "react-router-dom";
 import { IntelligenceBadge } from "./IntelligenceBadge";
@@ -90,7 +88,7 @@ export const BuyerQueryChat = ({ universeId, className, defaultOpen = false }: B
       if (data?.error) throw new Error(data.error);
       return data;
     },
-    onSuccess: (data, searchQuery) => {
+    onSuccess: (data, _searchQuery) => {
       const assistantMessage: Message = {
         id: `assistant-${Date.now()}`,
         role: 'assistant',
@@ -203,9 +201,9 @@ export const BuyerQueryChat = ({ universeId, className, defaultOpen = false }: B
               Ask questions in natural language to find buyers. For example:
             </p>
             <div className="flex flex-wrap gap-2">
-              {EXAMPLE_QUERIES.map((example, i) => (
+              {EXAMPLE_QUERIES.map((example) => (
                 <Button
-                  key={i}
+                  key={example}
                   variant="outline"
                   size="sm"
                   className="text-xs h-auto py-1.5 px-2"
@@ -279,14 +277,14 @@ export const BuyerQueryChat = ({ universeId, className, defaultOpen = false }: B
                           )}
 
                           <div className="flex flex-wrap gap-2 mt-2">
-                            {buyer.target_geographies?.slice(0, 3).map((geo, i) => (
-                              <Badge key={i} variant="secondary" className="text-xs">
+                            {buyer.target_geographies?.slice(0, 3).map((geo) => (
+                              <Badge key={geo} variant="secondary" className="text-xs">
                                 <MapPin className="h-2.5 w-2.5 mr-1" />
                                 {geo}
                               </Badge>
                             ))}
-                            {buyer.target_services?.slice(0, 2).map((svc, i) => (
-                              <Badge key={i} variant="secondary" className="text-xs">
+                            {buyer.target_services?.slice(0, 2).map((svc) => (
+                              <Badge key={svc} variant="secondary" className="text-xs">
                                 <Briefcase className="h-2.5 w-2.5 mr-1" />
                                 {svc}
                               </Badge>

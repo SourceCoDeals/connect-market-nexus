@@ -19,7 +19,7 @@ export const useUpdateApprovalStatus = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ requestId, isApproved, notes }: UpdateApprovalStatusParams) => {
+    mutationFn: async ({ requestId, isApproved, notes: _notes }: UpdateApprovalStatusParams) => {
       const adminId = (await supabase.auth.getUser()).data.user?.id;
       if (!adminId) {
         throw new Error('Admin not authenticated');
@@ -78,7 +78,7 @@ export const useUpdateApprovalStatus = () => {
         description: "The approval status has been successfully updated.",
       });
     },
-    onError: (err, variables, context) => {
+    onError: (_err, _variables, context) => {
       queryClient.setQueryData(['connection-requests'], context?.previousRequests);
       toast({
         variant: "destructive",
@@ -94,7 +94,7 @@ export const useUpdateRejectionStatus = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ requestId, isRejected, notes }: UpdateRejectionStatusParams) => {
+    mutationFn: async ({ requestId, isRejected, notes: _notes }: UpdateRejectionStatusParams) => {
       const adminId = (await supabase.auth.getUser()).data.user?.id;
       if (!adminId) {
         throw new Error('Admin not authenticated');
@@ -153,7 +153,7 @@ export const useUpdateRejectionStatus = () => {
         description: "The rejection status has been successfully updated.",
       });
     },
-    onError: (err, variables, context) => {
+    onError: (_err, _variables, context) => {
       queryClient.setQueryData(['connection-requests'], context?.previousRequests);
       toast({
         variant: "destructive",

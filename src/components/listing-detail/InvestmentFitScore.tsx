@@ -1,7 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { formatCurrency, calculateLocationMatchScore, calculateIndustryMatchScore } from '@/lib/financial-parser';
+import { calculateLocationMatchScore, calculateIndustryMatchScore } from '@/lib/financial-parser';
 import { parseCurrency } from '@/lib/currency-utils';
-import { Separator } from '@/components/ui/separator';
 import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Link } from 'react-router-dom';
@@ -21,7 +20,7 @@ interface FitCriteria {
   details: string;
 }
 
-export function InvestmentFitScore({ revenue, ebitda, category, location }: InvestmentFitScoreProps) {
+export function InvestmentFitScore({ revenue, category, location }: InvestmentFitScoreProps) {
   const { user } = useAuth();
 
   if (!user) {
@@ -42,21 +41,24 @@ export function InvestmentFitScore({ revenue, ebitda, category, location }: Inve
     );
   }
 
+  // After null check, create a non-null reference for use in inner functions
+  const currentUser = user;
+
   // SIMPLIFIED: Now that data is standardized as JSONB arrays
-  const userTargetLocations = Array.isArray(user.target_locations) 
-    ? user.target_locations.filter(Boolean)
+  const userTargetLocations = Array.isArray(currentUser.target_locations)
+    ? currentUser.target_locations.filter(Boolean)
     : [];
   
-  const userCategories = user.business_categories 
-    ? (Array.isArray(user.business_categories) 
-        ? user.business_categories 
-        : typeof user.business_categories === 'string'
-        ? ((user.business_categories as string).startsWith('[') 
+  const userCategories = currentUser.business_categories
+    ? (Array.isArray(currentUser.business_categories)
+        ? currentUser.business_categories
+        : typeof currentUser.business_categories === 'string'
+        ? ((currentUser.business_categories as string).startsWith('[')
            ? (() => {
-               try { return JSON.parse(user.business_categories as string); } 
-               catch { return [user.business_categories as string]; }
+               try { return JSON.parse(currentUser.business_categories as string); }
+               catch { return [currentUser.business_categories as string]; }
              })()
-           : [user.business_categories as string])
+           : [currentUser.business_categories as string])
         : [])
     : [];
 
@@ -86,9 +88,9 @@ export function InvestmentFitScore({ revenue, ebitda, category, location }: Inve
     let revenueScore = 0;
     let revenueDetails = '';
     
-    if (user.revenue_range_min || user.revenue_range_max) {
-      const minRange = user.revenue_range_min ? parseCurrency(String(user.revenue_range_min)) : 0;
-      const maxRange = user.revenue_range_max ? parseCurrency(String(user.revenue_range_max)) : Infinity;
+    if (currentUser.revenue_range_min || currentUser.revenue_range_max) {
+      const minRange = currentUser.revenue_range_min ? parseCurrency(String(currentUser.revenue_range_min)) : 0;
+      const maxRange = currentUser.revenue_range_max ? parseCurrency(String(currentUser.revenue_range_max)) : Infinity;
       
       if (revenue >= minRange && revenue <= maxRange) {
         revenueScore = 100;
@@ -184,10 +186,10 @@ export function InvestmentFitScore({ revenue, ebitda, category, location }: Inve
     let sizeScore = 0;
     let sizeDetails = '';
     
-    if (user.investment_size) {
-      const investmentSize = Array.isArray(user.investment_size) 
-        ? user.investment_size.join(' ').toLowerCase() 
-        : (typeof user.investment_size === 'string' ? user.investment_size.toLowerCase() : '');
+    if (currentUser.investment_size) {
+      const investmentSize = Array.isArray(currentUser.investment_size)
+        ? currentUser.investment_size.join(' ').toLowerCase()
+        : (typeof currentUser.investment_size === 'string' ? currentUser.investment_size.toLowerCase() : '');
       
       if (investmentSize.includes('small') || investmentSize.includes('<5m')) {
         sizeScore = revenue < 10000000 ? 100 : revenue < 25000000 ? 75 : 50;
@@ -235,11 +237,11 @@ export function InvestmentFitScore({ revenue, ebitda, category, location }: Inve
 
   function getProfileCompleteness(): number {
     const fields = [
-      user.revenue_range_min || user.revenue_range_max,
+      currentUser.revenue_range_min || currentUser.revenue_range_max,
       userTargetLocations.length > 0,
       userCategories.length > 0,
-      user.investment_size,
-      user.buyer_type
+      currentUser.investment_size,
+      currentUser.buyer_type
     ];
     
     const completedFields = fields.filter(Boolean).length;
@@ -248,14 +250,6 @@ export function InvestmentFitScore({ revenue, ebitda, category, location }: Inve
 
   const { score: overallScore, criteria } = calculateFitScore();
   const profileCompleteness = getProfileCompleteness();
-
-  const getScoreIndicator = (score: number): string => {
-    if (score >= 80) return '●●●●●';
-    if (score >= 60) return '●●●●○';
-    if (score >= 40) return '●●●○○';
-    if (score >= 20) return '●●○○○';
-    return '●○○○○';
-  };
 
   const getScoreLabel = (score: number): string => {
     if (score >= 80) return 'Excellent';
@@ -283,8 +277,8 @@ export function InvestmentFitScore({ revenue, ebitda, category, location }: Inve
 
         {/* Criteria Analysis - Ultra Clean */}
         <div className="space-y-2 pt-3">
-          {criteria.map((criterion, index) => (
-            <div key={index} className="flex items-center justify-between py-1">
+          {criteria.map((criterion) => (
+            <div key={criterion.name} className="flex items-center justify-between py-1">
               <div className="flex-1">
                 <div className="text-xs font-medium text-slate-900">{criterion.name}</div>
                 <div className="text-xs text-slate-500">{criterion.details}</div>
@@ -311,7 +305,7 @@ export function InvestmentFitScore({ revenue, ebitda, category, location }: Inve
             <div className="flex justify-between">
               <span className="text-slate-500">Revenue Range:</span> 
               <span className="text-slate-900 text-right max-w-[60%]">
-                {formatFinancialRange(user.revenue_range_min, user.revenue_range_max)}
+                {formatFinancialRange(currentUser.revenue_range_min, currentUser.revenue_range_max)}
               </span>
             </div>
             <div className="flex justify-between">
@@ -329,7 +323,7 @@ export function InvestmentFitScore({ revenue, ebitda, category, location }: Inve
             <div className="flex justify-between">
               <span className="text-slate-500">Investment Size:</span> 
               <span className="text-slate-900 text-right">
-                {Array.isArray(user.investment_size) ? user.investment_size.join(', ') : user.investment_size || 'Not set'}
+                {Array.isArray(currentUser.investment_size) ? currentUser.investment_size.join(', ') : currentUser.investment_size || 'Not set'}
               </span>
             </div>
           </div>

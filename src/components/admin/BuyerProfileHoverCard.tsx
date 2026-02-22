@@ -7,7 +7,7 @@ import {
   HoverCardTrigger,
 } from "@/components/ui/hover-card";
 import { Badge } from "@/components/ui/badge";
-import { Building2, Target, DollarSign, ExternalLink, Check, X, Mail } from "lucide-react";
+import { Building2, Target, ExternalLink, Check, X, Mail } from "lucide-react";
 import { getBuyerTier, formatFinancialRange, getPrimaryMetrics, getProfileCompletionDetails } from "@/lib/buyer-metrics";
 
 interface BuyerProfileHoverCardProps {
@@ -45,11 +45,6 @@ export const BusinessCategoriesDisplay: React.FC<BusinessCategoriesDisplayProps>
       )}
     </div>
   );
-};
-
-const formatInvestmentSize = (investmentSize?: string | null) => {
-  if (!investmentSize) return null;
-  return investmentSize.replace(/\$/g, '').replace(/,/g, '');
 };
 
 const getEmailDomainStatus = (email?: string | null) => {
@@ -107,9 +102,6 @@ export const BuyerProfileHoverCard: React.FC<BuyerProfileHoverCardProps> = ({
   }
 
   const tierInfo = getBuyerTier(user as unknown as BuyerMetricsUser);
-  const investmentSize = Array.isArray(user.investment_size) 
-    ? user.investment_size.join(', ') 
-    : formatInvestmentSize(user.investment_size);
   const revenueRange = formatFinancialRange(user.revenue_range_min, user.revenue_range_max);
   const primaryMetrics = getPrimaryMetrics(user as unknown as BuyerMetricsUser);
   

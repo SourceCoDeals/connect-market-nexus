@@ -26,7 +26,7 @@ export function useUpdateDecisionNotes() {
         description: "Decision note has been updated successfully."
       });
     },
-    onError: (error) => {
+    onError: (_error) => {
       toast({
         title: "Error",
         description: "Failed to save decision note. Please try again.",
@@ -73,11 +73,13 @@ export function useCreateUserNote() {
   
   return useMutation({
     mutationFn: async ({ userId, noteText }: { userId: string; noteText: string }) => {
+      const adminId = (await supabase.auth.getUser()).data.user?.id;
+      if (!adminId) throw new Error('Not authenticated');
       const { data, error } = await supabase
         .from('user_notes')
         .insert({
           user_id: userId,
-          admin_id: (await supabase.auth.getUser()).data.user?.id,
+          admin_id: adminId,
           note_text: noteText
         })
         .select()
@@ -95,7 +97,7 @@ export function useCreateUserNote() {
         description: "User note has been created successfully."
       });
     },
-    onError: (error) => {
+    onError: (_error) => {
       toast({
         title: "Error",
         description: "Failed to create note. Please try again.",
@@ -109,7 +111,7 @@ export function useUpdateUserNote() {
   const queryClient = useQueryClient();
   
   return useMutation({
-    mutationFn: async ({ noteId, noteText, userId }: { noteId: string; noteText: string; userId: string }) => {
+    mutationFn: async ({ noteId, noteText, userId: _userId }: { noteId: string; noteText: string; userId: string }) => {
       const { data, error } = await supabase
         .from('user_notes')
         .update({ note_text: noteText })
@@ -129,7 +131,7 @@ export function useUpdateUserNote() {
         description: "User note has been updated successfully."
       });
     },
-    onError: (error) => {
+    onError: (_error) => {
       toast({
         title: "Error",
         description: "Failed to update note. Please try again.",

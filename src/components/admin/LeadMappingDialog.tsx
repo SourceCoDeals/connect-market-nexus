@@ -1,9 +1,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Search, Building2, MapPin, User, Mail } from "lucide-react";
 import { InboundLead } from "@/hooks/admin/use-inbound-leads";
@@ -34,7 +32,7 @@ export const LeadMappingDialog = ({
   const filteredListings = listings.filter(listing =>
     listing.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
     listing.internal_company_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    listing.category.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    listing.category?.toLowerCase().includes(searchQuery.toLowerCase()) ||
     listing.location.toLowerCase().includes(searchQuery.toLowerCase())
   );
 

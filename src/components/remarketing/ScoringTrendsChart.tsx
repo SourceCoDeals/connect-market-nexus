@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { 
@@ -14,8 +14,7 @@ import {
   Legend
 } from 'recharts';
 import { ScoringTrend } from '@/hooks/useReMarketingAnalytics';
-import { TrendingUp, BarChart3 } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { TrendingUp } from 'lucide-react';
 
 interface ScoringTrendsChartProps {
   data: ScoringTrend[];
@@ -33,8 +32,8 @@ export function ScoringTrendsChart({ data, className }: ScoringTrendsChartProps)
         <div className="bg-popover border rounded-lg shadow-lg p-3">
           <p className="font-semibold mb-2">{label}</p>
           <div className="space-y-1">
-            {payload.map((entry: any, index: number) => (
-              <div key={index} className="flex items-center gap-2 text-sm">
+            {payload.map((entry: any) => (
+              <div key={entry.name} className="flex items-center gap-2 text-sm">
                 <div 
                   className="w-2 h-2 rounded-full" 
                   style={{ backgroundColor: entry.color }}

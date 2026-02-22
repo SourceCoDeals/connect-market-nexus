@@ -1,6 +1,6 @@
 
 import { useState, useEffect } from "react";
-import { Link, useNavigate, useLocation } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,7 +15,6 @@ const Login = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { user, isLoading, authChecked, login } = useAuth();
   const navigate = useNavigate();
-  const location = useLocation();
 
   // Simple redirect if already logged in - route based on approval status
   useEffect(() => {

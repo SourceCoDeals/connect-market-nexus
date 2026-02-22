@@ -53,9 +53,9 @@ export function AnalyticsTooltip({
               </div>
             )}
             <div className="px-3 py-2 space-y-1.5">
-              {rows.map((row, index) => (
-                <div 
-                  key={index}
+              {rows.map((row) => (
+                <div
+                  key={row.label}
                   className="flex items-center justify-between gap-4"
                 >
                   <span className="text-[11px] text-[hsl(0_0%_65%)]">
@@ -85,8 +85,8 @@ export function AnalyticsTooltip({
                   Top Sources
                 </div>
                 <div className="space-y-1">
-                  {topSources.slice(0, 3).map((source, index) => (
-                    <div key={index} className="flex items-center justify-between">
+                  {topSources.slice(0, 3).map((source) => (
+                    <div key={source.name} className="flex items-center justify-between">
                       <span className="text-[11px] text-[hsl(0_0%_75%)]">{source.name}</span>
                       <span className="text-[11px] text-white tabular-nums">{source.percentage.toFixed(0)}%</span>
                     </div>
@@ -102,8 +102,8 @@ export function AnalyticsTooltip({
                   Top Countries
                 </div>
                 <div className="space-y-1">
-                  {topCountries.slice(0, 3).map((country, index) => (
-                    <div key={index} className="flex items-center justify-between">
+                  {topCountries.slice(0, 3).map((country) => (
+                    <div key={country.name} className="flex items-center justify-between">
                       <span className="text-[11px] text-[hsl(0_0%_75%)]">{country.name}</span>
                       <span className="text-[11px] text-white tabular-nums">{country.percentage.toFixed(0)}%</span>
                     </div>

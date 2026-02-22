@@ -8,7 +8,7 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table';
 import { Send, Mail, ClipboardList, Monitor, Loader2 } from 'lucide-react';
-import { useDistributionLog, DistributionLogEntry } from '@/hooks/admin/data-room/use-data-room';
+import { useDistributionLog } from '@/hooks/admin/data-room/use-data-room';
 
 interface DistributionLogPanelProps {
   dealId: string;

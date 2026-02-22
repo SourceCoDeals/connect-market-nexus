@@ -58,7 +58,11 @@ export function useSmartAlerts() {
         if (lcError) throw lcError;
 
         // Group data by listing
-        const listingDataMap = new Map();
+        const listingDataMap = new Map<string, {
+          analytics: { listing_id: string | null; action_type: string | null; created_at: string | null }[];
+          saves: { listing_id: string; created_at: string | null }[];
+          connections: { listing_id: string; created_at: string | null }[];
+        }>();
         listingIds.forEach(listingId => {
           listingDataMap.set(listingId, {
             analytics: [],
@@ -68,20 +72,20 @@ export function useSmartAlerts() {
         });
 
         listingAnalytics?.forEach(analytics => {
-          if (listingDataMap.has(analytics.listing_id)) {
-            listingDataMap.get(analytics.listing_id).analytics.push(analytics);
+          if (analytics.listing_id && listingDataMap.has(analytics.listing_id)) {
+            listingDataMap.get(analytics.listing_id)!.analytics.push(analytics);
           }
         });
 
         listingSaves?.forEach(save => {
           if (listingDataMap.has(save.listing_id)) {
-            listingDataMap.get(save.listing_id).saves.push(save);
+            listingDataMap.get(save.listing_id)!.saves.push(save);
           }
         });
 
         listingConnections?.forEach(connection => {
           if (listingDataMap.has(connection.listing_id)) {
-            listingDataMap.get(connection.listing_id).connections.push(connection);
+            listingDataMap.get(connection.listing_id)!.connections.push(connection);
           }
         });
 
@@ -183,7 +187,11 @@ export function useSmartAlerts() {
         if (usvError) throw usvError;
 
         // Group activity by user
-        const userActivityMap = new Map();
+        const userActivityMap = new Map<string, {
+          analytics: { user_id: string | null; created_at: string | null }[];
+          sessions: { user_id: string | null; started_at: string | null }[];
+          saves: { user_id: string; created_at: string | null }[];
+        }>();
         userIds.forEach(userId => {
           userActivityMap.set(userId, {
             analytics: [],
@@ -193,20 +201,20 @@ export function useSmartAlerts() {
         });
 
         userAnalytics?.forEach(activity => {
-          if (userActivityMap.has(activity.user_id)) {
-            userActivityMap.get(activity.user_id).analytics.push(activity);
+          if (activity.user_id && userActivityMap.has(activity.user_id)) {
+            userActivityMap.get(activity.user_id)!.analytics.push(activity);
           }
         });
 
         userSessions?.forEach(session => {
-          if (userActivityMap.has(session.user_id)) {
-            userActivityMap.get(session.user_id).sessions.push(session);
+          if (session.user_id && userActivityMap.has(session.user_id)) {
+            userActivityMap.get(session.user_id)!.sessions.push(session);
           }
         });
 
         userSaves?.forEach(save => {
           if (userActivityMap.has(save.user_id)) {
-            userActivityMap.get(save.user_id).saves.push(save);
+            userActivityMap.get(save.user_id)!.saves.push(save);
           }
         });
 
@@ -215,9 +223,9 @@ export function useSmartAlerts() {
           if (!userActivity) return;
 
           const recentActivity = [
-            ...userActivity.analytics.filter(a => new Date(a.created_at) > threeDaysAgo),
-            ...userActivity.sessions.filter(s => new Date(s.started_at) > threeDaysAgo),
-            ...userActivity.saves.filter(s => new Date(s.created_at) > threeDaysAgo)
+            ...userActivity.analytics.filter(a => new Date(a.created_at ?? 0) > threeDaysAgo),
+            ...userActivity.sessions.filter(s => new Date(s.started_at ?? 0) > threeDaysAgo),
+            ...userActivity.saves.filter(s => new Date(s.created_at ?? 0) > threeDaysAgo)
           ];
 
           const weeklyActivity = [
@@ -304,19 +312,19 @@ export function useSmartAlerts() {
         .gte('created_at', threeDaysAgo.toISOString());
       if (rsError) throw rsError;
 
-      const searchMap = new Map();
-      recentSearches?.forEach(search => {
-        const query = search.search_query.toLowerCase();
+      const searchMap = new Map<string, { count: number; noResults: number }>();
+      recentSearches?.forEach((search: { search_query: string | null; results_count: number | null }) => {
+        const query = (search.search_query ?? '').toLowerCase();
         if (!searchMap.has(query)) {
           searchMap.set(query, { count: 0, noResults: 0 });
         }
-        const data = searchMap.get(query);
+        const data = searchMap.get(query)!;
         data.count++;
         if (search.results_count === 0) data.noResults++;
       });
 
       // Alert for trending searches with no results
-      Array.from(searchMap.entries()).forEach(([query, data]) => {
+      Array.from(searchMap.entries()).forEach(([query, data]: [string, { count: number; noResults: number }]) => {
         if (data.count >= 5 && data.noResults === data.count) {
           alerts.push({
             id: `market-gap-${query.replace(/\s+/g, '-')}`,
@@ -327,7 +335,8 @@ export function useSmartAlerts() {
             action_required: 'Consider acquiring listings in this category',
             created_at: now.toISOString(),
             metadata: {
-              metrics: { search_count: data.count, category: query }
+              category: query,
+              metrics: { search_count: data.count }
             }
           });
         }

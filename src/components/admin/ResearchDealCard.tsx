@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -46,7 +45,6 @@ export function ResearchDealCard({
   
   // Extended enrichment fields
   const executiveSummary = listing.executive_summary;
-  const serviceMix = listing.service_mix;
   const geographicStates = listing.geographic_states;
   const enrichedAt = listing.enriched_at;
   const dealTotalScore = listing.deal_total_score;
@@ -222,8 +220,8 @@ export function ResearchDealCard({
               {listing.category}
             </Badge>
           )}
-          {states.length > 0 && states.map((state, i) => (
-            <Badge key={i} variant="outline" className="text-[11px] font-medium bg-background border-border/60">
+          {states.length > 0 && states.map((state) => (
+            <Badge key={state} variant="outline" className="text-[11px] font-medium bg-background border-border/60">
               <MapPin className="h-3 w-3 mr-1 text-muted-foreground" />
               {state}
             </Badge>

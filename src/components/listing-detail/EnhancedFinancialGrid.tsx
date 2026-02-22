@@ -16,9 +16,9 @@ export function EnhancedFinancialGrid({ metrics }: EnhancedFinancialGridProps) {
   return (
     <TooltipProvider>
       <div className="grid grid-cols-4 gap-8 border-b border-border/30 pb-2">
-        {metrics.map((metric, index) => (
-          <div 
-            key={index}
+        {metrics.map((metric) => (
+          <div
+            key={metric.label}
             className="space-y-2"
           >
             {/* Label with tooltip */}

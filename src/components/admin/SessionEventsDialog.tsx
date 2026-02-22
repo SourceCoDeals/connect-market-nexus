@@ -85,10 +85,10 @@ export default function SessionEventsDialog({
                   Most Frequent
                 </h3>
                 <div className="flex flex-wrap gap-2">
-                  {data.mostFrequent.map((freq, idx) => {
+                  {data.mostFrequent.map((freq) => {
                     const Icon = getIcon(freq.icon);
                     return (
-                      <Badge key={idx} variant="secondary" className="px-3 py-1.5 text-xs">
+                      <Badge key={freq.type} variant="secondary" className="px-3 py-1.5 text-xs">
                         <Icon className="w-3 h-3 mr-1.5" />
                         {freq.type} ({freq.count})
                       </Badge>

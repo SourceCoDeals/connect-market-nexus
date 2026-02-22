@@ -218,9 +218,9 @@ export function ActivityCompletionDialog() {
               <CollapsibleContent>
                 <ScrollArea className="max-h-40 mt-2">
                   <div className="space-y-1.5">
-                    {uniqueErrors.slice(0, 20).map((e, i) => (
+                    {uniqueErrors.slice(0, 20).map((e) => (
                       <div
-                        key={`${e.itemId}-${i}`}
+                        key={e.itemId}
                         className="text-xs bg-destructive/5 text-destructive rounded px-2 py-1.5 font-mono break-all"
                       >
                         {e.error}

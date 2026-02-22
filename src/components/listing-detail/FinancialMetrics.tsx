@@ -53,9 +53,9 @@ export function FinancialMetrics({
   return (
     <TooltipProvider>
       <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-2.5 w-full">
-        {metrics.map((metric, index) => (
-          <div 
-            key={index}
+        {metrics.map((metric) => (
+          <div
+            key={metric.label}
             className="bg-transparent px-3.5 py-3 flex flex-col gap-1.5 min-w-0"
           >
             {/* VALUE FIRST */}

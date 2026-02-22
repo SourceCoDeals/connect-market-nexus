@@ -63,7 +63,7 @@ export function BuyerActivitySection({ buyerId }: BuyerActivitySectionProps) {
           type: "enrichment",
           title: "Buyer Learning Captured",
           description: `Action: ${enrich.action || "unknown"}`,
-          timestamp: enrich.created_at,
+          timestamp: enrich.created_at ?? '',
           metadata: enrich,
         });
       });
@@ -128,7 +128,7 @@ export function BuyerActivitySection({ buyerId }: BuyerActivitySectionProps) {
           type: "transcript",
           title: "Call Transcript",
           description: transcript.call_summary || "Call recorded",
-          timestamp: transcript.call_date || transcript.created_at,
+          timestamp: transcript.call_date || transcript.created_at || '',
           metadata: transcript,
         });
       });
@@ -311,8 +311,8 @@ export function BuyerActivitySection({ buyerId }: BuyerActivitySectionProps) {
                   activity.metadata?.fields_learned && (
                     <div className="mt-2 flex flex-wrap gap-1">
                       {activity.metadata.fields_learned.map(
-                        (field: string, i: number) => (
-                          <Badge key={i} variant="outline" className="text-xs">
+                        (field: string) => (
+                          <Badge key={field} variant="outline" className="text-xs">
                             {field}
                           </Badge>
                         )

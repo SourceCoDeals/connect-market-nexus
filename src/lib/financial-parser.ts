@@ -318,13 +318,12 @@ export function extractFinancialMetrics(description: string): ExtractedFinancial
  * Generate comprehensive risk assessment based on business description and financials
  */
 export function generateRiskAssessment(
-  description: string, 
-  category: string, 
+  _description: string,
+  category: string,
   revenue: number, 
   ebitda: number,
   extractedMetrics: ExtractedFinancials
 ): RiskAssessment {
-  const lowerDesc = description.toLowerCase();
   const ebitdaMargin = revenue > 0 ? (ebitda / revenue) * 100 : 0;
   
   let riskLevel: RiskAssessment['level'] = 'Medium';
@@ -377,7 +376,7 @@ export function generateRiskAssessment(
   }
   
   
-  if (extractedMetrics.competitiveAdvantages?.length > 0) {
+  if ((extractedMetrics.competitiveAdvantages?.length ?? 0) > 0) {
     mitigationFactors.push(`Competitive advantages reduce market risk`);
     confidence += 0.1;
   }
@@ -430,8 +429,8 @@ export function generateCustomInvestmentThesis(
   // Key strengths from extracted data
   const keyStrengths: string[] = [];
   
-  if (extractedMetrics.competitiveAdvantages?.length > 0) {
-    keyStrengths.push(`Competitive advantages in ${extractedMetrics.competitiveAdvantages.slice(0, 2).join(', ')}`);
+  if ((extractedMetrics.competitiveAdvantages?.length ?? 0) > 0) {
+    keyStrengths.push(`Competitive advantages in ${extractedMetrics.competitiveAdvantages!.slice(0, 2).join(', ')}`);
   }
   
   if (extractedMetrics.customerBase) {
@@ -445,12 +444,12 @@ export function generateCustomInvestmentThesis(
   // Investment highlights
   const investmentHighlights: string[] = [];
   
-  if (extractedMetrics.growthDrivers?.length > 0) {
-    investmentHighlights.push(`Growth drivers: ${extractedMetrics.growthDrivers.slice(0, 2).join(', ')}`);
+  if ((extractedMetrics.growthDrivers?.length ?? 0) > 0) {
+    investmentHighlights.push(`Growth drivers: ${extractedMetrics.growthDrivers!.slice(0, 2).join(', ')}`);
   }
   
-  if (extractedMetrics.marketTrends?.length > 0) {
-    investmentHighlights.push(`Favorable market trends: ${extractedMetrics.marketTrends.slice(0, 2).join(', ')}`);
+  if ((extractedMetrics.marketTrends?.length ?? 0) > 0) {
+    investmentHighlights.push(`Favorable market trends: ${extractedMetrics.marketTrends!.slice(0, 2).join(', ')}`);
   }
   
   if (extractedMetrics.revenueModel === 'Recurring Revenue Model') {
@@ -459,8 +458,8 @@ export function generateCustomInvestmentThesis(
   
   // Growth opportunity
   let growthOpportunity = '';
-  if (extractedMetrics.growthDrivers?.length > 0) {
-    growthOpportunity = `Multiple growth vectors including ${extractedMetrics.growthDrivers.slice(0, 3).join(', ')}`;
+  if ((extractedMetrics.growthDrivers?.length ?? 0) > 0) {
+    growthOpportunity = `Multiple growth vectors including ${extractedMetrics.growthDrivers!.slice(0, 3).join(', ')}`;
   } else {
     growthOpportunity = 'Organic growth opportunities through market expansion and operational improvements';
   }
@@ -473,8 +472,8 @@ export function generateCustomInvestmentThesis(
   
   // Calculate confidence
   let confidence = 0.6;
-  if (extractedMetrics.competitiveAdvantages?.length > 0) confidence += 0.1;
-  if (extractedMetrics.growthDrivers?.length > 0) confidence += 0.1;
+  if ((extractedMetrics.competitiveAdvantages?.length ?? 0) > 0) confidence += 0.1;
+  if ((extractedMetrics.growthDrivers?.length ?? 0) > 0) confidence += 0.1;
   if (revenue > 0 && ebitda > 0) confidence += 0.1;
   
   return {

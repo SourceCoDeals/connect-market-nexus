@@ -162,9 +162,9 @@ export const BuyerTableEnhanced = ({
 
         case 'alignment_score':
           // Null scores go to the end
-          if (a.alignment_score === null && b.alignment_score === null) return 0;
-          if (a.alignment_score === null) return 1;
-          if (b.alignment_score === null) return -1;
+          if (a.alignment_score == null && b.alignment_score == null) return 0;
+          if (a.alignment_score == null) return 1;
+          if (b.alignment_score == null) return -1;
           return multiplier * (a.alignment_score - b.alignment_score);
 
         default:

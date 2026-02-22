@@ -1,4 +1,3 @@
-import React from 'react';
 import { FileCheck, Mail, User, Clock } from 'lucide-react';
 import { format } from 'date-fns';
 import { ConnectionRequestDetails } from '@/hooks/admin/use-connection-request-details';
@@ -69,10 +68,10 @@ export function DocumentHistory({ details }: DocumentHistoryProps) {
       <h3 className="text-sm font-medium text-foreground">Document History</h3>
       
       <div className="space-y-3">
-        {events.map((event, index) => {
+        {events.map((event) => {
           const Icon = event.icon;
           return (
-            <div key={index} className="flex items-start gap-3 py-3 border-b border-border/20 last:border-0">
+            <div key={event.type} className="flex items-start gap-3 py-3 border-b border-border/20 last:border-0">
               <div className={`p-2 rounded-lg bg-muted/20 ${event.color}`}>
                 <Icon className="w-4 h-4" />
               </div>

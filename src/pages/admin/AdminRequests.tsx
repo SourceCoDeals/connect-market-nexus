@@ -6,10 +6,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Users, Inbox } from "lucide-react";
 import { AdminConnectionRequest } from "@/types/admin";
 import ConnectionRequestsTable from "@/components/admin/ConnectionRequestsTable";
-import { MobileConnectionRequestsTable } from "@/components/admin/MobileConnectionRequestsTable";
 import { ConnectionRequestDialog } from "@/components/admin/ConnectionRequestDialog";
 import { ApprovalEmailDialog } from "@/components/admin/ApprovalEmailDialog";
-import { QuickActionsBar } from "@/components/admin/QuickActionsBar";
 import { PipelineMetricsCard } from "@/components/admin/PipelineMetricsCard";
 import { PipelineFilters } from "@/components/admin/PipelineFilters";
 import { usePipelineFilters } from "@/hooks/admin/use-pipeline-filters";
@@ -38,7 +36,7 @@ const AdminRequests = () => {
   const { mutate: updateRequest, isPending: isUpdating } = useConnectionRequestsMutation();
   
   // Inbound leads mutations
-  const { mutate: mapLeadToListing } = useMapLeadToListing();
+  useMapLeadToListing();
   const { mutate: convertLeadToRequest } = useConvertLeadToRequest();
   const { mutate: archiveLead } = useArchiveInboundLead();
   const isMobile = useIsMobile();
@@ -358,7 +356,7 @@ const AdminRequests = () => {
               <InboundLeadsTable 
                 leads={inboundLeads}
                 isLoading={isLeadsLoading}
-                onMapToListing={(lead) => {
+                onMapToListing={(_lead) => {
                   // This will open the LeadMappingDialog - the actual mapping happens in the dialog
                 }}
                 onConvertToRequest={(leadId) => convertLeadToRequest(leadId)}

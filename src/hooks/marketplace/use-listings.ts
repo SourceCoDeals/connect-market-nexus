@@ -53,7 +53,7 @@ const MARKETPLACE_SAFE_COLUMNS = [
 
 // Fetch listings with filters and pagination
 export const useListings = (filters: FilterOptions = {}) => {
-  const { user, authChecked } = useAuth();
+  const { user } = useAuth();
   
   return useQuery({
     queryKey: ['listings', filters],
@@ -228,7 +228,7 @@ export const useListings = (filters: FilterOptions = {}) => {
 
 // Get a single listing by ID
 export const useListing = (id: string | undefined) => {
-  const { user, authChecked } = useAuth();
+  const { user } = useAuth();
   
   return useQuery({
     queryKey: ['listing', id],
@@ -307,7 +307,7 @@ export const useListing = (id: string | undefined) => {
 
 // Get listing metadata for filters (categories, locations) using standardized constants
 export const useListingMetadata = () => {
-  const { user, authChecked } = useAuth();
+  const { user } = useAuth();
   
   return useQuery({
     queryKey: ['listing-metadata'],

@@ -1,13 +1,12 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { useAdmin } from "@/hooks/use-admin";
-import { AlertCircle, RefreshCw, Building2, Loader2, Users } from "lucide-react";
+import { AlertCircle, RefreshCw, Loader2, Users } from "lucide-react";
 import { UsersTable } from "@/components/admin/UsersTable";
 import { MobileUsersTable } from "@/components/admin/MobileUsersTable";
 import { User } from "@/types";
 import { UserActions } from "@/components/admin/UserActions";
 import { Button } from "@/components/ui/button";
-import { useToast } from "@/hooks/use-toast";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useRealtimeAdmin } from "@/hooks/use-realtime-admin";
 import { EnhancedUserManagement } from "@/components/admin/EnhancedUserManagement";
@@ -18,9 +17,8 @@ import { supabase } from "@/integrations/supabase/client";
 const MarketplaceUsersPage = () => {
   const { users } = useAdmin();
   const { data: usersData = [], isLoading, error, refetch } = users;
-  const { toast } = useToast();
   const isMobile = useIsMobile();
-  const { isConnected } = useRealtimeAdmin();
+  useRealtimeAdmin();
   const [filteredUsers, setFilteredUsers] = useState<User[]>([]);
   const { markAsViewed } = useMarkUsersViewed();
 

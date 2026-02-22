@@ -54,7 +54,7 @@ export function useUpdateOwnerLeadStatus() {
         description: "Lead status has been updated.",
       });
     },
-    onError: (error) => {
+    onError: (_error) => {
       toast({
         variant: "destructive",
         title: "Error",
@@ -83,7 +83,7 @@ export function useUpdateOwnerLeadContacted() {
         description: "Lead contact status has been updated.",
       });
     },
-    onError: (error) => {
+    onError: (_error) => {
       toast({
         variant: "destructive",
         title: "Error",

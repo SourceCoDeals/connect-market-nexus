@@ -2,17 +2,6 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
-interface AdminSignaturePreference {
-  id: string;
-  admin_id: string;
-  signature_html: string;
-  signature_text: string;
-  phone_number?: string;
-  calendly_url?: string;
-  created_at: string;
-  updated_at: string;
-}
-
 interface UpdateSignatureParams {
   signature_html: string;
   signature_text: string;
@@ -41,7 +30,7 @@ export function useAdminSignature() {
       const { data, error } = await supabase
         .from('admin_signature_preferences')
         .select('*')
-        .eq('admin_id', (await supabase.auth.getUser()).data.user?.id)
+        .eq('admin_id', (await supabase.auth.getUser()).data.user?.id ?? '')
         .single();
 
       if (error && error.code !== 'PGRST116') { // PGRST116 = no rows returned
@@ -82,7 +71,7 @@ export function useAdminSignature() {
             calendly_url,
             updated_at: new Date().toISOString()
           })
-          .eq('admin_id', (await supabase.auth.getUser()).data.user?.id)
+          .eq('admin_id', (await supabase.auth.getUser()).data.user?.id ?? '')
           .select()
           .single();
 
@@ -90,10 +79,12 @@ export function useAdminSignature() {
         return data;
       } else {
         // Create new signature
+        const userId = (await supabase.auth.getUser()).data.user?.id;
+        if (!userId) throw new Error('Not authenticated');
         const { data, error } = await supabase
           .from('admin_signature_preferences')
           .insert({
-            admin_id: (await supabase.auth.getUser()).data.user?.id,
+            admin_id: userId,
             signature_html,
             signature_text,
             phone_number,

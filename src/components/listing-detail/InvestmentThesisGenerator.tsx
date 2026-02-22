@@ -23,7 +23,6 @@ export const InvestmentThesisGenerator: React.FC<InvestmentThesisGeneratorProps>
   // Generate business overview from description
   const customThesis = generateCustomInvestmentThesis(description, category, location, revenue, ebitda);
   const ebitdaMargin = revenue > 0 ? (ebitda / revenue) * 100 : 0;
-  const ebitdaMultiple = ebitda > 0 ? revenue / ebitda : 0;
 
   return (
     <Card className="border-border bg-card">
@@ -45,8 +44,8 @@ export const InvestmentThesisGenerator: React.FC<InvestmentThesisGeneratorProps>
               <div className="space-y-2">
                 <div className="text-xs font-medium text-foreground">Key Business Strengths:</div>
                 <ul className="space-y-1">
-                  {customThesis.keyStrengths.slice(0, 3).map((strength, index) => (
-                    <li key={index} className="text-xs text-muted-foreground flex items-start gap-2">
+                  {customThesis.keyStrengths.slice(0, 3).map((strength) => (
+                    <li key={strength} className="text-xs text-muted-foreground flex items-start gap-2">
                       <span className="w-1 h-1 bg-muted-foreground rounded-full mt-2 flex-shrink-0"></span>
                       {strength}
                     </li>

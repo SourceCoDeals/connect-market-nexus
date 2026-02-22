@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { subDays, format, differenceInSeconds, differenceInDays } from "date-fns";
+import { subDays, format, differenceInSeconds } from "date-fns";
 
 export interface UserEvent {
   id: string;
@@ -263,7 +263,7 @@ export function useUserDetail(visitorId: string | null) {
       let convertedAt: string | undefined;
       if (connections.length > 0 && actualFirstSession) {
         const firstConnectionDate = new Date(connections[0].created_at);
-        const firstSessionDate = new Date(actualFirstSession.started_at);
+        const firstSessionDate = new Date(actualFirstSession.started_at ?? Date.now());
         timeToConvert = differenceInSeconds(firstConnectionDate, firstSessionDate);
         convertedAt = connections[0].created_at;
       }
@@ -329,8 +329,8 @@ export function useUserDetail(visitorId: string | null) {
           id: visitorId,
           name,
           email: profile?.email,
-          company: profile?.company,
-          buyerType: profile?.buyer_type,
+          company: profile?.company ?? undefined,
+          buyerType: profile?.buyer_type ?? undefined,
           isAnonymous,
         },
         geo: {
@@ -371,7 +371,7 @@ export function useUserDetail(visitorId: string | null) {
           allSessions: sessions.map(s => ({
             referrer: s.referrer,
             landingPage: s.first_touch_landing_page,
-            startedAt: s.started_at,
+            startedAt: s.started_at ?? new Date().toISOString(),
             channel: categorizeChannel(getDiscoverySource(s), s.utm_source, s.utm_medium),
             utmSource: s.utm_source,
             utmMedium: s.utm_medium,

@@ -1,9 +1,8 @@
-import React, { useState } from 'react';
-import { Shield, Filter, Calendar, User, FileText, CheckCircle } from 'lucide-react';
+import { useState } from 'react';
+import { Shield, Filter, Calendar, User, FileText } from 'lucide-react';
 import { format } from 'date-fns';
 import { Deal } from '@/hooks/admin/use-deals';
 import { useDealActivities } from '@/hooks/admin/use-deal-activities';
-import { Button } from '@/components/ui/button';
 import {
   Select,
   SelectContent,

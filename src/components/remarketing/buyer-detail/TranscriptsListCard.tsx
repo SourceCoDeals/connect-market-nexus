@@ -1,5 +1,5 @@
 import { useState, useRef } from "react";
-import { FileText, Plus, Sparkles, Link2, Trash2, ChevronDown, Check, Upload, X, Calendar, Loader2 } from "lucide-react";
+import { FileText, Plus, Sparkles, Link2, Trash2, ChevronDown, Upload, X, Calendar, Loader2 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
@@ -65,8 +65,8 @@ export const TranscriptsListCard = ({
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const [isParsingFile, setIsParsingFile] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState('');
-  
+  const [, setUploadProgress] = useState('');
+
   // Mode: 'single' for manual entry (link/paste), 'multi' for multi-file upload
   const [mode, setMode] = useState<'single' | 'multi'>('single');
   
@@ -521,7 +521,7 @@ export const TranscriptsListCard = ({
                   </Button>
                 </div>
                 {selectedFiles.map((file, idx) => (
-                  <div key={`${file.name}-${idx}`} className="flex items-center gap-2 p-2 bg-muted/50 rounded-lg border">
+                  <div key={file.name} className="flex items-center gap-2 p-2 bg-muted/50 rounded-lg border">
                     <FileText className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
                     <span className="text-sm truncate flex-1">{file.name}</span>
                     <span className="text-xs text-muted-foreground shrink-0">

@@ -1,9 +1,8 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Search, X, Check } from 'lucide-react';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Search, Check } from 'lucide-react';
 import { useAdminProfiles } from '@/hooks/admin/use-admin-profiles';
 import { useTaskReviewers, useAddTaskReviewer, useRemoveTaskReviewer } from '@/hooks/admin/use-deal-tasks';
 

@@ -4,16 +4,15 @@ import { supabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Users, FileText, Settings, Brain, Upload, Archive, ArrowLeft, Activity, Target, Sliders, MessageSquare } from "lucide-react";
+import { Loader2, Users, FileText, Settings, Brain, Archive, ArrowLeft, Activity, Sliders, MessageSquare } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import {
   TrackerBuyersTab,
   TrackerDealsTab,
   StructuredCriteriaPanel,
   ScoringBehaviorPanel,
-  KPIConfigPanel,
   TrackerQueryChat,
   InterruptedSessionBanner,
   TrackerActivityFeed,
@@ -107,6 +106,7 @@ export default function TrackerDetail() {
     }
   };
 
+  // @ts-expect-error reserved for future use
   const handleSaveTracker = async (updates: Partial<TrackerData>) => {
     if (!tracker) return;
 

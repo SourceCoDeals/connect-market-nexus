@@ -9,9 +9,7 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  Cell,
-  ReferenceLine,
-} from "recharts";
+  } from "recharts";
 import { Sliders, Target } from "lucide-react";
 import { cn } from "@/lib/utils";
 

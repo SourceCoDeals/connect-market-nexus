@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Search } from 'lucide-react';
@@ -101,7 +101,7 @@ export function MobileConnectionRequests({
       <ConnectionRequestDialog
         isOpen={isDialogOpen}
         onClose={() => setIsDialogOpen(false)}
-        onConfirm={async (comment) => {
+        onConfirm={async (_comment) => {
           if (selectedRequest && actionType) {
             if (actionType === "approve") {
               await onApprove(selectedRequest);

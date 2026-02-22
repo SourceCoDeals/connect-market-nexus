@@ -1,5 +1,4 @@
 
-import React from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -13,7 +12,6 @@ import {
   Percent
 } from 'lucide-react';
 import { usePipelineCore } from '@/hooks/admin/use-pipeline-core';
-import { Deal } from '@/hooks/admin/use-deals';
 import { formatDistanceToNow } from 'date-fns';
 
 interface PipelineListViewProps {

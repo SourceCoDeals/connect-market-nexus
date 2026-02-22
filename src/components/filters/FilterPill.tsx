@@ -1,6 +1,6 @@
 import { X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import type { FilterFieldDef, FilterRule, OperatorDef } from "./filter-definitions";
+import type { FilterFieldDef, FilterRule } from "./filter-definitions";
 import { OPERATORS_BY_TYPE } from "./filter-definitions";
 
 interface FilterPillProps {

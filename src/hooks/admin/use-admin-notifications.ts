@@ -57,7 +57,7 @@ export function useAdminNotifications() {
           schema: 'public',
           table: 'admin_notifications',
         },
-        (payload) => {
+        (_payload) => {
           queryClient.invalidateQueries({ queryKey: ['admin-notifications'] });
         }
       )
@@ -68,7 +68,7 @@ export function useAdminNotifications() {
           schema: 'public',
           table: 'admin_notifications',
         },
-        (payload) => {
+        (_payload) => {
           queryClient.invalidateQueries({ queryKey: ['admin-notifications'] });
         }
       )

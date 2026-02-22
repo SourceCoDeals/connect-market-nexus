@@ -4,7 +4,6 @@ import {
   type FilterFieldDef,
   type FilterRule,
   type FilterState,
-  type Operator,
   EMPTY_FILTER_STATE,
 } from "@/components/filters/filter-definitions";
 import { subDays, startOfDay } from "date-fns";

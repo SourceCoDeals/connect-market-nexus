@@ -5,6 +5,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
+import type { Json } from '@/integrations/supabase/types';
 
 // ─── Types ───
 
@@ -416,9 +417,9 @@ export function useUpdateMemo() {
         if (authError) throw authError;
         await supabase.from('lead_memo_versions').insert({
           memo_id: memoId,
-          version: currentMemo.version,
-          content: currentMemo.content,
-          html_content: currentMemo.html_content,
+          version: currentMemo.version ?? 1,
+          content: (currentMemo.content ?? {}) as Json,
+          html_content: currentMemo.html_content ?? '',
           edited_by: user?.id,
         });
       }
@@ -427,7 +428,7 @@ export function useUpdateMemo() {
       const { error } = await supabase
         .from('lead_memos')
         .update({
-          content: content as any,
+          content: content as Json,
           html_content: htmlContent,
           version: (currentMemo?.version || 1) + 1,
           updated_at: new Date().toISOString(),

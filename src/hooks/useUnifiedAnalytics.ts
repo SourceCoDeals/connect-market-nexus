@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { subDays, format, parseISO, differenceInDays } from "date-fns";
+import { subDays, format, parseISO } from "date-fns";
 import type { AnalyticsFilter } from "@/contexts/AnalyticsFiltersContext";
 
 export interface KPIMetric {
@@ -246,11 +246,6 @@ function getVisitorKey(session: { user_id?: string | null; visitor_id?: string |
   return null; // Anonymous session - don't count as unique visitor
 }
 
-// Helper to check if a session has trackable identity
-function hasVisitorIdentity(session: { user_id?: string | null; visitor_id?: string | null }): boolean {
-  return Boolean(session.user_id || session.visitor_id);
-}
-
 export function useUnifiedAnalytics(timeRangeDays: number = 30, filters: AnalyticsFilter[] = []) {
   return useQuery({
     queryKey: ['unified-analytics', timeRangeDays, filters],
@@ -406,7 +401,8 @@ export function useUnifiedAnalytics(timeRangeDays: number = 30, filters: Analyti
         browser: string | null;
         os: string | null;
         device_type: string | null;
-        started_at: string;
+        started_at: string | null;
+        user_agent: string | null;
       };
       let firstSessions: FirstSessionData[] = [];
       if (profileIds.length > 0) {
@@ -722,7 +718,7 @@ export function useUnifiedAnalytics(timeRangeDays: number = 30, filters: Analyti
       
       uniqueSessions.forEach(s => {
         try {
-          const dateStr = format(parseISO(s.started_at), 'yyyy-MM-dd');
+          const dateStr = format(parseISO(s.started_at ?? new Date().toISOString()), 'yyyy-MM-dd');
           
           // Count unique visitors per day (only identifiable ones)
           const visitorKey = getVisitorKey(s);
@@ -1174,9 +1170,9 @@ export function useUnifiedAnalytics(timeRangeDays: number = 30, filters: Analyti
       });
       
       // Calculate entry pages and unique visitors per page
-      Object.entries(sessionPages).forEach(([sessionId, pages]) => {
-        const sortedPages = pages.sort((a, b) => 
-          new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+      Object.entries(sessionPages).forEach(([_sessionId, pages]) => {
+        const sortedPages = pages.sort((a, b) =>
+          new Date(a.created_at ?? 0).getTime() - new Date(b.created_at ?? 0).getTime()
         );
         
         if (sortedPages.length > 0) {
@@ -1310,8 +1306,7 @@ export function useUnifiedAnalytics(timeRangeDays: number = 30, filters: Analyti
       ).size;
       
       // REAL NDA and Fee Agreement counts - uses filteredConnectionsWithMilestones
-      const ndaSignedCount = filteredConnectionsWithMilestones.filter(c => c.lead_nda_signed === true).length;
-      const feeAgreementCount = filteredConnectionsWithMilestones.filter(c => c.lead_fee_agreement_signed === true).length;
+      // NDA and Fee Agreement counts computed via ndaSignedUsers/feeAgreementUsers below
       
       // Get unique users who signed NDA/Fee Agreement
       const ndaSignedUsers = new Set(filteredConnectionsWithMilestones.filter(c => c.lead_nda_signed === true).map(c => c.user_id));
@@ -1382,18 +1377,18 @@ export function useUnifiedAnalytics(timeRangeDays: number = 30, filters: Analyti
         visitorSessionCounts.set(visitorKey, (visitorSessionCounts.get(visitorKey) || 0) + 1);
         
         const existing = visitorSessionData.get(visitorKey);
-        const isNewer = !existing || new Date(s.started_at) > new Date(existing.lastSeen || '1970-01-01');
-        
+        const isNewer = !existing || new Date(s.started_at ?? 0) > new Date(existing.lastSeen || '1970-01-01');
+
         if (isNewer) {
           visitorSessionData.set(visitorKey, {
-            country: s.country,
-            city: s.city,
-            device: s.device_type,
-            browser: s.browser,
-            os: s.os,
+            country: s.country ?? undefined,
+            city: s.city ?? undefined,
+            device: s.device_type ?? undefined,
+            browser: s.browser ?? undefined,
+            os: s.os ?? undefined,
             source: categorizeChannel(s.referrer, s.utm_source, s.utm_medium),
-            referrerDomain: extractDomain(s.referrer),
-            lastSeen: s.started_at,
+            referrerDomain: extractDomain(s.referrer ?? ''),
+            lastSeen: s.started_at ?? undefined,
             totalTimeOnSite: (existing?.totalTimeOnSite || 0) + (s.session_duration_seconds || 0),
             hasUserId: existing?.hasUserId || !!s.user_id,
           });
@@ -1426,7 +1421,7 @@ export function useUnifiedAnalytics(timeRangeDays: number = 30, filters: Analyti
             visitorPageViewsByDate.set(visitorKey, new Map());
           }
           try {
-            const dateStr = format(parseISO(pv.created_at), 'yyyy-MM-dd');
+            const dateStr = format(parseISO(pv.created_at ?? new Date().toISOString()), 'yyyy-MM-dd');
             const visitorDates = visitorPageViewsByDate.get(visitorKey)!;
             visitorDates.set(dateStr, (visitorDates.get(dateStr) || 0) + 1);
           } catch { /* ignore */ }

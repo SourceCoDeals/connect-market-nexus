@@ -1,6 +1,7 @@
 import { useState, useMemo } from "react";
 import { AnalyticsCard, SortToggle, SortValue } from "./AnalyticsCard";
 import { AnalyticsTooltip } from "./AnalyticsTooltip";
+// @ts-expect-error react-simple-maps has no type declarations
 import { ComposableMap, Geographies, Geography } from "react-simple-maps";
 import { cn } from "@/lib/utils";
 import { ProportionalBar } from "./ProportionalBar";
@@ -185,8 +186,8 @@ export function GeographyCard({ countries, regions, cities, geoCoverage }: Geogr
                   style={{ width: '100%', height: '100%' }}
                 >
                   <Geographies geography={geoUrl}>
-                    {({ geographies }) =>
-                      geographies.map((geo) => {
+                    {({ geographies }: { geographies: { properties: { name: string }; rsmKey: string }[] }) =>
+                      geographies.map((geo: { properties: { name: string }; rsmKey: string }) => {
                         const countryName = geo.properties.name;
                         
                         return (
@@ -264,11 +265,11 @@ export function GeographyCard({ countries, regions, cities, geoCoverage }: Geogr
             
             {activeTab === 'region' && (
               <div className="space-y-1">
-                {sortedRegions.slice(0, 8).map((region, i) => {
+                {sortedRegions.slice(0, 8).map((region) => {
                   const isActive = hasFilter('region', region.name);
                   return (
                     <AnalyticsTooltip
-                      key={`${region.name}-${i}`}
+                      key={region.name}
                       title={region.name}
                       rows={[
                         { label: 'Country', value: region.country },
@@ -317,11 +318,11 @@ export function GeographyCard({ countries, regions, cities, geoCoverage }: Geogr
             
             {activeTab === 'city' && (
               <div className="space-y-1">
-                {sortedCities.slice(0, 8).map((city, i) => {
+                {sortedCities.slice(0, 8).map((city) => {
                   const isActive = hasFilter('city', city.name);
                   return (
                     <AnalyticsTooltip
-                      key={`${city.name}-${i}`}
+                      key={city.name}
                       title={city.name}
                       rows={[
                         { label: 'Country', value: city.country },

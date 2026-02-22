@@ -1,7 +1,6 @@
 import { useState, useMemo } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
-import { useAuth } from "@/context/AuthContext";
 import { usePermissions } from "@/hooks/permissions/usePermissions";
 import {
   LayoutDashboard,
@@ -78,7 +77,7 @@ interface AdminSidebarProps {
 
 export function UnifiedAdminSidebar({ collapsed, onCollapsedChange }: AdminSidebarProps) {
   const location = useLocation();
-  const { isAdmin: isFullAdmin, canAccessSettings } = usePermissions();
+  const { isAdmin: _isFullAdmin, canAccessSettings } = usePermissions();
   const { unviewedCount: unviewedDealSourcingCount } = useUnviewedDealSourcingCount();
   const { unviewedCount: unviewedConnectionRequestsCount } = useUnviewedConnectionRequests();
   const { unviewedCount: unviewedUsersCount } = useUnviewedUsers();

@@ -1,9 +1,8 @@
-import { Users, Store, MessageSquare, Activity, TrendingUp, TrendingDown, UserPlus, Link as LinkIcon, Eye, ChevronRight, Heart, Clock } from "lucide-react";
+import { Users, Store, MessageSquare, Activity, UserPlus, Link as LinkIcon, Eye } from "lucide-react";
 import { formatDistanceToNow, format } from "date-fns";
 import { useAdmin } from "@/hooks/use-admin";
 import { useRecentUserActivity } from "@/hooks/use-recent-user-activity";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useState, useMemo } from "react";

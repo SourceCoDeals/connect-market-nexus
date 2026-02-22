@@ -21,7 +21,7 @@ interface UniverseAssignmentButtonProps {
 
 export function UniverseAssignmentButton({
   dealId,
-  dealCategory,
+  dealCategory: _dealCategory,
   scoreCount = 0,
 }: UniverseAssignmentButtonProps) {
   const queryClient = useQueryClient();
@@ -89,7 +89,7 @@ export function UniverseAssignmentButton({
       queryClient.invalidateQueries({ queryKey: ["remarketing", "deal-universe", dealId] });
       setSelectedUniverse("");
     },
-    onError: (error) => {
+    onError: () => {
       toast.error("Failed to assign deal to universe");
     },
   });
@@ -110,10 +110,11 @@ export function UniverseAssignmentButton({
       toast.success("Deal removed from universe");
       queryClient.invalidateQueries({ queryKey: ["remarketing", "deal-universe", dealId] });
     },
-    onError: (error) => {
+    onError: () => {
       toast.error("Failed to remove deal from universe");
     },
   });
+  void unassignMutation;
 
   const handleAssign = async () => {
     if (!selectedUniverse) {
@@ -128,13 +129,6 @@ export function UniverseAssignmentButton({
     }
   };
 
-  const handleUniverseChange = async (value: string) => {
-    if (value === "none") {
-      await unassignMutation.mutateAsync();
-    } else {
-      setSelectedUniverse(value);
-    }
-  };
 
   if (assignmentLoading) {
     return (

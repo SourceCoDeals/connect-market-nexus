@@ -20,7 +20,7 @@ interface AlertPreviewProps {
   userEmail?: string;
 }
 
-export function AlertPreview({ alertName, criteria, frequency, userEmail }: AlertPreviewProps) {
+export function AlertPreview({ alertName, criteria, frequency, userEmail: _userEmail }: AlertPreviewProps) {
   const formatCriteria = () => {
     const parts = [];
     
@@ -71,8 +71,8 @@ export function AlertPreview({ alertName, criteria, frequency, userEmail }: Aler
             <div className="space-y-2">
               <p className="text-xs text-muted-foreground">You'll be notified for deals matching:</p>
               <div className="flex flex-wrap gap-1">
-                {criteriaList.map((criterion, index) => (
-                  <Badge key={index} variant="secondary" className="text-xs">
+                {criteriaList.map((criterion) => (
+                  <Badge key={criterion} variant="secondary" className="text-xs">
                     {criterion}
                   </Badge>
                 ))}

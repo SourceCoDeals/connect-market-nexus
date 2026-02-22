@@ -1,5 +1,4 @@
 
-import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { AdminConnectionRequest } from '@/types/admin';
 import { toast } from '@/hooks/use-toast';
@@ -71,7 +70,7 @@ export function useConnectionRequestsQuery() {
         const approvedIds = Array.from(new Set(requests.map(r => r.approved_by).filter(Boolean)));
         const rejectedIds = Array.from(new Set(requests.map(r => r.rejected_by).filter(Boolean)));
         const onHoldIds = Array.from(new Set(requests.map(r => r.on_hold_by).filter(Boolean)));
-        const profileIds = Array.from(new Set([...userIds, ...followedIds, ...negativeFollowedIds, ...approvedIds, ...rejectedIds, ...onHoldIds]));
+        const profileIds = Array.from(new Set([...userIds, ...followedIds, ...negativeFollowedIds, ...approvedIds, ...rejectedIds, ...onHoldIds])).filter((id): id is string => id !== null);
 
         // Batch fetch related data in parallel
         const emptyResult = { data: [] as Record<string, unknown>[], error: null };
@@ -94,7 +93,7 @@ export function useConnectionRequestsQuery() {
         (listingsRes.data ?? []).forEach(l => listingsById.set(l.id as string, l));
 
         const enhancedRequests: AdminConnectionRequest[] = requests.map((request) => {
-          const userData = profilesById.get(request.user_id);
+          const userData = request.user_id ? profilesById.get(request.user_id) : undefined;
           const listingData = listingsById.get(request.listing_id);
 
           const followedAdminProfile = request.followed_up_by ? profilesById.get(request.followed_up_by) : null;

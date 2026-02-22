@@ -1,8 +1,6 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { STANDARDIZED_CATEGORIES } from '@/lib/financial-parser';
-import { INDUSTRY_DESCRIPTIONS } from '@/lib/field-helpers';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Check, ChevronsUpDown } from 'lucide-react';
 import { cn } from "@/lib/utils";
 import {

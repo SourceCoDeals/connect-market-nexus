@@ -9,7 +9,6 @@ import {
   GeographyCriteriaSchema,
   BuyerTypesCriteriaSchema,
   CompleteCriteriaSet,
-  isPlaceholder,
 } from './criteriaSchema';
 
 // ============= Validation Result Types =============

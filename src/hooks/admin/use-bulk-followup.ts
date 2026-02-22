@@ -1,7 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { createQueryKey } from '@/lib/query-keys';
+
 
 interface BulkFollowupParams {
   requestIds: string[];
@@ -91,7 +91,7 @@ export const useBulkFollowup = () => {
 
       return { previousRequests, previousUserRequests };
     },
-    onSuccess: (data, variables) => {
+    onSuccess: (_data, variables) => {
       // Invalidate all related queries with broader patterns
       queryClient.invalidateQueries({ queryKey: ['connection-requests'] });
       queryClient.invalidateQueries({ queryKey: ['user-connection-requests'] });
@@ -104,7 +104,7 @@ export const useBulkFollowup = () => {
         description: `Successfully updated ${count} connection request${count !== 1 ? 's' : ''}.`,
       });
     },
-    onError: (err, variables, context) => {
+    onError: (_err, _variables, context) => {
       // Rollback both main and user-specific queries
       if (context?.previousRequests) {
         queryClient.setQueryData(['connection-requests'], context.previousRequests);

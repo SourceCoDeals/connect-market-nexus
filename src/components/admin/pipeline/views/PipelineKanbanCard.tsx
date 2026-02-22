@@ -1,4 +1,3 @@
-import React from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { Card, CardContent } from '@/components/ui/card';
@@ -8,7 +7,6 @@ import { Deal } from '@/hooks/admin/use-deals';
 import { cn } from '@/lib/utils';
 import { formatDistanceToNow } from 'date-fns';
 import { useAdminProfile } from '@/hooks/admin/use-admin-profiles';
-import { useDealStages } from '@/hooks/admin/use-deals';
 
 interface PipelineKanbanCardProps {
   deal: Deal;
@@ -34,20 +32,12 @@ export function PipelineKanbanCard({ deal, onDealClick, isDragging }: PipelineKa
   };
   
   const isBeingDragged = isDragging || isSortableDragging;
-  const { data: stages } = useDealStages(true); // Include closed stages to get total count
-
 // Apple/Stripe-style design helpers - Clean, minimal approach
-  // Apple/Stripe-style design helpers - Clean, minimal approach
   const isValidDate = (value?: string | null) => {
     if (!value) return false;
     const time = new Date(value).getTime();
     return !Number.isNaN(time);
   };
-  const getBuyerTypeColor = (buyerType?: string) => {
-    // Sophisticated minimal styling with better contrast - Apple/Stripe level precision
-    return 'bg-muted/30 text-foreground/90 border-border/40';
-  };
-
   const getBuyerTypeLabel = (buyerType?: string) => {
     if (!buyerType) return 'Individual';
     

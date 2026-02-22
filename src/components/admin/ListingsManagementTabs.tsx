@@ -41,7 +41,7 @@ const ListingsManagementTabs = () => {
     return (
       <div className="p-6 max-w-4xl mx-auto">
         <ListingForm
-          listing={editingListing}
+          listing={editingListing ?? undefined}
           onSubmit={handleFormSubmit}
           isLoading={isCreating || isUpdating}
           targetType={activeTab}

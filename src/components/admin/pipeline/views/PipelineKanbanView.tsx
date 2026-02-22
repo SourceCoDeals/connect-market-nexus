@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { DndContext, DragEndEvent, DragOverEvent, DragStartEvent, PointerSensor, useSensor, useSensors, DragOverlay, closestCorners } from '@dnd-kit/core';
 import { usePipelineCore } from '@/hooks/admin/use-pipeline-core';
 import { useUpdateDealStage } from '@/hooks/admin/use-deals';
@@ -66,7 +66,7 @@ export function PipelineKanbanView({ pipeline, onOpenCreateDeal }: PipelineKanba
   }, [pipeline.stages, pipeline.deals]);
   
   const handleDragStart = (event: DragStartEvent) => setActiveId(String(event.active.id));
-  const handleDragOver = (event: DragOverEvent) => {};
+  const handleDragOver = (_event: DragOverEvent) => {};
   
   const handleDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event;
@@ -206,7 +206,7 @@ export function PipelineKanbanView({ pipeline, onOpenCreateDeal }: PipelineKanba
       stageId: destStageId,
       fromStage: deal.stage_name || undefined,
       toStage: targetStage.name,
-      currentAdminId: currentUserId,
+      currentAdminId: currentUserId ?? undefined,
       skipOwnerCheck: true // We already checked above
     });
     setActiveId(null);
@@ -229,7 +229,7 @@ export function PipelineKanbanView({ pipeline, onOpenCreateDeal }: PipelineKanba
       stageId: ownerWarning.stageId,
       fromStage: deal.stage_name || undefined,
       toStage: targetStage.name || undefined,
-      currentAdminId: currentUserId,
+      currentAdminId: currentUserId ?? undefined,
       skipOwnerCheck: true
     });
     
@@ -245,7 +245,7 @@ export function PipelineKanbanView({ pipeline, onOpenCreateDeal }: PipelineKanba
         updates: { 
           assigned_to: ownerId,
           owner_assigned_at: new Date().toISOString(),
-          owner_assigned_by: currentUserId
+          owner_assigned_by: currentUserId ?? undefined
         }
       });
 
@@ -254,7 +254,7 @@ export function PipelineKanbanView({ pipeline, onOpenCreateDeal }: PipelineKanba
         stageId: ownerAssignmentNeeded.stageId,
         fromStage: ownerAssignmentNeeded.fromStage,
         toStage: ownerAssignmentNeeded.toStage,
-        currentAdminId: currentUserId,
+        currentAdminId: currentUserId ?? undefined,
         skipOwnerCheck: true
       });
 
@@ -291,7 +291,7 @@ export function PipelineKanbanView({ pipeline, onOpenCreateDeal }: PipelineKanba
           updates: {
             assigned_to: config.dealOwnerId,
             owner_assigned_at: new Date().toISOString(),
-            owner_assigned_by: currentUserId
+            owner_assigned_by: currentUserId ?? undefined
           }
         });
       }
@@ -302,7 +302,7 @@ export function PipelineKanbanView({ pipeline, onOpenCreateDeal }: PipelineKanba
         stageId: ownerIntroConfig.stageId,
         fromStage: ownerIntroConfig.fromStage,
         toStage: ownerIntroConfig.toStage,
-        currentAdminId: currentUserId,
+        currentAdminId: currentUserId ?? undefined,
         skipOwnerCheck: true
       });
       

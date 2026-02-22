@@ -142,9 +142,9 @@ const ListingCardBadges = ({ location, categories = [], acquisitionType }: Listi
       <AcquisitionTypeBadge type={acquisitionType} />
       
       {/* Category badges (up to 2) */}
-      {categoriesToShow.map((cat, idx) => (
+      {categoriesToShow.map((cat) => (
         <div
-          key={`${cat}-${idx}`}
+          key={cat}
           className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-white border border-slate-200/80 shadow-[0_1px_2px_rgba(0,0,0,0.06)]"
         >
           {getCategoryIcon(cat)}

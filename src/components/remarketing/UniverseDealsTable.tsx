@@ -34,7 +34,6 @@ import {
 import { 
   Building2, 
   MapPin, 
-  TrendingUp,
   Target,
   Sparkles,
   ThumbsUp,
@@ -43,7 +42,6 @@ import {
   MoreHorizontal,
   Trash2,
   ExternalLink,
-  Star,
   ArrowUpDown,
   ArrowUp,
   ArrowDown,

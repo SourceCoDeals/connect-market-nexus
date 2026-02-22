@@ -319,8 +319,8 @@ Date	Name	Email address	Company name	Phone number	Role	Message
                 <AlertCircle className="h-4 w-4" />
                 <AlertDescription>
                   <ul className="list-disc list-inside text-xs">
-                    {parseErrors.map((error, i) => (
-                      <li key={i}>{error}</li>
+                    {parseErrors.map((error) => (
+                      <li key={error}>{error}</li>
                     ))}
                   </ul>
                 </AlertDescription>

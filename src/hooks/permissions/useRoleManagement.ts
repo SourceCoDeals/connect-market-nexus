@@ -42,7 +42,7 @@ export const useRoleManagement = () => {
       const { data, error } = await supabase.rpc('change_user_role', {
         target_user_id: targetUserId,
         new_role: newRole,
-        change_reason: reason || null,
+        change_reason: reason ?? undefined,
       });
 
       if (error) throw error;
@@ -73,7 +73,7 @@ export const useRoleManagement = () => {
     queryKey: ['permission-audit-log'],
     queryFn: async () => {
       const { data, error } = await supabase.rpc('get_permission_audit_log', {
-        filter_user_id: null,
+        filter_user_id: undefined,
         limit_count: 100,
       });
 

@@ -27,7 +27,6 @@ export function OwnerIntroConfigDialog({
   open,
   onOpenChange,
   dealTitle,
-  listingId,
   currentDealOwner,
   currentPrimaryOwner,
   onConfirm,
@@ -36,8 +35,8 @@ export function OwnerIntroConfigDialog({
   const [selectedDealOwnerId, setSelectedDealOwnerId] = useState<string>('');
   const [dealOwnerAdmins, setDealOwnerAdmins] = useState<AdminProfile[]>([]);
   const [primaryOwnerAdmins, setPrimaryOwnerAdmins] = useState<AdminProfile[]>([]);
-  const [isLoadingDealOwnerAdmins, setIsLoadingDealOwnerAdmins] = useState(false);
-  const [isLoadingPrimaryOwnerAdmins, setIsLoadingPrimaryOwnerAdmins] = useState(false);
+  const [_isLoadingDealOwnerAdmins, setIsLoadingDealOwnerAdmins] = useState(false);
+  const [_isLoadingPrimaryOwnerAdmins, setIsLoadingPrimaryOwnerAdmins] = useState(false);
 
   const hasDealOwner = !!currentDealOwner;
   const hasPrimaryOwner = !!currentPrimaryOwner;

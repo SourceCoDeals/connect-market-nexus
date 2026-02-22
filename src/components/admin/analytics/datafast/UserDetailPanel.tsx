@@ -1,12 +1,12 @@
 import { useState } from "react";
-import { X, MapPin, Monitor, Smartphone, Chrome, Globe, Clock, Eye, Link2, Calendar, ExternalLink, Search, ChevronDown, ChevronRight, FileText } from "lucide-react";
+import { Monitor, Smartphone, Chrome, Globe, Clock, Eye, Link2, Calendar, ExternalLink, Search, ChevronRight } from "lucide-react";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { useUserDetail, type UserDetailData, type UserEvent } from "@/hooks/useUserDetail";
+import { useUserDetail, type UserEvent } from "@/hooks/useUserDetail";
 import { ActivityCalendar } from "./ActivityDots";
 import { DiscoveryJourneyPath } from "./DiscoveryJourneyPath";
 import { format, formatDistanceToNow, differenceInDays, differenceInHours, differenceInMinutes } from "date-fns";
@@ -363,8 +363,8 @@ export function UserDetailPanel({ userId, open, onClose }: UserDetailPanelProps)
                             Visit History ({data.source.allSessions.length} {data.source.allSessions.length === 1 ? 'session' : 'sessions'})
                           </span>
                           <div className="space-y-2 max-h-40 overflow-y-auto">
-                            {data.source.allSessions.map((session, i) => (
-                              <div key={i} className="text-xs bg-muted/30 p-2 rounded space-y-1">
+                            {data.source.allSessions.map((session) => (
+                              <div key={session.startedAt} className="text-xs bg-muted/30 p-2 rounded space-y-1">
                                 <div className="flex items-center justify-between">
                                   <span className="text-muted-foreground">
                                     {format(new Date(session.startedAt), 'MMM d, HH:mm')}

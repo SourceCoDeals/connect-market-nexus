@@ -4,9 +4,8 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Slider } from '@/components/ui/slider';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Badge } from '@/components/ui/badge';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts';
-import { TrendingUp, Calculator, Download, Zap } from 'lucide-react';
+import { Calculator, Download, Zap } from 'lucide-react';
 
 interface InteractiveCashFlowProjectionsProps {
   revenue: number;
@@ -198,7 +197,7 @@ export const InteractiveCashFlowProjections: React.FC<InteractiveCashFlowProject
           <div className="space-y-4 p-3 bg-sourceco-muted/30 rounded-lg">
             <Label className="text-xs font-medium">Custom Growth Rates (by year)</Label>
             {customGrowthRates.map((rate, index) => (
-              <div key={index} className="space-y-2">
+              <div key={`year-${index + 1}`} className="space-y-2">
                 <div className="flex justify-between items-center">
                   <span className="text-xs">Year {index + 1}</span>
                   <span className="text-xs font-medium">{rate}%</span>

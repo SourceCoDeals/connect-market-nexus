@@ -123,7 +123,7 @@ export function useBulkDealImport() {
                 type: duplicateType,
                 existingRequestId: existingRequest.id,
                 existingStatus: existingRequest.status,
-                existingMessage: existingRequest.user_message,
+                existingMessage: existingRequest.user_message ?? undefined,
                 existingCreatedAt: existingRequest.created_at,
                 userProfile: profile ? {
                   id: profile.id,
@@ -155,7 +155,7 @@ export function useBulkDealImport() {
                   type: 'same_company_different_email',
                   existingRequestId: companyRequest.id,
                   existingStatus: companyRequest.status,
-                  existingMessage: companyRequest.user_message,
+                  existingMessage: companyRequest.user_message ?? undefined,
                   existingCreatedAt: companyRequest.created_at,
                 },
               });

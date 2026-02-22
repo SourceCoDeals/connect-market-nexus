@@ -146,7 +146,7 @@ export function TranscriptListItem({
               </pre>
             </div>
 
-            {hasExtracted && transcript.extracted_data && (
+            {hasExtracted && !!transcript.extracted_data && (
               <ExtractedIntelligenceView extractedData={transcript.extracted_data as Record<string, unknown>} />
             )}
 

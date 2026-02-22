@@ -1,7 +1,6 @@
-import React, { createContext, useContext, useEffect, useState, useRef } from 'react';
+import React, { createContext, useContext, useEffect, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
-import { toast } from '@/hooks/use-toast';
 import { useSessionContext } from '@/contexts/SessionContext';
 
 interface AnalyticsContextType {
@@ -77,7 +76,7 @@ const shouldSkipAnalytics = (): boolean => {
 };
 
 // Update analytics stats and circuit breaker
-const updateAnalyticsStats = (success: boolean, error?: any) => {
+const updateAnalyticsStats = (success: boolean, _error?: unknown) => {
   analyticsStats.totalInsertions++;
   
   if (success) {
@@ -136,7 +135,7 @@ export function AnalyticsProvider({ children }: { children: React.ReactNode }) {
     checkAuth();
 
     // Listen for auth state changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setAuthState({
         user: session?.user || null,
         authChecked: true

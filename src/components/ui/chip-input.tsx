@@ -71,7 +71,7 @@ export const ChipInput: React.FC<ChipInputProps> = ({
       <div className="flex flex-wrap gap-1">
         {value.map((chip, index) => (
           <Badge
-            key={index}
+            key={chip}
             variant="secondary"
             className="text-xs px-2 py-0.5 gap-1"
           >

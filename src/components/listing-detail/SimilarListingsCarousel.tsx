@@ -48,7 +48,7 @@ export function SimilarListingsCarousel({ currentListing }: SimilarListingsCarou
       >
         <CarouselContent className="-ml-3">
           {similarListings.map((listing) => {
-            const image = getListingImage(listing.image_url, listing.category);
+            const image = getListingImage(listing.image_url ?? null, listing.category);
             const ebitdaMargin = listing.revenue > 0 
               ? ((Number(listing.ebitda) / Number(listing.revenue)) * 100).toFixed(1)
               : '0.0';

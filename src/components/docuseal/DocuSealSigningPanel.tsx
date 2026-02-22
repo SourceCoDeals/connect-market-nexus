@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { DocusealForm } from '@docuseal/react';
 import { Card, CardContent } from '@/components/ui/card';
 import { CheckCircle, Loader2, AlertCircle } from 'lucide-react';
-import { Button } from '@/components/ui/button';
 
 interface DocuSealSigningPanelProps {
   embedSrc: string;

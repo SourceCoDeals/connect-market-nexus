@@ -86,7 +86,7 @@ const ReMarketingDashboard = () => {
     queryKey: ["dashboard", "remarketing-stats", fromDate],
     queryFn: async () => {
       const { data, error } = await supabase.rpc("get_remarketing_dashboard_stats", {
-        p_from_date: fromDate,
+        p_from_date: fromDate ?? undefined,
       });
       if (error) throw error;
       // RPC returns untyped JSON; define the shape based on usage
@@ -241,7 +241,7 @@ const ReMarketingDashboard = () => {
           <path d={areaPath} fill="url(#chartGrad)" />
           <path d={linePath} fill="none" stroke="#2563eb" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
           {points.map((p, i) => (
-            <g key={i}>
+            <g key={`point-${p.x}-${p.y}`}>
               <circle cx={p.x} cy={p.y} r="4" fill="white" stroke="#2563eb" strokeWidth="2" />
               <text x={p.x} y={p.y - 8} textAnchor="middle" className="fill-gray-700 font-medium" fontSize="9">{p.v}</text>
               <text x={p.x} y={PT + chartH + 14} textAnchor="middle" className="fill-gray-400" fontSize="8">
@@ -621,14 +621,14 @@ const ReMarketingDashboard = () => {
             <p className="text-sm text-gray-400 text-center py-6">No recent activity</p>
           ) : (
             <div className="space-y-3">
-              {recentActivity.map((ev, i) => {
+              {recentActivity.map((ev) => {
                 const iconColor = ev.type === "pushed" ? "bg-green-100 text-green-600"
                   : ev.source === "captarget" ? "bg-blue-100 text-blue-600"
                   : ev.source === "gp_partners" ? "bg-orange-100 text-orange-600"
                   : ev.source === "referral" ? "bg-purple-100 text-purple-600"
                   : "bg-gray-100 text-gray-600";
                 return (
-                  <div key={i} className="flex items-start gap-2.5">
+                  <div key={`${ev.name}-${ev.date}`} className="flex items-start gap-2.5">
                     <div className={`w-6 h-6 rounded-full flex items-center justify-center shrink-0 mt-0.5 ${iconColor}`}>
                       {ev.type === "pushed" ? <ArrowUpRight className="h-3 w-3" /> : <Zap className="h-3 w-3" />}
                     </div>

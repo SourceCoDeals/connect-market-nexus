@@ -16,7 +16,6 @@ import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { CurrencyInput } from "@/components/ui/currency-input";
 import { 
   Search, 
   Building2, 
@@ -209,7 +208,7 @@ export const AddDealToUniverseDialog = ({
       onDealAdded?.();
       onOpenChange(false);
     },
-    onError: (error) => {
+    onError: (_error) => {
       toast.error("Failed to add deals to universe");
     },
   });
@@ -766,7 +765,7 @@ export const AddDealToUniverseDialog = ({
                   {transcriptFiles.length > 0 && (
                     <div className="space-y-1.5 max-h-[120px] overflow-y-auto">
                       {transcriptFiles.map((file, idx) => (
-                        <div key={`${file.name}-${idx}`} className="flex items-center gap-2 p-2 bg-muted rounded-md">
+                        <div key={file.name} className="flex items-center gap-2 p-2 bg-muted rounded-md">
                           <FileText className="h-4 w-4 text-primary flex-shrink-0" />
                           <span className="text-sm flex-1 truncate">{file.name}</span>
                           <Button

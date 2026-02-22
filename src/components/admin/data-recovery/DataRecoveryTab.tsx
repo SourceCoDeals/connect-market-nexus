@@ -1,8 +1,7 @@
-import React, { useState, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Progress } from '@/components/ui/progress';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { User } from '@/types';
@@ -406,13 +405,13 @@ The Team`);
                 clicked: 24,
                 completed: 16,
               },
-            ].map((campaign, index) => {
+            ].map((campaign) => {
               const openRate = Math.round((campaign.opened / campaign.recipients) * 100);
               const clickRate = Math.round((campaign.clicked / campaign.recipients) * 100);
               const conversionRate = Math.round((campaign.completed / campaign.recipients) * 100);
-              
+
               return (
-                <div key={index} className="p-4 border rounded-lg space-y-3">
+                <div key={campaign.date.toISOString()} className="p-4 border rounded-lg space-y-3">
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="font-medium">

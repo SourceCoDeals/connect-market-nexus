@@ -236,7 +236,7 @@ export function useUpdateFirmFeeAgreement() {
       firmId,
       isSigned,
       signedByUserId,
-      signedByName,
+      signedByName: _signedByName,
     }: {
       firmId: string;
       isSigned: boolean;
@@ -246,8 +246,8 @@ export function useUpdateFirmFeeAgreement() {
       const { data, error } = await supabase.rpc('update_fee_agreement_firm_status', {
         p_firm_id: firmId,
         p_is_signed: isSigned,
-        p_signed_by_user_id: signedByUserId,
-        p_signed_at: isSigned ? new Date().toISOString() : null,
+        p_signed_by_user_id: signedByUserId ?? undefined,
+        p_signed_at: (isSigned ? new Date().toISOString() : null) ?? undefined,
       });
 
       if (error) throw error;
@@ -305,7 +305,7 @@ export function useUpdateFirmNDA() {
       firmId,
       isSigned,
       signedByUserId,
-      signedByName,
+      signedByName: _signedByName,
     }: {
       firmId: string;
       isSigned: boolean;
@@ -315,8 +315,8 @@ export function useUpdateFirmNDA() {
       const { data, error } = await supabase.rpc('update_nda_firm_status', {
         p_firm_id: firmId,
         p_is_signed: isSigned,
-        p_signed_by_user_id: signedByUserId,
-        p_signed_at: isSigned ? new Date().toISOString() : null,
+        p_signed_by_user_id: signedByUserId ?? undefined,
+        p_signed_at: (isSigned ? new Date().toISOString() : null) ?? undefined,
       });
 
       if (error) throw error;
@@ -396,17 +396,17 @@ export function useUpdateAgreementStatus() {
         p_firm_id: params.firmId,
         p_agreement_type: params.agreementType,
         p_new_status: params.newStatus,
-        p_signed_by_name: params.signedByName ?? null,
-        p_signed_by_user_id: params.signedByUserId ?? null,
-        p_document_url: params.documentUrl ?? null,
-        p_redline_notes: params.redlineNotes ?? null,
-        p_redline_document_url: params.redlineDocumentUrl ?? null,
-        p_custom_terms: params.customTerms ?? null,
-        p_expires_at: params.expiresAt ?? null,
+        p_signed_by_name: params.signedByName ?? undefined,
+        p_signed_by_user_id: params.signedByUserId ?? undefined,
+        p_document_url: params.documentUrl ?? undefined,
+        p_redline_notes: params.redlineNotes ?? undefined,
+        p_redline_document_url: params.redlineDocumentUrl ?? undefined,
+        p_custom_terms: params.customTerms ?? undefined,
+        p_expires_at: params.expiresAt ?? undefined,
         p_source: params.source ?? 'platform',
         p_scope: params.scope ?? 'blanket',
-        p_deal_id: params.dealId ?? null,
-        p_notes: params.notes ?? null,
+        p_deal_id: params.dealId ?? undefined,
+        p_notes: params.notes ?? undefined,
       });
 
       if (error) throw error;

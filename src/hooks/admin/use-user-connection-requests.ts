@@ -28,7 +28,7 @@ export function useUserConnectionRequests(userId: string) {
       const allListingIds = new Set<string>();
 
       for (const req of requests) {
-        allProfileIds.add(req.user_id);
+        if (req.user_id) allProfileIds.add(req.user_id);
         if (req.followed_up_by) allProfileIds.add(req.followed_up_by);
         if (req.negative_followed_up_by) allProfileIds.add(req.negative_followed_up_by);
         allListingIds.add(req.listing_id);
@@ -43,7 +43,7 @@ export function useUserConnectionRequests(userId: string) {
       const listingMap = new Map((allListings || []).map(l => [l.id, l]));
 
       const enhancedRequests = requests.map(request => {
-        const userData = profileMap.get(request.user_id);
+        const userData = request.user_id ? profileMap.get(request.user_id) : undefined;
         const listingData = listingMap.get(request.listing_id);
 
         const followedUpByAdmin = request.followed_up_by
@@ -57,16 +57,16 @@ export function useUserConnectionRequests(userId: string) {
         const listing = listingData ? createListingFromData(listingData) : null;
         const status = request.status as "pending" | "approved" | "rejected";
 
-        const result: AdminConnectionRequest = {
+        const result = {
           ...request,
           status,
           user,
           listing,
-          source: (request.source as 'marketplace' | 'webflow' | 'manual' | 'import' | 'api' | 'website' | 'referral' | 'cold_outreach' | 'networking' | 'linkedin' | 'email') || 'marketplace',
+          source: (request.source as AdminConnectionRequest['source']) || 'marketplace',
           source_metadata: (request.source_metadata as Record<string, unknown>) || {},
           followedUpByAdmin,
           negativeFollowedUpByAdmin
-        };
+        } as AdminConnectionRequest;
 
         return result;
       });

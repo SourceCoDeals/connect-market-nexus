@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -363,9 +363,9 @@ export function EnhancedAnalyticsHealthDashboard() {
             </CardHeader>
             <CardContent>
               <div className="space-y-2">
-                {testResults.map((result, index) => (
+                {testResults.map((result) => (
                   <div
-                    key={index}
+                    key={result.test}
                     className="flex items-center justify-between p-2 border rounded"
                   >
                     <span className="text-sm">{result.test}</span>

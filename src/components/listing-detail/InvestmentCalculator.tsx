@@ -1,7 +1,6 @@
 
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Calculator, TrendingUp } from "lucide-react";
@@ -12,7 +11,7 @@ interface InvestmentCalculatorProps {
   formatCurrency: (value: number) => string;
 }
 
-const InvestmentCalculator = ({ revenue, ebitda, formatCurrency }: InvestmentCalculatorProps) => {
+const InvestmentCalculator = ({ revenue: _revenue, ebitda, formatCurrency }: InvestmentCalculatorProps) => {
   const [multiple, setMultiple] = useState("5");
   const [growthRate, setGrowthRate] = useState("15");
   const [timeHorizon, setTimeHorizon] = useState("5");

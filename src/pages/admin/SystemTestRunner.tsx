@@ -3,7 +3,7 @@
  * Runs all user stories and integration tests, reports pass/fail, persists results.
  */
 
-import { useState, useCallback, useRef, useEffect } from "react";
+import { useState, useCallback, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { supabase, SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY } from "@/integrations/supabase/client";
 import {
@@ -57,7 +57,7 @@ const STORAGE_KEY = "sourceco-system-test-results";
 // Dynamic table name type for test helper functions
 type SupabaseTableName = Parameters<typeof supabase.from>[0];
 
-async function assertQuery(query: string, description: string) {
+export async function assertQuery(query: string, description: string) {
   // execute_readonly_query RPC is not in generated Supabase types
   type RpcName = Parameters<typeof supabase.rpc>[0];
   const { error } = await supabase.rpc("execute_readonly_query" as RpcName, { query_text: query } as Record<string, unknown>);
@@ -70,7 +70,7 @@ async function assertQuery(query: string, description: string) {
 }
 
 async function columnExists(table: string, column: string) {
-  const { data, error } = await supabase.from(table as SupabaseTableName).select(column).limit(1);
+  const { error } = await supabase.from(table as SupabaseTableName).select(column).limit(1);
   if (error) throw new Error(`Column '${column}' check on '${table}' failed: ${error.message}`);
 }
 
@@ -267,8 +267,6 @@ function buildTests(): TestDef[] {
   // CATEGORY 3: Contacts — Seller Side
   // ═══════════════════════════════════════════
   const C3 = "3. Contacts — Seller Side";
-  let sellerContactId1: string | null = null;
-  let sellerContactId2: string | null = null;
   let sellerTestListingId: string | null = null;
   let originalContactName: string | null = null;
 
@@ -297,7 +295,7 @@ function buildTests(): TestDef[] {
       .select("id")
       .single();
     if (error) throw new Error(error.message);
-    sellerContactId1 = data.id;
+    void data.id; // sellerContactId1
     ctx.createdContactIds.push(data.id);
   });
 
@@ -316,7 +314,7 @@ function buildTests(): TestDef[] {
       .select("id")
       .single();
     if (error) throw new Error(error.message);
-    sellerContactId2 = data.id;
+    void data.id; // sellerContactId2
     ctx.createdContactIds.push(data.id);
   });
 
@@ -519,7 +517,7 @@ function buildTests(): TestDef[] {
     ctx.createdTrackedLinkIds.push(data.id);
   });
 
-  add(C7, "record-link-open edge function reachable", async (ctx) => {
+  add(C7, "record-link-open edge function reachable", async (_ctx) => {
     // Use a fake token to test reachability
     await invokeEdgeFunction("record-link-open", { link_token: "00000000-0000-0000-0000-000000000000" });
   });
@@ -561,7 +559,7 @@ function buildTests(): TestDef[] {
   const C10 = "10. Send Memo Flow";
 
   add(C10, "Buyer contacts searchable", async () => {
-    const { data, error } = await supabase
+    const { error } = await supabase
       .from("contacts")
       .select("id")
       .eq("contact_type", "buyer")

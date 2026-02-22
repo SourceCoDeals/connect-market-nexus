@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
@@ -167,9 +167,9 @@ export default function EnrichmentTest() {
           {logs.length === 0 && (
             <p className="text-sm text-muted-foreground italic">No actions logged yet.</p>
           )}
-          {logs.map((l, i) => (
+          {logs.map((l) => (
             <p
-              key={i}
+              key={l.ts}
               className={`font-mono text-xs leading-relaxed ${l.ok ? "text-foreground" : "text-destructive"}`}
             >
               [{l.ts}] {l.msg}
@@ -420,7 +420,6 @@ function ProvenanceSection({ addLog }: { addLog: (m: string, d?: number, ok?: bo
       // Fetch extraction sources
       // extraction_sources table is not in generated Supabase types;
       // use type assertion on the untyped table name
-      type UntypedTable = Parameters<typeof supabase.from>[0];
       const { data: srcData, error: srcDataError } = await (supabase
         .from("extraction_sources" as any) as any)
         .select("*")
@@ -700,8 +699,8 @@ function QueueSection({ addLog }: { addLog: (m: string, d?: number, ok?: boolean
               </TableRow>
             </TableHeader>
             <TableBody>
-              {queue.map((item, i) => (
-                <TableRow key={i}>
+              {queue.map((item) => (
+                <TableRow key={item.id}>
                   <TableCell className="font-mono text-xs">{item.listing_id ?? item.id}</TableCell>
                   <TableCell>
                     <Badge className={statusColor[item.status] ?? ""}>{item.status}</Badge>

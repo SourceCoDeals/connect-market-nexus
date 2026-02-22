@@ -30,12 +30,10 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import {
-  Search,
   Building2,
   TrendingUp,
   TrendingDown,
   Minus,
-  Sparkles,
   Upload,
   ChevronDown,
   ChevronUp,
@@ -87,18 +85,16 @@ const ReMarketingDeals = () => {
   const queryClient = useQueryClient();
   const { user } = useAuth();
   const { startOrQueueMajorOp } = useGlobalGateCheck();
-  const [search, setSearch] = useState("");
-  const [universeFilter, setUniverseFilter] = useState<string>("all");
-  const [scoreFilter, setScoreFilter] = useState<string>("all");
-  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [universeFilter] = useState<string>("all");
+  const [scoreFilter] = useState<string>("all");
   const [dateFilter, setDateFilter] = useState<string>("all");
   const [customDateFrom, setCustomDateFrom] = useState<Date | undefined>(undefined);
   const [customDateTo, setCustomDateTo] = useState<Date | undefined>(undefined);
   const [showCustomDatePicker, setShowCustomDatePicker] = useState(false);
-  const [industryFilter, setIndustryFilter] = useState<string>("all");
-  const [stateFilter, setStateFilter] = useState<string>("all");
-  const [employeeFilter, setEmployeeFilter] = useState<string>("all");
-  const [referralPartnerFilter, setReferralPartnerFilter] = useState<string>("all");
+  const [industryFilter] = useState<string>("all");
+  const [stateFilter] = useState<string>("all");
+  const [employeeFilter] = useState<string>("all");
+  const [referralPartnerFilter] = useState<string>("all");
   const [universeBuildFilter, setUniverseBuildFilter] = useState<boolean>(false);
 
   // Admin profiles for deal owner assignment
@@ -451,7 +447,6 @@ const ReMarketingDeals = () => {
     setFilterState,
     dynamicOptions,
     totalCount,
-    filteredCount,
   } = useFilterEngine(listings || [], DEAL_LISTING_FIELDS);
   const { views: savedViews, addView, removeView } = useSavedViews("remarketing-deals");
 

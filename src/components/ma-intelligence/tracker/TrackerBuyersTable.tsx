@@ -18,7 +18,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { IntelligenceBadge } from "../IntelligenceBadge";
-import { RefreshCw, ExternalLink, MoreHorizontal, Sparkles, Archive, Trash2, Users } from "lucide-react";
+import { RefreshCw, MoreHorizontal, Sparkles, Archive, Trash2, Users } from "lucide-react";
 import type { MABuyer } from "@/lib/ma-intelligence/types";
 import { getIntelligenceCoverage, calculateIntelligencePercentage } from "@/lib/ma-intelligence/types";
 import { formatDistanceToNow } from "date-fns";

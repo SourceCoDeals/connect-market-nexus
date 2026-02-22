@@ -1,13 +1,11 @@
 
 import { useState, useEffect } from 'react';
-import { User } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { User as AppUser } from '@/types';
 import { createUserObject } from '@/lib/auth-helpers';
-import { parseCurrency } from '@/lib/currency-utils';
-import { toStandardCategory, toStandardLocation, standardizeCategories, standardizeLocations } from '@/lib/standardization';
-import { processUrl } from '@/lib/url-utils';
 import { selfHealProfile } from '@/lib/profile-self-heal';
+import { processUrl } from '@/lib/url-utils';
+import { standardizeCategories, standardizeLocations } from '@/lib/standardization';
 
 const VISITOR_ID_KEY = 'sourceco_visitor_id';
 

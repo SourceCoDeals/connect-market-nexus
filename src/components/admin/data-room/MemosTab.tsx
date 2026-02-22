@@ -130,7 +130,6 @@ interface MemoSlotCardProps {
 function MemoSlotCard({
   dealId,
   dealTitle,
-  projectName,
   slotType,
   title,
   description,
@@ -566,8 +565,8 @@ function DraftPreview({ draft }: { draft: LeadMemo }) {
 
   return (
     <div className="space-y-4">
-      {sections.map((section: any, i: number) => (
-        <div key={i}>
+      {sections.map((section: any) => (
+        <div key={section.heading || section.body?.slice(0, 40)}>
           {section.heading && (
             <h3 className="text-sm font-semibold mb-1">{section.heading}</h3>
           )}
@@ -576,8 +575,8 @@ function DraftPreview({ draft }: { draft: LeadMemo }) {
           )}
           {section.bullets && Array.isArray(section.bullets) && (
             <ul className="list-disc list-inside text-sm text-muted-foreground space-y-0.5 mt-1">
-              {section.bullets.map((bullet: string, j: number) => (
-                <li key={j}>{bullet}</li>
+              {section.bullets.map((bullet: string) => (
+                <li key={bullet}>{bullet}</li>
               ))}
             </ul>
           )}

@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Mail, Bell, Clock, MapPin, DollarSign } from 'lucide-react';
+import { Mail, Bell, Clock } from 'lucide-react';
 import { LoadingSpinner } from '@/components/LoadingSpinner';
 import { formatCurrency } from '@/lib/currency-utils';
 

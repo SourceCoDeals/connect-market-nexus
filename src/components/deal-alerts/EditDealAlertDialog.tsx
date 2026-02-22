@@ -44,8 +44,7 @@ export function EditDealAlertDialog({ alert, open, onOpenChange }: EditDealAlert
   const updateAlert = useUpdateDealAlert();
   const { data: metadata } = useListingMetadata();
   
-  const categories = metadata?.categories || [];
-  const locations = metadata?.locations || [];
+  void metadata;
 
   useEffect(() => {
     if (alert) {
@@ -59,7 +58,7 @@ export function EditDealAlertDialog({ alert, open, onOpenChange }: EditDealAlert
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.name.trim() || !alert) return;
+    if (!formData.name?.trim() || !alert) return;
 
     try {
       await updateAlert.mutateAsync({
@@ -109,18 +108,18 @@ export function EditDealAlertDialog({ alert, open, onOpenChange }: EditDealAlert
   };
 
   const getCurrentRevenueRange = () => {
-    const criteria = formData.criteria;
+    const criteria = formData.criteria ?? {};
     if (!criteria.revenueMin && !criteria.revenueMax) return 'all';
-    const range = REVENUE_RANGES.find(r => 
+    const range = REVENUE_RANGES.find(r =>
       r.min === criteria.revenueMin && r.max === criteria.revenueMax
     );
     return range?.label || 'all';
   };
 
   const getCurrentEbitdaRange = () => {
-    const criteria = formData.criteria;
+    const criteria = formData.criteria ?? {};
     if (!criteria.ebitdaMin && !criteria.ebitdaMax) return 'all';
-    const range = EBITDA_RANGES.find(r => 
+    const range = EBITDA_RANGES.find(r =>
       r.min === criteria.ebitdaMin && r.max === criteria.ebitdaMax
     );
     return range?.label || 'all';
@@ -158,7 +157,7 @@ export function EditDealAlertDialog({ alert, open, onOpenChange }: EditDealAlert
                   </Label>
                   <Input
                     placeholder="e.g., SaaS, manufacturing"
-                    value={formData.criteria.search || ''}
+                    value={formData.criteria?.search || ''}
                     onChange={(e) => updateCriteria('search', e.target.value)}
                   />
                 </div>
@@ -166,7 +165,7 @@ export function EditDealAlertDialog({ alert, open, onOpenChange }: EditDealAlert
                 <div className="space-y-2">
                   <Label>Categories</Label>
                   <MultiCategorySelect
-                    value={formData.criteria.categories ?? (formData.criteria.category ? [formData.criteria.category] : [])}
+                    value={formData.criteria?.categories ?? (formData.criteria?.category ? [formData.criteria.category] : [])}
                     onValueChange={(values) => {
                       updateCriteria('categories', values);
                       updateCriteria('category', values.length === 1 ? values[0] : '');
@@ -182,7 +181,7 @@ export function EditDealAlertDialog({ alert, open, onOpenChange }: EditDealAlert
                     Locations
                   </Label>
                   <MultiLocationSelect
-                    value={formData.criteria.locations ?? (formData.criteria.location ? [formData.criteria.location] : [])}
+                    value={formData.criteria?.locations ?? (formData.criteria?.location ? [formData.criteria.location] : [])}
                     onValueChange={(values) => {
                       updateCriteria('locations', values);
                       updateCriteria('location', values.length === 1 ? values[0] : '');
@@ -264,7 +263,7 @@ export function EditDealAlertDialog({ alert, open, onOpenChange }: EditDealAlert
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
-            <Button type="submit" disabled={!formData.name.trim() || updateAlert.isPending}>
+            <Button type="submit" disabled={!formData.name?.trim() || updateAlert.isPending}>
               {updateAlert.isPending ? 'Updating...' : 'Update Alert'}
             </Button>
           </div>

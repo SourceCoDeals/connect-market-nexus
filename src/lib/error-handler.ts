@@ -75,7 +75,7 @@ class ErrorManager {
     }
   }
 
-  private showUserNotification(message: string, context: ErrorContext, severity: ErrorSeverity) {
+  private showUserNotification(_message: string, context: ErrorContext, severity: ErrorSeverity) {
     // Don't show toast for low severity errors
     if (severity === 'low') return;
 

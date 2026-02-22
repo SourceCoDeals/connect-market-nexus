@@ -1,7 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { useRetry } from '@/hooks/use-retry';
+
 
 interface UpdateNDAParams {
   userId: string;
@@ -97,7 +97,7 @@ export const useUpdateNDA = () => {
         description: "The NDA status has been successfully updated.",
       });
     },
-    onError: (err, variables, context) => {
+    onError: (_err, _variables, context) => {
       queryClient.setQueryData(['admin-users'], context?.previousUsers);
       queryClient.setQueryData(['connection-requests'], context?.previousRequests);
       toast({
@@ -176,7 +176,7 @@ export const useUpdateNDAEmailSent = () => {
         description: "The NDA email status has been successfully updated.",
       });
     },
-    onError: (err, variables, context) => {
+    onError: (_err, _variables, context) => {
       queryClient.setQueryData(['admin-users'], context?.previousUsers);
       queryClient.setQueryData(['connection-requests'], context?.previousRequests);
       toast({
@@ -194,10 +194,10 @@ export const useLogNDAEmail = () => {
 
   return useMutation({
     mutationFn: async ({ 
-      userId, 
-      userEmail, 
-      notes, 
-      customSubject, 
+      userId,
+      userEmail,
+      notes: _notes,
+      customSubject,
       customMessage, 
       customSignatureText, 
       adminId, 
@@ -227,7 +227,7 @@ export const useLogNDAEmail = () => {
 
       return data;
     },
-    onMutate: async ({ userId }) => {
+    onMutate: async ({ userId: _userId }) => {
       // Don't do optimistic updates since edge function handles database changes
       // Just store previous data for rollback purposes
       await queryClient.cancelQueries({ queryKey: ['admin-users'] });
@@ -250,7 +250,7 @@ export const useLogNDAEmail = () => {
         description: "The NDA email has been sent and logged.",
       });
     },
-    onError: (err, variables, context) => {
+    onError: (_err, _variables, context) => {
       queryClient.setQueryData(['admin-users'], context?.previousUsers);
       queryClient.setQueryData(['connection-requests'], context?.previousRequests);
       toast({

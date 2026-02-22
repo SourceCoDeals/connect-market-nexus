@@ -1,4 +1,3 @@
-import React from 'react';
 import { usePipelineCore } from '@/hooks/admin/use-pipeline-core';
 import { PipelineKanbanView } from './views/PipelineKanbanView';
 import { PipelineListView } from './views/PipelineListView';

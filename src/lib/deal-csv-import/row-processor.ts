@@ -11,7 +11,6 @@ import {
   parseArrayValue,
   normalizeStateCode,
   extractAddressComponents,
-  parseDateValue,
 } from './parsers';
 
 interface ProcessRowResult {

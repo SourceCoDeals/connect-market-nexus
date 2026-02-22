@@ -22,10 +22,7 @@ import {
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import {
-  Tooltip,
-  TooltipContent,
   TooltipProvider,
-  TooltipTrigger,
 } from "@/components/ui/tooltip";
 import {
   AlertDialog,
@@ -76,7 +73,6 @@ import { SubmissionReviewQueue } from "@/components/remarketing/SubmissionReview
 import { DealSourceBadge } from "@/components/remarketing/DealSourceBadge";
 import { EnrichmentProgressIndicator } from "@/components/remarketing/EnrichmentProgressIndicator";
 import { SingleDealEnrichmentDialog, type SingleDealEnrichmentResult } from "@/components/remarketing/SingleDealEnrichmentDialog";
-import { ScoreTierBadge, getTierFromScore } from "@/components/remarketing/ScoreTierBadge";
 import { useGlobalGateCheck, useGlobalActivityMutations } from "@/hooks/remarketing/useGlobalActivityQueue";
 import { useAuth } from "@/context/AuthContext";
 
@@ -111,7 +107,7 @@ export default function ReMarketingReferralPartnerDetail() {
   const [addDealOpen, setAddDealOpen] = useState(false);
   const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [selectedDealIds, setSelectedDealIds] = useState<Set<string>>(new Set());
-  const [enrichmentResult, setEnrichmentResult] = useState<SingleDealEnrichmentResult | null>(null);
+  const [enrichmentResult, _setEnrichmentResult] = useState<SingleDealEnrichmentResult | null>(null);
   const [enrichmentDialogOpen, setEnrichmentDialogOpen] = useState(false);
   const [confirmAction, setConfirmAction] = useState<{ type: "archive" | "delete"; ids: string[] } | null>(null);
   const [lastGeneratedPassword, setLastGeneratedPassword] = useState<string | null>(null);
@@ -758,7 +754,7 @@ export default function ReMarketingReferralPartnerDetail() {
                     variant="outline"
                     size="sm"
                     onClick={() => {
-                      const pw = partner?.share_password_plaintext || lastGeneratedPassword;
+                      const pw = partner?.share_password_plaintext || lastGeneratedPassword || '';
                       navigator.clipboard.writeText(pw);
                       toast.success("Password copied to clipboard");
                     }}

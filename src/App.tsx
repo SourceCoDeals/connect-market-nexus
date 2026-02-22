@@ -1,4 +1,4 @@
-import { lazy, Suspense } from "react";
+import { lazy, Suspense, type ComponentType, type ReactNode } from "react";
 import {
   Routes,
   Route,
@@ -20,6 +20,26 @@ import { SimpleToastProvider } from "@/components/ui/simple-toast";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { errorHandler } from "@/lib/error-handler";
 
+function AppProviders({ children }: { children: ReactNode }) {
+  return (
+    <QueryClientProvider client={queryClient}>
+      <TabVisibilityProvider>
+        <NavigationStateProvider>
+          <AuthProvider>
+            <SessionTrackingProvider>
+              <AnalyticsProvider>
+                <SimpleToastProvider>
+                  {children}
+                </SimpleToastProvider>
+              </AnalyticsProvider>
+            </SessionTrackingProvider>
+          </AuthProvider>
+        </NavigationStateProvider>
+      </TabVisibilityProvider>
+    </QueryClientProvider>
+  );
+}
+
 // Auth pages - eagerly loaded (needed immediately)
 import Login from "@/pages/Login";
 import Signup from "@/pages/Signup";
@@ -27,9 +47,9 @@ import AuthCallback from "@/pages/auth/callback";
 import PendingApproval from "@/pages/PendingApproval";
 
 // Dynamic import error recovery — reload on stale chunk failures
-const lazyWithRetry = (importFn: () => Promise<any>) =>
+const lazyWithRetry = (importFn: () => Promise<{ default: ComponentType }>) =>
   lazy(() =>
-    importFn().catch((error: any) => {
+    importFn().catch((error: Error) => {
       if (
         error?.message?.includes('Failed to fetch dynamically imported module') ||
         error?.message?.includes('Importing a module script failed')
@@ -67,8 +87,6 @@ const AdminLayout = lazyWithRetry(() => import("@/components/admin/AdminLayout")
 
 // Admin pages
 const AdminDashboard = lazyWithRetry(() => import("@/pages/admin/AdminDashboard"));
-const AdminListings = lazyWithRetry(() => import("@/pages/admin/AdminListings"));
-const AdminUsers = lazyWithRetry(() => import("@/pages/admin/AdminUsers"));
 const MarketplaceUsersPage = lazyWithRetry(() => import("@/pages/admin/MarketplaceUsersPage"));
 const InternalTeamPage = lazyWithRetry(() => import("@/pages/admin/InternalTeamPage"));
 const BuyerContactsPage = lazyWithRetry(() => import("@/pages/admin/BuyerContactsPage"));
@@ -116,8 +134,6 @@ const MATrackers = lazyWithRetry(() => import("@/pages/admin/ma-intelligence").t
 const MATrackerDetail = lazyWithRetry(() => import("@/pages/admin/ma-intelligence").then(m => ({ default: m.MATrackerDetail })));
 const MAAllBuyers = lazyWithRetry(() => import("@/pages/admin/ma-intelligence").then(m => ({ default: m.MAAllBuyers })));
 const MABuyerDetail = lazyWithRetry(() => import("@/pages/admin/ma-intelligence").then(m => ({ default: m.MABuyerDetail })));
-const MAAllDeals = lazyWithRetry(() => import("@/pages/admin/ma-intelligence").then(m => ({ default: m.MAAllDeals })));
-const MADealDetail = lazyWithRetry(() => import("@/pages/admin/ma-intelligence").then(m => ({ default: m.MADealDetail })));
 
 // Helper: redirect with params interpolation
 function RedirectWithId({ to }: { to: string }) {
@@ -129,10 +145,10 @@ function RedirectWithId({ to }: { to: string }) {
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      refetchOnWindowFocus: false,
+      refetchOnWindowFocus: true,
       staleTime: 5 * 60 * 1000,
       gcTime: 10 * 60 * 1000,
-      retry: 1,
+      retry: 3,
       refetchOnReconnect: true,
     },
     mutations: { retry: 1 },
@@ -150,17 +166,11 @@ function App() {
         }, 'critical');
       }}
     >
-      <QueryClientProvider client={queryClient}>
-        <TabVisibilityProvider>
-          <NavigationStateProvider>
-            <AuthProvider>
-              <SessionTrackingProvider>
-                <AnalyticsProvider>
-                  <SimpleToastProvider>
-                    <Toaster />
-                    <SonnerToaster />
-                    <Suspense fallback={<div className="flex items-center justify-center h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" /></div>}>
-                      <Routes>
+      <AppProviders>
+        <Toaster />
+        <SonnerToaster />
+        <Suspense fallback={<div className="flex items-center justify-center h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" /></div>}>
+          <Routes>
                         {/* ─── PUBLIC ─── */}
                         <Route path="/welcome" element={<Welcome />} />
                         <Route path="/sell" element={<OwnerInquiry />} />
@@ -295,15 +305,9 @@ function App() {
 
                         {/* Catch-all */}
                         <Route path="*" element={<NotFound />} />
-                      </Routes>
-                    </Suspense>
-                  </SimpleToastProvider>
-                </AnalyticsProvider>
-              </SessionTrackingProvider>
-            </AuthProvider>
-          </NavigationStateProvider>
-        </TabVisibilityProvider>
-      </QueryClientProvider>
+          </Routes>
+        </Suspense>
+      </AppProviders>
     </ErrorBoundary>
   );
 }

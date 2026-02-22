@@ -3,9 +3,8 @@ import { useParams, Link } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/AuthContext";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -32,17 +31,13 @@ import {
   CheckCircle2,
   XCircle,
   Clock,
-  ExternalLink,
   Filter
 } from "lucide-react";
 import { toast } from "sonner";
-import { cn } from "@/lib/utils";
 import { ScoreBadge, ScoreTierBadge, OutreachTimeline } from "@/components/remarketing";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import type { ScoreTier } from "@/types/remarketing";
 import { format } from "date-fns";
-
-type OutcomeStatus = 'in_progress' | 'won' | 'lost' | 'withdrawn' | 'no_response' | null;
 
 const outcomeConfig: Record<string, { label: string; color: string; icon: typeof CheckCircle2 }> = {
   'in_progress': { label: 'In Progress', color: 'text-blue-600 bg-blue-50', icon: Clock },
@@ -65,7 +60,7 @@ const ReMarketingIntroductions = () => {
       const { data, error } = await supabase
         .from('listings')
         .select('*')
-        .eq('id', listingId)
+        .eq('id', listingId!)
         .single();
       if (error) throw error;
       return data;
@@ -84,7 +79,7 @@ const ReMarketingIntroductions = () => {
           *,
           buyer:remarketing_buyers(*)
         `)
-        .eq('listing_id', listingId)
+        .eq('listing_id', listingId!)
         .eq('status', 'approved')
         .order('composite_score', { ascending: false });
 
@@ -94,7 +89,7 @@ const ReMarketingIntroductions = () => {
       const { data: outreachRecords, error: outreachError } = await supabase
         .from('outreach_records')
         .select('*')
-        .eq('listing_id', listingId);
+        .eq('listing_id', listingId!);
 
       if (outreachError) throw outreachError;
 
@@ -122,7 +117,7 @@ const ReMarketingIntroductions = () => {
       const { data: existing, error: existingError } = await supabase
         .from('outreach_records')
         .select('id')
-        .eq('listing_id', listingId)
+        .eq('listing_id', listingId!)
         .eq('buyer_id', buyerId)
         .single();
       if (existingError) throw existingError;
@@ -151,7 +146,7 @@ const ReMarketingIntroductions = () => {
         const { error } = await supabase
           .from('outreach_records')
           .insert({
-            listing_id: listingId,
+            listing_id: listingId!,
             buyer_id: buyerId,
             created_by: user?.id,
             ...updates
@@ -345,7 +340,7 @@ const ReMarketingIntroductions = () => {
                 {filteredIntroductions?.map((intro: any) => {
                   const tier = (intro.tier || 'D') as ScoreTier;
                   const outreach = intro.outreach;
-                  const OutcomeIcon = outreach?.outcome ? outcomeConfig[outreach.outcome]?.icon : null;
+                  void (outreach?.outcome ? outcomeConfig[outreach.outcome]?.icon : null); // OutcomeIcon reserved
 
                   return (
                     <TableRow key={intro.id}>

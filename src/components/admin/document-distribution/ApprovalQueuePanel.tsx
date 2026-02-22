@@ -6,7 +6,7 @@
  */
 
 import { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
@@ -36,7 +36,7 @@ import {
   useDeclineMarketplaceBuyer,
   type ApprovalQueueEntry,
 } from '@/hooks/admin/use-document-distribution';
-import { formatDistanceToNow, format } from 'date-fns';
+import { formatDistanceToNow } from 'date-fns';
 
 interface ApprovalQueuePanelProps {
   dealId?: string;
@@ -51,7 +51,7 @@ const DECLINE_CATEGORIES = [
   { value: 'other', label: 'Other' },
 ];
 
-export function ApprovalQueuePanel({ dealId, showDealName = false }: ApprovalQueuePanelProps) {
+export function ApprovalQueuePanel({ dealId }: ApprovalQueuePanelProps) {
   const { data: queue = [], isLoading } = useApprovalQueue(dealId);
   const approveMutation = useApproveMarketplaceBuyer();
   const declineMutation = useDeclineMarketplaceBuyer();

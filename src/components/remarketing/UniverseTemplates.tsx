@@ -30,7 +30,6 @@ import {
   Heart,
   Utensils,
   Wrench,
-  Plus,
   Check
 } from "lucide-react";
 import { toast } from "sonner";

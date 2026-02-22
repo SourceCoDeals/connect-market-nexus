@@ -182,7 +182,7 @@ export const useInitialSessionTracking = () => {
         };
 
         // Call edge function for IP geolocation and session creation
-        const { data, error } = await supabase.functions.invoke('track-session', {
+        const { error } = await supabase.functions.invoke('track-session', {
           body: trackingData,
         });
 

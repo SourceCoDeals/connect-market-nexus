@@ -70,7 +70,7 @@ const DesktopNavItems = ({ isAdmin, isApproved, onNavigateToAdmin }: DesktopNavI
             <span>{item.label}</span>
             {'badge' in item && (
               <span className="ml-0.5 flex h-5 min-w-[20px] items-center justify-center rounded-full bg-red-600 px-1.5 text-[10px] font-bold text-white shadow-sm ring-2 ring-white">
-                {item.badge > 99 ? '99+' : item.badge}
+                {(item.badge ?? 0) > 99 ? '99+' : item.badge}
               </span>
             )}
           </Link>

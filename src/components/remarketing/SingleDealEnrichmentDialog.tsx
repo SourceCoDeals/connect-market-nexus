@@ -1,6 +1,5 @@
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { CheckCircle2, XCircle, Globe, FileText, Zap, MessageSquare } from "lucide-react";
 
@@ -113,8 +112,8 @@ export const SingleDealEnrichmentDialog = ({
               </div>
               <ScrollArea className="max-h-[200px]">
                 <div className="grid gap-1.5">
-                  {fieldsUpdated.map((field, idx) => (
-                    <div key={idx} className="flex items-center gap-2 text-sm">
+                  {fieldsUpdated.map((field) => (
+                    <div key={field} className="flex items-center gap-2 text-sm">
                       <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600 flex-shrink-0" />
                       <span>{getFieldLabel(field)}</span>
                     </div>

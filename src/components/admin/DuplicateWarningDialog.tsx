@@ -75,8 +75,8 @@ export const DuplicateWarningDialog = ({
                 Same Company/Domain ({duplicateResult.sameFirmRequests.length})
               </h4>
               <div className="space-y-2">
-                {duplicateResult.sameFirmRequests.map((request, index) => (
-                  <div key={index} className="bg-warning/10 border border-warning/20 rounded-lg p-3">
+                {duplicateResult.sameFirmRequests.map((request) => (
+                  <div key={request.requestId} className="bg-warning/10 border border-warning/20 rounded-lg p-3">
                     <div className="flex items-center justify-between">
                       <div>
                         <p className="text-sm font-medium">{request.userEmail}</p>

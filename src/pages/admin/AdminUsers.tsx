@@ -38,7 +38,7 @@ const AdminUsers = () => {
   const updateOwnerContacted = useUpdateOwnerLeadContacted();
   const { toast } = useToast();
   const isMobile = useIsMobile();
-  const { isConnected } = useRealtimeAdmin();
+  useRealtimeAdmin();
   const [filteredUsers, setFilteredUsers] = useState<User[]>([]);
   const [filteredOwnerLeads, setFilteredOwnerLeads] = useState<OwnerLead[]>([]);
   const [primaryView, setPrimaryView] = useState<PrimaryView>('buyers');
@@ -73,7 +73,6 @@ const AdminUsers = () => {
     AdminDialog,
     RevokeAdminDialog,
     DeleteDialog,
-    isLoading: isActionLoading
   } = UserActions({ onUserStatusUpdated: () => refetch() });
   
   useEffect(() => {

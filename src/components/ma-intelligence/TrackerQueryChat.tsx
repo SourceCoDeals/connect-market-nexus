@@ -207,9 +207,9 @@ export function TrackerQueryChat({ trackerId, trackerName }: TrackerQueryChatPro
               <div className="space-y-2">
                 <p className="text-sm text-muted-foreground font-medium">Try asking:</p>
                 <div className="flex flex-wrap gap-2 justify-center">
-                  {EXAMPLE_QUERIES.map((query, index) => (
+                  {EXAMPLE_QUERIES.map((query) => (
                     <Badge
-                      key={index}
+                      key={query}
                       variant="outline"
                       className="cursor-pointer hover:bg-accent transition-colors px-3 py-1"
                       onClick={() => handleExampleClick(query)}

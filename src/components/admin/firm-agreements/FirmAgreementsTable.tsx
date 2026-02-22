@@ -18,12 +18,9 @@ import {
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import { useFirmAgreements, useFirmMembers, useAllFirmMembersForSearch, type FirmAgreement, type AgreementStatus } from '@/hooks/admin/use-firm-agreements';
-import { FirmAgreementToggles } from './FirmAgreementToggles';
 import { AgreementStatusDropdown } from './AgreementStatusDropdown';
-import { FirmBulkActions } from './FirmBulkActions';
 import { FirmManagementTools } from './FirmManagementTools';
 import { FirmMembersTable } from './FirmMembersTable';
-import { formatDistanceToNow } from 'date-fns';
 import { cn } from '@/lib/utils';
 
 type FilterTab = 'all' | 'both_signed' | 'partial' | 'none' | 'redlined' | 'sent';
@@ -420,7 +417,7 @@ function FirmRow({
             <div className="flex items-center gap-2 mb-1">
               <Building2 className="h-4 w-4 text-muted-foreground/60 flex-shrink-0" />
               <h3 className="font-medium text-sm truncate">{firm.primary_company_name}</h3>
-              {firm.member_count === 0 && (firm.lead_count > 0 || firm.request_count > 0 || firm.deal_count > 0) && (
+              {firm.member_count === 0 && ((firm.lead_count ?? 0) > 0 || (firm.request_count ?? 0) > 0 || (firm.deal_count ?? 0) > 0) && (
                 <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 bg-amber-50 text-amber-700 border-amber-200">
                   Lead-Only
                 </Badge>
@@ -512,8 +509,8 @@ function FirmRow({
                 <Users className="h-4 w-4 mr-2" />
                 {isExpanded ? 'Hide' : 'View'} members
               </DropdownMenuItem>
-              {firm.lead_count > 0 && (
-                <DropdownMenuItem 
+              {(firm.lead_count ?? 0) > 0 && (
+                <DropdownMenuItem
                   onClick={() => window.location.href = `/admin/inbound-leads?firm=${firm.id}`}
                   className="cursor-pointer focus:bg-muted/80 focus:text-foreground"
                 >
@@ -521,8 +518,8 @@ function FirmRow({
                   View {firm.lead_count} lead{firm.lead_count !== 1 ? 's' : ''}
                 </DropdownMenuItem>
               )}
-              {firm.request_count > 0 && (
-                <DropdownMenuItem 
+              {(firm.request_count ?? 0) > 0 && (
+                <DropdownMenuItem
                   onClick={() => window.location.href = `/admin/connection-requests?firm=${firm.id}`}
                   className="cursor-pointer focus:bg-muted/80 focus:text-foreground"
                 >
@@ -530,8 +527,8 @@ function FirmRow({
                   View {firm.request_count} request{firm.request_count !== 1 ? 's' : ''}
                 </DropdownMenuItem>
               )}
-              {firm.deal_count > 0 && (
-                <DropdownMenuItem 
+              {(firm.deal_count ?? 0) > 0 && (
+                <DropdownMenuItem
                   onClick={() => window.location.href = `/admin/deals/pipeline?firm=${firm.id}`}
                   className="cursor-pointer focus:bg-muted/80 focus:text-foreground"
                 >

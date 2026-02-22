@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { Globe, X, Lightbulb } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { Globe, Lightbulb } from "lucide-react";
 import { FullscreenGlobeView } from "./FullscreenGlobeView";
 
 const GLOBE_STORAGE_KEY = 'globe-visible-default';

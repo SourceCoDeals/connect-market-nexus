@@ -86,7 +86,7 @@ const GEOGRAPHY_MODE_CONFIG: Record<GeographyMode, { label: string; description:
 
 export const ScoringInsightsPanel = ({
   universeId,
-  universeName,
+  universeName: _universeName,
   weights,
   outcomeStats,
   decisionCount,

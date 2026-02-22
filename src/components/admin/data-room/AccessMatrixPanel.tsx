@@ -21,7 +21,7 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import {
-  Tooltip, TooltipContent, TooltipProvider, TooltipTrigger,
+  TooltipProvider,
 } from '@/components/ui/tooltip';
 import {
   Shield, UserPlus, AlertTriangle, Loader2, Ban, Link2, Mail,

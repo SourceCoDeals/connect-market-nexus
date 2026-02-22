@@ -45,8 +45,6 @@ import {
 import { DEAL_SIZE_RANGES } from "@/lib/currency-ranges";
 import { supabase } from "@/integrations/supabase/client";
 import { User } from "@/types";
-import { STANDARDIZED_CATEGORIES, STANDARDIZED_LOCATIONS } from "@/lib/financial-parser";
-import { parseCurrency } from "@/lib/currency-utils";
 import { standardizeCategories, standardizeLocations } from "@/lib/standardization";
 import { processUrl, isValidUrlFormat, isValidLinkedInFormat, processLinkedInUrl } from "@/lib/url-utils";
 
@@ -100,8 +98,8 @@ const Profile = () => {
     committed_equity_band: user?.committed_equity_band || "",
     equity_source: user?.equity_source || [],
     deployment_timing: user?.deployment_timing || "",
-    target_deal_size_min: user?.target_deal_size_min || null,
-    target_deal_size_max: user?.target_deal_size_max || null,
+    target_deal_size_min: user?.target_deal_size_min ?? undefined,
+    target_deal_size_max: user?.target_deal_size_max ?? undefined,
     geographic_focus: user?.geographic_focus || [],
     industry_expertise: user?.industry_expertise || [],
     deal_structure_preference: user?.deal_structure_preference || "",
@@ -199,7 +197,7 @@ const Profile = () => {
         target_locations: formData.target_locations ? standardizeLocations(Array.isArray(formData.target_locations) ? formData.target_locations : [formData.target_locations]) : [],
       };
       
-      await updateUserProfile(normalizedData);
+      await updateUserProfile(normalizedData as Partial<User>);
       toast({
         title: "Profile updated",
         description: "Your profile information has been successfully updated.",
@@ -809,8 +807,8 @@ const Profile = () => {
                                 const max = parts[1]?.replace(/[^0-9]/g, '');
                                 setFormData(prev => ({
                                   ...prev,
-                                  target_deal_size_min: min ? parseInt(min) * 1000000 : null,
-                                  target_deal_size_max: max ? parseInt(max) * 1000000 : null
+                                  target_deal_size_min: min ? parseInt(min) * 1000000 : undefined,
+                                  target_deal_size_max: max ? parseInt(max) * 1000000 : undefined
                                 }));
                               }
                             }}

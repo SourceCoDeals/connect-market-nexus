@@ -42,32 +42,32 @@ export function ExtractedIntelligenceView({ extractedData }: { extractedData: Re
       </h4>
 
       <div className="space-y-4 text-sm">
-        {hasFinancial && (
+        {!!hasFinancial && (
           <div className="space-y-1.5">
             <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground uppercase tracking-wide">
               <DollarSign className="h-3 w-3" />
               Financial
             </div>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-              {extracted.revenue && (
+              {!!extracted.revenue && (
                 <div className="bg-background rounded p-2">
                   <p className="text-xs text-muted-foreground">Revenue</p>
                   <p className="font-semibold">{formatCurrency(extracted.revenue as number)}</p>
                 </div>
               )}
-              {extracted.ebitda && (
+              {!!extracted.ebitda && (
                 <div className="bg-background rounded p-2">
                   <p className="text-xs text-muted-foreground">EBITDA</p>
                   <p className="font-semibold">{formatCurrency(extracted.ebitda as number)}</p>
                 </div>
               )}
-              {extracted.ebitda_margin && (
+              {!!extracted.ebitda_margin && (
                 <div className="bg-background rounded p-2">
                   <p className="text-xs text-muted-foreground">Margin</p>
                   <p className="font-semibold">{((extracted.ebitda_margin as number) * 100).toFixed(1)}%</p>
                 </div>
               )}
-              {extracted.asking_price && (
+              {!!extracted.asking_price && (
                 <div className="bg-background rounded p-2">
                   <p className="text-xs text-muted-foreground">Asking Price</p>
                   <p className="font-semibold">{formatCurrency(extracted.asking_price as number)}</p>
@@ -77,24 +77,24 @@ export function ExtractedIntelligenceView({ extractedData }: { extractedData: Re
           </div>
         )}
 
-        {hasBusiness && (
+        {!!hasBusiness && (
           <div className="space-y-1.5">
             <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground uppercase tracking-wide">
               <Building className="h-3 w-3" />
               Business
             </div>
             <div className="grid grid-cols-2 gap-2">
-              {extracted.industry && (
+              {!!extracted.industry && (
                 <div><span className="text-muted-foreground">Industry:</span>{' '}<span className="font-medium">{extracted.industry as string}</span></div>
               )}
-              {extracted.location && (
+              {!!extracted.location && (
                 <div><span className="text-muted-foreground">Location:</span>{' '}<span className="font-medium">{extracted.location as string}</span></div>
               )}
             </div>
           </div>
         )}
 
-        {hasServices && (
+        {!!hasServices && (
           <div className="space-y-1.5">
             <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground uppercase tracking-wide">
               <Users className="h-3 w-3" />
@@ -102,62 +102,62 @@ export function ExtractedIntelligenceView({ extractedData }: { extractedData: Re
             </div>
             {(extracted.services as string[] | undefined)?.length ? (
               <div className="flex flex-wrap gap-1">
-                {(extracted.services as string[]).map((service, i) => (
-                  <Badge key={i} variant="outline" className="text-xs">{service}</Badge>
+                {(extracted.services as string[]).map((service) => (
+                  <Badge key={service} variant="outline" className="text-xs">{service}</Badge>
                 ))}
               </div>
             ) : null}
-            {extracted.service_mix && (
+            {!!extracted.service_mix && (
               <p><span className="text-muted-foreground">Mix:</span> {extracted.service_mix as string}</p>
             )}
           </div>
         )}
 
-        {hasGeography && (
+        {!!hasGeography && (
           <div className="space-y-1.5">
             <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground uppercase tracking-wide">
               <MapPin className="h-3 w-3" />
               Geography
             </div>
             <div className="flex flex-wrap gap-1 items-center">
-              {(extracted.geographic_states as string[] | undefined)?.map((state, i) => (
-                <Badge key={i} variant="secondary" className="text-xs">{state}</Badge>
+              {(extracted.geographic_states as string[] | undefined)?.map((state) => (
+                <Badge key={state} variant="secondary" className="text-xs">{state}</Badge>
               ))}
-              {extracted.number_of_locations && (
+              {!!extracted.number_of_locations && (
                 <span className="text-sm ml-2">({extracted.number_of_locations as number} locations)</span>
               )}
             </div>
           </div>
         )}
 
-        {hasOwner && (
+        {!!hasOwner && (
           <div className="space-y-1.5">
             <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground uppercase tracking-wide">
               <Target className="h-3 w-3" />
               Owner & Transaction
             </div>
-            {extracted.owner_goals && (
+            {!!extracted.owner_goals && (
               <p><span className="text-muted-foreground">Goals:</span> {extracted.owner_goals as string}</p>
             )}
-            {extracted.transition_preferences && (
+            {!!extracted.transition_preferences && (
               <p><span className="text-muted-foreground">Transition:</span> {extracted.transition_preferences as string}</p>
             )}
-            {extracted.timeline_notes && (
+            {!!extracted.timeline_notes && (
               <p><span className="text-muted-foreground">Timeline:</span> {extracted.timeline_notes as string}</p>
             )}
           </div>
         )}
 
-        {hasStrategic && (
+        {!!hasStrategic && (
           <div className="space-y-1.5">
             <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground uppercase tracking-wide">
               <Sparkles className="h-3 w-3" />
               Strategic
             </div>
-            {extracted.executive_summary && (
+            {!!extracted.executive_summary && (
               <p className="bg-background rounded p-2 text-sm">{extracted.executive_summary as string}</p>
             )}
-            {extracted.growth_trajectory && (
+            {!!extracted.growth_trajectory && (
               <p><span className="text-muted-foreground">Growth:</span> {extracted.growth_trajectory as string}</p>
             )}
           </div>
@@ -170,9 +170,9 @@ export function ExtractedIntelligenceView({ extractedData }: { extractedData: Re
               Key Quotes
             </div>
             <div className="space-y-2">
-              {safeKeyQuotes.map((quote: string, i: number) => (
+              {safeKeyQuotes.map((quote: string) => (
                 <blockquote
-                  key={i}
+                  key={quote}
                   className="text-sm italic border-l-2 border-primary/30 pl-3 text-muted-foreground"
                 >
                   "{quote}"
