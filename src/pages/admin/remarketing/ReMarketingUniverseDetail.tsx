@@ -208,7 +208,7 @@ const ReMarketingUniverseDetail = () => {
         return new Set<string>();
       }
       
-      return new Set((data || []).map((t: any) => t.buyer_id));
+      return new Set((data || []).map((t: Record<string, unknown>) => t.buyer_id as string));
     },
     enabled: !isNew && !!buyers?.length,
   });
@@ -288,7 +288,7 @@ const ReMarketingUniverseDetail = () => {
     queryFn: async () => {
       if (isNew || !universeDeals?.length) return {};
       
-      const listingIds = universeDeals.map((d: any) => d.listing?.id).filter(Boolean);
+      const listingIds = universeDeals.map((d) => d.listing?.id).filter(Boolean);
       if (listingIds.length === 0) return {};
       
       const { data: scores, error } = await supabase
@@ -364,7 +364,7 @@ const ReMarketingUniverseDetail = () => {
       
       const guideContent = universe.ma_guide_content;
       const existingDocs = (universe.documents as unknown as DocumentReference[]) || [];
-      const hasGuideDoc = existingDocs.some((d: any) => d.type === 'ma_guide');
+      const hasGuideDoc = existingDocs.some((d) => d.type === 'ma_guide');
       
       // If there's substantial guide content but no document entry, create one
       if (guideContent && guideContent.length > 1000 && !hasGuideDoc) {
@@ -491,7 +491,8 @@ const ReMarketingUniverseDetail = () => {
   const saveMutation = useMutation({
     mutationFn: async () => {
        
-      const saveData: any = {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const saveData: Record<string, unknown> = {
         ...formData,
         size_criteria: sizeCriteria,
         geography_criteria: geographyCriteria,
@@ -599,7 +600,7 @@ const ReMarketingUniverseDetail = () => {
 
     if (newStatus) {
       // TURNING ON: Write to both remarketing_buyers AND firm_agreements
-      let firmId = (buyer as any).marketplace_firm_id;
+      let firmId = (buyer as Record<string, unknown>).marketplace_firm_id as string | null;
 
       if (!firmId) {
         // Try to find or create the firm in marketplace via get_or_create_firm()
@@ -652,7 +653,7 @@ const ReMarketingUniverseDetail = () => {
       toast.success('Fee agreement marked — synced to marketplace');
     } else {
       // TURNING OFF: Only allow removal of manual overrides
-      if ((buyer as any).fee_agreement_source === 'marketplace_synced' || (buyer as any).fee_agreement_source === 'pe_firm_inherited') {
+      if ((buyer as Record<string, unknown>).fee_agreement_source === 'marketplace_synced' || (buyer as Record<string, unknown>).fee_agreement_source === 'pe_firm_inherited') {
         toast.error('This fee agreement comes from the marketplace. Remove it from the Firm Agreements page instead.');
         return;
       }
@@ -971,7 +972,7 @@ const ReMarketingUniverseDetail = () => {
                           {universeDeals?.length || 0} deals
                         </span>
                         {(() => {
-                          const unenrichedCount = universeDeals?.filter((d: any) => !d.listing?.enriched_at).length || 0;
+                          const unenrichedCount = universeDeals?.filter((d) => !d.listing?.enriched_at).length || 0;
                           return unenrichedCount > 0 ? (
                             <Badge variant="outline" className="text-orange-600 border-orange-300 bg-orange-50 dark:bg-orange-950/30">
                               {unenrichedCount} unenriched
@@ -994,7 +995,7 @@ const ReMarketingUniverseDetail = () => {
                             }
                             setIsScoringAllDeals(true);
                             try {
-                              const listingIds = universeDeals.filter((d: any) => d.listing?.id).map((d: any) => d.listing.id);
+                              const listingIds = universeDeals.filter((d) => d.listing?.id).map((d) => d.listing!.id);
                               const { queueDealScoring } = await import("@/lib/remarketing/queueScoring");
                               await queueDealScoring({ universeId: id!, listingIds });
                               toast.success(`Queued ${listingIds.length} deals for scoring`);
@@ -1032,7 +1033,7 @@ const ReMarketingUniverseDetail = () => {
                           </Button>
                         ) : (
                           (() => {
-                            const unenrichedDeals = universeDeals?.filter((d: any) => d.listing?.id && !d.listing.enriched_at) || [];
+                            const unenrichedDeals = universeDeals?.filter((d) => d.listing?.id && !d.listing.enriched_at) || [];
                             return unenrichedDeals.length > 0 ? (
                               <Button 
                                 variant="outline" 
@@ -1040,7 +1041,7 @@ const ReMarketingUniverseDetail = () => {
                                 onClick={async () => {
                                   resetDealEnrichment();
                                   
-                                  const dealsToEnrich = unenrichedDeals.map((d: any) => ({
+                                  const dealsToEnrich = unenrichedDeals.map((d) => ({
                                     id: d.id,
                                     listingId: d.listing.id,
                                     enrichedAt: d.listing.enriched_at

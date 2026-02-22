@@ -50,34 +50,35 @@ export const useUpdateFeeAgreement = () => {
       const previousRequests = queryClient.getQueryData(['connection-requests']);
 
       // Update admin users
-      queryClient.setQueryData(['admin-users'], (old: any) => {
-        if (!old) return old;
-        return old.map((user: any) => 
-          user.id === userId 
-            ? { 
-                ...user, 
+      queryClient.setQueryData(['admin-users'], (old: unknown) => {
+        if (!Array.isArray(old)) return old;
+        return old.map((user: Record<string, unknown>) =>
+          user.id === userId
+            ? {
+                ...user,
                 fee_agreement_signed: isSigned,
-                fee_agreement_signed_at: isSigned ? new Date().toISOString() : null 
+                fee_agreement_signed_at: isSigned ? new Date().toISOString() : null
               }
             : user
         );
       });
 
       // Update connection requests
-      queryClient.setQueryData(['connection-requests'], (old: any) => {
-        if (!old) return old;
-        return old.map((request: any) => 
-          request.user?.id === userId 
-            ? { 
-                ...request, 
+      queryClient.setQueryData(['connection-requests'], (old: unknown) => {
+        if (!Array.isArray(old)) return old;
+        return old.map((request: Record<string, unknown>) => {
+          const reqUser = request.user as Record<string, unknown> | null;
+          return reqUser?.id === userId
+            ? {
+                ...request,
                 user: {
-                  ...request.user,
+                  ...reqUser,
                   fee_agreement_signed: isSigned,
-                  fee_agreement_signed_at: isSigned ? new Date().toISOString() : null 
+                  fee_agreement_signed_at: isSigned ? new Date().toISOString() : null
                 }
               }
-            : request
-        );
+            : request;
+        });
       });
 
       return { previousUsers, previousRequests };
@@ -131,34 +132,35 @@ export const useUpdateFeeAgreementEmailSent = () => {
       const previousRequests = queryClient.getQueryData(['connection-requests']);
 
       // Update admin users
-      queryClient.setQueryData(['admin-users'], (old: any) => {
-        if (!old) return old;
-        return old.map((user: any) => 
-          user.id === userId 
-            ? { 
-                ...user, 
+      queryClient.setQueryData(['admin-users'], (old: unknown) => {
+        if (!Array.isArray(old)) return old;
+        return old.map((user: Record<string, unknown>) =>
+          user.id === userId
+            ? {
+                ...user,
                 fee_agreement_email_sent: isSent,
-                fee_agreement_email_sent_at: isSent ? new Date().toISOString() : null 
+                fee_agreement_email_sent_at: isSent ? new Date().toISOString() : null
               }
             : user
         );
       });
 
       // Update connection requests
-      queryClient.setQueryData(['connection-requests'], (old: any) => {
-        if (!old) return old;
-        return old.map((request: any) => 
-          request.user?.id === userId 
-            ? { 
-                ...request, 
+      queryClient.setQueryData(['connection-requests'], (old: unknown) => {
+        if (!Array.isArray(old)) return old;
+        return old.map((request: Record<string, unknown>) => {
+          const reqUser = request.user as Record<string, unknown> | null;
+          return reqUser?.id === userId
+            ? {
+                ...request,
                 user: {
-                  ...request.user,
+                  ...reqUser,
                   fee_agreement_email_sent: isSent,
-                  fee_agreement_email_sent_at: isSent ? new Date().toISOString() : null 
+                  fee_agreement_email_sent_at: isSent ? new Date().toISOString() : null
                 }
               }
-            : request
-        );
+            : request;
+        });
       });
 
       return { previousUsers, previousRequests };
@@ -236,12 +238,12 @@ export const useLogFeeAgreementEmail = () => {
       const previousRequests = queryClient.getQueryData(['connection-requests']);
 
       // Optimistically update ONLY email sent status
-      queryClient.setQueryData(['admin-users'], (old: any) => {
-        if (!old) return old;
-        return old.map((user: any) => 
-          user.id === userId 
-            ? { 
-                ...user, 
+      queryClient.setQueryData(['admin-users'], (old: unknown) => {
+        if (!Array.isArray(old)) return old;
+        return old.map((user: Record<string, unknown>) =>
+          user.id === userId
+            ? {
+                ...user,
                 fee_agreement_email_sent: true,
                 fee_agreement_email_sent_at: new Date().toISOString()
               }
@@ -249,20 +251,21 @@ export const useLogFeeAgreementEmail = () => {
         );
       });
 
-      queryClient.setQueryData(['connection-requests'], (old: any) => {
-        if (!old) return old;
-        return old.map((request: any) => 
-          request.user?.id === userId 
-            ? { 
-                ...request, 
+      queryClient.setQueryData(['connection-requests'], (old: unknown) => {
+        if (!Array.isArray(old)) return old;
+        return old.map((request: Record<string, unknown>) => {
+          const reqUser = request.user as Record<string, unknown> | null;
+          return reqUser?.id === userId
+            ? {
+                ...request,
                 user: {
-                  ...request.user,
+                  ...reqUser,
                   fee_agreement_email_sent: true,
                   fee_agreement_email_sent_at: new Date().toISOString()
                 }
               }
-            : request
-        );
+            : request;
+        });
       });
 
       return { previousUsers, previousRequests };

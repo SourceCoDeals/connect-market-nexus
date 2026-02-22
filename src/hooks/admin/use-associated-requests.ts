@@ -11,7 +11,7 @@ export interface AssociatedRequest {
   lead_email: string | null;
   lead_company: string | null;
   relationship_type: string;
-  relationship_metadata: any;
+  relationship_metadata: Record<string, unknown>;
   listing?: {
     id: string;
     title: string;
@@ -62,20 +62,20 @@ export function useAssociatedRequests(
         if (data && data.length > 0) {
           // Enrich with user profiles for proper colleague names
           const userIds = Array.from(new Set(
-            (data || []).map((item: any) => item.related_request?.user_id).filter(Boolean)
+            (data || []).map((item) => item.related_request?.user_id).filter(Boolean)
           ));
 
-          const profileMap = new Map<string, any>();
+          const profileMap = new Map<string, { id: string; email: string | null; first_name: string | null; last_name: string | null; company: string | null }>();
           if (userIds.length > 0) {
             const { data: profs, error: profsError } = await supabase
               .from('profiles')
               .select('id,email,first_name,last_name,company')
               .in('id', userIds as string[]);
             if (profsError) throw profsError;
-            (profs || []).forEach((p: any) => profileMap.set(p.id, p));
+            (profs || []).forEach((p) => profileMap.set(p.id, p));
           }
 
-          const associated: AssociatedRequest[] = data.map((item: any) => {
+          const associated: AssociatedRequest[] = data.map((item) => {
             const related = item.related_request;
             const p = related?.user_id ? profileMap.get(related.user_id) : null;
             return {
@@ -163,39 +163,40 @@ export function useAssociatedRequests(
         if (dealsError) throw dealsError;
 
         // Step 4: Enrich connection requests with user profiles FIRST (before filtering)
-        const userIds = Array.from(new Set((crData || []).map((r: any) => r.user_id).filter(Boolean)));
-        const profileMap = new Map<string, any>();
+        const userIds = Array.from(new Set((crData || []).map((r) => r.user_id).filter(Boolean)));
+        const profileMap = new Map<string, { id: string; email: string | null; first_name: string | null; last_name: string | null; company: string | null }>();
         if (userIds.length > 0) {
           const { data: profs, error: profsError } = await supabase
             .from('profiles')
             .select('id,email,first_name,last_name,company')
             .in('id', userIds as string[]);
           if (profsError) throw profsError;
-          (profs || []).forEach((p: any) => profileMap.set(p.id, p));
+          (profs || []).forEach((p) => profileMap.set(p.id, p));
         }
 
         // Step 5: Filter out the current contact's email from both sources
         // IMPORTANT: Check both lead_email AND user email from profile
-        const filteredCR = (crData || []).filter((req: any) => {
+        const filteredCR = (crData || []).filter((req) => {
           if (primaryRequestId && req.id === primaryRequestId) return false;
           if (!contactEmail) return true;
           
           const reqLeadEmail = (req.lead_email || '').toLowerCase();
-          const reqUserEmail = req.user_id && profileMap.get(req.user_id)?.email?.toLowerCase();
+          const profile = req.user_id ? profileMap.get(req.user_id) : null;
+          const reqUserEmail = profile?.email ? String(profile.email).toLowerCase() : undefined;
           const currentEmail = contactEmail.toLowerCase();
           
           // Exclude if EITHER the lead_email OR the user's profile email matches the current contact
           return reqLeadEmail !== currentEmail && reqUserEmail !== currentEmail;
         });
 
-        const filteredDeals = (dealsData || []).filter((deal: any) => {
+        const filteredDeals = (dealsData || []).filter((deal) => {
           if (!contactEmail) return true;
           const dealEmail = (deal.contact_email || '').toLowerCase();
           return dealEmail !== contactEmail.toLowerCase();
         });
 
         // Map connection requests
-        const associatedFromCR: AssociatedRequest[] = filteredCR.map((req: any) => {
+        const associatedFromCR: AssociatedRequest[] = filteredCR.map((req) => {
           const p = req.user_id ? profileMap.get(req.user_id) : null;
           return {
             id: req.id,
@@ -214,7 +215,7 @@ export function useAssociatedRequests(
         });
 
         // Map manually created deals
-        const associatedFromDeals: AssociatedRequest[] = filteredDeals.map((deal: any) => {
+        const associatedFromDeals: AssociatedRequest[] = filteredDeals.map((deal) => {
           return {
             id: deal.id,
             user_id: null,

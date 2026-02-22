@@ -44,6 +44,16 @@ import { TranscriptAddDialog } from "./transcript/TranscriptAddDialog";
 import { EnrichmentProgressCard } from "./transcript/EnrichmentProgressCard";
 import { TranscriptListItem } from "./transcript/TranscriptListItem";
 
+interface FirefliesSearchResult {
+  id: string;
+  title?: string;
+  date?: string;
+  meeting_url?: string;
+  participants?: (string | { email?: string })[];
+  duration_minutes?: number;
+  summary?: string;
+}
+
 interface DealTranscript {
   id: string;
   listing_id: string;
@@ -115,7 +125,7 @@ export function DealTranscriptSection({ dealId, transcripts, isLoading, dealInfo
   // Fireflies manual link state
   const [ffQuery, setFfQuery] = useState(companyName || '');
   const [ffSearchLoading, setFfSearchLoading] = useState(false);
-  const [ffResults, setFfResults] = useState<any[]>([]);
+  const [ffResults, setFfResults] = useState<FirefliesSearchResult[]>([]);
   const [ffLinking, setFfLinking] = useState<string | null>(null);
   const [firefliesUrl, setFirefliesUrl] = useState("");
   const [linkingUrl, setLinkingUrl] = useState(false);
@@ -176,7 +186,7 @@ export function DealTranscriptSection({ dealId, transcripts, isLoading, dealInfo
   };
 
   // Link a search result
-  const handleLinkSearchResult = async (transcript: any) => {
+  const handleLinkSearchResult = async (transcript: FirefliesSearchResult) => {
     setFfLinking(transcript.id);
     try {
       const { error } = await supabase.from('deal_transcripts').insert({
@@ -303,10 +313,10 @@ export function DealTranscriptSection({ dealId, transcripts, isLoading, dealInfo
       setEnrichmentPollingEnabled(true);
       queryClient.invalidateQueries({ queryKey: ['remarketing', 'deal', dealId] });
       queryClient.invalidateQueries({ queryKey: ['remarketing', 'deal-transcripts', dealId] });
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Enrich error:', error);
 
-      const errorMessage = error.message || '';
+      const errorMessage = error instanceof Error ? error.message : '';
       const isTimeout = errorMessage.includes('Failed to send') ||
                         errorMessage.includes('timeout') ||
                         errorMessage.includes('aborted') ||
@@ -346,7 +356,7 @@ export function DealTranscriptSection({ dealId, transcripts, isLoading, dealInfo
   const [addMode, setAddMode] = useState<'manual' | 'fireflies'>('manual');
   const [firefliesEmail, setFirefliesEmail] = useState(dealInfo?.main_contact_email || '');
   const [firefliesSearching, setFirefliesSearching] = useState(false);
-  const [firefliesResults, setFirefliesResults] = useState<any[]>([]);
+  const [firefliesResults, setFirefliesResults] = useState<FirefliesSearchResult[]>([]);
   const [selectedFirefliesIds, setSelectedFirefliesIds] = useState<Set<string>>(new Set());
   const [firefliesImporting, setFirefliesImporting] = useState(false);
   const [firefliesSearchInfo, setFirefliesSearchInfo] = useState<string>('');
@@ -500,8 +510,8 @@ export function DealTranscriptSection({ dealId, transcripts, isLoading, dealInfo
             let transcriptText = '';
             try {
               transcriptText = await processFileText(sf.file);
-            } catch (parseErr: any) {
-              console.warn(`Text extraction failed for ${sf.file.name}:`, parseErr.message);
+            } catch (parseErr: unknown) {
+              console.warn(`Text extraction failed for ${sf.file.name}:`, parseErr instanceof Error ? parseErr.message : String(parseErr));
               // Continue anyway - we'll save the file without extracted text
             }
 
@@ -542,7 +552,7 @@ export function DealTranscriptSection({ dealId, transcripts, isLoading, dealInfo
               idx === i ? { ...f, status: 'done' as const } : f
             ));
             successCount++;
-          } catch (err: any) {
+          } catch (err: unknown) {
             console.error(`Error processing ${sf.file.name}:`, err);
             setSelectedFiles(prev => prev.map((f, idx) =>
               idx === i ? { ...f, status: 'error' as const } : f
@@ -588,7 +598,7 @@ export function DealTranscriptSection({ dealId, transcripts, isLoading, dealInfo
       if (error) throw error;
       return { count: 1 };
     },
-    onSuccess: (data: any) => {
+    onSuccess: (data: { count: number; failed?: number; skipped?: number }) => {
       queryClient.invalidateQueries({ queryKey: ['remarketing', 'deal-transcripts', dealId] });
       const parts: string[] = [];
       if (data?.count > 0) parts.push(`${data.count} transcript${data.count > 1 ? 's' : ''} added`);
@@ -657,7 +667,7 @@ export function DealTranscriptSection({ dealId, transcripts, isLoading, dealInfo
   const handleExtract = async (transcript: DealTranscript) => {
     setProcessingId(transcript.id);
     try {
-      const { data, error } = await invokeWithTimeout<any>('extract-deal-transcript', {
+      const { data, error } = await invokeWithTimeout<{ dealUpdated?: boolean; fieldsUpdated?: string[]; fieldsExtracted?: number }>('extract-deal-transcript', {
         body: {
           transcriptId: transcript.id,
           transcriptText: transcript.transcript_text,
@@ -679,8 +689,8 @@ export function DealTranscriptSection({ dealId, transcripts, isLoading, dealInfo
       } else {
         toast.success(`Extracted ${data.fieldsExtracted || 0} fields from transcript`);
       }
-    } catch (error: any) {
-      toast.error(error.message || "Failed to extract intelligence");
+    } catch (error: unknown) {
+      toast.error(error instanceof Error ? error.message : "Failed to extract intelligence");
     } finally {
       setProcessingId(null);
     }
@@ -840,8 +850,8 @@ export function DealTranscriptSection({ dealId, transcripts, isLoading, dealInfo
       if (skippedFields.length > 0) {
         toast.info(`${skippedFields.length} fields added to notes: ${skippedFields.join(', ')}`);
       }
-    } catch (error: any) {
-      toast.error(error.message || "Failed to apply data");
+    } catch (error: unknown) {
+      toast.error(error instanceof Error ? error.message : "Failed to apply data");
     } finally {
       setApplyingId(null);
     }
@@ -868,7 +878,7 @@ export function DealTranscriptSection({ dealId, transcripts, isLoading, dealInfo
       const genericDomains = ['gmail.com', 'yahoo.com', 'hotmail.com', 'outlook.com', 'aol.com', 'icloud.com'];
       const isCompanyDomain = domain && !genericDomains.includes(domain);
 
-      const allResults: any[] = [];
+      const allResults: FirefliesSearchResult[] = [];
 
       if (isCompanyDomain) {
         // STEP 1: Find all known contacts at this domain
@@ -883,7 +893,7 @@ export function DealTranscriptSection({ dealId, transcripts, isLoading, dealInfo
         const emailSet = new Set<string>();
         if (input.includes('@')) emailSet.add(input.toLowerCase());
         if (domainContacts) {
-          domainContacts.forEach((c: any) => {
+          domainContacts.forEach((c: { email?: string; name?: string }) => {
             if (c.email) emailSet.add(c.email.toLowerCase());
           });
         }
@@ -942,7 +952,7 @@ export function DealTranscriptSection({ dealId, transcripts, isLoading, dealInfo
 
       // Deduplicate by transcript ID
       const seen = new Set<string>();
-      const uniqueResults = allResults.filter((r: any) => {
+      const uniqueResults = allResults.filter((r: FirefliesSearchResult) => {
         if (!r.id || seen.has(r.id)) return false;
         seen.add(r.id);
         return true;
@@ -951,14 +961,14 @@ export function DealTranscriptSection({ dealId, transcripts, isLoading, dealInfo
       // Filter out transcripts already linked to this deal
       const existingIds = new Set(
         transcripts
-          .filter((t: any) => t.fireflies_transcript_id)
-          .map((t: any) => t.fireflies_transcript_id)
+          .filter((t: DealTranscript & { fireflies_transcript_id?: string }) => t.fireflies_transcript_id)
+          .map((t: DealTranscript & { fireflies_transcript_id?: string }) => t.fireflies_transcript_id)
       );
 
-      const newResults = uniqueResults.filter((r: any) => !existingIds.has(r.id));
+      const newResults = uniqueResults.filter((r: FirefliesSearchResult) => !existingIds.has(r.id));
 
       // Sort by date, most recent first
-      newResults.sort((a: any, b: any) => {
+      newResults.sort((a: FirefliesSearchResult, b: FirefliesSearchResult) => {
         const dateA = new Date(a.date || 0).getTime();
         const dateB = new Date(b.date || 0).getTime();
         return dateB - dateA;
@@ -993,7 +1003,7 @@ export function DealTranscriptSection({ dealId, transcripts, isLoading, dealInfo
       let failed = 0;
 
       for (const ffId of selectedFirefliesIds) {
-        const result = firefliesResults.find((r: any) => r.id === ffId);
+        const result = firefliesResults.find((r: FirefliesSearchResult) => r.id === ffId);
         if (!result) continue;
 
         try {
@@ -1008,7 +1018,7 @@ export function DealTranscriptSection({ dealId, transcripts, isLoading, dealInfo
               call_date: result.date || null,
               participants: result.participants || [],
               meeting_attendees: Array.isArray(result.participants)
-                ? result.participants.map((p: any) => typeof p === 'string' ? p : p.email).filter(Boolean)
+                ? result.participants.map((p: string | { email?: string }) => typeof p === 'string' ? p : p.email).filter(Boolean)
                 : [],
               duration_minutes: result.duration_minutes || null,
               source: 'fireflies',
@@ -1128,7 +1138,7 @@ export function DealTranscriptSection({ dealId, transcripts, isLoading, dealInfo
           if (selectedFirefliesIds.size === firefliesResults.length) {
             setSelectedFirefliesIds(new Set());
           } else {
-            setSelectedFirefliesIds(new Set(firefliesResults.map((r: any) => r.id)));
+            setSelectedFirefliesIds(new Set(firefliesResults.map((r: FirefliesSearchResult) => r.id)));
           }
         }}
         firefliesImporting={firefliesImporting}

@@ -62,6 +62,7 @@ export function useConnectionMessages(connectionRequestId: string | undefined) {
     queryKey: ['connection-messages', connectionRequestId],
     queryFn: async () => {
       if (!connectionRequestId) return [];
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const { data, error } = await (supabase
         .from('connection_messages') as any)
         .select(`
@@ -94,6 +95,7 @@ export function useSendMessage() {
       if (authError) throw authError;
       if (!user) throw new Error('Not authenticated');
 
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const { data, error } = await (supabase
         .from('connection_messages') as any)
         .insert({
@@ -128,6 +130,7 @@ export function useMarkMessagesReadByAdmin() {
 
   return useMutation({
     mutationFn: async (connectionRequestId: string) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const { error } = await (supabase
         .from('connection_messages') as any)
         .update({ is_read_by_admin: true })
@@ -153,6 +156,7 @@ export function useMarkMessagesReadByBuyer() {
 
   return useMutation({
     mutationFn: async (connectionRequestId: string) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const { error } = await (supabase
         .from('connection_messages') as any)
         .update({ is_read_by_buyer: true })
@@ -177,6 +181,7 @@ export function useUnreadMessageCounts() {
     queryKey: ['unread-message-counts'],
     queryFn: async () => {
       // Fetch all unread-by-admin messages grouped by request
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const { data, error } = await (supabase
         .from('connection_messages') as any)
         .select('connection_request_id')
@@ -187,7 +192,7 @@ export function useUnreadMessageCounts() {
 
       const byRequest: Record<string, number> = {};
       let total = 0;
-      (data || []).forEach((row: any) => {
+      (data || []).forEach((row: { connection_request_id: string }) => {
         byRequest[row.connection_request_id] = (byRequest[row.connection_request_id] || 0) + 1;
         total++;
       });
@@ -204,6 +209,7 @@ export function useUnreadBuyerMessageCounts() {
   return useQuery({
     queryKey: ['unread-buyer-message-counts'],
     queryFn: async () => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const { data, error } = await (supabase
         .from('connection_messages') as any)
         .select('connection_request_id')
@@ -214,7 +220,7 @@ export function useUnreadBuyerMessageCounts() {
 
       const byRequest: Record<string, number> = {};
       let total = 0;
-      (data || []).forEach((row: any) => {
+      (data || []).forEach((row: { connection_request_id: string }) => {
         byRequest[row.connection_request_id] = (byRequest[row.connection_request_id] || 0) + 1;
         total++;
       });
@@ -245,6 +251,7 @@ export function useMessageCenterThreads() {
     queryKey: ['message-center-threads'],
     queryFn: async () => {
       // Fetch all messages with request + buyer + listing info
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const { data: messages, error } = await (supabase
         .from('connection_messages') as any)
         .select(`
@@ -264,7 +271,24 @@ export function useMessageCenterThreads() {
       // Group by connection_request_id and build thread summaries
       const threadMap = new Map<string, MessageThread>();
 
-      (messages || []).forEach((msg: any) => {
+      interface MessageRow {
+        id: string;
+        connection_request_id: string;
+        sender_role: string;
+        body: string;
+        message_type: string;
+        is_read_by_admin: boolean;
+        created_at: string;
+        request?: {
+          id: string;
+          status: string;
+          user_id: string;
+          listing_id: string;
+          user?: { first_name: string | null; last_name: string | null; email: string | null; company: string | null } | null;
+          listing?: { title: string | null } | null;
+        } | null;
+      }
+      ((messages || []) as MessageRow[]).forEach((msg) => {
         const reqId = msg.connection_request_id;
         const req = msg.request;
         const user = req?.user;

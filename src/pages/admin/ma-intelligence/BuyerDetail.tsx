@@ -84,10 +84,10 @@ export default function BuyerDetail() {
       const buyerData = data as unknown as MABuyer;
       setBuyer(buyerData);
       setFormData(buyerData);
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "Error loading buyer",
-        description: error.message,
+        description: error instanceof Error ? error.message : String(error),
         variant: "destructive",
       });
       navigate("/admin/ma-intelligence/buyers");
@@ -110,10 +110,10 @@ export default function BuyerDetail() {
 
       // Data will refresh via queue polling; do a deferred reload as fallback
       setTimeout(loadBuyer, 5000);
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "Error enriching buyer",
-        description: error.message,
+        description: error instanceof Error ? error.message : String(error),
         variant: "destructive",
       });
     }
@@ -137,10 +137,10 @@ export default function BuyerDetail() {
       });
 
       navigate("/admin/ma-intelligence/buyers");
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "Error archiving buyer",
-        description: error.message,
+        description: error instanceof Error ? error.message : String(error),
         variant: "destructive",
       });
     }
@@ -164,10 +164,10 @@ export default function BuyerDetail() {
       });
 
       navigate("/admin/ma-intelligence/buyers");
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "Error deleting buyer",
-        description: error.message,
+        description: error instanceof Error ? error.message : String(error),
         variant: "destructive",
       });
     }
@@ -210,10 +210,10 @@ export default function BuyerDetail() {
         title: "Buyer approved",
         description: "This buyer has been approved for the deal",
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "Error approving buyer",
-        description: error.message,
+        description: error instanceof Error ? error.message : String(error),
         variant: "destructive",
       });
     }
@@ -261,10 +261,10 @@ export default function BuyerDetail() {
 
       setEditingSection(null);
       loadBuyer();
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "Error saving changes",
-        description: error.message,
+        description: error instanceof Error ? error.message : String(error),
         variant: "destructive",
       });
     }
@@ -472,8 +472,8 @@ export default function BuyerDetail() {
 
                 if (error) throw error;
                 setBuyer({ ...buyer, notes });
-              } catch (error: any) {
-                throw new Error(error.message || 'Failed to save notes');
+              } catch (error: unknown) {
+                throw new Error(error instanceof Error ? error.message : 'Failed to save notes');
               }
             }}
             isAnalyzing={isAnalyzingNotes}
@@ -495,10 +495,10 @@ export default function BuyerDetail() {
                 } else {
                   throw new Error(data?.error || "Failed to analyze notes");
                 }
-              } catch (error: any) {
+              } catch (error: unknown) {
                 toast({
                   title: "Error analyzing notes",
-                  description: error.message || "Failed to analyze notes",
+                  description: error instanceof Error ? error.message : "Failed to analyze notes",
                   variant: "destructive",
                 });
               } finally {
@@ -613,7 +613,7 @@ export default function BuyerDetail() {
                   <Label>Thesis Confidence</Label>
                   <Select
                     value={formData.thesis_confidence || ""}
-                    onValueChange={(value: any) =>
+                    onValueChange={(value: string) =>
                       setFormData({ ...formData, thesis_confidence: value })
                     }
                   >

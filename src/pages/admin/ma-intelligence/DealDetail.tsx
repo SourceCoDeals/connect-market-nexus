@@ -50,7 +50,7 @@ export default function DealDetail() {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [deal, setDeal] = useState<MADeal | null>(null);
-  const [tracker, setTracker] = useState<any>(null);
+  const [tracker, setTracker] = useState<{ id: string; name: string } | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("overview");
   const [editingSection, setEditingSection] = useState<string | null>(null);
@@ -90,10 +90,10 @@ export default function DealDetail() {
       setDeal(dealData);
       setTracker(dealData.tracker);
       setFormData(dealData);
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "Error loading deal",
-        description: error.message,
+        description: error instanceof Error ? error.message : String(error),
         variant: "destructive",
       });
       navigate("/admin/ma-intelligence/deals");
@@ -121,7 +121,7 @@ export default function DealDetail() {
         setServiceWeightMultiplier(1.0);
         setCustomScoringInstructions(data.reason || "");
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error loading scoring adjustments:", error);
     }
   };
@@ -140,10 +140,10 @@ export default function DealDetail() {
 
       // Data will refresh via queue polling; do a deferred reload as fallback
       setTimeout(loadDeal, 5000);
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "Error enriching deal",
-        description: error.message,
+        description: error instanceof Error ? error.message : String(error),
         variant: "destructive",
       });
     }
@@ -164,10 +164,10 @@ export default function DealDetail() {
 
       // Data will refresh via queue polling; do a deferred reload as fallback
       setTimeout(loadDeal, 5000);
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "Error calculating score",
-        description: error.message,
+        description: error instanceof Error ? error.message : String(error),
         variant: "destructive",
       });
     }
@@ -192,10 +192,10 @@ export default function DealDetail() {
       });
 
       navigate("/admin/ma-intelligence/deals");
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "Error archiving deal",
-        description: error.message,
+        description: error instanceof Error ? error.message : String(error),
         variant: "destructive",
       });
     }
@@ -221,10 +221,10 @@ export default function DealDetail() {
       });
 
       navigate("/admin/ma-intelligence/deals");
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "Error deleting deal",
-        description: error.message,
+        description: error instanceof Error ? error.message : String(error),
         variant: "destructive",
       });
     }
@@ -267,10 +267,10 @@ export default function DealDetail() {
 
       setEditingSection(null);
       loadDeal();
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "Error saving changes",
-        description: error.message,
+        description: error instanceof Error ? error.message : String(error),
         variant: "destructive",
       });
     }
@@ -299,10 +299,10 @@ export default function DealDetail() {
         title: "Scoring adjustments saved",
         description: "Custom scoring weights have been updated",
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "Error saving scoring adjustments",
-        description: error.message,
+        description: error instanceof Error ? error.message : String(error),
         variant: "destructive",
       });
     }

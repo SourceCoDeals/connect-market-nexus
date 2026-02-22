@@ -147,7 +147,7 @@ export interface FilterFieldDef {
    */
   dynamicOptions?: boolean;
   /** Custom accessor – if the DB column name differs or needs nested access */
-  accessor?: (item: any) => any;
+  accessor?: (item: Record<string, unknown>) => unknown;
 }
 
 // ─── Filter Rule ────────────────────────────────────────────────
@@ -155,7 +155,7 @@ export interface FilterRule {
   id: string;
   field: string;
   operator: Operator;
-  value: any; // string | number | string[] | { min: number; max: number } | Date | null
+  value: string | number | string[] | { min: number; max: number } | Date | null;
 }
 
 export interface FilterState {
@@ -204,7 +204,7 @@ export const DEAL_LISTING_FIELDS: FilterFieldDef[] = [
     group: "Core",
     icon: Users,
     dynamicOptions: true,
-    accessor: (item: any) => item.referral_partners?.name || null,
+    accessor: (item: Record<string, unknown>) => (item.referral_partners as Record<string, unknown> | undefined)?.name || null,
   },
 
   // Status
@@ -480,7 +480,7 @@ export const CAPTARGET_FIELDS: FilterFieldDef[] = [
     type: "text",
     group: "Core",
     icon: Building2,
-    accessor: (item: any) => item.internal_company_name || item.title || "",
+    accessor: (item: Record<string, unknown>) => item.internal_company_name || item.title || "",
   },
   {
     key: "captarget_client_name",
@@ -559,7 +559,7 @@ export const CAPTARGET_FIELDS: FilterFieldDef[] = [
     group: "Business",
     icon: Briefcase,
     dynamicOptions: true,
-    accessor: (item: any) => item.industry || item.category || "",
+    accessor: (item: Record<string, unknown>) => item.industry || item.category || "",
   },
   {
     key: "linkedin_employee_count",
@@ -610,8 +610,8 @@ export const CAPTARGET_FIELDS: FilterFieldDef[] = [
     type: "text",
     group: "Core",
     icon: Globe,
-    accessor: (item: any) => {
-      const raw = item.website;
+    accessor: (item: Record<string, unknown>) => {
+      const raw = item.website as string | undefined;
       if (!raw || !raw.trim() || raw.includes("@")) return null;
       const v = raw.trim().replace(/^[a-z]{3,6}:\/\//i, "").replace(/^www\./i, "").split("/")[0].split("?")[0].split("#")[0];
       return (v && v.includes(".") && !v.includes(" ") && !/^(test|no|example)\./i.test(v)) ? v : null;
@@ -634,7 +634,7 @@ export const GP_PARTNER_FIELDS: FilterFieldDef[] = [
     type: "text",
     group: "Core",
     icon: Building2,
-    accessor: (item: any) => item.internal_company_name || item.title || "",
+    accessor: (item: Record<string, unknown>) => item.internal_company_name || item.title || "",
   },
   {
     key: "main_contact_name",
@@ -656,8 +656,8 @@ export const GP_PARTNER_FIELDS: FilterFieldDef[] = [
     type: "text",
     group: "Core",
     icon: Globe,
-    accessor: (item: any) => {
-      const raw = item.website;
+    accessor: (item: Record<string, unknown>) => {
+      const raw = item.website as string | undefined;
       if (!raw || !raw.trim() || raw.includes("@")) return null;
       const v = raw.trim().replace(/^[a-z]{3,6}:\/\//i, "").replace(/^www\./i, "").split("/")[0].split("?")[0].split("#")[0];
       return (v && v.includes(".") && !v.includes(" ") && !/^(test|no|example)\./i.test(v)) ? v : null;
@@ -783,7 +783,7 @@ export const VALUATION_LEAD_FIELDS: FilterFieldDef[] = [
     type: "text",
     group: "Core",
     icon: Building2,
-    accessor: (item: any) => item.business_name || item.display_name || item.full_name || "",
+    accessor: (item: Record<string, unknown>) => item.business_name || item.display_name || item.full_name || "",
   },
   {
     key: "website",
@@ -791,7 +791,7 @@ export const VALUATION_LEAD_FIELDS: FilterFieldDef[] = [
     type: "text",
     group: "Core",
     // Mirrors inferWebsite logic: validates the website is a real domain (no spaces, contains dot)
-    accessor: (item: any) => {
+    accessor: (item: Record<string, unknown>) => {
       // Helper: check if a string is a valid-looking domain
       const isValidDomain = (s: string): boolean => {
         const v = s.trim().toLowerCase()
@@ -800,7 +800,7 @@ export const VALUATION_LEAD_FIELDS: FilterFieldDef[] = [
           .split("/")[0].split("?")[0].split("#")[0]; // strip path
         return !!(v && v.includes(".") && !v.includes(" ") && !/^(test|no|example)\./i.test(v));
       };
-      const raw = item.website;
+      const raw = item.website as string | undefined;
       if (raw && raw.trim() && !raw.includes("@") && isValidDomain(raw)) return raw.trim();
       // No valid website — return null (filter treats as empty)
       return null;

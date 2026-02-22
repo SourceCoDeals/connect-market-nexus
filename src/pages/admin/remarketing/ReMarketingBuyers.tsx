@@ -83,9 +83,9 @@ const isSponsorType = (buyerType: string | null | undefined): boolean =>
 type BuyerTab = 'all' | 'pe_firm' | 'platform' | 'needs_agreements' | 'needs_enrichment';
 
 // Helper to find a PE firm record by name in the buyers list
-const findPeFirmByName = (buyers: any[], firmName: string): any | null => {
+const findPeFirmByName = (buyers: Record<string, unknown>[], firmName: string): Record<string, unknown> | null => {
   return buyers?.find(
-    (b: any) => b.buyer_type === 'pe_firm' && b.company_name === firmName
+    (b: Record<string, unknown>) => b.buyer_type === 'pe_firm' && b.company_name === firmName
   ) || null;
 };
 
@@ -151,7 +151,7 @@ const ReMarketingBuyers = () => {
 
   // Fetch buyer IDs that have transcripts - needed to determine "Strong" vs "Some Intel"
   // Scoped to current buyer set to avoid full table scan
-  const buyerIds = useMemo(() => (buyers || []).map((b: any) => b.id), [buyers]);
+  const buyerIds = useMemo(() => (buyers || []).map((b: Record<string, unknown>) => b.id as string), [buyers]);
   const { data: buyerIdsWithTranscripts } = useQuery({
     queryKey: ['remarketing', 'buyer-transcript-ids', buyerIds.slice(0, 5)],
     queryFn: async () => {
@@ -169,7 +169,7 @@ const ReMarketingBuyers = () => {
           console.error('Error fetching transcripts:', error);
           continue;
         }
-        allIds.push(...(data || []).map((t: any) => t.buyer_id));
+        allIds.push(...(data || []).map((t: Record<string, unknown>) => t.buyer_id as string));
       }
       
       return new Set(allIds);
@@ -196,7 +196,7 @@ const ReMarketingBuyers = () => {
   const tabCounts = useMemo(() => {
     if (!buyers) return { all: 0, pe_firm: 0, platform: 0, needs_agreements: 0, needs_enrichment: 0 };
     let pe_firm = 0, platform = 0, needs_agreements = 0, needs_enrichment = 0;
-    buyers.forEach((b: any) => {
+    buyers.forEach((b) => {
       if (isSponsorType(b.buyer_type)) pe_firm++;
       if (b.buyer_type === 'platform' || !b.buyer_type) platform++;
       if (!b.has_fee_agreement) needs_agreements++;
@@ -209,7 +209,7 @@ const ReMarketingBuyers = () => {
   const platformCountsByFirm = useMemo(() => {
     if (!buyers) return new Map<string, number>();
     const counts = new Map<string, number>();
-    buyers.forEach((b: any) => {
+    buyers.forEach((b) => {
       if (b.pe_firm_name && !isSponsorType(b.buyer_type)) {
         counts.set(b.pe_firm_name, (counts.get(b.pe_firm_name) || 0) + 1);
       }
@@ -325,7 +325,7 @@ const ReMarketingBuyers = () => {
 
     // Sort
     result = [...result].sort((a, b) => {
-      let valA: any, valB: any;
+      let valA: string, valB: string;
       switch (sortColumn) {
         case 'company_name':
           valA = a.company_name?.toLowerCase() || '';
@@ -376,8 +376,8 @@ const ReMarketingBuyers = () => {
       if (error) throw error;
       toast.success('Enrichment started');
       queryClient.invalidateQueries({ queryKey: ['remarketing', 'buyers'] });
-    } catch (err: any) {
-      toast.error(err.message || 'Enrichment failed');
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'Enrichment failed');
     } finally {
       setEnrichingIds(prev => {
         const next = new Set(prev);
@@ -435,17 +435,17 @@ const ReMarketingBuyers = () => {
     if (selectedIds.size === filteredBuyers.length) {
       setSelectedIds(new Set());
     } else {
-      setSelectedIds(new Set(filteredBuyers.map((b: any) => b.id)));
+      setSelectedIds(new Set(filteredBuyers.map((b) => b.id)));
     }
   };
 
   // Export CSV
   const handleExportCSV = () => {
-    const rows = filteredBuyers.filter((b: any) => selectedIds.size === 0 || selectedIds.has(b.id));
+    const rows = filteredBuyers.filter((b) => selectedIds.size === 0 || selectedIds.has(b.id));
     const headers = ['Company Name', 'Buyer Type', 'PE Firm', 'Website', 'Location', 'Thesis', 'Fee Agreement', 'NDA'];
     const csv = [
       headers.join(','),
-      ...rows.map((b: any) => [
+      ...rows.map((b) => [
         `"${(b.company_name || '').replace(/"/g, '""')}"`,
         b.buyer_type || '',
         `"${(b.pe_firm_name || '').replace(/"/g, '""')}"`,
@@ -482,7 +482,7 @@ const ReMarketingBuyers = () => {
             className="gap-1.5"
             disabled={enrichingIds.size > 0 || filteredBuyers.length === 0}
             onClick={async () => {
-              const ids = selectedIds.size > 0 ? Array.from(selectedIds) : filteredBuyers.map((b: any) => b.id);
+              const ids = selectedIds.size > 0 ? Array.from(selectedIds) : filteredBuyers.map((b) => b.id);
               if (ids.length === 0) return;
               setEnrichingIds(new Set(ids));
               try {
@@ -765,7 +765,7 @@ const ReMarketingBuyers = () => {
                   </TableCell>
                 </TableRow>
               ) : (
-                pagedBuyers.map((buyer: any, pageIdx: number) => {
+                pagedBuyers.map((buyer, pageIdx: number) => {
                   const globalIdx = (currentPage - 1) * PAGE_SIZE + pageIdx + 1;
                   const isSponsor = isSponsorType(buyer.buyer_type);
                   const detailPath = isSponsor
