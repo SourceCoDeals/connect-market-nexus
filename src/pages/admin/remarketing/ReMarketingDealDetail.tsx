@@ -1308,10 +1308,14 @@ const ReMarketingDealDetail = () => {
 
         {/* ════════════════ DATA ROOM TAB ════════════════ */}
         <TabsContent value="data-room" className="space-y-6">
-          <Tabs defaultValue="documents" className="space-y-4">
-            <TabsList className="grid w-full grid-cols-4">
+          <Tabs defaultValue="memos" className="space-y-4">
+            <TabsList className="grid w-full grid-cols-5">
+              <TabsTrigger value="memos" className="text-sm">
+                <BookOpen className="mr-1.5 h-3.5 w-3.5" />
+                Memos
+              </TabsTrigger>
               <TabsTrigger value="documents" className="text-sm">
-                <FileText className="mr-1.5 h-3.5 w-3.5" />
+                <FolderOpen className="mr-1.5 h-3.5 w-3.5" />
                 Documents
               </TabsTrigger>
               <TabsTrigger value="access" className="text-sm">
@@ -1328,12 +1332,15 @@ const ReMarketingDealDetail = () => {
               </TabsTrigger>
             </TabsList>
 
-            <TabsContent value="documents" className="space-y-6">
+            <TabsContent value="memos" className="space-y-6">
               <MemosTab
                 dealId={dealId!}
                 dealTitle={deal.internal_company_name || deal.title}
                 projectName={deal.project_name}
               />
+            </TabsContent>
+
+            <TabsContent value="documents" className="space-y-6">
               <DocumentsPanel dealId={dealId!} />
             </TabsContent>
 

@@ -198,11 +198,16 @@ END
 $c5$;
 
 -- C6. remarketing_scores — "scores_select_policy" uses auth.jwt() ->> 'is_admin'
+--     deleted_at column may not exist if soft-delete migration hasn't run yet
 DO $c6$
 BEGIN
   IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'remarketing_scores') THEN
     EXECUTE 'DROP POLICY IF EXISTS "scores_select_policy" ON public.remarketing_scores';
-    EXECUTE 'CREATE POLICY "scores_select_policy" ON public.remarketing_scores FOR SELECT TO authenticated USING (deleted_at IS NULL OR public.is_admin(auth.uid()))';
+    IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'remarketing_scores' AND column_name = 'deleted_at') THEN
+      EXECUTE 'CREATE POLICY "scores_select_policy" ON public.remarketing_scores FOR SELECT TO authenticated USING (deleted_at IS NULL OR public.is_admin(auth.uid()))';
+    ELSE
+      EXECUTE 'CREATE POLICY "scores_select_policy" ON public.remarketing_scores FOR SELECT TO authenticated USING (public.is_admin(auth.uid()))';
+    END IF;
   END IF;
 END
 $c6$;
@@ -214,6 +219,7 @@ $c6$;
 -- ============================================================================
 
 -- D1. get_deals_with_details() — admin-only deal pipeline view
+DROP FUNCTION IF EXISTS public.get_deals_with_details();
 CREATE OR REPLACE FUNCTION public.get_deals_with_details()
 RETURNS TABLE (
   deal_id uuid,
@@ -383,11 +389,12 @@ END;
 $$;
 
 -- D2. reset_all_admin_notifications() — admin-only bulk reset
+DROP FUNCTION IF EXISTS public.reset_all_admin_notifications();
 CREATE OR REPLACE FUNCTION public.reset_all_admin_notifications()
 RETURNS void
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path TO 'public'
+SET search_path = public
 AS $$
 BEGIN
   -- Auth guard: admin-only
@@ -401,6 +408,7 @@ $$;
 
 -- D3. restore_soft_deleted(text, uuid) — admin-only record restoration
 --     Particularly sensitive: uses EXECUTE format() with table name
+DROP FUNCTION IF EXISTS public.restore_soft_deleted(text, uuid);
 CREATE OR REPLACE FUNCTION public.restore_soft_deleted(
   p_table_name TEXT,
   p_record_id UUID
@@ -408,6 +416,7 @@ CREATE OR REPLACE FUNCTION public.restore_soft_deleted(
 RETURNS BOOLEAN
 LANGUAGE plpgsql
 SECURITY DEFINER
+SET search_path = public
 AS $$
 BEGIN
   -- Auth guard: admin-only
@@ -427,6 +436,7 @@ $$;
 -- D4. get_deal_access_matrix(uuid) — admin-only deal access view
 --     Converted from SQL to plpgsql to add auth guard
 --     Uses latest signature from 20260228100000 (contact_id, contact_title, access_token)
+DROP FUNCTION IF EXISTS public.get_deal_access_matrix(uuid);
 CREATE OR REPLACE FUNCTION public.get_deal_access_matrix(p_deal_id UUID)
 RETURNS TABLE (
   access_id UUID,
@@ -449,7 +459,6 @@ RETURNS TABLE (
   access_token UUID
 )
 LANGUAGE plpgsql
-STABLE
 SECURITY DEFINER
 SET search_path = public
 AS $$
@@ -502,7 +511,7 @@ BEGIN
       a.last_access_at,
       (SELECT MAX(al.created_at) FROM public.data_room_audit_log al
        WHERE al.deal_id = a.deal_id
-         AND al.user_id = COALESCE(a.marketplace_user_id, a.remarketing_buyer_id::uuid)
+         AND al.user_id = COALESCE(a.marketplace_user_id, a.remarketing_buyer_id)
          AND al.action IN ('view_document', 'download_document', 'view_data_room'))
     ) AS last_access_at,
     a.access_token
@@ -518,6 +527,7 @@ $$;
 
 -- D5. get_deal_distribution_log(uuid) — admin-only distribution history
 --     Converted from SQL to plpgsql to add auth guard
+DROP FUNCTION IF EXISTS public.get_deal_distribution_log(uuid);
 CREATE OR REPLACE FUNCTION public.get_deal_distribution_log(p_deal_id UUID)
 RETURNS TABLE (
   log_id UUID,
@@ -531,7 +541,6 @@ RETURNS TABLE (
   notes TEXT
 )
 LANGUAGE plpgsql
-STABLE
 SECURITY DEFINER
 SET search_path = public
 AS $$
@@ -563,6 +572,7 @@ $$;
 
 -- D6. get_buyer_deal_history(uuid) — admin-only buyer history view
 --     Converted from SQL to plpgsql to add auth guard
+DROP FUNCTION IF EXISTS public.get_buyer_deal_history(uuid);
 CREATE OR REPLACE FUNCTION public.get_buyer_deal_history(p_buyer_id UUID)
 RETURNS TABLE (
   deal_id UUID,
@@ -577,7 +587,6 @@ RETURNS TABLE (
   pipeline_stage_id UUID
 )
 LANGUAGE plpgsql
-STABLE
 SECURITY DEFINER
 SET search_path = public
 AS $$
@@ -598,7 +607,7 @@ BEGIN
     COALESCE(
       (SELECT COUNT(*) FROM public.memo_distribution_log dl
        WHERE dl.deal_id = l.id AND dl.remarketing_buyer_id = p_buyer_id),
-      0
+      0::bigint
     ) AS memos_sent,
     (SELECT MAX(dl.sent_at) FROM public.memo_distribution_log dl
      WHERE dl.deal_id = l.id AND dl.remarketing_buyer_id = p_buyer_id
