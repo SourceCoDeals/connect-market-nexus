@@ -78,6 +78,22 @@ Deno.serve(async (req: Request) => {
       );
     }
 
+    // GUARD: Anonymous Teaser requires a Final PDF of the Full Lead Memo
+    if (memo_type === "anonymous_teaser" || memo_type === "both") {
+      const { data: fullMemoPdf } = await supabaseAdmin
+        .from("data_room_documents")
+        .select("id")
+        .eq("deal_id", deal_id)
+        .eq("document_category", "full_memo")
+        .limit(1);
+      if (!fullMemoPdf?.length) {
+        return new Response(
+          JSON.stringify({ error: "Cannot generate Anonymous Teaser until a Final PDF of the Full Lead Memo has been uploaded." }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+    }
+
     // Fetch all deal data
     const { data: deal, error: dealError } = await supabaseAdmin
       .from("listings")
@@ -327,28 +343,34 @@ async function generateMemo(
 ): Promise<MemoContent> {
   const isAnonymous = memoType === "anonymous_teaser";
 
+  // Derive the actual region/state for anonymous codename
+  const dealState = context.deal.address_state || "";
+  const stateToRegion: Record<string, string> = {
+    AL: "Southeast", AK: "Pacific Northwest", AZ: "Southwest", AR: "South Central",
+    CA: "West Coast", CO: "Mountain West", CT: "Northeast", DE: "Mid-Atlantic",
+    FL: "Southeast", GA: "Southeast", HI: "Pacific", ID: "Mountain West",
+    IL: "Midwest", IN: "Midwest", IA: "Midwest", KS: "Central",
+    KY: "Southeast", LA: "Gulf Coast", ME: "New England", MD: "Mid-Atlantic",
+    MA: "New England", MI: "Great Lakes", MN: "Upper Midwest", MS: "Gulf Coast",
+    MO: "Central", MT: "Mountain West", NE: "Central", NV: "Mountain West",
+    NH: "New England", NJ: "Mid-Atlantic", NM: "Southwest", NY: "Northeast",
+    NC: "Southeast", ND: "Upper Midwest", OH: "Great Lakes", OK: "South Central",
+    OR: "Pacific Northwest", PA: "Mid-Atlantic", RI: "New England", SC: "Southeast",
+    SD: "Upper Midwest", TN: "Southeast", TX: "South Central", UT: "Mountain West",
+    VT: "New England", VA: "Mid-Atlantic", WA: "Pacific Northwest", WV: "Appalachian",
+    WI: "Great Lakes", WY: "Mountain West", DC: "Mid-Atlantic",
+  };
+  const regionName = stateToRegion[dealState.toUpperCase()] || "Central";
+  const projectCodename = `Project ${regionName}`;
+
   const systemPrompt = `You are a VP at a buy-side investment bank writing an investment memo for the partners at a private equity firm. This memo will go to the investment committee.
-
-Your writing is factual, clear, concise, and detailed. You never express opinions about the quality of the business. You never use words like "strong," "attractive," "impressive," "compelling," "well-positioned," or "robust." You present facts and let the reader form their own view.
-
-You show industry knowledge by using correct terminology naturally, not by making editorial comments about the market. You are comprehensive but not exhaustive. Every sentence conveys a fact the reader needs.
-
-ABSOLUTE RULES — NEVER VIOLATE THESE:
-- NEVER include these sections: Investment Highlights, Key Risks, Risk Factors, Strategic Rationale, Recommended Next Steps, Executive Summary, Conclusion, or Market & Industry.
-- NEVER include a conclusion or summary paragraph at the end of the memo.
-- NEVER include market analysis, industry overview, market size, growth trends, competitive landscape, or regulatory environment. This memo is strictly about the business itself — only include facts directly about the company.
-- NEVER use these words/phrases: strong, robust, impressive, attractive, compelling, well-positioned, significant opportunity, poised for growth, track record of success, best-in-class, proven, demonstrated, synergies, uniquely positioned, market leader, value creation opportunity.
-- NEVER fabricate financial numbers, employee counts, or other factual data. If data is unavailable, flag it as [DATA NEEDED: description].
-- If a transcript mentions a number but it's ambiguous, flag it: [VERIFY: description of ambiguity].
-- Present financial data in table format using markdown tables, not inline text.
-- Let the numbers speak. "Revenue grew from $8.2M to $12.1M between 2022 and 2024" is correct. "The company has demonstrated impressive revenue growth" is wrong.
-
+...
 ${isAnonymous ? `MEMO TYPE: Anonymous Teaser (blind profile)
 
 CRITICAL ANONYMITY RULES:
-- NO company name — use a project codename like "Project [Region]" (e.g., "Project Southeast")
+- NO company name — use the codename "${projectCodename}" throughout the memo
 - NO owner/CEO name
-- NO street address, city — state or region only (e.g., "Southeast U.S.")
+- NO street address, city — state or region only (e.g., "${regionName} U.S.")
 - NO website URL, email, or phone number
 - NO specific client or customer names
 - Financial data as ranges only (e.g., "$8M-$10M revenue")

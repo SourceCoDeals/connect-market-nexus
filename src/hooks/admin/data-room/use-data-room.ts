@@ -45,6 +45,9 @@ export interface DataRoomAccessRecord {
   expires_at: string | null;
   last_access_at: string | null;
   access_token: string | null;
+  link_sent_at: string | null;
+  link_sent_to_email: string | null;
+  link_sent_via: string | null;
 }
 
 export interface LeadMemo {
