@@ -1,12 +1,8 @@
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { useMarketplace } from "@/hooks/use-marketplace";
-import { AlertCircle, FileText, MessageSquare, Send } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { AlertCircle, FileText, MessageSquare, FolderOpen } from "lucide-react";
 import {
-  useConnectionMessages,
-  useSendMessage,
-  useMarkMessagesReadByBuyer,
   useUnreadBuyerMessageCounts,
 } from "@/hooks/use-connection-messages";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -16,6 +12,10 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { DealProcessSteps } from "@/components/deals/DealProcessSteps";
 import { DealDetailsCard } from "@/components/deals/DealDetailsCard";
 import { DealMetricsCard } from "@/components/deals/DealMetricsCard";
+import { DealMessagesTab } from "@/components/deals/DealMessagesTab";
+import { DealMessagePreview } from "@/components/deals/DealMessagePreview";
+import { DealDocumentsTab } from "@/components/deals/DealDocumentsTab";
+import { DealDocumentPreview } from "@/components/deals/DealDocumentPreview";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -53,9 +53,15 @@ const MyRequests = () => {
   const isMobile = useIsMobile();
   const [searchParams, setSearchParams] = useSearchParams();
   const [selectedDeal, setSelectedDeal] = useState<string | null>(null);
+  const [innerTab, setInnerTab] = useState<Record<string, string>>({});
   const { unreadByRequest } = useUserNotifications();
   const markRequestNotificationsAsRead = useMarkRequestNotificationsAsRead();
   const { data: unreadMsgCounts } = useUnreadBuyerMessageCounts();
+
+  // Get/set inner tab for a specific deal
+  const getInnerTab = (requestId: string) => innerTab[requestId] || "overview";
+  const setDealInnerTab = (requestId: string, tab: string) =>
+    setInnerTab(prev => ({ ...prev, [requestId]: tab }));
 
   // Fetch fresh profile data to avoid stale completeness calculations
   const { data: freshProfile } = useQuery({
@@ -92,6 +98,11 @@ const MyRequests = () => {
       const requestIdFromUrl = searchParams.get('request') || searchParams.get('deal');
       if (requestIdFromUrl && requests.find(r => r.id === requestIdFromUrl)) {
         setSelectedDeal(requestIdFromUrl);
+        // Also check for inner tab param (e.g., ?deal=xxx&tab=messages)
+        const tabParam = searchParams.get('tab');
+        if (tabParam && ['overview', 'documents', 'messages'].includes(tabParam)) {
+          setDealInnerTab(requestIdFromUrl, tabParam);
+        }
       } else if (!selectedDeal) {
         setSelectedDeal(requests[0].id);
       }
@@ -306,189 +317,152 @@ const MyRequests = () => {
 
         {/* Content - Clean layout */}
         <div className="px-4 sm:px-8 py-8 max-w-7xl mx-auto">
-          {requests.map((request) => (
-            <TabsContent 
-              key={request.id} 
-              value={request.id}
-              className="mt-0 focus-visible:outline-none focus-visible:ring-0"
-            >
-              <div className="max-w-4xl mx-auto space-y-6">
-                {/* Metrics Card */}
-                <DealMetricsCard
-                  listing={{
-                    id: request.listing_id,
-                    title: request.listing?.title || "Untitled",
-                    category: request.listing?.category,
-                    location: request.listing?.location,
-                    image_url: request.listing?.image_url,
-                    revenue: request.listing?.revenue,
-                    ebitda: request.listing?.ebitda,
-                    full_time_employees: request.listing?.full_time_employees,
-                    part_time_employees: request.listing?.part_time_employees,
-                    acquisition_type: request.listing?.acquisition_type,
-                  }}
-                  status={request.status}
-                />
+          {requests.map((request) => {
+            const requestStatus = request.status as "pending" | "approved" | "rejected" | "on_hold";
+            const currentInnerTab = getInnerTab(request.id);
+            const msgUnread = unreadMsgCounts?.byRequest[request.id] || 0;
 
-                {/* Process Steps - Stripe-inspired with integrated review panel */}
-                <DealProcessSteps 
-                  requestStatus={request.status as 'pending' | 'approved' | 'rejected'}
-                  requestId={request.id}
-                  userMessage={request.user_message}
-                  onMessageUpdate={async (newMessage) => {
-                    await updateMessage.mutateAsync({
-                      requestId: request.id,
-                      message: newMessage,
-                    });
-                  }}
-                  isProfileComplete={getProfileCompletionDetails(profileForCalc).isComplete}
-                  profileCompletionPercentage={getProfileCompletionDetails(profileForCalc).percentage}
-                />
+            return (
+              <TabsContent
+                key={request.id}
+                value={request.id}
+                className="mt-0 focus-visible:outline-none focus-visible:ring-0"
+              >
+                <div className="max-w-4xl mx-auto">
+                  {/* Inner tabs: Overview / Documents / Messages */}
+                  <Tabs
+                    value={currentInnerTab}
+                    onValueChange={(tab) => setDealInnerTab(request.id, tab)}
+                    className="w-full"
+                  >
+                    <TabsList className="inline-flex h-auto items-center bg-transparent p-0 gap-1 mb-6 border-b border-slate-100 w-full justify-start rounded-none">
+                      <TabsTrigger
+                        value="overview"
+                        className={cn(
+                          "px-4 py-2.5 text-sm font-medium rounded-none border-b-2 transition-colors",
+                          currentInnerTab === "overview"
+                            ? "border-slate-900 text-slate-900"
+                            : "border-transparent text-slate-500 hover:text-slate-700"
+                        )}
+                      >
+                        Overview
+                      </TabsTrigger>
+                      <TabsTrigger
+                        value="documents"
+                        className={cn(
+                          "px-4 py-2.5 text-sm font-medium rounded-none border-b-2 transition-colors flex items-center gap-1.5",
+                          currentInnerTab === "documents"
+                            ? "border-slate-900 text-slate-900"
+                            : "border-transparent text-slate-500 hover:text-slate-700"
+                        )}
+                      >
+                        <FolderOpen className="h-3.5 w-3.5" />
+                        Documents
+                      </TabsTrigger>
+                      <TabsTrigger
+                        value="messages"
+                        className={cn(
+                          "px-4 py-2.5 text-sm font-medium rounded-none border-b-2 transition-colors flex items-center gap-1.5",
+                          currentInnerTab === "messages"
+                            ? "border-slate-900 text-slate-900"
+                            : "border-transparent text-slate-500 hover:text-slate-700"
+                        )}
+                      >
+                        <MessageSquare className="h-3.5 w-3.5" />
+                        Messages
+                        {msgUnread > 0 && (
+                          <span className="flex h-4 min-w-[16px] items-center justify-center rounded-full bg-red-600 px-1 text-[9px] font-bold text-white">
+                            {msgUnread > 99 ? "99+" : msgUnread}
+                          </span>
+                        )}
+                      </TabsTrigger>
+                    </TabsList>
 
-                {/* Messages */}
-                <BuyerMessageThread requestId={request.id} />
+                    {/* ─── Overview Tab ─── */}
+                    <TabsContent value="overview" className="mt-0 space-y-6">
+                      {/* Metrics Card */}
+                      <DealMetricsCard
+                        listing={{
+                          id: request.listing_id,
+                          title: request.listing?.title || "Untitled",
+                          category: request.listing?.category,
+                          location: request.listing?.location,
+                          image_url: request.listing?.image_url,
+                          revenue: request.listing?.revenue,
+                          ebitda: request.listing?.ebitda,
+                          full_time_employees: request.listing?.full_time_employees,
+                          part_time_employees: request.listing?.part_time_employees,
+                          acquisition_type: request.listing?.acquisition_type,
+                        }}
+                        status={request.status}
+                      />
 
-                {/* Deal Details */}
-                <DealDetailsCard
-                  listing={{
-                    category: request.listing?.category,
-                    location: request.listing?.location,
-                    description: request.listing?.description,
-                  }}
-                  createdAt={request.created_at}
-                />
-              </div>
-            </TabsContent>
-          ))}
+                      {/* Process Steps */}
+                      <DealProcessSteps
+                        requestStatus={request.status as "pending" | "approved" | "rejected"}
+                        requestId={request.id}
+                        userMessage={request.user_message}
+                        onMessageUpdate={async (newMessage) => {
+                          await updateMessage.mutateAsync({
+                            requestId: request.id,
+                            message: newMessage,
+                          });
+                        }}
+                        isProfileComplete={getProfileCompletionDetails(profileForCalc).isComplete}
+                        profileCompletionPercentage={getProfileCompletionDetails(profileForCalc).percentage}
+                      />
+
+                      {/* Document Preview */}
+                      <DealDocumentPreview
+                        requestId={request.id}
+                        requestStatus={requestStatus}
+                        dealId={request.listing_id}
+                        onViewAll={() => setDealInnerTab(request.id, "documents")}
+                      />
+
+                      {/* Message Preview */}
+                      <DealMessagePreview
+                        requestId={request.id}
+                        requestStatus={requestStatus}
+                        onViewAll={() => setDealInnerTab(request.id, "messages")}
+                      />
+
+                      {/* Deal Details */}
+                      <DealDetailsCard
+                        listing={{
+                          category: request.listing?.category,
+                          location: request.listing?.location,
+                          description: request.listing?.description,
+                        }}
+                        createdAt={request.created_at}
+                      />
+                    </TabsContent>
+
+                    {/* ─── Documents Tab ─── */}
+                    <TabsContent value="documents" className="mt-0">
+                      <DealDocumentsTab
+                        requestId={request.id}
+                        requestStatus={requestStatus}
+                        dealId={request.listing_id}
+                      />
+                    </TabsContent>
+
+                    {/* ─── Messages Tab ─── */}
+                    <TabsContent value="messages" className="mt-0">
+                      <DealMessagesTab
+                        requestId={request.id}
+                        requestStatus={requestStatus}
+                      />
+                    </TabsContent>
+                  </Tabs>
+                </div>
+              </TabsContent>
+            );
+          })}
         </div>
       </Tabs>
     </div>
   );
 };
-
-// ─── Buyer Message Thread ───
-
-function BuyerMessageThread({ requestId }: { requestId: string }) {
-  const { data: messages = [] } = useConnectionMessages(requestId);
-  const sendMsg = useSendMessage();
-  const markRead = useMarkMessagesReadByBuyer();
-  const [newMessage, setNewMessage] = useState("");
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-
-  // Mark messages as read when viewing
-  useEffect(() => {
-    if (requestId) {
-      markRead.mutate(requestId);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [requestId, messages.length]);
-
-  // Auto-scroll to bottom
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
-
-  const handleSend = () => {
-    if (!newMessage.trim()) return;
-    sendMsg.mutate({
-      connection_request_id: requestId,
-      body: newMessage.trim(),
-      sender_role: "buyer",
-    });
-    setNewMessage("");
-  };
-
-  return (
-    <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
-      {/* Header */}
-      <div className="px-5 py-3.5 border-b border-slate-100 flex items-center gap-2">
-        <MessageSquare className="h-4 w-4 text-slate-500" />
-        <h3 className="text-sm font-semibold text-slate-900">Messages</h3>
-        {messages.filter(m => m.message_type === 'message').length > 0 && (
-          <span className="text-xs text-slate-400">
-            {messages.filter(m => m.message_type === 'message').length}
-          </span>
-        )}
-      </div>
-
-      {/* Messages */}
-      <div className="max-h-64 overflow-y-auto px-5 py-4 space-y-3">
-        {messages.length === 0 ? (
-          <p className="text-sm text-slate-400 text-center py-4">
-            No messages yet. Send a message to the SourceCo team below.
-          </p>
-        ) : (
-          messages.map((msg) => (
-            <div
-              key={msg.id}
-              className={`flex ${
-                msg.message_type === "decision" || msg.message_type === "system"
-                  ? "justify-center"
-                  : msg.sender_role === "buyer"
-                    ? "justify-end"
-                    : "justify-start"
-              }`}
-            >
-              <div
-                className={`max-w-[80%] rounded-xl px-3.5 py-2 text-sm ${
-                  msg.message_type === "decision" || msg.message_type === "system"
-                    ? "bg-slate-50 text-slate-500 italic text-xs"
-                    : msg.sender_role === "buyer"
-                      ? "bg-slate-900 text-white"
-                      : "bg-slate-100 text-slate-900"
-                }`}
-              >
-                {msg.message_type !== "system" && msg.message_type !== "decision" && (
-                  <div className="flex items-center gap-1.5 mb-0.5">
-                    <span className="font-medium text-xs opacity-80">
-                      {msg.sender_role === "buyer"
-                        ? "You"
-                        : msg.sender?.first_name || "SourceCo"}
-                    </span>
-                    <span className="opacity-40 text-[10px]">
-                      {formatDistanceToNow(new Date(msg.created_at), { addSuffix: true })}
-                    </span>
-                  </div>
-                )}
-                <p className="leading-relaxed">{msg.body}</p>
-                {(msg.message_type === "system" || msg.message_type === "decision") && (
-                  <span className="opacity-50 text-[10px] block mt-0.5">
-                    {formatDistanceToNow(new Date(msg.created_at), { addSuffix: true })}
-                  </span>
-                )}
-              </div>
-            </div>
-          ))
-        )}
-        <div ref={messagesEndRef} />
-      </div>
-
-      {/* Input */}
-      <div className="px-5 py-3 border-t border-slate-100 flex gap-2">
-        <input
-          type="text"
-          value={newMessage}
-          onChange={(e) => setNewMessage(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && !e.shiftKey) {
-              e.preventDefault();
-              handleSend();
-            }
-          }}
-          placeholder="Type a message..."
-          className="flex-1 text-sm border border-slate-200 rounded-lg px-3.5 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-300 transition-all"
-        />
-        <Button
-          onClick={handleSend}
-          disabled={!newMessage.trim() || sendMsg.isPending}
-          className="bg-slate-900 hover:bg-slate-800 px-3.5"
-          size="sm"
-        >
-          <Send className="h-3.5 w-3.5" />
-        </Button>
-      </div>
-    </div>
-  );
-}
 
 export default MyRequests;

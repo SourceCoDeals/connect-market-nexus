@@ -1,8 +1,9 @@
 
 import { Link } from "react-router-dom";
-import { Store, Briefcase, Heart, Shield } from "lucide-react";
+import { Store, Briefcase, Heart, Shield, MessageSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useUserNotifications } from "@/hooks/use-user-notifications";
+import { useUnreadBuyerMessageCounts } from "@/hooks/use-connection-messages";
 
 interface MobileNavItemsProps {
   isAdmin: boolean;
@@ -12,7 +13,9 @@ interface MobileNavItemsProps {
 
 const MobileNavItems = ({ isAdmin, isApproved, onNavigateToAdmin }: MobileNavItemsProps) => {
   const { unreadCount } = useUserNotifications();
-  
+  const { data: unreadMessages } = useUnreadBuyerMessageCounts();
+  const totalDealsUnread = unreadCount + (unreadMessages?.total || 0);
+
   if (!isApproved) {
     return null;
   }
@@ -26,7 +29,7 @@ const MobileNavItems = ({ isAdmin, isApproved, onNavigateToAdmin }: MobileNavIte
         <Store className="h-4 w-4" />
         Marketplace
       </Link>
-      
+
       <Link
         to="/saved-listings"
         className="flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-md text-muted-foreground hover:text-foreground hover:bg-muted"
@@ -36,12 +39,23 @@ const MobileNavItems = ({ isAdmin, isApproved, onNavigateToAdmin }: MobileNavIte
       </Link>
 
       <Link
-        to="/my-requests"
+        to="/my-deals"
         className="relative flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-md text-muted-foreground hover:text-foreground hover:bg-muted"
       >
         <Briefcase className="h-4 w-4" strokeWidth={1.5} />
         My Deals
-        {unreadCount > 0 && (
+        {totalDealsUnread > 0 && (
+          <span className="absolute top-2 right-2 h-2 w-2 rounded-full bg-red-600 ring-1 ring-white shadow-sm"></span>
+        )}
+      </Link>
+
+      <Link
+        to="/messages"
+        className="relative flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-md text-muted-foreground hover:text-foreground hover:bg-muted"
+      >
+        <MessageSquare className="h-4 w-4" strokeWidth={1.5} />
+        Messages
+        {(unreadMessages?.total || 0) > 0 && (
           <span className="absolute top-2 right-2 h-2 w-2 rounded-full bg-red-600 ring-1 ring-white shadow-sm"></span>
         )}
       </Link>

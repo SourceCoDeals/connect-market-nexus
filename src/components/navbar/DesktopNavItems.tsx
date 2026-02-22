@@ -3,7 +3,8 @@ import { Link, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useUserNotifications } from "@/hooks/use-user-notifications";
-import { MarketplaceIcon, SavedIcon, DealsIcon, AdminIcon } from "@/components/icons/NavIcons";
+import { useUnreadBuyerMessageCounts } from "@/hooks/use-connection-messages";
+import { MarketplaceIcon, SavedIcon, DealsIcon, MessagesIcon, AdminIcon } from "@/components/icons/NavIcons";
 
 interface DesktopNavItemsProps {
   isAdmin: boolean;
@@ -14,6 +15,8 @@ interface DesktopNavItemsProps {
 const DesktopNavItems = ({ isAdmin, isApproved, onNavigateToAdmin }: DesktopNavItemsProps) => {
   const location = useLocation();
   const { unreadCount } = useUserNotifications();
+  const { data: unreadMessages } = useUnreadBuyerMessageCounts();
+  const totalDealsUnread = unreadCount + (unreadMessages?.total || 0);
 
   if (!isApproved) {
     return null;
@@ -33,12 +36,18 @@ const DesktopNavItems = ({ isAdmin, isApproved, onNavigateToAdmin }: DesktopNavI
       isActive: location.pathname === "/saved-listings",
     },
     {
-      to: "/my-requests",
+      to: "/my-deals",
       label: "My Deals",
       icon: DealsIcon,
-      isActive: location.pathname === "/my-requests",
-      // Only add badge property if there are actual unread notifications
-      ...(unreadCount > 0 && { badge: unreadCount }),
+      isActive: location.pathname === "/my-deals" || location.pathname === "/my-requests",
+      ...(totalDealsUnread > 0 && { badge: totalDealsUnread }),
+    },
+    {
+      to: "/messages",
+      label: "Messages",
+      icon: MessagesIcon,
+      isActive: location.pathname === "/messages",
+      ...((unreadMessages?.total || 0) > 0 && { badge: unreadMessages?.total }),
     },
   ];
 
