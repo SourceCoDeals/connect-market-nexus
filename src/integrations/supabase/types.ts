@@ -2300,6 +2300,9 @@ export type Database = {
           last_access_at: string | null
           last_modified_at: string | null
           last_modified_by: string | null
+          link_sent_at: string | null
+          link_sent_to_email: string | null
+          link_sent_via: string | null
           marketplace_user_id: string | null
           remarketing_buyer_id: string | null
           revoked_at: string | null
@@ -2321,6 +2324,9 @@ export type Database = {
           last_access_at?: string | null
           last_modified_at?: string | null
           last_modified_by?: string | null
+          link_sent_at?: string | null
+          link_sent_to_email?: string | null
+          link_sent_via?: string | null
           marketplace_user_id?: string | null
           remarketing_buyer_id?: string | null
           revoked_at?: string | null
@@ -2342,6 +2348,9 @@ export type Database = {
           last_access_at?: string | null
           last_modified_at?: string | null
           last_modified_by?: string | null
+          link_sent_at?: string | null
+          link_sent_to_email?: string | null
+          link_sent_via?: string | null
           marketplace_user_id?: string | null
           remarketing_buyer_id?: string | null
           revoked_at?: string | null
@@ -9650,6 +9659,9 @@ export type Database = {
           fee_agreement_signed: boolean
           granted_at: string
           last_access_at: string
+          link_sent_at: string
+          link_sent_to_email: string
+          link_sent_via: string
           marketplace_user_id: string
           remarketing_buyer_id: string
           revoked_at: string
