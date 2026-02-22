@@ -215,7 +215,7 @@ export function useDataRoomAccess(dealId: string | undefined) {
       });
 
       if (error) throw error;
-      return data as DataRoomAccessRecord[];
+      return (data as unknown) as DataRoomAccessRecord[];
     },
     enabled: !!dealId,
   });
