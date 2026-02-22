@@ -201,11 +201,8 @@ const RequestDetails = ({ request }: { request: AdminConnectionRequest }) => {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Enhanced Buyer Information - handle lead-only requests */}
         <div className="space-y-3">
-          {request.user ? (
-            <>
-              <EnhancedBuyerProfile user={request.user} />
-              <ExpandableBusinessProfile user={request.user as unknown as AdminUsersUser} />
-            </>
+         {request.user ? (
+            <EnhancedBuyerProfile user={request.user} />
           ) : (
             <div className="space-y-3">
               <div className="flex items-center gap-2 pb-1 border-b border-border/40">
@@ -302,6 +299,11 @@ const RequestDetails = ({ request }: { request: AdminConnectionRequest }) => {
           </div>
         </div>
       </div>
+
+      {/* Business Profile - full width below grid */}
+      {request.user && (
+        <ExpandableBusinessProfile user={request.user as unknown as AdminUsersUser} />
+      )}
 
       {/* Message Conflict Display - Enhanced to show both messages */}
       <MessageConflictDisplay 
@@ -497,10 +499,7 @@ function ReactiveRequestCard({
                    {/* Enhanced Buyer Information or Lead Information */}
                    <div className="space-y-3">
                      {request.user ? (
-                       <>
-                         <EnhancedBuyerProfile user={request.user} />
-                         <ExpandableBusinessProfile user={request.user as unknown as AdminUsersUser} />
-                       </>
+                       <EnhancedBuyerProfile user={request.user} />
                      ) : (
                        /* Lead Information Section */
                        <div className="space-y-3">
@@ -610,6 +609,11 @@ function ReactiveRequestCard({
                     </div>
                   )}
                 </div>
+
+                {/* Business Profile - full width below grid */}
+                {request.user && (
+                  <ExpandableBusinessProfile user={request.user as unknown as AdminUsersUser} />
+                )}
               </div>
             </div>
           )}
