@@ -110,7 +110,7 @@ export default function GlobalApprovalsPage() {
   const approveMutation = useMutation({
     mutationFn: async (entryId: string) => {
       const { data, error } = await supabase.functions.invoke('approve-marketplace-buyer', {
-        body: { queue_entry_id: entryId },
+        body: { approval_queue_id: entryId },
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);

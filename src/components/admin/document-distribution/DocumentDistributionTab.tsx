@@ -13,6 +13,8 @@ import { useState } from 'react';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { FileText, Send, FolderOpen, ClipboardList, Shield } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
 import { InternalDocumentsTab } from './InternalDocumentsTab';
 import { MarketingDocumentsTab } from './MarketingDocumentsTab';
 import { DataRoomFilesTab } from './DataRoomFilesTab';
@@ -40,10 +42,50 @@ export function DocumentDistributionTab({
   dealId,
   dealTitle,
   projectName,
-  buyers = [],
+  buyers: buyersProp,
 }: DocumentDistributionTabProps) {
   const [activeTab, setActiveTab] = useState('marketing');
   const { data: pendingCount = 0 } = usePendingApprovalCount(dealId);
+
+  // Fetch buyers from remarketing_buyers + their primary contacts for the dropdown
+  const { data: fetchedBuyers = [] } = useQuery({
+    queryKey: ['distribution-buyers'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('remarketing_buyers' as any)
+        .select('id, company_name, remarketing_buyer_contacts(name, email, is_primary)')
+        .eq('archived', false)
+        .order('company_name')
+        .limit(200);
+
+      if (error) throw error;
+
+      return (data || []).flatMap((buyer: any) => {
+        const contacts = buyer.remarketing_buyer_contacts || [];
+        const primary = contacts.find((c: any) => c.is_primary);
+
+        if (contacts.length === 0) {
+          // Firm with no contacts — still list it
+          return [{
+            id: buyer.id,
+            name: buyer.company_name,
+            email: '',
+            firm: buyer.company_name,
+          }];
+        }
+
+        // Return each contact as a separate buyer option
+        return contacts.map((c: any) => ({
+          id: buyer.id,
+          name: c.name || buyer.company_name,
+          email: c.email || '',
+          firm: buyer.company_name,
+        }));
+      }) as BuyerOption[];
+    },
+  });
+
+  const buyers = buyersProp && buyersProp.length > 0 ? buyersProp : fetchedBuyers;
 
   return (
     <div className="space-y-4">

@@ -20,6 +20,7 @@ export interface DataRoomDocument {
   is_generated: boolean;
   version: number;
   allow_download: boolean;
+  status: 'active' | 'archived' | 'deleted';
   uploaded_by: string | null;
   created_at: string;
   updated_at: string;
@@ -29,8 +30,10 @@ export interface DataRoomAccessRecord {
   access_id: string;
   remarketing_buyer_id: string | null;
   marketplace_user_id: string | null;
+  contact_id: string | null;
   buyer_name: string;
   buyer_company: string;
+  contact_title: string | null;
   can_view_teaser: boolean;
   can_view_full_memo: boolean;
   can_view_data_room: boolean;
@@ -41,6 +44,7 @@ export interface DataRoomAccessRecord {
   revoked_at: string | null;
   expires_at: string | null;
   last_access_at: string | null;
+  access_token: string | null;
 }
 
 export interface LeadMemo {

@@ -32,7 +32,7 @@ Deno.serve(async (req: Request) => {
     });
   }
 
-  if (req.method !== "GET") {
+  if (req.method !== "GET" && req.method !== "POST") {
     return new Response(JSON.stringify({ error: "Method not allowed" }), {
       status: 405,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -44,18 +44,32 @@ Deno.serve(async (req: Request) => {
   const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey);
 
   try {
-    // ── Extract link_token from URL path ──
-    // Supabase edge functions receive the path after the function name,
-    // e.g. /record-link-open/view/<token> or just /record-link-open/<token>
-    const url = new URL(req.url);
-    const pathSegments = url.pathname.split("/").filter(Boolean);
+    // ── Extract link_token from URL path (GET) or body (POST) ──
+    let linkToken: string | null = null;
 
-    // The link_token is the last path segment (handles both /view/:token and /:token)
-    const linkToken = pathSegments[pathSegments.length - 1];
+    if (req.method === "POST") {
+      try {
+        const body = await req.json();
+        linkToken = body.link_token || null;
+      } catch {
+        // Fall through to path extraction
+      }
+    }
 
-    if (!linkToken || linkToken === "record-link-open") {
+    if (!linkToken) {
+      // Supabase edge functions receive the path after the function name,
+      // e.g. /record-link-open/view/<token> or just /record-link-open/<token>
+      const url = new URL(req.url);
+      const pathSegments = url.pathname.split("/").filter(Boolean);
+      const lastSegment = pathSegments[pathSegments.length - 1];
+      if (lastSegment && lastSegment !== "record-link-open") {
+        linkToken = lastSegment;
+      }
+    }
+
+    if (!linkToken) {
       return new Response(
-        JSON.stringify({ error: "link_token is required in the URL path" }),
+        JSON.stringify({ error: "link_token is required" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -96,41 +110,18 @@ Deno.serve(async (req: Request) => {
       }
     }
 
-    // ── Track the open ──
+    // ── Track the open (atomic increment via RPC to avoid race conditions) ──
 
-    const now = new Date().toISOString();
-    const isFirstOpen = !trackedLink.first_opened_at;
+    let isFirstOpen = !trackedLink.first_opened_at;
 
-    const updateData: Record<string, unknown> = {
-      open_count: (trackedLink.open_count || 0) + 1,
-      last_opened_at: now,
-    };
+    const { data: rpcResult, error: rpcError } = await supabaseAdmin
+      .rpc("increment_link_open_count", { p_link_id: trackedLink.id });
 
-    if (isFirstOpen) {
-      updateData.first_opened_at = now;
-    }
-
-    const { error: updateError } = await supabaseAdmin
-      .from("document_tracked_links")
-      .update(updateData)
-      .eq("id", trackedLink.id);
-
-    if (updateError) {
-      console.error("Failed to update tracked link open count:", updateError);
+    if (rpcError) {
+      console.error("Failed to increment open count:", rpcError);
       // Continue anyway — do not block the buyer from viewing the document
-    }
-
-    // ── If first open, also update the matching release log row ──
-
-    if (isFirstOpen) {
-      const { error: releaseUpdateError } = await supabaseAdmin
-        .from("document_release_log")
-        .update({ first_opened_at: now })
-        .eq("tracked_link_id", trackedLink.id);
-
-      if (releaseUpdateError) {
-        console.error("Failed to update release log first_opened_at:", releaseUpdateError);
-      }
+    } else if (rpcResult) {
+      isFirstOpen = rpcResult.first_open === true;
     }
 
     // ── Generate signed URL for the document ──

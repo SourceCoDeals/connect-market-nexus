@@ -66,6 +66,15 @@ Deno.serve(async (req: Request) => {
       );
     }
 
+    // Basic email format validation
+    const emailTrimmed = buyer_email.trim().toLowerCase();
+    if (!emailTrimmed.includes("@") || emailTrimmed.indexOf("@") === 0 || emailTrimmed.indexOf("@") === emailTrimmed.length - 1) {
+      return new Response(
+        JSON.stringify({ error: "Invalid buyer_email format" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     // ── Fetch deal info ──
 
     const { data: deal, error: dealError } = await supabaseAdmin
@@ -83,7 +92,7 @@ Deno.serve(async (req: Request) => {
 
     // ── 1. Look up buyer NDA / fee agreement status ──
 
-    const emailDomain = buyer_email.split("@")[1]?.toLowerCase() || "";
+    const emailDomain = emailTrimmed.split("@")[1] || "";
     let ndaStatus: string | null = null;
     let feeAgreementStatus: string | null = null;
     let warning: string | undefined;
@@ -119,23 +128,36 @@ Deno.serve(async (req: Request) => {
     // Check if an access record already exists for this deal + buyer_email
     const { data: existingAccess } = await supabaseAdmin
       .from("deal_data_room_access")
-      .select("id, access_token")
+      .select("id, access_token, granted_document_ids")
       .eq("deal_id", deal_id)
-      .eq("buyer_email", buyer_email)
+      .eq("buyer_email", emailTrimmed)
       .maybeSingle();
 
     let accessRecord;
 
     if (existingAccess) {
+      // Generate new access_token on re-grant so old/revoked URLs no longer work
+      const newAccessToken = crypto.randomUUID().replaceAll("-", "");
+
+      // Merge document grants: if both old and new are specific lists, union them.
+      // If either is null (= all docs), keep null (= all docs).
+      let mergedDocumentIds: string[] | null = document_ids || null;
+      if (document_ids && document_ids.length > 0 && existingAccess.granted_document_ids && existingAccess.granted_document_ids.length > 0) {
+        const merged = new Set([...existingAccess.granted_document_ids, ...document_ids]);
+        mergedDocumentIds = [...merged];
+      }
+
       // Update existing record
       const { data: updated, error: updateError } = await supabaseAdmin
         .from("deal_data_room_access")
         .update({
+          access_token: newAccessToken,
           buyer_name,
           buyer_firm: buyer_firm || null,
           buyer_id: buyer_id || null,
-          granted_document_ids: document_ids || null,
+          granted_document_ids: mergedDocumentIds,
           granted_by: auth.userId,
+          granted_at: new Date().toISOString(),
           is_active: true,
           revoked_at: null,
           revoked_by: null,
@@ -149,7 +171,7 @@ Deno.serve(async (req: Request) => {
       if (updateError) {
         console.error("Failed to update data room access:", updateError);
         return new Response(
-          JSON.stringify({ error: "Failed to update data room access", details: updateError.message }),
+          JSON.stringify({ error: "Failed to update data room access" }),
           { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
@@ -161,7 +183,7 @@ Deno.serve(async (req: Request) => {
         .from("deal_data_room_access")
         .insert({
           deal_id,
-          buyer_email,
+          buyer_email: emailTrimmed,
           buyer_name,
           buyer_firm: buyer_firm || null,
           buyer_id: buyer_id || null,
@@ -177,7 +199,7 @@ Deno.serve(async (req: Request) => {
       if (insertError) {
         console.error("Failed to create data room access:", insertError);
         return new Response(
-          JSON.stringify({ error: "Failed to create data room access", details: insertError.message }),
+          JSON.stringify({ error: "Failed to create data room access" }),
           { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
@@ -195,7 +217,8 @@ Deno.serve(async (req: Request) => {
       const { data: docs, error: docsError } = await supabaseAdmin
         .from("deal_documents")
         .select("id, title")
-        .in("id", document_ids);
+        .in("id", document_ids)
+        .eq("deal_id", deal_id);
 
       if (docsError) {
         console.error("Failed to fetch granted documents:", docsError);
@@ -228,7 +251,7 @@ Deno.serve(async (req: Request) => {
           buyer_id: buyer_id || null,
           buyer_name,
           buyer_firm: buyer_firm || null,
-          buyer_email,
+          buyer_email: emailTrimmed,
           release_method: "data_room_grant",
           nda_status_at_release: ndaStatus,
           fee_agreement_status_at_release: feeAgreementStatus,
@@ -249,7 +272,7 @@ Deno.serve(async (req: Request) => {
     const escapedBuyerName = escapeHtml(buyer_name);
 
     const emailResult = await sendViaBervo({
-      to: buyer_email,
+      to: emailTrimmed,
       toName: buyer_name,
       subject: `Data Room Access — Project ${deal.project_name || deal.title || "Confidential"}`,
       htmlContent: buildDataRoomEmailHtml(projectName, escapedBuyerName, dataRoomUrl),
@@ -264,7 +287,7 @@ Deno.serve(async (req: Request) => {
     }
 
     console.log(
-      `Data room access granted: deal ${deal_id} -> ${buyer_email} by admin ${auth.userId} (access_id: ${accessRecord.id}, documents: ${documentsToLog.length})`
+      `Data room access granted: deal ${deal_id} -> ${emailTrimmed} by admin ${auth.userId} (access_id: ${accessRecord.id}, documents: ${documentsToLog.length})`
     );
 
     // ── 5. Return response ──
@@ -275,6 +298,7 @@ Deno.serve(async (req: Request) => {
       access_id: accessRecord.id,
       email_sent: emailResult.success,
       documents_granted: documentsToLog.length,
+      re_grant: !!existingAccess,
     };
 
     if (warning) {
@@ -288,7 +312,7 @@ Deno.serve(async (req: Request) => {
   } catch (error) {
     console.error("Grant data room access error:", error);
     return new Response(
-      JSON.stringify({ error: "Internal server error", details: (error as Error).message }),
+      JSON.stringify({ error: "Internal server error" }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }

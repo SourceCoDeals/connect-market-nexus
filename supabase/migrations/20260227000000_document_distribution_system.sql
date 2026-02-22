@@ -38,14 +38,14 @@ ALTER TABLE public.listings
 
 CREATE TABLE IF NOT EXISTS public.deal_documents (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  deal_id UUID REFERENCES public.listings(id) ON DELETE CASCADE NOT NULL,
+  deal_id UUID REFERENCES public.listings(id) ON DELETE RESTRICT NOT NULL,
   document_type TEXT NOT NULL CHECK (document_type IN (
     'full_detail_memo', 'anonymous_teaser', 'data_room_file'
   )),
   title TEXT NOT NULL,
   description TEXT,
   file_path TEXT,
-  file_size_bytes INTEGER,
+  file_size_bytes BIGINT,
   mime_type TEXT DEFAULT 'application/pdf',
   version INTEGER DEFAULT 1,
   is_current BOOLEAN DEFAULT true,
@@ -93,7 +93,7 @@ CREATE TABLE IF NOT EXISTS public.document_tracked_links (
   created_at TIMESTAMPTZ DEFAULT now()
 );
 
-CREATE INDEX IF NOT EXISTS idx_tracked_links_token ON public.document_tracked_links(link_token);
+-- idx_tracked_links_token omitted: UNIQUE constraint on link_token already creates an index
 CREATE INDEX IF NOT EXISTS idx_tracked_links_deal_id ON public.document_tracked_links(deal_id);
 CREATE INDEX IF NOT EXISTS idx_tracked_links_buyer ON public.document_tracked_links(buyer_id)
   WHERE buyer_id IS NOT NULL;
@@ -118,7 +118,7 @@ CREATE TABLE IF NOT EXISTS public.document_release_log (
   buyer_id UUID REFERENCES public.remarketing_buyers(id),
   buyer_name TEXT NOT NULL,
   buyer_firm TEXT,
-  buyer_email TEXT,
+  buyer_email TEXT NOT NULL,
   release_method TEXT NOT NULL CHECK (release_method IN (
     'tracked_link', 'pdf_download', 'auto_campaign', 'data_room_grant'
   )),
@@ -139,22 +139,32 @@ CREATE INDEX IF NOT EXISTS idx_release_log_buyer ON public.document_release_log(
   WHERE buyer_id IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_release_log_document ON public.document_release_log(document_id);
 
--- RLS: IMMUTABLE — INSERT and SELECT only for authenticated users
+-- RLS: IMMUTABLE — admin INSERT + SELECT only. No UPDATE/DELETE for authenticated.
 ALTER TABLE public.document_release_log ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "log_insert" ON public.document_release_log;
 CREATE POLICY "log_insert" ON public.document_release_log
-  FOR INSERT TO authenticated WITH CHECK (true);
+  FOR INSERT TO authenticated
+  WITH CHECK (public.is_admin(auth.uid()));
 
+DROP POLICY IF EXISTS "log_select" ON public.document_release_log;
 CREATE POLICY "log_select" ON public.document_release_log
-  FOR SELECT TO authenticated USING (true);
+  FOR SELECT TO authenticated
+  USING (public.is_admin(auth.uid()));
 
 -- Service role can update engagement fields (open_count, first_opened_at, last_opened_at)
+DROP POLICY IF EXISTS "service_role_update_engagement" ON public.document_release_log;
 CREATE POLICY "service_role_update_engagement" ON public.document_release_log
   FOR UPDATE TO service_role
   USING (true)
   WITH CHECK (true);
 
--- No DELETE policies — records are permanent
+DROP POLICY IF EXISTS "service_role_all" ON public.document_release_log;
+CREATE POLICY "service_role_all" ON public.document_release_log
+  FOR ALL TO service_role
+  USING (true) WITH CHECK (true);
+
+-- No DELETE policies for authenticated — records are permanent
 
 COMMENT ON TABLE public.document_release_log IS
   'IMMUTABLE audit record of every document release. '
@@ -188,7 +198,7 @@ CREATE TABLE IF NOT EXISTS public.deal_data_room_access (
   UNIQUE(deal_id, buyer_email)
 );
 
-CREATE INDEX IF NOT EXISTS idx_deal_data_room_access_token ON public.deal_data_room_access(access_token);
+-- idx_deal_data_room_access_token omitted: UNIQUE constraint on access_token already creates an index
 CREATE INDEX IF NOT EXISTS idx_deal_data_room_access_deal ON public.deal_data_room_access(deal_id);
 CREATE INDEX IF NOT EXISTS idx_deal_data_room_access_buyer ON public.deal_data_room_access(buyer_id)
   WHERE buyer_id IS NOT NULL;
@@ -196,11 +206,13 @@ CREATE INDEX IF NOT EXISTS idx_deal_data_room_access_buyer ON public.deal_data_r
 -- RLS
 ALTER TABLE public.deal_data_room_access ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Admins can manage deal data room access" ON public.deal_data_room_access;
 CREATE POLICY "Admins can manage deal data room access"
   ON public.deal_data_room_access FOR ALL TO authenticated
   USING (public.is_admin(auth.uid()))
   WITH CHECK (public.is_admin(auth.uid()));
 
+DROP POLICY IF EXISTS "Service role full access" ON public.deal_data_room_access;
 CREATE POLICY "Service role full access"
   ON public.deal_data_room_access FOR ALL TO service_role
   USING (true) WITH CHECK (true);
@@ -252,11 +264,13 @@ CREATE INDEX IF NOT EXISTS idx_approval_queue_pending ON public.marketplace_appr
 -- RLS
 ALTER TABLE public.marketplace_approval_queue ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Admins can manage approval queue" ON public.marketplace_approval_queue;
 CREATE POLICY "Admins can manage approval queue"
   ON public.marketplace_approval_queue FOR ALL TO authenticated
   USING (public.is_admin(auth.uid()))
   WITH CHECK (public.is_admin(auth.uid()));
 
+DROP POLICY IF EXISTS "Service role full access on approval queue" ON public.marketplace_approval_queue;
 CREATE POLICY "Service role full access on approval queue"
   ON public.marketplace_approval_queue FOR ALL TO service_role
   USING (true) WITH CHECK (true);
@@ -273,22 +287,26 @@ COMMENT ON TABLE public.marketplace_approval_queue IS
 
 ALTER TABLE public.deal_documents ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Admins can manage deal documents" ON public.deal_documents;
 CREATE POLICY "Admins can manage deal documents"
   ON public.deal_documents FOR ALL TO authenticated
   USING (public.is_admin(auth.uid()))
   WITH CHECK (public.is_admin(auth.uid()));
 
+DROP POLICY IF EXISTS "Service role full access on deal documents" ON public.deal_documents;
 CREATE POLICY "Service role full access on deal documents"
   ON public.deal_documents FOR ALL TO service_role
   USING (true) WITH CHECK (true);
 
 ALTER TABLE public.document_tracked_links ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Admins can manage tracked links" ON public.document_tracked_links;
 CREATE POLICY "Admins can manage tracked links"
   ON public.document_tracked_links FOR ALL TO authenticated
   USING (public.is_admin(auth.uid()))
   WITH CHECK (public.is_admin(auth.uid()));
 
+DROP POLICY IF EXISTS "Service role full access on tracked links" ON public.document_tracked_links;
 CREATE POLICY "Service role full access on tracked links"
   ON public.document_tracked_links FOR ALL TO service_role
   USING (true) WITH CHECK (true);
@@ -304,7 +322,8 @@ GRANT ALL ON public.deal_documents TO service_role;
 GRANT ALL ON public.document_tracked_links TO authenticated;
 GRANT ALL ON public.document_tracked_links TO service_role;
 
-GRANT ALL ON public.document_release_log TO authenticated;
+-- Release log: authenticated can only SELECT and INSERT (immutable — no UPDATE/DELETE)
+GRANT SELECT, INSERT ON public.document_release_log TO authenticated;
 GRANT ALL ON public.document_release_log TO service_role;
 
 GRANT ALL ON public.deal_data_room_access TO authenticated;
@@ -328,10 +347,69 @@ VALUES ('deal-documents', 'deal-documents', false)
 ON CONFLICT (id) DO NOTHING;
 
 -- Admins can manage all files
+DROP POLICY IF EXISTS "Admins can manage deal document files" ON storage.objects;
 CREATE POLICY "Admins can manage deal document files"
 ON storage.objects FOR ALL
 USING (bucket_id = 'deal-documents' AND public.is_admin(auth.uid()))
 WITH CHECK (bucket_id = 'deal-documents' AND public.is_admin(auth.uid()));
+
+-- Service role full access (edge functions generate presigned URLs via service_role)
+DROP POLICY IF EXISTS "Service role deal document files" ON storage.objects;
+CREATE POLICY "Service role deal document files"
+ON storage.objects FOR ALL TO service_role
+USING (bucket_id = 'deal-documents')
+WITH CHECK (bucket_id = 'deal-documents');
+
+
+-- ============================================================================
+-- Additional indexes for buyer_email lookups
+-- ============================================================================
+
+CREATE INDEX IF NOT EXISTS idx_tracked_links_buyer_email
+  ON public.document_tracked_links(buyer_email);
+CREATE INDEX IF NOT EXISTS idx_release_log_buyer_email
+  ON public.document_release_log(buyer_email);
+CREATE INDEX IF NOT EXISTS idx_approval_queue_buyer_email
+  ON public.marketplace_approval_queue(buyer_email);
+CREATE INDEX IF NOT EXISTS idx_approval_queue_connection_request
+  ON public.marketplace_approval_queue(connection_request_id);
+
+
+-- ============================================================================
+-- RPC: Atomic open_count increment (avoids read-then-write race condition)
+-- ============================================================================
+
+CREATE OR REPLACE FUNCTION public.increment_link_open_count(p_link_id UUID)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = 'public'
+AS $$
+DECLARE
+  v_first_open BOOLEAN;
+  v_result jsonb;
+BEGIN
+  -- Atomically increment and set timestamps
+  UPDATE document_tracked_links
+  SET
+    open_count = open_count + 1,
+    last_opened_at = now(),
+    first_opened_at = COALESCE(first_opened_at, now())
+  WHERE id = p_link_id
+  RETURNING (first_opened_at = now()) INTO v_first_open;
+
+  -- Also update the release log if this is the first open
+  IF v_first_open THEN
+    UPDATE document_release_log
+    SET first_opened_at = now()
+    WHERE tracked_link_id = p_link_id
+      AND first_opened_at IS NULL;
+  END IF;
+
+  v_result := jsonb_build_object('first_open', v_first_open);
+  RETURN v_result;
+END;
+$$;
 
 
 -- ============================================================================

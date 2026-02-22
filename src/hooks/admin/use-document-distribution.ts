@@ -34,6 +34,7 @@ export interface TrackedLink {
   buyer_email: string;
   buyer_name: string;
   buyer_firm: string | null;
+  contact_id: string | null;
   link_token: string;
   is_active: boolean;
   revoked_at: string | null;
@@ -50,7 +51,7 @@ export interface TrackedLink {
 export interface ReleaseLogEntry {
   id: string;
   deal_id: string;
-  document_id: string;
+  document_id: string | null;
   buyer_id: string | null;
   buyer_name: string;
   buyer_firm: string | null;
@@ -58,13 +59,14 @@ export interface ReleaseLogEntry {
   release_method: 'tracked_link' | 'pdf_download' | 'auto_campaign' | 'data_room_grant';
   nda_status_at_release: string | null;
   fee_agreement_status_at_release: string | null;
-  released_by: string;
+  released_by: string | null;
   released_at: string;
   tracked_link_id: string | null;
   first_opened_at: string | null;
   open_count: number;
   last_opened_at: string | null;
   release_notes: string | null;
+  contact_id: string | null;
   // Joined fields
   document?: DealDocument;
   tracked_link?: TrackedLink;
@@ -122,7 +124,7 @@ export function useDealDocuments(dealId: string | undefined) {
         .from('deal_documents')
         .select('*')
         .eq('deal_id', dealId)
-        .neq('status', 'deleted')
+        .eq('status', 'active')
         .order('created_at', { ascending: false });
 
       if (error) throw error;
@@ -208,11 +210,13 @@ export function useRevokeTrackedLink() {
 
   return useMutation({
     mutationFn: async ({ linkId, dealId, reason }: { linkId: string; dealId: string; reason?: string }) => {
+      const { data: { user } } = await supabase.auth.getUser();
       const { error } = await supabase
         .from('document_tracked_links')
         .update({
           is_active: false,
           revoked_at: new Date().toISOString(),
+          revoked_by: user?.id || null,
           revoke_reason: reason || null,
         })
         .eq('id', linkId);
@@ -334,6 +338,7 @@ export function useApproveMarketplaceBuyer() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['approval-queue'] });
+      queryClient.invalidateQueries({ queryKey: ['approval-queue-count'] });
       queryClient.invalidateQueries({ queryKey: ['release-log'] });
       toast.success('Buyer approved and teaser sent');
     },
@@ -353,10 +358,12 @@ export function useDeclineMarketplaceBuyer() {
       decline_reason?: string;
       send_decline_email?: boolean;
     }) => {
+      const { data: { user } } = await supabase.auth.getUser();
       const { error } = await supabase
         .from('marketplace_approval_queue')
         .update({
           status: 'declined',
+          reviewed_by: user?.id,
           decline_category: params.decline_category,
           decline_reason: params.decline_reason || null,
           decline_email_sent: params.send_decline_email || false,
@@ -369,6 +376,7 @@ export function useDeclineMarketplaceBuyer() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['approval-queue'] });
+      queryClient.invalidateQueries({ queryKey: ['approval-queue-count'] });
       toast.success('Buyer declined');
     },
     onError: (error: Error) => {
@@ -436,11 +444,13 @@ export function useRevokeDataRoomAccess() {
 
   return useMutation({
     mutationFn: async ({ accessId, dealId }: { accessId: string; dealId: string }) => {
+      const { data: { user } } = await supabase.auth.getUser();
       const { error } = await supabase
         .from('deal_data_room_access')
         .update({
           is_active: false,
           revoked_at: new Date().toISOString(),
+          revoked_by: user?.id || null,
         })
         .eq('id', accessId);
 
@@ -489,6 +499,16 @@ export function useUploadDealDocument() {
 
       if (uploadError) throw uploadError;
 
+      // For teasers and full memos, mark previous versions as not current
+      if (documentType === 'anonymous_teaser' || documentType === 'full_detail_memo') {
+        await supabase
+          .from('deal_documents')
+          .update({ is_current: false, updated_at: new Date().toISOString() })
+          .eq('deal_id', dealId)
+          .eq('document_type', documentType)
+          .eq('is_current', true);
+      }
+
       // Insert document record
       const { data, error } = await supabase
         .from('deal_documents')
@@ -500,6 +520,7 @@ export function useUploadDealDocument() {
           file_path: filePath,
           file_size_bytes: file.size,
           mime_type: file.type || 'application/octet-stream',
+          is_current: true,
         })
         .select()
         .single();

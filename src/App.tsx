@@ -52,6 +52,7 @@ const ResetPassword = lazyWithRetry(() => import("@/pages/ResetPassword"));
 const Unauthorized = lazyWithRetry(() => import("@/pages/Unauthorized"));
 const ReferralTrackerPage = lazyWithRetry(() => import("@/pages/ReferralTrackerPage"));
 const DataRoomPortal = lazyWithRetry(() => import("@/pages/DataRoomPortal"));
+const TrackedDocumentViewer = lazyWithRetry(() => import("@/pages/TrackedDocumentViewer"));
 
 // Main app (buyer-facing)
 const Marketplace = lazyWithRetry(() => import("@/pages/Marketplace"));
@@ -171,6 +172,7 @@ function App() {
                         <Route path="/unauthorized" element={<Unauthorized />} />
                         <Route path="/referrals/:shareToken" element={<ReferralTrackerPage />} />
                         <Route path="/dataroom/:accessToken" element={<DataRoomPortal />} />
+                        <Route path="/view/:linkToken" element={<TrackedDocumentViewer />} />
 
                         {/* ─── BUYER-FACING (unchanged) ─── */}
                         <Route path="/" element={<ProtectedRoute requireApproved={true}><MainLayout /></ProtectedRoute>}>

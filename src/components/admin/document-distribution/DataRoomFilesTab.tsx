@@ -12,6 +12,7 @@ import {
   Upload, FileText, File, FileSpreadsheet, FileImage,
   Send, Trash2, Loader2, Users, Download,
 } from 'lucide-react';
+import { useQueryClient } from '@tanstack/react-query';
 import {
   useDealDocumentsByType,
   useUploadDealDocument,
@@ -59,6 +60,7 @@ function formatFileSize(bytes: number | null): string {
 }
 
 export function DataRoomFilesTab({ dealId, projectName, buyers = [] }: DataRoomFilesTabProps) {
+  const queryClient = useQueryClient();
   const { data: documents = [], isLoading } = useDealDocumentsByType(dealId, 'data_room_file');
   const { data: accessRecords = [] } = useDealDataRoomAccess(dealId);
   const uploadMutation = useUploadDealDocument();
@@ -85,6 +87,7 @@ export function DataRoomFilesTab({ dealId, projectName, buyers = [] }: DataRoomF
     if (error) {
       toast.error('Failed to delete document');
     } else {
+      queryClient.invalidateQueries({ queryKey: ['deal-documents', dealId] });
       toast.success('Document deleted');
     }
   };

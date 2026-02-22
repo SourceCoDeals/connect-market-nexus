@@ -16,11 +16,13 @@ export interface RateLimitConfig {
 // API Endpoints
 export const GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions";
 export const GEMINI_API_BASE = "https://generativelanguage.googleapis.com/v1beta";
+export const ANTHROPIC_API_URL = "https://api.anthropic.com/v1/messages";
 
 // Default models
 export const DEFAULT_GEMINI_MODEL = "gemini-2.0-flash";
 export const GEMINI_25_FLASH_MODEL = "gemini-2.5-flash";
 export const DEFAULT_GEMINI_PRO_MODEL = "gemini-2.0-pro-exp";
+export const DEFAULT_CLAUDE_MODEL = "claude-sonnet-4-20250514";
 
 /**
  * Build Gemini API request headers
@@ -29,6 +31,18 @@ export const DEFAULT_GEMINI_PRO_MODEL = "gemini-2.0-pro-exp";
 export function getGeminiHeaders(apiKey: string): Record<string, string> {
   return {
     Authorization: `Bearer ${apiKey}`,
+    "Content-Type": "application/json",
+  };
+}
+
+/**
+ * Build Anthropic API request headers
+ * Anthropic Messages API expects x-api-key header
+ */
+export function getAnthropicHeaders(apiKey: string): Record<string, string> {
+  return {
+    "x-api-key": apiKey,
+    "anthropic-version": "2023-06-01",
     "Content-Type": "application/json",
   };
 }
