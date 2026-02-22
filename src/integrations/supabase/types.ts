@@ -1609,163 +1609,6 @@ export type Database = {
         }
         Relationships: []
       }
-      chat_recommendations: {
-        Row: {
-          action_query: string | null
-          action_text: string | null
-          clicked: boolean | null
-          clicked_at: string | null
-          conversation_id: string | null
-          created_at: string
-          dismissed: boolean | null
-          dismissed_at: string | null
-          expires_at: string | null
-          id: string
-          message: string | null
-          priority: string | null
-          recommendation_type: string
-          shown: boolean | null
-          shown_at: string | null
-          title: string
-          user_id: string | null
-          was_accepted: boolean | null
-          was_dismissed: boolean | null
-        }
-        Insert: {
-          action_query?: string | null
-          action_text?: string | null
-          clicked?: boolean | null
-          clicked_at?: string | null
-          conversation_id?: string | null
-          created_at?: string
-          dismissed?: boolean | null
-          dismissed_at?: string | null
-          expires_at?: string | null
-          id?: string
-          message?: string | null
-          priority?: string | null
-          recommendation_type: string
-          shown?: boolean | null
-          shown_at?: string | null
-          title: string
-          user_id?: string | null
-          was_accepted?: boolean | null
-          was_dismissed?: boolean | null
-        }
-        Update: {
-          action_query?: string | null
-          action_text?: string | null
-          clicked?: boolean | null
-          clicked_at?: string | null
-          conversation_id?: string | null
-          created_at?: string
-          dismissed?: boolean | null
-          dismissed_at?: string | null
-          expires_at?: string | null
-          id?: string
-          message?: string | null
-          priority?: string | null
-          recommendation_type?: string
-          shown?: boolean | null
-          shown_at?: string | null
-          title?: string
-          user_id?: string | null
-          was_accepted?: boolean | null
-          was_dismissed?: boolean | null
-        }
-        Relationships: []
-      }
-      chat_smart_suggestions: {
-        Row: {
-          click_through_rate: number | null
-          context_type: string
-          conversation_id: string | null
-          created_at: string
-          deal_id: string | null
-          id: string
-          intent: string | null
-          suggestion_text: string
-          times_clicked: number | null
-          times_shown: number | null
-          universe_id: string | null
-          user_id: string | null
-          was_selected: boolean | null
-        }
-        Insert: {
-          click_through_rate?: number | null
-          context_type?: string
-          conversation_id?: string | null
-          created_at?: string
-          deal_id?: string | null
-          id?: string
-          intent?: string | null
-          suggestion_text: string
-          times_clicked?: number | null
-          times_shown?: number | null
-          universe_id?: string | null
-          user_id?: string | null
-          was_selected?: boolean | null
-        }
-        Update: {
-          click_through_rate?: number | null
-          context_type?: string
-          conversation_id?: string | null
-          created_at?: string
-          deal_id?: string | null
-          id?: string
-          intent?: string | null
-          suggestion_text?: string
-          times_clicked?: number | null
-          times_shown?: number | null
-          universe_id?: string | null
-          user_id?: string | null
-          was_selected?: boolean | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "chat_smart_suggestions_deal_id_fkey"
-            columns: ["deal_id"]
-            isOneToOne: false
-            referencedRelation: "linkedin_manual_review_queue"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "chat_smart_suggestions_deal_id_fkey"
-            columns: ["deal_id"]
-            isOneToOne: false
-            referencedRelation: "listings"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "chat_smart_suggestions_deal_id_fkey"
-            columns: ["deal_id"]
-            isOneToOne: false
-            referencedRelation: "listings_needing_enrichment"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "chat_smart_suggestions_deal_id_fkey"
-            columns: ["deal_id"]
-            isOneToOne: false
-            referencedRelation: "ranked_deals"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "chat_smart_suggestions_deal_id_fkey"
-            columns: ["deal_id"]
-            isOneToOne: false
-            referencedRelation: "unmapped_primary_owners"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "chat_smart_suggestions_universe_id_fkey"
-            columns: ["universe_id"]
-            isOneToOne: false
-            referencedRelation: "remarketing_buyer_universes"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       collection_items: {
         Row: {
           added_at: string
@@ -2155,6 +1998,141 @@ export type Database = {
           },
         ]
       }
+      contacts: {
+        Row: {
+          archived: boolean | null
+          contact_type: string
+          created_at: string | null
+          email: string | null
+          fee_agreement_signed: boolean | null
+          fee_agreement_signed_at: string | null
+          firm_id: string | null
+          first_name: string
+          id: string
+          is_primary_at_firm: boolean | null
+          is_primary_seller_contact: boolean | null
+          last_name: string
+          linkedin_url: string | null
+          listing_id: string | null
+          nda_signed: boolean | null
+          nda_signed_at: string | null
+          notes: string | null
+          phone: string | null
+          profile_id: string | null
+          remarketing_buyer_id: string | null
+          source: string | null
+          title: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          archived?: boolean | null
+          contact_type?: string
+          created_at?: string | null
+          email?: string | null
+          fee_agreement_signed?: boolean | null
+          fee_agreement_signed_at?: string | null
+          firm_id?: string | null
+          first_name: string
+          id?: string
+          is_primary_at_firm?: boolean | null
+          is_primary_seller_contact?: boolean | null
+          last_name?: string
+          linkedin_url?: string | null
+          listing_id?: string | null
+          nda_signed?: boolean | null
+          nda_signed_at?: string | null
+          notes?: string | null
+          phone?: string | null
+          profile_id?: string | null
+          remarketing_buyer_id?: string | null
+          source?: string | null
+          title?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          archived?: boolean | null
+          contact_type?: string
+          created_at?: string | null
+          email?: string | null
+          fee_agreement_signed?: boolean | null
+          fee_agreement_signed_at?: string | null
+          firm_id?: string | null
+          first_name?: string
+          id?: string
+          is_primary_at_firm?: boolean | null
+          is_primary_seller_contact?: boolean | null
+          last_name?: string
+          linkedin_url?: string | null
+          listing_id?: string | null
+          nda_signed?: boolean | null
+          nda_signed_at?: string | null
+          notes?: string | null
+          phone?: string | null
+          profile_id?: string | null
+          remarketing_buyer_id?: string | null
+          source?: string | null
+          title?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contacts_firm_id_fkey"
+            columns: ["firm_id"]
+            isOneToOne: false
+            referencedRelation: "firm_agreements"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contacts_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
+            referencedRelation: "linkedin_manual_review_queue"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contacts_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
+            referencedRelation: "listings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contacts_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
+            referencedRelation: "listings_needing_enrichment"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contacts_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
+            referencedRelation: "ranked_deals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contacts_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
+            referencedRelation: "unmapped_primary_owners"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contacts_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contacts_remarketing_buyer_id_fkey"
+            columns: ["remarketing_buyer_id"]
+            isOneToOne: false
+            referencedRelation: "remarketing_buyers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       criteria_extraction_sources: {
         Row: {
           confidence_scores: Json | null
@@ -2306,9 +2284,11 @@ export type Database = {
       }
       data_room_access: {
         Row: {
+          access_token: string | null
           can_view_data_room: boolean | null
           can_view_full_memo: boolean | null
           can_view_teaser: boolean | null
+          contact_id: string | null
           deal_id: string
           expires_at: string | null
           fee_agreement_override: boolean | null
@@ -2317,6 +2297,7 @@ export type Database = {
           granted_at: string | null
           granted_by: string | null
           id: string
+          last_access_at: string | null
           last_modified_at: string | null
           last_modified_by: string | null
           marketplace_user_id: string | null
@@ -2324,9 +2305,11 @@ export type Database = {
           revoked_at: string | null
         }
         Insert: {
+          access_token?: string | null
           can_view_data_room?: boolean | null
           can_view_full_memo?: boolean | null
           can_view_teaser?: boolean | null
+          contact_id?: string | null
           deal_id: string
           expires_at?: string | null
           fee_agreement_override?: boolean | null
@@ -2335,6 +2318,7 @@ export type Database = {
           granted_at?: string | null
           granted_by?: string | null
           id?: string
+          last_access_at?: string | null
           last_modified_at?: string | null
           last_modified_by?: string | null
           marketplace_user_id?: string | null
@@ -2342,9 +2326,11 @@ export type Database = {
           revoked_at?: string | null
         }
         Update: {
+          access_token?: string | null
           can_view_data_room?: boolean | null
           can_view_full_memo?: boolean | null
           can_view_teaser?: boolean | null
+          contact_id?: string | null
           deal_id?: string
           expires_at?: string | null
           fee_agreement_override?: boolean | null
@@ -2353,6 +2339,7 @@ export type Database = {
           granted_at?: string | null
           granted_by?: string | null
           id?: string
+          last_access_at?: string | null
           last_modified_at?: string | null
           last_modified_by?: string | null
           marketplace_user_id?: string | null
@@ -2360,6 +2347,13 @@ export type Database = {
           revoked_at?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "data_room_access_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "data_room_access_deal_id_fkey"
             columns: ["deal_id"]
@@ -2452,6 +2446,7 @@ export type Database = {
           folder_name: string
           id: string
           is_generated: boolean | null
+          status: string | null
           storage_path: string
           updated_at: string | null
           uploaded_by: string | null
@@ -2468,6 +2463,7 @@ export type Database = {
           folder_name?: string
           id?: string
           is_generated?: boolean | null
+          status?: string | null
           storage_path: string
           updated_at?: string | null
           uploaded_by?: string | null
@@ -2484,6 +2480,7 @@ export type Database = {
           folder_name?: string
           id?: string
           is_generated?: boolean | null
+          status?: string | null
           storage_path?: string
           updated_at?: string | null
           uploaded_by?: string | null
@@ -2930,41 +2927,6 @@ export type Database = {
           },
         ]
       }
-      deal_notes: {
-        Row: {
-          admin_id: string
-          created_at: string
-          deal_id: string
-          id: string
-          note_text: string
-          updated_at: string
-        }
-        Insert: {
-          admin_id: string
-          created_at?: string
-          deal_id: string
-          id?: string
-          note_text: string
-          updated_at?: string
-        }
-        Update: {
-          admin_id?: string
-          created_at?: string
-          deal_id?: string
-          id?: string
-          note_text?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "deal_notes_deal_id_fkey"
-            columns: ["deal_id"]
-            isOneToOne: false
-            referencedRelation: "deals"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       deal_ranking_history: {
         Row: {
           change_reason: string | null
@@ -3320,7 +3282,6 @@ export type Database = {
       }
       deal_stages: {
         Row: {
-          automation_rules: Json | null
           color: string | null
           created_at: string | null
           default_probability: number | null
@@ -3335,7 +3296,6 @@ export type Database = {
           updated_at: string | null
         }
         Insert: {
-          automation_rules?: Json | null
           color?: string | null
           created_at?: string | null
           default_probability?: number | null
@@ -3350,7 +3310,6 @@ export type Database = {
           updated_at?: string | null
         }
         Update: {
-          automation_rules?: Json | null
           color?: string | null
           created_at?: string | null
           default_probability?: number | null
@@ -3600,17 +3559,14 @@ export type Database = {
           deleted_at: string | null
           description: string | null
           expected_close_date: string | null
-          extraction_sources: Json | null
           fee_agreement_status: string | null
           followed_up: boolean | null
           followed_up_at: string | null
           followed_up_by: string | null
           id: string
           inbound_lead_id: string | null
-          industry_kpis: Json | null
           last_enriched_at: string | null
           listing_id: string | null
-          metadata: Json | null
           nda_status: string | null
           negative_followed_up: boolean | null
           negative_followed_up_at: string | null
@@ -3644,17 +3600,14 @@ export type Database = {
           deleted_at?: string | null
           description?: string | null
           expected_close_date?: string | null
-          extraction_sources?: Json | null
           fee_agreement_status?: string | null
           followed_up?: boolean | null
           followed_up_at?: string | null
           followed_up_by?: string | null
           id?: string
           inbound_lead_id?: string | null
-          industry_kpis?: Json | null
           last_enriched_at?: string | null
           listing_id?: string | null
-          metadata?: Json | null
           nda_status?: string | null
           negative_followed_up?: boolean | null
           negative_followed_up_at?: string | null
@@ -3688,17 +3641,14 @@ export type Database = {
           deleted_at?: string | null
           description?: string | null
           expected_close_date?: string | null
-          extraction_sources?: Json | null
           fee_agreement_status?: string | null
           followed_up?: boolean | null
           followed_up_at?: string | null
           followed_up_by?: string | null
           id?: string
           inbound_lead_id?: string | null
-          industry_kpis?: Json | null
           last_enriched_at?: string | null
           listing_id?: string | null
-          metadata?: Json | null
           nda_status?: string | null
           negative_followed_up?: boolean | null
           negative_followed_up_at?: string | null
@@ -3816,8 +3766,9 @@ export type Database = {
           buyer_firm: string | null
           buyer_id: string | null
           buyer_name: string
+          contact_id: string | null
           deal_id: string
-          document_id: string
+          document_id: string | null
           fee_agreement_status_at_release: string | null
           first_opened_at: string | null
           id: string
@@ -3827,7 +3778,7 @@ export type Database = {
           release_method: string
           release_notes: string | null
           released_at: string | null
-          released_by: string
+          released_by: string | null
           tracked_link_id: string | null
         }
         Insert: {
@@ -3835,8 +3786,9 @@ export type Database = {
           buyer_firm?: string | null
           buyer_id?: string | null
           buyer_name: string
+          contact_id?: string | null
           deal_id: string
-          document_id: string
+          document_id?: string | null
           fee_agreement_status_at_release?: string | null
           first_opened_at?: string | null
           id?: string
@@ -3846,7 +3798,7 @@ export type Database = {
           release_method: string
           release_notes?: string | null
           released_at?: string | null
-          released_by: string
+          released_by?: string | null
           tracked_link_id?: string | null
         }
         Update: {
@@ -3854,8 +3806,9 @@ export type Database = {
           buyer_firm?: string | null
           buyer_id?: string | null
           buyer_name?: string
+          contact_id?: string | null
           deal_id?: string
-          document_id?: string
+          document_id?: string | null
           fee_agreement_status_at_release?: string | null
           first_opened_at?: string | null
           id?: string
@@ -3865,7 +3818,7 @@ export type Database = {
           release_method?: string
           release_notes?: string | null
           released_at?: string | null
-          released_by?: string
+          released_by?: string | null
           tracked_link_id?: string | null
         }
         Relationships: [
@@ -3874,6 +3827,13 @@ export type Database = {
             columns: ["buyer_id"]
             isOneToOne: false
             referencedRelation: "remarketing_buyers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "document_release_log_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
             referencedColumns: ["id"]
           },
           {
@@ -3940,6 +3900,7 @@ export type Database = {
           buyer_firm: string | null
           buyer_id: string | null
           buyer_name: string
+          contact_id: string | null
           created_at: string | null
           created_by: string
           deal_id: string
@@ -3960,6 +3921,7 @@ export type Database = {
           buyer_firm?: string | null
           buyer_id?: string | null
           buyer_name: string
+          contact_id?: string | null
           created_at?: string | null
           created_by: string
           deal_id: string
@@ -3980,6 +3942,7 @@ export type Database = {
           buyer_firm?: string | null
           buyer_id?: string | null
           buyer_name?: string
+          contact_id?: string | null
           created_at?: string | null
           created_by?: string
           deal_id?: string
@@ -4001,6 +3964,13 @@ export type Database = {
             columns: ["buyer_id"]
             isOneToOne: false
             referencedRelation: "remarketing_buyers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "document_tracked_links_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
             referencedColumns: ["id"]
           },
           {
@@ -5422,39 +5392,6 @@ export type Database = {
           },
         ]
       }
-      lead_sources: {
-        Row: {
-          created_at: string | null
-          description: string | null
-          display_order: number | null
-          id: string
-          is_active: boolean | null
-          name: string
-          requires_partner: boolean | null
-          updated_at: string | null
-        }
-        Insert: {
-          created_at?: string | null
-          description?: string | null
-          display_order?: number | null
-          id?: string
-          is_active?: boolean | null
-          name: string
-          requires_partner?: boolean | null
-          updated_at?: string | null
-        }
-        Update: {
-          created_at?: string | null
-          description?: string | null
-          display_order?: number | null
-          id?: string
-          is_active?: boolean | null
-          name?: string
-          requires_partner?: boolean | null
-          updated_at?: string | null
-        }
-        Relationships: []
-      }
       listing_analytics: {
         Row: {
           action_type: string
@@ -5638,90 +5575,6 @@ export type Database = {
           },
         ]
       }
-      listing_messages: {
-        Row: {
-          attachments: Json | null
-          conversation_id: string
-          created_at: string
-          id: string
-          is_internal_note: boolean
-          message_text: string
-          read_at: string | null
-          sender_id: string
-          sender_type: string
-        }
-        Insert: {
-          attachments?: Json | null
-          conversation_id: string
-          created_at?: string
-          id?: string
-          is_internal_note?: boolean
-          message_text: string
-          read_at?: string | null
-          sender_id: string
-          sender_type: string
-        }
-        Update: {
-          attachments?: Json | null
-          conversation_id?: string
-          created_at?: string
-          id?: string
-          is_internal_note?: boolean
-          message_text?: string
-          read_at?: string | null
-          sender_id?: string
-          sender_type?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "listing_messages_conversation_id_fkey"
-            columns: ["conversation_id"]
-            isOneToOne: false
-            referencedRelation: "listing_conversations"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "listing_messages_sender_id_fkey"
-            columns: ["sender_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      listing_personal_notes: {
-        Row: {
-          content: string | null
-          created_at: string
-          id: string
-          listing_id: string
-          rating: number | null
-          tags: string[] | null
-          updated_at: string
-          user_id: string
-        }
-        Insert: {
-          content?: string | null
-          created_at?: string
-          id?: string
-          listing_id: string
-          rating?: number | null
-          tags?: string[] | null
-          updated_at?: string
-          user_id: string
-        }
-        Update: {
-          content?: string | null
-          created_at?: string
-          id?: string
-          listing_id?: string
-          rating?: number | null
-          tags?: string[] | null
-          updated_at?: string
-          user_id?: string
-        }
-        Relationships: []
-      }
       listings: {
         Row: {
           acquisition_type: string | null
@@ -5790,7 +5643,6 @@ export type Database = {
           growth_trajectory: string | null
           hero_description: string | null
           id: string
-          ideal_buyer: string | null
           image_url: string | null
           industry: string | null
           industry_tier: number | null
@@ -5843,13 +5695,11 @@ export type Database = {
           owner_goals: string | null
           owner_notes: string | null
           owner_response: string | null
-          owner_title: string | null
           ownership_structure: string | null
           part_time_employees: number | null
           presented_by_admin_id: string | null
           primary_owner_id: string | null
           project_name: string | null
-          project_name_set_at: string | null
           published_at: string | null
           published_by_admin_id: string | null
           pushed_to_all_deals: boolean | null
@@ -5963,7 +5813,6 @@ export type Database = {
           growth_trajectory?: string | null
           hero_description?: string | null
           id?: string
-          ideal_buyer?: string | null
           image_url?: string | null
           industry?: string | null
           industry_tier?: number | null
@@ -6016,13 +5865,11 @@ export type Database = {
           owner_goals?: string | null
           owner_notes?: string | null
           owner_response?: string | null
-          owner_title?: string | null
           ownership_structure?: string | null
           part_time_employees?: number | null
           presented_by_admin_id?: string | null
           primary_owner_id?: string | null
           project_name?: string | null
-          project_name_set_at?: string | null
           published_at?: string | null
           published_by_admin_id?: string | null
           pushed_to_all_deals?: boolean | null
@@ -6136,7 +5983,6 @@ export type Database = {
           growth_trajectory?: string | null
           hero_description?: string | null
           id?: string
-          ideal_buyer?: string | null
           image_url?: string | null
           industry?: string | null
           industry_tier?: number | null
@@ -6189,13 +6035,11 @@ export type Database = {
           owner_goals?: string | null
           owner_notes?: string | null
           owner_response?: string | null
-          owner_title?: string | null
           ownership_structure?: string | null
           part_time_employees?: number | null
           presented_by_admin_id?: string | null
           primary_owner_id?: string | null
           project_name?: string | null
-          project_name_set_at?: string | null
           published_at?: string | null
           published_by_admin_id?: string | null
           pushed_to_all_deals?: boolean | null
@@ -6248,13 +6092,6 @@ export type Database = {
             columns: ["deal_owner_id"]
             isOneToOne: false
             referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "listings_lead_source_id_fkey"
-            columns: ["lead_source_id"]
-            isOneToOne: false
-            referencedRelation: "lead_sources"
             referencedColumns: ["id"]
           },
           {
@@ -6963,87 +6800,6 @@ export type Database = {
         }
         Relationships: []
       }
-      pe_firm_contacts: {
-        Row: {
-          bio_url: string | null
-          buyer_id: string | null
-          created_at: string
-          email: string | null
-          email_confidence: string | null
-          id: string
-          is_deal_team: boolean | null
-          is_primary_contact: boolean | null
-          linkedin_url: string | null
-          name: string
-          notes: string | null
-          pe_firm_id: string | null
-          phone: string | null
-          priority_level: number | null
-          role_category: string | null
-          source: string | null
-          source_url: string | null
-          title: string | null
-          updated_at: string
-        }
-        Insert: {
-          bio_url?: string | null
-          buyer_id?: string | null
-          created_at?: string
-          email?: string | null
-          email_confidence?: string | null
-          id?: string
-          is_deal_team?: boolean | null
-          is_primary_contact?: boolean | null
-          linkedin_url?: string | null
-          name: string
-          notes?: string | null
-          pe_firm_id?: string | null
-          phone?: string | null
-          priority_level?: number | null
-          role_category?: string | null
-          source?: string | null
-          source_url?: string | null
-          title?: string | null
-          updated_at?: string
-        }
-        Update: {
-          bio_url?: string | null
-          buyer_id?: string | null
-          created_at?: string
-          email?: string | null
-          email_confidence?: string | null
-          id?: string
-          is_deal_team?: boolean | null
-          is_primary_contact?: boolean | null
-          linkedin_url?: string | null
-          name?: string
-          notes?: string | null
-          pe_firm_id?: string | null
-          phone?: string | null
-          priority_level?: number | null
-          role_category?: string | null
-          source?: string | null
-          source_url?: string | null
-          title?: string | null
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "pe_firm_contacts_buyer_id_fkey"
-            columns: ["buyer_id"]
-            isOneToOne: false
-            referencedRelation: "remarketing_buyers"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "pe_firm_contacts_pe_firm_id_fkey"
-            columns: ["pe_firm_id"]
-            isOneToOne: false
-            referencedRelation: "remarketing_buyers"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       permission_audit_log: {
         Row: {
           changed_by: string | null
@@ -7112,125 +6868,6 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
-      }
-      platform_contacts: {
-        Row: {
-          bio_url: string | null
-          buyer_id: string | null
-          created_at: string
-          email: string | null
-          email_confidence: string | null
-          id: string
-          is_deal_team: boolean | null
-          is_primary_contact: boolean | null
-          linkedin_url: string | null
-          name: string
-          notes: string | null
-          phone: string | null
-          platform_id: string | null
-          priority_level: number | null
-          role_category: string | null
-          source: string | null
-          source_url: string | null
-          title: string | null
-          updated_at: string
-        }
-        Insert: {
-          bio_url?: string | null
-          buyer_id?: string | null
-          created_at?: string
-          email?: string | null
-          email_confidence?: string | null
-          id?: string
-          is_deal_team?: boolean | null
-          is_primary_contact?: boolean | null
-          linkedin_url?: string | null
-          name: string
-          notes?: string | null
-          phone?: string | null
-          platform_id?: string | null
-          priority_level?: number | null
-          role_category?: string | null
-          source?: string | null
-          source_url?: string | null
-          title?: string | null
-          updated_at?: string
-        }
-        Update: {
-          bio_url?: string | null
-          buyer_id?: string | null
-          created_at?: string
-          email?: string | null
-          email_confidence?: string | null
-          id?: string
-          is_deal_team?: boolean | null
-          is_primary_contact?: boolean | null
-          linkedin_url?: string | null
-          name?: string
-          notes?: string | null
-          phone?: string | null
-          platform_id?: string | null
-          priority_level?: number | null
-          role_category?: string | null
-          source?: string | null
-          source_url?: string | null
-          title?: string | null
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "platform_contacts_buyer_id_fkey"
-            columns: ["buyer_id"]
-            isOneToOne: false
-            referencedRelation: "remarketing_buyers"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "platform_contacts_platform_id_fkey"
-            columns: ["platform_id"]
-            isOneToOne: false
-            referencedRelation: "remarketing_buyers"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      profile_data_snapshots: {
-        Row: {
-          created_at: string
-          id: string
-          profile_id: string
-          raw_business_categories: Json | null
-          raw_payload: Json | null
-          raw_target_locations: Json | null
-          snapshot_type: string
-        }
-        Insert: {
-          created_at?: string
-          id?: string
-          profile_id: string
-          raw_business_categories?: Json | null
-          raw_payload?: Json | null
-          raw_target_locations?: Json | null
-          snapshot_type?: string
-        }
-        Update: {
-          created_at?: string
-          id?: string
-          profile_id?: string
-          raw_business_categories?: Json | null
-          raw_payload?: Json | null
-          raw_target_locations?: Json | null
-          snapshot_type?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "profile_data_snapshots_profile_id_fkey"
-            columns: ["profile_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-        ]
       }
       profiles: {
         Row: {
@@ -8174,6 +7811,7 @@ export type Database = {
       remarketing_outreach: {
         Row: {
           buyer_id: string
+          contact_id: string | null
           contact_method: string | null
           contacted_at: string | null
           contacted_by: string | null
@@ -8190,6 +7828,7 @@ export type Database = {
         }
         Insert: {
           buyer_id: string
+          contact_id?: string | null
           contact_method?: string | null
           contacted_at?: string | null
           contacted_by?: string | null
@@ -8206,6 +7845,7 @@ export type Database = {
         }
         Update: {
           buyer_id?: string
+          contact_id?: string | null
           contact_method?: string | null
           contacted_at?: string | null
           contacted_by?: string | null
@@ -8226,6 +7866,13 @@ export type Database = {
             columns: ["buyer_id"]
             isOneToOne: false
             referencedRelation: "remarketing_buyers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "remarketing_outreach_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
             referencedColumns: ["id"]
           },
           {
@@ -8761,45 +8408,6 @@ export type Database = {
         }
         Relationships: []
       }
-      scoring_weights_history: {
-        Row: {
-          change_reason: string | null
-          changed_by: string | null
-          created_at: string
-          geography_weight: number
-          id: string
-          owner_goals_weight: number
-          scoring_behavior: Json | null
-          service_weight: number
-          size_weight: number
-          universe_id: string
-        }
-        Insert: {
-          change_reason?: string | null
-          changed_by?: string | null
-          created_at?: string
-          geography_weight: number
-          id?: string
-          owner_goals_weight: number
-          scoring_behavior?: Json | null
-          service_weight: number
-          size_weight: number
-          universe_id: string
-        }
-        Update: {
-          change_reason?: string | null
-          changed_by?: string | null
-          created_at?: string
-          geography_weight?: number
-          id?: string
-          owner_goals_weight?: number
-          scoring_behavior?: Json | null
-          service_weight?: number
-          size_weight?: number
-          universe_id?: string
-        }
-        Relationships: []
-      }
       search_analytics: {
         Row: {
           created_at: string | null
@@ -8926,50 +8534,6 @@ export type Database = {
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      tracker_activity_logs: {
-        Row: {
-          created_at: string
-          created_by: string | null
-          description: string
-          entity_id: string | null
-          entity_name: string | null
-          id: string
-          metadata: Json | null
-          tracker_id: string
-          type: string
-        }
-        Insert: {
-          created_at?: string
-          created_by?: string | null
-          description: string
-          entity_id?: string | null
-          entity_name?: string | null
-          id?: string
-          metadata?: Json | null
-          tracker_id: string
-          type: string
-        }
-        Update: {
-          created_at?: string
-          created_by?: string | null
-          description?: string
-          entity_id?: string | null
-          entity_name?: string | null
-          id?: string
-          metadata?: Json | null
-          tracker_id?: string
-          type?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "tracker_activity_logs_tracker_id_fkey"
-            columns: ["tracker_id"]
-            isOneToOne: false
-            referencedRelation: "industry_trackers"
             referencedColumns: ["id"]
           },
         ]
@@ -9797,49 +9361,6 @@ export type Database = {
         }
         Relationships: []
       }
-      mv_data_freshness: {
-        Row: {
-          avg_age_days: number | null
-          deal_count: number | null
-          freshness_bucket: string | null
-        }
-        Relationships: []
-      }
-      mv_enrichment_provider_stats: {
-        Row: {
-          avg_duration_ms: number | null
-          event_count: number | null
-          function_name: string | null
-          hour: string | null
-          p95_duration_ms: number | null
-          provider: string | null
-          status: string | null
-          total_fields_updated: number | null
-          total_tokens_used: number | null
-        }
-        Relationships: []
-      }
-      mv_score_distribution: {
-        Row: {
-          approval_rate_pct: number | null
-          approved_count: number | null
-          avg_score: number | null
-          match_count: number | null
-          passed_count: number | null
-          score_band: string | null
-          tier: string | null
-          universe_id: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "remarketing_scores_universe_id_fkey"
-            columns: ["universe_id"]
-            isOneToOne: false
-            referencedRelation: "remarketing_buyer_universes"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       ranked_deals: {
         Row: {
           address_city: string | null
@@ -10036,10 +9557,6 @@ export type Database = {
         Args: { p_lead_id: string; p_listing_id: string }
         Returns: string
       }
-      create_password_reset_token: {
-        Args: { user_email: string }
-        Returns: string
-      }
       decrement_provider_concurrent: {
         Args: { p_provider: string }
         Returns: undefined
@@ -10119,11 +9636,14 @@ export type Database = {
         Args: { p_deal_id: string }
         Returns: {
           access_id: string
+          access_token: string
           buyer_company: string
           buyer_name: string
           can_view_data_room: boolean
           can_view_full_memo: boolean
           can_view_teaser: boolean
+          contact_id: string
+          contact_title: string
           expires_at: string
           fee_agreement_override: boolean
           fee_agreement_override_reason: string
@@ -10176,7 +9696,6 @@ export type Database = {
           deal_followed_up_at: string
           deal_followed_up_by: string
           deal_id: string
-          deal_metadata: Json
           deal_negative_followed_up: boolean
           deal_negative_followed_up_at: string
           deal_negative_followed_up_by: string
@@ -10208,15 +9727,6 @@ export type Database = {
           total_tasks: number
         }[]
       }
-      get_engagement_analytics: {
-        Args: { time_range?: string }
-        Returns: {
-          active_users: number
-          avg_engagement_score: number
-          top_engaged_users: Json
-          total_users: number
-        }[]
-      }
       get_feedback_analytics: {
         Args: { days_back?: number }
         Returns: {
@@ -10228,14 +9738,6 @@ export type Database = {
           top_users: Json
           total_feedback: number
           unread_count: number
-        }[]
-      }
-      get_latest_profile_snapshot: {
-        Args: { p_profile_id: string }
-        Returns: {
-          raw_business_categories: Json
-          raw_payload: Json
-          raw_target_locations: Json
         }[]
       }
       get_my_agreement_status: {
@@ -10271,22 +9773,6 @@ export type Database = {
           target_email: string
           target_name: string
           target_user_id: string
-        }[]
-      }
-      get_profiles_with_history: {
-        Args: never
-        Returns: {
-          business_categories_current: Json
-          business_categories_dedup: Json
-          buyer_type: string
-          email: string
-          id: string
-          raw_business_categories: Json
-          raw_target_locations: Json
-          snapshot_created_at: string
-          snapshot_type: string
-          target_locations_current: Json
-          target_locations_dedup: Json
         }[]
       }
       get_remarketing_dashboard_stats: {
@@ -10326,6 +9812,7 @@ export type Database = {
         }
         Returns: undefined
       }
+      increment_link_open_count: { Args: { p_link_id: string }; Returns: Json }
       increment_provider_concurrent: {
         Args: { p_provider: string }
         Returns: undefined
@@ -10417,19 +9904,6 @@ export type Database = {
       normalize_company_name: { Args: { name: string }; Returns: string }
       normalize_domain: { Args: { url: string }; Returns: string }
       normalize_state_name: { Args: { state_name: string }; Returns: string }
-      preview_profile_data_restoration: {
-        Args: never
-        Returns: {
-          current_categories: Json
-          current_locations: Json
-          email: string
-          issue_type: string
-          profile_id: string
-          raw_categories: Json
-          raw_locations: Json
-          restoration_needed: string
-        }[]
-      }
       promote_user_to_admin: {
         Args: { target_user_id: string }
         Returns: boolean
@@ -10440,23 +9914,20 @@ export type Database = {
         | { Args: never; Returns: undefined }
         | { Args: { admin_uuid: string }; Returns: undefined }
       reset_stale_concurrent_counts: { Args: never; Returns: undefined }
+      resolve_contact_agreement_status: {
+        Args: { p_contact_id: string }
+        Returns: Json
+      }
       restore_deal: { Args: { deal_id: string }; Returns: boolean }
-      restore_profile_data_automated: {
-        Args: never
-        Returns: {
-          details: string
-          new_value: Json
-          old_value: Json
-          profile_id: string
-          restoration_type: string
-        }[]
+      restore_soft_deleted: {
+        Args: { p_record_id: string; p_table_name: string }
+        Returns: boolean
       }
       soft_delete_deal: {
         Args: { deal_id: string; deletion_reason?: string }
         Returns: boolean
       }
       soft_delete_listing: { Args: { listing_id: string }; Returns: boolean }
-      soft_delete_profile: { Args: { profile_id: string }; Returns: boolean }
       update_connection_request_followup: {
         Args: {
           admin_notes?: string
@@ -10500,7 +9971,6 @@ export type Database = {
         Args: { p_actor_id?: string; p_assigned_to: string; p_deal_id: string }
         Returns: Json
       }
-      update_engagement_scores: { Args: never; Returns: undefined }
       update_enrichment_job_progress: {
         Args: {
           p_circuit_breaker?: boolean
@@ -10687,15 +10157,6 @@ export type Database = {
           p_triggered_by?: string
         }
         Returns: string
-      }
-      validate_reset_token: { Args: { token_value: string }; Returns: string }
-      verify_production_readiness: {
-        Args: never
-        Returns: {
-          check_name: string
-          details: string
-          status: string
-        }[]
       }
     }
     Enums: {
