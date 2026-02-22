@@ -121,7 +121,7 @@ DROP TABLE IF EXISTS public.profile_data_snapshots CASCADE;
 DROP FUNCTION IF EXISTS public.test_admin_status();
 
 -- Debug function: debug fee agreement updates — diagnostic only
-DROP FUNCTION IF EXISTS public.debug_fee_agreement_update();
+DROP FUNCTION IF EXISTS public.debug_fee_agreement_update(uuid, boolean);
 
 -- One-time validation function: ran once at schema creation
 DROP FUNCTION IF EXISTS public.validate_analytics_schema();

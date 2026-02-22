@@ -8,12 +8,40 @@ This document outlines a phased plan for cleaning up technical debt across the d
 
 **Status: Done**
 
+### Phase 0a: Initial cleanup
 - Fixed `delete_listing_cascade` — removed reference to dropped `interest_signals` table, added 5 missing FK tables
 - Dropped 6 dead columns (listings: `ideal_buyer`, `owner_title`, `project_name_set_at`; deals: `metadata`, `industry_kpis`, `extraction_sources`)
 - Dropped 9 orphaned tables (`deal_notes`, `listing_messages`, `chat_recommendations`, `chat_smart_suggestions`, `pe_firm_contacts`, `platform_contacts`, `tracker_activity_logs`, `listing_personal_notes`, `profile_data_snapshots`)
 - Dropped 5 orphaned DB functions + 1 trigger + 1 view
 - Removed 4 orphaned frontend components/hooks
 - Removed 2 dead edge function shared modules
+
+### Phase 0b: Comprehensive deep audit + cleanup
+5 parallel deep-audit agents read ALL 572 migration files, traced 6 critical user paths end-to-end, audited all 180+ RLS policies, verified all cron jobs, and analyzed frontend import chains.
+
+**Database cleanup (`20260303000000_drop_dead_objects_phase2.sql`):**
+- Dropped 15 dead functions (get_conversation_thread, track_user_engagement, auto_categorize_feedback, auto_assign_priority, verify_production_readiness, get_feedback_with_user_details, assign_feedback_to_admin, create_password_reset_token, validate_reset_token, get_engagement_analytics, soft_delete_profile, get_marketplace_analytics, update_listing_notes_updated_at, log_chat_analytics, update_engagement_scores)
+- Dropped 2 dead tables (lead_sources, scoring_weights_history)
+- Dropped 1 dead column (deal_stages.automation_rules)
+- Dropped 11 dead regular views (feedback_analytics, security_summary, active_listings, active_buyers, active_scores, active_universes, enrichment_queue_status, cron_job_status, recent_audit_activity, score_override_history, extraction_source_audit)
+- Dropped 9 dead materialized views (ALL mv_* views + user_engagement_analytics)
+
+**Security hardening (`20260303100000_security_hardening_phase2.sql`):**
+- Added RLS to `connection_requests` (THE deals table — had NO RLS!)
+- Added RLS to `saved_listings` (had NO RLS)
+- Removed overly permissive USING(true) policies on buyers, buyer_contacts, buyer_deal_scores
+- Fixed notification INSERT policies (admin_notifications, user_notifications) → service_role only
+- Fixed user_journeys and captarget_sync_exclusions policies → added TO service_role
+- Standardized 6 non-canonical admin checks to use public.is_admin(auth.uid())
+- Added auth guards to 6 unprotected SECURITY DEFINER RPCs (get_deals_with_details, reset_all_admin_notifications, restore_soft_deleted, get_deal_access_matrix, get_deal_distribution_log, get_buyer_deal_history)
+
+**Cron cleanup (`20260303200000_cron_cleanup.sql`):**
+- Replaced refresh_materialized_views_safe() with no-op stub (all 5 refreshed views were dropped)
+- Unscheduled refresh-materialized-views cron job (was running every 15 min for nothing)
+
+**Frontend dead code removal:**
+- Deleted ~200+ verified-dead files (~40,000+ lines of dead code)
+- Testing suites, dead analytics dashboards, dead admin components, dead hooks, dead lib modules, dead pages, dead UI primitives
 
 ---
 
@@ -197,12 +225,16 @@ These triggers have 2-8 versions across migrations — only the latest is active
 
 | Function | Status | Notes |
 |----------|--------|-------|
-| `test_admin_status()` | **Dropped in Phase 0** | Debug diagnostic |
-| `debug_fee_agreement_update()` | **Dropped in Phase 0** | Debug diagnostic |
-| `validate_analytics_schema()` | **Dropped in Phase 0** | One-time migration validator |
+| `test_admin_status()` | **Dropped in Phase 0a** | Debug diagnostic |
+| `debug_fee_agreement_update()` | **Dropped in Phase 0a** | Debug diagnostic |
+| `validate_analytics_schema()` | **Dropped in Phase 0a** | One-time migration validator |
 | `refresh_analytics_views()` | **Stub — no-op** | Called by performance-monitor.ts but does nothing |
+| `refresh_materialized_views_safe()` | **Stub — no-op (Phase 0b)** | All materialized views dropped; cron unscheduled |
 | `delete_user_completely()` | Active (7 versions) | Only latest is active; consolidate |
-| `get_marketplace_analytics()` | Likely dead | Superseded by `get_simple_marketplace_analytics()` |
+| `get_marketplace_analytics()` | **Dropped in Phase 0b** | Superseded by `get_simple_marketplace_analytics()` |
+| `get_engagement_analytics()` | **Dropped in Phase 0b** | Only in types.ts, superseded |
+| `soft_delete_profile()` | **Dropped in Phase 0b** | Superseded by `delete_user_completely()` |
+| 12 more functions | **Dropped in Phase 0b** | See migration `20260303000000` for full list |
 
 ### Risk: Medium — need to identify all trigger execution paths first
 
