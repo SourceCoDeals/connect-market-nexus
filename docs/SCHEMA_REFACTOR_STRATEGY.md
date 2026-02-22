@@ -232,6 +232,23 @@ These triggers have 2-8 versions across migrations — only the latest is active
 
 ---
 
+## Appendix: Data Redundancy Inventory (from audit)
+
+Key data duplication patterns that create sync/staleness risks:
+
+| Data | Source of Truth | Copies | Sync Mechanism | Risk |
+|------|----------------|--------|----------------|------|
+| Company name | `profiles.company` | `profiles.company_name`, `remarketing_buyers.company_name` | Approval trigger + AI extraction | 3 fields, 2 write paths, no cascade |
+| Buyer type | `profiles.buyer_type` | `remarketing_buyers.buyer_type` (mapped enum) | Approval trigger + AI extraction | Type mapping in 2 places |
+| Thesis / description | `profiles.ideal_target_description` | `remarketing_buyers.thesis_summary`, `profiles.mandate_blurb` (fallback) | Approval trigger + AI extraction | COALESCE picks first non-null; no edit history |
+| Revenue targets | `profiles.target_deal_size_min/max` | `remarketing_buyers.target_revenue_min/max` | Approval trigger + AI extraction | Diverges when AI overwrites |
+| Buyer priority | Computed from `profiles.buyer_type` | `connection_requests.buyer_priority_score` → `deals.buyer_priority_score` | 2 SQL triggers | Stale if profile updated outside trigger path |
+| Deal description | `listings.description` | `deals.description`, `listings.description_html` (computed), `listings.description_json` (rich text) | Trigger for HTML; manual for deals | `deals.description` rarely set |
+
+These should be addressed incrementally during Phases 1-3.
+
+---
+
 ## Priority Order
 
 | Phase | Effort | Impact | Risk | Recommended Order |
