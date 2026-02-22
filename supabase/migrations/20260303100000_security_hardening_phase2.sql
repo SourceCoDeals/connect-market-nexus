@@ -198,11 +198,16 @@ END
 $c5$;
 
 -- C6. remarketing_scores — "scores_select_policy" uses auth.jwt() ->> 'is_admin'
+--     deleted_at column may not exist if soft-delete migration hasn't run yet
 DO $c6$
 BEGIN
   IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'remarketing_scores') THEN
     EXECUTE 'DROP POLICY IF EXISTS "scores_select_policy" ON public.remarketing_scores';
-    EXECUTE 'CREATE POLICY "scores_select_policy" ON public.remarketing_scores FOR SELECT TO authenticated USING (deleted_at IS NULL OR public.is_admin(auth.uid()))';
+    IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'remarketing_scores' AND column_name = 'deleted_at') THEN
+      EXECUTE 'CREATE POLICY "scores_select_policy" ON public.remarketing_scores FOR SELECT TO authenticated USING (deleted_at IS NULL OR public.is_admin(auth.uid()))';
+    ELSE
+      EXECUTE 'CREATE POLICY "scores_select_policy" ON public.remarketing_scores FOR SELECT TO authenticated USING (public.is_admin(auth.uid()))';
+    END IF;
   END IF;
 END
 $c6$;
