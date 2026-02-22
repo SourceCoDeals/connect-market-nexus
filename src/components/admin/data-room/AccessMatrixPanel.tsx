@@ -129,10 +129,11 @@ export function AccessMatrixPanel({ dealId, projectName }: AccessMatrixPanelProp
 
   const handleFeeOverride = () => {
     if (pendingUpdate) {
-      updateAccess.mutate({
+      const params: Parameters<typeof updateAccess.mutate>[0] = {
         ...pendingUpdate,
         fee_agreement_override_reason: overrideReason,
-      });
+      };
+      updateAccess.mutate(params);
     }
     setShowFeeWarning(false);
     setPendingUpdate(null);
