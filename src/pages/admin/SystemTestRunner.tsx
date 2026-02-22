@@ -702,8 +702,10 @@ export default function SystemTestRunner() {
           };
         } catch (err: any) {
           const msg = err?.message || String(err);
-          // Treat some errors as warnings
-          const isWarning = msg.includes("does not exist") && !msg.includes("table");
+          // Treat missing test data preconditions and some errors as warnings
+          const isWarning = (msg.includes("does not exist") && !msg.includes("table"))
+            || msg.includes("No documents exist")
+            || msg.includes("No test ");
           updatedResults[idx] = {
             ...updatedResults[idx],
             status: isWarning ? "warn" : "fail",
