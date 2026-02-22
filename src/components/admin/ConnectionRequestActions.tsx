@@ -3,9 +3,12 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { 
-  FileText, 
-  Shield, 
+import {
+  Tooltip, TooltipContent, TooltipProvider, TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
+  FileText,
+  Shield,
   CheckCircle,
   Clock,
   XCircle,
@@ -13,7 +16,10 @@ import {
   ExternalLink,
   MessageSquare,
   Send,
-  CheckCheck
+  CheckCheck,
+  Lock,
+  Eye,
+  FolderOpen,
 } from "lucide-react";
 import { UserNotesSection } from "./UserNotesSection";
 import { DecisionNotesInline } from "./DecisionNotesInline";
@@ -28,10 +34,13 @@ import { useUpdateFollowup, useUpdateNegativeFollowup } from "@/hooks/admin/use-
 import { useUpdateApprovalStatus, useUpdateRejectionStatus } from "@/hooks/admin/use-approval-status";
 import { useUserConnectionRequests } from "@/hooks/admin/use-user-connection-requests";
 import { useBulkFollowup } from "@/hooks/admin/use-bulk-followup";
+import { useUpdateAccess } from "@/hooks/admin/data-room/use-data-room";
 import { useToast } from "@/hooks/use-toast";
 import { useAdminSignature } from "@/hooks/admin/use-admin-signature";
 import { useAuth } from "@/context/AuthContext";
 import { getAdminProfile } from "@/lib/admin-profiles";
+import { supabase } from "@/integrations/supabase/client";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { formatDistanceToNow, format } from 'date-fns';
 
 
@@ -105,6 +114,56 @@ export function ConnectionRequestActions({
   const updateFollowup = useUpdateFollowup();
   const updateNegativeFollowup = useUpdateNegativeFollowup();
   const bulkFollowup = useBulkFollowup();
+  const updateAccess = useUpdateAccess();
+  const queryClient = useQueryClient();
+
+  // Fetch current data room access for this buyer + listing
+  const { data: accessRecord } = useQuery({
+    queryKey: ['buyer-access', listing?.id, user.id],
+    queryFn: async () => {
+      if (!listing?.id) return null;
+      const { data } = await supabase
+        .from('data_room_access')
+        .select('id, can_view_teaser, can_view_full_memo, can_view_data_room')
+        .eq('deal_id', listing.id)
+        .eq('marketplace_user_id', user.id)
+        .is('revoked_at', null)
+        .maybeSingle();
+      return data;
+    },
+    enabled: !!listing?.id,
+  });
+
+  const hasFeeAgreement = localUser.fee_agreement_signed || false;
+
+  const handleDocumentAccessToggle = (
+    field: 'can_view_teaser' | 'can_view_full_memo' | 'can_view_data_room',
+    newValue: boolean
+  ) => {
+    if (!listing?.id) return;
+
+    // Block full memo and data room without fee agreement
+    if ((field === 'can_view_full_memo' || field === 'can_view_data_room') && newValue && !hasFeeAgreement) {
+      toast({
+        title: 'Fee Agreement Required',
+        description: 'A signed fee agreement is required before releasing the full memo or data room access.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    updateAccess.mutate({
+      deal_id: listing.id,
+      marketplace_user_id: user.id,
+      can_view_teaser: field === 'can_view_teaser' ? newValue : (accessRecord?.can_view_teaser ?? false),
+      can_view_full_memo: field === 'can_view_full_memo' ? newValue : (accessRecord?.can_view_full_memo ?? false),
+      can_view_data_room: field === 'can_view_data_room' ? newValue : (accessRecord?.can_view_data_room ?? false),
+    }, {
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: ['buyer-access', listing?.id, user.id] });
+      },
+    });
+  };
 
   const getStatusIndicator = (sent: boolean, signed: boolean, sentAt?: string, signedAt?: string) => {
     if (signed && signedAt) {
@@ -609,6 +668,91 @@ If the status changes post‑diligence, we'll reach out immediately.`;
                </div>
              </div>
            </div>
+
+            {/* Document Access Controls */}
+            {listing && (
+              <TooltipProvider>
+              <div className="bg-card border border-border/40 rounded-lg p-4 shadow-sm">
+                <div className="mb-4">
+                  <h3 className="text-sm font-semibold text-card-foreground flex items-center gap-2">
+                    <Eye className="h-4 w-4 text-primary" />
+                    Document Access
+                  </h3>
+                </div>
+
+                <div className="space-y-3">
+                  {/* Anonymous Teaser */}
+                  <div className="flex items-center justify-between py-2 px-3 rounded-md border border-border/50 bg-background/50 hover:bg-accent/20 transition-colors">
+                    <div className="flex items-center gap-2">
+                      <FileText className="h-3.5 w-3.5 text-muted-foreground" />
+                      <span className="text-xs font-medium text-foreground">Anonymous Teaser</span>
+                    </div>
+                    <Switch
+                      checked={accessRecord?.can_view_teaser ?? false}
+                      onCheckedChange={(checked) => handleDocumentAccessToggle('can_view_teaser', checked)}
+                      disabled={updateAccess.isPending}
+                      className="scale-90"
+                    />
+                  </div>
+
+                  {/* Full Memo — locked without fee agreement */}
+                  <div className="flex items-center justify-between py-2 px-3 rounded-md border border-border/50 bg-background/50 hover:bg-accent/20 transition-colors">
+                    <div className="flex items-center gap-2">
+                      <FileText className="h-3.5 w-3.5 text-muted-foreground" />
+                      <span className="text-xs font-medium text-foreground">Full Detail Memo</span>
+                      {!hasFeeAgreement && (
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Lock className="h-3 w-3 text-amber-500" />
+                          </TooltipTrigger>
+                          <TooltipContent side="top" className="text-xs">
+                            Requires signed fee agreement
+                          </TooltipContent>
+                        </Tooltip>
+                      )}
+                    </div>
+                    <Switch
+                      checked={accessRecord?.can_view_full_memo ?? false}
+                      onCheckedChange={(checked) => handleDocumentAccessToggle('can_view_full_memo', checked)}
+                      disabled={updateAccess.isPending || !hasFeeAgreement}
+                      className="scale-90"
+                    />
+                  </div>
+
+                  {/* Data Room — locked without fee agreement */}
+                  <div className="flex items-center justify-between py-2 px-3 rounded-md border border-border/50 bg-background/50 hover:bg-accent/20 transition-colors">
+                    <div className="flex items-center gap-2">
+                      <FolderOpen className="h-3.5 w-3.5 text-muted-foreground" />
+                      <span className="text-xs font-medium text-foreground">Data Room</span>
+                      {!hasFeeAgreement && (
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Lock className="h-3 w-3 text-amber-500" />
+                          </TooltipTrigger>
+                          <TooltipContent side="top" className="text-xs">
+                            Requires signed fee agreement
+                          </TooltipContent>
+                        </Tooltip>
+                      )}
+                    </div>
+                    <Switch
+                      checked={accessRecord?.can_view_data_room ?? false}
+                      onCheckedChange={(checked) => handleDocumentAccessToggle('can_view_data_room', checked)}
+                      disabled={updateAccess.isPending || !hasFeeAgreement}
+                      className="scale-90"
+                    />
+                  </div>
+
+                  {!hasFeeAgreement && (
+                    <p className="text-[11px] text-amber-600 flex items-center gap-1 px-1">
+                      <Lock className="h-3 w-3" />
+                      Sign a fee agreement to unlock full memo and data room access
+                    </p>
+                  )}
+                </div>
+              </div>
+              </TooltipProvider>
+            )}
 
           {/* Right Column: Buyer Information */}
           <div className="space-y-4">
