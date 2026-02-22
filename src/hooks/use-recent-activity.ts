@@ -24,14 +24,15 @@ export function useRecentActivity(limit: number = 50) {
       const activities: RecentActivityItem[] = [];
       
       // Get recent signups
-      const { data: signups } = await supabase
+      const { data: signups, error: signupsError } = await supabase
         .from('profiles')
         .select('id, email, first_name, last_name, created_at')
         .order('created_at', { ascending: false })
         .limit(10);
+      if (signupsError) throw signupsError;
 
       // Get recent listing views
-      const { data: listingViews } = await supabase
+      const { data: listingViews, error: listingViewsError } = await supabase
         .from('listing_analytics')
         .select(`
           id, created_at, user_id, listing_id, action_type,
@@ -41,9 +42,10 @@ export function useRecentActivity(limit: number = 50) {
         .not('user_id', 'is', null)
         .order('created_at', { ascending: false })
         .limit(15);
+      if (listingViewsError) throw listingViewsError;
 
       // Get recent saves
-      const { data: saves } = await supabase
+      const { data: saves, error: savesError } = await supabase
         .from('saved_listings')
         .select(`
           id, created_at, user_id, listing_id,
@@ -51,9 +53,10 @@ export function useRecentActivity(limit: number = 50) {
         `)
         .order('created_at', { ascending: false })
         .limit(10);
+      if (savesError) throw savesError;
 
       // Get recent connection requests
-      const { data: connections } = await supabase
+      const { data: connections, error: connectionsError } = await supabase
         .from('connection_requests')
         .select(`
           id, created_at, user_id, listing_id,
@@ -61,14 +64,16 @@ export function useRecentActivity(limit: number = 50) {
         `)
         .order('created_at', { ascending: false })
         .limit(10);
+      if (connectionsError) throw connectionsError;
 
       // Get recent searches
-      const { data: searches } = await supabase
+      const { data: searches, error: searchesError } = await supabase
         .from('search_analytics')
         .select('id, created_at, user_id, search_query, results_count')
         .not('user_id', 'is', null)
         .order('created_at', { ascending: false })
         .limit(10);
+      if (searchesError) throw searchesError;
 
       // Get user profiles for all activities
       const allUserIds = [
@@ -78,10 +83,11 @@ export function useRecentActivity(limit: number = 50) {
         ...(searches?.map(s => s.user_id) || [])
       ].filter(Boolean);
 
-      const { data: profiles } = await supabase
+      const { data: profiles, error: profilesError } = await supabase
         .from('profiles')
         .select('id, email, first_name, last_name')
         .in('id', [...new Set(allUserIds)]);
+      if (profilesError) throw profilesError;
 
       const profileMap = new Map(profiles?.map(p => [p.id, p]) || []);
 

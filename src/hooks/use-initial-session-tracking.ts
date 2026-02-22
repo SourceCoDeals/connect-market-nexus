@@ -86,7 +86,8 @@ export const useInitialSessionTracking = () => {
     const trackInitialSession = async () => {
       try {
         // Check if user is authenticated
-        const { data: { user } } = await supabase.auth.getUser();
+        const { data: { user }, error: authError } = await supabase.auth.getUser();
+        if (authError) throw authError;
         
         // Get GA4 client ID - try sync first, then async
         let ga4ClientId = getCurrentGA4ClientId();

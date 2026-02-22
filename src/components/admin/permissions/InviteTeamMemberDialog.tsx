@@ -49,11 +49,12 @@ export function InviteTeamMemberDialog({ open, onOpenChange }: InviteTeamMemberD
     setIsSubmitting(true);
     try {
       // Check if user already exists
-      const { data: existingProfile } = await supabase
+      const { data: existingProfile, error: existingProfileError } = await supabase
         .from('profiles')
         .select('id, email, is_admin')
         .eq('email', email.toLowerCase().trim())
         .maybeSingle();
+      if (existingProfileError) throw existingProfileError;
 
       if (existingProfile) {
         // User exists — promote them to the selected role

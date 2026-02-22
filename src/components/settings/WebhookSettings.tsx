@@ -44,7 +44,7 @@ export function WebhookSettings({ universeId }: WebhookSettingsProps) {
   const { data: webhooks = [], isLoading } = useQuery({
     queryKey: ['webhooks', universeId],
     queryFn: async () => {
-      // Use 'as any' since webhook_configs may not be in generated types yet
+      // webhook_configs may not be in generated types yet - using 'as never' for table name
       let query = supabase
         .from('webhook_configs' as never)
         .select('*')
@@ -63,7 +63,7 @@ export function WebhookSettings({ universeId }: WebhookSettingsProps) {
   // Add webhook mutation
   const addMutation = useMutation({
     mutationFn: async () => {
-      // Use 'as any' since webhook_configs may not be in generated types yet
+      // webhook_configs may not be in generated types yet - using 'as never' for table name
       const { error } = await supabase
         .from('webhook_configs' as never)
         .insert({
@@ -91,7 +91,7 @@ export function WebhookSettings({ universeId }: WebhookSettingsProps) {
   // Delete webhook mutation
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      // Use 'as any' since webhook_configs may not be in generated types yet
+      // webhook_configs may not be in generated types yet - using 'as never' for table name
       const { error } = await supabase
         .from('webhook_configs' as never)
         .delete()
@@ -111,7 +111,7 @@ export function WebhookSettings({ universeId }: WebhookSettingsProps) {
   // Toggle webhook enabled/disabled
   const toggleMutation = useMutation({
     mutationFn: async ({ id, enabled }: { id: string; enabled: boolean }) => {
-      // Use 'as any' since webhook_configs may not be in generated types yet
+      // webhook_configs may not be in generated types yet - using 'as never' for table name
       const { error } = await supabase
         .from('webhook_configs' as never)
         .update({ enabled })

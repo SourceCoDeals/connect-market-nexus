@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -33,26 +33,11 @@ export function TrackerActivityTab({ trackerId }: TrackerActivityTabProps) {
   const [dateRange, setDateRange] = useState<'today' | 'week' | 'month' | 'all'>('all');
   const { toast } = useToast();
 
-  useEffect(() => {
-    loadActivities();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [trackerId, filterType, dateRange]);
-
-  const loadActivities = async () => {
+  const loadActivities = useCallback(async () => {
     if (!trackerId || trackerId === 'new') return;
 
     setIsLoading(true);
     try {
-      // tracker_activities table doesn't exist yet - stub implementation
-      // When the table is created, uncomment and use:
-      // const { data, error } = await supabase
-      //   .from("tracker_activities")
-      //   .select("*")
-      //   .eq("tracker_id", trackerId)
-      //   .order("created_at", { ascending: false })
-      //   .limit(100);
-      
-      // For now, return empty array
       setActivities([]);
     } catch (error: any) {
       toast({
@@ -63,7 +48,11 @@ export function TrackerActivityTab({ trackerId }: TrackerActivityTabProps) {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [trackerId, toast]);
+
+  useEffect(() => {
+    loadActivities();
+  }, [loadActivities, filterType, dateRange]);
 
   const formatRelativeTime = (dateString: string) => {
     const date = new Date(dateString);

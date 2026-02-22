@@ -234,8 +234,7 @@ function ThreadView({
     if (thread.connection_request_id && thread.unread_count > 0) {
       markRead.mutate(thread.connection_request_id);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [thread.connection_request_id]);
+  }, [thread.connection_request_id, thread.unread_count, markRead]);
 
   // Auto-scroll to bottom
   useEffect(() => {

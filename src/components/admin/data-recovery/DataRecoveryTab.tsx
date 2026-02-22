@@ -49,22 +49,22 @@ Update your profile: {{profileLink}}
 Best regards,
 The Team`);
 
-  const buyerSpecificFields = {
-    corporate: ['estimated_revenue'],
-    privateEquity: ['fund_size', 'investment_size'],
-    familyOffice: ['fund_size', 'aum'],
-    searchFund: ['is_funded', 'target_company_size'],
-    individual: ['funding_source', 'needs_loan', 'ideal_target'],
-    independentSponsor: ['investment_size', 'geographic_focus', 'industry_expertise', 'deal_structure_preference']
-  };
-
   const missingDataAnalysis = useMemo(() => {
+    const fieldsByType: Record<string, string[]> = {
+      corporate: ['estimated_revenue'],
+      privateEquity: ['fund_size', 'investment_size'],
+      familyOffice: ['fund_size', 'aum'],
+      searchFund: ['is_funded', 'target_company_size'],
+      individual: ['funding_source', 'needs_loan', 'ideal_target'],
+      independentSponsor: ['investment_size', 'geographic_focus', 'industry_expertise', 'deal_structure_preference']
+    };
+
     const usersWithMissingData: MissingDataUser[] = [];
 
     users.forEach(user => {
       if (!user.buyer_type) return;
 
-      const requiredFields = buyerSpecificFields[user.buyer_type as keyof typeof buyerSpecificFields] || [];
+      const requiredFields = fieldsByType[user.buyer_type] || [];
       const missingFields = requiredFields.filter(field => {
         const value = user[field as keyof User];
         return !value || value === '';
@@ -90,7 +90,6 @@ The Team`);
       }
       return a.daysSinceSignup - b.daysSinceSignup;
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [users]);
 
   const analytics = useMemo(() => {

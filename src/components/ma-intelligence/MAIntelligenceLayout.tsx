@@ -43,7 +43,7 @@ export function MAIntelligenceLayout({ children }: MAIntelligenceLayoutProps) {
 
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null);
-    }).catch(() => {});
+    }).catch(() => { /* auth check failed - user not logged in */ });
 
     return () => subscription.unsubscribe();
   }, []);

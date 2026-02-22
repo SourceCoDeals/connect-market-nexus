@@ -418,7 +418,8 @@ export function DealTranscriptSection({ dealId, transcripts, isLoading, dealInfo
       const formData = new FormData();
       formData.append('file', file);
 
-      const { data: { session } } = await supabase.auth.getSession();
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      if (sessionError) throw sessionError;
 
       const response = await fetch(
         `https://vhzipqarkmmfuqadefep.supabase.co/functions/v1/parse-transcript-file`,
@@ -461,10 +462,11 @@ export function DealTranscriptSection({ dealId, transcripts, isLoading, dealInfo
         setProcessingProgress({ current: 0, total: totalFiles });
 
         // Fetch existing transcript titles to prevent duplicates
-        const { data: existing } = await supabase
+        const { data: existing, error: existingError } = await supabase
           .from('deal_transcripts')
           .select('title')
           .eq('listing_id', dealId);
+        if (existingError) throw existingError;
         const existingTitles = new Set(
           (existing || []).map(t => (t.title || '').replace(/\.(pdf|docx?|txt|vtt|srt)$/i, '').trim().toLowerCase())
         );
@@ -704,11 +706,12 @@ export function DealTranscriptSection({ dealId, transcripts, isLoading, dealInfo
     setApplyingId(transcript.id);
     try {
       // Fetch current deal data first for merging arrays
-      const { data: currentDeal } = await supabase
+      const { data: currentDeal, error: currentDealError } = await supabase
         .from('listings')
         .select('*')
         .eq('id', dealId)
         .single();
+      if (currentDealError) throw currentDealError;
 
       const currentData = currentDeal as Record<string, unknown> | null;
 
@@ -874,10 +877,11 @@ export function DealTranscriptSection({ dealId, transcripts, isLoading, dealInfo
         // STEP 1: Find all known contacts at this domain
         setFirefliesSearchInfo(`Finding all contacts at @${domain}...`);
 
-        const { data: domainContacts } = await supabase
+        const { data: domainContacts, error: domainContactsError } = await supabase
           .from('remarketing_buyer_contacts')
           .select('email, name')
           .ilike('email', `%@${domain}`);
+        if (domainContactsError) throw domainContactsError;
 
         const emailSet = new Set<string>();
         if (input.includes('@')) emailSet.add(input.toLowerCase());

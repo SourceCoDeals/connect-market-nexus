@@ -179,12 +179,13 @@ export default function BuyerDetail() {
 
     try {
       // Check if a score record exists
-      const { data: existingScore } = await supabase
+      const { data: existingScore, error: existingScoreError } = await supabase
         .from("buyer_deal_scores")
         .select("id")
         .eq("buyer_id", buyer.id)
         .eq("deal_id", dealId)
         .single();
+      if (existingScoreError) throw existingScoreError;
 
       if (existingScore) {
         // Update existing record

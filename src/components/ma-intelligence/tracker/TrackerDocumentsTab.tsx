@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -33,12 +33,7 @@ export function TrackerDocumentsTab({ trackerId }: TrackerDocumentsTabProps) {
   const [isProcessing, setIsProcessing] = useState<string | null>(null);
   const { toast } = useToast();
 
-  useEffect(() => {
-    loadDocuments();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [trackerId]);
-
-  const loadDocuments = async () => {
+  const loadDocuments = useCallback(async () => {
     if (!trackerId || trackerId === 'new') return;
 
     setIsLoading(true);
@@ -55,7 +50,11 @@ export function TrackerDocumentsTab({ trackerId }: TrackerDocumentsTabProps) {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [trackerId, toast]);
+
+  useEffect(() => {
+    loadDocuments();
+  }, [loadDocuments]);
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];

@@ -62,7 +62,13 @@ export const InteractiveCashFlowProjections: React.FC<InteractiveCashFlowProject
   };
 
   const projectionData = useMemo(() => {
-    const scenario = scenarios[selectedScenario];
+    const allScenarios: Record<string, Scenario> = {
+      conservative: { name: 'Conservative', revenueGrowth: [8, 6, 5, 4, 3], marginExpansion: 1, color: '#f59e0b' },
+      base: { name: 'Base Case', revenueGrowth: [15, 12, 10, 8, 6], marginExpansion: 2, color: '#d7b65c' },
+      optimistic: { name: 'Optimistic', revenueGrowth: [25, 20, 15, 12, 10], marginExpansion: 4, color: '#10b981' },
+      custom: { name: 'Custom', revenueGrowth: customGrowthRates, marginExpansion: marginExpansion, color: '#6366f1' },
+    };
+    const scenario = allScenarios[selectedScenario];
     const years = 5;
     const projections = [];
 
@@ -104,21 +110,20 @@ export const InteractiveCashFlowProjections: React.FC<InteractiveCashFlowProject
     }
 
     return projections;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedScenario, revenue, ebitda, currentMargin, customGrowthRates, marginExpansion]);
 
-  // Helper function to calculate IRR (simplified)
-  const calculateIRR = (cashFlows: number[], terminalValue: number): number => {
-    // Simplified IRR calculation - in practice would use iterative method
-    const totalReturn = (cashFlows.reduce((sum, cf) => sum + cf, 0) + terminalValue) / revenue;
-    return Math.pow(totalReturn, 1/5) - 1;
-  };
-
   const valuation = useMemo(() => {
+    // Helper function to calculate IRR (simplified)
+    const calculateIRR = (cashFlows: number[], terminalValue: number): number => {
+      // Simplified IRR calculation - in practice would use iterative method
+      const totalReturn = (cashFlows.reduce((sum, cf) => sum + cf, 0) + terminalValue) / revenue;
+      return Math.pow(totalReturn, 1/5) - 1;
+    };
+
     const finalYear = projectionData[projectionData.length - 1];
     const terminalValue = finalYear.ebitda * exitMultiple;
     const totalCashFlow = projectionData.slice(1).reduce((sum, year) => sum + year.freeCashFlow, 0);
-    
+
     // NPV calculation
     let npv = 0;
     projectionData.slice(1).forEach((year, index) => {
@@ -126,7 +131,7 @@ export const InteractiveCashFlowProjections: React.FC<InteractiveCashFlowProject
       const presentValue = year.freeCashFlow / Math.pow(1 + discountRate / 100, yearNum);
       npv += presentValue;
     });
-    
+
     const terminalValuePV = terminalValue / Math.pow(1 + discountRate / 100, 5);
     npv += terminalValuePV;
 
@@ -139,8 +144,7 @@ export const InteractiveCashFlowProjections: React.FC<InteractiveCashFlowProject
       irr,
       terminalValuePV
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [projectionData, exitMultiple, discountRate]);
+  }, [projectionData, exitMultiple, discountRate, revenue]);
 
 
   const formatCompactCurrency = (value: number) => {

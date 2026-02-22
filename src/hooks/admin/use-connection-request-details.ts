@@ -82,10 +82,11 @@ export function useConnectionRequestDetails(connectionRequestId?: string) {
         data.lead_fee_agreement_email_sent_by
       ].filter(Boolean) as string[];
       
-      const { data: admins } = await supabase
+      const { data: admins, error: adminsError } = await supabase
         .from('profiles')
         .select('id, email, first_name, last_name')
         .in('id', adminIds);
+      if (adminsError) throw adminsError;
       
       const adminMap = new Map(
         admins?.map(admin => [admin.id, admin]) || []

@@ -20,7 +20,8 @@ const SignupSuccess = () => {
     // Check if email is already verified (rare but possible)
     const checkEmailStatus = async () => {
       try {
-        const { data: { user } } = await supabase.auth.getUser();
+        const { data: { user }, error: authError } = await supabase.auth.getUser();
+        if (authError) throw authError;
         if (user?.email_confirmed_at) {
           setEmailVerified(true);
         }

@@ -354,10 +354,11 @@ export function useEnhancedRealTimeAnalytics() {
       // Fetch sessions for page views to get their user_ids
       let pageViewSessions: Record<string, string | null> = {};
       if (pageViewSessionIds.length > 0) {
-        const { data: pvSessions } = await supabase
+        const { data: pvSessions, error: pvSessionsError } = await supabase
           .from('user_sessions')
           .select('session_id, user_id')
           .in('session_id', pageViewSessionIds);
+        if (pvSessionsError) throw pvSessionsError;
         
         pageViewSessions = (pvSessions || []).reduce((acc, s) => {
           acc[s.session_id] = s.user_id;
@@ -373,10 +374,11 @@ export function useEnhancedRealTimeAnalytics() {
       // Fetch profiles for logged-in users with real fields
       let profiles: Record<string, ProfileRow> = {};
       if (userIds.length > 0) {
-        const { data: profileData } = await supabase
+        const { data: profileData, error: profileDataError } = await supabase
           .from('profiles')
           .select('id, first_name, last_name, company, company_name, buyer_type, job_title, fee_agreement_signed, nda_signed')
           .in('id', userIds);
+        if (profileDataError) throw profileDataError;
 
         profiles = ((profileData || []) as unknown as ProfileRow[]).reduce((acc, p) => {
           acc[p.id] = p;
@@ -387,10 +389,11 @@ export function useEnhancedRealTimeAnalytics() {
       // Fetch engagement data for users
       let engagementData: Record<string, EngagementRow> = {};
       if (userIds.length > 0) {
-        const { data: engagement } = await supabase
+        const { data: engagement, error: engagementError } = await supabase
           .from('engagement_scores')
           .select('user_id, listings_viewed, listings_saved, connections_requested, session_count, total_session_time, search_count')
           .in('user_id', userIds);
+        if (engagementError) throw engagementError;
 
         engagementData = ((engagement || []) as unknown as EngagementRow[]).reduce((acc, e) => {
           acc[e.user_id] = e;
@@ -440,10 +443,11 @@ export function useEnhancedRealTimeAnalytics() {
       }> = {};
       
       if (visitorIds.length > 0) {
-        const { data: historicalSessions } = await supabase
+        const { data: historicalSessions, error: historicalSessionsError } = await supabase
           .from('user_sessions')
           .select('visitor_id, started_at, session_duration_seconds')
           .in('visitor_id', visitorIds);
+        if (historicalSessionsError) throw historicalSessionsError;
         
         // Build visitor history map
         (historicalSessions || []).forEach(hs => {

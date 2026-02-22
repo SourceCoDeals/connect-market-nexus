@@ -21,7 +21,8 @@ export const useUpdateDealFollowup = () => {
       const dealAtField = followupType === 'positive' ? 'followed_up_at' : 'negative_followed_up_at';
       const dealByField = followupType === 'positive' ? 'followed_up_by' : 'negative_followed_up_by';
       
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      if (authError) throw authError;
       
       const { error: dealError } = await supabase
         .from('deals')
@@ -36,11 +37,12 @@ export const useUpdateDealFollowup = () => {
       if (dealError) throw dealError;
 
       // Get the connection_request_id from the deal
-      const { data: deal } = await supabase
+      const { data: deal, error: dealError2 } = await supabase
         .from('deals')
         .select('connection_request_id, contact_email')
         .eq('id', dealId)
         .single();
+      if (dealError2) throw dealError2;
 
       if (!deal?.connection_request_id) {
         return { dealUpdated: true, requestsUpdated: 0 };

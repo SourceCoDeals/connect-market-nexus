@@ -18,6 +18,7 @@ import { useDealOwnerNotifications } from '@/hooks/admin/use-deal-owner-notifica
 
 export function PipelineShell() {
   const pipeline = usePipelineCore();
+  const { deals: pipelineDeals, setSelectedDeal } = pipeline;
   const [isCreateDealModalOpen, setIsCreateDealModalOpen] = useState(false);
   const [prefilledStageId, setPrefilledStageId] = useState<string | undefined>(undefined);
   const [isStageManagementOpen, setIsStageManagementOpen] = useState(false);
@@ -80,13 +81,12 @@ export function PipelineShell() {
   // Listen for notification clicks to open deals
   React.useEffect(() => {
     const handleOpenDealFromNotification = (event: CustomEvent) => {
-      const { dealId, tab } = event.detail;
+      const { dealId } = event.detail;
       if (dealId) {
         // Find the deal
-        const deal = pipeline.deals.find(d => d.deal_id === dealId);
+        const deal = pipelineDeals.find(d => d.deal_id === dealId);
         if (deal) {
-          pipeline.setSelectedDeal(deal);
-          
+          setSelectedDeal(deal);
         } else {
           console.warn('[PipelineShell] Deal not found:', dealId);
         }
@@ -97,31 +97,28 @@ export function PipelineShell() {
     return () => {
       window.removeEventListener('open-deal-from-notification', handleOpenDealFromNotification as EventListener);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pipeline.deals, pipeline.setSelectedDeal]);
+  }, [pipelineDeals, setSelectedDeal]);
 
   // Check URL params ONCE on mount for deep linking from notifications
   React.useEffect(() => {
     // Only process URL params once to prevent re-opening on every state change
     if (hasProcessedUrlParams.current) return;
-    
+
     const urlParams = new URLSearchParams(window.location.search);
     const dealId = urlParams.get('deal');
-    const tab = urlParams.get('tab');
-    
-    if (dealId && pipeline.deals.length > 0) {
-      const deal = pipeline.deals.find(d => d.deal_id === dealId);
+
+    if (dealId && pipelineDeals.length > 0) {
+      const deal = pipelineDeals.find(d => d.deal_id === dealId);
       if (deal) {
-        pipeline.setSelectedDeal(deal);
-        
+        setSelectedDeal(deal);
+
         // Mark as processed and clear URL params immediately
         hasProcessedUrlParams.current = true;
         const newUrl = window.location.pathname;
         window.history.replaceState(null, '', newUrl);
       }
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pipeline.deals]);
+  }, [pipelineDeals, setSelectedDeal]);
 
   // Reset URL param processing flag on unmount
   React.useEffect(() => {

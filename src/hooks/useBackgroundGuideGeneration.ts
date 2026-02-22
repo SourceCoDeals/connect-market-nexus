@@ -84,7 +84,8 @@ export function useBackgroundGuideGeneration({
 
     try {
       // Gate check: register as major operation
-      const { data: sessionData } = await supabase.auth.getUser();
+      const { data: sessionData, error: authError } = await supabase.auth.getUser();
+      if (authError) throw authError;
       const { queued } = await startOrQueueMajorOp({
         operationType: 'guide_generation',
         totalItems: 14, // 14 phases

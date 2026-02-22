@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -64,40 +64,7 @@ export function EnhancedFeedbackManagement() {
   const { toast } = useToast();
   const { user } = useAuth();
 
-  useEffect(() => {
-    loadFeedbackMessages();
-    const cleanup = setupRealtimeSubscription();
-    return cleanup;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  useEffect(() => {
-    filterMessages();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [feedbackMessages, searchQuery, statusFilter, categoryFilter, priorityFilter]);
-
-  const setupRealtimeSubscription = () => {
-    const channel = supabase
-      .channel('feedback-updates')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'feedback_messages'
-        },
-        () => {
-          loadFeedbackMessages();
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  };
-
-  const loadFeedbackMessages = async () => {
+  const loadFeedbackMessages = useCallback(async () => {
     try {
       const { data: messages, error } = await supabase
         .from('feedback_messages')
@@ -147,9 +114,31 @@ export function EnhancedFeedbackManagement() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [toast]);
 
-  const filterMessages = () => {
+  useEffect(() => {
+    loadFeedbackMessages();
+    const channel = supabase
+      .channel('feedback-updates')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'feedback_messages'
+        },
+        () => {
+          loadFeedbackMessages();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [loadFeedbackMessages]);
+
+  useEffect(() => {
     let filtered = feedbackMessages;
 
     if (searchQuery) {
@@ -174,7 +163,7 @@ export function EnhancedFeedbackManagement() {
     }
 
     setFilteredMessages(filtered);
-  };
+  }, [feedbackMessages, searchQuery, statusFilter, categoryFilter, priorityFilter]);
 
   const handleSendResponse = async () => {
     if (!selectedMessage || !responseText.trim()) return;

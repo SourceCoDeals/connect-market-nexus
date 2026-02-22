@@ -306,8 +306,7 @@ function BuyerThreadView({
     if (thread.connection_request_id && thread.unread_count > 0) {
       markRead.mutate(thread.connection_request_id);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [thread.connection_request_id]);
+  }, [thread.connection_request_id, thread.unread_count, markRead]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });

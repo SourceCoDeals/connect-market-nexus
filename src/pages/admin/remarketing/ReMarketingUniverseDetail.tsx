@@ -270,7 +270,7 @@ const ReMarketingUniverseDetail = () => {
     queryFn: async () => {
       if (isNew) return [];
       
-      const result = await (supabase as any)
+      const result = await supabase
         .from('remarketing_universe_deals')
         .select(`
           id,
@@ -362,7 +362,7 @@ const ReMarketingUniverseDetail = () => {
       setMaGuideContent(universe.ma_guide_content || '');
       
       // Load saved target buyer types from DB, fall back to defaults if empty
-      const savedBuyerTypes = (universe as any).target_buyer_types as TargetBuyerTypeConfig[];
+      const savedBuyerTypes = universe.target_buyer_types as TargetBuyerTypeConfig[] | null;
       if (savedBuyerTypes && savedBuyerTypes.length > 0) {
         setTargetBuyerTypes(savedBuyerTypes);
       }
@@ -597,11 +597,12 @@ const ReMarketingUniverseDetail = () => {
     const newStatus = !currentStatus;
 
     // Fetch the buyer to get website/firm info for marketplace bridging
-    const { data: buyer } = await supabase
+    const { data: buyer, error: buyerError } = await supabase
       .from('remarketing_buyers')
       .select('id, company_name, company_website, pe_firm_name, pe_firm_website, buyer_type')
       .eq('id', buyerId)
-      .single() as any;
+      .single();
+    if (buyerError) throw buyerError;
 
     if (!buyer) {
       toast.error('Buyer not found');
@@ -618,18 +619,19 @@ const ReMarketingUniverseDetail = () => {
         const firmWebsite = buyer.pe_firm_website || buyer.company_website;
 
         if (firmName) {
-          const { data: createdFirmId } = await supabase.rpc('get_or_create_firm', {
+          const { data: createdFirmId, error: createdFirmIdError } = await supabase.rpc('get_or_create_firm', {
             p_company_name: firmName,
             p_website: firmWebsite,
             p_email: null,
           });
+          if (createdFirmIdError) throw createdFirmIdError;
 
           if (createdFirmId) {
             firmId = createdFirmId;
             // Link the buyer to the marketplace firm
             await supabase
               .from('remarketing_buyers')
-              .update({ marketplace_firm_id: firmId } as any)
+              .update({ marketplace_firm_id: firmId })
               .eq('id', buyerId);
           }
         }
@@ -651,7 +653,7 @@ const ReMarketingUniverseDetail = () => {
         .update({
           has_fee_agreement: true,
           fee_agreement_source: firmId ? 'marketplace_synced' : 'manual_override',
-        } as any)
+        })
         .eq('id', buyerId);
 
       if (error) {
@@ -672,7 +674,7 @@ const ReMarketingUniverseDetail = () => {
         .update({
           has_fee_agreement: false,
           fee_agreement_source: null,
-        } as any)
+        })
         .eq('id', buyerId);
 
       if (error) {
@@ -1141,7 +1143,7 @@ const ReMarketingUniverseDetail = () => {
                   // Add the auto-generated guide document to the documents list
                   setDocuments(prev => {
                     // Remove any existing auto-generated guide to avoid duplicates
-                    const filtered = prev.filter(d => !(d as any).type || (d as any).type !== 'ma_guide');
+                    const filtered = prev.filter(d => !d.type || d.type !== 'ma_guide');
                     return [...filtered, doc];
                   });
                 }}
@@ -1456,10 +1458,11 @@ const ReMarketingUniverseDetail = () => {
             
             // Auto-score new buyers against all deals in universe
             if (id) {
-              const { data: deals } = await supabase
+              const { data: deals, error: dealsError } = await supabase
                 .from('remarketing_universe_deals')
                 .select('listing_id')
                 .eq('universe_id', id);
+              if (dealsError) throw dealsError;
               if (deals && deals.length > 0) {
                 const { queueDealScoring } = await import("@/lib/remarketing/queueScoring");
                 await queueDealScoring({ universeId: id!, listingIds: deals.map(d => d.listing_id) });

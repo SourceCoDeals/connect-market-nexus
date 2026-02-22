@@ -171,7 +171,8 @@ export function DealBuyerChat({
     abortControllerRef.current = new AbortController();
 
     try {
-      const { data: sessionData } = await supabase.auth.getSession();
+      const { data: sessionData, error: authError } = await supabase.auth.getSession();
+      if (authError) throw authError;
       if (!sessionData.session) {
         throw new Error("You must be logged in to use chat");
       }

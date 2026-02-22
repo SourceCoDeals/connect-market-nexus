@@ -136,10 +136,11 @@ export const AddDealDialog = ({
     queryKey: ['existing-remarketing-deal-ids'],
     queryFn: async () => {
       // Get all listing IDs that have scores or are internal deals
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('listings')
         .select('id')
         .eq('is_internal_deal', true);
+      if (error) throw error;
       return new Set((data || []).map(d => d.id));
     },
     enabled: open && activeTab === "marketplace",
@@ -266,17 +267,19 @@ export const AddDealDialog = ({
 
   const createDealMutation = useMutation({
     mutationFn: async () => {
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      if (authError) throw authError;
 
       // Check for duplicate deal by website domain
       const websiteUrl = formData.website?.trim();
       if (websiteUrl) {
         const normalizedInput = normalizeDomain(websiteUrl);
         if (normalizedInput) {
-          const { data: existingListings } = await supabase
+          const { data: existingListings, error: existingListingsError } = await supabase
             .from("listings")
             .select("id, title, internal_company_name, website")
             .not("website", "is", null);
+          if (existingListingsError) throw existingListingsError;
 
           const duplicate = existingListings?.find(
             (l) => l.website && normalizeDomain(l.website) === normalizedInput

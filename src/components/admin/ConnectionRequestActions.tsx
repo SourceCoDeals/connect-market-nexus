@@ -73,13 +73,14 @@ export function ConnectionRequestActions({
     queryKey: ["buyer-access", listing?.id, user.id],
     queryFn: async () => {
       if (!listing?.id) return null;
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from("data_room_access")
         .select("id, can_view_teaser, can_view_full_memo, can_view_data_room")
         .eq("deal_id", listing.id)
         .eq("marketplace_user_id", user.id)
         .is("revoked_at", null)
         .maybeSingle();
+      if (error) throw error;
       return data;
     },
     enabled: !!listing?.id,
@@ -481,8 +482,7 @@ function CompactMessageThread({
     if (connectionRequestId) {
       markRead.mutate(connectionRequestId);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [connectionRequestId, messages.length]);
+  }, [connectionRequestId, messages.length, markRead]);
 
   // Auto-scroll to bottom
   useEffect(() => {

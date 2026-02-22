@@ -132,7 +132,8 @@ export default function GlobalApprovalsPage() {
       reason: string;
       sendEmail: boolean;
     }) => {
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      if (authError) throw authError;
       const { error } = await supabase
         .from('marketplace_approval_queue')
         .update({

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -103,29 +103,7 @@ export function BuyerContactsTab({ buyerId }: BuyerContactsTabProps) {
     notes: "",
   });
 
-  useEffect(() => {
-    loadContacts();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [buyerId]);
-
-  useEffect(() => {
-    if (!searchQuery) {
-      setFilteredContacts(contacts);
-      return;
-    }
-
-    const query = searchQuery.toLowerCase();
-    const filtered = contacts.filter(
-      (contact) =>
-        contact.name.toLowerCase().includes(query) ||
-        contact.title?.toLowerCase().includes(query) ||
-        contact.email?.toLowerCase().includes(query) ||
-        contact.company_type?.toLowerCase().includes(query)
-    );
-    setFilteredContacts(filtered);
-  }, [searchQuery, contacts]);
-
-  const loadContacts = async () => {
+  const loadContacts = useCallback(async () => {
     try {
       const { data, error } = await supabase
         .from("buyer_contacts")
@@ -145,7 +123,28 @@ export function BuyerContactsTab({ buyerId }: BuyerContactsTabProps) {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [buyerId, toast]);
+
+  useEffect(() => {
+    loadContacts();
+  }, [loadContacts]);
+
+  useEffect(() => {
+    if (!searchQuery) {
+      setFilteredContacts(contacts);
+      return;
+    }
+
+    const query = searchQuery.toLowerCase();
+    const filtered = contacts.filter(
+      (contact) =>
+        contact.name.toLowerCase().includes(query) ||
+        contact.title?.toLowerCase().includes(query) ||
+        contact.email?.toLowerCase().includes(query) ||
+        contact.company_type?.toLowerCase().includes(query)
+    );
+    setFilteredContacts(filtered);
+  }, [searchQuery, contacts]);
 
   const handleAddContact = async () => {
     if (!formData.name || !formData.email) {

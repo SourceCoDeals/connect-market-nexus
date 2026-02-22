@@ -167,6 +167,7 @@ export interface Listing {
   categories: string[]; // Array of categories
   category: string; // Keep for backward compatibility
   acquisition_type?: 'add_on' | 'platform' | string | null;
+  executive_summary?: string | null;
   location: string;
   revenue: number;
   ebitda: number;

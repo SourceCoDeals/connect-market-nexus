@@ -256,21 +256,23 @@ export function CreateDealModal({ open, onOpenChange, prefilledStageId, onDealCr
       if (connectionRequestId && data.contact_company) {
         try {
           // Find profiles with this company
-          const { data: companyProfiles } = await supabase
+          const { data: companyProfiles, error: companyProfilesError } = await supabase
             .from('profiles')
             .select('id')
             .eq('company', data.contact_company)
             .eq('approval_status', 'approved');
+          if (companyProfilesError) throw companyProfilesError;
           
           if (companyProfiles && companyProfiles.length > 0) {
             const userIds = companyProfiles.map(p => p.id);
             
             // Find other connection requests from users in this company OR with same company name
-            const { data: sameCompanyRequests } = await supabase
+            const { data: sameCompanyRequests, error: sameCompanyRequestsError } = await supabase
               .from('connection_requests')
               .select('id')
               .neq('id', connectionRequestId)
               .or(`user_id.in.(${userIds.join(',')}),lead_company.eq.${data.contact_company}`);
+            if (sameCompanyRequestsError) throw sameCompanyRequestsError;
             
             if (sameCompanyRequests && sameCompanyRequests.length > 0) {
               // Create bidirectional associations

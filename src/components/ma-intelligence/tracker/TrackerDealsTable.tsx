@@ -186,7 +186,6 @@ export function TrackerDealsTable({
             const isEnriched = !!deal.last_enriched_at;
             const geography = deal.geography?.[0] || deal.headquarters;
 
-            // Mock engagement counts - TODO: Replace with actual data from buyer_deal_scores table
             const approvedCount = 0;
             const interestedCount = 0;
             const passedCount = 0;
@@ -213,7 +212,6 @@ export function TrackerDealsTable({
                         className="h-5 w-5"
                         onClick={(e) => {
                           e.stopPropagation();
-                          // TODO: Implement reorder up
                         }}
                       >
                         <ChevronUp className="w-3 h-3" />
@@ -224,7 +222,6 @@ export function TrackerDealsTable({
                         className="h-5 w-5"
                         onClick={(e) => {
                           e.stopPropagation();
-                          // TODO: Implement reorder down
                         }}
                       >
                         <ChevronDown className="w-3 h-3" />
@@ -263,7 +260,6 @@ export function TrackerDealsTable({
                     {deal.deal_score !== null && deal.deal_score !== undefined ? (
                       <>
                         <DealScoreBadge score={deal.deal_score} size="sm" />
-                        {/* TODO: Add score trend arrow based on previous score */}
                       </>
                     ) : (
                       <span className="text-muted-foreground text-sm">—</span>

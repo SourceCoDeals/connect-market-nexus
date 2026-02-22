@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import {
   Dialog,
@@ -76,8 +76,9 @@ export const EmailPreviewDialog = ({
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isGenerating, setIsGenerating] = useState(false);
 
+  const generateAllEmailsRef = useRef<() => Promise<void>>();
+
   // Initialize emails when dialog opens
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (open && buyers.length > 0) {
       setEmails(buyers.map(b => ({
@@ -90,7 +91,7 @@ export const EmailPreviewDialog = ({
         isLoading: true,
       })));
       setCurrentIndex(0);
-      generateAllEmails();
+      generateAllEmailsRef.current?.();
     }
   }, [open, buyers]);
 
@@ -146,6 +147,7 @@ export const EmailPreviewDialog = ({
     
     setIsGenerating(false);
   };
+  generateAllEmailsRef.current = generateAllEmails;
 
   const regenerateEmail = async (index: number) => {
     const buyer = buyers[index];

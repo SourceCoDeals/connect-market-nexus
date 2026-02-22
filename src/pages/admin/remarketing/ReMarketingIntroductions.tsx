@@ -119,12 +119,13 @@ const ReMarketingIntroductions = () => {
       value: any;
     }) => {
       // Check if record exists
-      const { data: existing } = await supabase
+      const { data: existing, error: existingError } = await supabase
         .from('outreach_records')
         .select('id')
         .eq('listing_id', listingId)
         .eq('buyer_id', buyerId)
         .single();
+      if (existingError) throw existingError;
 
       const updates: Record<string, any> = {
         [field]: value,

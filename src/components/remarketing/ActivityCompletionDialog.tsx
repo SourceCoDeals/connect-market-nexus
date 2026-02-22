@@ -76,11 +76,12 @@ export function ActivityCompletionDialog() {
       // Small delay to let any in-flight DB updates settle, then fetch fresh data
       const timer = setTimeout(async () => {
         try {
-          const { data } = await supabase
+          const { data, error } = await supabase
             .from("global_activity_queue")
             .select("*")
             .eq("id", latestId)
             .maybeSingle();
+          if (error) throw error;
           if (data) {
             setCompletedItem(data as unknown as GlobalActivityQueueItem);
           } else {

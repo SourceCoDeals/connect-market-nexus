@@ -51,7 +51,8 @@ export async function saveConversation(
   options: SaveConversationOptions
 ): Promise<{ success: boolean; conversationId?: string; error?: string }> {
   try {
-    const { data: { user } } = await supabase.auth.getUser();
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError) throw authError;
     if (!user) {
       return { success: false, error: 'User not authenticated' };
     }
@@ -103,7 +104,8 @@ export async function loadConversationsByContext(
   limit: number = 10
 ): Promise<{ success: boolean; conversations?: Conversation[]; error?: string }> {
   try {
-    const { data: { user } } = await supabase.auth.getUser();
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError) throw authError;
     if (!user) {
       return { success: false, error: 'User not authenticated' };
     }
@@ -143,7 +145,8 @@ export async function loadConversationById(
   conversationId: string
 ): Promise<{ success: boolean; conversation?: Conversation; error?: string }> {
   try {
-    const { data: { user } } = await supabase.auth.getUser();
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError) throw authError;
     if (!user) {
       return { success: false, error: 'User not authenticated' };
     }
@@ -171,7 +174,8 @@ export async function archiveConversation(
   conversationId: string
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    const { data: { user } } = await supabase.auth.getUser();
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError) throw authError;
     if (!user) {
       return { success: false, error: 'User not authenticated' };
     }
@@ -198,7 +202,8 @@ export async function getRecentConversations(
   limit: number = 10
 ): Promise<{ success: boolean; conversations?: Conversation[]; error?: string }> {
   try {
-    const { data: { user } } = await supabase.auth.getUser();
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError) throw authError;
     if (!user) {
       return { success: false, error: 'User not authenticated' };
     }
@@ -239,7 +244,8 @@ export async function getConversationStats(): Promise<{
   error?: string;
 }> {
   try {
-    const { data: { user } } = await supabase.auth.getUser();
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError) throw authError;
     if (!user) {
       return { success: false, error: 'User not authenticated' };
     }

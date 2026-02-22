@@ -207,7 +207,8 @@ function DealEnrichSection({ addLog }: { addLog: (m: string, d?: number, ok?: bo
     const t0 = Date.now();
     try {
       // Fetch before
-      const { data: bData } = await supabase.from("listings").select("*").eq("id", dealId).single();
+      const { data: bData, error: bDataError } = await supabase.from("listings").select("*").eq("id", dealId).single();
+      if (bDataError) throw bDataError;
       setBefore(bData as Record<string, unknown> | null);
 
       // Call enrich-deal
@@ -224,7 +225,8 @@ function DealEnrichSection({ addLog }: { addLog: (m: string, d?: number, ok?: bo
       setResponse(data);
 
       // Fetch after
-      const { data: aData } = await supabase.from("listings").select("*").eq("id", dealId).single();
+      const { data: aData, error: aDataError } = await supabase.from("listings").select("*").eq("id", dealId).single();
+      if (aDataError) throw aDataError;
       setAfter(aData as Record<string, unknown> | null);
 
       const fieldsUpdated = data?.fieldsUpdated?.length ?? 0;
@@ -315,7 +317,8 @@ function BuyerEnrichSection({ addLog }: { addLog: (m: string, d?: number, ok?: b
     setAfter(null);
     const t0 = Date.now();
     try {
-      const { data: bData } = await supabase.from("buyers").select("*").eq("id", buyerId).single();
+      const { data: bData, error: bDataError } = await supabase.from("buyers").select("*").eq("id", buyerId).single();
+      if (bDataError) throw bDataError;
       setBefore(bData as Record<string, unknown> | null);
 
       const controller = new AbortController();
@@ -334,7 +337,8 @@ function BuyerEnrichSection({ addLog }: { addLog: (m: string, d?: number, ok?: b
       }
       setResponse(data);
 
-      const { data: aData } = await supabase.from("buyers").select("*").eq("id", buyerId).single();
+      const { data: aData, error: aDataError } = await supabase.from("buyers").select("*").eq("id", buyerId).single();
+      if (aDataError) throw aDataError;
       setAfter(aData as Record<string, unknown> | null);
 
       addLog(
@@ -409,17 +413,19 @@ function ProvenanceSection({ addLog }: { addLog: (m: string, d?: number, ok?: bo
     const t0 = Date.now();
     try {
       // Fetch before values
-      const { data: bData } = await supabase.from("listings").select("*").eq("id", dealId).single();
+      const { data: bData, error: bDataError } = await supabase.from("listings").select("*").eq("id", dealId).single();
+      if (bDataError) throw bDataError;
       if (!bData) throw new Error("Deal not found");
 
       // Fetch extraction sources
       // extraction_sources table is not in generated Supabase types;
       // use type assertion on the untyped table name
       type UntypedTable = Parameters<typeof supabase.from>[0];
-      const { data: srcData } = await supabase
+      const { data: srcData, error: srcDataError } = await supabase
         .from("extraction_sources" as UntypedTable)
         .select("*")
         .eq("listing_id", dealId);
+      if (srcDataError) throw srcDataError;
       const sourceMap: Record<string, string> = {};
       if (Array.isArray(srcData)) {
         (srcData as Array<Record<string, unknown>>).forEach((s) => {
@@ -439,7 +445,8 @@ function ProvenanceSection({ addLog }: { addLog: (m: string, d?: number, ok?: bo
       }
 
       // Fetch after
-      const { data: aData } = await supabase.from("listings").select("*").eq("id", dealId).single();
+      const { data: aData, error: aDataError } = await supabase.from("listings").select("*").eq("id", dealId).single();
+      if (aDataError) throw aDataError;
 
       setResults({
         before: bData as Record<string, unknown>,
@@ -550,11 +557,12 @@ function ScoringSection({ addLog }: { addLog: (m: string, d?: number, ok?: boole
       }
       setResponse(data);
 
-      const { data: listing } = await supabase
+      const { data: listing, error: listingError } = await supabase
         .from("listings")
         .select("deal_total_score, deal_size_score")
         .eq("id", dealId)
         .single();
+      if (listingError) throw listingError;
       setScores(listing);
       addLog(`calculate-deal-quality for ${dealId.slice(0, 8)}… (score: ${listing?.deal_total_score ?? "—"})`, dur);
     } catch (e: any) {

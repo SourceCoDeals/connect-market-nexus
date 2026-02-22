@@ -40,31 +40,34 @@ export const useSessionEvents = (sessionId: string | null, userId: string | null
       if (!sessionId || !userId) return null;
 
       // Fetch session metadata from user_initial_session
-      const { data: sessionMetadata } = await supabase
+      const { data: sessionMetadata, error: sessionMetadataError } = await supabase
         .from("user_initial_session")
         .select("referrer, full_referrer, utm_source, utm_medium, utm_campaign, marketing_channel, device_type, browser, landing_page")
         .eq("session_id", sessionId)
         .eq("user_id", userId)
         .maybeSingle();
+      if (sessionMetadataError) throw sessionMetadataError;
 
       // Fetch page views
-      const { data: pageViews } = await supabase
+      const { data: pageViews, error: pageViewsError } = await supabase
         .from("page_views")
         .select("*")
         .eq("session_id", sessionId)
         .eq("user_id", userId)
         .order("created_at", { ascending: true });
+      if (pageViewsError) throw pageViewsError;
 
       // Fetch user events
-      const { data: userEvents } = await supabase
+      const { data: userEvents, error: userEventsError } = await supabase
         .from("user_events")
         .select("*")
         .eq("session_id", sessionId)
         .eq("user_id", userId)
         .order("created_at", { ascending: true });
+      if (userEventsError) throw userEventsError;
 
       // Fetch listing analytics with listing titles
-      const { data: listingAnalytics } = await supabase
+      const { data: listingAnalytics, error: listingAnalyticsError } = await supabase
         .from("listing_analytics")
         .select(`
           *,
@@ -75,6 +78,7 @@ export const useSessionEvents = (sessionId: string | null, userId: string | null
         .eq("session_id", sessionId)
         .eq("user_id", userId)
         .order("created_at", { ascending: true });
+      if (listingAnalyticsError) throw listingAnalyticsError;
 
       // Combine all events
       const allEvents: SessionEvent[] = [];

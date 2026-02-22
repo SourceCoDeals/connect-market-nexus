@@ -45,10 +45,11 @@ export default function MATrackers() {
   }, []);
 
   const loadTrackers = async () => {
-    const { data: trackersData } = await supabase
+    const { data: trackersData, error: trackersDataError } = await supabase
       .from("industry_trackers")
       .select("*")
       .order("updated_at", { ascending: false });
+    if (trackersDataError) throw trackersDataError;
 
     const withStats = await Promise.all(
       (trackersData || []).map(async (tracker) => {

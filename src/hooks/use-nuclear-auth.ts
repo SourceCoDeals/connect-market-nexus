@@ -26,24 +26,23 @@ export function useNuclearAuth() {
     // Simple session check with self-healing for missing profiles
     const checkSession = async () => {
       try {
-        const { data: { session } } = await supabase.auth.getSession();
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+        if (sessionError) throw sessionError;
         
         if (!isMounted) return;
         
         if (session?.user) {
           // Fetch profile data directly
-          // eslint-disable-next-line prefer-const
-          let { data: profile, error: profileError } = await supabase
+          const { data: fetchedProfile, error: profileError } = await supabase
             .from('profiles')
             .select('*')
             .eq('id', session.user.id)
             .single();
 
           // Self-healing: if profile missing, create one from auth metadata
-          if (!profile && (profileError?.code === 'PGRST116' || !profileError)) {
-            const newProfile = await selfHealProfile(session.user);
-            if (newProfile) profile = newProfile;
-          }
+          const profile = (!fetchedProfile && (profileError?.code === 'PGRST116' || !profileError))
+            ? await selfHealProfile(session.user)
+            : fetchedProfile;
 
           if (profile && isMounted) {
             const appUser = createUserObject(profile);
@@ -354,14 +353,16 @@ export function useNuclearAuth() {
     if (error) throw error;
     
     // Simple refresh
-    const { data: { session } } = await supabase.auth.getSession();
+    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+    if (sessionError) throw sessionError;
     if (session?.user) {
-      const { data: profile } = await supabase
+      const { data: profile, error: profileError } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', session.user.id)
         .single();
-        
+      if (profileError) throw profileError;
+
       if (profile) {
         // Update user state with new data
         const updatedUser = createUserObject(profile);
@@ -371,13 +372,15 @@ export function useNuclearAuth() {
   };
 
   const refreshUserProfile = async () => {
-    const { data: { session } } = await supabase.auth.getSession();
+    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+    if (sessionError) throw sessionError;
     if (session?.user) {
-      const { data: profile } = await supabase
+      const { data: profile, error: profileError } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', session.user.id)
         .single();
+      if (profileError) throw profileError;
       if (profile) {
         const updatedUser = createUserObject(profile);
         setUser(updatedUser);

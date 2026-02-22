@@ -65,7 +65,7 @@ function CurrentOperationCard({ item }: { item: GlobalActivityQueueItem }) {
     ? Math.round(((item.completed_items + item.failed_items) / item.total_items) * 100)
     : 0;
   const label = OPERATION_TYPE_LABELS[item.operation_type] || item.operation_type;
-  const userName = (item.profiles as any)?.full_name || "Unknown";
+  const userName = (item.profiles as { full_name?: string } | null)?.full_name || "Unknown";
   const eta = estimateETA(item);
   const rate = item.started_at && item.completed_items > 0
     ? (item.completed_items / ((Date.now() - new Date(item.started_at).getTime()) / 60000)).toFixed(1)
@@ -165,7 +165,7 @@ function ErrorLogSection({ errorLog, failedCount }: { errorLog: GlobalActivityEr
 
 function HistoryRow({ item }: { item: GlobalActivityQueueItem }) {
   const label = OPERATION_TYPE_LABELS[item.operation_type] || item.operation_type;
-  const userName = (item.profiles as any)?.full_name || "Unknown";
+  const userName = (item.profiles as { full_name?: string } | null)?.full_name || "Unknown";
   const [open, setOpen] = useState(false);
   const hasErrors = item.failed_items > 0 && Array.isArray(item.error_log) && item.error_log.length > 0;
 
@@ -280,7 +280,7 @@ export default function ReMarketingActivityQueue() {
           <CardContent className="space-y-2">
             {queuedOps.map((op, i) => {
               const label = OPERATION_TYPE_LABELS[op.operation_type] || op.operation_type;
-              const userName = (op.profiles as any)?.full_name || "Unknown";
+              const userName = (op.profiles as { full_name?: string } | null)?.full_name || "Unknown";
               return (
                 <div key={op.id} className="flex items-center gap-3 py-2 px-3 rounded-md bg-muted/30">
                   <span className="text-sm font-mono text-muted-foreground w-6">#{i + 1}</span>

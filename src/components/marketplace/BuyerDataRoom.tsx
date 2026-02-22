@@ -95,7 +95,8 @@ export function BuyerDataRoom({ dealId }: BuyerDataRoomProps) {
   const handleViewDocument = async (docId: string) => {
     setLoadingDoc(docId);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      if (sessionError) throw sessionError;
       if (!session) return;
 
       const response = await fetch(
@@ -115,7 +116,8 @@ export function BuyerDataRoom({ dealId }: BuyerDataRoomProps) {
   const handleDownloadDocument = async (docId: string) => {
     setLoadingDoc(docId);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      if (sessionError) throw sessionError;
       if (!session) return;
 
       const response = await fetch(

@@ -276,11 +276,12 @@ export function useUpdateDealStage() {
     }) => {
       // If not skipping owner check, verify ownership first
       if (!skipOwnerCheck && currentAdminId) {
-        const { data: dealData } = await supabase
+        const { data: dealData, error: dealDataError } = await supabase
           .from('deals')
           .select('assigned_to, title, assigned_admin:profiles!deals_assigned_to_fkey(first_name, last_name)')
           .eq('id', dealId)
           .single();
+        if (dealDataError) throw dealDataError;
 
         // Check if someone else owns this deal
         if (dealData?.assigned_to && dealData.assigned_to !== currentAdminId) {
@@ -350,12 +351,14 @@ export function useUpdateDealStage() {
         if (deal && result.previous_owner_id && result.previous_owner_name) {
           try {
             // Get current admin info
-            const { data: { user } } = await supabase.auth.getUser();
-            const { data: currentAdmin } = await supabase
+            const { data: { user }, error: authError } = await supabase.auth.getUser();
+            if (authError) throw authError;
+            const { data: currentAdmin, error: currentAdminError } = await supabase
               .from('profiles')
               .select('first_name, last_name')
               .eq('id', user?.id)
               .single();
+            if (currentAdminError) throw currentAdminError;
             
             const currentAdminName = currentAdmin 
               ? `${currentAdmin.first_name} ${currentAdmin.last_name}`.trim()
@@ -391,11 +394,12 @@ export function useUpdateDealStage() {
         if (deal && deal.listing_id) {
           try {
             // Get deal owner info
-            const { data: ownerData } = await supabase
+            const { data: ownerData, error: ownerDataError } = await supabase
               .from('profiles')
               .select('first_name, last_name, email')
               .eq('id', deal.assigned_to)
               .single();
+            if (ownerDataError) throw ownerDataError;
 
             const dealOwnerName = ownerData 
               ? `${ownerData.first_name} ${ownerData.last_name}`.trim()
@@ -488,7 +492,8 @@ export function useUpdateDeal() {
       const isOwnerChangeOnly = updates.assigned_to !== undefined && Object.keys(updates).length === 1;
       
       if (isOwnerChangeOnly) {
-        const { data: { user } } = await supabase.auth.getUser();
+        const { data: { user }, error: authError } = await supabase.auth.getUser();
+        if (authError) throw authError;
         if (!user) throw new Error('Not authenticated');
 
         const { data, error } = await supabase.rpc('update_deal_owner' as 'get_stage_deal_count', {
@@ -612,12 +617,14 @@ export function useUpdateDeal() {
           
           if (deal) {
             // Get current admin info
-            const { data: { user } } = await supabase.auth.getUser();
-            const { data: currentAdmin } = await supabase
+            const { data: { user }, error: authError } = await supabase.auth.getUser();
+            if (authError) throw authError;
+            const { data: currentAdmin, error: currentAdminError } = await supabase
               .from('profiles')
               .select('first_name, last_name, email')
               .eq('id', user?.id)
               .single();
+            if (currentAdminError) throw currentAdminError;
             
             const currentAdminName = currentAdmin 
               ? `${currentAdmin.first_name} ${currentAdmin.last_name}`.trim()

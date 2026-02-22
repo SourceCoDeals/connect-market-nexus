@@ -21,7 +21,8 @@ export function useUserNotifications() {
   const query = useQuery({
     queryKey: ['user-notifications'],
     queryFn: async () => {
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      if (authError) throw authError;
       if (!user) return [];
 
       const { data, error } = await supabase
@@ -42,7 +43,8 @@ export function useUserNotifications() {
     let channel: ReturnType<typeof supabase.channel> | null = null;
 
     const setup = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      if (authError) throw authError;
       if (!user || cancelled) return;
 
       channel = supabase
@@ -119,7 +121,8 @@ export function useMarkRequestNotificationsAsRead() {
 
   return useMutation({
     mutationFn: async (connectionRequestId: string) => {
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      if (authError) throw authError;
       if (!user) throw new Error('Not authenticated');
 
       const { error } = await supabase

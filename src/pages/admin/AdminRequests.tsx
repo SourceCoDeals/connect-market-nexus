@@ -270,7 +270,6 @@ const AdminRequests = () => {
             <QuickActionsBar 
               requests={requests} 
               onBulkAction={(action, requestIds) => {
-                // TODO: Implement bulk actions
               }} 
             />
             

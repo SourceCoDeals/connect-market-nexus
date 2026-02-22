@@ -74,12 +74,13 @@ export function useGlobalGateCheck() {
   const queryClient = useQueryClient();
 
   const checkGate = useCallback(async (): Promise<GlobalActivityQueueItem | null> => {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("global_activity_queue")
       .select("*")
       .eq("classification", "major")
       .in("status", ["running", "paused"])
       .limit(1);
+    if (error) throw error;
     if (data && data.length > 0) {
       const item = data[0] as unknown as GlobalActivityQueueItem;
 
@@ -214,11 +215,12 @@ export function useGlobalActivityMutations() {
       if (params.failedItems !== undefined) updates.failed_items = params.failedItems;
 
       if (params.errorEntry) {
-        const { data: current } = await supabase
+        const { data: current, error: fetchError } = await supabase
           .from("global_activity_queue")
           .select("error_log")
           .eq("id", params.id)
           .single();
+        if (fetchError) throw fetchError;
         const log = Array.isArray(current?.error_log) ? current.error_log : [];
         log.push({ ...params.errorEntry, timestamp: new Date().toISOString() });
         updates.error_log = log;

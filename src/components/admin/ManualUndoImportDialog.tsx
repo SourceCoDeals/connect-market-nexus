@@ -69,10 +69,11 @@ export function ManualUndoImportDialog({ isOpen, onClose }: ManualUndoImportDial
 
       // Get admin names
       const adminIds = [...new Set(auditLogs?.map(log => log.admin_id).filter(Boolean) || [])];
-      const { data: adminProfiles } = await supabase
+      const { data: adminProfiles, error: adminProfilesError } = await supabase
         .from('profiles')
         .select('id, first_name, last_name, email')
         .in('id', adminIds);
+      if (adminProfilesError) throw adminProfilesError;
 
       const adminMap = new Map(
         adminProfiles?.map(p => [p.id, `${p.first_name || ''} ${p.last_name || ''}`.trim() || p.email]) || []
@@ -80,10 +81,11 @@ export function ManualUndoImportDialog({ isOpen, onClose }: ManualUndoImportDial
 
       // Get listing titles
       const listingIds = [...new Set(auditLogs?.map(log => (log.metadata as Record<string, unknown>)?.listing_id as string).filter(Boolean) || [])];
-      const { data: listings } = await supabase
+      const { data: listings, error: listingsError } = await supabase
         .from('listings')
         .select('id, title')
         .in('id', listingIds);
+      if (listingsError) throw listingsError;
 
       const listingMap = new Map(listings?.map(l => [l.id, l.title]) || []);
 
@@ -181,7 +183,8 @@ export function ManualUndoImportDialog({ isOpen, onClose }: ManualUndoImportDial
       if (deleteError) throw deleteError;
 
       // Log the manual cleanup
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      if (authError) throw authError;
       if (user) {
         await supabase.from('audit_logs').insert({
           table_name: 'connection_requests',

@@ -50,11 +50,12 @@ export const AgreementToggle = ({ user, type, checked }: AgreementToggleProps) =
         }
 
         if (signerId) {
-          const { data: profile } = await supabase
+          const { data: profile, error: profileError } = await supabase
             .from('profiles')
             .select('first_name, last_name')
             .eq('id', signerId)
             .single();
+          if (profileError) throw profileError;
 
           if (profile) {
             const fullName = [profile.first_name, profile.last_name].filter(Boolean).join(' ');
@@ -153,11 +154,12 @@ export const AgreementToggle = ({ user, type, checked }: AgreementToggleProps) =
     // Checking - need to select signer if firm exists
     if (user.firm_id) {
       // Fetch firm members
-      const { data: members } = await supabase
+      const { data: members, error: membersError } = await supabase
         .from('firm_members')
         .select('user_id, profiles(id, first_name, last_name)')
         .eq('firm_id', user.firm_id)
         .not('user_id', 'is', null);
+      if (membersError) throw membersError;
 
       if (members && members.length > 0) {
         setFirmMembers(members);

@@ -367,10 +367,11 @@ export function useUnifiedAnalytics(timeRangeDays: number = 30, filters: Analyti
       
       let allProfilesForUsers: Array<{ id: string; first_name: string | null; last_name: string | null; company: string | null }> = [];
       if (allUserIdsFromSessions.size > 0) {
-        const { data: allProfilesData } = await supabase
+        const { data: allProfilesData, error: allProfilesError } = await supabase
           .from('profiles')
           .select('id, first_name, last_name, company')
           .in('id', Array.from(allUserIdsFromSessions));
+        if (allProfilesError) throw allProfilesError;
         allProfilesForUsers = allProfilesData || [];
       }
       
@@ -409,13 +410,14 @@ export function useUnifiedAnalytics(timeRangeDays: number = 30, filters: Analyti
       };
       let firstSessions: FirstSessionData[] = [];
       if (profileIds.length > 0) {
-        const { data: firstSessionsData } = await supabase
+        const { data: firstSessionsData, error: firstSessionsError } = await supabase
           .from('user_sessions')
           .select('id, session_id, user_id, visitor_id, referrer, original_external_referrer, blog_landing_page, utm_source, utm_medium, utm_campaign, utm_term, country, city, region, browser, os, device_type, started_at, user_agent')
           .eq('is_bot', false)
           .eq('is_production', true)
           .in('user_id', profileIds)
           .order('started_at', { ascending: true });
+        if (firstSessionsError) throw firstSessionsError;
         firstSessions = firstSessionsData || [];
       }
       
@@ -786,13 +788,14 @@ export function useUnifiedAnalytics(timeRangeDays: number = 30, filters: Analyti
       type ConnectionSessionType = typeof sessions[0];
       let connectionUserSessions: ConnectionSessionType[] = [];
       if (connectionUserIds.size > 0) {
-        const { data } = await supabase
+        const { data, error: sessionError } = await supabase
           .from('user_sessions')
           .select('id, session_id, user_id, visitor_id, referrer, original_external_referrer, blog_landing_page, utm_source, utm_medium, utm_campaign, utm_term, country, city, region, browser, os, device_type, session_duration_seconds, started_at, user_agent')
           .eq('is_bot', false)
           .eq('is_production', true)
           .in('user_id', Array.from(connectionUserIds))
           .order('started_at', { ascending: false });
+        if (sessionError) throw sessionError;
         connectionUserSessions = (data || []) as ConnectionSessionType[];
       }
       

@@ -23,13 +23,14 @@ export async function queueDealScoring({ universeId, listingIds }: QueueDealScor
   if (listingIds.length === 0) return 0;
 
   // Check which listings are already queued/processing to avoid duplicates
-  const { data: existing } = await supabase
+  const { data: existing, error: existingError } = await supabase
     .from("remarketing_scoring_queue")
     .select("listing_id")
     .eq("universe_id", universeId)
     .eq("score_type", "deal")
     .in("status", ["pending", "processing"])
     .in("listing_id", listingIds);
+  if (existingError) throw existingError;
 
   const existingSet = new Set((existing || []).map(e => e.listing_id));
   const newIds = listingIds.filter(id => !existingSet.has(id));
@@ -80,13 +81,14 @@ export async function queueDealScoring({ universeId, listingIds }: QueueDealScor
 export async function queueAlignmentScoring({ universeId, buyerIds }: QueueAlignmentScoringParams): Promise<number> {
   if (buyerIds.length === 0) return 0;
 
-  const { data: existing } = await supabase
+  const { data: existing, error: existingError } = await supabase
     .from("remarketing_scoring_queue")
     .select("buyer_id")
     .eq("universe_id", universeId)
     .eq("score_type", "alignment")
     .in("status", ["pending", "processing"])
     .in("buyer_id", buyerIds);
+  if (existingError) throw existingError;
 
   const existingSet = new Set((existing || []).map(e => e.buyer_id));
   const newIds = buyerIds.filter(id => !existingSet.has(id));

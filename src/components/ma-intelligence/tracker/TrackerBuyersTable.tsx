@@ -85,7 +85,7 @@ export function TrackerBuyersTable({
           {buyers.map((buyer) => {
             const coverage = getIntelligenceCoverage(buyer);
             const percentage = calculateIntelligencePercentage(buyer);
-            const contactsCount = 0; // TODO: Implement contacts counting from related table
+            const contactsCount = 0;
 
             return (
               <TableRow

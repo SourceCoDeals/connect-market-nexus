@@ -148,11 +148,12 @@ export function FirmManagementTools() {
       if (userError) throw new Error('User not found');
 
       // Check if already linked to a firm
-      const { data: existingMember } = await supabase
+      const { data: existingMember, error: existingMemberError } = await supabase
         .from('firm_members')
         .select('firm_id')
         .eq('user_id', user.id)
         .single();
+      if (existingMemberError) throw existingMemberError;
 
       if (existingMember) {
         toast({

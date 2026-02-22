@@ -26,21 +26,16 @@ export default function AuthCallback() {
 
         if (authUser) {
           // Get latest profile data to see if verification was successful
-          // eslint-disable-next-line prefer-const
-          let { data: profile, error: profileError } = await supabase
+          const { data: fetchedProfile, error: profileError } = await supabase
             .from('profiles')
             .select('email_verified, approval_status, is_admin, first_name, last_name, email')
             .eq('id', authUser.id)
             .single();
 
           // Self-healing: if profile missing, create one from auth metadata
-          if (!profile && (profileError?.code === 'PGRST116' || !profileError)) {
-            const newProfile = await selfHealProfile(
-              authUser,
-              'email_verified, approval_status, is_admin, first_name, last_name, email'
-            );
-            if (newProfile) profile = newProfile;
-          }
+          const profile = (!fetchedProfile && (profileError?.code === 'PGRST116' || !profileError))
+            ? await selfHealProfile(authUser, 'email_verified, approval_status, is_admin, first_name, last_name, email')
+            : fetchedProfile;
 
           // Check if this is a fresh email verification (user just verified their email)
           const userJustVerified = authUser.email_confirmed_at && profile?.email_verified;

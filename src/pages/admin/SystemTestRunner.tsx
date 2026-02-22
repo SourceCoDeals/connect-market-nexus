@@ -205,7 +205,8 @@ function buildTests(): TestDef[] {
 
   add(C2, "Create buyer contact", async (ctx) => {
     // Get first buyer
-    const { data: buyers } = await supabase.from("remarketing_buyers").select("id").limit(1);
+    const { data: buyers, error: buyersError } = await supabase.from("remarketing_buyers").select("id").limit(1);
+    if (buyersError) throw buyersError;
     if (!buyers?.length) throw new Error("No remarketing_buyers found to test with");
     ctx.testBuyerId = buyers[0].id;
 
@@ -236,7 +237,8 @@ function buildTests(): TestDef[] {
     if (!testContactId) throw new Error("No test contact created");
     const { error } = await supabase.from("contacts").update({ title: "QA Manager" }).eq("id", testContactId);
     if (error) throw new Error(error.message);
-    const { data } = await supabase.from("contacts").select("title").eq("id", testContactId).single();
+    const { data, error: readError } = await supabase.from("contacts").select("title").eq("id", testContactId).single();
+    if (readError) throw new Error(readError.message);
     if (data?.title !== "QA Manager") throw new Error("Update not reflected");
   });
 
@@ -271,11 +273,12 @@ function buildTests(): TestDef[] {
   let originalContactName: string | null = null;
 
   add(C3, "Create seller contact (primary)", async (ctx) => {
-    const { data: listings } = await supabase
+    const { data: listings, error: listingsError } = await supabase
       .from("listings")
       .select("id, main_contact_name")
       .eq("status", "active")
       .limit(1);
+    if (listingsError) throw listingsError;
     if (!listings?.length) throw new Error("No active listings to test with");
     sellerTestListingId = listings[0].id;
     originalContactName = listings[0].main_contact_name;
@@ -356,7 +359,8 @@ function buildTests(): TestDef[] {
   });
 
   add(C4, "generate-lead-memo edge function reachable", async () => {
-    const { data: listings } = await supabase.from("listings").select("id").eq("status", "active").limit(1);
+    const { data: listings, error: listingsError2 } = await supabase.from("listings").select("id").eq("status", "active").limit(1);
+    if (listingsError2) throw listingsError2;
     const listingId = listings?.[0]?.id || "00000000-0000-0000-0000-000000000000";
     await invokeEdgeFunction("generate-lead-memo", {
       listing_id: listingId,
@@ -375,12 +379,14 @@ function buildTests(): TestDef[] {
 
   add(C5, "Create + read access record", async (ctx) => {
     // deal_id FK references listings, not deals
-    const { data: listings } = await supabase.from("listings").select("id").limit(1);
+    const { data: listings, error: listingsError } = await supabase.from("listings").select("id").limit(1);
+    if (listingsError) throw listingsError;
     if (!listings?.length) throw new Error("No listings found");
     ctx.testDealId = listings[0].id;
 
     // Get or create a contact
-    const { data: contacts } = await supabase.from("contacts").select("id").limit(1);
+    const { data: contacts, error: contactsError } = await supabase.from("contacts").select("id").limit(1);
+    if (contactsError) throw contactsError;
     if (!contacts?.length) throw new Error("No contacts exist to test access matrix");
 
     const { data, error } = await supabase
@@ -433,11 +439,14 @@ function buildTests(): TestDef[] {
 
   add(C6, "Create release log entry with contact_id", async (ctx) => {
     // deal_id FK references listings, not deals
-    const { data: listings } = await supabase.from("listings").select("id").limit(1);
-    const { data: contacts } = await supabase.from("contacts").select("id").limit(1);
+    const { data: listings, error: listingsError } = await supabase.from("listings").select("id").limit(1);
+    if (listingsError) throw listingsError;
+    const { data: contacts, error: contactsError } = await supabase.from("contacts").select("id").limit(1);
+    if (contactsError) throw contactsError;
     if (!listings?.length || !contacts?.length) throw new Error("Need listings + contacts");
 
-    const { data: { user } } = await supabase.auth.getUser();
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError) throw authError;
     if (!user) throw new Error("Not authenticated");
 
     const { data, error } = await supabase
@@ -473,15 +482,19 @@ function buildTests(): TestDef[] {
 
   add(C7, "Create tracked link", async (ctx) => {
     // deal_id FK references listings
-    const { data: listings } = await supabase.from("listings").select("id").limit(1);
-    const { data: contacts } = await supabase.from("contacts").select("id, email").limit(1);
+    const { data: listings, error: listingsError } = await supabase.from("listings").select("id").limit(1);
+    if (listingsError) throw listingsError;
+    const { data: contacts, error: contactsError } = await supabase.from("contacts").select("id, email").limit(1);
+    if (contactsError) throw contactsError;
     if (!listings?.length || !contacts?.length) throw new Error("Need listings + contacts");
 
     // Get a document (required — document_id is NOT NULL)
-    const { data: docs } = await supabase.from("data_room_documents").select("id").limit(1);
+    const { data: docs, error: docsError } = await supabase.from("data_room_documents").select("id").limit(1);
+    if (docsError) throw docsError;
     if (!docs?.length) {
       // Try deal_documents as fallback
-      const { data: dealDocs } = await supabase.from("deal_documents").select("id").limit(1);
+      const { data: dealDocs, error: dealDocsError } = await supabase.from("deal_documents").select("id").limit(1);
+      if (dealDocsError) throw dealDocsError;
       if (!dealDocs?.length) throw new Error("No documents exist to create tracked link (document_id is NOT NULL)");
       var docId = dealDocs[0].id;
     } else {

@@ -109,11 +109,12 @@ export function useEnhancedFeedback() {
       }
 
       // Get user profile for email
-      const { data: profile } = await supabase
+      const { data: profile, error: profileError } = await supabase
         .from('profiles')
         .select('first_name, last_name, email')
         .eq('id', user.id)
         .single();
+      if (profileError) throw profileError;
 
       const userName = profile ? `${profile.first_name} ${profile.last_name}`.trim() : '';
       const userEmail = profile?.email || user.email;

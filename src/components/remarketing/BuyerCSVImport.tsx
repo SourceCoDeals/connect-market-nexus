@@ -191,45 +191,15 @@ export const BuyerCSVImport = ({ universeId, onComplete, open: controlledOpen, o
     return { validRows: valid, skippedRows: skipped, skippedRowDetails: skippedDetails };
   }, [csvData, mappings]);
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  const handleFileUpload = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    Papa.parse(file, {
-      header: true,
-      skipEmptyLines: true,
-      complete: async (results) => {
-        const data = results.data as CSVRow[];
-        const headers = results.meta.fields || [];
-        
-        if (data.length === 0) {
-          toast.error('CSV file is empty');
-          return;
-        }
-
-        setCsvData(data);
-        setCsvHeaders(headers);
-        setStep('mapping');
-        
-        // Analyze columns with AI
-        await analyzeColumnsWithAI(headers, data.slice(0, 3));
-      },
-      error: (error) => {
-        toast.error(`Failed to parse CSV: ${error.message}`);
-      }
-    });
-  }, []);
-
-  const analyzeColumnsWithAI = async (headers: string[], sampleRows: CSVRow[]) => {
+  const analyzeColumnsWithAI = useCallback(async (headers: string[], sampleRows: CSVRow[]) => {
     setIsAnalyzing(true);
-    
+
     try {
       const { data, error } = await supabase.functions.invoke('map-csv-columns', {
-        body: { 
-          columns: headers, 
+        body: {
+          columns: headers,
           targetType: 'buyer',
-          sampleData: sampleRows 
+          sampleData: sampleRows
         }
       });
 
@@ -260,7 +230,36 @@ export const BuyerCSVImport = ({ universeId, onComplete, open: controlledOpen, o
     } finally {
       setIsAnalyzing(false);
     }
-  };
+  }, []);
+
+  const handleFileUpload = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    Papa.parse(file, {
+      header: true,
+      skipEmptyLines: true,
+      complete: async (results) => {
+        const data = results.data as CSVRow[];
+        const headers = results.meta.fields || [];
+
+        if (data.length === 0) {
+          toast.error('CSV file is empty');
+          return;
+        }
+
+        setCsvData(data);
+        setCsvHeaders(headers);
+        setStep('mapping');
+
+        // Analyze columns with AI
+        await analyzeColumnsWithAI(headers, data.slice(0, 3));
+      },
+      error: (error) => {
+        toast.error(`Failed to parse CSV: ${error.message}`);
+      }
+    });
+  }, [analyzeColumnsWithAI]);
 
   const guessMapping = (column: string): string | null => {
     const lower = column.toLowerCase();
@@ -564,7 +563,8 @@ export const BuyerCSVImport = ({ universeId, onComplete, open: controlledOpen, o
     setEnrichmentProgress({ current: 0, total: buyers.length });
 
     // Gate check: register as major operation
-    const { data: sessionData } = await supabase.auth.getUser();
+    const { data: sessionData, error: authError } = await supabase.auth.getUser();
+    if (authError) throw authError;
     const { queued } = await startOrQueueMajorOp({
       operationType: 'buyer_enrichment',
       totalItems: buyers.length,

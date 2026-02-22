@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { Card, CardContent } from "@/components/ui/card";
@@ -40,14 +40,7 @@ export function TrackerBuyersTab({ trackerId, onBuyerCountChange }: TrackerBuyer
   const { startOrQueueMajorOp } = useGlobalGateCheck();
   const { completeOperation, updateProgress } = useGlobalActivityMutations();
 
-  useEffect(() => {
-    if (trackerId && trackerId !== 'new') {
-      loadBuyers();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [trackerId]);
-
-  const loadBuyers = async () => {
+  const loadBuyers = useCallback(async () => {
     if (!trackerId || trackerId === 'new') return;
 
     setIsLoading(true);
@@ -71,7 +64,13 @@ export function TrackerBuyersTab({ trackerId, onBuyerCountChange }: TrackerBuyer
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [trackerId, onBuyerCountChange, toast]);
+
+  useEffect(() => {
+    if (trackerId && trackerId !== 'new') {
+      loadBuyers();
+    }
+  }, [trackerId, loadBuyers]);
 
   useRealtimeTrackerBuyers({
     trackerId,

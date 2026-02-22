@@ -210,7 +210,8 @@ export function useRevokeTrackedLink() {
 
   return useMutation({
     mutationFn: async ({ linkId, dealId, reason }: { linkId: string; dealId: string; reason?: string }) => {
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      if (authError) throw authError;
       const { error } = await supabase
         .from('document_tracked_links')
         .update({
@@ -358,7 +359,8 @@ export function useDeclineMarketplaceBuyer() {
       decline_reason?: string;
       send_decline_email?: boolean;
     }) => {
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      if (authError) throw authError;
       const { error } = await supabase
         .from('marketplace_approval_queue')
         .update({
@@ -444,7 +446,8 @@ export function useRevokeDataRoomAccess() {
 
   return useMutation({
     mutationFn: async ({ accessId, dealId }: { accessId: string; dealId: string }) => {
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      if (authError) throw authError;
       const { error } = await supabase
         .from('deal_data_room_access')
         .update({

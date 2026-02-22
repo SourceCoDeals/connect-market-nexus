@@ -148,10 +148,11 @@ export function useFirmAgreements() {
       const dealCounts: Record<string, number> = {};
       const allRequestIds = Object.keys(requestToFirm);
       if (allRequestIds.length > 0) {
-        const { data: dealsData } = await supabase
+        const { data: dealsData, error: dealsDataError } = await supabase
           .from('deals')
           .select('connection_request_id')
           .in('connection_request_id', allRequestIds);
+        if (dealsDataError) throw dealsDataError;
 
         (dealsData || []).forEach((d: any) => {
           const firmId = requestToFirm[d.connection_request_id];

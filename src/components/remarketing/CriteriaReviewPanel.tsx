@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -61,12 +61,7 @@ export const CriteriaReviewPanel = ({
   const [isApplying, setIsApplying] = useState(false);
   const [expandedSources, setExpandedSources] = useState<Set<string>>(new Set());
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => {
-    loadSources();
-  }, [universeId]);
-
-  const loadSources = async () => {
+  const loadSources = useCallback(async () => {
     setIsLoading(true);
     try {
       // Use type assertion to bypass missing table type definition
@@ -93,7 +88,11 @@ export const CriteriaReviewPanel = ({
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [universeId]);
+
+  useEffect(() => {
+    loadSources();
+  }, [loadSources]);
 
   const toggleSource = (sourceId: string) => {
     const newSelected = new Set(selectedSources);

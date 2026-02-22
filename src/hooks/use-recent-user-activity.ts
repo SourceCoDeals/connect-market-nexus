@@ -42,7 +42,7 @@ export function useRecentUserActivity() {
       const activities: RecentActivity[] = [];
       
       // Get recent listing analytics with user profiles
-      const { data: listingAnalytics } = await supabase
+      const { data: listingAnalytics, error: listingAnalyticsError } = await supabase
         .from('listing_analytics')
         .select(`
           id,
@@ -61,9 +61,10 @@ export function useRecentUserActivity() {
         .not('user_id', 'is', null)
         .order('created_at', { ascending: false })
         .limit(50);
+      if (listingAnalyticsError) throw listingAnalyticsError;
 
       // Get recent page views with user profiles and session data
-      const { data: pageViews } = await supabase
+      const { data: pageViews, error: pageViewsError } = await supabase
         .from('page_views')
         .select(`
           id,
@@ -84,9 +85,10 @@ export function useRecentUserActivity() {
         .not('user_id', 'is', null)
         .order('created_at', { ascending: false })
         .limit(50);
+      if (pageViewsError) throw pageViewsError;
 
       // Get recent user events with session data
-      const { data: userEvents } = await supabase
+      const { data: userEvents, error: userEventsError } = await supabase
         .from('user_events')
         .select(`
           id,
@@ -106,6 +108,7 @@ export function useRecentUserActivity() {
         .not('user_id', 'is', null)
         .order('created_at', { ascending: false })
         .limit(50);
+      if (userEventsError) throw userEventsError;
 
       // Get all unique session IDs
       const allSessionIds = [
@@ -115,10 +118,11 @@ export function useRecentUserActivity() {
       ].filter(Boolean);
 
       // Fetch session metadata from user_initial_session
-      const { data: sessionMetadata } = await supabase
+      const { data: sessionMetadata, error: sessionMetadataError } = await supabase
         .from('user_initial_session')
         .select('session_id, referrer, full_referrer, utm_source, utm_medium, utm_campaign, marketing_channel')
         .in('session_id', [...new Set(allSessionIds)]);
+      if (sessionMetadataError) throw sessionMetadataError;
 
       const sessionMap = new Map(sessionMetadata?.map(s => [s.session_id, s]) || []);
 
@@ -129,10 +133,11 @@ export function useRecentUserActivity() {
         ...(userEvents?.map(e => e.user_id) || [])
       ].filter(Boolean);
 
-      const { data: profiles } = await supabase
+      const { data: profiles, error: profilesError } = await supabase
         .from('profiles')
         .select('id, first_name, last_name, email, created_at')
         .in('id', [...new Set(allUserIds)]);
+      if (profilesError) throw profilesError;
 
       const profileMap = new Map(profiles?.map(p => [p.id, p]) || []);
 

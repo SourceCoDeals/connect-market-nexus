@@ -8,15 +8,17 @@ export function useUnviewedDealSourcingCount() {
   const query = useQuery({
     queryKey: ['unviewed-deal-sourcing-count'],
     queryFn: async () => {
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      if (authError) throw authError;
       if (!user) return 0;
 
       // Get admin's last viewed timestamp
-      const { data: viewData } = await supabase
+      const { data: viewData, error: viewDataError } = await supabase
         .from('admin_deal_sourcing_views')
         .select('last_viewed_at')
         .eq('admin_id', user.id)
         .single();
+      if (viewDataError) throw viewDataError;
 
       const lastViewed = viewData?.last_viewed_at || '1970-01-01';
 

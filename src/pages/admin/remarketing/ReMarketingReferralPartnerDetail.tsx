@@ -231,7 +231,7 @@ export default function ReMarketingReferralPartnerDetail() {
   const sortedDeals = useMemo(() => {
     if (!deals) return [];
     let items = [...deals];
-    if (hidePushed) items = items.filter((d) => !(d as any).pushed_to_all_deals);
+    if (hidePushed) items = items.filter((d) => !d.pushed_to_all_deals);
     return items.sort((a, b) => {
       const dir = sortDir === "asc" ? 1 : -1;
       const getValue = (deal: typeof a) => {
@@ -310,10 +310,11 @@ export default function ReMarketingReferralPartnerDetail() {
       crypto.getRandomValues(array);
       const password = Array.from(array, (b) => chars[b % chars.length]).join("");
 
-      const { data: hashResult } = await supabase.functions.invoke(
+      const { data: hashResult, error: hashResultError } = await supabase.functions.invoke(
         "validate-referral-access",
         { body: { action: "hash-password", password } }
       );
+      if (hashResultError) throw hashResultError;
       const hash = hashResult?.hash || password;
       const { error } = await supabase
         .from("referral_partners")
@@ -398,8 +399,9 @@ export default function ReMarketingReferralPartnerDetail() {
 
     // Trigger worker and handle immediate sync (already-enriched deals)
     try {
-      const { data: result } = await supabase.functions
+      const { data: result, error: resultError } = await supabase.functions
         .invoke("process-enrichment-queue", { body: { source: "referral_partner_bulk" } });
+      if (resultError) throw resultError;
       
       // If items were synced (already enriched) or processed, update progress
       if (result?.synced > 0 || result?.processed > 0) {
@@ -488,7 +490,7 @@ export default function ReMarketingReferralPartnerDetail() {
     if (!ids.length) return;
 
     // Get current max rank so new deals go to the bottom
-    const { data: maxRankRow } = await supabase
+    const { data: maxRankRow, error: maxRankRowError } = await supabase
       .from("listings")
       .select("manual_rank_override")
       .eq("status", "active")
@@ -496,6 +498,7 @@ export default function ReMarketingReferralPartnerDetail() {
       .order("manual_rank_override", { ascending: false })
       .limit(1)
       .maybeSingle();
+    if (maxRankRowError) throw maxRankRowError;
 
     let nextRank = (maxRankRow?.manual_rank_override as number | null) ?? 0;
 
@@ -746,16 +749,16 @@ export default function ReMarketingReferralPartnerDetail() {
               <div>
                 <p className="text-sm font-medium mb-1">Password</p>
                 <p className="text-xs font-mono text-muted-foreground">
-                  {(partner as any)?.share_password_plaintext || lastGeneratedPassword || "Not set — click Reset Password"}
+                  {partner?.share_password_plaintext || lastGeneratedPassword || "Not set — click Reset Password"}
                 </p>
               </div>
               <div className="flex items-center gap-2">
-                {((partner as any)?.share_password_plaintext || lastGeneratedPassword) && (
+                {(partner?.share_password_plaintext || lastGeneratedPassword) && (
                   <Button
                     variant="outline"
                     size="sm"
                     onClick={() => {
-                      const pw = (partner as any)?.share_password_plaintext || lastGeneratedPassword;
+                      const pw = partner?.share_password_plaintext || lastGeneratedPassword;
                       navigator.clipboard.writeText(pw);
                       toast.success("Password copied to clipboard");
                     }}
@@ -1249,25 +1252,25 @@ export default function ReMarketingReferralPartnerDetail() {
                               </DropdownMenuItem>
                               <DropdownMenuItem
                                 onClick={async () => {
-                                  const newVal = !(deal as any).need_buyer_universe;
+                                  const newVal = !deal.need_buyer_universe;
                                   const { error } = await supabase.from("listings").update({ need_buyer_universe: newVal } as never).eq("id", deal.id);
                                   if (!error) { toast.success(newVal ? "Flagged: Needs Buyer Universe" : "Flag removed"); queryClient.invalidateQueries({ queryKey: ["referral-partners", partnerId, "deals"] }); }
                                 }}
-                                className={(deal as any).need_buyer_universe ? "text-blue-600" : ""}
+                                className={deal.need_buyer_universe ? "text-blue-600" : ""}
                               >
-                                <Users className={cn("h-3 w-3 mr-2", (deal as any).need_buyer_universe && "text-blue-600")} />
-                                {(deal as any).need_buyer_universe ? "✓ Needs Buyer Universe" : "Flag: Needs Buyer Universe"}
+                                <Users className={cn("h-3 w-3 mr-2", deal.need_buyer_universe && "text-blue-600")} />
+                                {deal.need_buyer_universe ? "✓ Needs Buyer Universe" : "Flag: Needs Buyer Universe"}
                               </DropdownMenuItem>
                               <DropdownMenuItem
                                 onClick={async () => {
-                                  const newVal = !(deal as any).need_owner_contact;
+                                  const newVal = !deal.need_owner_contact;
                                   const { error } = await supabase.from("listings").update({ need_owner_contact: newVal } as never).eq("id", deal.id);
                                   if (!error) { toast.success(newVal ? "Flagged: Need to Contact Owner" : "Flag removed"); queryClient.invalidateQueries({ queryKey: ["referral-partners", partnerId, "deals"] }); }
                                 }}
-                                className={(deal as any).need_owner_contact ? "text-orange-600" : ""}
+                                className={deal.need_owner_contact ? "text-orange-600" : ""}
                               >
-                                <Phone className={cn("h-3 w-3 mr-2", (deal as any).need_owner_contact && "text-orange-600")} />
-                                {(deal as any).need_owner_contact ? "✓ Need to Contact Owner" : "Flag: Need to Contact Owner"}
+                                <Phone className={cn("h-3 w-3 mr-2", deal.need_owner_contact && "text-orange-600")} />
+                                {deal.need_owner_contact ? "✓ Need to Contact Owner" : "Flag: Need to Contact Owner"}
                               </DropdownMenuItem>
                               <DropdownMenuSeparator />
                               <DropdownMenuItem

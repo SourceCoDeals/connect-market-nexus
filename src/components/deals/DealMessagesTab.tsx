@@ -30,8 +30,7 @@ export function DealMessagesTab({ requestId, requestStatus }: DealMessagesTabPro
     if (requestId && messages.some(m => !m.is_read_by_buyer && m.sender_role === "admin")) {
       markRead.mutate(requestId);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [requestId, messages.length]);
+  }, [requestId, messages, markRead]);
 
   // Auto-scroll to bottom
   useEffect(() => {

@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -84,12 +84,7 @@ export function DealMatchedBuyersTab({ dealId }: DealMatchedBuyersTabProps) {
   const [selectedBuyerId, setSelectedBuyerId] = useState<string | null>(null);
   const [isPassDialogOpen, setIsPassDialogOpen] = useState(false);
 
-  useEffect(() => {
-    loadBuyerScores();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dealId]);
-
-  const loadBuyerScores = async () => {
+  const loadBuyerScores = useCallback(async () => {
     try {
       const { data, error } = await supabase
         .from("buyer_deal_scores")
@@ -114,7 +109,11 @@ export function DealMatchedBuyersTab({ dealId }: DealMatchedBuyersTabProps) {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [dealId, toast]);
+
+  useEffect(() => {
+    loadBuyerScores();
+  }, [loadBuyerScores]);
 
   const handleRecalculateScores = async () => {
     try {

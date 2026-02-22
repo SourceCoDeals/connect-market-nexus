@@ -56,7 +56,8 @@ class ErrorLogger {
 
     // Try to get current user ID
     try {
-      const { data: { session } } = await supabase.auth.getSession();
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      if (sessionError) throw sessionError;
       if (session?.user?.id) {
         entry.userId = session.user.id;
       }

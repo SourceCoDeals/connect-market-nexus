@@ -57,7 +57,8 @@ export function useCreateDealTask() {
       assigned_to?: string;
       due_date?: string;
     }) => {
-      const { data: userData } = await supabase.auth.getUser();
+      const { data: userData, error: authError } = await supabase.auth.getUser();
+      if (authError) throw authError;
       
       const { data, error } = await supabase
         .from('deal_tasks')
@@ -72,11 +73,12 @@ export function useCreateDealTask() {
       if (error) throw error;
 
       // Get deal details for activity logging and notifications
-      const { data: dealData } = await supabase
+      const { data: dealData, error: dealDataError } = await supabase
         .from('deals')
         .select('title, connection_request_id')
         .eq('id', taskData.deal_id)
         .single();
+      if (dealDataError) throw dealDataError;
 
       // Log activity
       await logDealActivity({
@@ -95,18 +97,20 @@ export function useCreateDealTask() {
       // Send notification if task is assigned
       if (taskData.assigned_to && taskData.assigned_to !== userData?.user?.id) {
         // Get assignee profile
-        const { data: assigneeProfile } = await supabase
+        const { data: assigneeProfile, error: assigneeProfileError } = await supabase
           .from('profiles')
           .select('id, email, first_name, last_name')
           .eq('id', taskData.assigned_to)
           .single();
+        if (assigneeProfileError) throw assigneeProfileError;
 
         // Get assigner profile
-        const { data: assignerProfile } = await supabase
+        const { data: assignerProfile, error: assignerProfileError } = await supabase
           .from('profiles')
           .select('first_name, last_name')
           .eq('id', userData?.user?.id)
           .single();
+        if (assignerProfileError) throw assignerProfileError;
 
         if (assigneeProfile?.email) {
           // Create admin notification
@@ -169,13 +173,15 @@ export function useUpdateDealTask() {
 
   return useMutation({
     mutationFn: async ({ taskId, updates }: { taskId: string; updates: Partial<DealTask> }) => {
-      const { data: currentTask } = await supabase
+      const { data: currentTask, error: currentTaskError } = await supabase
         .from('deal_tasks')
         .select('*')
         .eq('id', taskId)
         .single();
+      if (currentTaskError) throw currentTaskError;
 
-      const { data: userData } = await supabase.auth.getUser();
+      const { data: userData, error: authError } = await supabase.auth.getUser();
+      if (authError) throw authError;
 
       const { data, error } = await supabase
         .from('deal_tasks')
@@ -187,27 +193,30 @@ export function useUpdateDealTask() {
       if (error) throw error;
 
       // Get deal details
-      const { data: dealData } = await supabase
+      const { data: dealData, error: dealDataError } = await supabase
         .from('deals')
         .select('title')
         .eq('id', currentTask.deal_id)
         .single();
+      if (dealDataError) throw dealDataError;
 
       // Log assignment changes and send notifications
       if (updates.assigned_to && currentTask && updates.assigned_to !== currentTask.assigned_to) {
         // Get assignee profile
-        const { data: assigneeProfile } = await supabase
+        const { data: assigneeProfile, error: assigneeProfileError } = await supabase
           .from('profiles')
           .select('id, email, first_name, last_name')
           .eq('id', updates.assigned_to)
           .single();
+        if (assigneeProfileError) throw assigneeProfileError;
 
         // Get assigner profile
-        const { data: assignerProfile } = await supabase
+        const { data: assignerProfile, error: assignerProfileError } = await supabase
           .from('profiles')
           .select('first_name, last_name')
           .eq('id', userData?.user?.id)
           .single();
+        if (assignerProfileError) throw assignerProfileError;
 
         await logDealActivity({
           dealId: currentTask.deal_id,
@@ -259,10 +268,11 @@ export function useUpdateDealTask() {
       // Notify reviewers when task is resolved
       if (updates.status === 'resolved' && currentTask?.status !== 'resolved') {
         // Get all reviewers for this task
-        const { data: reviewers } = await supabase
+        const { data: reviewers, error: reviewersError } = await supabase
           .from('deal_task_reviewers')
           .select('admin_id')
           .eq('task_id', taskId);
+        if (reviewersError) throw reviewersError;
 
         if (reviewers && reviewers.length > 0) {
           // Send notification to each reviewer (except the person who resolved it)
@@ -316,13 +326,15 @@ export function useCompleteDealTask() {
 
   return useMutation({
     mutationFn: async (taskId: string) => {
-      const { data: userData } = await supabase.auth.getUser();
+      const { data: userData, error: authError } = await supabase.auth.getUser();
+      if (authError) throw authError;
       
-      const { data: currentTask } = await supabase
+      const { data: currentTask, error: currentTaskError } = await supabase
         .from('deal_tasks')
         .select('*')
         .eq('id', taskId)
         .single();
+      if (currentTaskError) throw currentTaskError;
 
       const { data, error } = await supabase
         .from('deal_tasks')
@@ -351,11 +363,12 @@ export function useCompleteDealTask() {
 
         // Notify task creator if different from completer
         if (currentTask.assigned_by && currentTask.assigned_by !== userData?.user?.id) {
-          const { data: dealData } = await supabase
+          const { data: dealData, error: dealDataError } = await supabase
             .from('deals')
             .select('title')
             .eq('id', currentTask.deal_id)
             .single();
+          if (dealDataError) throw dealDataError;
 
           await supabase.from('admin_notifications').insert({
             admin_id: currentTask.assigned_by,
@@ -447,7 +460,8 @@ export function useAddTaskReviewer() {
 
   return useMutation({
     mutationFn: async ({ taskId, adminId }: { taskId: string; adminId: string }) => {
-      const { data: userData } = await supabase.auth.getUser();
+      const { data: userData, error: authError } = await supabase.auth.getUser();
+      if (authError) throw authError;
       
       const { error } = await supabase
         .from('deal_task_reviewers')

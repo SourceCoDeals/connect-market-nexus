@@ -145,12 +145,17 @@ export async function markUserContinued(
   messageIndex: number
 ): Promise<void> {
   try {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('chat_analytics')
       .select('id')
       .eq('conversation_id', conversationId)
       .order('created_at', { ascending: false })
       .limit(10);
+
+    if (error) {
+      console.error('[chat-analytics] Mark continued query error:', error);
+      return;
+    }
 
     if (data && data[messageIndex]) {
       await supabase

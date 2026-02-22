@@ -27,31 +27,35 @@ export function useSmartAlerts() {
       const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
 
       // 1. Underperforming listings alert
-      const { data: listings } = await supabase
+      const { data: listings, error: listingsError } = await supabase
         .from('listings')
         .select('id, title, category, created_at')
         .eq('status', 'active')
         .is('deleted_at', null)
         .gte('created_at', sevenDaysAgo.toISOString());
+      if (listingsError) throw listingsError;
 
       if (listings && listings.length > 0) {
         const listingIds = listings.map(l => l.id);
         
         // Get analytics for all listings
-        const { data: listingAnalytics } = await supabase
+        const { data: listingAnalytics, error: laError } = await supabase
           .from('listing_analytics')
           .select('listing_id, action_type, created_at')
           .in('listing_id', listingIds);
+        if (laError) throw laError;
 
-        const { data: listingSaves } = await supabase
+        const { data: listingSaves, error: lsError } = await supabase
           .from('saved_listings')
           .select('listing_id, created_at')
           .in('listing_id', listingIds);
+        if (lsError) throw lsError;
 
-        const { data: listingConnections } = await supabase
+        const { data: listingConnections, error: lcError } = await supabase
           .from('connection_requests')
           .select('listing_id, created_at')
           .in('listing_id', listingIds);
+        if (lcError) throw lcError;
 
         // Group data by listing
         const listingDataMap = new Map();
@@ -144,10 +148,11 @@ export function useSmartAlerts() {
       }
 
       // 2. Churn risk users alert
-      const { data: users } = await supabase
+      const { data: users, error: usersError } = await supabase
         .from('profiles')
         .select('id, email, first_name, last_name, created_at')
         .eq('approval_status', 'approved');
+      if (usersError) throw usersError;
 
       const threeDaysAgo = new Date(now.getTime() - 3 * 24 * 60 * 60 * 1000);
       const sevenDaysAgo2 = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
@@ -156,23 +161,26 @@ export function useSmartAlerts() {
       if (users && users.length > 0) {
         const userIds = users.map(u => u.id);
         
-        const { data: userAnalytics } = await supabase
+        const { data: userAnalytics, error: uaError } = await supabase
           .from('listing_analytics')
           .select('user_id, created_at')
           .in('user_id', userIds)
           .gte('created_at', sevenDaysAgo2.toISOString());
+        if (uaError) throw uaError;
 
-        const { data: userSessions } = await supabase
+        const { data: userSessions, error: usError } = await supabase
           .from('user_sessions')
           .select('user_id, started_at')
           .in('user_id', userIds)
           .gte('started_at', sevenDaysAgo2.toISOString());
+        if (usError) throw usError;
 
-        const { data: userSaves } = await supabase
+        const { data: userSaves, error: usvError } = await supabase
           .from('saved_listings')
           .select('user_id, created_at')
           .in('user_id', userIds)
           .gte('created_at', sevenDaysAgo2.toISOString());
+        if (usvError) throw usvError;
 
         // Group activity by user
         const userActivityMap = new Map();
@@ -239,15 +247,17 @@ export function useSmartAlerts() {
       }
 
       // 3. Pending approvals alert
-      const { data: pendingUsers } = await supabase
+      const { data: pendingUsers, error: puError } = await supabase
         .from('profiles')
         .select('id, email, first_name, last_name, created_at')
         .eq('approval_status', 'pending');
+      if (puError) throw puError;
 
-      const { data: pendingConnections } = await supabase
+      const { data: pendingConnections, error: pcError } = await supabase
         .from('connection_requests')
         .select('id, created_at')
         .eq('status', 'pending');
+      if (pcError) throw pcError;
 
       const urgentUserApprovals = pendingUsers?.filter(user => 
         new Date(user.created_at) < new Date(now.getTime() - 24 * 60 * 60 * 1000)
@@ -288,10 +298,11 @@ export function useSmartAlerts() {
       }
 
       // 4. Market trend alerts
-      const { data: recentSearches } = await supabase
+      const { data: recentSearches, error: rsError } = await supabase
         .from('search_analytics')
         .select('search_query, results_count')
         .gte('created_at', threeDaysAgo.toISOString());
+      if (rsError) throw rsError;
 
       const searchMap = new Map();
       recentSearches?.forEach(search => {

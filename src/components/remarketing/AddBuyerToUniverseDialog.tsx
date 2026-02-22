@@ -40,12 +40,13 @@ export function AddBuyerToUniverseDialog({ open, onOpenChange, universeId, onBuy
 
       // Check for duplicate buyer by domain in this universe
       if (normalizedCompanyWebsite) {
-        const { data: existingBuyers } = await supabase
+        const { data: existingBuyers, error: existingBuyersError } = await supabase
           .from("remarketing_buyers")
           .select("id, company_name, company_website")
           .eq("universe_id", universeId)
           .eq("archived", false)
           .not("company_website", "is", null);
+        if (existingBuyersError) throw existingBuyersError;
 
         const duplicate = existingBuyers?.find(b =>
           normalizeDomain(b.company_website) === normalizedCompanyWebsite
@@ -79,21 +80,23 @@ export function AddBuyerToUniverseDialog({ open, onOpenChange, universeId, onBuy
       }
 
       // Verify buyer is readable
-      const { data: verified } = await supabase
+      const { data: verified, error: verifiedError } = await supabase
         .from("remarketing_buyers")
         .select("id")
         .eq("id", newBuyer.id)
         .single();
+      if (verifiedError) throw verifiedError;
 
       if (!verified) {
         throw new Error("Buyer created but not visible — check RLS policies");
       }
 
       // Queue scoring against all deals in this universe
-      const { data: universeDeals } = await supabase
+      const { data: universeDeals, error: universeDealsError } = await supabase
         .from("remarketing_universe_deals")
         .select("listing_id")
         .eq("universe_id", universeId);
+      if (universeDealsError) throw universeDealsError;
 
       if (universeDeals && universeDeals.length > 0) {
         const { queueDealScoring } = await import("@/lib/remarketing/queueScoring");

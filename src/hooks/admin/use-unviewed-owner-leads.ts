@@ -12,11 +12,12 @@ export function useUnviewedOwnerLeads() {
       if (!user?.id) return 0;
 
       // Get the admin's last viewed timestamp
-      const { data: viewData } = await supabase
+      const { data: viewData, error: viewDataError } = await supabase
         .from('admin_owner_leads_views')
         .select('last_viewed_at')
         .eq('admin_id', user.id)
         .single();
+      if (viewDataError) throw viewDataError;
 
       const lastViewedAt = viewData?.last_viewed_at;
 

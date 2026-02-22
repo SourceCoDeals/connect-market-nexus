@@ -183,7 +183,8 @@ export function useBuyerEnrichmentQueue(universeId?: string) {
 
     try {
       // Gate check: register as major operation
-      const { data: sessionData } = await supabase.auth.getUser();
+      const { data: userData, error: authError } = await supabase.auth.getUser();
+      if (authError) throw authError;
       const { queued } = await startOrQueueMajorOp({
         operationType: 'buyer_enrichment',
         totalItems: enrichableBuyers.length,

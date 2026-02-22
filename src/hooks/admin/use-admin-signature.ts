@@ -65,10 +65,11 @@ export function useAdminSignature() {
 
   const updateSignatureMutation = useMutation({
     mutationFn: async ({ signature_html, signature_text, phone_number, calendly_url }: UpdateSignatureParams) => {
-      const { data: existingSignature } = await supabase
+      const { data: existingSignature, error: existingSignatureError } = await supabase
         .from('admin_signature_preferences')
         .select('id')
         .single();
+      if (existingSignatureError) throw existingSignatureError;
 
       if (existingSignature) {
         // Update existing signature

@@ -121,7 +121,9 @@ interface ValuationLead {
   deal_owner_id?: string | null;
   is_priority_target?: boolean | null;
   needs_buyer_universe?: boolean | null;
+  need_buyer_universe?: boolean | null;
   need_to_contact_owner?: boolean | null;
+  need_owner_contact?: boolean | null;
   is_archived?: boolean | null;
   // Joined from listings (via pushed_listing_id) — populated by enrichment
   listing_description?: string | null;
@@ -777,7 +779,7 @@ export default function ValuationLeads() {
         if (error) throw error;
 
         if (data && data.length > 0) {
-          const normalized = (data as any[]).map((row) => ({
+          const normalized = data.map((row) => ({
             ...row,
             listing_description: row.listings?.description || row.listings?.executive_summary || null,
             listings: undefined, // strip the join object
@@ -835,8 +837,7 @@ export default function ValuationLeads() {
         rules: [{ id: "default-website-filter", field: "website", operator: "is_not_empty", value: "" }],
       }));
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // intentionally only on mount
+  }, [filterState.rules.length, setFilterState]);
 
   // Apply tab + timeframe on top of engine-filtered results, then sort
   const filteredLeads = useMemo(() => {
@@ -881,7 +882,7 @@ export default function ValuationLeads() {
     // Sort
     const sorted = [...filtered];
     sorted.sort((a, b) => {
-      let valA: any, valB: any;
+      let valA: string | number, valB: string | number;
       switch (sortColumn) {
         case "display_name":
           valA = extractBusinessName(a).toLowerCase();
@@ -1023,11 +1024,12 @@ export default function ValuationLeads() {
 
       // Check if a listing was already created for this lead (e.g. from a previous click)
       // to avoid hitting the unique constraint on deal_identifier
-      const { data: existing } = await supabase
+      const { data: existing, error: existingError } = await supabase
         .from("listings")
         .select("id")
         .eq("deal_identifier", dealIdentifier)
         .maybeSingle();
+      if (existingError) throw existingError;
 
       let listingId: string;
 
@@ -1226,9 +1228,10 @@ export default function ValuationLeads() {
 
         // Trigger the enrichment worker (non-blocking, read results for progress)
         try {
-          const { data: result } = await supabase.functions.invoke("process-enrichment-queue", {
+          const { data: result, error: resultError } = await supabase.functions.invoke("process-enrichment-queue", {
             body: { source: "valuation_leads_push_enrich" },
           });
+          if (resultError) throw resultError;
           if (result?.synced > 0 || result?.processed > 0) {
             const totalDone = (result?.synced || 0) + (result?.processed || 0);
             if (activityItem) updateProgress.mutate({ id: activityItem.id, completedItems: totalDone });
@@ -1378,11 +1381,12 @@ export default function ValuationLeads() {
               try {
                 const dealIdentifier = `vlead_${lead.id.slice(0, 8)}`;
                 // Check if listing already exists
-                const { data: existing } = await supabase
+                const { data: existing, error: existingError } = await supabase
                   .from("listings")
                   .select("id")
                   .eq("deal_identifier", dealIdentifier)
                   .maybeSingle();
+                if (existingError) throw existingError;
 
                 let listingId: string;
                 if (existing?.id) {
@@ -1486,9 +1490,10 @@ export default function ValuationLeads() {
 
       // Trigger the enrichment worker and handle results (matching CapTarget pattern)
       try {
-        const { data: result } = await supabase.functions.invoke("process-enrichment-queue", {
+        const { data: result, error: resultError } = await supabase.functions.invoke("process-enrichment-queue", {
           body: { source: "valuation_leads_bulk" },
         });
+        if (resultError) throw resultError;
         if (result?.synced > 0 || result?.processed > 0) {
           const totalDone = (result?.synced || 0) + (result?.processed || 0);
           if (activityItem) updateProgress.mutate({ id: activityItem.id, completedItems: totalDone });
@@ -2217,8 +2222,8 @@ export default function ValuationLeads() {
                               onClick={async (e) => {
                                 e.stopPropagation();
                                 if (!lead.pushed_listing_id) { sonnerToast.error("Push deal to All Deals first"); return; }
-                                const newVal = !(lead as any).need_buyer_universe;
-                                await supabase.from("listings").update({ need_buyer_universe: newVal } as never).eq("id", lead.pushed_listing_id);
+                                const newVal = !lead.need_buyer_universe;
+                                await supabase.from("listings").update({ need_buyer_universe: newVal }).eq("id", lead.pushed_listing_id);
                                 sonnerToast.success(newVal ? "Flagged: Needs Buyer Universe" : "Flag removed");
                                 queryClient.invalidateQueries({ queryKey: ["remarketing", "valuation-leads"] });
                               }}
@@ -2231,8 +2236,8 @@ export default function ValuationLeads() {
                               onClick={async (e) => {
                                 e.stopPropagation();
                                 if (!lead.pushed_listing_id) { sonnerToast.error("Push deal to All Deals first"); return; }
-                                const newVal = !(lead as any).need_owner_contact;
-                                await supabase.from("listings").update({ need_owner_contact: newVal } as never).eq("id", lead.pushed_listing_id);
+                                const newVal = !lead.need_owner_contact;
+                                await supabase.from("listings").update({ need_owner_contact: newVal }).eq("id", lead.pushed_listing_id);
                                 sonnerToast.success(newVal ? "Flagged: Need to Contact Owner" : "Flag removed");
                                 queryClient.invalidateQueries({ queryKey: ["remarketing", "valuation-leads"] });
                               }}

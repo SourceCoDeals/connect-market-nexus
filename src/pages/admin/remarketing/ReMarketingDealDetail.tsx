@@ -80,7 +80,7 @@ const ReMarketingDealDetail = () => {
   const { dealId } = useParams<{ dealId: string }>();
   const navigate = useNavigate();
   const location = useLocation();
-  const backTo = (location.state as any)?.from || null;
+  const backTo = (location.state as { from?: string } | null)?.from || null;
   const queryClient = useQueryClient();
   
   const [isEnriching, setIsEnriching] = useState(false);
@@ -163,14 +163,14 @@ const ReMarketingDealDetail = () => {
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      return data as unknown as any[];
+      return data;
     },
     enabled: !!dealId
   });
 
   // Mutation to update deal fields
   const updateDealMutation = useMutation({
-    mutationFn: async (updates: Record<string, any>) => {
+    mutationFn: async (updates: Record<string, unknown>) => {
       const { error } = await supabase
         .from('listings')
         .update(updates)
@@ -186,14 +186,15 @@ const ReMarketingDealDetail = () => {
   // Toggle universe build flag
   const toggleUniverseFlagMutation = useMutation({
     mutationFn: async (flagged: boolean) => {
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      if (authError) throw authError;
       const { error } = await supabase
         .from('listings')
         .update({
           universe_build_flagged: flagged,
           universe_build_flagged_at: flagged ? new Date().toISOString() : null,
           universe_build_flagged_by: flagged ? user?.id : null,
-        } as any)
+        })
         .eq('id', dealId);
       if (error) throw error;
     },
@@ -207,14 +208,15 @@ const ReMarketingDealDetail = () => {
   // Toggle "needs owner contact" flag
   const toggleContactOwnerMutation = useMutation({
     mutationFn: async (flagged: boolean) => {
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      if (authError) throw authError;
       const { error } = await supabase
         .from('listings')
         .update({
           needs_owner_contact: flagged,
           needs_owner_contact_at: flagged ? new Date().toISOString() : null,
           needs_owner_contact_by: flagged ? user?.id : null,
-        } as any)
+        })
         .eq('id', dealId);
       if (error) throw error;
     },
@@ -489,7 +491,7 @@ const ReMarketingDealDetail = () => {
                         remarketing_status: 'active',
                         pushed_to_all_deals: true,
                         pushed_to_all_deals_at: new Date().toISOString(),
-                      } as any)
+                      })
                       .eq('id', dealId);
                     if (error) {
                       toast.error('Failed to push deal');
@@ -682,7 +684,7 @@ const ReMarketingDealDetail = () => {
 
       {/* Website & Actions */}
       {(() => {
-        const needsContact = (deal as any)?.needs_owner_contact;
+        const needsContact = deal?.needs_owner_contact;
         return (
           <Card className={needsContact ? "border-red-400 border-2 bg-red-50 dark:bg-red-950/20" : ""}>
             {needsContact && (
@@ -776,21 +778,21 @@ const ReMarketingDealDetail = () => {
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <Button
-                        variant={((deal as any)?.universe_build_flagged) ? "default" : "outline"}
-                        className={`gap-2 ${((deal as any)?.universe_build_flagged) ? "bg-amber-500 hover:bg-amber-600 border-amber-500 text-white" : "border-amber-400 text-amber-600 hover:bg-amber-50"}`}
-                        onClick={() => toggleUniverseFlagMutation.mutate(!((deal as any)?.universe_build_flagged))}
+                        variant={(deal?.universe_build_flagged) ? "default" : "outline"}
+                        className={`gap-2 ${(deal?.universe_build_flagged) ? "bg-amber-500 hover:bg-amber-600 border-amber-500 text-white" : "border-amber-400 text-amber-600 hover:bg-amber-50"}`}
+                        onClick={() => toggleUniverseFlagMutation.mutate(!(deal?.universe_build_flagged))}
                         disabled={toggleUniverseFlagMutation.isPending}
                       >
                         {toggleUniverseFlagMutation.isPending ? (
                           <Loader2 className="h-4 w-4 animate-spin" />
                         ) : (
-                          <Flag className={`h-4 w-4 ${((deal as any)?.universe_build_flagged) ? "fill-white" : ""}`} />
+                          <Flag className={`h-4 w-4 ${(deal?.universe_build_flagged) ? "fill-white" : ""}`} />
                         )}
-                        {((deal as any)?.universe_build_flagged) ? "Flagged: Build Universe" : "Flag for Universe Build"}
+                        {(deal?.universe_build_flagged) ? "Flagged: Build Universe" : "Flag for Universe Build"}
                       </Button>
                     </TooltipTrigger>
                     <TooltipContent>
-                      {((deal as any)?.universe_build_flagged)
+                      {(deal?.universe_build_flagged)
                         ? "This deal is flagged — a team member needs to build a buyer universe for it. Click to remove flag."
                         : "Flag this deal to indicate a buyer universe needs to be built by the team."}
                     </TooltipContent>
@@ -1171,7 +1173,7 @@ const ReMarketingDealDetail = () => {
       <OwnerResponseSection
         ownerResponse={deal.owner_response}
         onSave={async (response) => {
-          await updateDealMutation.mutateAsync({ owner_response: response } as any);
+          await updateDealMutation.mutateAsync({ owner_response: response });
         }}
       />
 

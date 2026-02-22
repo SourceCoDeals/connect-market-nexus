@@ -30,11 +30,12 @@ export function PipelineDetailBuyer({ deal }: PipelineDetailBuyerProps) {
     queryFn: async () => {
       if (!deal.contact_email) return null;
       
-      const { data: userProfile } = await supabase
+      const { data: userProfile, error: userProfileError } = await supabase
         .from('profiles')
         .select('id')
         .eq('email', deal.contact_email)
         .maybeSingle();
+      if (userProfileError) throw userProfileError;
       
       return userProfile?.id || null;
     },
@@ -48,20 +49,22 @@ export function PipelineDetailBuyer({ deal }: PipelineDetailBuyerProps) {
     queryFn: async () => {
       if (!deal.contact_email) return null;
       
-      const { data: connectionRequest } = await supabase
+      const { data: connectionRequest, error: connectionRequestError } = await supabase
         .from('connection_requests')
         .select('*')
         .eq('lead_email', deal.contact_email)
         .limit(1)
         .single();
+      if (connectionRequestError) throw connectionRequestError;
       
       if (!connectionRequest?.user_id) return null;
 
-      const { data: profile } = await supabase
+      const { data: profile, error: profileError } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', connectionRequest.user_id)
         .single();
+      if (profileError) throw profileError;
       
       if (!profile) return connectionRequest;
       
@@ -106,7 +109,7 @@ export function PipelineDetailBuyer({ deal }: PipelineDetailBuyerProps) {
       const userId = buyerProfile?.user_id || resolvedUserId;
       if (!userId) return [];
       
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('saved_listings')
         .select(`
           *,
@@ -114,7 +117,8 @@ export function PipelineDetailBuyer({ deal }: PipelineDetailBuyerProps) {
         `)
         .eq('user_id', userId)
         .order('created_at', { ascending: false});
-      
+      if (error) throw error;
+
       return data || [];
     },
     enabled: !!(buyerProfile?.user_id || resolvedUserId),

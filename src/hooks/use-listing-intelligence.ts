@@ -46,7 +46,7 @@ export function useListingIntelligence(daysBack: number = 30) {
       startDate.setDate(startDate.getDate() - daysBack);
 
       // Get all listings with comprehensive analytics
-      const { data: listings } = await supabase
+      const { data: listings, error: listingsError } = await supabase
         .from('listings')
         .select(`
           id, title, category, revenue, ebitda, created_at,
@@ -62,6 +62,7 @@ export function useListingIntelligence(daysBack: number = 30) {
         `)
         .eq('status', 'active')
         .is('deleted_at', null);
+      if (listingsError) throw listingsError;
 
       if (!listings) return { listingPerformance: [], averageMetrics: null };
 
@@ -215,10 +216,11 @@ export function useListingJourneys(listingId?: string) {
         // Get user profiles
         const userIds = Array.from(userMap.keys());
         if (userIds.length > 0) {
-          const { data: profiles } = await supabase
+          const { data: profiles, error: profilesError } = await supabase
             .from('profiles')
             .select('id, email, first_name, last_name')
             .in('id', userIds);
+          if (profilesError) throw profilesError;
 
           const profileMap = new Map(profiles?.map(p => [p.id, p]) || []);
 

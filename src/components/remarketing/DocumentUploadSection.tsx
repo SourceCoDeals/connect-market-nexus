@@ -137,7 +137,8 @@ export const DocumentUploadSection = ({
     // Register in global activity queue
     let queueId: string | null = null;
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      if (authError) throw authError;
       if (user) {
         const item = await registerMinorOp({
           operationType: 'deal_enrichment',

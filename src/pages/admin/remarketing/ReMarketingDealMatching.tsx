@@ -236,8 +236,8 @@ const ReMarketingDealMatching = () => {
           match = byDomain.get(domain);
         }
         // Match by email domain
-        if (!match && (buyer as any).email_domain) {
-          match = byDomain.get((buyer as any).email_domain.toLowerCase());
+        if (!match && buyer.email_domain) {
+          match = byDomain.get(buyer.email_domain.toLowerCase());
         }
         // Match by company name
         if (!match && buyer.company_name) {
@@ -247,8 +247,8 @@ const ReMarketingDealMatching = () => {
           if (!match) match = byName.get(buyer.company_name.toLowerCase());
         }
         // Match by PE firm name
-        if (!match && (buyer as any).pe_firm_name) {
-          const peName = (buyer as any).pe_firm_name.toLowerCase().replace(/[^a-z0-9]/g, '');
+        if (!match && buyer.pe_firm_name) {
+          const peName = buyer.pe_firm_name.toLowerCase().replace(/[^a-z0-9]/g, '');
           match = byName.get(peName);
         }
 
@@ -716,7 +716,7 @@ const ReMarketingDealMatching = () => {
       buyer_name: s.buyer?.company_name || '',
       website: s.buyer?.company_website || '',
       hq_location: s.buyer?.hq_city && s.buyer?.hq_state ? `${s.buyer.hq_city}, ${s.buyer.hq_state}` : '',
-      pe_firm: (s.buyer as any)?.pe_firm_name || '',
+      pe_firm: s.buyer?.pe_firm_name || '',
       score: s.composite_score,
       tier: s.tier,
       geography_score: s.geography_score,
@@ -732,7 +732,7 @@ const ReMarketingDealMatching = () => {
     const headers = Object.keys(csvData[0]);
     const csv = [
       headers.join(','),
-      ...csvData.map(row => headers.map(h => `"${(row as any)[h] || ''}"`).join(','))
+      ...csvData.map(row => headers.map(h => `"${(row as Record<string, unknown>)[h] || ''}"`).join(','))
     ].join('\n');
     
     const blob = new Blob([csv], { type: 'text/csv' });
@@ -798,12 +798,13 @@ const ReMarketingDealMatching = () => {
     queryKey: ['pipeline-deals-for-listing', listingId],
     queryFn: async () => {
       if (!listingId) return [];
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('deals')
         .select('id, remarketing_buyer_id')
         .eq('listing_id', listingId)
         .not('remarketing_buyer_id', 'is', null)
         .is('deleted_at', null);
+      if (error) throw error;
       return data || [];
     },
     enabled: !!listingId,
@@ -1053,7 +1054,7 @@ const ReMarketingDealMatching = () => {
         if (!listing.ebitda) missingFields.push('EBITDA');
         if (!listing.location?.trim()) missingFields.push('Location');
         if (!(listing.services?.length > 0 || listing.categories?.length > 0 || listing.category?.trim())) missingFields.push('Services/Category');
-        if (!(listing.hero_description?.trim() || listing.description?.trim() || (listing as any).executive_summary?.trim())) missingFields.push('Description');
+        if (!(listing.hero_description?.trim() || listing.description?.trim() || listing.executive_summary?.trim())) missingFields.push('Description');
 
         if (missingFields.length === 0) return null;
 
@@ -1286,7 +1287,7 @@ const ReMarketingDealMatching = () => {
           buyerId: s.buyer?.id || '',
           buyerName: s.buyer?.company_name || 'Unknown',
           companyWebsite: s.buyer?.company_website || undefined,
-          peFirmName: (s.buyer as any)?.pe_firm_name,
+          peFirmName: s.buyer?.pe_firm_name,
           contacts: s.buyer?.contacts?.map((c: any) => ({ name: c.name || '', email: c.email })) || [],
           fitReasoning: s.fit_reasoning || undefined,
           compositeScore: s.composite_score,

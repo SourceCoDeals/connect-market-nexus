@@ -61,7 +61,8 @@ export function useCreateDealComment() {
       commentText: string;
       mentionedAdmins?: string[];
     }) => {
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      if (authError) throw authError;
       if (!user) throw new Error('Not authenticated');
 
       const { data, error } = await supabase

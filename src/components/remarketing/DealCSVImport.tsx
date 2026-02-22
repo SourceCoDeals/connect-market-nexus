@@ -159,7 +159,8 @@ export const DealCSVImport = ({
 
   const importMutation = useMutation({
     mutationFn: async () => {
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      if (authError) throw authError;
       const results = { imported: 0, errors: [] as string[] };
 
       for (let i = 0; i < csvData.length; i++) {

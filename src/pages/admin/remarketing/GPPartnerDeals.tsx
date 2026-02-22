@@ -490,8 +490,9 @@ export default function GPPartnerDeals() {
       sonnerToast.success(`Queued ${targets.length} deals for enrichment`);
 
       try {
-        const { data: result } = await supabase.functions
+        const { data: result, error: resultError } = await supabase.functions
           .invoke("process-enrichment-queue", { body: { source: "gp_partners_bulk" } });
+        if (resultError) throw resultError;
 
         if (result?.synced > 0 || result?.processed > 0) {
           const totalDone = (result?.synced || 0) + (result?.processed || 0);
@@ -627,8 +628,9 @@ export default function GPPartnerDeals() {
       setSelectedIds(new Set());
 
       try {
-        const { data: result } = await supabase.functions
+        const { data: result, error: resultError } = await supabase.functions
           .invoke("process-enrichment-queue", { body: { source: "gp_partners_selected" } });
+        if (resultError) throw resultError;
 
         if (result?.synced > 0 || result?.processed > 0) {
           const totalDone = (result?.synced || 0) + (result?.processed || 0);

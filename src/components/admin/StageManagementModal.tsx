@@ -388,10 +388,11 @@ export const StageManagementModal = ({ open, onOpenChange }: StageManagementModa
     if (window.confirm(confirmMessage)) {
       try {
         // First, fetch all pipeline views that include this stage
-        const { data: views } = await supabase
+        const { data: views, error: viewsError } = await supabase
           .from('pipeline_views')
           .select('id, stage_config')
           .eq('is_active', true);
+        if (viewsError) throw viewsError;
         
         // Delete the stage
         await deleteStageMutation.mutateAsync(stageId);

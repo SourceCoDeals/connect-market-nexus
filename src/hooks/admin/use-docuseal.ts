@@ -99,23 +99,25 @@ export function useBuyerNdaStatus(userId: string | undefined) {
       if (!userId) return null;
 
       // Get the buyer's firm membership
-      const { data: membership } = await supabase
+      const { data: membership, error: membershipError } = await supabase
         .from('firm_members')
         .select('firm_id')
         .eq('user_id', userId)
         .limit(1)
         .maybeSingle();
+      if (membershipError) throw membershipError;
 
       if (!membership) {
         return { hasFirm: false, ndaSigned: false, embedSrc: null, firmId: null };
       }
 
       // Get firm agreement status
-      const { data: firm } = await supabase
+      const { data: firm, error: firmError } = await supabase
         .from('firm_agreements')
         .select('id, nda_signed, nda_docuseal_status, nda_docuseal_submission_id')
         .eq('id', membership.firm_id)
         .maybeSingle();
+      if (firmError) throw firmError;
 
       if (!firm) {
         return { hasFirm: false, ndaSigned: false, embedSrc: null, firmId: null };

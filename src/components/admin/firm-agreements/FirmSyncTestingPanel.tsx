@@ -146,11 +146,12 @@ export function FirmSyncTestingPanel() {
         const domain = req.lead_email.split('@')[1];
         if (!domain) continue;
         
-        const { data: firm } = await supabase
+        const { data: firm, error: firmError } = await supabase
           .from('firm_agreements')
           .select('fee_agreement_signed, nda_signed')
           .or(`email_domain.eq.${domain},website_domain.eq.${domain}`)
           .maybeSingle();
+        if (firmError) throw firmError;
 
         if (firm) {
           checkedCount++;

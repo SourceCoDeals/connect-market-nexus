@@ -169,7 +169,8 @@ export const AddDealToUniverseDialog = ({
   // Add existing deals to universe with auto-scoring
   const addDealsMutation = useMutation({
     mutationFn: async (listingIds: string[]) => {
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      if (authError) throw authError;
       
       const inserts = listingIds.map((listing_id) => ({
         universe_id: universeId,
@@ -241,10 +242,11 @@ export const AddDealToUniverseDialog = ({
           url.replace(/^https?:\/\//, '').replace(/^www\./, '').replace(/\/+$/, '').toLowerCase();
         const normalizedInput = normalizeUrl(websiteUrl);
 
-        const { data: existingListings } = await supabase
+        const { data: existingListings, error: existingListingsError } = await supabase
           .from("listings")
           .select("id, title, internal_company_name, website")
           .not("website", "is", null);
+        if (existingListingsError) throw existingListingsError;
 
         const duplicate = existingListings?.find(
           (l) => l.website && normalizeUrl(l.website) === normalizedInput
@@ -301,7 +303,8 @@ export const AddDealToUniverseDialog = ({
       // Handle transcript file uploads (multiple)
       const filesToUpload = [...transcriptFilesRef.current];
       if (filesToUpload.length > 0 && userId) {
-        const { data: { session } } = await supabase.auth.getSession();
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+        if (sessionError) throw sessionError;
         
         for (let fi = 0; fi < filesToUpload.length; fi++) {
           const file = filesToUpload[fi];

@@ -89,7 +89,18 @@ const ReMarketingDashboard = () => {
         p_from_date: fromDate,
       });
       if (error) throw error;
-      return data as any;
+      // RPC returns untyped JSON; define the shape based on usage
+      interface DashboardStats {
+        cards: Record<string, unknown>;
+        new_by_source: Record<string, number>;
+        all_by_source: Record<string, number>;
+        team: Array<Record<string, unknown>>;
+        score_dist: Record<string, number>;
+        top_deals: Array<Record<string, unknown>>;
+        weekly: Record<string, number>;
+        recent_activity: Array<Record<string, unknown>>;
+      }
+      return data as unknown as DashboardStats;
     },
     staleTime: 30_000,
   });
@@ -151,7 +162,7 @@ const ReMarketingDashboard = () => {
     return universes.map(u => {
       const scores = scoreData.filter(s => s.universe_id === u.id);
       const approved = scores.filter(s => s.status === "approved").length;
-      const buyers = buyerData.filter(b => (b as any).universe_id === u.id).length;
+      const buyers = buyerData.filter(b => b.universe_id === u.id).length;
       return { ...u, totalScored: scores.length, approved, buyers };
     }).sort((a, b) => b.approved - a.approved);
   }, [universes, scoreData, buyerData]);
@@ -408,11 +419,11 @@ const ReMarketingDashboard = () => {
             <span className="text-xs text-gray-400">{cards?.all_visible || 0} deals</span>
           </div>
           {loading ? <Skeleton className="h-32 w-full" /> : (() => {
-            const entries = (teamData as any[])
-              .sort((a: any, b: any) => {
+            const entries = teamData
+              .sort((a, b) => {
                 if (a.owner_id === "__unassigned") return 1;
                 if (b.owner_id === "__unassigned") return -1;
-                return b.total - a.total;
+                return (b.total as number) - (a.total as number);
               });
             return (
               <div className="space-y-3 max-h-64 overflow-y-auto">
@@ -610,7 +621,7 @@ const ReMarketingDashboard = () => {
             <p className="text-sm text-gray-400 text-center py-6">No recent activity</p>
           ) : (
             <div className="space-y-3">
-              {(recentActivity as any[]).map((ev: any, i: number) => {
+              {recentActivity.map((ev, i) => {
                 const iconColor = ev.type === "pushed" ? "bg-green-100 text-green-600"
                   : ev.source === "captarget" ? "bg-blue-100 text-blue-600"
                   : ev.source === "gp_partners" ? "bg-orange-100 text-orange-600"

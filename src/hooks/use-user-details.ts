@@ -52,11 +52,12 @@ export const useUserDetails = (userId: string | null) => {
       if (profileError) throw profileError;
 
       // Fetch initial session data
-      const { data: initialSession } = await supabase
+      const { data: initialSession, error: sessionError } = await supabase
         .from("user_initial_session")
         .select("*")
         .eq("user_id", userId)
         .single();
+      if (sessionError && sessionError.code !== 'PGRST116') throw sessionError;
 
       const userDetails: UserDetails = {
         ...profile,

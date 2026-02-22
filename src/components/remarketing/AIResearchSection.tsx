@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -73,7 +73,8 @@ interface ClarificationContext {
 
 // Helper to get the current session's access token for edge function calls
 const getSessionToken = async (): Promise<string> => {
-  const { data: { session } } = await supabase.auth.getSession();
+  const { data: { session }, error } = await supabase.auth.getSession();
+  if (error) throw error;
   if (!session?.access_token) throw new Error("Not authenticated");
   return session.access_token;
 };
@@ -320,12 +321,11 @@ export const AIResearchSection = ({
     }
   };
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (universeName && !industryName) {
       setIndustryName(universeName);
     }
-  }, [universeName]);
+  }, [universeName, industryName]);
 
   useEffect(() => {
     if (existingContent) {
@@ -334,11 +334,14 @@ export const AIResearchSection = ({
     }
   }, [existingContent]);
 
+  // Ref to hold latest checkExistingGeneration to avoid stale closures in effect
+  const checkExistingGenerationRef = useRef(checkExistingGeneration);
+  checkExistingGenerationRef.current = checkExistingGeneration;
+
   // Check for existing generation in progress on mount
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (universeId) {
-      checkExistingGeneration();
+      checkExistingGenerationRef.current();
     }
   }, [universeId]);
 
@@ -832,14 +835,16 @@ export const AIResearchSection = ({
       // Save clarification context to the universe so the queue processor can use it
       // (process-ma-guide-queue reads ma_guide_qa_context from the universe row)
       if (universeId && Object.keys(clarificationContext).length > 0) {
-        await supabase
+        const { error: ctxError } = await supabase
           .from('remarketing_buyer_universes')
           .update({ ma_guide_qa_context: clarificationContext })
           .eq('id', universeId);
+        if (ctxError) throw ctxError;
       }
 
       // Start background generation
-      const { data: sessionData } = await supabase.auth.getSession();
+      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+      if (sessionError) throw sessionError;
       const token = sessionData?.session?.access_token;
       const response = await fetch(
         `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-ma-guide-background`,
