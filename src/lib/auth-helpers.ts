@@ -1,5 +1,4 @@
-
-import { User, ApprovalStatus, BuyerType } from "@/types";
+import { User, ApprovalStatus, BuyerType } from '@/types';
 
 // Extended User type with data quality flag
 export interface UserWithDataIssues extends User {
@@ -33,7 +32,10 @@ function safeArray(value: unknown): string[] {
       if (Array.isArray(parsed)) return parsed;
     } catch {
       // Fall back to treating as comma-separated
-      return value.split(',').map(s => s.trim()).filter(Boolean);
+      return value
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean);
     }
   }
   return [];
@@ -46,14 +48,22 @@ function safeArray(value: unknown): string[] {
  */
 export function createUserObject(profile: any): UserWithDataIssues {
   const issues: string[] = [];
-  
+
   // Handle completely invalid input - return minimal user
   if (!profile) {
-    return createMinimalUser('unknown-' + Date.now(), '', issues.concat(['Profile was null/undefined']));
+    return createMinimalUser(
+      'unknown-' + Date.now(),
+      '',
+      issues.concat(['Profile was null/undefined']),
+    );
   }
-  
+
   if (!profile.id) {
-    return createMinimalUser('unknown-' + Date.now(), profile.email || '', issues.concat(['Profile missing ID']));
+    return createMinimalUser(
+      'unknown-' + Date.now(),
+      profile.email || '',
+      issues.concat(['Profile missing ID']),
+    );
   }
 
   // Track any parsing issues
@@ -109,19 +119,19 @@ export function createUserObject(profile: any): UserWithDataIssues {
     specific_business_search: profile.specific_business_search || '',
     onboarding_completed: Boolean(profile.onboarding_completed),
     job_title: profile.job_title || '',
-    
+
     // Fee agreement tracking fields
     fee_agreement_signed: Boolean(profile.fee_agreement_signed),
     fee_agreement_signed_at: profile.fee_agreement_signed_at || null,
     fee_agreement_email_sent: Boolean(profile.fee_agreement_email_sent),
     fee_agreement_email_sent_at: profile.fee_agreement_email_sent_at || null,
-    
+
     // NDA tracking fields
     nda_signed: Boolean(profile.nda_signed),
     nda_signed_at: profile.nda_signed_at || null,
     nda_email_sent: Boolean(profile.nda_email_sent),
     nda_email_sent_at: profile.nda_email_sent_at || null,
-    
+
     // All comprehensive buyer-specific fields
     // Private Equity
     deploying_capital_now: profile.deploying_capital_now || '',
@@ -166,35 +176,62 @@ export function createUserObject(profile: any): UserWithDataIssues {
     portfolio_company_addon: profile.portfolio_company_addon || '',
     backers_summary: profile.backers_summary || '',
     anchor_investors_summary: profile.anchor_investors_summary || '',
-    
+
     // Missing fields that weren't being mapped
     deal_intent: profile.deal_intent || '',
     exclusions: safeArray(profile.exclusions),
     include_keywords: safeArray(profile.include_keywords),
-    
+
     // Referral source tracking (Step 3)
     referral_source: profile.referral_source || null,
     referral_source_detail: profile.referral_source_detail || null,
-    
+
     // Deal sourcing questions (Step 3)
     deal_sourcing_methods: dealSourcingMethods,
     target_acquisition_volume: profile.target_acquisition_volume || null,
-    
+
+    // Buyer Quality Score fields
+    buyer_quality_score: profile.buyer_quality_score ?? null,
+    buyer_tier: profile.buyer_tier ?? null,
+    platform_signal_detected: Boolean(profile.platform_signal_detected),
+    platform_signal_source: profile.platform_signal_source || null,
+    buyer_quality_score_last_calculated: profile.buyer_quality_score_last_calculated || null,
+    admin_tier_override: profile.admin_tier_override ?? null,
+    admin_override_note: profile.admin_override_note || null,
+
     // Data quality flags
     _hasDataIssues: issues.length > 0,
     _dataIssues: issues.length > 0 ? issues : undefined,
-    
-    get firstName() { return this.first_name; },
-    get lastName() { return this.last_name; },
-    get phoneNumber() { return this.phone_number; },
-    get isAdmin() { return this.is_admin; },
-    get buyerType() { return this.buyer_type; },
-    get emailVerified() { return this.email_verified; },
-    get isApproved() { return this.approval_status === 'approved'; },
-    get createdAt() { return this.created_at; },
-    get updatedAt() { return this.updated_at; },
+
+    get firstName() {
+      return this.first_name;
+    },
+    get lastName() {
+      return this.last_name;
+    },
+    get phoneNumber() {
+      return this.phone_number;
+    },
+    get isAdmin() {
+      return this.is_admin;
+    },
+    get buyerType() {
+      return this.buyer_type;
+    },
+    get emailVerified() {
+      return this.email_verified;
+    },
+    get isApproved() {
+      return this.approval_status === 'approved';
+    },
+    get createdAt() {
+      return this.created_at;
+    },
+    get updatedAt() {
+      return this.updated_at;
+    },
   };
-  
+
   return user;
 }
 
@@ -219,15 +256,33 @@ function createMinimalUser(id: string, email: string, issues: string[]): UserWit
     updated_at: new Date().toISOString(),
     _hasDataIssues: true,
     _dataIssues: issues,
-    get firstName() { return this.first_name; },
-    get lastName() { return this.last_name; },
-    get phoneNumber() { return this.phone_number; },
-    get isAdmin() { return this.is_admin; },
-    get buyerType() { return this.buyer_type; },
-    get emailVerified() { return this.email_verified; },
-    get isApproved() { return this.approval_status === 'approved'; },
-    get createdAt() { return this.created_at; },
-    get updatedAt() { return this.updated_at; },
+    get firstName() {
+      return this.first_name;
+    },
+    get lastName() {
+      return this.last_name;
+    },
+    get phoneNumber() {
+      return this.phone_number;
+    },
+    get isAdmin() {
+      return this.is_admin;
+    },
+    get buyerType() {
+      return this.buyer_type;
+    },
+    get emailVerified() {
+      return this.email_verified;
+    },
+    get isApproved() {
+      return this.approval_status === 'approved';
+    },
+    get createdAt() {
+      return this.created_at;
+    },
+    get updatedAt() {
+      return this.updated_at;
+    },
   };
 }
 
@@ -250,35 +305,48 @@ export function getUserInitials(user: User | null): string {
   if (!user) return 'U';
   const firstName = user.first_name || '';
   const lastName = user.last_name || '';
-  return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase() || user.email?.charAt(0).toUpperCase() || 'U';
+  return (
+    `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase() ||
+    user.email?.charAt(0).toUpperCase() ||
+    'U'
+  );
 }
 
 export function validateUserData(user: User): { isValid: boolean; errors: string[] } {
   const errors: string[] = [];
-  
+
   if (!user.id) errors.push('User ID is required');
   if (!user.email) errors.push('Email is required');
   if (!user.first_name) errors.push('First name is required');
   if (!user.last_name) errors.push('Last name is required');
-  
+
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   if (user.email && !emailRegex.test(user.email)) {
     errors.push('Invalid email format');
   }
-  
+
   const validStatuses: ApprovalStatus[] = ['pending', 'approved', 'rejected'];
   if (!validStatuses.includes(user.approval_status)) {
     errors.push('Invalid approval status');
   }
-  
-  const validBuyerTypes: BuyerType[] = ['corporate', 'privateEquity', 'familyOffice', 'searchFund', 'individual', 'independentSponsor', 'advisor', 'businessOwner'];
+
+  const validBuyerTypes: BuyerType[] = [
+    'corporate',
+    'privateEquity',
+    'familyOffice',
+    'searchFund',
+    'individual',
+    'independentSponsor',
+    'advisor',
+    'businessOwner',
+  ];
   if (!validBuyerTypes.includes(user.buyer_type)) {
     errors.push('Invalid buyer type');
   }
-  
+
   return {
     isValid: errors.length === 0,
-    errors
+    errors,
   };
 }
 

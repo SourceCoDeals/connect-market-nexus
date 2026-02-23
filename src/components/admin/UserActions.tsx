@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { useAdminUsers } from '@/hooks/admin/use-admin-users';
 import { useAdminEmail } from '@/hooks/admin/use-admin-email';
-// useAutoCreateFirmOnApproval removed — direct user approval doesn't have a connectionRequestId
+import { supabase } from '@/integrations/supabase/client';
 import { User } from '@/types';
 import { ApprovalEmailOptions } from '@/types/admin-users';
 
@@ -24,8 +24,6 @@ export function UserActions({ onUserStatusUpdated }: UserActionsProps) {
   const { useUpdateUserStatus, useUpdateAdminStatus, useDeleteUser } = useAdminUsers();
 
   const { sendCustomApprovalEmail } = useAdminEmail();
-
-  
 
   // Get actual mutation functions
   const updateUserStatusMutation = useUpdateUserStatus();
@@ -166,10 +164,14 @@ export function UserActions({ onUserStatusUpdated }: UserActionsProps) {
       // Store approved user for success dialog
       setApprovedUser(user);
 
-      // Step 2: Auto-create firm agreement (fire-and-forget, non-blocking)
-      // Note: This edge function expects a connectionRequestId, not a userId.
-      // During direct user approval (not connection request approval), we skip this step.
-      console.log('[UserActions] Step 2: Skipping auto-create firm (no connection request in direct approval flow)');
+      // Step 2: Calculate Buyer Quality Score (fire-and-forget, non-blocking)
+      supabase.functions
+        .invoke('calculate-buyer-quality-score', { body: { profile_id: user.id } })
+        .then((res) => {
+          if (res.error) console.error('[UserActions] Quality score calc failed:', res.error);
+          else console.log('[UserActions] Quality score calculated:', res.data?.total_score);
+        })
+        .catch((err) => console.error('[UserActions] Quality score calc error:', err));
 
       // Step 3: Send email
       let emailSuccess = false;
@@ -193,7 +195,10 @@ export function UserActions({ onUserStatusUpdated }: UserActionsProps) {
       toast({
         variant: 'destructive',
         title: 'Approval failed',
-        description: approvalError instanceof Error ? approvalError.message : 'Failed to approve user. Please try again.',
+        description:
+          approvalError instanceof Error
+            ? approvalError.message
+            : 'Failed to approve user. Please try again.',
       });
     }
   };

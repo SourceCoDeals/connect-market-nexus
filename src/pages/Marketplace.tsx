@@ -1,18 +1,20 @@
-import { useEffect, useCallback, useState } from "react";
+import { useEffect, useCallback, useState } from 'react';
 import { useSimplePagination } from '@/hooks/use-simple-pagination';
 import { useSimpleListings, useListingMetadata } from '@/hooks/use-simple-listings';
-import { useOnboarding } from "@/hooks/use-onboarding";
-import ListingCard from "@/components/ListingCard";
-import FilterPanel from "@/components/FilterPanel";
-import OnboardingPopup from "@/components/onboarding/OnboardingPopup";
-import { SearchSessionProvider } from "@/contexts/SearchSessionContext";
-import { useSearchSession } from "@/hooks/use-search-session";
-import { Button } from "@/components/ui/button";
-import { LayoutGrid, LayoutList } from "lucide-react";
-import { cn } from "@/lib/utils";
-import { LoadingSpinner } from "@/components/LoadingSpinner";
-import { useAllSavedListingIds } from "@/hooks/marketplace/use-saved-listings";
-import { useAllConnectionStatuses } from "@/hooks/marketplace/use-connections";
+import { useOnboarding } from '@/hooks/use-onboarding';
+import ListingCard from '@/components/ListingCard';
+import FilterPanel from '@/components/FilterPanel';
+import OnboardingPopup from '@/components/onboarding/OnboardingPopup';
+import { SearchSessionProvider } from '@/contexts/SearchSessionContext';
+import { useSearchSession } from '@/hooks/use-search-session';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
+import { LayoutGrid, LayoutList, UserCircle } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { LoadingSpinner } from '@/components/LoadingSpinner';
+import { Link } from 'react-router-dom';
+import { useAllSavedListingIds } from '@/hooks/marketplace/use-saved-listings';
+import { useAllConnectionStatuses } from '@/hooks/marketplace/use-connections';
 
 import {
   Select,
@@ -20,7 +22,7 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
+} from '@/components/ui/select';
 import {
   Pagination,
   PaginationContent,
@@ -29,62 +31,65 @@ import {
   PaginationNext,
   PaginationPrevious,
   PaginationEllipsis,
-} from "@/components/ui/pagination";
-import { toast } from "@/hooks/use-toast";
-import { useRealtime } from "@/components/realtime/RealtimeProvider";
-import { useAuth } from "@/context/AuthContext";
-import { Wifi } from "lucide-react";
-import { CreateDealAlertDialog } from "@/components/deal-alerts/CreateDealAlertDialog";
+} from '@/components/ui/pagination';
+import { toast } from '@/hooks/use-toast';
+import { useRealtime } from '@/components/realtime/RealtimeProvider';
+import { useAuth } from '@/context/AuthContext';
+import { Wifi } from 'lucide-react';
+import { CreateDealAlertDialog } from '@/components/deal-alerts/CreateDealAlertDialog';
 
 const MarketplaceContent = () => {
   const { user, authChecked } = useAuth();
   const { shouldShowOnboarding, completeOnboarding } = useOnboarding();
   const { listingsConnected } = useRealtime();
-  
+
   const pagination = useSimplePagination();
-  const { data: listingsData, isLoading, error } = useSimpleListings(pagination.state);
+  // Pass buyer tier for Tier 3 time-gating (admins bypass)
+  const buyerTier = user?.is_admin ? null : (user?.buyer_tier ?? null);
+  const { data: listingsData, isLoading, error } = useSimpleListings(pagination.state, buyerTier);
   const { data: metadata } = useListingMetadata();
-  
+
   // Batch fetch saved & connection status (2 queries total instead of 40+)
   const { data: savedIds } = useAllSavedListingIds();
   const { data: connectionMap } = useAllConnectionStatuses();
-  
+
   // Search session tracking for analytics
   const { startSearch, registerResults } = useSearchSession();
-  
+
   const listings = listingsData?.listings || [];
   const totalItems = listingsData?.totalItems || 0;
-  
+
   // Track search query changes
   useEffect(() => {
     if (pagination.state.search) {
       startSearch(pagination.state.search);
     }
   }, [pagination.state.search, startSearch]);
-  
+
   // Register listing positions for click tracking
   useEffect(() => {
     if (listings.length > 0) {
-      registerResults(listings.map(l => l.id));
+      registerResults(listings.map((l) => l.id));
     }
   }, [listings, registerResults]);
   const categories = metadata?.categories || [];
   const locations = metadata?.locations || [];
-  
+
   // Enhanced loading state that includes transitions
   const isPageTransitioning = isLoading;
-  
+
   const totalPages = Math.ceil(totalItems / pagination.state.perPage);
   const [viewType, setViewType] = useState<'grid' | 'list'>('grid');
-   
+
   // Error handling with toast notification
   useEffect(() => {
     if (error) {
-      console.error("❌ Error loading marketplace listings:", error);
+      console.error('❌ Error loading marketplace listings:', error);
       toast({
-        variant: "destructive",
-        title: "Error loading listings",
-        description: "There was a problem loading the marketplace listings. Please try again later.",
+        variant: 'destructive',
+        title: 'Error loading listings',
+        description:
+          'There was a problem loading the marketplace listings. Please try again later.',
       });
     }
   }, [error]);
@@ -93,40 +98,44 @@ const MarketplaceContent = () => {
   const handleRetry = useCallback(() => {
     window.location.reload();
   }, []);
-  
+
   // Enhanced pagination with smooth page number generation
   const currentPage = pagination.state.page;
-  
+
   const getPageNumbers = useCallback(() => {
     const delta = 2;
-    
+
     if (totalPages <= 1) return [];
-    
+
     const range = new Set<number>();
-    
+
     // Always include first and last pages
     range.add(1);
     if (totalPages > 1) range.add(totalPages);
-    
+
     // Add pages around current page
-    for (let i = Math.max(1, currentPage - delta); i <= Math.min(totalPages, currentPage + delta); i++) {
+    for (
+      let i = Math.max(1, currentPage - delta);
+      i <= Math.min(totalPages, currentPage + delta);
+      i++
+    ) {
       range.add(i);
     }
-    
+
     const pages = Array.from(range).sort((a, b) => a - b);
     const result: (number | string)[] = [];
-    
+
     for (let i = 0; i < pages.length; i++) {
       const current = pages[i];
       const next = pages[i + 1];
-      
+
       result.push(current);
-      
+
       if (next && next - current > 1) {
         result.push('...');
       }
     }
-    
+
     return result;
   }, [currentPage, totalPages]);
 
@@ -142,6 +151,27 @@ const MarketplaceContent = () => {
     );
   }
 
+  // Tier 4 gate: buyers with buyer_tier === 4 must complete their profile
+  if (user && !user.is_admin && user.buyer_tier === 4) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center p-8">
+        <Card className="max-w-lg w-full">
+          <CardContent className="pt-8 text-center space-y-4">
+            <UserCircle className="h-16 w-16 text-muted-foreground mx-auto" />
+            <h2 className="text-xl font-semibold">Complete Your Profile to Access Deals</h2>
+            <p className="text-muted-foreground text-sm">
+              Complete your profile to access all available opportunities. We need a bit more
+              information about your investment criteria and background to show you relevant deals.
+            </p>
+            <Link to="/welcome">
+              <Button className="mt-2">Complete My Profile</Button>
+            </Link>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-background">
       {/* Onboarding Popup */}
@@ -152,7 +182,7 @@ const MarketplaceContent = () => {
           userId={user.id}
         />
       )}
-      
+
       <div className="container mx-auto px-4 py-8">
         <div className="flex flex-col gap-6">
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
@@ -166,7 +196,7 @@ const MarketplaceContent = () => {
               )}
             </div>
           </div>
-          
+
           <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
             {/* Filter sidebar */}
             <div className="col-span-1">
@@ -188,15 +218,15 @@ const MarketplaceContent = () => {
                 }}
               />
             </div>
-            
+
             {/* Listings */}
             <div className="col-span-1 lg:col-span-3 flex flex-col gap-4 relative">
               {/* View type and sorting */}
               <div className="flex flex-wrap justify-between items-center gap-4">
                 <div className="text-sm text-muted-foreground">
-                  {isLoading ? "Loading listings..." : `${totalItems} listings found`}
+                  {isLoading ? 'Loading listings...' : `${totalItems} listings found`}
                 </div>
-                
+
                 <div className="flex flex-wrap items-center gap-4">
                   <div className="flex items-center gap-2">
                     <span className="text-sm">View:</span>
@@ -205,21 +235,30 @@ const MarketplaceContent = () => {
                       size="sm"
                       onClick={() => setViewType(viewType === 'grid' ? 'list' : 'grid')}
                       disabled={isPageTransitioning}
-                      className={cn(isPageTransitioning && "opacity-50 cursor-not-allowed")}
+                      className={cn(isPageTransitioning && 'opacity-50 cursor-not-allowed')}
                     >
-                      {viewType === 'grid' ? <LayoutList className="h-4 w-4" /> : <LayoutGrid className="h-4 w-4" />}
+                      {viewType === 'grid' ? (
+                        <LayoutList className="h-4 w-4" />
+                      ) : (
+                        <LayoutGrid className="h-4 w-4" />
+                      )}
                       {viewType === 'grid' ? 'List' : 'Grid'}
                     </Button>
                   </div>
-                  
+
                   <div className="flex items-center gap-2">
                     <span className="text-sm">Results per page:</span>
-                    <Select 
-                      value={pagination.state.perPage.toString()} 
+                    <Select
+                      value={pagination.state.perPage.toString()}
                       onValueChange={(value) => pagination.setPerPage(parseInt(value))}
                       disabled={isPageTransitioning}
                     >
-                      <SelectTrigger className={cn("w-20", isPageTransitioning && "opacity-50 cursor-not-allowed")}>
+                      <SelectTrigger
+                        className={cn(
+                          'w-20',
+                          isPageTransitioning && 'opacity-50 cursor-not-allowed',
+                        )}
+                      >
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -231,21 +270,21 @@ const MarketplaceContent = () => {
                   </div>
                 </div>
               </div>
-              
+
               {/* Transition Overlay */}
               {isPageTransitioning && (
                 <div className="absolute inset-0 bg-background/80 backdrop-blur-sm z-10 flex items-center justify-center">
                   <LoadingSpinner size="lg" message="Loading page..." showMessage />
                 </div>
               )}
-              
+
               {/* Loading State with Spinner */}
               {isLoading && !isPageTransitioning && (
                 <div className="flex justify-center items-center py-8">
                   <LoadingSpinner />
                 </div>
               )}
-              
+
               {/* Listings grid/list */}
               {!isLoading && error ? (
                 <div className="bg-muted/30 border border-border rounded-lg p-8 text-center">
@@ -256,10 +295,7 @@ const MarketplaceContent = () => {
                   <p className="text-sm text-red-600 mb-4">
                     Error: {error?.message || 'Unknown error'}
                   </p>
-                  <Button
-                    variant="outline"
-                    onClick={handleRetry}
-                  >
+                  <Button variant="outline" onClick={handleRetry}>
                     Refresh Page
                   </Button>
                 </div>
@@ -267,7 +303,8 @@ const MarketplaceContent = () => {
                 <div className="bg-muted/30 border border-border rounded-lg p-8 text-center">
                   <h3 className="text-lg font-medium mb-2">No listings found</h3>
                   <p className="text-muted-foreground mb-4">
-                    Try adjusting your filters to see more results, or set up a deal alert to be notified when matching opportunities become available.
+                    Try adjusting your filters to see more results, or set up a deal alert to be
+                    notified when matching opportunities become available.
                   </p>
                   <div className="flex flex-col sm:flex-row gap-3 justify-center">
                     <Button
@@ -278,34 +315,34 @@ const MarketplaceContent = () => {
                       Clear all filters
                     </Button>
                     {user && (
-                      <CreateDealAlertDialog 
-                        trigger={
-                          <Button variant="default">
-                            Get Deal Alerts
-                          </Button>
-                        }
+                      <CreateDealAlertDialog
+                        trigger={<Button variant="default">Get Deal Alerts</Button>}
                       />
                     )}
                   </div>
                 </div>
-              ) : !isLoading && (
-                <div className={cn(
-                  viewType === "grid" 
-                    ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-6" 
-                    : "flex flex-col gap-3"
-                )}>
-                  {listings.map((listing) => (
-                    <ListingCard
-                      key={listing.id}
-                      listing={listing}
-                      viewType={viewType}
-                      savedIds={savedIds}
-                      connectionMap={connectionMap}
-                    />
-                  ))}
-                </div>
+              ) : (
+                !isLoading && (
+                  <div
+                    className={cn(
+                      viewType === 'grid'
+                        ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-6'
+                        : 'flex flex-col gap-3',
+                    )}
+                  >
+                    {listings.map((listing) => (
+                      <ListingCard
+                        key={listing.id}
+                        listing={listing}
+                        viewType={viewType}
+                        savedIds={savedIds}
+                        connectionMap={connectionMap}
+                      />
+                    ))}
+                  </div>
+                )
               )}
-              
+
               {/* Pagination */}
               {totalPages > 1 && !isLoading && (
                 <Pagination className="mt-8">
@@ -320,8 +357,10 @@ const MarketplaceContent = () => {
                           }
                         }}
                         className={cn(
-                          "transition-all duration-200",
-                          currentPage <= 1 || isPageTransitioning ? "pointer-events-none opacity-50" : "cursor-pointer hover:bg-accent"
+                          'transition-all duration-200',
+                          currentPage <= 1 || isPageTransitioning
+                            ? 'pointer-events-none opacity-50'
+                            : 'cursor-pointer hover:bg-accent',
                         )}
                       />
                     </PaginationItem>
@@ -342,15 +381,17 @@ const MarketplaceContent = () => {
                             }}
                             isActive={pageNum === currentPage}
                             className={cn(
-                              "transition-all duration-200",
-                              isPageTransitioning ? "pointer-events-none opacity-50" : "cursor-pointer hover:bg-accent hover:scale-105",
-                              pageNum === currentPage && "bg-primary text-primary-foreground"
+                              'transition-all duration-200',
+                              isPageTransitioning
+                                ? 'pointer-events-none opacity-50'
+                                : 'cursor-pointer hover:bg-accent hover:scale-105',
+                              pageNum === currentPage && 'bg-primary text-primary-foreground',
                             )}
                           >
                             {pageNum}
                           </PaginationLink>
                         </PaginationItem>
-                      )
+                      ),
                     )}
                     <PaginationItem>
                       <PaginationNext
@@ -362,8 +403,10 @@ const MarketplaceContent = () => {
                           }
                         }}
                         className={cn(
-                          "transition-all duration-200",
-                          currentPage >= totalPages || isPageTransitioning ? "pointer-events-none opacity-50" : "cursor-pointer hover:bg-accent"
+                          'transition-all duration-200',
+                          currentPage >= totalPages || isPageTransitioning
+                            ? 'pointer-events-none opacity-50'
+                            : 'cursor-pointer hover:bg-accent',
                         )}
                       />
                     </PaginationItem>

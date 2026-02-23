@@ -1,8 +1,9 @@
-import { User } from "@/types";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ExternalLink, Mail, Building, UserIcon, Linkedin, Search } from "lucide-react";
-import { UserSavedListings } from "../UserSavedListings";
-import { UserActivityTimeline } from "../UserActivityTimeline";
+import { User } from '@/types';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { ExternalLink, Mail, Building, UserIcon, Linkedin, Search } from 'lucide-react';
+import { UserSavedListings } from '../UserSavedListings';
+import { UserActivityTimeline } from '../UserActivityTimeline';
+import { BuyerQualityScorePanel } from '../BuyerQualityScorePanel';
 import { getFieldCategories, FIELD_LABELS } from '@/lib/buyer-type-fields';
 import { formatFieldValue } from '@/lib/field-formatting';
 
@@ -14,8 +15,9 @@ export const UserDetails = ({ user }: { user: User }) => {
   return (
     <div className="space-y-6 p-4 bg-muted/20 rounded-lg">
       <Tabs defaultValue="profile" className="w-full">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="profile">Profile</TabsTrigger>
+          <TabsTrigger value="quality-score">Quality Score</TabsTrigger>
           <TabsTrigger value="saved">Saved Listings</TabsTrigger>
           <TabsTrigger value="timeline">Activity Timeline</TabsTrigger>
         </TabsList>
@@ -28,23 +30,31 @@ export const UserDetails = ({ user }: { user: User }) => {
               Account Information
             </h4>
             <div className="pl-6 grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-              <div><span className="text-muted-foreground">Created:</span> {new Date(user.created_at).toLocaleString()}</div>
+              <div>
+                <span className="text-muted-foreground">Created:</span>{' '}
+                {new Date(user.created_at).toLocaleString()}
+              </div>
               <div>
                 <span className="text-muted-foreground">Email Verified:</span>
-                {user.email_verified ? " Yes" : " No"}
+                {user.email_verified ? ' Yes' : ' No'}
               </div>
               <div>
                 <span className="text-muted-foreground">Status:</span>
-                <span className={`capitalize ml-1 ${
-                  user.approval_status === "approved" ? "text-green-600" :
-                  user.approval_status === "rejected" ? "text-red-600" :
-                  "text-yellow-600"
-                }`}>
+                <span
+                  className={`capitalize ml-1 ${
+                    user.approval_status === 'approved'
+                      ? 'text-green-600'
+                      : user.approval_status === 'rejected'
+                        ? 'text-red-600'
+                        : 'text-yellow-600'
+                  }`}
+                >
                   {user.approval_status}
                 </span>
               </div>
               <div>
-                <span className="text-muted-foreground">Admin:</span> {user.is_admin ? " Yes" : " No"}
+                <span className="text-muted-foreground">Admin:</span>{' '}
+                {user.is_admin ? ' Yes' : ' No'}
               </div>
             </div>
           </div>
@@ -65,7 +75,8 @@ export const UserDetails = ({ user }: { user: User }) => {
                 </h4>
                 <div className="pl-6 grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                   {fields.map((fieldKey: string) => {
-                    const fieldLabel = FIELD_LABELS[fieldKey as keyof typeof FIELD_LABELS] || fieldKey;
+                    const fieldLabel =
+                      FIELD_LABELS[fieldKey as keyof typeof FIELD_LABELS] || fieldKey;
                     const fieldValue = user[fieldKey as keyof User];
 
                     // Handle special field rendering
@@ -73,7 +84,12 @@ export const UserDetails = ({ user }: { user: User }) => {
                       return (
                         <div key={fieldKey} className="flex items-center gap-2">
                           <span className="text-muted-foreground">{fieldLabel}:</span>
-                          <a href={fieldValue as string} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline flex items-center gap-1">
+                          <a
+                            href={fieldValue as string}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-primary hover:underline flex items-center gap-1"
+                          >
                             {fieldValue as string} <ExternalLink className="h-3 w-3" />
                           </a>
                         </div>
@@ -84,7 +100,12 @@ export const UserDetails = ({ user }: { user: User }) => {
                       return (
                         <div key={fieldKey} className="flex items-center gap-2">
                           <span className="text-muted-foreground">{fieldLabel}:</span>
-                          <a href={fieldValue as string} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline flex items-center gap-1">
+                          <a
+                            href={fieldValue as string}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-primary hover:underline flex items-center gap-1"
+                          >
                             <Linkedin className="h-3 w-3" />
                             Profile
                           </a>
@@ -105,14 +126,20 @@ export const UserDetails = ({ user }: { user: User }) => {
                                   </span>
                                 ))}
                               </div>
-                            ) : '\u2014'}
+                            ) : (
+                              '\u2014'
+                            )}
                           </div>
                         </div>
                       );
                     }
 
                     if (fieldKey === 'target_locations') {
-                      const locationsToDisplay = Array.isArray(fieldValue) ? fieldValue : (fieldValue ? [fieldValue] : []);
+                      const locationsToDisplay = Array.isArray(fieldValue)
+                        ? fieldValue
+                        : fieldValue
+                          ? [fieldValue]
+                          : [];
                       return (
                         <div key={fieldKey} className="col-span-2">
                           <span className="text-muted-foreground">{fieldLabel}:</span>
@@ -125,22 +152,34 @@ export const UserDetails = ({ user }: { user: User }) => {
                                   </span>
                                 ))}
                               </div>
-                            ) : '\u2014'}
+                            ) : (
+                              '\u2014'
+                            )}
                           </div>
                         </div>
                       );
                     }
 
-                    if (fieldKey === 'ideal_target_description' || fieldKey === 'specific_business_search') {
+                    if (
+                      fieldKey === 'ideal_target_description' ||
+                      fieldKey === 'specific_business_search'
+                    ) {
                       return (
                         <div key={fieldKey} className="col-span-2">
                           <span className="text-muted-foreground">{fieldLabel}:</span>
-                          <p className="mt-1 text-xs leading-relaxed">{fieldValue as string || '\u2014'}</p>
+                          <p className="mt-1 text-xs leading-relaxed">
+                            {(fieldValue as string) || '\u2014'}
+                          </p>
                         </div>
                       );
                     }
 
-                    if (fieldKey === 'revenue_range_min' || fieldKey === 'revenue_range_max' || fieldKey === 'target_deal_size_min' || fieldKey === 'target_deal_size_max') {
+                    if (
+                      fieldKey === 'revenue_range_min' ||
+                      fieldKey === 'revenue_range_max' ||
+                      fieldKey === 'target_deal_size_min' ||
+                      fieldKey === 'target_deal_size_max'
+                    ) {
                       const numValue = fieldValue as number;
                       return (
                         <div key={fieldKey}>
@@ -152,10 +191,13 @@ export const UserDetails = ({ user }: { user: User }) => {
 
                     if (fieldKey === 'industry_expertise') {
                       // Handle both array and text formats for industry_expertise
-                      const displayValue = Array.isArray(fieldValue) ? fieldValue.join(', ') : (fieldValue as string || '\u2014');
+                      const displayValue = Array.isArray(fieldValue)
+                        ? fieldValue.join(', ')
+                        : (fieldValue as string) || '\u2014';
                       return (
                         <div key={fieldKey} className="col-span-2">
-                          <span className="text-muted-foreground">{fieldLabel}:</span> {displayValue}
+                          <span className="text-muted-foreground">{fieldLabel}:</span>{' '}
+                          {displayValue}
                         </div>
                       );
                     }
@@ -166,10 +208,18 @@ export const UserDetails = ({ user }: { user: User }) => {
                     }
 
                     // Handle Independent Sponsor specific fields with proper formatting
-                    if (['committed_equity_band', 'equity_source', 'deployment_timing', 'flex_subxm_ebitda'].includes(fieldKey)) {
+                    if (
+                      [
+                        'committed_equity_band',
+                        'equity_source',
+                        'deployment_timing',
+                        'flex_subxm_ebitda',
+                      ].includes(fieldKey)
+                    ) {
                       return (
                         <div key={fieldKey}>
-                          <span className="text-muted-foreground">{fieldLabel}:</span> {formatFieldValue(fieldKey, fieldValue)}
+                          <span className="text-muted-foreground">{fieldLabel}:</span>{' '}
+                          {formatFieldValue(fieldKey, fieldValue)}
                         </div>
                       );
                     }
@@ -184,12 +234,17 @@ export const UserDetails = ({ user }: { user: User }) => {
                             {methods && methods.length > 0 ? (
                               <div className="flex flex-wrap gap-1">
                                 {methods.map((method, index) => (
-                                  <span key={index} className="text-xs bg-muted px-2 py-1 rounded capitalize">
+                                  <span
+                                    key={index}
+                                    className="text-xs bg-muted px-2 py-1 rounded capitalize"
+                                  >
                                     {method.replace(/_/g, ' ')}
                                   </span>
                                 ))}
                               </div>
-                            ) : '\u2014'}
+                            ) : (
+                              '\u2014'
+                            )}
                           </div>
                         </div>
                       );
@@ -200,7 +255,9 @@ export const UserDetails = ({ user }: { user: User }) => {
                       return (
                         <div key={fieldKey}>
                           <span className="text-muted-foreground">{fieldLabel}:</span>{' '}
-                          <span className="capitalize">{fieldValue ? String(fieldValue).replace(/_/g, ' ') : '\u2014'}</span>
+                          <span className="capitalize">
+                            {fieldValue ? String(fieldValue).replace(/_/g, ' ') : '\u2014'}
+                          </span>
                         </div>
                       );
                     }
@@ -210,7 +267,9 @@ export const UserDetails = ({ user }: { user: User }) => {
                       return (
                         <div key={fieldKey}>
                           <span className="text-muted-foreground">{fieldLabel}:</span>{' '}
-                          <span className="capitalize">{fieldValue ? String(fieldValue).replace(/_/g, ' ') : '\u2014'}</span>
+                          <span className="capitalize">
+                            {fieldValue ? String(fieldValue).replace(/_/g, ' ') : '\u2014'}
+                          </span>
                         </div>
                       );
                     }
@@ -240,7 +299,9 @@ export const UserDetails = ({ user }: { user: User }) => {
                       return (
                         <div key={fieldKey}>
                           <span className="text-muted-foreground">{fieldLabel}:</span>{' '}
-                          <span className="text-xs font-mono bg-muted px-1.5 py-0.5 rounded">{fieldValue as string}</span>
+                          <span className="text-xs font-mono bg-muted px-1.5 py-0.5 rounded">
+                            {fieldValue as string}
+                          </span>
                         </div>
                       );
                     }
@@ -248,7 +309,8 @@ export const UserDetails = ({ user }: { user: User }) => {
                     // Default field rendering with formatting
                     return (
                       <div key={fieldKey}>
-                        <span className="text-muted-foreground">{fieldLabel}:</span> {formatFieldValue(fieldKey, fieldValue)}
+                        <span className="text-muted-foreground">{fieldLabel}:</span>{' '}
+                        {formatFieldValue(fieldKey, fieldValue)}
                       </div>
                     );
                   })}
@@ -256,6 +318,10 @@ export const UserDetails = ({ user }: { user: User }) => {
               </div>
             );
           })}
+        </TabsContent>
+
+        <TabsContent value="quality-score" className="mt-6">
+          <BuyerQualityScorePanel user={user} />
         </TabsContent>
 
         <TabsContent value="saved" className="mt-6">

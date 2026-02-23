@@ -1,16 +1,24 @@
-import { useState } from "react";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { User } from "@/types";
-import { CheckCircle, ChevronDown, ChevronRight } from "lucide-react";
-import { formatDistanceToNow } from "date-fns";
-import { UserDataCompleteness } from "./UserDataCompleteness";
-import { DualFeeAgreementToggle } from "./DualFeeAgreementToggle";
-import { SimpleFeeAgreementDialog } from "./SimpleFeeAgreementDialog";
-import { DualNDAToggle } from "./DualNDAToggle";
-import { SimpleNDADialog } from "./SimpleNDADialog";
-import { UserFirmBadge } from "./UserFirmBadge";
+import { useState } from 'react';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { User } from '@/types';
+import { CheckCircle, ChevronDown, ChevronRight, Zap } from 'lucide-react';
+import { formatDistanceToNow } from 'date-fns';
+import { UserDataCompleteness } from './UserDataCompleteness';
+import { BuyerTierBadge, BuyerScoreBadge } from './BuyerQualityBadges';
+import { DualFeeAgreementToggle } from './DualFeeAgreementToggle';
+import { SimpleFeeAgreementDialog } from './SimpleFeeAgreementDialog';
+import { DualNDAToggle } from './DualNDAToggle';
+import { SimpleNDADialog } from './SimpleNDADialog';
+import { UserFirmBadge } from './UserFirmBadge';
 
 import { useEnhancedUserExport } from '@/hooks/admin/use-enhanced-user-export';
 import { useLogFeeAgreementEmail } from '@/hooks/admin/use-fee-agreement';
@@ -42,7 +50,7 @@ export function UsersTable({
   onMakeAdmin,
   onRevokeAdmin,
   onDelete,
-  isLoading
+  isLoading,
 }: UsersTableProps) {
   const [expandedUserId, setExpandedUserId] = useState<string | null>(null);
   const [selectedUserForEmail, setSelectedUserForEmail] = useState<User | null>(null);
@@ -68,7 +76,7 @@ export function UsersTable({
     try {
       return formatDistanceToNow(new Date(dateString), { addSuffix: true });
     } catch (error) {
-      return "Invalid date";
+      return 'Invalid date';
     }
   };
 
@@ -85,6 +93,8 @@ export function UsersTable({
               <TableHead className="w-10"></TableHead>
               <TableHead className="min-w-[200px]">User & Company</TableHead>
               <TableHead className="w-20">Type</TableHead>
+              <TableHead className="w-24">Tier</TableHead>
+              <TableHead className="w-16">Score</TableHead>
               <TableHead className="w-20">Profile</TableHead>
               <TableHead className="w-16">Fee</TableHead>
               <TableHead className="w-16">NDA</TableHead>
@@ -112,31 +122,39 @@ export function UsersTable({
                 <TableCell className="py-2">
                   <div className="flex flex-col gap-1">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span className="font-medium text-sm">{user.first_name} {user.last_name}</span>
-                      {!isLoadingRoles && (() => {
-                        const role = getUserRole(user.id);
-                        // Fallback to legacy profile flag while migrating
-                        const effectiveRole: AppRole = role === 'viewer' && user?.is_admin === true ? 'admin' : role;
-                        // Map 'owner' to 'admin' for display
-                        const displayRole = effectiveRole === 'owner' ? 'admin' : effectiveRole;
+                      <span className="font-medium text-sm">
+                        {user.first_name} {user.last_name}
+                      </span>
+                      {!isLoadingRoles &&
+                        (() => {
+                          const role = getUserRole(user.id);
+                          // Fallback to legacy profile flag while migrating
+                          const effectiveRole: AppRole =
+                            role === 'viewer' && user?.is_admin === true ? 'admin' : role;
+                          // Map 'owner' to 'admin' for display
+                          const displayRole = effectiveRole === 'owner' ? 'admin' : effectiveRole;
 
-                        // Only show badge for admin
-                        if (displayRole === 'admin') {
-                          return <RoleBadge role={displayRole} showTooltip={false} />;
-                        }
-                        return null;
-                      })()}
+                          // Only show badge for admin
+                          if (displayRole === 'admin') {
+                            return <RoleBadge role={displayRole} showTooltip={false} />;
+                          }
+                          return null;
+                        })()}
                       {user.email_verified && (
-                        <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700 px-1 py-0">
-                          <CheckCircle className="h-3 w-3 mr-1" />
-                          ✓
+                        <Badge
+                          variant="outline"
+                          className="text-xs bg-blue-50 text-blue-700 px-1 py-0"
+                        >
+                          <CheckCircle className="h-3 w-3 mr-1" />✓
                         </Badge>
                       )}
                     </div>
                     <div className="text-xs text-muted-foreground truncate">{user.email}</div>
                     <div className="flex items-center gap-2 mt-1">
                       {user.company && (
-                        <div className="text-xs font-medium text-foreground truncate">{user.company}</div>
+                        <div className="text-xs font-medium text-foreground truncate">
+                          {user.company}
+                        </div>
                       )}
                       <UserFirmBadge userId={user.id} compact />
                     </div>
@@ -144,13 +162,34 @@ export function UsersTable({
                 </TableCell>
                 <TableCell className="py-2">
                   <div className="text-xs">
-                    {user.buyer_type === 'privateEquity' ? 'PE' :
-                     user.buyer_type === 'familyOffice' ? 'FO' :
-                     user.buyer_type === 'searchFund' ? 'SF' :
-                     user.buyer_type === 'independentSponsor' ? 'IS' :
-                     user.buyer_type === 'corporate' ? 'Corp' :
-                     user.buyer_type === 'individual' ? 'Indiv' : '\u2014'}
+                    {user.buyer_type === 'privateEquity'
+                      ? 'PE'
+                      : user.buyer_type === 'familyOffice'
+                        ? 'FO'
+                        : user.buyer_type === 'searchFund'
+                          ? 'SF'
+                          : user.buyer_type === 'independentSponsor'
+                            ? 'IS'
+                            : user.buyer_type === 'corporate'
+                              ? 'Corp'
+                              : user.buyer_type === 'individual'
+                                ? 'Indiv'
+                                : '\u2014'}
                   </div>
+                </TableCell>
+                <TableCell className="py-2">
+                  <div className="flex items-center gap-1">
+                    <BuyerTierBadge
+                      tier={user.buyer_tier}
+                      isOverride={user.admin_tier_override != null}
+                    />
+                    {user.platform_signal_detected && (
+                      <Zap className="h-3 w-3 text-green-600" title="Add-On Signal" />
+                    )}
+                  </div>
+                </TableCell>
+                <TableCell className="py-2">
+                  <BuyerScoreBadge score={user.buyer_quality_score} />
                 </TableCell>
                 <TableCell className="py-2">
                   <UserDataCompleteness user={user} size="sm" />
@@ -170,24 +209,26 @@ export function UsersTable({
                   />
                 </TableCell>
                 <TableCell className="py-2">
-                  {user.approval_status === "approved" && (
+                  {user.approval_status === 'approved' && (
                     <Badge className="bg-green-100 text-green-800 hover:bg-green-100 text-xs px-2 py-1">
                       ✓
                     </Badge>
                   )}
-                  {user.approval_status === "pending" && (
+                  {user.approval_status === 'pending' && (
                     <Badge className="bg-yellow-100 text-yellow-800 hover:bg-yellow-100 text-xs px-2 py-1">
                       ⏳
                     </Badge>
                   )}
-                  {user.approval_status === "rejected" && (
+                  {user.approval_status === 'rejected' && (
                     <Badge className="bg-red-100 text-red-800 hover:bg-red-100 text-xs px-2 py-1">
                       ✗
                     </Badge>
                   )}
                 </TableCell>
-                <TableCell className="hidden lg:table-cell text-xs py-2">{formatDate(user.created_at)}</TableCell>
-                 <TableCell className="text-right py-2">
+                <TableCell className="hidden lg:table-cell text-xs py-2">
+                  {formatDate(user.created_at)}
+                </TableCell>
+                <TableCell className="text-right py-2">
                   <UserActionButtons
                     user={user}
                     onApprove={onApprove}
@@ -196,15 +237,17 @@ export function UsersTable({
                     onDelete={onDelete}
                     isLoading={isLoading}
                   />
-                 </TableCell>
+                </TableCell>
               </TableRow>,
-              ...(expandedUserId === user.id ? [
-                <TableRow key={`${user.id}-details`}>
-                  <TableCell colSpan={10} className="p-0">
-                    <UserDetails user={user} />
-                  </TableCell>
-                </TableRow>
-              ] : [])
+              ...(expandedUserId === user.id
+                ? [
+                    <TableRow key={`${user.id}-details`}>
+                      <TableCell colSpan={12} className="p-0">
+                        <UserDetails user={user} />
+                      </TableCell>
+                    </TableRow>,
+                  ]
+                : []),
             ])}
           </TableBody>
         </Table>
@@ -241,7 +284,9 @@ export function UsersTable({
             adminId: currentAuthUser.id,
             adminEmail: adminProfile.email,
             adminName: adminName,
-            notes: options?.subject ? `Custom fee agreement email: ${options.subject}` : 'Standard fee agreement email sent'
+            notes: options?.subject
+              ? `Custom fee agreement email: ${options.subject}`
+              : 'Standard fee agreement email sent',
           });
         }}
       />
@@ -267,16 +312,18 @@ export function UsersTable({
 
           const adminName = `${adminProfile.first_name} ${adminProfile.last_name}`;
 
-        await logNDAEmail.mutateAsync({
-          userId: user.id,
-          userEmail: user.email,
-          customSubject: options?.subject || 'NDA Agreement | SourceCo',
-          customMessage: options?.message || 'Please review and sign the attached NDA.',
-          adminId: currentAuthUser.id,
-          adminEmail: adminProfile.email,
-          adminName: adminName,
-          notes: options?.message ? `Custom NDA email sent: ${options.subject}` : 'Standard NDA email sent'
-        });
+          await logNDAEmail.mutateAsync({
+            userId: user.id,
+            userEmail: user.email,
+            customSubject: options?.subject || 'NDA Agreement | SourceCo',
+            customMessage: options?.message || 'Please review and sign the attached NDA.',
+            adminId: currentAuthUser.id,
+            adminEmail: adminProfile.email,
+            adminName: adminName,
+            notes: options?.message
+              ? `Custom NDA email sent: ${options.subject}`
+              : 'Standard NDA email sent',
+          });
         }}
       />
     </>

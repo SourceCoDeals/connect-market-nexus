@@ -6,7 +6,15 @@ export type UserRole = 'admin' | 'buyer';
 /** Internal team role for admin-panel access control. */
 export type TeamRole = 'owner' | 'admin' | 'moderator' | 'viewer';
 
-export type BuyerType = 'corporate' | 'privateEquity' | 'familyOffice' | 'searchFund' | 'individual' | 'independentSponsor' | 'advisor' | 'businessOwner';
+export type BuyerType =
+  | 'corporate'
+  | 'privateEquity'
+  | 'familyOffice'
+  | 'searchFund'
+  | 'individual'
+  | 'independentSponsor'
+  | 'advisor'
+  | 'businessOwner';
 
 export type ApprovalStatus = 'pending' | 'approved' | 'rejected';
 
@@ -180,6 +188,15 @@ export interface User {
   nda_email_sent?: boolean;
   nda_email_sent_at?: string;
 
+  // Buyer Quality Score fields
+  buyer_quality_score?: number | null;
+  buyer_tier?: number | null; // 1 = Platform+Add-On, 2 = Committed Capital, 3 = Indep. Sponsor/Search, 4 = Unverified
+  platform_signal_detected?: boolean;
+  platform_signal_source?: string | null;
+  buyer_quality_score_last_calculated?: string | null;
+  admin_tier_override?: number | null;
+  admin_override_note?: string | null;
+
   // Computed properties (aliases for snake_case properties)
   readonly firstName: string;
   readonly lastName: string;
@@ -302,7 +319,21 @@ export interface PaginationState {
 }
 
 // ── Re-exports from sibling type modules ─────────────────────────────
-export type { AdminListing, CreateListingData, AdminConnectionRequest, AdminStats, AdminActivity } from './admin';
-export type { AnalyticsEvent, FeedbackAnalytics, DailyTrend, TopUser, MarketplaceAnalytics, TestResult, AnalyticsHealth } from './analytics';
+export type {
+  AdminListing,
+  CreateListingData,
+  AdminConnectionRequest,
+  AdminStats,
+  AdminActivity,
+} from './admin';
+export type {
+  AnalyticsEvent,
+  FeedbackAnalytics,
+  DailyTrend,
+  TopUser,
+  MarketplaceAnalytics,
+  TestResult,
+  AnalyticsHealth,
+} from './analytics';
 export type { NonMarketplaceUser, NonMarketplaceUserFilters } from './non-marketplace-user';
 export type { Transcript, WebhookConfig, WebhookDelivery, TranscriptHealth } from './transcript';
