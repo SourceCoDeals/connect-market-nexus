@@ -1886,6 +1886,9 @@ export type Database = {
           converted_at: string | null
           converted_by: string | null
           created_at: string
+          deal_specific_buyer_score: number | null
+          deal_specific_platform_keywords: string[] | null
+          deal_specific_platform_signal: boolean | null
           decision_at: string | null
           decision_notes: string | null
           firm_id: string | null
@@ -1942,6 +1945,9 @@ export type Database = {
           converted_at?: string | null
           converted_by?: string | null
           created_at?: string
+          deal_specific_buyer_score?: number | null
+          deal_specific_platform_keywords?: string[] | null
+          deal_specific_platform_signal?: boolean | null
           decision_at?: string | null
           decision_notes?: string | null
           firm_id?: string | null
@@ -1998,6 +2004,9 @@ export type Database = {
           converted_at?: string | null
           converted_by?: string | null
           created_at?: string
+          deal_specific_buyer_score?: number | null
+          deal_specific_platform_keywords?: string[] | null
+          deal_specific_platform_signal?: boolean | null
           decision_at?: string | null
           decision_notes?: string | null
           firm_id?: string | null
@@ -7109,6 +7118,8 @@ export type Database = {
       profiles: {
         Row: {
           acq_equity_band: string | null
+          admin_override_note: string | null
+          admin_tier_override: number | null
           anchor_investors_summary: string | null
           approval_status: string
           aum: string | null
@@ -7116,7 +7127,10 @@ export type Database = {
           bio: string | null
           business_categories: Json | null
           buyer_org_url: string | null
+          buyer_quality_score: number | null
+          buyer_quality_score_last_calculated: string | null
           buyer_role: string | null
+          buyer_tier: number | null
           buyer_type: string | null
           committed_equity_band: string | null
           company: string | null
@@ -7179,6 +7193,8 @@ export type Database = {
           owning_business_unit: string | null
           permanent_capital: boolean | null
           phone_number: string | null
+          platform_signal_detected: boolean | null
+          platform_signal_source: string | null
           portfolio_company_addon: string | null
           referral_source: string | null
           referral_source_detail: string | null
@@ -7199,6 +7215,8 @@ export type Database = {
         }
         Insert: {
           acq_equity_band?: string | null
+          admin_override_note?: string | null
+          admin_tier_override?: number | null
           anchor_investors_summary?: string | null
           approval_status?: string
           aum?: string | null
@@ -7206,7 +7224,10 @@ export type Database = {
           bio?: string | null
           business_categories?: Json | null
           buyer_org_url?: string | null
+          buyer_quality_score?: number | null
+          buyer_quality_score_last_calculated?: string | null
           buyer_role?: string | null
+          buyer_tier?: number | null
           buyer_type?: string | null
           committed_equity_band?: string | null
           company?: string | null
@@ -7269,6 +7290,8 @@ export type Database = {
           owning_business_unit?: string | null
           permanent_capital?: boolean | null
           phone_number?: string | null
+          platform_signal_detected?: boolean | null
+          platform_signal_source?: string | null
           portfolio_company_addon?: string | null
           referral_source?: string | null
           referral_source_detail?: string | null
@@ -7289,6 +7312,8 @@ export type Database = {
         }
         Update: {
           acq_equity_band?: string | null
+          admin_override_note?: string | null
+          admin_tier_override?: number | null
           anchor_investors_summary?: string | null
           approval_status?: string
           aum?: string | null
@@ -7296,7 +7321,10 @@ export type Database = {
           bio?: string | null
           business_categories?: Json | null
           buyer_org_url?: string | null
+          buyer_quality_score?: number | null
+          buyer_quality_score_last_calculated?: string | null
           buyer_role?: string | null
+          buyer_tier?: number | null
           buyer_type?: string | null
           committed_equity_band?: string | null
           company?: string | null
@@ -7359,6 +7387,8 @@ export type Database = {
           owning_business_unit?: string | null
           permanent_capital?: boolean | null
           phone_number?: string | null
+          platform_signal_detected?: boolean | null
+          platform_signal_source?: string | null
           portfolio_company_addon?: string | null
           referral_source?: string | null
           referral_source_detail?: string | null
