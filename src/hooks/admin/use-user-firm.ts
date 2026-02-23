@@ -15,8 +15,8 @@ export function useUserFirm(userId: string | null) {
     queryFn: async () => {
       if (!userId) return null;
 
-      const { data, error } = await supabase
-        .from('firm_members')
+      const { data, error } = await (supabase
+        .from('firm_members') as any)
         .select(`
           firm_id,
           firm:firm_agreements!firm_members_firm_id_fkey (

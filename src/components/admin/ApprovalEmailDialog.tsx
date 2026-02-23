@@ -62,11 +62,15 @@ export function ApprovalEmailDialog({
   const defaultSubject = DEFAULT_APPROVAL_EMAIL.subject;
   const defaultMessage = DEFAULT_APPROVAL_EMAIL.message.replace(/{{userName}}/g, userName);
 
-  const handleSend = async () => {
-    if (!user || isLoading) return;
-
-    setIsLoading(true);
-
+  const handleSend = () => {
+    if (!user) {
+      console.error('[ApprovalDialog] handleSend called but user is null');
+      return;
+    }
+    
+    console.log('[ApprovalDialog] handleSend triggered for user:', user.email);
+    
+    // Capture values before closing dialog to avoid stale state
     const payload = {
       subject: customSubject || defaultSubject,
       message: customMessage || defaultMessage,
@@ -75,20 +79,19 @@ export function ApprovalEmailDialog({
     };
     const capturedUser = user;
 
-    try {
-      await onSendApprovalEmail(capturedUser, payload);
-      // Success — reset form and close dialog
-      setCustomSubject("");
-      setCustomMessage("");
-      setCustomSignatureHtml("");
-      setCustomSignatureText("");
-      onOpenChange(false);
-    } catch (error) {
-      // Error already shown via toast in UserActions
-      console.error('Approval flow error:', error);
-    } finally {
-      setIsLoading(false);
-    }
+    // Reset form and close dialog immediately — don't await async work
+    setCustomSubject("");
+    setCustomMessage("");
+    setCustomSignatureHtml("");
+    setCustomSignatureText("");
+    onOpenChange(false);
+
+    console.log('[ApprovalDialog] Calling onSendApprovalEmail for:', capturedUser.email);
+    
+    // Fire-and-forget: UserActions handles errors via toast
+    onSendApprovalEmail(capturedUser, payload).catch((error) => {
+      console.error('[ApprovalDialog] Error in approval flow:', error);
+    });
   };
 
   if (!user) return null;
