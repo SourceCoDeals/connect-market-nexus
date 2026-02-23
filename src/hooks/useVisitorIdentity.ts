@@ -26,7 +26,7 @@ function getGA4ClientId(): string | null {
     if (gaCookieMatch && gaCookieMatch[1]) {
       return gaCookieMatch[1];
     }
-    
+
     // Strategy 2: Try _ga cookie with different format
     const gaSimpleMatch = document.cookie.match(/_ga=([^;]+)/);
     if (gaSimpleMatch && gaSimpleMatch[1]) {
@@ -35,7 +35,7 @@ function getGA4ClientId(): string | null {
         return `${parts[2]}.${parts[3]}`;
       }
     }
-    
+
     // Strategy 3: Try _ga_MEASUREMENTID format (newer GA4)
     const ga4CookieMatch = document.cookie.match(/_ga_[A-Z0-9]+=[^;]+/);
     if (ga4CookieMatch) {
@@ -44,7 +44,7 @@ function getGA4ClientId(): string | null {
         return `${parts[2]}.${parts[3]}`;
       }
     }
-    
+
     return null;
   } catch {
     return null;
@@ -58,12 +58,12 @@ export async function getGA4ClientIdAsync(): Promise<string | null> {
   // First try synchronous methods
   const syncResult = getGA4ClientId();
   if (syncResult) return syncResult;
-  
+
   // Then try gtag async method
   if (typeof window !== 'undefined' && typeof window.gtag === 'function') {
     return new Promise((resolve) => {
       const timeout = setTimeout(() => resolve(null), 2000);
-      
+
       try {
         window.gtag('get', 'G-N5T31YT52K', 'client_id', (clientId: string) => {
           clearTimeout(timeout);
@@ -75,7 +75,7 @@ export async function getGA4ClientIdAsync(): Promise<string | null> {
       }
     });
   }
-  
+
   return null;
 }
 
@@ -88,7 +88,7 @@ export function useVisitorIdentity() {
   // Get or create persistent visitor ID
   const visitorId = useMemo(() => {
     if (typeof window === 'undefined') return '';
-    
+
     try {
       let id = localStorage.getItem(VISITOR_ID_KEY);
       if (!id) {
@@ -104,13 +104,13 @@ export function useVisitorIdentity() {
 
   // Capture first-touch attribution on FIRST visit only
   useEffect(() => {
-    if (typeof window === 'undefined') return;
-    
+    if (typeof window === 'undefined') return undefined;
+
     try {
       const existing = localStorage.getItem(FIRST_TOUCH_KEY);
       if (!existing) {
         const searchParams = new URLSearchParams(window.location.search);
-        
+
         const firstTouch: FirstTouchData = {
           landing_page: window.location.pathname,
           landing_search: window.location.search,
@@ -123,21 +123,25 @@ export function useVisitorIdentity() {
           timestamp: new Date().toISOString(),
           ga4_client_id: getGA4ClientId(),
         };
-        
+
         localStorage.setItem(FIRST_TOUCH_KEY, JSON.stringify(firstTouch));
 
         // If GA4 client ID wasn't available, retry with exponential backoff
         // GA4 cookie may take time to be set after gtag loads
         if (!firstTouch.ga4_client_id) {
           const retryIntervals = [500, 1000, 2000, 3000, 5000]; // Total 11.5s of retries
-          
+          let cancelled = false;
+          let pendingTimer: ReturnType<typeof setTimeout> | null = null;
+
           const attemptGA4Capture = async (attemptIndex: number) => {
-            if (attemptIndex >= retryIntervals.length) {
+            if (cancelled || attemptIndex >= retryIntervals.length) {
               return;
             }
-            
-            setTimeout(async () => {
+
+            pendingTimer = setTimeout(async () => {
+              if (cancelled) return;
               const ga4Id = await getGA4ClientIdAsync();
+              if (cancelled) return;
               if (ga4Id) {
                 try {
                   const stored = localStorage.getItem(FIRST_TOUCH_KEY);
@@ -157,8 +161,14 @@ export function useVisitorIdentity() {
               }
             }, retryIntervals[attemptIndex]);
           };
-          
+
           attemptGA4Capture(0);
+
+          // Return cleanup to cancel pending retries on unmount
+          return () => {
+            cancelled = true;
+            if (pendingTimer) clearTimeout(pendingTimer);
+          };
         }
       }
     } catch (error) {
@@ -179,10 +189,10 @@ export function useVisitorIdentity() {
     return getGA4ClientId();
   }, []);
 
-  return { 
-    visitorId, 
+  return {
+    visitorId,
     getFirstTouch,
     getCurrentGA4ClientId,
-    getGA4ClientIdAsync
+    getGA4ClientIdAsync,
   };
 }

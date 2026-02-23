@@ -5,6 +5,8 @@
  * Imported by auth guards, form validation, file upload handlers, etc.
  */
 
+import { SUPABASE_URL } from '@/integrations/supabase/client';
+
 // ---------------------------------------------------------------------------
 // Allowed Origins
 // ---------------------------------------------------------------------------
@@ -15,7 +17,7 @@ export const ALLOWED_ORIGINS = [
   'https://www.sourceco.co',
   'https://app.sourceco.co',
   // Supabase project URL
-  'https://vhzipqarkmmfuqadefep.supabase.co',
+  SUPABASE_URL,
   // Development
   ...(import.meta.env.DEV
     ? ['http://localhost:5173', 'http://localhost:3000', 'http://127.0.0.1:5173']
@@ -117,10 +119,7 @@ export function validatePasswordPolicy(password: string): string[] {
     violations.push('Password must contain at least one number.');
   }
   if (PASSWORD_POLICY.REQUIRE_SPECIAL) {
-    const escaped = PASSWORD_POLICY.SPECIAL_CHARACTERS.replace(
-      /[-[\]{}()*+?.,\\^$|#\s]/g,
-      '\\$&'
-    );
+    const escaped = PASSWORD_POLICY.SPECIAL_CHARACTERS.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&');
     const specialRegex = new RegExp(`[${escaped}]`);
     if (!specialRegex.test(password)) {
       violations.push('Password must contain at least one special character.');
@@ -165,19 +164,50 @@ export const FILE_UPLOAD_CONFIG = {
 
   /** Allowed file extensions (lowercase, with dot) */
   ALLOWED_EXTENSIONS: [
-    '.pdf', '.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx',
-    '.csv', '.txt',
-    '.jpg', '.jpeg', '.png', '.gif', '.webp', '.svg',
+    '.pdf',
+    '.doc',
+    '.docx',
+    '.xls',
+    '.xlsx',
+    '.ppt',
+    '.pptx',
+    '.csv',
+    '.txt',
+    '.jpg',
+    '.jpeg',
+    '.png',
+    '.gif',
+    '.webp',
+    '.svg',
   ] as readonly string[],
 
   /** Blocked file extensions (never allow these regardless of MIME type) */
   BLOCKED_EXTENSIONS: [
-    '.exe', '.bat', '.cmd', '.sh', '.ps1', '.vbs', '.js', '.mjs',
-    '.php', '.py', '.rb', '.pl', '.cgi',
-    '.dll', '.so', '.dylib',
-    '.msi', '.dmg', '.app',
-    '.scr', '.com', '.pif',
-    '.jar', '.war', '.class',
+    '.exe',
+    '.bat',
+    '.cmd',
+    '.sh',
+    '.ps1',
+    '.vbs',
+    '.js',
+    '.mjs',
+    '.php',
+    '.py',
+    '.rb',
+    '.pl',
+    '.cgi',
+    '.dll',
+    '.so',
+    '.dylib',
+    '.msi',
+    '.dmg',
+    '.app',
+    '.scr',
+    '.com',
+    '.pif',
+    '.jar',
+    '.war',
+    '.class',
   ] as readonly string[],
 
   /** Maximum filename length */
@@ -194,14 +224,16 @@ export function validateFileUpload(
     isImage?: boolean;
     customMaxSize?: number;
     customAllowedTypes?: readonly string[];
-  } = {}
+  } = {},
 ): string[] {
   const violations: string[] = [];
   const { isImage = false, customMaxSize, customAllowedTypes } = options;
 
   // Check filename length
   if (file.name.length > FILE_UPLOAD_CONFIG.MAX_FILENAME_LENGTH) {
-    violations.push(`Filename must be no more than ${FILE_UPLOAD_CONFIG.MAX_FILENAME_LENGTH} characters.`);
+    violations.push(
+      `Filename must be no more than ${FILE_UPLOAD_CONFIG.MAX_FILENAME_LENGTH} characters.`,
+    );
   }
 
   // Check blocked extensions
@@ -217,18 +249,20 @@ export function validateFileUpload(
   }
 
   // Check file size
-  const maxSize = customMaxSize ?? (isImage
-    ? FILE_UPLOAD_CONFIG.MAX_IMAGE_SIZE_BYTES
-    : FILE_UPLOAD_CONFIG.MAX_SIZE_BYTES);
+  const maxSize =
+    customMaxSize ??
+    (isImage ? FILE_UPLOAD_CONFIG.MAX_IMAGE_SIZE_BYTES : FILE_UPLOAD_CONFIG.MAX_SIZE_BYTES);
   if (file.size > maxSize) {
     const maxMB = Math.round(maxSize / (1024 * 1024));
     violations.push(`File size exceeds the ${maxMB} MB limit.`);
   }
 
   // Check MIME type
-  const allowedTypes = customAllowedTypes ?? (isImage
-    ? FILE_UPLOAD_CONFIG.ALLOWED_IMAGE_TYPES
-    : [...FILE_UPLOAD_CONFIG.ALLOWED_DOCUMENT_TYPES, ...FILE_UPLOAD_CONFIG.ALLOWED_IMAGE_TYPES]);
+  const allowedTypes =
+    customAllowedTypes ??
+    (isImage
+      ? FILE_UPLOAD_CONFIG.ALLOWED_IMAGE_TYPES
+      : [...FILE_UPLOAD_CONFIG.ALLOWED_DOCUMENT_TYPES, ...FILE_UPLOAD_CONFIG.ALLOWED_IMAGE_TYPES]);
 
   if (file.type && !(allowedTypes as readonly string[]).includes(file.type)) {
     violations.push(`File type "${file.type}" is not allowed.`);

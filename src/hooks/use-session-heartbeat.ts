@@ -1,5 +1,5 @@
 import { useEffect, useRef, useCallback } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase, SUPABASE_URL } from '@/integrations/supabase/client';
 import { useSessionContext } from '@/contexts/SessionContext';
 
 const HEARTBEAT_INTERVAL = 30000; // 30 seconds
@@ -73,11 +73,8 @@ export function useSessionHeartbeat(userId?: string | null) {
           user_id: userId || null,
           ended: true,
         });
-        
-        navigator.sendBeacon?.(
-          `${import.meta.env.VITE_SUPABASE_URL || 'https://vhzipqarkmmfuqadefep.supabase.co'}/functions/v1/session-heartbeat`,
-          payload
-        );
+
+        navigator.sendBeacon?.(`${SUPABASE_URL}/functions/v1/session-heartbeat`, payload);
       } catch (error) {
         console.error('Failed to send final heartbeat:', error);
       }

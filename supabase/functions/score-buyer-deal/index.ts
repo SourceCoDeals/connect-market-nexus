@@ -1,12 +1,28 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createEdgeTimeoutSignal } from "../_shared/edge-timeout.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { GEMINI_API_URL, getGeminiHeaders, DEFAULT_GEMINI_MODEL, fetchWithAutoRetry } from "../_shared/ai-providers.ts";
-import { calculateProximityScore, getProximityTier, normalizeStateCode } from "../_shared/geography-utils.ts";
-import { normalizeState, extractStatesFromText as sharedExtractStatesFromText } from "../_shared/geography.ts";
-import { updateGlobalQueueProgress, completeGlobalQueueOperation, isOperationPaused } from "../_shared/global-activity-queue.ts";
+import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
+import { createEdgeTimeoutSignal } from '../_shared/edge-timeout.ts';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import {
+  GEMINI_API_URL,
+  getGeminiHeaders,
+  DEFAULT_GEMINI_MODEL,
+  fetchWithAutoRetry,
+} from '../_shared/ai-providers.ts';
+import {
+  calculateProximityScore,
+  getProximityTier,
+  normalizeStateCode,
+} from '../_shared/geography-utils.ts';
+import {
+  normalizeState,
+  extractStatesFromText as sharedExtractStatesFromText,
+} from '../_shared/geography.ts';
+import {
+  updateGlobalQueueProgress,
+  completeGlobalQueueOperation,
+  isOperationPaused,
+} from '../_shared/global-activity-queue.ts';
 
-import { getCorsHeaders, corsPreflightResponse } from "../_shared/cors.ts";
+import { getCorsHeaders, corsPreflightResponse } from '../_shared/cors.ts';
 
 // ============================================================================
 // TYPES
@@ -131,12 +147,12 @@ const SCORING_CONFIG = {
   TIER_D_MIN: 35,
 
   // --- Size scoring tolerances ---
-  SWEET_SPOT_EXACT_TOLERANCE: 0.1,   // ±10% of sweet spot = perfect match
-  SWEET_SPOT_NEAR_TOLERANCE: 0.2,    // ±20% of sweet spot = near match
-  BELOW_MIN_SLIGHT: 0.9,             // 90% of min = 1-10% below
-  BELOW_MIN_MODERATE: 0.7,           // 70% of min = 10-30% below
-  ABOVE_MAX_DISQUALIFY: 1.5,         // 150% of max = hard disqualify
-  SINGLE_LOCATION_PENALTY: 0.85,     // 15% penalty for single-location deals
+  SWEET_SPOT_EXACT_TOLERANCE: 0.1, // ±10% of sweet spot = perfect match
+  SWEET_SPOT_NEAR_TOLERANCE: 0.2, // ±20% of sweet spot = near match
+  BELOW_MIN_SLIGHT: 0.9, // 90% of min = 1-10% below
+  BELOW_MIN_MODERATE: 0.7, // 70% of min = 10-30% below
+  ABOVE_MAX_DISQUALIFY: 1.5, // 150% of max = hard disqualify
+  SINGLE_LOCATION_PENALTY: 0.85, // 15% penalty for single-location deals
 
   // --- Size multipliers applied to composite score ---
   SIZE_MULT_SWEET_EXACT: 1.0,
@@ -173,9 +189,9 @@ const SCORING_CONFIG = {
 
   // --- Bulk scoring batch config ---
   BULK_BATCH_SIZE: 5,
-  BULK_DELAY_LARGE: 600,   // >100 buyers
-  BULK_DELAY_MEDIUM: 400,  // >50 buyers
-  BULK_DELAY_SMALL: 300,   // <=50 buyers
+  BULK_DELAY_LARGE: 600, // >100 buyers
+  BULK_DELAY_MEDIUM: 400, // >50 buyers
+  BULK_DELAY_SMALL: 300, // <=50 buyers
 } as const;
 
 // ============================================================================
@@ -183,39 +199,122 @@ const SCORING_CONFIG = {
 // ============================================================================
 
 const DEFAULT_SERVICE_ADJACENCY: Record<string, string[]> = {
-  "fire restoration": ["water restoration", "mold remediation", "contents cleaning", "roofing", "reconstruction", "smoke damage", "restoration"],
-  "water restoration": ["fire restoration", "mold remediation", "plumbing", "flood cleanup", "dehumidification", "restoration"],
-  "restoration": ["fire restoration", "water restoration", "mold remediation", "reconstruction", "mitigation", "contents cleaning"],
-  "mold remediation": ["water restoration", "fire restoration", "indoor air quality", "restoration"],
-  "commercial hvac": ["residential hvac", "mechanical contracting", "plumbing", "building automation", "refrigeration", "controls", "hvac"],
-  "residential hvac": ["commercial hvac", "plumbing", "electrical", "home services", "indoor air quality", "hvac"],
-  "hvac": ["commercial hvac", "residential hvac", "mechanical contracting", "plumbing", "electrical"],
-  "collision repair": ["auto body", "paintless dent repair", "auto glass", "fleet maintenance", "calibration", "automotive"],
-  "auto body": ["collision repair", "paint", "auto glass", "fleet services", "automotive"],
-  "landscaping": ["hardscaping", "irrigation", "tree care", "snow removal", "lawn maintenance"],
-  "plumbing": ["hvac", "mechanical contracting", "water restoration", "drain cleaning", "septic"],
-  "electrical": ["hvac", "low voltage", "fire alarm", "building automation", "solar"],
-  "roofing": ["siding", "gutters", "exterior restoration", "storm damage", "waterproofing", "restoration"],
-  "pest control": ["wildlife removal", "termite", "lawn care", "mosquito control"],
-  "janitorial": ["commercial cleaning", "facility maintenance", "carpet cleaning", "window cleaning"],
-  "mitigation": ["restoration", "water restoration", "fire restoration", "mold remediation"],
-  "disaster recovery": ["restoration", "fire restoration", "water restoration", "mitigation", "mold remediation", "reconstruction"],
-  "reconstruction": ["restoration", "fire restoration", "water restoration", "general contracting", "disaster recovery"],
-  "contents cleaning": ["restoration", "fire restoration", "water restoration", "pack-out"],
-  "automotive": ["auto body", "collision repair", "auto glass", "fleet maintenance", "calibration"],
-  "auto glass": ["collision repair", "auto body", "calibration", "automotive"],
-  "healthcare": ["medical", "dental", "urgent care", "physical therapy", "home health", "behavioral health"],
-  "medical": ["healthcare", "dental", "urgent care", "home health", "physician services"],
-  "dental": ["healthcare", "medical", "orthodontics"],
-  "it services": ["managed services", "cybersecurity", "cloud", "msp", "technology"],
-  "managed services": ["it services", "msp", "cybersecurity", "cloud", "saas"],
-  "msp": ["managed services", "it services", "cybersecurity"],
-  "accounting": ["tax", "bookkeeping", "financial services", "cpa", "advisory"],
-  "engineering": ["consulting", "environmental", "surveying", "architecture"],
-  "staffing": ["recruiting", "temp services", "workforce", "hr services"],
-  "insurance": ["benefits", "risk management", "brokerage"],
-  "home services": ["residential hvac", "plumbing", "electrical", "roofing", "landscaping", "pest control"],
-  "solar": ["electrical", "renewable energy", "energy services"],
+  'fire restoration': [
+    'water restoration',
+    'mold remediation',
+    'contents cleaning',
+    'roofing',
+    'reconstruction',
+    'smoke damage',
+    'restoration',
+  ],
+  'water restoration': [
+    'fire restoration',
+    'mold remediation',
+    'plumbing',
+    'flood cleanup',
+    'dehumidification',
+    'restoration',
+  ],
+  restoration: [
+    'fire restoration',
+    'water restoration',
+    'mold remediation',
+    'reconstruction',
+    'mitigation',
+    'contents cleaning',
+  ],
+  'mold remediation': [
+    'water restoration',
+    'fire restoration',
+    'indoor air quality',
+    'restoration',
+  ],
+  'commercial hvac': [
+    'residential hvac',
+    'mechanical contracting',
+    'plumbing',
+    'building automation',
+    'refrigeration',
+    'controls',
+    'hvac',
+  ],
+  'residential hvac': [
+    'commercial hvac',
+    'plumbing',
+    'electrical',
+    'home services',
+    'indoor air quality',
+    'hvac',
+  ],
+  hvac: ['commercial hvac', 'residential hvac', 'mechanical contracting', 'plumbing', 'electrical'],
+  'collision repair': [
+    'auto body',
+    'paintless dent repair',
+    'auto glass',
+    'fleet maintenance',
+    'calibration',
+    'automotive',
+  ],
+  'auto body': ['collision repair', 'paint', 'auto glass', 'fleet services', 'automotive'],
+  landscaping: ['hardscaping', 'irrigation', 'tree care', 'snow removal', 'lawn maintenance'],
+  plumbing: ['hvac', 'mechanical contracting', 'water restoration', 'drain cleaning', 'septic'],
+  electrical: ['hvac', 'low voltage', 'fire alarm', 'building automation', 'solar'],
+  roofing: [
+    'siding',
+    'gutters',
+    'exterior restoration',
+    'storm damage',
+    'waterproofing',
+    'restoration',
+  ],
+  'pest control': ['wildlife removal', 'termite', 'lawn care', 'mosquito control'],
+  janitorial: ['commercial cleaning', 'facility maintenance', 'carpet cleaning', 'window cleaning'],
+  mitigation: ['restoration', 'water restoration', 'fire restoration', 'mold remediation'],
+  'disaster recovery': [
+    'restoration',
+    'fire restoration',
+    'water restoration',
+    'mitigation',
+    'mold remediation',
+    'reconstruction',
+  ],
+  reconstruction: [
+    'restoration',
+    'fire restoration',
+    'water restoration',
+    'general contracting',
+    'disaster recovery',
+  ],
+  'contents cleaning': ['restoration', 'fire restoration', 'water restoration', 'pack-out'],
+  automotive: ['auto body', 'collision repair', 'auto glass', 'fleet maintenance', 'calibration'],
+  'auto glass': ['collision repair', 'auto body', 'calibration', 'automotive'],
+  healthcare: [
+    'medical',
+    'dental',
+    'urgent care',
+    'physical therapy',
+    'home health',
+    'behavioral health',
+  ],
+  medical: ['healthcare', 'dental', 'urgent care', 'home health', 'physician services'],
+  dental: ['healthcare', 'medical', 'orthodontics'],
+  'it services': ['managed services', 'cybersecurity', 'cloud', 'msp', 'technology'],
+  'managed services': ['it services', 'msp', 'cybersecurity', 'cloud', 'saas'],
+  msp: ['managed services', 'it services', 'cybersecurity'],
+  accounting: ['tax', 'bookkeeping', 'financial services', 'cpa', 'advisory'],
+  engineering: ['consulting', 'environmental', 'surveying', 'architecture'],
+  staffing: ['recruiting', 'temp services', 'workforce', 'hr services'],
+  insurance: ['benefits', 'risk management', 'brokerage'],
+  'home services': [
+    'residential hvac',
+    'plumbing',
+    'electrical',
+    'roofing',
+    'landscaping',
+    'pest control',
+  ],
+  solar: ['electrical', 'renewable energy', 'energy services'],
 };
 
 // AI CALL RETRY HELPER — uses shared fetchWithAutoRetry from ai-providers.ts
@@ -224,7 +323,7 @@ async function fetchWithRetry(
   url: string,
   options: RequestInit,
   maxRetries: number = 3,
-  baseDelayMs: number = 2000
+  baseDelayMs: number = 2000,
 ): Promise<Response> {
   return fetchWithAutoRetry(url, options as RequestInit & { signal?: AbortSignal }, {
     maxRetries,
@@ -245,41 +344,45 @@ function saveScoreSnapshot(
   supabase: any,
   score: ScoredResult,
   weights: { geography: number; size: number; service: number; owner_goals: number },
-  triggerType: 'manual' | 'bulk' | 'auto' | 'recalculation' = 'manual'
+  triggerType: 'manual' | 'bulk' | 'auto' | 'recalculation' = 'manual',
 ): void {
-  supabase.from('score_snapshots').insert({
-    listing_id: score.listing_id,
-    buyer_id: score.buyer_id,
-    universe_id: score.universe_id,
-    composite_score: score.composite_score,
-    geography_score: score.geography_score,
-    size_score: score.size_score,
-    service_score: score.service_score,
-    owner_goals_score: score.owner_goals_score,
-    deal_quality_score: null,
-    engagement_score: null,
-    tier: score.tier,
-    weights_used: weights,
-    multipliers_applied: {
-      size_multiplier: score.size_multiplier,
-      service_multiplier: score.service_multiplier,
-      geography_mode_factor: score.geography_mode_factor,
-    },
-    bonuses_applied: {
-      thesis_bonus: score.thesis_alignment_bonus,
-      data_quality: score.data_quality_bonus,
-      custom: score.custom_bonus,
-      learning_penalty: -score.learning_penalty,
-    },
-    data_completeness: score.data_completeness,
-    missing_fields: score.missing_fields,
-    trigger_type: triggerType,
-    scoring_version: 'v5',
-  }).then(({ error }: { error: any }) => {
-    if (error) console.warn('[score-snapshots] Failed to save snapshot:', error.message);
-  }).catch((err: unknown) => {
-    console.warn('[score-snapshots] Snapshot error:', err);
-  });
+  supabase
+    .from('score_snapshots')
+    .insert({
+      listing_id: score.listing_id,
+      buyer_id: score.buyer_id,
+      universe_id: score.universe_id,
+      composite_score: score.composite_score,
+      geography_score: score.geography_score,
+      size_score: score.size_score,
+      service_score: score.service_score,
+      owner_goals_score: score.owner_goals_score,
+      deal_quality_score: null,
+      engagement_score: null,
+      tier: score.tier,
+      weights_used: weights,
+      multipliers_applied: {
+        size_multiplier: score.size_multiplier,
+        service_multiplier: score.service_multiplier,
+        geography_mode_factor: score.geography_mode_factor,
+      },
+      bonuses_applied: {
+        thesis_bonus: score.thesis_alignment_bonus,
+        data_quality: score.data_quality_bonus,
+        custom: score.custom_bonus,
+        learning_penalty: -score.learning_penalty,
+      },
+      data_completeness: score.data_completeness,
+      missing_fields: score.missing_fields,
+      trigger_type: triggerType,
+      scoring_version: 'v5',
+    })
+    .then(({ error }: { error: any }) => {
+      if (error) console.warn('[score-snapshots] Failed to save snapshot:', error.message);
+    })
+    .catch((err: unknown) => {
+      console.warn('[score-snapshots] Snapshot error:', err);
+    });
 }
 
 // ============================================================================
@@ -291,69 +394,80 @@ serve(async (req) => {
   const _edgeTimeout = createEdgeTimeoutSignal(_edgeStartTime);
   const corsHeaders = getCorsHeaders(req);
 
-  if (req.method === "OPTIONS") {
+  if (req.method === 'OPTIONS') {
     return corsPreflightResponse(req);
   }
 
   try {
     // ── Auth guard: require valid JWT + admin role, OR internal service call ──
-    const authHeader = req.headers.get("Authorization") || "";
-    const callerToken = authHeader.replace("Bearer ", "").trim();
+    const authHeader = req.headers.get('Authorization') || '';
+    const callerToken = authHeader.replace('Bearer ', '').trim();
     if (!callerToken) {
-      return new Response(
-        JSON.stringify({ error: "Unauthorized" }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
 
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 
     // Allow internal service-to-service calls (e.g., from process-scoring-queue)
     const isInternalCall = callerToken === supabaseKey;
 
     if (!isInternalCall) {
-      const callerClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!, {
+      const callerClient = createClient(supabaseUrl, Deno.env.get('SUPABASE_ANON_KEY')!, {
         global: { headers: { Authorization: `Bearer ${callerToken}` } },
       });
-      const { data: { user: callerUser }, error: callerError } = await callerClient.auth.getUser();
+      const {
+        data: { user: callerUser },
+        error: callerError,
+      } = await callerClient.auth.getUser();
       if (callerError || !callerUser) {
-        return new Response(
-          JSON.stringify({ error: "Unauthorized" }),
-          { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
+        return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+          status: 401,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
       }
 
       const supabase = createClient(supabaseUrl, supabaseKey);
-      const { data: isAdmin } = await supabase.rpc("is_admin", { _user_id: callerUser.id });
+      const { data: isAdmin } = await supabase.rpc('is_admin', { user_id: callerUser.id });
       if (!isAdmin) {
-        return new Response(
-          JSON.stringify({ error: "Forbidden: admin access required" }),
-          { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
+        return new Response(JSON.stringify({ error: 'Forbidden: admin access required' }), {
+          status: 403,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
       }
     }
     // ── End auth guard ──
 
     const supabase = createClient(supabaseUrl, supabaseKey);
-    const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY") || "";
+    const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY') || '';
     if (!GEMINI_API_KEY) {
-      console.warn("GEMINI_API_KEY is not configured — AI scoring will use deterministic fallbacks");
+      console.warn(
+        'GEMINI_API_KEY is not configured — AI scoring will use deterministic fallbacks',
+      );
     }
 
     const body = await req.json();
     const isBulk = body.bulk === true;
 
     if (isBulk) {
-      return await handleBulkScore(supabase, body as BulkScoreRequest, GEMINI_API_KEY, corsHeaders, _edgeTimeout);
+      return await handleBulkScore(
+        supabase,
+        body as BulkScoreRequest,
+        GEMINI_API_KEY,
+        corsHeaders,
+        _edgeTimeout,
+      );
     } else {
       return await handleSingleScore(supabase, body as ScoreRequest, GEMINI_API_KEY, corsHeaders);
     }
   } catch (error) {
-    console.error("Score buyer-deal error:", error);
+    console.error('Score buyer-deal error:', error);
     return new Response(
-      JSON.stringify({ error: error instanceof Error ? error.message : "Unknown error" }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      JSON.stringify({ error: error instanceof Error ? error.message : 'Unknown error' }),
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
     );
   }
 });
@@ -367,7 +481,7 @@ serve(async (req) => {
 function calculateSizeScore(
   listing: any,
   buyer: any,
-  behavior: ScoringBehavior
+  behavior: ScoringBehavior,
 ): { score: number; multiplier: number; reasoning: string } {
   const dealRevenue = listing.revenue;
   const dealEbitda = listing.ebitda;
@@ -376,78 +490,111 @@ function calculateSizeScore(
   const buyerMinEbitda = buyer.target_ebitda_min;
   const buyerMaxEbitda = buyer.target_ebitda_max;
   // Compute sweet spots as midpoint of min/max (previously stored as separate fields)
-  const revenueSweetSpot = (buyerMinRevenue && buyerMaxRevenue) ? (buyerMinRevenue + buyerMaxRevenue) / 2 : null;
-  const ebitdaSweetSpot = (buyerMinEbitda && buyerMaxEbitda) ? (buyerMinEbitda + buyerMaxEbitda) / 2 : null;
+  const revenueSweetSpot =
+    buyerMinRevenue && buyerMaxRevenue ? (buyerMinRevenue + buyerMaxRevenue) / 2 : null;
+  const ebitdaSweetSpot =
+    buyerMinEbitda && buyerMaxEbitda ? (buyerMinEbitda + buyerMaxEbitda) / 2 : null;
 
   // Both deal revenue AND EBITDA are missing — differentiate by buyer flexibility
   if (dealRevenue == null && dealEbitda == null) {
     // No buyer size criteria either — both sides unknown, neutral
-    if (buyerMinRevenue == null && buyerMaxRevenue == null && buyerMinEbitda == null && buyerMaxEbitda == null) {
+    if (
+      buyerMinRevenue == null &&
+      buyerMaxRevenue == null &&
+      buyerMinEbitda == null &&
+      buyerMaxEbitda == null
+    ) {
       return {
         score: 60,
         multiplier: 1.0,
-        reasoning: "Both sides missing financials — neutral, no size penalty"
+        reasoning: 'Both sides missing financials — neutral, no size penalty',
       };
     }
     // Buyer has wide criteria range (max >= 3x min) — flexible buyer, better chance of fit
-    const rangeRatio = (buyerMinRevenue && buyerMaxRevenue) ? buyerMaxRevenue / buyerMinRevenue : 0;
+    const rangeRatio = buyerMinRevenue && buyerMaxRevenue ? buyerMaxRevenue / buyerMinRevenue : 0;
     if (rangeRatio >= 3) {
       return {
         score: 60,
         multiplier: 1.0,
-        reasoning: "Deal missing financials — buyer has wide size range, neutral"
+        reasoning: 'Deal missing financials — buyer has wide size range, neutral',
       };
     }
     // Buyer has narrow or specific criteria — can't verify, mild uncertainty
     return {
       score: 55,
       multiplier: 0.9,
-      reasoning: "Deal missing financials — buyer has specific size criteria, fit unverified"
+      reasoning: 'Deal missing financials — buyer has specific size criteria, fit unverified',
     };
   }
 
   // No buyer size criteria at all — use moderate default
-  if (buyerMinRevenue == null && buyerMaxRevenue == null && buyerMinEbitda == null && buyerMaxEbitda == null) {
+  if (
+    buyerMinRevenue == null &&
+    buyerMaxRevenue == null &&
+    buyerMinEbitda == null &&
+    buyerMaxEbitda == null
+  ) {
     return {
       score: 60,
       multiplier: 1.0,
-      reasoning: "No buyer size criteria available — neutral scoring"
+      reasoning: 'No buyer size criteria available — neutral scoring',
     };
   }
 
   let score = 60; // default
   let multiplier = 1.0;
-  let reasoning = "";
+  let reasoning = '';
 
   // === Revenue-based scoring ===
   if (dealRevenue != null && dealRevenue > 0) {
     // Sweet spot match (±10%)
-    if (revenueSweetSpot && Math.abs(dealRevenue - revenueSweetSpot) / revenueSweetSpot <= SCORING_CONFIG.SWEET_SPOT_EXACT_TOLERANCE) {
+    if (
+      revenueSweetSpot &&
+      Math.abs(dealRevenue - revenueSweetSpot) / revenueSweetSpot <=
+        SCORING_CONFIG.SWEET_SPOT_EXACT_TOLERANCE
+    ) {
       score = 97;
       multiplier = SCORING_CONFIG.SIZE_MULT_SWEET_EXACT;
-      reasoning = `Revenue $${(dealRevenue/1e6).toFixed(1)}M — exact sweet spot match`;
+      reasoning = `Revenue $${(dealRevenue / 1e6).toFixed(1)}M — exact sweet spot match`;
     }
     // Sweet spot match (±20%)
-    else if (revenueSweetSpot && Math.abs(dealRevenue - revenueSweetSpot) / revenueSweetSpot <= SCORING_CONFIG.SWEET_SPOT_NEAR_TOLERANCE) {
+    else if (
+      revenueSweetSpot &&
+      Math.abs(dealRevenue - revenueSweetSpot) / revenueSweetSpot <=
+        SCORING_CONFIG.SWEET_SPOT_NEAR_TOLERANCE
+    ) {
       score = 90;
       multiplier = SCORING_CONFIG.SIZE_MULT_SWEET_NEAR;
-      reasoning = `Revenue $${(dealRevenue/1e6).toFixed(1)}M — near sweet spot ($${(revenueSweetSpot/1e6).toFixed(1)}M)`;
+      reasoning = `Revenue $${(dealRevenue / 1e6).toFixed(1)}M — near sweet spot ($${(revenueSweetSpot / 1e6).toFixed(1)}M)`;
     }
     // Within buyer's stated range
-    else if (buyerMinRevenue && buyerMaxRevenue && dealRevenue >= buyerMinRevenue && dealRevenue <= buyerMaxRevenue) {
+    else if (
+      buyerMinRevenue &&
+      buyerMaxRevenue &&
+      dealRevenue >= buyerMinRevenue &&
+      dealRevenue <= buyerMaxRevenue
+    ) {
       score = 80;
       multiplier = SCORING_CONFIG.SIZE_MULT_IN_RANGE;
-      reasoning = `Revenue $${(dealRevenue/1e6).toFixed(1)}M — within buyer range ($${(buyerMinRevenue/1e6).toFixed(1)}M-$${(buyerMaxRevenue/1e6).toFixed(1)}M)`;
+      reasoning = `Revenue $${(dealRevenue / 1e6).toFixed(1)}M — within buyer range ($${(buyerMinRevenue / 1e6).toFixed(1)}M-$${(buyerMaxRevenue / 1e6).toFixed(1)}M)`;
     }
     // 1-10% below minimum
-    else if (buyerMinRevenue && dealRevenue < buyerMinRevenue && dealRevenue >= buyerMinRevenue * SCORING_CONFIG.BELOW_MIN_SLIGHT) {
+    else if (
+      buyerMinRevenue &&
+      dealRevenue < buyerMinRevenue &&
+      dealRevenue >= buyerMinRevenue * SCORING_CONFIG.BELOW_MIN_SLIGHT
+    ) {
       const percentBelow = Math.round(((buyerMinRevenue - dealRevenue) / buyerMinRevenue) * 100);
       score = 62;
       multiplier = SCORING_CONFIG.SIZE_MULT_SLIGHT_BELOW;
       reasoning = `Revenue ${percentBelow}% below minimum — slight undersize`;
     }
     // 10-30% below minimum
-    else if (buyerMinRevenue && dealRevenue < buyerMinRevenue * SCORING_CONFIG.BELOW_MIN_SLIGHT && dealRevenue >= buyerMinRevenue * SCORING_CONFIG.BELOW_MIN_MODERATE) {
+    else if (
+      buyerMinRevenue &&
+      dealRevenue < buyerMinRevenue * SCORING_CONFIG.BELOW_MIN_SLIGHT &&
+      dealRevenue >= buyerMinRevenue * SCORING_CONFIG.BELOW_MIN_MODERATE
+    ) {
       const percentBelow = Math.round(((buyerMinRevenue - dealRevenue) / buyerMinRevenue) * 100);
       score = 45;
       multiplier = SCORING_CONFIG.SIZE_MULT_MODERATE_BELOW;
@@ -471,10 +618,13 @@ function calculateSizeScore(
       }
     }
     // >50% above maximum
-    else if (buyerMaxRevenue && dealRevenue > buyerMaxRevenue * SCORING_CONFIG.ABOVE_MAX_DISQUALIFY) {
+    else if (
+      buyerMaxRevenue &&
+      dealRevenue > buyerMaxRevenue * SCORING_CONFIG.ABOVE_MAX_DISQUALIFY
+    ) {
       score = 0;
       multiplier = 0.0;
-      reasoning = `DISQUALIFIED: Revenue $${(dealRevenue/1e6).toFixed(1)}M — way above buyer max ($${(buyerMaxRevenue/1e6).toFixed(1)}M)`;
+      reasoning = `DISQUALIFIED: Revenue $${(dealRevenue / 1e6).toFixed(1)}M — way above buyer max ($${(buyerMaxRevenue / 1e6).toFixed(1)}M)`;
     }
     // Above maximum but within 50%
     else if (buyerMaxRevenue && dealRevenue > buyerMaxRevenue) {
@@ -487,20 +637,20 @@ function calculateSizeScore(
     else if (buyerMinRevenue && !buyerMaxRevenue && dealRevenue >= buyerMinRevenue) {
       score = 80;
       multiplier = 1.0;
-      reasoning = `Revenue $${(dealRevenue/1e6).toFixed(1)}M — above buyer minimum`;
+      reasoning = `Revenue $${(dealRevenue / 1e6).toFixed(1)}M — above buyer minimum`;
     }
     // Only has max, deal is below it
     else if (!buyerMinRevenue && buyerMaxRevenue && dealRevenue <= buyerMaxRevenue) {
       score = 75;
       multiplier = 1.0;
-      reasoning = `Revenue $${(dealRevenue/1e6).toFixed(1)}M — within buyer max`;
+      reasoning = `Revenue $${(dealRevenue / 1e6).toFixed(1)}M — within buyer max`;
     }
   }
 
   // === EBITDA-based scoring (sweet spot, supplement, or fallback) ===
   if (dealEbitda != null && dealEbitda <= 0) {
     // Negative or zero EBITDA — note in reasoning but don't use for size scoring
-    reasoning += `. Note: EBITDA is ${dealEbitda <= 0 ? 'negative' : 'zero'} ($${(dealEbitda/1e6).toFixed(1)}M) — excluded from size scoring`;
+    reasoning += `. Note: EBITDA is ${dealEbitda <= 0 ? 'negative' : 'zero'} ($${(dealEbitda / 1e6).toFixed(1)}M) — excluded from size scoring`;
   }
   if (dealEbitda != null && dealEbitda > 0) {
     // EBITDA sweet spot match (boost if revenue didn't already match)
@@ -508,11 +658,11 @@ function calculateSizeScore(
       if (Math.abs(dealEbitda - ebitdaSweetSpot) / ebitdaSweetSpot <= 0.1) {
         score = Math.max(score, 95);
         multiplier = Math.max(multiplier, 1.0);
-        reasoning += `. EBITDA $${(dealEbitda/1e6).toFixed(1)}M — exact EBITDA sweet spot`;
+        reasoning += `. EBITDA $${(dealEbitda / 1e6).toFixed(1)}M — exact EBITDA sweet spot`;
       } else if (Math.abs(dealEbitda - ebitdaSweetSpot) / ebitdaSweetSpot <= 0.2) {
         score = Math.max(score, 88);
         multiplier = Math.max(multiplier, 0.95);
-        reasoning += `. EBITDA $${(dealEbitda/1e6).toFixed(1)}M — near EBITDA sweet spot`;
+        reasoning += `. EBITDA $${(dealEbitda / 1e6).toFixed(1)}M — near EBITDA sweet spot`;
       }
     }
     // EBITDA below minimum — penalize
@@ -521,7 +671,7 @@ function calculateSizeScore(
         if (score > 20) {
           score = 20;
           multiplier = Math.min(multiplier, 0.25);
-          reasoning += `. EBITDA $${(dealEbitda/1e6).toFixed(1)}M — far below buyer min ($${(buyerMinEbitda/1e6).toFixed(1)}M)`;
+          reasoning += `. EBITDA $${(dealEbitda / 1e6).toFixed(1)}M — far below buyer min ($${(buyerMinEbitda / 1e6).toFixed(1)}M)`;
         }
       } else if (dealEbitda < buyerMinEbitda) {
         if (score > 40) {
@@ -538,7 +688,7 @@ function calculateSizeScore(
     const locationCount = listing.location_count || 1;
     if (locationCount === 1) {
       score = Math.round(score * SCORING_CONFIG.SINGLE_LOCATION_PENALTY);
-      reasoning += ". Single-location penalty applied";
+      reasoning += '. Single-location penalty applied';
     }
   }
 
@@ -554,7 +704,7 @@ async function calculateGeographyScore(
   buyer: any,
   tracker: any,
   supabaseUrl: string,
-  supabaseKey: string
+  supabaseKey: string,
 ): Promise<{ score: number; modeFactor: number; reasoning: string; tier: string }> {
   // Determine geography mode from tracker (defaults to 'critical')
   const geographyMode: string = tracker?.geography_mode || 'critical';
@@ -577,7 +727,7 @@ async function calculateGeographyScore(
   }
 
   // Extract deal state — try regex first, then normalizeStateCode fallback
-  const dealLocation = listing.location || "";
+  const dealLocation = listing.location || '';
   let dealState = dealLocation.match(/,\s*([A-Z]{2})\s*$/i)?.[1]?.toUpperCase() || null;
   if (!dealState) {
     // Fallback: try to extract state from "City, State Name" or "City, ST ZIP" patterns
@@ -603,15 +753,19 @@ async function calculateGeographyScore(
   const extractStatesFromText = sharedExtractStatesFromText;
 
   // 1. target_geographies (strongest signal)
-  const targetGeos = (buyer.target_geographies || []).filter(Boolean)
-    .map((s: string) => normalizeEntry(s)).filter((s: string | null): s is string => s !== null);
+  const targetGeos = (buyer.target_geographies || [])
+    .filter(Boolean)
+    .map((s: string) => normalizeEntry(s))
+    .filter((s: string | null): s is string => s !== null);
   if (targetGeos.length > 0) {
     buyerStates = targetGeos;
   }
   // 2. geographic_footprint (fallback)
   else {
-    const footprint = (buyer.geographic_footprint || []).filter(Boolean)
-      .map((s: string) => normalizeEntry(s)).filter((s: string | null): s is string => s !== null);
+    const footprint = (buyer.geographic_footprint || [])
+      .filter(Boolean)
+      .map((s: string) => normalizeEntry(s))
+      .filter((s: string | null): s is string => s !== null);
     if (footprint.length > 0) {
       buyerStates = footprint;
     }
@@ -629,29 +783,42 @@ async function calculateGeographyScore(
       const unique = [...new Set(locStates)];
       if (unique.length > 0) {
         buyerStates = unique;
-        console.log(`[Geo] Parsed ${unique.length} states from operating_locations: ${unique.join(', ')}`);
+        console.log(
+          `[Geo] Parsed ${unique.length} states from operating_locations: ${unique.join(', ')}`,
+        );
       }
     }
     // 3. service_regions (broad coverage signal from enrichment)
     if (buyerStates.length === 0 && buyer.service_regions?.length > 0) {
-      const svcRegions = (buyer.service_regions || []).filter(Boolean)
-        .map((s: string) => normalizeEntry(s)).filter((s: string | null): s is string => s !== null);
+      const svcRegions = (buyer.service_regions || [])
+        .filter(Boolean)
+        .map((s: string) => normalizeEntry(s))
+        .filter((s: string | null): s is string => s !== null);
       if (svcRegions.length > 0) {
         buyerStates = svcRegions;
-        console.log(`[Geo] Using ${svcRegions.length} states from service_regions: ${svcRegions.join(', ')}`);
+        console.log(
+          `[Geo] Using ${svcRegions.length} states from service_regions: ${svcRegions.join(', ')}`,
+        );
       }
     }
     // 4. customer_geographic_reach (text field — parse state names from it)
-    if (buyerStates.length === 0 && buyer.customer_geographic_reach && typeof buyer.customer_geographic_reach === 'string') {
+    if (
+      buyerStates.length === 0 &&
+      buyer.customer_geographic_reach &&
+      typeof buyer.customer_geographic_reach === 'string'
+    ) {
       const reachText = buyer.customer_geographic_reach;
       // Skip vague national/global descriptions
-      const isVague = /\b(national|nationwide|global|international|united states)\b/i.test(reachText) && 
-                      !(/\b(minnesota|texas|florida|california|ohio)\b/i.test(reachText)); // Not vague if specific states listed
+      const isVague =
+        /\b(national|nationwide|global|international|united states)\b/i.test(reachText) &&
+        !/\b(minnesota|texas|florida|california|ohio)\b/i.test(reachText); // Not vague if specific states listed
       if (!isVague) {
         const parsedStates = extractStatesFromText(reachText);
         if (parsedStates.length > 0) {
           buyerStates = parsedStates;
-          console.log(`[Geo] Parsed ${parsedStates.length} states from customer_geographic_reach: ${parsedStates.join(', ')}`);
+          console.log(
+            `[Geo] Parsed ${parsedStates.length} states from customer_geographic_reach: ${parsedStates.join(', ')}`,
+          );
         }
       }
     }
@@ -664,13 +831,15 @@ async function calculateGeographyScore(
 
   // Check hard disqualifiers FIRST
   // 1. Deal state in buyer's explicit geographic_exclusions
-  const geoExclusions = (buyer.geographic_exclusions || []).map((s: string) => s?.toUpperCase().trim()).filter(Boolean);
+  const geoExclusions = (buyer.geographic_exclusions || [])
+    .map((s: string) => s?.toUpperCase().trim())
+    .filter(Boolean);
   if (dealState && geoExclusions.includes(dealState)) {
     return {
       score: 0,
       modeFactor,
       reasoning: `DISQUALIFIED: Deal state ${dealState} in buyer's geographic exclusions`,
-      tier: 'distant'
+      tier: 'distant',
     };
   }
 
@@ -681,29 +850,31 @@ async function calculateGeographyScore(
       score: 0,
       modeFactor,
       reasoning: `DISQUALIFIED: ${thesisGeoResult.reasoning}`,
-      tier: 'distant'
+      tier: 'distant',
     };
   }
 
   // No deal state or no buyer states — limited data
   if (!dealState || buyerStates.length === 0) {
     let limitedScore = 50;
-    let limitedReasoning = "Limited geography data available";
+    let limitedReasoning = 'Limited geography data available';
 
     // Use buyer signals to differentiate
     const geoReach = (buyer.customer_geographic_reach || '').toLowerCase();
     const buyerType = (buyer.buyer_type || '').toLowerCase();
     const thesis = (buyer.thesis_summary || '').toLowerCase();
 
-    const isNational = /\b(national|nationwide|global|international|united states|all states|coast to coast)\b/.test(geoReach) ||
-      /\b(national|nationwide)\b/.test(thesis);
+    const isNational =
+      /\b(national|nationwide|global|international|united states|all states|coast to coast)\b/.test(
+        geoReach,
+      ) || /\b(national|nationwide)\b/.test(thesis);
 
     if (isNational) {
       limitedScore = 70;
-      limitedReasoning = "Buyer appears national — geography likely not a constraint";
+      limitedReasoning = 'Buyer appears national — geography likely not a constraint';
     } else if (buyerType === 'pe_firm' || buyerType === 'family_office') {
       limitedScore = 60;
-      limitedReasoning = "PE/Family Office buyer — likely flexible on geography";
+      limitedReasoning = 'PE/Family Office buyer — likely flexible on geography';
     }
 
     limitedScore = Math.max(scoreFloor, limitedScore);
@@ -712,7 +883,7 @@ async function calculateGeographyScore(
       score: limitedScore,
       modeFactor,
       reasoning: limitedReasoning,
-      tier: 'regional'
+      tier: 'regional',
     };
   }
 
@@ -721,7 +892,7 @@ async function calculateGeographyScore(
     dealState,
     buyerStates,
     supabaseUrl,
-    supabaseKey
+    supabaseKey,
   );
 
   const tier = await getProximityTier(dealState, buyerStates, supabaseUrl, supabaseKey);
@@ -729,20 +900,21 @@ async function calculateGeographyScore(
   // Apply score floor from geography mode
   const finalScore = Math.max(scoreFloor, baseScore);
 
-  const modeNote = geographyMode !== 'critical' ? ` [${geographyMode} mode, floor=${scoreFloor}]` : '';
+  const modeNote =
+    geographyMode !== 'critical' ? ` [${geographyMode} mode, floor=${scoreFloor}]` : '';
 
   return {
     score: finalScore,
     modeFactor,
     reasoning: `${baseReasoning}${modeNote}`,
-    tier
+    tier,
   };
 }
 
 // Parse thesis_summary for geographic focus patterns
 function parseThesisGeographicConstraint(
   thesis: string | null | undefined,
-  dealState: string | null | undefined
+  dealState: string | null | undefined,
 ): { hardDisqualify: boolean; reasoning: string } {
   if (!thesis || !dealState) return { hardDisqualify: false, reasoning: '' };
 
@@ -751,9 +923,15 @@ function parseThesisGeographicConstraint(
   // Regional patterns
   const regionPatterns: Array<{ pattern: RegExp; states: string[] }> = [
     { pattern: /pacific\s+northwest/i, states: ['WA', 'OR', 'ID'] },
-    { pattern: /southeast\b/i, states: ['FL', 'GA', 'AL', 'MS', 'SC', 'NC', 'TN', 'VA', 'LA', 'AR'] },
+    {
+      pattern: /southeast\b/i,
+      states: ['FL', 'GA', 'AL', 'MS', 'SC', 'NC', 'TN', 'VA', 'LA', 'AR'],
+    },
     { pattern: /sun\s*belt/i, states: ['FL', 'GA', 'TX', 'AZ', 'NV', 'CA', 'SC', 'NC', 'TN'] },
-    { pattern: /midwest/i, states: ['OH', 'IN', 'IL', 'MI', 'WI', 'MN', 'IA', 'MO', 'ND', 'SD', 'NE', 'KS'] },
+    {
+      pattern: /midwest/i,
+      states: ['OH', 'IN', 'IL', 'MI', 'WI', 'MN', 'IA', 'MO', 'ND', 'SD', 'NE', 'KS'],
+    },
     { pattern: /northeast/i, states: ['NY', 'NJ', 'PA', 'CT', 'MA', 'RI', 'VT', 'NH', 'ME'] },
     { pattern: /southwest/i, states: ['TX', 'OK', 'NM', 'AZ'] },
     { pattern: /mid[\s-]?atlantic/i, states: ['MD', 'DE', 'DC', 'VA', 'WV', 'NJ', 'PA'] },
@@ -765,11 +943,11 @@ function parseThesisGeographicConstraint(
 
   for (const { pattern, states } of regionPatterns) {
     if (pattern.test(thesisLower)) {
-      const isHard = hardPatterns.some(hp => hp.test(thesisLower));
+      const isHard = hardPatterns.some((hp) => hp.test(thesisLower));
       if (isHard && !states.includes(dealState)) {
         return {
           hardDisqualify: true,
-          reasoning: `Buyer thesis has hard geographic constraint ("${thesisLower.match(pattern)?.[0]}") and deal state ${dealState} is outside`
+          reasoning: `Buyer thesis has hard geographic constraint ("${thesisLower.match(pattern)?.[0]}") and deal state ${dealState} is outside`,
         };
       }
     }
@@ -789,39 +967,60 @@ async function calculateServiceScore(
   behavior: ScoringBehavior,
   serviceCriteria: ServiceCriteria | null,
   apiKey: string,
-  customInstructions?: string
+  customInstructions?: string,
 ): Promise<{ score: number; multiplier: number; reasoning: string }> {
   const dealServices = (listing.services || listing.categories || [listing.category])
-    .filter(Boolean).map((s: string) => s?.toLowerCase().trim());
+    .filter(Boolean)
+    .map((s: string) => s?.toLowerCase().trim());
 
   const buyerTargetServices = (buyer.target_services || [])
-    .filter(Boolean).map((s: string) => s?.toLowerCase().trim());
+    .filter(Boolean)
+    .map((s: string) => s?.toLowerCase().trim());
 
   const buyerServicesOffered = (buyer.services_offered || '')
-    .toLowerCase().split(/[,;]/).map((s: string) => s.trim()).filter(Boolean);
+    .toLowerCase()
+    .split(/[,;]/)
+    .map((s: string) => s.trim())
+    .filter(Boolean);
 
   const buyerTargetIndustries = (buyer.target_industries || [])
-    .filter(Boolean).map((s: string) => s?.toLowerCase().trim());
+    .filter(Boolean)
+    .map((s: string) => s?.toLowerCase().trim());
 
   const buyerIndustryVertical = (buyer.industry_vertical || '')
-    .toLowerCase().split(/[,;]/).map((s: string) => s.trim()).filter(Boolean);
+    .toLowerCase()
+    .split(/[,;]/)
+    .map((s: string) => s.trim())
+    .filter(Boolean);
 
   // Combine buyer services for matching (include industries and vertical as signals)
-  const allBuyerServices = [...new Set([...buyerTargetServices, ...buyerServicesOffered, ...buyerTargetIndustries, ...buyerIndustryVertical])];
+  const allBuyerServices = [
+    ...new Set([
+      ...buyerTargetServices,
+      ...buyerServicesOffered,
+      ...buyerTargetIndustries,
+      ...buyerIndustryVertical,
+    ]),
+  ];
 
   // STEP 1: Check hard disqualifiers
   const excludedServices = [
     ...(serviceCriteria?.excluded_services || []),
-    ...(buyer.industry_exclusions || [])
-  ].map(s => s?.toLowerCase().trim()).filter(Boolean);
+    ...(buyer.industry_exclusions || []),
+  ]
+    .map((s) => s?.toLowerCase().trim())
+    .filter(Boolean);
 
   const dealPrimaryService = dealServices[0] || '';
   for (const excluded of excludedServices) {
-    if (dealPrimaryService && (dealPrimaryService.includes(excluded) || excluded.includes(dealPrimaryService))) {
+    if (
+      dealPrimaryService &&
+      (dealPrimaryService.includes(excluded) || excluded.includes(dealPrimaryService))
+    ) {
       return {
         score: 0,
         multiplier: 0.0,
-        reasoning: `DISQUALIFIED: Deal primary service "${dealPrimaryService}" matches excluded service "${excluded}"`
+        reasoning: `DISQUALIFIED: Deal primary service "${dealPrimaryService}" matches excluded service "${excluded}"`,
       };
     }
   }
@@ -832,7 +1031,7 @@ async function calculateServiceScore(
     try {
       aiScore = await callServiceFitAI(listing, buyer, tracker, apiKey, customInstructions);
     } catch (e) {
-      console.warn("Service fit AI call failed, falling back to keyword+adjacency:", e);
+      console.warn('Service fit AI call failed, falling back to keyword+adjacency:', e);
     }
   }
 
@@ -868,20 +1067,21 @@ async function calculateServiceScore(
         reasoning = `Adjacent service match: ${adjacencyResult.matches.join(', ')}`;
       } else {
         // Differentiate "no data to compare" from "compared and no match"
-        const buyerHasAnyServiceInfo = buyerTargetServices.length > 0 ||
+        const buyerHasAnyServiceInfo =
+          buyerTargetServices.length > 0 ||
           buyerServicesOffered.length > 0 ||
           buyerTargetIndustries.length > 0 ||
           buyerIndustryVertical.length > 0;
 
         if (!buyerHasAnyServiceInfo) {
           score = 55;
-          reasoning = "Buyer has no service data — neutral, cannot evaluate fit";
+          reasoning = 'Buyer has no service data — neutral, cannot evaluate fit';
         } else if (dealServices.length === 0 || !dealServices[0]) {
           score = 55;
-          reasoning = "Deal has no service data — neutral, cannot evaluate fit";
+          reasoning = 'Deal has no service data — neutral, cannot evaluate fit';
         } else {
           score = 30;
-          reasoning = "No service overlap or adjacency detected between known services";
+          reasoning = 'No service overlap or adjacency detected between known services';
         }
       }
     }
@@ -892,33 +1092,38 @@ async function calculateServiceScore(
     .map((s: string) => s?.toLowerCase())
     .filter(Boolean);
   const fallbackPrimaryFocus = tracker?.service_criteria?.required_services?.[0]?.toLowerCase();
-  const allPrimaryFocus = primaryFocusList.length > 0 ? primaryFocusList : (fallbackPrimaryFocus ? [fallbackPrimaryFocus] : []);
+  const allPrimaryFocus =
+    primaryFocusList.length > 0
+      ? primaryFocusList
+      : fallbackPrimaryFocus
+        ? [fallbackPrimaryFocus]
+        : [];
 
-  const hasPrimaryFocusMatch = allPrimaryFocus.some((pf: string) =>
-    dealPrimaryService.includes(pf) || pf.includes(dealPrimaryService)
+  const hasPrimaryFocusMatch = allPrimaryFocus.some(
+    (pf: string) => dealPrimaryService.includes(pf) || pf.includes(dealPrimaryService),
   );
 
   if (hasPrimaryFocusMatch) {
     score = Math.min(100, score + 10);
-    reasoning += ". +10pt primary focus match";
+    reasoning += '. +10pt primary focus match';
   } else {
     // Check preferred_services for a smaller bonus
     const preferredServices: string[] = (tracker?.service_criteria?.preferred_services || [])
       .map((s: string) => s?.toLowerCase())
       .filter(Boolean);
-    const hasPreferredMatch = preferredServices.some((ps: string) =>
-      dealPrimaryService.includes(ps) || ps.includes(dealPrimaryService)
+    const hasPreferredMatch = preferredServices.some(
+      (ps: string) => dealPrimaryService.includes(ps) || ps.includes(dealPrimaryService),
     );
     if (hasPreferredMatch) {
       score = Math.min(100, score + 3);
-      reasoning += ". +3pt preferred service match";
+      reasoning += '. +3pt preferred service match';
     } else if (buyerTargetServices.length > 0 && dealPrimaryService) {
-      const matchesBuyerTarget = buyerTargetServices.some((bs: string) =>
-        dealPrimaryService.includes(bs) || bs.includes(dealPrimaryService)
+      const matchesBuyerTarget = buyerTargetServices.some(
+        (bs: string) => dealPrimaryService.includes(bs) || bs.includes(dealPrimaryService),
       );
       if (matchesBuyerTarget) {
         score = Math.min(100, score + 5);
-        reasoning += ". +5pt buyer target match";
+        reasoning += '. +5pt buyer target match';
       }
     }
   }
@@ -941,7 +1146,7 @@ function getServiceMultiplier(serviceScore: number): number {
 function checkServiceAdjacency(
   dealServices: string[],
   buyerServices: string[],
-  adjacencyMap: Record<string, string[]>
+  adjacencyMap: Record<string, string[]>,
 ): { hasAdjacency: boolean; matches: string[] } {
   const matches: string[] = [];
 
@@ -951,7 +1156,7 @@ function checkServiceAdjacency(
     for (const bs of buyerServices) {
       if (!bs) continue;
       const adjacent = adjacencyMap[bs] || [];
-      if (adjacent.some(adj => ds.includes(adj) || adj.includes(ds))) {
+      if (adjacent.some((adj) => ds.includes(adj) || adj.includes(ds))) {
         matches.push(`${ds} ↔ ${bs}`);
       }
     }
@@ -959,8 +1164,8 @@ function checkServiceAdjacency(
     const dealAdjacent = adjacencyMap[ds] || [];
     for (const bs of buyerServices) {
       if (!bs) continue;
-      if (dealAdjacent.some(adj => bs.includes(adj) || adj.includes(bs))) {
-        if (!matches.some(m => m.includes(ds) && m.includes(bs))) {
+      if (dealAdjacent.some((adj) => bs.includes(adj) || adj.includes(bs))) {
+        if (!matches.some((m) => m.includes(ds) && m.includes(bs))) {
           matches.push(`${ds} ↔ ${bs}`);
         }
       }
@@ -975,9 +1180,11 @@ async function callServiceFitAI(
   buyer: any,
   tracker: any,
   apiKey: string,
-  customInstructions?: string
+  customInstructions?: string,
 ): Promise<{ score: number; reasoning: string }> {
-  const dealServices = (listing.services || listing.categories || [listing.category]).filter(Boolean).join(', ');
+  const dealServices = (listing.services || listing.categories || [listing.category])
+    .filter(Boolean)
+    .join(', ');
   const buyerServices = (buyer.target_services || []).filter(Boolean).join(', ');
   const buyerOffered = buyer.services_offered || '';
   const buyerIndustries = (buyer.target_industries || []).filter(Boolean).join(', ');
@@ -986,7 +1193,9 @@ async function callServiceFitAI(
   const buyerWebsite = buyer.company_website || '';
   const universeIndustry = tracker?.industry || tracker?.name || '';
 
-  const customContext = customInstructions ? `\nADDITIONAL SCORING INSTRUCTIONS: ${customInstructions}` : '';
+  const customContext = customInstructions
+    ? `\nADDITIONAL SCORING INSTRUCTIONS: ${customInstructions}`
+    : '';
   const prompt = `Score 0-100 how well these services align:
 DEAL SERVICES: ${dealServices}
 DEAL INDUSTRY: ${listing.category || 'Unknown'}
@@ -1004,15 +1213,18 @@ Score guide: 85-100 = exact match, 60-84 = strong overlap, 40-59 = partial/adjac
 Return JSON: {"score": number, "reasoning": "one sentence"}`;
 
   const response = await fetchWithRetry(GEMINI_API_URL, {
-    method: "POST",
+    method: 'POST',
     headers: getGeminiHeaders(apiKey),
     body: JSON.stringify({
       model: DEFAULT_GEMINI_MODEL,
       messages: [
-        { role: "system", content: "You are an M&A service alignment scorer. Return ONLY valid JSON." },
-        { role: "user", content: prompt }
+        {
+          role: 'system',
+          content: 'You are an M&A service alignment scorer. Return ONLY valid JSON.',
+        },
+        { role: 'user', content: prompt },
       ],
-      response_format: { type: "json_object" },
+      response_format: { type: 'json_object' },
       max_tokens: 200,
       temperature: 0,
     }),
@@ -1022,18 +1234,22 @@ Return JSON: {"score": number, "reasoning": "one sentence"}`;
   if (!response.ok) throw new Error(`Service AI failed: ${response.status}`);
   const result = await response.json();
   const content = result.choices?.[0]?.message?.content;
-  if (!content) throw new Error("No content in service AI response");
+  if (!content) throw new Error('No content in service AI response');
   const parsed = JSON.parse(content);
-  return { score: Math.max(0, Math.min(100, parsed.score || 50)), reasoning: parsed.reasoning || '' };
+  return {
+    score: Math.max(0, Math.min(100, parsed.score || 50)),
+    reasoning: parsed.reasoning || '',
+  };
 }
 
 // Service overlap (keyword matching)
 function calculateServiceOverlap(
   listing: any,
-  buyer: any
+  buyer: any,
 ): { percentage: number; matchingServices: string[]; allDealServices: string[] } {
   const dealServices = (listing.services || listing.categories || [listing.category])
-    .filter(Boolean).map((s: string) => s?.toLowerCase().trim());
+    .filter(Boolean)
+    .map((s: string) => s?.toLowerCase().trim());
 
   // Include target_industries and industry_vertical as additional buyer service signals
   const buyerServices = [
@@ -1041,14 +1257,16 @@ function calculateServiceOverlap(
     ...(buyer.target_industries || []),
     ...(buyer.services_offered || '').split(/[,;]/).filter(Boolean),
     ...(buyer.industry_vertical || '').split(/[,;]/).filter(Boolean),
-  ].map((s: string) => s?.toLowerCase().trim()).filter(Boolean);
+  ]
+    .map((s: string) => s?.toLowerCase().trim())
+    .filter(Boolean);
 
   if (buyerServices.length === 0 || dealServices.length === 0) {
     return { percentage: 0, matchingServices: [], allDealServices: dealServices };
   }
 
   // Tokenize for word-level matching (e.g., "fire restoration" matches "restoration")
-  const tokenize = (s: string) => s.split(/[\s\-/&]+/).filter(w => w.length > 2);
+  const tokenize = (s: string) => s.split(/[\s\-/&]+/).filter((w) => w.length > 2);
 
   const matching = dealServices.filter((ds: string) =>
     buyerServices.some((bs: string) => {
@@ -1057,8 +1275,10 @@ function calculateServiceOverlap(
       // Word-level match: any significant word overlap
       const dealTokens = tokenize(ds || '');
       const buyerTokens = tokenize(bs || '');
-      return dealTokens.some(dt => buyerTokens.some(bt => dt === bt || dt.includes(bt) || bt.includes(dt)));
-    })
+      return dealTokens.some((dt) =>
+        buyerTokens.some((bt) => dt === bt || dt.includes(bt) || bt.includes(dt)),
+      );
+    }),
   );
 
   // Use deal services as denominator so data-rich buyers aren't penalized
@@ -1075,13 +1295,13 @@ async function calculateOwnerGoalsScore(
   listing: any,
   buyer: any,
   apiKey: string,
-  customInstructions?: string
+  customInstructions?: string,
 ): Promise<{ score: number; confidence: string; reasoning: string }> {
   // Try AI scoring first
   try {
     return await callOwnerGoalsFitAI(listing, buyer, apiKey, customInstructions);
   } catch (e) {
-    console.warn("Owner goals AI call failed, using fallback:", e);
+    console.warn('Owner goals AI call failed, using fallback:', e);
   }
 
   // Fallback: buyer-type norms lookup
@@ -1092,9 +1312,11 @@ async function callOwnerGoalsFitAI(
   listing: any,
   buyer: any,
   apiKey: string,
-  customInstructions?: string
+  customInstructions?: string,
 ): Promise<{ score: number; confidence: string; reasoning: string }> {
-  const customContext = customInstructions ? `\nADDITIONAL SCORING INSTRUCTIONS: ${customInstructions}` : '';
+  const customContext = customInstructions
+    ? `\nADDITIONAL SCORING INSTRUCTIONS: ${customInstructions}`
+    : '';
   const prompt = `Score 0-100 how well this buyer aligns with what the seller wants:
 
 DEAL:
@@ -1116,15 +1338,18 @@ If cannot evaluate, score 50 with confidence low.
 Return JSON: {"score": number, "confidence": "high"|"medium"|"low", "reasoning": "one sentence"}`;
 
   const response = await fetchWithRetry(GEMINI_API_URL, {
-    method: "POST",
+    method: 'POST',
     headers: getGeminiHeaders(apiKey),
     body: JSON.stringify({
       model: DEFAULT_GEMINI_MODEL,
       messages: [
-        { role: "system", content: "You are an M&A owner-goals alignment scorer. Return ONLY valid JSON." },
-        { role: "user", content: prompt }
+        {
+          role: 'system',
+          content: 'You are an M&A owner-goals alignment scorer. Return ONLY valid JSON.',
+        },
+        { role: 'user', content: prompt },
       ],
-      response_format: { type: "json_object" },
+      response_format: { type: 'json_object' },
       max_tokens: 200,
       temperature: 0,
     }),
@@ -1134,27 +1359,70 @@ Return JSON: {"score": number, "confidence": "high"|"medium"|"low", "reasoning":
   if (!response.ok) throw new Error(`Owner goals AI failed: ${response.status}`);
   const result = await response.json();
   const content = result.choices?.[0]?.message?.content;
-  if (!content) throw new Error("No content");
+  if (!content) throw new Error('No content');
   const parsed = JSON.parse(content);
   return {
     score: Math.max(0, Math.min(100, parsed.score || 50)),
     confidence: parsed.confidence || 'low',
-    reasoning: parsed.reasoning || ''
+    reasoning: parsed.reasoning || '',
   };
 }
 
-function ownerGoalsFallback(listing: any, buyer: any): { score: number; confidence: string; reasoning: string } {
+function ownerGoalsFallback(
+  listing: any,
+  buyer: any,
+): { score: number; confidence: string; reasoning: string } {
   const ownerGoals = (listing.owner_goals || listing.seller_motivation || '').toLowerCase();
   const buyerType = (buyer.buyer_type || '').toLowerCase();
   const thesis = (buyer.thesis_summary || '').toLowerCase();
 
   // Buyer-type norms lookup table
   const norms: Record<string, Record<string, number>> = {
-    'pe_firm': { base: 55, cash_exit: 40, growth_partner: 75, quick_exit: 50, stay_long: 60, retain_employees: 65, keep_autonomy: 50 },
-    'platform': { base: 65, cash_exit: 50, growth_partner: 80, quick_exit: 40, stay_long: 85, retain_employees: 75, keep_autonomy: 60 },
-    'strategic': { base: 50, cash_exit: 70, growth_partner: 50, quick_exit: 65, stay_long: 45, retain_employees: 45, keep_autonomy: 30 },
-    'family_office': { base: 60, cash_exit: 60, growth_partner: 65, quick_exit: 55, stay_long: 70, retain_employees: 70, keep_autonomy: 80 },
-    'independent_sponsor': { base: 58, cash_exit: 55, growth_partner: 70, quick_exit: 60, stay_long: 55, retain_employees: 60, keep_autonomy: 55 },
+    pe_firm: {
+      base: 55,
+      cash_exit: 40,
+      growth_partner: 75,
+      quick_exit: 50,
+      stay_long: 60,
+      retain_employees: 65,
+      keep_autonomy: 50,
+    },
+    platform: {
+      base: 65,
+      cash_exit: 50,
+      growth_partner: 80,
+      quick_exit: 40,
+      stay_long: 85,
+      retain_employees: 75,
+      keep_autonomy: 60,
+    },
+    strategic: {
+      base: 50,
+      cash_exit: 70,
+      growth_partner: 50,
+      quick_exit: 65,
+      stay_long: 45,
+      retain_employees: 45,
+      keep_autonomy: 30,
+    },
+    family_office: {
+      base: 60,
+      cash_exit: 60,
+      growth_partner: 65,
+      quick_exit: 55,
+      stay_long: 70,
+      retain_employees: 70,
+      keep_autonomy: 80,
+    },
+    independent_sponsor: {
+      base: 58,
+      cash_exit: 55,
+      growth_partner: 70,
+      quick_exit: 60,
+      stay_long: 55,
+      retain_employees: 60,
+      keep_autonomy: 55,
+    },
   };
 
   const typeNorms = norms[buyerType] || norms['platform'];
@@ -1164,25 +1432,61 @@ function ownerGoalsFallback(listing: any, buyer: any): { score: number; confiden
     let score = typeNorms.base;
     // Buyers with explicit thesis get a slight edge (more data = more signal)
     if (thesis.length > 50) score += 5;
-    return { score: Math.max(30, Math.min(85, score)), confidence: 'low', reasoning: `No owner goals — ${buyerType || 'unknown'} type base score` };
+    return {
+      score: Math.max(30, Math.min(85, score)),
+      confidence: 'low',
+      reasoning: `No owner goals — ${buyerType || 'unknown'} type base score`,
+    };
   }
 
   // Match owner goals to categories using word-boundary-safe checks
   let score = typeNorms.base;
   let matchedCategory = '';
-  if (ownerGoals.includes('cash') && ownerGoals.includes('exit')) { score = typeNorms.cash_exit; matchedCategory = 'cash exit'; }
-  else if (ownerGoals.includes('growth') || ownerGoals.includes('partner') || ownerGoals.includes('rollover')) { score = typeNorms.growth_partner; matchedCategory = 'growth/partner'; }
-  else if (ownerGoals.includes('quick') || ownerGoals.includes('fast') || ownerGoals.includes('30 day') || ownerGoals.includes('60 day')) { score = typeNorms.quick_exit; matchedCategory = 'quick exit'; }
-  else if (/\bstay\b/.test(ownerGoals) || /\bcontinue\b/.test(ownerGoals) || /\blong[\s-]?term\b/.test(ownerGoals)) { score = typeNorms.stay_long; matchedCategory = 'stay/continue'; }
-  else if (/\bemployee/.test(ownerGoals) || /\bretain\b/.test(ownerGoals) || /\bteam\b/.test(ownerGoals)) { score = typeNorms.retain_employees; matchedCategory = 'retain employees'; }
-  else if (/\bautonom/.test(ownerGoals) || /\bindependen/.test(ownerGoals)) { score = typeNorms.keep_autonomy; matchedCategory = 'autonomy'; }
+  if (ownerGoals.includes('cash') && ownerGoals.includes('exit')) {
+    score = typeNorms.cash_exit;
+    matchedCategory = 'cash exit';
+  } else if (
+    ownerGoals.includes('growth') ||
+    ownerGoals.includes('partner') ||
+    ownerGoals.includes('rollover')
+  ) {
+    score = typeNorms.growth_partner;
+    matchedCategory = 'growth/partner';
+  } else if (
+    ownerGoals.includes('quick') ||
+    ownerGoals.includes('fast') ||
+    ownerGoals.includes('30 day') ||
+    ownerGoals.includes('60 day')
+  ) {
+    score = typeNorms.quick_exit;
+    matchedCategory = 'quick exit';
+  } else if (
+    /\bstay\b/.test(ownerGoals) ||
+    /\bcontinue\b/.test(ownerGoals) ||
+    /\blong[\s-]?term\b/.test(ownerGoals)
+  ) {
+    score = typeNorms.stay_long;
+    matchedCategory = 'stay/continue';
+  } else if (
+    /\bemployee/.test(ownerGoals) ||
+    /\bretain\b/.test(ownerGoals) ||
+    /\bteam\b/.test(ownerGoals)
+  ) {
+    score = typeNorms.retain_employees;
+    matchedCategory = 'retain employees';
+  } else if (/\bautonom/.test(ownerGoals) || /\bindependen/.test(ownerGoals)) {
+    score = typeNorms.keep_autonomy;
+    matchedCategory = 'autonomy';
+  }
 
   // Check special_requirements for deal-breaker conflicts
   const specialReqs = (listing.special_requirements || '').toLowerCase();
   if (specialReqs) {
     if (specialReqs.includes('no pe') && buyerType === 'pe_firm') score = Math.max(0, score - 25);
-    else if (specialReqs.includes('no strategic') && buyerType === 'strategic') score = Math.max(0, score - 25);
-    else if (specialReqs.includes('no family office') && buyerType === 'family_office') score = Math.max(0, score - 25);
+    else if (specialReqs.includes('no strategic') && buyerType === 'strategic')
+      score = Math.max(0, score - 25);
+    else if (specialReqs.includes('no family office') && buyerType === 'family_office')
+      score = Math.max(0, score - 25);
   }
 
   // Bonus/penalty from buyer-specific data
@@ -1200,7 +1504,7 @@ function ownerGoalsFallback(listing: any, buyer: any): { score: number; confiden
     confidence,
     reasoning: matchedCategory
       ? `Fallback: ${buyerType || 'unknown'} norms for "${matchedCategory}" goals`
-      : `Fallback: ${buyerType || 'unknown'} buyer type base score`
+      : `Fallback: ${buyerType || 'unknown'} buyer type base score`,
   };
 }
 
@@ -1211,7 +1515,7 @@ function ownerGoalsFallback(listing: any, buyer: any): { score: number; confiden
 async function calculateThesisAlignmentBonus(
   listing: any,
   buyer: any,
-  apiKey: string
+  apiKey: string,
 ): Promise<{ bonus: number; reasoning: string }> {
   const thesis = buyer.thesis_summary || '';
   if (thesis.length <= 30) {
@@ -1219,28 +1523,29 @@ async function calculateThesisAlignmentBonus(
   }
 
   try {
-    const GEMINI_KEY = Deno.env.get("GEMINI_API_KEY");
+    const GEMINI_KEY = Deno.env.get('GEMINI_API_KEY');
     if (!GEMINI_KEY) {
       return calculateThesisBonusFallback(listing, buyer);
     }
 
     const tool = {
-      type: "function",
+      type: 'function',
       function: {
-        name: "score_thesis_alignment",
-        description: "Score thesis-deal alignment 0-20",
+        name: 'score_thesis_alignment',
+        description: 'Score thesis-deal alignment 0-20',
         parameters: {
-          type: "object",
+          type: 'object',
           properties: {
-            score: { type: "number", description: "0-20 alignment score" },
-            reasoning: { type: "string", description: "Brief explanation" }
+            score: { type: 'number', description: '0-20 alignment score' },
+            reasoning: { type: 'string', description: 'Brief explanation' },
           },
-          required: ["score", "reasoning"]
-        }
-      }
+          required: ['score', 'reasoning'],
+        },
+      },
     };
 
-    const systemPrompt = "Score 0-20 how well this deal matches the buyer's thesis. ONLY score based on explicit thesis statements. 16-20=exact match, 11-15=strong, 6-10=partial, 1-5=minimal, 0=none.";
+    const systemPrompt =
+      "Score 0-20 how well this deal matches the buyer's thesis. ONLY score based on explicit thesis statements. 16-20=exact match, 11-15=strong, 6-10=partial, 1-5=minimal, 0=none.";
     const userPrompt = `THESIS: ${thesis.substring(0, 500)}
 BUYER TARGETS: ${(buyer.target_services || []).join(', ')}
 DEAL: ${listing.title}, Services: ${(listing.services || []).join(', ')}, Location: ${listing.location}, Revenue: ${listing.revenue ? `$${listing.revenue.toLocaleString()}` : 'Unknown'}`;
@@ -1265,30 +1570,38 @@ DEAL: ${listing.title}, Services: ${(listing.services || []).join(', ')}, Locati
       const geminiData = await geminiResp.json();
       const tc = geminiData.choices?.[0]?.message?.tool_calls?.[0];
       if (tc?.function?.arguments) {
-        const parsed = typeof tc.function.arguments === 'string' ? JSON.parse(tc.function.arguments) : tc.function.arguments;
+        const parsed =
+          typeof tc.function.arguments === 'string'
+            ? JSON.parse(tc.function.arguments)
+            : tc.function.arguments;
         return {
           bonus: Math.max(0, Math.min(20, parsed.score || 0)),
-          reasoning: parsed.reasoning || ''
+          reasoning: parsed.reasoning || '',
         };
       }
     }
   } catch (e) {
-    console.warn("Thesis alignment AI call failed:", e);
+    console.warn('Thesis alignment AI call failed:', e);
   }
 
   // Fallback to pattern matching
   return calculateThesisBonusFallback(listing, buyer);
 }
 
-function calculateThesisBonusFallback(listing: any, buyer: any): { bonus: number; reasoning: string } {
+function calculateThesisBonusFallback(
+  listing: any,
+  buyer: any,
+): { bonus: number; reasoning: string } {
   const thesis = (buyer.thesis_summary || '').toLowerCase();
   if (!thesis || thesis.length < 10) return { bonus: 0, reasoning: '' };
 
   const dealText = [
     listing.description || '',
     listing.executive_summary || '',
-    (listing.services || []).join(' ')
-  ].join(' ').toLowerCase();
+    (listing.services || []).join(' '),
+  ]
+    .join(' ')
+    .toLowerCase();
 
   let points = 0;
   const matches: string[] = [];
@@ -1311,7 +1624,7 @@ function calculateThesisBonusFallback(listing: any, buyer: any): { bonus: number
 
   return {
     bonus: Math.min(20, points),
-    reasoning: matches.length > 0 ? `Thesis patterns: ${matches.join(', ')}` : ''
+    reasoning: matches.length > 0 ? `Thesis patterns: ${matches.join(', ')}` : '',
   };
 }
 
@@ -1325,14 +1638,17 @@ function calculateDataQualityBonus(buyer: any): { bonus: number; details: string
 // PHASE 7: LEARNING PATTERNS
 // ============================================================================
 
-async function fetchLearningPatterns(supabase: any, buyerIds: string[]): Promise<Map<string, LearningPattern>> {
+async function fetchLearningPatterns(
+  supabase: any,
+  buyerIds: string[],
+): Promise<Map<string, LearningPattern>> {
   const patterns = new Map<string, LearningPattern>();
   if (buyerIds.length === 0) return patterns;
 
   const { data: history, error } = await supabase
-    .from("buyer_learning_history")
-    .select("buyer_id, action, composite_score, pass_category")
-    .in("buyer_id", buyerIds);
+    .from('buyer_learning_history')
+    .select('buyer_id, action, composite_score, pass_category')
+    .in('buyer_id', buyerIds);
 
   if (error || !history) return patterns;
 
@@ -1358,12 +1674,16 @@ async function fetchLearningPatterns(supabase: any, buyerIds: string[]): Promise
     patterns.set(buyerId, {
       buyer_id: buyerId,
       approvalRate: records.length > 0 ? approved.length / records.length : 0,
-      avgScoreOnApproved: approved.length > 0
-        ? approved.reduce((sum: number, r: any) => sum + (r.composite_score || 0), 0) / approved.length
-        : 0,
-      avgScoreOnPassed: passed.length > 0
-        ? passed.reduce((sum: number, r: any) => sum + (r.composite_score || 0), 0) / passed.length
-        : 0,
+      avgScoreOnApproved:
+        approved.length > 0
+          ? approved.reduce((sum: number, r: any) => sum + (r.composite_score || 0), 0) /
+            approved.length
+          : 0,
+      avgScoreOnPassed:
+        passed.length > 0
+          ? passed.reduce((sum: number, r: any) => sum + (r.composite_score || 0), 0) /
+            passed.length
+          : 0,
       totalActions: records.length,
       passCategories,
     });
@@ -1372,7 +1692,10 @@ async function fetchLearningPatterns(supabase: any, buyerIds: string[]): Promise
   return patterns;
 }
 
-function calculateLearningPenalty(pattern: LearningPattern | undefined): { penalty: number; note: string } {
+function calculateLearningPenalty(pattern: LearningPattern | undefined): {
+  penalty: number;
+  note: string;
+} {
   if (!pattern || pattern.totalActions < 3) return { penalty: 0, note: '' };
 
   let penalty = 0;
@@ -1415,7 +1738,7 @@ function calculateLearningPenalty(pattern: LearningPattern | undefined): { penal
 
   return {
     penalty: Math.max(-5, Math.min(25, penalty)), // Cap -5 to 25
-    note: notes.join('; ')
+    note: notes.join('; '),
   };
 }
 
@@ -1423,13 +1746,18 @@ function calculateLearningPenalty(pattern: LearningPattern | undefined): { penal
 // DATA COMPLETENESS & MISSING FIELDS
 // ============================================================================
 
-function assessDataCompleteness(buyer: any): { level: string; missingFields: string[]; provenanceWarnings: string[] } {
+function assessDataCompleteness(buyer: any): {
+  level: string;
+  missingFields: string[];
+  provenanceWarnings: string[];
+} {
   const missing: string[] = [];
   const provenanceWarnings: string[] = [];
 
   if (!buyer.thesis_summary || buyer.thesis_summary.length < 20) missing.push('Investment thesis');
   if (!buyer.target_services || buyer.target_services.length === 0) missing.push('Target services');
-  if (!buyer.target_geographies || buyer.target_geographies.length === 0) missing.push('Target geographies');
+  if (!buyer.target_geographies || buyer.target_geographies.length === 0)
+    missing.push('Target geographies');
   if (!buyer.target_revenue_min && !buyer.target_revenue_max) missing.push('Target revenue range');
   if (!buyer.target_ebitda_min && !buyer.target_ebitda_max) missing.push('Target EBITDA range');
   // F06 FIX: key_quotes was dropped in migration 20260221000000 — removed from completeness check
@@ -1438,20 +1766,34 @@ function assessDataCompleteness(buyer: any): { level: string; missingFields: str
 
   // PROVENANCE CHECK: Warn if critical fields have no transcript source
   const sources = Array.isArray(buyer.extraction_sources) ? buyer.extraction_sources : [];
-  const hasTranscript = sources.some((s: any) => s.type === 'transcript' || s.source === 'transcript');
-  
+  const hasTranscript = sources.some(
+    (s: any) => s.type === 'transcript' || s.source === 'transcript',
+  );
+
   if (!hasTranscript) {
     if (buyer.thesis_summary) provenanceWarnings.push('thesis_summary has no transcript backing');
-    if (buyer.target_revenue_min || buyer.target_revenue_max) provenanceWarnings.push('deal structure has no transcript backing — may be PE firm new-platform criteria');
-    if (buyer.target_ebitda_min || buyer.target_ebitda_max) provenanceWarnings.push('EBITDA range has no transcript backing');
+    if (buyer.target_revenue_min || buyer.target_revenue_max)
+      provenanceWarnings.push(
+        'deal structure has no transcript backing — may be PE firm new-platform criteria',
+      );
+    if (buyer.target_ebitda_min || buyer.target_ebitda_max)
+      provenanceWarnings.push('EBITDA range has no transcript backing');
   }
 
   // Check for suspicious HQ data (PE firm HQ leakage indicator)
   if (buyer.hq_city && buyer.pe_firm_website && !hasTranscript) {
-    const peWebsiteClean = (buyer.pe_firm_website || '').toLowerCase().replace(/https?:\/\//, '').replace(/\/$/, '');
-    const platformWebsiteClean = (buyer.platform_website || buyer.company_website || '').toLowerCase().replace(/https?:\/\//, '').replace(/\/$/, '');
+    const peWebsiteClean = (buyer.pe_firm_website || '')
+      .toLowerCase()
+      .replace(/https?:\/\//, '')
+      .replace(/\/$/, '');
+    const platformWebsiteClean = (buyer.platform_website || buyer.company_website || '')
+      .toLowerCase()
+      .replace(/https?:\/\//, '')
+      .replace(/\/$/, '');
     if (!platformWebsiteClean || platformWebsiteClean === peWebsiteClean) {
-      provenanceWarnings.push(`HQ (${buyer.hq_city}, ${buyer.hq_state}) may be PE firm HQ — no platform website to verify`);
+      provenanceWarnings.push(
+        `HQ (${buyer.hq_city}, ${buyer.hq_state}) may be PE firm HQ — no platform website to verify`,
+      );
     }
   }
 
@@ -1479,18 +1821,22 @@ function assessDataCompleteness(buyer: any): { level: string; missingFields: str
 
 async function fetchScoringAdjustments(supabase: any, listingId: string): Promise<any[]> {
   const { data, error } = await supabase
-    .from("deal_scoring_adjustments")
-    .select("*")
-    .eq("listing_id", listingId);
+    .from('deal_scoring_adjustments')
+    .select('*')
+    .eq('listing_id', listingId);
 
   if (error) {
-    console.warn("Failed to fetch scoring adjustments:", error);
+    console.warn('Failed to fetch scoring adjustments:', error);
     return [];
   }
   return data || [];
 }
 
-function applyCustomInstructionBonus(adjustments: any[]): { bonus: number; reasoning: string; disqualify?: boolean } {
+function applyCustomInstructionBonus(adjustments: any[]): {
+  bonus: number;
+  reasoning: string;
+  disqualify?: boolean;
+} {
   let bonus = 0;
   const reasons: string[] = [];
   let disqualify = false;
@@ -1525,7 +1871,7 @@ async function scoreSingleBuyer(
   apiKey: string,
   supabaseUrl: string,
   supabaseKey: string,
-  customInstructions?: string
+  customInstructions?: string,
 ): Promise<ScoredResult> {
   const behavior: ScoringBehavior = universe.scoring_behavior || {};
   const serviceCriteria: ServiceCriteria | null = universe.service_criteria || null;
@@ -1541,7 +1887,15 @@ async function scoreSingleBuyer(
 
   const [geoResult, serviceResult, ownerGoalsResult, thesisResult] = await Promise.all([
     calculateGeographyScore(listing, buyer, tracker, supabaseUrl, supabaseKey),
-    calculateServiceScore(listing, buyer, tracker, behavior, serviceCriteria, apiKey, customInstructions),
+    calculateServiceScore(
+      listing,
+      buyer,
+      tracker,
+      behavior,
+      serviceCriteria,
+      apiKey,
+      customInstructions,
+    ),
     calculateOwnerGoalsScore(listing, buyer, apiKey, customInstructions),
     calculateThesisAlignmentBonus(listing, buyer, apiKey),
   ]);
@@ -1551,14 +1905,21 @@ async function scoreSingleBuyer(
   // To prevent clustering, redistribute its weight to dimensions that CAN differentiate.
   // F06 FIX: Removed references to deprecated revenue_sweet_spot/ebitda_sweet_spot
   // (dropped in migration 20260221000000). Sweet spot is computed dynamically from min/max.
-  const buyerHasSizeData = buyer.target_revenue_min != null || buyer.target_revenue_max != null ||
-    buyer.target_ebitda_min != null || buyer.target_ebitda_max != null;
-  
-  const buyerHasGeoData = (buyer.target_geographies?.length > 0) ||
-    (buyer.geographic_footprint?.length > 0) || (buyer.service_regions?.length > 0) ||
-    (buyer.operating_locations?.length > 0) || buyer.hq_state;
-  
-  const buyerHasServiceData = (buyer.target_services?.length > 0) ||
+  const buyerHasSizeData =
+    buyer.target_revenue_min != null ||
+    buyer.target_revenue_max != null ||
+    buyer.target_ebitda_min != null ||
+    buyer.target_ebitda_max != null;
+
+  const buyerHasGeoData =
+    buyer.target_geographies?.length > 0 ||
+    buyer.geographic_footprint?.length > 0 ||
+    buyer.service_regions?.length > 0 ||
+    buyer.operating_locations?.length > 0 ||
+    buyer.hq_state;
+
+  const buyerHasServiceData =
+    buyer.target_services?.length > 0 ||
     (buyer.services_offered && buyer.services_offered.trim().length > 0);
 
   // Also check deal-side data availability
@@ -1592,7 +1953,8 @@ async function scoreSingleBuyer(
 
   // Redistribute pooled weight proportionally among dimensions that DO have data
   if (pooledWeight > 0) {
-    const scoredWeight = effectiveSizeWeight + effectiveGeoWeight + effectiveServiceWeight + effectiveOwnerWeight;
+    const scoredWeight =
+      effectiveSizeWeight + effectiveGeoWeight + effectiveServiceWeight + effectiveOwnerWeight;
     if (scoredWeight > 0) {
       const scale = (scoredWeight + pooledWeight) / scoredWeight;
       effectiveSizeWeight = Math.round(effectiveSizeWeight * scale);
@@ -1604,22 +1966,31 @@ async function scoreSingleBuyer(
     if (!buyerHasSizeData || !dealHasFinancials) missingDims.push('size');
     if (!buyerHasGeoData || !dealHasLocation) missingDims.push('geo');
     if (!buyerHasServiceData || !dealHasServices) missingDims.push('svc');
-    console.log(`[Weight Redistribution] Buyer ${buyer.id}: missing [${missingDims.join(', ')}]. Effective: size=${effectiveSizeWeight}, geo=${effectiveGeoWeight}, svc=${effectiveServiceWeight}, owner=${effectiveOwnerWeight}`);
+    console.log(
+      `[Weight Redistribution] Buyer ${buyer.id}: missing [${missingDims.join(', ')}]. Effective: size=${effectiveSizeWeight}, geo=${effectiveGeoWeight}, svc=${effectiveServiceWeight}, owner=${effectiveOwnerWeight}`,
+    );
   }
 
   // === Step f: Weighted composite ===
   // Use effective weight sum as divisor so reduced geography mode doesn't systematically lower all scores
-  const effectiveWeightSum = effectiveSizeWeight + effectiveGeoWeight * geoResult.modeFactor + effectiveServiceWeight + effectiveOwnerWeight;
+  const effectiveWeightSum =
+    effectiveSizeWeight +
+    effectiveGeoWeight * geoResult.modeFactor +
+    effectiveServiceWeight +
+    effectiveOwnerWeight;
   const weightedBase = Math.round(
     (sizeResult.score * effectiveSizeWeight +
-     geoResult.score * effectiveGeoWeight * geoResult.modeFactor +
-     serviceResult.score * effectiveServiceWeight +
-     ownerGoalsResult.score * effectiveOwnerWeight) / effectiveWeightSum
+      geoResult.score * effectiveGeoWeight * geoResult.modeFactor +
+      serviceResult.score * effectiveServiceWeight +
+      ownerGoalsResult.score * effectiveOwnerWeight) /
+      effectiveWeightSum,
   );
 
   // === Step g+h: Apply gates only for dimensions that were actually scored ===
-  const effectiveSizeMultiplier = (!buyerHasSizeData || !dealHasFinancials) ? 1.0 : sizeResult.multiplier;
-  const effectiveServiceMultiplier = (!buyerHasServiceData || !dealHasServices) ? 1.0 : serviceResult.multiplier;
+  const effectiveSizeMultiplier =
+    !buyerHasSizeData || !dealHasFinancials ? 1.0 : sizeResult.multiplier;
+  const effectiveServiceMultiplier =
+    !buyerHasServiceData || !dealHasServices ? 1.0 : serviceResult.multiplier;
 
   let gatedScore = Math.round(weightedBase * effectiveSizeMultiplier * effectiveServiceMultiplier);
   gatedScore = Math.max(0, Math.min(100, gatedScore));
@@ -1634,11 +2005,12 @@ async function scoreSingleBuyer(
   const learningResult = calculateLearningPenalty(learningPattern);
 
   // === Step l: Final assembly ===
-  let finalScore = gatedScore
-    + thesisResult.bonus
-    + dataQualityResult.bonus
-    + customResult.bonus
-    - learningResult.penalty;
+  let finalScore =
+    gatedScore +
+    thesisResult.bonus +
+    dataQualityResult.bonus +
+    customResult.bonus -
+    learningResult.penalty;
 
   finalScore = Math.max(0, Math.min(100, finalScore));
 
@@ -1669,43 +2041,48 @@ async function scoreSingleBuyer(
 
   // === Step o: Determine tier ===
   let tier: string;
-  if (isDisqualified) tier = "F";
-  else if (finalScore >= SCORING_CONFIG.TIER_A_MIN) tier = "A";
-  else if (finalScore >= SCORING_CONFIG.TIER_B_MIN) tier = "B";
-  else if (finalScore >= SCORING_CONFIG.TIER_C_MIN) tier = "C";
-  else if (finalScore >= SCORING_CONFIG.TIER_D_MIN) tier = "D";
-  else tier = "F";
+  if (isDisqualified) tier = 'F';
+  else if (finalScore >= SCORING_CONFIG.TIER_A_MIN) tier = 'A';
+  else if (finalScore >= SCORING_CONFIG.TIER_B_MIN) tier = 'B';
+  else if (finalScore >= SCORING_CONFIG.TIER_C_MIN) tier = 'C';
+  else if (finalScore >= SCORING_CONFIG.TIER_D_MIN) tier = 'D';
+  else tier = 'F';
 
   // === Data completeness + provenance ===
-  const { level: dataCompleteness, missingFields, provenanceWarnings } = assessDataCompleteness(buyer);
+  const {
+    level: dataCompleteness,
+    missingFields,
+    provenanceWarnings,
+  } = assessDataCompleteness(buyer);
 
   // === Confidence level based on dimensions actually scored ===
   const dimensionsScored = [
     buyerHasSizeData && dealHasFinancials,
     buyerHasGeoData && dealHasLocation,
     buyerHasServiceData && dealHasServices,
-    true // owner goals always has signal from buyer type
+    true, // owner goals always has signal from buyer type
   ].filter(Boolean).length;
 
   let confidenceLevel = 'medium';
-  if (dimensionsScored >= 4 && dataCompleteness === 'high' && provenanceWarnings.length === 0) confidenceLevel = 'high';
+  if (dimensionsScored >= 4 && dataCompleteness === 'high' && provenanceWarnings.length === 0)
+    confidenceLevel = 'high';
   else if (dimensionsScored >= 3) confidenceLevel = 'medium';
   else if (dimensionsScored >= 2) confidenceLevel = 'low';
   else confidenceLevel = 'very_low';
 
   // === Needs review flag (only in ambiguous score zone with low-quality data) ===
-  const needsReview = (
-    finalScore >= SCORING_CONFIG.REVIEW_SCORE_LOW && finalScore <= SCORING_CONFIG.REVIEW_SCORE_HIGH &&
-    (confidenceLevel === 'low' || dataCompleteness === 'low')
-  );
+  const needsReview =
+    finalScore >= SCORING_CONFIG.REVIEW_SCORE_LOW &&
+    finalScore <= SCORING_CONFIG.REVIEW_SCORE_HIGH &&
+    (confidenceLevel === 'low' || dataCompleteness === 'low');
 
   // === Build reasoning (aligned with frontend tier bands) ===
   let fitLabel: string;
-  if (isDisqualified) fitLabel = "DISQUALIFIED";
-  else if (finalScore >= 80) fitLabel = "Strong fit";
-  else if (finalScore >= 65) fitLabel = "Good fit";
-  else if (finalScore >= 50) fitLabel = "Fair fit";
-  else fitLabel = "Poor fit";
+  if (isDisqualified) fitLabel = 'DISQUALIFIED';
+  else if (finalScore >= 80) fitLabel = 'Strong fit';
+  else if (finalScore >= 65) fitLabel = 'Good fit';
+  else if (finalScore >= 50) fitLabel = 'Fair fit';
+  else fitLabel = 'Poor fit';
 
   const reasoningParts = [
     `${fitLabel}: ${geoResult.reasoning}`,
@@ -1714,7 +2091,9 @@ async function scoreSingleBuyer(
   ];
 
   if (!buyerHasSizeData) {
-    reasoningParts.push(`Size weight redistributed (no buyer size criteria — insufficient data, not scored)`);
+    reasoningParts.push(
+      `Size weight redistributed (no buyer size criteria — insufficient data, not scored)`,
+    );
   } else if (sizeResult.multiplier < 1.0 && !isDisqualified) {
     reasoningParts.push(`Size gate: ${Math.round(sizeResult.multiplier * 100)}%`);
   }
@@ -1772,7 +2151,7 @@ async function scoreSingleBuyer(
     confidence_level: confidenceLevel,
     fit_reasoning: fitReasoning,
     data_completeness: dataCompleteness,
-    status: "pending", // Will be overridden below if existing score has approved/passed status
+    status: 'pending', // Will be overridden below if existing score has approved/passed status
     scored_at: new Date().toISOString(),
     deal_snapshot: dealSnapshot,
   };
@@ -1786,22 +2165,22 @@ async function handleSingleScore(
   supabase: any,
   request: ScoreRequest,
   apiKey: string,
-  corsHeaders: Record<string, string>
+  corsHeaders: Record<string, string>,
 ) {
   const { listingId, buyerId, universeId, customInstructions, geographyMode } = request;
-  const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-  const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+  const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+  const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 
   // Fetch listing, buyer, universe in parallel
   const [listingRes, buyerRes, universeRes] = await Promise.all([
-    supabase.from("listings").select("*").eq("id", listingId).single(),
-    supabase.from("remarketing_buyers").select("*").eq("id", buyerId).single(),
-    supabase.from("remarketing_buyer_universes").select("*").eq("id", universeId).single(),
+    supabase.from('listings').select('*').eq('id', listingId).single(),
+    supabase.from('remarketing_buyers').select('*').eq('id', buyerId).single(),
+    supabase.from('remarketing_buyer_universes').select('*').eq('id', universeId).single(),
   ]);
 
-  if (listingRes.error || !listingRes.data) throw new Error("Listing not found");
-  if (buyerRes.error || !buyerRes.data) throw new Error("Buyer not found");
-  if (universeRes.error || !universeRes.data) throw new Error("Universe not found");
+  if (listingRes.error || !listingRes.data) throw new Error('Listing not found');
+  if (buyerRes.error || !buyerRes.data) throw new Error('Buyer not found');
+  if (universeRes.error || !universeRes.data) throw new Error('Universe not found');
 
   const listing = listingRes.data;
   const buyer = buyerRes.data;
@@ -1810,7 +2189,11 @@ async function handleSingleScore(
   // Fetch tracker if buyer has one
   let tracker = null;
   if (buyer.industry_tracker_id) {
-    const { data } = await supabase.from("industry_trackers").select("*").eq("id", buyer.industry_tracker_id).single();
+    const { data } = await supabase
+      .from('industry_trackers')
+      .select('*')
+      .eq('id', buyer.industry_tracker_id)
+      .single();
     tracker = data;
   }
 
@@ -1828,18 +2211,25 @@ async function handleSingleScore(
   ]);
 
   const score = await scoreSingleBuyer(
-    listing, buyer, universe, tracker,
-    adjustments, learningPatterns.get(buyerId),
-    apiKey, supabaseUrl, supabaseKey, customInstructions
+    listing,
+    buyer,
+    universe,
+    tracker,
+    adjustments,
+    learningPatterns.get(buyerId),
+    apiKey,
+    supabaseUrl,
+    supabaseKey,
+    customInstructions,
   );
 
   // Preserve existing status if buyer was already approved/passed
   const { data: existingScore } = await supabase
-    .from("remarketing_scores")
-    .select("status")
-    .eq("listing_id", score.listing_id)
-    .eq("buyer_id", score.buyer_id)
-    .eq("universe_id", score.universe_id)
+    .from('remarketing_scores')
+    .select('status')
+    .eq('listing_id', score.listing_id)
+    .eq('buyer_id', score.buyer_id)
+    .eq('universe_id', score.universe_id)
     .maybeSingle();
 
   if (existingScore?.status === 'approved' || existingScore?.status === 'passed') {
@@ -1848,28 +2238,32 @@ async function handleSingleScore(
 
   // Upsert score
   const { data: savedScore, error: saveError } = await supabase
-    .from("remarketing_scores")
-    .upsert(score, { onConflict: "listing_id,buyer_id,universe_id" })
+    .from('remarketing_scores')
+    .upsert(score, { onConflict: 'listing_id,buyer_id,universe_id' })
     .select()
     .single();
 
   if (saveError) {
-    console.error("Failed to save score:", saveError);
-    throw new Error("Failed to save score");
+    console.error('Failed to save score:', saveError);
+    throw new Error('Failed to save score');
   }
 
   // Save immutable score snapshot (non-blocking)
-  saveScoreSnapshot(supabase, score, {
-    geography: universe.geography_weight || 20,
-    size: universe.size_weight || 30,
-    service: universe.service_weight || 45,
-    owner_goals: universe.owner_goals_weight || 5,
-  }, 'manual');
-
-  return new Response(
-    JSON.stringify({ success: true, score: savedScore }),
-    { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+  saveScoreSnapshot(
+    supabase,
+    score,
+    {
+      geography: universe.geography_weight || 20,
+      size: universe.size_weight || 30,
+      service: universe.service_weight || 45,
+      owner_goals: universe.owner_goals_weight || 5,
+    },
+    'manual',
   );
+
+  return new Response(JSON.stringify({ success: true, score: savedScore }), {
+    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+  });
 }
 
 // ============================================================================
@@ -1881,20 +2275,23 @@ async function handleBulkScore(
   request: BulkScoreRequest,
   apiKey: string,
   corsHeaders: Record<string, string>,
-  edgeTimeout?: ReturnType<typeof createEdgeTimeoutSignal>
+  edgeTimeout?: ReturnType<typeof createEdgeTimeoutSignal>,
 ) {
   const { listingId, universeId, buyerIds, customInstructions, geographyMode, options } = request;
   const rescoreExisting = options?.rescoreExisting ?? false;
   const minDataCompleteness = options?.minDataCompleteness;
-  const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-  const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+  const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+  const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 
-  console.log("Custom instructions received:", customInstructions ? "Yes" : "No");
+  console.log('Custom instructions received:', customInstructions ? 'Yes' : 'No');
 
   // Fetch listing
   const { data: listing, error: listingError } = await supabase
-    .from("listings").select("*").eq("id", listingId).single();
-  if (listingError || !listing) throw new Error("Listing not found");
+    .from('listings')
+    .select('*')
+    .eq('id', listingId)
+    .single();
+  if (listingError || !listing) throw new Error('Listing not found');
 
   // ========== DEAL SCORING READINESS VALIDATION ==========
   // Audit the deal's data completeness and flag missing scoring inputs
@@ -1926,7 +2323,9 @@ async function handleBulkScore(
     dealDiagnostics.warnings.push('No financial data — size scoring will use proxy values');
   }
   if (!hasServices) {
-    dealDiagnostics.warnings.push('No services/category — service scoring will use weight redistribution');
+    dealDiagnostics.warnings.push(
+      'No services/category — service scoring will use weight redistribution',
+    );
   }
   if (!hasLocation) {
     dealDiagnostics.warnings.push('No location — geography scoring will use weight redistribution');
@@ -1940,27 +2339,35 @@ async function handleBulkScore(
     dealDiagnostics.data_quality = 'medium';
   }
 
-  console.log(`[DealDiagnostics] Deal ${listingId}: quality=${dealDiagnostics.data_quality}, missing=[${dealDiagnostics.missing_fields.join(', ')}]`);
+  console.log(
+    `[DealDiagnostics] Deal ${listingId}: quality=${dealDiagnostics.data_quality}, missing=[${dealDiagnostics.missing_fields.join(', ')}]`,
+  );
 
   // Fetch universe with structured criteria
   const { data: universe, error: universeError } = await supabase
-    .from("remarketing_buyer_universes").select("*").eq("id", universeId).single();
-  if (universeError || !universe) throw new Error("Universe not found");
+    .from('remarketing_buyer_universes')
+    .select('*')
+    .eq('id', universeId)
+    .single();
+  if (universeError || !universe) throw new Error('Universe not found');
 
   // Fetch buyers
   let buyerQuery = supabase
-    .from("remarketing_buyers").select("*")
-    .eq("universe_id", universeId).eq("archived", false);
-  if (buyerIds && buyerIds.length > 0) buyerQuery = buyerQuery.in("id", buyerIds);
+    .from('remarketing_buyers')
+    .select('*')
+    .eq('universe_id', universeId)
+    .eq('archived', false);
+  if (buyerIds && buyerIds.length > 0) buyerQuery = buyerQuery.in('id', buyerIds);
   if (minDataCompleteness === 'high') buyerQuery = buyerQuery.eq('data_completeness', 'high');
-  else if (minDataCompleteness === 'medium') buyerQuery = buyerQuery.in('data_completeness', ['high', 'medium']);
+  else if (minDataCompleteness === 'medium')
+    buyerQuery = buyerQuery.in('data_completeness', ['high', 'medium']);
 
   const { data: buyers, error: buyersError } = await buyerQuery;
-  if (buyersError) throw new Error("Failed to fetch buyers");
+  if (buyersError) throw new Error('Failed to fetch buyers');
   if (!buyers || buyers.length === 0) {
     return new Response(
-      JSON.stringify({ success: true, scores: [], message: "No buyers to score" }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      JSON.stringify({ success: true, scores: [], message: 'No buyers to score' }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
     );
   }
 
@@ -1968,13 +2375,22 @@ async function handleBulkScore(
   let buyersToScore = buyers;
   if (!rescoreExisting) {
     const { data: existingScores } = await supabase
-      .from("remarketing_scores").select("buyer_id").eq("listing_id", listingId).eq("universe_id", universeId);
+      .from('remarketing_scores')
+      .select('buyer_id')
+      .eq('listing_id', listingId)
+      .eq('universe_id', universeId);
     const scoredIds = new Set((existingScores || []).map((s: any) => s.buyer_id));
     buyersToScore = buyers.filter((b: any) => !scoredIds.has(b.id));
     if (buyersToScore.length === 0) {
       return new Response(
-        JSON.stringify({ success: true, scores: [], message: "All buyers already scored", totalProcessed: 0, totalBuyers: buyers.length }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        JSON.stringify({
+          success: true,
+          scores: [],
+          message: 'All buyers already scored',
+          totalProcessed: 0,
+          totalBuyers: buyers.length,
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
       );
     }
   }
@@ -1983,20 +2399,31 @@ async function handleBulkScore(
   const buyerReadiness = {
     total: buyersToScore.length,
     with_services: buyersToScore.filter((b: any) => b.target_services?.length > 0).length,
-    with_geo: buyersToScore.filter((b: any) => b.target_geographies?.length > 0 || b.geographic_footprint?.length > 0).length,
-    with_size_criteria: buyersToScore.filter((b: any) => b.target_revenue_min || b.target_revenue_max || b.target_ebitda_min).length,
+    with_geo: buyersToScore.filter(
+      (b: any) => b.target_geographies?.length > 0 || b.geographic_footprint?.length > 0,
+    ).length,
+    with_size_criteria: buyersToScore.filter(
+      (b: any) => b.target_revenue_min || b.target_revenue_max || b.target_ebitda_min,
+    ).length,
     with_thesis: buyersToScore.filter((b: any) => b.thesis_summary?.trim()).length,
   };
   console.log(`[BuyerReadiness] ${JSON.stringify(buyerReadiness)}`);
 
-  console.log(`Scoring ${buyersToScore.length} buyers for listing ${listingId} (rescore: ${rescoreExisting})`);
+  console.log(
+    `Scoring ${buyersToScore.length} buyers for listing ${listingId} (rescore: ${rescoreExisting})`,
+  );
 
   // Fetch tracker IDs for all buyers
-  const trackerIds = [...new Set(buyersToScore.map((b: any) => b.industry_tracker_id).filter(Boolean))];
+  const trackerIds = [
+    ...new Set(buyersToScore.map((b: any) => b.industry_tracker_id).filter(Boolean)),
+  ];
   const trackerMap = new Map<string, any>();
   if (trackerIds.length > 0) {
-    const { data: trackers } = await supabase.from("industry_trackers").select("*").in("id", trackerIds);
-    for (const t of (trackers || [])) trackerMap.set(t.id, t);
+    const { data: trackers } = await supabase
+      .from('industry_trackers')
+      .select('*')
+      .in('id', trackerIds);
+    for (const t of trackers || []) trackerMap.set(t.id, t);
   }
 
   // Fetch adjustments and learning patterns in parallel
@@ -2018,7 +2445,9 @@ async function handleBulkScore(
     }
     // Check edge function timeout
     if (edgeTimeout?.isTimedOut()) {
-      console.warn(`Edge timeout reached at buyer batch ${i}/${buyersToScore.length} — returning partial results`);
+      console.warn(
+        `Edge timeout reached at buyer batch ${i}/${buyersToScore.length} — returning partial results`,
+      );
       errors.push('Edge function timeout — partial results returned');
       break;
     }
@@ -2030,12 +2459,21 @@ async function handleBulkScore(
         let tracker = buyer.industry_tracker_id ? trackerMap.get(buyer.industry_tracker_id) : null;
         // Apply geography mode override from request
         if (geographyMode) {
-          tracker = tracker ? { ...tracker, geography_mode: geographyMode } : { geography_mode: geographyMode };
+          tracker = tracker
+            ? { ...tracker, geography_mode: geographyMode }
+            : { geography_mode: geographyMode };
         }
         return await scoreSingleBuyer(
-          listing, buyer, universe, tracker,
-          adjustments, learningPatterns.get(buyer.id),
-          apiKey, supabaseUrl, supabaseKey, customInstructions
+          listing,
+          buyer,
+          universe,
+          tracker,
+          adjustments,
+          learningPatterns.get(buyer.id),
+          apiKey,
+          supabaseUrl,
+          supabaseKey,
+          customInstructions,
         );
       } catch (err) {
         console.error(`Failed to score buyer ${buyer.id}:`, err);
@@ -2052,14 +2490,14 @@ async function handleBulkScore(
       if (rescoreExisting) {
         const scoreKeys = validScores.map((s: ScoredResult) => `${s.buyer_id}`);
         const { data: existingStatuses } = await supabase
-          .from("remarketing_scores")
-          .select("buyer_id, status")
-          .eq("listing_id", listingId)
-          .eq("universe_id", universeId)
-          .in("buyer_id", scoreKeys);
+          .from('remarketing_scores')
+          .select('buyer_id, status')
+          .eq('listing_id', listingId)
+          .eq('universe_id', universeId)
+          .in('buyer_id', scoreKeys);
 
         const statusMap = new Map<string, string>();
-        for (const es of (existingStatuses || [])) {
+        for (const es of existingStatuses || []) {
           if (es.status === 'approved' || es.status === 'passed') {
             statusMap.set(es.buyer_id, es.status);
           }
@@ -2071,33 +2509,41 @@ async function handleBulkScore(
       }
 
       const { data: savedScores, error: saveError } = await supabase
-        .from("remarketing_scores")
-        .upsert(validScores, { onConflict: "listing_id,buyer_id,universe_id" })
+        .from('remarketing_scores')
+        .upsert(validScores, { onConflict: 'listing_id,buyer_id,universe_id' })
         .select();
 
       if (saveError) {
-        console.error("Failed to save batch scores:", saveError);
-        errors.push("Failed to save some scores");
+        console.error('Failed to save batch scores:', saveError);
+        errors.push('Failed to save some scores');
       } else {
         scores.push(...(savedScores || []));
 
         // Save immutable score snapshots for bulk scoring (non-blocking)
         for (const s of validScores) {
-          saveScoreSnapshot(supabase, s, {
-            geography: universe.geography_weight || 20,
-            size: universe.size_weight || 30,
-            service: universe.service_weight || 45,
-            owner_goals: universe.owner_goals_weight || 5,
-          }, 'bulk');
+          saveScoreSnapshot(
+            supabase,
+            s,
+            {
+              geography: universe.geography_weight || 20,
+              size: universe.size_weight || 30,
+              service: universe.service_weight || 45,
+              owner_goals: universe.owner_goals_weight || 5,
+            },
+            'bulk',
+          );
         }
       }
     }
 
     // Report progress to global activity queue
     const batchSucceeded = validScores.length;
-    const batchFailed = batch.length - batchResults.filter((s): s is NonNullable<typeof s> => s !== null).length;
+    const batchFailed =
+      batch.length - batchResults.filter((s): s is NonNullable<typeof s> => s !== null).length;
     if (batchSucceeded > 0) {
-      await updateGlobalQueueProgress(supabase, 'buyer_scoring', { completedDelta: batchSucceeded });
+      await updateGlobalQueueProgress(supabase, 'buyer_scoring', {
+        completedDelta: batchSucceeded,
+      });
     }
     if (batchFailed > 0) {
       await updateGlobalQueueProgress(supabase, 'buyer_scoring', { failedDelta: batchFailed });
@@ -2105,21 +2551,31 @@ async function handleBulkScore(
 
     // Adaptive rate limit delay — increase for large runs to avoid API rate limits
     if (i + batchSize < buyersToScore.length) {
-      const delay = buyersToScore.length > 100 ? SCORING_CONFIG.BULK_DELAY_LARGE : buyersToScore.length > 50 ? SCORING_CONFIG.BULK_DELAY_MEDIUM : SCORING_CONFIG.BULK_DELAY_SMALL;
-      await new Promise(r => setTimeout(r, delay));
+      const delay =
+        buyersToScore.length > 100
+          ? SCORING_CONFIG.BULK_DELAY_LARGE
+          : buyersToScore.length > 50
+            ? SCORING_CONFIG.BULK_DELAY_MEDIUM
+            : SCORING_CONFIG.BULK_DELAY_SMALL;
+      await new Promise((r) => setTimeout(r, delay));
     }
   }
 
   // ========== SCORING SUMMARY & GUARDRAILS ==========
   const qualifiedCount = scores.filter((s: any) => s.composite_score >= 50).length;
   const disqualifiedCount = scores.filter((s: any) => s.composite_score < 50).length;
-  const avgScore = scores.length > 0
-    ? Math.round(scores.reduce((sum: number, s: any) => sum + (s.composite_score || 0), 0) / scores.length)
-    : 0;
+  const avgScore =
+    scores.length > 0
+      ? Math.round(
+          scores.reduce((sum: number, s: any) => sum + (s.composite_score || 0), 0) / scores.length,
+        )
+      : 0;
 
   // Guardrail: Flag when ALL scores are disqualified — likely a data issue
   if (qualifiedCount === 0 && scores.length > 0) {
-    console.warn(`[ScoringGuardrail] ALL ${scores.length} buyers disqualified for deal ${listingId}. Avg score: ${avgScore}. Deal data quality: ${dealDiagnostics.data_quality}. Missing: [${dealDiagnostics.missing_fields.join(', ')}]`);
+    console.warn(
+      `[ScoringGuardrail] ALL ${scores.length} buyers disqualified for deal ${listingId}. Avg score: ${avgScore}. Deal data quality: ${dealDiagnostics.data_quality}. Missing: [${dealDiagnostics.missing_fields.join(', ')}]`,
+    );
   }
 
   // Guardrail: Flag tight score band (all scores within 10 points = mapping break indicator)
@@ -2128,13 +2584,21 @@ async function handleBulkScore(
     const minScore = Math.min(...scoreValues);
     const maxScore = Math.max(...scoreValues);
     if (maxScore - minScore < 10) {
-      console.warn(`[ScoringGuardrail] Tight score band detected (${minScore}-${maxScore}). Possible mapping break or defaulting.`);
-      dealDiagnostics.warnings.push(`All scores clustered in tight band (${minScore}-${maxScore}) — possible data issue`);
+      console.warn(
+        `[ScoringGuardrail] Tight score band detected (${minScore}-${maxScore}). Possible mapping break or defaulting.`,
+      );
+      dealDiagnostics.warnings.push(
+        `All scores clustered in tight band (${minScore}-${maxScore}) — possible data issue`,
+      );
     }
   }
 
   // Mark global activity queue operation as complete
-  await completeGlobalQueueOperation(supabase, 'buyer_scoring', errors.length > 0 ? 'failed' : 'completed');
+  await completeGlobalQueueOperation(
+    supabase,
+    'buyer_scoring',
+    errors.length > 0 ? 'failed' : 'completed',
+  );
 
   return new Response(
     JSON.stringify({
@@ -2150,9 +2614,9 @@ async function handleBulkScore(
           qualified: qualifiedCount,
           disqualified: disqualifiedCount,
           avg_score: avgScore,
-        }
-      }
+        },
+      },
     }),
-    { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
   );
 }
