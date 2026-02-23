@@ -73,7 +73,7 @@ export function BuyerActivitySection({ buyerId }: BuyerActivitySectionProps) {
         .from("buyer_deal_scores")
         .select(`
           *,
-          deal:deals(deal_name)
+          deal:deals(title)
         `)
         .eq("buyer_id", buyerId)
         .eq("selected_for_outreach", true)
@@ -85,7 +85,7 @@ export function BuyerActivitySection({ buyerId }: BuyerActivitySectionProps) {
           id: `approval-${approval.id}`,
           type: "approval",
           title: "Approved for Deal",
-          description: `Selected for outreach: ${approval.deal?.deal_name || "Unknown deal"}`,
+          description: `Selected for outreach: ${approval.deal?.title || "Unknown deal"}`,
           timestamp: approval.scored_at,
           metadata: approval,
         });
@@ -96,7 +96,7 @@ export function BuyerActivitySection({ buyerId }: BuyerActivitySectionProps) {
         .from("buyer_deal_scores")
         .select(`
           *,
-          deal:deals(deal_name)
+          deal:deals(title)
         `)
         .eq("buyer_id", buyerId)
         .eq("passed_on_deal", true)
@@ -108,7 +108,7 @@ export function BuyerActivitySection({ buyerId }: BuyerActivitySectionProps) {
           id: `pass-${pass.id}`,
           type: "pass",
           title: "Passed on Deal",
-          description: `${pass.pass_category || "Passed"}: ${pass.deal?.deal_name || "Unknown deal"}`,
+          description: `${pass.pass_category || "Passed"}: ${pass.deal?.title || "Unknown deal"}`,
           timestamp: pass.passed_at || pass.scored_at,
           metadata: pass,
         });

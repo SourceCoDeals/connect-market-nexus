@@ -63,7 +63,7 @@ export function PipelineDetailOverview({ deal }: PipelineDetailOverviewProps) {
       if (!connectionRequestDetails?.user_id) return;
       const { data } = await supabase
         .from('profiles')
-        .select('first_name, last_name, email, company, phone, buyer_type, linkedin_url, website')
+        .select('first_name, last_name, email, company, phone_number, buyer_type, linkedin_url, website')
         .eq('id', connectionRequestDetails.user_id)
         .maybeSingle();
       setBuyerProfile(data);
@@ -289,10 +289,10 @@ export function PipelineDetailOverview({ deal }: PipelineDetailOverviewProps) {
                     <span className="font-mono truncate">{deal.contact_email}</span>
                   </a>
                 )}
-                {(deal.contact_phone || buyerProfile?.phone) && (
-                  <a href={`tel:${deal.contact_phone || buyerProfile?.phone}`} className="flex items-center gap-1.5 text-xs text-foreground/80 hover:text-foreground">
+                {(deal.contact_phone || buyerProfile?.phone_number) && (
+                  <a href={`tel:${deal.contact_phone || buyerProfile?.phone_number}`} className="flex items-center gap-1.5 text-xs text-foreground/80 hover:text-foreground">
                     <Phone className="w-3 h-3 text-muted-foreground" />
-                    <span>{deal.contact_phone || buyerProfile?.phone}</span>
+                    <span>{deal.contact_phone || buyerProfile?.phone_number}</span>
                   </a>
                 )}
               </div>
