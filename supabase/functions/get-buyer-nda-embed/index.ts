@@ -98,13 +98,21 @@ serve(async (req: Request) => {
     }
 
     if (firm.nda_docuseal_submission_id) {
-      // Fetch submitter details to get embed_src
-      const submitterRes = await fetch(
-        `https://api.docuseal.com/submitters?submission_id=${firm.nda_docuseal_submission_id}`,
-        {
-          headers: { "X-Auth-Token": docusealApiKey },
-        }
-      );
+      // Fetch submitter details to get embed_src (with timeout)
+      const fetchController = new AbortController();
+      const fetchTimeout = setTimeout(() => fetchController.abort(), 15000);
+      let submitterRes: Response;
+      try {
+        submitterRes = await fetch(
+          `https://api.docuseal.com/submitters?submission_id=${firm.nda_docuseal_submission_id}`,
+          {
+            headers: { "X-Auth-Token": docusealApiKey },
+            signal: fetchController.signal,
+          }
+        );
+      } finally {
+        clearTimeout(fetchTimeout);
+      }
 
       if (submitterRes.ok) {
         const submitters = await submitterRes.json();
@@ -142,14 +150,22 @@ serve(async (req: Request) => {
       ],
     };
 
-    const docusealResponse = await fetch("https://api.docuseal.com/submissions", {
-      method: "POST",
-      headers: {
-        "X-Auth-Token": docusealApiKey,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(submissionPayload),
-    });
+    const createController = new AbortController();
+    const createTimeout = setTimeout(() => createController.abort(), 15000);
+    let docusealResponse: Response;
+    try {
+      docusealResponse = await fetch("https://api.docuseal.com/submissions", {
+        method: "POST",
+        headers: {
+          "X-Auth-Token": docusealApiKey,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(submissionPayload),
+        signal: createController.signal,
+      });
+    } finally {
+      clearTimeout(createTimeout);
+    }
 
     if (!docusealResponse.ok) {
       const errorText = await docusealResponse.text();
@@ -165,13 +181,16 @@ serve(async (req: Request) => {
     const submissionId = String(submitter.submission_id || submitter.id);
     const embedSrc = submitter.embed_src || null;
 
-    // Update firm_agreements
+    // Update firm_agreements (also set nda_status to 'sent' for tracking)
+    const now = new Date().toISOString();
     await supabaseAdmin
       .from("firm_agreements")
       .update({
         nda_docuseal_submission_id: submissionId,
         nda_docuseal_status: "pending",
-        updated_at: new Date().toISOString(),
+        nda_status: "sent",
+        nda_sent_at: now,
+        updated_at: now,
       })
       .eq("id", firmId);
 
@@ -193,7 +212,7 @@ serve(async (req: Request) => {
   } catch (error: any) {
     console.error("❌ Error in get-buyer-nda-embed:", error);
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ error: "Internal server error" }),
       { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } }
     );
   }

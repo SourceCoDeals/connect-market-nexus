@@ -94,13 +94,21 @@ serve(async (req: Request) => {
       .eq('id', userId)
       .single();
 
-    // Fetch submitter details to get embed_src
-    const submitterRes = await fetch(
-      `https://api.docuseal.com/submitters?submission_id=${firm.fee_docuseal_submission_id}`,
-      {
-        headers: { 'X-Auth-Token': docusealApiKey },
-      },
-    );
+    // Fetch submitter details to get embed_src (with timeout)
+    const fetchController = new AbortController();
+    const fetchTimeout = setTimeout(() => fetchController.abort(), 15000);
+    let submitterRes: Response;
+    try {
+      submitterRes = await fetch(
+        `https://api.docuseal.com/submitters?submission_id=${firm.fee_docuseal_submission_id}`,
+        {
+          headers: { 'X-Auth-Token': docusealApiKey },
+          signal: fetchController.signal,
+        },
+      );
+    } finally {
+      clearTimeout(fetchTimeout);
+    }
 
     if (submitterRes.ok) {
       const submitters = await submitterRes.json();

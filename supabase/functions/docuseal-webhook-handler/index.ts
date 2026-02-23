@@ -110,7 +110,7 @@ serve(async (req: Request) => {
       return new Response(JSON.stringify({ success: true, note: "Duplicate event" }), { status: 200 });
     }
 
-    // Log the raw webhook
+    // Log the raw webhook (unique constraint on submission_id + event_type catches races)
     const { error: logError } = await supabase.from("docuseal_webhook_log").insert({
       event_type: eventType,
       submission_id: submissionId,
@@ -119,7 +119,14 @@ serve(async (req: Request) => {
       raw_payload: payload,
       processed_at: new Date().toISOString(),
     });
-    if (logError) console.error("Failed to log webhook:", logError);
+    if (logError) {
+      // Unique constraint violation (23505) = concurrent duplicate; treat as idempotent skip
+      if (logError.code === "23505") {
+        console.log(`⏩ Concurrent duplicate skipped: ${eventType} for submission ${submissionId}`);
+        return new Response(JSON.stringify({ success: true, note: "Concurrent duplicate" }), { status: 200 });
+      }
+      console.error("Failed to log webhook:", logError);
+    }
 
     // Find the firm that matches this submission
     const { data: ndaFirm } = await supabase
@@ -375,44 +382,49 @@ async function sendBuyerSignedDocNotification(
       : `You can view your signed documents in your Profile → Documents tab.`;
 
     for (const member of members) {
-      // Create a buyer-facing notification
-      await supabase.from("admin_notifications").insert({
-        admin_id: member.user_id, // reuse admin_notifications for buyer too
+      // Create a buyer-facing notification in user_notifications (not admin_notifications)
+      await supabase.from("user_notifications").insert({
+        user_id: member.user_id,
+        notification_type: "agreement_signed",
         title: `${docLabel} Signed Successfully`,
         message: `Your ${docLabel} has been signed and recorded. ${downloadNote}`,
-        notification_type: "agreement_signed",
         metadata: {
           firm_id: firmId,
           document_type: docLabel.toLowerCase().replace(/ /g, "_"),
           signed_document_url: signedDocUrl || null,
         },
-        is_read: false,
       });
 
-      // Insert a system message into their first connection_request thread
-      const { data: firstRequest } = await supabase
+      // Insert a system message into ALL active connection request threads
+      const { data: activeRequests } = await supabase
         .from("connection_requests")
         .select("id")
         .eq("user_id", member.user_id)
         .in("status", ["approved", "pending", "on_hold"])
-        .order("created_at", { ascending: true })
-        .limit(1)
-        .maybeSingle();
+        .order("created_at", { ascending: false });
 
-      if (firstRequest) {
+      if (activeRequests && activeRequests.length > 0) {
         const messageBody = signedDocUrl
           ? `✅ Your ${docLabel} has been signed successfully. For your compliance records, you can download the signed copy here: ${signedDocUrl}\n\nA copy is also permanently available in your Profile → Documents tab.`
           : `✅ Your ${docLabel} has been signed successfully. A copy is available in your Profile → Documents tab.`;
 
-        await supabase.from("connection_messages").insert({
-          connection_request_id: firstRequest.id,
+        const messageInserts = activeRequests.map((req: any) => ({
+          connection_request_id: req.id,
           sender_role: "admin",
           sender_id: null,
           body: messageBody,
           message_type: "system",
           is_read_by_admin: true,
           is_read_by_buyer: false,
-        });
+        }));
+
+        const { error: msgError } = await supabase
+          .from("connection_messages")
+          .insert(messageInserts);
+
+        if (msgError) {
+          console.error("⚠️ Failed to insert signed doc system messages:", msgError);
+        }
       }
     }
     console.log(`📨 Sent signed doc notifications to ${members.length} buyer(s) for ${docLabel}`);
