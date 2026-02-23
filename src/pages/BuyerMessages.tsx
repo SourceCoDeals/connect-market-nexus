@@ -11,6 +11,8 @@ import {
   ExternalLink,
   FileSignature,
   Shield,
+  CheckCircle,
+  FileDown,
 } from "lucide-react";
 import {
   useConnectionMessages,
@@ -142,7 +144,10 @@ export default function BuyerMessages() {
       </div>
 
       {/* Content */}
-      <div className="px-4 sm:px-8 pb-8 max-w-7xl mx-auto">
+      <div className="px-4 sm:px-8 pb-8 max-w-7xl mx-auto space-y-4">
+        {/* Pending agreement actions — always shown at top when relevant */}
+        <PendingAgreementBanner />
+
         {error ? (
           <div className="border border-border rounded-xl bg-card flex flex-col items-center justify-center py-16">
             <p className="text-sm text-destructive mb-1">Failed to load messages</p>
@@ -151,7 +156,20 @@ export default function BuyerMessages() {
         ) : isLoading ? (
           <BuyerMessagesSkeleton />
         ) : threads.length === 0 ? (
-          <BuyerMessagesEmpty />
+          <div className="border border-border rounded-xl overflow-hidden bg-card flex flex-col items-center justify-center py-20">
+            <MessageSquare className="h-12 w-12 text-muted-foreground/30 mb-4" />
+            <h3 className="text-lg font-semibold text-foreground mb-1">
+              No messages yet
+            </h3>
+            <p className="text-sm text-muted-foreground max-w-sm text-center">
+              Messages from the SourceCo team about your deals will appear here.
+              You can also start conversations from your{" "}
+              <Link to="/my-deals" className="text-primary hover:text-primary/80">
+                My Deals
+              </Link>{" "}
+              page.
+            </p>
+          </div>
         ) : (
           <div className="border border-border rounded-xl overflow-hidden bg-card min-h-[500px] grid grid-cols-1 md:grid-cols-3">
             {/* Thread List */}
@@ -473,11 +491,39 @@ function BuyerMessagesSkeleton() {
   );
 }
 
-function BuyerMessagesEmpty() {
+/**
+ * PendingAgreementBanner — shows at top of messages page.
+ * Shows pending documents to sign OR already-signed documents with download links.
+ * Automatically hides when there's nothing to show.
+ */
+function PendingAgreementBanner() {
   const { user } = useAuth();
   const [signingOpen, setSigningOpen] = useState(false);
   const [signingDocType, setSigningDocType] = useState<'nda' | 'fee_agreement'>('nda');
 
+  // Fetch firm agreement status to know what's signed vs pending
+  const { data: firmStatus } = useQuery({
+    queryKey: ['buyer-firm-agreement-status', user?.id],
+    queryFn: async () => {
+      if (!user?.id) return null;
+      const { data: membership } = await (supabase.from('firm_members') as any)
+        .select('firm_id')
+        .eq('user_id', user.id)
+        .limit(1)
+        .maybeSingle();
+      if (!membership) return null;
+
+      const { data: firm } = await (supabase.from('firm_agreements') as any)
+        .select('nda_signed, nda_signed_at, nda_signed_document_url, nda_docuseal_status, fee_agreement_signed, fee_agreement_signed_at, fee_signed_document_url, fee_docuseal_status')
+        .eq('id', membership.firm_id)
+        .maybeSingle();
+      return firm;
+    },
+    enabled: !!user?.id,
+    staleTime: 15_000,
+  });
+
+  // Fetch pending notifications for documents that still need signing
   const { data: pendingNotifications = [] } = useQuery({
     queryKey: ['agreement-pending-notifications', user?.id],
     queryFn: async () => {
@@ -494,71 +540,152 @@ function BuyerMessagesEmpty() {
     enabled: !!user?.id,
   });
 
-  if (pendingNotifications.length > 0) {
-    return (
-      <>
-        <div className="border border-border rounded-xl overflow-hidden bg-card">
-          <div className="px-5 py-4 border-b border-border">
-            <h3 className="text-sm font-semibold text-foreground">Action Required</h3>
-            <p className="text-xs text-muted-foreground mt-0.5">Sign these documents to get started</p>
-          </div>
-          <div className="divide-y divide-border">
-            {pendingNotifications.map((n: any) => {
-              const isNda = n.metadata?.document_type === 'nda';
-              return (
-                <div key={n.id} className="flex items-start gap-4 px-5 py-4">
-                  <div className="mt-0.5 p-2 rounded-full bg-accent">
-                    {isNda ? (
-                      <Shield className="h-5 w-5 text-accent-foreground" />
-                    ) : (
-                      <FileSignature className="h-5 w-5 text-accent-foreground" />
-                    )}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-foreground">{n.title}</p>
-                    <p className="text-xs text-muted-foreground mt-1 leading-relaxed">{n.message}</p>
-                    <p className="text-[10px] text-muted-foreground/60 mt-1.5">
-                      {formatDistanceToNow(new Date(n.created_at), { addSuffix: true })}
-                    </p>
-                  </div>
-                  <Button
-                    size="sm"
-                    className="shrink-0"
-                    onClick={() => {
-                      setSigningDocType(isNda ? 'nda' : 'fee_agreement');
-                      setSigningOpen(true);
-                    }}
-                  >
-                    Sign Now
-                  </Button>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-        <AgreementSigningModal
-          open={signingOpen}
-          onOpenChange={setSigningOpen}
-          documentType={signingDocType}
-        />
-      </>
-    );
+  // Build document items from firm status + notifications
+  type DocItem = {
+    key: string;
+    type: 'nda' | 'fee_agreement';
+    label: string;
+    signed: boolean;
+    signedAt: string | null;
+    documentUrl: string | null;
+    notificationMessage?: string;
+    notificationTime?: string;
+  };
+
+  const items: DocItem[] = [];
+
+  // NDA
+  if (firmStatus?.nda_signed) {
+    items.push({
+      key: 'nda-signed',
+      type: 'nda',
+      label: 'NDA',
+      signed: true,
+      signedAt: firmStatus.nda_signed_at,
+      documentUrl: firmStatus.nda_signed_document_url,
+    });
+  } else {
+    const ndaNotif = pendingNotifications.find((n: any) => n.metadata?.document_type === 'nda');
+    if (ndaNotif || firmStatus?.nda_docuseal_status) {
+      items.push({
+        key: 'nda-pending',
+        type: 'nda',
+        label: 'NDA',
+        signed: false,
+        signedAt: null,
+        documentUrl: null,
+        notificationMessage: ndaNotif?.message,
+        notificationTime: ndaNotif?.created_at,
+      });
+    }
   }
 
+  // Fee Agreement
+  if (firmStatus?.fee_agreement_signed) {
+    items.push({
+      key: 'fee-signed',
+      type: 'fee_agreement',
+      label: 'Fee Agreement',
+      signed: true,
+      signedAt: firmStatus.fee_agreement_signed_at,
+      documentUrl: firmStatus.fee_signed_document_url,
+    });
+  } else {
+    const feeNotif = pendingNotifications.find((n: any) => n.metadata?.document_type === 'fee_agreement');
+    if (feeNotif || firmStatus?.fee_docuseal_status) {
+      items.push({
+        key: 'fee-pending',
+        type: 'fee_agreement',
+        label: 'Fee Agreement',
+        signed: false,
+        signedAt: null,
+        documentUrl: null,
+        notificationMessage: feeNotif?.message,
+        notificationTime: feeNotif?.created_at,
+      });
+    }
+  }
+
+  if (items.length === 0) return null;
+
+  const hasPending = items.some(i => !i.signed);
+  const allSigned = items.every(i => i.signed);
+
   return (
-    <div className="border border-border rounded-xl overflow-hidden bg-card flex flex-col items-center justify-center py-20">
-      <MessageSquare className="h-12 w-12 text-muted-foreground/30 mb-4" />
-      <h3 className="text-lg font-semibold text-foreground mb-1">
-        No messages yet
-      </h3>
-      <p className="text-sm text-muted-foreground max-w-sm text-center">
-        Messages from the SourceCo team about your deals will appear here.
-        You can also start conversations from your{" "}
-        <Link to="/my-deals" className="text-primary hover:text-primary/80">
-          My Deals
-        </Link>{" "}
-        page.
-      </p>
-    </div>
+    <>
+      <div className="border border-border rounded-xl overflow-hidden bg-card">
+        <div className="px-5 py-4 border-b border-border">
+          <h3 className="text-sm font-semibold text-foreground">
+            {allSigned ? 'Signed Documents' : hasPending ? 'Action Required' : 'Documents'}
+          </h3>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            {allSigned
+              ? 'All agreements are signed. Download copies for your records.'
+              : 'Sign these documents to continue accessing deal details'}
+          </p>
+        </div>
+        <div className="divide-y divide-border">
+          {items.map((item) => (
+            <div key={item.key} className="flex items-center gap-4 px-5 py-4">
+              <div className={`p-2 rounded-full ${item.signed ? 'bg-primary/10' : 'bg-accent'}`}>
+                {item.type === 'nda' ? (
+                  <Shield className={`h-5 w-5 ${item.signed ? 'text-primary' : 'text-accent-foreground'}`} />
+                ) : (
+                  <FileSignature className={`h-5 w-5 ${item.signed ? 'text-primary' : 'text-accent-foreground'}`} />
+                )}
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <p className="text-sm font-medium text-foreground">
+                    {item.signed ? `${item.label} — Signed` : `${item.label} Ready to Sign`}
+                  </p>
+                  {item.signed && (
+                    <CheckCircle className="h-3.5 w-3.5 text-primary shrink-0" />
+                  )}
+                </div>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  {item.signed
+                    ? item.signedAt
+                      ? `Signed ${formatDistanceToNow(new Date(item.signedAt), { addSuffix: true })}`
+                      : 'Signed'
+                    : item.notificationMessage || `A ${item.label} has been prepared for your signature.`}
+                </p>
+              </div>
+              {item.signed ? (
+                item.documentUrl && item.documentUrl.startsWith('https://') ? (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="shrink-0"
+                    onClick={() => window.open(item.documentUrl!, '_blank', 'noopener,noreferrer')}
+                  >
+                    <FileDown className="h-3.5 w-3.5 mr-1.5" />
+                    Download
+                  </Button>
+                ) : (
+                  <span className="text-xs text-muted-foreground shrink-0">Available in Profile</span>
+                )
+              ) : (
+                <Button
+                  size="sm"
+                  className="shrink-0"
+                  onClick={() => {
+                    setSigningDocType(item.type);
+                    setSigningOpen(true);
+                  }}
+                >
+                  Sign Now
+                </Button>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+      <AgreementSigningModal
+        open={signingOpen}
+        onOpenChange={setSigningOpen}
+        documentType={signingDocType}
+      />
+    </>
   );
 }
