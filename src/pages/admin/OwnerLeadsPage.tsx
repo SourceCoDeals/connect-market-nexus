@@ -1,11 +1,14 @@
 import { useState, useEffect } from "react";
-import { Building2, Loader2 } from "lucide-react";
+import { Building2, Loader2, Phone, XCircle } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { useOwnerLeads, useUpdateOwnerLeadStatus, useUpdateOwnerLeadContacted } from "@/hooks/admin/use-owner-leads";
 import { useUpdateOwnerLeadNotes } from "@/hooks/admin/use-update-owner-lead-notes";
 import { useMarkOwnerLeadsViewed } from "@/hooks/admin/use-mark-owner-leads-viewed";
 import { OwnerLeadsStats } from "@/components/admin/OwnerLeadsStats";
 import { OwnerLeadsFilters } from "@/components/admin/OwnerLeadsFilters";
 import { OwnerLeadsTableContent } from "@/components/admin/OwnerLeadsTableContent";
+import { PushToDialerModal } from "@/components/remarketing/PushToDialerModal";
 import { OwnerLead } from "@/hooks/admin/use-owner-leads";
 
 const OwnerLeadsPage = () => {
@@ -15,6 +18,8 @@ const OwnerLeadsPage = () => {
   const updateOwnerContacted = useUpdateOwnerLeadContacted();
   const { markAsViewed: markOwnerLeadsAsViewed } = useMarkOwnerLeadsViewed();
   const [filteredOwnerLeads, setFilteredOwnerLeads] = useState<OwnerLead[]>([]);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [dialerOpen, setDialerOpen] = useState(false);
 
   useEffect(() => {
     markOwnerLeadsAsViewed();
@@ -78,10 +83,30 @@ const OwnerLeadsPage = () => {
                 onStatusChange={handleOwnerStatusChange}
                 onNotesUpdate={handleOwnerNotesUpdate}
                 onContactedChange={handleOwnerContactedChange}
+                selectedIds={selectedIds}
+                onSelectionChange={setSelectedIds}
               />
             </div>
           )}
         </div>
+
+        {/* Bulk actions */}
+        {selectedIds.size > 0 && (
+          <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 p-3 bg-background border border-primary/20 rounded-lg shadow-lg">
+            <Badge variant="secondary" className="text-sm font-medium">{selectedIds.size} selected</Badge>
+            <Button variant="ghost" size="sm" onClick={() => setSelectedIds(new Set())}><XCircle className="h-4 w-4 mr-1" />Clear</Button>
+            <div className="h-5 w-px bg-border" />
+            <Button size="sm" variant="outline" onClick={() => setDialerOpen(true)} className="gap-2"><Phone className="h-4 w-4" />Push to Dialer</Button>
+          </div>
+        )}
+
+        <PushToDialerModal
+          open={dialerOpen}
+          onOpenChange={setDialerOpen}
+          contactIds={Array.from(selectedIds)}
+          contactCount={selectedIds.size}
+          entityType="leads"
+        />
       </div>
     </div>
   );

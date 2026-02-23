@@ -180,9 +180,11 @@ interface OwnerLeadsTableContentProps {
   onStatusChange: (id: string, status: string) => void;
   onNotesUpdate: (id: string, notes: string) => void;
   onContactedChange: (id: string, contacted: boolean) => void;
+  selectedIds?: Set<string>;
+  onSelectionChange?: (ids: Set<string>) => void;
 }
 
-export function OwnerLeadsTableContent({ leads, onStatusChange, onNotesUpdate, onContactedChange }: OwnerLeadsTableContentProps) {
+export function OwnerLeadsTableContent({ leads, onStatusChange, onNotesUpdate, onContactedChange, selectedIds, onSelectionChange }: OwnerLeadsTableContentProps) {
   const [sortColumn, setSortColumn] = useState<SortColumn | null>(null);
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
 
@@ -242,6 +244,17 @@ export function OwnerLeadsTableContent({ leads, onStatusChange, onNotesUpdate, o
     <Table>
       <TableHeader>
         <TableRow>
+          {selectedIds && onSelectionChange && (
+            <TableHead className="w-[40px]">
+              <Checkbox
+                checked={sortedLeads.length > 0 && sortedLeads.every(l => selectedIds.has(l.id))}
+                onCheckedChange={(checked) => {
+                  if (checked) onSelectionChange(new Set(sortedLeads.map(l => l.id)));
+                  else onSelectionChange(new Set());
+                }}
+              />
+            </TableHead>
+          )}
           <TableHead className="w-[100px]">
             <SortableHeader
               column="contacted"
@@ -310,7 +323,20 @@ export function OwnerLeadsTableContent({ leads, onStatusChange, onNotesUpdate, o
       </TableHeader>
       <TableBody>
         {sortedLeads.map((lead) => (
-          <TableRow key={lead.id}>
+          <TableRow key={lead.id} className={selectedIds?.has(lead.id) ? "bg-primary/5" : ""}>
+            {selectedIds && onSelectionChange && (
+              <TableCell>
+                <Checkbox
+                  checked={selectedIds.has(lead.id)}
+                  onCheckedChange={(checked) => {
+                    const next = new Set(selectedIds);
+                    if (checked) next.add(lead.id);
+                    else next.delete(lead.id);
+                    onSelectionChange(next);
+                  }}
+                />
+              </TableCell>
+            )}
             <TableCell>
               <Checkbox
                 checked={lead.contacted_owner}

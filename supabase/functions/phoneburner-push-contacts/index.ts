@@ -224,7 +224,7 @@ async function resolveFromLeads(
 ): Promise<ResolvedContact[]> {
   const { data: leads } = await supabase
     .from("inbound_leads")
-    .select("id, name, email, phone, company, title")
+    .select("id, name, email, phone_number, company_name, role")
     .in("id", leadIds);
 
   if (!leads?.length) return [];
@@ -232,10 +232,10 @@ async function resolveFromLeads(
   return leads.map(l => ({
     id: `lead-${l.id}`,
     name: l.name || l.email || "Unknown",
-    phone: l.phone,
+    phone: l.phone_number,
     email: l.email,
-    title: l.title,
-    company: l.company,
+    title: l.role,
+    company: l.company_name,
     source_entity: "inbound_lead",
     last_contacted_date: null,
   }));
