@@ -1,4 +1,4 @@
-
+import { memo } from "react";
 import { XCircle } from "lucide-react";
 import { Link } from "react-router-dom";
 
@@ -10,13 +10,13 @@ interface ListingCardTitleProps {
   requestId?: string;
 }
 
-const ListingCardTitle = ({ 
-  title, 
-  connectionExists = false, 
+const ListingCardTitle = memo(function ListingCardTitle({
+  title,
+  connectionExists = false,
   connectionStatus = "",
   viewType = "grid",
   requestId
-}: ListingCardTitleProps) => {
+}: ListingCardTitleProps) {
   const getStatusIndicator = () => {
     if (!connectionExists) return null;
 
@@ -111,6 +111,6 @@ const ListingCardTitle = ({
       )}
     </div>
   );
-};
+});
 
 export default ListingCardTitle;

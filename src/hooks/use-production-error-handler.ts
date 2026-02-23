@@ -11,7 +11,7 @@ export const useProductionErrorHandler = (componentName: string) => {
     error: Error | string,
     operation?: string,
     severity: ErrorSeverity = 'medium',
-    metadata?: Record<string, any>
+    metadata?: Record<string, unknown>
   ) => {
     const context: ErrorContext = {
       component: componentName,
@@ -25,7 +25,7 @@ export const useProductionErrorHandler = (componentName: string) => {
   }, [componentName]);
 
   const handleAsyncError = useCallback(async (
-    asyncOperation: () => Promise<any>,
+    asyncOperation: () => Promise<unknown>,
     operationName: string,
     severity: ErrorSeverity = 'medium'
   ) => {
@@ -40,7 +40,7 @@ export const useProductionErrorHandler = (componentName: string) => {
   const handleNetworkError = useCallback((
     error: Error | string,
     endpoint?: string,
-    metadata?: Record<string, any>
+    metadata?: Record<string, unknown>
   ) => {
     handleError(
       error,

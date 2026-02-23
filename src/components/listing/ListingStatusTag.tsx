@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { STATUS_TAG_LABELS } from "@/constants/statusTags";
@@ -26,7 +27,7 @@ const STATUS_CONFIG = {
   },
 } as const;
 
-const ListingStatusTag = ({ status, className, variant = 'absolute' }: ListingStatusTagProps) => {
+const ListingStatusTag = memo(function ListingStatusTag({ status, className, variant = 'absolute' }: ListingStatusTagProps) {
   if (!status || !(status in STATUS_CONFIG)) {
     return null;
   }
@@ -48,6 +49,6 @@ const ListingStatusTag = ({ status, className, variant = 'absolute' }: ListingSt
       {label}
     </Badge>
   );
-};
+});
 
 export default ListingStatusTag;

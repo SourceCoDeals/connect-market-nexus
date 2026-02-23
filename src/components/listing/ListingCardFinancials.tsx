@@ -10,15 +10,15 @@ interface ListingCardFinancialsProps {
   viewType?: "grid" | "list";
 }
 
-const ListingCardFinancials = ({ 
-  revenue, 
-  ebitda, 
+const ListingCardFinancials = memo(function ListingCardFinancials({
+  revenue,
+  ebitda,
   description: _description = "",
   formatCurrency,
   fullTimeEmployees = 0,
   partTimeEmployees = 0,
   viewType = "grid"
-}: ListingCardFinancialsProps) => {
+}: ListingCardFinancialsProps) {
   const ebitdaMargin = revenue > 0 ? ((ebitda / revenue) * 100) : 0;
   const totalEmployees = fullTimeEmployees + partTimeEmployees;
   
@@ -69,6 +69,6 @@ const ListingCardFinancials = ({
       </div>
     </div>
   );
-};
+});
 
 export default ListingCardFinancials;

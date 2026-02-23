@@ -25,57 +25,156 @@ export {
 } from './currency-ranges';
 
 // ─── Error Handling ───
-export { errorHandler } from './error-handler';
+export {
+  errorHandler,
+  authErrorHandler,
+  adminErrorHandler,
+  networkErrorHandler,
+  formErrorHandler,
+  enrichmentErrorHandler,
+  importErrorHandler,
+  scoringErrorHandler,
+  withErrorBoundary,
+} from './error-handler';
+export type { ErrorSeverity, ErrorContext } from './error-handler';
 export { errorLogger } from './error-logger';
 
 // ─── Auth ───
 export { cleanupAuthState } from './auth-cleanup';
 
 // ─── Query Helpers ───
-export { queryKeys } from './query-keys';
+export { QUERY_KEYS, INVALIDATION_PATTERNS, createQueryKey } from './query-keys';
 
 // ─── URL Utilities ───
-export { default as urlUtils } from './url-utils';
+export {
+  processUrl,
+  isValidUrlFormat,
+  isValidLinkedInFormat,
+  processLinkedInUrl,
+  getUrlDisplayText,
+  extractDomainFromEmail,
+  mapRoleToBuyerType,
+  getLeadTierInfo,
+} from './url-utils';
 
 // ─── Storage ───
-export { storageUtils } from './storage-utils';
+export {
+  LISTINGS_BUCKET,
+  DEFAULT_IMAGE,
+  ensureListingsBucketExists,
+  uploadListingImage,
+  deleteListingImages,
+} from './storage-utils';
 
 // ─── Field Helpers ───
-export { formatFieldValue } from './field-formatting';
+export {
+  formatFieldValue,
+  formatFieldValueForExport,
+  getFormattedUserFields,
+} from './field-formatting';
 
 // ─── Standardization ───
-export { standardizeLocation, standardizeCategory } from './standardization';
+export {
+  toStandardCategory,
+  toStandardLocation,
+  standardizeCategories,
+  standardizeLocations,
+  toCanonical,
+} from './standardization';
 
 // ─── Performance ───
-export { performanceMonitor } from './performance-monitor';
+export {
+  withPerformanceMonitoring,
+  refreshAnalyticsViews,
+  runPeriodicTasks,
+} from './performance-monitor';
 
 // ─── Session ───
-export { sessionSecurity } from './session-security';
+export { SessionSecurity } from './session-security';
+export type { SessionValidationResult, SessionAnomalyResult } from './session-security';
 
 // ─── GA4 ───
-export { ga4 } from './ga4';
+export {
+  GA4_MEASUREMENT_ID,
+  trackGA4Event,
+  trackGA4PageView,
+  setGA4UserId,
+  trackGA4SignUp,
+  trackGA4Login,
+  trackGA4Search,
+  trackGA4ViewItem,
+  trackGA4AddToWishlist,
+  trackGA4GenerateLead,
+  trackGA4ScrollDepth,
+  trackGA4TimeOnPage,
+  trackGA4OutboundClick,
+  trackGA4Conversion,
+  initGA4,
+} from './ga4';
 
 // ─── Geo ───
-export { geoCoordinates } from './geoCoordinates';
-export { flagEmoji } from './flagEmoji';
+export {
+  getCoordinates,
+  getCityCoordinates,
+  getCountryCoordinates,
+  addJitter,
+} from './geoCoordinates';
+export {
+  countryCodeToFlag,
+  getCountryCode,
+  getFlagFromCountryName,
+} from './flagEmoji';
 
 // ─── Location ───
-export { locationHierarchy } from './location-hierarchy';
+export {
+  expandLocation,
+  expandLocations,
+  getParentLocation,
+  isLocationWithin,
+} from './location-hierarchy';
 
 // ─── Listing ───
-export { listingImageUtils } from './listing-image-utils';
+export { getCategoryGradient, getListingImage } from './listing-image-utils';
 
 // ─── Export ───
-export { exportUtils } from './exportUtils';
+export { exportToCSV, exportDealsToCSV } from './exportUtils';
 
 // ─── Password ───
-export { passwordSecurity } from './password-security';
+export { PasswordSecurity } from './password-security';
+export type { PasswordStrengthResult, PasswordPolicyResult } from './password-security';
 
 // ─── Invoke ───
 export { invokeWithTimeout } from './invoke-with-timeout';
 
-// ─── Signup ───
-export { signupFieldOptions } from './signup-field-options';
+// ─── Signup Field Options ───
+export {
+  BUYER_TYPE_OPTIONS,
+  DEPLOYING_CAPITAL_OPTIONS,
+  DEAL_SIZE_BAND_OPTIONS,
+  INTEGRATION_PLAN_OPTIONS,
+  CORPDEV_INTENT_OPTIONS,
+  DISCRETION_TYPE_OPTIONS,
+  COMMITTED_EQUITY_BAND_OPTIONS,
+  EQUITY_SOURCE_OPTIONS,
+  DEPLOYMENT_TIMING_OPTIONS,
+  SEARCH_TYPE_OPTIONS,
+  ACQ_EQUITY_BAND_OPTIONS,
+  FINANCING_PLAN_OPTIONS,
+  SEARCH_STAGE_OPTIONS,
+  ON_BEHALF_OPTIONS,
+  BUYER_ROLE_OPTIONS,
+  OWNER_TIMELINE_OPTIONS,
+  INDIVIDUAL_FUNDING_SOURCE_OPTIONS,
+  USES_BANK_FINANCE_OPTIONS,
+  MAX_EQUITY_TODAY_OPTIONS,
+  DEAL_INTENT_OPTIONS,
+  DEAL_SOURCING_METHOD_OPTIONS,
+  TARGET_ACQUISITION_VOLUME_OPTIONS,
+} from './signup-field-options';
 
 // ─── Scoring ───
-export { dealScoringV5 } from './deal-scoring-v5';
+export {
+  estimateEmployeesFromRange,
+  calculateDealScore,
+} from './deal-scoring-v5';
+export type { DealInput, DealScoreResult } from './deal-scoring-v5';

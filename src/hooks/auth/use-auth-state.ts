@@ -11,7 +11,7 @@ export function useAuthState() {
 
   useEffect(() => {
     let isSubscribed = true;
-    let authSubscription: any = null;
+    let authSubscription: { unsubscribe: () => void } | null = null;
     
     // First check if we have a user in localStorage to avoid flashing
     try {
