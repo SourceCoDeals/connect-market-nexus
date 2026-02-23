@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+
 import { DocuSealSigningPanel } from './DocuSealSigningPanel';
 import { Button } from '@/components/ui/button';
 import { FileText, ArrowLeft, Loader2, ArrowRight } from 'lucide-react';
@@ -20,8 +20,8 @@ interface FeeAgreementGateProps {
  * when the buyer's firm hasn't signed a fee agreement.
  * Modeled on NdaGateModal but with fee agreement education copy.
  */
-export function FeeAgreementGate({ userId, firmId, listingTitle, onSigned, onDismiss }: FeeAgreementGateProps) {
-  const navigate = useNavigate();
+export function FeeAgreementGate({ userId, firmId, listingTitle: _listingTitle, onSigned, onDismiss }: FeeAgreementGateProps) {
+  void _listingTitle; // reserved for future use
   const queryClient = useQueryClient();
   const [embedSrc, setEmbedSrc] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
