@@ -593,17 +593,12 @@ function GeneralChatView({ onBack }: { onBack: () => void }) {
  * - Distinct styling for system vs user messages
  */
 function MessageBody({ body, variant }: { body: string; variant: "buyer" | "admin" | "system" }) {
-  const URL_REGEX = /(https?:\/\/[^\s]+)/g;
-
-  const parts = body.split(URL_REGEX);
+  const parts = body.split(/(https?:\/\/[^\s]+)/g);
 
   return (
-    <p className="whitespace-pre-wrap break-words overflow-wrap-anywhere" style={{ overflowWrap: "anywhere" }}>
+    <p className="whitespace-pre-wrap break-words" style={{ overflowWrap: "anywhere" }}>
       {parts.map((part, i) => {
-        if (URL_REGEX.test(part)) {
-          // Reset regex lastIndex
-          URL_REGEX.lastIndex = 0;
-          // Truncate display URL
+        if (/^https?:\/\//.test(part)) {
           let displayUrl: string;
           try {
             const url = new URL(part);
@@ -617,9 +612,7 @@ function MessageBody({ body, variant }: { body: string; variant: "buyer" | "admi
 
           const linkColor = variant === "buyer"
             ? "text-primary-foreground/90 underline underline-offset-2"
-            : variant === "system"
-              ? "text-primary underline underline-offset-2"
-              : "text-primary underline underline-offset-2";
+            : "text-primary underline underline-offset-2";
 
           return (
             <a
