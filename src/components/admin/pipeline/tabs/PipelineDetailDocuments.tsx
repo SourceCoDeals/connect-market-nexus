@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Switch } from '@/components/ui/switch';
 import { User, Mail, FileText, Check, Clock } from 'lucide-react';
 import { Deal } from '@/hooks/admin/use-deals';
@@ -8,6 +9,10 @@ import { useQueryClient } from '@tanstack/react-query';
 import { Label } from '@/components/ui/label';
 import { DealFirmInfo } from '../DealFirmInfo';
 import { DealFirmWarning } from '../DealFirmWarning';
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 interface PipelineDetailDocumentsProps {
   deal: Deal;
@@ -19,9 +24,10 @@ export function PipelineDetailDocuments({ deal }: PipelineDetailDocumentsProps) 
   const updateFeeAgreement = useUpdateLeadFeeAgreementStatus();
   const logNDAEmail = useUpdateLeadNDAEmailStatus();
   const logFeeAgreementEmail = useUpdateLeadFeeAgreementEmailStatus();
-  
   const { data: requestDetails } = useConnectionRequestDetails(deal.connection_request_id);
-  
+
+  const [confirmAction, setConfirmAction] = useState<{ label: string; description: string; onConfirm: () => void } | null>(null);
+
   const getAdminName = (admin?: { first_name: string; last_name: string; email: string }) => {
     if (!admin) return null;
     return `${admin.first_name} ${admin.last_name}`;
@@ -30,88 +36,49 @@ export function PipelineDetailDocuments({ deal }: PipelineDetailDocumentsProps) 
   const getStatusInfo = (status?: string) => {
     switch (status) {
       case 'signed':
-        return { 
-          icon: Check, 
-          label: 'Signed', 
-          color: 'text-emerald-600'
-        };
+        return { icon: Check, label: 'Signed', color: 'text-emerald-600' };
       case 'sent':
-        return { 
-          icon: Clock, 
-          label: 'Sent', 
-          color: 'text-amber-600'
-        };
+        return { icon: Clock, label: 'Sent', color: 'text-amber-600' };
       default:
-        return { 
-          icon: FileText, 
-          label: 'Not Sent', 
-          color: 'text-muted-foreground'
-        };
+        return { icon: FileText, label: 'Not Sent', color: 'text-muted-foreground' };
     }
   };
 
-  const handleNDAToggle = async (checked: boolean) => {
-    if (!deal.connection_request_id) {
-      console.error('No connection request ID available');
-      return;
-    }
-    
-    updateNDA.mutate({
-      requestId: deal.connection_request_id,
-      value: checked
-    }, {
-      onSuccess: () => {
-        // Force refresh of connection request details to show admin attribution
-        queryClient.invalidateQueries({ queryKey: ['connection-request-details', deal.connection_request_id] });
-      }
+  const invalidate = () => queryClient.invalidateQueries({ queryKey: ['connection-request-details', deal.connection_request_id] });
+
+  const handleNDAToggle = (checked: boolean) => {
+    if (!deal.connection_request_id) return;
+    setConfirmAction({
+      label: checked ? 'Mark NDA as Signed' : 'Remove NDA Signed Status',
+      description: `Are you sure you want to ${checked ? 'mark the NDA as signed' : 'remove the NDA signed status'}? This will update the deal's access control.`,
+      onConfirm: () => updateNDA.mutate({ requestId: deal.connection_request_id!, value: checked }, { onSuccess: invalidate }),
     });
   };
 
-  const handleFeeAgreementToggle = async (checked: boolean) => {
-    if (!deal.connection_request_id) {
-      console.error('No connection request ID available');
-      return;
-    }
-    
-    updateFeeAgreement.mutate({
-      requestId: deal.connection_request_id,
-      value: checked
-    }, {
-      onSuccess: () => {
-        queryClient.invalidateQueries({ queryKey: ['connection-request-details', deal.connection_request_id] });
-      }
+  const handleFeeAgreementToggle = (checked: boolean) => {
+    if (!deal.connection_request_id) return;
+    setConfirmAction({
+      label: checked ? 'Mark Fee Agreement as Signed' : 'Remove Fee Agreement Status',
+      description: `Are you sure you want to ${checked ? 'mark the Fee Agreement as signed' : 'remove the Fee Agreement signed status'}? This will update the deal's access control.`,
+      onConfirm: () => updateFeeAgreement.mutate({ requestId: deal.connection_request_id!, value: checked }, { onSuccess: invalidate }),
     });
   };
 
-  const handleSendNDA = async () => {
-    if (!deal.connection_request_id) {
-      console.error('No connection request ID available');
-      return;
-    }
-    
-    logNDAEmail.mutate({
-      requestId: deal.connection_request_id,
-      value: true
-    }, {
-      onSuccess: () => {
-        queryClient.invalidateQueries({ queryKey: ['connection-request-details', deal.connection_request_id] });
-      }
+  const handleSendNDA = () => {
+    if (!deal.connection_request_id) return;
+    setConfirmAction({
+      label: 'Mark NDA Email as Sent',
+      description: 'Are you sure you want to mark the NDA email as sent? This will be logged in the deal activity.',
+      onConfirm: () => logNDAEmail.mutate({ requestId: deal.connection_request_id!, value: true }, { onSuccess: invalidate }),
     });
   };
 
-  const handleSendFeeAgreement = async () => {
-    if (!deal.connection_request_id) {
-      console.error('No connection request ID available');
-      return;
-    }
-    
-    logFeeAgreementEmail.mutate({
-      requestId: deal.connection_request_id,
-      value: true
-    }, {
-      onSuccess: () => {
-        queryClient.invalidateQueries({ queryKey: ['connection-request-details', deal.connection_request_id] });
-      }
+  const handleSendFeeAgreement = () => {
+    if (!deal.connection_request_id) return;
+    setConfirmAction({
+      label: 'Mark Fee Agreement Email as Sent',
+      description: 'Are you sure you want to mark the Fee Agreement email as sent? This will be logged in the deal activity.',
+      onConfirm: () => logFeeAgreementEmail.mutate({ requestId: deal.connection_request_id!, value: true }, { onSuccess: invalidate }),
     });
   };
 
@@ -342,6 +309,22 @@ export function PipelineDetailDocuments({ deal }: PipelineDetailDocumentsProps) 
           </div>
         </div>
       </div>
+
+      {/* Confirmation Dialog */}
+      <AlertDialog open={!!confirmAction} onOpenChange={(open) => !open && setConfirmAction(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{confirmAction?.label}</AlertDialogTitle>
+            <AlertDialogDescription>{confirmAction?.description}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={() => { confirmAction?.onConfirm(); setConfirmAction(null); }}>
+              Confirm
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

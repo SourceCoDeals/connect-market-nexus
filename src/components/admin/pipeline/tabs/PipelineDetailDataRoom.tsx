@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Switch } from '@/components/ui/switch';
 import { User, Mail, FileText, Check, Clock, ShieldCheck, FolderOpen } from 'lucide-react';
 import { Deal } from '@/hooks/admin/use-deals';
@@ -11,6 +12,10 @@ import { DealFirmWarning } from '../DealFirmWarning';
 import { useDealEmails } from '@/hooks/admin/use-deal-emails';
 import { formatDistanceToNow } from 'date-fns';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 interface PipelineDetailDataRoomProps {
   deal: Deal;
@@ -25,6 +30,8 @@ export function PipelineDetailDataRoom({ deal }: PipelineDetailDataRoomProps) {
   const { data: requestDetails } = useConnectionRequestDetails(deal.connection_request_id);
   const { data: emailHistory = [] } = useDealEmails(deal.deal_id);
 
+  const [confirmAction, setConfirmAction] = useState<{ type: string; label: string; description: string; onConfirm: () => void } | null>(null);
+
   const getAdminName = (admin?: { first_name: string; last_name: string; email: string }) => {
     if (!admin) return null;
     return `${admin.first_name} ${admin.last_name}`.trim();
@@ -36,22 +43,42 @@ export function PipelineDetailDataRoom({ deal }: PipelineDetailDataRoomProps) {
 
   const handleNDAToggle = (checked: boolean) => {
     if (!deal.connection_request_id) return;
-    updateNDA.mutate({ requestId: deal.connection_request_id, value: checked }, { onSuccess: invalidateDetails });
+    setConfirmAction({
+      type: 'nda-toggle',
+      label: checked ? 'Mark NDA as Signed' : 'Remove NDA Signed Status',
+      description: `Are you sure you want to ${checked ? 'mark the NDA as signed' : 'remove the NDA signed status'}? This will update the deal's access control.`,
+      onConfirm: () => updateNDA.mutate({ requestId: deal.connection_request_id!, value: checked }, { onSuccess: invalidateDetails }),
+    });
   };
 
   const handleFeeAgreementToggle = (checked: boolean) => {
     if (!deal.connection_request_id) return;
-    updateFeeAgreement.mutate({ requestId: deal.connection_request_id, value: checked }, { onSuccess: invalidateDetails });
+    setConfirmAction({
+      type: 'fee-toggle',
+      label: checked ? 'Mark Fee Agreement as Signed' : 'Remove Fee Agreement Status',
+      description: `Are you sure you want to ${checked ? 'mark the Fee Agreement as signed' : 'remove the Fee Agreement signed status'}? This will update the deal's access control.`,
+      onConfirm: () => updateFeeAgreement.mutate({ requestId: deal.connection_request_id!, value: checked }, { onSuccess: invalidateDetails }),
+    });
   };
 
   const handleSendNDA = () => {
     if (!deal.connection_request_id) return;
-    logNDAEmail.mutate({ requestId: deal.connection_request_id, value: true }, { onSuccess: invalidateDetails });
+    setConfirmAction({
+      type: 'nda-email',
+      label: 'Mark NDA Email as Sent',
+      description: 'Are you sure you want to mark the NDA email as sent? This will be logged in the deal activity.',
+      onConfirm: () => logNDAEmail.mutate({ requestId: deal.connection_request_id!, value: true }, { onSuccess: invalidateDetails }),
+    });
   };
 
   const handleSendFeeAgreement = () => {
     if (!deal.connection_request_id) return;
-    logFeeAgreementEmail.mutate({ requestId: deal.connection_request_id, value: true }, { onSuccess: invalidateDetails });
+    setConfirmAction({
+      type: 'fee-email',
+      label: 'Mark Fee Agreement Email as Sent',
+      description: 'Are you sure you want to mark the Fee Agreement email as sent? This will be logged in the deal activity.',
+      onConfirm: () => logFeeAgreementEmail.mutate({ requestId: deal.connection_request_id!, value: true }, { onSuccess: invalidateDetails }),
+    });
   };
 
   const getStatusColor = (status: string) => {
@@ -250,6 +277,22 @@ export function PipelineDetailDataRoom({ deal }: PipelineDetailDataRoomProps) {
           )}
         </div>
       </ScrollArea>
+
+      {/* Confirmation Dialog */}
+      <AlertDialog open={!!confirmAction} onOpenChange={(open) => !open && setConfirmAction(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{confirmAction?.label}</AlertDialogTitle>
+            <AlertDialogDescription>{confirmAction?.description}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={() => { confirmAction?.onConfirm(); setConfirmAction(null); }}>
+              Confirm
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
