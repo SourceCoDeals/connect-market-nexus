@@ -44,16 +44,22 @@ export function useAdminUsers() {
   const useUpdateUserStatus = () => {
     const { execute, state: retryState } = useRetry(
       async ({ userId, status }: { userId: string; status: ApprovalStatus }) => {
-        const { error } = await supabase
+        const { data, error } = await supabase
           .from('profiles')
-          .update({ 
+          .update({
             approval_status: status,
             updated_at: new Date().toISOString()
           })
-          .eq('id', userId);
+          .eq('id', userId)
+          .select('id')
+          .single();
 
         if (error) {
           throw error;
+        }
+
+        if (!data) {
+          throw new Error('Update failed: user not found or access denied');
         }
 
         return { userId, status };

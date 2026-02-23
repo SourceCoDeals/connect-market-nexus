@@ -55,8 +55,8 @@ export function ApprovalEmailDialog({
   const [customSignatureHtml, setCustomSignatureHtml] = useState("");
   const [customSignatureText, setCustomSignatureText] = useState("");
 
-  const userName = user?.first_name && user?.last_name 
-    ? `${user.first_name} ${user.last_name}` 
+  const userName = user?.first_name && user?.last_name
+    ? `${user.first_name} ${user.last_name}`
     : user?.first_name || user?.email?.split('@')[0] || "";
 
   const defaultSubject = DEFAULT_APPROVAL_EMAIL.subject;
