@@ -140,6 +140,30 @@ Deno.serve(async (req: Request) => {
       console.error("Distribution log error:", logError);
     }
 
+    // Create in-app notification for the buyer (if they have an account)
+    // Look up user by email
+    const { data: buyerUsers } = await supabaseAdmin
+      .from("profiles")
+      .select("id, email")
+      .eq("email", email_address)
+      .limit(1);
+
+    if (buyerUsers && buyerUsers.length > 0) {
+      const buyerUserId = buyerUsers[0].id;
+      await supabaseAdmin.from("user_notifications").insert({
+        user_id: buyerUserId,
+        notification_type: "memo_shared",
+        title: `New memo shared: ${dealTitle}`,
+        message: `A ${memo.memo_type === 'teaser' ? 'teaser' : 'lead memo'} has been shared with you for ${dealTitle}.`,
+        metadata: {
+          memo_id: memo.id,
+          memo_type: memo.memo_type,
+          deal_id: memo.deal_id,
+          deal_title: dealTitle,
+        },
+      });
+    }
+
     // Log audit event
     await supabaseAdmin.rpc("log_data_room_event", {
       p_deal_id: memo.deal_id,
