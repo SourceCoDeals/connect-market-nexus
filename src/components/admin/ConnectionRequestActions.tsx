@@ -257,25 +257,6 @@ export function ConnectionRequestActions({
             </span>
           </div>
 
-          {/* Deal context */}
-          {listing && (
-            <div className="px-5 py-3 bg-primary/5 border-b border-border/40">
-              <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">Requested Deal</p>
-              <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-                  <Building2 className="h-4 w-4 text-primary" />
-                </div>
-                <div>
-                  <p className="text-sm font-semibold text-foreground">{listing.title}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {listing.category}{listing.location ? ` · ${listing.location}` : ''}
-                    {listing.revenue ? ` · Revenue: $${Number(listing.revenue).toLocaleString()}` : ''}
-                  </p>
-                </div>
-              </div>
-            </div>
-          )}
-
           {/* Action buttons */}
           <div className="px-5 py-3.5 flex items-center gap-3 bg-sourceco-muted/30">
             <Button
@@ -524,19 +505,6 @@ export function ConnectionRequestActions({
                 <span className={`text-xs font-semibold ${tierInfo.color}`}>
                   {tierInfo.description}
                 </span>
-              </SidebarField>
-              <SidebarField label="Email">
-                <span className="text-xs font-medium text-foreground">{user.email}</span>
-              </SidebarField>
-              <SidebarField label="Company">
-                {user.website ? (
-                  <a href={processUrl(user.website)} target="_blank" rel="noopener noreferrer" className="text-xs font-medium text-primary hover:text-primary/80 flex items-center gap-1 group">
-                    {user.company || user.company_name || 'Company'}
-                    <ExternalLink className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity" />
-                  </a>
-                ) : (
-                  <span className="text-xs font-medium text-foreground">{user.company || user.company_name || '—'}</span>
-                )}
               </SidebarField>
               {user.linkedin_profile && (
                 <SidebarField label="LinkedIn">
