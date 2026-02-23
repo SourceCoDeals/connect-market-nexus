@@ -1,5 +1,8 @@
 name: CI
 
+# All jobs are required status checks for PRs targeting main.
+# Do not add continue-on-error to any job.
+
 on:
   push:
     branches: [main]
@@ -68,6 +71,40 @@ jobs:
       - name: Run Vitest
         run: npx vitest run
 
+  coverage:
+    name: Coverage
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests with coverage
+        run: npx vitest run --coverage
+
+      - name: Check coverage threshold
+        run: |
+          COVERAGE=$(npx vitest run --coverage 2>&1 | grep 'All files' | awk '{print $4}' | tr -d '%')
+          if [ -z "$COVERAGE" ]; then
+            echo "Could not parse coverage percentage, checking coverage output..."
+            npx vitest run --coverage 2>&1 | tail -20
+            exit 1
+          fi
+          echo "Coverage: ${COVERAGE}%"
+          if [ "$(echo "$COVERAGE < 15" | bc -l)" -eq 1 ]; then
+            echo "ERROR: Coverage ${COVERAGE}% is below the 15% minimum threshold"
+            exit 1
+          fi
+          echo "Coverage ${COVERAGE}% meets the 15% minimum threshold"
+
   build:
     name: Build
     runs-on: ubuntu-latest
@@ -91,7 +128,6 @@ jobs:
   audit:
     name: Security Audit
     runs-on: ubuntu-latest
-    continue-on-error: true
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4

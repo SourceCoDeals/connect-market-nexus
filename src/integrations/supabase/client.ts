@@ -1,10 +1,14 @@
-
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from './types';
+import { validateEnv } from '@/lib/env-validation';
+
+// Validate required environment variables on startup
+validateEnv();
 
 // Export these for use in direct API calls (e.g., edge function calls)
-export const SUPABASE_URL = "https://vhzipqarkmmfuqadefep.supabase.co";
-export const SUPABASE_PUBLISHABLE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZoemlwcWFya21tZnVxYWRlZmVwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDY2MTcxMTMsImV4cCI6MjA2MjE5MzExM30.M653TuQcthJx8vZW4jPkUTdB67D_Dm48ItLcu_XBh2g";
+export const SUPABASE_URL = 'https://vhzipqarkmmfuqadefep.supabase.co';
+export const SUPABASE_PUBLISHABLE_KEY =
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZoemlwcWFya21tZnVxYWRlZmVwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDY2MTcxMTMsImV4cCI6MjA2MjE5MzExM30.M653TuQcthJx8vZW4jPkUTdB67D_Dm48ItLcu_XBh2g';
 
 // Supabase client
 // IMPORTANT: do not override storageKey/storage; letting supabase-js manage this

@@ -11,6 +11,9 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "setup": "npm install && node scripts/validate-env.js",
+    "deploy": "bash scripts/deploy-edge-functions.sh",
     "prepare": "husky"
   },
   "dependencies": {
@@ -128,7 +131,7 @@
   },
   "lint-staged": {
     "*.{ts,tsx}": [
-      "eslint --fix --no-warn-ignored --max-warnings 999",
+      "eslint --fix --no-warn-ignored --max-warnings 0",
       "prettier --write"
     ],
     "*.{json,md,yml,yaml}": [
