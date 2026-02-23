@@ -34,23 +34,16 @@ export function ConnectionRequestFirmBadge({ requestId, compact = false }: Conne
   const memberCount = firmInfo.member_count || 0;
 
   const content = (
-    <Badge 
-      variant="outline" 
-      className={`text-xs font-medium ${
-        hasSignedAgreements 
-          ? 'bg-emerald-50 text-emerald-700 border-emerald-200' 
-          : 'bg-slate-50 text-slate-700 border-slate-200'
-      }`}
-    >
-      <Building2 className="h-3 w-3 mr-1" />
-      {firmInfo.firm_name}
+    <span className="inline-flex items-center gap-1 text-sm text-muted-foreground">
+      <Building2 className="h-3.5 w-3.5 shrink-0" />
+      <span className="font-medium">{firmInfo.firm_name}</span>
       {memberCount > 1 && (
-        <span className="ml-1 opacity-60">({memberCount})</span>
+        <span className="opacity-60">({memberCount})</span>
       )}
       {hasSignedAgreements && (
-        <FileCheck className="h-3 w-3 ml-1" />
+        <FileCheck className="h-3.5 w-3.5 text-emerald-600" />
       )}
-    </Badge>
+    </span>
   );
 
   if (compact) {

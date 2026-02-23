@@ -486,7 +486,7 @@ function ReactiveRequestCard({
               <div className="flex items-center gap-3 flex-wrap">
                 {request.user ? (
                   <BuyerProfileHoverCard user={request.user as unknown as AdminUsersUser}>
-                    <h3 className="font-semibold cursor-pointer hover:text-primary transition-colors">
+                     <h3 className="font-semibold text-base cursor-pointer hover:text-primary transition-colors">
                       {request.user?.first_name} {request.user?.last_name}
                     </h3>
                   </BuyerProfileHoverCard>
@@ -505,13 +505,13 @@ function ReactiveRequestCard({
                 {request.user && (
                   <>
                     <BuyerTierBadge tier={(request.user as any).buyer_tier} />
-                    <BuyerScoreBadge score={(request.user as any).buyer_quality_score} />
+                    <BuyerScoreBadge score={(request.user as any).buyer_quality_score} size="xl" showLabel />
                   </>
                 )}
               </div>
                <div className="text-sm text-muted-foreground space-y-1">
                  <div className="flex items-center gap-2">
-                   <Mail className="h-3 w-3" />
+                   <Mail className="h-3.5 w-3.5" />
                    <div className="flex items-center gap-2">
                      <a 
                        href={`mailto:${request.user?.email || request.lead_email}`}
@@ -549,7 +549,7 @@ function ReactiveRequestCard({
                    </div>
                  </div>
                   <div className="flex items-center gap-2">
-                    <Building2 className="h-3 w-3" />
+                    <Building2 className="h-3.5 w-3.5" />
                     {formatEnhancedCompanyName(request.listing?.title || "", request.listing?.internal_company_name, request.listing?.id)}
                   </div>
                </div>
