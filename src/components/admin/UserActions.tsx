@@ -57,8 +57,14 @@ export function UserActions({ onUserStatusUpdated }: UserActionsProps) {
   };
 
   const handleUserApproval = (user: User) => {
+    console.log('[UserActions] handleUserApproval called for:', user.email);
     setSelectedUser(user);
-    setDialogState((prev) => ({ ...prev, approval: true }));
+    // Use setTimeout to avoid Radix DropdownMenu/Dialog portal race condition
+    // The dropdown's cleanup can interfere with the dialog opening if they happen simultaneously
+    setTimeout(() => {
+      console.log('[UserActions] Opening approval dialog (deferred)');
+      setDialogState((prev) => ({ ...prev, approval: true }));
+    }, 50);
   };
 
   const handleMakeAdmin = (user: User) => {
@@ -85,7 +91,7 @@ export function UserActions({ onUserStatusUpdated }: UserActionsProps) {
         onSuccess: () => {
           toast({
             title: 'Admin privileges granted',
-            description: `${selectedUser.firstName} ${selectedUser.lastName} is now an admin.`,
+            description: `${selectedUser.first_name} ${selectedUser.last_name} is now an admin.`,
           });
           closeAllDialogs();
           if (onUserStatusUpdated) onUserStatusUpdated();
@@ -110,7 +116,7 @@ export function UserActions({ onUserStatusUpdated }: UserActionsProps) {
         onSuccess: () => {
           toast({
             title: 'Admin privileges revoked',
-            description: `${selectedUser.firstName} ${selectedUser.lastName} is no longer an admin.`,
+            description: `${selectedUser.first_name} ${selectedUser.last_name} is no longer an admin.`,
           });
           closeAllDialogs();
           if (onUserStatusUpdated) onUserStatusUpdated();
@@ -133,7 +139,7 @@ export function UserActions({ onUserStatusUpdated }: UserActionsProps) {
       onSuccess: () => {
         toast({
           title: 'User deleted',
-          description: `${selectedUser.firstName} ${selectedUser.lastName} has been permanently deleted.`,
+          description: `${selectedUser.first_name} ${selectedUser.last_name} has been permanently deleted.`,
         });
         closeAllDialogs();
         if (onUserStatusUpdated) onUserStatusUpdated();

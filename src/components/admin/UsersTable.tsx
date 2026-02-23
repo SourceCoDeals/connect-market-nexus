@@ -112,7 +112,7 @@ export function UsersTable({
                 <TableCell className="py-2">
                   <div className="flex flex-col gap-1">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span className="font-medium text-sm">{user.firstName} {user.lastName}</span>
+                      <span className="font-medium text-sm">{user.first_name} {user.last_name}</span>
                       {!isLoadingRoles && (() => {
                         const role = getUserRole(user.id);
                         // Fallback to legacy profile flag while migrating

@@ -11,7 +11,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { CheckCircle, User, Mail } from 'lucide-react';
+import { CheckCircle, User, Mail, AlertTriangle } from 'lucide-react';
 import { User as UserType } from '@/types';
 import { EditableSignature } from './EditableSignature';
 
@@ -57,6 +57,7 @@ export function ApprovalEmailDialog({
   const [customSubject, setCustomSubject] = useState('');
   const [customMessage, setCustomMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [customSignatureHtml, setCustomSignatureHtml] = useState('');
   const [customSignatureText, setCustomSignatureText] = useState('');
 
@@ -76,6 +77,7 @@ export function ApprovalEmailDialog({
 
     console.log('[ApprovalDialog] handleSend triggered for user:', user.email);
     setIsLoading(true);
+    setErrorMessage(null);
 
     const payload = {
       subject: customSubject || defaultSubject,
@@ -87,13 +89,17 @@ export function ApprovalEmailDialog({
     try {
       console.log('[ApprovalDialog] Calling onSendApprovalEmail for:', user.email);
       await onSendApprovalEmail(user, payload);
+      console.log('[ApprovalDialog] Approval flow completed successfully');
       // Reset form after successful approval - dialog closure is handled by parent (UserActions)
       setCustomSubject('');
       setCustomMessage('');
       setCustomSignatureHtml('');
       setCustomSignatureText('');
+      setErrorMessage(null);
     } catch (error) {
       console.error('[ApprovalDialog] Error in approval flow:', error);
+      const msg = error instanceof Error ? error.message : 'An unexpected error occurred during approval.';
+      setErrorMessage(msg);
     } finally {
       setIsLoading(false);
     }
@@ -113,6 +119,13 @@ export function ApprovalEmailDialog({
             This will approve the user's account and send them a professional welcome email.
           </p>
         </DialogHeader>
+
+        {errorMessage && (
+          <div className="flex items-center gap-2 p-3 bg-destructive/10 border border-destructive/20 rounded-lg text-sm text-destructive">
+            <AlertTriangle className="h-4 w-4 shrink-0" />
+            <span>{errorMessage}</span>
+          </div>
+        )}
 
         <div className="space-y-3 sm:space-y-4 md:space-y-6">
           {/* User Information */}

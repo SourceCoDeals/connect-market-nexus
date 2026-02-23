@@ -35,7 +35,7 @@ export function UserConfirmationDialog({
         </DialogHeader>
         <div id="confirmation-dialog-description">
           <p className="text-sm text-muted-foreground">
-            {description.replace("{userName}", `${user.firstName} ${user.lastName}`)}
+            {description.replace("{userName}", `${user.first_name} ${user.last_name}`)}
           </p>
         </div>
         
