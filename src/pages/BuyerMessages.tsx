@@ -718,7 +718,7 @@ function PendingAgreementBanner() {
         documentUrl: null,
         draftUrl: firmStatus?.nda_document_url || null,
         notificationMessage: ndaNotif?.message,
-        notificationTime: ndaNotif?.created_at,
+        notificationTime: ndaNotif?.created_at ?? undefined,
       });
     }
   }
@@ -746,7 +746,7 @@ function PendingAgreementBanner() {
         documentUrl: null,
         draftUrl: firmStatus?.fee_agreement_document_url || null,
         notificationMessage: feeNotif?.message,
-        notificationTime: feeNotif?.created_at,
+        notificationTime: feeNotif?.created_at ?? undefined,
       });
     }
   }

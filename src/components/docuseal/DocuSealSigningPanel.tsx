@@ -23,7 +23,7 @@ export function DocuSealSigningPanel({
   embedSrc,
   onCompleted,
   onDeclined,
-  onError,
+  onError: _onError,
   title = 'Sign Document',
   description = 'Please review and sign the document below.',
   successMessage = 'Document signed successfully.',
@@ -105,10 +105,6 @@ export function DocuSealSigningPanel({
           onComplete={handleCompleted}
           onDecline={handleDeclined}
           onLoad={() => setStatus('ready')}
-          onError={(error: unknown) => {
-            setStatus('error');
-            onError?.(error);
-          }}
           withTitle={false}
         />
       </div>
