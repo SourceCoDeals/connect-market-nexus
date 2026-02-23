@@ -10168,6 +10168,10 @@ export type Database = {
           nda_status: string
         }[]
       }
+      get_my_role: {
+        Args: never
+        Returns: Database["public"]["Enums"]["app_role"]
+      }
       get_or_create_firm: {
         Args: { p_company_name: string; p_email?: string; p_website?: string }
         Returns: string
@@ -10584,7 +10588,7 @@ export type Database = {
       }
     }
     Enums: {
-      app_role: "owner" | "admin" | "moderator" | "user"
+      app_role: "owner" | "admin" | "moderator" | "viewer"
       conversation_state:
         | "new"
         | "waiting_on_buyer"
@@ -10718,7 +10722,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["owner", "admin", "moderator", "user"],
+      app_role: ["owner", "admin", "moderator", "viewer"],
       conversation_state: [
         "new",
         "waiting_on_buyer",
