@@ -394,7 +394,7 @@ export function ConnectionRequestActions({
       )}
 
       {/* ── TWO-COLUMN LAYOUT ── */}
-      <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-5">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
         {/* ── LEFT COLUMN ── */}
         <div className="space-y-4">
           {/* Buyer Hero Card */}
