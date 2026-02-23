@@ -4,6 +4,16 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
 import { 
   ChevronDown, 
   ChevronUp, 
@@ -37,6 +47,8 @@ import { processUrl, extractDomainFromEmail, mapRoleToBuyerType, getLeadTierInfo
 import { DuplicateChannelWarning } from './DuplicateChannelWarning';
 import { MessageConflictDisplay } from './MessageConflictDisplay';
 import { ConnectionRequestFirmBadge } from './ConnectionRequestFirmBadge';
+import { useUpdateConnectionRequestStatus } from "@/hooks/admin/use-connection-request-status";
+import { useToast } from "@/hooks/use-toast";
 
 // Enhanced company name formatting with real company in bold and clickable listing
 const formatEnhancedCompanyName = (title: string, companyName?: string | null, listingId?: string) => {
@@ -356,24 +368,32 @@ function ReactiveRequestCard({
   isExpanded,
   onToggleExpanded,
   unreadCount = 0,
+  isSelected = false,
+  onSelectionChange,
 }: {
   request: AdminConnectionRequest;
   isExpanded: boolean;
   onToggleExpanded: () => void;
   unreadCount?: number;
+  isSelected?: boolean;
+  onSelectionChange?: (checked: boolean) => void;
 }) {
-  // Simplified card styling without status-based colors
-  const getCardClassName = () => {
-    return "border border-border/50 hover:border-border transition-colors";
-  };
 
   return (
-    <Card className={getCardClassName()} data-request-id={request.id}>
+    <Card className={`border ${isSelected ? 'border-primary/40 bg-primary/[0.02]' : 'border-border/50 hover:border-border'} transition-colors`} data-request-id={request.id}>
       <CardContent className="p-6">
         <div className="space-y-4">
           {/* Header */}
           <div className="flex items-start justify-between">
-            <div className="space-y-2">
+            <div className="flex items-start gap-3">
+              {/* Checkbox */}
+              <Checkbox
+                checked={isSelected}
+                onCheckedChange={(checked) => onSelectionChange?.(!!checked)}
+                className="mt-1 shrink-0"
+                onClick={(e) => e.stopPropagation()}
+              />
+              <div className="space-y-2">
               <div className="flex items-center gap-3 flex-wrap">
                 {request.user ? (
                   <BuyerProfileHoverCard user={request.user as unknown as AdminUsersUser}>
@@ -438,6 +458,7 @@ function ReactiveRequestCard({
                     {formatEnhancedCompanyName(request.listing?.title || "", request.listing?.internal_company_name, request.listing?.id)}
                   </div>
                </div>
+             </div>
             </div>
             
             <div className="flex items-center gap-2">
@@ -514,7 +535,12 @@ export default function ConnectionRequestsTable({
   onSourcesChange
 }: ConnectionRequestsTableProps) {
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [showBulkRejectDialog, setShowBulkRejectDialog] = useState(false);
+  const [bulkRejectNote, setBulkRejectNote] = useState("");
   const { data: unreadCounts } = useUnreadMessageCounts();
+  const updateStatus = useUpdateConnectionRequestStatus();
+  const { toast } = useToast();
 
   // Filter requests by selected sources
   const filteredRequests = selectedSources.length > 0 
@@ -529,6 +555,49 @@ export default function ConnectionRequestsTable({
       newExpanded.add(requestId);
     }
     setExpandedRows(newExpanded);
+  };
+
+  const toggleSelection = (requestId: string, checked: boolean) => {
+    const next = new Set(selectedIds);
+    if (checked) {
+      next.add(requestId);
+    } else {
+      next.delete(requestId);
+    }
+    setSelectedIds(next);
+  };
+
+  const selectAll = () => {
+    if (selectedIds.size === filteredRequests.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(filteredRequests.map((r) => r.id)));
+    }
+  };
+
+  const handleBulkAction = async (status: "approved" | "rejected", notes?: string) => {
+    const ids = Array.from(selectedIds);
+    let successCount = 0;
+    let errorCount = 0;
+
+    for (const id of ids) {
+      try {
+        await updateStatus.mutateAsync({ requestId: id, status, notes });
+        successCount++;
+      } catch {
+        errorCount++;
+      }
+    }
+
+    setSelectedIds(new Set());
+    setShowBulkRejectDialog(false);
+    setBulkRejectNote("");
+
+    const label = status === "approved" ? "approved" : "rejected";
+    toast({
+      title: `Bulk ${label}`,
+      description: `${successCount} request${successCount !== 1 ? "s" : ""} ${label}${errorCount > 0 ? `, ${errorCount} failed` : ""}.`,
+    });
   };
 
   if (isLoading) {
@@ -556,13 +625,24 @@ export default function ConnectionRequestsTable({
     );
   }
 
+  const allSelected = selectedIds.size === filteredRequests.length && filteredRequests.length > 0;
+  const someSelected = selectedIds.size > 0;
+
   return (
     <div className="space-y-6">
       {/* Header Actions */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
+          <Checkbox
+            checked={allSelected}
+            onCheckedChange={selectAll}
+            className="shrink-0"
+            aria-label="Select all"
+          />
           <span className="text-sm text-muted-foreground">
-            {filteredRequests.length} of {requests.length} connection request{requests.length !== 1 ? 's' : ''}
+            {someSelected
+              ? `${selectedIds.size} selected`
+              : `${filteredRequests.length} of ${requests.length} connection request${requests.length !== 1 ? 's' : ''}`}
           </span>
           {showSourceFilter && onSourcesChange && (
             <SourceFilter 
@@ -582,6 +662,44 @@ export default function ConnectionRequestsTable({
         </div>
       </div>
 
+      {/* Bulk Action Bar */}
+      {someSelected && (
+        <div className="sticky top-0 z-20 flex items-center gap-3 rounded-xl border-2 border-primary/20 bg-primary/[0.04] px-5 py-3 shadow-md backdrop-blur-sm">
+          <span className="text-sm font-semibold text-foreground">
+            {selectedIds.size} request{selectedIds.size !== 1 ? "s" : ""} selected
+          </span>
+          <div className="ml-auto flex items-center gap-2">
+            <Button
+              size="sm"
+              onClick={() => handleBulkAction("approved")}
+              disabled={updateStatus.isPending}
+              className="bg-emerald-600 hover:bg-emerald-700 text-white"
+            >
+              <CheckCircle className="h-4 w-4 mr-1.5" />
+              Approve All
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setShowBulkRejectDialog(true)}
+              disabled={updateStatus.isPending}
+              className="border-destructive/30 text-destructive hover:bg-destructive/10"
+            >
+              <XCircle className="h-4 w-4 mr-1.5" />
+              Reject All
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => setSelectedIds(new Set())}
+              className="text-muted-foreground"
+            >
+              Clear
+            </Button>
+          </div>
+        </div>
+      )}
+
       {/* Connection Requests */}
       <div className="space-y-4">
         {filteredRequests.map((request) => (
@@ -591,9 +709,75 @@ export default function ConnectionRequestsTable({
             isExpanded={expandedRows.has(request.id)}
             onToggleExpanded={() => toggleExpanded(request.id)}
             unreadCount={unreadCounts?.byRequest[request.id] || 0}
+            isSelected={selectedIds.has(request.id)}
+            onSelectionChange={(checked) => toggleSelection(request.id, checked)}
           />
         ))}
       </div>
+
+      {/* Bulk Reject Dialog */}
+      <BulkRejectDialog
+        open={showBulkRejectDialog}
+        onOpenChange={setShowBulkRejectDialog}
+        count={selectedIds.size}
+        note={bulkRejectNote}
+        onNoteChange={setBulkRejectNote}
+        onConfirm={() => handleBulkAction("rejected", bulkRejectNote.trim() || undefined)}
+        isPending={updateStatus.isPending}
+      />
     </div>
+  );
+}
+
+// ─── Bulk Reject Dialog ───
+
+function BulkRejectDialog({
+  open,
+  onOpenChange,
+  count,
+  note,
+  onNoteChange,
+  onConfirm,
+  isPending,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  count: number;
+  note: string;
+  onNoteChange: (v: string) => void;
+  onConfirm: () => void;
+  isPending: boolean;
+}) {
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle className="text-lg">Reject {count} request{count !== 1 ? "s" : ""}?</DialogTitle>
+          <DialogDescription className="text-sm">
+            All selected buyers will be notified that their connection requests were declined. This action can be undone individually.
+          </DialogDescription>
+        </DialogHeader>
+        <Textarea
+          value={note}
+          onChange={(e) => onNoteChange(e.target.value)}
+          placeholder="Add a reason for rejecting (optional, applies to all)..."
+          className="min-h-[80px] resize-none text-sm"
+        />
+        <DialogFooter className="gap-2 sm:gap-0">
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            Cancel
+          </Button>
+          <Button
+            variant="destructive"
+            onClick={onConfirm}
+            disabled={isPending}
+            className="bg-red-600 hover:bg-red-700"
+          >
+            <XCircle className="h-4 w-4 mr-2" />
+            Reject {count} Request{count !== 1 ? "s" : ""}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
