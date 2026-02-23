@@ -206,6 +206,7 @@ export default function MAAllBuyers() {
             </p>
           </div>
         ) : (
+          <>
           <div className="bg-card rounded-lg border overflow-hidden">
             <Table>
               <TableHeader>
@@ -319,7 +320,8 @@ export default function MAAllBuyers() {
                 </Button>
               </div>
             </div>
-          )}
+            )}
+          </>
         )}
       </div>
     </TooltipProvider>
