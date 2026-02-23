@@ -40,9 +40,9 @@ const ALL_TOOLS: ClaudeTool[] = [
 const TOOL_CATEGORIES: Record<string, string[]> = {
   DEAL_STATUS: ['query_deals', 'get_deal_details', 'get_deal_activities', 'get_pipeline_summary'],
   FOLLOW_UP: ['get_deal_tasks', 'get_outreach_status', 'get_meeting_action_items', 'get_current_user_context'],
-  BUYER_SEARCH: ['search_buyers', 'search_lead_sources'],
+  BUYER_SEARCH: ['search_buyers', 'search_lead_sources', 'search_valuation_leads', 'query_deals'],
   BUYER_ANALYSIS: ['get_buyer_profile', 'get_score_breakdown', 'get_top_buyers_for_deal'],
-  MEETING_INTEL: ['search_transcripts', 'search_fireflies', 'get_meeting_action_items'],
+  MEETING_INTEL: ['search_buyer_transcripts', 'search_transcripts', 'search_fireflies', 'get_meeting_action_items'],
   PIPELINE_ANALYTICS: ['get_pipeline_summary', 'get_analytics'],
   DAILY_BRIEFING: ['get_current_user_context', 'query_deals', 'get_deal_tasks', 'get_outreach_status', 'get_analytics'],
   GENERAL: ['get_current_user_context'],
@@ -99,11 +99,11 @@ export async function executeTool(
   const startTime = Date.now();
 
   try {
-    // 5-second hard timeout per tool
+    // 15-second hard timeout per tool (increased from 5s to handle large buyer universe queries)
     const result = await Promise.race([
       _executeToolInternal(supabase, toolName, args, userId),
       new Promise<ToolResult>((_, reject) =>
-        setTimeout(() => reject(new Error('Tool timeout (5s)')), 5000)
+        setTimeout(() => reject(new Error('Tool timeout (15s)')), 15000)
       ),
     ]);
 

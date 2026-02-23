@@ -94,10 +94,15 @@ const BYPASS_RULES: Array<{
     test: (q) => /\b(draft|write|compose|email|outreach|message)\b/i.test(q),
     result: { category: 'OUTREACH_DRAFT', tier: 'DEEP', tools: ['get_deal_details', 'get_buyer_profile'], confidence: 0.8 },
   },
-  // Lead source queries
+  // Lead source queries — captarget, valuation calculator leads, go partners, etc.
   {
-    test: (q) => /\b(cp target|captarget|go partners|marketplace|lead source|source)\b/i.test(q),
-    result: { category: 'BUYER_SEARCH', tier: 'STANDARD', tools: ['search_lead_sources', 'query_deals'], confidence: 0.85 },
+    test: (q) => /\b(cp target|captarget|go partners|marketplace|lead source|source|valuation lead|calculator lead|leads tracker)\b/i.test(q),
+    result: { category: 'BUYER_SEARCH', tier: 'STANDARD', tools: ['search_lead_sources', 'search_valuation_leads', 'query_deals'], confidence: 0.85 },
+  },
+  // Buyer universe geographic questions — "how many buyers in X universe are in [state]"
+  {
+    test: (q) => /\b(buyer universe|universe|how many buyer|buyers.*in.*[A-Z]{2}|buyers.*locat|location.*buyer)\b/i.test(q),
+    result: { category: 'BUYER_ANALYSIS', tier: 'STANDARD', tools: ['query_deals', 'get_top_buyers_for_deal', 'search_buyers'], confidence: 0.85 },
   },
 ];
 
@@ -120,7 +125,7 @@ Categories:
 - OUTREACH_DRAFT: Drafting emails, outreach messages, communications
 - GENERAL: Other / unclear intent
 
-Available tools: query_deals, get_deal_details, get_deal_activities, get_deal_tasks, get_pipeline_summary, search_buyers, get_buyer_profile, get_score_breakdown, get_top_buyers_for_deal, search_lead_sources, search_transcripts, search_fireflies, get_meeting_action_items, get_outreach_status, get_analytics, get_current_user_context, create_deal_task, complete_deal_task, add_deal_note, log_deal_activity, update_deal_stage, grant_data_room_access, select_table_rows, apply_table_filter, navigate_to_page
+Available tools: query_deals, get_deal_details, get_deal_activities, get_deal_tasks, get_pipeline_summary, search_buyers, get_buyer_profile, get_score_breakdown, get_top_buyers_for_deal, search_lead_sources, search_valuation_leads, search_transcripts, search_fireflies, get_meeting_action_items, get_outreach_status, get_analytics, get_current_user_context, create_deal_task, complete_deal_task, add_deal_note, log_deal_activity, update_deal_stage, grant_data_room_access, select_table_rows, apply_table_filter, navigate_to_page
 
 Respond with JSON only:
 {"category":"CATEGORY","tier":"QUICK|STANDARD|DEEP","tools":["tool1","tool2"],"confidence":0.0-1.0}
