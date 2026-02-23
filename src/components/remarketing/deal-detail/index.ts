@@ -15,3 +15,4 @@ export { EditFinancialsDialog } from './EditFinancialsDialog';
 export { DealActivityLog } from './DealActivityLog';
 export { DealPipelinePanel } from './DealPipelinePanel';
 export { DealMarketplacePanel } from './DealMarketplacePanel';
+export { DealBuyerHistoryTab } from './DealBuyerHistoryTab';

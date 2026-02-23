@@ -71,6 +71,7 @@ import {
   DealActivityLog,
   DealPipelinePanel,
   DealMarketplacePanel,
+  DealBuyerHistoryTab,
 } from "@/components/remarketing/deal-detail";
 
 const ReMarketingDealDetail = () => {
@@ -654,10 +655,14 @@ const ReMarketingDealDetail = () => {
 
       {/* ─── Tabbed Navigation ─── */}
       <Tabs defaultValue="overview" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-2">
+        <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="overview" className="text-sm">
             <Eye className="mr-1.5 h-3.5 w-3.5" />
             Overview
+          </TabsTrigger>
+          <TabsTrigger value="history" className="text-sm">
+            <History className="mr-1.5 h-3.5 w-3.5" />
+            History
           </TabsTrigger>
           <TabsTrigger value="data-room" className="text-sm">
             <FolderOpen className="mr-1.5 h-3.5 w-3.5" />
@@ -1303,6 +1308,11 @@ const ReMarketingDealDetail = () => {
         </span>
       </div>
 
+        </TabsContent>
+
+        {/* ════════════════ HISTORY TAB ════════════════ */}
+        <TabsContent value="history" className="space-y-6">
+          <DealBuyerHistoryTab listingId={dealId!} />
         </TabsContent>
 
         {/* ════════════════ DATA ROOM TAB ════════════════ */}
