@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import type { DialerEntityType } from "@/hooks/use-push-to-dialer";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -22,6 +23,7 @@ interface PushToDialerModalProps {
   onOpenChange: (open: boolean) => void;
   contactIds: string[];
   contactCount: number;
+  entityType?: DialerEntityType;
 }
 
 interface PushResult {
@@ -39,6 +41,7 @@ export function PushToDialerModal({
   onOpenChange,
   contactIds,
   contactCount,
+  entityType = "buyer_contacts",
 }: PushToDialerModalProps) {
   const [sessionName, setSessionName] = useState(
     `Buyer Outreach - ${new Date().toLocaleDateString("en-US", { month: "short", year: "numeric" })}`,
@@ -51,7 +54,8 @@ export function PushToDialerModal({
     mutationFn: async () => {
       const { data, error } = await supabase.functions.invoke("phoneburner-push-contacts", {
         body: {
-          contact_ids: contactIds,
+          entity_type: entityType,
+          entity_ids: contactIds,
           session_name: sessionName,
           skip_recent_days: skipRecent ? skipRecentDays : 0,
         },

@@ -13,6 +13,7 @@ import {
   X,
   Download,
   Mail,
+  Phone,
   ChevronDown,
   Loader2,
   XCircle,
@@ -26,6 +27,7 @@ interface BulkActionsToolbarProps {
   onBulkPass: (reason: string, category: string) => Promise<void>;
   onExportCSV: () => void;
   onGenerateEmails?: () => void;
+  onPushToDialer?: () => void;
   isProcessing?: boolean;
   activeTab?: string;
 }
@@ -45,6 +47,7 @@ export const BulkActionsToolbar = ({
   onBulkPass,
   onExportCSV,
   onGenerateEmails,
+  onPushToDialer,
   isProcessing = false,
   activeTab = 'all',
 }: BulkActionsToolbarProps) => {
@@ -155,6 +158,20 @@ export const BulkActionsToolbar = ({
           <Mail className="h-4 w-4 mr-1" />
           Emails
         </Button>
+
+        {/* Push to Dialer */}
+        {onPushToDialer && (
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={onPushToDialer}
+            disabled={isProcessing}
+            className="text-muted-foreground"
+          >
+            <Phone className="h-4 w-4 mr-1" />
+            Dialer
+          </Button>
+        )}
 
         <div className="h-6 w-px bg-border" />
 
