@@ -13,14 +13,19 @@ const SessionContext = createContext<SessionContextValue | undefined>(undefined)
 export const SessionContextProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const utmParams = useUTMParams();
   const [sessionId] = useState(() => {
-    let id = sessionStorage.getItem('session_id');
-    if (!id) {
-      id = uuidv4();
-      sessionStorage.setItem('session_id', id);
+    try {
+      let id = sessionStorage.getItem('session_id');
+      if (!id) {
+        id = uuidv4();
+        sessionStorage.setItem('session_id', id);
+      }
+      return id;
+    } catch {
+      // sessionStorage may throw in sandboxed iframes or restricted storage contexts
+      return uuidv4();
     }
-    return id;
   });
-  
+
   const [referrer] = useState(() => document.referrer || null);
 
   const value: SessionContextValue = {
@@ -29,11 +34,7 @@ export const SessionContextProvider: React.FC<{ children: React.ReactNode }> = (
     referrer,
   };
 
-  return (
-    <SessionContext.Provider value={value}>
-      {children}
-    </SessionContext.Provider>
-  );
+  return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;
 };
 
 // eslint-disable-next-line react-refresh/only-export-components

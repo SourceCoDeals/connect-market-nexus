@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
   <head>
@@ -74,7 +73,37 @@
       src="https://px.ads.linkedin.com/collect/?pid=4342364&fmt=gif" />
     </noscript>
     
-    <div id="root"></div>
+    <div id="root">
+      <!-- Pre-React loading indicator — removed automatically when React mounts -->
+      <div id="pre-react-loader" style="display:flex;align-items:center;justify-content:center;height:100vh;font-family:Inter,system-ui,sans-serif;background:#FCF9F0">
+        <div style="text-align:center">
+          <div style="width:32px;height:32px;border:3px solid #e5e5e5;border-top-color:#0E101A;border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 12px"></div>
+          <p style="color:#666;font-size:14px;margin:0">Loading SourceCo...</p>
+        </div>
+      </div>
+      <style>#pre-react-loader{transition:opacity .3s}@keyframes spin{to{transform:rotate(360deg)}}</style>
+    </div>
+
+    <!-- Global error handler — catches fatal JS errors that would leave a blank page -->
+    <script>
+      window.__appBootErrors = [];
+      window.addEventListener('error', function(e) {
+        window.__appBootErrors.push(e.message || 'Unknown error');
+        // If React hasn't mounted after 15s and there's an error, show a recovery UI
+        setTimeout(function() {
+          var root = document.getElementById('root');
+          var loader = document.getElementById('pre-react-loader');
+          if (loader && root && root.children.length <= 2) {
+            loader.innerHTML = '<div style="text-align:center;max-width:400px;padding:20px">' +
+              '<p style="font-size:16px;font-weight:600;margin-bottom:8px">Something went wrong</p>' +
+              '<p style="color:#666;font-size:14px;margin-bottom:16px">The application failed to load. This is usually temporary.</p>' +
+              '<button onclick="location.reload()" style="padding:8px 24px;background:#0E101A;color:#FCF9F0;border:none;border-radius:6px;cursor:pointer;font-size:14px">Reload Page</button>' +
+              '</div>';
+          }
+        }, 15000);
+      });
+    </script>
+
     <!-- IMPORTANT: DO NOT REMOVE THIS SCRIPT TAG OR THIS VERY COMMENT! -->
     <script src="https://cdn.gpteng.co/gptengineer.js" type="module"></script>
     <script type="module" src="/src/main.tsx"></script>
