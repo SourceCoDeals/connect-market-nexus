@@ -9,57 +9,36 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.47.10";
  * Includes idempotency checks via docuseal_webhook_log.
  */
 
-// Verify webhook signature using HMAC-SHA256
-async function verifyWebhookSignature(
-  body: string,
-  signature: string | null,
-  secret: string
-): Promise<boolean> {
-  if (!signature) return false;
-  try {
-    const encoder = new TextEncoder();
-    const key = await crypto.subtle.importKey(
-      "raw",
-      encoder.encode(secret),
-      { name: "HMAC", hash: "SHA-256" },
-      false,
-      ["sign"]
-    );
-    const sig = await crypto.subtle.sign("HMAC", key, encoder.encode(body));
-    const expectedHex = Array.from(new Uint8Array(sig))
-      .map((b) => b.toString(16).padStart(2, "0"))
-      .join("");
-    const encoder2 = new TextEncoder();
-    const a = encoder2.encode(expectedHex);
-    const b = encoder2.encode(signature);
-    if (a.length !== b.length) return false;
-    let result = 0;
-    for (let i = 0; i < a.length; i++) {
-      result |= a[i] ^ b[i];
-    }
-    return result === 0;
-  } catch {
-    return false;
-  }
-}
+// DocuSeal webhook verification
+// DocuSeal uses simple header-based secret verification (key-value pair in headers),
+// NOT HMAC signatures. The secret key name and value are configured in the DocuSeal dashboard.
+function verifyDocuSealWebhook(req: Request, secret: string): boolean {
+  // DocuSeal sends the secret as a custom header value.
+  // We check common patterns: the secret value could be in any custom header.
+  // Strategy: check if any header value matches our configured secret.
+  // Also check x-docuseal-signature for backwards compatibility.
+  
+  // Check x-docuseal-signature header (some DocuSeal versions)
+  const sigHeader = req.headers.get("x-docuseal-signature");
+  if (sigHeader && sigHeader === secret) return true;
 
-// Validate that a URL is HTTPS and from a trusted domain
-function isValidDocumentUrl(url: string): boolean {
-  try {
-    const parsed = new URL(url);
-    if (parsed.protocol !== "https:") return false;
-    // Accept DocuSeal domains + common S3/storage domains
-    const trustedDomains = [
-      "docuseal.com",
-      "docuseal.co",
-      "amazonaws.com",
-      "storage.googleapis.com",
-      "supabase.co",
-    ];
-    return trustedDomains.some(d => parsed.hostname.endsWith(d));
-  } catch {
-    return false;
+  // Check common DocuSeal webhook secret header patterns
+  // DocuSeal allows custom key names, so we check all non-standard headers
+  for (const [key, value] of req.headers.entries()) {
+    const lowerKey = key.toLowerCase();
+    // Skip standard HTTP headers
+    if (['host', 'content-type', 'content-length', 'user-agent', 'accept', 
+         'accept-encoding', 'connection', 'x-forwarded-for', 'x-forwarded-proto',
+         'x-forwarded-host', 'x-request-id', 'x-real-ip', 'cf-ray', 'cf-connecting-ip',
+         'x-envoy-external-address', 'x-amzn-trace-id', 'authorization',
+         'sb-webhook-id', 'sb-webhook-signature', 'sb-webhook-timestamp',
+         'cdn-loop', 'cf-ipcountry', 'cf-visitor', 'cf-worker'].includes(lowerKey)) {
+      continue;
+    }
+    if (value === secret) return true;
   }
+
+  return false;
 }
 
 serve(async (req: Request) => {
@@ -76,12 +55,19 @@ serve(async (req: Request) => {
       return new Response(JSON.stringify({ error: "Webhook secret not configured" }), { status: 500 });
     }
 
-    const signature = req.headers.get("x-docuseal-signature");
-    const valid = await verifyWebhookSignature(rawBody, signature, webhookSecret);
+    const valid = verifyDocuSealWebhook(req, webhookSecret);
     if (!valid) {
-      console.error("❌ Invalid webhook signature");
+      // Log all non-standard headers for debugging
+      const customHeaders: Record<string, string> = {};
+      for (const [key, value] of req.headers.entries()) {
+        if (!['host', 'content-type', 'content-length', 'user-agent', 'accept', 'accept-encoding', 'connection'].includes(key.toLowerCase())) {
+          customHeaders[key] = value.substring(0, 20) + (value.length > 20 ? '...' : '');
+        }
+      }
+      console.error("❌ Invalid webhook signature. Headers:", JSON.stringify(customHeaders));
       return new Response(JSON.stringify({ error: "Invalid signature" }), { status: 401 });
     }
+
 
     const payload = JSON.parse(rawBody);
     const eventType = payload.event_type || payload.type;
