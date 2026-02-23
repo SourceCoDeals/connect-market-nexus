@@ -27,6 +27,7 @@ interface BulkActionsToolbarProps {
   onExportCSV: () => void;
   onGenerateEmails?: () => void;
   isProcessing?: boolean;
+  activeTab?: string;
 }
 
 const passReasons = [
@@ -45,6 +46,7 @@ export const BulkActionsToolbar = ({
   onExportCSV,
   onGenerateEmails,
   isProcessing = false,
+  activeTab = 'all',
 }: BulkActionsToolbarProps) => {
   const [isApproving, setIsApproving] = useState(false);
   const [isPassing, setIsPassing] = useState(false);
@@ -53,7 +55,7 @@ export const BulkActionsToolbar = ({
     setIsApproving(true);
     try {
       await onBulkApprove();
-      toast.success(`Approved ${selectedCount} buyers`);
+      toast.success(`Marked ${selectedCount} buyers as interested`);
     } catch (error) {
       toast.error('Failed to approve buyers');
     } finally {
@@ -76,7 +78,7 @@ export const BulkActionsToolbar = ({
   if (selectedCount === 0) return null;
 
   return (
-    <div className="sticky top-0 z-20 bg-background border rounded-lg p-3 shadow-sm mb-4 flex items-center justify-between gap-4">
+    <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-background border border-border rounded-xl px-4 py-3 shadow-lg flex items-center gap-4 min-w-[500px] max-w-[700px]">
       <div className="flex items-center gap-3">
         <Badge variant="secondary" className="text-sm font-medium">
           {selectedCount} selected
@@ -92,23 +94,71 @@ export const BulkActionsToolbar = ({
         </Button>
       </div>
 
+      <div className="flex-1" />
+
       <div className="flex items-center gap-2">
-        {/* Approve All */}
+        {/* Approve Fit - shown on All Buyers tab */}
+        {activeTab !== 'approved' && (
+          <Button
+            size="sm"
+            className="bg-emerald-600 hover:bg-emerald-700 text-white"
+            onClick={handleBulkApprove}
+            disabled={isProcessing || isApproving}
+          >
+            {isApproving ? (
+              <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+            ) : (
+              <Check className="h-4 w-4 mr-1" />
+            )}
+            Approve Fit
+          </Button>
+        )}
+
+        {/* Not Interested */}
         <Button
           size="sm"
-          className="bg-emerald-600 hover:bg-emerald-700 text-white"
-          onClick={handleBulkApprove}
-          disabled={isProcessing || isApproving}
+          variant="outline"
+          className="text-amber-700 border-amber-200 hover:bg-amber-50"
+          onClick={() => handleBulkPass('Not interested in this deal', 'other')}
+          disabled={isProcessing || isPassing}
         >
-          {isApproving ? (
+          {isPassing ? (
             <Loader2 className="h-4 w-4 mr-1 animate-spin" />
           ) : (
-            <Check className="h-4 w-4 mr-1" />
+            <X className="h-4 w-4 mr-1" />
           )}
-          Approve All
+          Not Interested
         </Button>
 
-        {/* Pass All with Reason Dropdown */}
+        <div className="h-6 w-px bg-border" />
+
+        {/* Export CSV */}
+        <Button
+          size="sm"
+          variant="ghost"
+          onClick={onExportCSV}
+          disabled={isProcessing}
+          className="text-muted-foreground"
+        >
+          <Download className="h-4 w-4 mr-1" />
+          Export
+        </Button>
+
+        {/* Generate Emails */}
+        <Button
+          size="sm"
+          variant="ghost"
+          disabled={isProcessing || !onGenerateEmails}
+          onClick={onGenerateEmails}
+          className="text-muted-foreground"
+        >
+          <Mail className="h-4 w-4 mr-1" />
+          Emails
+        </Button>
+
+        <div className="h-6 w-px bg-border" />
+
+        {/* Pass All with Reason - far right */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button
@@ -117,18 +167,14 @@ export const BulkActionsToolbar = ({
               className="text-red-600 border-red-200 hover:bg-red-50"
               disabled={isProcessing || isPassing}
             >
-              {isPassing ? (
-                <Loader2 className="h-4 w-4 mr-1 animate-spin" />
-              ) : (
-                <X className="h-4 w-4 mr-1" />
-              )}
-              Pass All
+              <X className="h-4 w-4 mr-1" />
+              Pass
               <ChevronDown className="h-4 w-4 ml-1" />
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-64">
             <p className="px-2 py-1.5 text-xs text-muted-foreground font-medium">
-              Select reason for passing:
+              Select reason buyer declined:
             </p>
             <DropdownMenuSeparator />
             {passReasons.map(({ reason, category }) => (
@@ -141,30 +187,6 @@ export const BulkActionsToolbar = ({
             ))}
           </DropdownMenuContent>
         </DropdownMenu>
-
-        <div className="h-6 w-px bg-border" />
-
-        {/* Export CSV */}
-        <Button
-          size="sm"
-          variant="outline"
-          onClick={onExportCSV}
-          disabled={isProcessing}
-        >
-          <Download className="h-4 w-4 mr-1" />
-          Export CSV
-        </Button>
-
-        {/* Generate Emails */}
-        <Button
-          size="sm"
-          variant="outline"
-          disabled={isProcessing || !onGenerateEmails}
-          onClick={onGenerateEmails}
-        >
-          <Mail className="h-4 w-4 mr-1" />
-          Generate Emails
-        </Button>
       </div>
     </div>
   );

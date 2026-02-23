@@ -28,16 +28,16 @@ export function useCreateDocuSealSubmission() {
     }) => {
       const { data, error } = await supabase.functions.invoke('create-docuseal-submission', {
         body: {
-          firm_id: firmId,
-          document_type: documentType,
-          buyer_email: buyerEmail,
-          buyer_name: buyerName,
-          send_email: sendEmail,
+          firmId,
+          documentType,
+          signerEmail: buyerEmail,
+          signerName: buyerName,
+          deliveryMode: sendEmail ? 'email' : 'embedded',
         },
       });
 
       if (error) throw error;
-      return data as { embed_src: string; submission_id: string; submitter_id: string; status: string };
+      return data as { success: boolean; submissionId: string; embedSrc: string | null; slug: string | null; documentType: string; deliveryMode: string };
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['firm-agreements'] });

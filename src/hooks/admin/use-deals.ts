@@ -81,6 +81,7 @@ export interface Deal {
   buyer_type?: string;
   buyer_phone?: string;
   buyer_priority_score?: number;
+  buyer_website?: string;
   
   // Real contact tracking
   last_contact_at?: string;
@@ -99,6 +100,18 @@ export interface Deal {
   // Remarketing bridge (when deal originated from remarketing)
   remarketing_buyer_id?: string | null;
   remarketing_score_id?: string | null;
+
+  // Scoring & flags from listing
+  deal_score?: number | null;
+  is_priority_target?: boolean | null;
+  needs_owner_contact?: boolean | null;
+
+  // Document distribution flags
+  memo_sent?: boolean;
+  has_data_room?: boolean;
+
+  // Meeting scheduled flag
+  meeting_scheduled?: boolean;
 }
 
 export interface DealStage {
@@ -137,8 +150,8 @@ export function useDeals() {
           assigned_admin:profiles!deals_assigned_to_fkey (
             id, first_name, last_name, email
           ),
-          connection_request:connection_requests!deals_connection_request_id_fkey (
-            id, status
+          listing_score:listings!deals_listing_id_fkey (
+            deal_total_score, is_priority_target, needs_owner_contact
           )
         `)
         .is('deleted_at', null)
@@ -146,15 +159,65 @@ export function useDeals() {
 
       if (dealsError) throw dealsError;
 
-      // Only show deals where connection request is approved (or no connection request, e.g. remarketing/manual)
-      const approvedDeals = (deals || []).filter((row: any) => {
-        if (!row.connection_request_id) return true; // Manual, remarketing, etc.
-        return row.connection_request?.status === 'approved';
-      });
+      // Filter: only show deals that are approved from marketplace,
+      // or from remarketing/manual sources (no connection_request_id)
+      const allRows = deals || [];
+      const crIds = allRows
+        .map((r: any) => r.connection_request_id)
+        .filter(Boolean) as string[];
 
-      if (dealsError) throw dealsError;
+      let approvedCRIds = new Set<string>();
+      if (crIds.length > 0) {
+        // Batch lookup in chunks of 100
+        for (let i = 0; i < crIds.length; i += 100) {
+          const chunk = crIds.slice(i, i + 100);
+          const { data: approved } = await supabase
+            .from('connection_requests')
+            .select('id')
+            .in('id', chunk)
+            .eq('status', 'approved');
+          if (approved) approved.forEach((r: any) => approvedCRIds.add(r.id));
+        }
+      }
 
-      return approvedDeals.map((row: any) => {
+      const filteredRows = allRows.filter((row: any) =>
+        !row.connection_request_id || approvedCRIds.has(row.connection_request_id)
+      );
+
+      // Batch-fetch buyer profiles (buyer_type, website) via connection_requests → profiles
+      const filteredCRIds = filteredRows
+        .map((r: any) => r.connection_request_id)
+        .filter(Boolean) as string[];
+      
+      const buyerProfileMap: Record<string, { buyer_type?: string; website?: string }> = {};
+      if (filteredCRIds.length > 0) {
+        for (let i = 0; i < filteredCRIds.length; i += 100) {
+          const chunk = filteredCRIds.slice(i, i + 100);
+          const { data: crData } = await supabase
+            .from('connection_requests')
+            .select('id, user_id')
+            .in('id', chunk);
+          if (crData) {
+            const userIds = crData.map((cr: any) => cr.user_id).filter(Boolean);
+            if (userIds.length > 0) {
+              const { data: profiles } = await supabase
+                .from('profiles')
+                .select('id, buyer_type, website, buyer_org_url')
+                .in('id', userIds);
+              const profileLookup: Record<string, any> = {};
+              profiles?.forEach((p: any) => { profileLookup[p.id] = p; });
+              crData.forEach((cr: any) => {
+                const prof = profileLookup[cr.user_id];
+                if (prof) {
+                  buyerProfileMap[cr.id] = { buyer_type: prof.buyer_type, website: prof.website || prof.buyer_org_url };
+                }
+              });
+            }
+          }
+        }
+      }
+
+      const mapped = filteredRows.map((row: any) => {
         const listing = row.listing;
         const stage = row.stage;
         const admin = row.assigned_admin;
@@ -207,7 +270,7 @@ export function useDeals() {
 
           // Assignment
           assigned_to: row.assigned_to,
-          assigned_admin_name: admin ? `${admin.first_name} ${admin.last_name}` : null,
+          assigned_admin_name: admin ? `${admin.first_name} ${admin.last_name}` : undefined,
           assigned_admin_email: admin?.email,
 
           // Tasks and activity (not available via join, default to 0)
@@ -224,9 +287,10 @@ export function useDeals() {
           buyer_name: row.contact_name,
           buyer_email: row.contact_email,
           buyer_company: row.contact_company,
-          buyer_type: null,
+          buyer_type: buyerProfileMap[row.connection_request_id]?.buyer_type ?? null,
           buyer_phone: row.contact_phone,
           buyer_priority_score: Number(row.buyer_priority_score ?? 0),
+          buyer_website: buyerProfileMap[row.connection_request_id]?.website ?? undefined,
 
           // Extras
           connection_request_id: row.connection_request_id,
@@ -240,8 +304,44 @@ export function useDeals() {
           // Remarketing bridge
           remarketing_buyer_id: row.remarketing_buyer_id ?? undefined,
           remarketing_score_id: row.remarketing_score_id ?? undefined,
+
+          // Scoring & flags from listing
+          deal_score: row.listing_score?.deal_total_score ?? null,
+          is_priority_target: row.listing_score?.is_priority_target ?? null,
+          needs_owner_contact: row.listing_score?.needs_owner_contact ?? null,
+
+          // Document distribution flags (populated below)
+          memo_sent: false,
+          has_data_room: false,
+
+          // Meeting scheduled
+          meeting_scheduled: row.meeting_scheduled ?? false,
         };
-      }) as unknown as Deal[];
+      });
+
+      // Batch-fetch memo distribution and data room documents by listing_id
+      const listingIds = [...new Set(mapped.map((d: any) => d.listing_id).filter(Boolean))] as string[];
+      const memoSentListings = new Set<string>();
+      const dataRoomListings = new Set<string>();
+
+      if (listingIds.length > 0) {
+        for (let i = 0; i < listingIds.length; i += 100) {
+          const chunk = listingIds.slice(i, i + 100);
+          const [memoRes, drRes] = await Promise.all([
+            supabase.from('memo_distribution_log').select('deal_id').in('deal_id', chunk),
+            supabase.from('data_room_documents').select('deal_id').in('deal_id', chunk).eq('status', 'active'),
+          ]);
+          memoRes.data?.forEach((r: any) => memoSentListings.add(r.deal_id));
+          drRes.data?.forEach((r: any) => dataRoomListings.add(r.deal_id));
+        }
+      }
+
+      mapped.forEach((deal: any) => {
+        deal.memo_sent = memoSentListings.has(deal.listing_id);
+        deal.has_data_room = dataRoomListings.has(deal.listing_id);
+      });
+
+      return mapped as unknown as Deal[];
     },
     staleTime: 30000,
   });

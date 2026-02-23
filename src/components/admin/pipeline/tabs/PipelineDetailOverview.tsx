@@ -1,620 +1,256 @@
-import React from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Pencil, Trash2, MessageSquare } from 'lucide-react';
+import { Textarea } from '@/components/ui/textarea';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { ExternalLink, Linkedin, Building2, Globe, Mail, Phone, Send, AlertCircle, MessageSquare } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { Deal } from '@/hooks/admin/use-deals';
 import { useAdminProfiles } from '@/hooks/admin/use-admin-profiles';
 import { useUpdateDeal } from '@/hooks/admin/use-deals';
-import { useUpdateLeadNDAStatus, useUpdateLeadFeeAgreementStatus } from '@/hooks/admin/requests/use-lead-status-updates';
 import { useUpdateDealFollowup } from '@/hooks/admin/use-deal-followup';
 import { supabase } from '@/integrations/supabase/client';
 import { Label } from '@/components/ui/label';
-import { Checkbox } from '@/components/ui/checkbox';
-import { CheckCheck } from 'lucide-react';
-import { Textarea } from '@/components/ui/textarea';
-import { useDealComments, useCreateDealComment, useUpdateDealComment, useDeleteDealComment } from '@/hooks/admin/use-deal-comments';
+import { Switch } from '@/components/ui/switch';
 import { useConnectionRequestDetails } from '@/hooks/admin/use-connection-request-details';
-import { ConnectionRequestNotes } from '@/components/admin/pipeline/ConnectionRequestNotes';
+import { useConnectionMessages, useSendMessage, useMarkMessagesReadByAdmin } from '@/hooks/use-connection-messages';
+import { cn } from '@/lib/utils';
 
 interface PipelineDetailOverviewProps {
   deal: Deal;
+  onSwitchTab?: (tab: string) => void;
 }
 
 export function PipelineDetailOverview({ deal }: PipelineDetailOverviewProps) {
   const { data: allAdminProfiles, isLoading: adminProfilesLoading } = useAdminProfiles();
   const updateDeal = useUpdateDeal();
   const updateDealFollowup = useUpdateDealFollowup();
-  
-  // Fetch connection request details to show buyer message
   const { data: connectionRequestDetails } = useConnectionRequestDetails(deal.connection_request_id);
-  
+
   const [followedUp, setFollowedUp] = React.useState(deal.followed_up || false);
   const [negativeFollowedUp, setNegativeFollowedUp] = React.useState(deal.negative_followed_up || false);
-  const [otherDeals, setOtherDeals] = React.useState<any[]>([]);
-  const [selectedOtherDeals, setSelectedOtherDeals] = React.useState<string[]>([]);
-  
-  // Comments state
-  const { data: dealComments, isLoading: commentsLoading } = useDealComments(deal.deal_id);
-  const createComment = useCreateDealComment();
-  const updateComment = useUpdateDealComment();
-  const deleteComment = useDeleteDealComment();
-  const [newCommentText, setNewCommentText] = React.useState('');
-  const [editingCommentId, setEditingCommentId] = React.useState<string | null>(null);
-  const [editingCommentText, setEditingCommentText] = React.useState('');
-  const [showMentionsList, setShowMentionsList] = React.useState(false);
-  const [mentionSearch, setMentionSearch] = React.useState('');
-  const textareaRef = React.useRef<HTMLTextAreaElement>(null);
-  
-  // Extract mentions from text (@username format)
-  const extractMentions = (text: string): string[] => {
-    const mentionRegex = /@(\w+)/g;
-    const matches = text.matchAll(mentionRegex);
-    const mentionedNames = Array.from(matches, m => m[1]);
-    
-    if (!allAdminProfiles || mentionedNames.length === 0) return [];
+  const [buyerProfile, setBuyerProfile] = React.useState<any>(null);
 
-    const normalize = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, '');
+  // Messaging
+  const connectionRequestId = deal.connection_request_id;
+  const { data: messages = [], isLoading: messagesLoading } = useConnectionMessages(connectionRequestId);
+  const sendMessage = useSendMessage();
+  const markRead = useMarkMessagesReadByAdmin();
+  const [newMessage, setNewMessage] = useState('');
+  const bottomRef = useRef<HTMLDivElement>(null);
 
-    // Map names to admin IDs by fuzzy matching displayName or email
-    return Object.values(allAdminProfiles)
-      .filter(admin => mentionedNames.some(name => {
-        const n = normalize(name);
-        const dn = normalize(admin.displayName || '');
-        const em = normalize(admin.email || '');
-        return dn.includes(n) || em.includes(n);
-      }))
-      .map(admin => admin.id);
-  };
-  
-  // Filter admins for mention autocomplete
-  const filteredAdmins = React.useMemo(() => {
-    if (!allAdminProfiles || !mentionSearch) return [];
-    const search = mentionSearch.toLowerCase();
-    return Object.values(allAdminProfiles).filter(admin =>
-      admin.displayName.toLowerCase().includes(search) ||
-      admin.email.toLowerCase().includes(search)
-    );
-  }, [allAdminProfiles, mentionSearch]);
-  
-  // Handle @ key press
-  const handleTextChange = (text: string) => {
-    setNewCommentText(text);
-    
-    // Check if user typed @
-    const cursorPos = textareaRef.current?.selectionStart || 0;
-    const textBeforeCursor = text.substring(0, cursorPos);
-    const lastAtSymbol = textBeforeCursor.lastIndexOf('@');
-    
-    if (lastAtSymbol !== -1 && lastAtSymbol === cursorPos - 1) {
-      setShowMentionsList(true);
-      setMentionSearch('');
-    } else if (lastAtSymbol !== -1) {
-      const searchTerm = textBeforeCursor.substring(lastAtSymbol + 1);
-      if (searchTerm && !searchTerm.includes(' ')) {
-        setShowMentionsList(true);
-        setMentionSearch(searchTerm);
-      } else {
-        setShowMentionsList(false);
-      }
-    } else {
-      setShowMentionsList(false);
+  useEffect(() => {
+    if (connectionRequestId && messages.length > 0) {
+      markRead.mutate(connectionRequestId);
     }
+  }, [connectionRequestId, messages.length]);
+
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages.length]);
+
+  const handleSend = () => {
+    if (!newMessage.trim() || !connectionRequestId) return;
+    sendMessage.mutate(
+      { connection_request_id: connectionRequestId, body: newMessage.trim(), sender_role: 'admin' },
+      { onSuccess: () => setNewMessage('') }
+    );
   };
-  
-  const insertMention = (admin: any) => {
-    const cursorPos = textareaRef.current?.selectionStart || 0;
-    const textBeforeCursor = newCommentText.substring(0, cursorPos);
-    const textAfterCursor = newCommentText.substring(cursorPos);
-    const lastAtSymbol = textBeforeCursor.lastIndexOf('@');
-    
-    const newText = 
-      textBeforeCursor.substring(0, lastAtSymbol) + 
-      '@' + admin.displayName.replace(/\s/g, '') + ' ' +
-      textAfterCursor;
-    
-    setNewCommentText(newText);
-    setShowMentionsList(false);
-    textareaRef.current?.focus();
-  };
-  
-  // Fetch other deals from same buyer
+
+  // Fetch buyer profile
   React.useEffect(() => {
-    const fetchOtherDeals = async () => {
-      if (!deal.connection_request_id || !deal.contact_email) return;
-
-      const { data: allDeals, error: allDealsError } = await supabase
-        .from('deals')
-        .select('id, title, stage_id, followed_up, negative_followed_up')
-        .eq('contact_email', deal.contact_email)
-        .neq('id', deal.deal_id);
-      if (allDealsError) throw allDealsError;
-
-      setOtherDeals(allDeals || []);
+    const fetchProfile = async () => {
+      if (!connectionRequestDetails?.user_id) return;
+      const { data } = await supabase
+        .from('profiles')
+        .select('first_name, last_name, email, company, phone, buyer_type, linkedin_url, website')
+        .eq('id', connectionRequestDetails.user_id)
+        .maybeSingle();
+      setBuyerProfile(data);
     };
+    fetchProfile();
+  }, [connectionRequestDetails?.user_id]);
 
-    fetchOtherDeals();
-  }, [deal.deal_id, deal.connection_request_id, deal.contact_email]);
-  
-  // Sync local state
   React.useEffect(() => {
     setFollowedUp(deal.followed_up || false);
     setNegativeFollowedUp(deal.negative_followed_up || false);
   }, [deal.followed_up, deal.negative_followed_up]);
 
-  // Date validation helper
   const isValidDate = (value?: string | null) => {
     if (!value) return false;
-    const time = new Date(value).getTime();
-    return !isNaN(time);
+    return !isNaN(new Date(value!).getTime());
   };
 
   const formatDateSafely = (value?: string | null) => {
     if (!isValidDate(value)) return 'N/A';
-    try {
-      return formatDistanceToNow(new Date(value!), { addSuffix: true });
-    } catch (error) {
-      return 'N/A';
-    }
+    try { return formatDistanceToNow(new Date(value!), { addSuffix: true }); } catch { return 'N/A'; }
   };
 
   const handleOwnerChange = (value: string) => {
-    const adminId = value === 'unassigned' ? null : value;
-    updateDeal.mutate({
-      dealId: deal.deal_id,
-      updates: { assigned_to: adminId }
-    });
+    updateDeal.mutate({ dealId: deal.deal_id, updates: { assigned_to: value === 'unassigned' ? null : value } });
   };
 
-  // Use new hooks that update connection_requests
-  const updateLeadNDA = useUpdateLeadNDAStatus();
-  const updateLeadFeeAgreement = useUpdateLeadFeeAgreementStatus();
-
-  const handleNDAToggle = (checked: boolean) => {
-    if (!deal.connection_request_id) return;
-    
-    updateLeadNDA.mutate({
-      requestId: deal.connection_request_id,
-      value: checked
-    });
-  };
-
-  const handleFeeAgreementToggle = (checked: boolean) => {
-    if (!deal.connection_request_id) return;
-    
-    updateLeadFeeAgreement.mutate({
-      requestId: deal.connection_request_id,
-      value: checked
-    });
-  };
-  
   const handleFollowupToggle = async (type: 'positive' | 'negative', newValue: boolean) => {
-    if (type === 'positive') {
-      setFollowedUp(newValue);
-    } else {
-      setNegativeFollowedUp(newValue);
-    }
+    if (type === 'positive') setFollowedUp(newValue);
+    else setNegativeFollowedUp(newValue);
 
-    // Get connection request IDs to update (current + selected others)
-    const requestIdsToUpdate: string[] = [];
-    
-    if (deal.connection_request_id) {
-      requestIdsToUpdate.push(deal.connection_request_id);
-    }
-
-    // Add selected other deals' connection requests
-    const { data: selectedDealsData, error: selectedDealsDataError } = await supabase
-      .from('deals')
-      .select('connection_request_id')
-      .in('id', selectedOtherDeals);
-    if (selectedDealsDataError) throw selectedDealsDataError;
-
-    if (selectedDealsData) {
-      requestIdsToUpdate.push(...selectedDealsData
-        .map(d => d.connection_request_id)
-        .filter((id): id is string => !!id));
-    }
+    const requestIds: string[] = [];
+    if (deal.connection_request_id) requestIds.push(deal.connection_request_id);
 
     updateDealFollowup.mutate({
       dealId: deal.deal_id,
-      connectionRequestIds: requestIdsToUpdate,
+      connectionRequestIds: requestIds,
       isFollowedUp: newValue,
-      followupType: type
+      followupType: type,
     });
   };
 
+  // Build combined messages: buyer inquiry as first message, then connection_messages
+  const allMessages = React.useMemo(() => {
+    const combined: Array<{
+      id: string;
+      body: string;
+      sender_role: string;
+      senderName: string;
+      created_at: string;
+      message_type?: string;
+      isInquiry?: boolean;
+    }> = [];
 
+    // Add the buyer's original inquiry as the first message
+    if (connectionRequestDetails?.user_message) {
+      combined.push({
+        id: 'inquiry',
+        body: connectionRequestDetails.user_message,
+        sender_role: 'buyer',
+        senderName: deal.contact_name || 'Buyer',
+        created_at: connectionRequestDetails.created_at || deal.deal_created_at,
+        isInquiry: true,
+      });
+    }
+
+    // Add all connection messages
+    messages.forEach((msg) => {
+      const isAdmin = msg.sender_role === 'admin';
+      const senderName = msg.sender
+        ? `${msg.sender.first_name || ''} ${msg.sender.last_name || ''}`.trim() || msg.sender.email || 'Unknown'
+        : isAdmin ? 'Admin' : deal.contact_name || 'Buyer';
+      combined.push({
+        id: msg.id,
+        body: msg.body,
+        sender_role: msg.sender_role,
+        senderName,
+        created_at: msg.created_at,
+        message_type: msg.message_type,
+      });
+    });
+
+    return combined;
+  }, [connectionRequestDetails, messages, deal.contact_name, deal.deal_created_at]);
 
   return (
-    <div className="flex-1 overflow-auto">
-      <div className="flex gap-6 px-6 py-6">
-        {/* Left Column - Main Content */}
-        <div className="flex-1 space-y-6 max-w-3xl">
-          {/* Deal Description */}
-          {deal.deal_description && (
-            <div className="space-y-3">
-              <p className="text-sm text-muted-foreground leading-relaxed">
-                {deal.deal_description}
-              </p>
-            </div>
-          )}
-
-          {/* Buyer Message */}
-          {connectionRequestDetails && (
-            <ConnectionRequestNotes details={connectionRequestDetails} />
-          )}
-
-          {/* Documents Section */}
-          <div className="space-y-3">
-            <h3 className="text-sm font-medium text-foreground">Documents</h3>
-            
-            <div className="grid grid-cols-2 gap-3">
-              {/* NDA Card */}
-              <div className="p-3 border border-border/40 rounded-lg">
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-2">
-                    <div className={`w-1.5 h-1.5 rounded-full ${
-                      deal.nda_status === 'signed' ? 'bg-emerald-500' :
-                      deal.nda_status === 'sent' ? 'bg-amber-500' :
-                      'bg-muted-foreground/30'
-                    }`} />
-                    <span className="text-sm font-medium text-foreground">NDA</span>
-                  </div>
-                  <Switch
-                    checked={deal.nda_status === 'signed'}
-                    onCheckedChange={handleNDAToggle}
-                    disabled={updateLeadNDA.isPending || !deal.connection_request_id}
-                    className="scale-75"
-                  />
-                </div>
-                <span className="text-xs text-muted-foreground">
-                  {deal.nda_status === 'signed' ? 'Signed' :
-                   deal.nda_status === 'sent' ? 'Sent' : 'Not Sent'}
-                </span>
-              </div>
-
-              {/* Fee Agreement Card */}
-              <div className="p-3 border border-border/40 rounded-lg">
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-2">
-                    <div className={`w-1.5 h-1.5 rounded-full ${
-                      deal.fee_agreement_status === 'signed' ? 'bg-emerald-500' :
-                      deal.fee_agreement_status === 'sent' ? 'bg-amber-500' :
-                      'bg-muted-foreground/30'
-                    }`} />
-                    <span className="text-sm font-medium text-foreground">Fee Agreement</span>
-                  </div>
-                  <Switch
-                    checked={deal.fee_agreement_status === 'signed'}
-                    onCheckedChange={handleFeeAgreementToggle}
-                    disabled={updateLeadFeeAgreement.isPending || !deal.connection_request_id}
-                    className="scale-75"
-                  />
-                </div>
-                <span className="text-xs text-muted-foreground">
-                  {deal.fee_agreement_status === 'signed' ? 'Signed' :
-                   deal.fee_agreement_status === 'sent' ? 'Sent' : 'Not Sent'}
-                </span>
+    <div className="flex-1 flex flex-col min-h-0">
+      <div className="flex flex-1 min-h-0">
+        {/* Left Column - Messages */}
+        <div className="flex-1 flex flex-col min-h-0 border-r border-border/40">
+          {!connectionRequestId ? (
+            <div className="flex-1 flex items-center justify-center">
+              <div className="text-center space-y-3 max-w-xs">
+                <AlertCircle className="w-10 h-10 text-muted-foreground/30 mx-auto" />
+                <p className="text-sm text-muted-foreground">No messaging available</p>
+                <p className="text-xs text-muted-foreground/60">
+                  This deal was not created from a marketplace connection request.
+                </p>
               </div>
             </div>
-          </div>
-
-          {/* Follow-up Section */}
-          <div className="space-y-3">
-            <h3 className="text-sm font-medium text-foreground">Follow-up</h3>
-            
-            <div className="space-y-2">
-              {/* Positive Follow-up */}
-              <div className="p-3 border border-border/40 rounded-lg">
-                <div className="flex items-center justify-between">
-                  <div className="flex-1">
-                    <Label htmlFor="positive-followup-overview" className="text-sm font-medium cursor-pointer">
-                      Positive Follow-up
-                    </Label>
-                    <p className="text-xs text-muted-foreground mt-0.5">
-                      Ready for owner introduction
-                    </p>
-                  </div>
-                  <Switch
-                    id="positive-followup-overview"
-                    checked={followedUp}
-                    onCheckedChange={(checked) => handleFollowupToggle('positive', checked)}
-                    className="scale-75"
-                  />
-                </div>
-                {followedUp && deal.followed_up_at && (
-                  <p className="text-xs text-muted-foreground/60 mt-2">
-                    {formatDateSafely(deal.followed_up_at)}
-                    {deal.followed_up_by && allAdminProfiles?.[deal.followed_up_by] && (
-                      <span className="ml-1">by {allAdminProfiles[deal.followed_up_by].displayName}</span>
-                    )}
-                  </p>
-                )}
-              </div>
-
-              {/* Rejection Notice */}
-              <div className="p-3 border border-border/40 rounded-lg">
-                <div className="flex items-center justify-between">
-                  <div className="flex-1">
-                    <Label htmlFor="negative-followup-overview" className="text-sm font-medium cursor-pointer">
-                      Rejection Notice
-                    </Label>
-                    <p className="text-xs text-muted-foreground mt-0.5">
-                      Send rejection to buyer
-                    </p>
-                  </div>
-                  <Switch
-                    id="negative-followup-overview"
-                    checked={negativeFollowedUp}
-                    onCheckedChange={(checked) => handleFollowupToggle('negative', checked)}
-                    className="scale-75"
-                  />
-                </div>
-                {negativeFollowedUp && deal.negative_followed_up_at && (
-                  <p className="text-xs text-muted-foreground/60 mt-2">
-                    {formatDateSafely(deal.negative_followed_up_at)}
-                    {deal.negative_followed_up_by && allAdminProfiles?.[deal.negative_followed_up_by] && (
-                      <span className="ml-1">by {allAdminProfiles[deal.negative_followed_up_by].displayName}</span>
-                    )}
-                  </p>
-                )}
-              </div>
-            </div>
-              
-            {otherDeals.length > 0 && (
-              <div className="p-3 border border-border/40 rounded-lg">
-                <Label className="text-xs text-muted-foreground">
-                  Also update for {deal.contact_name || deal.contact_email}:
-                </Label>
-                <div className="space-y-1.5 mt-2">
-                  {otherDeals.map((otherDeal) => (
-                    <div key={otherDeal.id} className="flex items-center gap-2">
-                      <Checkbox
-                        id={`deal-overview-${otherDeal.id}`}
-                        checked={selectedOtherDeals.includes(otherDeal.id)}
-                        onCheckedChange={(checked) => {
-                          if (checked) {
-                            setSelectedOtherDeals([...selectedOtherDeals, otherDeal.id]);
-                          } else {
-                            setSelectedOtherDeals(selectedOtherDeals.filter(id => id !== otherDeal.id));
-                          }
-                        }}
-                      />
-                      <label
-                        htmlFor={`deal-overview-${otherDeal.id}`}
-                        className="text-xs text-foreground cursor-pointer flex items-center gap-2"
-                      >
-                        {otherDeal.title}
-                        {otherDeal.followed_up && (
-                          <Badge variant="outline" className="text-xs">
-                            <CheckCheck className="h-2.5 w-2.5 mr-1" />
-                            Followed
-                          </Badge>
-                        )}
-                      </label>
+          ) : (
+            <>
+              <ScrollArea className="flex-1 px-6">
+                <div className="py-4 space-y-3">
+                  {messagesLoading ? (
+                    <div className="space-y-3">
+                      {[1, 2, 3].map((i) => (
+                        <div key={i} className="p-3 rounded-lg bg-muted/20 animate-pulse h-16" />
+                      ))}
                     </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Comments Section */}
-          <div className="space-y-3">
-            <div className="flex items-center gap-2">
-              <MessageSquare className="h-4 w-4 text-muted-foreground" />
-              <h3 className="text-sm font-medium text-foreground">Comments</h3>
-              <span className="text-xs text-muted-foreground font-mono">
-                {dealComments?.length || 0}
-              </span>
-            </div>
-
-            {/* New Comment Input */}
-            <div className="space-y-2 relative">
-              <Textarea
-                ref={textareaRef}
-                placeholder="Write a comment... (use @ to mention)"
-                value={newCommentText}
-                onChange={(e) => handleTextChange(e.target.value)}
-                className="min-h-[80px] resize-none text-sm"
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && (e.metaKey || e.ctrlKey) && newCommentText.trim()) {
-                    const mentions = extractMentions(newCommentText);
-                    createComment.mutate(
-                      { 
-                        dealId: deal.deal_id, 
-                        commentText: newCommentText.trim(),
-                        mentionedAdmins: mentions,
-                      },
-                      { onSuccess: () => setNewCommentText('') }
-                    );
-                  }
-                }}
-              />
-              
-              {/* Mentions dropdown */}
-              {showMentionsList && filteredAdmins.length > 0 && (
-                <div className="absolute left-0 right-0 top-full mt-1 bg-background border border-border rounded-lg shadow-lg z-10 max-h-48 overflow-y-auto">
-                  {filteredAdmins.slice(0, 5).map((admin) => (
-                    <button
-                      key={admin.id}
-                      onClick={() => insertMention(admin)}
-                      className="w-full px-3 py-2 text-left text-sm hover:bg-muted/50 transition-colors flex items-center gap-2"
-                    >
-                      <span className="font-medium">{admin.displayName}</span>
-                      <span className="text-xs text-muted-foreground">{admin.email}</span>
-                    </button>
-                  ))}
-                </div>
-              )}
-              
-              <div className="flex items-center justify-between">
-                <span className="text-xs text-muted-foreground">
-                  Cmd/Ctrl + Enter to send
-                </span>
-                <Button
-                  size="sm"
-                  onClick={() => {
-                    if (newCommentText.trim()) {
-                      const mentions = extractMentions(newCommentText);
-                      createComment.mutate(
-                        { 
-                          dealId: deal.deal_id, 
-                          commentText: newCommentText.trim(),
-                          mentionedAdmins: mentions,
-                        },
-                        { onSuccess: () => setNewCommentText('') }
-                      );
-                    }
-                  }}
-                  disabled={!newCommentText.trim() || createComment.isPending}
-                  className="h-7 text-xs"
-                >
-                  Add Comment
-                </Button>
-              </div>
-            </div>
-
-            {/* Comments List */}
-            {commentsLoading ? (
-              <div className="space-y-2">
-                {[1, 2].map((i) => (
-                  <div key={i} className="p-3 border border-border/40 rounded-lg animate-pulse">
-                    <div className="h-4 bg-muted/50 rounded w-3/4 mb-2" />
-                    <div className="h-3 bg-muted/30 rounded w-1/2" />
-                  </div>
-                ))}
-              </div>
-            ) : dealComments && dealComments.length > 0 ? (
-              <div className="space-y-2">
-                {dealComments.map((comment) => (
-                  <div
-                    key={comment.id}
-                    className="group p-3 border border-border/40 rounded-lg hover:border-border/60 transition-colors"
-                  >
-                    {editingCommentId === comment.id ? (
-                      <div className="space-y-2">
-                        <Textarea
-                          value={editingCommentText}
-                          onChange={(e) => setEditingCommentText(e.target.value)}
-                          className="min-h-[60px] resize-none text-sm"
-                          autoFocus
-                        />
-                        <div className="flex items-center gap-2">
-                          <Button
-                            size="sm"
-                            onClick={() => {
-                              if (editingCommentText.trim()) {
-                                const mentions = extractMentions(editingCommentText);
-                                updateComment.mutate(
-                                  {
-                                    commentId: comment.id,
-                                    commentText: editingCommentText.trim(),
-                                    mentionedAdmins: mentions,
-                                    dealId: deal.deal_id,
-                                  },
-                                  {
-                                    onSuccess: () => {
-                                      setEditingCommentId(null);
-                                      setEditingCommentText('');
-                                    },
-                                  }
-                                );
-                              }
-                            }}
-                            disabled={!editingCommentText.trim() || updateComment.isPending}
-                            className="h-6 text-xs"
-                          >
-                            Save
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => {
-                              setEditingCommentId(null);
-                              setEditingCommentText('');
-                            }}
-                            className="h-6 text-xs"
-                          >
-                            Cancel
-                          </Button>
-                        </div>
-                      </div>
-                    ) : (
-                      <>
-                        <p className="text-sm text-foreground whitespace-pre-wrap mb-2">
-                          {comment.comment_text.split(/(@\w+)/g).map((part, i) => {
-                            if (part.startsWith('@')) {
-                              return (
-                                <span key={i} className="text-primary font-medium">
-                                  {part}
-                                </span>
-                              );
-                            }
-                            return part;
-                          })}
-                        </p>
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                            <span className="font-medium">{comment.admin_name}</span>
-                            <span className="text-muted-foreground/40">·</span>
-                            <span>{formatDistanceToNow(new Date(comment.created_at), { addSuffix: true })}</span>
-                            {comment.updated_at !== comment.created_at && (
-                              <>
-                                <span className="text-muted-foreground/40">·</span>
-                                <span className="italic">edited</span>
-                              </>
+                  ) : allMessages.length === 0 ? (
+                    <div className="text-center py-12 space-y-2">
+                      <MessageSquare className="w-8 h-8 text-muted-foreground/30 mx-auto" />
+                      <p className="text-sm text-muted-foreground">No messages yet</p>
+                      <p className="text-xs text-muted-foreground/60">Send a message to start the conversation.</p>
+                    </div>
+                  ) : (
+                    allMessages.map((msg) => {
+                      const isAdmin = msg.sender_role === 'admin';
+                      return (
+                        <div
+                          key={msg.id}
+                          className={cn(
+                            'max-w-[85%] rounded-xl px-4 py-3 space-y-1',
+                            isAdmin
+                              ? 'ml-auto bg-primary/10 border border-primary/20'
+                              : 'mr-auto bg-muted/30 border border-border/40'
+                          )}
+                        >
+                          <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
+                            <span className="font-medium">{msg.senderName}</span>
+                            <span>·</span>
+                            <span>{formatDistanceToNow(new Date(msg.created_at), { addSuffix: true })}</span>
+                            {msg.isInquiry && (
+                              <span className="inline-block px-1.5 py-0.5 rounded bg-accent/20 text-accent-foreground font-medium text-[10px]">
+                                Initial Inquiry
+                              </span>
                             )}
                           </div>
-                          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              onClick={() => {
-                                setEditingCommentId(comment.id);
-                                setEditingCommentText(comment.comment_text);
-                              }}
-                              className="h-6 w-6 p-0"
-                            >
-                              <Pencil className="h-3 w-3" />
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              onClick={() => {
-                                if (confirm('Delete this comment?')) {
-                                  deleteComment.mutate({ commentId: comment.id, dealId: deal.deal_id });
-                                }
-                              }}
-                              className="h-6 w-6 p-0 text-destructive hover:text-destructive"
-                            >
-                              <Trash2 className="h-3 w-3" />
-                            </Button>
-                          </div>
+                          <p className="text-sm text-foreground whitespace-pre-wrap">{msg.body}</p>
+                          {msg.message_type === 'decision' && (
+                            <span className="inline-block mt-1 text-[10px] px-1.5 py-0.5 rounded bg-accent/20 text-accent-foreground font-medium">
+                              Decision
+                            </span>
+                          )}
                         </div>
-                      </>
-                    )}
-                  </div>
-                ))}
+                      );
+                    })
+                  )}
+                  <div ref={bottomRef} />
+                </div>
+              </ScrollArea>
+
+              {/* Compose bar */}
+              <div className="border-t border-border/40 px-6 py-3">
+                <div className="flex items-end gap-3">
+                  <Textarea
+                    placeholder="Type a message..."
+                    value={newMessage}
+                    onChange={(e) => setNewMessage(e.target.value)}
+                    className="min-h-[50px] max-h-[100px] resize-none text-sm flex-1"
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) handleSend();
+                    }}
+                  />
+                  <Button
+                    size="sm"
+                    onClick={handleSend}
+                    disabled={!newMessage.trim() || sendMessage.isPending}
+                    className="h-9 px-4"
+                  >
+                    <Send className="w-3.5 h-3.5 mr-1.5" />
+                    Send
+                  </Button>
+                </div>
+                <p className="text-[10px] text-muted-foreground mt-1">Cmd/Ctrl + Enter to send</p>
               </div>
-            ) : (
-              <div className="p-6 text-center border border-dashed border-border/40 rounded-lg">
-                <MessageSquare className="h-8 w-8 text-muted-foreground/30 mx-auto mb-2" />
-                <p className="text-sm text-muted-foreground">No comments here yet</p>
-              </div>
-            )}
-          </div>
+            </>
+          )}
         </div>
 
-        {/* Right Sidebar - Metadata */}
-        <div className="w-80 flex-shrink-0 space-y-6">
+        {/* Right Sidebar - Buyer Details */}
+        <div className="w-72 flex-shrink-0 overflow-y-auto px-6 py-6 space-y-5">
           {/* Deal Owner */}
           <div className="space-y-2">
             <Label className="text-xs text-muted-foreground uppercase tracking-wider">Owner</Label>
-            <Select 
-              value={deal.assigned_to || 'unassigned'} 
+            <Select
+              value={deal.assigned_to || 'unassigned'}
               onValueChange={handleOwnerChange}
               disabled={adminProfilesLoading || updateDeal.isPending}
             >
@@ -624,9 +260,7 @@ export function PipelineDetailOverview({ deal }: PipelineDetailOverviewProps) {
               <SelectContent>
                 <SelectItem value="unassigned">Unassigned</SelectItem>
                 {allAdminProfiles && Object.values(allAdminProfiles).map((admin) => (
-                  <SelectItem key={admin.id} value={admin.id}>
-                    {admin.displayName}
-                  </SelectItem>
+                  <SelectItem key={admin.id} value={admin.id}>{admin.displayName}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -634,48 +268,63 @@ export function PipelineDetailOverview({ deal }: PipelineDetailOverviewProps) {
 
           <div className="h-px bg-border" />
 
-          {/* Buyer Info */}
+          {/* Contact Info */}
           <div className="space-y-3">
-            <div className="space-y-1">
-              <Label className="text-xs text-muted-foreground uppercase tracking-wider">Contact</Label>
-              <p className="text-sm text-foreground font-medium">{deal.contact_name || 'Unknown'}</p>
-            </div>
+            <Label className="text-xs text-muted-foreground uppercase tracking-wider">Contact</Label>
+            <p className="text-sm text-foreground font-medium">{deal.contact_name || 'Unknown'}</p>
 
+            {(buyerProfile?.linkedin_url || deal.contact_email) && (
+              <div className="space-y-1.5">
+                {buyerProfile?.linkedin_url && (
+                  <a href={buyerProfile.linkedin_url} target="_blank" rel="noopener noreferrer"
+                    className="flex items-center gap-1.5 text-xs text-primary hover:underline">
+                    <Linkedin className="w-3 h-3" />
+                    LinkedIn
+                    <ExternalLink className="w-2.5 h-2.5" />
+                  </a>
+                )}
+                {deal.contact_email && (
+                  <a href={`mailto:${deal.contact_email}`} className="flex items-center gap-1.5 text-xs text-foreground/80 hover:text-foreground">
+                    <Mail className="w-3 h-3 text-muted-foreground" />
+                    <span className="font-mono truncate">{deal.contact_email}</span>
+                  </a>
+                )}
+                {(deal.contact_phone || buyerProfile?.phone) && (
+                  <a href={`tel:${deal.contact_phone || buyerProfile?.phone}`} className="flex items-center gap-1.5 text-xs text-foreground/80 hover:text-foreground">
+                    <Phone className="w-3 h-3 text-muted-foreground" />
+                    <span>{deal.contact_phone || buyerProfile?.phone}</span>
+                  </a>
+                )}
+              </div>
+            )}
+          </div>
+
+          <div className="h-px bg-border" />
+
+          {/* Company */}
+          <div className="space-y-3">
+            <Label className="text-xs text-muted-foreground uppercase tracking-wider">Company</Label>
             {deal.contact_company && (
-              <div className="space-y-1">
-                <Label className="text-xs text-muted-foreground uppercase tracking-wider">Company</Label>
-                <p className="text-sm text-foreground">{deal.contact_company}</p>
+              <div className="flex items-center gap-1.5">
+                <Building2 className="w-3 h-3 text-muted-foreground" />
+                <span className="text-sm text-foreground">{deal.contact_company}</span>
               </div>
             )}
-
-            {deal.contact_email && (
+            {buyerProfile?.website && (
+              <a href={buyerProfile.website.startsWith('http') ? buyerProfile.website : `https://${buyerProfile.website}`}
+                target="_blank" rel="noopener noreferrer"
+                className="flex items-center gap-1.5 text-xs text-primary hover:underline">
+                <Globe className="w-3 h-3" />
+                Website
+                <ExternalLink className="w-2.5 h-2.5" />
+              </a>
+            )}
+            {buyerProfile?.buyer_type && (
               <div className="space-y-1">
-                <Label className="text-xs text-muted-foreground uppercase tracking-wider">Email</Label>
-                <p className="text-sm text-foreground font-mono">{deal.contact_email}</p>
+                <Label className="text-xs text-muted-foreground uppercase tracking-wider">Type</Label>
+                <p className="text-sm text-foreground">{buyerProfile.buyer_type}</p>
               </div>
             )}
-
-            <div className="space-y-1">
-              <Label className="text-xs text-muted-foreground uppercase tracking-wider">Buyer Type</Label>
-              <p className="text-sm text-foreground">
-                {(() => {
-                  switch (deal.buyer_type) {
-                    case 'privateEquity': return 'Private Equity';
-                    case 'familyOffice': return 'Family Office';
-                    case 'searchFund': return 'Search Fund';
-                    case 'corporate': return 'Corporate';
-                    case 'individual': return 'Individual';
-                    case 'independentSponsor': return 'Independent Sponsor';
-                    default: return 'Unknown';
-                  }
-                })()}
-              </p>
-            </div>
-
-            <div className="space-y-1">
-              <Label className="text-xs text-muted-foreground uppercase tracking-wider">Priority Score</Label>
-              <p className="text-sm text-foreground font-mono">{deal.buyer_priority_score || 0}</p>
-            </div>
           </div>
 
           <div className="h-px bg-border" />
@@ -686,59 +335,45 @@ export function PipelineDetailOverview({ deal }: PipelineDetailOverviewProps) {
               <Label className="text-xs text-muted-foreground uppercase tracking-wider">Stage Duration</Label>
               <p className="text-sm text-foreground">{formatDateSafely(deal.deal_stage_entered_at)}</p>
             </div>
-
             <div className="space-y-1">
               <Label className="text-xs text-muted-foreground uppercase tracking-wider">Deal Age</Label>
               <p className="text-sm text-foreground">{formatDateSafely(deal.deal_created_at)}</p>
             </div>
           </div>
 
-          {/* Task Summary */}
-          {deal.total_tasks > 0 && (
-            <>
-              <div className="h-px bg-border" />
-              
-              <div className="space-y-2">
-                <Label className="text-xs text-muted-foreground uppercase tracking-wider">Tasks</Label>
-                <div className="space-y-1.5">
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-muted-foreground">Total</span>
-                    <span className="text-foreground font-medium">{deal.total_tasks}</span>
-                  </div>
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-muted-foreground">Pending</span>
-                    <span className="text-amber-600 font-medium">{deal.pending_tasks}</span>
-                  </div>
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-muted-foreground">Done</span>
-                    <span className="text-emerald-600 font-medium">{deal.completed_tasks}</span>
-                  </div>
-                </div>
-              </div>
-            </>
-          )}
+          <div className="h-px bg-border" />
 
-          {/* Action Required */}
-          {(!deal.followed_up || deal.pending_tasks > 0) && (
+          {/* Follow-up Toggles */}
+          <div className="space-y-3">
+            <Label className="text-xs text-muted-foreground uppercase tracking-wider">Follow-up</Label>
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-foreground">Positive</span>
+              <Switch checked={followedUp} onCheckedChange={(v) => handleFollowupToggle('positive', v)} className="scale-75" />
+            </div>
+            {followedUp && deal.followed_up_at && (
+              <p className="text-[10px] text-muted-foreground">
+                {formatDateSafely(deal.followed_up_at)}
+                {deal.followed_up_by && allAdminProfiles?.[deal.followed_up_by] && ` by ${allAdminProfiles[deal.followed_up_by].displayName}`}
+              </p>
+            )}
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-foreground">Rejection</span>
+              <Switch checked={negativeFollowedUp} onCheckedChange={(v) => handleFollowupToggle('negative', v)} className="scale-75" />
+            </div>
+            {negativeFollowedUp && deal.negative_followed_up_at && (
+              <p className="text-[10px] text-muted-foreground">
+                {formatDateSafely(deal.negative_followed_up_at)}
+                {deal.negative_followed_up_by && allAdminProfiles?.[deal.negative_followed_up_by] && ` by ${allAdminProfiles[deal.negative_followed_up_by].displayName}`}
+              </p>
+            )}
+          </div>
+
+          {deal.deal_score != null && (
             <>
               <div className="h-px bg-border" />
-              
-              <div className="space-y-2">
-                <Label className="text-xs text-muted-foreground uppercase tracking-wider">Action Required</Label>
-                <div className="space-y-1.5">
-                  {!deal.followed_up && (
-                    <div className="flex items-center gap-2 text-sm">
-                      <div className="w-1.5 h-1.5 rounded-full bg-amber-500" />
-                      <span className="text-amber-700">Follow-up pending</span>
-                    </div>
-                  )}
-                  {deal.pending_tasks > 0 && (
-                    <div className="flex items-center gap-2 text-sm">
-                      <div className="w-1.5 h-1.5 rounded-full bg-blue-500" />
-                      <span className="text-blue-700">{deal.pending_tasks} task{deal.pending_tasks > 1 ? 's' : ''}</span>
-                    </div>
-                  )}
-                </div>
+              <div className="space-y-1">
+                <Label className="text-xs text-muted-foreground uppercase tracking-wider">Deal Score</Label>
+                <p className="text-sm text-foreground font-mono">{deal.deal_score}</p>
               </div>
             </>
           )}

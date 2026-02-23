@@ -1838,6 +1838,9 @@ export type Database = {
           approved_at: string | null
           approved_by: string | null
           buyer_priority_score: number | null
+          claimed_at: string | null
+          claimed_by: string | null
+          conversation_state: string | null
           converted_at: string | null
           converted_by: string | null
           created_at: string
@@ -1848,6 +1851,9 @@ export type Database = {
           followed_up_at: string | null
           followed_up_by: string | null
           id: string
+          last_message_at: string | null
+          last_message_preview: string | null
+          last_message_sender_role: string | null
           lead_company: string | null
           lead_email: string | null
           lead_fee_agreement_email_sent: boolean | null
@@ -1888,6 +1894,9 @@ export type Database = {
           approved_at?: string | null
           approved_by?: string | null
           buyer_priority_score?: number | null
+          claimed_at?: string | null
+          claimed_by?: string | null
+          conversation_state?: string | null
           converted_at?: string | null
           converted_by?: string | null
           created_at?: string
@@ -1898,6 +1907,9 @@ export type Database = {
           followed_up_at?: string | null
           followed_up_by?: string | null
           id?: string
+          last_message_at?: string | null
+          last_message_preview?: string | null
+          last_message_sender_role?: string | null
           lead_company?: string | null
           lead_email?: string | null
           lead_fee_agreement_email_sent?: boolean | null
@@ -1938,6 +1950,9 @@ export type Database = {
           approved_at?: string | null
           approved_by?: string | null
           buyer_priority_score?: number | null
+          claimed_at?: string | null
+          claimed_by?: string | null
+          conversation_state?: string | null
           converted_at?: string | null
           converted_by?: string | null
           created_at?: string
@@ -1948,6 +1963,9 @@ export type Database = {
           followed_up_at?: string | null
           followed_up_by?: string | null
           id?: string
+          last_message_at?: string | null
+          last_message_preview?: string | null
+          last_message_sender_role?: string | null
           lead_company?: string | null
           lead_email?: string | null
           lead_fee_agreement_email_sent?: boolean | null
@@ -3454,12 +3472,15 @@ export type Database = {
           created_at: string | null
           created_by: string | null
           duration_minutes: number | null
+          external_participants: Json | null
           extracted_data: Json | null
           extraction_status: string | null
           fireflies_meeting_id: string | null
           fireflies_transcript_id: string | null
+          has_content: boolean | null
           id: string
           listing_id: string
+          match_type: string | null
           meeting_attendees: string[] | null
           participants: Json | null
           processed_at: string | null
@@ -3477,12 +3498,15 @@ export type Database = {
           created_at?: string | null
           created_by?: string | null
           duration_minutes?: number | null
+          external_participants?: Json | null
           extracted_data?: Json | null
           extraction_status?: string | null
           fireflies_meeting_id?: string | null
           fireflies_transcript_id?: string | null
+          has_content?: boolean | null
           id?: string
           listing_id: string
+          match_type?: string | null
           meeting_attendees?: string[] | null
           participants?: Json | null
           processed_at?: string | null
@@ -3500,12 +3524,15 @@ export type Database = {
           created_at?: string | null
           created_by?: string | null
           duration_minutes?: number | null
+          external_participants?: Json | null
           extracted_data?: Json | null
           extraction_status?: string | null
           fireflies_meeting_id?: string | null
           fireflies_transcript_id?: string | null
+          has_content?: boolean | null
           id?: string
           listing_id?: string
+          match_type?: string | null
           meeting_attendees?: string[] | null
           participants?: Json | null
           processed_at?: string | null
@@ -3578,6 +3605,7 @@ export type Database = {
           inbound_lead_id: string | null
           last_enriched_at: string | null
           listing_id: string | null
+          meeting_scheduled: boolean
           nda_status: string | null
           negative_followed_up: boolean | null
           negative_followed_up_at: string | null
@@ -3619,6 +3647,7 @@ export type Database = {
           inbound_lead_id?: string | null
           last_enriched_at?: string | null
           listing_id?: string | null
+          meeting_scheduled?: boolean
           nda_status?: string | null
           negative_followed_up?: boolean | null
           negative_followed_up_at?: string | null
@@ -3660,6 +3689,7 @@ export type Database = {
           inbound_lead_id?: string | null
           last_enriched_at?: string | null
           listing_id?: string | null
+          meeting_scheduled?: boolean
           nda_status?: string | null
           negative_followed_up?: boolean | null
           negative_followed_up_at?: string | null
@@ -9883,6 +9913,15 @@ export type Database = {
         Returns: boolean
       }
       soft_delete_listing: { Args: { listing_id: string }; Returns: boolean }
+      update_agreement_via_user: {
+        Args: {
+          p_action: string
+          p_admin_notes?: string
+          p_agreement_type: string
+          p_user_id: string
+        }
+        Returns: Json
+      }
       update_connection_request_followup: {
         Args: {
           admin_notes?: string
@@ -10116,6 +10155,12 @@ export type Database = {
     }
     Enums: {
       app_role: "owner" | "admin" | "moderator" | "user"
+      conversation_state:
+        | "new"
+        | "waiting_on_buyer"
+        | "waiting_on_admin"
+        | "claimed"
+        | "closed"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -10244,6 +10289,13 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["owner", "admin", "moderator", "user"],
+      conversation_state: [
+        "new",
+        "waiting_on_buyer",
+        "waiting_on_admin",
+        "claimed",
+        "closed",
+      ],
     },
   },
 } as const

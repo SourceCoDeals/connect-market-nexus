@@ -10,13 +10,6 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { 
   ArrowLeft,
   Sparkles,
   Check,
@@ -24,7 +17,7 @@ import {
   DollarSign,
   Briefcase,
   ExternalLink,
-  Loader2,
+  
   Target,
   AlertCircle,
   CheckCircle2,
@@ -49,7 +42,7 @@ import { AddToUniverseQuickAction } from "@/components/remarketing/AddToUniverse
 import { useBackgroundScoringProgress } from "@/hooks/useBackgroundScoringProgress";
 
 type SortOption = 'score' | 'geography' | 'score_geo';
-type FilterTab = 'all' | 'approved' | 'passed' | 'outreach';
+type FilterTab = 'all' | 'approved' | 'interested' | 'passed' | 'outreach';
 
 const ReMarketingDealMatching = () => {
   const { listingId } = useParams<{ listingId: string }>();
@@ -277,25 +270,17 @@ const ReMarketingDealMatching = () => {
     return allScores.filter(s => s.universe_id === selectedUniverse);
   }, [allScores, selectedUniverse]);
 
-  // Compute match counts per universe
-  const universeMatchCounts = useMemo(() => {
-    if (!allScores || !linkedUniverses) return {};
-    const counts: Record<string, number> = {};
-    for (const u of linkedUniverses) {
-      counts[u.id] = allScores.filter(s => s.universe_id === u.id).length;
-    }
-    return counts;
-  }, [allScores, linkedUniverses]);
 
   // Compute stats including primary disqualification reason (aligned with spec v2 tiers)
   const stats = useMemo(() => {
-    if (!scores) return { qualified: 0, disqualified: 0, strong: 0, approved: 0, passed: 0, total: 0, disqualificationReason: '' };
+    if (!scores) return { qualified: 0, disqualified: 0, strong: 0, approved: 0, interested: 0, passed: 0, total: 0, disqualificationReason: '' };
 
     const qualified = scores.filter(s => !s.is_disqualified && s.composite_score >= 50 && s.status !== 'passed').length;
     const disqualifiedScores = scores.filter(s => s.is_disqualified || s.composite_score < 35);
     const disqualified = disqualifiedScores.length;
     const strong = scores.filter(s => s.composite_score >= 80).length;
     const approved = scores.filter(s => s.status === 'approved').length;
+    const interested = scores.filter(s => s.status === 'interested').length;
     const passed = scores.filter(s => s.status === 'passed').length;
     
     // Compute most common disqualification reason using score-based detection
@@ -327,7 +312,7 @@ const ReMarketingDealMatching = () => {
     const reasonCounts = reasons.reduce((acc, r) => ({ ...acc, [r]: (acc[r] || 0) + 1 }), {} as Record<string, number>);
     const topReason = Object.entries(reasonCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || '';
 
-    return { qualified, disqualified, strong, approved, passed, total: scores.length, disqualificationReason: topReason };
+    return { qualified, disqualified, strong, approved, interested, passed, total: scores.length, disqualificationReason: topReason };
   }, [scores]);
 
   // Get active outreach score IDs
@@ -350,6 +335,8 @@ const ReMarketingDealMatching = () => {
     // Apply tab filter
     if (activeTab === 'approved') {
       filtered = filtered.filter(s => s.status === 'approved');
+    } else if (activeTab === 'interested') {
+      filtered = filtered.filter(s => s.status === 'interested');
     } else if (activeTab === 'passed') {
       filtered = filtered.filter(s => s.status === 'passed');
     } else if (activeTab === 'outreach') {
@@ -513,7 +500,7 @@ const ReMarketingDealMatching = () => {
       queryClient.invalidateQueries({ queryKey: ['remarketing', 'scores', listingId] });
       refetchOutreach();
       setSelectedIds(new Set());
-      toast.success(`Approved ${selectedIds.size} buyers — outreach tracking started`);
+      toast.success(`Approved ${selectedIds.size} buyers as fit — outreach tracking started`);
     },
     onError: () => {
       toast.error('Failed to bulk approve');
@@ -608,15 +595,41 @@ const ReMarketingDealMatching = () => {
     }
   };
 
-  // Handle toggle interested (approve/revert to pending)
-  const handleToggleInterested = async (scoreId: string, interested: boolean, scoreData?: any) => {
-    if (interested) {
+  // Handle toggle approved (approve/revert to pending)
+  const handleToggleApproved = async (scoreId: string, approved: boolean, scoreData?: any) => {
+    if (approved) {
       // Toggling ON → approve
       await handleApprove(scoreId, scoreData);
     } else {
       // Toggling OFF → revert to pending
       await updateScoreMutation.mutateAsync({ id: scoreId, status: 'pending', scoreData });
       toast.success('Reverted to pending');
+    }
+  };
+
+  // Handle "Mark Interested" — updates status to 'interested' and auto-creates pipeline deal
+  const handleMarkInterested = async (scoreId: string, buyerId: string, targetListingId: string) => {
+    try {
+      // 1. Update score status to interested
+      const { error: updateError } = await supabase
+        .from('remarketing_scores')
+        .update({ 
+          status: 'interested', 
+          interested: true, 
+          interested_at: new Date().toISOString() 
+        })
+        .eq('id', scoreId);
+      
+      if (updateError) throw updateError;
+
+      // 2. Auto-create pipeline deal
+      await handleMoveToPipeline(scoreId, buyerId, targetListingId);
+
+      // 3. Refresh scores
+      queryClient.invalidateQueries({ queryKey: ['remarketing', 'scores', listingId] });
+    } catch (err: any) {
+      console.error('Failed to mark interested:', err);
+      toast.error(err?.message || 'Failed to mark buyer as interested');
     }
   };
 
@@ -637,9 +650,7 @@ const ReMarketingDealMatching = () => {
 
       if (error) {
         console.error('Failed to auto-create outreach:', error);
-      } else {
-        refetchOutreach();
-        toast.success('Buyer approved - outreach tracking started');
+        toast.success('Buyer approved as fit — outreach tracking started');
       }
     } catch (error) {
       console.error('Failed to auto-create outreach:', error);
@@ -908,7 +919,7 @@ const ReMarketingDealMatching = () => {
               <MapPin className="h-4 w-4 text-muted-foreground" />
               <div>
                 <p className="text-muted-foreground">Location</p>
-                <p className="font-medium">{listing.location || '—'}</p>
+                <p className="font-medium">{listing.location || (listing.address_city && listing.address_state ? `${listing.address_city}, ${listing.address_state}` : listing.address_state || listing.address_city || '—')}</p>
               </div>
             </div>
             <div className="flex items-center gap-2">
@@ -935,6 +946,7 @@ const ReMarketingDealMatching = () => {
         onExportCSV={handleExportCSV}
         onGenerateEmails={() => setEmailDialogOpen(true)}
         isProcessing={bulkApproveMutation.isPending}
+        activeTab={activeTab}
       />
 
       {/* Two-Column Stats Row */}
@@ -959,6 +971,12 @@ const ReMarketingDealMatching = () => {
                 <Check className="h-4 w-4" />
                 <span>{stats.approved} approved</span>
               </div>
+              {stats.interested > 0 && (
+                <div className="flex items-center gap-2 text-sm text-blue-600">
+                  <Check className="h-4 w-4" />
+                  <span>{stats.interested} interested</span>
+                </div>
+              )}
               <div className="flex items-center gap-2 pt-2 border-t border-amber-200">
                 <Switch
                   id="hide-disqualified"
@@ -1022,7 +1040,7 @@ const ReMarketingDealMatching = () => {
         const missingFields: string[] = [];
         if (!listing.revenue) missingFields.push('Revenue');
         if (!listing.ebitda) missingFields.push('EBITDA');
-        if (!listing.location?.trim()) missingFields.push('Location');
+        if (!listing.location?.trim() && !listing.address_city?.trim() && !listing.address_state?.trim() && !((listing.geographic_states?.length ?? 0) > 0)) missingFields.push('Location');
         if (!((listing.services?.length ?? 0) > 0 || (listing.categories?.length ?? 0) > 0 || listing.category?.trim())) missingFields.push('Services/Category');
         if (!(listing.hero_description?.trim() || listing.description?.trim() || listing.executive_summary?.trim())) missingFields.push('Description');
 
@@ -1046,56 +1064,17 @@ const ReMarketingDealMatching = () => {
         );
       })()}
 
-      {/* Universe Filter & Scoring Controls */}
-      <Card>
-        <CardContent className="pt-6">
-          <div className="flex items-center gap-4 flex-wrap">
-            {/* Universe Filter Dropdown */}
-            <div className="flex-1 min-w-[250px]">
-              <Select value={selectedUniverse} onValueChange={setSelectedUniverse}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select a universe" />
-                </SelectTrigger>
-                <SelectContent>
-                  {linkedUniverses?.map((universe) => (
-                    <SelectItem key={universe.id} value={universe.id}>
-                      {universe.name} ({universeMatchCounts[universe.id] || 0} matches)
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            
-            <Button 
-              onClick={() => handleBulkScore()}
-              disabled={!selectedUniverse || selectedUniverse === 'all' || isScoring}
-            >
-              {isScoring ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Scoring...
-                </>
-              ) : (
-                <>
-                  <Sparkles className="mr-2 h-4 w-4" />
-                  Score Buyers
-                </>
-              )}
-            </Button>
-          </div>
-          
-          {(isScoring || backgroundScoring.isScoring) && (
-            <div className="mt-4">
-              <ScoringProgressIndicator
-                currentCount={backgroundScoring.currentCount || Math.round(scoringProgress / 10)}
-                expectedCount={backgroundScoring.expectedCount || 10}
-                progress={backgroundScoring.progress || scoringProgress}
-                universeName={linkedUniverses?.find(u => u.id === selectedUniverse)?.name}
-              />
-            </div>
-          )}
-        </CardContent>
-      </Card>
+      {/* Scoring Controls (no card wrapper) */}
+      {(isScoring || backgroundScoring.isScoring) && (
+        <div>
+          <ScoringProgressIndicator
+            currentCount={backgroundScoring.currentCount || Math.round(scoringProgress / 10)}
+            expectedCount={backgroundScoring.expectedCount || 10}
+            progress={backgroundScoring.progress || scoringProgress}
+            universeName={linkedUniverses?.find(u => u.id === selectedUniverse)?.name}
+          />
+        </div>
+      )}
 
       {/* Search, Tabs & Sort Controls */}
       {scores && scores.length > 0 && (
@@ -1121,8 +1100,11 @@ const ReMarketingDealMatching = () => {
                 <TabsTrigger value="approved">
                   Approved ({stats.approved})
                 </TabsTrigger>
+                <TabsTrigger value="interested">
+                  Interested ({stats.interested})
+                </TabsTrigger>
                 <TabsTrigger value="passed">
-                  Passed ({stats.passed})
+                  Not Interested ({stats.passed})
                 </TabsTrigger>
                 <TabsTrigger value="outreach">
                   <Mail className="h-3.5 w-3.5 mr-1" />
@@ -1217,13 +1199,14 @@ const ReMarketingDealMatching = () => {
                 <BuyerMatchCard
                   key={score.id}
                   score={score}
-                  dealLocation={listing.location ?? undefined}
+                  dealLocation={listing.location || (listing.address_city && listing.address_state ? `${listing.address_city}, ${listing.address_state}` : listing.address_state || listing.address_city) || undefined}
                   isSelected={selectedIds.has(score.id)}
                   isHighlighted={highlightedBuyerIds.includes(score.buyer?.id || '')}
                   onSelect={handleSelect}
                   onApprove={handleApprove}
                   onPass={handleOpenPassDialog}
-                  onToggleInterested={handleToggleInterested}
+                  onToggleInterested={handleToggleApproved}
+                  onMarkInterested={handleMarkInterested}
                   onOutreachUpdate={handleOutreachUpdate}
                   onViewed={handleScoreViewed}
                   onMoveToPipeline={handleMoveToPipeline}

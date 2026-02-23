@@ -216,3 +216,5 @@ verify_jwt = true
 verify_jwt = false
 [functions.get-buyer-nda-embed]
 verify_jwt = false
+[functions.send-fee-agreement-reminder]
+verify_jwt = false

@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Mail, CheckCircle, Clock, LogOut, Loader2, Info, RefreshCw, Shield } from 'lucide-react';
+import { Mail, CheckCircle, Clock, LogOut, Loader2, Info, RefreshCw, Shield, XCircle } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
@@ -16,6 +16,7 @@ const PendingApproval = () => {
   const [isResending, setIsResending] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [isCheckingStatus, setIsCheckingStatus] = useState(false);
+  const [_isAutoPolling] = useState(true);
   const [ndaEmbedSrc, setNdaEmbedSrc] = useState<string | null>(null);
   const [ndaLoading, setNdaLoading] = useState(false);
   const [ndaError, setNdaError] = useState<string | null>(null);
@@ -52,6 +53,15 @@ const PendingApproval = () => {
 
     fetchNdaEmbed();
   }, [user, ndaStatus, ndaEmbedSrc, ndaLoading]);
+
+  // Auto-poll approval status every 30s
+  useEffect(() => {
+    if (!_isAutoPolling || user?.approval_status === 'approved' || user?.approval_status === 'rejected') return;
+    const interval = setInterval(() => {
+      refreshUserProfile().catch(() => {});
+    }, 30000);
+    return () => clearInterval(interval);
+  }, [_isAutoPolling, user?.approval_status, refreshUserProfile]);
 
   // Handle navigation for approved users (skip redirect if NDA signing is pending)
   useEffect(() => {
@@ -92,7 +102,7 @@ const PendingApproval = () => {
         type: 'signup',
         email: user.email,
         options: {
-          emailRedirectTo: `https://marketplace.sourcecodeals.com/pending-approval`
+          emailRedirectTo: `${window.location.origin}/pending-approval`
         }
       });
 
@@ -156,7 +166,9 @@ const PendingApproval = () => {
   };
 
   const getUIState = () => {
-    if (user?.email_verified) {
+    if (user?.approval_status === 'rejected') {
+      return 'rejected';
+    } else if (user?.email_verified) {
       return 'approved_pending';
     } else {
       return 'email_not_verified';
@@ -186,8 +198,13 @@ const PendingApproval = () => {
         <Card>
           <CardHeader className="space-y-1">
             <div className="flex justify-center mb-4">
-              <div className={`p-3 rounded-full ${uiState === 'approved_pending' ? 'bg-green-100' : 'bg-primary/10'}`}>
-                {uiState === 'approved_pending' ? (
+              <div className={`p-3 rounded-full ${
+                uiState === 'rejected' ? 'bg-destructive/10' :
+                uiState === 'approved_pending' ? 'bg-green-100' : 'bg-primary/10'
+              }`}>
+                {uiState === 'rejected' ? (
+                  <XCircle className="h-8 w-8 text-destructive" />
+                ) : uiState === 'approved_pending' ? (
                   <CheckCircle className="h-8 w-8 text-green-600" />
                 ) : (
                   <Mail className="h-8 w-8 text-primary" />
@@ -195,17 +212,44 @@ const PendingApproval = () => {
               </div>
             </div>
             <CardTitle className="text-2xl font-bold text-center">
-              {uiState === 'approved_pending' ? 'Account Under Review' : 'Email Verification Required'}
+              {uiState === 'rejected' ? 'Application Not Approved' :
+               uiState === 'approved_pending' ? 'Account Under Review' : 'Email Verification Required'}
             </CardTitle>
             <CardDescription className="text-center">
-              {uiState === 'approved_pending' 
-                ? 'Your account is pending admin approval'
-                : `We've sent a verification email to ${user.email}`
+              {uiState === 'rejected'
+                ? 'Unfortunately, your application was not approved at this time'
+                : uiState === 'approved_pending' 
+                  ? 'Your account is pending admin approval'
+                  : `We've sent a verification email to ${user.email}`
               }
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            {uiState === 'approved_pending' ? (
+          {uiState === 'rejected' ? (
+              <>
+                <div className="bg-destructive/10 border border-destructive/20 rounded-md p-4">
+                  <div className="flex gap-3 items-center">
+                    <XCircle className="h-5 w-5 text-destructive flex-shrink-0" />
+                    <p className="text-sm text-destructive">
+                      Your application did not meet our current criteria. If you believe this was in error, please reach out to our team.
+                    </p>
+                  </div>
+                </div>
+                <div className="bg-muted/50 border border-border rounded-md p-4">
+                  <div className="flex gap-3 items-start">
+                    <Info className="h-5 w-5 text-muted-foreground flex-shrink-0 mt-0.5" />
+                    <div>
+                      <p className="text-sm font-medium">What can you do?</p>
+                      <ul className="text-xs text-muted-foreground mt-2 space-y-1 list-disc list-inside">
+                        <li>Contact our team for more details about the decision</li>
+                        <li>Update your profile and reapply in the future</li>
+                        <li>Reach out if your circumstances have changed</li>
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+              </>
+            ) : uiState === 'approved_pending' ? (
               <>
                 <div className="bg-amber-50 border border-amber-200 rounded-md p-4">
                   <div className="flex gap-3 items-center">
@@ -347,9 +391,11 @@ const PendingApproval = () => {
             )}
             
             <div className="text-sm text-center text-muted-foreground">
-              {uiState === 'approved_pending'
-                ? 'You will not be able to access the marketplace until your account has been approved. This process typically takes 1-2 business days.'
-                : 'After verification, our team will review your application. This typically takes 1-2 business days.'
+              {uiState === 'rejected'
+                ? 'You can create a new account or contact our team to discuss your options.'
+                : uiState === 'approved_pending'
+                  ? 'You will not be able to access the marketplace until your account has been approved. This process typically takes 1-2 business days.'
+                  : 'After verification, our team will review your application. This typically takes 1-2 business days.'
               }
             </div>
           </CardContent>

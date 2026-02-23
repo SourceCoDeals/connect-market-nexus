@@ -4,8 +4,6 @@ import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Switch } from "@/components/ui/switch";
-import { Label } from "@/components/ui/label";
 import {
   Tooltip,
   TooltipContent,
@@ -32,6 +30,8 @@ import {
   Mail,
   Calendar,
   ArrowRightCircle,
+  Phone,
+  Linkedin,
 } from "lucide-react";
 import { IntelligenceBadge } from "./IntelligenceBadge";
 import { OutreachStatusDialog, type OutreachStatus } from "./OutreachStatusDialog";
@@ -76,6 +76,7 @@ interface BuyerMatchCardProps {
   onApprove: (scoreId: string, scoreData: any) => void;
   onPass: (scoreId: string, buyerName: string, scoreData: any) => void;
   onToggleInterested?: (scoreId: string, interested: boolean, scoreData: any) => void;
+  onMarkInterested?: (scoreId: string, buyerId: string, listingId: string) => Promise<void>;
   onOutreachUpdate?: (scoreId: string, status: OutreachStatus, notes: string) => Promise<void>;
   onViewed?: (scoreId: string) => void;
   onMoveToPipeline?: (scoreId: string, buyerId: string, listingId: string) => Promise<void>;
@@ -266,12 +267,13 @@ export const BuyerMatchCard = ({
   isSelected = false,
   isHighlighted = false,
   onSelect,
-  onApprove,
-  onPass,
-  onToggleInterested,
+  onApprove: _onApprove,
+  onPass: _onPass,
+  onToggleInterested: _onToggleInterested,
+  onMarkInterested,
   onOutreachUpdate,
   onViewed,
-  onMoveToPipeline,
+  onMoveToPipeline: _onMoveToPipeline,
   outreach,
   isPending = false,
   universeName,
@@ -559,39 +561,14 @@ export const BuyerMatchCard = ({
           </div>
         </div>
         
-        {/* Action Buttons - Interested Toggle + Pass */}
+        {/* Action Buttons */}
         <div className="flex items-center justify-between mt-2">
-          {/* Left: Interested Toggle */}
+          {/* Left: Status */}
           <div className="flex items-center gap-3">
-            {score.status !== 'passed' ? (
-              <div className="flex items-center gap-2">
-                <Switch
-                  id={`interested-${score.id}`}
-                  checked={score.status === 'approved'}
-                  onCheckedChange={(checked) => {
-                    if (onToggleInterested) {
-                      onToggleInterested(score.id, checked, score);
-                    } else if (checked) {
-                      onApprove(score.id, score);
-                    }
-                  }}
-                  disabled={isPending}
-                  className="data-[state=checked]:bg-emerald-600"
-                />
-                <Label
-                  htmlFor={`interested-${score.id}`}
-                  className={cn(
-                    "text-sm font-medium cursor-pointer",
-                    score.status === 'approved' ? "text-emerald-700" : "text-muted-foreground"
-                  )}
-                >
-                  {score.status === 'approved' ? 'Interested' : 'Not Interested'}
-                </Label>
-              </div>
-            ) : (
+            {score.status === 'passed' && (
               <Badge variant="outline" className="text-muted-foreground">
                 <X className="h-3 w-3 mr-1" />
-                Not Interested
+                Passed
                 {score.pass_reason && ` - ${score.pass_category}`}
               </Badge>
             )}
@@ -624,42 +601,47 @@ export const BuyerMatchCard = ({
                     {outreach ? 'Update' : 'Track'}
                   </Button>
                 )}
-                {/* Move to Pipeline / In Pipeline */}
-                {pipelineDealId ? (
+                {/* Mark Interested Button - triggers pipeline conversion */}
+                {onMarkInterested && listingId && score.buyer?.id && !pipelineDealId && (
+                  <Button
+                    size="sm"
+                    className="h-7 px-2 text-xs bg-blue-600 hover:bg-blue-700 text-white"
+                    onClick={() => onMarkInterested(score.id, score.buyer!.id, listingId)}
+                    disabled={isPending}
+                  >
+                    <ArrowRightCircle className="h-3 w-3 mr-1" />
+                    Mark Interested
+                  </Button>
+                )}
+                {/* Already in Pipeline */}
+                {pipelineDealId && (
                   <Link to={`/admin/deals/pipeline?deal=${pipelineDealId}`}>
                     <Badge className="bg-blue-100 text-blue-700 border-blue-200 cursor-pointer hover:bg-blue-200">
                       <ArrowRightCircle className="h-3 w-3 mr-1" />
                       In Pipeline
                     </Badge>
                   </Link>
-                ) : onMoveToPipeline && listingId && score.buyer?.id ? (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="h-7 px-2 text-xs text-blue-600 border-blue-200 hover:bg-blue-50"
-                    onClick={() => onMoveToPipeline(score.id, score.buyer!.id, listingId)}
-                    disabled={isPending}
-                  >
-                    <ArrowRightCircle className="h-3 w-3 mr-1" />
-                    Move to Pipeline
-                  </Button>
+                )}
+              </>
+            )}
+
+            {score.status === 'interested' && (
+              <>
+                <Badge className="bg-blue-100 text-blue-700 border-blue-200">
+                  <Check className="h-3 w-3 mr-1" />
+                  Interested
+                </Badge>
+                {pipelineDealId ? (
+                  <Link to={`/admin/deals/pipeline?deal=${pipelineDealId}`}>
+                    <Badge className="bg-blue-100 text-blue-700 border-blue-200 cursor-pointer hover:bg-blue-200">
+                      <ArrowRightCircle className="h-3 w-3 mr-1" />
+                      View in Pipeline
+                    </Badge>
+                  </Link>
                 ) : null}
               </>
             )}
 
-            {/* Pass button - available for pending/approved, not for already passed */}
-            {score.status !== 'passed' && (
-              <Button
-                size="sm"
-                variant="outline"
-                className="text-red-600 border-red-200 hover:bg-red-50"
-                onClick={() => onPass(score.id, buyer?.company_name || 'Unknown', score)}
-                disabled={isPending}
-              >
-                <X className="mr-1 h-3.5 w-3.5" />
-                Pass
-              </Button>
-            )}
           </div>
         </div>
       </div>
@@ -759,8 +741,45 @@ export const BuyerMatchCard = ({
         {/* Expandable Thesis */}
         <Collapsible open={isExpanded} onOpenChange={handleExpand}>
           <CollapsibleContent className="pt-4">
+            {(() => {
+              const primaryContact = buyer?.contacts?.find((c: any) => c.is_primary_contact || c.is_primary) || buyer?.contacts?.[0];
+              if (!primaryContact) return null;
+              return (
+                <div className="border-t pt-3 pb-1">
+                  <p className="text-xs font-medium text-muted-foreground mb-1.5">Primary Contact</p>
+                  <div className="space-y-1">
+                    <p className="text-sm font-medium">
+                      {primaryContact.name}
+                      {primaryContact.role && (
+                        <span className="text-muted-foreground font-normal"> · {primaryContact.role}</span>
+                      )}
+                    </p>
+                    <div className="flex flex-wrap items-center gap-3">
+                      {primaryContact.email && (
+                        <a href={`mailto:${primaryContact.email}`} className="inline-flex items-center gap-1 text-xs text-primary hover:underline">
+                          <Mail className="h-3 w-3" />
+                          {primaryContact.email}
+                        </a>
+                      )}
+                      {primaryContact.phone && (
+                        <a href={`tel:${primaryContact.phone}`} className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:underline">
+                          <Phone className="h-3 w-3" />
+                          {primaryContact.phone}
+                        </a>
+                      )}
+                      {primaryContact.linkedin_url && (
+                        <a href={primaryContact.linkedin_url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-xs text-primary hover:underline">
+                          <Linkedin className="h-3 w-3" />
+                          LinkedIn
+                        </a>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
             {buyer?.thesis_summary && (
-              <div className="border-t pt-4">
+              <div className="border-t pt-3">
                 <p className="text-xs font-medium text-muted-foreground mb-2">Investment Thesis</p>
                 <p className="text-sm italic text-muted-foreground">
                   "{buyer.thesis_summary}"
