@@ -5,8 +5,25 @@
 --
 -- PostgreSQL 10+ supports ALTER TYPE ... RENAME VALUE.
 
--- 1. Rename the enum value (no data update needed — existing rows update automatically)
-ALTER TYPE public.app_role RENAME VALUE 'user' TO 'viewer';
+-- 1. Rename the enum value only if 'user' still exists (idempotent).
+--    If 'viewer' already exists, the rename was already applied — skip it.
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM pg_enum
+    WHERE enumlabel = 'user'
+      AND enumtypid = 'public.app_role'::regtype
+  ) THEN
+    ALTER TYPE public.app_role RENAME VALUE 'user' TO 'viewer';
+  ELSIF NOT EXISTS (
+    SELECT 1 FROM pg_enum
+    WHERE enumlabel = 'viewer'
+      AND enumtypid = 'public.app_role'::regtype
+  ) THEN
+    -- Neither 'user' nor 'viewer' exist — add 'viewer' as a new value
+    ALTER TYPE public.app_role ADD VALUE 'viewer';
+  END IF;
+END $$;
 
 -- 2. Update change_user_role() — the version from 20260224100000 references 'user'
 --    in the admin-can-only-assign check. Replace with 'viewer'.
