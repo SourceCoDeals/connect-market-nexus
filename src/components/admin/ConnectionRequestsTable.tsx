@@ -522,19 +522,19 @@ function ReactiveRequestCard({
                        {request.user?.email || request.lead_email}
                        <ExternalLink className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity" />
                      </a>
-                     {(request.user?.website || request.lead_company) && (
-                       <span className="text-muted-foreground/60">•</span>
-                     )}
-                     {request.user?.website && (
-                       <a
-                         href={processUrl(request.user.website)}
-                         target="_blank"
-                         rel="noopener noreferrer"
-                         className="text-primary hover:text-primary/80 transition-colors text-xs"
-                        >
-                          {request.user?.company || 'Company'}
-                        </a>
-                     )}
+                      {request.user?.website && (
+                        <>
+                          <span className="text-muted-foreground/60">•</span>
+                          <a
+                            href={processUrl(request.user.website)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-primary hover:text-primary/80 transition-colors text-sm"
+                          >
+                            {request.user?.company || 'Website'}
+                          </a>
+                        </>
+                      )}
                       {!request.user?.website && request.lead_company && (
                         <a
                           href={extractDomainFromEmail(request.lead_email)}
