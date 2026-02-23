@@ -376,11 +376,14 @@ CRITICAL ANONYMITY RULES:
 - Financial data as ranges only (e.g., "$8M-$10M revenue")
 - Services described generically without identifying the specific company
 
-REQUIRED SECTIONS (follow this exact structure):
-1. key: "company_overview" / title: "Company Overview" — 2-3 paragraphs. What the company does, where it operates (region only), years in operation, employee count range. Factual narrative, not a sales pitch.
-2. key: "financial_overview" / title: "Financial Overview" — Revenue range, EBITDA range, margin range. Present as a table. Brief narrative context.
-3. key: "services_operations" / title: "Services & Operations" — What they do in detail (generic terms). Service line mix, operational footprint, certifications.
-4. key: "transaction_overview" / title: "Transaction Overview" — What the owner is looking for: full sale, recap, partner. Timeline. No names.` : `MEMO TYPE: Full Lead Memo (confidential, post-NDA)
+REQUIRED SECTIONS (follow this exact structure — be EXHAUSTIVE with detail, this is a comprehensive investment document, NOT a short summary):
+1. key: "company_overview" / title: "Company Overview" — 3-5 paragraphs. Detailed description of what the company does, where it operates (region only), years in operation, employee count range, market positioning, competitive advantages, customer base demographics (without names). Be specific about the business model and value proposition.
+2. key: "financial_overview" / title: "Financial Overview" — Revenue range, EBITDA range, margin range for available years. Present as a table with brief narrative. Include revenue trends, growth trajectory, margin evolution, revenue concentration risk, recurring vs project revenue split if available. Add context about profitability drivers and working capital characteristics.
+3. key: "services_operations" / title: "Services & Operations" — 2-4 paragraphs. Detailed service lines using generic terms, revenue mix by service line, operational footprint, certifications, licenses, technology stack, equipment, facilities (owned vs leased without addresses). Include capacity utilization, seasonal patterns, and operational differentiators.
+4. key: "employees_workforce" / title: "Employees & Workforce" — Total headcount range, breakdown by function (field, office, management), key management depth and tenure ranges, compensation structure, training/certification programs, retention characteristics. No individual names.
+5. key: "growth_opportunities" / title: "Growth Opportunities" — 2-3 paragraphs. Organic expansion opportunities, geographic expansion potential, service line additions, cross-sell opportunities, technology-driven efficiencies. Be specific about actionable initiatives.
+6. key: "key_risks" / title: "Key Considerations" — Known risks, customer concentration, key-person dependency, regulatory factors, competitive dynamics, capital requirements. Present balanced assessment.
+7. key: "transaction_overview" / title: "Transaction Overview" — What the owner is looking for: full sale, recap, growth partner. Timeline. Ideal buyer profile. Transition willingness and period. No names.` : `MEMO TYPE: Full Lead Memo (confidential, post-NDA)
 
 Include all identifying information: company name, owner, address, website, contact details. Use exact financial figures.
 
