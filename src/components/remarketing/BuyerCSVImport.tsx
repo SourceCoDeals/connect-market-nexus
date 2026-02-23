@@ -669,7 +669,7 @@ export const BuyerCSVImport = ({ universeId, onComplete, open: controlledOpen, o
             <Badge variant={step === 'importing' || step === 'enriching' ? 'default' : 'outline'}>4. Import</Badge>
           </div>
 
-          <ScrollArea className="flex-1 pr-4">
+          <ScrollArea className="flex-1 min-h-0 pr-4">
             {step === 'upload' && (
               <div className="py-8">
                 <label className="flex flex-col items-center justify-center w-full h-48 border-2 border-dashed rounded-lg cursor-pointer hover:bg-muted/50 transition-colors">
