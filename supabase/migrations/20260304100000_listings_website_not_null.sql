@@ -28,6 +28,14 @@ WHERE website IS NULL;
 -- Step 3: Add NOT NULL constraint
 ALTER TABLE public.listings ALTER COLUMN website SET NOT NULL;
 
--- Step 4: Add CHECK constraint to prevent empty strings
-ALTER TABLE public.listings ADD CONSTRAINT chk_listings_website_not_empty
-  CHECK (TRIM(website) != '');
+-- Step 4: Add CHECK constraint to prevent empty strings (idempotent)
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'chk_listings_website_not_empty'
+  ) THEN
+    ALTER TABLE public.listings ADD CONSTRAINT chk_listings_website_not_empty
+      CHECK (TRIM(website) != '');
+  END IF;
+END;
+$$;
