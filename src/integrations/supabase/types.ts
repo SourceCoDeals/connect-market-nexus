@@ -4570,42 +4570,42 @@ export type Database = {
           {
             foreignKeyName: "enrichment_queue_listing_id_fkey"
             columns: ["listing_id"]
-            isOneToOne: false
+            isOneToOne: true
             referencedRelation: "linkedin_manual_review_queue"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "enrichment_queue_listing_id_fkey"
             columns: ["listing_id"]
-            isOneToOne: false
+            isOneToOne: true
             referencedRelation: "listings"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "enrichment_queue_listing_id_fkey"
             columns: ["listing_id"]
-            isOneToOne: false
+            isOneToOne: true
             referencedRelation: "listings_needing_enrichment"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "enrichment_queue_listing_id_fkey"
             columns: ["listing_id"]
-            isOneToOne: false
+            isOneToOne: true
             referencedRelation: "marketplace_listings"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "enrichment_queue_listing_id_fkey"
             columns: ["listing_id"]
-            isOneToOne: false
+            isOneToOne: true
             referencedRelation: "ranked_deals"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "enrichment_queue_listing_id_fkey"
             columns: ["listing_id"]
-            isOneToOne: false
+            isOneToOne: true
             referencedRelation: "unmapped_primary_owners"
             referencedColumns: ["id"]
           },
