@@ -252,22 +252,22 @@ export function ConnectionRequestActions({
     <div className="space-y-5">
       {/* ── DECISION BANNER ── */}
        {requestStatus === "pending" && requestId && (
-        <div className="bg-primary rounded-xl overflow-hidden shadow-md">
+        <div className="bg-sourceco-muted rounded-xl overflow-hidden shadow-md border border-sourceco/30">
           <div className="px-6 py-5 flex items-center justify-between gap-6">
             <div className="flex items-center gap-4 min-w-0">
               <div className="w-12 h-12 rounded-xl bg-sourceco/20 flex items-center justify-center shrink-0">
                 <Scale className="h-6 w-6 text-sourceco" />
               </div>
               <div>
-                <p className="text-lg font-extrabold text-primary-foreground tracking-tight">Decision Required</p>
-                <p className="text-sm text-primary-foreground/70">Review this connection request — only approved requests advance to the active pipeline</p>
+                <p className="text-lg font-extrabold text-foreground tracking-tight">Decision Required</p>
+                <p className="text-sm text-muted-foreground">Review this connection request — only approved requests advance to the active pipeline</p>
               </div>
             </div>
             <div className="flex items-center gap-3 shrink-0">
               <Button
                 onClick={handleAccept}
                 disabled={updateStatus.isPending}
-                className="bg-sourceco text-primary font-bold shadow-sm hover:bg-sourceco/90 h-10 px-5 text-sm"
+                className="bg-sourceco text-foreground font-bold shadow-sm hover:bg-sourceco/90 h-10 px-5 text-sm"
               >
                 <CheckCircle className="h-4 w-4 mr-1.5" />
                 Accept Request
@@ -276,12 +276,12 @@ export function ConnectionRequestActions({
                 variant="outline"
                 onClick={() => setShowRejectDialog(true)}
                 disabled={updateStatus.isPending}
-                className="border-primary-foreground/30 text-primary-foreground bg-transparent hover:bg-primary-foreground/10 h-10 px-5 text-sm"
+                className="border-foreground/20 text-foreground bg-transparent hover:bg-foreground/5 h-10 px-5 text-sm"
               >
                 <XCircle className="h-4 w-4 mr-1.5" />
                 Decline
               </Button>
-              <span className="text-xs font-semibold uppercase tracking-wider text-primary-foreground/60 bg-primary-foreground/10 rounded-full px-4 py-1.5">
+              <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground bg-foreground/5 rounded-full px-4 py-1.5">
                 Awaiting Action
               </span>
             </div>
