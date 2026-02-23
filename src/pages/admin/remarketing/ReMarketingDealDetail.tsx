@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { MemosTab } from "@/components/admin/data-room/MemosTab";
 import { DocumentsPanel } from "@/components/admin/data-room/DocumentsPanel";
 import { AccessMatrixPanel } from "@/components/admin/data-room/AccessMatrixPanel";
@@ -165,6 +165,39 @@ const ReMarketingDealDetail = () => {
     },
     enabled: !!dealId
   });
+
+  // Derive all contact emails from deal + transcripts for multi-email Fireflies search
+  const allContactEmails = useMemo(() => {
+    const INTERNAL_DOMAINS = ['sourcecodeals.com', 'captarget.com'];
+    const emailSet = new Set<string>();
+
+    // Primary contact email
+    if (deal?.main_contact_email) {
+      emailSet.add(deal.main_contact_email.toLowerCase());
+    }
+
+    // Extract unique emails from transcript meeting_attendees that share the same domain
+    const primaryDomain = deal?.main_contact_email?.split('@')[1]?.toLowerCase();
+
+    if (transcripts && primaryDomain) {
+      for (const t of transcripts) {
+        const attendees = (t as any).meeting_attendees;
+        if (Array.isArray(attendees)) {
+          for (const email of attendees) {
+            if (typeof email === 'string' && email.includes('@')) {
+              const domain = email.split('@')[1]?.toLowerCase();
+              // Include if same domain as primary contact and not internal
+              if (domain === primaryDomain && !INTERNAL_DOMAINS.some(d => domain === d)) {
+                emailSet.add(email.toLowerCase());
+              }
+            }
+          }
+        }
+      }
+    }
+
+    return Array.from(emailSet);
+  }, [deal?.main_contact_email, transcripts]);
 
   // Mutation to update deal fields
   const updateDealMutation = useMutation({
@@ -1257,6 +1290,7 @@ const ReMarketingDealDetail = () => {
           main_contact_email: deal.main_contact_email ?? undefined,
         }}
         contactEmail={deal.main_contact_email ?? null}
+        contactEmails={allContactEmails}
         contactName={deal.main_contact_name ?? null}
         companyName={deal.internal_company_name || deal.title || ''}
         onSyncComplete={() => {

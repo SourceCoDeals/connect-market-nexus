@@ -25,10 +25,10 @@ import { useQueryClient } from "@tanstack/react-query";
 
 export { type DealTranscript, type DealTranscriptSectionProps } from "./types";
 
-export function DealTranscriptSection({ dealId, transcripts, isLoading, dealInfo, contactEmail, contactName, companyName, onSyncComplete, onTranscriptLinked }: DealTranscriptSectionProps) {
+export function DealTranscriptSection({ dealId, transcripts, isLoading, dealInfo, contactEmail, contactEmails, contactName, companyName, onSyncComplete, onTranscriptLinked }: DealTranscriptSectionProps) {
   const queryClient = useQueryClient();
 
-  const ff = useFirefliesSync({ dealId, contactEmail, companyName, transcripts, onSyncComplete, onTranscriptLinked });
+  const ff = useFirefliesSync({ dealId, contactEmail, contactEmails, companyName, transcripts, onSyncComplete, onTranscriptLinked });
   const actions = useTranscriptActions({ dealId, transcripts, dealInfo });
 
   // Poll enrichment_queue for completion
@@ -99,7 +99,7 @@ export function DealTranscriptSection({ dealId, transcripts, isLoading, dealInfo
 
   const linkPanel = (
     <FirefliesLinkPanel
-      contactEmail={contactEmail} contactName={contactName}
+      contactEmail={contactEmail} contactEmails={ff.allContactEmails} contactName={contactName}
       lastSynced={ff.lastSynced} syncLoading={ff.syncLoading} onSync={ff.handleFirefliesSync}
       firefliesUrl={ff.firefliesUrl} onFirefliesUrlChange={ff.setFirefliesUrl}
       linkingUrl={ff.linkingUrl} onLinkByUrl={ff.handleLinkByUrl}
@@ -235,19 +235,52 @@ export function DealTranscriptSection({ dealId, transcripts, isLoading, dealInfo
                 )}
               </div>
             )}
-            {transcripts.map((transcript) => (
-              <TranscriptListItem
-                key={transcript.id} transcript={transcript}
-                isExpanded={actions.expandedId === transcript.id}
-                onToggleExpanded={(open) => actions.setExpandedId(open ? transcript.id : null)}
-                isSelected={actions.selectedTranscriptIds.has(transcript.id)}
-                onToggleSelected={actions.toggleTranscriptSelection}
-                isProcessing={actions.processingId === transcript.id}
-                isApplying={actions.applyingId === transcript.id}
-                onExtract={actions.handleExtract} onApply={actions.handleApply}
-                onDelete={(id) => actions.deleteMutation.mutate(id)}
-              />
-            ))}
+            {/* Email-matched transcripts (direct matches) */}
+            {(() => {
+              const emailMatches = transcripts.filter(t => t.match_type !== 'keyword');
+              const keywordMatches = transcripts.filter(t => t.match_type === 'keyword');
+              return (
+                <>
+                  {emailMatches.map((transcript) => (
+                    <TranscriptListItem
+                      key={transcript.id} transcript={transcript}
+                      isExpanded={actions.expandedId === transcript.id}
+                      onToggleExpanded={(open) => actions.setExpandedId(open ? transcript.id : null)}
+                      isSelected={actions.selectedTranscriptIds.has(transcript.id)}
+                      onToggleSelected={actions.toggleTranscriptSelection}
+                      isProcessing={actions.processingId === transcript.id}
+                      isApplying={actions.applyingId === transcript.id}
+                      onExtract={actions.handleExtract} onApply={actions.handleApply}
+                      onDelete={(id) => actions.deleteMutation.mutate(id)}
+                    />
+                  ))}
+                  {keywordMatches.length > 0 && (
+                    <>
+                      <div className="flex items-center gap-3 py-2">
+                        <div className="flex-1 border-t border-blue-200 dark:border-blue-800" />
+                        <span className="text-xs text-blue-600 dark:text-blue-400 font-medium whitespace-nowrap">
+                          Possible related calls matched by company name
+                        </span>
+                        <div className="flex-1 border-t border-blue-200 dark:border-blue-800" />
+                      </div>
+                      {keywordMatches.map((transcript) => (
+                        <TranscriptListItem
+                          key={transcript.id} transcript={transcript}
+                          isExpanded={actions.expandedId === transcript.id}
+                          onToggleExpanded={(open) => actions.setExpandedId(open ? transcript.id : null)}
+                          isSelected={actions.selectedTranscriptIds.has(transcript.id)}
+                          onToggleSelected={actions.toggleTranscriptSelection}
+                          isProcessing={actions.processingId === transcript.id}
+                          isApplying={actions.applyingId === transcript.id}
+                          onExtract={actions.handleExtract} onApply={actions.handleApply}
+                          onDelete={(id) => actions.deleteMutation.mutate(id)}
+                        />
+                      ))}
+                    </>
+                  )}
+                </>
+              );
+            })()}
           </CardContent>
         </CollapsibleContent>
         {enrichmentResultDialog}
