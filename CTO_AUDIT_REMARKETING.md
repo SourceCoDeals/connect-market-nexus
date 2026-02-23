@@ -17,9 +17,9 @@ The remarketing system implements a sophisticated multi-dimensional buyer-deal m
 | Severity | Count | Status |
 |----------|-------|--------|
 | Critical | 2 | Identified, 1 fixed |
-| High | 10 | Identified |
-| Medium | 13 | Identified |
-| Low | 8 | Identified |
+| High | 14 | Identified |
+| Medium | 18 | Identified |
+| Low | 10 | Identified |
 
 ---
 
@@ -254,7 +254,87 @@ The `extraction_sources` JSONB column on buyers has no schema validation, allowi
 
 ---
 
-## 5. FRONTEND FINDINGS
+## 5. DATABASE & SCHEMA FINDINGS
+
+### 5.1 [HIGH] CASCADE Deletes Destroy Score History
+**Tables:** `remarketing_scores` (FK to `listings` and `remarketing_buyers`)
+
+Both foreign keys use `ON DELETE CASCADE`. Deleting a listing or buyer silently destroys all match scores, scoring history, and audit records. The `UNIQUE(listing_id, buyer_id)` constraint means rescoring the same pair after deletion appears as "new" rather than "update."
+
+**Recommendation:** Change to `ON DELETE RESTRICT` or `ON DELETE SET NULL`. Implement soft deletes with `archived_at` timestamps.
+
+### 5.2 [HIGH] Missing Indexes on Frequently Queried Columns
+**Table:** `remarketing_buyers`
+
+No indexes on columns used in scoring and matching queries:
+- `email_domain` (used in RLS policy joins via `get_deal_access_matrix()`)
+- `company_website` (used for domain matching)
+- `target_revenue_min/max`, `target_ebitda_min/max` (used in size scoring comparisons)
+
+As the buyer dataset grows, scoring queries that filter by revenue/EBITDA range perform full table scans.
+
+**Recommendation:**
+```sql
+CREATE INDEX idx_remarketing_buyers_email_domain ON remarketing_buyers(email_domain);
+CREATE INDEX idx_remarketing_buyers_revenue_range ON remarketing_buyers(target_revenue_min, target_revenue_max);
+CREATE INDEX idx_remarketing_buyers_ebitda_range ON remarketing_buyers(target_ebitda_min, target_ebitda_max);
+```
+
+### 5.3 [HIGH] RLS Policy Doesn't Enforce Access Expiration at Query Time
+**Table:** `data_room_access` (migration `20260223000000`)
+
+The RLS policy checks `WHERE revoked_at IS NULL AND (expires_at IS NULL OR expires_at > now())`, but if `expires_at IS NULL`, access persists forever. Additionally, the policy doesn't verify fee agreement status -- a buyer without a signed fee agreement could still access data room documents if access was previously granted.
+
+### 5.4 [HIGH] Missing JSONB Indexes on Criteria Columns
+**Tables:** `remarketing_buyers` (extraction_sources, recent_acquisitions, portfolio_companies), `remarketing_buyer_universes` (size_criteria, geography_criteria, service_criteria)
+
+Large JSONB columns with no GIN indexes. Any JSONB containment queries (`@>`) perform full table scans.
+
+### 5.5 [MEDIUM] No CHECK Constraints on Score Boundaries
+**Table:** `remarketing_scores`
+
+Score fields (`composite_score`, `geography_score`, `size_score`, `service_score`, `owner_goals_score`) have no CHECK constraints. Values outside 0-100 can be inserted. Similarly, `remarketing_buyers` has no constraint ensuring `target_revenue_min <= target_revenue_max`.
+
+**Recommendation:**
+```sql
+ADD CONSTRAINT chk_composite_score CHECK (composite_score >= 0 AND composite_score <= 100);
+ADD CONSTRAINT chk_revenue_range CHECK (target_revenue_min IS NULL OR target_revenue_max IS NULL OR target_revenue_min <= target_revenue_max);
+```
+
+### 5.6 [MEDIUM] Buyer Contact Denormalization Across Audit Tables
+**Tables:** `document_tracked_links`, `document_release_log`, `marketplace_approval_queue`
+
+Buyer name, email, and firm are denormalized into tracking/audit tables instead of using a FK to `remarketing_buyers`. Updates to buyer contact info don't cascade -- reports show stale data.
+
+### 5.7 [MEDIUM] Dual FK Constraint Vulnerable to Cascade Orphaning
+**Tables:** `data_room_access`, `memo_distribution_log`
+
+Both tables have a CHECK ensuring exactly one of `remarketing_buyer_id` / `marketplace_user_id` is non-NULL. But if the referenced buyer is deleted via CASCADE, the row becomes invalid (BOTH NULL), silently violating the constraint.
+
+### 5.8 [MEDIUM] Service Role Bypasses All RLS
+Throughout all remarketing tables, service role has `USING (true) WITH CHECK (true)`. Since edge functions use service role, a compromised or misconfigured function has unrestricted database access without logging.
+
+### 5.9 [MEDIUM] Incomplete Audit Log Event Types
+**Table:** `data_room_audit_log`
+
+The CHECK constraint on `action` is missing events for: `score_created`, `score_updated`, `buyer_created`, `buyer_archived`, `access_expired`, `access_revoked_cascade`, and error conditions like `memo_generation_failed`.
+
+### 5.10 [LOW] Ambiguous NULL Semantics
+`revoked_at IS NULL` means "still active"; `expires_at IS NULL` means "never expires"; `buyer_id IS NULL` means "unmatched email link." These implicit meanings are error-prone. Consider explicit `status` enum columns.
+
+### 5.11 [LOW] Partial Index Too Restrictive
+**Table:** `data_room_access`
+
+```sql
+CREATE INDEX idx_data_room_access_active ON data_room_access(deal_id)
+  WHERE revoked_at IS NULL AND expires_at IS NULL;
+```
+
+Only helps queries checking BOTH conditions. Queries checking only `revoked_at IS NULL` won't use this index.
+
+---
+
+## 6. FRONTEND FINDINGS
 
 ### 5.1 [HIGH] N+1 Query Pattern in use-deals.ts
 **File:** `src/hooks/admin/use-deals.ts` (1,008 lines)
@@ -331,9 +411,9 @@ Arbitrary 2,000 limit with no cursor-based pagination. Should use infinite scrol
 
 ---
 
-## 6. SCORING ALGORITHM OVERVIEW
+## 7. SCORING ALGORITHM OVERVIEW
 
-### 6.1 Architecture
+### 7.1 Architecture
 
 The system uses a **5-phase weighted composite scoring** approach:
 
@@ -354,58 +434,65 @@ finalScore = clamp(0, 100, gatedScore + thesisBonus + dataQualityBonus + customB
 
 **Key design principle:** Rules are comprehensive enough to score 100% of deals even without AI. AI improves accuracy when available but is never a hard dependency.
 
-### 6.2 Tier Mapping
+### 7.2 Tier Mapping
 - **A Tier:** 80-100 (strong match)
 - **B Tier:** 65-79 (good match)
 - **C Tier:** 50-64 (moderate match)
 - **D Tier:** 35-49 (weak match)
 - **F Tier:** 0-34 or disqualified
 
-### 6.3 Score Evolution & Audit Trail
+### 7.3 Score Evolution & Audit Trail
 
 The `score_snapshots` table captures all dimension scores, weights, multipliers, bonuses, tier, data completeness, trigger type, and scoring version at each event. A `deal_snapshot` JSONB column enables stale detection when deal fields change.
 
-### 6.4 Learning Feedback Loop
+### 7.4 Learning Feedback Loop
 
 The `buyer_learning_history` table tracks every approve/pass/hidden decision with all dimension scores at decision time. The `calculateLearningPenalty()` function applies a -5 to +25 point adjustment based on historical approval rate and pass categories (portfolio_conflict, geography_constraint, size_mismatch, service_mismatch).
 
 ---
 
-## 7. RECOMMENDATIONS BY PRIORITY
+## 8. RECOMMENDATIONS BY PRIORITY
 
 ### Immediate (Week 1)
-1. **Add authentication to `calculate-buyer-quality-score` and `notify-remarketing-match`** -- Critical auth gaps
-2. **Cap batch sizes** on all unbounded queries
-3. **Remove service key from HTTP headers** in queue processors
-4. **Remove `share_password_hash` from frontend types** -- Low effort, high signal
+1. **Add authentication to `calculate-buyer-quality-score` and `notify-remarketing-match`** -- Critical auth gaps on service-role endpoints
+2. **Add missing database indexes** on `email_domain`, `revenue/ebitda` ranges -- Prevents table scan degradation
+3. **Cap batch sizes** on all unbounded queries
+4. **Remove service key from HTTP headers** in queue processors
+5. **Add CHECK constraints** on score ranges (0-100) and revenue min/max ordering
+6. **Remove `share_password_hash` from frontend types** -- Low effort, high signal
 
 ### Short Term (Weeks 2-3)
-5. **Add unit tests for scoring engine** -- Focus on the 6 areas listed in Finding 2.3
-6. **Fix enrichment locking** to use atomic compare-and-set
-7. **Fix N+1 queries in use-deals.ts** -- Replace sequential queries with joined query
-8. **Add list virtualization** to AllBuyers, BuyerTableEnhanced (react-window)
-9. **Track AI fallback frequency** in a persistent table
-10. **Standardize error responses** across all edge functions
+7. **Change CASCADE deletes to RESTRICT** on `remarketing_scores` FKs -- Prevent silent score history loss
+8. **Add unit tests for scoring engine** -- Focus on the 6 areas listed in Finding 2.3
+9. **Fix enrichment locking** to use atomic compare-and-set
+10. **Fix N+1 queries in use-deals.ts** -- Replace sequential queries with joined query
+11. **Add list virtualization** to AllBuyers, BuyerTableEnhanced (react-window)
+12. **Add JSONB GIN indexes** on criteria and acquisition columns
+13. **Track AI fallback frequency** in a persistent table
+14. **Fix RLS expiration enforcement** on data_room_access policies
 
 ### Medium Term (Weeks 4-6)
-11. **Break up scoring engine** into modular files by phase
-12. **Add TypeScript interfaces** to replace `any` types (both backend and frontend)
-13. **Add dead letter queue** handling for scoring and enrichment queues
-14. **Add audit logging** for destructive bulk operations
-15. **Complete migration** away from legacy `buyer_deal_scores` table
-16. **Add Error Boundaries** to remarketing pages
-17. **Implement cursor-based pagination** for AllBuyers
+15. **Break up scoring engine** into modular files by phase
+16. **Add TypeScript interfaces** to replace `any` types (both backend and frontend)
+17. **Add dead letter queue** handling for scoring and enrichment queues
+18. **Add audit logging** for destructive bulk operations + extend audit log event types
+19. **Complete migration** away from legacy `buyer_deal_scores` table
+20. **Standardize error responses** across all edge functions
+21. **Add Error Boundaries** to remarketing pages
+22. **Implement cursor-based pagination** for AllBuyers
 
 ### Long Term
-18. **Move service adjacency map** to database-configurable with code fallback
-19. **Replace row-counting rate limiter** with counter-based approach
-20. **Implement structured logging** with redaction across all edge functions
-21. **Add integration tests** for the enrichment pipeline end-to-end
-22. **Replace fake progress bars** with real server-side progress tracking
+23. **Normalize buyer contact data** in tracking/audit tables (use FKs instead of denormalized fields)
+24. **Move service adjacency map** to database-configurable with code fallback
+25. **Replace row-counting rate limiter** with counter-based approach
+26. **Implement structured logging** with redaction across all edge functions
+27. **Add integration tests** for the enrichment pipeline end-to-end
+28. **Replace fake progress bars** with real server-side progress tracking
+29. **Add explicit status enums** to replace ambiguous NULL semantics in access tables
 
 ---
 
-## 8. BUG FIX APPLIED
+## 9. BUG FIX APPLIED
 
 ### Geography Mode Constant Names (score-buyer-deal/index.ts)
 
