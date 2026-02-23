@@ -84,7 +84,7 @@ export function BuyerScoreBadge({ score, size = 'sm', showLabel = false }: { sco
 
   const badge = (
     <span className="inline-flex flex-col items-center gap-0">
-      {showLabel && <span className="text-[9px] uppercase tracking-wider text-muted-foreground font-medium leading-none">Buyer Score</span>}
+      {showLabel && <span className="text-xs uppercase tracking-wider text-muted-foreground font-semibold leading-none">Buyer Score</span>}
       <span
         className={cn(
           'inline-flex items-center rounded-md border font-bold',

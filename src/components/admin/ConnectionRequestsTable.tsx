@@ -535,16 +535,16 @@ function ReactiveRequestCard({
              </div>
             </div>
             
-            <div className="flex flex-col items-end gap-1.5">
+            <div className="flex items-center gap-4">
+              {request.user && (
+                <BuyerScoreBadge score={(request.user as any).buyer_quality_score} size="lg" showLabel />
+              )}
               <div className="text-right">
-                <span className="text-[10px] uppercase tracking-wider text-muted-foreground/70 font-medium block leading-none mb-0.5">Submitted</span>
-                <span className="text-xs text-muted-foreground">
+                <span className="text-xs uppercase tracking-wider text-muted-foreground/70 font-semibold block leading-none mb-0.5">Submitted</span>
+                <span className="text-sm text-muted-foreground">
                   {format(new Date(request.created_at), 'MMM d, yyyy')}
                 </span>
               </div>
-              {request.user && (
-                <BuyerScoreBadge score={(request.user as any).buyer_quality_score} size="md" showLabel />
-              )}
               <Button
                 variant="ghost"
                 size="sm"
