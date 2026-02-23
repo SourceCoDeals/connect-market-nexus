@@ -1,0 +1,311 @@
+/**
+ * Deal Pipeline Tools
+ * Query, search, and inspect deals (listings) in the pipeline.
+ */
+
+import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
+import type { ClaudeTool } from "../../_shared/claude-client.ts";
+import type { ToolResult } from "./index.ts";
+
+// ---------- Quick vs Full field sets ----------
+
+const DEAL_FIELDS_QUICK = `
+  id, title, status, status_label, deal_source, industry, revenue, ebitda,
+  location, address_state, geographic_states, services,
+  deal_total_score, is_priority_target, remarketing_status,
+  deal_owner_id, primary_owner_id, updated_at
+`.replace(/\s+/g, ' ').trim();
+
+const DEAL_FIELDS_FULL = `
+  id, title, status, status_label, status_tag, deal_source, industry, industry_tier_name,
+  revenue, revenue_confidence, ebitda, ebitda_margin, ebitda_confidence,
+  location, address_city, address_state, address_zip, geographic_states,
+  services, service_mix, business_model, categories,
+  full_time_employees, number_of_locations,
+  deal_total_score, deal_size_score, revenue_score, ebitda_score,
+  is_priority_target, remarketing_status, enrichment_status,
+  executive_summary, investment_thesis, key_risks, growth_drivers,
+  owner_goals, seller_motivation, timeline_preference, transition_preferences,
+  competitive_position, management_depth, customer_concentration,
+  internal_company_name, project_name, deal_identifier,
+  deal_owner_id, primary_owner_id, presented_by_admin_id,
+  need_buyer_universe, universe_build_flagged,
+  created_at, updated_at, enriched_at, published_at
+`.replace(/\s+/g, ' ').trim();
+
+// ---------- Tool definitions ----------
+
+export const dealTools: ClaudeTool[] = [
+  {
+    name: 'query_deals',
+    description: 'Search and filter deals in the pipeline. Supports filtering by status, source, geography, industry, revenue range, and text search. Returns a list of matching deals sorted by relevance.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        status: { type: 'string', description: 'Filter by deal status (e.g. "active", "closed", "pipeline")' },
+        deal_source: { type: 'string', description: 'Filter by source (e.g. "captarget", "go_partners", "marketplace", "internal")' },
+        state: { type: 'string', description: 'Filter by US state code (e.g. "TX", "CA")' },
+        industry: { type: 'string', description: 'Filter by industry keyword' },
+        min_revenue: { type: 'number', description: 'Minimum revenue filter' },
+        max_revenue: { type: 'number', description: 'Maximum revenue filter' },
+        min_ebitda: { type: 'number', description: 'Minimum EBITDA filter' },
+        search: { type: 'string', description: 'Free-text search across title, description, services, location' },
+        is_priority: { type: 'boolean', description: 'Filter to priority targets only' },
+        limit: { type: 'number', description: 'Max results (default 25, max 100)' },
+        depth: { type: 'string', enum: ['quick', 'full'], description: 'quick = summary fields, full = all details' },
+      },
+      required: [],
+    },
+  },
+  {
+    name: 'get_deal_details',
+    description: 'Get comprehensive details for a specific deal by ID. Includes financials, geography, services, scores, owner goals, risks, and investment thesis.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        deal_id: { type: 'string', description: 'The deal/listing UUID' },
+      },
+      required: ['deal_id'],
+    },
+  },
+  {
+    name: 'get_deal_activities',
+    description: 'Get recent activity log for a deal — notes, stage changes, outreach events, etc.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        deal_id: { type: 'string', description: 'The deal/listing UUID' },
+        limit: { type: 'number', description: 'Max activities to return (default 20)' },
+      },
+      required: ['deal_id'],
+    },
+  },
+  {
+    name: 'get_deal_tasks',
+    description: 'Get tasks/to-dos for a deal, optionally filtered by status or assignee.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        deal_id: { type: 'string', description: 'The deal/listing UUID' },
+        status: { type: 'string', enum: ['pending', 'in_progress', 'completed', 'all'], description: 'Filter by task status (default "all")' },
+        assigned_to: { type: 'string', description: 'Filter by assigned user ID. Use "CURRENT_USER" for the current user.' },
+      },
+      required: ['deal_id'],
+    },
+  },
+  {
+    name: 'get_pipeline_summary',
+    description: 'Get a high-level summary of the deal pipeline — counts by status, source, stage, and key metrics.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        group_by: { type: 'string', enum: ['status', 'deal_source', 'industry', 'address_state'], description: 'Dimension to group by (default "status")' },
+      },
+      required: [],
+    },
+  },
+];
+
+// ---------- Executor ----------
+
+export async function executeDealTool(
+  supabase: SupabaseClient,
+  toolName: string,
+  args: Record<string, unknown>,
+): Promise<ToolResult> {
+  switch (toolName) {
+    case 'query_deals': return queryDeals(supabase, args);
+    case 'get_deal_details': return getDealDetails(supabase, args);
+    case 'get_deal_activities': return getDealActivities(supabase, args);
+    case 'get_deal_tasks': return getDealTasks(supabase, args);
+    case 'get_pipeline_summary': return getPipelineSummary(supabase, args);
+    default: return { error: `Unknown deal tool: ${toolName}` };
+  }
+}
+
+// ---------- Implementations ----------
+
+async function queryDeals(
+  supabase: SupabaseClient,
+  args: Record<string, unknown>,
+): Promise<ToolResult> {
+  const depth = (args.depth as string) || 'quick';
+  const limit = Math.min(Number(args.limit) || 25, 100);
+  const fields = depth === 'full' ? DEAL_FIELDS_FULL : DEAL_FIELDS_QUICK;
+
+  let query = supabase
+    .from('listings')
+    .select(fields)
+    .is('deleted_at', null)
+    .order('updated_at', { ascending: false })
+    .limit(limit);
+
+  // Apply filters
+  if (args.status) query = query.eq('status', args.status as string);
+  if (args.deal_source) query = query.eq('deal_source', args.deal_source as string);
+  if (args.state) query = query.contains('geographic_states', [args.state as string]);
+  if (args.is_priority === true) query = query.eq('is_priority_target', true);
+  if (args.min_revenue) query = query.gte('revenue', args.min_revenue as number);
+  if (args.max_revenue) query = query.lte('revenue', args.max_revenue as number);
+  if (args.min_ebitda) query = query.gte('ebitda', args.min_ebitda as number);
+
+  const { data, error } = await query;
+  if (error) return { error: error.message };
+
+  let results = data || [];
+
+  // Client-side text search
+  if (args.search) {
+    const term = (args.search as string).toLowerCase();
+    results = results.filter(d =>
+      d.title?.toLowerCase().includes(term) ||
+      d.industry?.toLowerCase().includes(term) ||
+      d.location?.toLowerCase().includes(term) ||
+      d.services?.some((s: string) => s.toLowerCase().includes(term))
+    );
+  }
+
+  // Client-side industry keyword filter
+  if (args.industry) {
+    const term = (args.industry as string).toLowerCase();
+    results = results.filter(d =>
+      d.industry?.toLowerCase().includes(term) ||
+      d.services?.some((s: string) => s.toLowerCase().includes(term))
+    );
+  }
+
+  return {
+    data: {
+      deals: results,
+      total: results.length,
+      depth,
+    },
+  };
+}
+
+async function getDealDetails(
+  supabase: SupabaseClient,
+  args: Record<string, unknown>,
+): Promise<ToolResult> {
+  const dealId = args.deal_id as string;
+
+  // Parallel fetch: deal + tasks + activities + scores
+  const [dealResult, tasksResult, activitiesResult, scoresResult] = await Promise.all([
+    supabase.from('listings').select(DEAL_FIELDS_FULL).eq('id', dealId).single(),
+    supabase.from('deal_tasks').select('id, title, status, priority, due_date, assigned_to, completed_at')
+      .eq('deal_id', dealId).order('created_at', { ascending: false }).limit(10),
+    supabase.from('deal_activities').select('id, title, activity_type, description, created_at')
+      .eq('deal_id', dealId).order('created_at', { ascending: false }).limit(5),
+    supabase.from('remarketing_scores').select('buyer_id, composite_score, status, tier')
+      .eq('listing_id', dealId).order('composite_score', { ascending: false }).limit(5),
+  ]);
+
+  if (dealResult.error) return { error: dealResult.error.message };
+
+  return {
+    data: {
+      deal: dealResult.data,
+      recent_tasks: tasksResult.data || [],
+      recent_activities: activitiesResult.data || [],
+      top_buyer_scores: scoresResult.data || [],
+    },
+  };
+}
+
+async function getDealActivities(
+  supabase: SupabaseClient,
+  args: Record<string, unknown>,
+): Promise<ToolResult> {
+  const dealId = args.deal_id as string;
+  const limit = Math.min(Number(args.limit) || 20, 50);
+
+  const { data, error } = await supabase
+    .from('deal_activities')
+    .select('id, title, activity_type, description, metadata, admin_id, created_at')
+    .eq('deal_id', dealId)
+    .order('created_at', { ascending: false })
+    .limit(limit);
+
+  if (error) return { error: error.message };
+  return { data: { activities: data || [], total: (data || []).length } };
+}
+
+async function getDealTasks(
+  supabase: SupabaseClient,
+  args: Record<string, unknown>,
+): Promise<ToolResult> {
+  const dealId = args.deal_id as string;
+  const status = (args.status as string) || 'all';
+
+  let query = supabase
+    .from('deal_tasks')
+    .select('id, title, description, status, priority, due_date, assigned_to, assigned_by, completed_at, completed_by, created_at, updated_at')
+    .eq('deal_id', dealId)
+    .order('due_date', { ascending: true, nullsFirst: false });
+
+  if (status !== 'all') query = query.eq('status', status);
+  if (args.assigned_to) query = query.eq('assigned_to', args.assigned_to as string);
+
+  const { data, error } = await query;
+  if (error) return { error: error.message };
+
+  // Group by status for easier consumption
+  const tasks = data || [];
+  const grouped = {
+    pending: tasks.filter(t => t.status === 'pending'),
+    in_progress: tasks.filter(t => t.status === 'in_progress'),
+    completed: tasks.filter(t => t.status === 'completed'),
+  };
+
+  return {
+    data: {
+      tasks,
+      total: tasks.length,
+      by_status: { pending: grouped.pending.length, in_progress: grouped.in_progress.length, completed: grouped.completed.length },
+      overdue: tasks.filter(t => t.due_date && new Date(t.due_date) < new Date() && t.status !== 'completed').length,
+    },
+  };
+}
+
+async function getPipelineSummary(
+  supabase: SupabaseClient,
+  args: Record<string, unknown>,
+): Promise<ToolResult> {
+  const groupBy = (args.group_by as string) || 'status';
+
+  // Fetch all active deals with summary fields
+  const { data, error } = await supabase
+    .from('listings')
+    .select('id, title, status, deal_source, industry, address_state, revenue, ebitda, deal_total_score, is_priority_target, remarketing_status')
+    .is('deleted_at', null);
+
+  if (error) return { error: error.message };
+  const deals = data || [];
+
+  // Aggregate by requested dimension
+  const groups: Record<string, { count: number; total_revenue: number; total_ebitda: number; avg_score: number; deal_ids: string[] }> = {};
+
+  for (const deal of deals) {
+    const key = (deal[groupBy as keyof typeof deal] as string) || 'unknown';
+    if (!groups[key]) groups[key] = { count: 0, total_revenue: 0, total_ebitda: 0, avg_score: 0, deal_ids: [] };
+    groups[key].count++;
+    groups[key].total_revenue += deal.revenue || 0;
+    groups[key].total_ebitda += deal.ebitda || 0;
+    groups[key].avg_score += deal.deal_total_score || 0;
+    groups[key].deal_ids.push(deal.id);
+  }
+
+  // Calculate averages
+  for (const g of Object.values(groups)) {
+    g.avg_score = g.count > 0 ? Math.round(g.avg_score / g.count) : 0;
+  }
+
+  return {
+    data: {
+      total_deals: deals.length,
+      priority_deals: deals.filter(d => d.is_priority_target).length,
+      grouped_by: groupBy,
+      groups,
+    },
+  };
+}
