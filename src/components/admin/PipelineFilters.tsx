@@ -181,11 +181,11 @@ export function PipelineFilters({
   ];
 
   const statusOptions = [
-    { value: 'all', label: 'All Requests', icon: Users, count: statusCounts.all },
-    { value: 'pending', label: 'Pending', icon: Clock, count: statusCounts.pending },
+    { value: 'pending', label: 'New Requests', icon: Clock, count: statusCounts.pending },
     { value: 'approved', label: 'Approved', icon: CheckCircle2, count: statusCounts.approved },
     { value: 'rejected', label: 'Rejected', icon: XCircle, count: statusCounts.rejected },
     { value: 'on_hold', label: 'On Hold', icon: AlertTriangle, count: statusCounts.on_hold },
+    { value: 'all', label: 'All Requests', icon: Users, count: statusCounts.all },
   ] as const;
 
   const sortOptions = [
