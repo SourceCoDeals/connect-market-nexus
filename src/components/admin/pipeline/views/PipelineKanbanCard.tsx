@@ -103,7 +103,7 @@ export function PipelineKanbanCard({ deal, onDealClick, isDragging }: PipelineKa
           needsOwnerContact && "bg-red-50 dark:bg-red-950/40 rounded-t-xl"
         )}>
           <div className="flex items-center justify-between gap-2">
-           <h3 className={cn(
+            <h3 className={cn(
               "text-sm font-semibold leading-snug truncate",
               needsOwnerContact ? "text-red-900 dark:text-red-200" : "text-foreground"
             )}>
@@ -112,11 +112,15 @@ export function PipelineKanbanCard({ deal, onDealClick, isDragging }: PipelineKa
             {deal.deal_score != null && <DealScoreBadge score={deal.deal_score} size="sm" />}
           </div>
           <div className="flex gap-3 mt-0.5 text-xs text-muted-foreground">
+            <span>Rev: <span className="font-semibold text-foreground">{fmt(deal.listing_revenue)}</span></span>
+            <span>EBITDA: <span className="font-semibold text-foreground">{fmt(deal.listing_ebitda)}</span></span>
+          </div>
+        </div>
 
-        {/* Buyer block */}
+        {/* Buyer block — company/firm prominent, individual smaller */}
         <div className="px-3 py-1.5 border-t border-border/30 space-y-0.5">
           <div className="flex items-center justify-between gap-1.5">
-            <span className="text-[13px] font-semibold text-foreground truncate">{buyerCompany || contactName}</span>
+            <span className="text-sm font-bold text-foreground truncate">{buyerCompany || contactName}</span>
             {buyerTypeLabel && (
               <span className="flex-shrink-0 px-1.5 py-px rounded bg-primary/10 text-primary text-[11px] font-semibold leading-tight">
                 {buyerTypeLabel}
@@ -124,10 +128,10 @@ export function PipelineKanbanCard({ deal, onDealClick, isDragging }: PipelineKa
             )}
           </div>
           {buyerCompany && (
-            <div className="text-xs text-muted-foreground truncate">{contactName}</div>
+            <div className="text-[11px] text-muted-foreground truncate">{contactName}</div>
           )}
           {buyerWebsite && (
-            <div className="flex items-center gap-1 text-xs text-primary/70 truncate">
+            <div className="flex items-center gap-1 text-[11px] text-primary/70 truncate">
               <ExternalLink className="w-3 h-3 flex-shrink-0" />
               <span className="truncate">{buyerWebsite}</span>
             </div>
