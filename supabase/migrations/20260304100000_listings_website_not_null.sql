@@ -13,8 +13,9 @@
 -- ============================================================================
 
 -- Step 1: Backfill from internal_company_name where possible
+-- Include listing ID suffix to guarantee uniqueness under normalize_domain() unique index
 UPDATE public.listings
-SET website = LOWER(REGEXP_REPLACE(internal_company_name, '[^a-zA-Z0-9]+', '-', 'g')) || '.unknown'
+SET website = LOWER(REGEXP_REPLACE(internal_company_name, '[^a-zA-Z0-9]+', '-', 'g')) || '-' || LEFT(id::text, 8) || '.unknown'
 WHERE website IS NULL
   AND internal_company_name IS NOT NULL
   AND TRIM(internal_company_name) != '';
