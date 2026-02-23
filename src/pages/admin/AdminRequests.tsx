@@ -137,31 +137,37 @@ const AdminRequests = () => {
   
   const handleAction = async (request: AdminConnectionRequest, action: "approve" | "reject") => {
     try {
-      await updateRequest({
+      console.log(`[AdminRequests] handleAction called: ${action} for request ${request.id}`);
+      const result = await updateRequest({
         requestId: request.id,
         status: action === "approve" ? "approved" : "rejected",
         adminComment: `Request ${action}d by admin`,
       });
+      console.log(`[AdminRequests] mutation succeeded:`, result?.status);
       
-      // Send email notification based on action type
+      // Force refetch to ensure UI updates immediately
+      await refetch();
+      
+      // Send email notification based on action type (non-blocking)
       if (action === "approve") {
-        await sendConnectionApprovalEmail(request);
+        sendConnectionApprovalEmail(request).catch(e => console.error("Email send failed:", e));
         toast({
           title: "Request approved",
-          description: "Notification email sent to user",
+          description: "Connection request has been approved",
         });
       } else {
-        await sendConnectionRejectionEmail(request);
+        sendConnectionRejectionEmail(request).catch(e => console.error("Email send failed:", e));
         toast({
           title: "Request rejected",
-          description: "Notification email sent to user",
+          description: "Connection request has been rejected",
         });
       }
-    } catch (error) {
+    } catch (error: any) {
+      console.error(`[AdminRequests] handleAction failed:`, error);
       toast({
         variant: "destructive",
         title: "Update failed",
-        description: "Could not update connection request status",
+        description: error?.message || "Could not update connection request status",
       });
     }
   };
@@ -169,35 +175,40 @@ const AdminRequests = () => {
   const confirmAction = async (comment: string) => {
     if (selectedRequest && actionType) {
       try {
+        console.log(`[AdminRequests] confirmAction called: ${actionType} for request ${selectedRequest.id}`);
         await updateRequest({
           requestId: selectedRequest.id,
           status: actionType === "approve" ? "approved" : "rejected",
           adminComment: comment,
         });
         
-        // Send email notification based on action type
+        // Force refetch
+        await refetch();
+        
+        // Send email notification (non-blocking)
         if (actionType === "approve") {
-          await sendConnectionApprovalEmail(selectedRequest);
+          sendConnectionApprovalEmail(selectedRequest).catch(e => console.error("Email send failed:", e));
           toast({
             title: "Request approved",
-            description: "Notification email sent to user",
+            description: "Connection request has been approved",
           });
         } else {
-          await sendConnectionRejectionEmail(selectedRequest);
+          sendConnectionRejectionEmail(selectedRequest).catch(e => console.error("Email send failed:", e));
           toast({
             title: "Request rejected",
-            description: "Notification email sent to user",
+            description: "Connection request has been rejected",
           });
         }
         
         setIsDialogOpen(false);
         setSelectedRequest(null);
         setActionType(null);
-      } catch (error) {
+      } catch (error: any) {
+        console.error(`[AdminRequests] confirmAction failed:`, error);
         toast({
           variant: "destructive",
           title: "Update failed",
-          description: "Could not update connection request status",
+          description: error?.message || "Could not update connection request status",
         });
       }
     }
