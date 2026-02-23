@@ -21,6 +21,23 @@ const STATE_CODE_TO_NAME: Record<string, string> = {
   WV:'West Virginia',WI:'Wisconsin',WY:'Wyoming',DC:'District of Columbia',
 };
 
+// Simple fuzzy match: checks if target contains a close match to query (1 edit distance tolerance)
+function fuzzyContains(target: string, query: string): boolean {
+  if (target.includes(query)) return true;
+  if (query.length < 4) return false;
+  // Check each substring of target for edit distance <= 1
+  for (let i = 0; i <= target.length - query.length + 1; i++) {
+    const sub = target.substring(i, i + query.length);
+    let dist = 0;
+    for (let j = 0; j < query.length; j++) {
+      if (sub[j] !== query[j]) dist++;
+      if (dist > 1) break;
+    }
+    if (dist <= 1) return true;
+  }
+  return false;
+}
+
 // ---------- Quick vs Full field sets ----------
 
 const DEAL_FIELDS_QUICK = `
@@ -203,15 +220,34 @@ async function queryDeals(
     });
   }
 
-  // Client-side text search
+  // Client-side text search with fuzzy matching
   if (args.search) {
     const term = (args.search as string).toLowerCase();
-    results = results.filter((d: Record<string, unknown>) =>
-      (d.title as string)?.toLowerCase().includes(term) ||
-      (d.industry as string)?.toLowerCase().includes(term) ||
-      (d.location as string)?.toLowerCase().includes(term) ||
-      (d.services as string[])?.some((s: string) => s.toLowerCase().includes(term))
-    );
+    results = results.filter((d: Record<string, unknown>) => {
+      const title = (d.title as string)?.toLowerCase() || '';
+      const industry = (d.industry as string)?.toLowerCase() || '';
+      const location = (d.location as string)?.toLowerCase() || '';
+      const internalName = (d.internal_company_name as string)?.toLowerCase() || '';
+      const projectName = (d.project_name as string)?.toLowerCase() || '';
+      const services = (d.services as string[]) || [];
+
+      // Exact substring match
+      if (
+        title.includes(term) || industry.includes(term) || location.includes(term) ||
+        internalName.includes(term) || projectName.includes(term) ||
+        services.some((s: string) => s.toLowerCase().includes(term))
+      ) return true;
+
+      // Fuzzy match: check if all words in the search appear in the combined text
+      const combined = `${title} ${internalName} ${projectName} ${industry} ${location} ${services.join(' ')}`;
+      const words = term.split(/\s+/).filter(w => w.length > 2);
+      if (words.length > 1 && words.every(w => fuzzyContains(combined, w))) return true;
+
+      // Single-word fuzzy (edit distance) for entity names
+      if (term.length >= 4 && (fuzzyContains(title, term) || fuzzyContains(internalName, term) || fuzzyContains(projectName, term))) return true;
+
+      return false;
+    });
   }
 
   // Client-side industry keyword filter

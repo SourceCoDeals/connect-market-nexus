@@ -1,9 +1,11 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useNavigate, useSearchParams, Link } from "react-router-dom";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
+import { useAIUIActionHandler } from "@/hooks/useAIUIActionHandler";
+import { useAICommandCenterContext } from "@/components/ai-command-center/AICommandCenterProvider";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -94,6 +96,7 @@ const PAGE_SIZE = 50;
 const ReMarketingBuyers = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { setPageContext } = useAICommandCenterContext();
   
   const [searchParams, setSearchParams] = useSearchParams();
   const [search, setSearch] = useState("");
@@ -115,6 +118,41 @@ const ReMarketingBuyers = () => {
     universe_id: "",
     thesis_summary: "",
     notes: "",
+  });
+
+  // Register page context for AI Command Center
+  useEffect(() => {
+    setPageContext({ page: 'buyers_list', entity_type: 'buyers' });
+  }, [setPageContext]);
+
+  // Wire AI UI actions to this page's state
+  useAIUIActionHandler({
+    table: 'buyers',
+    onSelectRows: (rowIds, mode) => {
+      if (mode === 'replace') {
+        setSelectedIds(new Set(rowIds));
+      } else if (mode === 'add') {
+        setSelectedIds(prev => {
+          const next = new Set(prev);
+          rowIds.forEach(id => next.add(id));
+          return next;
+        });
+      } else {
+        setSelectedIds(prev => {
+          const next = new Set(prev);
+          rowIds.forEach(id => next.has(id) ? next.delete(id) : next.add(id));
+          return next;
+        });
+      }
+    },
+    onClearSelection: () => setSelectedIds(new Set()),
+    onSortColumn: (field) => {
+      const fieldMap: Record<string, string> = {
+        company_name: 'company_name', pe_firm_name: 'pe_firm_name',
+        universe: 'universe', buyer_type: 'company_name',
+      };
+      handleSort(fieldMap[field] || field);
+    },
   });
 
   // Fetch buyers with universe + firm agreement info (for NDA/marketplace)

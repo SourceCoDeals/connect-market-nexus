@@ -43,6 +43,8 @@ import { useGlobalGateCheck, useGlobalActivityMutations } from "@/hooks/remarket
 import { useAuth } from "@/context/AuthContext";
 import { useEnrichmentProgress } from "@/hooks/useEnrichmentProgress";
 import { EnrichmentProgressIndicator } from "@/components/remarketing/EnrichmentProgressIndicator";
+import { useAIUIActionHandler } from "@/hooks/useAIUIActionHandler";
+import { useAICommandCenterContext } from "@/components/ai-command-center/AICommandCenterProvider";
 
 // Sub-components
 import { DealsKPICards } from "./components/DealsKPICards";
@@ -111,6 +113,12 @@ export default function CapTargetDeals() {
   const { completeOperation, updateProgress } = useGlobalActivityMutations();
   const { progress: enrichmentProgress, cancelEnrichment } = useEnrichmentProgress();
   const { timeframe, setTimeframe, dateRange, isInRange } = useTimeframe("last_365d");
+  const { setPageContext } = useAICommandCenterContext();
+
+  // Register page context for AI
+  useEffect(() => {
+    setPageContext({ page: 'captarget', entity_type: 'leads' });
+  }, [setPageContext]);
 
   // Filters
   const [search] = useState("");
@@ -158,6 +166,29 @@ export default function CapTargetDeals() {
 
   // Selection
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+
+  // Wire AI UI actions to this page's state
+  useAIUIActionHandler({
+    table: 'leads',
+    onSelectRows: (rowIds, mode) => {
+      if (mode === 'replace') setSelectedIds(new Set(rowIds));
+      else if (mode === 'add') setSelectedIds(prev => { const n = new Set(prev); rowIds.forEach(id => n.add(id)); return n; });
+      else setSelectedIds(prev => { const n = new Set(prev); rowIds.forEach(id => n.has(id) ? n.delete(id) : n.add(id)); return n; });
+    },
+    onClearSelection: () => setSelectedIds(new Set()),
+    onApplyFilter: (filters, clearExisting) => {
+      const rules = filters.map((f, idx) => ({ id: `ai-filter-${idx}`, field: f.field, operator: f.operator as any, value: f.value }));
+      if (clearExisting) setFilterState({ rules, conjunction: 'and', search: '' });
+      else setFilterState(prev => ({ ...prev, rules: [...prev.rules, ...rules] }));
+    },
+    onSortColumn: (field) => {
+      const fieldMap: Record<string, string> = {
+        company_name: 'company_name', contact_name: 'contact_name', score: 'score',
+        contact_date: 'contact_date', interest_type: 'interest_type', priority: 'priority',
+      };
+      handleSort((fieldMap[field] || field) as any);
+    },
+  });
 
   // Pagination
   const PAGE_SIZE = 50;

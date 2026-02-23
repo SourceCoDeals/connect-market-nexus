@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -16,11 +17,14 @@ import { cn } from "@/lib/utils";
 import { useValuationLeadsData } from "./useValuationLeadsData";
 import { ValuationLeadsTable } from "./ValuationLeadsTable";
 import { exportLeadsToCSV } from "./helpers";
+import { useAIUIActionHandler } from "@/hooks/useAIUIActionHandler";
+import { useAICommandCenterContext } from "@/components/ai-command-center/AICommandCenterProvider";
 
 // Re-export formatAge for any external importers
 export { formatAge } from "./helpers";
 
 export default function ValuationLeads() {
+  const { setPageContext } = useAICommandCenterContext();
   const {
     leads, isLoading, refetch, filteredLeads, paginatedLeads, adminProfiles,
     calculatorTypes, kpiStats,
@@ -37,6 +41,27 @@ export default function ValuationLeads() {
     enrichmentProgress, enrichmentSummary, showEnrichmentSummary, dismissSummary,
     pauseEnrichment, resumeEnrichment, cancelEnrichment,
   } = useValuationLeadsData();
+
+  useEffect(() => {
+    setPageContext({ page: 'valuation_leads', entity_type: 'leads' });
+  }, [setPageContext]);
+
+  useAIUIActionHandler({
+    table: 'leads',
+    onSelectRows: (rowIds, mode) => {
+      if (mode === 'replace') setSelectedIds(new Set(rowIds));
+      else if (mode === 'add') setSelectedIds(prev => { const n = new Set(prev); rowIds.forEach(id => n.add(id)); return n; });
+      else setSelectedIds(prev => { const n = new Set(prev); rowIds.forEach(id => n.has(id) ? n.delete(id) : n.add(id)); return n; });
+    },
+    onClearSelection: () => setSelectedIds(new Set()),
+    onSortColumn: (field) => {
+      const fieldMap: Record<string, string> = {
+        company_name: 'company_name', score: 'lead_score', revenue: 'revenue',
+        created_at: 'created_at', calculator_type: 'calculator_type',
+      };
+      handleSort((fieldMap[field] || field) as any);
+    },
+  });
 
   const totalLeads = leads?.length || 0;
   const unscoredCount = leads?.filter((l) => l.lead_score == null).length || 0;

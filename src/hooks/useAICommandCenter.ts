@@ -81,6 +81,21 @@ export function useAICommandCenter(pageContext?: PageContext) {
   const abortControllerRef = useRef<AbortController | null>(null);
   const uiActionHandlerRef = useRef<UIActionHandler | null>(null);
   const conversationIdRef = useRef<string>(crypto.randomUUID());
+  const persistedRef = useRef(false);
+
+  // Load persisted conversation on mount
+  useState(() => {
+    const saved = sessionStorage.getItem('ai-cc-messages');
+    const savedId = sessionStorage.getItem('ai-cc-conversation-id');
+    if (saved && savedId) {
+      try {
+        const parsed = JSON.parse(saved) as AIMessage[];
+        setMessages(parsed.map(m => ({ ...m, timestamp: new Date(m.timestamp) })));
+        conversationIdRef.current = savedId;
+        persistedRef.current = true;
+      } catch { /* ignore corrupt data */ }
+    }
+  });
 
   // Register a handler for UI actions (select_rows, filter, navigate)
   const onUIAction = useCallback((handler: UIActionHandler) => {
@@ -381,7 +396,17 @@ export function useAICommandCenter(pageContext?: PageContext) {
     setPendingConfirmation(null);
     setError(null);
     conversationIdRef.current = crypto.randomUUID();
+    sessionStorage.removeItem('ai-cc-messages');
+    sessionStorage.removeItem('ai-cc-conversation-id');
   }, []);
+
+  // Persist messages to sessionStorage on change
+  if (messages.length > 0 && !isLoading) {
+    try {
+      sessionStorage.setItem('ai-cc-messages', JSON.stringify(messages.slice(-20)));
+      sessionStorage.setItem('ai-cc-conversation-id', conversationIdRef.current);
+    } catch { /* storage full — ignore */ }
+  }
 
   // Stop streaming
   const stopStreaming = useCallback(() => {
