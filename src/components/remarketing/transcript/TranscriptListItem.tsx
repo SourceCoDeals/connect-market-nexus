@@ -16,9 +16,16 @@ import {
   Loader2,
   Link as LinkIcon,
   RefreshCw,
+  AlertTriangle,
+  Users,
 } from "lucide-react";
 import { format } from "date-fns";
 import { ExtractedIntelligenceView } from "./ExtractedIntelligenceView";
+
+interface ExternalParticipant {
+  name: string;
+  email: string;
+}
 
 interface DealTranscript {
   id: string;
@@ -35,6 +42,9 @@ interface DealTranscript {
   title?: string | null;
   transcript_url?: string | null;
   call_date?: string | null;
+  has_content?: boolean | null;
+  match_type?: string | null;
+  external_participants?: ExternalParticipant[] | null;
 }
 
 interface TranscriptListItemProps {
@@ -48,6 +58,18 @@ interface TranscriptListItemProps {
   onExtract: (transcript: DealTranscript) => void;
   onApply: (transcript: DealTranscript) => void;
   onDelete: (id: string) => void;
+}
+
+/**
+ * Format external participants for display.
+ * Shows "With: Name1, Name2" for external participants,
+ * "Internal call" if all participants are internal.
+ */
+function formatParticipants(participants?: ExternalParticipant[] | null): string | null {
+  if (!participants || participants.length === 0) return null;
+  const names = participants.map(p => p.name).filter(Boolean);
+  if (names.length === 0) return null;
+  return names.join(', ');
 }
 
 export function TranscriptListItem({
@@ -64,16 +86,23 @@ export function TranscriptListItem({
 }: TranscriptListItemProps) {
   const hasExtracted = !!transcript.processed_at;
   const isApplied = transcript.applied_to_deal;
+  const hasContent = transcript.has_content !== false; // treat null/undefined as true
+  const isKeywordMatch = transcript.match_type === 'keyword';
 
   const displayTitle = transcript.title ||
     `Transcript from ${format(new Date(transcript.created_at), 'MMM d, yyyy')}`;
+
+  const participantDisplay = formatParticipants(transcript.external_participants);
+  // If external_participants is empty but we know it's a Fireflies transcript, show "Internal call"
+  const isFireflies = transcript.source === 'fireflies';
+  const showInternalLabel = isFireflies && transcript.external_participants != null && transcript.external_participants.length === 0;
 
   return (
     <Collapsible
       open={isExpanded}
       onOpenChange={onToggleExpanded}
     >
-      <div className="border rounded-lg">
+      <div className={`border rounded-lg ${!hasContent ? 'opacity-60 bg-muted/30' : ''}`}>
         <CollapsibleTrigger className="w-full">
           <div className="flex items-center justify-between p-3 hover:bg-muted/50">
             <div className="flex items-center gap-3">
@@ -83,12 +112,32 @@ export function TranscriptListItem({
                   onCheckedChange={() => onToggleSelected(transcript.id)}
                 />
               </div>
-              <FileText className="h-4 w-4 text-muted-foreground" />
+              <FileText className={`h-4 w-4 ${!hasContent ? 'text-amber-500' : 'text-muted-foreground'}`} />
               <div className="text-left">
                 <p className="font-medium text-sm">{displayTitle}</p>
                 {transcript.call_date && (
                   <p className="text-xs text-muted-foreground">
                     {format(new Date(transcript.call_date), 'MMM d, yyyy')}
+                  </p>
+                )}
+                {/* Participant display */}
+                {participantDisplay && (
+                  <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
+                    <Users className="h-3 w-3" />
+                    With: {participantDisplay}
+                  </p>
+                )}
+                {showInternalLabel && (
+                  <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
+                    <Users className="h-3 w-3" />
+                    Internal call
+                  </p>
+                )}
+                {/* No content warning */}
+                {!hasContent && (
+                  <p className="text-xs text-amber-600 dark:text-amber-400 flex items-center gap-1 mt-0.5">
+                    <AlertTriangle className="h-3 w-3" />
+                    Call recorded but no transcript captured
                   </p>
                 )}
               </div>
@@ -104,6 +153,17 @@ export function TranscriptListItem({
                 >
                   <LinkIcon className="h-4 w-4" />
                 </a>
+              )}
+              {!hasContent && (
+                <Badge variant="outline" className="gap-1 text-xs text-amber-600 border-amber-300">
+                  <AlertTriangle className="h-3 w-3" />
+                  No Audio
+                </Badge>
+              )}
+              {isKeywordMatch && (
+                <Badge variant="outline" className="gap-1 text-xs text-blue-600 border-blue-300">
+                  Company Match
+                </Badge>
               )}
               {hasExtracted && (
                 <Badge variant="secondary" className="gap-1 text-xs">
@@ -140,61 +200,75 @@ export function TranscriptListItem({
         </CollapsibleTrigger>
         <CollapsibleContent>
           <div className="border-t p-4 space-y-4">
-            <div className="bg-muted/50 rounded-lg p-3 max-h-48 overflow-auto">
-              <pre className="text-xs whitespace-pre-wrap font-mono">
-                {transcript.transcript_text}
-              </pre>
-            </div>
+            {!hasContent ? (
+              <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg p-4 text-center">
+                <AlertTriangle className="h-6 w-6 text-amber-500 mx-auto mb-2" />
+                <p className="text-sm text-amber-700 dark:text-amber-400 font-medium">
+                  No transcript available
+                </p>
+                <p className="text-xs text-amber-600 dark:text-amber-500 mt-1">
+                  This call was recorded but the audio was not captured — may be a Teams audio routing issue.
+                </p>
+              </div>
+            ) : (
+              <div className="bg-muted/50 rounded-lg p-3 max-h-48 overflow-auto">
+                <pre className="text-xs whitespace-pre-wrap font-mono">
+                  {transcript.transcript_text}
+                </pre>
+              </div>
+            )}
 
             {hasExtracted && !!transcript.extracted_data && (
               <ExtractedIntelligenceView extractedData={transcript.extracted_data as Record<string, unknown>} />
             )}
 
-            <div className="flex items-center gap-2">
-              {!hasExtracted ? (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => onExtract(transcript)}
-                  disabled={isProcessing}
-                >
-                  {isProcessing ? (
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  ) : (
-                    <Sparkles className="h-4 w-4 mr-2" />
-                  )}
-                  Extract Intelligence
-                </Button>
-              ) : (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => onExtract(transcript)}
-                  disabled={isProcessing}
-                >
-                  {isProcessing ? (
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  ) : (
-                    <RefreshCw className="h-4 w-4 mr-2" />
-                  )}
-                  Re-extract
-                </Button>
-              )}
-              {hasExtracted && !isApplied && (
-                <Button
-                  size="sm"
-                  onClick={() => onApply(transcript)}
-                  disabled={isApplying}
-                >
-                  {isApplying ? (
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  ) : (
-                    <Check className="h-4 w-4 mr-2" />
-                  )}
-                  Apply to Deal
-                </Button>
-              )}
-            </div>
+            {hasContent && (
+              <div className="flex items-center gap-2">
+                {!hasExtracted ? (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => onExtract(transcript)}
+                    disabled={isProcessing}
+                  >
+                    {isProcessing ? (
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    ) : (
+                      <Sparkles className="h-4 w-4 mr-2" />
+                    )}
+                    Extract Intelligence
+                  </Button>
+                ) : (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => onExtract(transcript)}
+                    disabled={isProcessing}
+                  >
+                    {isProcessing ? (
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    ) : (
+                      <RefreshCw className="h-4 w-4 mr-2" />
+                    )}
+                    Re-extract
+                  </Button>
+                )}
+                {hasExtracted && !isApplied && (
+                  <Button
+                    size="sm"
+                    onClick={() => onApply(transcript)}
+                    disabled={isApplying}
+                  >
+                    {isApplying ? (
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    ) : (
+                      <Check className="h-4 w-4 mr-2" />
+                    )}
+                    Apply to Deal
+                  </Button>
+                )}
+              </div>
+            )}
           </div>
         </CollapsibleContent>
       </div>

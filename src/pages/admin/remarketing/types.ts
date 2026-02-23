@@ -168,4 +168,7 @@ export interface DealTranscript {
   title?: string | null;
   transcript_url?: string | null;
   call_date?: string | null;
+  has_content?: boolean | null;
+  match_type?: string | null;
+  external_participants?: { name: string; email: string }[] | null;
 }

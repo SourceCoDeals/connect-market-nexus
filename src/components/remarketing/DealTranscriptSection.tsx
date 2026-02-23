@@ -59,6 +59,9 @@ interface DealTranscript {
   title?: string | null;
   transcript_url?: string | null;
   call_date?: string | null;
+  has_content?: boolean | null;
+  match_type?: string | null;
+  external_participants?: { name: string; email: string }[] | null;
 }
 
 interface DealTranscriptSectionProps {
@@ -75,13 +78,14 @@ interface DealTranscriptSectionProps {
   };
   /** Fireflies sync props */
   contactEmail?: string | null;
+  contactEmails?: string[];       // all contact emails for multi-email search
   contactName?: string | null;
   companyName?: string;
   onSyncComplete?: () => void;
   onTranscriptLinked?: () => void;
 }
 
-export function DealTranscriptSection({ dealId, transcripts, isLoading, dealInfo, contactEmail, contactName, companyName, onSyncComplete, onTranscriptLinked }: DealTranscriptSectionProps) {
+export function DealTranscriptSection({ dealId, transcripts, isLoading, dealInfo, contactEmail, contactEmails, contactName, companyName, onSyncComplete, onTranscriptLinked }: DealTranscriptSectionProps) {
   const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
@@ -122,14 +126,21 @@ export function DealTranscriptSection({ dealId, transcripts, isLoading, dealInfo
   const [ffUploading, setFfUploading] = useState(false);
   const ffFileInputRef = useRef<HTMLInputElement>(null);
 
-  // Fireflies sync handler
+  // Build the full list of emails to search (deduped)
+  const allContactEmails = Array.from(new Set([
+    ...(contactEmails || []),
+    ...(contactEmail ? [contactEmail] : []),
+  ].filter(Boolean).map(e => e.toLowerCase())));
+
+  // Fireflies sync handler — now sends all contact emails
   const handleFirefliesSync = async () => {
-    if (!contactEmail) return;
+    if (allContactEmails.length === 0) return;
     setSyncLoading(true);
-    const toastId = toast.loading(`Searching Fireflies for ${contactEmail}...`);
+    const emailDisplay = allContactEmails.length === 1 ? allContactEmails[0] : `${allContactEmails.length} contacts`;
+    const toastId = toast.loading(`Searching Fireflies for ${emailDisplay}...`);
     try {
       const { data, error } = await supabase.functions.invoke('sync-fireflies-transcripts', {
-        body: { listingId: dealId, contactEmail, limit: 50 },
+        body: { listingId: dealId, contactEmails: allContactEmails, companyName, limit: 50 },
       });
       if (error) throw error;
       if (data.linked > 0) {
@@ -152,7 +163,7 @@ export function DealTranscriptSection({ dealId, transcripts, isLoading, dealInfo
     }
   };
 
-  // Fireflies quick search handler (link panel)
+  // Fireflies quick search handler (link panel) — now includes contact emails for better results
   const handleFfQuickSearch = async () => {
     const trimmed = ffQuery.trim();
     if (!trimmed) return;
@@ -160,7 +171,7 @@ export function DealTranscriptSection({ dealId, transcripts, isLoading, dealInfo
     const toastId = toast.loading(`Searching Fireflies for "${trimmed}"...`);
     try {
       const { data, error } = await supabase.functions.invoke('search-fireflies-for-buyer', {
-        body: { query: trimmed, limit: 30 },
+        body: { query: trimmed, emails: allContactEmails, companyName, limit: 30 },
       });
       if (error) throw error;
       setFfResults(data.results || []);
@@ -175,7 +186,7 @@ export function DealTranscriptSection({ dealId, transcripts, isLoading, dealInfo
     }
   };
 
-  // Link a search result
+  // Link a search result — now includes has_content, match_type, external_participants
   const handleLinkSearchResult = async (transcript: any) => {
     setFfLinking(transcript.id);
     try {
@@ -191,6 +202,9 @@ export function DealTranscriptSection({ dealId, transcripts, isLoading, dealInfo
         transcript_text: transcript.summary || 'Fireflies transcript',
         source: 'fireflies',
         auto_linked: false,
+        has_content: transcript.has_content !== false,
+        match_type: transcript.match_type || 'email',
+        external_participants: transcript.external_participants || [],
       });
       if (error) {
         if (error.code === '23505') toast.info("Already linked");
@@ -1014,6 +1028,9 @@ export function DealTranscriptSection({ dealId, transcripts, isLoading, dealInfo
               source: 'fireflies',
               auto_linked: false,
               transcript_text: '',
+              has_content: result.has_content !== false,
+              match_type: result.match_type || 'email',
+              external_participants: result.external_participants || [],
             });
 
           if (insertError) {
@@ -1154,6 +1171,7 @@ export function DealTranscriptSection({ dealId, transcripts, isLoading, dealInfo
   const linkPanel = (
     <FirefliesLinkPanel
       contactEmail={contactEmail}
+      contactEmails={allContactEmails}
       contactName={contactName}
       lastSynced={lastSynced}
       syncLoading={syncLoading}
@@ -1377,21 +1395,59 @@ export function DealTranscriptSection({ dealId, transcripts, isLoading, dealInfo
                 )}
               </div>
             )}
-            {transcripts.map((transcript) => (
-              <TranscriptListItem
-                key={transcript.id}
-                transcript={transcript}
-                isExpanded={expandedId === transcript.id}
-                onToggleExpanded={(open) => setExpandedId(open ? transcript.id : null)}
-                isSelected={selectedTranscriptIds.has(transcript.id)}
-                onToggleSelected={toggleTranscriptSelection}
-                isProcessing={processingId === transcript.id}
-                isApplying={applyingId === transcript.id}
-                onExtract={handleExtract}
-                onApply={handleApply}
-                onDelete={(id) => deleteMutation.mutate(id)}
-              />
-            ))}
+            {/* Email-matched transcripts (direct matches) */}
+            {(() => {
+              const emailMatches = transcripts.filter(t => t.match_type !== 'keyword');
+              const keywordMatches = transcripts.filter(t => t.match_type === 'keyword');
+
+              return (
+                <>
+                  {emailMatches.map((transcript) => (
+                    <TranscriptListItem
+                      key={transcript.id}
+                      transcript={transcript}
+                      isExpanded={expandedId === transcript.id}
+                      onToggleExpanded={(open) => setExpandedId(open ? transcript.id : null)}
+                      isSelected={selectedTranscriptIds.has(transcript.id)}
+                      onToggleSelected={toggleTranscriptSelection}
+                      isProcessing={processingId === transcript.id}
+                      isApplying={applyingId === transcript.id}
+                      onExtract={handleExtract}
+                      onApply={handleApply}
+                      onDelete={(id) => deleteMutation.mutate(id)}
+                    />
+                  ))}
+
+                  {/* Keyword-matched transcripts (fallback company name matches) */}
+                  {keywordMatches.length > 0 && (
+                    <>
+                      <div className="flex items-center gap-3 py-2">
+                        <div className="flex-1 border-t border-blue-200 dark:border-blue-800" />
+                        <span className="text-xs text-blue-600 dark:text-blue-400 font-medium whitespace-nowrap">
+                          Possible related calls matched by company name
+                        </span>
+                        <div className="flex-1 border-t border-blue-200 dark:border-blue-800" />
+                      </div>
+                      {keywordMatches.map((transcript) => (
+                        <TranscriptListItem
+                          key={transcript.id}
+                          transcript={transcript}
+                          isExpanded={expandedId === transcript.id}
+                          onToggleExpanded={(open) => setExpandedId(open ? transcript.id : null)}
+                          isSelected={selectedTranscriptIds.has(transcript.id)}
+                          onToggleSelected={toggleTranscriptSelection}
+                          isProcessing={processingId === transcript.id}
+                          isApplying={applyingId === transcript.id}
+                          onExtract={handleExtract}
+                          onApply={handleApply}
+                          onDelete={(id) => deleteMutation.mutate(id)}
+                        />
+                      ))}
+                    </>
+                  )}
+                </>
+              );
+            })()}
           </CardContent>
         </CollapsibleContent>
 

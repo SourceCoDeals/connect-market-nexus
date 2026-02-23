@@ -1,5 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Loader2,
@@ -11,10 +12,13 @@ import {
   Clock,
   Link2,
   AlertCircle,
+  AlertTriangle,
+  Users,
 } from "lucide-react";
 
 interface FirefliesLinkPanelProps {
   contactEmail?: string | null;
+  contactEmails?: string[];
   contactName?: string | null;
   lastSynced: Date | null;
   syncLoading: boolean;
@@ -40,6 +44,7 @@ interface FirefliesLinkPanelProps {
 
 export function FirefliesLinkPanel({
   contactEmail,
+  contactEmails,
   contactName,
   lastSynced,
   syncLoading,
@@ -59,23 +64,28 @@ export function FirefliesLinkPanel({
   ffLinking,
   onLinkSearchResult,
 }: FirefliesLinkPanelProps) {
+  const hasEmails = (contactEmails && contactEmails.length > 0) || !!contactEmail;
+  const emailCount = contactEmails?.length || (contactEmail ? 1 : 0);
+
   return (
     <div className="border rounded-lg p-4 space-y-4 bg-muted/20">
       {/* Auto-sync row */}
-      {contactEmail && (
+      {hasEmails ? (
         <div className="flex items-center justify-between gap-4">
           <div className="text-xs text-muted-foreground space-y-0.5">
-            <p>Contact: {contactName || contactEmail}</p>
-            {contactName && <p>{contactEmail}</p>}
+            {contactName && <p>Contact: {contactName}</p>}
+            {emailCount === 1 && <p>{contactEmails?.[0] || contactEmail}</p>}
+            {emailCount > 1 && (
+              <p>{emailCount} contact emails linked</p>
+            )}
             {lastSynced && <p>Last synced: {lastSynced.toLocaleTimeString()}</p>}
           </div>
           <Button size="sm" variant="outline" onClick={onSync} disabled={syncLoading} className="shrink-0">
             {syncLoading ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> : <RefreshCw className="h-4 w-4 mr-1.5" />}
-            {syncLoading ? 'Syncing...' : 'Auto-Sync'}
+            {syncLoading ? 'Syncing...' : `Auto-Sync${emailCount > 1 ? ` (${emailCount})` : ''}`}
           </Button>
         </div>
-      )}
-      {!contactEmail && (
+      ) : (
         <div className="flex items-start gap-2">
           <AlertCircle className="h-4 w-4 text-muted-foreground mt-0.5" />
           <p className="text-xs text-muted-foreground">Add a contact email to enable auto-sync from Fireflies</p>
@@ -121,13 +131,33 @@ export function FirefliesLinkPanel({
           {ffResults.length > 0 && (
             <div className="space-y-2 max-h-64 overflow-auto">
               {ffResults.map(r => (
-                <div key={r.id} className="border rounded p-2 flex items-center justify-between gap-2">
+                <div key={r.id} className={`border rounded p-2 flex items-center justify-between gap-2 ${r.has_content === false ? 'opacity-60 bg-muted/30' : ''}`}>
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-medium truncate">{r.title}</p>
                     <div className="flex items-center gap-2 text-xs text-muted-foreground">
                       <span className="flex items-center gap-1"><Clock className="h-3 w-3" />{new Date(r.date).toLocaleDateString()}</span>
                       {r.duration_minutes && <span>{r.duration_minutes}m</span>}
                     </div>
+                    {/* Show external participants */}
+                    {r.external_participants && r.external_participants.length > 0 && (
+                      <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
+                        <Users className="h-3 w-3" />
+                        With: {r.external_participants.map((p: any) => p.name).join(', ')}
+                      </p>
+                    )}
+                    {/* No content warning */}
+                    {r.has_content === false && (
+                      <p className="text-xs text-amber-600 flex items-center gap-1 mt-0.5">
+                        <AlertTriangle className="h-3 w-3" />
+                        No transcript captured
+                      </p>
+                    )}
+                    {/* Keyword match indicator */}
+                    {r.match_type === 'keyword' && (
+                      <Badge variant="outline" className="text-[10px] h-4 mt-0.5 text-blue-600 border-blue-300">
+                        Company match
+                      </Badge>
+                    )}
                   </div>
                   <div className="flex items-center gap-1 shrink-0">
                     {r.meeting_url && <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => window.open(r.meeting_url, '_blank')}><ExternalLink className="h-3.5 w-3.5" /></Button>}
