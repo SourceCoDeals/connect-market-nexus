@@ -19,7 +19,7 @@ import { PendingSigningBanner } from "@/components/marketplace/PendingSigningBan
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { useUserNotifications, useMarkRequestNotificationsAsRead } from "@/hooks/use-user-notifications";
+import { useUserNotifications, useMarkRequestNotificationsAsRead, useMarkAllUserNotificationsAsRead } from "@/hooks/use-user-notifications";
 import { useSearchParams } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import {
@@ -56,6 +56,7 @@ const MyRequests = () => {
   const [innerTab, setInnerTab] = useState<Record<string, string>>({});
   const { unreadByRequest, unreadDocsByDeal } = useUserNotifications();
   const markRequestNotificationsAsRead = useMarkRequestNotificationsAsRead();
+  const markAllNotificationsAsRead = useMarkAllUserNotificationsAsRead();
   const { data: unreadMsgCounts } = useUnreadBuyerMessageCounts();
 
   // Get/set inner tab for a specific deal
@@ -109,12 +110,17 @@ const MyRequests = () => {
     }
   }, [requests, selectedDeal, searchParams]);
 
-  // Mark notifications as read when a deal tab is selected
+  // Mark all user notifications as read when visiting My Deals page
+  useEffect(() => {
+    markAllNotificationsAsRead.mutate();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Mark request-specific notifications as read when a deal tab is selected
   useEffect(() => {
     if (selectedDeal) {
       markRequestNotificationsAsRead.mutate(selectedDeal);
     }
-  }, [selectedDeal]);
+  }, [selectedDeal]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Helper function to get category icon
   const getCategoryIcon = (category?: string) => {
