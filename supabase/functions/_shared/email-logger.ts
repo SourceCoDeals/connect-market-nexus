@@ -26,6 +26,14 @@
  *   });
  */
 
+interface EmailDeliveryLogEntry {
+  email: string;
+  emailType: string;
+  status: string;
+  correlationId?: string;
+  errorMessage?: string;
+}
+
 export async function logEmailDelivery(
   // deno-lint-ignore no-explicit-any
   supabase: any,

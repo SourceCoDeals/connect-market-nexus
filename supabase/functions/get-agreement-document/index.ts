@@ -81,17 +81,18 @@ serve(async (req: Request) => {
       );
     }
 
-    const isSigned = !!firm[signedCol];
+    const firmRecord = firm as Record<string, unknown>;
+    const isSigned = !!firmRecord[signedCol];
 
     // If signed and we already have the URL cached, return it directly
-    if (isSigned && firm[signedUrlCol]) {
+    if (isSigned && firmRecord[signedUrlCol]) {
       return new Response(
-        JSON.stringify({ documentUrl: firm[signedUrlCol], isSigned: true }),
+        JSON.stringify({ documentUrl: firmRecord[signedUrlCol], isSigned: true }),
         { status: 200, headers: { 'Content-Type': 'application/json', ...corsHeaders } },
       );
     }
 
-    const submissionId = firm[submissionCol];
+    const submissionId = firmRecord[submissionCol];
     if (!submissionId) {
       return new Response(
         JSON.stringify({ error: 'No submission exists for this document' }),

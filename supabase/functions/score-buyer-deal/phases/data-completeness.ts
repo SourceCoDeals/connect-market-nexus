@@ -18,9 +18,10 @@ export function assessDataCompleteness(buyer: Buyer): DataCompletenessResult {
 
   // PROVENANCE CHECK: Warn if critical fields have no transcript source
   const sources = Array.isArray(buyer.extraction_sources) ? buyer.extraction_sources : [];
-  const hasTranscript = sources.some((s: Record<string, unknown>) =>
-    (s as { type?: string; source?: string }).type === 'transcript' || (s as { type?: string; source?: string }).source === 'transcript'
-  );
+  const hasTranscript = sources.some((s: unknown) => {
+    const rec = s as Record<string, unknown>;
+    return rec?.type === 'transcript' || rec?.source === 'transcript';
+  });
 
   if (!hasTranscript) {
     if (buyer.thesis_summary) provenanceWarnings.push('thesis_summary has no transcript backing');
