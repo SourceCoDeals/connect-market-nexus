@@ -133,20 +133,22 @@ export function PipelineKanbanCard({ deal, onDealClick, isDragging }: PipelineKa
           >
             {companyName}
           </h3>
-          {deal.deal_score != null && (
-            <DealScoreBadge score={deal.deal_score} size="sm" />
-          )}
         </div>
 
         <div className="px-3.5 py-2.5 space-y-2">
-          {/* Row 2: Revenue & EBITDA */}
-          <div className="flex items-center gap-3 text-xs">
-            <span className="text-muted-foreground">
-              Rev: <span className="font-medium text-foreground">{formatCurrency(deal.listing_revenue)}</span>
-            </span>
-            <span className="text-muted-foreground">
-              EBITDA: <span className="font-medium text-foreground">{formatCurrency(deal.listing_ebitda)}</span>
-            </span>
+          {/* Row 2: Score + Revenue & EBITDA */}
+          <div className="flex items-center justify-between gap-2 text-xs">
+            <div className="flex items-center gap-3">
+              <span className="text-muted-foreground">
+                Rev: <span className="font-medium text-foreground">{formatCurrency(deal.listing_revenue)}</span>
+              </span>
+              <span className="text-muted-foreground">
+                EBITDA: <span className="font-medium text-foreground">{formatCurrency(deal.listing_ebitda)}</span>
+              </span>
+            </div>
+            {deal.deal_score != null && (
+              <DealScoreBadge score={deal.deal_score} size="md" />
+            )}
           </div>
 
           {/* Row 3: Buyer info */}
