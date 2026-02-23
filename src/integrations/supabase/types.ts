@@ -2126,6 +2126,13 @@ export type Database = {
             referencedRelation: "inbound_leads"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "connection_requests_user_id_profiles_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
         ]
       }
       contact_activities: {
