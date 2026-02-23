@@ -5,7 +5,7 @@ import { useBackgroundScoringProgress } from "@/hooks/useBackgroundScoringProgre
 import type { SortOption, FilterTab } from "./types";
 
 export function useMatchingData(listingId: string | undefined) {
-  const queryClient = useQueryClient();
+  const _queryClient = useQueryClient();
   const [selectedUniverse, setSelectedUniverse] = useState<string>("");
   const [isScoring, setIsScoring] = useState(false);
   const [scoringProgress, setScoringProgress] = useState(0);
