@@ -1838,6 +1838,9 @@ export type Database = {
           approved_at: string | null
           approved_by: string | null
           buyer_priority_score: number | null
+          claimed_at: string | null
+          claimed_by: string | null
+          conversation_state: string | null
           converted_at: string | null
           converted_by: string | null
           created_at: string
@@ -1848,6 +1851,9 @@ export type Database = {
           followed_up_at: string | null
           followed_up_by: string | null
           id: string
+          last_message_at: string | null
+          last_message_preview: string | null
+          last_message_sender_role: string | null
           lead_company: string | null
           lead_email: string | null
           lead_fee_agreement_email_sent: boolean | null
@@ -1888,6 +1894,9 @@ export type Database = {
           approved_at?: string | null
           approved_by?: string | null
           buyer_priority_score?: number | null
+          claimed_at?: string | null
+          claimed_by?: string | null
+          conversation_state?: string | null
           converted_at?: string | null
           converted_by?: string | null
           created_at?: string
@@ -1898,6 +1907,9 @@ export type Database = {
           followed_up_at?: string | null
           followed_up_by?: string | null
           id?: string
+          last_message_at?: string | null
+          last_message_preview?: string | null
+          last_message_sender_role?: string | null
           lead_company?: string | null
           lead_email?: string | null
           lead_fee_agreement_email_sent?: boolean | null
@@ -1938,6 +1950,9 @@ export type Database = {
           approved_at?: string | null
           approved_by?: string | null
           buyer_priority_score?: number | null
+          claimed_at?: string | null
+          claimed_by?: string | null
+          conversation_state?: string | null
           converted_at?: string | null
           converted_by?: string | null
           created_at?: string
@@ -1948,6 +1963,9 @@ export type Database = {
           followed_up_at?: string | null
           followed_up_by?: string | null
           id?: string
+          last_message_at?: string | null
+          last_message_preview?: string | null
+          last_message_sender_role?: string | null
           lead_company?: string | null
           lead_email?: string | null
           lead_fee_agreement_email_sent?: boolean | null
@@ -10119,6 +10137,12 @@ export type Database = {
     }
     Enums: {
       app_role: "owner" | "admin" | "moderator" | "user"
+      conversation_state:
+        | "new"
+        | "waiting_on_buyer"
+        | "waiting_on_admin"
+        | "claimed"
+        | "closed"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -10247,6 +10271,13 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["owner", "admin", "moderator", "user"],
+      conversation_state: [
+        "new",
+        "waiting_on_buyer",
+        "waiting_on_admin",
+        "claimed",
+        "closed",
+      ],
     },
   },
 } as const

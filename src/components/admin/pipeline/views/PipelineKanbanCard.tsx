@@ -9,6 +9,7 @@ import { DealScoreBadge } from '@/components/ma-intelligence/DealScoreBadge';
 import { supabase } from '@/integrations/supabase/client';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
+import { useUnreadMessageCounts } from '@/hooks/use-connection-messages';
 
 interface PipelineKanbanCardProps {
   deal: Deal;
@@ -39,7 +40,8 @@ export function PipelineKanbanCard({ deal, onDealClick, isDragging }: PipelineKa
   const isPriority = deal.is_priority_target;
   const needsOwnerContact = deal.needs_owner_contact;
   const assignedAdmin = useAdminProfile(deal.assigned_to);
-
+  const { data: unreadCounts } = useUnreadMessageCounts();
+  const unreadCount = deal.connection_request_id ? (unreadCounts?.byRequest[deal.connection_request_id] || 0) : 0;
   const companyName = deal.listing_real_company_name || deal.listing_title || 'Unnamed Company';
   const contactName = deal.contact_name || deal.buyer_name || 'Unknown';
   const buyerCompany = deal.contact_company || deal.buyer_company;
@@ -168,15 +170,22 @@ export function PipelineKanbanCard({ deal, onDealClick, isDragging }: PipelineKa
           </button>
         </div>
 
-        {/* Footer: Owner + Last Activity */}
+        {/* Footer: Owner + Last Activity + Unread */}
         <div className="px-3 py-1.5 border-t border-border/30 flex items-center justify-between">
           <span className="text-[11px] text-muted-foreground">
             Owner: <span className="font-medium text-foreground/80">{assignedAdmin?.displayName || 'Unassigned'}</span>
           </span>
-          <span className="inline-flex items-center gap-0.5 text-[11px] text-muted-foreground/70">
-            <Clock className="w-3 h-3" />
-            {lastActivity}
-          </span>
+          <div className="flex items-center gap-2">
+            {unreadCount > 0 && (
+              <span className="flex h-4 min-w-[16px] items-center justify-center rounded-full bg-destructive px-1 text-[9px] font-bold text-destructive-foreground">
+                {unreadCount}
+              </span>
+            )}
+            <span className="inline-flex items-center gap-0.5 text-[11px] text-muted-foreground/70">
+              <Clock className="w-3 h-3" />
+              {lastActivity}
+            </span>
+          </div>
         </div>
       </CardContent>
     </Card>
