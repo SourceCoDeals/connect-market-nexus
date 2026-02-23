@@ -62,9 +62,22 @@ Deno.serve(async (req: Request) => {
     // Fetch memo
     const { data: memo, error: memoError } = await supabaseAdmin
       .from("lead_memos")
-      .select("*, listings!inner(id, internal_company_name, title)")
+      .select("*")
       .eq("id", memo_id)
       .single();
+
+    // Fetch deal info separately (no FK on lead_memos)
+    let dealTitle = "Deal";
+    if (memo?.deal_id) {
+      const { data: listing } = await supabaseAdmin
+        .from("listings")
+        .select("internal_company_name, title")
+        .eq("id", memo.deal_id)
+        .single();
+      if (listing) {
+        dealTitle = listing.internal_company_name || listing.title || "Deal";
+      }
+    }
 
     if (memoError || !memo) {
       return new Response(JSON.stringify({ error: "Memo not found" }), {

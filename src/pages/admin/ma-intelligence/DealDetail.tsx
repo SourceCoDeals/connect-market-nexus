@@ -41,6 +41,7 @@ import { DealScoreBadge } from "@/components/ma-intelligence";
 import { DealDataSection } from "@/components/ma-intelligence/DealDataSection";
 import { DealActivitySection } from "@/components/ma-intelligence/DealActivitySection";
 import { DealTranscriptsTab } from "@/components/ma-intelligence/DealTranscriptsTab";
+import { DataRoomTab } from "@/components/admin/data-room/DataRoomTab";
 import { DealMatchedBuyersTab } from "@/components/ma-intelligence/DealMatchedBuyersTab";
 import { AddTranscriptDialog } from "@/components/ma-intelligence/AddTranscriptDialog";
 import type { MADeal } from "@/lib/ma-intelligence/types";
@@ -506,6 +507,7 @@ export default function DealDetail() {
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="matched-buyers">Matched Buyers</TabsTrigger>
           <TabsTrigger value="transcripts">Transcripts</TabsTrigger>
+          <TabsTrigger value="data-room">Data Room</TabsTrigger>
           <TabsTrigger value="activity">Activity</TabsTrigger>
           <TabsTrigger value="settings">Settings</TabsTrigger>
         </TabsList>
@@ -1149,11 +1151,16 @@ export default function DealDetail() {
           <DealTranscriptsTab dealId={deal.id} />
         </TabsContent>
 
+        {/* Data Room Tab */}
+        <TabsContent value="data-room">
+          <DataRoomTab dealId={deal.id} dealTitle={deal.deal_name} />
+        </TabsContent>
+
         {/* Activity Tab */}
         <TabsContent value="activity">
           <Card>
             <CardHeader>
-              <CardTitle>Activity Feed</CardTitle>
+              <CardTitle>Deal Activity</CardTitle>
             </CardHeader>
             <CardContent>
               <DealActivitySection dealId={deal.id} />
