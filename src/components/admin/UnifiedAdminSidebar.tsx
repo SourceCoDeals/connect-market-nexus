@@ -276,11 +276,6 @@ export function UnifiedAdminSidebar({ collapsed, onCollapsedChange }: AdminSideb
               href: "/admin/system-test",
               icon: <FlaskConical className="h-4 w-4" />,
             },
-            {
-              label: "DocuSeal Health",
-              href: "/admin/docuseal-health",
-              icon: <Activity className="h-4 w-4" />,
-            },
         ],
       },
     ],

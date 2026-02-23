@@ -819,5 +819,33 @@ export function buildTests(): TestDef[] {
     });
   }
 
+  // ═══════════════════════════════════════════════════
+  // 14. DocuSeal Integration Tests
+  // ═══════════════════════════════════════════════════
+  const C14 = '14. DocuSeal Integration';
+
+  add(C14, 'DocuSeal integration test edge function invocable', async () => {
+    const { data, error } = await supabase.functions.invoke('docuseal-integration-test');
+    if (error) throw new Error(`Edge function invocation failed: ${error.message}`);
+    if (data?.error) throw new Error(`Test suite error: ${data.error}`);
+    if (!data?.results || !Array.isArray(data.results)) {
+      throw new Error('Unexpected response format from docuseal-integration-test');
+    }
+
+    const failed = data.results.filter((r: any) => r.status === 'fail');
+    const warned = data.results.filter((r: any) => r.status === 'warn');
+    const passed = data.results.filter((r: any) => r.status === 'pass');
+
+    if (failed.length > 0) {
+      const details = failed.map((r: any) => `${r.name}: ${r.detail}`).join('; ');
+      throw new Error(`${failed.length}/${data.results.length} sub-tests failed — ${details}`);
+    }
+
+    if (warned.length > 0 && passed.length === 0) {
+      throw new Error(`All sub-tests returned warnings: ${warned.map((r: any) => r.detail).join('; ')}`);
+    }
+    // Success: all passed (warnings are acceptable if passes also exist)
+  });
+
   return tests;
 }
