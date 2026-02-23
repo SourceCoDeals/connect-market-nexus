@@ -643,7 +643,7 @@ export default function SystemTestRunner() {
     try {
       const stored = localStorage.getItem(STORAGE_KEY);
       if (stored) return JSON.parse(stored);
-    } catch {}
+    } catch { /* ignore parse errors */ }
     return [];
   });
   const [isRunning, setIsRunning] = useState(false);
@@ -661,7 +661,7 @@ export default function SystemTestRunner() {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(res));
       localStorage.setItem(STORAGE_KEY + "-ts", ts);
-    } catch {}
+    } catch { /* ignore storage errors */ }
   }, []);
 
   const runTests = useCallback(
@@ -744,7 +744,7 @@ export default function SystemTestRunner() {
   const toggleCategory = (cat: string) => {
     setCollapsedCategories((prev) => {
       const next = new Set(prev);
-      next.has(cat) ? next.delete(cat) : next.add(cat);
+      if (next.has(cat)) { next.delete(cat); } else { next.add(cat); }
       return next;
     });
   };

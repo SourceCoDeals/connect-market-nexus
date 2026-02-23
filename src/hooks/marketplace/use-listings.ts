@@ -59,7 +59,6 @@ export const useListings = (filters: FilterOptions = {}) => {
     queryKey: ['listings', filters],
     queryFn: async () => {
       return withPerformanceMonitoring('marketplace-listings-query', async () => {
-        try {
           // Fetching marketplace listings with filters
 
           // Simple auth check - must have user with verified email
@@ -211,9 +210,6 @@ export const useListings = (filters: FilterOptions = {}) => {
             listings: listings || [],
             totalCount: count || 0
           };
-        } catch (error: any) {
-          throw error;
-        }
       });
     },
     enabled: !!(user && user.email_verified && (user.approval_status === 'approved' || user.is_admin)), // Remove authChecked dependency
@@ -236,7 +232,6 @@ export const useListing = (id: string | undefined) => {
       if (!id) return null;
       
       return withPerformanceMonitoring('single-listing-query', async () => {
-        try {
           // Fetching single listing
 
           // Simple auth check for single listings
@@ -293,9 +288,6 @@ export const useListing = (id: string | undefined) => {
           };
           
           return listing as Listing;
-        } catch (error: any) {
-          throw error;
-        }
       });
     },
     enabled: !!(id && user && user.email_verified && (user.approval_status === 'approved' || user.is_admin)), // Remove authChecked dependency

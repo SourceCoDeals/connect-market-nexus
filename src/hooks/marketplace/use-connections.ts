@@ -14,7 +14,6 @@ export const useRequestConnection = () => {
   
   return useMutation({
     mutationFn: async ({ listingId, message }: { listingId: string; message?: string }) => {
-      try {
         const { data: { user: authUser } } = await supabase.auth.getUser();
         if (!authUser) throw new Error('You must be logged in to request a connection');
         
