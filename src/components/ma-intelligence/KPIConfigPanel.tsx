@@ -103,10 +103,10 @@ export function KPIConfigPanel({ trackerId, tracker, onSave }: KPIConfigPanelPro
 
       setHasChanges(false);
       onSave?.();
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "Error",
-        description: error.message,
+        description: error instanceof Error ? error.message : String(error),
         variant: "destructive",
       });
     }
@@ -130,7 +130,7 @@ export function KPIConfigPanel({ trackerId, tracker, onSave }: KPIConfigPanelPro
     setHasChanges(true);
   };
 
-  const handleUpdateKPI = (index: number, field: keyof KPI, value: any) => {
+  const handleUpdateKPI = (index: number, field: keyof KPI, value: string | number | boolean) => {
     const updated = [...kpis];
     updated[index] = { ...updated[index], [field]: value };
     setKpis(updated);

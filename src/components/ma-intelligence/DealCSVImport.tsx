@@ -73,7 +73,7 @@ export function DealCSVImport({ open, onOpenChange, trackerId, onDealsImported }
       const deals = [];
       for (let i = 1; i < rows.length; i++) {
         const values = rows[i].split(",").map(v => v.trim());
-        const deal: any = {
+        const deal: Record<string, string> = {
           listing_id: trackerId,
         };
 
@@ -107,10 +107,10 @@ export function DealCSVImport({ open, onOpenChange, trackerId, onDealsImported }
         onOpenChange(false);
         resetState();
       }, 1500);
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "Import failed",
-        description: error.message,
+        description: error instanceof Error ? error.message : String(error),
         variant: "destructive",
       });
     } finally {

@@ -354,7 +354,7 @@ export const MobileUsersTable = ({
         notes: emailData.useTemplate ? 'Template fee agreement email sent' : 'Custom fee agreement email sent'
       });
 
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Mobile: Error in handleSendEmail:', error);
       // Error handling is done by the hook
     }

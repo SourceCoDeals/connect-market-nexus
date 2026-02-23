@@ -17,9 +17,9 @@ export function useDealOwnerNotifications() {
           table: 'admin_notifications',
           filter: 'notification_type=eq.deal_assignment'
         },
-        async (payload: RealtimePostgresChangesPayload<any>) => {
+        async (payload: RealtimePostgresChangesPayload<Record<string, unknown>>) => {
           const notification = payload.new;
-          const metadata = notification.metadata;
+          const metadata = notification.metadata as Record<string, unknown> | null;
 
           if (!metadata) return;
 
@@ -52,9 +52,9 @@ export function useDealOwnerNotifications() {
           table: 'admin_notifications',
           filter: 'notification_type=eq.deal_reassignment'
         },
-        async (payload: RealtimePostgresChangesPayload<any>) => {
+        async (payload: RealtimePostgresChangesPayload<Record<string, unknown>>) => {
           const notification = payload.new;
-          const metadata = notification.metadata;
+          const metadata = notification.metadata as Record<string, unknown> | null;
 
           if (!metadata || !metadata.previous_owner_email) return;
 

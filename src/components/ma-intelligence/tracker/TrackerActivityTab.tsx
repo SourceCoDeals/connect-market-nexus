@@ -37,10 +37,10 @@ export function TrackerActivityTab({ trackerId }: TrackerActivityTabProps) {
     setIsLoading(true);
     try {
       setActivities([]);
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "Error loading activities",
-        description: error.message,
+        description: error instanceof Error ? error.message : String(error),
         variant: "destructive",
       });
     } finally {

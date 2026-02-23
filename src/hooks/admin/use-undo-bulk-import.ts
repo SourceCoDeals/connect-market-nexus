@@ -64,7 +64,7 @@ export function useUndoBulkImport() {
         }
       );
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast.error('Failed to undo import', {
         description: error.message,
       });

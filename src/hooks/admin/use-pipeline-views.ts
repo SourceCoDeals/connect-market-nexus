@@ -59,6 +59,7 @@ export function useCreatePipelineView() {
     }) => {
       const { data, error } = await supabase
         .from('pipeline_views')
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         .insert(view as any)
         .select()
         .single();

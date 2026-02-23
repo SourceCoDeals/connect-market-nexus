@@ -49,7 +49,7 @@ export function useCreateDocuSealSubmission() {
         description: `Signing request ${method} to ${variables.buyerEmail}`,
       });
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({
         title: 'Failed to create signing request',
         description: error.message || 'Please try again.',

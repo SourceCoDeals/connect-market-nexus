@@ -491,7 +491,6 @@ const ReMarketingUniverseDetail = () => {
   const saveMutation = useMutation({
     mutationFn: async () => {
        
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const saveData: Record<string, unknown> = {
         ...formData,
         size_criteria: sizeCriteria,

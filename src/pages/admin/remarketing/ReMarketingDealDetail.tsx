@@ -313,9 +313,9 @@ const ReMarketingDealDetail = () => {
       setEnrichmentProgress(100);
       setEnrichmentStage('Queued for background processing');
       setTimeout(() => { setIsEnriching(false); setEnrichmentProgress(0); setEnrichmentStage(''); }, 1500);
-    } catch (error: any) {
+    } catch (error: unknown) {
       clearInterval(progressTimer);
-      toast.error(error.message || "Failed to queue enrichment");
+      toast.error(error instanceof Error ? error.message : "Failed to queue enrichment");
       setIsEnriching(false);
       setEnrichmentProgress(0);
       setEnrichmentStage('');
@@ -1285,8 +1285,8 @@ const ReMarketingDealDetail = () => {
             } else {
               toast.error(data?.error || "Failed to analyze notes");
             }
-          } catch (error: any) {
-            toast.error(error.message || "Failed to analyze notes");
+          } catch (error: unknown) {
+            toast.error(error instanceof Error ? error.message : "Failed to analyze notes");
           } finally {
             setIsAnalyzingNotes(false);
           }

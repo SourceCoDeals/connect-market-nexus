@@ -112,10 +112,10 @@ export function BuyerDealHistoryTab({ buyerId }: BuyerDealHistoryTabProps) {
       });
 
       setDealScores((enrichedScores || []) as BuyerDealScore[]);
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "Error loading deal history",
-        description: error.message,
+        description: error instanceof Error ? error.message : String(error),
         variant: "destructive",
       });
     } finally {
@@ -159,10 +159,10 @@ export function BuyerDealHistoryTab({ buyerId }: BuyerDealHistoryTabProps) {
       });
 
       loadDealScores();
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "Error updating deal",
-        description: error.message,
+        description: error instanceof Error ? error.message : String(error),
         variant: "destructive",
       });
     }

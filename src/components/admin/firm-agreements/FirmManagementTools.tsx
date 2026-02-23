@@ -118,10 +118,10 @@ export function FirmManagementTools() {
       setIsMergeDialogOpen(false);
       setSourceFirmId('');
       setTargetFirmId('');
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: 'Error',
-        description: error.message || 'Failed to merge firms',
+        description: error instanceof Error ? error.message : 'Failed to merge firms',
         variant: 'destructive',
       });
     }
@@ -183,7 +183,7 @@ export function FirmManagementTools() {
 
       // Sync firm's agreement status to the newly linked user
       if (selectedFirm) {
-        const updates: any = {};
+        const updates: Record<string, boolean | string | null> = {};
         if (selectedFirm.fee_agreement_signed) {
           updates.fee_agreement_signed = true;
           updates.fee_agreement_signed_at = selectedFirm.fee_agreement_signed_at;
@@ -214,10 +214,10 @@ export function FirmManagementTools() {
       setIsLinkDialogOpen(false);
       setUserEmail('');
       setSelectedFirmId('');
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: 'Error',
-        description: error.message || 'Failed to link user to firm',
+        description: error instanceof Error ? error.message : 'Failed to link user to firm',
         variant: 'destructive',
       });
     }

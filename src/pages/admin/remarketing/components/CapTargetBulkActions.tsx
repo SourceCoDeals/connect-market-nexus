@@ -33,7 +33,7 @@ import { useToast } from "@/hooks/use-toast";
 
 interface CapTargetBulkActionsProps {
   selectedIds: Set<string>;
-  deals: any[] | undefined;
+  deals: Record<string, unknown>[] | undefined;
   isPushing: boolean;
   isEnriching: boolean;
   isArchiving: boolean;

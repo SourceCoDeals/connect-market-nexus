@@ -66,7 +66,7 @@ export default function MAAllBuyers() {
     }));
     setBuyers(mappedBuyers);
     setIsLoading(false);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Failed to load buyers:", error);
       setIsLoading(false);
     }

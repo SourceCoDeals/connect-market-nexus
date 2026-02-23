@@ -12,7 +12,7 @@ export function useUpdateListing() {
       updates,
     }: {
       listingId: string;
-      updates: Record<string, any>;
+      updates: Record<string, unknown>;
     }) => {
       const { data, error } = await supabase
         .from('listings')

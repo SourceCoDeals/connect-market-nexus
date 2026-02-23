@@ -42,7 +42,7 @@ const BRANDING_OPTIONS = [
   { value: 'cortec', label: 'Cortec Group' },
 ];
 
-const STATUS_BADGES: Record<string, { label: string; icon: any; className: string }> = {
+const STATUS_BADGES: Record<string, { label: string; icon: typeof Edit; className: string }> = {
   draft: { label: 'Draft', icon: Edit, className: 'bg-amber-100 text-amber-800' },
   published: { label: 'Published', icon: CheckCircle, className: 'bg-green-100 text-green-800' },
   archived: { label: 'Archived', icon: Archive, className: 'bg-gray-100 text-gray-600' },
@@ -107,7 +107,7 @@ export function MemosPanel({ dealId, dealTitle }: MemosPanelProps) {
           <p class="memo-type">${isAnonymous ? 'Anonymous Teaser' : 'Confidential Lead Memo'}</p>
           <p class="date">${new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
         </div>
-        ${sections.map((s: any) => `
+        ${sections.map((s: { title: string; content: string }) => `
           <div class="section">
             <h2>${s.title}</h2>
             <div>${s.content.replace(/\n/g, '<br>')}</div>
@@ -161,7 +161,7 @@ export function MemosPanel({ dealId, dealTitle }: MemosPanelProps) {
           <div className="flex items-end gap-3">
             <div className="flex-1">
               <label className="text-xs font-medium text-muted-foreground mb-1 block">Memo Type</label>
-              <Select value={generateType} onValueChange={(v: any) => setGenerateType(v)}>
+              <Select value={generateType} onValueChange={(v: string) => setGenerateType(v)}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>

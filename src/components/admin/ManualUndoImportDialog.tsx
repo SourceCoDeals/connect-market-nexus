@@ -109,9 +109,9 @@ export function ManualUndoImportDialog({ isOpen, onClose }: ManualUndoImportDial
       if (batches.length === 0) {
         toast.info('No recent CSV imports found');
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast.error('Failed to load recent imports', {
-        description: error.message,
+        description: error instanceof Error ? error.message : String(error),
       });
     } finally {
       setIsLoading(false);
@@ -158,9 +158,9 @@ export function ManualUndoImportDialog({ isOpen, onClose }: ManualUndoImportDial
           description: 'This import may have already been deleted',
         });
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast.error('Failed to load import details', {
-        description: error.message,
+        description: error instanceof Error ? error.message : String(error),
       });
     } finally {
       setIsLoading(false);
@@ -214,9 +214,9 @@ export function ManualUndoImportDialog({ isOpen, onClose }: ManualUndoImportDial
       setSelectedBatch(null);
       setRequestsToDelete([]);
       loadRecentImports(); // Refresh the list
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast.error('Delete failed', {
-        description: error.message,
+        description: error instanceof Error ? error.message : String(error),
       });
     } finally {
       setIsDeleting(false);

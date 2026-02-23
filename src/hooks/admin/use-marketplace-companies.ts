@@ -13,8 +13,8 @@ interface CompanyData {
     phone_number: string | null;
     website: string | null;
     linkedin_profile: string | null;
-    business_categories: any;
-    target_locations: any;
+    business_categories: string[] | null;
+    target_locations: string[] | null;
     sampleUserEmail: string;
     sampleUserId: string;
   };
@@ -57,7 +57,7 @@ export function useMarketplaceCompanies() {
       // Group by company name and aggregate data
       const companyMap = new Map<string, {
         company: string;
-        users: Array<any>;
+        users: Array<{ id: string; email: string; company: string | null; buyer_type: string | null; phone_number: string | null; website: string | null; linkedin_profile: string | null; business_categories: string[] | null; target_locations: string[] | null; updated_at: string }>;
       }>();
 
       data?.forEach((profile) => {

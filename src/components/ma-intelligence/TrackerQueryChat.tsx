@@ -142,10 +142,10 @@ export function TrackerQueryChat({ trackerId, trackerName }: TrackerQueryChatPro
 
       setMessages(prev => [...prev, assistantMessage]);
       setStreamingContent("");
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "Error querying AI",
-        description: error.message,
+        description: error instanceof Error ? error.message : String(error),
         variant: "destructive",
       });
       setStreamingContent("");

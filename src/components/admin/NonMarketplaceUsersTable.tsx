@@ -199,7 +199,7 @@ export const NonMarketplaceUsersTable = ({ users, isLoading, filters }: NonMarke
                                   </span>
                                 </div>
                                 <div className="space-y-3">
-                                  {user.associated_records.connection_requests.map((cr: any) => (
+                                  {user.associated_records.connection_requests.map((cr: { id: string; created_at: string; lead_nda_signed?: boolean; lead_fee_agreement_signed?: boolean; listing?: { title?: string } }) => (
                                     <div key={cr.id} className="space-y-1">
                                       {cr.listing?.title && (
                                         <div className="font-medium text-sm text-foreground">{cr.listing.title}</div>
@@ -233,7 +233,7 @@ export const NonMarketplaceUsersTable = ({ users, isLoading, filters }: NonMarke
                                   </span>
                                 </div>
                                 <div className="space-y-3">
-                                  {user.associated_records.inbound_leads.map((lead: any) => (
+                                  {user.associated_records.inbound_leads.map((lead: { id: string; created_at: string; source?: string }) => (
                                     <div key={lead.id} className="space-y-1">
                                       <div className="font-medium text-sm">{lead.source || 'Contact Form'}</div>
                                       <div className="text-xs text-muted-foreground">
@@ -255,7 +255,7 @@ export const NonMarketplaceUsersTable = ({ users, isLoading, filters }: NonMarke
                                   </span>
                                 </div>
                                 <div className="space-y-3">
-                                  {user.associated_records.deals.map((deal: any) => (
+                                  {user.associated_records.deals.map((deal: { id: string; title?: string; nda_status?: string; fee_agreement_status?: string; listing?: { title?: string } }) => (
                                     <div key={deal.id} className="space-y-1">
                                       <div className="font-medium text-sm">{deal.title || 'Untitled Deal'}</div>
                                       {deal.listing?.title && (

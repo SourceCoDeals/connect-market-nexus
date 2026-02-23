@@ -44,9 +44,9 @@ export function NdaGateModal({ userId, firmId, onSigned }: NdaGateModalProps) {
         } else {
           setError('NDA signing form not available. Please contact support.');
         }
-      } catch (err: any) {
+      } catch (err: unknown) {
         if (!cancelled) {
-          setError(err.message || 'Something went wrong');
+          setError(err instanceof Error ? err.message : 'Something went wrong');
         }
       } finally {
         if (!cancelled) {

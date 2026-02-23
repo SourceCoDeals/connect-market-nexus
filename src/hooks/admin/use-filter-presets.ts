@@ -6,7 +6,7 @@ export interface FilterPreset {
   id: string;
   user_id: string;
   name: string;
-  filters: Record<string, any>;
+  filters: Record<string, unknown>;
   is_default: boolean;
   created_at: string;
   updated_at: string;
@@ -32,7 +32,7 @@ export function useCreateFilterPreset() {
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: async (preset: { name: string; filters: Record<string, any>; is_default?: boolean }) => {
+    mutationFn: async (preset: { name: string; filters: Record<string, unknown>; is_default?: boolean }) => {
       const { data: { user }, error: authError } = await supabase.auth.getUser();
       if (authError) throw authError;
       if (!user) throw new Error('Not authenticated');
@@ -58,7 +58,7 @@ export function useCreateFilterPreset() {
         description: 'Your filter preset has been saved successfully.',
       });
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({
         title: 'Error saving preset',
         description: error.message,
@@ -91,7 +91,7 @@ export function useUpdateFilterPreset() {
         description: 'Filter preset updated successfully.',
       });
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({
         title: 'Error updating preset',
         description: error.message,
@@ -121,7 +121,7 @@ export function useDeleteFilterPreset() {
         description: 'Filter preset deleted successfully.',
       });
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({
         title: 'Error deleting preset',
         description: error.message,

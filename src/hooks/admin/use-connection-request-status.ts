@@ -22,7 +22,7 @@ export const useUpdateConnectionRequestStatus = () => {
       const now = new Date().toISOString();
 
       // Build mutually exclusive update payload safely on the client
-      const base: any = {
+      const base: Record<string, string | null> = {
         status,
         updated_at: now,
         decision_at: status === 'pending' ? null : now,

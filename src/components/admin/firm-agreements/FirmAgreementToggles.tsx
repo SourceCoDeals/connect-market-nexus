@@ -68,10 +68,10 @@ export function FirmAgreementToggles({ firm, members, type = 'both' }: FirmAgree
       const firmMembers = (data || []) as FirmMember[];
       setLocalMembers(firmMembers);
       return firmMembers;
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: 'Error',
-        description: `Failed to load firm members: ${error.message}`,
+        description: `Failed to load firm members: ${error instanceof Error ? error.message : String(error)}`,
         variant: 'destructive',
       });
       return [];

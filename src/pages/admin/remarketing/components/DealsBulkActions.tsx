@@ -25,7 +25,7 @@ interface DealsBulkActionsProps {
   onShowDeleteDialog: () => void;
   setSelectedDeals: (deals: Set<string>) => void;
   refetchListings: () => void;
-  toast: (opts: any) => void;
+  toast: (opts: Record<string, unknown>) => void;
 }
 
 export const DealsBulkActions = ({

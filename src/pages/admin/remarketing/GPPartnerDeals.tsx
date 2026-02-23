@@ -281,7 +281,7 @@ export default function GPPartnerDeals() {
     if (hidePushed) items = items.filter((d) => !d.pushed_to_all_deals);
     const sorted = items;
     sorted.sort((a, b) => {
-      let valA: any, valB: any;
+      let valA: unknown, valB: unknown;
       switch (sortColumn) {
         case "company_name":
           valA = (a.internal_company_name || a.title || "").toLowerCase();

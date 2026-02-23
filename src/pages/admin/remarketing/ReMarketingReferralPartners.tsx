@@ -73,7 +73,7 @@ export default function ReMarketingReferralPartners() {
       if (error) throw error;
       
       // Fetch actual deal counts from listings table
-      const partnerIds = (data || []).map((p: any) => p.id);
+      const partnerIds = (data || []).map((p) => p.id);
       if (partnerIds.length > 0) {
         const { data: listings, error: listingsError } = await supabase
           .from("listings")
@@ -82,7 +82,7 @@ export default function ReMarketingReferralPartners() {
         if (listingsError) throw listingsError;
         
         const countMap: Record<string, number> = {};
-        listings?.forEach((l: any) => {
+        listings?.forEach((l) => {
           countMap[l.referral_partner_id] = (countMap[l.referral_partner_id] || 0) + 1;
         });
         

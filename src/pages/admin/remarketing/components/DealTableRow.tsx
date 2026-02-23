@@ -67,11 +67,11 @@ export const DealTableRow = ({
 }: {
   listing: DealListing;
   index: number;
-  stats: any;
+  stats: Record<string, unknown>;
   navigate: (path: string) => void;
   formatCurrency: (value: number | null) => string;
   formatWebsiteDomain: (url: string | null) => string | null;
-  getEffectiveWebsite: (listing: any) => string | null;
+  getEffectiveWebsite: (listing: Record<string, unknown>) => string | null;
   formatGeographyBadges: (states: string[] | null) => string | null;
   getScoreTrendIcon: (score: number) => JSX.Element;
   columnWidths: ColumnWidths;

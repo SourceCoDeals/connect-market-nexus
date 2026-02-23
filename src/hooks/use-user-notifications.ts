@@ -11,7 +11,7 @@ export interface UserNotification {
   message: string;
   is_read: boolean;
   read_at?: string;
-  metadata: Record<string, any>;
+  metadata: Record<string, unknown>;
   created_at: string;
 }
 

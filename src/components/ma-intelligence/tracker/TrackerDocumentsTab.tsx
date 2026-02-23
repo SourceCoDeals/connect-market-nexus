@@ -39,10 +39,10 @@ export function TrackerDocumentsTab({ trackerId }: TrackerDocumentsTabProps) {
       // tracker_documents table doesn't exist yet - stub implementation
       // When the table is created, uncomment and use the actual query
       setDocuments([]);
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "Error loading documents",
-        description: error.message,
+        description: error instanceof Error ? error.message : String(error),
         variant: "destructive",
       });
     } finally {

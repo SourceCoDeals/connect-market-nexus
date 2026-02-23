@@ -15,7 +15,7 @@ interface GroupedUserActivity {
   first_name?: string;
   last_name?: string;
   user_name: string;
-  activities: any[];
+  activities: Record<string, unknown>[];
   lastActivityTime: string;
   totalActivities: number;
   actionCounts: {
@@ -78,15 +78,15 @@ export function StripeOverviewTab() {
 
   // Helper function to parse referrer into a friendly source name
   const parseReferrerSource = (
-    activity: any,
+    activity: Record<string, unknown>,
     preferCurrent: boolean = false
   ): string => {
     // Use current session data if preferCurrent is true and available
-    const utmSource = preferCurrent && activity?.current_utm_source ? activity.current_utm_source : activity?.utm_source;
-    const utmMedium = preferCurrent && activity?.current_utm_medium ? activity.current_utm_medium : activity?.utm_medium;
-    const utmCampaign = preferCurrent && activity?.current_utm_campaign ? activity.current_utm_campaign : activity?.utm_campaign;
-    const referrer = preferCurrent && activity?.current_referrer ? activity.current_referrer : activity?.referrer;
-    const marketingChannel = activity?.marketing_channel;
+    const utmSource = (preferCurrent && activity?.current_utm_source ? activity.current_utm_source : activity?.utm_source) as string | undefined;
+    const utmMedium = (preferCurrent && activity?.current_utm_medium ? activity.current_utm_medium : activity?.utm_medium) as string | undefined;
+    const utmCampaign = (preferCurrent && activity?.current_utm_campaign ? activity.current_utm_campaign : activity?.utm_campaign) as string | undefined;
+    const referrer = (preferCurrent && activity?.current_referrer ? activity.current_referrer : activity?.referrer) as string | undefined;
+    const marketingChannel = activity?.marketing_channel as string | undefined;
 
     if (!referrer && !utmSource && !marketingChannel) return 'Direct';
 
@@ -138,8 +138,8 @@ export function StripeOverviewTab() {
   const groupedByUser = useMemo(() => {
     if (!activities || activities.length === 0) return [];
 
-    const userMap = new Map<string, GroupedUserActivity & { 
-      mostRecentSession: any;
+    const userMap = new Map<string, GroupedUserActivity & {
+      mostRecentSession: Record<string, unknown> | null;
       dateFirstSeen: string;
       sessionReferrer: string;
     }>();

@@ -302,6 +302,7 @@ export function useUpdateDealStage() {
       }
       
       // Use new RPC function with ownership logic
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const { data, error } = await supabase.rpc('move_deal_stage_with_ownership' as any, {
         p_deal_id: dealId,
         p_new_stage_id: stageId,
@@ -496,6 +497,7 @@ export function useUpdateDeal() {
         if (authError) throw authError;
         if (!user) throw new Error('Not authenticated');
 
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const { data, error } = await supabase.rpc('update_deal_owner' as any, {
           p_deal_id: dealId,
           p_assigned_to: updates.assigned_to === 'unassigned' || updates.assigned_to === '' ? null : updates.assigned_to,
@@ -697,6 +699,7 @@ export function useCreateDeal() {
     mutationFn: async (deal: Record<string, unknown>) => {
       const { data, error } = await supabase
         .from('deals')
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         .insert(deal as any)
         .select()
         .single();

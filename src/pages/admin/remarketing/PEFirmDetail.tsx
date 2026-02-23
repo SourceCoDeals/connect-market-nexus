@@ -988,7 +988,7 @@ const PEFirmDetail = () => {
                     {transcripts.map((t) => (
                       <TableRow key={t.id}>
                         <TableCell className="font-medium">
-                          {t.title || (t as any).file_name || "Transcript"}
+                          {t.title || (t as unknown as Record<string, string>).file_name || "Transcript"}
                         </TableCell>
                         <TableCell>
                           <Badge variant="outline" className="text-xs">

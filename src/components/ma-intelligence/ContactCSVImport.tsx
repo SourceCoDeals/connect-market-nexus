@@ -57,7 +57,7 @@ export function ContactCSVImport({ trackerId, onImportComplete }: ContactCSVImpo
       const buyers = [];
       for (let i = 1; i < rows.length; i++) {
         const values = rows[i].split(",").map(v => v.trim());
-        const buyer: any = {
+        const buyer: Record<string, string> = {
           industry_tracker_id: trackerId,
         };
 
@@ -97,10 +97,10 @@ export function ContactCSVImport({ trackerId, onImportComplete }: ContactCSVImpo
       setTimeout(() => {
         onImportComplete();
       }, 1500);
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "Import failed",
-        description: error.message,
+        description: error instanceof Error ? error.message : String(error),
         variant: "destructive",
       });
     } finally {
