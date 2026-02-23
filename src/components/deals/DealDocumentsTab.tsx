@@ -325,11 +325,20 @@ export function DealDocumentsTab({ requestId: _requestId, requestStatus, dealId 
                   <span className="text-xs font-medium text-slate-600">{folder}</span>
                 </div>
                 <div className="divide-y divide-slate-100">
-                  {docs.map((doc) => (
-                    <div key={doc.id} className="flex items-center gap-3 px-5 py-2.5">
+                  {docs.map((doc) => {
+                    const isNew = (Date.now() - new Date(doc.created_at).getTime()) < 3 * 24 * 60 * 60 * 1000; // 3 days
+                    return (
+                    <div key={doc.id} className="flex items-center gap-3 px-5 py-2.5 transition-colors hover:bg-slate-50/50">
                       {getFileIcon(doc.file_type)}
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm text-slate-700 truncate">{doc.file_name}</p>
+                        <div className="flex items-center gap-1.5">
+                          <p className="text-sm text-slate-700 truncate">{doc.file_name}</p>
+                          {isNew && (
+                            <Badge variant="secondary" className="bg-amber-50 text-amber-700 border-amber-200 text-[9px] px-1.5 py-0 h-4">
+                              New
+                            </Badge>
+                          )}
+                        </div>
                         <p className="text-[10px] text-slate-400">
                           {formatFileSize(doc.file_size_bytes)}
                           {doc.file_size_bytes ? " · " : ""}
@@ -364,7 +373,8 @@ export function DealDocumentsTab({ requestId: _requestId, requestStatus, dealId 
                         )}
                       </div>
                     </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             ))}
