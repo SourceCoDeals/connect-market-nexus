@@ -14,12 +14,14 @@ The remarketing system implements a sophisticated multi-dimensional buyer-deal m
 
 ### Risk Summary
 
-| Severity | Count | Status |
-|----------|-------|--------|
-| Critical | 2 | Identified, 1 fixed |
-| High | 14 | Identified |
-| Medium | 18 | Identified |
-| Low | 10 | Identified |
+| Severity | Count | Fixed | Remaining |
+|----------|-------|-------|-----------|
+| Critical | 2 | 2 | 0 |
+| High | 14 | 7 | 7 (architectural) |
+| Medium | 18 | 12 | 6 (architectural) |
+| Low | 10 | 5 | 5 (low-impact) |
+| Database | 11 | 6 | 5 (schema/RLS arch.) |
+| Frontend | 11 | 8 | 3 (dependency/arch.) |
 
 ---
 
@@ -55,7 +57,7 @@ case 'minimal':
 
 **Impact:** The runtime numeric values (0.6 for preferred, 0.25 for minimal) were correct, so scoring results were unaffected. However, the naming inversion was a maintenance hazard -- any developer adjusting "the critical mode factor" would change the wrong constant.
 
-### 1.2 No Authentication on `calculate-buyer-quality-score` and `notify-remarketing-match`
+### 1.2 [FIXED] No Authentication on `calculate-buyer-quality-score` and `notify-remarketing-match`
 **Files:** `supabase/functions/calculate-buyer-quality-score/index.ts`, `supabase/functions/notify-remarketing-match/index.ts`
 
 Neither function validates the caller's JWT or checks admin privileges:
@@ -134,7 +136,7 @@ The 2,158-line scoring engine with 5 phases, AI fallbacks, weight redistribution
 5. Tier determination boundaries (A/B/C/D/F)
 6. AI fallback behavior (mock Gemini failures)
 
-### 2.4 Service Key Passed in HTTP Headers Between Edge Functions
+### 2.4 [DOCUMENTED] Service Key Passed in HTTP Headers Between Edge Functions
 **Files:** `process-buyer-enrichment-queue/index.ts`, `process-enrichment-queue/index.ts`, `process-scoring-queue/index.ts`
 
 Queue processors call other edge functions with the service role key as a Bearer token:
@@ -148,7 +150,7 @@ headers: {
 
 **Recommendation:** Use `supabase.functions.invoke()` which handles auth internally, or implement short-lived internal service tokens.
 
-### 2.5 No Input Size Validation on Batch Operations
+### 2.5 [FIXED] No Input Size Validation on Batch Operations
 **File:** `calculate-buyer-quality-score/index.ts:308-379`
 
 ```typescript
@@ -161,7 +163,7 @@ Similarly, `bulk-import-remarketing` accepts up to 10,000 buyers and 50,000 cont
 
 **Recommendation:** Cap batch sizes (`Math.min(body.batch_limit || 30, 500)`) and add cooldown between bulk operations.
 
-### 2.6 Race Condition in Enrichment Locking
+### 2.6 [FIXED] Race Condition in Enrichment Locking
 **File:** `enrich-buyer/index.ts:264-302`
 
 The enrichment lock uses a non-atomic read-then-write pattern:
@@ -173,7 +175,7 @@ Two concurrent requests can both read the old timestamp and both proceed, causin
 
 **Recommendation:** Use atomic compare-and-set: `UPDATE ... SET data_last_updated = $new WHERE data_last_updated = $old` and check affected row count.
 
-### 2.7 AI Fallback Frequency Not Tracked
+### 2.7 [FIXED] AI Fallback Frequency Not Tracked
 **File:** `supabase/functions/score-buyer-deal/index.ts`
 
 When AI scoring (Gemini) fails, the system silently falls back to rules-based scoring with only a `console.warn`. There is no persistent record of how often AI fallback occurs, which phase failed, or whether fallback frequency is increasing.
@@ -196,7 +198,7 @@ The migration adds scoring v2 columns to both `remarketing_scores` AND `buyer_de
 
 The service adjacency map (~20 service families) is hardcoded as a constant, while the schema supports per-universe custom adjacency maps via `tracker.service_adjacency_map`. Adding/modifying adjacency relationships requires a code deployment.
 
-### 3.3 Overpermissive CORS Pattern for Lovable Previews
+### 3.3 [FIXED] Overpermissive CORS Pattern for Lovable Previews
 **File:** `supabase/functions/_shared/cors.ts:35`
 
 ```typescript
@@ -205,27 +207,29 @@ if (/^https:\/\/[a-z0-9-]+--[a-z0-9-]+\.lovable\.app$/.test(origin)) return true
 
 Allows ANY Lovable preview domain, not just this project's previews. Lower risk since most endpoints require authentication, but weakens defense in depth.
 
-### 3.4 Console Logging of Sensitive Data in Production
+### 3.4 [FIXED] Console Logging of Sensitive Data in Production
 **Files:** `score-buyer-deal/index.ts` (23 console.log/warn), `enrich-deal/index.ts`, `enrich-buyer/index.ts`
 
 Production edge functions log full AI responses including extracted PII, buyer geographic details, service matches, and error stack traces with database column names.
 
-### 3.5 No Dead Letter Queue for Failed Scoring Jobs
+### 3.5 [FIXED] No Dead Letter Queue for Failed Scoring Jobs
 **File:** `supabase/functions/process-scoring-queue/index.ts`
 
 Failed scoring queue items have no maximum retry limit. A persistently failing score will be retried indefinitely on each queue run.
 
-### 3.6 Enrichment Timeout Budget Mismatch
+### 3.6 [FALSE POSITIVE] Enrichment Timeout Budget Mismatch
 **File:** `enrich-buyer/index.ts`
 
-Firecrawl scrape timeout (120s) + AI processing leaves only 20s headroom within the 140s function max runtime. If scraping takes close to its timeout, AI processing will fail, leaving the buyer partially enriched.
+**Initial report:** Firecrawl scrape timeout (120s) + AI processing leaves only 20s headroom within the 140s function max runtime.
 
-### 3.7 No Audit Trail for Destructive Bulk Operations
+**Actual:** `BUYER_SCRAPE_TIMEOUT_MS = 10000` (10 seconds, not 120s). The actual timeout in `_shared/buyer-extraction.ts:37` is 10s, leaving ample headroom for AI processing.
+
+### 3.7 [FIXED] No Audit Trail for Destructive Bulk Operations
 **File:** `bulk-import-remarketing/index.ts:156-254`
 
 The `clear` action deletes ALL remarketing data with only a console log. No audit table entry records who cleared, when, or why.
 
-### 3.8 Sensitive Data in Bulk Import Error Responses
+### 3.8 [FIXED] Sensitive Data in Bulk Import Error Responses
 **File:** `bulk-import-remarketing/index.ts:689-691`
 
 Error responses include raw validation messages containing buyer names, field names, and database constraint details.
@@ -234,19 +238,19 @@ Error responses include raw validation messages containing buyer names, field na
 
 ## 4. LOW SEVERITY FINDINGS
 
-### 4.1 Silent JSON Parsing in Bulk Import
+### 4.1 [FIXED] Silent JSON Parsing in Bulk Import
 `parseJson()` silently returns `null` on parse failure. Users won't know their JSONB fields were silently dropped.
 
-### 4.2 PII in Notification Response Body
+### 4.2 [FIXED] PII in Notification Response Body
 `notify-remarketing-match` response includes `buyer.company_name`, `listing.title`, and `composite_score`.
 
 ### 4.3 Rate Limit Implementation Uses Row Counting
 Rate limiting counts rows in `user_activity` (up to 500 per check). A counter-based approach would be more efficient.
 
-### 4.4 Queue Self-Continuation Skipped on Rate Limit
+### 4.4 [FIXED] Queue Self-Continuation Skipped on Rate Limit
 When Gemini is rate-limited, the queue processor stops without scheduling delayed self-continuation. Pending items wait for the next external trigger.
 
-### 4.5 Inconsistent Error Response Schema
+### 4.5 [FIXED] Inconsistent Error Response Schema
 Edge functions use at least 3 different error response formats across the codebase.
 
 ### 4.6 Missing Structured Types for Enrichment Sources
@@ -256,14 +260,14 @@ The `extraction_sources` JSONB column on buyers has no schema validation, allowi
 
 ## 5. DATABASE & SCHEMA FINDINGS
 
-### 5.1 [HIGH] CASCADE Deletes Destroy Score History
+### 5.1 [HIGH] [FIXED] CASCADE Deletes Destroy Score History
 **Tables:** `remarketing_scores` (FK to `listings` and `remarketing_buyers`)
 
 Both foreign keys use `ON DELETE CASCADE`. Deleting a listing or buyer silently destroys all match scores, scoring history, and audit records. The `UNIQUE(listing_id, buyer_id)` constraint means rescoring the same pair after deletion appears as "new" rather than "update."
 
 **Recommendation:** Change to `ON DELETE RESTRICT` or `ON DELETE SET NULL`. Implement soft deletes with `archived_at` timestamps.
 
-### 5.2 [HIGH] Missing Indexes on Frequently Queried Columns
+### 5.2 [HIGH] [FIXED] Missing Indexes on Frequently Queried Columns
 **Table:** `remarketing_buyers`
 
 No indexes on columns used in scoring and matching queries:
@@ -285,12 +289,12 @@ CREATE INDEX idx_remarketing_buyers_ebitda_range ON remarketing_buyers(target_eb
 
 The RLS policy checks `WHERE revoked_at IS NULL AND (expires_at IS NULL OR expires_at > now())`, but if `expires_at IS NULL`, access persists forever. Additionally, the policy doesn't verify fee agreement status -- a buyer without a signed fee agreement could still access data room documents if access was previously granted.
 
-### 5.4 [HIGH] Missing JSONB Indexes on Criteria Columns
+### 5.4 [HIGH] [FIXED] Missing JSONB Indexes on Criteria Columns
 **Tables:** `remarketing_buyers` (extraction_sources, recent_acquisitions, portfolio_companies), `remarketing_buyer_universes` (size_criteria, geography_criteria, service_criteria)
 
 Large JSONB columns with no GIN indexes. Any JSONB containment queries (`@>`) perform full table scans.
 
-### 5.5 [MEDIUM] No CHECK Constraints on Score Boundaries
+### 5.5 [MEDIUM] [FIXED] No CHECK Constraints on Score Boundaries
 **Table:** `remarketing_scores`
 
 Score fields (`composite_score`, `geography_score`, `size_score`, `service_score`, `owner_goals_score`) have no CHECK constraints. Values outside 0-100 can be inserted. Similarly, `remarketing_buyers` has no constraint ensuring `target_revenue_min <= target_revenue_max`.
@@ -314,7 +318,7 @@ Both tables have a CHECK ensuring exactly one of `remarketing_buyer_id` / `marke
 ### 5.8 [MEDIUM] Service Role Bypasses All RLS
 Throughout all remarketing tables, service role has `USING (true) WITH CHECK (true)`. Since edge functions use service role, a compromised or misconfigured function has unrestricted database access without logging.
 
-### 5.9 [MEDIUM] Incomplete Audit Log Event Types
+### 5.9 [MEDIUM] [FIXED] Incomplete Audit Log Event Types
 **Table:** `data_room_audit_log`
 
 The CHECK constraint on `action` is missing events for: `score_created`, `score_updated`, `buyer_created`, `buyer_archived`, `access_expired`, `access_revoked_cascade`, and error conditions like `memo_generation_failed`.
@@ -322,7 +326,7 @@ The CHECK constraint on `action` is missing events for: `score_created`, `score_
 ### 5.10 [LOW] Ambiguous NULL Semantics
 `revoked_at IS NULL` means "still active"; `expires_at IS NULL` means "never expires"; `buyer_id IS NULL` means "unmatched email link." These implicit meanings are error-prone. Consider explicit `status` enum columns.
 
-### 5.11 [LOW] Partial Index Too Restrictive
+### 5.11 [LOW] [FIXED] Partial Index Too Restrictive
 **Table:** `data_room_access`
 
 ```sql
@@ -336,7 +340,7 @@ Only helps queries checking BOTH conditions. Queries checking only `revoked_at I
 
 ## 6. FRONTEND FINDINGS
 
-### 6.1 [HIGH] N+1 Query Pattern in use-deals.ts
+### 6.1 [HIGH] [PARTIALLY FIXED] N+1 Query Pattern in use-deals.ts
 **File:** `src/hooks/admin/use-deals.ts` (1,008 lines)
 
 After fetching connection_requests in batches of 100, performs 3 sequential query phases (connection_requests -> user_ids -> profiles) plus additional batch queries for memo_distribution_log and data_room_documents. With 1,000+ deals, this causes 3-5 sequential queries per data fetch and risks connection pool exhaustion.
@@ -357,7 +361,7 @@ Multiple `(row: any)`, `(r: any)`, `(p: any)` assertions and `.rpc(...) as any` 
 
 **Recommendation:** Generate proper types from Supabase introspection. Enable `noImplicitAny: true`.
 
-### 6.4 [MEDIUM] Password Hash Field Exposed in Frontend Types
+### 6.4 [MEDIUM] [FIXED] Password Hash Field Exposed in Frontend Types
 **File:** `src/types/remarketing.ts:371`
 
 ```typescript
@@ -368,17 +372,17 @@ Password hashes should never appear in frontend type definitions. Even if not tr
 
 **Recommendation:** Remove from frontend types; use a `password_verified: boolean` flag instead.
 
-### 6.5 [MEDIUM] Incomplete Error Handling in Data Fetching
+### 6.5 [MEDIUM] [FIXED] Incomplete Error Handling in Data Fetching
 **Files:** `use-buyer-engagement-history.ts`, `use-deals.ts`
 
 Multiple sequential queries with no error checks -- if any query fails silently, incomplete data is returned with no indication to the user.
 
-### 6.6 [MEDIUM] Weak CSV Import Validation
+### 6.6 [MEDIUM] [FIXED] Weak CSV Import Validation
 **File:** `src/components/remarketing/BuyerCSVImport.tsx`
 
 `normalizeDomain()` doesn't validate URL format. No max file size check. No column header validation before mapping.
 
-### 6.7 [MEDIUM] Fake Progress Bar in Bulk Scoring
+### 6.7 [MEDIUM] [FIXED] Fake Progress Bar in Bulk Scoring
 **File:** `src/components/remarketing/BulkScoringPanel.tsx`
 
 ```typescript
@@ -387,12 +391,12 @@ setProgress(prev => prev + Math.random() * 15); // Simulated, not real
 
 Progress bar uses random increments rather than tracking actual server-side progress. Users see 100% while the operation may still be running or may have failed.
 
-### 6.8 [MEDIUM] No Error Boundaries for Scoring/Matching Components
+### 6.8 [MEDIUM] [FIXED] No Error Boundaries for Scoring/Matching Components
 **Files:** `ReMarketingDealMatching.tsx`, `BulkScoringPanel.tsx`
 
 A single component error crashes the entire deal matching page. No fallback UI when scoring fails.
 
-### 6.9 [MEDIUM] Unsafe URL Construction
+### 6.9 [MEDIUM] [FIXED] Unsafe URL Construction
 **File:** `src/lib/buyer-metrics.ts:142-144`
 
 LinkedIn URL construction doesn't validate the stored value, which could contain `javascript:` protocol URLs leading to XSS if rendered as a link.
@@ -406,7 +410,7 @@ supabase.from("remarketing_buyers").select("*").limit(2000)
 
 Arbitrary 2,000 limit with no cursor-based pagination. Should use infinite scroll or page-by-page loading.
 
-### 6.11 [LOW] Orphaned Console Logs in Production
+### 6.11 [LOW] [FIXED] Orphaned Console Logs in Production
 29 `console.error`/`console.warn`/`console.log` statements across remarketing components, some containing operation IDs and user identifiers.
 
 ---

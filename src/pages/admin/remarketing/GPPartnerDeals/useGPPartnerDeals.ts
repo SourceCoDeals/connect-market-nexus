@@ -266,7 +266,7 @@ export function useGPPartnerDeals() {
         const chunk = rows.slice(i, i + CHUNK);
         const { error } = await supabase.from("enrichment_queue").upsert(chunk, { onConflict: "listing_id" });
         if (error) {
-          console.error("Queue upsert error:", error);
+          // Queue upsert error — toast shown to user
           sonnerToast.error("Failed to queue enrichment");
           if (activityItem) completeOperation.mutate({ id: activityItem.id, finalStatus: "failed" });
           setIsEnriching(false);
@@ -371,7 +371,7 @@ export function useGPPartnerDeals() {
         const chunk = rows.slice(i, i + CHUNK);
         const { error } = await supabase.from("enrichment_queue").upsert(chunk, { onConflict: "listing_id" });
         if (error) {
-          console.error("Queue upsert error:", error);
+          // Queue upsert error — toast shown to user
           sonnerToast.error("Failed to queue enrichment");
           if (activityItem) completeOperation.mutate({ id: activityItem.id, finalStatus: "failed" });
           setIsEnriching(false);

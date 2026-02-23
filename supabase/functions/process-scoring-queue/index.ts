@@ -218,18 +218,35 @@ Deno.serve(async (req) => {
       .select('id', { count: 'exact', head: true })
       .eq('status', 'pending');
 
-    if (remaining && remaining > 0 && !rateLimited) {
-      console.log(`${remaining} items still pending, triggering next batch...`);
-      fetch(`${supabaseUrl}/functions/v1/process-scoring-queue`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'apikey': supabaseAnonKey,
-          'Authorization': `Bearer ${supabaseServiceKey}`,
-        },
-        body: JSON.stringify({ continuation: true }),
-        signal: AbortSignal.timeout(30_000),
-      }).catch(() => {});
+    if (remaining && remaining > 0) {
+      if (rateLimited) {
+        // Schedule delayed self-continuation after rate limit cooldown
+        console.log(`${remaining} items pending but rate limited — scheduling retry in ${RATE_LIMIT_BACKOFF_MS / 1000}s`);
+        setTimeout(() => {
+          fetch(`${supabaseUrl}/functions/v1/process-scoring-queue`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'apikey': supabaseAnonKey,
+              'Authorization': `Bearer ${supabaseServiceKey}`,
+            },
+            body: JSON.stringify({ continuation: true, afterRateLimit: true }),
+            signal: AbortSignal.timeout(30_000),
+          }).catch(() => {});
+        }, Math.min(RATE_LIMIT_BACKOFF_MS, 30_000));
+      } else {
+        console.log(`${remaining} items still pending, triggering next batch...`);
+        fetch(`${supabaseUrl}/functions/v1/process-scoring-queue`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'apikey': supabaseAnonKey,
+            'Authorization': `Bearer ${supabaseServiceKey}`,
+          },
+          body: JSON.stringify({ continuation: true }),
+          signal: AbortSignal.timeout(30_000),
+        }).catch(() => {});
+      }
     }
 
     return new Response(
