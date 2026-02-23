@@ -73,8 +73,8 @@ const OnboardingPopup = ({ isOpen, onClose, userId }: OnboardingPopupProps) => {
       
       // Show success message
       toast({
-        title: "Welcome to SourceCo!",
-        description: "Your onboarding is complete. You can now explore all listings.",
+        title: "You're in.",
+        description: "Browse deals, save listings, and request access when you see a fit.",
       });
       
       // Close popup after successful update
@@ -141,10 +141,10 @@ const OnboardingPopup = ({ isOpen, onClose, userId }: OnboardingPopupProps) => {
             <div className="space-y-6">
               <div className="text-center space-y-2">
                 <h1 className="text-xl font-semibold text-slate-900">
-                  Curated Quality
+                  Two Types of Deals
                 </h1>
                 <p className="text-sm text-slate-600 leading-relaxed">
-                  Every seller must approve buyer outreach. We only introduce buyers once there's alignment and real seller intent.
+                  Every listing on SourceCo is either For Sale or Off Market. Here's the difference.
                 </p>
               </div>
 
@@ -155,7 +155,7 @@ const OnboardingPopup = ({ isOpen, onClose, userId }: OnboardingPopupProps) => {
                     <span className="text-xs font-medium text-green-700 uppercase tracking-wide">FOR SALE</span>
                   </div>
                   <p className="text-sm text-slate-700">
-                    All our for sale listings have verified financials and a complete data room available.
+                    Owner is actively looking to exit. Verified financials and a complete data room are ready. Seller has approved the listing for qualified buyer outreach.
                   </p>
                 </div>
               </div>
@@ -167,7 +167,7 @@ const OnboardingPopup = ({ isOpen, onClose, userId }: OnboardingPopupProps) => {
                     <span className="text-xs font-medium text-blue-700 uppercase tracking-wide">OFF MARKET</span>
                   </div>
                   <p className="text-sm text-slate-700">
-                    These are businesses whose owners aren't publicly advertising their intent to sell but are open to entertaining offers from interested buyers.
+                    Owner isn't publicly advertising but is open to the right conversation. You're getting in before this deal ever reaches a broker or marketplace.
                   </p>
                 </div>
               </div>
@@ -178,22 +178,22 @@ const OnboardingPopup = ({ isOpen, onClose, userId }: OnboardingPopupProps) => {
             <div className="space-y-6">
               <div className="text-center space-y-2">
                 <h1 className="text-xl font-semibold text-slate-900">
-                  Curated Beta
+                  How We Source Deals
                 </h1>
                 <p className="text-sm text-slate-600 leading-relaxed">
-                  This is a curated beta. We're rolling out access selectively while onboarding new sellers weekly.
+                  We go direct to owners — no brokers, no auctions, no stale listings.
                 </p>
               </div>
 
               <div className="bg-slate-50 rounded-lg p-4 border border-slate-100">
                 <p className="text-sm text-slate-700">
-                  Sellers don't pay to be here. That's how we earn trust early and why the deals are higher quality and earlier-stage than what's on the market.
+                  Sellers don't pay us to be on the platform. That keeps the deal quality high — owners are here because they trust us, not because they paid for a listing.
                 </p>
               </div>
 
               <div className="bg-slate-50 rounded-lg p-4 border border-slate-100">
                 <p className="text-sm text-slate-700">
-                  New founder-led deals are added weekly based on real seller readiness.
+                  We add new deals every week. Set up a deal alert and we'll notify you when something matches your criteria.
                 </p>
               </div>
             </div>
@@ -203,14 +203,20 @@ const OnboardingPopup = ({ isOpen, onClose, userId }: OnboardingPopupProps) => {
             <div className="space-y-6">
               <div className="text-center space-y-2">
                 <h1 className="text-xl font-semibold text-slate-900">
-                  Pricing Model
+                  You Only Pay if a Deal Closes
                 </h1>
                 <p className="text-sm text-slate-600 leading-relaxed">
-                  You'll only pay a success fee if a deal closes. It's based on a modified Layman scale.
+                  No retainers, no platform fees, no exclusivity. Our fee is success-only.
                 </p>
               </div>
 
-              <div className="grid grid-cols-3 gap-3">
+              <div className="bg-slate-50 rounded-lg p-4 border border-slate-100">
+                <p className="text-sm text-slate-700">
+                  Our fee is based on a modified Lehman scale — a percentage of the deal value, paid only at close. You'll be asked to sign a fee agreement before your first connection request. It covers all deals you close through SourceCo, not just one.
+                </p>
+              </div>
+
+              <div className="grid grid-cols-4 gap-2">
                 <div className="bg-slate-50 rounded-lg p-3 border border-slate-100 text-center">
                   <p className="text-xs font-medium text-slate-700">No Platform Fees</p>
                 </div>
@@ -220,24 +226,39 @@ const OnboardingPopup = ({ isOpen, onClose, userId }: OnboardingPopupProps) => {
                 <div className="bg-slate-50 rounded-lg p-3 border border-slate-100 text-center">
                   <p className="text-xs font-medium text-slate-700">No Retainers</p>
                 </div>
+                <div className="bg-slate-50 rounded-lg p-3 border border-slate-100 text-center">
+                  <p className="text-xs font-medium text-slate-700">Success-Only</p>
+                </div>
               </div>
             </div>
           )}
 
           {currentStep === 4 && (
-            <div className="space-y-6">
+            <div className="space-y-5">
               <div className="text-center space-y-2">
                 <h1 className="text-xl font-semibold text-slate-900">
-                  Take your next step
+                  How to Get Selected
                 </h1>
                 <p className="text-sm text-slate-600 leading-relaxed">
-                  Use the request access to get the answers you need to move forward on any businesses you're interested in.
+                  We get 40–50 requests per deal and introduce 1–3 buyers. Here's what actually works.
                 </p>
               </div>
 
               <div className="bg-slate-50 rounded-lg p-4 border border-slate-100">
                 <p className="text-sm text-slate-700">
-                  Any business you Save or take a next step on will be saved in your Buyer Dashboard for future reference!
+                  <span className="font-medium">Be specific about fit.</span> Which platform companies do you own? Why does this business make sense for you strategically? Generic messages — "this looks interesting" — don't get selected. Specific ones do.
+                </p>
+              </div>
+
+              <div className="bg-slate-50 rounded-lg p-4 border border-slate-100">
+                <p className="text-sm text-slate-700">
+                  <span className="font-medium">Your NDA</span> — if you signed it during onboarding, you're covered for every deal. If not, you'll be prompted when you first try to view deal details. Takes about 60 seconds.
+                </p>
+              </div>
+
+              <div className="bg-slate-50 rounded-lg p-4 border border-slate-100">
+                <p className="text-sm text-slate-700">
+                  <span className="font-medium">Your fee agreement</span> — when you submit your first connection request, you'll be asked to sign a fee agreement if your firm hasn't already. It covers our success-only fee — nothing is owed unless a deal closes.
                 </p>
               </div>
             </div>
@@ -266,7 +287,7 @@ const OnboardingPopup = ({ isOpen, onClose, userId }: OnboardingPopupProps) => {
               className="px-6 py-2 bg-slate-900 hover:bg-slate-800 text-white text-sm font-medium rounded-lg transition-colors h-8"
               disabled={isCompleting}
             >
-              {isCompleting ? 'Completing...' : currentStep === 4 ? 'Start Exploring Off-Market Deals' : 'Next'}
+              {isCompleting ? 'Completing...' : currentStep === 4 ? 'Start Exploring' : 'Next'}
             </Button>
           </div>
         </div>

@@ -99,26 +99,30 @@ serve(async (req: Request) => {
       const safeFirmName = (firm.primary_company_name || "your company").replace(/<[^>]*>/g, "");
       const safeRecipientName = recipientName.replace(/<[^>]*>/g, "");
 
+      const siteUrl = Deno.env.get("SITE_URL") || "https://marketplace.sourcecodeals.com";
+
       const subject =
         reminderType === "3-day"
-          ? `Reminder: Fee Agreement Pending — ${safeFirmName} | SourceCo`
-          : `Action Required: Fee Agreement Still Pending — ${safeFirmName} | SourceCo`;
+          ? `Your connection request is pending a fee agreement`
+          : `Fee agreement still needed — your introduction is on hold`;
 
       const htmlContent =
         reminderType === "3-day"
-          ? `<div style="font-family: Arial, sans-serif; color: #333; line-height: 1.6;">
+          ? `<div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; color: #333; line-height: 1.6; max-width: 600px; margin: 0 auto; padding: 20px;">
               <p>Hi ${safeRecipientName},</p>
-              <p>This is a friendly reminder that the Fee Agreement for <strong>${safeFirmName}</strong> is still pending signature.</p>
-              <p>Please check your email for the DocuSeal signing link, or reply to this email if you have any questions.</p>
-              <br>
-              <p>Best regards,<br><strong>SourceCo Team</strong></p>
+              <p>You submitted a connection request but your firm's fee agreement is still unsigned. We can't process the introduction until it's in place.</p>
+              <p>The agreement covers our success-only fee &mdash; nothing is owed unless a deal closes. It takes about 60 seconds to sign.</p>
+              <p style="margin: 24px 0;"><a href="${siteUrl}/marketplace" style="display: inline-block; background-color: #1e293b; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-weight: 500;">Sign fee agreement</a></p>
+              <p>If you have questions about the terms, reply to this email and we'll walk you through it.</p>
+              <p style="color: #6b7280; margin-top: 32px;">&mdash; The SourceCo Team</p>
             </div>`
-          : `<div style="font-family: Arial, sans-serif; color: #333; line-height: 1.6;">
+          : `<div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; color: #333; line-height: 1.6; max-width: 600px; margin: 0 auto; padding: 20px;">
               <p>Hi ${safeRecipientName},</p>
-              <p>We noticed the Fee Agreement for <strong>${safeFirmName}</strong> hasn't been signed yet. It's been a week since we sent it over.</p>
-              <p>To ensure we can proceed with deal introductions, please sign at your earliest convenience.</p>
-              <br>
-              <p>Best regards,<br><strong>SourceCo Team</strong></p>
+              <p>It's been a week and your firm's fee agreement is still unsigned. We can't process any introductions without it.</p>
+              <p>The agreement covers our success-only fee &mdash; nothing is owed unless a deal closes.</p>
+              <p style="margin: 24px 0;"><a href="${siteUrl}/marketplace" style="display: inline-block; background-color: #1e293b; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-weight: 500;">Sign fee agreement</a></p>
+              <p>If you have concerns about the terms, reply to this email &mdash; we can work through it.</p>
+              <p style="color: #6b7280; margin-top: 32px;">&mdash; The SourceCo Team</p>
             </div>`;
 
       try {
