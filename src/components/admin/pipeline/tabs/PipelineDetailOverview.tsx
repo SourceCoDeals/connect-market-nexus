@@ -378,10 +378,10 @@ export function PipelineDetailOverview({ deal }: PipelineDetailOverviewProps) {
         ) : (
           <>
             <div className="px-8 pt-4 pb-2">
-              <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Conversation</h3>
+              <h3 className="text-xs font-semibold uppercase tracking-wider" style={{ color: '#8B6F47' }}>💬 Conversation</h3>
             </div>
             <ScrollArea className="flex-1 px-8">
-              <div className="pb-4 space-y-3">
+              <div className="pb-4 space-y-3 rounded-lg p-3" style={{ backgroundColor: '#FCF9F0' }}>
                 {messagesLoading ? (
                   <div className="space-y-3">
                     {[1, 2, 3].map((i) => (
@@ -401,25 +401,29 @@ export function PipelineDetailOverview({ deal }: PipelineDetailOverviewProps) {
                       <div
                         key={msg.id}
                         className={cn(
-                          'max-w-[85%] rounded-xl px-4 py-3 space-y-1',
+                          'max-w-[85%] rounded-xl px-4 py-3 space-y-1 shadow-sm',
                           isAdmin
-                            ? 'ml-auto bg-primary/10 border border-primary/20'
-                            : 'mr-auto bg-muted/30 border border-border/40'
+                            ? 'ml-auto border'
+                            : 'mr-auto border'
                         )}
+                        style={isAdmin
+                          ? { backgroundColor: '#F7F4DD', borderColor: '#E5DDD0', color: '#0E101A' }
+                          : { backgroundColor: '#FFFFFF', borderColor: '#E5DDD0', color: '#0E101A' }
+                        }
                       >
                         <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
                           <span className="font-medium">{msg.senderName}</span>
                           <span>·</span>
                           <span>{formatDistanceToNow(new Date(msg.created_at), { addSuffix: true })}</span>
                           {msg.isInquiry && (
-                            <span className="inline-block px-1.5 py-0.5 rounded bg-accent/20 text-accent-foreground font-medium text-[10px]">
+                            <span className="inline-block px-1.5 py-0.5 rounded font-semibold text-[10px]" style={{ backgroundColor: '#DEC76B', color: '#0E101A' }}>
                               Initial Inquiry
                             </span>
                           )}
                         </div>
                         <p className="text-sm text-foreground whitespace-pre-wrap">{msg.body}</p>
                         {msg.message_type === 'decision' && (
-                          <span className="inline-block mt-1 text-[10px] px-1.5 py-0.5 rounded bg-accent/20 text-accent-foreground font-medium">
+                          <span className="inline-block mt-1 text-[10px] px-1.5 py-0.5 rounded font-semibold" style={{ backgroundColor: '#DEC76B', color: '#0E101A' }}>
                             Decision
                           </span>
                         )}
@@ -432,7 +436,7 @@ export function PipelineDetailOverview({ deal }: PipelineDetailOverviewProps) {
             </ScrollArea>
 
             {/* Compose bar */}
-            <div className="border-t border-border/40 px-8 py-3">
+            <div className="px-8 py-3" style={{ borderTop: '1px solid #E5DDD0' }}>
               <div className="flex items-end gap-3">
                 <Textarea
                   placeholder="Type a message..."
