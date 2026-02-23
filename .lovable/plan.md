@@ -1,37 +1,41 @@
 
 
-## Add Primary Contact Info to Expandable Section
+## Relabel Buyer Match Actions to Reflect the Outreach Workflow
 
-### What Changes
-When the chevron is expanded on a BuyerMatchCard, the section will now show the primary contact's details (name, email, phone, LinkedIn) alongside the existing investment thesis. If no primary contact is flagged, the first contact in the array will be used.
+### Problem
+The current action buttons say "Approve Fit" and "Not a Fit", but at this stage the buyers have already been scored and deemed a fit by the system. The real workflow step is reaching out to buyers to confirm whether they are **interested in meeting with the owner** or whether they **pass**.
 
-### Layout
-The expanded section will show a "Primary Contact" block above the thesis:
+### Changes
 
-```text
----------------------------------------
-| Primary Contact                      |
-| John Smith  -  Managing Director     |
-| john@firm.com  |  (555) 123-4567     |
-| LinkedIn (link)                      |
----------------------------------------
-| Investment Thesis                    |
-| "We look for companies..."          |
----------------------------------------
-```
+**1. BulkActionsToolbar.tsx** -- Update button labels and toast messages:
+- "Approve Fit" becomes **"Interested"** (green button, same behavior -- marks as approved)
+- "Not a Fit" becomes **"Not Interested"** (amber button, same behavior -- marks as passed)
+- "Pass" dropdown label stays but the header text changes to "Select reason buyer declined:"
+- Toast messages updated: "Approved X buyers as fit" becomes "Marked X buyers as interested"
 
-- Name and role on one line
-- Email (clickable mailto) and phone (clickable tel) on the next line
-- LinkedIn as a small linked icon/text if available
-- All fields shown conditionally (only if data exists)
+**2. BuyerMatchCard.tsx** -- Update the status badge on individual cards:
+- The green "Approved" badge becomes **"Interested"** 
+- This is the badge shown on each card after a buyer is marked
+
+**3. ReMarketingDealMatching.tsx** -- Update tab labels:
+- "Approved (X)" becomes **"Interested (X)"**
+- "Passed (X)" becomes **"Not Interested (X)"**
+- "In Outreach (X)" stays as-is (still relevant)
+- Bulk approve success toast updated to match
+
+**4. Pass reasons updated** to reflect buyer-side language:
+- "No presence in target geography" stays
+- "Deal size outside buyer criteria" stays
+- "Services not aligned" stays
+- "Buyer not actively acquiring" stays
+- "Already in discussions" stays
+(These still make sense as reasons a buyer would decline)
 
 ### Technical Details
 
-**File: `src/components/remarketing/BuyerMatchCard.tsx`**
+All changes are label/copy only -- no logic, data model, or status value changes. The underlying `status: 'approved'` and `status: 'passed'` values in the database remain the same; only the user-facing text changes.
 
-1. Add `Linkedin`, `Phone` icons to the lucide imports
-2. Inside the `<CollapsibleContent>` (line ~721), before the thesis section, add a contact info block:
-   - Find the primary contact: `buyer?.contacts?.find(c => c.is_primary) || buyer?.contacts?.[0]`
-   - Render name + role, email (mailto link), phone (tel link), LinkedIn (external link)
-   - Styled consistently with the existing card (text-xs/text-sm, muted-foreground tokens)
-3. No new data fetching needed -- contacts are already loaded on the `buyer` object
+**Files to modify:**
+- `src/components/remarketing/BulkActionsToolbar.tsx` -- Button labels + toasts
+- `src/components/remarketing/BuyerMatchCard.tsx` -- "Approved" badge text
+- `src/pages/admin/remarketing/ReMarketingDealMatching.tsx` -- Tab labels + bulk action toast
