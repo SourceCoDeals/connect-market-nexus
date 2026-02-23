@@ -91,16 +91,26 @@ export function AgreementSigningModal({
     return () => { cancelled = true; };
   }, [open, documentType]);
 
-  const handleSigned = () => {
+  const invalidateAll = () => {
     queryClient.invalidateQueries({ queryKey: ['buyer-nda-status'] });
     queryClient.invalidateQueries({ queryKey: ['my-agreement-status'] });
     queryClient.invalidateQueries({ queryKey: ['firm-agreements'] });
     queryClient.invalidateQueries({ queryKey: ['buyer-firm-agreement-status'] });
     queryClient.invalidateQueries({ queryKey: ['agreement-pending-notifications'] });
+    queryClient.invalidateQueries({ queryKey: ['user-notifications'] });
+  };
+
+  const handleSigned = () => {
     toast({ title: `${docLabel} Signed!`, description: 'Thank you for signing. Your access has been updated.' });
 
+    // The webhook may take a moment to update the DB.
+    // Invalidate immediately, then again after delays to catch the webhook update.
+    invalidateAll();
+    setTimeout(invalidateAll, 2000);
+    setTimeout(invalidateAll, 5000);
+
     // Auto-close after brief delay so user sees success state
-    setTimeout(() => onOpenChange(false), 2000);
+    setTimeout(() => onOpenChange(false), 2500);
   };
 
   return (
