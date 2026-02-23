@@ -1227,11 +1227,13 @@ const ReMarketingDealDetail = () => {
         phone={deal.main_contact_phone}
         onSave={async (data) => {
           await updateDealMutation.mutateAsync({
-            
             main_contact_name: data.name,
             main_contact_email: data.email,
             main_contact_phone: data.phone,
           });
+          // Re-fetch transcripts when contact info changes so Fireflies
+          // searches use the updated email list
+          queryClient.invalidateQueries({ queryKey: ['remarketing', 'deal-transcripts', dealId] });
         }}
       />
 
