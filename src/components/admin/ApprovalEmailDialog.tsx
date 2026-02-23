@@ -51,7 +51,7 @@ export function ApprovalEmailDialog({
 }: ApprovalEmailDialogProps) {
   const [customSubject, setCustomSubject] = useState("");
   const [customMessage, setCustomMessage] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading] = useState(false);
   const [customSignatureHtml, setCustomSignatureHtml] = useState("");
   const [customSignatureText, setCustomSignatureText] = useState("");
 
@@ -62,29 +62,29 @@ export function ApprovalEmailDialog({
   const defaultSubject = DEFAULT_APPROVAL_EMAIL.subject;
   const defaultMessage = DEFAULT_APPROVAL_EMAIL.message.replace(/{{userName}}/g, userName);
 
-  const handleSend = async () => {
+  const handleSend = () => {
     if (!user) return;
     
-    setIsLoading(true);
-    try {
-      // Don't close dialog here - let UserActions handle it to prevent race condition
-      await onSendApprovalEmail(user, {
-        subject: customSubject || defaultSubject,
-        message: customMessage || defaultMessage,
-        customSignatureHtml: customSignatureHtml || undefined,
-        customSignatureText: customSignatureText || undefined
-      });
-      
-      // Reset form
-      setCustomSubject("");
-      setCustomMessage("");
-      setCustomSignatureHtml("");
-      setCustomSignatureText("");
-    } catch (error) {
-      console.error('Error sending approval email:', error);
-    } finally {
-      setIsLoading(false);
-    }
+    // Capture values before closing dialog to avoid stale state
+    const payload = {
+      subject: customSubject || defaultSubject,
+      message: customMessage || defaultMessage,
+      customSignatureHtml: customSignatureHtml || undefined,
+      customSignatureText: customSignatureText || undefined,
+    };
+    const capturedUser = user;
+
+    // Reset form and close dialog immediately — don't await async work
+    setCustomSubject("");
+    setCustomMessage("");
+    setCustomSignatureHtml("");
+    setCustomSignatureText("");
+    onOpenChange(false);
+
+    // Fire-and-forget: UserActions handles errors via toast
+    onSendApprovalEmail(capturedUser, payload).catch((error) => {
+      console.error('Error in approval flow:', error);
+    });
   };
 
   if (!user) return null;
