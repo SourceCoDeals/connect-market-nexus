@@ -113,11 +113,12 @@ export function PipelineKanbanCard({ deal, onDealClick, isDragging }: PipelineKa
 
   return (
     <div
-      ref={setNodeRef} style={style} {...listeners} {...attributes}
+      ref={setNodeRef} {...listeners} {...attributes}
+      style={{ ...style, fontFamily: 'Montserrat, Inter, sans-serif' }}
       className={cn(
         "group relative mb-3 cursor-pointer rounded-[10px] bg-card border-2 border-border/60 overflow-hidden transition-all duration-200",
         isBeingDragged && "shadow-2xl scale-[1.02] z-50 opacity-95",
-        !isBeingDragged && "hover:border-blue-400 hover:shadow-[0_4px_16px_rgba(59,130,246,0.15)] hover:-translate-y-px"
+        !isBeingDragged && "hover:shadow-[0_4px_16px_rgba(222,199,107,0.2)] hover:-translate-y-px"
       )}
       onClick={handleCardClick}
     >
