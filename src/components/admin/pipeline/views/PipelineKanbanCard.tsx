@@ -27,11 +27,11 @@ const BUYER_TYPE_LABELS: Record<string, string> = {
   businessOwner: 'Biz Owner',
 };
 
-const TIER_CONFIG: Record<number, { label: string; bg: string; text: string }> = {
-  1: { label: 'T1', bg: 'bg-blue-100', text: 'text-blue-800' },
-  2: { label: 'T2', bg: 'bg-indigo-100', text: 'text-indigo-800' },
-  3: { label: 'T3', bg: 'bg-gray-100', text: 'text-gray-600' },
-  4: { label: 'T4', bg: 'bg-gray-100', text: 'text-gray-500' },
+const TIER_CONFIG: Record<number, { label: string; style: React.CSSProperties }> = {
+  1: { label: 'T1', style: { backgroundColor: '#DEC76B', color: '#0E101A' } },
+  2: { label: 'T2', style: { backgroundColor: '#F7F4DD', color: '#0E101A', border: '1px solid #DEC76B' } },
+  3: { label: 'T3', style: { backgroundColor: '#F0EDE4', color: '#5A5A5A' } },
+  4: { label: 'T4', style: { backgroundColor: '#E8E8E8', color: '#7A7A7A' } },
 };
 
 export function PipelineKanbanCard({ deal, onDealClick, isDragging }: PipelineKanbanCardProps) {
@@ -93,13 +93,13 @@ export function PipelineKanbanCard({ deal, onDealClick, isDragging }: PipelineKa
     return 'bg-muted-foreground/30';
   };
 
-  // Score badge color
-  const scoreColor = (() => {
+  // Score badge color - SourceCo brand: gold for high, charcoal for mid, dark for low
+  const scoreStyle = (() => {
     const s = deal.deal_score;
     if (s == null) return null;
-    if (s >= 70) return 'bg-emerald-500';
-    if (s >= 40) return 'bg-amber-500';
-    return 'bg-red-500';
+    if (s >= 70) return { backgroundColor: '#DEC76B', color: '#0E101A' };
+    if (s >= 40) return { backgroundColor: '#0E101A', color: '#FFFFFF' };
+    return { backgroundColor: '#8B0000', color: '#FFFFFF' };
   })();
 
   // Tier badge
@@ -108,31 +108,33 @@ export function PipelineKanbanCard({ deal, onDealClick, isDragging }: PipelineKa
   return (
     <div
       ref={setNodeRef} {...listeners} {...attributes}
-      style={{ ...style, fontFamily: 'Montserrat, Inter, sans-serif' }}
+      style={{ ...style, fontFamily: 'Montserrat, Inter, sans-serif', borderColor: '#CBCBCB' }}
       className={cn(
-        "group relative mb-3 cursor-pointer rounded-[10px] bg-card border-2 border-border/60 overflow-hidden transition-all duration-200",
+        "group relative mb-3 cursor-pointer rounded-[10px] overflow-hidden transition-all duration-200 border-2",
         isBeingDragged && "shadow-2xl scale-[1.02] z-50 opacity-95",
-        !isBeingDragged && "hover:shadow-[0_4px_16px_rgba(222,199,107,0.2)] hover:-translate-y-px"
+        !isBeingDragged && "hover:shadow-[0_4px_16px_rgba(222,199,107,0.25)] hover:-translate-y-px"
       )}
       onClick={handleCardClick}
     >
       {/* ── Header: Company + Score ── */}
-      <div className={cn(
-        "px-4 pt-3.5 pb-2.5 border-b border-border/30",
-        deal.needs_owner_contact ? "bg-red-50 dark:bg-red-950/30" : "bg-muted/30"
-      )}>
+      <div
+        className="px-4 pt-3.5 pb-2.5"
+        style={{
+          backgroundColor: deal.needs_owner_contact ? '#FFF0F0' : '#FCF9F0',
+          borderBottom: '1px solid #E5DDD0',
+        }}
+      >
         <div className="flex items-start justify-between gap-3">
-          <h3 className={cn(
+          <h3 style={{ color: '#0E101A' }} className={cn(
             "text-[15px] font-bold leading-snug",
-            deal.needs_owner_contact ? "text-red-900 dark:text-red-200" : "text-foreground"
           )}>
             {companyName}
           </h3>
-          {deal.deal_score != null && scoreColor && (
-            <span className={cn(
-              "flex-shrink-0 min-w-[42px] text-center px-2.5 py-1 rounded-md text-sm font-extrabold text-white",
-              scoreColor
-            )}>
+          {deal.deal_score != null && scoreStyle && (
+            <span
+              className="flex-shrink-0 min-w-[42px] text-center px-2.5 py-1 rounded-md text-sm font-extrabold"
+              style={scoreStyle}
+            >
               {deal.deal_score}
             </span>
           )}
@@ -140,24 +142,24 @@ export function PipelineKanbanCard({ deal, onDealClick, isDragging }: PipelineKa
       </div>
 
       {/* ── Body ── */}
-      <div className="px-4 py-3 space-y-3.5">
+      <div className="px-4 py-3 space-y-3.5" style={{ backgroundColor: '#FFFFFF' }}>
         {/* Buyer Section */}
-        <div className="pb-3.5 border-b border-border/30 space-y-1">
-          <div className="text-sm font-bold text-foreground truncate">
+        <div className="pb-3.5 space-y-1" style={{ borderBottom: '1px solid #E5DDD0' }}>
+          <div className="text-sm font-bold truncate" style={{ color: '#0E101A' }}>
             {buyerCompany || contactName}
           </div>
           {buyerCompany && (
-            <div className="text-xs text-muted-foreground truncate">{contactName}</div>
+            <div className="text-xs truncate" style={{ color: '#5A5A5A' }}>{contactName}</div>
           )}
           <div className="flex items-center gap-1.5 mt-1">
             {buyerTypeLabel && (
-              <span className="text-[11px] font-semibold text-muted-foreground">{buyerTypeLabel}</span>
+              <span className="text-[11px] font-semibold" style={{ color: '#5A5A5A' }}>{buyerTypeLabel}</span>
             )}
             {tierConfig && (
-              <span className={cn(
-                "text-[9px] font-bold uppercase px-1.5 py-0.5 rounded",
-                tierConfig.bg, tierConfig.text
-              )}>
+              <span
+                className="text-[9px] font-bold uppercase px-1.5 py-0.5 rounded"
+                style={tierConfig.style}
+              >
                 {tierConfig.label}
               </span>
             )}
@@ -167,17 +169,17 @@ export function PipelineKanbanCard({ deal, onDealClick, isDragging }: PipelineKa
         {/* Tags Row: Industry + NDA + Fee */}
         <div className="flex flex-wrap gap-1.5">
           {deal.listing_category && (
-            <span className="text-[10px] font-bold uppercase tracking-wide px-2.5 py-1 rounded bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300">
+            <span className="text-[10px] font-bold uppercase tracking-wide px-2.5 py-1 rounded" style={{ backgroundColor: '#F7F4DD', color: '#0E101A', border: '1px solid #DEC76B' }}>
               {deal.listing_category}
             </span>
           )}
           {deal.nda_status === 'signed' && (
-            <span className="text-[10px] font-bold uppercase tracking-wide px-2.5 py-1 rounded bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">
+            <span className="text-[10px] font-bold uppercase tracking-wide px-2.5 py-1 rounded" style={{ backgroundColor: '#0E101A', color: '#FFFFFF' }}>
               NDA
             </span>
           )}
           {deal.fee_agreement_status === 'signed' && (
-            <span className="text-[10px] font-bold uppercase tracking-wide px-2.5 py-1 rounded bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300">
+            <span className="text-[10px] font-bold uppercase tracking-wide px-2.5 py-1 rounded" style={{ backgroundColor: '#DEC76B', color: '#0E101A' }}>
               Fee
             </span>
           )}
@@ -186,36 +188,36 @@ export function PipelineKanbanCard({ deal, onDealClick, isDragging }: PipelineKa
       {/* Financials */}
         <div className="space-y-1.5">
           <div className="flex items-baseline justify-between">
-            <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">EBITDA</span>
-            <span className="text-base font-extrabold text-foreground tabular-nums">
+            <span className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: '#5A5A5A' }}>EBITDA</span>
+            <span className="text-base font-extrabold tabular-nums" style={{ color: '#0E101A' }}>
               {fmt(deal.listing_ebitda)}
             </span>
           </div>
           <div className="flex items-baseline justify-between">
-            <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/70">Revenue</span>
-            <span className="text-base font-extrabold text-foreground tabular-nums">
+            <span className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: '#9A9A9A' }}>Revenue</span>
+            <span className="text-base font-extrabold tabular-nums" style={{ color: '#0E101A' }}>
               {fmt(deal.listing_revenue)}
             </span>
           </div>
         </div>
 
         {/* Footer: Owner + Source + Days */}
-        <div className="flex items-center justify-between pt-3 border-t border-border/30">
-          <span className="text-[13px] font-bold text-foreground">{ownerDisplayName}</span>
+        <div className="flex items-center justify-between pt-3" style={{ borderTop: '1px solid #E5DDD0' }}>
+          <span className="text-[13px] font-bold" style={{ color: '#0E101A' }}>{ownerDisplayName}</span>
           <div className="flex items-center gap-2">
             {unreadCount > 0 && (
-              <span className="flex h-4 min-w-[16px] items-center justify-center rounded-full bg-destructive px-1 text-[9px] font-bold text-destructive-foreground">
+              <span className="flex h-4 min-w-[16px] items-center justify-center rounded-full px-1 text-[9px] font-bold" style={{ backgroundColor: '#8B0000', color: '#FFFFFF' }}>
                 {unreadCount}
               </span>
             )}
             <DealSourceBadge source={deal.deal_source} />
-            <span className="text-[11px] text-muted-foreground tabular-nums">{daysInStage}</span>
+            <span className="text-[11px] tabular-nums" style={{ color: '#9A9A9A' }}>{daysInStage}</span>
           </div>
         </div>
       </div>
 
       {/* ── Compact status dots row ── */}
-      <div className="px-4 py-1.5 border-t border-border/30 flex items-center gap-3 text-[10px] text-muted-foreground bg-muted/20">
+      <div className="px-4 py-1.5 flex items-center gap-3 text-[10px]" style={{ borderTop: '1px solid #E5DDD0', backgroundColor: '#FCF9F0', color: '#5A5A5A' }}>
         <span className="inline-flex items-center gap-1" title={`NDA: ${deal.nda_status || 'none'}`}>
           NDA <span className={cn('inline-block w-1.5 h-1.5 rounded-full', statusDot(deal.nda_status))} />
         </span>
