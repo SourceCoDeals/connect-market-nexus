@@ -7409,6 +7409,42 @@ export type Database = {
         }
         Relationships: []
       }
+      phoneburner_oauth_tokens: {
+        Row: {
+          access_token: string
+          created_at: string | null
+          expires_at: string
+          id: string
+          refresh_token: string
+          scope: string | null
+          token_type: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          access_token: string
+          created_at?: string | null
+          expires_at: string
+          id?: string
+          refresh_token: string
+          scope?: string | null
+          token_type?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          access_token?: string
+          created_at?: string | null
+          expires_at?: string
+          id?: string
+          refresh_token?: string
+          scope?: string | null
+          token_type?: string | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       phoneburner_sessions: {
         Row: {
           completed_at: string | null
