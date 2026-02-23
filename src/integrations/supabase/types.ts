@@ -10640,6 +10640,10 @@ export type Database = {
         | { Args: never; Returns: undefined }
         | { Args: { admin_uuid: string }; Returns: undefined }
       reset_failed_enrichments: { Args: never; Returns: number }
+      reset_firm_agreement_data: {
+        Args: { p_firm_id: string }
+        Returns: undefined
+      }
       reset_stale_concurrent_counts: { Args: never; Returns: undefined }
       resolve_contact_agreement_status: {
         Args: { p_contact_id: string }
