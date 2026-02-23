@@ -246,11 +246,6 @@ export function UnifiedAdminSidebar({ collapsed, onCollapsedChange }: AdminSideb
               icon: <ListChecks className="h-4 w-4" />,
             },
             {
-              label: "Enrichment Test",
-              href: "/admin/settings/enrichment-test",
-              icon: <FlaskConical className="h-4 w-4" />,
-            },
-            {
               label: "ReMarketing Settings",
               href: "/admin/settings/remarketing",
               icon: <Wrench className="h-4 w-4" />,
@@ -272,14 +267,9 @@ export function UnifiedAdminSidebar({ collapsed, onCollapsedChange }: AdminSideb
               icon: <ShieldCheck className="h-4 w-4" />,
             },
             {
-              label: "System Tests",
-              href: "/admin/system-test",
+              label: "Testing & Diagnostics",
+              href: "/admin/testing",
               icon: <FlaskConical className="h-4 w-4" />,
-            },
-            {
-              label: "DocuSeal Health",
-              href: "/admin/docuseal-health",
-              icon: <Activity className="h-4 w-4" />,
             },
         ],
       },
