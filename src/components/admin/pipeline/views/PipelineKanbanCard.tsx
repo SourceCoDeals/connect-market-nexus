@@ -1,7 +1,7 @@
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { Card, CardContent } from '@/components/ui/card';
-import { Clock, ExternalLink, BookOpen, FolderOpen, CalendarCheck } from 'lucide-react';
+import { Clock, ExternalLink, CalendarCheck } from 'lucide-react';
 import { Deal } from '@/hooks/admin/use-deals';
 import { cn } from '@/lib/utils';
 import { useAdminProfile } from '@/hooks/admin/use-admin-profiles';
@@ -97,78 +97,86 @@ export function PipelineKanbanCard({ deal, onDealClick, isDragging }: PipelineKa
       onClick={handleCardClick}
     >
       <CardContent className="p-0">
-        {/* Header: Company name */}
+        {/* Header: Company + Score + Financials */}
         <div className={cn(
-          "px-3 py-1.5 rounded-t-xl flex items-center gap-2",
-          needsOwnerContact
-            ? "bg-red-100 dark:bg-red-950/40 border-b border-red-200 dark:border-red-800"
-            : "border-b border-border/40"
+          "px-3 pt-2.5 pb-2",
+          needsOwnerContact && "bg-red-50 dark:bg-red-950/40 rounded-t-xl"
         )}>
-          <h3 className={cn(
-            "text-[13px] font-semibold leading-snug truncate flex-1",
-            needsOwnerContact ? "text-red-900 dark:text-red-200" : "text-foreground"
-          )}>
-            {companyName}
-          </h3>
-        </div>
-
-        <div className="px-3 py-2 space-y-2">
-          {/* Financials + Score */}
-          <div className="flex items-center justify-between">
-            <div className="flex gap-3 text-xs text-muted-foreground">
-              <span>Rev: <span className="font-semibold text-foreground">{fmt(deal.listing_revenue)}</span></span>
-              <span>EBITDA: <span className="font-semibold text-foreground">{fmt(deal.listing_ebitda)}</span></span>
-            </div>
+          <div className="flex items-center justify-between gap-2">
+            <h3 className={cn(
+              "text-[13px] font-semibold leading-snug truncate",
+              needsOwnerContact ? "text-red-900 dark:text-red-200" : "text-foreground"
+            )}>
+              {companyName}
+            </h3>
             {deal.deal_score != null && <DealScoreBadge score={deal.deal_score} size="sm" />}
           </div>
+          <div className="flex gap-3 mt-0.5 text-[11px] text-muted-foreground">
+            <span>Rev: <span className="font-semibold text-foreground">{fmt(deal.listing_revenue)}</span></span>
+            <span>EBITDA: <span className="font-semibold text-foreground">{fmt(deal.listing_ebitda)}</span></span>
+          </div>
+        </div>
 
-          {/* Buyer */}
-          <div className="pt-1.5 border-t border-border/30 space-y-0.5">
-            <div className="flex items-center justify-between gap-1.5">
-              <span className="text-[13px] font-semibold text-foreground truncate">{contactName}</span>
-              {buyerTypeLabel && (
-                <span className="flex-shrink-0 px-1.5 py-px rounded bg-primary/10 text-primary text-[10px] font-semibold leading-tight">
-                  {buyerTypeLabel}
-                </span>
-              )}
-            </div>
-            {buyerCompany && (
-              <div className="text-[11px] text-muted-foreground truncate">{buyerCompany}</div>
-            )}
-            {buyerWebsite && (
-              <div className="flex items-center gap-1 text-[11px] text-primary/70 truncate">
-                <ExternalLink className="w-2.5 h-2.5 flex-shrink-0" />
-                <span className="truncate">{buyerWebsite}</span>
-              </div>
+        {/* Buyer block */}
+        <div className="px-3 py-1.5 border-t border-border/30 space-y-0.5">
+          <div className="flex items-center justify-between gap-1.5">
+            <span className="text-[12px] font-semibold text-foreground truncate">{contactName}</span>
+            {buyerTypeLabel && (
+              <span className="flex-shrink-0 px-1.5 py-px rounded bg-primary/10 text-primary text-[10px] font-semibold leading-tight">
+                {buyerTypeLabel}
+              </span>
             )}
           </div>
-
-          {/* Owner */}
-          <div className="text-[11px] text-muted-foreground">
-            Owner: <span className="font-medium text-foreground/80">{assignedAdmin?.displayName || 'Unassigned'}</span>
-          </div>
-
-          {/* Status icons */}
-          <div className="flex items-center justify-between pt-1.5 border-t border-border/30">
-            <div className="flex items-center gap-3">
-              <div className={cn('w-2 h-2 rounded-full', statusDot(deal.nda_status))} title="NDA" />
-              <div className={cn('w-2 h-2 rounded-full', statusDot(deal.fee_agreement_status))} title="Fee Agreement" />
-              <span title="Memo"><BookOpen className={cn('w-3 h-3', active(deal.memo_sent))} /></span>
-              <span title="Data Room"><FolderOpen className={cn('w-3 h-3', active(deal.has_data_room))} /></span>
-              <button
-                type="button"
-                onClick={handleMeetingToggle}
-                className="rounded p-0.5 -m-0.5 transition-colors hover:bg-accent"
-                title={deal.meeting_scheduled ? 'Meeting scheduled' : 'No meeting'}
-              >
-                <CalendarCheck className={cn('w-3 h-3', active(deal.meeting_scheduled))} />
-              </button>
+          {buyerCompany && (
+            <div className="text-[11px] text-muted-foreground truncate">{buyerCompany}</div>
+          )}
+          {buyerWebsite && (
+            <div className="flex items-center gap-1 text-[11px] text-primary/70 truncate">
+              <ExternalLink className="w-2.5 h-2.5 flex-shrink-0" />
+              <span className="truncate">{buyerWebsite}</span>
             </div>
-            <span className="inline-flex items-center gap-0.5 text-[10px] text-muted-foreground/70">
-              <Clock className="w-2.5 h-2.5" />
-              {lastActivity}
+          )}
+        </div>
+
+        {/* Labeled status grid */}
+        <div className="px-3 py-1.5 border-t border-border/30">
+          <div className="grid grid-cols-2 gap-x-4 gap-y-0.5 text-[10px] text-muted-foreground">
+            <span className="inline-flex items-center gap-1">
+              NDA <span className={cn('inline-block w-1.5 h-1.5 rounded-full', statusDot(deal.nda_status))} />
+              <span className="font-medium text-foreground/80">{deal.nda_status === 'signed' ? 'Signed' : deal.nda_status === 'sent' ? 'Sent' : deal.nda_status === 'declined' ? 'Declined' : '—'}</span>
+            </span>
+            <span className="inline-flex items-center gap-1">
+              Fee <span className={cn('inline-block w-1.5 h-1.5 rounded-full', statusDot(deal.fee_agreement_status))} />
+              <span className="font-medium text-foreground/80">{deal.fee_agreement_status === 'signed' ? 'Signed' : deal.fee_agreement_status === 'sent' ? 'Sent' : deal.fee_agreement_status === 'declined' ? 'Declined' : '—'}</span>
+            </span>
+            <span className="inline-flex items-center gap-1">
+              Memo <span className={cn('inline-block w-1.5 h-1.5 rounded-full', deal.memo_sent ? 'bg-emerald-500' : 'bg-muted-foreground/30')} />
+              <span className="font-medium text-foreground/80">{deal.memo_sent ? 'Sent' : '—'}</span>
+            </span>
+            <span className="inline-flex items-center gap-1">
+              DR <span className={cn('inline-block w-1.5 h-1.5 rounded-full', deal.has_data_room ? 'bg-emerald-500' : 'bg-muted-foreground/30')} />
+              <span className="font-medium text-foreground/80">{deal.has_data_room ? 'Yes' : '—'}</span>
             </span>
           </div>
+          <button
+            type="button"
+            onClick={handleMeetingToggle}
+            className="mt-0.5 inline-flex items-center gap-1 text-[10px] text-muted-foreground rounded p-0.5 -ml-0.5 transition-colors hover:bg-accent"
+          >
+            Mtg <CalendarCheck className={cn('w-3 h-3', active(deal.meeting_scheduled))} />
+            <span className="font-medium text-foreground/80">{deal.meeting_scheduled ? 'Yes' : '—'}</span>
+          </button>
+        </div>
+
+        {/* Footer: Owner + Last Activity */}
+        <div className="px-3 py-1.5 border-t border-border/30 flex items-center justify-between">
+          <span className="text-[10px] text-muted-foreground">
+            Owner: <span className="font-medium text-foreground/80">{assignedAdmin?.displayName || 'Unassigned'}</span>
+          </span>
+          <span className="inline-flex items-center gap-0.5 text-[10px] text-muted-foreground/70">
+            <Clock className="w-2.5 h-2.5" />
+            {lastActivity}
+          </span>
         </div>
       </CardContent>
     </Card>
