@@ -196,27 +196,31 @@ export default function MessageCenter() {
   ];
 
   return (
-    <div className="h-[calc(100vh-80px)] flex flex-col">
+    <div className="h-[calc(100vh-80px)] flex flex-col" style={{ fontFamily: 'Montserrat, Inter, sans-serif' }}>
       {/* Header */}
       <div className="px-6 pt-6 pb-4 flex-shrink-0">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-semibold text-foreground tracking-tight">Inbox</h1>
-            <p className="text-sm text-muted-foreground mt-0.5">
+            <h1 className="text-2xl font-bold tracking-tight" style={{ color: '#0E101A' }}>Inbox</h1>
+            <p className="text-sm mt-0.5" style={{ color: '#5A5A5A' }}>
               {counts.unread > 0 ? `${counts.unread} unread conversation${counts.unread !== 1 ? 's' : ''}` : 'All caught up'}
             </p>
           </div>
 
           {/* View mode toggle */}
-          <div className="flex items-center gap-1 bg-muted/50 rounded-lg p-0.5">
+          <div className="flex items-center gap-1 rounded-lg p-0.5" style={{ backgroundColor: '#F7F4DD' }}>
             <button
               onClick={() => setViewMode("all")}
               className={cn(
                 "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors",
                 viewMode === "all"
-                  ? "bg-background text-foreground shadow-sm"
-                  : "text-muted-foreground hover:text-foreground"
+                  ? "shadow-sm"
+                  : "hover:opacity-80"
               )}
+              style={viewMode === "all"
+                ? { backgroundColor: '#FFFFFF', color: '#0E101A' }
+                : { color: '#5A5A5A' }
+              }
             >
               <LayoutList className="w-3.5 h-3.5" />
               All Messages
@@ -226,9 +230,13 @@ export default function MessageCenter() {
               className={cn(
                 "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors",
                 viewMode === "by_deal"
-                  ? "bg-background text-foreground shadow-sm"
-                  : "text-muted-foreground hover:text-foreground"
+                  ? "shadow-sm"
+                  : "hover:opacity-80"
               )}
+              style={viewMode === "by_deal"
+                ? { backgroundColor: '#FFFFFF', color: '#0E101A' }
+                : { color: '#5A5A5A' }
+              }
             >
               <FolderOpen className="w-3.5 h-3.5" />
               By Deal
@@ -242,24 +250,24 @@ export default function MessageCenter() {
             <button
               key={f.key}
               onClick={() => setActiveFilter(f.key)}
-              className={cn(
-                "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors whitespace-nowrap",
-                activeFilter === f.key
-                  ? "bg-primary text-primary-foreground"
-                  : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
-              )}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors whitespace-nowrap"
+              style={activeFilter === f.key
+                ? { backgroundColor: '#0E101A', color: '#FFFFFF' }
+                : { color: '#5A5A5A' }
+              }
             >
               {f.icon}
               {f.label}
               {counts[f.key] > 0 && (
-                <span className={cn(
-                  "ml-0.5 px-1.5 py-0 rounded-full text-[10px] font-bold min-w-[18px] text-center",
-                  activeFilter === f.key
-                    ? "bg-primary-foreground/20 text-primary-foreground"
-                    : f.key === "unread" || f.key === "waiting_on_admin"
-                      ? "bg-destructive/10 text-destructive"
-                      : "bg-muted text-muted-foreground"
-                )}>
+                <span
+                  className="ml-0.5 px-1.5 py-0 rounded-full text-[10px] font-bold min-w-[18px] text-center"
+                  style={activeFilter === f.key
+                    ? { backgroundColor: 'rgba(255,255,255,0.2)', color: '#FFFFFF' }
+                    : (f.key === "unread" || f.key === "waiting_on_admin")
+                      ? { backgroundColor: '#8B0000', color: '#FFFFFF' }
+                      : { backgroundColor: '#E8E8E8', color: '#5A5A5A' }
+                  }
+                >
                   {counts[f.key]}
                 </span>
               )}
@@ -278,22 +286,23 @@ export default function MessageCenter() {
           <MessageCenterEmpty />
         </div>
       ) : (
-        <div className="flex-1 min-h-0 mx-6 mb-6 border border-border rounded-xl overflow-hidden bg-card flex">
+        <div className="flex-1 min-h-0 mx-6 mb-6 rounded-xl overflow-hidden flex" style={{ border: '2px solid #CBCBCB', backgroundColor: '#FFFFFF' }}>
           {/* Thread List (left panel) */}
           <div className={cn(
-            "w-[380px] flex-shrink-0 border-r border-border flex flex-col min-h-0",
+            "w-[380px] flex-shrink-0 flex flex-col min-h-0",
             selectedThreadId ? "hidden md:flex" : "flex"
-          )}>
+          )} style={{ borderRight: '1px solid #E5DDD0' }}>
             {/* Search */}
-            <div className="p-3 border-b border-border/50 flex-shrink-0">
+            <div className="p-3 flex-shrink-0" style={{ borderBottom: '1px solid #E5DDD0' }}>
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5" style={{ color: '#9A9A9A' }} />
                 <input
                   type="text"
                   value={searchQuery}
                   onChange={e => setSearchQuery(e.target.value)}
                   placeholder="Search by buyer, company, or deal..."
-                  className="w-full text-xs border border-border/50 rounded-lg pl-8 pr-3 py-2 bg-background focus:outline-none focus:ring-1 focus:ring-primary/30"
+                  className="w-full text-xs rounded-lg pl-8 pr-3 py-2 focus:outline-none focus:ring-1"
+                  style={{ border: '1px solid #CBCBCB', backgroundColor: '#FCF9F0', color: '#0E101A' }}
                 />
               </div>
             </div>

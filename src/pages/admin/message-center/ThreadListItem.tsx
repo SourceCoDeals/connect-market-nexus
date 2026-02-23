@@ -50,8 +50,9 @@ export function ThreadListItem({
         "w-full text-left px-4 py-3 transition-colors",
         nested && "pl-10",
         isSelected ? "bg-accent" : "hover:bg-accent/50",
-        thread.unread_count > 0 && !isSelected && "bg-primary/[0.03]"
+        thread.unread_count > 0 && !isSelected && ""
       )}
+      style={thread.unread_count > 0 && !isSelected ? { backgroundColor: '#FFFDF5' } : undefined}
     >
       <div className="flex items-start gap-2.5">
         <div className="mt-1.5 flex-shrink-0">{stateIcon}</div>
@@ -88,22 +89,25 @@ export function ThreadListItem({
 
           {/* Row 3: Request status + pipeline badge */}
           <div className="flex items-center gap-1.5 mt-0.5">
-            <span className={cn(
-              "text-[10px] px-1.5 py-0.5 rounded font-medium",
-              thread.request_status === 'approved' ? "bg-emerald-500/10 text-emerald-600" :
-              thread.request_status === 'pending' ? "bg-amber-500/10 text-amber-600" :
-              thread.request_status === 'rejected' ? "bg-destructive/10 text-destructive" :
-              "bg-muted text-muted-foreground"
-            )}>
+            <span className="text-[10px] px-1.5 py-0.5 rounded font-medium"
+              style={
+                thread.request_status === 'approved' ? { backgroundColor: '#DEC76B', color: '#0E101A' } :
+                thread.request_status === 'pending' ? { backgroundColor: '#F7F4DD', color: '#5A5A5A', border: '1px solid #DEC76B' } :
+                thread.request_status === 'rejected' ? { backgroundColor: '#8B0000', color: '#FFFFFF' } :
+                { backgroundColor: '#E8E8E8', color: '#5A5A5A' }
+              }
+            >
               {thread.request_status}
             </span>
             {thread.pipeline_deal_id && (
-              <span className="text-[10px] px-1.5 py-0.5 rounded bg-primary/10 text-primary font-medium">
+              <span className="text-[10px] px-1.5 py-0.5 rounded font-medium"
+                style={{ backgroundColor: '#0E101A', color: '#FFFFFF' }}>
                 In Pipeline
               </span>
             )}
             {thread.claimed_by && (
-              <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground font-medium flex items-center gap-0.5">
+              <span className="text-[10px] px-1.5 py-0.5 rounded font-medium flex items-center gap-0.5"
+                style={{ backgroundColor: '#E8E8E8', color: '#5A5A5A' }}>
                 <UserCheck className="w-2.5 h-2.5" />
                 Claimed
               </span>
@@ -122,7 +126,8 @@ export function ThreadListItem({
 
         {/* Unread badge */}
         {thread.unread_count > 0 && (
-          <span className="mt-1 flex-shrink-0 flex h-5 min-w-[20px] items-center justify-center rounded-full bg-destructive px-1.5 text-[10px] font-bold text-destructive-foreground">
+          <span className="mt-1 flex-shrink-0 flex h-5 min-w-[20px] items-center justify-center rounded-full px-1.5 text-[10px] font-bold"
+            style={{ backgroundColor: '#8B0000', color: '#FFFFFF' }}>
             {thread.unread_count}
           </span>
         )}

@@ -39,25 +39,27 @@ export function DealGroupSection({
       <CollapsibleTrigger className="w-full">
         <div className={cn(
           "flex items-center gap-3 px-4 py-3 hover:bg-accent/50 transition-colors",
-          group.total_unread > 0 && "bg-primary/[0.03]"
-        )}>
-          {open ? <ChevronDown className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" /> : <ChevronRight className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />}
-          <FileText className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
+        )}
+        style={group.total_unread > 0 ? { backgroundColor: '#FFFDF5' } : undefined}
+        >
+          {open ? <ChevronDown className="w-3.5 h-3.5 flex-shrink-0" style={{ color: '#5A5A5A' }} /> : <ChevronRight className="w-3.5 h-3.5 flex-shrink-0" style={{ color: '#5A5A5A' }} />}
+          <FileText className="w-3.5 h-3.5 flex-shrink-0" style={{ color: '#DEC76B' }} />
           <div className="flex-1 min-w-0 text-left">
             <p className={cn(
               "text-sm truncate",
-              group.total_unread > 0 ? "font-semibold text-foreground" : "font-medium text-foreground/90"
-            )}>
+              group.total_unread > 0 ? "font-semibold" : "font-medium"
+            )} style={{ color: '#0E101A' }}>
               {group.deal_title}
             </p>
-            <p className="text-[10px] text-muted-foreground mt-0.5">
+            <p className="text-[10px] mt-0.5" style={{ color: '#9A9A9A' }}>
               {group.threads.length} conversation{group.threads.length !== 1 ? 's' : ''}
               {' · '}
               {formatDistanceToNow(new Date(group.last_activity), { addSuffix: true })}
             </p>
           </div>
           {group.total_unread > 0 && (
-            <span className="flex-shrink-0 flex h-5 min-w-[20px] items-center justify-center rounded-full bg-destructive px-1.5 text-[10px] font-bold text-destructive-foreground">
+            <span className="flex-shrink-0 flex h-5 min-w-[20px] items-center justify-center rounded-full px-1.5 text-[10px] font-bold"
+              style={{ backgroundColor: '#8B0000', color: '#FFFFFF' }}>
               {group.total_unread}
             </span>
           )}

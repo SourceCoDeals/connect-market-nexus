@@ -316,7 +316,7 @@ export function ThreadView({
       </div>
 
       {/* Messages */}
-      <ScrollArea className="flex-1">
+      <ScrollArea className="flex-1" style={{ backgroundColor: '#FCF9F0' }}>
         <div className="px-5 py-4 space-y-3">
           {isLoading ? (
             <div className="space-y-3">
@@ -354,32 +354,26 @@ export function ThreadView({
                 <div
                   key={msg.id}
                   className={cn(
-                    "max-w-[80%] rounded-xl px-4 py-3 space-y-1",
-                    isAdmin
-                      ? "ml-auto bg-primary text-primary-foreground"
-                      : "mr-auto bg-muted/40 border border-border/40"
+                    "max-w-[80%] rounded-xl px-4 py-3 space-y-1 shadow-sm",
+                    isAdmin ? "ml-auto border" : "mr-auto border"
                   )}
+                  style={isAdmin
+                    ? { backgroundColor: '#F7F4DD', borderColor: '#E5DDD0', color: '#0E101A' }
+                    : { backgroundColor: '#FFFFFF', borderColor: '#E5DDD0', color: '#0E101A' }
+                  }
                 >
-                  <div className={cn(
-                    "flex items-center gap-2 text-[11px]",
-                    isAdmin ? "text-primary-foreground/70" : "text-muted-foreground"
-                  )}>
+                  <div className="flex items-center gap-2 text-[11px]" style={{ color: '#5A5A5A' }}>
                     <span className="font-medium">{isAdmin ? "You" : msg.senderName}</span>
                     <span>·</span>
                     <span>{formatDistanceToNow(new Date(msg.created_at), { addSuffix: true })}</span>
                     {msg.isInquiry && (
-                      <span className={cn(
-                        "px-1.5 py-0.5 rounded text-[10px] font-medium",
-                        isAdmin ? "bg-primary-foreground/20" : "bg-accent/40 text-accent-foreground"
-                      )}>
+                      <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold"
+                        style={{ backgroundColor: '#DEC76B', color: '#0E101A' }}>
                         Initial Inquiry
                       </span>
                     )}
                   </div>
-                  <p className={cn(
-                    "text-sm whitespace-pre-wrap leading-relaxed",
-                    isAdmin ? "text-primary-foreground" : "text-foreground"
-                  )}>
+                  <p className="text-sm whitespace-pre-wrap leading-relaxed" style={{ color: '#0E101A' }}>
                     {msg.body}
                   </p>
                 </div>
@@ -392,13 +386,13 @@ export function ThreadView({
 
       {/* Compose bar */}
       {thread.conversation_state !== "closed" ? (
-        <div className="border-t border-border px-5 py-3 flex-shrink-0">
-          <div className="flex items-end gap-3">
+        <div className="px-5 py-3 flex-shrink-0" style={{ borderTop: '1px solid #E5DDD0' }}>
+          <div className="flex items-end gap-3 rounded-lg border-2 p-2" style={{ borderColor: '#E5DDD0', backgroundColor: '#FFFFFF' }}>
             <Textarea
               placeholder="Type a message..."
               value={newMessage}
               onChange={e => setNewMessage(e.target.value)}
-              className="min-h-[50px] max-h-[120px] resize-none text-sm flex-1"
+              className="min-h-[50px] max-h-[120px] resize-none text-sm flex-1 border-0 shadow-none focus-visible:ring-0 p-1"
               onKeyDown={e => {
                 if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) handleSend();
               }}
@@ -408,12 +402,13 @@ export function ThreadView({
               onClick={handleSend}
               disabled={!newMessage.trim() || sendMsg.isPending}
               className="h-9 px-4"
+              style={{ backgroundColor: '#0E101A', color: '#FFFFFF' }}
             >
               <Send className="w-3.5 h-3.5 mr-1.5" />
               Send
             </Button>
           </div>
-          <p className="text-[10px] text-muted-foreground mt-1">Cmd/Ctrl + Enter to send</p>
+          <p className="text-[10px] mt-1" style={{ color: '#9A9A9A' }}>Cmd/Ctrl + Enter to send</p>
         </div>
       ) : (
         <div className="border-t border-border px-5 py-3 text-center">
