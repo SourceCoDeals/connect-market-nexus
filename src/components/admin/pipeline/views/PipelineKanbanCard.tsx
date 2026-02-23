@@ -148,34 +148,23 @@ export function PipelineKanbanCard({ deal, onDealClick, isDragging }: PipelineKa
             Owner: <span className="font-medium text-foreground/80">{assignedAdmin?.displayName || 'Unassigned'}</span>
           </div>
 
-          {/* Status strip */}
-          <div className="flex items-center justify-between text-[10px] text-muted-foreground pt-1.5 border-t border-border/30">
-            <div className="flex items-center gap-2">
-              <span className="inline-flex items-center gap-1">
-                <div className={cn('w-1.5 h-1.5 rounded-full', statusDot(deal.nda_status))} />NDA
-              </span>
-              <span className="inline-flex items-center gap-1">
-                <div className={cn('w-1.5 h-1.5 rounded-full', statusDot(deal.fee_agreement_status))} />Fee
-              </span>
-              <span className="inline-flex items-center gap-1">
-                <BookOpen className={cn('w-2.5 h-2.5', active(deal.memo_sent))} />Memo
-              </span>
-              <span className="inline-flex items-center gap-1">
-                <FolderOpen className={cn('w-2.5 h-2.5', active(deal.has_data_room))} />DR
-              </span>
+          {/* Status icons */}
+          <div className="flex items-center justify-between pt-1.5 border-t border-border/30">
+            <div className="flex items-center gap-3">
+              <div className={cn('w-2 h-2 rounded-full', statusDot(deal.nda_status))} title="NDA" />
+              <div className={cn('w-2 h-2 rounded-full', statusDot(deal.fee_agreement_status))} title="Fee Agreement" />
+              <span title="Memo"><BookOpen className={cn('w-3 h-3', active(deal.memo_sent))} /></span>
+              <span title="Data Room"><FolderOpen className={cn('w-3 h-3', active(deal.has_data_room))} /></span>
               <button
                 type="button"
                 onClick={handleMeetingToggle}
-                className={cn(
-                  'inline-flex items-center gap-1 rounded px-0.5 -mx-0.5 transition-colors hover:bg-accent',
-                  deal.meeting_scheduled && 'font-medium'
-                )}
-                title={deal.meeting_scheduled ? 'Meeting scheduled — click to unmark' : 'Click to mark meeting scheduled'}
+                className="rounded p-0.5 -m-0.5 transition-colors hover:bg-accent"
+                title={deal.meeting_scheduled ? 'Meeting scheduled' : 'No meeting'}
               >
-                <CalendarCheck className={cn('w-2.5 h-2.5', active(deal.meeting_scheduled))} />Mtg
+                <CalendarCheck className={cn('w-3 h-3', active(deal.meeting_scheduled))} />
               </button>
             </div>
-            <span className="inline-flex items-center gap-0.5 text-muted-foreground/70">
+            <span className="inline-flex items-center gap-0.5 text-[10px] text-muted-foreground/70">
               <Clock className="w-2.5 h-2.5" />
               {lastActivity}
             </span>
