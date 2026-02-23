@@ -157,15 +157,17 @@ const ScoreBuyersButton = ({ requests, onRefresh }: { requests: AdminConnectionR
     let successes = 0;
     let failures = 0;
 
-    for (let i = 0; i < toScore.length; i += 5) {
-      const batch = toScore.slice(i, i + 5);
+    for (let i = 0; i < toScore.length; i += 2) {
+      const batch = toScore.slice(i, i + 2);
       const results = await Promise.allSettled(
         batch.map(profileId =>
           supabase.functions.invoke('calculate-buyer-quality-score', { body: { profile_id: profileId } })
         )
       );
       results.forEach(r => r.status === 'fulfilled' && !r.value.error ? successes++ : failures++);
-      setProgress({ done: Math.min(i + 5, toScore.length), total: toScore.length });
+      setProgress({ done: Math.min(i + batch.length, toScore.length), total: toScore.length });
+      // Small delay between batches to prevent edge function timeouts
+      if (i + 2 < toScore.length) await new Promise(res => setTimeout(res, 500));
     }
 
     setIsScoring(false);
