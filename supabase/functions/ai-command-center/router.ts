@@ -102,7 +102,52 @@ const BYPASS_RULES: Array<{
   // Buyer universe geographic questions — "how many buyers in X universe are in [state]"
   {
     test: (q) => /\b(buyer universe|universe|how many buyer|buyers.*in.*[A-Z]{2}|buyers.*locat|location.*buyer)\b/i.test(q),
-    result: { category: 'BUYER_ANALYSIS', tier: 'STANDARD', tools: ['query_deals', 'get_top_buyers_for_deal', 'search_buyers'], confidence: 0.85 },
+    result: { category: 'BUYER_UNIVERSE', tier: 'STANDARD', tools: ['search_buyer_universes', 'get_universe_details', 'get_top_buyers_for_deal', 'search_buyers'], confidence: 0.87 },
+  },
+  // Outreach tracking — NDA, contacted, meeting, follow-up pipeline
+  {
+    test: (q) => /\b(outreach|nda|contacted|who.?ve we|who have we|follow.?up pipeline|overdue action|next action|meeting scheduled|cim sent)\b/i.test(q),
+    result: { category: 'FOLLOW_UP', tier: 'STANDARD', tools: ['get_outreach_records', 'get_remarketing_outreach', 'get_deal_tasks'], confidence: 0.85 },
+  },
+  // Engagement signals — buyer engagement events
+  {
+    test: (q) => /\b(engagement signal|buyer signal|how engaged|site visit|ioi|loi|letter of intent|indication of interest|ceo involved|financial request)\b/i.test(q),
+    result: { category: 'ENGAGEMENT', tier: 'STANDARD', tools: ['get_engagement_signals', 'get_buyer_decisions', 'get_score_history'], confidence: 0.87 },
+  },
+  // Buyer decisions — approved, passed, pass reasons
+  {
+    test: (q) => /\b(pass.?reason|passed on|why.?pass|approve.?decision|declined|rejected|pass categor)\b/i.test(q),
+    result: { category: 'ENGAGEMENT', tier: 'STANDARD', tools: ['get_buyer_decisions', 'get_engagement_signals'], confidence: 0.85 },
+  },
+  // Inbound leads — website leads, form submissions
+  {
+    test: (q) => /\b(inbound lead|website lead|form lead|lead status|lead source|new lead|pending lead|converted lead)\b/i.test(q),
+    result: { category: 'LEAD_INTEL', tier: 'STANDARD', tools: ['search_inbound_leads', 'get_referral_data'], confidence: 0.85 },
+  },
+  // Referral partners / broker submissions
+  {
+    test: (q) => /\b(referral partner|broker partner|referral submission|deal submission|advisor partner|submitted deal)\b/i.test(q),
+    result: { category: 'LEAD_INTEL', tier: 'STANDARD', tools: ['get_referral_data', 'search_inbound_leads'], confidence: 0.87 },
+  },
+  // PE / platform contacts — find who to call, email at a firm
+  {
+    test: (q) => /\b(contact at|contact for|who.?s the|find contact|email for|phone for|partner at|principal at|deal team|pe contact|platform contact)\b/i.test(q),
+    result: { category: 'BUYER_ANALYSIS', tier: 'STANDARD', tools: ['search_pe_contacts', 'get_buyer_profile'], confidence: 0.87 },
+  },
+  // Deal documents and memos
+  {
+    test: (q) => /\b(document|data room file|teaser|memo|investment memo|cim|anonymous teaser|full memo)\b/i.test(q),
+    result: { category: 'DEAL_STATUS', tier: 'STANDARD', tools: ['get_deal_documents', 'get_deal_memos', 'get_deal_details'], confidence: 0.85 },
+  },
+  // Score history
+  {
+    test: (q) => /\b(score history|score change|score over time|historical score|score trend)\b/i.test(q),
+    result: { category: 'ENGAGEMENT', tier: 'STANDARD', tools: ['get_score_history', 'get_score_breakdown'], confidence: 0.87 },
+  },
+  // Enrichment status
+  {
+    test: (q) => /\b(enrichment|enrich status|data enrich|enrichment job|enrichment queue)\b/i.test(q),
+    result: { category: 'PIPELINE_ANALYTICS', tier: 'QUICK', tools: ['get_enrichment_status'], confidence: 0.9 },
   },
 ];
 
@@ -111,21 +156,24 @@ const BYPASS_RULES: Array<{
 const ROUTER_SYSTEM_PROMPT = `You are an intent classifier for an M&A deal management platform. Classify the user's message into exactly one category and select the minimum tools needed.
 
 Categories:
-- DEAL_STATUS: Questions about specific deal details, status, stage, financials
-- FOLLOW_UP: Tasks, to-dos, follow-ups, assignments, reminders
+- DEAL_STATUS: Questions about specific deal details, status, stage, financials, documents, memos
+- FOLLOW_UP: Tasks, to-dos, follow-ups, assignments, reminders, outreach tracking (NDA, meetings, next actions)
 - BUYER_SEARCH: Finding or searching for buyers, leads, acquirers
-- BUYER_ANALYSIS: Score breakdowns, rankings, fit analysis, comparisons
+- BUYER_ANALYSIS: Score breakdowns, rankings, fit analysis, comparisons, buyer contacts
+- BUYER_UNIVERSE: Buyer universe queries, universe details, geographic counts within a universe
 - MEETING_INTEL: Call transcripts, meeting notes, what was discussed
-- PIPELINE_ANALYTICS: Pipeline overview, metrics, trends, reports
+- PIPELINE_ANALYTICS: Pipeline overview, metrics, trends, reports, enrichment status
 - DAILY_BRIEFING: Morning briefing, what's happening, daily summary
 - ACTION: Creating tasks, adding notes, updating stages, granting access
 - REMARKETING: Selecting rows, filtering tables, remarketing operations
 - UI_ACTION: Navigating to pages, applying filters to UI tables
 - MEETING_PREP: Meeting preparation, briefings for specific meetings
 - OUTREACH_DRAFT: Drafting emails, outreach messages, communications
+- LEAD_INTEL: Inbound leads, referral partners, referral submissions, lead sources
+- ENGAGEMENT: Engagement signals, buyer decisions (approve/pass), score history, interest signals
 - GENERAL: Other / unclear intent
 
-Available tools: query_deals, get_deal_details, get_deal_activities, get_deal_tasks, get_pipeline_summary, search_buyers, get_buyer_profile, get_score_breakdown, get_top_buyers_for_deal, search_lead_sources, search_valuation_leads, search_transcripts, search_fireflies, get_meeting_action_items, get_outreach_status, get_analytics, get_current_user_context, create_deal_task, complete_deal_task, add_deal_note, log_deal_activity, update_deal_stage, grant_data_room_access, select_table_rows, apply_table_filter, navigate_to_page
+Available tools: query_deals, get_deal_details, get_deal_activities, get_deal_tasks, get_deal_documents, get_deal_memos, get_pipeline_summary, search_buyers, get_buyer_profile, get_score_breakdown, get_top_buyers_for_deal, get_buyer_decisions, get_score_history, search_lead_sources, search_valuation_leads, search_inbound_leads, get_referral_data, search_pe_contacts, search_buyer_universes, get_universe_details, get_outreach_records, get_remarketing_outreach, get_engagement_signals, get_interest_signals, search_transcripts, search_buyer_transcripts, search_fireflies, get_meeting_action_items, get_outreach_status, get_analytics, get_enrichment_status, get_current_user_context, create_deal_task, complete_deal_task, add_deal_note, log_deal_activity, update_deal_stage, grant_data_room_access, select_table_rows, apply_table_filter, navigate_to_page
 
 Respond with JSON only:
 {"category":"CATEGORY","tier":"QUICK|STANDARD|DEEP","tools":["tool1","tool2"],"confidence":0.0-1.0}

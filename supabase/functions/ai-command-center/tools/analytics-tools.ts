@@ -11,6 +11,19 @@ import type { ToolResult } from "./index.ts";
 
 export const analyticsTools: ClaudeTool[] = [
   {
+    name: 'get_enrichment_status',
+    description: 'Get enrichment job status and queue — check if buyer or deal enrichment jobs are running, pending, or failed. Shows progress, error counts, and records processed. Also checks the buyer enrichment queue.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        job_type: { type: 'string', enum: ['deal_enrichment', 'buyer_enrichment', 'all'], description: 'Filter by job type (default "all")' },
+        status: { type: 'string', description: 'Filter by job status: pending, processing, completed, failed, paused, cancelled' },
+        limit: { type: 'number', description: 'Max results (default 10)' },
+      },
+      required: [],
+    },
+  },
+  {
     name: 'get_analytics',
     description: 'Get pipeline analytics — deal counts, revenue totals, conversion rates, scoring distributions, and time-based trends. Use for dashboards, reports, and pipeline health checks.',
     input_schema: {
@@ -36,9 +49,58 @@ export async function executeAnalyticsTool(
   args: Record<string, unknown>,
 ): Promise<ToolResult> {
   switch (toolName) {
+    case 'get_enrichment_status': return getEnrichmentStatus(supabase, args);
     case 'get_analytics': return getAnalytics(supabase, args);
     default: return { error: `Unknown analytics tool: ${toolName}` };
   }
+}
+
+async function getEnrichmentStatus(
+  supabase: SupabaseClient,
+  args: Record<string, unknown>,
+): Promise<ToolResult> {
+  const limit = Math.min(Number(args.limit) || 10, 50);
+  const jobType = (args.job_type as string) || 'all';
+
+  let jobQuery = supabase
+    .from('enrichment_jobs')
+    .select('id, job_type, status, total_records, records_processed, records_succeeded, records_failed, records_skipped, error_summary, error_count, circuit_breaker_tripped, started_at, completed_at, created_at, triggered_by, source')
+    .order('created_at', { ascending: false })
+    .limit(limit);
+
+  if (jobType !== 'all') jobQuery = jobQuery.eq('job_type', jobType);
+  if (args.status) jobQuery = jobQuery.eq('status', args.status as string);
+
+  const [jobsResult, queueResult] = await Promise.all([
+    jobQuery,
+    supabase
+      .from('buyer_enrichment_queue')
+      .select('id, buyer_id, universe_id, status, attempts, queued_at, completed_at, last_error, created_at')
+      .order('queued_at', { ascending: false })
+      .limit(50),
+  ]);
+
+  if (jobsResult.error) return { error: jobsResult.error.message };
+
+  const jobs = jobsResult.data || [];
+  const queue = queueResult.data || [];
+
+  const queueByStatus: Record<string, number> = {};
+  for (const q of queue) {
+    queueByStatus[q.status] = (queueByStatus[q.status] || 0) + 1;
+  }
+
+  return {
+    data: {
+      jobs,
+      total_jobs: jobs.length,
+      buyer_enrichment_queue: {
+        items: queue,
+        total: queue.length,
+        by_status: queueByStatus,
+      },
+    },
+  };
 }
 
 // ---------- Implementations ----------
