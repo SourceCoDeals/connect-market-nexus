@@ -121,43 +121,61 @@ export function useDeals() {
   return useQuery({
     queryKey: ['deals'],
     queryFn: async () => {
-      const { data, error } = await supabase.rpc('get_deals_with_details' as 'get_stage_deal_count');
-      if (error) {
-        throw error;
-      }
-      const rows = (data || []) as unknown as Record<string, unknown>[];
+      // Direct joined query instead of RPC (per architecture pivot)
+      const { data: deals, error: dealsError } = await supabase
+        .from('deals')
+        .select(`
+          *,
+          listing:listings!deals_listing_id_fkey (
+            id, title, revenue, ebitda, location, category,
+            internal_company_name, image_url
+          ),
+          stage:deal_stages!deals_stage_id_fkey (
+            id, name, color, position, is_active, is_default,
+            is_system_stage, default_probability, stage_type
+          ),
+          assigned_admin:profiles!deals_assigned_to_fkey (
+            id, first_name, last_name, email
+          )
+        `)
+        .is('deleted_at', null)
+        .order('created_at', { ascending: false });
 
-      // Map RPC response to Deal interface
-      return rows.map((row) => {
+      if (dealsError) throw dealsError;
+
+      return (deals || []).map((row: any) => {
+        const listing = row.listing;
+        const stage = row.stage;
+        const admin = row.assigned_admin;
+
         return {
-          // Core deal fields (prefer new RPC names, fallback to old)
-          deal_id: row.deal_id ?? row.id ?? row.connection_request_id ?? row.listing_id,
-          title: row.title ?? row.listing_title ?? 'Deal',
-          deal_description: row.deal_description ?? row.description,
-          deal_value: Number(row.deal_value ?? row.value ?? 0),
-          deal_priority: row.deal_priority ?? row.priority ?? 'medium',
-          deal_probability: Number(row.deal_probability ?? row.probability ?? 50),
-          deal_expected_close_date: row.deal_expected_close_date ?? row.expected_close_date,
-          deal_source: row.deal_source ?? row.source ?? 'manual',
-          source: row.deal_source ?? row.source ?? 'manual',
-          deal_created_at: row.deal_created_at ?? row.created_at,
-          deal_updated_at: row.deal_updated_at ?? row.updated_at,
-          deal_stage_entered_at: row.deal_stage_entered_at ?? row.stage_entered_at ?? row.deal_created_at ?? row.created_at,
+          deal_id: row.id,
+          title: row.title || listing?.title || 'Deal',
+          deal_description: row.description,
+          deal_value: Number(row.value ?? 0),
+          deal_priority: row.priority ?? 'medium',
+          deal_probability: Number(row.probability ?? 50),
+          deal_expected_close_date: row.expected_close_date,
+          deal_source: row.source ?? 'manual',
+          source: row.source ?? 'manual',
+          deal_created_at: row.created_at,
+          deal_updated_at: row.updated_at,
+          deal_stage_entered_at: row.stage_entered_at ?? row.created_at,
 
           // Stage
-          stage_id: row.stage_id,
-          stage_name: row.stage_name,
-          stage_color: row.stage_color,
-          stage_position: row.stage_position,
+          stage_id: stage?.id ?? row.stage_id,
+          stage_name: stage?.name,
+          stage_color: stage?.color,
+          stage_position: stage?.position,
 
           // Listing
           listing_id: row.listing_id,
-          listing_title: row.listing_title,
-          listing_revenue: Number(row.listing_revenue ?? 0),
-          listing_ebitda: Number(row.listing_ebitda ?? 0),
-          listing_location: row.listing_location,
-          listing_category: row.listing_category,
-          listing_real_company_name: row.listing_real_company_name ?? row.internal_company_name,
+          listing_title: listing?.title,
+          listing_revenue: Number(listing?.revenue ?? 0),
+          listing_ebitda: Number(listing?.ebitda ?? 0),
+          listing_location: listing?.location,
+          listing_category: listing?.category,
+          listing_real_company_name: listing?.internal_company_name,
 
           // Contact
           contact_name: row.contact_name,
@@ -169,51 +187,50 @@ export function useDeals() {
           // Document/status
           nda_status: row.nda_status ?? 'not_sent',
           fee_agreement_status: row.fee_agreement_status ?? 'not_sent',
-          followed_up: (row.followed_up ?? row.deal_followed_up) ?? false,
-          followed_up_at: row.followed_up_at ?? row.deal_followed_up_at,
-          followed_up_by: row.followed_up_by ?? row.deal_followed_up_by,
-          negative_followed_up: (row.negative_followed_up ?? row.deal_negative_followed_up) ?? false,
-          negative_followed_up_at: row.negative_followed_up_at ?? row.deal_negative_followed_up_at,
-          negative_followed_up_by: row.negative_followed_up_by ?? row.deal_negative_followed_up_by,
+          followed_up: row.followed_up ?? false,
+          followed_up_at: row.followed_up_at,
+          followed_up_by: row.followed_up_by,
+          negative_followed_up: row.negative_followed_up ?? false,
+          negative_followed_up_at: row.negative_followed_up_at,
+          negative_followed_up_by: row.negative_followed_up_by,
 
           // Assignment
           assigned_to: row.assigned_to,
-          assigned_admin_name: row.assigned_admin_name,
-          assigned_admin_email: row.assigned_admin_email,
+          assigned_admin_name: admin ? `${admin.first_name} ${admin.last_name}` : null,
+          assigned_admin_email: admin?.email,
 
-          // Tasks and activity
-          total_tasks: Number(row.total_tasks ?? row.total_tasks_count ?? 0),
-          pending_tasks: Number(row.pending_tasks ?? row.pending_tasks_count ?? 0),
-          completed_tasks: Number(row.completed_tasks ?? row.completed_tasks_count ?? 0),
-          pending_tasks_count: Number(row.pending_tasks ?? row.pending_tasks_count ?? 0),
-          completed_tasks_count: Number(row.completed_tasks ?? row.completed_tasks_count ?? 0),
-
-          activity_count: Number(row.activity_count ?? row.total_activities ?? row.total_activities_count ?? 0),
-          total_activities_count: Number(row.activity_count ?? row.total_activities ?? row.total_activities_count ?? 0),
-          last_activity_at: row.last_activity_at,
+          // Tasks and activity (not available via join, default to 0)
+          total_tasks: 0,
+          pending_tasks: 0,
+          completed_tasks: 0,
+          pending_tasks_count: 0,
+          completed_tasks_count: 0,
+          activity_count: 0,
+          total_activities_count: 0,
+          last_activity_at: undefined,
 
           // Buyer
-          buyer_name: row.buyer_name,
-          buyer_email: row.buyer_email,
-          buyer_company: row.buyer_company,
-          buyer_type: row.buyer_type,
-          buyer_phone: row.buyer_phone,
-          buyer_priority_score: Number(row.buyer_priority_score ?? row.deal_buyer_priority_score ?? 0),
+          buyer_name: row.contact_name,
+          buyer_email: row.contact_email,
+          buyer_company: row.contact_company,
+          buyer_type: null,
+          buyer_phone: row.contact_phone,
+          buyer_priority_score: Number(row.buyer_priority_score ?? 0),
 
           // Extras
           connection_request_id: row.connection_request_id,
-          company_deal_count: Number(row.company_deal_count ?? 0),
-          listing_deal_count: Number(row.listing_deal_count ?? 1),
-          buyer_connection_count: Number(row.buyer_connection_count ?? 1),
-          buyer_id: row.buyer_id,
-          last_contact_at: row.last_contact_at,
-          last_contact_type: row.last_contact_type,
+          company_deal_count: 0,
+          listing_deal_count: 1,
+          buyer_connection_count: 1,
+          buyer_id: undefined,
+          last_contact_at: undefined,
+          last_contact_type: undefined,
 
           // Remarketing bridge
-          remarketing_buyer_id: row.remarketing_buyer_id ?? null,
-          remarketing_score_id: row.remarketing_score_id ?? null,
+          remarketing_buyer_id: row.remarketing_buyer_id ?? undefined,
+          remarketing_score_id: row.remarketing_score_id ?? undefined,
         };
-      }) as Deal[];
+      }) as unknown as Deal[];
     },
     staleTime: 30000,
   });
