@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -11,6 +12,8 @@ import { DealImportDialog } from "@/components/remarketing/DealImportDialog";
 import { FilterBar, TimeframeSelector, GP_PARTNER_FIELDS } from "@/components/filters";
 import { EnrichmentProgressIndicator } from "@/components/remarketing/EnrichmentProgressIndicator";
 import { useGPPartnerDeals } from "./useGPPartnerDeals";
+import { useAIUIActionHandler } from "@/hooks/useAIUIActionHandler";
+import { useAICommandCenterContext } from "@/components/ai-command-center/AICommandCenterProvider";
 import { GPPartnerKPICards } from "./GPPartnerKPICards";
 import { GPPartnerBulkActions } from "./GPPartnerBulkActions";
 import { GPPartnerTable } from "./GPPartnerTable";
@@ -19,6 +22,25 @@ import { AddDealDialog } from "./AddDealDialog";
 
 export default function GPPartnerDeals() {
   const hook = useGPPartnerDeals();
+  const { setPageContext } = useAICommandCenterContext();
+
+  useEffect(() => {
+    setPageContext({ page: 'gp_partners', entity_type: 'leads' });
+  }, [setPageContext]);
+
+  useAIUIActionHandler({
+    table: 'leads',
+    onSelectRows: (rowIds, mode) => {
+      if (mode === 'replace') hook.setSelectedIds(new Set(rowIds));
+      else if (mode === 'add') hook.setSelectedIds(prev => { const n = new Set(prev); rowIds.forEach(id => n.add(id)); return n; });
+      else hook.setSelectedIds(prev => { const n = new Set(prev); rowIds.forEach(id => n.has(id) ? n.delete(id) : n.add(id)); return n; });
+    },
+    onClearSelection: () => hook.setSelectedIds(new Set()),
+    onSortColumn: (field) => {
+      const fieldMap: Record<string, string> = { company_name: 'company_name', score: 'score', created_at: 'created_at', priority: 'priority' };
+      hook.handleSort((fieldMap[field] || field) as any);
+    },
+  });
 
   if (hook.isLoading) {
     return (

@@ -39,6 +39,7 @@ IMPORTANT CAPABILITIES:
 - You can SORT TABLES — when a user says "sort by revenue" or "order by state", use sort_table_column to sort the visible table.
 - You can NAVIGATE — when a user asks to "go to" or "show me" a specific deal/buyer, use navigate_to_page.
 - You can CREATE tasks, ADD notes, UPDATE stages, and GRANT data room access.
+- You can GET A UNIFIED FOLLOW-UP QUEUE — use get_follow_up_queue to surface ALL pending action items: overdue tasks, stale outreach (no response in 5+ business days), unsigned NDAs, unread buyer messages, and upcoming due dates. This is the single best tool for "who do I need to follow up with?" or "what should I do today?"
 
 DATA SOURCES YOU CAN QUERY:
 - listings (deals/sellers): all deals in the pipeline, captarget leads, marketplace listings
@@ -97,7 +98,8 @@ Include: revenue, EBITDA, location, owner goals, deal score.
 If the deal has tasks, mention overdue ones. Keep it concise.`,
 
   FOLLOW_UP: `Focus on actionable items: overdue tasks, pending follow-ups, upcoming due dates.
-Prioritize by urgency: overdue > due today > due this week > upcoming.
+Use get_follow_up_queue FIRST to get a unified view, then drill into specifics if needed.
+Prioritize by urgency: overdue > due today > stale outreach > unread messages > upcoming.
 Suggest next actions if appropriate.`,
 
   BUYER_SEARCH: `Return buyer matches as a structured list with: name, type, HQ, revenue range, key services, alignment score.

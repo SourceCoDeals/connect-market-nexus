@@ -20,6 +20,7 @@ import { leadTools, executeLeadTool } from "./lead-tools.ts";
 import { contactTools, executeContactTool } from "./contact-tools.ts";
 import { connectionTools, executeConnectionTool } from "./connection-tools.ts";
 import { dealExtraTools, executeDealExtraTool } from "./deal-extra-tools.ts";
+import { followupTools, executeFollowupTool } from "./followup-tools.ts";
 
 // ---------- Tool Result Types ----------
 
@@ -47,12 +48,13 @@ const ALL_TOOLS: ClaudeTool[] = [
   ...contactTools,
   ...connectionTools,
   ...dealExtraTools,
+  ...followupTools,
 ];
 
 const TOOL_CATEGORIES: Record<string, string[]> = {
   // Deal pipeline
   DEAL_STATUS: ['query_deals', 'get_deal_details', 'get_deal_activities', 'get_pipeline_summary', 'get_deal_memos', 'get_deal_documents', 'get_deal_comments', 'get_deal_scoring_adjustments'],
-  FOLLOW_UP: ['get_deal_tasks', 'get_outreach_status', 'get_outreach_records', 'get_remarketing_outreach', 'get_meeting_action_items', 'get_current_user_context', 'get_connection_requests'],
+  FOLLOW_UP: ['get_deal_tasks', 'get_outreach_status', 'get_outreach_records', 'get_remarketing_outreach', 'get_meeting_action_items', 'get_current_user_context', 'get_connection_requests', 'get_follow_up_queue'],
 
   // Buyer intelligence
   BUYER_SEARCH: ['search_buyers', 'search_lead_sources', 'search_valuation_leads', 'query_deals', 'search_inbound_leads', 'select_table_rows', 'apply_table_filter', 'sort_table_column'],
@@ -66,7 +68,7 @@ const TOOL_CATEGORIES: Record<string, string[]> = {
 
   // Analytics
   PIPELINE_ANALYTICS: ['get_pipeline_summary', 'get_analytics', 'get_enrichment_status', 'get_industry_trackers'],
-  DAILY_BRIEFING: ['get_current_user_context', 'query_deals', 'get_deal_tasks', 'get_outreach_status', 'get_outreach_records', 'get_analytics', 'get_connection_requests'],
+  DAILY_BRIEFING: ['get_current_user_context', 'query_deals', 'get_deal_tasks', 'get_outreach_status', 'get_outreach_records', 'get_analytics', 'get_connection_requests', 'get_follow_up_queue'],
 
   // General / context
   GENERAL: ['get_current_user_context'],
@@ -186,6 +188,7 @@ async function _executeToolInternal(
   if (contactTools.some(t => t.name === toolName)) return executeContactTool(supabase, toolName, resolvedArgs);
   if (connectionTools.some(t => t.name === toolName)) return executeConnectionTool(supabase, toolName, resolvedArgs);
   if (dealExtraTools.some(t => t.name === toolName)) return executeDealExtraTool(supabase, toolName, resolvedArgs);
+  if (followupTools.some(t => t.name === toolName)) return executeFollowupTool(supabase, toolName, resolvedArgs, userId);
 
   return { error: `Unknown tool: ${toolName}` };
 }
