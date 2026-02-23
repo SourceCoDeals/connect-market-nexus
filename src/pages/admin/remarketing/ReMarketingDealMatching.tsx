@@ -908,7 +908,7 @@ const ReMarketingDealMatching = () => {
               <MapPin className="h-4 w-4 text-muted-foreground" />
               <div>
                 <p className="text-muted-foreground">Location</p>
-                <p className="font-medium">{listing.location || '—'}</p>
+                <p className="font-medium">{listing.location || (listing.address_city && listing.address_state ? `${listing.address_city}, ${listing.address_state}` : listing.address_state || listing.address_city || '—')}</p>
               </div>
             </div>
             <div className="flex items-center gap-2">
@@ -1217,7 +1217,7 @@ const ReMarketingDealMatching = () => {
                 <BuyerMatchCard
                   key={score.id}
                   score={score}
-                  dealLocation={listing.location ?? undefined}
+                  dealLocation={listing.location || (listing.address_city && listing.address_state ? `${listing.address_city}, ${listing.address_state}` : listing.address_state || listing.address_city) || undefined}
                   isSelected={selectedIds.has(score.id)}
                   isHighlighted={highlightedBuyerIds.includes(score.buyer?.id || '')}
                   onSelect={handleSelect}
