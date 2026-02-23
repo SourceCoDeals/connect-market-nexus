@@ -59,7 +59,7 @@ export function ValuationLeadsTable({
   paginatedLeads,
   activeTab,
   sortColumn,
-  sortDirection,
+  sortDirection: _sortDirection,
   handleSort,
   selectedIds,
   allSelected,

@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { TIMEFRAME_PRESETS } from './use-timeframe';
 
 // We test the exported constants and types since the hook itself

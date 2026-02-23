@@ -106,7 +106,7 @@ export default function TrackerDetail() {
     }
   };
 
-  // @ts-expect-error reserved for future use
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const handleSaveTracker = async (updates: Partial<TrackerData>) => {
     if (!tracker) return;
 

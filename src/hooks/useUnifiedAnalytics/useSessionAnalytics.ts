@@ -8,7 +8,6 @@ import {
   getDiscoverySource,
   getVisitorKey,
   selfReportedSourceToChannel,
-  getFirstMeaningfulSession,
 } from "./analyticsHelpers";
 
 /** Filter raw sessions to remove dev/bot traffic and deduplicate */

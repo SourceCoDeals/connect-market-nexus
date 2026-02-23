@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Textarea } from "@/components/ui/textarea";
-import { BookOpen, Sparkles, Loader2, ChevronDown, ChevronUp, Check, X, RefreshCw, Upload } from "lucide-react";
+import { BookOpen, Sparkles, Loader2, ChevronDown, ChevronUp, Check, RefreshCw, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { invokeWithTimeout } from "@/lib/invoke-with-timeout";

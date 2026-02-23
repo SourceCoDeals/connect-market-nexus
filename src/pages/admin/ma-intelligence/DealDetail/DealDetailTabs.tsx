@@ -4,8 +4,6 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Slider } from "@/components/ui/slider";
-import { Button } from "@/components/ui/button";
 import {
   Select,
   SelectContent,
@@ -14,7 +12,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { ChipInput } from "@/components/ui/chip-input";
-import { Archive, Trash2 } from "lucide-react";
 import { DealDataSection } from "@/components/ma-intelligence/DealDataSection";
 import { DealActivitySection } from "@/components/ma-intelligence/DealActivitySection";
 import { DealTranscriptsTab } from "@/components/ma-intelligence/DealTranscriptsTab";
@@ -33,7 +30,7 @@ export function DealDetailTabs({
   onEditSection,
   onSaveSection,
   onCancelEdit,
-  onLoadDeal,
+  onLoadDeal: _onLoadDeal,
   scoringState,
   onSetScoringState,
   onSaveScoringAdjustments,

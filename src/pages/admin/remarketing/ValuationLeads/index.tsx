@@ -27,7 +27,7 @@ export default function ValuationLeads() {
     filterState, setFilterState, dynamicOptions, filteredCount, engineTotal,
     sortColumn, sortDirection, handleSort,
     activeTab, setActiveTab, timeframe, setTimeframe,
-    currentPage, setCurrentPage, totalPages, safePage, PAGE_SIZE,
+    currentPage: _currentPage, setCurrentPage, totalPages, safePage, PAGE_SIZE,
     selectedIds, setSelectedIds, allSelected, toggleSelectAll, toggleSelect,
     hidePushed, setHidePushed,
     handleRowClick, handlePushToAllDeals, handlePushAndEnrich, handleReEnrich,
