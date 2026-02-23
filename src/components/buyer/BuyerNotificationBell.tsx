@@ -6,13 +6,49 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 import { formatDistanceToNow } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import { AgreementSigningModal } from '@/components/docuseal/AgreementSigningModal';
+import { toast } from 'sonner';
 
 export function BuyerNotificationBell() {
   const { notifications, unreadCount, isLoading } = useUserNotifications();
   const markAsRead = useMarkNotificationAsRead();
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
+  const [signingOpen, setSigningOpen] = useState(false);
+  const [signingType, setSigningType] = useState<'nda' | 'fee_agreement'>('nda');
+  const seenNotificationIds = useRef<Set<string>>(new Set());
+
+  // Show toast popup when new agreement_pending notifications arrive
+  useEffect(() => {
+    const agreementNotifications = notifications.filter(
+      n => n.notification_type === 'agreement_pending' && !n.is_read
+    );
+
+    for (const n of agreementNotifications) {
+      if (seenNotificationIds.current.has(n.id)) continue;
+      seenNotificationIds.current.add(n.id);
+
+      const docType = n.metadata?.document_type as string;
+      const isNda = docType === 'nda';
+
+      toast(n.title, {
+        description: isNda
+          ? 'This is our standard NDA so we can freely exchange information about the companies on our platform. Sign it to unlock full deal access.'
+          : 'Here is our fee agreement — you only pay a fee if you close a deal you meet on our platform. Sign to continue.',
+        duration: 12000,
+        icon: <FileSignature className="w-5 h-5 text-amber-600" />,
+        action: {
+          label: isNda ? 'Sign NDA' : 'Sign Agreement',
+          onClick: () => {
+            setSigningType(isNda ? 'nda' : 'fee_agreement');
+            setSigningOpen(true);
+            markAsRead.mutate(n.id);
+          },
+        },
+      });
+    }
+  }, [notifications]);
 
   const getIcon = (type: string) => {
     switch (type) {
@@ -47,15 +83,16 @@ export function BuyerNotificationBell() {
         navigate(`/marketplace/${n.metadata.deal_slug}`);
       }
     } else if (n.notification_type === 'document_uploaded') {
-      // Deep-link to the Documents tab in My Deals
       if (n.metadata?.deal_id) {
         navigate(`/my-requests?deal=${n.metadata.deal_id}&tab=documents`);
       }
     } else if (n.notification_type === 'new_message' && n.connection_request_id) {
       navigate(`/messages?deal=${n.connection_request_id}`);
     } else if (n.notification_type === 'agreement_pending') {
-      // Navigate to marketplace where the PendingSigningBanner will prompt signing
-      navigate('/marketplace?signing=pending');
+      // Open signing modal directly
+      const docType = n.metadata?.document_type as string;
+      setSigningType(docType === 'fee_agreement' ? 'fee_agreement' : 'nda');
+      setSigningOpen(true);
     } else if (n.notification_type === 'request_approved' && n.connection_request_id) {
       navigate(`/deals/${n.connection_request_id}`);
     } else if (n.connection_request_id) {
@@ -75,6 +112,7 @@ export function BuyerNotificationBell() {
   const hasUnread = unreadCount > 0;
 
   return (
+    <>
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <Button
@@ -163,5 +201,12 @@ export function BuyerNotificationBell() {
         )}
       </PopoverContent>
     </Popover>
+
+    <AgreementSigningModal
+      open={signingOpen}
+      onOpenChange={setSigningOpen}
+      documentType={signingType}
+    />
+    </>
   );
 }

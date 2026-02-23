@@ -221,7 +221,7 @@ serve(async (req: Request) => {
       raw_payload: { created_by: auth.userId },
     });
 
-    // Create buyer notification (all delivery modes)
+    // Create buyer notification and system message (all delivery modes)
     {
       const { data: buyerProfile } = await supabaseAdmin
         .from("profiles")
@@ -231,15 +231,17 @@ serve(async (req: Request) => {
 
       if (buyerProfile?.id) {
         const docLabel = documentType === "nda" ? "NDA" : "Fee Agreement";
-        const modeHint =
-          deliveryMode === "embedded"
-            ? "You can sign it directly in the app."
-            : "Check your email for the signing link.";
+        const notificationMessage =
+          documentType === "nda"
+            ? "This is our standard NDA so we can freely exchange confidential information about the companies on our platform. Sign it to unlock full deal access."
+            : "Here is our fee agreement — you only pay a fee if you close a deal you meet on our platform. Sign to continue the process.";
+
+        // Insert notification
         await supabaseAdmin.from("user_notifications").insert({
           user_id: buyerProfile.id,
           notification_type: "agreement_pending",
           title: `${docLabel} Ready to Sign`,
-          message: `A ${docLabel} has been prepared for your signature. ${modeHint}`,
+          message: notificationMessage,
           metadata: {
             document_type: documentType,
             firm_id: firmId,
@@ -248,6 +250,33 @@ serve(async (req: Request) => {
           },
         });
         console.log(`🔔 Created notification for buyer ${buyerProfile.id} — ${docLabel} pending (${deliveryMode})`);
+
+        // Send a system message to the buyer's most recent connection request thread
+        const { data: latestRequest } = await supabaseAdmin
+          .from("connection_requests")
+          .select("id")
+          .eq("user_id", buyerProfile.id)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (latestRequest?.id) {
+          const systemMessageBody =
+            documentType === "nda"
+              ? "📋 **NDA Ready to Sign**\n\nThis is our standard Non-Disclosure Agreement so we can freely exchange confidential information about the companies on our platform. It's a one-time signing — once done, you'll have full access to every deal.\n\nYou can sign it directly from your notification bell or the banner on the My Deals page."
+              : "📋 **Fee Agreement Ready to Sign**\n\nHere is our fee agreement. You only pay a fee if you successfully close a deal with a company you first meet on our platform — no upfront cost.\n\nYou can sign it directly from your notification bell or the banner on the My Deals page.";
+
+          await supabaseAdmin.from("connection_messages").insert({
+            connection_request_id: latestRequest.id,
+            sender_role: "admin",
+            sender_id: null,
+            body: systemMessageBody,
+            message_type: "system",
+            is_read_by_admin: true,
+            is_read_by_buyer: false,
+          });
+          console.log(`💬 Sent system message to connection ${latestRequest.id} for ${docLabel}`);
+        }
       }
     }
 
