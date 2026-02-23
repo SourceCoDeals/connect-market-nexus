@@ -35,7 +35,7 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { formatDistanceToNow, format } from "date-fns";
-import { getBuyerTier, getProfileCompletionDetails } from "@/lib/buyer-metrics";
+import { getBuyerTier } from "@/lib/buyer-metrics";
 import { processUrl } from "@/lib/url-utils";
 import {
   Dialog,
@@ -236,8 +236,6 @@ export function ConnectionRequestActions({
   );
 
   const tierInfo = getBuyerTier(user);
-  const completionDetails = getProfileCompletionDetails(user);
-  const completeness = completionDetails.percentage;
   const buyerInitials = `${user.first_name?.[0] || ''}${user.last_name?.[0] || ''}`.toUpperCase();
 
   const buyerName = `${user.first_name || ''} ${user.last_name || ''}`.trim();
@@ -432,24 +430,9 @@ export function ConnectionRequestActions({
           </div>
 
           {/* Right: Key stats — bigger text */}
-          <div className="shrink-0 text-right space-y-2">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Joined</p>
-              <p className="text-sm font-medium text-foreground">{user.created_at ? format(new Date(user.created_at), 'MMM d, yyyy') : '—'}</p>
-            </div>
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Requested</p>
-              <p className="text-sm font-medium text-foreground">{formattedDate || '—'}</p>
-            </div>
-            <div className="mt-1 w-36 ml-auto">
-              <div className="flex items-center justify-between mb-1">
-                <span className="text-xs text-muted-foreground font-medium">Profile</span>
-                <span className={`text-xs font-bold ${completeness >= 70 ? 'text-sourceco' : 'text-muted-foreground'}`}>{completeness}%</span>
-              </div>
-              <div className="h-[5px] bg-border rounded-full overflow-hidden">
-                <div className="h-full rounded-full transition-all bg-sourceco" style={{ width: `${completeness}%` }} />
-              </div>
-            </div>
+          <div className="shrink-0 text-right">
+            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Requested</p>
+            <p className="text-base font-semibold text-foreground">{formattedDate || '—'}</p>
           </div>
         </div>
       </div>
