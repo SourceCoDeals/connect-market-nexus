@@ -60,8 +60,16 @@ export function NdaGateModal({ userId, firmId, onSigned }: NdaGateModalProps) {
     return () => { cancelled = true; };
   }, [userId, firmId, onSigned]);
 
-  const invalidateAllCaches = useCallback(() => {
-    queryClient.invalidateQueries({ queryKey: ['my-agreement-status'] });
+  const handleSigned = async () => {
+    // Immediately confirm with backend — updates DB, creates notifications & messages
+    try {
+      await supabase.functions.invoke('confirm-agreement-signed', {
+        body: { documentType: 'nda' },
+      });
+    } catch (err) {
+      console.warn('confirm-agreement-signed call failed (webhook will handle):', err);
+    }
+    queryClient.invalidateQueries({ queryKey: ['buyer-nda-status'] });
     queryClient.invalidateQueries({ queryKey: ['firm-agreements'] });
     queryClient.invalidateQueries({ queryKey: ['buyer-firm-agreement-status'] });
     queryClient.invalidateQueries({ queryKey: ['agreement-pending-notifications'] });

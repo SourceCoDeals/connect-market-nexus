@@ -35,7 +35,7 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { formatDistanceToNow, format } from "date-fns";
-import { getBuyerTier, getProfileCompletionDetails } from "@/lib/buyer-metrics";
+import { getBuyerTier } from "@/lib/buyer-metrics";
 import { processUrl } from "@/lib/url-utils";
 import {
   Dialog,
@@ -236,8 +236,6 @@ export function ConnectionRequestActions({
   );
 
   const tierInfo = getBuyerTier(user);
-  const completionDetails = getProfileCompletionDetails(user);
-  const completeness = completionDetails.percentage;
   const buyerInitials = `${user.first_name?.[0] || ''}${user.last_name?.[0] || ''}`.toUpperCase();
 
   const buyerName = `${user.first_name || ''} ${user.last_name || ''}`.trim();
@@ -403,16 +401,19 @@ export function ConnectionRequestActions({
           {/* Left: Name + description */}
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-3">
-              <h2 className="text-xl font-extrabold text-foreground tracking-tight" style={{ fontFamily: 'Manrope, sans-serif' }}>{buyerName}</h2>
+              <h2 className="text-2xl font-extrabold text-foreground tracking-tight" style={{ fontFamily: 'Manrope, sans-serif' }}>{buyerName}</h2>
               {user.linkedin_profile && (
-                <a href={processUrl(user.linkedin_profile)} target="_blank" rel="noopener noreferrer" className="text-sm font-semibold text-sourceco hover:underline">
+                <a href={processUrl(user.linkedin_profile)} target="_blank" rel="noopener noreferrer" className="text-sm font-semibold text-primary hover:underline">
                   LinkedIn ↗
                 </a>
               )}
             </div>
             <p className="text-sm text-muted-foreground mt-0.5">
               {user.job_title ? `${user.job_title} at ` : ''}{firmName}
-              {buyerEmail && <> · {buyerEmail}</>}
+              {buyerEmail && <> · <a href={`mailto:${buyerEmail}`} className="text-foreground hover:underline">{buyerEmail}</a></>}
+              {user.website && (
+                <> · <a href={processUrl(user.website)} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">{user.website.replace(/^https?:\/\//, '')}</a></>
+              )}
             </p>
 
             {/* Quick snapshot — the key info for fast decisions */}
@@ -432,24 +433,9 @@ export function ConnectionRequestActions({
           </div>
 
           {/* Right: Key stats — bigger text */}
-          <div className="shrink-0 text-right space-y-2">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Joined</p>
-              <p className="text-sm font-medium text-foreground">{user.created_at ? format(new Date(user.created_at), 'MMM d, yyyy') : '—'}</p>
-            </div>
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Requested</p>
-              <p className="text-sm font-medium text-foreground">{formattedDate || '—'}</p>
-            </div>
-            <div className="mt-1 w-36 ml-auto">
-              <div className="flex items-center justify-between mb-1">
-                <span className="text-xs text-muted-foreground font-medium">Profile</span>
-                <span className={`text-xs font-bold ${completeness >= 70 ? 'text-sourceco' : 'text-muted-foreground'}`}>{completeness}%</span>
-              </div>
-              <div className="h-[5px] bg-border rounded-full overflow-hidden">
-                <div className="h-full rounded-full transition-all bg-sourceco" style={{ width: `${completeness}%` }} />
-              </div>
-            </div>
+          <div className="shrink-0 text-right">
+            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Requested</p>
+            <p className="text-base font-semibold text-foreground">{formattedDate || '—'}</p>
           </div>
         </div>
       </div>
@@ -715,6 +701,17 @@ function SidebarCard({ title, children }: { title: string; children: React.React
   );
 }
 
+// ─── Helpers ───
+
+function linkifyText(text: string): string {
+  const urlRegex = /(https?:\/\/[^\s<]+)/g;
+  return text.replace(urlRegex, (url) => {
+    const escaped = url.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    const display = url.length > 60 ? url.substring(0, 57) + '...' : url;
+    return `<a href="${escaped}" target="_blank" rel="noopener noreferrer" class="text-primary underline hover:text-primary/80 break-all" onclick="event.stopPropagation()">${display}</a>`;
+  });
+}
+
 // ─── Conversation Thread ───
 
 function ConversationThread({
@@ -783,7 +780,7 @@ function ConversationThread({
             </div>
             <div className="ml-12">
               <div className="bg-sourceco-muted border border-sourceco/30 text-foreground rounded-2xl rounded-tl-sm px-5 py-4 shadow-sm">
-                <p className="text-sm leading-relaxed">{buyerMessage}</p>
+                <p className="text-sm leading-relaxed whitespace-pre-wrap break-words" dangerouslySetInnerHTML={{ __html: linkifyText(buyerMessage) }} />
               </div>
             </div>
           </div>
@@ -811,8 +808,8 @@ function ConversationThread({
         {messages.map((msg) => (
           <div key={msg.id}>
             {msg.message_type === "decision" || msg.message_type === "system" ? (
-              <div className="bg-sourceco/10 border border-sourceco/30 rounded-lg px-5 py-3 text-center mx-auto max-w-md">
-                <p className="text-sm text-foreground">{msg.body}</p>
+              <div className="bg-sourceco/10 border border-sourceco/30 rounded-lg px-5 py-3 text-center mx-auto max-w-lg">
+                <p className="text-sm text-foreground whitespace-pre-wrap break-words" dangerouslySetInnerHTML={{ __html: linkifyText(msg.body) }} />
                 <span className="text-xs text-muted-foreground mt-1 block">
                   {formatDistanceToNow(new Date(msg.created_at), { addSuffix: true })}
                 </span>
@@ -829,7 +826,7 @@ function ConversationThread({
                   </div>
                 </div>
                 <div className="mr-10 bg-sourceco/10 border border-sourceco/20 text-foreground rounded-2xl rounded-tr-sm px-5 py-4 max-w-[85%] shadow-sm">
-                  <p className="text-sm leading-relaxed">{msg.body}</p>
+                  <p className="text-sm leading-relaxed whitespace-pre-wrap break-words" dangerouslySetInnerHTML={{ __html: linkifyText(msg.body) }} />
                 </div>
               </div>
             ) : (
@@ -846,7 +843,7 @@ function ConversationThread({
                   </span>
                 </div>
                 <div className="ml-10 bg-sourceco-muted/50 border border-sourceco/20 text-foreground rounded-2xl rounded-tl-sm px-5 py-4 max-w-[85%] shadow-sm">
-                  <p className="text-sm leading-relaxed">{msg.body}</p>
+                  <p className="text-sm leading-relaxed whitespace-pre-wrap break-words" dangerouslySetInnerHTML={{ __html: linkifyText(msg.body) }} />
                 </div>
               </div>
             )}

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -103,19 +103,19 @@ export function AgreementSigningModal({
   };
 
   const handleSigned = async () => {
+    toast({ title: `${docLabel} Signed!`, description: 'Thank you for signing. Your access has been updated.' });
+
     // Immediately confirm with backend — updates DB, creates notifications & messages
+    // This ensures the DB is updated before the webhook arrives
     try {
       await supabase.functions.invoke('confirm-agreement-signed', {
         body: { documentType },
       });
     } catch (err) {
-      console.error('Failed to confirm signing:', err);
+      console.warn('confirm-agreement-signed call failed (webhook will handle):', err);
     }
 
-    // Show toast after confirm so DB is updated before cache invalidation
-    toast({ title: `${docLabel} Signed!`, description: 'Thank you for signing. Your access has been updated.' });
-
-    // Now invalidate caches — DB should be updated by now
+    // Invalidate immediately, then again after delays to catch any remaining updates
     invalidateAll();
 
     // Auto-close after brief delay so user sees success state

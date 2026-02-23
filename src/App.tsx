@@ -99,14 +99,12 @@ const AdminPipeline = lazyWithRetry(() => import("@/pages/admin/AdminPipeline"))
 const AdminNotifications = lazyWithRetry(() => import("@/pages/admin/AdminNotifications"));
 const WebhooksPage = lazyWithRetry(() => import("@/pages/admin/settings/WebhooksPage"));
 const TranscriptAnalytics = lazyWithRetry(() => import("@/pages/admin/analytics/TranscriptAnalytics"));
-const EnrichmentTest = lazyWithRetry(() => import("@/pages/admin/EnrichmentTest"));
 const EnrichmentQueue = lazyWithRetry(() => import("@/pages/admin/EnrichmentQueue"));
 const DataRecoveryPage = lazyWithRetry(() => import("@/pages/admin/DataRecoveryPage"));
 const FormMonitoringPage = lazyWithRetry(() => import("@/pages/admin/FormMonitoringPage"));
 const SecuritySettings = lazyWithRetry(() => import("@/pages/admin/settings/SecuritySettings"));
 const GlobalApprovalsPage = lazyWithRetry(() => import("@/pages/admin/GlobalApprovalsPage"));
-const SystemTestRunner = lazyWithRetry(() => import("@/pages/admin/SystemTestRunner"));
-const DocuSealHealthCheck = lazyWithRetry(() => import("@/pages/admin/DocuSealHealthCheck"));
+const TestingHub = lazyWithRetry(() => import("@/pages/admin/TestingHub"));
 const MessageCenter = lazyWithRetry(() => import("@/pages/admin/MessageCenter"));
 
 // ReMarketing pages (now rendered inside AdminLayout via shared sidebar)
@@ -279,15 +277,16 @@ function App() {
                           <Route path="settings/notifications" element={<AdminNotifications />} />
                           <Route path="settings/webhooks" element={<RoleGate min="admin"><WebhooksPage /></RoleGate>} />
                           <Route path="settings/enrichment-queue" element={<RoleGate min="admin"><EnrichmentQueue /></RoleGate>} />
-                          <Route path="settings/enrichment-test" element={<RoleGate min="admin"><EnrichmentTest /></RoleGate>} />
+                          <Route path="settings/enrichment-test" element={<Navigate to="/admin/testing?tab=enrichment" replace />} />
                           <Route path="settings/remarketing" element={<RoleGate min="admin"><ReMarketingSettings /></RoleGate>} />
                           <Route path="settings/data-recovery" element={<RoleGate min="owner"><DataRecoveryPage /></RoleGate>} />
                           <Route path="settings/form-monitoring" element={<RoleGate min="admin"><FormMonitoringPage /></RoleGate>} />
                           <Route path="settings/security" element={<RoleGate min="admin"><SecuritySettings /></RoleGate>} />
-                          <Route path="system-test" element={<RoleGate min="owner"><SystemTestRunner /></RoleGate>} />
-                          <Route path="docuseal-health" element={<RoleGate min="admin"><DocuSealHealthCheck /></RoleGate>} />
+                          <Route path="testing" element={<RoleGate min="admin"><TestingHub /></RoleGate>} />
 
                           {/* OLD ADMIN URL REDIRECTS */}
+                          <Route path="system-test" element={<Navigate to="/admin/testing?tab=system" replace />} />
+                          <Route path="docuseal-health" element={<Navigate to="/admin/testing?tab=docuseal" replace />} />
                           <Route path="listings" element={<Navigate to="/admin/deals?tab=marketplace" replace />} />
                           <Route path="users" element={<Navigate to="/admin/marketplace/users" replace />} />
                           <Route path="firm-agreements" element={<Navigate to="/admin/buyers?tab=needs_agreements" replace />} />
@@ -295,7 +294,7 @@ function App() {
                           <Route path="deal-sourcing" element={<Navigate to="/admin/buyers/deal-sourcing" replace />} />
                           <Route path="pipeline" element={<Navigate to="/admin/deals/pipeline" replace />} />
                           <Route path="notifications" element={<Navigate to="/admin/settings/notifications" replace />} />
-                          <Route path="enrichment-test" element={<Navigate to="/admin/settings/enrichment-test" replace />} />
+                          <Route path="enrichment-test" element={<Navigate to="/admin/testing?tab=enrichment" replace />} />
                         </Route>
 
                         {/* ─── M&A INTELLIGENCE (admin+ role required) ─── */}

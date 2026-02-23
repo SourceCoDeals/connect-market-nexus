@@ -354,13 +354,14 @@ async function createAdminNotification(
   status: string,
 ) {
   try {
-    // Get all admin user IDs
-    const { data: admins } = await supabase
-      .from("profiles")
-      .select("id")
-      .eq("role", "admin");
+    // Get all admin user IDs from user_roles table (RBAC source of truth)
+    const { data: adminRoles } = await supabase
+      .from("user_roles")
+      .select("user_id")
+      .in("role", ["admin", "owner"]);
 
-    if (!admins?.length) return;
+    const admins = (adminRoles || []).map((r: any) => ({ id: r.user_id }));
+    if (!admins.length) return;
 
     const statusMessages: Record<string, { title: string; message: string }> = {
       completed: {
@@ -412,8 +413,25 @@ async function sendBuyerSignedDocNotification(
       ? `You can download your signed copy from your Profile → Documents tab, or use this link: ${signedDocUrl}`
       : `You can view your signed documents in your Profile → Documents tab.`;
 
+    const docType = docLabel.toLowerCase().replace(/ /g, "_");
+
     for (const member of members) {
-      // Create a buyer-facing notification in user_notifications (not admin_notifications)
+      // Deduplicate: check if confirm-agreement-signed already created this notification
+      const { data: existing } = await supabase
+        .from("user_notifications")
+        .select("id")
+        .eq("user_id", member.user_id)
+        .eq("notification_type", "agreement_signed")
+        .eq("title", `${docLabel} Signed Successfully`)
+        .gte("created_at", new Date(Date.now() - 5 * 60 * 1000).toISOString())
+        .limit(1)
+        .maybeSingle();
+
+      if (existing) {
+        console.log(`⏩ Skipping duplicate agreement_signed notification for user ${member.user_id} (${docLabel})`);
+        continue;
+      }
+
       await supabase.from("user_notifications").insert({
         user_id: member.user_id,
         notification_type: "agreement_signed",
@@ -421,7 +439,7 @@ async function sendBuyerSignedDocNotification(
         message: `Your ${docLabel} has been signed and recorded. ${downloadNote}`,
         metadata: {
           firm_id: firmId,
-          document_type: docLabel.toLowerCase().replace(/ /g, "_"),
+          document_type: docType,
           signed_document_url: signedDocUrl || null,
         },
       });
@@ -439,22 +457,37 @@ async function sendBuyerSignedDocNotification(
           ? `✅ Your ${docLabel} has been signed successfully. For your compliance records, you can download the signed copy here: ${signedDocUrl}\n\nA copy is also permanently available in your Profile → Documents tab.`
           : `✅ Your ${docLabel} has been signed successfully. A copy is available in your Profile → Documents tab.`;
 
-        const messageInserts = activeRequests.map((req: any) => ({
-          connection_request_id: req.id,
-          sender_role: "admin",
-          sender_id: null,
-          body: messageBody,
-          message_type: "system",
-          is_read_by_admin: true,
-          is_read_by_buyer: false,
-        }));
+        for (const req of activeRequests) {
+          // Dedup system messages: check if one already exists for this connection + doc type
+          const { data: existingMsg } = await supabase
+            .from("connection_messages")
+            .select("id")
+            .eq("connection_request_id", req.id)
+            .eq("message_type", "system")
+            .ilike("body", `%Your ${docLabel} has been signed%`)
+            .gte("created_at", new Date(Date.now() - 5 * 60 * 1000).toISOString())
+            .limit(1)
+            .maybeSingle();
 
-        const { error: msgError } = await supabase
-          .from("connection_messages")
-          .insert(messageInserts);
+          if (!existingMsg) {
+            const { error: msgError } = await supabase
+              .from("connection_messages")
+              .insert({
+                connection_request_id: req.id,
+                sender_role: "admin",
+                sender_id: null,
+                body: messageBody,
+                message_type: "system",
+                is_read_by_admin: true,
+                is_read_by_buyer: false,
+              });
 
-        if (msgError) {
-          console.error("⚠️ Failed to insert signed doc system messages:", msgError);
+            if (msgError) {
+              console.error("⚠️ Failed to insert signed doc system message:", msgError);
+            }
+          } else {
+            console.log(`⏩ Skipping duplicate system message for connection ${req.id} (${docLabel})`);
+          }
         }
       }
     }
