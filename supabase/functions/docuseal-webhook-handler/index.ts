@@ -182,6 +182,15 @@ serve(async (req: Request) => {
       }
     }
 
+    // Lifecycle events (submission.created, submission.archived) are logged but should
+    // NOT update firm signing status — they'd overwrite meaningful statuses like "viewed"
+    // or "completed" due to race conditions with DocuSeal's real-time webhooks.
+    const lifecycleEvents = new Set(["submission.created", "submission.archived"]);
+    if (lifecycleEvents.has(eventType)) {
+      console.log(`ℹ️ Lifecycle event ${eventType} logged for submission ${submissionId} — skipping status update`);
+      return new Response(JSON.stringify({ success: true, note: "Lifecycle event logged" }), { status: 200 });
+    }
+
     await processEvent(supabase, eventType, firmId, firmName, documentType, submissionData, submissionId);
 
     return new Response(JSON.stringify({ success: true }), { status: 200 });
