@@ -46,7 +46,7 @@ export function useMyAgreementStatus(enabled = true) {
 
       return row as AgreementCoverage;
     },
-    staleTime: 5 * 60_000, // 5 minutes
+    staleTime: 30_000, // 30 seconds — ensures signing status refreshes quickly
     enabled,
   });
 }
