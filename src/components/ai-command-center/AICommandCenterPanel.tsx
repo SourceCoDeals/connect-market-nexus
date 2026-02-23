@@ -297,7 +297,7 @@ function MessageBubble({
         'max-w-[85%] rounded-lg px-3 py-2',
         isUser
           ? 'bg-[#0E101A] text-[#FCF9F0]'
-          : 'bg-muted',
+          : 'bg-[#FCF9F0] text-[#0E101A]',
       )}>
         {/* Tool call indicators */}
         {message.toolCalls && message.toolCalls.length > 0 && (
@@ -324,7 +324,7 @@ function MessageBubble({
 
         {/* Message content */}
         {message.content && (
-          <div className={cn('text-base prose prose-base max-w-none', isUser ? 'prose-invert' : '')}>
+          <div className={cn('text-base prose prose-base max-w-none', isUser ? 'prose-invert' : '[&_*]:text-[#0E101A]')}>
             <ReactMarkdown>{message.content}</ReactMarkdown>
           </div>
         )}
