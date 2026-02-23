@@ -17,9 +17,9 @@ The remarketing system implements a sophisticated multi-dimensional buyer-deal m
 | Severity | Count | Status |
 |----------|-------|--------|
 | Critical | 2 | Identified, 1 fixed |
-| High | 7 | Identified |
-| Medium | 8 | Identified |
-| Low | 6 | Identified |
+| High | 10 | Identified |
+| Medium | 13 | Identified |
+| Low | 8 | Identified |
 
 ---
 
@@ -254,9 +254,86 @@ The `extraction_sources` JSONB column on buyers has no schema validation, allowi
 
 ---
 
-## 5. SCORING ALGORITHM OVERVIEW
+## 5. FRONTEND FINDINGS
 
-### 5.1 Architecture
+### 5.1 [HIGH] N+1 Query Pattern in use-deals.ts
+**File:** `src/hooks/admin/use-deals.ts` (1,008 lines)
+
+After fetching connection_requests in batches of 100, performs 3 sequential query phases (connection_requests -> user_ids -> profiles) plus additional batch queries for memo_distribution_log and data_room_documents. With 1,000+ deals, this causes 3-5 sequential queries per data fetch and risks connection pool exhaustion.
+
+**Recommendation:** Use a single joined query or a database view that pre-joins connection_requests -> profiles.
+
+### 5.2 [HIGH] No Virtualization in Large Lists
+**Files:** `AllBuyers.tsx`, `BuyerTableEnhanced.tsx`, `ReMarketingDealMatching.tsx`
+
+`AllBuyers.tsx` loads 2,000 buyers with `.limit(2000)` and renders all at once. No react-window or TanStack Virtual implementation. DOM tree with 2,000+ rows causes 8-12s render time and 500MB+ memory usage.
+
+**Recommendation:** Implement react-window or TanStack Virtual with a 50-item window.
+
+### 5.3 [HIGH] Type Coercion with `as any` Throughout Frontend Data Layer
+**File:** `src/hooks/admin/use-deals.ts` (20+ instances)
+
+Multiple `(row: any)`, `(r: any)`, `(p: any)` assertions and `.rpc(...) as any` calls that bypass type definitions, making refactoring impossible and hiding real type errors.
+
+**Recommendation:** Generate proper types from Supabase introspection. Enable `noImplicitAny: true`.
+
+### 5.4 [MEDIUM] Password Hash Field Exposed in Frontend Types
+**File:** `src/types/remarketing.ts:371`
+
+```typescript
+share_password_hash: string | null;
+```
+
+Password hashes should never appear in frontend type definitions. Even if not transmitted, this signals an architectural issue and risks accidental exposure.
+
+**Recommendation:** Remove from frontend types; use a `password_verified: boolean` flag instead.
+
+### 5.5 [MEDIUM] Incomplete Error Handling in Data Fetching
+**Files:** `use-buyer-engagement-history.ts`, `use-deals.ts`
+
+Multiple sequential queries with no error checks -- if any query fails silently, incomplete data is returned with no indication to the user.
+
+### 5.6 [MEDIUM] Weak CSV Import Validation
+**File:** `src/components/remarketing/BuyerCSVImport.tsx`
+
+`normalizeDomain()` doesn't validate URL format. No max file size check. No column header validation before mapping.
+
+### 5.7 [MEDIUM] Fake Progress Bar in Bulk Scoring
+**File:** `src/components/remarketing/BulkScoringPanel.tsx`
+
+```typescript
+setProgress(prev => prev + Math.random() * 15); // Simulated, not real
+```
+
+Progress bar uses random increments rather than tracking actual server-side progress. Users see 100% while the operation may still be running or may have failed.
+
+### 5.8 [MEDIUM] No Error Boundaries for Scoring/Matching Components
+**Files:** `ReMarketingDealMatching.tsx`, `BulkScoringPanel.tsx`
+
+A single component error crashes the entire deal matching page. No fallback UI when scoring fails.
+
+### 5.9 [MEDIUM] Unsafe URL Construction
+**File:** `src/lib/buyer-metrics.ts:142-144`
+
+LinkedIn URL construction doesn't validate the stored value, which could contain `javascript:` protocol URLs leading to XSS if rendered as a link.
+
+### 5.10 [LOW] Missing Pagination for AllBuyers
+**File:** `src/pages/admin/ma-intelligence/AllBuyers.tsx:43`
+
+```typescript
+supabase.from("remarketing_buyers").select("*").limit(2000)
+```
+
+Arbitrary 2,000 limit with no cursor-based pagination. Should use infinite scroll or page-by-page loading.
+
+### 5.11 [LOW] Orphaned Console Logs in Production
+29 `console.error`/`console.warn`/`console.log` statements across remarketing components, some containing operation IDs and user identifiers.
+
+---
+
+## 6. SCORING ALGORITHM OVERVIEW
+
+### 6.1 Architecture
 
 The system uses a **5-phase weighted composite scoring** approach:
 
@@ -277,52 +354,58 @@ finalScore = clamp(0, 100, gatedScore + thesisBonus + dataQualityBonus + customB
 
 **Key design principle:** Rules are comprehensive enough to score 100% of deals even without AI. AI improves accuracy when available but is never a hard dependency.
 
-### 5.2 Tier Mapping
+### 6.2 Tier Mapping
 - **A Tier:** 80-100 (strong match)
 - **B Tier:** 65-79 (good match)
 - **C Tier:** 50-64 (moderate match)
 - **D Tier:** 35-49 (weak match)
 - **F Tier:** 0-34 or disqualified
 
-### 5.3 Score Evolution & Audit Trail
+### 6.3 Score Evolution & Audit Trail
 
 The `score_snapshots` table captures all dimension scores, weights, multipliers, bonuses, tier, data completeness, trigger type, and scoring version at each event. A `deal_snapshot` JSONB column enables stale detection when deal fields change.
 
-### 5.4 Learning Feedback Loop
+### 6.4 Learning Feedback Loop
 
 The `buyer_learning_history` table tracks every approve/pass/hidden decision with all dimension scores at decision time. The `calculateLearningPenalty()` function applies a -5 to +25 point adjustment based on historical approval rate and pass categories (portfolio_conflict, geography_constraint, size_mismatch, service_mismatch).
 
 ---
 
-## 6. RECOMMENDATIONS BY PRIORITY
+## 7. RECOMMENDATIONS BY PRIORITY
 
 ### Immediate (Week 1)
 1. **Add authentication to `calculate-buyer-quality-score` and `notify-remarketing-match`** -- Critical auth gaps
 2. **Cap batch sizes** on all unbounded queries
 3. **Remove service key from HTTP headers** in queue processors
+4. **Remove `share_password_hash` from frontend types** -- Low effort, high signal
 
 ### Short Term (Weeks 2-3)
-4. **Add unit tests for scoring engine** -- Focus on the 6 areas listed in Finding 2.3
-5. **Fix enrichment locking** to use atomic compare-and-set
-6. **Track AI fallback frequency** in a persistent table
-7. **Standardize error responses** across all edge functions
+5. **Add unit tests for scoring engine** -- Focus on the 6 areas listed in Finding 2.3
+6. **Fix enrichment locking** to use atomic compare-and-set
+7. **Fix N+1 queries in use-deals.ts** -- Replace sequential queries with joined query
+8. **Add list virtualization** to AllBuyers, BuyerTableEnhanced (react-window)
+9. **Track AI fallback frequency** in a persistent table
+10. **Standardize error responses** across all edge functions
 
 ### Medium Term (Weeks 4-6)
-8. **Break up scoring engine** into modular files by phase
-9. **Add TypeScript interfaces** to replace `any` types in scoring functions
-10. **Add dead letter queue** handling for scoring and enrichment queues
-11. **Add audit logging** for destructive bulk operations
-12. **Complete migration** away from legacy `buyer_deal_scores` table
+11. **Break up scoring engine** into modular files by phase
+12. **Add TypeScript interfaces** to replace `any` types (both backend and frontend)
+13. **Add dead letter queue** handling for scoring and enrichment queues
+14. **Add audit logging** for destructive bulk operations
+15. **Complete migration** away from legacy `buyer_deal_scores` table
+16. **Add Error Boundaries** to remarketing pages
+17. **Implement cursor-based pagination** for AllBuyers
 
 ### Long Term
-13. **Move service adjacency map** to database-configurable with code fallback
-14. **Replace row-counting rate limiter** with counter-based approach
-15. **Implement structured logging** with redaction across all edge functions
-16. **Add integration tests** for the enrichment pipeline end-to-end
+18. **Move service adjacency map** to database-configurable with code fallback
+19. **Replace row-counting rate limiter** with counter-based approach
+20. **Implement structured logging** with redaction across all edge functions
+21. **Add integration tests** for the enrichment pipeline end-to-end
+22. **Replace fake progress bars** with real server-side progress tracking
 
 ---
 
-## 7. BUG FIX APPLIED
+## 8. BUG FIX APPLIED
 
 ### Geography Mode Constant Names (score-buyer-deal/index.ts)
 
