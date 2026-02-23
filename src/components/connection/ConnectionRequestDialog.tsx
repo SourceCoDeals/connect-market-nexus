@@ -1,7 +1,6 @@
-
-import { useState } from "react";
-import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
+import { useState } from 'react';
+import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
 import {
   Dialog,
   DialogContent,
@@ -9,7 +8,7 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
+} from '@/components/ui/dialog';
 
 interface ConnectionRequestDialogProps {
   isOpen: boolean;
@@ -24,25 +23,25 @@ const ConnectionRequestDialog = ({
   onClose,
   onSubmit,
   isSubmitting,
-  listingTitle
+  listingTitle,
 }: ConnectionRequestDialogProps) => {
-  const [message, setMessage] = useState("");
+  const [message, setMessage] = useState('');
 
   const handleSubmit = () => {
     if (message.trim()) {
       onSubmit(message);
-      setMessage("");
+      setMessage('');
     }
   };
 
   const handleClose = () => {
-    setMessage("");
+    setMessage('');
     onClose();
   };
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent 
+      <DialogContent
         className="sm:max-w-md w-[95vw] max-h-[90vh] overflow-y-auto z-[100]"
         onClick={(e) => e.stopPropagation()}
       >
@@ -50,12 +49,16 @@ const ConnectionRequestDialog = ({
           <DialogTitle className="text-lg font-semibold">Request Access to This Deal</DialogTitle>
           <DialogDescription className="text-sm text-muted-foreground">
             {listingTitle && (
-              <>Tell us why you're the right buyer for <strong>{listingTitle}</strong>. We review every request and introduce 1–3 buyers. Your message is your pitch.</>
+              <>
+                Tell us why you're the right buyer for <strong>{listingTitle}</strong>. We review
+                every request and introduce 1–3 buyers. Your message is your pitch.
+              </>
             )}
-            {!listingTitle && "Tell us why you're the right buyer for this business. We review every request and introduce 1–3 buyers. Your message is your pitch."}
+            {!listingTitle &&
+              "Tell us why you're the right buyer for this business. We review every request and introduce 1–3 buyers. Your message is your pitch."}
           </DialogDescription>
         </DialogHeader>
-        
+
         <div className="space-y-4">
           <div>
             <label htmlFor="message" className="block text-sm font-medium mb-2">
@@ -80,30 +83,33 @@ const ConnectionRequestDialog = ({
               </p>
             </div>
           </div>
-          
+
           <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg space-y-2">
             <p className="text-sm font-medium text-blue-900">How to get selected:</p>
             <p className="text-sm text-blue-800">
-              We typically receive 40–50 requests per deal and introduce 1–3 buyers. Strong requests explain your specific fit — your relevant experience, existing platforms, why this business makes sense for you strategically, and your ability to close. Generic messages rarely get selected. Specific ones do.
+              We typically receive 40–50 requests per deal and introduce 1–3 buyers. Strong requests
+              explain your specific fit — your relevant experience, existing platforms, why this
+              business makes sense for you strategically, and your ability to close. Generic
+              messages rarely get selected. Specific ones do.
             </p>
           </div>
         </div>
 
         <DialogFooter className="flex-col-reverse sm:flex-row gap-2">
-          <Button 
-            variant="outline" 
-            onClick={handleClose} 
+          <Button
+            variant="outline"
+            onClick={handleClose}
             disabled={isSubmitting}
             className="w-full sm:w-auto"
           >
             Cancel
           </Button>
-          <Button 
-            onClick={handleSubmit} 
+          <Button
+            onClick={handleSubmit}
             disabled={isSubmitting || !message.trim() || message.length < 20}
-            className="w-full sm:w-auto bg-gradient-to-r from-[#D7B65C] via-[#E5C76A] to-[#D7B65C] text-slate-900 border-0 hover:shadow-lg hover:shadow-[rgba(215,182,92,0.2)] font-semibold"
+            className="w-full sm:w-auto bg-sourceco hover:bg-sourceco/90 text-sourceco-foreground border-0 hover:shadow-lg font-semibold"
           >
-            {isSubmitting ? "Sending..." : "Send Request"}
+            {isSubmitting ? 'Sending...' : 'Send Request'}
           </Button>
         </DialogFooter>
       </DialogContent>
