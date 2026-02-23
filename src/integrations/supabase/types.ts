@@ -1513,7 +1513,7 @@ export type Database = {
           deal_id: string | null
           id: string
           last_message_at: string | null
-          listing_id: string
+          listing_id: string | null
           message_count: number | null
           messages: Json
           title: string | null
@@ -1530,7 +1530,7 @@ export type Database = {
           deal_id?: string | null
           id?: string
           last_message_at?: string | null
-          listing_id: string
+          listing_id?: string | null
           message_count?: number | null
           messages?: Json
           title?: string | null
@@ -1547,7 +1547,7 @@ export type Database = {
           deal_id?: string | null
           id?: string
           last_message_at?: string | null
-          listing_id?: string
+          listing_id?: string | null
           message_count?: number | null
           messages?: Json
           title?: string | null

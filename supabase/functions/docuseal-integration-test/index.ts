@@ -247,6 +247,7 @@ serve(async (req: Request) => {
           .from("firm_agreements")
           .insert({
             primary_company_name: "__INTEGRATION_TEST__",
+            normalized_company_name: "__integration_test__",
             email_domain: "sourceco-internal.test",
             nda_docuseal_submission_id: submissionId,
             nda_docuseal_status: "pending",
