@@ -13,7 +13,7 @@ export interface DealListing {
   industry: string | null;
   website: string | null;
   executive_summary: string | null;
-  service_mix: any | null;
+  service_mix: string[] | null;
   internal_company_name: string | null;
   internal_deal_memo_link: string | null;
   geographic_states: string[] | null;
