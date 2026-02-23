@@ -157,8 +157,8 @@ const SCORING_CONFIG = {
   SERVICE_MULT_ABOVE_80: 1.0,
 
   // --- Geography mode factors ---
-  GEO_MODE_CRITICAL: 0.6,
-  GEO_MODE_PREFERRED: 0.25,
+  GEO_MODE_PREFERRED: 0.6,
+  GEO_MODE_MINIMAL: 0.25,
 
   // --- Bonus/penalty caps ---
   THESIS_BONUS_MAX: 20,
@@ -564,11 +564,11 @@ async function calculateGeographyScore(
   let scoreFloor = 0;
   switch (geographyMode) {
     case 'preferred':
-      modeFactor = SCORING_CONFIG.GEO_MODE_CRITICAL;
+      modeFactor = SCORING_CONFIG.GEO_MODE_PREFERRED;
       scoreFloor = 30;
       break;
     case 'minimal':
-      modeFactor = SCORING_CONFIG.GEO_MODE_PREFERRED;
+      modeFactor = SCORING_CONFIG.GEO_MODE_MINIMAL;
       scoreFloor = 50;
       break;
     default: // critical
