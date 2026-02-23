@@ -3472,12 +3472,15 @@ export type Database = {
           created_at: string | null
           created_by: string | null
           duration_minutes: number | null
+          external_participants: Json | null
           extracted_data: Json | null
           extraction_status: string | null
           fireflies_meeting_id: string | null
           fireflies_transcript_id: string | null
+          has_content: boolean | null
           id: string
           listing_id: string
+          match_type: string | null
           meeting_attendees: string[] | null
           participants: Json | null
           processed_at: string | null
@@ -3495,12 +3498,15 @@ export type Database = {
           created_at?: string | null
           created_by?: string | null
           duration_minutes?: number | null
+          external_participants?: Json | null
           extracted_data?: Json | null
           extraction_status?: string | null
           fireflies_meeting_id?: string | null
           fireflies_transcript_id?: string | null
+          has_content?: boolean | null
           id?: string
           listing_id: string
+          match_type?: string | null
           meeting_attendees?: string[] | null
           participants?: Json | null
           processed_at?: string | null
@@ -3518,12 +3524,15 @@ export type Database = {
           created_at?: string | null
           created_by?: string | null
           duration_minutes?: number | null
+          external_participants?: Json | null
           extracted_data?: Json | null
           extraction_status?: string | null
           fireflies_meeting_id?: string | null
           fireflies_transcript_id?: string | null
+          has_content?: boolean | null
           id?: string
           listing_id?: string
+          match_type?: string | null
           meeting_attendees?: string[] | null
           participants?: Json | null
           processed_at?: string | null
