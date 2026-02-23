@@ -19,7 +19,7 @@ export function useUserFirm(userId: string | null) {
         .from('firm_members')
         .select(`
           firm_id,
-          firm:firm_agreements (
+          firm:firm_agreements!firm_members_firm_id_fkey (
             id,
             primary_company_name,
             member_count,

@@ -18,7 +18,7 @@ export function useInboundLeadFirm(leadId: string | null) {
         .from('inbound_leads')
         .select(`
           firm_id,
-          firm:firm_agreements (
+          firm:firm_agreements!inbound_leads_firm_id_fkey (
             id,
             primary_company_name,
             fee_agreement_signed,

@@ -19,7 +19,7 @@ export function useConnectionRequestFirm(requestId: string | null) {
         .from('connection_requests')
         .select(`
           firm_id,
-          firm:firm_agreements (
+          firm:firm_agreements!connection_requests_firm_id_fkey (
             id,
             primary_company_name,
             member_count,
