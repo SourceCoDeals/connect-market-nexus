@@ -1,5 +1,4 @@
-
-import { User, Listing } from "@/types";
+import { User, Listing } from '@/types';
 
 export interface AdminListing {
   id: string;
@@ -22,10 +21,10 @@ export interface AdminListing {
   image_url?: string | null;
   status: 'active' | 'inactive';
   status_tag?: string | null;
-  
+
   // Deal identifier for tracking
   deal_identifier?: string;
-  
+
   // Admin-only internal company information
   internal_company_name?: string;
   internal_primary_owner?: string; // Deprecated - use primary_owner_id
@@ -34,7 +33,7 @@ export interface AdminListing {
   internal_deal_memo_link?: string;
   internal_contact_info?: string;
   internal_notes?: string;
-  
+
   // New investor-focused fields
   ownership_structure?: string;
   seller_motivation?: string;
@@ -49,7 +48,7 @@ export interface AdminListing {
   seller_involvement_preference?: string;
   timeline_preference?: string;
   visible_to_buyer_types?: string[] | null;
-  
+
   // Enhanced metrics fields
   custom_metric_label?: string | null;
   custom_metric_value?: string | null;
@@ -64,10 +63,10 @@ export interface AdminListing {
   metric_4_custom_subtitle?: string | null;
   revenue_metric_subtitle?: string | null;
   ebitda_metric_subtitle?: string | null;
-  
+
   // Deal advisor
   presented_by_admin_id?: string | null;
-  
+
   // Publishing status
   is_internal_deal?: boolean;
   published_at?: string | null;
@@ -104,10 +103,10 @@ export interface CreateListingData {
   owner_notes?: string;
   status?: 'active' | 'inactive';
   status_tag?: string | null;
-  
+
   // Deal identifier for tracking
   deal_identifier?: string;
-  
+
   // Admin-only internal company information
   internal_company_name?: string;
   internal_primary_owner?: string; // Deprecated - use primary_owner_id
@@ -116,7 +115,7 @@ export interface CreateListingData {
   internal_deal_memo_link?: string;
   internal_contact_info?: string;
   internal_notes?: string;
-  
+
   // New investor-focused fields
   ownership_structure?: string;
   seller_motivation?: string;
@@ -131,7 +130,7 @@ export interface CreateListingData {
   seller_involvement_preference?: string;
   timeline_preference?: string;
   visible_to_buyer_types?: string[] | null;
-  
+
   // Enhanced metrics fields
   custom_metric_label?: string | null;
   custom_metric_value?: string | null;
@@ -142,7 +141,7 @@ export interface CreateListingData {
   metric_3_custom_subtitle?: string | null;
   revenue_metric_subtitle?: string | null;
   ebitda_metric_subtitle?: string | null;
-  
+
   // Deal advisor
   presented_by_admin_id?: string | null;
 }
@@ -168,7 +167,18 @@ export interface AdminConnectionRequest {
   on_hold_by?: string;
   on_hold_at?: string;
   // Phase 4: Source tracking fields
-  source: 'marketplace' | 'webflow' | 'manual' | 'import' | 'api' | 'website' | 'referral' | 'cold_outreach' | 'networking' | 'linkedin' | 'email';
+  source:
+    | 'marketplace'
+    | 'webflow'
+    | 'manual'
+    | 'import'
+    | 'api'
+    | 'website'
+    | 'referral'
+    | 'cold_outreach'
+    | 'networking'
+    | 'linkedin'
+    | 'email';
   source_lead_id?: string;
   source_metadata?: Record<string, unknown>;
   converted_by?: string;
@@ -188,6 +198,11 @@ export interface AdminConnectionRequest {
   lead_fee_agreement_email_sent_at?: string | null;
   lead_fee_agreement_signed?: boolean;
   lead_fee_agreement_signed_at?: string | null;
+  // Buyer Fit Score — deal-specific scoring
+  deal_specific_buyer_score?: number | null;
+  deal_specific_buyer_tier?: number | null;
+  deal_specific_platform_signal?: boolean;
+  deal_specific_platform_keywords?: string[] | null;
   created_at: string;
   updated_at: string;
   decision_at?: string;

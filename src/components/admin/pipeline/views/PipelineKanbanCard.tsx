@@ -7,6 +7,7 @@ import { cn } from '@/lib/utils';
 import { useAdminProfile } from '@/hooks/admin/use-admin-profiles';
 import { DealScoreBadge } from '@/components/ma-intelligence/DealScoreBadge';
 import { DealSourceBadge } from '@/components/remarketing/DealSourceBadge';
+import { BuyerFitScoreBadge, PlatformSignalBadge } from '@/components/admin/BuyerFitScoreBadge';
 import { supabase } from '@/integrations/supabase/client';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
@@ -32,7 +33,11 @@ const BUYER_TYPE_LABELS: Record<string, string> = {
 export function PipelineKanbanCard({ deal, onDealClick, isDragging }: PipelineKanbanCardProps) {
   const queryClient = useQueryClient();
   const {
-    attributes, listeners, setNodeRef, transform, transition,
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
     isDragging: isSortableDragging,
   } = useSortable({ id: `deal:${deal.deal_id}` });
 
@@ -42,11 +47,15 @@ export function PipelineKanbanCard({ deal, onDealClick, isDragging }: PipelineKa
   const needsOwnerContact = deal.needs_owner_contact;
   const assignedAdmin = useAdminProfile(deal.assigned_to);
   const { data: unreadCounts } = useUnreadMessageCounts();
-  const unreadCount = deal.connection_request_id ? (unreadCounts?.byRequest[deal.connection_request_id] || 0) : 0;
+  const unreadCount = deal.connection_request_id
+    ? unreadCounts?.byRequest[deal.connection_request_id] || 0
+    : 0;
   const companyName = deal.listing_real_company_name || deal.listing_title || 'Unnamed Company';
   const contactName = deal.contact_name || deal.buyer_name || 'Unknown';
   const buyerCompany = deal.contact_company || deal.buyer_company;
-  const buyerTypeLabel = deal.buyer_type ? (BUYER_TYPE_LABELS[deal.buyer_type] || deal.buyer_type) : null;
+  const buyerTypeLabel = deal.buyer_type
+    ? BUYER_TYPE_LABELS[deal.buyer_type] || deal.buyer_type
+    : null;
   const buyerWebsite = deal.buyer_website?.replace(/^https?:\/\/(www\.)?/, '').replace(/\/$/, '');
 
   const fmt = (val: number) => {
@@ -60,20 +69,30 @@ export function PipelineKanbanCard({ deal, onDealClick, isDragging }: PipelineKa
     const date = deal.last_activity_at || deal.deal_updated_at;
     if (!date) return '—';
     const ms = Math.max(0, Date.now() - new Date(date).getTime());
-    const m = Math.floor(ms / 60000), h = Math.floor(ms / 3600000), d = Math.floor(ms / 86400000);
+    const m = Math.floor(ms / 60000),
+      h = Math.floor(ms / 3600000),
+      d = Math.floor(ms / 86400000);
     if (m < 1) return 'now';
     if (m < 60) return `${m}m ago`;
     if (h < 24) return `${h}h ago`;
     return `${d}d ago`;
   })();
 
-  const handleCardClick = () => { if (!isBeingDragged) onDealClick(deal); };
+  const handleCardClick = () => {
+    if (!isBeingDragged) onDealClick(deal);
+  };
 
   const handleMeetingToggle = async (e: React.MouseEvent) => {
     e.stopPropagation();
     const next = !deal.meeting_scheduled;
-    const { error } = await supabase.from('deals').update({ meeting_scheduled: next }).eq('id', deal.deal_id);
-    if (error) { toast.error('Failed to update'); return; }
+    const { error } = await supabase
+      .from('deals')
+      .update({ meeting_scheduled: next })
+      .eq('id', deal.deal_id);
+    if (error) {
+      toast.error('Failed to update');
+      return;
+    }
     toast.success(next ? 'Meeting scheduled' : 'Meeting unscheduled');
     queryClient.invalidateQueries({ queryKey: ['deals'] });
   };
@@ -85,50 +104,78 @@ export function PipelineKanbanCard({ deal, onDealClick, isDragging }: PipelineKa
     return 'bg-muted-foreground/30';
   };
 
-  const active = (on?: boolean) => on ? 'text-emerald-500' : 'text-muted-foreground/30';
+  const active = (on?: boolean) => (on ? 'text-emerald-500' : 'text-muted-foreground/30');
 
   return (
     <Card
-      ref={setNodeRef} style={style} {...listeners} {...attributes}
+      ref={setNodeRef}
+      style={style}
+      {...listeners}
+      {...attributes}
       className={cn(
-        "group relative mb-2.5 cursor-pointer transition-all duration-200 rounded-xl shadow-sm",
+        'group relative mb-2.5 cursor-pointer transition-all duration-200 rounded-xl shadow-sm',
         isPriority
-          ? "bg-amber-50 border-2 border-amber-400 dark:bg-amber-950/30 dark:border-amber-600"
-          : "bg-card border border-border",
-        isBeingDragged && "shadow-2xl shadow-black/10 scale-[1.02] z-50 opacity-95"
+          ? 'bg-amber-50 border-2 border-amber-400 dark:bg-amber-950/30 dark:border-amber-600'
+          : 'bg-card border border-border',
+        isBeingDragged && 'shadow-2xl shadow-black/10 scale-[1.02] z-50 opacity-95',
       )}
       onClick={handleCardClick}
     >
       <CardContent className="p-0">
         {/* Header: Company + Score + Financials */}
-        <div className={cn(
-          "px-3 pt-2.5 pb-2",
-          needsOwnerContact && "bg-red-50 dark:bg-red-950/40 rounded-t-xl"
-        )}>
+        <div
+          className={cn(
+            'px-3 pt-2.5 pb-2',
+            needsOwnerContact && 'bg-red-50 dark:bg-red-950/40 rounded-t-xl',
+          )}
+        >
           <div className="flex items-center justify-between gap-2">
-            <h3 className={cn(
-              "text-sm font-semibold leading-snug truncate",
-              needsOwnerContact ? "text-red-900 dark:text-red-200" : "text-foreground"
-            )}>
+            <h3
+              className={cn(
+                'text-sm font-semibold leading-snug truncate',
+                needsOwnerContact ? 'text-red-900 dark:text-red-200' : 'text-foreground',
+              )}
+            >
               {companyName}
             </h3>
             {deal.deal_score != null && <DealScoreBadge score={deal.deal_score} size="sm" />}
           </div>
           <div className="flex gap-3 mt-0.5 text-xs text-muted-foreground">
-            <span>Rev: <span className="font-semibold text-foreground">{fmt(deal.listing_revenue)}</span></span>
-            <span>EBITDA: <span className="font-semibold text-foreground">{fmt(deal.listing_ebitda)}</span></span>
+            <span>
+              Rev:{' '}
+              <span className="font-semibold text-foreground">{fmt(deal.listing_revenue)}</span>
+            </span>
+            <span>
+              EBITDA:{' '}
+              <span className="font-semibold text-foreground">{fmt(deal.listing_ebitda)}</span>
+            </span>
           </div>
         </div>
 
         {/* Buyer block — company/firm prominent, individual smaller */}
         <div className="px-3 py-1.5 border-t border-border/30 space-y-0.5">
           <div className="flex items-center justify-between gap-1.5">
-            <span className="text-sm font-bold text-foreground truncate">{buyerCompany || contactName}</span>
-            {buyerTypeLabel && (
-              <span className="flex-shrink-0 px-1.5 py-px rounded bg-primary/10 text-primary text-[11px] font-semibold leading-tight">
-                {buyerTypeLabel}
-              </span>
-            )}
+            <span className="text-sm font-bold text-foreground truncate">
+              {buyerCompany || contactName}
+            </span>
+            <div className="flex items-center gap-1 flex-shrink-0">
+              {deal.buyer_fit_score != null && (
+                <BuyerFitScoreBadge
+                  score={deal.buyer_fit_score}
+                  tier={deal.buyer_fit_tier}
+                  size="sm"
+                  showTier
+                />
+              )}
+              {deal.platform_signal_detected && (
+                <PlatformSignalBadge detected={deal.platform_signal_detected} />
+              )}
+              {buyerTypeLabel && !deal.buyer_fit_score && (
+                <span className="px-1.5 py-px rounded bg-primary/10 text-primary text-[11px] font-semibold leading-tight">
+                  {buyerTypeLabel}
+                </span>
+              )}
+            </div>
           </div>
           {buyerCompany && (
             <div className="text-[11px] text-muted-foreground truncate">{contactName}</div>
@@ -145,20 +192,61 @@ export function PipelineKanbanCard({ deal, onDealClick, isDragging }: PipelineKa
         <div className="px-3 py-1.5 border-t border-border/30">
           <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-[11px] text-muted-foreground">
             <span className="inline-flex items-center gap-1">
-              NDA <span className={cn('inline-block w-1.5 h-1.5 rounded-full', statusDot(deal.nda_status))} />
-              <span className="font-medium text-foreground/80">{deal.nda_status === 'signed' ? 'Signed' : deal.nda_status === 'sent' ? 'Sent' : deal.nda_status === 'declined' ? 'Declined' : '—'}</span>
+              NDA{' '}
+              <span
+                className={cn('inline-block w-1.5 h-1.5 rounded-full', statusDot(deal.nda_status))}
+              />
+              <span className="font-medium text-foreground/80">
+                {deal.nda_status === 'signed'
+                  ? 'Signed'
+                  : deal.nda_status === 'sent'
+                    ? 'Sent'
+                    : deal.nda_status === 'declined'
+                      ? 'Declined'
+                      : '—'}
+              </span>
             </span>
             <span className="inline-flex items-center gap-1">
-              Fee <span className={cn('inline-block w-1.5 h-1.5 rounded-full', statusDot(deal.fee_agreement_status))} />
-              <span className="font-medium text-foreground/80">{deal.fee_agreement_status === 'signed' ? 'Signed' : deal.fee_agreement_status === 'sent' ? 'Sent' : deal.fee_agreement_status === 'declined' ? 'Declined' : '—'}</span>
+              Fee{' '}
+              <span
+                className={cn(
+                  'inline-block w-1.5 h-1.5 rounded-full',
+                  statusDot(deal.fee_agreement_status),
+                )}
+              />
+              <span className="font-medium text-foreground/80">
+                {deal.fee_agreement_status === 'signed'
+                  ? 'Signed'
+                  : deal.fee_agreement_status === 'sent'
+                    ? 'Sent'
+                    : deal.fee_agreement_status === 'declined'
+                      ? 'Declined'
+                      : '—'}
+              </span>
             </span>
             <span className="inline-flex items-center gap-1">
-              Memo <span className={cn('inline-block w-1.5 h-1.5 rounded-full', deal.memo_sent ? 'bg-emerald-500' : 'bg-muted-foreground/30')} />
-              <span className="font-medium text-foreground/80">{deal.memo_sent ? 'Sent' : '—'}</span>
+              Memo{' '}
+              <span
+                className={cn(
+                  'inline-block w-1.5 h-1.5 rounded-full',
+                  deal.memo_sent ? 'bg-emerald-500' : 'bg-muted-foreground/30',
+                )}
+              />
+              <span className="font-medium text-foreground/80">
+                {deal.memo_sent ? 'Sent' : '—'}
+              </span>
             </span>
             <span className="inline-flex items-center gap-1">
-              DR <span className={cn('inline-block w-1.5 h-1.5 rounded-full', deal.has_data_room ? 'bg-emerald-500' : 'bg-muted-foreground/30')} />
-              <span className="font-medium text-foreground/80">{deal.has_data_room ? 'Yes' : '—'}</span>
+              DR{' '}
+              <span
+                className={cn(
+                  'inline-block w-1.5 h-1.5 rounded-full',
+                  deal.has_data_room ? 'bg-emerald-500' : 'bg-muted-foreground/30',
+                )}
+              />
+              <span className="font-medium text-foreground/80">
+                {deal.has_data_room ? 'Yes' : '—'}
+              </span>
             </span>
           </div>
           <button
@@ -167,7 +255,9 @@ export function PipelineKanbanCard({ deal, onDealClick, isDragging }: PipelineKa
             className="mt-0.5 inline-flex items-center gap-1 text-[11px] text-muted-foreground rounded p-0.5 -ml-0.5 transition-colors hover:bg-accent"
           >
             Mtg <CalendarCheck className={cn('w-3 h-3', active(deal.meeting_scheduled))} />
-            <span className="font-medium text-foreground/80">{deal.meeting_scheduled ? 'Yes' : '—'}</span>
+            <span className="font-medium text-foreground/80">
+              {deal.meeting_scheduled ? 'Yes' : '—'}
+            </span>
           </button>
         </div>
 
@@ -175,7 +265,10 @@ export function PipelineKanbanCard({ deal, onDealClick, isDragging }: PipelineKa
         <div className="px-3 py-1.5 border-t border-border/30 flex items-center justify-between">
           <div className="flex items-center gap-1.5">
             <span className="text-[11px] text-muted-foreground">
-              Owner: <span className="font-medium text-foreground/80">{assignedAdmin?.displayName || 'Unassigned'}</span>
+              Owner:{' '}
+              <span className="font-medium text-foreground/80">
+                {assignedAdmin?.displayName || 'Unassigned'}
+              </span>
             </span>
             <DealSourceBadge source={deal.deal_source} />
           </div>

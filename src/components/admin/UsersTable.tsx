@@ -1,22 +1,56 @@
-import { useState } from "react";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { User } from "@/types";
-import { CheckCircle, MoreHorizontal, UserCheck, Trash2, ChevronDown, ChevronRight, ExternalLink, Mail, Building, UserIcon, Linkedin, Shield, Search } from "lucide-react";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { formatDistanceToNow } from "date-fns";
-import { UserSavedListings } from "./UserSavedListings";
-import { UserDataCompleteness } from "./UserDataCompleteness";
-import { DualFeeAgreementToggle } from "./DualFeeAgreementToggle";
-import { SimpleFeeAgreementDialog } from "./SimpleFeeAgreementDialog";
-import { DualNDAToggle } from "./DualNDAToggle";
-import { SimpleNDADialog } from "./SimpleNDADialog";
-import { UserActivityTimeline } from "./UserActivityTimeline";
-import { UserFirmBadge } from "./UserFirmBadge";
+import { useState } from 'react';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { User } from '@/types';
+import {
+  CheckCircle,
+  MoreHorizontal,
+  UserCheck,
+  Trash2,
+  ChevronDown,
+  ChevronRight,
+  ExternalLink,
+  Mail,
+  Building,
+  UserIcon,
+  Linkedin,
+  Shield,
+  Search,
+} from 'lucide-react';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { formatDistanceToNow } from 'date-fns';
+import { UserSavedListings } from './UserSavedListings';
+import { UserDataCompleteness } from './UserDataCompleteness';
+import { DualFeeAgreementToggle } from './DualFeeAgreementToggle';
+import { SimpleFeeAgreementDialog } from './SimpleFeeAgreementDialog';
+import { DualNDAToggle } from './DualNDAToggle';
+import { SimpleNDADialog } from './SimpleNDADialog';
+import { UserActivityTimeline } from './UserActivityTimeline';
+import { UserFirmBadge } from './UserFirmBadge';
 
 import { getFieldCategories, FIELD_LABELS } from '@/lib/buyer-type-fields';
 import { formatFieldValue } from '@/lib/field-formatting';
@@ -29,9 +63,11 @@ import { useRoleManagement } from '@/hooks/permissions/useRoleManagement';
 import { RoleBadge } from './permissions/RoleBadge';
 import { RoleSelector } from './permissions/RoleSelector';
 import { AppRole } from '@/hooks/permissions/usePermissions';
+import { BuyerTierBadge, BuyerFitScoreBadge, PlatformSignalBadge } from './BuyerFitScoreBadge';
+import { BuyerFitScoreCard } from './BuyerFitScoreCard';
 
 import { supabase } from '@/integrations/supabase/client';
-import { useToast } from "@/hooks/use-toast";
+import { useToast } from '@/hooks/use-toast';
 
 interface UsersTableProps {
   users: User[];
@@ -55,249 +91,334 @@ const UserDetails = ({ user }: { user: User }) => {
           <TabsTrigger value="saved">Saved Listings</TabsTrigger>
           <TabsTrigger value="timeline">Activity Timeline</TabsTrigger>
         </TabsList>
-        
-        <TabsContent value="profile" className="space-y-6 mt-6">
-          {/* Account Information Section */}
-          <div className="space-y-3">
-            <h4 className="font-medium text-foreground flex items-center gap-2">
-              <UserIcon className="h-4 w-4" />
-              Account Information
-            </h4>
-            <div className="pl-6 grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-              <div><span className="text-muted-foreground">Created:</span> {new Date(user.created_at).toLocaleString()}</div>
-              <div>
-                <span className="text-muted-foreground">Email Verified:</span> 
-                {user.email_verified ? " Yes" : " No"}
-              </div>
-              <div>
-                <span className="text-muted-foreground">Status:</span> 
-                <span className={`capitalize ml-1 ${
-                  user.approval_status === "approved" ? "text-green-600" : 
-                  user.approval_status === "rejected" ? "text-red-600" : 
-                  "text-yellow-600"
-                }`}>
-                  {user.approval_status}
-                </span>
-              </div>
-              <div>
-                <span className="text-muted-foreground">Admin:</span> {user.is_admin ? " Yes" : " No"}
-              </div>
-            </div>
-          </div>
 
-          {/* Render each field category dynamically */}
-          {Object.entries(fieldCategories).map(([categoryName, fields]) => {
-            if (fields.length === 0) return null;
-            
-            return (
-              <div key={categoryName} className="space-y-3">
+        <TabsContent value="profile" className="space-y-6 mt-6">
+          {/* Buyer Fit Score Card */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+            <div className="lg:col-span-2 space-y-6">
+              {/* Account Information Section */}
+              <div className="space-y-3">
                 <h4 className="font-medium text-foreground flex items-center gap-2">
-                  {categoryName === 'Contact Information' && <Mail className="h-4 w-4" />}
-                  {categoryName === 'Business Profile' && <Building className="h-4 w-4" />}
-                  {categoryName === 'Financial Information' && <UserIcon className="h-4 w-4" />}
-                  {categoryName === 'Sourcing & Discovery' && <Search className="h-4 w-4" />}
-                  {categoryName}
-                  {categoryName === 'Financial Information' && ` (${user.buyer_type})`}
+                  <UserIcon className="h-4 w-4" />
+                  Account Information
                 </h4>
                 <div className="pl-6 grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                  {fields.map((fieldKey: string) => {
-                    const fieldLabel = FIELD_LABELS[fieldKey as keyof typeof FIELD_LABELS] || fieldKey;
-                    const fieldValue = user[fieldKey as keyof User];
-                    
-                    // Handle special field rendering
-                    if (fieldKey === 'website' && fieldValue) {
-                      return (
-                        <div key={fieldKey} className="flex items-center gap-2">
-                          <span className="text-muted-foreground">{fieldLabel}:</span>
-                          <a href={fieldValue as string} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline flex items-center gap-1">
-                            {fieldValue as string} <ExternalLink className="h-3 w-3" />
-                          </a>
-                        </div>
-                      );
-                    }
-                    
-                    if (fieldKey === 'linkedin_profile' && fieldValue) {
-                      return (
-                        <div key={fieldKey} className="flex items-center gap-2">
-                          <span className="text-muted-foreground">{fieldLabel}:</span>
-                          <a href={fieldValue as string} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline flex items-center gap-1">
-                            <Linkedin className="h-3 w-3" />
-                            Profile
-                          </a>
-                        </div>
-                      );
-                    }
-                    
-                    if (fieldKey === 'business_categories') {
-                      return (
-                        <div key={fieldKey} className="col-span-2">
-                          <span className="text-muted-foreground">{fieldLabel}:</span>
-                          <div className="mt-1">
-                            {fieldValue && Array.isArray(fieldValue) && fieldValue.length > 0 ? (
-                              <div className="flex flex-wrap gap-1">
-                                {fieldValue.map((cat, index) => (
-                                  <span key={index} className="text-xs bg-muted px-2 py-1 rounded">
-                                    {cat}
-                                  </span>
-                                ))}
-                              </div>
-                            ) : '—'}
-                          </div>
-                        </div>
-                      );
-                    }
-                    
-                    if (fieldKey === 'target_locations') {
-                      const locationsToDisplay = Array.isArray(fieldValue) ? fieldValue : (fieldValue ? [fieldValue] : []);
-                      return (
-                        <div key={fieldKey} className="col-span-2">
-                          <span className="text-muted-foreground">{fieldLabel}:</span>
-                          <div className="mt-1">
-                            {locationsToDisplay.length > 0 ? (
-                              <div className="flex flex-wrap gap-1">
-                                {locationsToDisplay.map((loc, index) => (
-                                  <span key={index} className="text-xs bg-muted px-2 py-1 rounded">
-                                    {loc}
-                                  </span>
-                                ))}
-                              </div>
-                            ) : '—'}
-                          </div>
-                        </div>
-                      );
-                    }
-                    
-                    if (fieldKey === 'ideal_target_description' || fieldKey === 'specific_business_search') {
-                      return (
-                        <div key={fieldKey} className="col-span-2">
-                          <span className="text-muted-foreground">{fieldLabel}:</span>
-                          <p className="mt-1 text-xs leading-relaxed">{fieldValue as string || '—'}</p>
-                        </div>
-                      );
-                    }
-                    
-                    if (fieldKey === 'revenue_range_min' || fieldKey === 'revenue_range_max' || fieldKey === 'target_deal_size_min' || fieldKey === 'target_deal_size_max') {
-                      const numValue = fieldValue as number;
-                      return (
-                        <div key={fieldKey}>
-                          <span className="text-muted-foreground">{fieldLabel}:</span> 
-                          {numValue ? `$${numValue.toLocaleString()}` : '—'}
-                        </div>
-                      );
-                    }
-                    
-                    if (fieldKey === 'industry_expertise') {
-                      // Handle both array and text formats for industry_expertise
-                      const displayValue = Array.isArray(fieldValue) ? fieldValue.join(', ') : (fieldValue as string || '—');
-                      return (
-                        <div key={fieldKey} className="col-span-2">
-                          <span className="text-muted-foreground">{fieldLabel}:</span> {displayValue}
-                        </div>
-                      );
-                    }
-                    
-                    // Skip funded_by if user is not funded
-                    if (fieldKey === 'funded_by' && user.is_funded !== 'yes') {
-                      return null;
-                    }
-                    
-                    // Handle Independent Sponsor specific fields with proper formatting
-                    if (['committed_equity_band', 'equity_source', 'deployment_timing', 'flex_subxm_ebitda'].includes(fieldKey)) {
-                      return (
-                        <div key={fieldKey}>
-                          <span className="text-muted-foreground">{fieldLabel}:</span> {formatFieldValue(fieldKey, fieldValue)}
-                        </div>
-                      );
-                    }
-                    
-                    // Handle deal_sourcing_methods array
-                    if (fieldKey === 'deal_sourcing_methods') {
-                      const methods = fieldValue as string[] | undefined;
-                      return (
-                        <div key={fieldKey} className="col-span-2">
-                          <span className="text-muted-foreground">{fieldLabel}:</span>
-                          <div className="mt-1">
-                            {methods && methods.length > 0 ? (
-                              <div className="flex flex-wrap gap-1">
-                                {methods.map((method, index) => (
-                                  <span key={index} className="text-xs bg-muted px-2 py-1 rounded capitalize">
-                                    {method.replace(/_/g, ' ')}
-                                  </span>
-                                ))}
-                              </div>
-                            ) : '—'}
-                          </div>
-                        </div>
-                      );
-                    }
-                    
-                    // Handle referral_source with special formatting
-                    if (fieldKey === 'referral_source') {
-                      return (
-                        <div key={fieldKey}>
-                          <span className="text-muted-foreground">{fieldLabel}:</span>{' '}
-                          <span className="capitalize">{fieldValue ? String(fieldValue).replace(/_/g, ' ') : '—'}</span>
-                        </div>
-                      );
-                    }
-                    
-                    // Handle target_acquisition_volume with special formatting
-                    if (fieldKey === 'target_acquisition_volume') {
-                      return (
-                        <div key={fieldKey}>
-                          <span className="text-muted-foreground">{fieldLabel}:</span>{' '}
-                          <span className="capitalize">{fieldValue ? String(fieldValue).replace(/_/g, ' ') : '—'}</span>
-                        </div>
-                      );
-                    }
-                    
-                    // Handle first_seen_at timestamp
-                    if (fieldKey === 'first_seen_at' && fieldValue) {
-                      return (
-                        <div key={fieldKey}>
-                          <span className="text-muted-foreground">{fieldLabel}:</span>{' '}
-                          {new Date(fieldValue as string).toLocaleString()}
-                        </div>
-                      );
-                    }
-                    
-                    // Handle first_external_referrer - show with external link styling
-                    if (fieldKey === 'first_external_referrer' && fieldValue) {
-                      return (
-                        <div key={fieldKey}>
-                          <span className="text-muted-foreground">{fieldLabel}:</span>{' '}
-                          <span className="text-primary">{fieldValue as string}</span>
-                        </div>
-                      );
-                    }
-                    
-                    // Handle first_blog_landing - show the blog path
-                    if (fieldKey === 'first_blog_landing' && fieldValue) {
-                      return (
-                        <div key={fieldKey}>
-                          <span className="text-muted-foreground">{fieldLabel}:</span>{' '}
-                          <span className="text-xs font-mono bg-muted px-1.5 py-0.5 rounded">{fieldValue as string}</span>
-                        </div>
-                      );
-                    }
-                    
-                    // Default field rendering with formatting
-                    return (
-                      <div key={fieldKey}>
-                        <span className="text-muted-foreground">{fieldLabel}:</span> {formatFieldValue(fieldKey, fieldValue)}
-                      </div>
-                    );
-                  })}
+                  <div>
+                    <span className="text-muted-foreground">Created:</span>{' '}
+                    {new Date(user.created_at).toLocaleString()}
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">Email Verified:</span>
+                    {user.email_verified ? ' Yes' : ' No'}
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">Status:</span>
+                    <span
+                      className={`capitalize ml-1 ${
+                        user.approval_status === 'approved'
+                          ? 'text-green-600'
+                          : user.approval_status === 'rejected'
+                            ? 'text-red-600'
+                            : 'text-yellow-600'
+                      }`}
+                    >
+                      {user.approval_status}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">Admin:</span>{' '}
+                    {user.is_admin ? ' Yes' : ' No'}
+                  </div>
                 </div>
               </div>
-            );
-          })}
+
+              {/* Render each field category dynamically */}
+              {Object.entries(fieldCategories).map(([categoryName, fields]) => {
+                if (fields.length === 0) return null;
+
+                return (
+                  <div key={categoryName} className="space-y-3">
+                    <h4 className="font-medium text-foreground flex items-center gap-2">
+                      {categoryName === 'Contact Information' && <Mail className="h-4 w-4" />}
+                      {categoryName === 'Business Profile' && <Building className="h-4 w-4" />}
+                      {categoryName === 'Financial Information' && <UserIcon className="h-4 w-4" />}
+                      {categoryName === 'Sourcing & Discovery' && <Search className="h-4 w-4" />}
+                      {categoryName}
+                      {categoryName === 'Financial Information' && ` (${user.buyer_type})`}
+                    </h4>
+                    <div className="pl-6 grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                      {fields.map((fieldKey: string) => {
+                        const fieldLabel =
+                          FIELD_LABELS[fieldKey as keyof typeof FIELD_LABELS] || fieldKey;
+                        const fieldValue = user[fieldKey as keyof User];
+
+                        // Handle special field rendering
+                        if (fieldKey === 'website' && fieldValue) {
+                          return (
+                            <div key={fieldKey} className="flex items-center gap-2">
+                              <span className="text-muted-foreground">{fieldLabel}:</span>
+                              <a
+                                href={fieldValue as string}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-primary hover:underline flex items-center gap-1"
+                              >
+                                {fieldValue as string} <ExternalLink className="h-3 w-3" />
+                              </a>
+                            </div>
+                          );
+                        }
+
+                        if (fieldKey === 'linkedin_profile' && fieldValue) {
+                          return (
+                            <div key={fieldKey} className="flex items-center gap-2">
+                              <span className="text-muted-foreground">{fieldLabel}:</span>
+                              <a
+                                href={fieldValue as string}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-primary hover:underline flex items-center gap-1"
+                              >
+                                <Linkedin className="h-3 w-3" />
+                                Profile
+                              </a>
+                            </div>
+                          );
+                        }
+
+                        if (fieldKey === 'business_categories') {
+                          return (
+                            <div key={fieldKey} className="col-span-2">
+                              <span className="text-muted-foreground">{fieldLabel}:</span>
+                              <div className="mt-1">
+                                {fieldValue &&
+                                Array.isArray(fieldValue) &&
+                                fieldValue.length > 0 ? (
+                                  <div className="flex flex-wrap gap-1">
+                                    {fieldValue.map((cat, index) => (
+                                      <span
+                                        key={index}
+                                        className="text-xs bg-muted px-2 py-1 rounded"
+                                      >
+                                        {cat}
+                                      </span>
+                                    ))}
+                                  </div>
+                                ) : (
+                                  '—'
+                                )}
+                              </div>
+                            </div>
+                          );
+                        }
+
+                        if (fieldKey === 'target_locations') {
+                          const locationsToDisplay = Array.isArray(fieldValue)
+                            ? fieldValue
+                            : fieldValue
+                              ? [fieldValue]
+                              : [];
+                          return (
+                            <div key={fieldKey} className="col-span-2">
+                              <span className="text-muted-foreground">{fieldLabel}:</span>
+                              <div className="mt-1">
+                                {locationsToDisplay.length > 0 ? (
+                                  <div className="flex flex-wrap gap-1">
+                                    {locationsToDisplay.map((loc, index) => (
+                                      <span
+                                        key={index}
+                                        className="text-xs bg-muted px-2 py-1 rounded"
+                                      >
+                                        {loc}
+                                      </span>
+                                    ))}
+                                  </div>
+                                ) : (
+                                  '—'
+                                )}
+                              </div>
+                            </div>
+                          );
+                        }
+
+                        if (
+                          fieldKey === 'ideal_target_description' ||
+                          fieldKey === 'specific_business_search'
+                        ) {
+                          return (
+                            <div key={fieldKey} className="col-span-2">
+                              <span className="text-muted-foreground">{fieldLabel}:</span>
+                              <p className="mt-1 text-xs leading-relaxed">
+                                {(fieldValue as string) || '—'}
+                              </p>
+                            </div>
+                          );
+                        }
+
+                        if (
+                          fieldKey === 'revenue_range_min' ||
+                          fieldKey === 'revenue_range_max' ||
+                          fieldKey === 'target_deal_size_min' ||
+                          fieldKey === 'target_deal_size_max'
+                        ) {
+                          const numValue = fieldValue as number;
+                          return (
+                            <div key={fieldKey}>
+                              <span className="text-muted-foreground">{fieldLabel}:</span>
+                              {numValue ? `$${numValue.toLocaleString()}` : '—'}
+                            </div>
+                          );
+                        }
+
+                        if (fieldKey === 'industry_expertise') {
+                          // Handle both array and text formats for industry_expertise
+                          const displayValue = Array.isArray(fieldValue)
+                            ? fieldValue.join(', ')
+                            : (fieldValue as string) || '—';
+                          return (
+                            <div key={fieldKey} className="col-span-2">
+                              <span className="text-muted-foreground">{fieldLabel}:</span>{' '}
+                              {displayValue}
+                            </div>
+                          );
+                        }
+
+                        // Skip funded_by if user is not funded
+                        if (fieldKey === 'funded_by' && user.is_funded !== 'yes') {
+                          return null;
+                        }
+
+                        // Handle Independent Sponsor specific fields with proper formatting
+                        if (
+                          [
+                            'committed_equity_band',
+                            'equity_source',
+                            'deployment_timing',
+                            'flex_subxm_ebitda',
+                          ].includes(fieldKey)
+                        ) {
+                          return (
+                            <div key={fieldKey}>
+                              <span className="text-muted-foreground">{fieldLabel}:</span>{' '}
+                              {formatFieldValue(fieldKey, fieldValue)}
+                            </div>
+                          );
+                        }
+
+                        // Handle deal_sourcing_methods array
+                        if (fieldKey === 'deal_sourcing_methods') {
+                          const methods = fieldValue as string[] | undefined;
+                          return (
+                            <div key={fieldKey} className="col-span-2">
+                              <span className="text-muted-foreground">{fieldLabel}:</span>
+                              <div className="mt-1">
+                                {methods && methods.length > 0 ? (
+                                  <div className="flex flex-wrap gap-1">
+                                    {methods.map((method, index) => (
+                                      <span
+                                        key={index}
+                                        className="text-xs bg-muted px-2 py-1 rounded capitalize"
+                                      >
+                                        {method.replace(/_/g, ' ')}
+                                      </span>
+                                    ))}
+                                  </div>
+                                ) : (
+                                  '—'
+                                )}
+                              </div>
+                            </div>
+                          );
+                        }
+
+                        // Handle referral_source with special formatting
+                        if (fieldKey === 'referral_source') {
+                          return (
+                            <div key={fieldKey}>
+                              <span className="text-muted-foreground">{fieldLabel}:</span>{' '}
+                              <span className="capitalize">
+                                {fieldValue ? String(fieldValue).replace(/_/g, ' ') : '—'}
+                              </span>
+                            </div>
+                          );
+                        }
+
+                        // Handle target_acquisition_volume with special formatting
+                        if (fieldKey === 'target_acquisition_volume') {
+                          return (
+                            <div key={fieldKey}>
+                              <span className="text-muted-foreground">{fieldLabel}:</span>{' '}
+                              <span className="capitalize">
+                                {fieldValue ? String(fieldValue).replace(/_/g, ' ') : '—'}
+                              </span>
+                            </div>
+                          );
+                        }
+
+                        // Handle first_seen_at timestamp
+                        if (fieldKey === 'first_seen_at' && fieldValue) {
+                          return (
+                            <div key={fieldKey}>
+                              <span className="text-muted-foreground">{fieldLabel}:</span>{' '}
+                              {new Date(fieldValue as string).toLocaleString()}
+                            </div>
+                          );
+                        }
+
+                        // Handle first_external_referrer - show with external link styling
+                        if (fieldKey === 'first_external_referrer' && fieldValue) {
+                          return (
+                            <div key={fieldKey}>
+                              <span className="text-muted-foreground">{fieldLabel}:</span>{' '}
+                              <span className="text-primary">{fieldValue as string}</span>
+                            </div>
+                          );
+                        }
+
+                        // Handle first_blog_landing - show the blog path
+                        if (fieldKey === 'first_blog_landing' && fieldValue) {
+                          return (
+                            <div key={fieldKey}>
+                              <span className="text-muted-foreground">{fieldLabel}:</span>{' '}
+                              <span className="text-xs font-mono bg-muted px-1.5 py-0.5 rounded">
+                                {fieldValue as string}
+                              </span>
+                            </div>
+                          );
+                        }
+
+                        // Default field rendering with formatting
+                        return (
+                          <div key={fieldKey}>
+                            <span className="text-muted-foreground">{fieldLabel}:</span>{' '}
+                            {formatFieldValue(fieldKey, fieldValue)}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            <div>
+              <BuyerFitScoreCard
+                profileId={user.id}
+                buyerFitScore={user.buyer_fit_score}
+                buyerFitTier={user.buyer_fit_tier}
+                platformSignalDetected={user.platform_signal_detected}
+                platformSignalSource={user.platform_signal_source}
+                buyerFitScoreLastCalculated={user.buyer_fit_score_last_calculated}
+                adminTierOverride={user.admin_tier_override}
+                adminOverrideNote={user.admin_override_note}
+              />
+            </div>
+          </div>
         </TabsContent>
-        
+
         <TabsContent value="saved" className="mt-6">
           <UserSavedListings userId={user.id} />
         </TabsContent>
-        
+
         <TabsContent value="timeline" className="mt-6">
           <UserActivityTimeline userId={user.id} />
         </TabsContent>
@@ -335,18 +456,18 @@ function UserActionButtons({
   const handleSendPasswordReset = async () => {
     try {
       const { error } = await supabase.functions.invoke('password-reset', {
-        body: { action: 'request', email: user.email }
+        body: { action: 'request', email: user.email },
       });
       if (error) throw error;
       toast({
         title: 'Password reset initiated',
-        description: 'If the email exists, the user will receive a reset link.'
+        description: 'If the email exists, the user will receive a reset link.',
       });
     } catch (err: any) {
       toast({
         variant: 'destructive',
         title: 'Failed to send reset',
-        description: err.message || 'Please try again.'
+        description: err.message || 'Please try again.',
       });
     }
   };
@@ -363,50 +484,45 @@ function UserActionButtons({
           <DropdownMenuContent align="end">
             <DropdownMenuLabel>User Actions</DropdownMenuLabel>
             <DropdownMenuSeparator />
-            
-            {user.approval_status === "pending" && (
-              <DropdownMenuItem 
-                onClick={() => onApprove(user)}
-                className="text-green-600"
-              >
+
+            {user.approval_status === 'pending' && (
+              <DropdownMenuItem onClick={() => onApprove(user)} className="text-green-600">
                 <UserCheck className="h-4 w-4 mr-2" />
                 Approve User
               </DropdownMenuItem>
             )}
-            
-            {user.approval_status === "rejected" && (
-              <DropdownMenuItem 
-                onClick={() => onApprove(user)}
-                className="text-green-600"
-              >
+
+            {user.approval_status === 'rejected' && (
+              <DropdownMenuItem onClick={() => onApprove(user)} className="text-green-600">
                 <UserCheck className="h-4 w-4 mr-2" />
                 Approve User
               </DropdownMenuItem>
             )}
-            
+
             <DropdownMenuSeparator />
-            
+
             {canManagePermissions && (
-              <DropdownMenuItem 
-                onClick={() => setIsRoleDialogOpen(true)}
-                className="text-blue-600"
-              >
+              <DropdownMenuItem onClick={() => setIsRoleDialogOpen(true)} className="text-blue-600">
                 <Shield className="h-4 w-4 mr-2" />
                 Change Role
               </DropdownMenuItem>
             )}
-            
+
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={handleSendPasswordReset}>
               <Mail className="h-4 w-4 mr-2" />
               Send password reset
             </DropdownMenuItem>
-            
+
             {/* Only owner can delete users (not even self) */}
             {canManagePermissions && user.id !== currentUser?.id && (
-              <DropdownMenuItem 
+              <DropdownMenuItem
                 onClick={() => {
-                  if (window.confirm(`Are you sure you want to permanently delete ${user.email}? This action cannot be undone.`)) {
+                  if (
+                    window.confirm(
+                      `Are you sure you want to permanently delete ${user.email}? This action cannot be undone.`,
+                    )
+                  ) {
                     onDelete(user);
                   }
                 }}
@@ -439,7 +555,7 @@ function UserActionButtons({
 
             <div className="space-y-2">
               <Label>Select New Role</Label>
-              <RoleSelector 
+              <RoleSelector
                 userId={user.id}
                 currentRole={currentUserRole}
                 userEmail={user.email}
@@ -465,13 +581,13 @@ const UsersTableSkeleton = () => (
   </div>
 );
 
-export function UsersTable({ 
-  users, 
-  onApprove, 
+export function UsersTable({
+  users,
+  onApprove,
   onMakeAdmin,
   onRevokeAdmin,
   onDelete,
-  isLoading 
+  isLoading,
 }: UsersTableProps) {
   const [expandedUserId, setExpandedUserId] = useState<string | null>(null);
   const [selectedUserForEmail, setSelectedUserForEmail] = useState<User | null>(null);
@@ -488,16 +604,16 @@ export function UsersTable({
   const logEmailMutation = useLogFeeAgreementEmail();
   const logNDAEmail = useLogNDAEmail();
   const { user: currentAuthUser } = useAuth();
-  
+
   const toggleExpand = (userId: string) => {
     setExpandedUserId(expandedUserId === userId ? null : userId);
   };
-  
+
   const formatDate = (dateString: string) => {
     try {
       return formatDistanceToNow(new Date(dateString), { addSuffix: true });
     } catch (error) {
-      return "Invalid date";
+      return 'Invalid date';
     }
   };
 
@@ -514,6 +630,8 @@ export function UsersTable({
               <TableHead className="w-10"></TableHead>
               <TableHead className="min-w-[200px]">User & Company</TableHead>
               <TableHead className="w-20">Type</TableHead>
+              <TableHead className="w-28">Buyer Tier</TableHead>
+              <TableHead className="w-16">Score</TableHead>
               <TableHead className="w-20">Profile</TableHead>
               <TableHead className="w-16">Fee</TableHead>
               <TableHead className="w-16">NDA</TableHead>
@@ -524,7 +642,7 @@ export function UsersTable({
           </TableHeader>
           <TableBody>
             {users.flatMap((user) => [
-              <TableRow 
+              <TableRow
                 key={user.id}
                 className="cursor-pointer hover:bg-muted/50"
                 onClick={() => toggleExpand(user.id)}
@@ -541,31 +659,39 @@ export function UsersTable({
                 <TableCell className="py-2">
                   <div className="flex flex-col gap-1">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span className="font-medium text-sm">{user.firstName} {user.lastName}</span>
-                      {!isLoadingRoles && (() => {
-                        const role = getUserRole(user.id);
-                        // Fallback to legacy profile flag while migrating
-                        const effectiveRole: AppRole = role === 'user' && user?.is_admin === true ? 'admin' : role;
-                        // Map 'owner' to 'admin' for display
-                        const displayRole = effectiveRole === 'owner' ? 'admin' : effectiveRole;
-                        
-                        // Only show badge for admin
-                        if (displayRole === 'admin') {
-                          return <RoleBadge role={displayRole} showTooltip={false} />;
-                        }
-                        return null;
-                      })()}
+                      <span className="font-medium text-sm">
+                        {user.firstName} {user.lastName}
+                      </span>
+                      {!isLoadingRoles &&
+                        (() => {
+                          const role = getUserRole(user.id);
+                          // Fallback to legacy profile flag while migrating
+                          const effectiveRole: AppRole =
+                            role === 'user' && user?.is_admin === true ? 'admin' : role;
+                          // Map 'owner' to 'admin' for display
+                          const displayRole = effectiveRole === 'owner' ? 'admin' : effectiveRole;
+
+                          // Only show badge for admin
+                          if (displayRole === 'admin') {
+                            return <RoleBadge role={displayRole} showTooltip={false} />;
+                          }
+                          return null;
+                        })()}
                       {user.email_verified && (
-                        <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700 px-1 py-0">
-                          <CheckCircle className="h-3 w-3 mr-1" />
-                          ✓
+                        <Badge
+                          variant="outline"
+                          className="text-xs bg-blue-50 text-blue-700 px-1 py-0"
+                        >
+                          <CheckCircle className="h-3 w-3 mr-1" />✓
                         </Badge>
                       )}
                     </div>
                     <div className="text-xs text-muted-foreground truncate">{user.email}</div>
                     <div className="flex items-center gap-2 mt-1">
                       {user.company && (
-                        <div className="text-xs font-medium text-foreground truncate">{user.company}</div>
+                        <div className="text-xs font-medium text-foreground truncate">
+                          {user.company}
+                        </div>
                       )}
                       <UserFirmBadge userId={user.id} compact />
                     </div>
@@ -573,50 +699,77 @@ export function UsersTable({
                 </TableCell>
                 <TableCell className="py-2">
                   <div className="text-xs">
-                    {user.buyer_type === 'privateEquity' ? 'PE' :
-                     user.buyer_type === 'familyOffice' ? 'FO' :
-                     user.buyer_type === 'searchFund' ? 'SF' :
-                     user.buyer_type === 'independentSponsor' ? 'IS' :
-                     user.buyer_type === 'corporate' ? 'Corp' :
-                     user.buyer_type === 'individual' ? 'Indiv' : '—'}
+                    {user.buyer_type === 'privateEquity'
+                      ? 'PE'
+                      : user.buyer_type === 'familyOffice'
+                        ? 'FO'
+                        : user.buyer_type === 'searchFund'
+                          ? 'SF'
+                          : user.buyer_type === 'independentSponsor'
+                            ? 'IS'
+                            : user.buyer_type === 'corporate'
+                              ? 'Corp'
+                              : user.buyer_type === 'individual'
+                                ? 'Indiv'
+                                : '—'}
                   </div>
+                </TableCell>
+                <TableCell className="py-2">
+                  <div className="flex items-center gap-1">
+                    <BuyerTierBadge tier={user.buyer_fit_tier} size="sm" showLabel={false} />
+                    {user.platform_signal_detected && (
+                      <PlatformSignalBadge
+                        detected={user.platform_signal_detected}
+                        source={user.platform_signal_source}
+                      />
+                    )}
+                  </div>
+                </TableCell>
+                <TableCell className="py-2">
+                  <BuyerFitScoreBadge
+                    score={user.buyer_fit_score}
+                    tier={user.buyer_fit_tier}
+                    size="sm"
+                  />
                 </TableCell>
                 <TableCell className="py-2">
                   <UserDataCompleteness user={user} size="sm" />
                 </TableCell>
                 <TableCell className="py-2" onClick={(e) => e.stopPropagation()}>
-                  <DualFeeAgreementToggle 
+                  <DualFeeAgreementToggle
                     user={user}
                     onSendEmail={(user) => setSelectedUserForEmail(user)}
                     size="sm"
                   />
                 </TableCell>
                 <TableCell className="py-2" onClick={(e) => e.stopPropagation()}>
-                  <DualNDAToggle 
+                  <DualNDAToggle
                     user={user}
                     onSendEmail={(user) => setSelectedUserForNDA(user)}
                     size="sm"
                   />
                 </TableCell>
                 <TableCell className="py-2">
-                  {user.approval_status === "approved" && (
+                  {user.approval_status === 'approved' && (
                     <Badge className="bg-green-100 text-green-800 hover:bg-green-100 text-xs px-2 py-1">
                       ✓
                     </Badge>
                   )}
-                  {user.approval_status === "pending" && (
+                  {user.approval_status === 'pending' && (
                     <Badge className="bg-yellow-100 text-yellow-800 hover:bg-yellow-100 text-xs px-2 py-1">
                       ⏳
                     </Badge>
                   )}
-                  {user.approval_status === "rejected" && (
+                  {user.approval_status === 'rejected' && (
                     <Badge className="bg-red-100 text-red-800 hover:bg-red-100 text-xs px-2 py-1">
                       ✗
                     </Badge>
                   )}
                 </TableCell>
-                <TableCell className="hidden lg:table-cell text-xs py-2">{formatDate(user.created_at)}</TableCell>
-                 <TableCell className="text-right py-2">
+                <TableCell className="hidden lg:table-cell text-xs py-2">
+                  {formatDate(user.created_at)}
+                </TableCell>
+                <TableCell className="text-right py-2">
                   <UserActionButtons
                     user={user}
                     onApprove={onApprove}
@@ -625,20 +778,22 @@ export function UsersTable({
                     onDelete={onDelete}
                     isLoading={isLoading}
                   />
-                 </TableCell>
+                </TableCell>
               </TableRow>,
-              ...(expandedUserId === user.id ? [
-                <TableRow key={`${user.id}-details`}>
-                  <TableCell colSpan={10} className="p-0">
-                    <UserDetails user={user} />
-                  </TableCell>
-                </TableRow>
-              ] : [])
+              ...(expandedUserId === user.id
+                ? [
+                    <TableRow key={`${user.id}-details`}>
+                      <TableCell colSpan={12} className="p-0">
+                        <UserDetails user={user} />
+                      </TableCell>
+                    </TableRow>,
+                  ]
+                : []),
             ])}
           </TableBody>
         </Table>
       </div>
-      
+
       <SimpleFeeAgreementDialog
         user={selectedUserForEmail}
         isOpen={!!selectedUserForEmail}
@@ -670,11 +825,13 @@ export function UsersTable({
             adminId: currentAuthUser.id,
             adminEmail: adminProfile.email,
             adminName: adminName,
-            notes: options?.subject ? `Custom fee agreement email: ${options.subject}` : 'Standard fee agreement email sent'
+            notes: options?.subject
+              ? `Custom fee agreement email: ${options.subject}`
+              : 'Standard fee agreement email sent',
           });
         }}
       />
-      
+
       <SimpleNDADialog
         open={!!selectedUserForNDA}
         onOpenChange={(open) => !open && setSelectedUserForNDA(null)}
@@ -696,16 +853,18 @@ export function UsersTable({
 
           const adminName = `${adminProfile.first_name} ${adminProfile.last_name}`;
 
-        await logNDAEmail.mutateAsync({
-          userId: user.id,
-          userEmail: user.email,
-          customSubject: options?.subject || 'NDA Agreement | SourceCo',
-          customMessage: options?.message || 'Please review and sign the attached NDA.',
-          adminId: currentAuthUser.id,
-          adminEmail: adminProfile.email,
-          adminName: adminName,
-          notes: options?.message ? `Custom NDA email sent: ${options.subject}` : 'Standard NDA email sent'
-        });
+          await logNDAEmail.mutateAsync({
+            userId: user.id,
+            userEmail: user.email,
+            customSubject: options?.subject || 'NDA Agreement | SourceCo',
+            customMessage: options?.message || 'Please review and sign the attached NDA.',
+            adminId: currentAuthUser.id,
+            adminEmail: adminProfile.email,
+            adminName: adminName,
+            notes: options?.message
+              ? `Custom NDA email sent: ${options.subject}`
+              : 'Standard NDA email sent',
+          });
         }}
       />
     </>

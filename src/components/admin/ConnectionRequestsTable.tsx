@@ -1,10 +1,10 @@
-import { useState } from "react";
-import { format } from "date-fns";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Card, CardContent } from "@/components/ui/card";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Checkbox } from "@/components/ui/checkbox";
+import { useState } from 'react';
+import { format } from 'date-fns';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Card, CardContent } from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   Dialog,
   DialogContent,
@@ -12,53 +12,64 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
-import { Textarea } from "@/components/ui/textarea";
-import { 
-  ChevronDown, 
-  ChevronUp, 
-  Clock, 
-  CheckCircle, 
-  XCircle, 
-  User, 
-  Building2, 
-  Mail, 
+} from '@/components/ui/dialog';
+import { Textarea } from '@/components/ui/textarea';
+import {
+  ChevronDown,
+  ChevronUp,
+  Clock,
+  CheckCircle,
+  XCircle,
+  User,
+  Building2,
+  Mail,
   Phone,
   AlertTriangle,
   RefreshCw,
   MessageSquare,
   Shield,
   ExternalLink,
-} from "lucide-react";
-import { AdminConnectionRequest } from "@/types/admin";
-import { User as AdminUsersUser } from "@/types/admin-users";
-import { useUnreadMessageCounts } from "@/hooks/use-connection-messages";
-import { ConnectionRequestActions } from "./ConnectionRequestActions";
-import { LeadRequestActions } from "./LeadRequestActions";
-import { SourceBadge } from "./SourceBadge";
-import { SourceLeadContext } from "./SourceLeadContext";
-import { SourceFilter } from "./SourceFilter";
-import { BuyerProfileHoverCard } from "./BuyerProfileHoverCard";
-import { ExpandableBusinessProfile } from "./ExpandableBusinessProfile";
+} from 'lucide-react';
+import { AdminConnectionRequest } from '@/types/admin';
+import { User as AdminUsersUser } from '@/types/admin-users';
+import { useUnreadMessageCounts } from '@/hooks/use-connection-messages';
+import { ConnectionRequestActions } from './ConnectionRequestActions';
+import { LeadRequestActions } from './LeadRequestActions';
+import { SourceBadge } from './SourceBadge';
+import { SourceLeadContext } from './SourceLeadContext';
+import { SourceFilter } from './SourceFilter';
+import { BuyerProfileHoverCard } from './BuyerProfileHoverCard';
+import { ExpandableBusinessProfile } from './ExpandableBusinessProfile';
 import { EnhancedBuyerProfile } from './EnhancedBuyerProfile';
 import { AssociatedContactsDisplay } from './AssociatedContactsDisplay';
 import { getBuyerTier } from '@/lib/buyer-metrics';
-import { processUrl, extractDomainFromEmail, mapRoleToBuyerType, getLeadTierInfo } from '@/lib/url-utils';
+import {
+  processUrl,
+  extractDomainFromEmail,
+  mapRoleToBuyerType,
+  getLeadTierInfo,
+} from '@/lib/url-utils';
 import { DuplicateChannelWarning } from './DuplicateChannelWarning';
 import { MessageConflictDisplay } from './MessageConflictDisplay';
 import { ConnectionRequestFirmBadge } from './ConnectionRequestFirmBadge';
-import { useUpdateConnectionRequestStatus } from "@/hooks/admin/use-connection-request-status";
-import { useToast } from "@/hooks/use-toast";
+import { BuyerTierBadge, BuyerFitScoreBadge, PlatformSignalBadge } from './BuyerFitScoreBadge';
+import { useUpdateConnectionRequestStatus } from '@/hooks/admin/use-connection-request-status';
+import { useToast } from '@/hooks/use-toast';
 
 // Enhanced company name formatting with real company in bold and clickable listing
-const formatEnhancedCompanyName = (title: string, companyName?: string | null, listingId?: string) => {
-  const content = companyName && companyName.trim() ? (
-    <span>
-      {title.split('/')[0]}/<span className="font-semibold">{companyName.trim()}</span>
-    </span>
-  ) : (
-    <span>{title}</span>
-  );
+const formatEnhancedCompanyName = (
+  title: string,
+  companyName?: string | null,
+  listingId?: string,
+) => {
+  const content =
+    companyName && companyName.trim() ? (
+      <span>
+        {title.split('/')[0]}/<span className="font-semibold">{companyName.trim()}</span>
+      </span>
+    ) : (
+      <span>{title}</span>
+    );
 
   if (listingId) {
     return (
@@ -78,40 +89,70 @@ const formatEnhancedCompanyName = (title: string, companyName?: string | null, l
 // Buyer type abbreviations - comprehensive mapping
 const getBuyerTypeAbbreviation = (buyerType: string): string => {
   if (!buyerType) return 'Buyer';
-  
+
   const normalized = buyerType.toLowerCase().replace(/[^a-z]/g, '');
-  
+
   switch (normalized) {
-    case 'privateequity': return 'PE';
-    case 'familyoffice': return 'FO';
-    case 'searchfund': return 'SF';
-    case 'corporate': return 'Corp';
-    case 'individual': return 'Individual';
-    case 'independentsponsor': return 'IS';
-    default: return 'Buyer';
+    case 'privateequity':
+      return 'PE';
+    case 'familyoffice':
+      return 'FO';
+    case 'searchfund':
+      return 'SF';
+    case 'corporate':
+      return 'Corp';
+    case 'individual':
+      return 'Individual';
+    case 'independentsponsor':
+      return 'IS';
+    default:
+      return 'Buyer';
   }
 };
 
-// Clean Tier Display Component (Apple/Stripe style)
-const CleanTierDisplay = ({ user, leadRole }: { user: any; leadRole?: string }) => {
-  const tierInfo = user 
-    ? getBuyerTier(user)
-    : getLeadTierInfo(leadRole);
-    
-  // For requests with user_id, use buyer_type from user profile
-  // For lead-only requests, use lead_role and map it
-  const buyerTypeAbbrev = user 
+// Clean Tier Display Component — shows Buyer Fit Score tier when available,
+// falls back to the legacy buyer-type-based tier.
+const CleanTierDisplay = ({
+  user,
+  leadRole,
+  request,
+}: {
+  user: any;
+  leadRole?: string;
+  request?: AdminConnectionRequest;
+}) => {
+  // If we have a buyer fit tier (from scoring system), show that instead
+  const fitTier = request?.deal_specific_buyer_tier ?? user?.buyer_fit_tier;
+  const fitScore = request?.deal_specific_buyer_score ?? user?.buyer_fit_score;
+  const platformSignal = request?.deal_specific_platform_signal || user?.platform_signal_detected;
+
+  if (fitTier) {
+    return (
+      <div className="flex items-center gap-1">
+        <BuyerTierBadge tier={fitTier} size="sm" showLabel={false} />
+        {fitScore != null && <BuyerFitScoreBadge score={fitScore} tier={fitTier} size="sm" />}
+        {platformSignal && (
+          <PlatformSignalBadge detected={platformSignal} source={user?.platform_signal_source} />
+        )}
+      </div>
+    );
+  }
+
+  // Legacy fallback: buyer-type-based tier
+  const tierInfo = user ? getBuyerTier(user) : getLeadTierInfo(leadRole);
+
+  const buyerTypeAbbrev = user
     ? getBuyerTypeAbbreviation(user?.buyer_type || '')
     : mapRoleToBuyerType(leadRole);
-  
+
   return (
     <div className="flex items-center gap-1.5">
-      <span className={`text-xs font-medium ${tierInfo.color} px-1.5 py-0.5 rounded-sm bg-background border border-current/20`}>
+      <span
+        className={`text-xs font-medium ${tierInfo.color} px-1.5 py-0.5 rounded-sm bg-background border border-current/20`}
+      >
         {tierInfo.badge}
       </span>
-      <span className="text-xs font-medium text-muted-foreground">
-        {buyerTypeAbbrev}
-      </span>
+      <span className="text-xs font-medium text-muted-foreground">{buyerTypeAbbrev}</span>
     </div>
   );
 };
@@ -150,8 +191,12 @@ const ConnectionRequestsTableEmpty = () => (
   <Card>
     <CardContent className="flex flex-col items-center justify-center py-16">
       <MessageSquare className="h-16 w-16 text-muted-foreground mb-4" />
-      <h3 className="text-xl font-semibold text-muted-foreground mb-2">No connection requests found</h3>
-      <p className="text-sm text-muted-foreground">Connection requests will appear here when users submit them.</p>
+      <h3 className="text-xl font-semibold text-muted-foreground mb-2">
+        No connection requests found
+      </h3>
+      <p className="text-sm text-muted-foreground">
+        Connection requests will appear here when users submit them.
+      </p>
     </CardContent>
   </Card>
 );
@@ -163,34 +208,34 @@ const StatusBadge = ({ status }: { status: string }) => {
         return {
           variant: 'default' as const,
           className: 'bg-success/10 text-success border-success/20',
-          icon: <CheckCircle className="h-3 w-3 mr-1" />
+          icon: <CheckCircle className="h-3 w-3 mr-1" />,
         };
       case 'rejected':
         return {
           variant: 'destructive' as const,
           className: 'bg-destructive/10 text-destructive border-destructive/20',
-          icon: <XCircle className="h-3 w-3 mr-1" />
+          icon: <XCircle className="h-3 w-3 mr-1" />,
         };
       case 'on_hold':
         return {
           variant: 'secondary' as const,
           className: 'bg-warning/10 text-warning border-warning/20',
-          icon: <AlertTriangle className="h-3 w-3 mr-1" />
+          icon: <AlertTriangle className="h-3 w-3 mr-1" />,
         };
       default:
         return {
           variant: 'secondary' as const,
           className: 'bg-muted/50 text-muted-foreground border-border',
-          icon: <Clock className="h-3 w-3 mr-1" />
+          icon: <Clock className="h-3 w-3 mr-1" />,
         };
     }
   };
 
   const config = getStatusConfig(status);
-  
-  const displayText = status === 'on_hold' ? 'On Hold' : 
-                     status.charAt(0).toUpperCase() + status.slice(1);
-  
+
+  const displayText =
+    status === 'on_hold' ? 'On Hold' : status.charAt(0).toUpperCase() + status.slice(1);
+
   return (
     <Badge variant={config.variant} className={`text-xs ${config.className}`}>
       {config.icon}
@@ -212,19 +257,23 @@ const RequestDetails = ({ request }: { request: AdminConnectionRequest }) => {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Enhanced Buyer Information - handle lead-only requests */}
         <div className="space-y-3">
-         {request.user ? (
+          {request.user ? (
             <EnhancedBuyerProfile user={request.user} />
           ) : (
             <div className="space-y-3">
               <div className="flex items-center gap-2 pb-1 border-b border-border/40">
                 <User className="h-3.5 w-3.5 text-muted-foreground" />
                 <span className="text-xs font-semibold text-card-foreground">Lead Information</span>
-                <Badge variant="outline" className="text-xs">Lead-Only Request</Badge>
+                <Badge variant="outline" className="text-xs">
+                  Lead-Only Request
+                </Badge>
               </div>
               <div className="space-y-2 pl-1">
                 <div className="flex items-center justify-between">
                   <span className="text-xs text-muted-foreground">Name</span>
-                  <span className="text-xs font-medium text-foreground">{request.lead_name || 'Unknown'}</span>
+                  <span className="text-xs font-medium text-foreground">
+                    {request.lead_name || 'Unknown'}
+                  </span>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-xs text-muted-foreground">Email</span>
@@ -256,7 +305,7 @@ const RequestDetails = ({ request }: { request: AdminConnectionRequest }) => {
                       <Phone className="h-3 w-3" />
                       Phone
                     </span>
-                    <a 
+                    <a
                       href={`tel:${request.lead_phone}`}
                       className="text-xs font-medium text-primary hover:text-primary/80 transition-colors"
                     >
@@ -281,7 +330,7 @@ const RequestDetails = ({ request }: { request: AdminConnectionRequest }) => {
             </div>
           )}
         </div>
-        
+
         {/* Listing Information */}
         <div className="space-y-3">
           <div className="flex items-center gap-2 pb-1 border-b border-border/40">
@@ -301,11 +350,15 @@ const RequestDetails = ({ request }: { request: AdminConnectionRequest }) => {
             </div>
             <div className="flex items-center justify-between">
               <span className="text-xs text-muted-foreground">Category</span>
-              <span className="text-xs font-medium text-foreground">{request.listing?.category}</span>
+              <span className="text-xs font-medium text-foreground">
+                {request.listing?.category}
+              </span>
             </div>
             <div className="flex items-center justify-between">
               <span className="text-xs text-muted-foreground">Location</span>
-              <span className="text-xs font-medium text-foreground">{request.listing?.location}</span>
+              <span className="text-xs font-medium text-foreground">
+                {request.listing?.location}
+              </span>
             </div>
           </div>
         </div>
@@ -317,24 +370,26 @@ const RequestDetails = ({ request }: { request: AdminConnectionRequest }) => {
       )}
 
       {/* Message Conflict Display - Enhanced to show both messages */}
-      <MessageConflictDisplay 
+      <MessageConflictDisplay
         sourceMetadata={request.source_metadata}
         currentMessage={request.user_message}
         className="mb-4"
       />
 
       {/* Buyer Message - Only show if no conflicts detected */}
-      {request.user_message && !request.source_metadata?.has_duplicate_submission && !request.source_metadata?.is_channel_duplicate && (
-        <div className="space-y-3">
-          <div className="flex items-center gap-2 pb-1 border-b border-border/40">
-            <MessageSquare className="h-3.5 w-3.5 text-muted-foreground" />
-            <span className="text-xs font-semibold text-card-foreground">Buyer Message</span>
+      {request.user_message &&
+        !request.source_metadata?.has_duplicate_submission &&
+        !request.source_metadata?.is_channel_duplicate && (
+          <div className="space-y-3">
+            <div className="flex items-center gap-2 pb-1 border-b border-border/40">
+              <MessageSquare className="h-3.5 w-3.5 text-muted-foreground" />
+              <span className="text-xs font-semibold text-card-foreground">Buyer Message</span>
+            </div>
+            <div className="border border-border/40 rounded-md p-3 bg-background/50">
+              <p className="text-xs text-foreground leading-relaxed">{request.user_message}</p>
+            </div>
           </div>
-          <div className="border border-border/40 rounded-md p-3 bg-background/50">
-            <p className="text-xs text-foreground leading-relaxed">{request.user_message}</p>
-          </div>
-        </div>
-      )}
+        )}
 
       {request.admin_comment && (
         <div className="space-y-2">
@@ -347,18 +402,15 @@ const RequestDetails = ({ request }: { request: AdminConnectionRequest }) => {
           </div>
         </div>
       )}
-      
+
       {/* Source Lead Context and Duplicate Channel Warning */}
       <div className="space-y-3">
         <SourceLeadContext request={request} className="mt-4" />
         <DuplicateChannelWarning sourceMetadata={request.source_metadata} />
       </div>
-      
+
       {/* Associated Contacts Display */}
-      <AssociatedContactsDisplay 
-        connectionRequest={request}
-        className="mt-4"
-      />
+      <AssociatedContactsDisplay connectionRequest={request} className="mt-4" />
     </div>
   );
 };
@@ -378,9 +430,11 @@ function ReactiveRequestCard({
   isSelected?: boolean;
   onSelectionChange?: (checked: boolean) => void;
 }) {
-
   return (
-    <Card className={`border ${isSelected ? 'border-primary/40 bg-primary/[0.02]' : 'border-border/50 hover:border-border'} transition-colors`} data-request-id={request.id}>
+    <Card
+      className={`border ${isSelected ? 'border-primary/40 bg-primary/[0.02]' : 'border-border/50 hover:border-border'} transition-colors`}
+      data-request-id={request.id}
+    >
       <CardContent className="p-6">
         <div className="space-y-4">
           {/* Header */}
@@ -394,52 +448,61 @@ function ReactiveRequestCard({
                 onClick={(e) => e.stopPropagation()}
               />
               <div className="space-y-2">
-              <div className="flex items-center gap-3 flex-wrap">
-                {request.user ? (
-                  <BuyerProfileHoverCard user={request.user as unknown as AdminUsersUser}>
-                    <h3 className="font-semibold cursor-pointer hover:text-primary transition-colors">
-                      {request.user?.first_name} {request.user?.last_name}
-                    </h3>
-                  </BuyerProfileHoverCard>
-                ) : (
+                <div className="flex items-center gap-3 flex-wrap">
+                  {request.user ? (
+                    <BuyerProfileHoverCard user={request.user as unknown as AdminUsersUser}>
+                      <h3 className="font-semibold cursor-pointer hover:text-primary transition-colors">
+                        {request.user?.first_name} {request.user?.last_name}
+                      </h3>
+                    </BuyerProfileHoverCard>
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <h3 className="font-semibold text-foreground">
+                        {request.lead_name ||
+                          (request.source_metadata as Record<string, string> | undefined)
+                            ?.lead_name ||
+                          'Lead Contact'}
+                      </h3>
+                      <Badge variant="outline" className="text-xs">
+                        Lead-Only
+                      </Badge>
+                    </div>
+                  )}
+                  <CleanTierDisplay
+                    user={request.user}
+                    leadRole={request.lead_role}
+                    request={request}
+                  />
+                  <StatusBadge status={request.status} />
+                  <SourceBadge source={request.source || 'marketplace'} />
+                  <ConnectionRequestFirmBadge requestId={request.id} compact={true} />
+                </div>
+                <div className="text-sm text-muted-foreground space-y-1">
                   <div className="flex items-center gap-2">
-                    <h3 className="font-semibold text-foreground">
-                      {request.lead_name || (request.source_metadata as Record<string, string> | undefined)?.lead_name || 'Lead Contact'}
-                    </h3>
-                    <Badge variant="outline" className="text-xs">Lead-Only</Badge>
-                  </div>
-                )}
-                <CleanTierDisplay user={request.user} leadRole={request.lead_role} />
-                <StatusBadge status={request.status} />
-                <SourceBadge source={request.source || 'marketplace'} />
-                <ConnectionRequestFirmBadge requestId={request.id} compact={true} />
-              </div>
-               <div className="text-sm text-muted-foreground space-y-1">
-                 <div className="flex items-center gap-2">
-                   <Mail className="h-3 w-3" />
-                   <div className="flex items-center gap-2">
-                     <a 
-                       href={`mailto:${request.user?.email || request.lead_email}`}
-                       target="_blank"
-                       rel="noopener noreferrer"
-                       className="hover:text-primary transition-colors flex items-center gap-1 group"
-                     >
-                       {request.user?.email || request.lead_email}
-                       <ExternalLink className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity" />
-                     </a>
-                     {(request.user?.website || request.lead_company) && (
-                       <span className="text-muted-foreground/60">•</span>
-                     )}
-                     {request.user?.website && (
-                       <a
-                         href={processUrl(request.user.website)}
-                         target="_blank"
-                         rel="noopener noreferrer"
-                         className="text-primary hover:text-primary/80 transition-colors text-xs"
+                    <Mail className="h-3 w-3" />
+                    <div className="flex items-center gap-2">
+                      <a
+                        href={`mailto:${request.user?.email || request.lead_email}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="hover:text-primary transition-colors flex items-center gap-1 group"
+                      >
+                        {request.user?.email || request.lead_email}
+                        <ExternalLink className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity" />
+                      </a>
+                      {(request.user?.website || request.lead_company) && (
+                        <span className="text-muted-foreground/60">•</span>
+                      )}
+                      {request.user?.website && (
+                        <a
+                          href={processUrl(request.user.website)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-primary hover:text-primary/80 transition-colors text-xs"
                         >
                           {request.user?.company || 'Company'}
                         </a>
-                     )}
+                      )}
                       {!request.user?.website && request.lead_company && (
                         <a
                           href={extractDomainFromEmail(request.lead_email)}
@@ -451,26 +514,25 @@ function ReactiveRequestCard({
                           <ExternalLink className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity" />
                         </a>
                       )}
-                   </div>
-                 </div>
+                    </div>
+                  </div>
                   <div className="flex items-center gap-2">
                     <Building2 className="h-3 w-3" />
-                    {formatEnhancedCompanyName(request.listing?.title || "", request.listing?.internal_company_name, request.listing?.id)}
+                    {formatEnhancedCompanyName(
+                      request.listing?.title || '',
+                      request.listing?.internal_company_name,
+                      request.listing?.id,
+                    )}
                   </div>
-               </div>
-             </div>
+                </div>
+              </div>
             </div>
-            
+
             <div className="flex items-center gap-2">
               <span className="text-xs text-muted-foreground">
                 {format(new Date(request.created_at), 'MMM d, yyyy')}
               </span>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={onToggleExpanded}
-                className="h-8 w-8 p-0"
-              >
+              <Button variant="ghost" size="sm" onClick={onToggleExpanded} className="h-8 w-8 p-0">
                 {isExpanded ? (
                   <ChevronUp className="h-4 w-4" />
                 ) : (
@@ -492,7 +554,10 @@ function ReactiveRequestCard({
 
           {/* Expanded Content */}
           {isExpanded && (
-            <div className="space-y-6 pt-4 border-t border-border/50" onClick={(e) => e.stopPropagation()}>
+            <div
+              className="space-y-6 pt-4 border-t border-border/50"
+              onClick={(e) => e.stopPropagation()}
+            >
               {/* Connection Request Actions */}
               {request.user ? (
                 <ConnectionRequestActions
@@ -532,20 +597,21 @@ export default function ConnectionRequestsTable({
   onRefresh,
   showSourceFilter = false,
   selectedSources = [],
-  onSourcesChange
+  onSourcesChange,
 }: ConnectionRequestsTableProps) {
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [showBulkRejectDialog, setShowBulkRejectDialog] = useState(false);
-  const [bulkRejectNote, setBulkRejectNote] = useState("");
+  const [bulkRejectNote, setBulkRejectNote] = useState('');
   const { data: unreadCounts } = useUnreadMessageCounts();
   const updateStatus = useUpdateConnectionRequestStatus();
   const { toast } = useToast();
 
   // Filter requests by selected sources
-  const filteredRequests = selectedSources.length > 0 
-    ? requests.filter(req => selectedSources.includes(req.source || 'marketplace'))
-    : requests;
+  const filteredRequests =
+    selectedSources.length > 0
+      ? requests.filter((req) => selectedSources.includes(req.source || 'marketplace'))
+      : requests;
 
   const toggleExpanded = (requestId: string) => {
     const newExpanded = new Set(expandedRows);
@@ -575,7 +641,7 @@ export default function ConnectionRequestsTable({
     }
   };
 
-  const handleBulkAction = async (status: "approved" | "rejected", notes?: string) => {
+  const handleBulkAction = async (status: 'approved' | 'rejected', notes?: string) => {
     const ids = Array.from(selectedIds);
     let successCount = 0;
     let errorCount = 0;
@@ -591,12 +657,12 @@ export default function ConnectionRequestsTable({
 
     setSelectedIds(new Set());
     setShowBulkRejectDialog(false);
-    setBulkRejectNote("");
+    setBulkRejectNote('');
 
-    const label = status === "approved" ? "approved" : "rejected";
+    const label = status === 'approved' ? 'approved' : 'rejected';
     toast({
       title: `Bulk ${label}`,
-      description: `${successCount} request${successCount !== 1 ? "s" : ""} ${label}${errorCount > 0 ? `, ${errorCount} failed` : ""}.`,
+      description: `${successCount} request${successCount !== 1 ? 's' : ''} ${label}${errorCount > 0 ? `, ${errorCount} failed` : ''}.`,
     });
   };
 
@@ -612,13 +678,15 @@ export default function ConnectionRequestsTable({
     return (
       <Card>
         <CardContent className="flex flex-col items-center justify-center py-16">
-          <SourceFilter 
+          <SourceFilter
             selectedSources={selectedSources}
             onSourcesChange={onSourcesChange || (() => {})}
           />
           <div className="mt-4 text-center">
             <h3 className="text-xl font-semibold text-muted-foreground mb-2">No requests found</h3>
-            <p className="text-sm text-muted-foreground">No connection requests match the selected source filters.</p>
+            <p className="text-sm text-muted-foreground">
+              No connection requests match the selected source filters.
+            </p>
           </div>
         </CardContent>
       </Card>
@@ -645,13 +713,10 @@ export default function ConnectionRequestsTable({
               : `${filteredRequests.length} of ${requests.length} connection request${requests.length !== 1 ? 's' : ''}`}
           </span>
           {showSourceFilter && onSourcesChange && (
-            <SourceFilter 
-              selectedSources={selectedSources}
-              onSourcesChange={onSourcesChange}
-            />
+            <SourceFilter selectedSources={selectedSources} onSourcesChange={onSourcesChange} />
           )}
         </div>
-        
+
         <div className="flex items-center gap-2">
           {onRefresh && (
             <Button variant="outline" size="sm" onClick={onRefresh}>
@@ -666,12 +731,12 @@ export default function ConnectionRequestsTable({
       {someSelected && (
         <div className="sticky top-0 z-20 flex items-center gap-3 rounded-xl border-2 border-primary/20 bg-primary/[0.04] px-5 py-3 shadow-md backdrop-blur-sm">
           <span className="text-sm font-semibold text-foreground">
-            {selectedIds.size} request{selectedIds.size !== 1 ? "s" : ""} selected
+            {selectedIds.size} request{selectedIds.size !== 1 ? 's' : ''} selected
           </span>
           <div className="ml-auto flex items-center gap-2">
             <Button
               size="sm"
-              onClick={() => handleBulkAction("approved")}
+              onClick={() => handleBulkAction('approved')}
               disabled={updateStatus.isPending}
               className="bg-emerald-600 hover:bg-emerald-700 text-white"
             >
@@ -722,7 +787,7 @@ export default function ConnectionRequestsTable({
         count={selectedIds.size}
         note={bulkRejectNote}
         onNoteChange={setBulkRejectNote}
-        onConfirm={() => handleBulkAction("rejected", bulkRejectNote.trim() || undefined)}
+        onConfirm={() => handleBulkAction('rejected', bulkRejectNote.trim() || undefined)}
         isPending={updateStatus.isPending}
       />
     </div>
@@ -752,9 +817,12 @@ function BulkRejectDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle className="text-lg">Reject {count} request{count !== 1 ? "s" : ""}?</DialogTitle>
+          <DialogTitle className="text-lg">
+            Reject {count} request{count !== 1 ? 's' : ''}?
+          </DialogTitle>
           <DialogDescription className="text-sm">
-            All selected buyers will be notified that their connection requests were declined. This action can be undone individually.
+            All selected buyers will be notified that their connection requests were declined. This
+            action can be undone individually.
           </DialogDescription>
         </DialogHeader>
         <Textarea
@@ -774,7 +842,7 @@ function BulkRejectDialog({
             className="bg-red-600 hover:bg-red-700"
           >
             <XCircle className="h-4 w-4 mr-2" />
-            Reject {count} Request{count !== 1 ? "s" : ""}
+            Reject {count} Request{count !== 1 ? 's' : ''}
           </Button>
         </DialogFooter>
       </DialogContent>

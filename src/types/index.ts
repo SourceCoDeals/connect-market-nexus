@@ -3,7 +3,15 @@
 
 export type UserRole = 'admin' | 'buyer';
 
-export type BuyerType = 'corporate' | 'privateEquity' | 'familyOffice' | 'searchFund' | 'individual' | 'independentSponsor' | 'advisor' | 'businessOwner';
+export type BuyerType =
+  | 'corporate'
+  | 'privateEquity'
+  | 'familyOffice'
+  | 'searchFund'
+  | 'individual'
+  | 'independentSponsor'
+  | 'advisor'
+  | 'businessOwner';
 
 export type ApprovalStatus = 'pending' | 'approved' | 'rejected';
 
@@ -175,6 +183,15 @@ export interface User {
   nda_email_sent?: boolean;
   nda_email_sent_at?: string;
 
+  // Buyer Fit Score system
+  buyer_fit_score?: number | null;
+  buyer_fit_tier?: number | null;
+  platform_signal_detected?: boolean;
+  platform_signal_source?: string | null;
+  buyer_fit_score_last_calculated?: string | null;
+  admin_tier_override?: number | null;
+  admin_override_note?: string | null;
+
   // Computed properties (aliases for snake_case properties)
   readonly firstName: string;
   readonly lastName: string;
@@ -297,7 +314,21 @@ export interface PaginationState {
 }
 
 // ── Re-exports from sibling type modules ─────────────────────────────
-export type { AdminListing, CreateListingData, AdminConnectionRequest, AdminStats, AdminActivity } from './admin';
-export type { AnalyticsEvent, FeedbackAnalytics, DailyTrend, TopUser, MarketplaceAnalytics, TestResult, AnalyticsHealth } from './analytics';
+export type {
+  AdminListing,
+  CreateListingData,
+  AdminConnectionRequest,
+  AdminStats,
+  AdminActivity,
+} from './admin';
+export type {
+  AnalyticsEvent,
+  FeedbackAnalytics,
+  DailyTrend,
+  TopUser,
+  MarketplaceAnalytics,
+  TestResult,
+  AnalyticsHealth,
+} from './analytics';
 export type { NonMarketplaceUser, NonMarketplaceUserFilters } from './non-marketplace-user';
 export type { Transcript, WebhookConfig, WebhookDelivery, TranscriptHealth } from './transcript';
