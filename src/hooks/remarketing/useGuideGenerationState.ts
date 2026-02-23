@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { logger } from '@/lib/logger';
 
 interface GuideProgress {
   industryName: string;
@@ -48,12 +49,16 @@ export function useGuideGenerationState(universeId: string | undefined) {
           .maybeSingle();
 
         if (error) {
-          console.error('Error loading guide progress:', error);
+          logger.error('Error loading guide progress', 'useGuideGenerationState', {
+            error: String(error),
+          });
         } else if (data && data.status !== 'completed') {
           setDbProgress(data);
         }
       } catch (e) {
-        console.error('Failed to load guide progress:', e);
+        logger.error('Failed to load guide progress', 'useGuideGenerationState', {
+          error: String(e),
+        });
       } finally {
         setIsLoading(false);
       }
@@ -63,48 +68,55 @@ export function useGuideGenerationState(universeId: string | undefined) {
   }, [universeId]);
 
   // Save progress to database (debounced to avoid too many writes)
-  const saveProgress = useCallback(async (progress: GuideProgress) => {
-    if (!universeId) return;
+  const saveProgress = useCallback(
+    async (progress: GuideProgress) => {
+      if (!universeId) return;
 
-    // Clear any pending save
-    if (saveTimeoutRef.current) {
-      clearTimeout(saveTimeoutRef.current);
-    }
-
-    // Debounce: save after 500ms of no changes
-    saveTimeoutRef.current = setTimeout(async () => {
-      try {
-        const stateData = {
-          universe_id: universeId,
-          status: 'in_progress',
-          current_batch: progress.batchIndex,
-          current_phase: progress.lastPhase || progress.batchIndex,
-          phase_name: progress.lastPhaseId || `batch_${progress.batchIndex}`,
-          saved_content: progress.content,
-          last_error: null,
-          updated_at: new Date().toISOString()
-        };
-
-        // Upsert: insert or update based on universe_id
-        const { data, error } = await supabase
-          .from('remarketing_guide_generation_state')
-          .upsert(stateData, { 
-            onConflict: 'universe_id',
-            ignoreDuplicates: false
-          })
-          .select()
-          .single();
-
-        if (error) {
-          console.error('Error saving guide progress:', error);
-        } else {
-          setDbProgress(data);
-        }
-      } catch (e) {
-        console.error('Failed to save guide progress:', e);
+      // Clear any pending save
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
       }
-    }, 500);
-  }, [universeId]);
+
+      // Debounce: save after 500ms of no changes
+      saveTimeoutRef.current = setTimeout(async () => {
+        try {
+          const stateData = {
+            universe_id: universeId,
+            status: 'in_progress',
+            current_batch: progress.batchIndex,
+            current_phase: progress.lastPhase || progress.batchIndex,
+            phase_name: progress.lastPhaseId || `batch_${progress.batchIndex}`,
+            saved_content: progress.content,
+            last_error: null,
+            updated_at: new Date().toISOString(),
+          };
+
+          // Upsert: insert or update based on universe_id
+          const { data, error } = await supabase
+            .from('remarketing_guide_generation_state')
+            .upsert(stateData, {
+              onConflict: 'universe_id',
+              ignoreDuplicates: false,
+            })
+            .select()
+            .single();
+
+          if (error) {
+            logger.error('Error saving guide progress', 'useGuideGenerationState', {
+              error: String(error),
+            });
+          } else {
+            setDbProgress(data);
+          }
+        } catch (e) {
+          logger.error('Failed to save guide progress', 'useGuideGenerationState', {
+            error: String(e),
+          });
+        }
+      }, 500);
+    },
+    [universeId],
+  );
 
   // Mark generation as completed and clear progress
   const markCompleted = useCallback(async () => {
@@ -113,16 +125,18 @@ export function useGuideGenerationState(universeId: string | undefined) {
     try {
       await supabase
         .from('remarketing_guide_generation_state')
-        .update({ 
+        .update({
           status: 'completed',
           saved_content: null,
-          updated_at: new Date().toISOString()
+          updated_at: new Date().toISOString(),
         })
         .eq('universe_id', universeId);
 
       setDbProgress(null);
     } catch (e) {
-      console.error('Failed to mark guide as completed:', e);
+      logger.error('Failed to mark guide as completed', 'useGuideGenerationState', {
+        error: String(e),
+      });
     }
   }, [universeId]);
 
@@ -143,25 +157,29 @@ export function useGuideGenerationState(universeId: string | undefined) {
   }, [universeId]);
 
   // Save error state
-  const saveError = useCallback(async (error: { message: string; batch?: number; wordCount?: number }) => {
-    if (!universeId) return;
+  const saveError = useCallback(
+    async (error: { message: string; batch?: number; wordCount?: number }) => {
+      if (!universeId) return;
 
-    try {
-      await supabase
-        .from('remarketing_guide_generation_state')
-        .upsert({
-          universe_id: universeId,
-          status: 'error',
-          last_error: error,
-          updated_at: new Date().toISOString()
-        }, { 
-          onConflict: 'universe_id',
-          ignoreDuplicates: false 
-        });
-    } catch (e) {
-      console.error('Failed to save error state:', e);
-    }
-  }, [universeId]);
+      try {
+        await supabase.from('remarketing_guide_generation_state').upsert(
+          {
+            universe_id: universeId,
+            status: 'error',
+            last_error: error,
+            updated_at: new Date().toISOString(),
+          },
+          {
+            onConflict: 'universe_id',
+            ignoreDuplicates: false,
+          },
+        );
+      } catch (e) {
+        console.error('Failed to save error state:', e);
+      }
+    },
+    [universeId],
+  );
 
   // Convert DB state to GuideProgress format for resume
   const getResumableProgress = useCallback((): GuideProgress | null => {
@@ -175,7 +193,7 @@ export function useGuideGenerationState(universeId: string | undefined) {
       content: dbProgress.saved_content,
       lastPhaseId: dbProgress.phase_name || undefined,
       lastPhase: dbProgress.current_phase || undefined,
-      wordCount: dbProgress.saved_content.split(/\s+/).length
+      wordCount: dbProgress.saved_content.split(/\s+/).length,
     };
   }, [dbProgress]);
 
@@ -195,6 +213,6 @@ export function useGuideGenerationState(universeId: string | undefined) {
     markCompleted,
     clearProgress,
     saveError,
-    getResumableProgress
+    getResumableProgress,
   };
 }
