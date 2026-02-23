@@ -249,21 +249,35 @@ async function sendBuyerSignedDocNotification(
       ? `You can download your signed copy from your Profile → Documents tab, or use this link: ${signedDocUrl}`
       : `You can view your signed documents in your Profile → Documents tab.`;
 
-    for (const member of members) {
-      // User notification
-      await supabase.from('user_notifications').insert({
-        user_id: member.user_id,
-        notification_type: 'agreement_signed',
-        title: `${docLabel} Signed Successfully`,
-        message: `Your ${docLabel} has been signed and recorded. ${downloadNote}`,
-        metadata: {
-          firm_id: firmId,
-          document_type: docLabel.toLowerCase().replace(/ /g, '_'),
-          signed_document_url: signedDocUrl || null,
-        },
-      });
+    const docType = docLabel.toLowerCase().replace(/ /g, '_');
 
-      // System messages in all active connection request threads
+    for (const member of members) {
+      // Dedup: skip if notification already exists within 5 min window
+      const { data: existingNotif } = await supabase
+        .from('user_notifications')
+        .select('id')
+        .eq('user_id', member.user_id)
+        .eq('notification_type', 'agreement_signed')
+        .eq('title', `${docLabel} Signed Successfully`)
+        .gte('created_at', new Date(Date.now() - 5 * 60 * 1000).toISOString())
+        .limit(1)
+        .maybeSingle();
+
+      if (!existingNotif) {
+        await supabase.from('user_notifications').insert({
+          user_id: member.user_id,
+          notification_type: 'agreement_signed',
+          title: `${docLabel} Signed Successfully`,
+          message: `Your ${docLabel} has been signed and recorded. ${downloadNote}`,
+          metadata: {
+            firm_id: firmId,
+            document_type: docType,
+            signed_document_url: signedDocUrl || null,
+          },
+        });
+      }
+
+      // System messages — dedup by checking for recent system message with same doc type
       const { data: activeRequests } = await supabase
         .from('connection_requests')
         .select('id')
@@ -276,17 +290,30 @@ async function sendBuyerSignedDocNotification(
           ? `✅ Your ${docLabel} has been signed successfully. For your compliance records, you can download the signed copy here: ${signedDocUrl}\n\nA copy is also permanently available in your Profile → Documents tab.`
           : `✅ Your ${docLabel} has been signed successfully. A copy is available in your Profile → Documents tab.`;
 
-        const messageInserts = activeRequests.map((req: any) => ({
-          connection_request_id: req.id,
-          sender_role: 'admin',
-          sender_id: null,
-          body: messageBody,
-          message_type: 'system',
-          is_read_by_admin: true,
-          is_read_by_buyer: false,
-        }));
+        for (const req of activeRequests) {
+          // Check if system message already exists for this connection + doc type
+          const { data: existingMsg } = await supabase
+            .from('connection_messages')
+            .select('id')
+            .eq('connection_request_id', req.id)
+            .eq('message_type', 'system')
+            .ilike('body', `%Your ${docLabel} has been signed%`)
+            .gte('created_at', new Date(Date.now() - 5 * 60 * 1000).toISOString())
+            .limit(1)
+            .maybeSingle();
 
-        await supabase.from('connection_messages').insert(messageInserts);
+          if (!existingMsg) {
+            await supabase.from('connection_messages').insert({
+              connection_request_id: req.id,
+              sender_role: 'admin',
+              sender_id: null,
+              body: messageBody,
+              message_type: 'system',
+              is_read_by_admin: true,
+              is_read_by_buyer: false,
+            });
+          }
+        }
       }
     }
     console.log(`📨 Sent signed doc notifications to ${members.length} buyer(s) for ${docLabel}`);
