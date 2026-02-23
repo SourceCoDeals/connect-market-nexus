@@ -44,9 +44,9 @@ export function DocuSealSigningPanel({
               <CheckCircle className="h-8 w-8 text-green-600" />
             </div>
             <div>
-              <h3 className="text-lg font-semibold text-green-800">Document Signed</h3>
+              <h3 className="text-lg font-semibold text-green-800">NDA signed — you're in.</h3>
               <p className="text-sm text-green-600 mt-1">
-                Thank you for signing. You can now access the marketplace.
+                Full access unlocked. You can now view deal details across the marketplace.
               </p>
             </div>
           </div>

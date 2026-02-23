@@ -1,6 +1,10 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import ConnectionRequestDialog from "@/components/connection/ConnectionRequestDialog";
+import { FeeAgreementGate } from "@/components/docuseal/FeeAgreementGate";
+import { useMyAgreementStatus } from "@/hooks/use-agreement-status";
+import { useAuth } from "@/context/AuthContext";
+import { useBuyerNdaStatus } from "@/hooks/admin/use-docuseal";
 import { useRealtime } from "@/components/realtime/RealtimeProvider";
 import { Send } from "lucide-react";
 
@@ -24,7 +28,11 @@ const ConnectionButton = ({
   listingId: _listingId,
 }: ConnectionButtonProps) => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [showFeeGate, setShowFeeGate] = useState(false);
   const { connectionsConnected: _connectionsConnected } = useRealtime();
+  const { user } = useAuth();
+  const { data: coverage } = useMyAgreementStatus(!isAdmin && !!user);
+  const { data: ndaStatus } = useBuyerNdaStatus(!isAdmin ? user?.id : undefined);
 
   const handleDialogSubmit = (message: string) => {
     handleRequestConnection(message);
@@ -33,7 +41,12 @@ const ConnectionButton = ({
 
   const handleButtonClick = () => {
     if (!connectionExists || connectionStatus === "rejected") {
-      setIsDialogOpen(true);
+      // Check fee agreement coverage before opening dialog
+      if (!isAdmin && coverage && !coverage.fee_covered) {
+        setShowFeeGate(true);
+      } else {
+        setIsDialogOpen(true);
+      }
     }
   };
 
@@ -111,6 +124,16 @@ const ConnectionButton = ({
           <Send className="h-3.5 w-3.5" />
           {isRequesting ? "Sending request..." : "Explore other opportunities"}
         </Button>
+
+        {showFeeGate && user && ndaStatus?.firmId && (
+          <FeeAgreementGate
+            userId={user.id}
+            firmId={ndaStatus.firmId}
+            listingTitle={listingTitle}
+            onSigned={() => { setShowFeeGate(false); setIsDialogOpen(true); }}
+            onDismiss={() => setShowFeeGate(false)}
+          />
+        )}
       </div>
     );
   }
@@ -133,6 +156,16 @@ const ConnectionButton = ({
         isSubmitting={isRequesting}
         listingTitle={listingTitle}
       />
+
+      {showFeeGate && user && ndaStatus?.firmId && (
+        <FeeAgreementGate
+          userId={user.id}
+          firmId={ndaStatus.firmId}
+          listingTitle={listingTitle}
+          onSigned={() => { setShowFeeGate(false); setIsDialogOpen(true); }}
+          onDismiss={() => setShowFeeGate(false)}
+        />
+      )}
     </div>
   );
 };

@@ -111,26 +111,30 @@ serve(async (req: Request) => {
       const safeRecipientName = recipientName.replace(/<[^>]*>/g, "");
 
       // Build reminder email
+      const siteUrl = Deno.env.get("SITE_URL") || "https://marketplace.sourcecodeals.com";
+
       const subject =
         reminderType === "3-day"
-          ? `Reminder: NDA Pending — ${safeFirmName} | SourceCo`
-          : `Action Required: NDA Still Pending — ${safeFirmName} | SourceCo`;
+          ? `Your NDA is still unsigned — here's the link`
+          : `Still waiting on your NDA — can we help?`;
 
       const htmlContent =
         reminderType === "3-day"
-          ? `<div style="font-family: Arial, sans-serif; color: #333; line-height: 1.6;">
+          ? `<div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; color: #333; line-height: 1.6; max-width: 600px; margin: 0 auto; padding: 20px;">
               <p>Hi ${safeRecipientName},</p>
-              <p>This is a friendly reminder that your NDA for <strong>${safeFirmName}</strong> is still pending signature.</p>
-              <p>Please check your email for the DocuSeal signing link, or reply to this email if you have any questions.</p>
-              <br>
-              <p>Best regards,<br><strong>SourceCo Team</strong></p>
+              <p>You were approved for SourceCo a few days ago but your NDA hasn't been signed yet. Until it is, you can't view deal details or request introductions.</p>
+              <p>It takes about 60 seconds.</p>
+              <p style="margin: 24px 0;"><a href="${siteUrl}/pending-approval" style="display: inline-block; background-color: #1e293b; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-weight: 500;">Sign your NDA</a></p>
+              <p>If you have questions about the agreement or want to modify any terms, just reply to this email.</p>
+              <p style="color: #6b7280; margin-top: 32px;">&mdash; The SourceCo Team</p>
             </div>`
-          : `<div style="font-family: Arial, sans-serif; color: #333; line-height: 1.6;">
+          : `<div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; color: #333; line-height: 1.6; max-width: 600px; margin: 0 auto; padding: 20px;">
               <p>Hi ${safeRecipientName},</p>
-              <p>We noticed the NDA for <strong>${safeFirmName}</strong> hasn't been signed yet. It's been a week since we sent it over.</p>
-              <p>To continue accessing deal information, please sign the NDA at your earliest convenience. If you're experiencing any issues with the signing process, please let us know.</p>
-              <br>
-              <p>Best regards,<br><strong>SourceCo Team</strong></p>
+              <p>It's been a week since your account was approved and your NDA is still unsigned. We want to make sure nothing slipped through.</p>
+              <p>If the agreement looks fine, sign it here (60 seconds):</p>
+              <p style="margin: 24px 0;"><a href="${siteUrl}/pending-approval" style="display: inline-block; background-color: #1e293b; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-weight: 500;">Sign your NDA</a></p>
+              <p>If you have concerns about specific language or want to discuss the terms, reply to this email &mdash; we can work through it.</p>
+              <p style="color: #6b7280; margin-top: 32px;">&mdash; The SourceCo Team</p>
             </div>`;
 
       try {

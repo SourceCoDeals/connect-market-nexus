@@ -1,4 +1,4 @@
-import { Bell, Clock, MessageSquare, FileText, CheckCircle, FolderOpen } from 'lucide-react';
+import { Bell, Clock, MessageSquare, FileText, CheckCircle, FolderOpen, FileSignature } from 'lucide-react';
 import { useUserNotifications, useMarkNotificationAsRead, UserNotification } from '@/hooks/use-user-notifications';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -25,6 +25,8 @@ export function BuyerNotificationBell() {
         return <CheckCircle className="w-4 h-4 text-green-600" />;
       case 'new_message':
         return <MessageSquare className="w-4 h-4 text-primary" />;
+      case 'agreement_pending':
+        return <FileSignature className="w-4 h-4 text-amber-600" />;
       case 'request_created':
         return <Bell className="w-4 h-4 text-blue-500" />;
       default:
@@ -51,6 +53,9 @@ export function BuyerNotificationBell() {
       }
     } else if (n.notification_type === 'new_message' && n.connection_request_id) {
       navigate(`/messages?deal=${n.connection_request_id}`);
+    } else if (n.notification_type === 'agreement_pending') {
+      // Navigate to marketplace where the signing banner will be shown
+      navigate('/marketplace');
     } else if (n.notification_type === 'request_approved' && n.connection_request_id) {
       navigate(`/deals/${n.connection_request_id}`);
     } else if (n.connection_request_id) {

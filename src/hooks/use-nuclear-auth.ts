@@ -302,23 +302,30 @@ export function useNuclearAuth() {
 
     // User signup completed, verification email sent by Supabase
     
-    // Send admin notification about new user registration
+    // Send admin notification and create firm record
     if (data.user) {
-      try {
-        const adminNotificationPayload = {
+      // Run admin notification and firm creation in parallel — both are non-blocking
+      const adminNotificationPromise = supabase.functions.invoke('enhanced-admin-notification', {
+        body: {
           first_name: userData.first_name || '',
           last_name: userData.last_name || '',
           email: userData.email,
-          company: userData.company || ''
-        };
-        
-        await supabase.functions.invoke('enhanced-admin-notification', {
-          body: adminNotificationPayload
-        });
-        // Admin notification sent for new user registration
-      } catch (notificationError) {
-        console.warn('Admin notification failed but user creation succeeded:', notificationError);
-      }
+          company: userData.company || '',
+        },
+      }).catch((err) => {
+        console.warn('Admin notification failed but user creation succeeded:', err);
+      });
+
+      const firmCreationPromise = supabase.functions.invoke('auto-create-firm-on-signup', {
+        body: {
+          userId: data.user.id,
+          company: userData.company || '',
+        },
+      }).catch((err) => {
+        console.warn('Firm creation at signup failed (will retry on pending-approval page):', err);
+      });
+
+      await Promise.allSettled([adminNotificationPromise, firmCreationPromise]);
     }
   };
 

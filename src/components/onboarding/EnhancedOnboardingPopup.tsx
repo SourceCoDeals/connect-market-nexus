@@ -122,8 +122,8 @@ const EnhancedOnboardingPopup = ({ isOpen, onClose, userId }: EnhancedOnboarding
       localStorage.setItem('onboarding_completed', 'true');
       
       toast({
-        title: "Welcome to SourceCo!",
-        description: "You're all set to explore exclusive opportunities.",
+        title: "You're in.",
+        description: "Browse deals, save listings, and request access when you see a fit.",
       });
       
       onClose();

@@ -107,14 +107,10 @@ const Welcome = () => {
         {/* Hero Section */}
         <div className="space-y-3">
           <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight text-foreground leading-tight">
-            Access Off-Market Businesses
-            <span className="block text-muted-foreground font-normal text-base sm:text-lg mt-1">
-              $1M - $50M+ Revenue
-            </span>
+            Access Off-Market Businesses Before They Go to Market
           </h1>
           <p className="text-sm text-muted-foreground leading-relaxed max-w-md">
-            Skip the auction process. Connect directly with business owners considering 
-            a sale - before they go to market.
+            SourceCo sources deals directly from owners in the $1M–$50M revenue range — before they engage a broker or list publicly. Qualified buyers get exclusive, early access.
           </p>
         </div>
 
@@ -133,8 +129,7 @@ const Welcome = () => {
                       I'm Looking to Acquire
                     </h3>
                     <p className="text-xs text-muted-foreground leading-relaxed max-w-sm">
-                      Access curated deal flow from our network of 2,000+ business owners. 
-                      Pre-qualified opportunities with verified financials.
+                      Curated deal flow from 2,000+ business owners — verified financials, complete data rooms, no auction process. Apply for access and we'll review your profile within one business day.
                     </p>
                   </div>
                   <div className="flex-shrink-0 ml-4">
@@ -173,6 +168,12 @@ const Welcome = () => {
               </CardContent>
             </Card>
           </Link>
+        </div>
+
+        {/* Process Preview */}
+        <div className="text-xs text-muted-foreground border border-border/40 rounded-md px-4 py-3">
+          <span className="font-medium text-foreground">How it works: </span>
+          Apply → Verify your email → Admin review → Sign NDA → Browse deals → Request access
         </div>
 
         {/* Bottom Link */}

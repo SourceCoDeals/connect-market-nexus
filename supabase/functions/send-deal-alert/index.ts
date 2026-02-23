@@ -117,8 +117,8 @@ const handler = async (req: Request): Promise<Response> => {
         <body>
           <div class="container">
             <div class="header">
-              <h1>🚨 New Deal Alert</h1>
-              <p>A new opportunity matches your "${alert_name}" criteria</p>
+              <h1>A deal matching your criteria just came in</h1>
+              <p>Alert: ${alert_name} &mdash; matched ${new Date().toLocaleDateString()}</p>
             </div>
             
             <div class="content">
@@ -151,13 +151,15 @@ const handler = async (req: Request): Promise<Response> => {
                 </div>
                 
                 <a href="${Deno.env.get("SITE_URL") ?? "https://marketplace.sourcecodeals.com"}/listing/${listing_data.id}" class="btn">
-                  View Full Details →
+                  View Deal →
                 </a>
               </div>
               
               <p><strong>Why you received this:</strong> This listing matches the criteria you set up in your "${alert_name}" deal alert.</p>
-              
-              <p>Ready to take the next step? Click "View Full Details" to see complete information and request a connection with the seller.</p>
+
+              <p style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 12px; font-size: 14px; color: #475569; margin-top: 16px;">
+                This listing was shared with a small number of buyers who match the seller's criteria. We typically introduce 1–3 buyers — if you're interested, request access soon.
+              </p>
             </div>
             
             <div class="footer">
@@ -185,7 +187,7 @@ const handler = async (req: Request): Promise<Response> => {
       body: JSON.stringify({
         sender: { name: "SourceCo Marketplace", email: Deno.env.get('ADMIN_EMAIL') || "adam.haile@sourcecodeals.com" },
         to: [{ email: user_email, name: user_email.split("@")[0] }],
-        subject: `🚨 New Deal Alert: ${listing_data.title}`,
+        subject: `New deal matches your alert: ${alert_name}`,
         htmlContent: emailHtml,
         params: { trackClicks: false, trackOpens: true },
       }),

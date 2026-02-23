@@ -75,10 +75,9 @@ export function NdaGateModal({ userId, firmId, onSigned }: NdaGateModalProps) {
             <div className="inline-flex p-3 rounded-full bg-primary/10">
               <Shield className="h-8 w-8 text-primary" />
             </div>
-            <h2 id="nda-gate-title" className="text-2xl font-bold">NDA Required</h2>
+            <h2 id="nda-gate-title" className="text-2xl font-bold">Sign Your NDA to View This Deal</h2>
             <p className="text-muted-foreground max-w-md mx-auto">
-              To view deal details, you need to sign a Non-Disclosure Agreement.
-              This protects the confidential information of our deal partners.
+              Deal details — including the business name, real financials, and owner information — are confidential. Your NDA unlocks full access to this deal and every deal on the platform. Sign once, done forever. Takes about 60 seconds.
             </p>
           </div>
 
@@ -105,8 +104,8 @@ export function NdaGateModal({ userId, firmId, onSigned }: NdaGateModalProps) {
             <DocuSealSigningPanel
               embedSrc={embedSrc}
               onCompleted={handleSigned}
-              title="Sign NDA"
-              description="Review and sign the Non-Disclosure Agreement below to continue."
+              title="Review and sign your NDA"
+              description="Standard confidentiality agreement — review and sign below to unlock full access."
             />
           )}
 
@@ -118,7 +117,7 @@ export function NdaGateModal({ userId, firmId, onSigned }: NdaGateModalProps) {
               className="text-muted-foreground"
             >
               <ArrowLeft className="h-4 w-4 mr-2" />
-              Go Back to Listings
+              Back to listings
             </Button>
           </div>
         </div>

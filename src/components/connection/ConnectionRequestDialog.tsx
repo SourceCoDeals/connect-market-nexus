@@ -47,23 +47,23 @@ const ConnectionRequestDialog = ({
         onClick={(e) => e.stopPropagation()}
       >
         <DialogHeader>
-          <DialogTitle className="text-lg font-semibold">Request Connection</DialogTitle>
+          <DialogTitle className="text-lg font-semibold">Request Access to This Deal</DialogTitle>
           <DialogDescription className="text-sm text-muted-foreground">
             {listingTitle && (
-              <>Tell us why you're interested in <strong>{listingTitle}</strong>.</>
+              <>Tell us why you're the right buyer for <strong>{listingTitle}</strong>. We review every request and introduce 1–3 buyers. Your message is your pitch.</>
             )}
-            {!listingTitle && "Tell us why you're interested in this business."}
+            {!listingTitle && "Tell us why you're the right buyer for this business. We review every request and introduce 1–3 buyers. Your message is your pitch."}
           </DialogDescription>
         </DialogHeader>
         
         <div className="space-y-4">
           <div>
             <label htmlFor="message" className="block text-sm font-medium mb-2">
-              Your message *
+              Why you're a strong fit *
             </label>
             <Textarea
               id="message"
-              placeholder="e.g., I have an existing platform and this looks like it could be a good add-on, or I'm actively searching for businesses in this sector..."
+              placeholder="e.g., We operate 3 HVAC businesses in the Southeast and are actively expanding. This business fits our existing infrastructure — we could integrate their ops within 90 days. Our last acquisition closed in Q3 at a similar size and we have capital ready to deploy."
               value={message}
               onChange={(e) => setMessage(e.target.value)}
               rows={4}
@@ -81,9 +81,10 @@ const ConnectionRequestDialog = ({
             </div>
           </div>
           
-          <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
-            <p className="text-sm text-blue-900">
-              <strong>What happens next:</strong> We'll review your request based on your profile and the business owner's criteria. You'll receive a response with further details shortly.
+          <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg space-y-2">
+            <p className="text-sm font-medium text-blue-900">How to get selected:</p>
+            <p className="text-sm text-blue-800">
+              We typically receive 40–50 requests per deal and introduce 1–3 buyers. Strong requests explain your specific fit — your relevant experience, existing platforms, why this business makes sense for you strategically, and your ability to close. Generic messages rarely get selected. Specific ones do.
             </p>
           </div>
         </div>
@@ -102,7 +103,7 @@ const ConnectionRequestDialog = ({
             disabled={isSubmitting || !message.trim() || message.length < 20}
             className="w-full sm:w-auto bg-gradient-to-r from-[#D7B65C] via-[#E5C76A] to-[#D7B65C] text-slate-900 border-0 hover:shadow-lg hover:shadow-[rgba(215,182,92,0.2)] font-semibold"
           >
-            {isSubmitting ? "Submitting..." : "Submit Request"}
+            {isSubmitting ? "Sending..." : "Send Request"}
           </Button>
         </DialogFooter>
       </DialogContent>

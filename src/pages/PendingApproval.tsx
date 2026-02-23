@@ -23,7 +23,30 @@ const PendingApproval = () => {
   const [ndaError, setNdaError] = useState<string | null>(null);
   const [ndaSigned, setNdaSigned] = useState(false);
   
-  const { data: ndaStatus } = useBuyerNdaStatus(user?.id);
+  const { data: ndaStatus, refetch: refetchNdaStatus } = useBuyerNdaStatus(user?.id);
+  const [firmCreationAttempted, setFirmCreationAttempted] = useState(false);
+
+  // Fallback: if firm doesn't exist yet (e.g., signup edge function failed), create it now
+  useEffect(() => {
+    if (!user || firmCreationAttempted) return;
+    if (ndaStatus === undefined) return; // Still loading
+    if (ndaStatus?.hasFirm) return; // Firm already exists
+
+    setFirmCreationAttempted(true);
+
+    supabase.functions.invoke('auto-create-firm-on-signup', {
+      body: { userId: user.id, company: user.company || '' },
+    }).then(({ error }) => {
+      if (!error) {
+        // Firm created — re-fetch NDA status so the signing panel appears
+        refetchNdaStatus();
+      } else {
+        console.warn('Fallback firm creation failed:', error);
+      }
+    }).catch((err) => {
+      console.warn('Fallback firm creation error:', err);
+    });
+  }, [user, ndaStatus, firmCreationAttempted, refetchNdaStatus]);
 
   // Fetch NDA embed src when buyer has a firm but hasn't signed
   useEffect(() => {
@@ -32,7 +55,7 @@ const PendingApproval = () => {
     const fetchNdaEmbed = async () => {
       if (!user || !ndaStatus?.hasFirm || ndaStatus?.ndaSigned || !ndaStatus?.firmId) return;
       if (ndaEmbedSrc || ndaLoading) return;
-      
+
       setNdaLoading(true);
       try {
         const { data, error: fnError } = await supabase.functions.invoke('get-buyer-nda-embed');
@@ -214,14 +237,14 @@ const PendingApproval = () => {
             </div>
             <CardTitle className="text-2xl font-bold text-center">
               {uiState === 'rejected' ? 'Application Not Approved' :
-               uiState === 'approved_pending' ? 'Account Under Review' : 'Email Verification Required'}
+               uiState === 'approved_pending' ? 'Your Application Is Under Review' : 'Check Your Email'}
             </CardTitle>
             <CardDescription className="text-center">
               {uiState === 'rejected'
                 ? 'Unfortunately, your application was not approved at this time'
                 : uiState === 'approved_pending' 
-                  ? 'Your account is pending admin approval'
-                  : `We've sent a verification email to ${user.email}`
+                  ? 'We typically review applications within one business day. You\'ll get an email the moment you\'re approved.'
+                  : `We've sent a verification link to ${user.email}. Click it to continue — check your spam folder if you don't see it within a few minutes.`
               }
             </CardDescription>
           </CardHeader>
@@ -253,11 +276,14 @@ const PendingApproval = () => {
             ) : uiState === 'approved_pending' ? (
               <>
                 <div className="bg-amber-50 border border-amber-200 rounded-md p-4">
-                  <div className="flex gap-3 items-center">
-                    <Clock className="h-5 w-5 text-amber-600 flex-shrink-0" />
-                    <p className="text-amber-800 text-sm">
-                      Your email has been verified successfully. Your account is now waiting for approval from our team. We will notify you by email once your account is approved.
-                    </p>
+                  <div className="flex gap-3 items-start">
+                    <Clock className="h-5 w-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                    <div>
+                      <p className="text-amber-800 text-sm font-medium">While you wait — sign your NDA below.</p>
+                      <p className="text-amber-700 text-xs mt-1">
+                        It covers every deal on the platform and takes about 60 seconds. Buyers who sign before approval get immediate access the moment their account is approved.
+                      </p>
+                    </div>
                   </div>
                 </div>
 
@@ -329,14 +355,29 @@ const PendingApproval = () => {
 
                 {/* NDA Signing Section — shows when firm exists and NDA unsigned */}
                 {ndaStatus?.hasFirm && !ndaStatus?.ndaSigned && !ndaSigned && (
-                  <div className="space-y-3 pt-2">
-                    <div className="flex items-center gap-2 justify-center">
-                      <Shield className="h-4 w-4 text-primary" />
-                      <h4 className="text-sm font-medium">Sign Your NDA</h4>
+                  <div className="space-y-4 pt-2">
+                    <div className="text-center">
+                      <div className="flex items-center gap-2 justify-center">
+                        <Shield className="h-4 w-4 text-primary" />
+                        <h4 className="text-sm font-semibold">One Last Step Before You're In</h4>
+                      </div>
                     </div>
-                    <p className="text-xs text-muted-foreground text-center">
-                      While you wait for approval, you can sign the NDA to speed up your onboarding.
-                    </p>
+
+                    {/* NDA Education Cards */}
+                    <div className="bg-muted/40 border border-border rounded-md p-4">
+                      <h5 className="text-xs font-semibold mb-1">Why we require an NDA</h5>
+                      <p className="text-xs text-muted-foreground leading-relaxed">
+                        Every deal on SourceCo contains confidential information — real financials, real business names, real owner details. Sellers share this with us specifically because we control access carefully. Your NDA is the agreement that allows us to share that information with you. It covers every deal on the platform, so you only need to sign it once.
+                      </p>
+                    </div>
+
+                    <div className="bg-muted/40 border border-border rounded-md p-4">
+                      <h5 className="text-xs font-semibold mb-1">What you're agreeing to</h5>
+                      <p className="text-xs text-muted-foreground leading-relaxed">
+                        You agree to keep deal information confidential and not use it outside of your evaluation of a potential acquisition. Standard language — most buyers sign in under a minute. If you have questions or need to redline anything, reply to your approval email and we'll work through it.
+                      </p>
+                    </div>
+
                     {ndaLoading && (
                       <div className="flex items-center justify-center py-4">
                         <Loader2 className="h-5 w-5 animate-spin text-primary" />
@@ -356,14 +397,23 @@ const PendingApproval = () => {
                         description=""
                       />
                     )}
+
+                    <p className="text-[11px] text-muted-foreground text-center">
+                      Questions about the NDA? Email{' '}
+                      <a href="mailto:adam.haile@sourcecodeals.com" className="text-primary hover:underline">adam.haile@sourcecodeals.com</a>
+                      {' '}— a small percentage of buyers request modifications and we're happy to discuss.
+                    </p>
                   </div>
                 )}
                 {(ndaStatus?.ndaSigned || ndaSigned) && (
-                  <div className="bg-green-50 border border-green-200 rounded-md p-3 text-center">
+                  <div className="bg-green-50 border border-green-200 rounded-md p-4 text-center space-y-1">
                     <div className="flex items-center justify-center gap-2">
                       <CheckCircle className="h-4 w-4 text-green-600" />
-                      <p className="text-sm font-medium text-green-800">NDA Signed ✓</p>
+                      <p className="text-sm font-semibold text-green-800">NDA signed — you're in.</p>
                     </div>
+                    <p className="text-xs text-green-700">
+                      Full access to every deal on the platform — we'll notify you by email the moment your account is approved.
+                    </p>
                   </div>
                 )}
               </>
@@ -379,7 +429,7 @@ const PendingApproval = () => {
                       </div>
                       <div className="flex-1">
                         <p className="text-sm font-medium">Account Created</p>
-                        <p className="text-xs text-muted-foreground">Welcome to SourceCo! ✨</p>
+                        <p className="text-xs text-muted-foreground">Your account has been created</p>
                       </div>
                     </div>
                     <div className="flex items-center gap-3">
@@ -407,16 +457,12 @@ const PendingApproval = () => {
                   <div className="flex gap-3 items-start">
                     <Info className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
                     <div>
-                      <p className="text-sm font-medium">What happens next?</p>
+                      <p className="text-sm font-medium">After you verify:</p>
                       <ol className="text-xs text-muted-foreground mt-2 space-y-1 list-decimal list-inside">
-                        <li>Check your email inbox (and spam folder)</li>
-                        <li>Click the verification link in the email</li>
-                        <li>Your account will be reviewed by our team</li>
-                        <li>You'll receive approval notification via email</li>
+                        <li>We review your profile — usually within one business day</li>
+                        <li>If approved, you'll sign your NDA (takes 60 seconds)</li>
+                        <li>Full access to browse deals and request introductions</li>
                       </ol>
-                      <p className="text-xs text-muted-foreground mt-2">
-                        <strong>Tip:</strong> The verification email usually arrives within 2-3 minutes.
-                      </p>
                     </div>
                   </div>
                 </div>
@@ -427,8 +473,8 @@ const PendingApproval = () => {
               {uiState === 'rejected'
                 ? 'You can create a new account or contact our team to discuss your options.'
                 : uiState === 'approved_pending'
-                  ? 'You will not be able to access the marketplace until your account has been approved. This process typically takes 1-2 business days.'
-                  : 'After verification, our team will review your application. This typically takes 1-2 business days.'
+                  ? 'We aim to review all applications within one business day. Signing your NDA now means you\'ll have full access the moment you\'re approved.'
+                  : 'After verification, our team will review your application — usually within one business day.'
               }
             </div>
           </CardContent>
