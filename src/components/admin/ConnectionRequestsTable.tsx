@@ -503,10 +503,7 @@ function ReactiveRequestCard({
                 <SourceBadge source={request.source || 'marketplace'} />
                 <ConnectionRequestFirmBadge requestId={request.id} compact={true} />
                 {request.user && (
-                  <>
-                    <BuyerTierBadge tier={(request.user as any).buyer_tier} />
-                    <BuyerScoreBadge score={(request.user as any).buyer_quality_score} size="xl" showLabel />
-                  </>
+                  <BuyerTierBadge tier={(request.user as any).buyer_tier} />
                 )}
               </div>
                <div className="text-sm text-muted-foreground space-y-1">
@@ -538,10 +535,16 @@ function ReactiveRequestCard({
              </div>
             </div>
             
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-muted-foreground">
-                {format(new Date(request.created_at), 'MMM d, yyyy')}
-              </span>
+            <div className="flex flex-col items-end gap-1.5">
+              <div className="text-right">
+                <span className="text-[10px] uppercase tracking-wider text-muted-foreground/70 font-medium block leading-none mb-0.5">Submitted</span>
+                <span className="text-xs text-muted-foreground">
+                  {format(new Date(request.created_at), 'MMM d, yyyy')}
+                </span>
+              </div>
+              {request.user && (
+                <BuyerScoreBadge score={(request.user as any).buyer_quality_score} size="md" showLabel />
+              )}
               <Button
                 variant="ghost"
                 size="sm"
