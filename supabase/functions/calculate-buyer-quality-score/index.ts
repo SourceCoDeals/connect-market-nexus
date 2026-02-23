@@ -302,8 +302,84 @@ const handler = async (req: Request): Promise<Response> => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
     );
 
-    const body: ScoreRequest = await req.json();
-    const { profile_id, deal_request_message, connection_request_id } = body;
+    const body = await req.json();
+
+    // ─── BATCH MODE: score all unscored buyers ────────────────────────
+    if (body.batch_all_unscored) {
+      const batchLimit = body.batch_limit || 30;
+      const { data: unscored, error: unscoredErr } = await supabase
+        .from('profiles')
+        .select('id')
+        .is('buyer_quality_score', null)
+        .not('buyer_type', 'is', null)
+        .limit(batchLimit);
+      if (unscoredErr) throw unscoredErr;
+
+      // Also get their latest connection request messages
+      const profileIds = (unscored || []).map((p: any) => p.id);
+      let messageMap: Record<string, string> = {};
+      if (profileIds.length > 0) {
+        const { data: crs } = await supabase
+          .from('connection_requests')
+          .select('user_id, user_message')
+          .in('user_id', profileIds)
+          .order('created_at', { ascending: false });
+        (crs || []).forEach((cr: any) => {
+          if (cr.user_message && !messageMap[cr.user_id]) {
+            messageMap[cr.user_id] = cr.user_message;
+          }
+        });
+      }
+
+      // Score each buyer sequentially (to avoid overwhelming DB)
+      const results: Array<{ id: string; score: number; tier: number }> = [];
+      for (const p of (unscored || [])) {
+        try {
+          const { data: profile } = await supabase.from('profiles').select('*').eq('id', p.id).single();
+          if (!profile) continue;
+
+          let remarketingBuyer: Record<string, unknown> | null = null;
+          const { data: rmBuyers } = await supabase
+            .from('remarketing_buyers')
+            .select('buyer_type, thesis_summary')
+            .or(`primary_contact_email.eq.${profile.email},marketplace_firm_id.not.is.null`)
+            .limit(1);
+          if (rmBuyers && rmBuyers.length > 0) remarketingBuyer = rmBuyers[0] as Record<string, unknown>;
+
+          const c1 = calcBuyerTypeScore(profile.buyer_type, remarketingBuyer?.buyer_type as string | null);
+          const profileTexts = [
+            profile.ideal_target_description || '', profile.specific_business_search || '',
+            profile.mandate_blurb || '', profile.portfolio_company_addon || '',
+            (remarketingBuyer?.thesis_summary as string) || '',
+          ];
+          const platformResult = calcPlatformSignal(messageMap[p.id] || null, profileTexts);
+          const c2 = platformResult.score;
+          const c3 = calcCapitalCredibility(profile);
+          const c4 = calcProfileCompleteness(profile);
+          const totalScore = c1 + c2 + c3 + c4;
+          let tier = determineTier(totalScore);
+          if (profile.admin_tier_override != null) tier = profile.admin_tier_override;
+
+          await supabase.from('profiles').update({
+            buyer_quality_score: totalScore, buyer_tier: tier,
+            platform_signal_detected: platformResult.detected,
+            platform_signal_source: platformResult.source,
+            buyer_quality_score_last_calculated: new Date().toISOString(),
+          }).eq('id', p.id);
+
+          results.push({ id: p.id, score: totalScore, tier });
+        } catch (e) {
+          console.error(`Failed to score ${p.id}:`, e);
+        }
+      }
+
+      return new Response(JSON.stringify({ scored: results.length, results }), {
+        status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // ─── SINGLE MODE ──────────────────────────────────────────────────
+    const { profile_id, deal_request_message, connection_request_id } = body as ScoreRequest;
 
     if (!profile_id) {
       return new Response(JSON.stringify({ error: 'profile_id is required' }), {
