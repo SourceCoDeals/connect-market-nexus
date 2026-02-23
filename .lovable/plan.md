@@ -1,53 +1,78 @@
 
 
-# Redesigned Pipeline Kanban Card
+# Restructure Pipeline Detail Panel Tabs
 
-## Problem
-The current card's bottom status strip uses unlabeled dots and tiny icons that are hard to interpret at a glance. The card needs a full redesign that keeps all required data but uses a cleaner, more scannable layout with labels.
+## Summary
+Replace the current 5-tab layout (Overview, Messages, Data Room, Tasks, Activity) with a new 5-tab layout that better matches the deal workflow.
 
-## New Card Layout
+## New Tab Structure
 
 ```text
-+---------------------------------------+
-| [Company Name]              [Score]   |
-| Rev: $X.XM   EBITDA: $XXK            |
-+---------------------------------------+
-| John Smith              [PE Firm]     |
-| Acme Capital                          |
-| acmecapital.com                       |
-+---------------------------------------+
-| NDA: [dot] Signed   Fee: [dot] Sent  |
-| Memo: [dot] Sent    DR: [dot] Yes    |
-| Mtg: [toggle icon]                   |
-+---------------------------------------+
-| Owner: Jane D.          3h ago        |
-+---------------------------------------+
+| Overview | Deal Overview | Messages | Data Room | Other Buyers |
 ```
 
-## Design Decisions
+### Tab 1: Overview (request status + notes)
+Keep the existing PipelineDetailOverview component but **remove** the "Related Buyers" section and the "Chat Preview" section (since Messages has its own tab). This tab retains:
+- Interest Expression (the original buyer request message + admin notes)
+- Deal Owner selector
+- Contact info sidebar (LinkedIn, email, phone, company, website, buyer type)
+- Follow-up toggles
+- Deal metadata (stage duration, deal age, score)
+- Internal notes/comments system
 
-1. **Header**: Company name + deal score badge on same line, with financials directly below. No separate bordered header -- just bold text at top to reduce visual weight.
+### Tab 2: Deal Overview (the listing/company detail page)
+Create a new `PipelineDetailDealInfo.tsx` component that embeds the core deal information from the ReMarketingDealDetail page, adapted for the panel context. This includes:
+- Company Overview card (name, website, location, employees, industry, etc.)
+- Financial Overview card (Revenue, EBITDA, EBITDA margin with confidence indicators)
+- Executive Summary card
+- Services/Business Model card
+- Geographic Coverage card
+- Owner Goals card
+- Customer Types card
+- Key Quotes card
+- Transcripts section
 
-2. **Buyer block**: Contact name + type badge, company, and website on their own lines. Kept compact with small text.
+All of these already exist as standalone components (`CompanyOverviewCard`, `ExecutiveSummaryCard`, etc.) imported from `@/components/remarketing/deal-detail`. The new tab component will fetch the listing data using the deal's `listing_id` and render these existing cards in a scrollable layout.
 
-3. **Status grid (2x2 + 1)**: Instead of cramming everything on one row, use a small 2-column grid:
-   - Row 1: `NDA: [dot] Signed` | `Fee: [dot] Sent`  
-   - Row 2: `Memo: [dot] Sent` | `DR: [dot] Yes`
-   - Row 3: `Mtg: [icon toggle]`
-   
-   Each item gets a short label + colored dot/icon so it's instantly readable. The dots use the same color scheme (emerald=signed, amber=sent, red=declined, grey=none).
+### Tab 3: Messages (unchanged)
+Keep `PipelineDetailMessages` as-is -- the direct message thread with the buyer.
 
-4. **Footer**: Owner name left-aligned, last activity right-aligned. Single line.
+### Tab 4: Data Room (unchanged)
+Keep `PipelineDetailDataRoom` as-is -- NDA/Fee Agreement access control, distribution tracker, and document activity.
 
-5. **Special states preserved**: Priority target (amber border), needs owner contact (red header tint), drag state.
+### Tab 5: Other Buyers
+Create a new `PipelineDetailOtherBuyers.tsx` component. Move and expand the "Related Buyers" logic currently in PipelineDetailOverview into its own dedicated tab. This will show all other deals for the same listing with richer detail:
+- Buyer name, company, type
+- Current pipeline stage
+- NDA and Fee Agreement status
+- Deal owner
+- Last activity timestamp
 
-## Technical Changes
+## Technical Details
 
-**File: `src/components/admin/pipeline/views/PipelineKanbanCard.tsx`**
-- Full rewrite of the JSX return block
-- Replace the single-row icon strip with a labeled 2-column grid using `grid grid-cols-2 gap-x-4 gap-y-0.5`
-- Each status item: `<span class="text-[10px]">NDA <dot class="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500" /> Signed</span>`
-- Meeting toggle remains a clickable button with label "Mtg"
-- Keep all existing logic (formatting, click handlers, drag-and-drop) unchanged
-- Slightly tighten padding throughout for a compact but readable result
+### Files to Create
+1. **`src/components/admin/pipeline/tabs/PipelineDetailDealInfo.tsx`**
+   - Accepts `deal: Deal` prop
+   - Fetches full listing data from `listings` table using `deal.listing_id`
+   - Renders the existing remarketing deal-detail cards (CompanyOverviewCard, ExecutiveSummaryCard, etc.)
+   - Read-only view adapted for the 900px panel width (single column layout instead of the full-page grid)
+
+2. **`src/components/admin/pipeline/tabs/PipelineDetailOtherBuyers.tsx`**
+   - Accepts `deal: Deal` prop
+   - Queries `deals` table for all deals with the same `listing_id` (excluding current deal)
+   - Joins with `deal_stages` for stage names
+   - Shows each buyer in a card with: name, company, buyer type, stage, NDA/Fee status, owner, last activity
+   - Empty state when no other buyers exist
+
+### Files to Modify
+1. **`src/components/admin/pipeline/PipelineDetailPanel.tsx`**
+   - Replace the 5-tab TabsList from `grid-cols-5` with the new tab order
+   - Import and wire up the two new components
+   - Remove Tasks and Activity tab content
+   - Rename tab triggers: "Overview", "Deal Overview", "Messages", "Data Room", "Other Buyers"
+
+2. **`src/components/admin/pipeline/tabs/PipelineDetailOverview.tsx`**
+   - Remove the "Related Buyers" section (moved to its own tab)
+   - Remove the "Chat Preview" section (redundant with Messages tab)
+   - Keep everything else: interest expression, notes, sidebar with owner/contact/followup/metadata
 
