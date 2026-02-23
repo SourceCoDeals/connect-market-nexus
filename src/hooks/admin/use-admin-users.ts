@@ -20,6 +20,7 @@ export function useAdminUsers() {
           .from('profiles')
           .select('*')
           .is('deleted_at', null)
+          .eq('is_admin', false)
           .order('created_at', { ascending: false });
 
         if (profilesError) {
