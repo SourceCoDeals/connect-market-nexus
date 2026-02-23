@@ -341,13 +341,14 @@ async function createAdminNotification(
   status: string,
 ) {
   try {
-    // Get all admin user IDs
-    const { data: admins } = await supabase
-      .from("profiles")
-      .select("id")
-      .eq("role", "admin");
+    // Get all admin user IDs from user_roles table (RBAC source of truth)
+    const { data: adminRoles } = await supabase
+      .from("user_roles")
+      .select("user_id")
+      .in("role", ["admin", "owner"]);
 
-    if (!admins?.length) return;
+    const admins = (adminRoles || []).map((r: any) => ({ id: r.user_id }));
+    if (!admins.length) return;
 
     const statusMessages: Record<string, { title: string; message: string }> = {
       completed: {
