@@ -34,6 +34,11 @@ const BYPASS_RULES: Array<{
     test: (q) => /^(pipeline|summary|overview|how.?s the pipeline|briefing|daily|good morning|what.?s new|catch me up)/i.test(q),
     result: { category: 'DAILY_BRIEFING', tier: 'STANDARD', tools: ['get_follow_up_queue', 'get_analytics', 'get_cross_deal_analytics'], confidence: 0.9 },
   },
+  // Aggregate / count questions — "how many deals", "total deals", "deal count", "number of deals"
+  {
+    test: (q) => /\b(how many|total|count|number of)\b.*\b(deal|listing|active deal|pipeline deal)\b/i.test(q) || /\b(deal|listing)\b.*\b(how many|total|count)\b/i.test(q),
+    result: { category: 'PIPELINE_ANALYTICS', tier: 'QUICK', tools: ['get_pipeline_summary'], confidence: 0.92 },
+  },
   // Deal lookup by name — "what kind of company is X", "tell me about [deal name]", "what is [company]"
   {
     test: (q) => /\b(what kind of|what type of|tell me about|what is|info on|details on|look up|pull up)\b.*(company|deal|business|firm|listing)/i.test(q) || /\b(company|deal|business|firm|listing)\b.*(what kind|what type|tell me|what is)/i.test(q),
