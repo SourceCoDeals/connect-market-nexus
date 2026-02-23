@@ -59,10 +59,10 @@ const BYPASS_RULES: Array<{
     test: (q) => /\b(transcript|call|meeting|fireflies|recording|said|mentioned|discussed)\b/i.test(q),
     result: { category: 'MEETING_INTEL', tier: 'STANDARD', tools: ['search_transcripts', 'search_fireflies'], confidence: 0.8 },
   },
-  // Select / filter / action on table rows
+  // Select / filter / sort / action on table rows
   {
-    test: (q) => /\b(select|check|pick|highlight|filter|show only|narrow|within \d+ miles)\b/i.test(q),
-    result: { category: 'REMARKETING', tier: 'STANDARD', tools: ['search_buyers', 'select_table_rows', 'apply_table_filter'], confidence: 0.85 },
+    test: (q) => /\b(select|check|pick|highlight|filter|show only|narrow|within \d+ miles|sort|order by|arrange|sort by)\b/i.test(q),
+    result: { category: 'REMARKETING', tier: 'STANDARD', tools: ['search_buyers', 'query_deals', 'select_table_rows', 'apply_table_filter', 'sort_table_column'], confidence: 0.85 },
   },
   // Create task / add note
   {
@@ -216,7 +216,7 @@ Categories:
 - INDUSTRY: Industry trackers, vertical scoring configs
 - GENERAL: Other / unclear intent
 
-Available tools: query_deals, get_deal_details, get_deal_activities, get_deal_tasks, get_deal_documents, get_deal_memos, get_deal_comments, get_deal_scoring_adjustments, get_deal_referrals, get_deal_conversations, get_pipeline_summary, search_buyers, get_buyer_profile, get_score_breakdown, get_top_buyers_for_deal, get_buyer_decisions, get_score_history, get_buyer_learning_history, search_lead_sources, search_valuation_leads, search_inbound_leads, get_referral_data, search_pe_contacts, get_firm_agreements, get_nda_logs, get_connection_requests, get_connection_messages, search_buyer_universes, get_universe_details, get_outreach_records, get_remarketing_outreach, get_engagement_signals, get_interest_signals, search_transcripts, search_buyer_transcripts, search_fireflies, get_meeting_action_items, get_outreach_status, get_analytics, get_enrichment_status, get_industry_trackers, get_current_user_context, create_deal_task, complete_deal_task, add_deal_note, log_deal_activity, update_deal_stage, grant_data_room_access, select_table_rows, apply_table_filter, navigate_to_page
+Available tools: query_deals, get_deal_details, get_deal_activities, get_deal_tasks, get_deal_documents, get_deal_memos, get_deal_comments, get_deal_scoring_adjustments, get_deal_referrals, get_deal_conversations, get_pipeline_summary, search_buyers, get_buyer_profile, get_score_breakdown, get_top_buyers_for_deal, get_buyer_decisions, get_score_history, get_buyer_learning_history, search_lead_sources, search_valuation_leads, search_inbound_leads, get_referral_data, search_pe_contacts, get_firm_agreements, get_nda_logs, get_connection_requests, get_connection_messages, search_buyer_universes, get_universe_details, get_outreach_records, get_remarketing_outreach, get_engagement_signals, get_interest_signals, search_transcripts, search_buyer_transcripts, search_fireflies, get_meeting_action_items, get_outreach_status, get_analytics, get_enrichment_status, get_industry_trackers, get_current_user_context, create_deal_task, complete_deal_task, add_deal_note, log_deal_activity, update_deal_stage, grant_data_room_access, select_table_rows, apply_table_filter, sort_table_column, navigate_to_page
 
 Respond with JSON only:
 {"category":"CATEGORY","tier":"QUICK|STANDARD|DEEP","tools":["tool1","tool2"],"confidence":0.0-1.0}

@@ -1,3 +1,4 @@
+import React from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,6 +20,8 @@ import {
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { cn } from "@/lib/utils";
 import { FilterBar, DEAL_LISTING_FIELDS } from "@/components/filters";
+import { useAIUIActionHandler } from "@/hooks/useAIUIActionHandler";
+import { useAICommandCenterContext } from "@/components/ai-command-center";
 
 import { ResizableHeader } from "../components/ResizableHeader";
 import { DealTableRow } from "../components/DealTableRow";
@@ -31,6 +34,64 @@ import { formatCurrency, formatWebsiteDomain, getEffectiveWebsite, formatGeograp
 
 const ReMarketingDeals = () => {
   const h = useReMarketingDeals();
+  const { setPageContext } = useAICommandCenterContext();
+
+  // Register page context for AI Command Center
+  React.useEffect(() => {
+    setPageContext({ page: 'remarketing', entity_type: 'deals' });
+  }, [setPageContext]);
+
+  // Wire AI UI actions to this page's state
+  useAIUIActionHandler({
+    table: 'deals',
+    onSelectRows: (rowIds, mode) => {
+      if (mode === 'replace') {
+        h.setSelectedDeals(new Set(rowIds));
+      } else if (mode === 'add') {
+        h.setSelectedDeals(prev => {
+          const next = new Set(prev);
+          rowIds.forEach(id => next.add(id));
+          return next;
+        });
+      } else {
+        h.setSelectedDeals(prev => {
+          const next = new Set(prev);
+          rowIds.forEach(id => next.has(id) ? next.delete(id) : next.add(id));
+          return next;
+        });
+      }
+    },
+    onClearSelection: () => h.handleClearSelection(),
+    onApplyFilter: (filters, clearExisting) => {
+      const rules = filters.map((f, idx) => ({
+        id: `ai-filter-${idx}`,
+        field: f.field,
+        operator: f.operator as any,
+        value: f.value,
+      }));
+      if (clearExisting) {
+        h.setFilterState({ rules, conjunction: 'and', search: '' });
+      } else {
+        h.setFilterState(prev => ({
+          ...prev,
+          rules: [...prev.rules, ...rules],
+        }));
+      }
+    },
+    onSortColumn: (field) => {
+      const fieldMap: Record<string, string> = {
+        revenue: 'revenue', ebitda: 'ebitda', deal_name: 'deal_name',
+        title: 'deal_name', score: 'score', deal_total_score: 'score',
+        added: 'added', created_at: 'added', address_state: 'location',
+        industry: 'industry', category: 'industry', priority: 'priority',
+        rank: 'rank', google_rating: 'googleRating', googleRating: 'googleRating',
+        google_review_count: 'googleReviews', googleReviews: 'googleReviews',
+        linkedin_employee_count: 'linkedinCount', linkedinCount: 'linkedinCount',
+        engagement: 'engagement',
+      };
+      h.handleSort(fieldMap[field] || field);
+    },
+  });
 
   const SortableHeader = ({ column, label, className = "" }: { column: string; label: string; className?: string }) => (
     <button
