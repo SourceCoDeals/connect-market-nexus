@@ -253,8 +253,9 @@ serve(async (req: Request) => {
       { status: 200, headers: { 'Content-Type': 'application/json', ...corsHeaders } },
     );
   } catch (error: any) {
-    console.error('❌ Error in get-buyer-fee-embed:', error);
-    return new Response(JSON.stringify({ error: 'Internal server error' }), {
+    const msg = error?.message || String(error);
+    console.error('❌ Error in get-buyer-fee-embed:', msg, error?.stack || '');
+    return new Response(JSON.stringify({ error: `Internal server error: ${msg}` }), {
       status: 500,
       headers: { 'Content-Type': 'application/json', ...corsHeaders },
     });

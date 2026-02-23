@@ -9,12 +9,14 @@ interface DocuSealSigningPanelProps {
   onDeclined?: () => void;
   title?: string;
   description?: string;
+  successMessage?: string;
+  successDescription?: string;
 }
 
 /**
  * Reusable wrapper around DocuSeal's embedded signing form.
  * Shows loading, success, and error states.
- * Used on Pending Approval page and NDA Gate Modal.
+ * Used on Pending Approval page, NDA Gate Modal, and Fee Agreement Gate.
  */
 export function DocuSealSigningPanel({
   embedSrc,
@@ -22,6 +24,8 @@ export function DocuSealSigningPanel({
   onDeclined,
   title = 'Sign Document',
   description = 'Please review and sign the document below.',
+  successMessage = 'Document signed successfully.',
+  successDescription = 'Your access has been updated.',
 }: DocuSealSigningPanelProps) {
   const [status, setStatus] = useState<'loading' | 'ready' | 'signed' | 'declined' | 'error'>('loading');
 
@@ -44,9 +48,9 @@ export function DocuSealSigningPanel({
               <CheckCircle className="h-8 w-8 text-green-600" />
             </div>
             <div>
-              <h3 className="text-lg font-semibold text-green-800">NDA signed — you're in.</h3>
+              <h3 className="text-lg font-semibold text-green-800">{successMessage}</h3>
               <p className="text-sm text-green-600 mt-1">
-                Full access unlocked. You can now view deal details across the marketplace.
+                {successDescription}
               </p>
             </div>
           </div>
