@@ -256,38 +256,38 @@ serve(async (req: Request) => {
         });
         console.log(`🔔 Created notification for buyer ${buyerProfile.id} — ${docLabel} pending (${deliveryMode})`);
 
-        // Send a system message to the buyer's active connection request threads (exclude rejected)
-        const { data: buyerRequests } = await supabaseAdmin
+        // Send a system message to the buyer's FIRST active connection request (General Inquiry only)
+        const { data: generalRequest } = await supabaseAdmin
           .from("connection_requests")
           .select("id")
           .eq("user_id", buyerProfile.id)
           .in("status", ["approved", "pending", "on_hold"])
-          .order("created_at", { ascending: false });
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
 
-        if (buyerRequests && buyerRequests.length > 0) {
+        if (generalRequest) {
           const systemMessageBody =
             documentType === "nda"
               ? "📋 **NDA Ready to Sign**\n\nThis is our standard Non-Disclosure Agreement so we can freely exchange confidential information about the companies on our platform. It's a one-time signing — once done, you'll have full access to every deal.\n\nYou can sign it directly from your notification bell or the banner on the My Deals page."
               : "📋 **Fee Agreement Ready to Sign**\n\nHere is our fee agreement. You only pay a fee if you successfully close a deal with a company you first meet on our platform — no upfront cost.\n\nYou can sign it directly from your notification bell or the banner on the My Deals page.";
 
-          const messageInserts = buyerRequests.map((req) => ({
-            connection_request_id: req.id,
-            sender_role: "admin",
-            sender_id: null,
-            body: systemMessageBody,
-            message_type: "system",
-            is_read_by_admin: true,
-            is_read_by_buyer: false,
-          }));
-
           const { error: msgError } = await supabaseAdmin
             .from("connection_messages")
-            .insert(messageInserts);
+            .insert({
+              connection_request_id: generalRequest.id,
+              sender_role: "admin",
+              sender_id: null,
+              body: systemMessageBody,
+              message_type: "system",
+              is_read_by_admin: true,
+              is_read_by_buyer: false,
+            });
 
           if (msgError) {
-            console.error("⚠️ Failed to insert system messages:", msgError);
+            console.error("⚠️ Failed to insert system message:", msgError);
           } else {
-            console.log(`💬 Sent system messages to ${buyerRequests.length} connection(s) for ${docLabel}`);
+            console.log(`💬 Sent system message to general inquiry for ${docLabel}`);
           }
         }
       }
