@@ -47,7 +47,7 @@ export const saveGuideToDocuments = async (
 
     if (readError) throw new Error(`Failed to read universe: ${readError.message}`);
 
-    const currentDocs = (universe?.documents as any[]) || [];
+    const currentDocs = (universe?.documents as { type?: string; id?: string; name?: string; url?: string }[]) || [];
     const filteredDocs = currentDocs.filter(d => !d.type || d.type !== 'ma_guide');
     const updatedDocs = [...filteredDocs, data.document];
 

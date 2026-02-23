@@ -272,7 +272,7 @@ export const AddDealToUniverseDialog = ({
 
       const { data: listing, error: listingError } = await supabase
         .from("listings")
-        .insert(insertData as any)
+        .insert(insertData as Record<string, unknown>)
         .select()
         .maybeSingle();
 
@@ -434,7 +434,7 @@ export const AddDealToUniverseDialog = ({
       onDealAdded?.();
       onOpenChange(false);
     },
-      onError: (error: any) => {
+      onError: (error: Error) => {
         const message =
           typeof error?.message === "string" && error.message.trim()
             ? error.message

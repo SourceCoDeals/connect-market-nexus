@@ -1,4 +1,5 @@
-import { useMemo, useState, useCallback, useRef } from "react";
+import { useMemo, useState, useCallback, useRef, useEffect } from "react";
+import { useVirtualizer } from "@tanstack/react-virtual";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -308,6 +309,27 @@ export const BuyerTableEnhanced = ({
   // Calculate colSpan for empty state
   const colSpan = (selectable ? 1 : 0) + 1 + 1 + (showPEColumn ? 1 : 0) + 1 + 1 + 1; // checkbox + platform + industryFit + peFirm? + description + intel + actions
 
+  // Virtualization: only render visible rows + overscan buffer
+  const ROW_HEIGHT = 56;
+  const VIRTUALIZE_THRESHOLD = 50;
+  const shouldVirtualize = sortedBuyers.length > VIRTUALIZE_THRESHOLD;
+  const parentRef = useRef<HTMLDivElement>(null);
+
+  const virtualizer = useVirtualizer({
+    count: sortedBuyers.length,
+    getScrollElement: () => parentRef.current,
+    estimateSize: () => ROW_HEIGHT,
+    overscan: 10,
+    enabled: shouldVirtualize,
+  });
+
+  // Reset virtualizer scroll when sort changes
+  useEffect(() => {
+    if (shouldVirtualize) {
+      virtualizer.scrollToIndex(0);
+    }
+  }, [sortConfig, shouldVirtualize]); // eslint-disable-line react-hooks/exhaustive-deps
+
   return (
     <TooltipProvider>
       {/* Bulk Action Bar */}
@@ -343,80 +365,118 @@ export const BuyerTableEnhanced = ({
           </Button>
         </div>
       )}
-      
-      <Table className="table-fixed">
-        {/* Prevent text selection during Shift+click range selection */}
-        <TableHeader>
-          <TableRow>
-            {selectable && (
-              <TableHead className="w-[50px]">
-                <Checkbox
-                  checked={isAllSelected}
-                  ref={(ref) => {
-                    if (ref) {
-                      (ref as unknown as HTMLInputElement).indeterminate = isSomeSelected;
-                    }
-                  }}
-                  onCheckedChange={handleSelectAll}
-                  aria-label="Select all"
-                />
-              </TableHead>
-            )}
-            <TableHead className="relative" style={{ width: columnWidths.platform }}>
-              <SortButton label="Platform / Buyer" sortKey="company_name" />
-              <ResizeHandle column="platform" />
-            </TableHead>
-            <TableHead className="relative" style={{ width: columnWidths.industryFit }}>
-              <SortButton label="Industry Fit" sortKey="alignment_score" />
-              <ResizeHandle column="industryFit" />
-            </TableHead>
-            {showPEColumn && (
-              <TableHead className="relative" style={{ width: columnWidths.peFirm }}>
-                <SortButton label="PE Firm" sortKey="pe_firm_name" />
-                <ResizeHandle column="peFirm" />
-              </TableHead>
-            )}
-            <TableHead className="relative" style={{ width: columnWidths.description }}>
-              Description
-              <ResizeHandle column="description" />
-            </TableHead>
-            <TableHead className="relative" style={{ width: columnWidths.intel }}>
-              <SortButton label="Intel" sortKey="data_completeness" />
-              <ResizeHandle column="intel" />
-            </TableHead>
-            <TableHead className="w-[50px]"></TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {sortedBuyers.length === 0 ? (
+
+      <div
+        ref={parentRef}
+        className={shouldVirtualize ? "max-h-[70vh] overflow-auto" : undefined}
+      >
+        <Table className="table-fixed">
+          <TableHeader>
             <TableRow>
-              <TableCell colSpan={colSpan} className="text-center py-12 text-muted-foreground">
-                <SearchIcon className="h-8 w-8 mx-auto mb-3 opacity-50" />
-                <p className="font-medium">No buyers found</p>
-                <p className="text-sm">Add buyers manually or import from CSV</p>
-              </TableCell>
+              {selectable && (
+                <TableHead className="w-[50px]">
+                  <Checkbox
+                    checked={isAllSelected}
+                    ref={(ref) => {
+                      if (ref) {
+                        (ref as unknown as HTMLInputElement).indeterminate = isSomeSelected;
+                      }
+                    }}
+                    onCheckedChange={handleSelectAll}
+                    aria-label="Select all"
+                  />
+                </TableHead>
+              )}
+              <TableHead className="relative" style={{ width: columnWidths.platform }}>
+                <SortButton label="Platform / Buyer" sortKey="company_name" />
+                <ResizeHandle column="platform" />
+              </TableHead>
+              <TableHead className="relative" style={{ width: columnWidths.industryFit }}>
+                <SortButton label="Industry Fit" sortKey="alignment_score" />
+                <ResizeHandle column="industryFit" />
+              </TableHead>
+              {showPEColumn && (
+                <TableHead className="relative" style={{ width: columnWidths.peFirm }}>
+                  <SortButton label="PE Firm" sortKey="pe_firm_name" />
+                  <ResizeHandle column="peFirm" />
+                </TableHead>
+              )}
+              <TableHead className="relative" style={{ width: columnWidths.description }}>
+                Description
+                <ResizeHandle column="description" />
+              </TableHead>
+              <TableHead className="relative" style={{ width: columnWidths.intel }}>
+                <SortButton label="Intel" sortKey="data_completeness" />
+                <ResizeHandle column="intel" />
+              </TableHead>
+              <TableHead className="w-[50px]"></TableHead>
             </TableRow>
-          ) : (
-            sortedBuyers.map((buyer) => (
-              <BuyerTableRow
-                key={buyer.id}
-                buyer={buyer}
-                isEnriching={isEnriching ?? null}
-                isCurrentlyScoring={scoringBuyerIds.includes(buyer.id)}
-                showPEColumn={showPEColumn}
-                selectable={selectable}
-                isSelected={selectedIds.has(buyer.id)}
-                onToggleSelect={handleToggleSelect}
-                onEnrich={onEnrich}
-                onDelete={onDelete}
-                onToggleFeeAgreement={onToggleFeeAgreement}
-                universeId={universeId}
-                hasTranscript={buyerIdsWithTranscripts.has(buyer.id)}
-              />
-            ))
-          )}
-        </TableBody>
-      </Table>
+          </TableHeader>
+          <TableBody>
+            {sortedBuyers.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={colSpan} className="text-center py-12 text-muted-foreground">
+                  <SearchIcon className="h-8 w-8 mx-auto mb-3 opacity-50" />
+                  <p className="font-medium">No buyers found</p>
+                  <p className="text-sm">Add buyers manually or import from CSV</p>
+                </TableCell>
+              </TableRow>
+            ) : shouldVirtualize ? (
+              <>
+                {/* Spacer for rows above viewport */}
+                {virtualizer.getVirtualItems().length > 0 && (
+                  <tr style={{ height: virtualizer.getVirtualItems()[0].start }} />
+                )}
+                {virtualizer.getVirtualItems().map((virtualRow) => {
+                  const buyer = sortedBuyers[virtualRow.index];
+                  return (
+                    <BuyerTableRow
+                      key={buyer.id}
+                      buyer={buyer}
+                      isEnriching={isEnriching ?? null}
+                      isCurrentlyScoring={scoringBuyerIds.includes(buyer.id)}
+                      showPEColumn={showPEColumn}
+                      selectable={selectable}
+                      isSelected={selectedIds.has(buyer.id)}
+                      onToggleSelect={handleToggleSelect}
+                      onEnrich={onEnrich}
+                      onDelete={onDelete}
+                      onToggleFeeAgreement={onToggleFeeAgreement}
+                      universeId={universeId}
+                      hasTranscript={buyerIdsWithTranscripts.has(buyer.id)}
+                    />
+                  );
+                })}
+                {/* Spacer for rows below viewport */}
+                {virtualizer.getVirtualItems().length > 0 && (
+                  <tr style={{
+                    height: virtualizer.getTotalSize() -
+                      (virtualizer.getVirtualItems()[virtualizer.getVirtualItems().length - 1].end)
+                  }} />
+                )}
+              </>
+            ) : (
+              sortedBuyers.map((buyer) => (
+                <BuyerTableRow
+                  key={buyer.id}
+                  buyer={buyer}
+                  isEnriching={isEnriching ?? null}
+                  isCurrentlyScoring={scoringBuyerIds.includes(buyer.id)}
+                  showPEColumn={showPEColumn}
+                  selectable={selectable}
+                  isSelected={selectedIds.has(buyer.id)}
+                  onToggleSelect={handleToggleSelect}
+                  onEnrich={onEnrich}
+                  onDelete={onDelete}
+                  onToggleFeeAgreement={onToggleFeeAgreement}
+                  universeId={universeId}
+                  hasTranscript={buyerIdsWithTranscripts.has(buyer.id)}
+                />
+              ))
+            )}
+          </TableBody>
+        </Table>
+      </div>
     </TooltipProvider>
   );
 };
