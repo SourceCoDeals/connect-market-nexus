@@ -21,16 +21,16 @@ export function DealMessagePreview({ requestId, requestStatus, onViewAll }: Deal
   // Pending state
   if (isPending) {
     return (
-      <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
-        <div className="px-5 py-3.5 border-b border-slate-100 flex items-center gap-2">
-          <MessageSquare className="h-4 w-4 text-slate-500" />
-          <h3 className="text-sm font-semibold text-slate-900">Messages</h3>
+      <div className="bg-card border border-border rounded-xl overflow-hidden">
+        <div className="px-5 py-3.5 border-b border-border/50 flex items-center gap-2">
+          <MessageSquare className="h-4 w-4 text-muted-foreground" />
+          <h3 className="text-sm font-semibold text-foreground">Messages</h3>
         </div>
         <div className="flex items-center gap-3 px-5 py-6">
-          <div className="rounded-full bg-slate-100 p-2 shrink-0">
-            <Lock className="h-3.5 w-3.5 text-slate-400" />
+          <div className="rounded-full bg-muted p-2 shrink-0">
+            <Lock className="h-3.5 w-3.5 text-muted-foreground" />
           </div>
-          <p className="text-xs text-slate-500">
+          <p className="text-xs text-muted-foreground">
             Messaging will be available once your request is accepted.
           </p>
         </div>
@@ -39,14 +39,14 @@ export function DealMessagePreview({ requestId, requestStatus, onViewAll }: Deal
   }
 
   return (
-    <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
+    <div className="bg-card border border-border rounded-xl overflow-hidden">
       {/* Header */}
-      <div className="px-5 py-3.5 border-b border-slate-100 flex items-center justify-between">
+      <div className="px-5 py-3.5 border-b border-border/50 flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <MessageSquare className="h-4 w-4 text-slate-500" />
-          <h3 className="text-sm font-semibold text-slate-900">Messages</h3>
+          <MessageSquare className="h-4 w-4 text-muted-foreground" />
+          <h3 className="text-sm font-semibold text-foreground">Messages</h3>
           {messages.filter(m => m.message_type === "message").length > 0 && (
-            <span className="text-xs text-slate-400">
+            <span className="text-xs text-muted-foreground">
               {messages.filter(m => m.message_type === "message").length}
             </span>
           )}
@@ -54,7 +54,7 @@ export function DealMessagePreview({ requestId, requestStatus, onViewAll }: Deal
         {recentMessages.length > 0 && (
           <button
             onClick={onViewAll}
-            className="text-xs text-blue-600 hover:text-blue-700 flex items-center gap-1 font-medium"
+            className="text-xs text-primary hover:text-primary/80 flex items-center gap-1 font-medium"
           >
             View all <ArrowRight className="h-3 w-3" />
           </button>
@@ -64,7 +64,7 @@ export function DealMessagePreview({ requestId, requestStatus, onViewAll }: Deal
       {/* Preview messages */}
       <div className="px-5 py-3 space-y-2.5">
         {recentMessages.length === 0 ? (
-          <p className="text-sm text-slate-400 text-center py-4">
+          <p className="text-sm text-muted-foreground text-center py-4">
             No messages yet. Start a conversation from the Messages tab.
           </p>
         ) : (
@@ -78,8 +78,8 @@ export function DealMessagePreview({ requestId, requestStatus, onViewAll }: Deal
               <div
                 className={`max-w-[85%] rounded-lg px-3 py-1.5 text-xs ${
                   msg.sender_role === "buyer"
-                    ? "bg-slate-900 text-white"
-                    : "bg-slate-100 text-slate-900"
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-muted/60 text-foreground border border-border/40"
                 }`}
               >
                 <div className="flex items-center gap-1.5 mb-0.5">
@@ -101,10 +101,10 @@ export function DealMessagePreview({ requestId, requestStatus, onViewAll }: Deal
 
       {/* Footer CTA */}
       {recentMessages.length > 0 && (
-        <div className="px-5 py-2.5 border-t border-slate-100">
+        <div className="px-5 py-2.5 border-t border-border/50">
           <button
             onClick={onViewAll}
-            className="w-full text-xs text-slate-500 hover:text-slate-700 font-medium py-1 transition-colors"
+            className="w-full text-xs text-muted-foreground hover:text-foreground font-medium py-1 transition-colors"
           >
             Open full conversation
           </button>

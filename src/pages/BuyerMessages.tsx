@@ -23,81 +23,74 @@ import { supabase } from "@/integrations/supabase/client";
 import { formatDistanceToNow } from "date-fns";
 import { AgreementSigningModal } from "@/components/docuseal/AgreementSigningModal";
 
-// Fetch buyer's threads — single batch query instead of N+1
+interface BuyerThread {
+  connection_request_id: string;
+  deal_title: string;
+  deal_category?: string;
+  request_status: string;
+  listing_id: string;
+  messages_count: number;
+  last_message_body: string;
+  last_message_at: string;
+  last_sender_role: string;
+  unread_count: number;
+}
+
+// Fetch buyer's threads — shows ALL approved+ requests, not just ones with messages
 function useBuyerThreads() {
   const { user } = useAuth();
 
-  return useQuery({
+  return useQuery<BuyerThread[]>({
     queryKey: ["buyer-message-threads", user?.id],
     queryFn: async () => {
       if (!user?.id) return [];
 
-      // Single query: get all messages for this buyer's requests with joined request + listing data
-      const { data: messages, error } = await (supabase
-        .from("connection_messages") as any)
+      // Step 1: Fetch all connection requests for this buyer (approved, on_hold, rejected)
+      const { data: requests, error: reqError } = await (supabase
+        .from("connection_requests") as any)
         .select(`
-          id, connection_request_id, sender_role, body, is_read_by_buyer, created_at,
-          request:connection_requests!inner(
-            id, status, listing_id,
-            listing:listings!connection_requests_listing_id_fkey(title, category)
-          )
+          id, status, listing_id, user_message, created_at,
+          last_message_at, last_message_preview, last_message_sender_role,
+          listing:listings!connection_requests_listing_id_fkey(title, category)
         `)
-        .order("created_at", { ascending: false })
-        .limit(1000);
+        .eq("user_id", user.id)
+        .in("status", ["approved", "on_hold", "rejected"])
+        .order("last_message_at", { ascending: false, nullsFirst: false });
 
-      if (error || !messages) return [];
+      if (reqError || !requests) return [];
 
-      // Group by connection_request_id and build thread summaries
-      // Group by connection_request_id and build thread summaries
-      const threadMap = new Map<string, {
-        connection_request_id: string;
-        deal_title: string;
-        deal_category?: string;
-        request_status: string;
-        listing_id: string;
-        messages_count: number;
-        last_message_body: string;
-        last_message_at: string;
-        last_sender_role: string;
-        unread_count: number;
-      }>();
+      // Step 2: Fetch unread counts for this buyer
+      const requestIds = requests.map((r: any) => r.id);
+      const { data: unreadMsgs } = await (supabase
+        .from("connection_messages") as any)
+        .select("connection_request_id")
+        .in("connection_request_id", requestIds.length > 0 ? requestIds : ["__none__"])
+        .eq("is_read_by_buyer", false)
+        .eq("sender_role", "admin");
 
-      for (const msg of messages) {
-        const reqId = msg.connection_request_id;
-        const req = msg.request as { id: string; status: string; listing_id: string; listing: { title: string; category: string | null } | null } | null;
+      const unreadMap: Record<string, number> = {};
+      (unreadMsgs || []).forEach((msg: any) => {
+        unreadMap[msg.connection_request_id] = (unreadMap[msg.connection_request_id] || 0) + 1;
+      });
 
-        if (!threadMap.has(reqId)) {
-          threadMap.set(reqId, {
-            connection_request_id: reqId,
-            deal_title: req?.listing?.title || "Untitled Deal",
-            deal_category: req?.listing?.category ?? undefined,
-            request_status: req?.status ?? "pending",
-            listing_id: req?.listing_id ?? '',
-            messages_count: 0,
-            last_message_body: msg.body,
-            last_message_at: msg.created_at,
-            last_sender_role: msg.sender_role,
-            unread_count: 0,
-          });
-        }
+      const threads: BuyerThread[] = requests.map((req: any) => ({
+        connection_request_id: req.id,
+        deal_title: req.listing?.title || "Untitled Deal",
+        deal_category: req.listing?.category ?? undefined,
+        request_status: req.status,
+        listing_id: req.listing_id ?? '',
+        messages_count: 0,
+        last_message_body: req.last_message_preview || req.user_message || "",
+        last_message_at: req.last_message_at || req.created_at,
+        last_sender_role: req.last_message_sender_role || "buyer",
+        unread_count: unreadMap[req.id] || 0,
+      }));
 
-        const thread = threadMap.get(reqId)!;
-        thread.messages_count++;
-
-        // Count unread (admin messages not read by buyer)
-        if (msg.sender_role === "admin" && !msg.is_read_by_buyer) {
-          thread.unread_count++;
-        }
-      }
-
-      // Sort: unread first, then by most recent message
-      return Array.from(threadMap.values()).sort((a, b) => {
+      // Sort: unread first, then by most recent activity
+      return threads.sort((a, b) => {
         if (a.unread_count > 0 && b.unread_count === 0) return -1;
         if (a.unread_count === 0 && b.unread_count > 0) return 1;
-        return (
-          new Date(b.last_message_at).getTime() -
-          new Date(a.last_message_at).getTime()
-        );
+        return new Date(b.last_message_at).getTime() - new Date(a.last_message_at).getTime();
       });
     },
     enabled: !!user?.id,
@@ -201,7 +194,7 @@ export default function BuyerMessages() {
                             {thread.deal_title}
                           </span>
                           {thread.unread_count > 0 && (
-                            <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-red-600 px-1.5 text-[10px] font-bold text-white">
+                            <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-destructive px-1.5 text-[10px] font-bold text-destructive-foreground">
                               {thread.unread_count}
                             </span>
                           )}
@@ -309,7 +302,8 @@ function BuyerThreadView({
     if (thread.connection_request_id && thread.unread_count > 0) {
       markRead.mutate(thread.connection_request_id);
     }
-  }, [thread.connection_request_id, thread.unread_count, markRead]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [thread.connection_request_id, thread.unread_count]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -513,11 +507,11 @@ function BuyerMessagesEmpty() {
               const isNda = n.metadata?.document_type === 'nda';
               return (
                 <div key={n.id} className="flex items-start gap-4 px-5 py-4">
-                  <div className="mt-0.5 p-2 rounded-full bg-amber-100 dark:bg-amber-900/30">
+                  <div className="mt-0.5 p-2 rounded-full bg-accent">
                     {isNda ? (
-                      <Shield className="h-5 w-5 text-amber-600" />
+                      <Shield className="h-5 w-5 text-accent-foreground" />
                     ) : (
-                      <FileSignature className="h-5 w-5 text-amber-600" />
+                      <FileSignature className="h-5 w-5 text-accent-foreground" />
                     )}
                   </div>
                   <div className="flex-1 min-w-0">
