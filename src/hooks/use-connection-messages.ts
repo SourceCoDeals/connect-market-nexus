@@ -204,11 +204,24 @@ export function useUnreadBuyerMessageCounts() {
   return useQuery({
     queryKey: ['unread-buyer-message-counts'],
     queryFn: async () => {
+      // First get the current user's connection request IDs
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return { byRequest: {} as Record<string, number>, total: 0 };
+
+      const { data: requests } = await supabase
+        .from('connection_requests')
+        .select('id')
+        .eq('user_id', user.id);
+
+      const requestIds = (requests || []).map((r: any) => r.id);
+      if (requestIds.length === 0) return { byRequest: {} as Record<string, number>, total: 0 };
+
       const { data, error } = await (supabase
         .from('connection_messages') as any)
         .select('connection_request_id')
         .eq('is_read_by_buyer', false)
-        .eq('sender_role', 'admin');
+        .eq('sender_role', 'admin')
+        .in('connection_request_id', requestIds);
 
       if (error) throw error;
 
