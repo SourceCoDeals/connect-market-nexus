@@ -491,7 +491,7 @@ const ReMarketingBuyers = () => {
             <DropdownMenuContent align="end">
               <DropdownMenuItem onClick={async () => {
                 const base = selectedIds.size > 0 ? filteredBuyers.filter((b: any) => selectedIds.has(b.id)) : filteredBuyers;
-                const unenriched = base.filter((b: any) => b.data_completeness !== 'high' && b.data_completeness !== 'medium' && !b.data_last_updated);
+                const unenriched = base.filter((b: any) => b.data_completeness !== 'high');
                 const ids = unenriched.filter((b: any) => b.company_website || b.platform_website || b.pe_firm_website).map((b: any) => b.id);
                 if (ids.length === 0) { toast.info('No unenriched buyers with websites'); return; }
                 setEnrichingIds(new Set(ids));
@@ -502,7 +502,7 @@ const ReMarketingBuyers = () => {
                 } catch (err) { console.error('Bulk enrich failed:', err); toast.error('Failed to queue enrichment'); } finally { setEnrichingIds(new Set()); }
               }}>
                 <Sparkles className="h-4 w-4 mr-2" />
-                Enrich Unenriched ({(() => { const base = selectedIds.size > 0 ? filteredBuyers.filter((b: any) => selectedIds.has(b.id)) : filteredBuyers; return base.filter((b: any) => b.data_completeness !== 'high' && b.data_completeness !== 'medium' && !b.data_last_updated).filter((b: any) => b.company_website || b.platform_website || b.pe_firm_website).length; })()})
+                Enrich Unenriched ({(() => { const base = selectedIds.size > 0 ? filteredBuyers.filter((b: any) => selectedIds.has(b.id)) : filteredBuyers; return base.filter((b: any) => b.data_completeness !== 'high').filter((b: any) => b.company_website || b.platform_website || b.pe_firm_website).length; })()})
               </DropdownMenuItem>
               <DropdownMenuItem onClick={async () => {
                 const base = selectedIds.size > 0 ? filteredBuyers.filter((b: any) => selectedIds.has(b.id)) : filteredBuyers;
