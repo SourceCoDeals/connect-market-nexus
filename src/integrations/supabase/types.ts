@@ -9927,12 +9927,8 @@ export type Database = {
         Returns: number
       }
       change_user_role: {
-        Args: {
-          change_reason?: string
-          new_role: Database["public"]["Enums"]["app_role"]
-          target_user_id: string
-        }
-        Returns: boolean
+        Args: { _new_role: string; _reason?: string; _target_user_id: string }
+        Returns: undefined
       }
       check_agreement_coverage: {
         Args: { p_agreement_type?: string; p_email: string }
@@ -10168,10 +10164,7 @@ export type Database = {
           nda_status: string
         }[]
       }
-      get_my_role: {
-        Args: never
-        Returns: Database["public"]["Enums"]["app_role"]
-      }
+      get_my_role: { Args: never; Returns: string }
       get_or_create_firm: {
         Args: { p_company_name: string; p_email?: string; p_website?: string }
         Returns: string
@@ -10209,10 +10202,7 @@ export type Database = {
         }[]
       }
       get_stage_deal_count: { Args: { stage_uuid: string }; Returns: number }
-      get_user_role: {
-        Args: { _user_id: string }
-        Returns: Database["public"]["Enums"]["app_role"]
-      }
+      get_user_role: { Args: { _user_id: string }; Returns: string }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]

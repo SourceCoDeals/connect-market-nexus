@@ -40,9 +40,9 @@ export const useRoleManagement = () => {
   const { mutate: updateUserRole, isPending: isUpdating } = useMutation({
     mutationFn: async ({ targetUserId, newRole, reason }: ChangeRoleParams) => {
       const { data, error } = await supabase.rpc('change_user_role', {
-        target_user_id: targetUserId,
-        new_role: newRole,
-        change_reason: reason ?? undefined,
+        _target_user_id: targetUserId,
+        _new_role: newRole,
+        _reason: reason ?? undefined,
       });
 
       if (error) throw error;
