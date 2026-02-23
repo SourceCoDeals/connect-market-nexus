@@ -12,7 +12,7 @@ import {
 import { X, MoreVertical, Trash2, Sparkles, Target } from 'lucide-react';
 import { usePipelineCore } from '@/hooks/admin/use-pipeline-core';
 import { PipelineDetailOverview } from './tabs/PipelineDetailOverview';
-import { PipelineDetailMessages } from './tabs/PipelineDetailMessages';
+import { PipelineDetailNotes } from './tabs/PipelineDetailNotes';
 import { PipelineDetailDataRoom } from './tabs/PipelineDetailDataRoom';
 import { PipelineDetailDealInfo } from './tabs/PipelineDetailDealInfo';
 import { PipelineDetailOtherBuyers } from './tabs/PipelineDetailOtherBuyers';
@@ -112,8 +112,8 @@ export function PipelineDetailPanel({ pipeline }: PipelineDetailPanelProps) {
             <TabsTrigger value="dealinfo" className="text-xs font-medium data-[state=active]:bg-background data-[state=active]:shadow-sm rounded-md">
               Deal Overview
             </TabsTrigger>
-            <TabsTrigger value="messages" className="text-xs font-medium data-[state=active]:bg-background data-[state=active]:shadow-sm rounded-md">
-              Messages
+            <TabsTrigger value="notes" className="text-xs font-medium data-[state=active]:bg-background data-[state=active]:shadow-sm rounded-md">
+              Notes
             </TabsTrigger>
             <TabsTrigger value="dataroom" className="text-xs font-medium data-[state=active]:bg-background data-[state=active]:shadow-sm rounded-md">
               Data Room
@@ -131,8 +131,8 @@ export function PipelineDetailPanel({ pipeline }: PipelineDetailPanelProps) {
           <TabsContent value="dealinfo" className="h-full mt-0 data-[state=active]:flex data-[state=active]:flex-col">
             <PipelineDetailDealInfo deal={selectedDeal} />
           </TabsContent>
-          <TabsContent value="messages" className="h-full mt-0 data-[state=active]:flex data-[state=active]:flex-col">
-            <PipelineDetailMessages deal={selectedDeal} />
+          <TabsContent value="notes" className="h-full mt-0 data-[state=active]:flex data-[state=active]:flex-col">
+            <PipelineDetailNotes deal={selectedDeal} />
           </TabsContent>
           <TabsContent value="dataroom" className="h-full mt-0 data-[state=active]:flex data-[state=active]:flex-col">
             <PipelineDetailDataRoom deal={selectedDeal} />

@@ -1,7 +1,9 @@
-import React from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Pencil, Trash2, MessageSquare, ExternalLink, Linkedin, Building2, Globe, Mail, Phone } from 'lucide-react';
+import { Textarea } from '@/components/ui/textarea';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { ExternalLink, Linkedin, Building2, Globe, Mail, Phone, Send, AlertCircle, MessageSquare } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { Deal } from '@/hooks/admin/use-deals';
 import { useAdminProfiles } from '@/hooks/admin/use-admin-profiles';
@@ -10,9 +12,9 @@ import { useUpdateDealFollowup } from '@/hooks/admin/use-deal-followup';
 import { supabase } from '@/integrations/supabase/client';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
-import { Textarea } from '@/components/ui/textarea';
-import { useDealComments, useCreateDealComment, useUpdateDealComment, useDeleteDealComment } from '@/hooks/admin/use-deal-comments';
 import { useConnectionRequestDetails } from '@/hooks/admin/use-connection-request-details';
+import { useConnectionMessages, useSendMessage, useMarkMessagesReadByAdmin } from '@/hooks/use-connection-messages';
+import { cn } from '@/lib/utils';
 
 interface PipelineDetailOverviewProps {
   deal: Deal;
@@ -29,68 +31,33 @@ export function PipelineDetailOverview({ deal }: PipelineDetailOverviewProps) {
   const [negativeFollowedUp, setNegativeFollowedUp] = React.useState(deal.negative_followed_up || false);
   const [buyerProfile, setBuyerProfile] = React.useState<any>(null);
 
-  // Comments
-  const { data: dealComments, isLoading: commentsLoading } = useDealComments(deal.deal_id);
-  const createComment = useCreateDealComment();
-  const updateComment = useUpdateDealComment();
-  const deleteComment = useDeleteDealComment();
-  const [newCommentText, setNewCommentText] = React.useState('');
-  const [editingCommentId, setEditingCommentId] = React.useState<string | null>(null);
-  const [editingCommentText, setEditingCommentText] = React.useState('');
-  const [showMentionsList, setShowMentionsList] = React.useState(false);
-  const [mentionSearch, setMentionSearch] = React.useState('');
-  const textareaRef = React.useRef<HTMLTextAreaElement>(null);
+  // Messaging
+  const connectionRequestId = deal.connection_request_id;
+  const { data: messages = [], isLoading: messagesLoading } = useConnectionMessages(connectionRequestId);
+  const sendMessage = useSendMessage();
+  const markRead = useMarkMessagesReadByAdmin();
+  const [newMessage, setNewMessage] = useState('');
+  const bottomRef = useRef<HTMLDivElement>(null);
 
-  const extractMentions = (text: string): string[] => {
-    const mentionRegex = /@(\w+)/g;
-    const matches = text.matchAll(mentionRegex);
-    const mentionedNames = Array.from(matches, m => m[1]);
-    if (!allAdminProfiles || mentionedNames.length === 0) return [];
-    const normalize = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, '');
-    return Object.values(allAdminProfiles)
-      .filter(admin => mentionedNames.some(name => {
-        const n = normalize(name);
-        return normalize(admin.displayName || '').includes(n) || normalize(admin.email || '').includes(n);
-      }))
-      .map(admin => admin.id);
-  };
+  useEffect(() => {
+    if (connectionRequestId && messages.length > 0) {
+      markRead.mutate(connectionRequestId);
+    }
+  }, [connectionRequestId, messages.length]);
 
-  const filteredAdmins = React.useMemo(() => {
-    if (!allAdminProfiles || !mentionSearch) return [];
-    const search = mentionSearch.toLowerCase();
-    return Object.values(allAdminProfiles).filter(admin =>
-      admin.displayName.toLowerCase().includes(search) || admin.email.toLowerCase().includes(search)
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages.length]);
+
+  const handleSend = () => {
+    if (!newMessage.trim() || !connectionRequestId) return;
+    sendMessage.mutate(
+      { connection_request_id: connectionRequestId, body: newMessage.trim(), sender_role: 'admin' },
+      { onSuccess: () => setNewMessage('') }
     );
-  }, [allAdminProfiles, mentionSearch]);
-
-  const handleTextChange = (text: string) => {
-    setNewCommentText(text);
-    const cursorPos = textareaRef.current?.selectionStart || 0;
-    const textBeforeCursor = text.substring(0, cursorPos);
-    const lastAt = textBeforeCursor.lastIndexOf('@');
-    if (lastAt !== -1 && lastAt === cursorPos - 1) {
-      setShowMentionsList(true);
-      setMentionSearch('');
-    } else if (lastAt !== -1) {
-      const term = textBeforeCursor.substring(lastAt + 1);
-      if (term && !term.includes(' ')) {
-        setShowMentionsList(true);
-        setMentionSearch(term);
-      } else setShowMentionsList(false);
-    } else setShowMentionsList(false);
   };
 
-  const insertMention = (admin: any) => {
-    const cursorPos = textareaRef.current?.selectionStart || 0;
-    const before = newCommentText.substring(0, cursorPos);
-    const after = newCommentText.substring(cursorPos);
-    const lastAt = before.lastIndexOf('@');
-    setNewCommentText(before.substring(0, lastAt) + '@' + admin.displayName.replace(/\s/g, '') + ' ' + after);
-    setShowMentionsList(false);
-    textareaRef.current?.focus();
-  };
-
-  // Fetch buyer profile if we have a connection request
+  // Fetch buyer profile
   React.useEffect(() => {
     const fetchProfile = async () => {
       if (!connectionRequestDetails?.user_id) return;
@@ -138,158 +105,147 @@ export function PipelineDetailOverview({ deal }: PipelineDetailOverviewProps) {
     });
   };
 
+  // Build combined messages: buyer inquiry as first message, then connection_messages
+  const allMessages = React.useMemo(() => {
+    const combined: Array<{
+      id: string;
+      body: string;
+      sender_role: string;
+      senderName: string;
+      created_at: string;
+      message_type?: string;
+      isInquiry?: boolean;
+    }> = [];
+
+    // Add the buyer's original inquiry as the first message
+    if (connectionRequestDetails?.user_message) {
+      combined.push({
+        id: 'inquiry',
+        body: connectionRequestDetails.user_message,
+        sender_role: 'buyer',
+        senderName: deal.contact_name || 'Buyer',
+        created_at: connectionRequestDetails.created_at || deal.deal_created_at,
+        isInquiry: true,
+      });
+    }
+
+    // Add all connection messages
+    messages.forEach((msg) => {
+      const isAdmin = msg.sender_role === 'admin';
+      const senderName = msg.sender
+        ? `${msg.sender.first_name || ''} ${msg.sender.last_name || ''}`.trim() || msg.sender.email || 'Unknown'
+        : isAdmin ? 'Admin' : deal.contact_name || 'Buyer';
+      combined.push({
+        id: msg.id,
+        body: msg.body,
+        sender_role: msg.sender_role,
+        senderName,
+        created_at: msg.created_at,
+        message_type: msg.message_type,
+      });
+    });
+
+    return combined;
+  }, [connectionRequestDetails, messages, deal.contact_name, deal.deal_created_at]);
+
   return (
-    <div className="flex-1 overflow-auto">
-      <div className="flex gap-6 px-6 py-6">
-        {/* Left Column */}
-        <div className="flex-1 space-y-6 min-w-0">
-          {/* Interest Expression */}
-          {connectionRequestDetails?.user_message && (
-            <div className="space-y-2">
-              <h3 className="text-sm font-medium text-foreground">Interest Expression</h3>
-              <div className="p-4 bg-muted/10 rounded-lg border border-border/20">
-                <p className="text-sm text-foreground whitespace-pre-wrap">{connectionRequestDetails.user_message}</p>
-              </div>
-              {connectionRequestDetails.decision_notes && (
-                <div className="p-3 bg-muted/5 rounded-lg border border-border/10">
-                  <p className="text-xs text-muted-foreground mb-1 font-medium">Admin Notes</p>
-                  <p className="text-sm text-foreground/80 whitespace-pre-wrap">{connectionRequestDetails.decision_notes}</p>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* General Notes / Comments */}
-          <div className="space-y-3">
-            <div className="flex items-center gap-2">
-              <MessageSquare className="h-4 w-4 text-muted-foreground" />
-              <h3 className="text-sm font-medium text-foreground">Notes</h3>
-              <span className="text-xs text-muted-foreground font-mono">{dealComments?.length || 0}</span>
-            </div>
-
-            <div className="space-y-2 relative">
-              <Textarea
-                ref={textareaRef}
-                placeholder="Write a note... (use @ to mention)"
-                value={newCommentText}
-                onChange={(e) => handleTextChange(e.target.value)}
-                className="min-h-[70px] resize-none text-sm"
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && (e.metaKey || e.ctrlKey) && newCommentText.trim()) {
-                    const mentions = extractMentions(newCommentText);
-                    createComment.mutate(
-                      { dealId: deal.deal_id, commentText: newCommentText.trim(), mentionedAdmins: mentions },
-                      { onSuccess: () => setNewCommentText('') }
-                    );
-                  }
-                }}
-              />
-              {showMentionsList && filteredAdmins.length > 0 && (
-                <div className="absolute left-0 right-0 top-full mt-1 bg-background border border-border rounded-lg shadow-lg z-10 max-h-48 overflow-y-auto">
-                  {filteredAdmins.slice(0, 5).map((admin) => (
-                    <button
-                      key={admin.id}
-                      onClick={() => insertMention(admin)}
-                      className="w-full px-3 py-2 text-left text-sm hover:bg-muted/50 transition-colors flex items-center gap-2"
-                    >
-                      <span className="font-medium">{admin.displayName}</span>
-                      <span className="text-xs text-muted-foreground">{admin.email}</span>
-                    </button>
-                  ))}
-                </div>
-              )}
-              <div className="flex items-center justify-between">
-                <span className="text-xs text-muted-foreground">Cmd/Ctrl + Enter to send</span>
-                <Button
-                  size="sm"
-                  onClick={() => {
-                    if (newCommentText.trim()) {
-                      const mentions = extractMentions(newCommentText);
-                      createComment.mutate(
-                        { dealId: deal.deal_id, commentText: newCommentText.trim(), mentionedAdmins: mentions },
-                        { onSuccess: () => setNewCommentText('') }
-                      );
-                    }
-                  }}
-                  disabled={!newCommentText.trim() || createComment.isPending}
-                  className="h-7 text-xs"
-                >
-                  Add Note
-                </Button>
+    <div className="flex-1 flex flex-col min-h-0">
+      <div className="flex flex-1 min-h-0">
+        {/* Left Column - Messages */}
+        <div className="flex-1 flex flex-col min-h-0 border-r border-border/40">
+          {!connectionRequestId ? (
+            <div className="flex-1 flex items-center justify-center">
+              <div className="text-center space-y-3 max-w-xs">
+                <AlertCircle className="w-10 h-10 text-muted-foreground/30 mx-auto" />
+                <p className="text-sm text-muted-foreground">No messaging available</p>
+                <p className="text-xs text-muted-foreground/60">
+                  This deal was not created from a marketplace connection request.
+                </p>
               </div>
             </div>
-
-            {commentsLoading ? (
-              <div className="space-y-2">
-                {[1, 2].map((i) => (
-                  <div key={i} className="p-3 border border-border/40 rounded-lg animate-pulse">
-                    <div className="h-4 bg-muted/50 rounded w-3/4 mb-2" />
-                    <div className="h-3 bg-muted/30 rounded w-1/2" />
-                  </div>
-                ))}
-              </div>
-            ) : dealComments && dealComments.length > 0 ? (
-              <div className="space-y-2">
-                {dealComments.map((comment) => (
-                  <div key={comment.id} className="group p-3 border border-border/40 rounded-lg hover:border-border/60 transition-colors">
-                    {editingCommentId === comment.id ? (
-                      <div className="space-y-2">
-                        <Textarea
-                          value={editingCommentText}
-                          onChange={(e) => setEditingCommentText(e.target.value)}
-                          className="min-h-[60px] resize-none text-sm"
-                          autoFocus
-                        />
-                        <div className="flex items-center gap-2">
-                          <Button size="sm" onClick={() => {
-                            if (editingCommentText.trim()) {
-                              updateComment.mutate(
-                                { commentId: comment.id, commentText: editingCommentText.trim(), mentionedAdmins: extractMentions(editingCommentText), dealId: deal.deal_id },
-                                { onSuccess: () => { setEditingCommentId(null); setEditingCommentText(''); } }
-                              );
-                            }
-                          }} disabled={!editingCommentText.trim() || updateComment.isPending} className="h-6 text-xs">Save</Button>
-                          <Button size="sm" variant="ghost" onClick={() => { setEditingCommentId(null); setEditingCommentText(''); }} className="h-6 text-xs">Cancel</Button>
-                        </div>
-                      </div>
-                    ) : (
-                      <>
-                        <p className="text-sm text-foreground whitespace-pre-wrap mb-2">
-                          {comment.comment_text.split(/(@\w+)/g).map((part: string, i: number) => {
-                            if (part.startsWith('@')) return <span key={i} className="text-primary font-medium">{part}</span>;
-                            return part;
-                          })}
-                        </p>
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                            <span className="font-medium">{comment.admin_name}</span>
-                            <span className="text-muted-foreground/40">·</span>
-                            <span>{formatDistanceToNow(new Date(comment.created_at), { addSuffix: true })}</span>
-                            {comment.updated_at !== comment.created_at && (
-                              <><span className="text-muted-foreground/40">·</span><span className="italic">edited</span></>
+          ) : (
+            <>
+              <ScrollArea className="flex-1 px-6">
+                <div className="py-4 space-y-3">
+                  {messagesLoading ? (
+                    <div className="space-y-3">
+                      {[1, 2, 3].map((i) => (
+                        <div key={i} className="p-3 rounded-lg bg-muted/20 animate-pulse h-16" />
+                      ))}
+                    </div>
+                  ) : allMessages.length === 0 ? (
+                    <div className="text-center py-12 space-y-2">
+                      <MessageSquare className="w-8 h-8 text-muted-foreground/30 mx-auto" />
+                      <p className="text-sm text-muted-foreground">No messages yet</p>
+                      <p className="text-xs text-muted-foreground/60">Send a message to start the conversation.</p>
+                    </div>
+                  ) : (
+                    allMessages.map((msg) => {
+                      const isAdmin = msg.sender_role === 'admin';
+                      return (
+                        <div
+                          key={msg.id}
+                          className={cn(
+                            'max-w-[85%] rounded-xl px-4 py-3 space-y-1',
+                            isAdmin
+                              ? 'ml-auto bg-primary/10 border border-primary/20'
+                              : 'mr-auto bg-muted/30 border border-border/40'
+                          )}
+                        >
+                          <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
+                            <span className="font-medium">{msg.senderName}</span>
+                            <span>·</span>
+                            <span>{formatDistanceToNow(new Date(msg.created_at), { addSuffix: true })}</span>
+                            {msg.isInquiry && (
+                              <span className="inline-block px-1.5 py-0.5 rounded bg-accent/20 text-accent-foreground font-medium text-[10px]">
+                                Initial Inquiry
+                              </span>
                             )}
                           </div>
-                          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <Button size="sm" variant="ghost" onClick={() => { setEditingCommentId(comment.id); setEditingCommentText(comment.comment_text); }} className="h-6 w-6 p-0"><Pencil className="h-3 w-3" /></Button>
-                            <Button size="sm" variant="ghost" onClick={() => { if (confirm('Delete this note?')) deleteComment.mutate({ commentId: comment.id, dealId: deal.deal_id }); }} className="h-6 w-6 p-0 text-destructive hover:text-destructive"><Trash2 className="h-3 w-3" /></Button>
-                          </div>
+                          <p className="text-sm text-foreground whitespace-pre-wrap">{msg.body}</p>
+                          {msg.message_type === 'decision' && (
+                            <span className="inline-block mt-1 text-[10px] px-1.5 py-0.5 rounded bg-accent/20 text-accent-foreground font-medium">
+                              Decision
+                            </span>
+                          )}
                         </div>
-                      </>
-                    )}
-                  </div>
-                ))}
+                      );
+                    })
+                  )}
+                  <div ref={bottomRef} />
+                </div>
+              </ScrollArea>
+
+              {/* Compose bar */}
+              <div className="border-t border-border/40 px-6 py-3">
+                <div className="flex items-end gap-3">
+                  <Textarea
+                    placeholder="Type a message..."
+                    value={newMessage}
+                    onChange={(e) => setNewMessage(e.target.value)}
+                    className="min-h-[50px] max-h-[100px] resize-none text-sm flex-1"
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) handleSend();
+                    }}
+                  />
+                  <Button
+                    size="sm"
+                    onClick={handleSend}
+                    disabled={!newMessage.trim() || sendMessage.isPending}
+                    className="h-9 px-4"
+                  >
+                    <Send className="w-3.5 h-3.5 mr-1.5" />
+                    Send
+                  </Button>
+                </div>
+                <p className="text-[10px] text-muted-foreground mt-1">Cmd/Ctrl + Enter to send</p>
               </div>
-            ) : (
-              <div className="p-6 text-center border border-dashed border-border/40 rounded-lg">
-                <MessageSquare className="h-8 w-8 text-muted-foreground/30 mx-auto mb-2" />
-                <p className="text-sm text-muted-foreground">No notes yet</p>
-              </div>
-            )}
-          </div>
+            </>
+          )}
         </div>
 
-        {/* Right Sidebar */}
-        <div className="w-72 flex-shrink-0 space-y-5">
+        {/* Right Sidebar - Buyer Details */}
+        <div className="w-72 flex-shrink-0 overflow-y-auto px-6 py-6 space-y-5">
           {/* Deal Owner */}
           <div className="space-y-2">
             <Label className="text-xs text-muted-foreground uppercase tracking-wider">Owner</Label>
