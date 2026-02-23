@@ -6,6 +6,7 @@ import { Deal } from '@/hooks/admin/use-deals';
 import { cn } from '@/lib/utils';
 import { useAdminProfile } from '@/hooks/admin/use-admin-profiles';
 import { DealScoreBadge } from '@/components/ma-intelligence/DealScoreBadge';
+import { DealSourceBadge } from '@/components/remarketing/DealSourceBadge';
 import { supabase } from '@/integrations/supabase/client';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
@@ -172,9 +173,12 @@ export function PipelineKanbanCard({ deal, onDealClick, isDragging }: PipelineKa
 
         {/* Footer: Owner + Last Activity + Unread */}
         <div className="px-3 py-1.5 border-t border-border/30 flex items-center justify-between">
-          <span className="text-[11px] text-muted-foreground">
-            Owner: <span className="font-medium text-foreground/80">{assignedAdmin?.displayName || 'Unassigned'}</span>
-          </span>
+          <div className="flex items-center gap-1.5">
+            <span className="text-[11px] text-muted-foreground">
+              Owner: <span className="font-medium text-foreground/80">{assignedAdmin?.displayName || 'Unassigned'}</span>
+            </span>
+            <DealSourceBadge source={deal.deal_source} />
+          </div>
           <div className="flex items-center gap-2">
             {unreadCount > 0 && (
               <span className="flex h-4 min-w-[16px] items-center justify-center rounded-full bg-destructive px-1 text-[9px] font-bold text-destructive-foreground">
