@@ -19,7 +19,6 @@ import {
   Shield,
   CheckCircle,
   MessageSquarePlus,
-  
 } from "lucide-react";
 import {
   useConnectionMessages,
