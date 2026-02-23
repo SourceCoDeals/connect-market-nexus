@@ -135,15 +135,15 @@ export function PipelineKanbanCard({ deal, onDealClick, isDragging }: PipelineKa
           </h3>
         </div>
 
-        <div className="px-3.5 py-2.5 space-y-2">
+        <div className="px-4 py-3 space-y-3">
           {/* Row 2: Score + Revenue & EBITDA */}
-          <div className="flex items-center justify-between gap-2 text-xs">
-            <div className="flex items-center gap-3">
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-4 text-sm">
               <span className="text-muted-foreground">
-                Rev: <span className="font-medium text-foreground">{formatCurrency(deal.listing_revenue)}</span>
+                Rev: <span className="font-semibold text-foreground">{formatCurrency(deal.listing_revenue)}</span>
               </span>
               <span className="text-muted-foreground">
-                EBITDA: <span className="font-medium text-foreground">{formatCurrency(deal.listing_ebitda)}</span>
+                EBITDA: <span className="font-semibold text-foreground">{formatCurrency(deal.listing_ebitda)}</span>
               </span>
             </div>
             {deal.deal_score != null && (
@@ -151,51 +151,54 @@ export function PipelineKanbanCard({ deal, onDealClick, isDragging }: PipelineKa
             )}
           </div>
 
-          {/* Row 3: Buyer info */}
-          <div className="space-y-1">
-            <div className="flex items-center justify-between gap-2 text-xs">
-              <span className="font-medium text-foreground truncate">
+          {/* Row 3: Buyer section */}
+          <div className="space-y-1.5 pt-1 border-t border-border/30">
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-sm font-semibold text-foreground truncate">
                 {contactName}
               </span>
               {buyerTypeLabel && (
-                <span className="flex-shrink-0 px-1.5 py-0.5 rounded bg-primary/10 text-primary text-[10px] font-medium">
+                <span className="flex-shrink-0 px-2 py-0.5 rounded-md bg-primary/10 text-primary text-xs font-semibold">
                   {buyerTypeLabel}
                 </span>
               )}
             </div>
             {buyerCompany && (
-              <div className="flex items-center gap-1 text-[11px] text-muted-foreground truncate">
-                <span className="truncate">{buyerCompany}</span>
-                {deal.buyer_website && (
-                  <ExternalLink className="w-2.5 h-2.5 flex-shrink-0 opacity-50" />
-                )}
+              <div className="text-xs text-muted-foreground truncate">
+                {buyerCompany}
+              </div>
+            )}
+            {deal.buyer_website && (
+              <div className="flex items-center gap-1 text-xs text-primary/70 truncate">
+                <ExternalLink className="w-3 h-3 flex-shrink-0" />
+                <span className="truncate">{deal.buyer_website.replace(/^https?:\/\/(www\.)?/, '')}</span>
               </div>
             )}
           </div>
 
           {/* Row 4: Deal Owner */}
-          <div className="text-[11px] text-muted-foreground">
-            Owner: <span className="font-medium text-foreground/80">{assignedAdmin?.displayName || 'Unassigned'}</span>
+          <div className="text-xs text-muted-foreground">
+            Owner: <span className="font-semibold text-foreground/80">{assignedAdmin?.displayName || 'Unassigned'}</span>
           </div>
 
           {/* Row 5: NDA/Fee status dots + Source + Last Activity */}
-          <div className="flex items-center justify-between text-[11px] text-muted-foreground pt-1.5 border-t border-border/30">
+          <div className="flex items-center justify-between text-xs text-muted-foreground pt-2 border-t border-border/30">
             <div className="flex items-center gap-3">
-              <div className="flex items-center gap-1">
-                <div className={cn('w-1.5 h-1.5 rounded-full', getStatusDot(deal.nda_status))} />
+              <div className="flex items-center gap-1.5">
+                <div className={cn('w-2 h-2 rounded-full', getStatusDot(deal.nda_status))} />
                 <span>NDA</span>
               </div>
-              <div className="flex items-center gap-1">
-                <div className={cn('w-1.5 h-1.5 rounded-full', getStatusDot(deal.fee_agreement_status))} />
+              <div className="flex items-center gap-1.5">
+                <div className={cn('w-2 h-2 rounded-full', getStatusDot(deal.fee_agreement_status))} />
                 <span>Fee</span>
               </div>
-              <span className="inline-flex items-center gap-0.5">
-                <SourceIcon className="w-2.5 h-2.5" />
+              <span className="inline-flex items-center gap-1">
+                <SourceIcon className="w-3 h-3" />
                 {sourceBadge.label}
               </span>
             </div>
             <span className="flex items-center gap-1">
-              <Clock className="w-2.5 h-2.5" />
+              <Clock className="w-3 h-3" />
               {lastActivityLabel}
             </span>
           </div>
