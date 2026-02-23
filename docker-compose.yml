@@ -1,0 +1,43 @@
+version: "3.8"
+
+services:
+  # -------------------------------------------------------------------------
+  # Local development server with hot-reload
+  # -------------------------------------------------------------------------
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: development
+    container_name: connect-market-nexus-dev
+    ports:
+      - "8080:8080"
+    volumes:
+      # Mount source code for hot-reload
+      - .:/app
+      # Prevent overwriting container node_modules with host
+      - /app/node_modules
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=development
+    restart: unless-stopped
+
+  # -------------------------------------------------------------------------
+  # Production-like build served via nginx (for local testing)
+  # -------------------------------------------------------------------------
+  app-production:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: production
+      args:
+        VITE_SUPABASE_URL: ${VITE_SUPABASE_URL}
+        VITE_SUPABASE_PUBLISHABLE_KEY: ${VITE_SUPABASE_PUBLISHABLE_KEY}
+        VITE_SUPABASE_PROJECT_ID: ${VITE_SUPABASE_PROJECT_ID}
+    container_name: connect-market-nexus-prod
+    ports:
+      - "3000:80"
+    restart: unless-stopped
+    profiles:
+      - production

@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { Badge } from '@/components/ui/badge';
 import { ExternalLink, User, Upload, Bot, MousePointer, Mail, Link, Users } from 'lucide-react';
 
@@ -6,7 +7,7 @@ interface SourceBadgeProps {
   className?: string;
 }
 
-export const SourceBadge = ({ source, className }: SourceBadgeProps) => {
+export const SourceBadge = memo(function SourceBadge({ source, className }: SourceBadgeProps) {
   const getSourceConfig = (source: string) => {
     switch (source) {
       case 'webflow':
@@ -86,4 +87,4 @@ export const SourceBadge = ({ source, className }: SourceBadgeProps) => {
       {config.label}
     </Badge>
   );
-};
+});

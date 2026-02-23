@@ -4,6 +4,7 @@ import { getAdminProfile } from "../_shared/admin-profiles.ts";
 
 import { getCorsHeaders, corsPreflightResponse } from "../_shared/cors.ts";
 import { requireAdmin, escapeHtmlWithBreaks } from "../_shared/auth.ts";
+import { logEmailDelivery } from "../_shared/email-logger.ts";
 
 interface SendNDAEmailRequest {
   userId?: string;
@@ -349,7 +350,7 @@ ${adminSignature}
     
     // Only use noreply if admin email is not from our domain
     if (!senderEmail.includes("@sourcecodeals.com")) {
-      finalSenderEmail = "noreply@sourcecodeals.com";
+      finalSenderEmail = Deno.env.get('NOREPLY_EMAIL') || 'noreply@sourcecodeals.com';
       finalSenderName = `${senderName} - SourceCo`;
     }
 
@@ -381,11 +382,20 @@ ${adminSignature}
           body: JSON.stringify(brevoPayload),
         });
 
+        const perRecipientCorrelationId = crypto.randomUUID();
+
         if (!brevoResponse.ok) {
           const errorText = await brevoResponse.text();
           console.error(`❌ Failed to send to ${recipient.email}:`, errorText);
           failCount++;
           emailResults.push({ email: recipient.email, success: false, error: errorText });
+          await logEmailDelivery(supabaseAdmin, {
+            email: recipient.email,
+            emailType: 'nda_email',
+            status: 'failed',
+            correlationId: perRecipientCorrelationId,
+            errorMessage: errorText,
+          });
           continue;
         }
 
@@ -393,6 +403,12 @@ ${adminSignature}
         console.log(`✅ Sent to ${recipient.email}:`, brevoResult.messageId);
         successCount++;
         emailResults.push({ email: recipient.email, success: true, messageId: brevoResult.messageId });
+        await logEmailDelivery(supabaseAdmin, {
+          email: recipient.email,
+          emailType: 'nda_email',
+          status: 'sent',
+          correlationId: perRecipientCorrelationId,
+        });
 
         // Update database for this recipient
         try {

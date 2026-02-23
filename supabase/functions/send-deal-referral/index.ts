@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 
 import { getCorsHeaders, corsPreflightResponse } from "../_shared/cors.ts";
+import { logEmailDelivery } from "../_shared/email-logger.ts";
 
 interface ReferralRequest {
   listingId: string;
@@ -153,7 +154,7 @@ serve(async (req: Request) => {
     const brevoPayload: any = {
       sender: { 
         name: "SourceCo Marketplace", 
-        email: "noreply@sourcecoals.com" 
+        email: Deno.env.get('NOREPLY_EMAIL') || "noreply@sourcecodeals.com"
       },
       to: [{ 
         email: recipientEmail, 
@@ -184,11 +185,25 @@ serve(async (req: Request) => {
     if (!response.ok) {
       const errorData = await response.text();
       console.error('Brevo API error:', errorData);
+      await logEmailDelivery(supabase, {
+        email: recipientEmail,
+        emailType: 'deal_referral',
+        status: 'failed',
+        correlationId: crypto.randomUUID(),
+        errorMessage: `Failed to send email: ${response.statusText}`,
+      });
       throw new Error(`Failed to send email: ${response.statusText}`);
     }
 
     const emailResult = await response.json();
     console.log('Email sent successfully via Brevo:', emailResult);
+
+    await logEmailDelivery(supabase, {
+      email: recipientEmail,
+      emailType: 'deal_referral',
+      status: 'sent',
+      correlationId: crypto.randomUUID(),
+    });
 
     // Update referral record with sent timestamp
     const { error: updateError } = await supabase

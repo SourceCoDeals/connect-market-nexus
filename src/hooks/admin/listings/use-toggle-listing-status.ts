@@ -18,28 +18,24 @@ export function useToggleListingStatus() {
       id: string; 
       status: 'active' | 'inactive' 
     }) => {
-      try {
         // Toggling listing status
-        
+
         const { data, error } = await supabase
           .from('listings')
-          .update({ 
+          .update({
             status,
             updated_at: new Date().toISOString(),
           })
           .eq('id', id)
           .select()
           .single();
-        
+
         if (error) {
           throw error;
         }
-        
+
         // Listing status updated
         return data as unknown as AdminListing;
-      } catch (error: any) {
-        throw error;
-      }
     },
     onSuccess: (data) => {
       // Listing status changed, invalidating cache
@@ -78,7 +74,7 @@ export function useToggleListingStatus() {
         description: `The listing "${data.title}" has been ${statusText} successfully.`,
       });
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({
         variant: 'destructive',
         title: 'Error Updating Status',

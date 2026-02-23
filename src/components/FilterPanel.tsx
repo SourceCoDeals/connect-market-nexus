@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { FilterOptions } from "@/types";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -53,7 +54,7 @@ const EBITDA_RANGES = [
   { label: 'Over $10M', value: { min: 10000000, max: null } }
 ];
 
-const FilterPanel = ({
+const FilterPanel = memo(function FilterPanel({
   onFilterChange,
   onResetFilters,
   totalListings,
@@ -61,7 +62,7 @@ const FilterPanel = ({
   categories: _categories = [],
   locations: _locations = [],
   currentFilters
-}: FilterPanelProps) => {
+}: FilterPanelProps) {
   const { trackSearch } = useAnalyticsTracking();
 
   // Helper function to get current revenue range label
@@ -250,6 +251,6 @@ const FilterPanel = ({
       </CardContent>
     </Card>
   );
-};
+});
 
 export default FilterPanel;

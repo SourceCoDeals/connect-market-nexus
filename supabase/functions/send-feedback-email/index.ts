@@ -46,10 +46,11 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     // Prepare Brevo email payload
+    const adminEmail = Deno.env.get('ADMIN_EMAIL') || 'adam.haile@sourcecodeals.com';
     const brevoPayload = {
       sender: {
         name: "SourceCo Feedback",
-        email: "adam.haile@sourcecodeals.com"
+        email: adminEmail
       },
       to: [{ email: to }],
       subject: subject,
@@ -70,8 +71,8 @@ const handler = async (req: Request): Promise<Response> => {
       `,
       textContent: content,
       replyTo: {
-        email: "adam.haile@sourcecodeals.com",
-        name: "Adam Haile"
+        email: adminEmail,
+        name: "SourceCo Support"
       },
       // Disable click tracking for consistency
       params: {

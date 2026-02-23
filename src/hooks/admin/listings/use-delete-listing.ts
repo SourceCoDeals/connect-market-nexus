@@ -12,22 +12,21 @@ export function useDeleteListing() {
 
   return useMutation({
     mutationFn: async (id: string) => {
-      try {
         // Soft deleting listing
-        
+
         // Use the soft delete function
         const { data, error } = await supabase.rpc('soft_delete_listing', {
           listing_id: id
         });
-        
+
         if (error) {
           throw error;
         }
-        
+
         if (!data) {
           throw new Error('Listing not found or already deleted');
         }
-        
+
         // Optionally clean up images in storage (since it's soft delete, we might want to keep them)
         try {
           await deleteListingImages(id);
@@ -36,11 +35,8 @@ export function useDeleteListing() {
           console.warn('Failed to clean up listing images:', imageError);
           // Don't fail the whole operation for image cleanup issues
         }
-        
+
         return id;
-      } catch (error: unknown) {
-        throw error;
-      }
     },
     onSuccess: (id) => {
       queryClient.invalidateQueries({ queryKey: ['admin-listings'] });

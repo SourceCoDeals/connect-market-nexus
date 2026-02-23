@@ -1,0 +1,241 @@
+import { useParams, useNavigate } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { TooltipProvider } from "@/components/ui/tooltip";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import {
+  ArrowLeft, Copy, Edit, KeyRound, XCircle, Plus, Upload, Loader2,
+  Building2, Mail, Phone, Calendar, Handshake, Sparkles, BarChart3,
+  Trash2, Archive, CheckCircle2, ChevronDown, EyeOff, Star,
+} from "lucide-react";
+import { format } from "date-fns";
+import { cn } from "@/lib/utils";
+import { toast } from "sonner";
+import { AddPartnerDialog } from "@/components/remarketing/AddPartnerDialog";
+import { AddDealDialog } from "@/components/remarketing/AddDealDialog";
+import { DealImportDialog } from "@/components/remarketing/DealImportDialog";
+import { SubmissionReviewQueue } from "@/components/remarketing/SubmissionReviewQueue";
+import { EnrichmentProgressIndicator } from "@/components/remarketing/EnrichmentProgressIndicator";
+import { SingleDealEnrichmentDialog } from "@/components/remarketing/SingleDealEnrichmentDialog";
+
+import { usePartnerData } from "./usePartnerData";
+import { usePartnerActions } from "./usePartnerActions";
+import { DealsTable } from "./DealsTable";
+
+export default function ReMarketingReferralPartnerDetail() {
+  const { partnerId } = useParams<{ partnerId: string }>();
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+
+  const data = usePartnerData(partnerId);
+  const actions = usePartnerActions(partnerId, data.partner, data.deals);
+
+  if (data.partnerLoading) {
+    return <div className="flex items-center justify-center h-96"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>;
+  }
+
+  if (!data.partner) {
+    return (
+      <div className="flex-1 p-6">
+        <Button variant="ghost" onClick={() => navigate("/admin/remarketing/leads/referrals")}><ArrowLeft className="h-4 w-4 mr-2" />Back to Partners</Button>
+        <div className="text-center py-12 text-muted-foreground">Partner not found</div>
+      </div>
+    );
+  }
+
+  const partner = data.partner;
+  const pendingCount = data.submissions?.length || 0;
+
+  return (
+    <TooltipProvider>
+      <div className="flex-1 p-6 space-y-6 overflow-auto">
+        {/* Back + Header */}
+        <div>
+          <Button variant="ghost" size="sm" onClick={() => navigate("/admin/remarketing/leads/referrals")} className="mb-4">
+            <ArrowLeft className="h-4 w-4 mr-2" />Back to Partners
+          </Button>
+          <div className="flex items-start justify-between">
+            <div className="flex items-center gap-4">
+              <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center"><Handshake className="h-6 w-6 text-primary" /></div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h1 className="text-2xl font-bold">{partner.name}</h1>
+                  <Badge variant={partner.is_active ? "default" : "secondary"}>{partner.is_active ? "Active" : "Inactive"}</Badge>
+                </div>
+                <div className="flex items-center gap-4 text-sm text-muted-foreground mt-1">
+                  {partner.company && <span className="flex items-center gap-1"><Building2 className="h-3 w-3" />{partner.company}</span>}
+                  {partner.email && <span className="flex items-center gap-1"><Mail className="h-3 w-3" />{partner.email}</span>}
+                  {partner.phone && <span className="flex items-center gap-1"><Phone className="h-3 w-3" />{partner.phone}</span>}
+                  {partner.created_at && <span className="flex items-center gap-1"><Calendar className="h-3 w-3" />Added {format(new Date(partner.created_at), "MMM d, yyyy")}</span>}
+                </div>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button variant="outline" size="sm" onClick={() => actions.setAddDealOpen(true)}><Plus className="h-4 w-4 mr-1" />Add Deal</Button>
+              <Button variant="outline" size="sm" onClick={() => actions.setImportDialogOpen(true)}><Upload className="h-4 w-4 mr-1" />Import Deals</Button>
+              <Button variant="outline" size="sm" onClick={() => actions.setEditDialogOpen(true)}><Edit className="h-4 w-4 mr-1" />Edit</Button>
+              <Button variant="outline" size="sm" onClick={() => actions.deactivateMutation.mutate()}><XCircle className="h-4 w-4 mr-1" />{partner.is_active ? "Deactivate" : "Activate"}</Button>
+            </div>
+          </div>
+        </div>
+
+        {/* Share Link & Password */}
+        <Card>
+          <CardContent className="p-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium mb-1">Partner Tracker Link</p>
+                <p className="text-xs text-muted-foreground font-mono">{window.location.origin}/referrals/{partner.share_token || "..."}</p>
+              </div>
+              <Button variant="outline" size="sm" onClick={actions.handleCopyShareLink}><Copy className="h-3 w-3 mr-1" />Copy URL</Button>
+            </div>
+            <div className="flex items-center justify-between border-t pt-3">
+              <div>
+                <p className="text-sm font-medium mb-1">Password</p>
+                <p className="text-xs font-mono text-muted-foreground">{partner?.share_password_plaintext || actions.lastGeneratedPassword || "Not set — click Reset Password"}</p>
+              </div>
+              <div className="flex items-center gap-2">
+                {(partner?.share_password_plaintext || actions.lastGeneratedPassword) && (
+                  <Button variant="outline" size="sm" onClick={() => { navigator.clipboard.writeText(partner?.share_password_plaintext || actions.lastGeneratedPassword || ''); toast.success("Password copied to clipboard"); }}>
+                    <Copy className="h-3 w-3 mr-1" />Copy Password
+                  </Button>
+                )}
+                <Button variant="outline" size="sm" onClick={() => actions.resetPasswordMutation.mutate()} disabled={actions.resetPasswordMutation.isPending}>
+                  <KeyRound className="h-3 w-3 mr-1" />Reset Password
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* KPI Stats */}
+        <div className="grid grid-cols-4 gap-4">
+          <Card><CardContent className="p-4"><div className="text-sm text-muted-foreground">Total Deals</div><div className="text-2xl font-bold">{data.kpis.total}</div></CardContent></Card>
+          <Card><CardContent className="p-4"><div className="text-sm text-muted-foreground flex items-center gap-1"><Sparkles className="h-3 w-3" /> Enriched</div><div className="text-2xl font-bold">{data.kpis.enriched}</div></CardContent></Card>
+          <Card><CardContent className="p-4"><div className="text-sm text-muted-foreground flex items-center gap-1"><BarChart3 className="h-3 w-3" /> Scored</div><div className="text-2xl font-bold">{data.kpis.scored}</div></CardContent></Card>
+          <Card><CardContent className="p-4"><div className="text-sm text-muted-foreground">Avg Quality</div><div className="text-2xl font-bold">{data.kpis.avgQuality > 0 ? data.kpis.avgQuality.toFixed(0) : "-"}</div></CardContent></Card>
+        </div>
+
+        {/* Enrichment Progress */}
+        {data.enrichmentProgress && data.enrichmentProgress.total > 0 && (
+          <EnrichmentProgressIndicator completedCount={data.enrichmentProgress.completed} totalCount={data.enrichmentProgress.total} progress={(data.enrichmentProgress.completed / data.enrichmentProgress.total) * 100} itemLabel="deals" />
+        )}
+
+        {/* Pending Submissions */}
+        {pendingCount > 0 && (
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-lg flex items-center gap-2">Pending Submissions<Badge variant="secondary" className="bg-amber-100 text-amber-800">{pendingCount}</Badge></CardTitle>
+            </CardHeader>
+            <CardContent><SubmissionReviewQueue submissions={data.submissions || []} isLoading={data.submissionsLoading} showPartnerColumn={false} /></CardContent>
+          </Card>
+        )}
+
+        {/* Deals Table */}
+        <Card>
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <CardTitle className="text-lg">Referred Deals ({data.deals?.length || 0})</CardTitle>
+                {(() => { const pc = data.deals?.filter(d => d.status === 'pending_referral_review').length || 0; return pc > 0 ? <Badge className="bg-blue-100 text-blue-800 border-blue-200">{pc} pending review</Badge> : null; })()}
+              </div>
+              <div className="flex items-center gap-2">
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild><Button variant="outline" size="sm"><Sparkles className="h-4 w-4 mr-1" />Enrich<ChevronDown className="h-3 w-3 ml-1" /></Button></DropdownMenuTrigger>
+                  <DropdownMenuContent>
+                    <DropdownMenuItem onClick={() => actions.handleBulkEnrich("unenriched")}>Enrich Unenriched</DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => actions.handleBulkEnrich("all")}>Re-enrich All</DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild><Button variant="outline" size="sm"><BarChart3 className="h-4 w-4 mr-1" />Score<ChevronDown className="h-3 w-3 ml-1" /></Button></DropdownMenuTrigger>
+                  <DropdownMenuContent>
+                    <DropdownMenuItem onClick={() => actions.handleBulkScore("unscored")}>Score Unscored</DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => actions.handleBulkScore("all")}>Recalculate All</DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+                <button onClick={() => data.setHidePushed(h => !h)} className={cn("flex items-center gap-2 text-sm px-3 py-1.5 rounded-md border transition-colors", data.hidePushed ? "bg-primary/10 border-primary/30 text-primary font-medium" : "border-border text-muted-foreground hover:text-foreground hover:bg-muted/50")}>
+                  <EyeOff className="h-3.5 w-3.5" />{data.hidePushed ? "Showing Un-Pushed Only" : "Hide Pushed"}
+                </button>
+              </div>
+            </div>
+          </CardHeader>
+
+          {/* Bulk Actions */}
+          {actions.someSelected && (
+            <div className="px-6 pb-3">
+              <div className="flex items-center gap-3 p-3 bg-primary/5 border border-primary/20 rounded-lg">
+                <Badge variant="secondary" className="text-sm font-medium">{actions.selectedDealIds.size} selected</Badge>
+                <Button variant="ghost" size="sm" onClick={() => actions.setSelectedDealIds(new Set())}><XCircle className="h-4 w-4 mr-1" />Clear</Button>
+                <div className="h-5 w-px bg-border" />
+                <Button size="sm" variant="outline" onClick={actions.handleBulkApprove}><CheckCircle2 className="h-4 w-4 mr-1" />Approve to All Deals</Button>
+                {(() => {
+                  const selectedArr = Array.from(actions.selectedDealIds);
+                  const allPriority = selectedArr.length > 0 && selectedArr.every(id => data.deals?.find(d => d.id === id)?.is_priority_target);
+                  return (
+                    <Button size="sm" variant="outline" className={cn("gap-2", allPriority ? "text-muted-foreground" : "text-amber-600 border-amber-200 hover:bg-amber-50")}
+                      onClick={async () => {
+                        const newValue = !allPriority;
+                        const { error } = await supabase.from("listings").update({ is_priority_target: newValue }).in("id", selectedArr);
+                        if (error) toast.error("Failed to update priority");
+                        else { toast.success(newValue ? `${selectedArr.length} deal(s) marked as priority` : `${selectedArr.length} deal(s) priority removed`); actions.setSelectedDealIds(new Set()); queryClient.invalidateQueries({ queryKey: ["referral-partners", partnerId, "deals"] }); }
+                      }}
+                    >
+                      <Star className={cn("h-4 w-4", allPriority ? "" : "fill-amber-500")} />{allPriority ? "Remove Priority" : "Mark as Priority"}
+                    </Button>
+                  );
+                })()}
+                <div className="h-5 w-px bg-border" />
+                <Button size="sm" variant="outline" onClick={() => actions.setConfirmAction({ type: "archive", ids: Array.from(actions.selectedDealIds) })}><Archive className="h-4 w-4 mr-1" />Archive</Button>
+                <Button size="sm" variant="outline" className="text-destructive border-destructive/30 hover:bg-destructive/10" onClick={() => actions.setConfirmAction({ type: "delete", ids: Array.from(actions.selectedDealIds) })}><Trash2 className="h-4 w-4 mr-1" />Delete</Button>
+              </div>
+            </div>
+          )}
+
+          <CardContent className="p-0">
+            {data.dealsLoading ? (
+              <div className="flex items-center justify-center py-12"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
+            ) : !data.deals?.length ? (
+              <div className="text-center py-12 text-muted-foreground"><Building2 className="h-8 w-8 mx-auto mb-2 opacity-50" /><p className="text-sm">No deals referred by this partner yet</p></div>
+            ) : (
+              <DealsTable
+                deals={data.sortedDeals} sortField={data.sortField} sortDir={data.sortDir} toggleSort={data.toggleSort}
+                selectedDealIds={actions.selectedDealIds} allSelected={actions.allSelected}
+                toggleSelectAll={actions.toggleSelectAll} toggleSelect={actions.toggleSelect}
+                onEnrichDeal={actions.handleEnrichDeal} onConfirmAction={actions.setConfirmAction} partnerId={partnerId!}
+              />
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Dialogs */}
+        <AddPartnerDialog open={actions.editDialogOpen} onOpenChange={actions.setEditDialogOpen} editingPartner={partner} />
+        <AddDealDialog open={actions.addDealOpen} onOpenChange={actions.setAddDealOpen} onDealCreated={actions.handleDealCreated} referralPartnerId={partnerId} />
+        <DealImportDialog open={actions.importDialogOpen} onOpenChange={actions.setImportDialogOpen} onImportComplete={actions.handleImportComplete} onImportCompleteWithIds={actions.handleImportCompleteWithIds} referralPartnerId={partnerId} />
+        <SingleDealEnrichmentDialog open={actions.enrichmentDialogOpen} onOpenChange={actions.setEnrichmentDialogOpen} result={actions.enrichmentResult} />
+
+        <AlertDialog open={!!actions.confirmAction} onOpenChange={(open) => !open && actions.setConfirmAction(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>{actions.confirmAction?.type === "delete" ? "Delete Deals" : "Archive Deals"}</AlertDialogTitle>
+              <AlertDialogDescription>
+                {actions.confirmAction?.type === "delete" ? `This will permanently delete ${actions.confirmAction.ids.length} deal(s) and all associated data. This cannot be undone.` : `This will archive ${actions.confirmAction?.ids.length} deal(s).`}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={actions.confirmAction?.type === "delete" ? actions.handleBulkDelete : actions.handleBulkArchive}
+                className={actions.confirmAction?.type === "delete" ? "bg-destructive text-destructive-foreground hover:bg-destructive/90" : ""}>
+                {actions.confirmAction?.type === "delete" ? "Delete" : "Archive"}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      </div>
+    </TooltipProvider>
+  );
+}

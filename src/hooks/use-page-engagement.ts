@@ -44,9 +44,9 @@ export function usePageEngagement(userId?: string | null) {
     const timeOnPage = Math.floor((Date.now() - engagement.pageStartTime) / 1000);
     
     // Add any remaining focus time
-    let totalFocusTime = engagement.focusTime;
+    let _totalFocusTime = engagement.focusTime;
     if (engagement.isFocused && engagement.lastFocusStart) {
-      totalFocusTime += Date.now() - engagement.lastFocusStart;
+      _totalFocusTime += Date.now() - engagement.lastFocusStart;
     }
 
     // Only flush if we have meaningful data (more than 1 second)

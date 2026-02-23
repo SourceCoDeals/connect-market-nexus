@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import { APP_CONFIG } from '@/config/app';
 
 interface UpdateFeeAgreementParams {
   userId: string;
@@ -213,7 +214,7 @@ export const useLogFeeAgreementEmail = () => {
           content: content || 'Please review and sign the attached fee agreement.',
           useTemplate: !(subject || content), // Use template only if no custom content
           adminId: adminId,
-          adminEmail: adminEmail || 'adam.haile@sourcecodeals.com',
+          adminEmail: adminEmail || APP_CONFIG.adminEmail,
           adminName: adminName || 'Adam Haile',
           attachments: attachments || [],
           customSignatureText

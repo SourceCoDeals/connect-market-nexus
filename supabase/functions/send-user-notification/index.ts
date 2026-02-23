@@ -4,6 +4,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 
 import { getCorsHeaders, corsPreflightResponse } from "../_shared/cors.ts";
 import { requireAdmin, escapeHtml, escapeHtmlWithBreaks } from "../_shared/auth.ts";
+import { logEmailDelivery } from "../_shared/email-logger.ts";
 
 interface UserNotificationRequest {
   email: string;
@@ -46,6 +47,7 @@ const handler = async (req: Request): Promise<Response> => {
       fromEmail
     }: UserNotificationRequest = await req.json();
 
+    const correlationId = crypto.randomUUID();
     console.log("Sending user notification:", { email, subject, type });
 
     // For connection_approved emails, use plain text format
@@ -102,7 +104,7 @@ const handler = async (req: Request): Promise<Response> => {
 
           <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e2e8f0; color: #64748b; font-size: 14px;">
             <p>This notification was sent from SourceCo Marketplace.</p>
-            <p>If you have any questions, contact us at <a href="mailto:adam.haile@sourcecodeals.com" style="color: #059669;">adam.haile@sourcecodeals.com</a></p>
+            <p>If you have any questions, contact us at <a href="mailto:${Deno.env.get('ADMIN_EMAIL') || 'adam.haile@sourcecodeals.com'}" style="color: #059669;">${Deno.env.get('ADMIN_EMAIL') || 'adam.haile@sourcecodeals.com'}</a></p>
           </div>
         </div>
       `;
@@ -123,7 +125,7 @@ const handler = async (req: Request): Promise<Response> => {
       body: JSON.stringify({
         sender: {
           name: "SourceCo Marketplace",
-          email: fromEmail || "adam.haile@sourcecodeals.com"
+          email: fromEmail || Deno.env.get('ADMIN_EMAIL') || "adam.haile@sourcecodeals.com"
         },
         to: [{
           email: email,
@@ -133,7 +135,7 @@ const handler = async (req: Request): Promise<Response> => {
         htmlContent: htmlContent,
         textContent: textContent,
         replyTo: {
-          email: fromEmail || "adam.haile@sourcecodeals.com",
+          email: fromEmail || Deno.env.get('ADMIN_EMAIL') || "adam.haile@sourcecodeals.com",
           name: fromEmail?.includes('bill.martin') ? "Bill Martin - SourceCo" :
                 fromEmail?.includes('tomos.mughan') ? "Tomos Mughan - SourceCo" :
                 "Adam Haile - SourceCo"
@@ -154,6 +156,8 @@ const handler = async (req: Request): Promise<Response> => {
 
     console.log("User notification sent successfully");
 
+    await logEmailDelivery(supabase, { email, emailType: 'user_notification', status: 'sent', correlationId });
+
     return new Response(
       JSON.stringify({
         success: true,
@@ -167,6 +171,12 @@ const handler = async (req: Request): Promise<Response> => {
 
   } catch (error: any) {
     console.error("Error in send-user-notification function:", error);
+
+    try {
+      const sbClient = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
+      await logEmailDelivery(sbClient, { email: 'unknown', emailType: 'user_notification', status: 'failed', errorMessage: error.message });
+    } catch (_) { /* logging best-effort */ }
+
     return new Response(
       JSON.stringify({
         error: error.message || "Failed to send user notification"

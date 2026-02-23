@@ -329,7 +329,7 @@ async function triggerDealAlertsForListing(listing: any): Promise<void> {
         }
       }
     }
-  } catch (error) {
-    throw error;
+  } catch (_triggerError) {
+    // Silently fail deal alerts - they should not block listing creation
   }
 }

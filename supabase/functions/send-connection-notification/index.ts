@@ -1,8 +1,10 @@
 
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 import { getCorsHeaders, corsPreflightResponse } from "../_shared/cors.ts";
 import { requireAuth, escapeHtml, escapeHtmlWithBreaks } from "../_shared/auth.ts";
+import { logEmailDelivery } from "../_shared/email-logger.ts";
 
 interface ConnectionNotificationRequest {
   type: 'user_confirmation' | 'admin_notification';
@@ -111,7 +113,7 @@ const handler = async (req: Request): Promise<Response> => {
           
           <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e2e8f0; color: #64748b; font-size: 14px;">
             <p>Thank you for your interest! We'll keep you updated on the status of your request.</p>
-            <p>If you have any questions, contact us at <a href="mailto:adam.haile@sourcecodeals.com" style="color: #059669;">adam.haile@sourcecodeals.com</a></p>
+            <p>If you have any questions, contact us at <a href="mailto:${Deno.env.get('ADMIN_EMAIL') || 'adam.haile@sourcecodeals.com'}" style="color: #059669;">${Deno.env.get('ADMIN_EMAIL') || 'adam.haile@sourcecodeals.com'}</a></p>
           </div>
         </div>
       `;
@@ -160,7 +162,7 @@ const handler = async (req: Request): Promise<Response> => {
           
           <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e2e8f0; color: #64748b; font-size: 14px;">
             <p>This notification was sent automatically when someone requested to connect with you. Please log in to your dashboard to respond.</p>
-            <p>If you have any questions, contact us at <a href="mailto:adam.haile@sourcecodeals.com" style="color: #059669;">adam.haile@sourcecodeals.com</a></p>
+            <p>If you have any questions, contact us at <a href="mailto:${Deno.env.get('ADMIN_EMAIL') || 'adam.haile@sourcecodeals.com'}" style="color: #059669;">${Deno.env.get('ADMIN_EMAIL') || 'adam.haile@sourcecodeals.com'}</a></p>
           </div>
         </div>
       `;
@@ -184,7 +186,7 @@ const handler = async (req: Request): Promise<Response> => {
       body: JSON.stringify({
         sender: {
           name: "SourceCo Marketplace",
-          email: "adam.haile@sourcecodeals.com"
+          email: Deno.env.get('ADMIN_EMAIL') || "adam.haile@sourcecodeals.com"
         },
         to: [{
           email: recipientEmail,
@@ -193,7 +195,7 @@ const handler = async (req: Request): Promise<Response> => {
         subject: subject,
         htmlContent: htmlContent,
         replyTo: {
-          email: "adam.haile@sourcecodeals.com",
+          email: Deno.env.get('ADMIN_EMAIL') || "adam.haile@sourcecodeals.com",
           name: "Adam Haile - SourceCo"
         },
         // Disable click tracking to prevent broken links
@@ -204,6 +206,11 @@ const handler = async (req: Request): Promise<Response> => {
       })
     });
 
+    const supabase = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+    );
+
     if (!emailResponse.ok) {
       const errorText = await emailResponse.text();
       console.error("Error sending email via Brevo:", {
@@ -213,6 +220,13 @@ const handler = async (req: Request): Promise<Response> => {
         recipient: recipientEmail,
         type
       });
+      await logEmailDelivery(supabase, {
+        email: recipientEmail,
+        emailType: 'connection_notification',
+        status: 'failed',
+        correlationId: crypto.randomUUID(),
+        errorMessage: errorText,
+      });
       throw new Error(`Brevo API error: ${errorText}`);
     }
 
@@ -221,6 +235,13 @@ const handler = async (req: Request): Promise<Response> => {
       type,
       recipient: recipientEmail,
       messageId: responseData.messageId
+    });
+
+    await logEmailDelivery(supabase, {
+      email: recipientEmail,
+      emailType: 'connection_notification',
+      status: 'sent',
+      correlationId: crypto.randomUUID(),
     });
 
     return new Response(

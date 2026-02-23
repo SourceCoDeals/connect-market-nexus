@@ -9,7 +9,7 @@ export interface ErrorContext {
   component?: string;
   operation?: string;
   userId?: string;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }
 
 export interface ErrorHandler {
@@ -50,7 +50,7 @@ class ErrorManager {
         console.warn(logMessage, { error, context });
         break;
       case 'low':
-        console.log(logMessage, { error, context });
+        console.warn(logMessage, { error, context });
         break;
     }
 
@@ -122,7 +122,7 @@ class ErrorManager {
         userId: context.userId,
       };
 
-      console.log('📊 Would report to external service:', errorData);
+      console.warn('📊 Would report to external service:', errorData);
       
       // Example: await fetch('/api/errors', { method: 'POST', body: JSON.stringify(errorData) });
     } catch (reportingError) {

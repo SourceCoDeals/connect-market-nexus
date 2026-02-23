@@ -1,0 +1,348 @@
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { PipelineSummaryCard } from "@/components/remarketing";
+import { DealTranscriptSection } from "@/components/remarketing/DealTranscriptSection";
+import {
+  GeneralNotesSection,
+  OwnerResponseSection,
+  ExecutiveSummaryCard,
+  ServicesBusinessModelCard,
+  GeographicCoverageCard,
+  OwnerGoalsCard,
+  PrimaryContactCard,
+  CustomerTypesCard,
+  CompanyOverviewCard,
+  AdditionalInfoCard,
+  KeyQuotesCard,
+  BuyerHistoryDialog,
+  EditFinancialsDialog,
+} from "@/components/remarketing/deal-detail";
+import { format } from "date-fns";
+import { WebsiteActionsCard } from "./WebsiteActionsCard";
+import { FinancialOverviewCard } from "./FinancialOverviewCard";
+import type { DealTranscript } from "../types";
+
+interface OverviewTabProps {
+  deal: any;
+  dealId: string;
+  scoreStats: { count: number; approved: number; passed: number; avgScore: number } | undefined;
+  pipelineStats: {
+    contacted: number;
+    responded: number;
+    meetingScheduled: number;
+    loiSent: number;
+    closedWon: number;
+    closedLost: number;
+  } | undefined;
+  transcripts: any[] | undefined;
+  transcriptsLoading: boolean;
+  effectiveWebsite: string | null;
+  isEnriching: boolean;
+  enrichmentProgress: number;
+  enrichmentStage: string;
+  isAnalyzingNotes: boolean;
+  buyerHistoryOpen: boolean;
+  setBuyerHistoryOpen: (v: boolean) => void;
+  editFinancialsOpen: boolean;
+  setEditFinancialsOpen: (v: boolean) => void;
+  handleEnrichFromWebsite: () => void;
+  handleAnalyzeNotes: (notes: string) => void;
+  updateDealMutation: { mutateAsync: (updates: Record<string, unknown>) => Promise<void>; isPending: boolean };
+  toggleContactOwnerMutation: { mutate: (v: boolean) => void; isPending: boolean };
+  toggleUniverseFlagMutation: { mutate: (v: boolean) => void; isPending: boolean };
+  queryClient: any;
+}
+
+export function OverviewTab({
+  deal,
+  dealId,
+  scoreStats,
+  pipelineStats,
+  transcripts,
+  transcriptsLoading,
+  effectiveWebsite,
+  isEnriching,
+  enrichmentProgress,
+  enrichmentStage,
+  isAnalyzingNotes,
+  buyerHistoryOpen,
+  setBuyerHistoryOpen,
+  editFinancialsOpen,
+  setEditFinancialsOpen,
+  handleEnrichFromWebsite,
+  handleAnalyzeNotes,
+  updateDealMutation,
+  toggleContactOwnerMutation,
+  toggleUniverseFlagMutation,
+  queryClient,
+}: OverviewTabProps) {
+  return (
+    <>
+      {scoreStats && scoreStats.count > 0 && (
+        <PipelineSummaryCard
+          scored={scoreStats.count}
+          approved={scoreStats.approved}
+          contacted={(pipelineStats?.contacted || 0) + (pipelineStats?.responded || 0)}
+          meetingScheduled={pipelineStats?.meetingScheduled || 0}
+          closedWon={pipelineStats?.closedWon || 0}
+        />
+      )}
+
+      <WebsiteActionsCard
+        deal={deal}
+        dealId={dealId}
+        effectiveWebsite={effectiveWebsite}
+        scoreStats={scoreStats}
+        isEnriching={isEnriching}
+        enrichmentProgress={enrichmentProgress}
+        enrichmentStage={enrichmentStage}
+        handleEnrichFromWebsite={handleEnrichFromWebsite}
+        setBuyerHistoryOpen={setBuyerHistoryOpen}
+        toggleContactOwnerMutation={toggleContactOwnerMutation}
+        toggleUniverseFlagMutation={toggleUniverseFlagMutation}
+      />
+
+      <BuyerHistoryDialog
+        open={buyerHistoryOpen}
+        onOpenChange={setBuyerHistoryOpen}
+        dealId={dealId}
+      />
+
+      <CompanyOverviewCard
+        companyName={deal.internal_company_name || deal.title}
+        website={effectiveWebsite}
+        location={deal.location}
+        address={deal.address}
+        foundedYear={deal.founded_year}
+        employees={{
+          fullTime: deal.full_time_employees,
+          partTime: deal.part_time_employees,
+        }}
+        industry={deal.industry}
+        numberOfLocations={deal.number_of_locations}
+        locationRadiusRequirement={deal.location_radius_requirement}
+        category={deal.category}
+        status={deal.status}
+        streetAddress={deal.street_address}
+        addressCity={deal.address_city}
+        addressState={deal.address_state}
+        addressZip={deal.address_zip}
+        addressCountry={deal.address_country}
+        googleReviewCount={deal.google_review_count ?? undefined}
+        googleRating={deal.google_rating ?? undefined}
+        googleMapsUrl={deal.google_maps_url ?? undefined}
+        linkedinUrl={deal.linkedin_url ?? undefined}
+        linkedinEmployeeCount={deal.linkedin_employee_count ?? undefined}
+        linkedinEmployeeRange={deal.linkedin_employee_range ?? undefined}
+        dealQualityScore={deal.deal_total_score ?? undefined}
+        onScoreChange={async (newScore) => {
+          await updateDealMutation.mutateAsync({
+            deal_total_score: newScore,
+          });
+        }}
+        onSave={async (data) => {
+          await updateDealMutation.mutateAsync({
+            internal_company_name: data.companyName,
+            website: data.website,
+            address: data.address,
+            founded_year: data.foundedYear,
+            industry: data.industry,
+            number_of_locations: data.numberOfLocations,
+            location_radius_requirement: data.locationRadiusRequirement,
+            street_address: data.streetAddress,
+            address_city: data.addressCity,
+            address_state: data.addressState,
+            address_zip: data.addressZip,
+            address_country: data.addressCountry,
+          });
+        }}
+      />
+
+      <FinancialOverviewCard
+        deal={deal}
+        onEditClick={() => setEditFinancialsOpen(true)}
+      />
+
+      <EditFinancialsDialog
+        open={editFinancialsOpen}
+        onOpenChange={setEditFinancialsOpen}
+        data={{
+          revenue: deal.revenue,
+          ebitda: deal.ebitda,
+          revenue_confidence: deal.revenue_confidence,
+          ebitda_confidence: deal.ebitda_confidence,
+        }}
+        onSave={async (data) => {
+          const { _manualEdit, ...financialData } = data;
+          const updates: Record<string, any> = { ...financialData };
+
+          if (_manualEdit) {
+            const existingSources = (deal.extraction_sources as Record<string, any>) || {};
+            const manualSource = { source: 'manual', timestamp: new Date().toISOString() };
+            const sourceUpdates: Record<string, any> = { ...existingSources };
+            if (data.revenue !== undefined) {
+              sourceUpdates.revenue = manualSource;
+              sourceUpdates.revenue_confidence = manualSource;
+              sourceUpdates.revenue_source_quote = manualSource;
+            }
+            if (data.ebitda !== undefined) {
+              sourceUpdates.ebitda = manualSource;
+              sourceUpdates.ebitda_confidence = manualSource;
+              sourceUpdates.ebitda_source_quote = manualSource;
+            }
+            updates.extraction_sources = sourceUpdates;
+            if (data.revenue !== undefined) updates.revenue_source_quote = null;
+            if (data.ebitda !== undefined) updates.ebitda_source_quote = null;
+          }
+
+          await updateDealMutation.mutateAsync(updates);
+          setEditFinancialsOpen(false);
+        }}
+        isSaving={updateDealMutation.isPending}
+      />
+
+      <ExecutiveSummaryCard
+        summary={deal.executive_summary}
+        onSave={async (summary) => {
+          await updateDealMutation.mutateAsync({ executive_summary: summary });
+        }}
+      />
+
+      <div className="grid gap-6 lg:grid-cols-2">
+        <ServicesBusinessModelCard
+          serviceMix={deal.service_mix}
+          onSave={async (data) => {
+            await updateDealMutation.mutateAsync({
+              service_mix: data.serviceMix,
+            });
+          }}
+        />
+
+        <GeographicCoverageCard
+          states={Array.isArray(deal.geographic_states) ? deal.geographic_states : null}
+          onSave={async (states) => {
+            await updateDealMutation.mutateAsync({ geographic_states: states });
+          }}
+        />
+      </div>
+
+      <OwnerGoalsCard
+        ownerGoals={deal.owner_goals}
+        ownershipStructure={deal.ownership_structure}
+        specialRequirements={deal.special_requirements}
+        onSave={async (data) => {
+          await updateDealMutation.mutateAsync({
+            owner_goals: data.ownerGoals,
+            special_requirements: data.specialRequirements,
+          });
+        }}
+      />
+
+      <OwnerResponseSection
+        ownerResponse={deal.owner_response}
+        onSave={async (response) => {
+          await updateDealMutation.mutateAsync({ owner_response: response });
+        }}
+      />
+
+      <KeyQuotesCard
+        quotes={Array.isArray(deal.key_quotes) ? deal.key_quotes : null}
+        onSave={async (quotes) => {
+          await updateDealMutation.mutateAsync({ key_quotes: quotes });
+        }}
+      />
+
+      <PrimaryContactCard
+        name={deal.main_contact_name}
+        email={deal.main_contact_email}
+        phone={deal.main_contact_phone}
+        onSave={async (data) => {
+          await updateDealMutation.mutateAsync({
+            main_contact_name: data.name,
+            main_contact_email: data.email,
+            main_contact_phone: data.phone,
+          });
+        }}
+      />
+
+      <CustomerTypesCard
+        customerTypes={deal.customer_types}
+        customerConcentration={deal.customer_concentration != null ? String(deal.customer_concentration) : undefined}
+        customerGeography={deal.customer_geography ?? undefined}
+        onSave={async (data) => {
+          await updateDealMutation.mutateAsync({
+            customer_types: data.customerTypes,
+            customer_concentration: data.customerConcentration ? parseFloat(data.customerConcentration) : null,
+            customer_geography: data.customerGeography,
+          });
+        }}
+      />
+
+      <AdditionalInfoCard
+        otherNotes={deal.owner_notes}
+        internalNotes={deal.internal_notes}
+        keyRisks={deal.key_risks as string | null}
+        technologySystems={deal.technology_systems as string | null}
+        realEstateInfo={deal.real_estate_info as string | null}
+        growthTrajectory={deal.growth_trajectory as string | null}
+        onSave={async (data) => {
+          await updateDealMutation.mutateAsync({
+            owner_notes: data.otherNotes,
+            internal_notes: data.internalNotes,
+            key_risks: data.keyRisks,
+            technology_systems: data.technologySystems,
+            real_estate_info: data.realEstateInfo,
+            growth_trajectory: data.growthTrajectory,
+          });
+        }}
+      />
+
+      {deal.description && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">Description</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-muted-foreground whitespace-pre-wrap">{deal.description}</p>
+          </CardContent>
+        </Card>
+      )}
+
+      <DealTranscriptSection
+        dealId={dealId}
+        transcripts={(transcripts || []) as unknown as DealTranscript[]}
+        isLoading={transcriptsLoading}
+        dealInfo={{
+          company_name: deal.internal_company_name || deal.title,
+          main_contact_email: deal.main_contact_email ?? undefined,
+        }}
+        contactEmail={deal.main_contact_email ?? null}
+        contactName={deal.main_contact_name ?? null}
+        companyName={deal.internal_company_name || deal.title || ''}
+        onSyncComplete={() => {
+          queryClient.invalidateQueries({ queryKey: ['remarketing', 'deal-transcripts', dealId] });
+        }}
+        onTranscriptLinked={() => {
+          queryClient.invalidateQueries({ queryKey: ['remarketing', 'deal-transcripts', dealId] });
+        }}
+      />
+
+      <GeneralNotesSection
+        notes={deal.general_notes}
+        onSave={async (notes) => {
+          await updateDealMutation.mutateAsync({ general_notes: notes });
+        }}
+        isAnalyzing={isAnalyzingNotes}
+        onAnalyze={handleAnalyzeNotes}
+      />
+
+      <div className="flex justify-end gap-6 text-xs text-muted-foreground pt-4">
+        <span className="flex items-center gap-1">
+          Created: {format(new Date(deal.created_at), 'MMM d, yyyy')}
+        </span>
+        <span className="flex items-center gap-1">
+          Updated: {format(new Date(deal.updated_at), 'MMM d, yyyy')}
+        </span>
+      </div>
+    </>
+  );
+}

@@ -2,35 +2,30 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/context/AuthContext";
+import { APP_CONFIG } from "@/config/app";
 
 export function EmailTestButton() {
   const [isSending, setIsSending] = useState(false);
   const { toast } = useToast();
+  const { user } = useAuth();
+
+  const testRecipient = user?.email ?? APP_CONFIG.adminEmail;
 
   const sendTestEmail = async () => {
     setIsSending(true);
-    
+
     try {
       const { error } = await supabase.functions.invoke('send-user-notification', {
         body: {
-          email: 'ahaile14@gmail.com',
-          subject: '✅ Connection Request Approved',
-          message: `Adam,
-
-Great news! Your connection request for "Premium SaaS Company - $2M ARR" has been approved.
-
-We're now coordinating next steps and will follow up with you shortly to move this forward.
-
-If you have any questions, please reply to this email.
-
-Adam Haile
-Growth Marketing
-adam.haile@sourcecodeals.com`,
+          email: testRecipient,
+          subject: 'Test Email - Connection Request Approved',
+          message: `This is a test email from the EmailTestButton component.\n\nIf you received this, the email delivery pipeline is working correctly.`,
           type: 'connection_approved',
-          fromEmail: 'adam.haile@sourcecodeals.com'
+          fromEmail: APP_CONFIG.adminEmail
         }
       });
-      
+
       if (error) {
         toast({
           title: "Error",
@@ -40,7 +35,7 @@ adam.haile@sourcecodeals.com`,
       } else {
         toast({
           title: "Success",
-          description: "Test connection approval email sent to ahaile14@gmail.com",
+          description: `Test email sent to ${testRecipient}`,
         });
       }
     } catch (error) {

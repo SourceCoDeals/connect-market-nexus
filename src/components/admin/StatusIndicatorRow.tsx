@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { Shield, FileText, MessageSquare, Clock, Send, CheckCheck, XCircle, AlertTriangle } from "lucide-react";
 import { User } from "@/types";
 
@@ -17,7 +18,7 @@ interface StatusIndicatorRowProps {
   leadFeeAgreementEmailSent?: boolean;
 }
 
-export const StatusIndicatorRow = ({
+export const StatusIndicatorRow = memo(function StatusIndicatorRow({
   user,
   requestStatus,
   followedUp,
@@ -26,7 +27,7 @@ export const StatusIndicatorRow = ({
   leadNdaEmailSent,
   leadFeeAgreementSigned,
   leadFeeAgreementEmailSent
-}: StatusIndicatorRowProps) => {
+}: StatusIndicatorRowProps) {
   const getStatusDisplay = (
     isSigned: boolean, 
     emailSent: boolean, 
@@ -138,4 +139,4 @@ export const StatusIndicatorRow = ({
       )}
     </div>
   );
-};
+});

@@ -44,8 +44,8 @@ export function useMFA() {
       } else {
         setStatus("disabled");
       }
-    } catch (err: any) {
-      setError(err.message || "Failed to fetch MFA status");
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Failed to fetch MFA status");
     } finally {
       setIsLoading(false);
     }
@@ -66,8 +66,8 @@ export function useMFA() {
       });
       if (enrollError) throw enrollError;
       return data as EnrollResult;
-    } catch (err: any) {
-      setError(err.message || "Failed to start MFA enrollment");
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Failed to start MFA enrollment");
       return null;
     }
   };
@@ -94,8 +94,8 @@ export function useMFA() {
       await fetchFactors();
       setStatus("verified");
       return true;
-    } catch (err: any) {
-      setError(err.message || "Invalid verification code");
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Invalid verification code");
       return false;
     }
   };
@@ -110,8 +110,8 @@ export function useMFA() {
 
       await fetchFactors();
       return true;
-    } catch (err: any) {
-      setError(err.message || "Failed to disable MFA");
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Failed to disable MFA");
       return false;
     }
   };
@@ -128,7 +128,7 @@ export function useMFA() {
   const getAssuranceLevel = async (): Promise<{
     currentLevel: string;
     nextLevel: string | null;
-    currentAuthenticationMethods: any[];
+    currentAuthenticationMethods: Array<{ method: string; timestamp: number }>;
   }> => {
     const { data, error: alError } =
       await supabase.auth.mfa.getAuthenticatorAssuranceLevel();

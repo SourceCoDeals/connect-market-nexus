@@ -19,7 +19,7 @@ interface GenerationState {
   current_phase: number | null;
   phase_name: string | null;
   saved_content: string | null;
-  last_error: any;
+  last_error: string | Record<string, unknown> | null;
   updated_at: string | null;
 }
 

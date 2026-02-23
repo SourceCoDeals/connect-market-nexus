@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 
 import { getCorsHeaders, corsPreflightResponse } from "../_shared/cors.ts";
 import { requireAdmin, escapeHtmlWithBreaks } from "../_shared/auth.ts";
+import { logEmailDelivery } from "../_shared/email-logger.ts";
 
 interface AdminProfile {
   email: string;
@@ -258,7 +259,7 @@ ${signatureText}` : signatureText;
     
     // Only use noreply if admin email is not from our domain
     if (!adminEmail.includes("@sourcecodeals.com")) {
-      senderEmail = "noreply@sourcecodeals.com";
+      senderEmail = Deno.env.get('NOREPLY_EMAIL') || "noreply@sourcecodeals.com";
       senderName = `${adminName} - SourceCo`;
     }
     
@@ -396,6 +397,13 @@ ${adminSignature}
         if (!emailResponse.ok) {
           const errorData = await emailResponse.text();
           console.error(`❌ Failed to send to ${recipient.email}:`, errorData);
+          await logEmailDelivery(supabase, {
+            email: recipient.email,
+            emailType: 'fee_agreement',
+            status: 'failed',
+            correlationId: crypto.randomUUID(),
+            errorMessage: errorData,
+          });
           failCount++;
           emailResults.push({ email: recipient.email, success: false, error: errorData });
           continue;
@@ -403,6 +411,12 @@ ${adminSignature}
 
         const result = await emailResponse.json();
         console.log(`✅ Sent to ${recipient.email}:`, result.messageId);
+        await logEmailDelivery(supabase, {
+          email: recipient.email,
+          emailType: 'fee_agreement',
+          status: 'sent',
+          correlationId: crypto.randomUUID(),
+        });
         successCount++;
         emailResults.push({ email: recipient.email, success: true, messageId: result.messageId });
 

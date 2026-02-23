@@ -64,8 +64,9 @@ export function useInboundLeadsQuery() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('inbound_leads')
-        .select('*')
-        .order('created_at', { ascending: false });
+        .select('id, name, email, company_name, phone_number, role, message, source, source_form_name, mapped_to_listing_id, mapped_to_listing_title, mapped_at, mapped_by, converted_to_request_id, converted_at, status, priority_score, is_duplicate, duplicate_info, created_at, updated_at, converted_by')
+        .order('created_at', { ascending: false })
+        .limit(500);
 
       if (error) throw error;
       return data as InboundLead[];

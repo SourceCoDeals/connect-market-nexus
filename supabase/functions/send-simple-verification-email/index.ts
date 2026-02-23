@@ -3,6 +3,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.4';
 
 import { getCorsHeaders, corsPreflightResponse } from "../_shared/cors.ts";
 import { requireAdmin } from "../_shared/auth.ts";
+import { logEmailDelivery } from "../_shared/email-logger.ts";
 
 const supabase = createClient(
   Deno.env.get('SUPABASE_URL') ?? '',
@@ -41,6 +42,8 @@ const handler = async (req: Request): Promise<Response> => {
     console.log(`Processing email for: ${email}`);
     console.log(`Name: ${firstName} ${lastName}`);
 
+    const correlationId = crypto.randomUUID();
+
     console.log("=== GENERATING RECOVERY LINK ===");
     // Use recovery type - works for all users and provides same verification flow
     const { data: linkData, error: linkError } = await supabase.auth.admin.generateLink({
@@ -70,7 +73,7 @@ const handler = async (req: Request): Promise<Response> => {
     const emailContent = {
       sender: {
         name: "Adam Haile",
-        email: "adam.haile@sourcecodeals.com"
+        email: Deno.env.get('ADMIN_EMAIL') || 'adam.haile@sourcecodeals.com'
       },
       to: [{
         email: email,
@@ -121,6 +124,8 @@ adam.haile@sourcecodeals.com`
     const result = await brevoResponse.json();
     console.log("✅ Email sent successfully via Brevo:", result);
 
+    await logEmailDelivery(supabase, { email, emailType: 'verification', status: 'sent', correlationId });
+
     return new Response(
       JSON.stringify({ 
         success: true, 
@@ -135,7 +140,11 @@ adam.haile@sourcecodeals.com`
 
   } catch (error: any) {
     console.error('❌ Error in simple verification email function:', error);
-    
+
+    try {
+      await logEmailDelivery(supabase, { email: 'unknown', emailType: 'verification', status: 'failed', errorMessage: error.message });
+    } catch (_) { /* logging best-effort */ }
+
     return new Response(
       JSON.stringify({ 
         success: false, 

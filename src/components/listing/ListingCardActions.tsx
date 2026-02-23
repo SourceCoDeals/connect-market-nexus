@@ -1,5 +1,4 @@
-
-import { useState } from "react";
+import { useState, memo } from "react";
 import { Button } from "@/components/ui/button";
 import { Bookmark, CheckCircle2, Clock, XCircle, Send, Eye } from "lucide-react";
 import ConnectionRequestDialog from "@/components/connection/ConnectionRequestDialog";
@@ -16,7 +15,7 @@ interface ListingCardActionsProps {
   listingTitle?: string;
 }
 
-const ListingCardActions = ({
+const ListingCardActions = memo(function ListingCardActions({
   viewType,
   connectionExists,
   connectionStatus,
@@ -26,7 +25,7 @@ const ListingCardActions = ({
   handleRequestConnection,
   handleToggleSave,
   listingTitle
-}: ListingCardActionsProps) => {
+}: ListingCardActionsProps) {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
 
   const getConnectionButtonContent = () => {
@@ -172,6 +171,6 @@ const ListingCardActions = ({
       />
     </>
   );
-};
+});
 
 export default ListingCardActions;

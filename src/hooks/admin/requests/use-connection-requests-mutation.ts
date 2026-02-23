@@ -24,7 +24,6 @@ export function useConnectionRequestsMutation() {
       status: 'approved' | 'rejected' | 'on_hold' | 'pending';
       adminComment?: string;
     }) => {
-      try {
         // Use the standardized SQL function for status updates
         const { error: updateError } = await supabase.rpc('update_connection_request_status', {
           request_id: requestId,
@@ -104,9 +103,6 @@ export function useConnectionRequestsMutation() {
         // The old automatic email functionality has been removed
         
         return fullRequestData;
-      } catch (error: any) {
-        throw error;
-      }
     },
     onSuccess: (data) => {
       // PHASE 2: Use centralized cache invalidation
@@ -120,7 +116,7 @@ export function useConnectionRequestsMutation() {
         description: `The connection request has been ${action} successfully.`,
       });
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({
         variant: 'destructive',
         title: 'Update failed',

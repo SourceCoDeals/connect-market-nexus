@@ -12,7 +12,7 @@ export const QUERY_KEYS = {
   listing: (listingId?: string) => ['listing', listingId] as const,
   
   // Saved listings - normalized keys
-  savedListings: (filters?: any) => ['saved-listings', filters] as const,
+  savedListings: (filters?: Record<string, unknown>) => ['saved-listings', filters] as const,
   savedStatus: (listingId?: string) => ['saved-status', listingId] as const,
   
   // Connection requests - normalized keys  
@@ -93,7 +93,7 @@ export const INVALIDATION_PATTERNS = {
 
 // Helper function for safe query key generation
 export const createQueryKey = {
-  savedListings: (filters?: any) => QUERY_KEYS.savedListings(filters),
+  savedListings: (filters?: Record<string, unknown>) => QUERY_KEYS.savedListings(filters),
   savedStatus: (listingId?: string) => QUERY_KEYS.savedStatus(listingId),
   connectionStatus: (listingId?: string) => QUERY_KEYS.connectionStatus(listingId),
   userConnectionRequests: (userId?: string) => ['user-connection-requests', userId].filter(Boolean),

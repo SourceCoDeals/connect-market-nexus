@@ -131,9 +131,30 @@ function SectionCard({
 // ─── Main Component ──────────────────────────────────────────────────
 export default function EnrichmentTest() {
   const [logs, setLogs] = useState<LogEntry[]>([]);
+  // N09 FIX: Gate behind confirmation to prevent accidental usage of production AI credits
+  const [confirmed, setConfirmed] = useState(false);
   const addLog = useCallback((msg: string, durationMs?: number, ok = true) => {
     setLogs((p) => [{ ts: ts(), msg, durationMs, ok }, ...p]);
   }, []);
+
+  if (!confirmed) {
+    return (
+      <div className="space-y-6 p-4 md:p-6 max-w-xl mx-auto">
+        <h1 className="text-2xl font-bold text-foreground">Enrichment Test Dashboard</h1>
+        <Alert className="border-red-500/50 bg-red-50 dark:bg-red-950/30">
+          <AlertTriangle className="h-4 w-4 text-red-600" />
+          <AlertTitle className="text-red-800 dark:text-red-300">Production Warning</AlertTitle>
+          <AlertDescription className="text-red-700 dark:text-red-400">
+            This dashboard calls <strong>real AI APIs</strong> (Gemini, Firecrawl, etc.) and can <strong>modify production data</strong>.
+            Each enrichment or scoring test consumes API credits.
+          </AlertDescription>
+        </Alert>
+        <Button variant="destructive" onClick={() => setConfirmed(true)}>
+          I understand — open test dashboard
+        </Button>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 p-4 md:p-6 max-w-5xl mx-auto">
