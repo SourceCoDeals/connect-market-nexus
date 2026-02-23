@@ -396,10 +396,11 @@ export function ConnectionRequestActions({
       {/* ── TWO-COLUMN LAYOUT ── */}
       {/* Buyer Hero Card — full width */}
       <div className="bg-card border border-border rounded-xl overflow-hidden shadow-sm">
+        {/* Top row: Avatar + Name + AUM */}
         <div className="px-6 py-5 flex items-start gap-4">
           {/* Avatar */}
-          <div className="w-[50px] h-[50px] rounded-full bg-foreground border-2 border-sourceco flex items-center justify-center shrink-0">
-            <span className="text-card text-base font-bold" style={{ fontFamily: 'Manrope, sans-serif' }}>{buyerInitials}</span>
+          <div className="w-[54px] h-[54px] rounded-full bg-foreground border-2 border-sourceco flex items-center justify-center shrink-0">
+            <span className="text-card text-lg font-bold" style={{ fontFamily: 'Manrope, sans-serif' }}>{buyerInitials}</span>
           </div>
 
           {/* Info */}
@@ -407,45 +408,71 @@ export function ConnectionRequestActions({
             <div className="flex items-center gap-3">
               <h2 className="text-xl font-extrabold text-foreground tracking-tight" style={{ fontFamily: 'Manrope, sans-serif' }}>{buyerName}</h2>
               {user.linkedin_profile && (
-                <a href={processUrl(user.linkedin_profile)} target="_blank" rel="noopener noreferrer" className="text-xs font-semibold text-sourceco hover:underline">
+                <a href={processUrl(user.linkedin_profile)} target="_blank" rel="noopener noreferrer" className="text-sm font-semibold text-sourceco hover:underline">
                   LinkedIn ↗
                 </a>
               )}
             </div>
-            <p className="text-[13.5px] text-muted-foreground">{firmName}</p>
+            <p className="text-sm text-muted-foreground mt-0.5">
+              {user.job_title ? `${user.job_title} at ` : ''}{firmName}
+            </p>
             {buyerEmail && (
-              <p className="text-xs text-muted-foreground/70 mt-0.5">✉ {buyerEmail}</p>
+              <p className="text-sm text-muted-foreground/70 mt-0.5">✉ {buyerEmail}</p>
             )}
             <div className="flex items-center gap-1.5 mt-2.5 flex-wrap">
               {tierInfo.description && (
-                <span className="px-2.5 py-0.5 rounded-full text-[11.5px] font-semibold bg-muted text-foreground">{tierInfo.description}</span>
+                <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-muted text-foreground">{tierInfo.description}</span>
               )}
-              <span className="px-2.5 py-0.5 rounded-full text-[11.5px] font-semibold bg-sourceco/10 text-sourceco">Marketplace</span>
+              <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-sourceco/10 text-sourceco">Marketplace</span>
               {firmName && (
-                <span className="px-2.5 py-0.5 rounded-full text-[11.5px] font-semibold bg-emerald-50 text-emerald-700">{firmName}</span>
+                <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700">{firmName}</span>
               )}
             </div>
           </div>
 
-          {/* Right: Date + AUM + Completeness */}
-          <div className="text-right shrink-0 flex flex-col items-end gap-2.5">
-            <p className="text-xs text-muted-foreground">{formattedDate}</p>
+          {/* Right: AUM block */}
+          <div className="text-right shrink-0 flex flex-col items-end gap-3">
             {aum && (
-              <div className="bg-foreground rounded-xl px-4 py-2.5 inline-block">
-                <p className="text-xl font-extrabold text-card tracking-tight leading-none" style={{ fontFamily: 'Manrope, sans-serif' }}>{aum}</p>
-                <p className="text-[9px] uppercase tracking-widest text-muted-foreground mt-1">Assets Under Mgmt.</p>
+              <div className="bg-foreground rounded-xl px-5 py-3 inline-block">
+                <p className="text-2xl font-extrabold text-card tracking-tight leading-none" style={{ fontFamily: 'Manrope, sans-serif' }}>{aum}</p>
+                <p className="text-[10px] uppercase tracking-widest text-muted-foreground mt-1">Assets Under Mgmt.</p>
               </div>
             )}
-            <div className="w-32">
+            <div className="w-36">
               <div className="flex items-center justify-between mb-1">
-                <span className="text-[10px] text-muted-foreground font-medium">Profile</span>
-                <span className={`text-[10px] font-bold ${completeness >= 70 ? 'text-emerald-600' : 'text-amber-600'}`}>{completeness}%</span>
+                <span className="text-xs text-muted-foreground font-medium">Profile</span>
+                <span className={`text-xs font-bold ${completeness >= 70 ? 'text-emerald-600' : 'text-amber-600'}`}>{completeness}%</span>
               </div>
-              <div className="h-[4px] bg-border rounded-full overflow-hidden">
+              <div className="h-[5px] bg-border rounded-full overflow-hidden">
                 <div
                   className={`h-full rounded-full transition-all ${completeness >= 70 ? 'bg-gradient-to-r from-emerald-500 to-emerald-400' : 'bg-gradient-to-r from-amber-500 to-amber-400'}`}
                   style={{ width: `${completeness}%` }}
                 />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Bottom row: Company summary stats */}
+        <div className="border-t border-border px-6 py-4 bg-muted/20">
+          <div className="grid grid-cols-3 gap-6">
+            {/* Company Description */}
+            <div className="col-span-2">
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">About</p>
+              <p className="text-sm text-foreground leading-relaxed">
+                {user.bio || `${firmName || buyerName} — ${tierInfo.description || 'Marketplace buyer'}. ${user.business_categories && Array.isArray(user.business_categories) && user.business_categories.length > 0 ? `Focused on ${(user.business_categories as string[]).slice(0, 3).join(', ')}.` : 'No additional details on file.'}`}
+              </p>
+            </div>
+
+            {/* Key stats */}
+            <div className="space-y-3">
+              <div>
+                <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Joined</p>
+                <p className="text-sm font-medium text-foreground">{user.created_at ? format(new Date(user.created_at), 'MMM d, yyyy') : '—'}</p>
+              </div>
+              <div>
+                <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Request Date</p>
+                <p className="text-sm font-medium text-foreground">{formattedDate || '—'}</p>
               </div>
             </div>
           </div>
