@@ -698,6 +698,17 @@ function SidebarCard({ title, children }: { title: string; children: React.React
   );
 }
 
+// ─── Helpers ───
+
+function linkifyText(text: string): string {
+  const urlRegex = /(https?:\/\/[^\s<]+)/g;
+  return text.replace(urlRegex, (url) => {
+    const escaped = url.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    const display = url.length > 60 ? url.substring(0, 57) + '...' : url;
+    return `<a href="${escaped}" target="_blank" rel="noopener noreferrer" class="text-primary underline hover:text-primary/80 break-all" onclick="event.stopPropagation()">${display}</a>`;
+  });
+}
+
 // ─── Conversation Thread ───
 
 function ConversationThread({
@@ -766,7 +777,7 @@ function ConversationThread({
             </div>
             <div className="ml-12">
               <div className="bg-sourceco-muted border border-sourceco/30 text-foreground rounded-2xl rounded-tl-sm px-5 py-4 shadow-sm">
-                <p className="text-sm leading-relaxed">{buyerMessage}</p>
+                <p className="text-sm leading-relaxed whitespace-pre-wrap break-words" dangerouslySetInnerHTML={{ __html: linkifyText(buyerMessage) }} />
               </div>
             </div>
           </div>
@@ -794,8 +805,8 @@ function ConversationThread({
         {messages.map((msg) => (
           <div key={msg.id}>
             {msg.message_type === "decision" || msg.message_type === "system" ? (
-              <div className="bg-sourceco/10 border border-sourceco/30 rounded-lg px-5 py-3 text-center mx-auto max-w-md">
-                <p className="text-sm text-foreground">{msg.body}</p>
+              <div className="bg-sourceco/10 border border-sourceco/30 rounded-lg px-5 py-3 text-center mx-auto max-w-lg">
+                <p className="text-sm text-foreground whitespace-pre-wrap break-words" dangerouslySetInnerHTML={{ __html: linkifyText(msg.body) }} />
                 <span className="text-xs text-muted-foreground mt-1 block">
                   {formatDistanceToNow(new Date(msg.created_at), { addSuffix: true })}
                 </span>
@@ -812,7 +823,7 @@ function ConversationThread({
                   </div>
                 </div>
                 <div className="mr-10 bg-sourceco/10 border border-sourceco/20 text-foreground rounded-2xl rounded-tr-sm px-5 py-4 max-w-[85%] shadow-sm">
-                  <p className="text-sm leading-relaxed">{msg.body}</p>
+                  <p className="text-sm leading-relaxed whitespace-pre-wrap break-words" dangerouslySetInnerHTML={{ __html: linkifyText(msg.body) }} />
                 </div>
               </div>
             ) : (
@@ -829,7 +840,7 @@ function ConversationThread({
                   </span>
                 </div>
                 <div className="ml-10 bg-sourceco-muted/50 border border-sourceco/20 text-foreground rounded-2xl rounded-tl-sm px-5 py-4 max-w-[85%] shadow-sm">
-                  <p className="text-sm leading-relaxed">{msg.body}</p>
+                  <p className="text-sm leading-relaxed whitespace-pre-wrap break-words" dangerouslySetInnerHTML={{ __html: linkifyText(msg.body) }} />
                 </div>
               </div>
             )}
