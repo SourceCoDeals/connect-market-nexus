@@ -29,23 +29,64 @@ const UTM_SESSION_DURATION = 30 * 60 * 1000; // 30 minutes
  * Hook to extract and persist UTM parameters from URL
  * UTM parameters are stored in sessionStorage and expire after 30 minutes of inactivity
  */
+/** Safely read from sessionStorage (may throw in sandboxed iframes) */
+function safeSessionGet(key: string): string | null {
+  try {
+    return sessionStorage.getItem(key);
+  } catch {
+    return null;
+  }
+}
+function safeSessionSet(key: string, value: string): void {
+  try {
+    sessionStorage.setItem(key, value);
+  } catch {
+    /* noop */
+  }
+}
+function safeSessionRemove(key: string): void {
+  try {
+    sessionStorage.removeItem(key);
+  } catch {
+    /* noop */
+  }
+}
+function safeLocalGet(key: string): string | null {
+  try {
+    return localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+}
+function safeLocalSet(key: string, value: string): void {
+  try {
+    localStorage.setItem(key, value);
+  } catch {
+    /* noop */
+  }
+}
+
 export function useUTMParams() {
   const [utmParams, setUtmParams] = useState<UTMParams>(() => {
     // Check if we have stored UTM params that haven't expired
-    const stored = sessionStorage.getItem(UTM_STORAGE_KEY);
-    const expiry = sessionStorage.getItem(UTM_EXPIRY_KEY);
-    
+    const stored = safeSessionGet(UTM_STORAGE_KEY);
+    const expiry = safeSessionGet(UTM_EXPIRY_KEY);
+
     if (stored && expiry) {
       const expiryTime = parseInt(expiry, 10);
       if (Date.now() < expiryTime) {
-        return JSON.parse(stored);
+        try {
+          return JSON.parse(stored);
+        } catch {
+          return {};
+        }
       } else {
         // Clear expired UTM params
-        sessionStorage.removeItem(UTM_STORAGE_KEY);
-        sessionStorage.removeItem(UTM_EXPIRY_KEY);
+        safeSessionRemove(UTM_STORAGE_KEY);
+        safeSessionRemove(UTM_EXPIRY_KEY);
       }
     }
-    
+
     return {};
   });
 
@@ -63,17 +104,17 @@ export function useUTMParams() {
     };
 
     // Only update if we have new UTM params
-    const hasNewUtms = Object.values(newUtmParams).some(value => value !== undefined);
-    
+    const hasNewUtms = Object.values(newUtmParams).some((value) => value !== undefined);
+
     if (hasNewUtms) {
       // Store new UTM params with expiry (last-touch)
       const expiryTime = Date.now() + UTM_SESSION_DURATION;
-      sessionStorage.setItem(UTM_STORAGE_KEY, JSON.stringify(newUtmParams));
-      sessionStorage.setItem(UTM_EXPIRY_KEY, expiryTime.toString());
+      safeSessionSet(UTM_STORAGE_KEY, JSON.stringify(newUtmParams));
+      safeSessionSet(UTM_EXPIRY_KEY, expiryTime.toString());
       setUtmParams(newUtmParams);
-      
+
       // First-touch attribution - only set if not already present (localStorage persists)
-      const existingFirstTouch = localStorage.getItem(FIRST_TOUCH_KEY);
+      const existingFirstTouch = safeLocalGet(FIRST_TOUCH_KEY);
       if (!existingFirstTouch) {
         const firstTouchData: EnhancedUTMParams = {
           first_touch_source: newUtmParams.utm_source,
@@ -83,23 +124,23 @@ export function useUTMParams() {
           landing_page: window.location.pathname,
           landing_referrer: document.referrer || undefined,
         };
-        localStorage.setItem(FIRST_TOUCH_KEY, JSON.stringify(firstTouchData));
+        safeLocalSet(FIRST_TOUCH_KEY, JSON.stringify(firstTouchData));
       }
     } else if (Object.keys(utmParams).length > 0) {
       // Update expiry time for existing UTM params (extend session)
       const expiryTime = Date.now() + UTM_SESSION_DURATION;
-      sessionStorage.setItem(UTM_EXPIRY_KEY, expiryTime.toString());
+      safeSessionSet(UTM_EXPIRY_KEY, expiryTime.toString());
     }
-    
+
     // Also store first-touch if this is the first visit (even without UTMs)
-    const existingFirstTouch = localStorage.getItem(FIRST_TOUCH_KEY);
+    const existingFirstTouch = safeLocalGet(FIRST_TOUCH_KEY);
     if (!existingFirstTouch) {
       const firstTouchData: EnhancedUTMParams = {
         landing_page: window.location.pathname,
         landing_referrer: document.referrer || undefined,
         first_touch_timestamp: new Date().toISOString(),
       };
-      localStorage.setItem(FIRST_TOUCH_KEY, JSON.stringify(firstTouchData));
+      safeLocalSet(FIRST_TOUCH_KEY, JSON.stringify(firstTouchData));
     }
   }, []);
 
@@ -111,20 +152,24 @@ export function useUTMParams() {
  * Useful for non-React contexts or edge functions
  */
 export function getCurrentUTMParams(): UTMParams {
-  const stored = sessionStorage.getItem(UTM_STORAGE_KEY);
-  const expiry = sessionStorage.getItem(UTM_EXPIRY_KEY);
-  
+  const stored = safeSessionGet(UTM_STORAGE_KEY);
+  const expiry = safeSessionGet(UTM_EXPIRY_KEY);
+
   if (stored && expiry) {
     const expiryTime = parseInt(expiry, 10);
     if (Date.now() < expiryTime) {
-      return JSON.parse(stored);
+      try {
+        return JSON.parse(stored);
+      } catch {
+        return {};
+      }
     } else {
       // Clear expired UTM params
-      sessionStorage.removeItem(UTM_STORAGE_KEY);
-      sessionStorage.removeItem(UTM_EXPIRY_KEY);
+      safeSessionRemove(UTM_STORAGE_KEY);
+      safeSessionRemove(UTM_EXPIRY_KEY);
     }
   }
-  
+
   return {};
 }
 
@@ -134,12 +179,12 @@ export function getCurrentUTMParams(): UTMParams {
  */
 export function getFirstTouchAttribution(): EnhancedUTMParams {
   try {
-    const stored = localStorage.getItem(FIRST_TOUCH_KEY);
+    const stored = safeLocalGet(FIRST_TOUCH_KEY);
     if (stored) {
       return JSON.parse(stored);
     }
-  } catch (e) {
-    console.error('Error reading first-touch attribution:', e);
+  } catch {
+    // Storage or JSON parse error — return empty
   }
   return {};
 }
@@ -155,7 +200,7 @@ export function getFullAttribution(): {
 } {
   const firstTouch = getFirstTouchAttribution();
   const lastTouch = getCurrentUTMParams();
-  
+
   return {
     firstTouch,
     lastTouch,
