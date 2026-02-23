@@ -161,40 +161,49 @@ export function UserActions({ onUserStatusUpdated }: UserActionsProps) {
   };
 
   const handleCustomApprovalEmail = async (user: User, options: ApprovalEmailOptions) => {
+    console.log('[UserActions] handleCustomApprovalEmail called for:', user.email, user.id);
+    
     // Close dialog immediately 
     closeAllDialogs();
     
-    // Step 1: Approve user FIRST - this happens immediately and independently
+    // Step 1: Approve user FIRST
     try {
+      console.log('[UserActions] Step 1: Approving user...');
       await updateUserStatusMutation.mutateAsync({ userId: user.id, status: "approved" });
+      console.log('[UserActions] Step 1 SUCCESS: User approved');
 
       // Store approved user for success dialog
       setApprovedUser(user);
 
-      // Step 2: Auto-create firm agreement and prepare NDA signing
+      // Step 2: Auto-create firm agreement
       try {
+        console.log('[UserActions] Step 2: Auto-creating firm...');
         await autoCreateFirm.mutateAsync({ userId: user.id });
+        console.log('[UserActions] Step 2 SUCCESS');
       } catch (firmError) {
-        console.error('Auto-create firm failed after approval:', firmError);
-        // Non-fatal - admin can manually create firm later
+        console.error('[UserActions] Step 2 FAILED (non-fatal):', firmError);
       }
 
-      // Step 3: Send email as a separate, non-blocking operation
+      // Step 3: Send email
       let emailSuccess = false;
       try {
+        console.log('[UserActions] Step 3: Sending email...');
         await sendCustomApprovalEmail(user, options);
         emailSuccess = true;
+        console.log('[UserActions] Step 3 SUCCESS');
       } catch (emailError) {
-        // Email failed but approval succeeded
+        console.error('[UserActions] Step 3 FAILED:', emailError);
       }
 
       // Show success confirmation dialog
       setEmailSent(emailSuccess);
       setDialogState(prev => ({ ...prev, approvalSuccess: true }));
+      console.log('[UserActions] Approval flow complete');
 
       if (onUserStatusUpdated) onUserStatusUpdated();
       
     } catch (approvalError) {
+      console.error('[UserActions] Step 1 FAILED:', approvalError);
       toast({
         variant: 'destructive',
         title: 'Approval failed',
