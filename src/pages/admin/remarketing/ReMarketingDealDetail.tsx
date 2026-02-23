@@ -68,11 +68,12 @@ import {
   UniverseAssignmentButton,
   BuyerHistoryDialog,
   EditFinancialsDialog,
-  DealActivityLog,
+  // DealActivityLog - not used here, listing_notes used instead
   DealPipelinePanel,
   DealMarketplacePanel,
   DealBuyerHistoryTab,
 } from "@/components/remarketing/deal-detail";
+import { ListingNotesLog } from "@/components/remarketing/deal-detail/ListingNotesLog";
 
 const ReMarketingDealDetail = () => {
   const { dealId } = useParams<{ dealId: string }>();
@@ -1359,7 +1360,7 @@ const ReMarketingDealDetail = () => {
         {/* ════════════════ HISTORY TAB ════════════════ */}
         <TabsContent value="history" className="space-y-6">
           {/* Notes Section */}
-          <DealActivityLog dealId={dealId!} />
+          <ListingNotesLog listingId={dealId!} />
 
           {/* Buyer History */}
           <DealBuyerHistoryTab listingId={dealId!} />
@@ -1471,7 +1472,7 @@ const ReMarketingDealDetail = () => {
             </TabsContent>
 
             <TabsContent value="activity" className="space-y-6">
-              <DealActivityLog dealId={dealId!} maxHeight={800} />
+              <ListingNotesLog listingId={dealId!} maxHeight={800} />
               <AuditLogPanel dealId={dealId!} />
             </TabsContent>
           </Tabs>
