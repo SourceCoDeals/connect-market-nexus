@@ -24,6 +24,9 @@ import { OwnerLeadsFilters } from "@/components/admin/OwnerLeadsFilters";
 import { OwnerLeadsTableContent } from "@/components/admin/OwnerLeadsTableContent";
 import { OwnerLead } from "@/hooks/admin/use-owner-leads";
 import { cn } from "@/lib/utils";
+import { ApprovalEmailDialog } from "@/components/admin/ApprovalEmailDialog";
+import { ApprovalSuccessDialog } from "@/components/admin/ApprovalSuccessDialog";
+import { UserConfirmationDialog } from "@/components/admin/UserConfirmationDialog";
 
 type PrimaryView = 'buyers' | 'owners';
 type SecondaryView = 'marketplace' | 'non-marketplace';
@@ -69,10 +72,17 @@ const AdminUsers = () => {
     handleMakeAdmin,
     handleRevokeAdmin,
     handleDeleteUser,
-    ApprovalEmailDialog,
-    AdminDialog,
-    RevokeAdminDialog,
-    DeleteDialog,
+    handleCustomApprovalEmail,
+    confirmMakeAdmin,
+    confirmRevokeAdmin,
+    confirmDeleteUser,
+    dialogState,
+    selectedUser,
+    approvedUser,
+    emailSent,
+    handleCloseDialog,
+    handleCloseApprovalSuccess,
+    isLoading: actionsLoading,
   } = UserActions({ onUserStatusUpdated: () => refetch() });
   
   useEffect(() => {
@@ -288,10 +298,50 @@ const AdminUsers = () => {
         </div>
 
         {/* Dialogs */}
-        <ApprovalEmailDialog />
-        <AdminDialog />
-        <RevokeAdminDialog />
-        <DeleteDialog />
+        <ApprovalEmailDialog
+          open={dialogState.approval}
+          onOpenChange={handleCloseDialog}
+          user={selectedUser}
+          onSendApprovalEmail={handleCustomApprovalEmail}
+        />
+        <ApprovalSuccessDialog
+          open={dialogState.approvalSuccess}
+          onOpenChange={handleCloseApprovalSuccess}
+          user={approvedUser}
+          emailSent={emailSent}
+        />
+        <UserConfirmationDialog
+          open={dialogState.makeAdmin}
+          onOpenChange={handleCloseDialog}
+          user={selectedUser}
+          title="Grant Admin Privileges"
+          description="Are you sure you want to grant admin privileges to {userName}?"
+          confirmText="Make Admin"
+          onConfirm={confirmMakeAdmin}
+          isLoading={actionsLoading}
+        />
+        <UserConfirmationDialog
+          open={dialogState.revokeAdmin}
+          onOpenChange={handleCloseDialog}
+          user={selectedUser}
+          title="Revoke Admin Privileges"
+          description="Are you sure you want to revoke admin privileges from {userName}?"
+          confirmText="Revoke Admin"
+          confirmVariant="destructive"
+          onConfirm={confirmRevokeAdmin}
+          isLoading={actionsLoading}
+        />
+        <UserConfirmationDialog
+          open={dialogState.delete}
+          onOpenChange={handleCloseDialog}
+          user={selectedUser}
+          title="Delete User"
+          description="Are you sure you want to permanently delete {userName}? This action cannot be undone."
+          confirmText="Delete User"
+          confirmVariant="destructive"
+          onConfirm={confirmDeleteUser}
+          isLoading={actionsLoading}
+        />
       </div>
     </div>
   );

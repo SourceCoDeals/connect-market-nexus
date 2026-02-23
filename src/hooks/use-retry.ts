@@ -66,7 +66,13 @@ export function useRetry<T extends any[], R>(
           return result;
 
         } catch (error) {
-          lastError = error instanceof Error ? error : new Error(String(error));
+          lastError = error instanceof Error 
+            ? error 
+            : new Error(
+                typeof error === 'object' && error !== null && 'message' in error 
+                  ? (error as any).message 
+                  : String(error)
+              );
           
           console.warn(`🔄 Attempt ${attempt + 1}/${finalConfig.maxRetries + 1} failed:`, lastError.message);
 

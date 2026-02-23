@@ -55,7 +55,8 @@ export function useAdminUsers() {
           .single();
 
         if (error) {
-          throw error;
+          console.error('[useAdminUsers] Profile update error:', JSON.stringify(error));
+          throw new Error(error.message || 'Failed to update user status');
         }
 
         if (!data) {
