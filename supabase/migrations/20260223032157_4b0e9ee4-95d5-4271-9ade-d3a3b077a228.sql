@@ -1,0 +1,1 @@
+ALTER TABLE public.deals ADD COLUMN meeting_scheduled boolean NOT NULL DEFAULT false;

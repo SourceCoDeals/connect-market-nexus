@@ -109,6 +109,9 @@ export interface Deal {
   // Document distribution flags
   memo_sent?: boolean;
   has_data_room?: boolean;
+
+  // Meeting scheduled flag
+  meeting_scheduled?: boolean;
 }
 
 export interface DealStage {
@@ -310,6 +313,9 @@ export function useDeals() {
           // Document distribution flags (populated below)
           memo_sent: false,
           has_data_room: false,
+
+          // Meeting scheduled
+          meeting_scheduled: row.meeting_scheduled ?? false,
         };
       });
 

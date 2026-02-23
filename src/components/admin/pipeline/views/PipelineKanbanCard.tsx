@@ -1,12 +1,14 @@
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { Card, CardContent } from '@/components/ui/card';
-import { Clock, ExternalLink, BookOpen, FolderOpen } from 'lucide-react';
+import { Clock, ExternalLink, BookOpen, FolderOpen, CalendarCheck } from 'lucide-react';
 import { Deal } from '@/hooks/admin/use-deals';
 import { cn } from '@/lib/utils';
 import { useAdminProfile } from '@/hooks/admin/use-admin-profiles';
 import { DealScoreBadge } from '@/components/ma-intelligence/DealScoreBadge';
-
+import { supabase } from '@/integrations/supabase/client';
+import { useQueryClient } from '@tanstack/react-query';
+import { toast } from 'sonner';
 
 interface PipelineKanbanCardProps {
   deal: Deal;
@@ -26,6 +28,7 @@ const BUYER_TYPE_LABELS: Record<string, string> = {
 };
 
 export function PipelineKanbanCard({ deal, onDealClick, isDragging }: PipelineKanbanCardProps) {
+  const queryClient = useQueryClient();
   const {
     attributes,
     listeners,
@@ -60,7 +63,6 @@ export function PipelineKanbanCard({ deal, onDealClick, isDragging }: PipelineKa
     return `$${val.toLocaleString()}`;
   };
 
-
   const lastActivityLabel = (() => {
     const date = deal.last_activity_at || deal.deal_updated_at;
     if (!date) return '—';
@@ -74,10 +76,24 @@ export function PipelineKanbanCard({ deal, onDealClick, isDragging }: PipelineKa
     return `${days}d ago`;
   })();
 
-
   const handleCardClick = () => {
     if (isBeingDragged) return;
     onDealClick(deal);
+  };
+
+  const handleMeetingToggle = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const newValue = !deal.meeting_scheduled;
+    const { error } = await supabase
+      .from('deals')
+      .update({ meeting_scheduled: newValue })
+      .eq('id', deal.deal_id);
+    if (error) {
+      toast.error('Failed to update meeting status');
+      return;
+    }
+    toast.success(newValue ? 'Meeting scheduled' : 'Meeting unscheduled');
+    queryClient.invalidateQueries({ queryKey: ['deals'] });
   };
 
   const getStatusDot = (status: string) => {
@@ -170,7 +186,7 @@ export function PipelineKanbanCard({ deal, onDealClick, isDragging }: PipelineKa
             Owner: <span className="font-semibold text-foreground/80">{assignedAdmin?.displayName || 'Unassigned'}</span>
           </div>
 
-          {/* Row 5: NDA/Fee + Memo/DataRoom status + Source + Last Activity */}
+          {/* Row 5: NDA/Fee + Memo/DR + Meeting + Last Activity */}
           <div className="flex items-center justify-between text-xs text-muted-foreground pt-2 border-t border-border/30">
             <div className="flex items-center gap-2.5">
               <div className="flex items-center gap-1.5">
@@ -189,6 +205,18 @@ export function PipelineKanbanCard({ deal, onDealClick, isDragging }: PipelineKa
                 <FolderOpen className={cn('w-3 h-3', deal.has_data_room ? 'text-emerald-500' : 'text-muted-foreground/30')} />
                 <span className={deal.has_data_room ? 'text-emerald-600 font-medium' : ''}>DR</span>
               </div>
+              <button
+                type="button"
+                onClick={handleMeetingToggle}
+                className={cn(
+                  'flex items-center gap-1.5 rounded px-1 -mx-1 transition-colors hover:bg-accent',
+                  deal.meeting_scheduled ? 'text-emerald-600 font-medium' : ''
+                )}
+                title={deal.meeting_scheduled ? 'Meeting scheduled — click to unmark' : 'No meeting — click to mark as scheduled'}
+              >
+                <CalendarCheck className={cn('w-3 h-3', deal.meeting_scheduled ? 'text-emerald-500' : 'text-muted-foreground/30')} />
+                <span>Mtg</span>
+              </button>
             </div>
             <span className="flex items-center gap-1">
               <Clock className="w-3 h-3" />
