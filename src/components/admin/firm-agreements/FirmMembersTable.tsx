@@ -115,7 +115,7 @@ function MemberRow({ member }: { member: FirmMember }) {
                 <TabsContent value="requests" className="mt-0">
                   {data?.requests && data.requests.length > 0 ? (
                     <div className="max-h-[360px] overflow-y-auto pr-1 space-y-1 scrollbar-thin scrollbar-thumb-slate-200/60 scrollbar-track-transparent hover:scrollbar-thumb-slate-300/60">
-                      {data.requests.map((request: any) => (
+                      {data.requests.map((request: { id: string; created_at: string; status: string; listing?: { title?: string } }) => (
                         <div
                           key={request.id}
                           className="flex items-center justify-between gap-4 py-2 px-3 rounded-md bg-slate-50/30 border border-slate-200/50 hover:border-slate-300 hover:bg-slate-50/60 hover:shadow-sm shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition-all duration-150"
@@ -147,7 +147,7 @@ function MemberRow({ member }: { member: FirmMember }) {
                 <TabsContent value="deals" className="mt-0">
                   {data?.deals && data.deals.length > 0 ? (
                     <div className="max-h-[360px] overflow-y-auto pr-1 space-y-1 scrollbar-thin scrollbar-thumb-slate-200/60 scrollbar-track-transparent hover:scrollbar-thumb-slate-300/60">
-                      {data.deals.map((deal: any) => (
+                      {data.deals.map((deal: { id: string; title?: string; created_at: string; value?: number; stage?: string }) => (
                         <div
                           key={deal.id}
                           className="flex items-center justify-between gap-4 py-2 px-3 rounded-md bg-slate-50/30 border border-slate-200/50 hover:border-slate-300 hover:bg-slate-50/60 hover:shadow-sm shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition-all duration-150"

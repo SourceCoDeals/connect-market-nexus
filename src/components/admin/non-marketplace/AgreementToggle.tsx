@@ -88,7 +88,7 @@ export const AgreementToggle = ({ user, type, checked }: AgreementToggleProps) =
         if (error) throw error;
       } else {
         // Update individual records
-        const updates: any = {};
+        const updates: Record<string, boolean | string | null> = {};
         
         if (type === 'nda') {
           updates.lead_nda_signed = isSigned;
@@ -135,7 +135,7 @@ export const AgreementToggle = ({ user, type, checked }: AgreementToggleProps) =
       setShowDialog(false);
       setSelectedSignerId("");
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({
         title: "Update failed",
         description: error.message,

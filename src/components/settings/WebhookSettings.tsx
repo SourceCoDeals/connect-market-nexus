@@ -64,6 +64,7 @@ export function WebhookSettings({ universeId }: WebhookSettingsProps) {
   const addMutation = useMutation({
     mutationFn: async () => {
       // webhook_configs may not be in generated types yet - using 'as never' for table name
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const { error } = await supabase
         .from('webhook_configs' as any)
         .insert({
@@ -112,6 +113,7 @@ export function WebhookSettings({ universeId }: WebhookSettingsProps) {
   const toggleMutation = useMutation({
     mutationFn: async ({ id, enabled }: { id: string; enabled: boolean }) => {
       // webhook_configs may not be in generated types yet - using 'as never' for table name
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const { error } = await supabase
         .from('webhook_configs' as any)
         .update({ enabled } as any)

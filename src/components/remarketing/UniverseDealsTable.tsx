@@ -244,7 +244,7 @@ export const UniverseDealsTable = ({
     const sorted = [...filteredDeals].sort((a, b) => {
       const engA = engagementStats[a.listing.id] || { approved: 0, interested: 0, passed: 0, avgScore: 0 };
       const engB = engagementStats[b.listing.id] || { approved: 0, interested: 0, passed: 0, avgScore: 0 };
-      let valA: any, valB: any;
+      let valA: string | number | null, valB: string | number | null;
       switch (sortField) {
         case 'name': valA = (a.listing.internal_company_name || a.listing.title || '').toLowerCase(); valB = (b.listing.internal_company_name || b.listing.title || '').toLowerCase(); break;
         case 'description': valA = (a.listing.description || '').toLowerCase(); valB = (b.listing.description || '').toLowerCase(); break;

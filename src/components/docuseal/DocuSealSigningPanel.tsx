@@ -5,7 +5,7 @@ import { CheckCircle, Loader2, AlertCircle } from 'lucide-react';
 
 interface DocuSealSigningPanelProps {
   embedSrc: string;
-  onCompleted?: (data: any) => void;
+  onCompleted?: (data: Record<string, unknown>) => void;
   onDeclined?: () => void;
   title?: string;
   description?: string;
@@ -25,7 +25,7 @@ export function DocuSealSigningPanel({
 }: DocuSealSigningPanelProps) {
   const [status, setStatus] = useState<'loading' | 'ready' | 'signed' | 'declined' | 'error'>('loading');
 
-  const handleCompleted = (data: any) => {
+  const handleCompleted = (data: Record<string, unknown>) => {
     setStatus('signed');
     onCompleted?.(data);
   };

@@ -12,7 +12,7 @@ interface FilterPillProps {
 }
 
 function formatValue(
-  value: any,
+  value: FilterRule['value'],
   fieldDef: FilterFieldDef,
   operator: string,
   options: { label: string; value: string }[]

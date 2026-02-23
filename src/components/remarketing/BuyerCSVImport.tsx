@@ -456,7 +456,7 @@ export const BuyerCSVImport = ({ universeId, onComplete, open: controlledOpen, o
         return;
       }
 
-      const foundDuplicates = (data?.results || []).filter((r: any) => r.isDuplicate);
+      const foundDuplicates = (data?.results || []).filter((r: { isDuplicate?: boolean }) => r.isDuplicate);
       
       if (foundDuplicates.length > 0) {
         setDuplicates(foundDuplicates);

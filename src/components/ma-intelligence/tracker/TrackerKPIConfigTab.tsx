@@ -15,6 +15,7 @@ export function TrackerKPIConfigTab({
     <KPIConfigPanel
       trackerId={trackerId}
       tracker={{
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         kpi_scoring_config: kpiConfig as any,
       }}
       onSave={onSave}

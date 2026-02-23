@@ -5,7 +5,7 @@ import { EDITOR_DESIGN } from "@/lib/editor-design-system";
 import { cn } from "@/lib/utils";
 
 interface EditorHeroDescriptionSectionProps {
-  form: UseFormReturn<any>;
+  form: UseFormReturn<Record<string, unknown>>;
 }
 
 export function EditorHeroDescriptionSection({ form }: EditorHeroDescriptionSectionProps) {

@@ -19,7 +19,7 @@ interface ActivityItem {
   description: string;
   timestamp: string;
   user: string;
-  metadata?: any;
+  metadata?: Record<string, unknown>;
 }
 
 export function PipelineDetailActivity({ deal }: PipelineDetailActivityProps) {

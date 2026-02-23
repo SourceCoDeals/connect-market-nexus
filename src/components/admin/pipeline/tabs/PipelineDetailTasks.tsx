@@ -173,7 +173,7 @@ export function PipelineDetailTasks({ deal }: PipelineDetailTasksProps) {
               <div className="grid grid-cols-3 gap-4">
                 <div className="space-y-2">
                   <label className="text-xs text-muted-foreground/70">Priority</label>
-                  <Select value={newTask.priority} onValueChange={(value: any) => setNewTask({ ...newTask, priority: value })}>
+                  <Select value={newTask.priority} onValueChange={(value: string) => setNewTask({ ...newTask, priority: value })}>
                     <SelectTrigger className="border-0 bg-muted/20">
                       <SelectValue />
                     </SelectTrigger>

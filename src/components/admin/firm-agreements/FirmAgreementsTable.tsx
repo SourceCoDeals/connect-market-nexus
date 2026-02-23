@@ -357,7 +357,7 @@ function StatCard({
 }: { 
   label: string; 
   value: number; 
-  icon: any;
+  icon: typeof Building2;
   variant: 'neutral' | 'success' | 'warning' | 'muted';
 }) {
   const variantStyles = {

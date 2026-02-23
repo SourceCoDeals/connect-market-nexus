@@ -28,7 +28,7 @@ interface SearchResult {
   title: string;
   date: string;
   duration_minutes: number | null;
-  participants: any[];
+  participants: (string | { email?: string })[];
   summary: string;
   meeting_url: string;
   keywords: string[];

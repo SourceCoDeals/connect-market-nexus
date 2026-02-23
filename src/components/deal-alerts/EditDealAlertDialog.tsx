@@ -71,7 +71,7 @@ export function EditDealAlertDialog({ alert, open, onOpenChange }: EditDealAlert
     }
   };
 
-  const updateCriteria = (key: string, value: any) => {
+  const updateCriteria = (key: string, value: string | number | string[] | boolean | null) => {
     setFormData(prev => ({
       ...prev,
       criteria: {

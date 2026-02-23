@@ -104,7 +104,7 @@ export function PipelineDetailOverview({ deal }: PipelineDetailOverviewProps) {
     }
   };
   
-  const insertMention = (admin: any) => {
+  const insertMention = (admin: { id: string; displayName: string }) => {
     const cursorPos = textareaRef.current?.selectionStart || 0;
     const textBeforeCursor = newCommentText.substring(0, cursorPos);
     const textAfterCursor = newCommentText.substring(cursorPos);

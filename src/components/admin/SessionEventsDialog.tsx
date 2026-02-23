@@ -37,6 +37,7 @@ export default function SessionEventsDialog({
     : '';
 
   const getIcon = (iconName: string) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const Icon = (LucideIcons as any)[iconName] || LucideIcons.Circle;
     return Icon;
   };

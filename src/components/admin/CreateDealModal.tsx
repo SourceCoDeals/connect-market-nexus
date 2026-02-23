@@ -119,6 +119,7 @@ export function CreateDealModal({ open, onOpenChange, prefilledStageId, onDealCr
   } | null>(null);
 
   const form = useForm<CreateDealFormData>({
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     resolver: zodResolver(createDealSchema as any),
     defaultValues: {
       title: '',
@@ -241,7 +242,7 @@ export function CreateDealModal({ open, onOpenChange, prefilledStageId, onDealCr
         }
       }
       
-      const payload: any = {
+      const payload: Record<string, unknown> = {
         ...data,
         source: 'manual',
         nda_status: 'not_sent',

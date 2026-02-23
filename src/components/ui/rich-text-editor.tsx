@@ -18,7 +18,7 @@ import { cn } from '@/lib/utils';
 
 interface RichTextEditorProps {
   content?: string;
-  onChange?: (content: string, json: any) => void;
+  onChange?: (content: string, json: unknown) => void;
   placeholder?: string;
   className?: string;
 }

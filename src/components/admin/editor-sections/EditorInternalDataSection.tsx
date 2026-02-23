@@ -12,7 +12,7 @@ import { Label } from "@/components/ui/label";
 import ListingStatusTag from "@/components/listing/ListingStatusTag";
 
 interface EditorInternalDataSectionProps {
-  form: UseFormReturn<any>;
+  form: UseFormReturn<Record<string, unknown>>;
   dealIdentifier?: string;
 }
 

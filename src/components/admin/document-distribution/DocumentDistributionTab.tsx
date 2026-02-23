@@ -59,7 +59,7 @@ export function DocumentDistributionTab({
 
       if (error) throw error;
 
-      return (data || []).flatMap((buyer: any) => {
+      return (data || []).flatMap((buyer: { id: string; company_name: string; remarketing_buyer_contacts?: { name?: string; email?: string; is_primary?: boolean }[] }) => {
         const contacts = buyer.remarketing_buyer_contacts || [];
 
         if (contacts.length === 0) {
@@ -73,7 +73,7 @@ export function DocumentDistributionTab({
         }
 
         // Return each contact as a separate buyer option
-        return contacts.map((c: any) => ({
+        return contacts.map((c: { name?: string; email?: string; is_primary?: boolean }) => ({
           id: buyer.id,
           name: c.name || buyer.company_name,
           email: c.email || '',

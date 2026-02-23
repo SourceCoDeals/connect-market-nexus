@@ -54,7 +54,7 @@ export function SendMemoDialog({ memo, dealId, onClose }: SendMemoDialogProps) {
     },
   });
 
-  const handleSelectBuyer = (buyer: any) => {
+  const handleSelectBuyer = (buyer: { id: string; email_domain?: string }) => {
     setSelectedBuyerId(buyer.id);
     setEmailAddress(buyer.email_domain ? `contact@${buyer.email_domain}` : '');
     setEmailSubject(`Deal Opportunity: ${memo.memo_type === 'anonymous_teaser' ? 'Anonymous Teaser' : 'Lead Memo'}`);

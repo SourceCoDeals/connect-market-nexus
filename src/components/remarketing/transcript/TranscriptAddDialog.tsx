@@ -56,7 +56,7 @@ interface TranscriptAddDialogProps {
   onFirefliesEmailChange: (val: string) => void;
   firefliesSearching: boolean;
   onFirefliesSearch: () => void;
-  firefliesResults: any[];
+  firefliesResults: { id: string; title?: string; date?: string; participants?: (string | { email?: string })[]; duration_minutes?: number }[];
   selectedFirefliesIds: Set<string>;
   onToggleFirefliesId: (id: string) => void;
   onToggleAllFireflies: () => void;
@@ -173,7 +173,7 @@ export function TranscriptAddDialog({
                 </Button>
               </div>
               <div className="max-h-80 overflow-y-auto space-y-2">
-                {firefliesResults.map((result: any) => (
+                {firefliesResults.map((result: { id: string; title?: string; date?: string; participants?: (string | { email?: string })[]; duration_minutes?: number }) => (
                   <Card
                     key={result.id}
                     className={`p-3 cursor-pointer transition-colors ${

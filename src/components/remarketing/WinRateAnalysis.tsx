@@ -60,7 +60,7 @@ const formatCurrency = (value: number) => {
   return `$${value.toFixed(0)}`;
 };
 
-const CustomTooltip = ({ active, payload, label: _label }: any) => {
+const CustomTooltip = ({ active, payload, label: _label }: { active?: boolean; payload?: { name: string; value: number; color: string }[]; label?: string }) => {
   if (active && payload && payload.length) {
     const data = payload[0].payload;
     return (

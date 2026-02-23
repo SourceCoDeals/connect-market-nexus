@@ -147,6 +147,7 @@ Date	Name	Email address	Company name	Phone number	Role	Message
         phone_number: phoneIndex >= 0 ? values[phoneIndex] || '' : '',
         role: roleIndex >= 0 ? values[roleIndex] || '' : '',
         message: messageIndex >= 0 ? values[messageIndex] || '' : '',
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         source: selectedSource as any,
         source_form_name: 'bulk_import',
       };

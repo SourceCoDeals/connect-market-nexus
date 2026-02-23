@@ -42,7 +42,7 @@ interface UniverseSuggestion {
 
 export const UnlinkedListingsWidget = () => {
   const queryClient = useQueryClient();
-  const [selectedListing, setSelectedListing] = useState<any>(null);
+  const [selectedListing, setSelectedListing] = useState<{ id: string; title?: string } | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selectedUniverse, setSelectedUniverse] = useState<string>("");
   const [suggestions, setSuggestions] = useState<UniverseSuggestion[]>([]);
@@ -143,7 +143,7 @@ export const UnlinkedListingsWidget = () => {
     }
   };
 
-  const handleOpenDialog = async (listing: any) => {
+  const handleOpenDialog = async (listing: { id: string; title?: string }) => {
     setSelectedListing(listing);
     setDialogOpen(true);
     setSelectedUniverse("");

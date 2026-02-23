@@ -18,7 +18,7 @@ import ListingStatusTag from "@/components/listing/ListingStatusTag";
 import { ADMIN_PROFILES } from "@/lib/admin-profiles";
 
 interface EditorBasicInfoSectionProps {
-  form: UseFormReturn<any>;
+  form: UseFormReturn<Record<string, unknown>>;
 }
 
 export function EditorBasicInfoSection({ form }: EditorBasicInfoSectionProps) {

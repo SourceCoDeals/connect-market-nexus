@@ -33,9 +33,9 @@ interface FirefliesLinkPanelProps {
   onFfQueryChange: (val: string) => void;
   ffSearchLoading: boolean;
   onFfQuickSearch: () => void;
-  ffResults: any[];
+  ffResults: { id: string; title?: string; date?: string; meeting_url?: string; participants?: (string | { email?: string })[]; duration_minutes?: number; summary?: string }[];
   ffLinking: string | null;
-  onLinkSearchResult: (transcript: any) => void;
+  onLinkSearchResult: (transcript: { id: string; title?: string; date?: string; meeting_url?: string; participants?: (string | { email?: string })[]; duration_minutes?: number; summary?: string }) => void;
 }
 
 export function FirefliesLinkPanel({

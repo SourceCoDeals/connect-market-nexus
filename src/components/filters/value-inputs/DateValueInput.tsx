@@ -12,8 +12,8 @@ import {
 import { cn } from "@/lib/utils";
 
 interface DateValueInputProps {
-  value: any; // Date | string | { min: Date; max: Date } | number (for last_n_days)
-  onChange: (value: any) => void;
+  value: Date | string | { min: Date; max: Date } | number | null;
+  onChange: (value: Date | string | { min: Date; max: Date } | number | null) => void;
   dual?: boolean;
   isLastNDays?: boolean;
 }

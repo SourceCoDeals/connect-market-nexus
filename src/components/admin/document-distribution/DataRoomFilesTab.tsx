@@ -80,10 +80,12 @@ export function DataRoomFilesTab({ dealId, projectName, buyers = [] }: DataRoomF
   };
 
   const handleDelete = async (docId: string) => {
+    /* eslint-disable @typescript-eslint/no-explicit-any */
     const { error } = await supabase
       .from('deal_documents' as any)
       .update({ status: 'deleted', updated_at: new Date().toISOString() } as any)
       .eq('id', docId);
+    /* eslint-enable @typescript-eslint/no-explicit-any */
     if (error) {
       toast.error('Failed to delete document');
     } else {

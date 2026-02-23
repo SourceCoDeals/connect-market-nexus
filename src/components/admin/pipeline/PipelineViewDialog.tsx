@@ -49,6 +49,7 @@ export function PipelineViewDialog({ open, onOpenChange }: PipelineViewDialogPro
   const [orderedStageIds, setOrderedStageIds] = useState<string[]>([]);
 
   const form = useForm<ViewFormData>({
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     resolver: zodResolver(viewSchema as any),
     defaultValues: {
       name: '',

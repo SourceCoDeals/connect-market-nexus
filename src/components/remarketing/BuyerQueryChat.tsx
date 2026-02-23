@@ -102,7 +102,7 @@ export const BuyerQueryChat = ({ universeId, className, defaultOpen = false }: B
       };
       setMessages(prev => [...prev, assistantMessage]);
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       const errorMessage: Message = {
         id: `error-${Date.now()}`,
         role: 'assistant',

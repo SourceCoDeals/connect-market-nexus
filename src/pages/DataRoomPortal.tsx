@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 
 interface DataRoomDocument {
   id: string;
@@ -102,12 +103,12 @@ export default function DataRoomPortal() {
       );
 
       if (downloadError || result?.error) {
-        alert(result?.error || 'Download failed.');
+        toast.error(result?.error || 'Download failed.');
       } else if (result?.download_url) {
         window.open(result.download_url, '_blank');
       }
     } catch {
-      alert('Download failed. Please try again.');
+      toast.error('Download failed. Please try again.');
     }
     setDownloading(null);
   };

@@ -83,7 +83,7 @@ export function PipelineFilterPanel({ pipeline }: PipelineFilterPanelProps) {
     sortOption: pipeline.sortOption, // Added: Include sort option in saved presets
   });
 
-  const loadPreset = (preset: any) => {
+  const loadPreset = (preset: { filters: Record<string, unknown> }) => {
     const filters = preset.filters;
     if (filters.statusFilter) pipeline.setStatusFilter(filters.statusFilter);
     if (filters.documentStatusFilter) pipeline.setDocumentStatusFilter(filters.documentStatusFilter);

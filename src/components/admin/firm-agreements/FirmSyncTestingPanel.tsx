@@ -197,7 +197,7 @@ export function FirmSyncTestingPanel() {
       
       if (error) throw error;
       
-      const syncIssues = members?.filter((m: any) => {
+      const syncIssues = members?.filter((m: { firm_agreements?: { fee_agreement_signed?: boolean; nda_signed?: boolean }; profiles?: { fee_agreement_signed?: boolean; nda_signed?: boolean } }) => {
         const firmFee = m.firm_agreements?.fee_agreement_signed;
         const profileFee = m.profiles?.fee_agreement_signed;
         const firmNda = m.firm_agreements?.nda_signed;
@@ -285,7 +285,7 @@ export function FirmSyncTestingPanel() {
       if (error) throw error;
 
       // Validate deal status matches connection request for lead-based requests
-      const syncIssues = deals?.filter((d: any) => {
+      const syncIssues = deals?.filter((d: { connection_requests?: { user_id?: string | null; lead_fee_agreement_signed?: boolean; lead_fee_agreement_email_sent?: boolean; lead_nda_signed?: boolean; lead_nda_email_sent?: boolean }; fee_agreement_status?: string; nda_status?: string }) => {
         const cr = d.connection_requests;
         if (!cr || cr.user_id !== null) return false; // Skip user-based requests
         

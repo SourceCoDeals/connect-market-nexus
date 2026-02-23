@@ -6,7 +6,7 @@ import ListingStatusTag from "@/components/listing/ListingStatusTag";
 import { EditorBuyerVisibilitySection } from "./EditorBuyerVisibilitySection";
 
 interface EditorAdvancedSectionProps {
-  form: UseFormReturn<any>;
+  form: UseFormReturn<Record<string, unknown>>;
 }
 
 export function EditorAdvancedSection({ form }: EditorAdvancedSectionProps) {

@@ -137,10 +137,10 @@ export const ExecutiveSummaryGenerator = ({ listing }: ExecutiveSummaryGenerator
                   <div class="metric-value">${formatCurrency(listing.ebitda)}</div>
                 </div>
               ` : ''}
-              ${(listing as any).asking_price ? `
+              ${(listing as unknown as { asking_price?: number }).asking_price ? `
                 <div class="metric">
                   <div class="metric-label">Asking Price</div>
-                  <div class="metric-value">${formatCurrency((listing as any).asking_price)}</div>
+                  <div class="metric-value">${formatCurrency((listing as unknown as { asking_price?: number }).asking_price!)}</div>
                 </div>
               ` : ''}
               ${listing.cash_flow ? `

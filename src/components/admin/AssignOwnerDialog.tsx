@@ -24,7 +24,7 @@ export function AssignOwnerDialog({ open, onOpenChange, dealTitle, onConfirm }: 
   useEffect(() => {
     if (open) {
       setIsLoading(true);
-      supabase.from('profiles').select('id, email, first_name, last_name').eq('is_admin', true).order('first_name').then((result: any) => {
+      supabase.from('profiles').select('id, email, first_name, last_name').eq('is_admin', true).order('first_name').then((result: { data: { id: string; email: string; first_name: string; last_name: string }[] | null }) => {
         if (result.data) setAdmins(result.data);
         setIsLoading(false);
       });

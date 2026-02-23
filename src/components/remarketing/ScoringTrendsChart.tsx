@@ -26,13 +26,13 @@ type ViewMode = 'volume' | 'tiers' | 'quality';
 export function ScoringTrendsChart({ data, className }: ScoringTrendsChartProps) {
   const [viewMode, setViewMode] = useState<ViewMode>('volume');
   
-  const CustomTooltip = ({ active, payload, label }: any) => {
+  const CustomTooltip = ({ active, payload, label }: { active?: boolean; payload?: { name: string; value: number; color: string }[]; label?: string }) => {
     if (active && payload && payload.length) {
       return (
         <div className="bg-popover border rounded-lg shadow-lg p-3">
           <p className="font-semibold mb-2">{label}</p>
           <div className="space-y-1">
-            {payload.map((entry: any) => (
+            {payload.map((entry: { name: string; value: number; color: string }) => (
               <div key={entry.name} className="flex items-center gap-2 text-sm">
                 <div 
                   className="w-2 h-2 rounded-full" 

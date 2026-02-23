@@ -12,7 +12,7 @@ import { cn } from "@/lib/utils";
 import { STATUS_TAGS } from "@/constants/statusTags";
 
 interface EditorInternalCardProps {
-  form: UseFormReturn<any>;
+  form: UseFormReturn<Record<string, unknown>>;
   dealIdentifier?: string;
 }
 

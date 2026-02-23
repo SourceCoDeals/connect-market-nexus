@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
 import { EDITOR_DESIGN } from "@/lib/editor-design-system";
 
 interface EditorCoreDetailsSectionProps {
-  form: UseFormReturn<any>;
+  form: UseFormReturn<Record<string, unknown>>;
 }
 
 export function EditorCoreDetailsSection({ form }: EditorCoreDetailsSectionProps) {

@@ -88,7 +88,7 @@ export const BuyerFitCriteriaAccordion = ({
         return;
       }
 
-      const { data, error } = await invokeWithTimeout<any>('extract-buyer-criteria', {
+      const { data, error } = await invokeWithTimeout<{ criteria?: Record<string, unknown> }>('extract-buyer-criteria', {
         body: {
           universe_id: universeId,
           guide_content: guideContent,

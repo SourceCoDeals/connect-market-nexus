@@ -434,7 +434,7 @@ export const AddDealToUniverseDialog = ({
       onDealAdded?.();
       onOpenChange(false);
     },
-      onError: (error: any) => {
+      onError: (error: Error) => {
         const message =
           typeof error?.message === "string" && error.message.trim()
             ? error.message

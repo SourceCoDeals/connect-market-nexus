@@ -150,7 +150,7 @@ export function BuyerAgreementsPanel({
           </CardHeader>
           <CardContent>
             <div className="space-y-2">
-              {firmMembers.map((member: any) => (
+              {firmMembers.map((member: { id: string; role?: string; profile?: { first_name?: string; last_name?: string; email?: string } }) => (
                 <div key={member.id} className="flex items-center justify-between py-2 border-b last:border-0">
                   <div>
                     <p className="text-sm font-medium">

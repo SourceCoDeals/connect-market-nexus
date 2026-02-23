@@ -6,7 +6,7 @@ import { EnhancedMultiLocationSelect } from "@/components/ui/enhanced-location-s
 import { cn } from "@/lib/utils";
 
 interface EditorTopBarProps {
-  form: UseFormReturn<any>;
+  form: UseFormReturn<Record<string, unknown>>;
 }
 
 export function EditorTopBar({ form }: EditorTopBarProps) {
