@@ -11,7 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import {
   Sparkles, Send, Loader2, X, Minimize2, Trash2,
-  ChevronUp, MessageSquare, Bot, User, Wrench,
+  ChevronUp, Bot, User, Wrench,
   CheckCircle, XCircle, MousePointerClick, Square,
 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
@@ -80,7 +80,7 @@ export function AICommandCenterPanel({ pageContext, onUIAction, className }: AIC
 
   const {
     messages, isLoading, streamingContent, currentPhase,
-    routeInfo, activeTools, pendingConfirmation, error,
+    routeInfo, activeTools, error,
     sendMessage, confirmAction, denyAction, clearMessages, stopStreaming,
     onUIAction: registerUIAction,
   } = useAICommandCenter(pageContext);
