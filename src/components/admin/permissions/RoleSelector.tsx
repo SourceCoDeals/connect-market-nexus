@@ -32,7 +32,7 @@ const roleOptions: { value: AppRole; label: string; description: string }[] = [
   { value: 'owner', label: 'Owner', description: 'Full system access (restricted)' },
   { value: 'admin', label: 'Admin', description: 'Full administrative access' },
   { value: 'moderator', label: 'Team Member', description: 'View access with limited actions' },
-  { value: 'user', label: 'User', description: 'Standard access (no admin panel)' },
+  { value: 'viewer', label: 'Viewer', description: 'View-only access to the admin panel' },
 ];
 
 export const RoleSelector = ({ userId, currentRole, userEmail, disabled }: RoleSelectorProps) => {

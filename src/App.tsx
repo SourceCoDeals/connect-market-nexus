@@ -13,6 +13,7 @@ import { TabVisibilityProvider } from "@/context/TabVisibilityContext";
 import { NavigationStateProvider } from "@/context/NavigationStateContext";
 import SessionTrackingProvider from "@/components/SessionTrackingProvider";
 import ProtectedRoute from "@/components/ProtectedRoute";
+import { RoleGate } from "@/components/admin/RoleGate";
 import MainLayout from "@/components/MainLayout";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as SonnerToaster } from "@/components/ui/sonner";
@@ -73,6 +74,7 @@ const Unauthorized = lazyWithRetry(() => import("@/pages/Unauthorized"));
 const ReferralTrackerPage = lazyWithRetry(() => import("@/pages/ReferralTrackerPage"));
 const DataRoomPortal = lazyWithRetry(() => import("@/pages/DataRoomPortal"));
 const TrackedDocumentViewer = lazyWithRetry(() => import("@/pages/TrackedDocumentViewer"));
+const AdminLogin = lazyWithRetry(() => import("@/pages/AdminLogin"));
 
 // Main app (buyer-facing)
 const Marketplace = lazyWithRetry(() => import("@/pages/Marketplace"));
@@ -185,6 +187,7 @@ function App() {
                         <Route path="/pending-approval" element={<PendingApproval />} />
                         <Route path="/auth/callback" element={<AuthCallback />} />
                         <Route path="/unauthorized" element={<Unauthorized />} />
+                        <Route path="/admin-login" element={<AdminLogin />} />
                         <Route path="/referrals/:shareToken" element={<ReferralTrackerPage />} />
                         <Route path="/dataroom/:accessToken" element={<DataRoomPortal />} />
                         <Route path="/view/:linkToken" element={<TrackedDocumentViewer />} />
@@ -210,15 +213,15 @@ function App() {
                           {/* DEALS */}
                           <Route path="deals" element={<ReMarketingDeals />} />
                           <Route path="deals/:dealId" element={<ReMarketingDealDetail />} />
-                          <Route path="deals/pipeline" element={<AdminPipeline />} />
+                          <Route path="deals/pipeline" element={<RoleGate min="admin"><AdminPipeline /></RoleGate>} />
 
                           {/* BUYERS */}
                           <Route path="buyers" element={<ReMarketingBuyers />} />
                           <Route path="buyers/pe-firms" element={<Navigate to="/admin/buyers?tab=pe_firm" replace />} />
                           <Route path="buyers/pe-firms/:id" element={<PEFirmDetail />} />
                           <Route path="buyers/:id" element={<ReMarketingBuyerDetail />} />
-                          <Route path="buyers/universes" element={<ReMarketingUniverses />} />
-                          <Route path="buyers/universes/:id" element={<ReMarketingUniverseDetail />} />
+                          <Route path="buyers/universes" element={<RoleGate min="admin"><ReMarketingUniverses /></RoleGate>} />
+                          <Route path="buyers/universes/:id" element={<RoleGate min="admin"><ReMarketingUniverseDetail /></RoleGate>} />
                           <Route path="buyers/firm-agreements" element={<Navigate to="/admin/buyers?tab=needs_agreements" replace />} />
                           <Route path="buyers/deal-sourcing" element={<AdminDealSourcing />} />
                           <Route path="buyers/contacts" element={<BuyerContactsPage />} />
@@ -230,7 +233,7 @@ function App() {
                           <Route path="marketplace/users" element={<MarketplaceUsersPage />} />
 
                           {/* REMARKETING (GlobalActivityStatusBar lives in ReMarketingLayout wrapper) */}
-                          <Route path="remarketing" element={<ReMarketingLayout />}>
+                          <Route path="remarketing" element={<RoleGate min="admin"><ReMarketingLayout /></RoleGate>}>
                             <Route index element={<ReMarketingDashboard />} />
                             <Route path="activity-queue" element={<ReMarketingActivityQueue />} />
                             <Route path="leads/captarget" element={<CapTargetDeals />} />
@@ -262,24 +265,24 @@ function App() {
                           </Route>
 
                           {/* APPROVALS */}
-                          <Route path="approvals" element={<GlobalApprovalsPage />} />
+                          <Route path="approvals" element={<RoleGate min="admin"><GlobalApprovalsPage /></RoleGate>} />
 
                           {/* ANALYTICS */}
                           <Route path="analytics" element={<ReMarketingAnalytics />} />
                           <Route path="analytics/transcripts" element={<TranscriptAnalytics />} />
 
-                          {/* ADMIN / SETTINGS */}
-                          <Route path="settings/team" element={<InternalTeamPage />} />
+                          {/* ADMIN / SETTINGS — role-gated */}
+                          <Route path="settings/team" element={<RoleGate min="admin"><InternalTeamPage /></RoleGate>} />
                           <Route path="settings/owner-leads" element={<OwnerLeadsPage />} />
                           <Route path="settings/notifications" element={<AdminNotifications />} />
-                          <Route path="settings/webhooks" element={<WebhooksPage />} />
-                          <Route path="settings/enrichment-queue" element={<EnrichmentQueue />} />
-                          <Route path="settings/enrichment-test" element={<EnrichmentTest />} />
-                          <Route path="settings/remarketing" element={<ReMarketingSettings />} />
-                          <Route path="settings/data-recovery" element={<DataRecoveryPage />} />
-                          <Route path="settings/form-monitoring" element={<FormMonitoringPage />} />
-                          <Route path="settings/security" element={<SecuritySettings />} />
-                          <Route path="system-test" element={<SystemTestRunner />} />
+                          <Route path="settings/webhooks" element={<RoleGate min="admin"><WebhooksPage /></RoleGate>} />
+                          <Route path="settings/enrichment-queue" element={<RoleGate min="admin"><EnrichmentQueue /></RoleGate>} />
+                          <Route path="settings/enrichment-test" element={<RoleGate min="admin"><EnrichmentTest /></RoleGate>} />
+                          <Route path="settings/remarketing" element={<RoleGate min="admin"><ReMarketingSettings /></RoleGate>} />
+                          <Route path="settings/data-recovery" element={<RoleGate min="owner"><DataRecoveryPage /></RoleGate>} />
+                          <Route path="settings/form-monitoring" element={<RoleGate min="admin"><FormMonitoringPage /></RoleGate>} />
+                          <Route path="settings/security" element={<RoleGate min="admin"><SecuritySettings /></RoleGate>} />
+                          <Route path="system-test" element={<RoleGate min="owner"><SystemTestRunner /></RoleGate>} />
 
                           {/* OLD ADMIN URL REDIRECTS */}
                           <Route path="listings" element={<Navigate to="/admin/deals?tab=marketplace" replace />} />
@@ -292,8 +295,8 @@ function App() {
                           <Route path="enrichment-test" element={<Navigate to="/admin/settings/enrichment-test" replace />} />
                         </Route>
 
-                        {/* ─── M&A INTELLIGENCE (separate layout — unchanged) ─── */}
-                        <Route path="/admin/ma-intelligence" element={<ProtectedRoute requireAdmin={true}><MAIntelligenceLayout /></ProtectedRoute>}>
+                        {/* ─── M&A INTELLIGENCE (admin+ role required) ─── */}
+                        <Route path="/admin/ma-intelligence" element={<ProtectedRoute requireAdmin={true} requireRole="admin"><MAIntelligenceLayout /></ProtectedRoute>}>
                           <Route index element={<MADashboard />} />
                           <Route path="trackers" element={<MATrackers />} />
                           <Route path="trackers/new" element={<MATrackerDetail />} />
