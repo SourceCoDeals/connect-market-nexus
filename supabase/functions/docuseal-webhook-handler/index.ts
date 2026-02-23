@@ -444,22 +444,37 @@ async function sendBuyerSignedDocNotification(
           ? `✅ Your ${docLabel} has been signed successfully. For your compliance records, you can download the signed copy here: ${signedDocUrl}\n\nA copy is also permanently available in your Profile → Documents tab.`
           : `✅ Your ${docLabel} has been signed successfully. A copy is available in your Profile → Documents tab.`;
 
-        const messageInserts = activeRequests.map((req: any) => ({
-          connection_request_id: req.id,
-          sender_role: "admin",
-          sender_id: null,
-          body: messageBody,
-          message_type: "system",
-          is_read_by_admin: true,
-          is_read_by_buyer: false,
-        }));
+        for (const req of activeRequests) {
+          // Dedup system messages: check if one already exists for this connection + doc type
+          const { data: existingMsg } = await supabase
+            .from("connection_messages")
+            .select("id")
+            .eq("connection_request_id", req.id)
+            .eq("message_type", "system")
+            .ilike("body", `%Your ${docLabel} has been signed%`)
+            .gte("created_at", new Date(Date.now() - 5 * 60 * 1000).toISOString())
+            .limit(1)
+            .maybeSingle();
 
-        const { error: msgError } = await supabase
-          .from("connection_messages")
-          .insert(messageInserts);
+          if (!existingMsg) {
+            const { error: msgError } = await supabase
+              .from("connection_messages")
+              .insert({
+                connection_request_id: req.id,
+                sender_role: "admin",
+                sender_id: null,
+                body: messageBody,
+                message_type: "system",
+                is_read_by_admin: true,
+                is_read_by_buyer: false,
+              });
 
-        if (msgError) {
-          console.error("⚠️ Failed to insert signed doc system messages:", msgError);
+            if (msgError) {
+              console.error("⚠️ Failed to insert signed doc system message:", msgError);
+            }
+          } else {
+            console.log(`⏩ Skipping duplicate system message for connection ${req.id} (${docLabel})`);
+          }
         }
       }
     }
