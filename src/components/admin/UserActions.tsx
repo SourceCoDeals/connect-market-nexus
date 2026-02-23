@@ -151,9 +151,6 @@ export function UserActions({ onUserStatusUpdated }: UserActionsProps) {
   const handleCustomApprovalEmail = async (user: User, options: ApprovalEmailOptions) => {
     console.log('[UserActions] handleCustomApprovalEmail called for:', user.email, user.id);
 
-    // Close dialog immediately
-    closeAllDialogs();
-
     // Step 1: Approve user FIRST
     try {
       console.log('[UserActions] Step 1: Approving user...');
@@ -183,7 +180,8 @@ export function UserActions({ onUserStatusUpdated }: UserActionsProps) {
         console.error('[UserActions] Step 3 FAILED:', emailError);
       }
 
-      // Show success confirmation dialog
+      // Show success confirmation dialog — do NOT close dialogs after this,
+      // the user will dismiss it by clicking "Done"
       setEmailSent(emailSuccess);
       setDialogState((prev) => ({ ...prev, approvalSuccess: true }));
       console.log('[UserActions] Approval flow complete');
