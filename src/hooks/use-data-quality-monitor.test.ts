@@ -377,5 +377,25 @@ describe('useDataQualityMonitor', () => {
       // Should not crash
       expect(result).toBeDefined();
     });
+
+    it('should expose refreshMetrics function that can be called manually', async () => {
+      mockFromFn.mockImplementation((table: string) => {
+        if (table === 'profiles') return createChainableMock({ data: [], error: null });
+        if (table === 'registration_funnel') return createChainableMock({ data: [], error: null });
+        return createChainableMock({ data: null, error: null });
+      });
+
+      vi.resetModules();
+      stateStore = {};
+      stateCounter = 0;
+
+      const { useDataQualityMonitor } = await import('./use-data-quality-monitor');
+      const { refreshMetrics } = useDataQualityMonitor();
+
+      expect(typeof refreshMetrics).toBe('function');
+      // Should not throw when called manually
+      await refreshMetrics();
+      expect(mockFromFn).toHaveBeenCalledWith('profiles');
+    });
   });
 });

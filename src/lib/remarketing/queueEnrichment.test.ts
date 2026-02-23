@@ -1,10 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-// Build chainable supabase mock
-const mockSelect = vi.fn();
-const _mockIn = vi.fn();
-const mockUpsert = vi.fn();
-const mockInvoke = vi.fn();
+// Use vi.hoisted so these are available when vi.mock factory runs
+const { mockSelect, mockUpsert, mockInvoke, mockToast } = vi.hoisted(() => ({
+  mockSelect: vi.fn(),
+  mockUpsert: vi.fn(),
+  mockInvoke: vi.fn(),
+  mockToast: { info: vi.fn(), error: vi.fn() },
+}));
 
 vi.mock('@/integrations/supabase/client', () => ({
   supabase: {
@@ -19,10 +21,7 @@ vi.mock('@/integrations/supabase/client', () => ({
 }));
 
 vi.mock('sonner', () => ({
-  toast: {
-    info: vi.fn(),
-    error: vi.fn(),
-  },
+  toast: mockToast,
 }));
 
 import { queueDealEnrichment, queueBuyerEnrichment } from './queueEnrichment';

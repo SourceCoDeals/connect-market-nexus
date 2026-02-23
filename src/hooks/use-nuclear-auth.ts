@@ -79,7 +79,10 @@ export function useNuclearAuth() {
                 .eq('session_id', currentSessionId)
                 .is('user_id', null) // Only update if not already linked
                 .then(({ error }) => {
-                  if (error) console.error('Failed to merge session:', error);
+                  if (error)
+                    logger.error('Failed to merge session', 'useNuclearAuth', {
+                      error: String(error),
+                    });
                 });
             }
           }
@@ -87,7 +90,7 @@ export function useNuclearAuth() {
           setUser(null);
         }
       } catch (error) {
-        console.error('Session check error:', error);
+        logger.error('Session check error', 'useNuclearAuth', { error: String(error) });
         if (isMounted) {
           setUser(null);
         }
@@ -155,10 +158,12 @@ export function useNuclearAuth() {
       try {
         const { error } = await supabase.auth.signOut({ scope: 'global' });
         if (error) {
-          console.warn('Supabase logout warning:', error);
+          logger.warn('Supabase logout warning', 'useNuclearAuth', { error: String(error) });
         }
       } catch (signOutError) {
-        console.warn('Supabase signOut failed, continuing with cleanup:', signOutError);
+        logger.warn('Supabase signOut failed, continuing with cleanup', 'useNuclearAuth', {
+          error: String(signOutError),
+        });
       }
 
       // Logout completed successfully
@@ -166,7 +171,7 @@ export function useNuclearAuth() {
       // Step 4: Navigate immediately without delay
       window.location.href = '/login';
     } catch (error) {
-      console.error('Logout error:', error);
+      logger.error('Logout error', 'useNuclearAuth', { error: String(error) });
       // Ensure navigation happens even on error
       setUser(null);
       window.location.href = '/login';
