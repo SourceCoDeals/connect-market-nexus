@@ -7,6 +7,20 @@ import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import type { ClaudeTool } from "../../_shared/claude-client.ts";
 import type { ToolResult } from "./index.ts";
 
+// ---------- US State code/name mapping ----------
+
+const STATE_CODE_TO_NAME: Record<string, string> = {
+  AL:'Alabama',AK:'Alaska',AZ:'Arizona',AR:'Arkansas',CA:'California',CO:'Colorado',
+  CT:'Connecticut',DE:'Delaware',FL:'Florida',GA:'Georgia',HI:'Hawaii',ID:'Idaho',
+  IL:'Illinois',IN:'Indiana',IA:'Iowa',KS:'Kansas',KY:'Kentucky',LA:'Louisiana',
+  ME:'Maine',MD:'Maryland',MA:'Massachusetts',MI:'Michigan',MN:'Minnesota',MS:'Mississippi',
+  MO:'Missouri',MT:'Montana',NE:'Nebraska',NV:'Nevada',NH:'New Hampshire',NJ:'New Jersey',
+  NM:'New Mexico',NY:'New York',NC:'North Carolina',ND:'North Dakota',OH:'Ohio',OK:'Oklahoma',
+  OR:'Oregon',PA:'Pennsylvania',RI:'Rhode Island',SC:'South Carolina',SD:'South Dakota',
+  TN:'Tennessee',TX:'Texas',UT:'Utah',VT:'Vermont',VA:'Virginia',WA:'Washington',
+  WV:'West Virginia',WI:'Wisconsin',WY:'Wyoming',DC:'District of Columbia',
+};
+
 // ---------- Quick vs Full field sets ----------
 
 const DEAL_FIELDS_QUICK = `
@@ -130,7 +144,7 @@ async function queryDeals(
   args: Record<string, unknown>,
 ): Promise<ToolResult> {
   const depth = (args.depth as string) || 'quick';
-  const needsClientFilter = !!(args.search || args.industry);
+  const needsClientFilter = !!(args.search || args.industry || args.state);
   // When client-side filtering is needed, fetch all matching rows via pagination
   const requestedLimit = Number(args.limit) || (needsClientFilter ? 5000 : 25);
   const fields = depth === 'full' ? DEAL_FIELDS_FULL : DEAL_FIELDS_QUICK;
@@ -146,7 +160,7 @@ async function queryDeals(
 
     if (args.status) query = query.eq('status', args.status as string);
     if (args.deal_source) query = query.eq('deal_source', args.deal_source as string);
-    if (args.state) query = query.contains('geographic_states', [args.state as string]);
+    // State filter is now client-side to check both address_state (full names) and geographic_states (codes)
     if (args.is_priority === true) query = query.eq('is_priority_target', true);
     if (args.min_revenue) query = query.gte('revenue', args.min_revenue as number);
     if (args.max_revenue) query = query.lte('revenue', args.max_revenue as number);
@@ -171,6 +185,23 @@ async function queryDeals(
   }
 
   let results = allData;
+
+  // Client-side state filter — checks both address_state (full names like "Ohio") and geographic_states (codes like "OH")
+  if (args.state) {
+    const stateCode = (args.state as string).toUpperCase();
+    const stateName = STATE_CODE_TO_NAME[stateCode] || stateCode;
+    const stateCodeLower = stateCode.toLowerCase();
+    const stateNameLower = stateName.toLowerCase();
+    results = results.filter((d: Record<string, unknown>) => {
+      const addrState = ((d.address_state as string) || '').toLowerCase();
+      const geoStates = (d.geographic_states as string[]) || [];
+      return (
+        addrState === stateCodeLower ||
+        addrState === stateNameLower ||
+        geoStates.some((s: string) => s.toUpperCase() === stateCode)
+      );
+    });
+  }
 
   // Client-side text search
   if (args.search) {
@@ -197,6 +228,7 @@ async function queryDeals(
       deals: results,
       total: results.length,
       depth,
+      state_filter: args.state || null,
     },
   };
 }
