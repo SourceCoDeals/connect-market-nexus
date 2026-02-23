@@ -193,6 +193,12 @@ export function UnifiedAdminSidebar({ collapsed, onCollapsedChange }: AdminSideb
             href: "/admin/remarketing/leads/referrals",
             icon: <Handshake className="h-4 w-4" />,
           },
+          {
+            label: "Owner/Seller Leads",
+            href: "/admin/settings/owner-leads",
+            icon: <ClipboardList className="h-4 w-4" />,
+            badge: unviewedOwnerLeadsCount,
+          },
         ],
       },
       {
@@ -221,12 +227,6 @@ export function UnifiedAdminSidebar({ collapsed, onCollapsedChange }: AdminSideb
             label: "Internal Team",
             href: "/admin/settings/team",
             icon: <UserCog className="h-4 w-4" />,
-          },
-          {
-            label: "Owner/Seller Leads",
-            href: "/admin/settings/owner-leads",
-            icon: <ClipboardList className="h-4 w-4" />,
-            badge: unviewedOwnerLeadsCount,
           },
           {
             label: "Notifications",
