@@ -36,16 +36,16 @@ const roleConfig: Record<AppRole, {
     gradient: 'from-blue-500 to-blue-400',
     description: 'Team member with view access and limited actions',
   },
-  user: {
-    label: 'User',
+  viewer: {
+    label: 'Viewer',
     icon: User,
     gradient: 'from-muted-foreground to-muted',
-    description: 'Standard user access',
+    description: 'View-only access',
   },
 };
 
 export const RoleBadge = ({ role, showTooltip = true }: RoleBadgeProps) => {
-  const config = roleConfig[role] || roleConfig.user;
+  const config = roleConfig[role] || roleConfig.viewer;
   const Icon = config.icon;
 
   const badge = (
