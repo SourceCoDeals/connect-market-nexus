@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 
 export interface UserNotification {
   id: string;
@@ -21,13 +21,18 @@ export function useUserNotifications() {
   const query = useQuery({
     queryKey: ['user-notifications'],
     queryFn: async () => {
-      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      const {
+        data: { user },
+        error: authError,
+      } = await supabase.auth.getUser();
       if (authError) throw authError;
       if (!user) return [];
 
       const { data, error } = await supabase
         .from('user_notifications')
-        .select('id, user_id, connection_request_id, notification_type, title, message, is_read, read_at, metadata, created_at')
+        .select(
+          'id, user_id, connection_request_id, notification_type, title, message, is_read, read_at, metadata, created_at',
+        )
         .eq('user_id', user.id)
         .order('created_at', { ascending: false })
         .limit(100);
@@ -44,7 +49,10 @@ export function useUserNotifications() {
     let channel: ReturnType<typeof supabase.channel> | null = null;
 
     const setup = async () => {
-      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      const {
+        data: { user },
+        error: authError,
+      } = await supabase.auth.getUser();
       if (authError) throw authError;
       if (!user || cancelled) return;
 
@@ -60,12 +68,12 @@ export function useUserNotifications() {
           },
           () => {
             queryClient.invalidateQueries({ queryKey: ['user-notifications'] });
-          }
+          },
         )
         .subscribe();
     };
 
-    setup();
+    setup().catch((err) => console.error('Notification subscription error:', err));
 
     return () => {
       cancelled = true;
@@ -75,25 +83,44 @@ export function useUserNotifications() {
     };
   }, [queryClient]);
 
-  const unreadCount = (query.data || []).filter(n => !n.is_read).length;
-  
+  const unreadCount = useMemo(
+    () => (query.data || []).filter((n) => !n.is_read).length,
+    [query.data],
+  );
+
   // Get unread count by connection request
-  const unreadByRequest = (query.data || [])
-    .filter(n => !n.is_read && n.connection_request_id)
-    .reduce((acc, n) => {
-      const requestId = n.connection_request_id!;
-      acc[requestId] = (acc[requestId] || 0) + 1;
-      return acc;
-    }, {} as Record<string, number>);
+  const unreadByRequest = useMemo(
+    () =>
+      (query.data || [])
+        .filter((n) => !n.is_read && n.connection_request_id)
+        .reduce(
+          (acc, n) => {
+            const requestId = n.connection_request_id!;
+            acc[requestId] = (acc[requestId] || 0) + 1;
+            return acc;
+          },
+          {} as Record<string, number>,
+        ),
+    [query.data],
+  );
 
   // Get unread document notification count by deal_id (from metadata)
-  const unreadDocsByDeal = (query.data || [])
-    .filter(n => !n.is_read && n.notification_type === 'document_uploaded' && n.metadata?.deal_id)
-    .reduce((acc, n) => {
-      const dealId = n.metadata.deal_id as string;
-      acc[dealId] = (acc[dealId] || 0) + 1;
-      return acc;
-    }, {} as Record<string, number>);
+  const unreadDocsByDeal = useMemo(
+    () =>
+      (query.data || [])
+        .filter(
+          (n) => !n.is_read && n.notification_type === 'document_uploaded' && n.metadata?.deal_id,
+        )
+        .reduce(
+          (acc, n) => {
+            const dealId = n.metadata.deal_id as string;
+            acc[dealId] = (acc[dealId] || 0) + 1;
+            return acc;
+          },
+          {} as Record<string, number>,
+        ),
+    [query.data],
+  );
 
   return {
     notifications: query.data || [],
@@ -110,12 +137,12 @@ export function useMarkNotificationAsRead() {
   return useMutation({
     mutationFn: async (notificationIds: string | string[]) => {
       const ids = Array.isArray(notificationIds) ? notificationIds : [notificationIds];
-      
+
       const { error } = await supabase
         .from('user_notifications')
-        .update({ 
+        .update({
           is_read: true,
-          read_at: new Date().toISOString()
+          read_at: new Date().toISOString(),
         })
         .in('id', ids);
 
@@ -132,15 +159,18 @@ export function useMarkRequestNotificationsAsRead() {
 
   return useMutation({
     mutationFn: async (connectionRequestId: string) => {
-      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      const {
+        data: { user },
+        error: authError,
+      } = await supabase.auth.getUser();
       if (authError) throw authError;
       if (!user) throw new Error('Not authenticated');
 
       const { error } = await supabase
         .from('user_notifications')
-        .update({ 
+        .update({
           is_read: true,
-          read_at: new Date().toISOString()
+          read_at: new Date().toISOString(),
         })
         .eq('user_id', user.id)
         .eq('connection_request_id', connectionRequestId)

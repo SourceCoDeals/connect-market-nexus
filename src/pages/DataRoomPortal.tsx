@@ -11,12 +11,10 @@ import { useParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import {
-  Download, FileText, File, FileSpreadsheet, FileImage,
-  Loader2, ShieldAlert, Lock,
-} from 'lucide-react';
+import { Download, FileText, Loader2, ShieldAlert, Lock } from 'lucide-react';
 import { format } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
+import { getFileIcon, formatFileSize } from '@/lib/file-utils';
 
 interface DataRoomDocument {
   id: string;
@@ -29,26 +27,6 @@ interface DataRoomDocument {
 interface DataRoomData {
   project_name: string;
   documents: DataRoomDocument[];
-}
-
-function getFileIcon(mimeType?: string) {
-  if (mimeType?.includes('spreadsheet') || mimeType?.includes('excel')) {
-    return <FileSpreadsheet className="h-5 w-5 text-green-500" />;
-  }
-  if (mimeType?.includes('image')) {
-    return <FileImage className="h-5 w-5 text-purple-500" />;
-  }
-  if (mimeType?.includes('pdf')) {
-    return <FileText className="h-5 w-5 text-red-500" />;
-  }
-  return <File className="h-5 w-5 text-gray-500" />;
-}
-
-function formatFileSize(bytes: number | null): string {
-  if (!bytes) return '';
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
 export default function DataRoomPortal() {
@@ -71,7 +49,7 @@ export default function DataRoomPortal() {
           'record-data-room-view',
           {
             body: { access_token: accessToken },
-          }
+          },
         );
 
         if (fetchError || result?.error) {
@@ -98,7 +76,7 @@ export default function DataRoomPortal() {
         'record-data-room-view',
         {
           body: { access_token: accessToken, document_id: documentId },
-        }
+        },
       );
 
       if (downloadError || result?.error) {
@@ -193,7 +171,7 @@ export default function DataRoomPortal() {
                 </tr>
               </thead>
               <tbody className="divide-y">
-                {data.documents.map(doc => (
+                {data.documents.map((doc) => (
                   <tr key={doc.id} className="hover:bg-gray-50">
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
@@ -240,8 +218,8 @@ export default function DataRoomPortal() {
       <footer className="border-t bg-white mt-12">
         <div className="max-w-4xl mx-auto px-4 py-6 text-center">
           <p className="text-xs text-gray-400">
-            Powered by SourceCo. By accessing these materials, you confirm you have executed
-            the required confidentiality agreements.
+            Powered by SourceCo. By accessing these materials, you confirm you have executed the
+            required confidentiality agreements.
           </p>
         </div>
       </footer>

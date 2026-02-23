@@ -25,8 +25,6 @@ export function UserActions({ onUserStatusUpdated }: UserActionsProps) {
 
   const { sendCustomApprovalEmail } = useAdminEmail();
 
-  
-
   // Get actual mutation functions
   const updateUserStatusMutation = useUpdateUserStatus();
   const updateAdminStatusMutation = useUpdateAdminStatus();
@@ -57,12 +55,10 @@ export function UserActions({ onUserStatusUpdated }: UserActionsProps) {
   };
 
   const handleUserApproval = (user: User) => {
-    console.log('[UserActions] handleUserApproval called for:', user.email);
     setSelectedUser(user);
     // Use setTimeout to avoid Radix DropdownMenu/Dialog portal race condition
     // The dropdown's cleanup can interfere with the dialog opening if they happen simultaneously
     setTimeout(() => {
-      console.log('[UserActions] Opening approval dialog (deferred)');
       setDialogState((prev) => ({ ...prev, approval: true }));
     }, 50);
   };
@@ -155,13 +151,9 @@ export function UserActions({ onUserStatusUpdated }: UserActionsProps) {
   };
 
   const handleCustomApprovalEmail = async (user: User, options: ApprovalEmailOptions) => {
-    console.log('[UserActions] handleCustomApprovalEmail called for:', user.email, user.id);
-
     // Step 1: Approve user FIRST
     try {
-      console.log('[UserActions] Step 1: Approving user...');
       await updateUserStatusMutation.mutateAsync({ userId: user.id, status: 'approved' });
-      console.log('[UserActions] Step 1 SUCCESS: User approved');
 
       // Store approved user for success dialog
       setApprovedUser(user);
@@ -169,31 +161,30 @@ export function UserActions({ onUserStatusUpdated }: UserActionsProps) {
       // Step 2: Auto-create firm agreement (fire-and-forget, non-blocking)
       // Note: This edge function expects a connectionRequestId, not a userId.
       // During direct user approval (not connection request approval), we skip this step.
-      console.log('[UserActions] Step 2: Skipping auto-create firm (no connection request in direct approval flow)');
 
       // Step 3: Send email
       let emailSuccess = false;
       try {
-        console.log('[UserActions] Step 3: Sending email...');
         await sendCustomApprovalEmail(user, options);
         emailSuccess = true;
-        console.log('[UserActions] Step 3 SUCCESS');
       } catch (emailError) {
-        console.error('[UserActions] Step 3 FAILED:', emailError);
+        console.error('[UserActions] Email send failed:', emailError);
       }
 
       // Close approval dialog and show success dialog
       setEmailSent(emailSuccess);
       setDialogState((prev) => ({ ...prev, approval: false, approvalSuccess: true }));
-      console.log('[UserActions] Approval flow complete');
 
       if (onUserStatusUpdated) onUserStatusUpdated();
     } catch (approvalError) {
-      console.error('[UserActions] Step 1 FAILED:', approvalError);
+      console.error('[UserActions] Approval failed:', approvalError);
       toast({
         variant: 'destructive',
         title: 'Approval failed',
-        description: approvalError instanceof Error ? approvalError.message : 'Failed to approve user. Please try again.',
+        description:
+          approvalError instanceof Error
+            ? approvalError.message
+            : 'Failed to approve user. Please try again.',
       });
     }
   };

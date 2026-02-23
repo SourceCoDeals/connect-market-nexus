@@ -1,69 +1,62 @@
+import { useEffect, useState, useRef } from 'react';
+import { Link, useParams } from 'react-router-dom';
+import { useMarketplace } from '@/hooks/use-marketplace';
+import { useAuth } from '@/context/AuthContext';
+import { useAnalytics } from '@/context/AnalyticsContext';
+import { useClickTracking } from '@/hooks/use-click-tracking';
+import { supabase } from '@/integrations/supabase/client';
+import type { Json } from '@/integrations/supabase/types';
+import { useSessionContext } from '@/contexts/SessionContext';
+import { Button } from '@/components/ui/button';
+import { ChevronLeft, ExternalLink } from 'lucide-react';
+import { formatCurrency } from '@/lib/currency-utils';
+import ConnectionButton from '@/components/listing-detail/ConnectionButton';
+import BlurredFinancialTeaser from '@/components/listing-detail/BlurredFinancialTeaser';
+import { EnhancedInvestorDashboard } from '@/components/listing-detail/EnhancedInvestorDashboard';
+import { CustomSection } from '@/components/listing-detail/CustomSection';
+import { ExecutiveSummaryGenerator } from '@/components/listing-detail/ExecutiveSummaryGenerator';
+import { ListingHeader } from '@/components/listing-detail/ListingHeader';
+import { EnhancedFinancialGrid } from '@/components/listing-detail/EnhancedFinancialGrid';
+import { DealAdvisorCard } from '@/components/listing-detail/DealAdvisorCard';
+import { DealSourcingCriteriaDialog } from '@/components/listing-detail/DealSourcingCriteriaDialog';
 
-import { useEffect, useState, useRef } from "react";
-import { Link, useParams } from "react-router-dom";
-import { useMarketplace } from "@/hooks/use-marketplace";
-import { useAuth } from "@/context/AuthContext";
-import { useAnalytics } from "@/context/AnalyticsContext";
-import { useClickTracking } from "@/hooks/use-click-tracking";
-import { supabase } from "@/integrations/supabase/client";
-import type { Json } from "@/integrations/supabase/types";
-import { useSessionContext } from "@/contexts/SessionContext";
-import { Button } from "@/components/ui/button";
-import {
-  ChevronLeft,
-  ExternalLink,
-} from "lucide-react";
-import { formatCurrency } from "@/lib/currency-utils";
-import ConnectionButton from "@/components/listing-detail/ConnectionButton";
-import BlurredFinancialTeaser from "@/components/listing-detail/BlurredFinancialTeaser";
-import { EnhancedInvestorDashboard } from "@/components/listing-detail/EnhancedInvestorDashboard";
-import { CustomSection } from "@/components/listing-detail/CustomSection";
-import { ExecutiveSummaryGenerator } from "@/components/listing-detail/ExecutiveSummaryGenerator";
-import { ListingHeader } from "@/components/listing-detail/ListingHeader";
-import { EnhancedFinancialGrid } from "@/components/listing-detail/EnhancedFinancialGrid";
-import { DealAdvisorCard } from "@/components/listing-detail/DealAdvisorCard";
-import { DealSourcingCriteriaDialog } from "@/components/listing-detail/DealSourcingCriteriaDialog";
-
-import { EditableDescription } from "@/components/listing-detail/EditableDescription";
-import { SimilarListingsCarousel } from "@/components/listing-detail/SimilarListingsCarousel";
-import { EnhancedSaveButton } from "@/components/listing-detail/EnhancedSaveButton";
-import { InternalCompanyInfoDisplay } from "@/components/admin/InternalCompanyInfoDisplay";
-import { BuyerDataRoom } from "@/components/marketplace/BuyerDataRoom";
-import { MFAGate } from "@/components/auth/MFAGate";
-import { NdaGateModal } from "@/components/docuseal/NdaGateModal";
-import { useBuyerNdaStatus } from "@/hooks/admin/use-docuseal";
-import { AgreementStatusBanner } from "@/components/marketplace/AgreementStatusBanner";
+import { EditableDescription } from '@/components/listing-detail/EditableDescription';
+import { SimilarListingsCarousel } from '@/components/listing-detail/SimilarListingsCarousel';
+import { EnhancedSaveButton } from '@/components/listing-detail/EnhancedSaveButton';
+import { InternalCompanyInfoDisplay } from '@/components/admin/InternalCompanyInfoDisplay';
+import { BuyerDataRoom } from '@/components/marketplace/BuyerDataRoom';
+import { MFAGate } from '@/components/auth/MFAGate';
+import { NdaGateModal } from '@/components/docuseal/NdaGateModal';
+import { useBuyerNdaStatus } from '@/hooks/admin/use-docuseal';
+import { AgreementStatusBanner } from '@/components/marketplace/AgreementStatusBanner';
 
 const ListingDetail = () => {
   const { id } = useParams<{ id: string }>();
   const { user } = useAuth();
   const [showDealSourcingDialog, setShowDealSourcingDialog] = useState(false);
-  
+
   // Click tracking for engagement analytics
   const { getClickData, resetTracking } = useClickTracking(true);
   const { sessionId } = useSessionContext();
   const hasFlushOnUnmountRef = useRef(false);
-  
-  const { 
-    useListing, 
-    useRequestConnection, 
-    useConnectionStatus 
-  } = useMarketplace();
-  
+
+  const { useListing, useRequestConnection, useConnectionStatus } = useMarketplace();
+
   const { data: listing, isLoading, error } = useListing(id);
   const { mutate: requestConnection, isPending: isRequesting } = useRequestConnection();
   const { data: connectionStatus } = useConnectionStatus(id);
   const { trackListingView, trackListingSave, trackConnectionRequest } = useAnalytics();
-  
+
   const isAdmin = user?.is_admin === true;
-  
+
   // NDA gate: check if buyer has signed NDA (skip for admins and unauthenticated)
   const { data: ndaStatus } = useBuyerNdaStatus(!isAdmin ? user?.id : undefined);
   const [ndaGateDismissed, setNdaGateDismissed] = useState(false);
-  const showNdaGate = !isAdmin && user && ndaStatus && ndaStatus.hasFirm && !ndaStatus.ndaSigned && !ndaGateDismissed;
+  const showNdaGate =
+    !isAdmin && user && ndaStatus && ndaStatus.hasFirm && !ndaStatus.ndaSigned && !ndaGateDismissed;
 
   useEffect(() => {
-    document.title = listing ? `${listing.title} | Marketplace` : "Listing Detail | Marketplace";
+    document.title = listing ? `${listing.title} | Marketplace` : 'Listing Detail | Marketplace';
   }, [listing]);
 
   // Track listing view when page loads
@@ -78,20 +71,22 @@ const ListingDetail = () => {
   useEffect(() => {
     const flushClickData = async () => {
       if (!id || hasFlushOnUnmountRef.current) return;
-      
+
       const clickData = getClickData();
       if (!clickData || clickData.total_clicks === 0) return;
-      
+
       hasFlushOnUnmountRef.current = true;
-      
+
       try {
-        await supabase.from('listing_analytics').insert([{
-          listing_id: id,
-          user_id: user?.id || null,
-          session_id: sessionId,
-          action_type: 'view',
-          clicked_elements: clickData as unknown as Json,
-        }]);
+        await supabase.from('listing_analytics').insert([
+          {
+            listing_id: id,
+            user_id: user?.id || null,
+            session_id: sessionId,
+            action_type: 'view',
+            clicked_elements: clickData as unknown as Json,
+          },
+        ]);
       } catch (error) {
         // silently fail - non-critical analytics
       }
@@ -112,7 +107,7 @@ const ListingDetail = () => {
 
   // Extract connection status safely with fallbacks
   const connectionExists = connectionStatus?.exists || false;
-  const connectionStatusValue = connectionStatus?.status || "";
+  const connectionStatusValue = connectionStatus?.status || '';
 
   if (isLoading) {
     return (
@@ -157,8 +152,8 @@ const ListingDetail = () => {
   }
 
   // Extract isInactive safely with fallback to false if status is undefined
-  const isInactive = listing?.status === "inactive";
-  
+  const isInactive = listing?.status === 'inactive';
+
   // Show NDA gate modal for unsigned buyers
   if (showNdaGate && ndaStatus?.firmId) {
     return (
@@ -182,7 +177,7 @@ const ListingDetail = () => {
           Back to Marketplace
         </Link>
       </div>
-      
+
       {/* Agreement Status Banners (buyer-facing) */}
       {!isAdmin && user && (
         <div className="max-w-7xl mx-auto px-8 mb-4">
@@ -195,7 +190,6 @@ const ListingDetail = () => {
         <div className="grid grid-cols-1 lg:grid-cols-10 gap-[42px]">
           {/* Main Content - 70% */}
           <div className="lg:col-span-7 space-y-8">
-            
             {/* Horizontal Header */}
             <ListingHeader
               listing={listing}
@@ -210,54 +204,67 @@ const ListingDetail = () => {
               <EnhancedFinancialGrid
                 metrics={[
                   {
-                    label: "2024 Revenue",
+                    label: '2024 Revenue',
                     value: formatCurrency(listing.revenue),
                     subtitle: listing.revenue_metric_subtitle || listing.category,
-                    tooltip: "Financials range from owner estimates to verified documentation. Verification level varies by owner readiness and will be confirmed in your intro call and due diligence process."
+                    tooltip:
+                      'Financials range from owner estimates to verified documentation. Verification level varies by owner readiness and will be confirmed in your intro call and due diligence process.',
                   },
                   {
-                    label: "EBITDA",
+                    label: 'EBITDA',
                     value: formatCurrency(listing.ebitda),
-                    subtitle: listing.ebitda_metric_subtitle || `~${listing.revenue > 0 ? ((listing.ebitda / listing.revenue) * 100).toFixed(1) : '0'}% margin profile`,
-                    tooltip: "Financials range from owner estimates to verified documentation. Verification level varies by owner readiness and will be confirmed in your intro call and due diligence process."
+                    subtitle:
+                      listing.ebitda_metric_subtitle ||
+                      `~${listing.revenue > 0 ? ((listing.ebitda / listing.revenue) * 100).toFixed(1) : '0'}% margin profile`,
+                    tooltip:
+                      'Financials range from owner estimates to verified documentation. Verification level varies by owner readiness and will be confirmed in your intro call and due diligence process.',
                   },
                   // Metric 3: Employees or Custom
-                  listing.metric_3_type === 'custom' && listing.metric_3_custom_label ? {
-                    label: listing.metric_3_custom_label,
-                    value: listing.metric_3_custom_value || '',
-                    subtitle: listing.metric_3_custom_subtitle ?? undefined
-                  } : {
-                    label: "Team Size",
-                    value: `${(listing.full_time_employees || 0) + (listing.part_time_employees || 0)}`,
-                    subtitle: `${listing.full_time_employees || 0} FT, ${listing.part_time_employees || 0} PT`
-                  },
+                  listing.metric_3_type === 'custom' && listing.metric_3_custom_label
+                    ? {
+                        label: listing.metric_3_custom_label,
+                        value: listing.metric_3_custom_value || '',
+                        subtitle: listing.metric_3_custom_subtitle ?? undefined,
+                      }
+                    : {
+                        label: 'Team Size',
+                        value: `${(listing.full_time_employees || 0) + (listing.part_time_employees || 0)}`,
+                        subtitle: `${listing.full_time_employees || 0} FT, ${listing.part_time_employees || 0} PT`,
+                      },
                   // Metric 4: EBITDA Margin (default) or Custom
-                  listing.metric_4_type === 'custom' && listing.metric_4_custom_label ? {
-                    label: listing.metric_4_custom_label,
-                    value: listing.metric_4_custom_value || '',
-                    subtitle: listing.metric_4_custom_subtitle ?? undefined
-                  } : {
-                    label: "EBITDA Margin",
-                    value: listing.revenue > 0 ? `${((listing.ebitda / listing.revenue) * 100).toFixed(1)}%` : '0%',
-                    subtitle: listing.metric_4_custom_subtitle || "Profitability metric"
-                  }
+                  listing.metric_4_type === 'custom' && listing.metric_4_custom_label
+                    ? {
+                        label: listing.metric_4_custom_label,
+                        value: listing.metric_4_custom_value || '',
+                        subtitle: listing.metric_4_custom_subtitle ?? undefined,
+                      }
+                    : {
+                        label: 'EBITDA Margin',
+                        value:
+                          listing.revenue > 0
+                            ? `${((listing.ebitda / listing.revenue) * 100).toFixed(1)}%`
+                            : '0%',
+                        subtitle: listing.metric_4_custom_subtitle || 'Profitability metric',
+                      },
                 ]}
               />
             </div>
 
             {/* Internal Company Information - Admin Only */}
             {isAdmin && listing && (
-              <InternalCompanyInfoDisplay listing={listing as unknown as import("@/types/admin").AdminListing} />
+              <InternalCompanyInfoDisplay
+                listing={listing as unknown as import('@/types/admin').AdminListing}
+              />
             )}
 
             {/* Financial Summary */}
             <div>
               <EnhancedInvestorDashboard
-                listing={listing as unknown as import("@/types/admin").AdminListing}
+                listing={listing as unknown as import('@/types/admin').AdminListing}
                 formatCurrency={formatCurrency}
               />
             </div>
-            
+
             {/* Business Overview */}
             <div className="py-8 border-t border-slate-100">
               <div className="space-y-4">
@@ -277,8 +284,10 @@ const ListingDetail = () => {
             {(listing.ownership_structure || listing.seller_motivation) && (
               <div className="document-section py-8 border-t border-slate-100">
                 <div className="space-y-5">
-                  <h2 className="text-sm font-medium leading-5 mb-4">Ownership & Transaction Overview</h2>
-                  
+                  <h2 className="text-sm font-medium leading-5 mb-4">
+                    Ownership & Transaction Overview
+                  </h2>
+
                   <div className="bg-sourceco-background rounded-lg p-6 space-y-6">
                     <div className="flex items-start gap-4">
                       <div className="w-14 h-14 bg-white rounded-full flex items-center justify-center border border-sourceco-form">
@@ -288,25 +297,41 @@ const ListingDetail = () => {
                       </div>
                       <div className="flex-1 space-y-4">
                         <div>
-                          <h4 className="text-base font-semibold text-slate-900 mb-2">Current Ownership Structure</h4>
+                          <h4 className="text-base font-semibold text-slate-900 mb-2">
+                            Current Ownership Structure
+                          </h4>
                           <p className="document-subtitle">
-                            {listing.ownership_structure === 'individual' && 'Individual founder-owner operating the business with full control and deep operational knowledge.'}
-                            {listing.ownership_structure === 'family' && 'Family-owned enterprise with established governance and multi-generational involvement.'}
-                            {listing.ownership_structure === 'corporate' && 'Corporate-owned subsidiary with professional management structure and reporting protocols.'}
-                            {listing.ownership_structure === 'private_equity' && 'Private equity-backed company with institutional ownership and growth capital experience.'}
-                            {!listing.ownership_structure && 'Established business ownership with proven operational track record.'}
+                            {listing.ownership_structure === 'individual' &&
+                              'Individual founder-owner operating the business with full control and deep operational knowledge.'}
+                            {listing.ownership_structure === 'family' &&
+                              'Family-owned enterprise with established governance and multi-generational involvement.'}
+                            {listing.ownership_structure === 'corporate' &&
+                              'Corporate-owned subsidiary with professional management structure and reporting protocols.'}
+                            {listing.ownership_structure === 'private_equity' &&
+                              'Private equity-backed company with institutional ownership and growth capital experience.'}
+                            {!listing.ownership_structure &&
+                              'Established business ownership with proven operational track record.'}
                           </p>
                         </div>
-                        
+
                         {listing.seller_motivation && (
                           <div>
-                            <h4 className="text-base font-semibold text-slate-900 mb-2">Transaction Motivation</h4>
+                            <h4 className="text-base font-semibold text-slate-900 mb-2">
+                              Transaction Motivation
+                            </h4>
                             <p className="document-subtitle">
-                              Owner is seeking a {listing.seller_motivation === 'retirement' && 'retirement-focused exit with comprehensive succession planning and knowledge transfer'}
-                              {listing.seller_motivation === 'succession' && 'strategic succession partnership ensuring long-term business continuity and growth'}
-                              {listing.seller_motivation === 'growth_capital' && 'growth capital partnership while maintaining significant ownership and operational control'}
-                              {listing.seller_motivation === 'liquidity_event' && 'partial liquidity event while retaining operational involvement and upside participation'}
-                              {!listing.seller_motivation && 'strategic partnership to accelerate growth and market expansion'}.
+                              Owner is seeking a{' '}
+                              {listing.seller_motivation === 'retirement' &&
+                                'retirement-focused exit with comprehensive succession planning and knowledge transfer'}
+                              {listing.seller_motivation === 'succession' &&
+                                'strategic succession partnership ensuring long-term business continuity and growth'}
+                              {listing.seller_motivation === 'growth_capital' &&
+                                'growth capital partnership while maintaining significant ownership and operational control'}
+                              {listing.seller_motivation === 'liquidity_event' &&
+                                'partial liquidity event while retaining operational involvement and upside participation'}
+                              {!listing.seller_motivation &&
+                                'strategic partnership to accelerate growth and market expansion'}
+                              .
                             </p>
                           </div>
                         )}
@@ -318,25 +343,33 @@ const ListingDetail = () => {
             )}
 
             {/* Transaction Preferences */}
-            {(listing.seller_motivation || listing.timeline_preference || listing.seller_involvement_preference) && (
+            {(listing.seller_motivation ||
+              listing.timeline_preference ||
+              listing.seller_involvement_preference) && (
               <div className="document-section py-8 border-t border-slate-100">
                 <div className="space-y-4">
                   <span className="document-label">Transaction Preferences</span>
                   {listing.seller_motivation && (
                     <div className="space-y-2">
-                      <span className="text-xs text-slate-500 uppercase tracking-wider">Seller Motivation</span>
+                      <span className="text-xs text-slate-500 uppercase tracking-wider">
+                        Seller Motivation
+                      </span>
                       <p className="document-subtitle">{listing.seller_motivation}</p>
                     </div>
                   )}
                   {listing.timeline_preference && (
                     <div className="space-y-2">
-                      <span className="text-xs text-slate-500 uppercase tracking-wider">Timeline Preference</span>
+                      <span className="text-xs text-slate-500 uppercase tracking-wider">
+                        Timeline Preference
+                      </span>
                       <p className="document-subtitle">{listing.timeline_preference}</p>
                     </div>
                   )}
                   {listing.seller_involvement_preference && (
                     <div className="space-y-2">
-                      <span className="text-xs text-slate-500 uppercase tracking-wider">Post-Sale Role</span>
+                      <span className="text-xs text-slate-500 uppercase tracking-wider">
+                        Post-Sale Role
+                      </span>
                       <p className="document-subtitle">{listing.seller_involvement_preference}</p>
                     </div>
                   )}
@@ -344,19 +377,23 @@ const ListingDetail = () => {
               </div>
             )}
 
-          {/* Similar Listings Carousel */}
-          {listing && <SimilarListingsCarousel currentListing={listing} />}
+            {/* Similar Listings Carousel */}
+            {listing && <SimilarListingsCarousel currentListing={listing} />}
 
-          {/* Custom Sections */}
-            {listing.custom_sections && Array.isArray(listing.custom_sections) && listing.custom_sections.length > 0 && (
-              <div className="document-section py-8 border-t border-slate-100">
-                <div className="space-y-6">
-                  {listing.custom_sections.map((section: { title: string; description: string }) => (
-                    <CustomSection key={section.title} section={section} />
-                  ))}
+            {/* Custom Sections */}
+            {listing.custom_sections &&
+              Array.isArray(listing.custom_sections) &&
+              listing.custom_sections.length > 0 && (
+                <div className="document-section py-8 border-t border-slate-100">
+                  <div className="space-y-6">
+                    {listing.custom_sections.map(
+                      (section: { title: string; description: string }) => (
+                        <CustomSection key={section.title} section={section} />
+                      ),
+                    )}
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
 
             {/* Financial Teaser */}
             <div className="py-8 border-t border-slate-100">
@@ -390,28 +427,32 @@ const ListingDetail = () => {
           {/* Sidebar - 30% */}
           <div className="lg:col-span-3">
             <div className="sticky top-32 space-y-8">
-                {/* Interested in This Deal? - Premium CTA */}
-                <div className="bg-white/50 border border-slate-200/60 rounded-lg p-6 shadow-sm">
-                  <div className="text-center mb-6">
-                    <h3 className="text-base font-medium text-foreground mb-2">Interested in This Deal?</h3>
-                    <p className="text-xs text-foreground/70 leading-relaxed">
-                      Get full access to detailed financials and business metrics
-                    </p>
-                  </div>
-                  
-                  <div className="space-y-3">
-                    <ConnectionButton 
-                      connectionExists={connectionExists}
-                      connectionStatus={connectionStatusValue}
-                      isRequesting={isRequesting}
-                      isAdmin={false}
-                      handleRequestConnection={handleRequestConnection}
-                      listingTitle={listing.title}
-                      listingId={id!}
-                    />
-                    
-                    {/* Link to My Deals when request is pending */}
-                    {connectionExists && connectionStatusValue === 'pending' && connectionStatus?.id && (
+              {/* Interested in This Deal? - Premium CTA */}
+              <div className="bg-white/50 border border-slate-200/60 rounded-lg p-6 shadow-sm">
+                <div className="text-center mb-6">
+                  <h3 className="text-base font-medium text-foreground mb-2">
+                    Interested in This Deal?
+                  </h3>
+                  <p className="text-xs text-foreground/70 leading-relaxed">
+                    Get full access to detailed financials and business metrics
+                  </p>
+                </div>
+
+                <div className="space-y-3">
+                  <ConnectionButton
+                    connectionExists={connectionExists}
+                    connectionStatus={connectionStatusValue}
+                    isRequesting={isRequesting}
+                    isAdmin={false}
+                    handleRequestConnection={handleRequestConnection}
+                    listingTitle={listing.title}
+                    listingId={id!}
+                  />
+
+                  {/* Link to My Deals when request is pending */}
+                  {connectionExists &&
+                    connectionStatusValue === 'pending' &&
+                    connectionStatus?.id && (
                       <Link
                         to={`/my-requests?deal=${connectionStatus.id}`}
                         className="block w-full text-center text-xs text-muted-foreground hover:text-foreground transition-colors py-2 px-3 rounded-md hover:bg-slate-50 border border-transparent hover:border-slate-200"
@@ -419,60 +460,62 @@ const ListingDetail = () => {
                         View request status in My Deals →
                       </Link>
                     )}
-                    
-                    {/* Enhanced Save and Share */}
-                    <EnhancedSaveButton 
-                      listingId={id!}
-                      listingTitle={listing.title}
-                      revenue={listing.revenue}
-                      ebitda={listing.ebitda}
-                      location={listing.location}
-                      onSave={() => trackListingSave(id!)}
-                    />
-                  </div>
-                </div>
 
-                {/* Exclusive Deal Flow */}
-                <div className="bg-white/50 border border-slate-200/60 rounded-lg p-6 shadow-sm">
-                  <div className="mt-6 pt-4 border-t border-slate-200/50">
-                    <div className="text-center space-y-3">
-                      <div className="space-y-1">
-                        <p className="text-xs font-medium text-foreground">Want More Deals Like This One?</p>
-                        <p className="text-xs text-foreground/70 leading-relaxed">
-                          Get 4-10 pre-qualified owner meetings monthly with off-market opportunities matching your exact investment thesis. We source deals like this one that are vetted, exclusive, and aligned with your revenue range, industry focus, and geography before they hit the market.
-                        </p>
-                      </div>
-                      <Button 
-                        variant="outline" 
-                        className="w-full text-xs h-8 border-[#D7B65C]/30 text-[#D7B65C] hover:bg-[#D7B65C]/10 hover:border-[#D7B65C]/50"
-                        onClick={() => setShowDealSourcingDialog(true)}
-                      >
-                        <ExternalLink size={12} className="mr-2" />
-                        Get My Custom Deal Flow
-                      </Button>
+                  {/* Enhanced Save and Share */}
+                  <EnhancedSaveButton
+                    listingId={id!}
+                    listingTitle={listing.title}
+                    revenue={listing.revenue}
+                    ebitda={listing.ebitda}
+                    location={listing.location}
+                    onSave={() => trackListingSave(id!)}
+                  />
+                </div>
+              </div>
+
+              {/* Exclusive Deal Flow */}
+              <div className="bg-white/50 border border-slate-200/60 rounded-lg p-6 shadow-sm">
+                <div className="mt-6 pt-4 border-t border-slate-200/50">
+                  <div className="text-center space-y-3">
+                    <div className="space-y-1">
+                      <p className="text-xs font-medium text-foreground">
+                        Want More Deals Like This One?
+                      </p>
+                      <p className="text-xs text-foreground/70 leading-relaxed">
+                        Get 4-10 pre-qualified owner meetings monthly with off-market opportunities
+                        matching your exact investment thesis. We source deals like this one that
+                        are vetted, exclusive, and aligned with your revenue range, industry focus,
+                        and geography before they hit the market.
+                      </p>
                     </div>
+                    <Button
+                      variant="outline"
+                      className="w-full text-xs h-8 border-sourceco/30 text-sourceco hover:bg-sourceco/10 hover:border-sourceco/50"
+                      onClick={() => setShowDealSourcingDialog(true)}
+                    >
+                      <ExternalLink size={12} className="mr-2" />
+                      Get My Custom Deal Flow
+                    </Button>
                   </div>
                 </div>
+              </div>
 
-                {/* Deal Advisor Card */}
-                <DealAdvisorCard
-                  presentedByAdminId={listing.presented_by_admin_id}
-                  listingId={id!}
-                />
-                
-                {/* Download Executive Summary */}
-                <div className="bg-white/40 border border-slate-200/60 rounded-lg p-6 shadow-sm">
-                  <h4 className="text-xs font-medium text-foreground mb-4 uppercase tracking-wider">
-                    Executive Summary
-                  </h4>
-                  <ExecutiveSummaryGenerator listing={listing} />
-                </div>
+              {/* Deal Advisor Card */}
+              <DealAdvisorCard presentedByAdminId={listing.presented_by_admin_id} listingId={id!} />
+
+              {/* Download Executive Summary */}
+              <div className="bg-white/40 border border-slate-200/60 rounded-lg p-6 shadow-sm">
+                <h4 className="text-xs font-medium text-foreground mb-4 uppercase tracking-wider">
+                  Executive Summary
+                </h4>
+                <ExecutiveSummaryGenerator listing={listing} />
+              </div>
             </div>
           </div>
         </div>
       </div>
-      
-      <DealSourcingCriteriaDialog 
+
+      <DealSourcingCriteriaDialog
         open={showDealSourcingDialog}
         onOpenChange={setShowDealSourcingDialog}
         user={user}

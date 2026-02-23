@@ -1,12 +1,12 @@
-import { useState } from "react";
-import { Button } from "@/components/ui/button";
-import ConnectionRequestDialog from "@/components/connection/ConnectionRequestDialog";
-import { FeeAgreementGate } from "@/components/docuseal/FeeAgreementGate";
-import { useMyAgreementStatus } from "@/hooks/use-agreement-status";
-import { useAuth } from "@/context/AuthContext";
-import { useBuyerNdaStatus } from "@/hooks/admin/use-docuseal";
-import { useRealtime } from "@/components/realtime/RealtimeProvider";
-import { Send } from "lucide-react";
+import { useState } from 'react';
+import { Button } from '@/components/ui/button';
+import ConnectionRequestDialog from '@/components/connection/ConnectionRequestDialog';
+import { FeeAgreementGate } from '@/components/docuseal/FeeAgreementGate';
+import { useMyAgreementStatus } from '@/hooks/use-agreement-status';
+import { useAuth } from '@/context/AuthContext';
+import { useBuyerNdaStatus } from '@/hooks/admin/use-docuseal';
+import { useRealtime } from '@/components/realtime/RealtimeProvider';
+import { Send } from 'lucide-react';
 
 interface ConnectionButtonProps {
   connectionExists: boolean;
@@ -25,11 +25,10 @@ const ConnectionButton = ({
   isAdmin,
   handleRequestConnection,
   listingTitle,
-  listingId: _listingId,
 }: ConnectionButtonProps) => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [showFeeGate, setShowFeeGate] = useState(false);
-  const { connectionsConnected: _connectionsConnected } = useRealtime();
+  useRealtime();
   const { user } = useAuth();
   const { data: coverage } = useMyAgreementStatus(!isAdmin && !!user);
   const { data: ndaStatus } = useBuyerNdaStatus(!isAdmin ? user?.id : undefined);
@@ -40,7 +39,7 @@ const ConnectionButton = ({
   };
 
   const handleButtonClick = () => {
-    if (!connectionExists || connectionStatus === "rejected") {
+    if (!connectionExists || connectionStatus === 'rejected') {
       // Check fee agreement coverage before opening dialog
       if (!isAdmin && coverage && !coverage.fee_covered) {
         setShowFeeGate(true);
@@ -53,37 +52,39 @@ const ConnectionButton = ({
   const getButtonContent = () => {
     if (connectionExists) {
       switch (connectionStatus) {
-        case "pending":
+        case 'pending':
           return {
-            text: "Request pending",
-            className: "bg-slate-100 text-slate-700 border border-slate-200 cursor-default hover:bg-slate-100",
-            disabled: true
+            text: 'Request pending',
+            className:
+              'bg-slate-100 text-slate-700 border border-slate-200 cursor-default hover:bg-slate-100',
+            disabled: true,
           };
-        case "approved":
+        case 'approved':
           return {
-            text: "Connected",
-            className: "bg-emerald-50 text-emerald-700 border border-emerald-200 cursor-default hover:bg-emerald-50",
-            disabled: true
+            text: 'Connected',
+            className:
+              'bg-emerald-50 text-emerald-700 border border-emerald-200 cursor-default hover:bg-emerald-50',
+            disabled: true,
           };
-        case "rejected":
+        case 'rejected':
           return {
-            text: "Request again",
-            className: "bg-slate-900 hover:bg-slate-800 text-white border-none",
-            disabled: false
+            text: 'Request again',
+            className: 'bg-slate-900 hover:bg-slate-800 text-white border-none',
+            disabled: false,
           };
         default:
-      return {
-        text: "Request connection",
-        className: "bg-slate-900 hover:bg-slate-800 text-white border-none",
-        disabled: false
-      };
+          return {
+            text: 'Request connection',
+            className: 'bg-slate-900 hover:bg-slate-800 text-white border-none',
+            disabled: false,
+          };
       }
     }
 
     return {
-      text: "Request Full Deal Details",
-      className: "bg-[#D8B75D] hover:bg-[#C5A54A] text-slate-900 border-none",
-      disabled: false
+      text: 'Request Full Deal Details',
+      className: 'bg-sourceco hover:bg-sourceco/85 text-slate-900 border-none',
+      disabled: false,
     };
   };
 
@@ -99,7 +100,7 @@ const ConnectionButton = ({
   }
 
   // Special layout for approved connections
-  if (connectionExists && connectionStatus === "approved") {
+  if (connectionExists && connectionStatus === 'approved') {
     return (
       <div className="w-full px-4 py-3 bg-emerald-50 border border-emerald-200 rounded-lg text-center">
         <p className="text-sm font-medium text-emerald-900">Connected</p>
@@ -109,12 +110,14 @@ const ConnectionButton = ({
   }
 
   // Special layout for rejected connections
-  if (connectionExists && connectionStatus === "rejected") {
+  if (connectionExists && connectionStatus === 'rejected') {
     return (
       <div className="space-y-3">
         <div className="w-full px-4 py-3 bg-red-50 border border-red-200 rounded-lg text-center">
           <p className="text-sm font-semibold text-red-700">Not Selected</p>
-          <p className="text-xs text-red-600 mt-0.5">The owner has made their selection for this opportunity</p>
+          <p className="text-xs text-red-600 mt-0.5">
+            The owner has made their selection for this opportunity
+          </p>
         </div>
         <Button
           onClick={handleButtonClick}
@@ -122,7 +125,7 @@ const ConnectionButton = ({
           className="w-full h-10 bg-slate-900 hover:bg-slate-800 text-white font-medium text-[13px] tracking-[0.002em] shadow-sm hover:shadow transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-sourceco-accent/30 focus:ring-offset-2"
         >
           <Send className="h-3.5 w-3.5" />
-          {isRequesting ? "Sending request..." : "Explore other opportunities"}
+          {isRequesting ? 'Sending request...' : 'Explore other opportunities'}
         </Button>
 
         {showFeeGate && user && ndaStatus?.firmId && (
@@ -130,7 +133,10 @@ const ConnectionButton = ({
             userId={user.id}
             firmId={ndaStatus.firmId}
             listingTitle={listingTitle}
-            onSigned={() => { setShowFeeGate(false); setIsDialogOpen(true); }}
+            onSigned={() => {
+              setShowFeeGate(false);
+              setIsDialogOpen(true);
+            }}
             onDismiss={() => setShowFeeGate(false)}
           />
         )}
@@ -144,9 +150,9 @@ const ConnectionButton = ({
       <Button
         onClick={handleButtonClick}
         disabled={disabled || isRequesting}
-        className={`w-full bg-[#D7B65C] hover:bg-[#D7B65C]/90 text-slate-900 font-medium text-xs py-2.5 h-auto rounded-md transition-colors duration-200 ${className}`}
+        className={`w-full bg-sourceco hover:bg-sourceco/90 text-slate-900 font-medium text-xs py-2.5 h-auto rounded-md transition-colors duration-200 ${className}`}
       >
-        {isRequesting ? "Sending request..." : buttonText}
+        {isRequesting ? 'Sending request...' : buttonText}
       </Button>
 
       <ConnectionRequestDialog
@@ -162,7 +168,10 @@ const ConnectionButton = ({
           userId={user.id}
           firmId={ndaStatus.firmId}
           listingTitle={listingTitle}
-          onSigned={() => { setShowFeeGate(false); setIsDialogOpen(true); }}
+          onSigned={() => {
+            setShowFeeGate(false);
+            setIsDialogOpen(true);
+          }}
           onDismiss={() => setShowFeeGate(false)}
         />
       )}
