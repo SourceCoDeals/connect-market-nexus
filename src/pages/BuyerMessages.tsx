@@ -19,6 +19,7 @@ import {
   Shield,
   CheckCircle,
   MessageSquarePlus,
+  Lock,
 } from "lucide-react";
 import {
   useConnectionMessages,
@@ -126,7 +127,7 @@ function useBuyerThreads() {
           listing:listings!connection_requests_listing_id_fkey(title, category)
         `)
         .eq("user_id", user.id)
-        .in("status", ["approved", "on_hold", "rejected"])
+        .in("status", ["pending", "approved", "on_hold", "rejected"])
         .order("last_message_at", { ascending: false, nullsFirst: false });
 
       if (reqError || !requests) return [];
@@ -386,7 +387,7 @@ function BuyerThreadView({
   const [newMessage, setNewMessage] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const isRejected = thread.request_status === "rejected";
-
+  const isPending = thread.request_status === "pending";
   useEffect(() => {
     if (thread.connection_request_id && thread.unread_count > 0) {
       markRead.mutate(thread.connection_request_id);
@@ -399,7 +400,7 @@ function BuyerThreadView({
   }, [messages]);
 
   const handleSend = () => {
-    if (!newMessage.trim() || isRejected) return;
+    if (!newMessage.trim() || isRejected || isPending) return;
     sendMsg.mutate({
       connection_request_id: thread.connection_request_id,
       body: newMessage.trim(),
@@ -511,7 +512,14 @@ function BuyerThreadView({
 
       {/* Input */}
       <div className="border-t border-border px-5 py-3 bg-card">
-        {isRejected ? (
+        {isPending ? (
+          <div className="flex items-center justify-center gap-2 py-2">
+            <Lock className="h-3.5 w-3.5 text-muted-foreground" />
+            <p className="text-xs text-muted-foreground">
+              Messaging will be available once your request is accepted.
+            </p>
+          </div>
+        ) : isRejected ? (
           <p className="text-xs text-muted-foreground text-center py-1">
             This deal is no longer active.
           </p>
