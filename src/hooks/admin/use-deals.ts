@@ -202,14 +202,14 @@ export function useDeals() {
             if (userIds.length > 0) {
               const { data: profiles } = await supabase
                 .from('profiles')
-                .select('id, buyer_type, website')
+                .select('id, buyer_type, website, buyer_org_url')
                 .in('id', userIds);
               const profileLookup: Record<string, any> = {};
               profiles?.forEach((p: any) => { profileLookup[p.id] = p; });
               crData.forEach((cr: any) => {
                 const prof = profileLookup[cr.user_id];
                 if (prof) {
-                  buyerProfileMap[cr.id] = { buyer_type: prof.buyer_type, website: prof.website };
+                  buyerProfileMap[cr.id] = { buyer_type: prof.buyer_type, website: prof.website || prof.buyer_org_url };
                 }
               });
             }
