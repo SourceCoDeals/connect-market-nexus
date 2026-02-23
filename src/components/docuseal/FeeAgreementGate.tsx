@@ -1,10 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 
 import { DocuSealSigningPanel } from './DocuSealSigningPanel';
 import { Button } from '@/components/ui/button';
-import { FileText, ArrowLeft, Loader2, ArrowRight } from 'lucide-react';
+import { FileText, ArrowLeft, Loader2, ArrowRight, Download } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useQueryClient } from '@tanstack/react-query';
+import { useToast } from '@/hooks/use-toast';
 import { APP_CONFIG } from '@/config/app';
 
 interface FeeAgreementGateProps {
@@ -23,10 +24,12 @@ interface FeeAgreementGateProps {
 export function FeeAgreementGate({ userId, firmId, listingTitle: _listingTitle, onSigned, onDismiss }: FeeAgreementGateProps) {
   void _listingTitle; // reserved for future use
   const queryClient = useQueryClient();
+  const { toast } = useToast();
   const [embedSrc, setEmbedSrc] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [signed, setSigned] = useState(false);
+  const [isDownloadingDraft, setIsDownloadingDraft] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -62,13 +65,45 @@ export function FeeAgreementGate({ userId, firmId, listingTitle: _listingTitle, 
     return () => { cancelled = true; };
   }, [userId, firmId]);
 
-  const handleSigned = () => {
+  const invalidateAllCaches = useCallback(() => {
     queryClient.invalidateQueries({ queryKey: ['my-agreement-status'] });
     queryClient.invalidateQueries({ queryKey: ['firm-agreements'] });
     queryClient.invalidateQueries({ queryKey: ['buyer-firm-agreement-status'] });
     queryClient.invalidateQueries({ queryKey: ['agreement-pending-notifications'] });
     queryClient.invalidateQueries({ queryKey: ['buyer-nda-status'] });
+    queryClient.invalidateQueries({ queryKey: ['buyer-message-threads'] });
+  }, [queryClient]);
+
+  const handleSigned = async () => {
+    // Immediately confirm with backend — updates DB, creates notifications & messages
+    try {
+      await supabase.functions.invoke('confirm-agreement-signed', {
+        body: { documentType: 'fee_agreement' },
+      });
+    } catch (err) {
+      console.error('Failed to confirm signing:', err);
+    }
+
+    invalidateAllCaches();
     setSigned(true);
+  };
+
+  const handleDownloadDraft = async () => {
+    setIsDownloadingDraft(true);
+    try {
+      const { data, error: fnError } = await supabase.functions.invoke('get-agreement-document', {
+        body: { documentType: 'fee_agreement' },
+      });
+      if (fnError || !data?.documentUrl) {
+        toast({ title: 'Download unavailable', description: 'Could not retrieve the document.', variant: 'destructive' });
+        return;
+      }
+      window.open(data.documentUrl, '_blank', 'noopener,noreferrer');
+    } catch {
+      toast({ title: 'Download failed', description: 'Something went wrong.', variant: 'destructive' });
+    } finally {
+      setIsDownloadingDraft(false);
+    }
   };
 
   if (signed) {
@@ -163,20 +198,49 @@ export function FeeAgreementGate({ userId, firmId, listingTitle: _listingTitle, 
           )}
 
           {embedSrc && (
-            <DocuSealSigningPanel
-              embedSrc={embedSrc}
-              onCompleted={handleSigned}
-              title="Review and sign your fee agreement"
-              description="Standard success-fee agreement — review and sign below to continue."
-            />
+            <>
+              <DocuSealSigningPanel
+                embedSrc={embedSrc}
+                onCompleted={handleSigned}
+                successMessage="Fee Agreement signed successfully."
+                successDescription="You're all set. Continue to submit your connection request."
+                title="Review and sign your fee agreement"
+                description="Standard success-fee agreement — review and sign below to continue."
+              />
+
+              {/* Download draft + contact */}
+              <div className="flex items-center justify-between">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-xs text-muted-foreground"
+                  onClick={handleDownloadDraft}
+                  disabled={isDownloadingDraft}
+                >
+                  {isDownloadingDraft ? (
+                    <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                  ) : (
+                    <Download className="h-3.5 w-3.5 mr-1.5" />
+                  )}
+                  Download Draft PDF
+                </Button>
+                <a
+                  href={`mailto:${APP_CONFIG.adminEmail}?subject=${encodeURIComponent('Question about Fee Agreement')}`}
+                  className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  Questions about terms? Contact us
+                </a>
+              </div>
+            </>
           )}
 
-          {/* Footnote */}
-          <p className="text-xs text-muted-foreground text-center">
-            Questions about the fee agreement? Email{' '}
-            <a href="mailto:adam.haile@sourcecodeals.com" className="text-primary hover:underline">adam.haile@sourcecodeals.com</a>
-            {' '}before signing.
-          </p>
+          {!embedSrc && !isLoading && !error && (
+            <p className="text-xs text-muted-foreground text-center">
+              Questions about the fee agreement? Email{' '}
+              <a href="mailto:adam.haile@sourcecodeals.com" className="text-primary hover:underline">adam.haile@sourcecodeals.com</a>
+              {' '}before signing.
+            </p>
+          )}
 
           {/* Navigation */}
           <div className="text-center">

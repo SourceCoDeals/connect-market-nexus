@@ -13,6 +13,8 @@ import {
   Shield,
   CheckCircle,
   FileDown,
+  Download,
+  Loader2 as Loader2Icon,
 } from "lucide-react";
 import {
   useConnectionMessages,
@@ -500,6 +502,22 @@ function PendingAgreementBanner() {
   const { user } = useAuth();
   const [signingOpen, setSigningOpen] = useState(false);
   const [signingDocType, setSigningDocType] = useState<'nda' | 'fee_agreement'>('nda');
+  const [downloadingDoc, setDownloadingDoc] = useState<string | null>(null);
+
+  const handleDownloadDraft = async (docType: 'nda' | 'fee_agreement') => {
+    setDownloadingDoc(docType);
+    try {
+      const { data, error: fnError } = await supabase.functions.invoke('get-agreement-document', {
+        body: { documentType: docType },
+      });
+      if (fnError || !data?.documentUrl) return;
+      window.open(data.documentUrl, '_blank', 'noopener,noreferrer');
+    } catch {
+      // Silently fail — download is a convenience feature
+    } finally {
+      setDownloadingDoc(null);
+    }
+  };
 
   // Fetch firm agreement status to know what's signed vs pending
   const { data: firmStatus } = useQuery({
@@ -666,16 +684,31 @@ function PendingAgreementBanner() {
                   <span className="text-xs text-muted-foreground shrink-0">Available in Profile</span>
                 )
               ) : (
-                <Button
-                  size="sm"
-                  className="shrink-0"
-                  onClick={() => {
-                    setSigningDocType(item.type);
-                    setSigningOpen(true);
-                  }}
-                >
-                  Sign Now
-                </Button>
+                <div className="flex items-center gap-2 shrink-0">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-xs"
+                    onClick={() => handleDownloadDraft(item.type)}
+                    disabled={downloadingDoc === item.type}
+                  >
+                    {downloadingDoc === item.type ? (
+                      <Loader2Icon className="h-3.5 w-3.5 mr-1 animate-spin" />
+                    ) : (
+                      <Download className="h-3.5 w-3.5 mr-1" />
+                    )}
+                    Draft
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={() => {
+                      setSigningDocType(item.type);
+                      setSigningOpen(true);
+                    }}
+                  >
+                    Sign Now
+                  </Button>
+                </div>
               )}
             </div>
           ))}
