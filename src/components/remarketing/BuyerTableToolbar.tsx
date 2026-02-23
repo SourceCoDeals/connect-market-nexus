@@ -55,6 +55,7 @@ interface BuyerTableToolbarProps {
    isRemovingSelected?: boolean;
   enrichmentProgress?: EnrichmentProgress;
   alignmentProgress?: AlignmentProgress;
+  hideSearch?: boolean;
   className?: string;
 }
 
@@ -76,6 +77,7 @@ export const BuyerTableToolbar = ({
    isRemovingSelected = false,
   enrichmentProgress,
   alignmentProgress,
+  hideSearch = false,
   className = ""
 }: BuyerTableToolbarProps) => {
   const showEnrichProgress = isEnriching && enrichmentProgress && enrichmentProgress.total > 0;
@@ -181,15 +183,17 @@ export const BuyerTableToolbar = ({
     <div className={`space-y-3 ${className}`}>
       <div className="flex items-center justify-between gap-4">
         <div className="flex items-center gap-3">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search buyers..."
-              value={searchValue}
-              onChange={(e) => onSearchChange(e.target.value)}
-              className="pl-9 w-64"
-            />
-          </div>
+          {!hideSearch && (
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search buyers..."
+                value={searchValue}
+                onChange={(e) => onSearchChange(e.target.value)}
+                className="pl-9 w-64"
+              />
+            </div>
+          )}
           <span className="text-sm text-muted-foreground">
             {buyerCount} buyer{buyerCount !== 1 ? 's' : ''}
             {selectedCount > 0 && (

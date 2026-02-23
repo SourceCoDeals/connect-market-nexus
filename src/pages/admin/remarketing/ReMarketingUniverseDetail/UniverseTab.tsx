@@ -8,6 +8,8 @@ import {
   BuyerTableToolbar,
   EnrichmentProgressIndicator,
 } from "@/components/remarketing";
+import { FilterBar, BUYER_UNIVERSE_FIELDS } from "@/components/filters";
+import { useFilterEngine } from "@/hooks/use-filter-engine";
 import {
   Users,
   Plus,
@@ -38,11 +40,9 @@ export function UniverseTab({ data, handlers }: UniverseTabProps) {
     id,
     queryClient,
     buyers,
-    filteredBuyers,
     buyerIdsWithTranscripts,
     universeDeals,
     dealEngagementStats,
-    buyerSearch, setBuyerSearch,
     setAddBuyerDialogOpen,
     setImportBuyersDialogOpen,
     setShowBuyerEnrichDialog,
@@ -80,6 +80,16 @@ export function UniverseTab({ data, handlers }: UniverseTabProps) {
     handleRemoveSelectedBuyers,
   } = handlers;
 
+  // Use the filter engine for advanced filtering
+  const {
+    filteredItems: filteredBuyers,
+    filterState,
+    setFilterState,
+    totalCount,
+    filteredCount,
+    dynamicOptions,
+  } = useFilterEngine(buyers || [], BUYER_UNIVERSE_FIELDS);
+
   return (
     <Tabs defaultValue="buyers" className="space-y-4">
       <TabsList>
@@ -94,12 +104,25 @@ export function UniverseTab({ data, handlers }: UniverseTabProps) {
       </TabsList>
 
       <TabsContent value="buyers">
+        {/* Filter Bar */}
+        <FilterBar
+          filterState={filterState}
+          onFilterStateChange={setFilterState}
+          fieldDefinitions={BUYER_UNIVERSE_FIELDS}
+          dynamicOptions={dynamicOptions}
+          totalCount={totalCount}
+          filteredCount={filteredCount}
+          compact
+          className="mb-4"
+        />
+
         <Card>
           <CardHeader className="pb-4">
             <BuyerTableToolbar
               buyerCount={filteredBuyers.length}
-              searchValue={buyerSearch}
-              onSearchChange={setBuyerSearch}
+              searchValue=""
+              onSearchChange={() => {}}
+              hideSearch
               onAddBuyer={() => setAddBuyerDialogOpen(true)}
               onImportCSV={() => setImportBuyersDialogOpen(true)}
               onEnrichAll={() => setShowBuyerEnrichDialog(true)}
@@ -113,11 +136,7 @@ export function UniverseTab({ data, handlers }: UniverseTabProps) {
                   toast.error('No buyers to score');
                   return;
                 }
-
-                // Reset any previous alignment state
                 resetAlignmentScoring();
-
-                // Score buyers and refresh when done
                 await scoreAlignmentBuyers(
                   buyers.map(b => ({
                     id: b.id,
@@ -146,9 +165,9 @@ export function UniverseTab({ data, handlers }: UniverseTabProps) {
                 failed: alignmentProgress.failed,
                 creditsDepleted: alignmentProgress.creditsDepleted
               }}
-               selectedCount={selectedBuyerIds.length}
-               onRemoveSelected={handleRemoveSelectedBuyers}
-               isRemovingSelected={isRemovingSelected}
+              selectedCount={selectedBuyerIds.length}
+              onRemoveSelected={handleRemoveSelectedBuyers}
+              isRemovingSelected={isRemovingSelected}
             />
           </CardHeader>
           <CardContent className="p-0">
