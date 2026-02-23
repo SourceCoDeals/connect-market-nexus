@@ -26,29 +26,9 @@
  *   });
  */
 
-import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
-
-export interface EmailDeliveryLogEntry {
-  /** Recipient email address */
-  email: string;
-  /** Category tag, e.g. 'nda_email', 'approval_email', 'deal_alert' */
-  emailType: string;
-  /** 'sent' | 'failed' */
-  status: "sent" | "failed";
-  /** UUID for correlating retries / follow-ups */
-  correlationId?: string;
-  /** Error details when status === 'failed' */
-  errorMessage?: string;
-}
-
-/**
- * Insert a row into `email_delivery_logs`.
- *
- * Fire-and-forget by design — a logging failure must never break the
- * calling function's response to the client.
- */
 export async function logEmailDelivery(
-  supabase: SupabaseClient,
+  // deno-lint-ignore no-explicit-any
+  supabase: any,
   entry: EmailDeliveryLogEntry,
 ): Promise<void> {
   try {
