@@ -9,7 +9,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import {
   useGlobalActivityQueue,
   useGlobalActivityMutations,
-} from "@/hooks/remarketing/useGlobalActivityQueue";
+} from "@/hooks/remarketing/use-global-activity-queue";
 import { OPERATION_TYPE_LABELS } from "@/types/remarketing";
 import type { GlobalActivityQueueItem, GlobalActivityErrorEntry } from "@/types/remarketing";
 

@@ -1,7 +1,7 @@
 import { useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuthState } from './auth/use-auth-state';
-import { useSessionContext } from '@/contexts/SessionContext';
+import { useSessionContext } from '@/context/SessionContext';
 import { logger } from '@/lib/logger';
 import { 
   trackGA4PageView, 
@@ -79,6 +79,7 @@ export function useAnalyticsTracking() {
     } catch (error) {
       logger.error('Failed to track page view', 'useAnalyticsTracking', { error: String(error) });
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id, utmParams]);
 
   // Track custom events (Supabase + GA4)
@@ -263,7 +264,8 @@ export function useAnalyticsTracking() {
     } catch (error) {
       logger.error('Failed to track registration step', 'useAnalyticsTracking', { error: String(error) });
     }
-  }, [user?.id, user?.email, trackEvent]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.email, trackEvent]);
 
   // End session on unload
   useEffect(() => {

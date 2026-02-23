@@ -45,8 +45,8 @@ import {
 } from "lucide-react";
 import { format } from "date-fns";
 import { getTierFromScore, EnrichmentProgressIndicator } from "@/components/remarketing";
-import { useEnrichmentProgress } from "@/hooks/useEnrichmentProgress";
-import { useGlobalGateCheck } from "@/hooks/remarketing/useGlobalActivityQueue";
+import { useEnrichmentProgress } from "@/hooks/use-enrichment-progress";
+import { useGlobalGateCheck } from "@/hooks/remarketing/use-global-activity-queue";
 import { useAuth } from "@/context/AuthContext";
 import { useAdminProfiles } from "@/hooks/admin/use-admin-profiles";
 import {

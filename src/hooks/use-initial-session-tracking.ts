@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { useSessionContext } from '@/contexts/SessionContext';
-import { useVisitorIdentity, getGA4ClientIdAsync } from './useVisitorIdentity';
+import { useSessionContext } from '@/context/SessionContext';
+import { useVisitorIdentity, getGA4ClientIdAsync } from './use-visitor-identity';
 import { logger } from '@/lib/logger';
 
 // Helper functions

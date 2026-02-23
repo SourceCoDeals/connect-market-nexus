@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { X } from "lucide-react";
-import { useEnhancedRealTimeAnalytics } from "@/hooks/useEnhancedRealTimeAnalytics";
+import { useEnhancedRealTimeAnalytics } from "@/hooks/use-enhanced-real-time-analytics";
 import { MapboxGlobeMap } from "../realtime/MapboxGlobeMap";
 
 interface FullscreenGlobeViewProps {

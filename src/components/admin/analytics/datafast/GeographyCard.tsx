@@ -5,7 +5,7 @@ import { AnalyticsTooltip } from "./AnalyticsTooltip";
 import { ComposableMap, Geographies, Geography } from "react-simple-maps";
 import { cn } from "@/lib/utils";
 import { ProportionalBar } from "./ProportionalBar";
-import { useAnalyticsFilters } from "@/contexts/AnalyticsFiltersContext";
+import { useAnalyticsFilters } from "@/context/AnalyticsFiltersContext";
 import { FilterModal } from "./FilterModal";
 
 const geoUrl = "https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json";

@@ -7,7 +7,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useUnifiedAnalytics } from "@/hooks/useUnifiedAnalytics";
-import { AnalyticsFiltersProvider, useAnalyticsFilters } from "@/contexts/AnalyticsFiltersContext";
+import { AnalyticsFiltersProvider, useAnalyticsFilters } from "@/context/AnalyticsFiltersContext";
 import { KPIStrip } from "./KPIStrip";
 import { DailyVisitorsChart } from "./DailyVisitorsChart";
 import { SourcesCard } from "./SourcesCard";

@@ -2,7 +2,7 @@ import { useState, useMemo } from "react";
 import { Search, Filter } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { useAnalyticsFilters, FilterType, AnalyticsFilter } from "@/contexts/AnalyticsFiltersContext";
+import { useAnalyticsFilters, FilterType, AnalyticsFilter } from "@/context/AnalyticsFiltersContext";
 import { cn } from "@/lib/utils";
 import { ProportionalBar } from "./ProportionalBar";
 import { ReferrerLogo } from "./ReferrerLogo";

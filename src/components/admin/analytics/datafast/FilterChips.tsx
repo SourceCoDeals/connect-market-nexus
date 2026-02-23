@@ -1,5 +1,5 @@
 import { X } from "lucide-react";
-import { useAnalyticsFilters, FilterType } from "@/contexts/AnalyticsFiltersContext";
+import { useAnalyticsFilters, FilterType } from "@/context/AnalyticsFiltersContext";
 import { cn } from "@/lib/utils";
 import { ReferrerLogo } from "./ReferrerLogo";
 

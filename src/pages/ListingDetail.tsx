@@ -7,7 +7,7 @@ import { useAnalytics } from "@/context/AnalyticsContext";
 import { useClickTracking } from "@/hooks/use-click-tracking";
 import { supabase } from "@/integrations/supabase/client";
 import type { Json } from "@/integrations/supabase/types";
-import { useSessionContext } from "@/contexts/SessionContext";
+import { useSessionContext } from "@/context/SessionContext";
 import { Button } from "@/components/ui/button";
 import {
   ChevronLeft,

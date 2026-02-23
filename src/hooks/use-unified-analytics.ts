@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { subDays, format, parseISO } from "date-fns";
-import type { AnalyticsFilter } from "@/contexts/AnalyticsFiltersContext";
+import type { AnalyticsFilter } from "@/context/AnalyticsFiltersContext";
 
 export interface KPIMetric {
   value: number;

@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { CheckCircle2, XCircle, AlertTriangle, Sparkles } from "lucide-react";
-import type { EnrichmentSummary } from "@/hooks/useBuyerEnrichmentQueue";
+import type { EnrichmentSummary } from "@/hooks/use-buyer-enrichment-queue";
 
 interface EnrichmentSummaryDialogProps {
   open: boolean;

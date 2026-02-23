@@ -46,7 +46,7 @@ import {
   ReMarketingChat,
 } from "@/components/remarketing";
 import { AddToUniverseQuickAction } from "@/components/remarketing/AddToUniverseQuickAction";
-import { useBackgroundScoringProgress } from "@/hooks/useBackgroundScoringProgress";
+import { useBackgroundScoringProgress } from "@/hooks/use-background-scoring-progress";
 
 type SortOption = 'score' | 'geography' | 'score_geo';
 type FilterTab = 'all' | 'approved' | 'passed' | 'outreach';

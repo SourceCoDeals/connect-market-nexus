@@ -5,7 +5,7 @@ import { useOnboarding } from "@/hooks/use-onboarding";
 import ListingCard from "@/components/ListingCard";
 import FilterPanel from "@/components/FilterPanel";
 import OnboardingPopup from "@/components/onboarding/OnboardingPopup";
-import { SearchSessionProvider } from "@/contexts/SearchSessionContext";
+import { SearchSessionProvider } from "@/context/SearchSessionContext";
 import { useSearchSession } from "@/hooks/use-search-session";
 import { Button } from "@/components/ui/button";
 import { LayoutGrid, LayoutList } from "lucide-react";

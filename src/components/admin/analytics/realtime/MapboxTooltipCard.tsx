@@ -2,7 +2,7 @@ import { Monitor, Smartphone, Tablet, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { countryCodeToFlag } from '@/lib/flagEmoji';
 import { format } from 'date-fns';
-import type { EnhancedActiveUser } from '@/hooks/useEnhancedRealTimeAnalytics';
+import type { EnhancedActiveUser } from '@/hooks/use-enhanced-real-time-analytics';
 import { JourneyPath } from './JourneyPath';
 import { EngagementDepth } from './EngagementDepth';
 

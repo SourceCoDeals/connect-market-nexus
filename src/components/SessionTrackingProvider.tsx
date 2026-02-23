@@ -1,5 +1,5 @@
 import { useInitialSessionTracking } from '@/hooks/use-initial-session-tracking';
-import { SessionContextProvider } from '@/contexts/SessionContext';
+import { SessionContextProvider } from '@/context/SessionContext';
 import { HeartbeatProvider } from '@/components/HeartbeatProvider';
 import { PageEngagementTracker } from '@/components/PageEngagementTracker';
 

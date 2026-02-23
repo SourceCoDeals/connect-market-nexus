@@ -1,6 +1,6 @@
 import { useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { useVisitorIdentity } from './useVisitorIdentity';
+import { useVisitorIdentity } from './use-visitor-identity';
 import { logger } from '@/lib/logger';
 
 type MilestoneKey =

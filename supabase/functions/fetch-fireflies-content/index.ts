@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 import { getCorsHeaders, corsPreflightResponse } from "../_shared/cors.ts";
+import { withRetry } from "../_shared/retry.ts";
 
 interface FetchRequest {
   transcriptId: string; // deal_transcripts.id (our DB record ID)
@@ -20,28 +21,36 @@ async function firefliesGraphQL(query: string, variables?: Record<string, unknow
     );
   }
 
-  const response = await fetch("https://api.fireflies.ai/graphql", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify({ query, variables }),
+  return withRetry(async () => {
+    const response = await fetch("https://api.fireflies.ai/graphql", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({ query, variables }),
+      signal: AbortSignal.timeout(30000),
+    });
+
+    if (!response.ok) {
+      const text = await response.text();
+      throw new Error(`Fireflies API error (${response.status}): ${text}`);
+    }
+
+    const result = await response.json();
+    if (result.errors) {
+      throw new Error(
+        `Fireflies GraphQL error: ${result.errors[0]?.message || JSON.stringify(result.errors)}`
+      );
+    }
+
+    return result.data;
+  }, {
+    maxRetries: 3,
+    baseDelayMs: 1000,
+    maxDelayMs: 15000,
+    retryableErrors: ['API error (429)', 'API error (5', 'network', 'fetch failed', 'TypeError'],
   });
-
-  if (!response.ok) {
-    const text = await response.text();
-    throw new Error(`Fireflies API error (${response.status}): ${text}`);
-  }
-
-  const result = await response.json();
-  if (result.errors) {
-    throw new Error(
-      `Fireflies GraphQL error: ${result.errors[0]?.message || JSON.stringify(result.errors)}`
-    );
-  }
-
-  return result.data;
 }
 
 const GET_TRANSCRIPT_QUERY = `

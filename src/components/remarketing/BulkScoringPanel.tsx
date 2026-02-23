@@ -29,7 +29,7 @@ import {
   CheckCircle2
 } from "lucide-react";
 import { toast } from "sonner";
-import { useGlobalGateCheck } from "@/hooks/remarketing/useGlobalActivityQueue";
+import { useGlobalGateCheck } from "@/hooks/remarketing/use-global-activity-queue";
 import { useAuth } from "@/context/AuthContext";
 
 interface BulkScoringPanelProps {

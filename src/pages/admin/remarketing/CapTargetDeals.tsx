@@ -39,9 +39,9 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { useGlobalGateCheck, useGlobalActivityMutations } from "@/hooks/remarketing/useGlobalActivityQueue";
+import { useGlobalGateCheck, useGlobalActivityMutations } from "@/hooks/remarketing/use-global-activity-queue";
 import { useAuth } from "@/context/AuthContext";
-import { useEnrichmentProgress } from "@/hooks/useEnrichmentProgress";
+import { useEnrichmentProgress } from "@/hooks/use-enrichment-progress";
 import { EnrichmentProgressIndicator } from "@/components/remarketing/EnrichmentProgressIndicator";
 
 // Sub-components

@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useEffect, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
-import { useSessionContext } from '@/contexts/SessionContext';
+import { useSessionContext } from '@/context/SessionContext';
 import type { User as SupabaseUser } from '@supabase/supabase-js';
 
 interface AnalyticsContextType {
@@ -157,6 +157,7 @@ export function AnalyticsProvider({ children }: { children: React.ReactNode }) {
     if (sessionIdRef.current) {
       trackPageView(location.pathname);
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [location.pathname]);
 
   const trackEvent = async (eventType: string, eventData?: Record<string, unknown>): Promise<boolean> => {

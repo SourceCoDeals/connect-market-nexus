@@ -1,6 +1,6 @@
 import { useEffect, useRef, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { useSessionContext } from '@/contexts/SessionContext';
+import { useSessionContext } from '@/context/SessionContext';
 import { logger } from '@/lib/logger';
 
 interface PageEngagementData {
@@ -46,9 +46,9 @@ export function usePageEngagement(userId?: string | null) {
       const timeOnPage = Math.floor((Date.now() - engagement.pageStartTime) / 1000);
 
       // Add any remaining focus time
-      let totalFocusTime = engagement.focusTime;
+      let _totalFocusTime = engagement.focusTime;
       if (engagement.isFocused && engagement.lastFocusStart) {
-        totalFocusTime += Date.now() - engagement.lastFocusStart;
+        _totalFocusTime += Date.now() - engagement.lastFocusStart;
       }
 
       // Only flush if we have meaningful data (more than 1 second)
@@ -149,8 +149,9 @@ export function usePageEngagement(userId?: string | null) {
       window.removeEventListener('beforeunload', handleBeforeUnload);
 
       // Clear any pending timeout
-      if (flushTimeoutRef.current) {
-        clearTimeout(flushTimeoutRef.current);
+      const pendingTimeout = flushTimeoutRef.current;
+      if (pendingTimeout) {
+        clearTimeout(pendingTimeout);
       }
     };
   }, [getScrollDepth, flushEngagementData]);

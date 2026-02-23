@@ -1,2 +1,2 @@
 // ReMarketing Hooks - Module Exports
-export * from './useGuideGenerationState';
+export * from './use-guide-generation-state';

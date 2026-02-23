@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
-import { useGuideGenerationState } from "@/hooks/remarketing/useGuideGenerationState";
+import { useGuideGenerationState } from "@/hooks/remarketing/use-guide-generation-state";
 import type { ErrorDetails } from "../GuideGenerationErrorPanel";
 import type { GenerationSummary } from "../GenerationSummaryPanel";
 import { saveGuideToDocuments } from "./helpers";

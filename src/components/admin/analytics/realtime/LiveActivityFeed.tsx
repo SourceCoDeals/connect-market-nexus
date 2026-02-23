@@ -2,7 +2,7 @@ import { formatDistanceToNow } from "date-fns";
 import { cn } from "@/lib/utils";
 import { countryCodeToFlag } from "@/lib/flagEmoji";
 import { getAvatarColor, getInitials } from "@/lib/anonymousNames";
-import type { EnhancedRealTimeData } from "@/hooks/useEnhancedRealTimeAnalytics";
+import type { EnhancedRealTimeData } from "@/hooks/use-enhanced-real-time-analytics";
 
 interface LiveActivityFeedProps {
   events: EnhancedRealTimeData['recentEvents'];

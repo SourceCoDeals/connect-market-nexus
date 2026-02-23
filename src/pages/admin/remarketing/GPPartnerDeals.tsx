@@ -40,7 +40,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { toast as sonnerToast } from "sonner";
-import { useEnrichmentProgress } from "@/hooks/useEnrichmentProgress";
+import { useEnrichmentProgress } from "@/hooks/use-enrichment-progress";
 import { EnrichmentProgressIndicator } from "@/components/remarketing/EnrichmentProgressIndicator";
 import {
   Building2,
@@ -72,7 +72,7 @@ import {
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { exportDealsToCSV } from "@/lib/exportUtils";
-import { useGlobalGateCheck, useGlobalActivityMutations } from "@/hooks/remarketing/useGlobalActivityQueue";
+import { useGlobalGateCheck, useGlobalActivityMutations } from "@/hooks/remarketing/use-global-activity-queue";
 import { useAuth } from "@/context/AuthContext";
 import { useAdminProfiles } from "@/hooks/admin/use-admin-profiles";
 import {

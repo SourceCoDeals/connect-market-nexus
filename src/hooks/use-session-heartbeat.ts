@@ -1,6 +1,6 @@
 import { useEffect, useRef, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { useSessionContext } from '@/contexts/SessionContext';
+import { useSessionContext } from '@/context/SessionContext';
 import { logger } from '@/lib/logger';
 
 const HEARTBEAT_INTERVAL = 30000; // 30 seconds

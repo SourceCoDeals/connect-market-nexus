@@ -73,7 +73,7 @@ import { SubmissionReviewQueue } from "@/components/remarketing/SubmissionReview
 import { DealSourceBadge } from "@/components/remarketing/DealSourceBadge";
 import { EnrichmentProgressIndicator } from "@/components/remarketing/EnrichmentProgressIndicator";
 import { SingleDealEnrichmentDialog, type SingleDealEnrichmentResult } from "@/components/remarketing/SingleDealEnrichmentDialog";
-import { useGlobalGateCheck, useGlobalActivityMutations } from "@/hooks/remarketing/useGlobalActivityQueue";
+import { useGlobalGateCheck, useGlobalActivityMutations } from "@/hooks/remarketing/use-global-activity-queue";
 import { useAuth } from "@/context/AuthContext";
 
 const formatCurrency = (value: number | null) => {

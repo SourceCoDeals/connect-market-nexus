@@ -5,7 +5,7 @@ import { Monitor, Smartphone, Tablet } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { BrowserLogo, OSLogo } from "./BrowserLogo";
 import { ProportionalBar } from "./ProportionalBar";
-import { useAnalyticsFilters } from "@/contexts/AnalyticsFiltersContext";
+import { useAnalyticsFilters } from "@/context/AnalyticsFiltersContext";
 import { FilterModal } from "./FilterModal";
 
 interface TechStackCardProps {

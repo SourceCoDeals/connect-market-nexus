@@ -9,9 +9,12 @@
  * All functionality is preserved — this is a pure extraction.
  */
 
+import { withRetry } from "../_shared/retry.ts";
+
 /**
  * Enrich deal with LinkedIn company data.
  * Non-blocking: failures are logged but don't stop enrichment.
+ * Uses retry with exponential backoff for transient failures.
  */
 export async function enrichLinkedIn(
   supabaseUrl: string,
@@ -30,43 +33,59 @@ export async function enrichLinkedIn(
   try {
     console.log(`Attempting LinkedIn enrichment for: ${linkedinUrl || companyName}`);
 
-    const linkedinResponse = await fetch(`${supabaseUrl}/functions/v1/apify-linkedin-scrape`, {
-      method: 'POST',
-      headers: {
-        'apikey': supabaseAnonKey,
-        'Authorization': `Bearer ${supabaseAnonKey}`,
-        'x-internal-secret': supabaseServiceKey,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        linkedinUrl,
-        companyName,
-        city: extracted.address_city || deal.address_city,
-        state: extracted.address_state || deal.address_state,
-        dealId: dealId,
-        companyWebsite: websiteUrl || deal.website,
-      }),
-      signal: AbortSignal.timeout(30000), // 30s — must fit within 90s per-item budget
+    const linkedinData = await withRetry(async () => {
+      const linkedinResponse = await fetch(`${supabaseUrl}/functions/v1/apify-linkedin-scrape`, {
+        method: 'POST',
+        headers: {
+          'apikey': supabaseAnonKey,
+          'Authorization': `Bearer ${supabaseAnonKey}`,
+          'x-internal-secret': supabaseServiceKey,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          linkedinUrl,
+          companyName,
+          city: extracted.address_city || deal.address_city,
+          state: extracted.address_state || deal.address_state,
+          dealId: dealId,
+          companyWebsite: websiteUrl || deal.website,
+        }),
+        signal: AbortSignal.timeout(30000),
+      });
+
+      if (!linkedinResponse.ok) {
+        // Retry on 429 and 5xx
+        if (linkedinResponse.status === 429 || linkedinResponse.status >= 500) {
+          throw new Error(`LinkedIn scrape HTTP ${linkedinResponse.status}`);
+        }
+        console.warn('LinkedIn scrape failed:', linkedinResponse.status);
+        return null;
+      }
+
+      return linkedinResponse.json();
+    }, {
+      maxRetries: 2,
+      baseDelayMs: 2000,
+      maxDelayMs: 10000,
+      retryableErrors: ['LinkedIn scrape HTTP 429', 'LinkedIn scrape HTTP 5'],
+    }).catch((err: any) => {
+      console.warn('LinkedIn enrichment failed after retries (non-blocking):', err.message);
+      return null;
     });
 
-    if (linkedinResponse.ok) {
-      const linkedinData = await linkedinResponse.json();
-      if (linkedinData.success && linkedinData.scraped) {
-        console.log('LinkedIn data retrieved:', linkedinData);
-        if (linkedinData.linkedin_employee_count) {
-          extracted.linkedin_employee_count = linkedinData.linkedin_employee_count;
-        }
-        if (linkedinData.linkedin_employee_range) {
-          extracted.linkedin_employee_range = linkedinData.linkedin_employee_range;
-        }
-        if (linkedinData.linkedin_url) {
-          extracted.linkedin_url = linkedinData.linkedin_url;
-        }
-      } else {
-        console.log('LinkedIn scrape returned no data:', linkedinData.error || 'No company found');
+    if (linkedinData?.success && linkedinData?.scraped) {
+      console.log('LinkedIn data retrieved:', linkedinData);
+      if (linkedinData.linkedin_employee_count) {
+        extracted.linkedin_employee_count = linkedinData.linkedin_employee_count;
       }
-    } else {
-      console.warn('LinkedIn scrape failed:', linkedinResponse.status);
+      if (linkedinData.linkedin_employee_range) {
+        extracted.linkedin_employee_range = linkedinData.linkedin_employee_range;
+      }
+      if (linkedinData.linkedin_url) {
+        extracted.linkedin_url = linkedinData.linkedin_url;
+      }
+    } else if (linkedinData) {
+      console.log('LinkedIn scrape returned no data:', linkedinData.error || 'No company found');
     }
   } catch (linkedinError) {
     console.warn('LinkedIn enrichment failed (non-blocking):', linkedinError);
@@ -99,32 +118,48 @@ export async function enrichGoogleReviews(
   try {
     console.log(`Attempting Google reviews enrichment for: ${googleSearchName}`);
 
-    const googleResponse = await fetch(`${supabaseUrl}/functions/v1/apify-google-reviews`, {
-      method: 'POST',
-      headers: {
-        'apikey': supabaseAnonKey,
-        'Authorization': `Bearer ${supabaseAnonKey}`,
-        'x-internal-secret': supabaseServiceKey,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        businessName: googleSearchName,
-        city: extracted.address_city || deal.address_city,
-        state: extracted.address_state || deal.address_state,
-        dealId: dealId,
-      }),
-      signal: AbortSignal.timeout(30000), // 30s — must fit within 90s per-item budget
+    const googleData = await withRetry(async () => {
+      const googleResponse = await fetch(`${supabaseUrl}/functions/v1/apify-google-reviews`, {
+        method: 'POST',
+        headers: {
+          'apikey': supabaseAnonKey,
+          'Authorization': `Bearer ${supabaseAnonKey}`,
+          'x-internal-secret': supabaseServiceKey,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          businessName: googleSearchName,
+          city: extracted.address_city || deal.address_city,
+          state: extracted.address_state || deal.address_state,
+          dealId: dealId,
+        }),
+        signal: AbortSignal.timeout(30000),
+      });
+
+      if (!googleResponse.ok) {
+        // Retry on 429 and 5xx
+        if (googleResponse.status === 429 || googleResponse.status >= 500) {
+          throw new Error(`Google reviews scrape HTTP ${googleResponse.status}`);
+        }
+        console.warn('Google reviews scrape failed:', googleResponse.status);
+        return null;
+      }
+
+      return googleResponse.json();
+    }, {
+      maxRetries: 2,
+      baseDelayMs: 2000,
+      maxDelayMs: 10000,
+      retryableErrors: ['Google reviews scrape HTTP 429', 'Google reviews scrape HTTP 5'],
+    }).catch((err: any) => {
+      console.warn('Google reviews enrichment failed after retries (non-blocking):', err.message);
+      return null;
     });
 
-    if (googleResponse.ok) {
-      const googleData = await googleResponse.json();
-      if (googleData.success && googleData.scraped) {
-        console.log('Google reviews data retrieved:', googleData);
-      } else {
-        console.log('Google reviews scrape returned no data:', googleData.error || 'No business found');
-      }
-    } else {
-      console.warn('Google reviews scrape failed:', googleResponse.status);
+    if (googleData?.success && googleData?.scraped) {
+      console.log('Google reviews data retrieved:', googleData);
+    } else if (googleData) {
+      console.log('Google reviews scrape returned no data:', googleData.error || 'No business found');
     }
   } catch (googleError) {
     console.warn('Google reviews enrichment failed (non-blocking):', googleError);

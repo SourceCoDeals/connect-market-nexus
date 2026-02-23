@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 import { getCorsHeaders, corsPreflightResponse } from "../_shared/cors.ts";
+import { withRetry } from "../_shared/retry.ts";
 
 interface ApifyLinkedInResult {
   name?: string;
@@ -394,37 +395,53 @@ async function scrapeWithApify(apiToken: string, linkedinUrl: string): Promise<A
 
     console.log(`Starting Apify actor run for: ${linkedinUrl}`);
 
-    const response = await fetch(runUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiToken}`,
-      },
-      body: JSON.stringify({
-        urls: [linkedinUrl],  // Apify actor documented field name (array)
-        url: [linkedinUrl],   // Fallback — some actor versions use singular "url"
-      }),
-      signal: AbortSignal.timeout(120000) // 2 minute timeout for actor run
+    const results = await withRetry(async () => {
+      const response = await fetch(runUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiToken}`,
+        },
+        body: JSON.stringify({
+          urls: [linkedinUrl],  // Apify actor documented field name (array)
+          url: [linkedinUrl],   // Fallback — some actor versions use singular "url"
+        }),
+        signal: AbortSignal.timeout(120000) // 2 minute timeout for actor run
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`Apify actor error [${response.status}]:`, errorText.substring(0, 500));
+
+        if (response.status === 402) {
+          throw new Error('Apify credits depleted - please add credits to your Apify account');
+        }
+        if (response.status === 403) {
+          throw new Error('Apify actor access denied - check your API token and actor subscription');
+        }
+
+        // Retry on 429 and 5xx
+        if (response.status === 429 || response.status >= 500) {
+          throw new Error(`Apify actor error (${response.status}): ${errorText.substring(0, 200)}`);
+        }
+
+        return null;
+      }
+
+      const data = await response.json();
+      if (!data || data.length === 0) {
+        console.log('Apify actor returned no results');
+        return null;
+      }
+      return data;
+    }, {
+      maxRetries: 2,
+      baseDelayMs: 3000,
+      maxDelayMs: 15000,
+      retryableErrors: ['Apify actor error (429)', 'Apify actor error (5'],
     });
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error(`Apify actor error [${response.status}]:`, errorText.substring(0, 500));
-      
-      if (response.status === 402) {
-        throw new Error('Apify credits depleted - please add credits to your Apify account');
-      }
-      if (response.status === 403) {
-        throw new Error('Apify actor access denied - check your API token and actor subscription');
-      }
-      
-      return null;
-    }
-
-    const results = await response.json();
-    
     if (!results || results.length === 0) {
-      console.log('Apify actor returned no results');
       return null;
     }
 

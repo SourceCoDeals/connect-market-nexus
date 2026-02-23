@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { invokeWithTimeout } from '@/lib/invoke-with-timeout';
 import { toast } from 'sonner';
-import { useGlobalGateCheck } from '@/hooks/remarketing/useGlobalActivityQueue';
+import { useGlobalGateCheck } from '@/hooks/remarketing/use-global-activity-queue';
 import { logger } from '@/lib/logger';
 
 interface GenerationStatus {

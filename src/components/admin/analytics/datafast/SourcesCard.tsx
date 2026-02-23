@@ -14,7 +14,7 @@ import {
 import { cn } from "@/lib/utils";
 import { ProportionalBar } from "./ProportionalBar";
 import { ReferrerLogo, formatReferrerName } from "./ReferrerLogo";
-import { useAnalyticsFilters } from "@/contexts/AnalyticsFiltersContext";
+import { useAnalyticsFilters } from "@/context/AnalyticsFiltersContext";
 import { FilterModal } from "./FilterModal";
 
 interface SourcesCardProps {

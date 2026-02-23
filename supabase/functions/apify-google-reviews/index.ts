@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 import { getCorsHeaders, corsPreflightResponse } from "../_shared/cors.ts";
+import { withRetry } from "../_shared/retry.ts";
 
 // Apify Google Maps Scraper actor - extracts reviews, ratings, and business info
 // Using compass~crawler-google-places (the original working actor with tilde separator)
@@ -295,23 +296,40 @@ async function scrapeGooglePlace(
   }
 
   try {
-    const apifyResponse = await fetch(apifyUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(actorInput),
-      signal: AbortSignal.timeout(90000) // 90 second timeout (Google scraping can be slow)
+    const items = await withRetry(async () => {
+      const apifyResponse = await fetch(apifyUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(actorInput),
+        signal: AbortSignal.timeout(90000) // 90 second timeout (Google scraping can be slow)
+      });
+
+      if (!apifyResponse.ok) {
+        const errorText = await apifyResponse.text();
+        console.error('Apify API error:', apifyResponse.status, errorText);
+        // Retry on 429 and 5xx
+        if (apifyResponse.status === 429 || apifyResponse.status >= 500) {
+          throw new Error(`Apify API error (${apifyResponse.status}): ${errorText.substring(0, 200)}`);
+        }
+        // Non-retryable: return null wrapped in a result object
+        return { _nonRetryableError: true, error: `Apify API error: ${apifyResponse.status}` };
+      }
+
+      return apifyResponse.json();
+    }, {
+      maxRetries: 2,
+      baseDelayMs: 3000,
+      maxDelayMs: 20000,
+      retryableErrors: ['Apify API error (429)', 'Apify API error (5'],
     });
 
-    if (!apifyResponse.ok) {
-      const errorText = await apifyResponse.text();
-      console.error('Apify API error:', apifyResponse.status, errorText);
+    // Handle non-retryable error from inside the retry loop
+    if (items && (items as any)._nonRetryableError) {
       return {
         success: false,
-        error: `Apify API error: ${apifyResponse.status}`
+        error: (items as any).error,
       };
     }
-
-    const items = await apifyResponse.json();
 
     if (!items || items.length === 0) {
       console.log('No Google Place data found');

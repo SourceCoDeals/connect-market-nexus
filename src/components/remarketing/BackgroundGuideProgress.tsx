@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, CheckCircle2, XCircle, Clock } from "lucide-react";
-import { useBackgroundGuideGeneration } from "@/hooks/useBackgroundGuideGeneration";
+import { useBackgroundGuideGeneration } from "@/hooks/use-background-guide-generation";
 
 interface BackgroundGuideProgressProps {
   universeId: string;

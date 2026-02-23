@@ -58,7 +58,7 @@ import {
   Download,
 } from "lucide-react";
 import { toast } from "sonner";
-import { useBuyerEnrichmentProgress } from "@/hooks/useBuyerEnrichmentProgress";
+import { useBuyerEnrichmentProgress } from "@/hooks/use-buyer-enrichment-progress";
 import { EnrichmentProgressIndicator } from "@/components/remarketing/EnrichmentProgressIndicator";
 import { BuyerCSVImport, IntelligenceBadge, ReMarketingChat } from "@/components/remarketing";
 import type { BuyerType, DataCompleteness } from "@/types/remarketing";

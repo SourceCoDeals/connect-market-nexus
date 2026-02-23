@@ -62,11 +62,11 @@ import {
 import { toast } from "sonner";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { useBuyerEnrichment } from "@/hooks/useBuyerEnrichment";
-import { useBuyerEnrichmentQueue } from "@/hooks/useBuyerEnrichmentQueue";
-import { useDealEnrichment } from "@/hooks/useDealEnrichment";
-import { useEnrichmentProgress } from "@/hooks/useEnrichmentProgress";
-import { useAlignmentScoring } from "@/hooks/useAlignmentScoring";
+import { useBuyerEnrichment } from "@/hooks/use-buyer-enrichment";
+import { useBuyerEnrichmentQueue } from "@/hooks/use-buyer-enrichment-queue";
+import { useDealEnrichment } from "@/hooks/use-deal-enrichment";
+import { useEnrichmentProgress } from "@/hooks/use-enrichment-progress";
+import { useAlignmentScoring } from "@/hooks/use-alignment-scoring";
 
 const ReMarketingUniverseDetail = () => {
   const { id } = useParams<{ id: string }>();
