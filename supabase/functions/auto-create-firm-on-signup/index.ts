@@ -1,6 +1,6 @@
-import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.47.10";
-import { getCorsHeaders, corsPreflightResponse } from "../_shared/cors.ts";
+import { serve } from 'https://deno.land/std@0.190.0/http/server.ts';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.47.10';
+import { getCorsHeaders, corsPreflightResponse } from '../_shared/cors.ts';
 
 /**
  * auto-create-firm-on-signup
@@ -16,23 +16,26 @@ import { getCorsHeaders, corsPreflightResponse } from "../_shared/cors.ts";
 serve(async (req: Request) => {
   const corsHeaders = getCorsHeaders(req);
 
-  if (req.method === "OPTIONS") {
+  if (req.method === 'OPTIONS') {
     return corsPreflightResponse(req);
   }
 
   try {
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
 
     // Try to authenticate from JWT first
     let userId: string | null = null;
 
-    const authHeader = req.headers.get("Authorization");
+    const authHeader = req.headers.get('Authorization');
     if (authHeader) {
-      const token = authHeader.replace("Bearer ", "");
-      const anonClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!);
-      const { data: { user }, error: authError } = await anonClient.auth.getUser(token);
+      const token = authHeader.replace('Bearer ', '');
+      const anonClient = createClient(supabaseUrl, Deno.env.get('SUPABASE_ANON_KEY')!);
+      const {
+        data: { user },
+        error: authError,
+      } = await anonClient.auth.getUser(token);
       if (!authError && user) {
         userId = user.id;
       }
@@ -45,32 +48,32 @@ serve(async (req: Request) => {
     }
 
     if (!userId) {
-      return new Response(
-        JSON.stringify({ error: "Authentication required" }),
-        { status: 401, headers: { "Content-Type": "application/json", ...corsHeaders } }
-      );
+      return new Response(JSON.stringify({ error: 'Authentication required' }), {
+        status: 401,
+        headers: { 'Content-Type': 'application/json', ...corsHeaders },
+      });
     }
 
     // Fetch the user's profile to get email and company
     const { data: profile, error: profileError } = await supabaseAdmin
-      .from("profiles")
-      .select("id, email, company, first_name, last_name")
-      .eq("id", userId)
+      .from('profiles')
+      .select('id, email, company, first_name, last_name')
+      .eq('id', userId)
       .single();
 
     if (profileError || !profile) {
-      console.error("Profile not found for userId:", userId, profileError);
-      return new Response(
-        JSON.stringify({ error: "Profile not found" }),
-        { status: 404, headers: { "Content-Type": "application/json", ...corsHeaders } }
-      );
+      console.error('Profile not found for userId:', userId, profileError);
+      return new Response(JSON.stringify({ error: 'Profile not found' }), {
+        status: 404,
+        headers: { 'Content-Type': 'application/json', ...corsHeaders },
+      });
     }
 
     // Check if user already has a firm membership
     const { data: existingMember } = await supabaseAdmin
-      .from("firm_members")
-      .select("firm_id")
-      .eq("user_id", userId)
+      .from('firm_members')
+      .select('firm_id')
+      .eq('user_id', userId)
       .limit(1)
       .maybeSingle();
 
@@ -78,24 +81,55 @@ serve(async (req: Request) => {
       console.log(`User ${userId} already has firm ${existingMember.firm_id}`);
       return new Response(
         JSON.stringify({ success: true, firmId: existingMember.firm_id, alreadyExisted: true }),
-        { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
+        { status: 200, headers: { 'Content-Type': 'application/json', ...corsHeaders } },
       );
     }
 
     // Determine company name and email domain
-    const companyName = profile.company || body.company || "Unknown Company";
-    const normalizedName = companyName.toLowerCase().trim().replace(/[^a-z0-9\s]/g, "");
-    const emailDomain = profile.email?.split("@")[1] || null;
+    const companyName = profile.company || body.company || 'Unknown Company';
+    const normalizedName = companyName
+      .toLowerCase()
+      .trim()
+      .replace(/[^a-z0-9\s]/g, '');
+    const emailDomain = profile.email?.split('@')[1] || null;
+
+    // Generic/free email providers — never use these for firm matching because
+    // unrelated companies sharing gmail.com would be grouped together.
+    const GENERIC_EMAIL_DOMAINS = new Set([
+      'gmail.com',
+      'googlemail.com',
+      'yahoo.com',
+      'yahoo.co.uk',
+      'outlook.com',
+      'hotmail.com',
+      'live.com',
+      'msn.com',
+      'aol.com',
+      'icloud.com',
+      'me.com',
+      'mac.com',
+      'protonmail.com',
+      'proton.me',
+      'mail.com',
+      'zoho.com',
+      'yandex.com',
+      'gmx.com',
+      'gmx.net',
+      'fastmail.com',
+    ]);
+    const isGenericDomain = emailDomain
+      ? GENERIC_EMAIL_DOMAINS.has(emailDomain.toLowerCase())
+      : false;
 
     // Find or create firm
     let firmId: string | null = null;
 
-    // Check by email domain first
-    if (emailDomain) {
+    // Check by email domain first (skip for generic providers)
+    if (emailDomain && !isGenericDomain) {
       const { data } = await supabaseAdmin
-        .from("firm_agreements")
-        .select("id")
-        .eq("email_domain", emailDomain)
+        .from('firm_agreements')
+        .select('id')
+        .eq('email_domain', emailDomain)
         .maybeSingle();
       if (data) firmId = data.id;
     }
@@ -103,9 +137,9 @@ serve(async (req: Request) => {
     // Check by normalized company name
     if (!firmId) {
       const { data } = await supabaseAdmin
-        .from("firm_agreements")
-        .select("id")
-        .eq("normalized_company_name", normalizedName)
+        .from('firm_agreements')
+        .select('id')
+        .eq('normalized_company_name', normalizedName)
         .maybeSingle();
       if (data) firmId = data.id;
     }
@@ -113,23 +147,23 @@ serve(async (req: Request) => {
     // Create new firm if none found
     if (!firmId) {
       const { data: newFirm, error: firmError } = await supabaseAdmin
-        .from("firm_agreements")
+        .from('firm_agreements')
         .insert({
           primary_company_name: companyName,
           normalized_company_name: normalizedName,
-          email_domain: emailDomain,
+          email_domain: isGenericDomain ? null : emailDomain,
           nda_signed: false,
           fee_agreement_signed: false,
         })
-        .select("id")
+        .select('id')
         .single();
 
       if (firmError) {
-        console.error("Failed to create firm:", firmError);
-        return new Response(
-          JSON.stringify({ error: "Failed to create firm agreement" }),
-          { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } }
-        );
+        console.error('Failed to create firm:', firmError);
+        return new Response(JSON.stringify({ error: 'Failed to create firm agreement' }), {
+          status: 500,
+          headers: { 'Content-Type': 'application/json', ...corsHeaders },
+        });
       }
 
       firmId = newFirm.id;
@@ -139,16 +173,14 @@ serve(async (req: Request) => {
     }
 
     // Create firm_member
-    const { error: memberError } = await supabaseAdmin
-      .from("firm_members")
-      .insert({
-        firm_id: firmId,
-        user_id: userId,
-        role: "member",
-      });
+    const { error: memberError } = await supabaseAdmin.from('firm_members').insert({
+      firm_id: firmId,
+      user_id: userId,
+      role: 'member',
+    });
 
     if (memberError) {
-      console.error("Failed to create firm member:", memberError);
+      console.error('Failed to create firm member:', memberError);
       // Non-fatal — firm exists, member link failed (could be duplicate)
     }
 
@@ -160,13 +192,13 @@ serve(async (req: Request) => {
         firmId,
         firmCreated: true,
       }),
-      { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      { status: 200, headers: { 'Content-Type': 'application/json', ...corsHeaders } },
     );
   } catch (error: any) {
-    console.error("Error in auto-create-firm-on-signup:", error);
-    return new Response(
-      JSON.stringify({ error: "Internal server error" }),
-      { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } }
-    );
+    console.error('Error in auto-create-firm-on-signup:', error);
+    return new Response(JSON.stringify({ error: 'Internal server error' }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json', ...corsHeaders },
+    });
   }
 });
