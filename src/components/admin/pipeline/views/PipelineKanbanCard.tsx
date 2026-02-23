@@ -1,7 +1,7 @@
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { Card, CardContent } from '@/components/ui/card';
-import { Clock, Globe, Zap, Target, FileText, ExternalLink } from 'lucide-react';
+import { Clock, ExternalLink, BookOpen, FolderOpen } from 'lucide-react';
 import { Deal } from '@/hooks/admin/use-deals';
 import { cn } from '@/lib/utils';
 import { useAdminProfile } from '@/hooks/admin/use-admin-profiles';
@@ -60,15 +60,6 @@ export function PipelineKanbanCard({ deal, onDealClick, isDragging }: PipelineKa
     return `$${val.toLocaleString()}`;
   };
 
-  const getSourceBadge = () => {
-    const source = deal.source || 'manual';
-    switch (source) {
-      case 'marketplace': return { icon: Globe, label: 'Mkt' };
-      case 'remarketing': return { icon: Target, label: 'Rmkt' };
-      case 'webflow': return { icon: FileText, label: 'Web' };
-      default: return { icon: Zap, label: 'Man' };
-    }
-  };
 
   const lastActivityLabel = (() => {
     const date = deal.last_activity_at || deal.deal_updated_at;
@@ -83,8 +74,6 @@ export function PipelineKanbanCard({ deal, onDealClick, isDragging }: PipelineKa
     return `${days}d ago`;
   })();
 
-  const sourceBadge = getSourceBadge();
-  const SourceIcon = sourceBadge.icon;
 
   const handleCardClick = () => {
     if (isBeingDragged) return;
@@ -181,9 +170,9 @@ export function PipelineKanbanCard({ deal, onDealClick, isDragging }: PipelineKa
             Owner: <span className="font-semibold text-foreground/80">{assignedAdmin?.displayName || 'Unassigned'}</span>
           </div>
 
-          {/* Row 5: NDA/Fee status dots + Source + Last Activity */}
+          {/* Row 5: NDA/Fee + Memo/DataRoom status + Source + Last Activity */}
           <div className="flex items-center justify-between text-xs text-muted-foreground pt-2 border-t border-border/30">
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2.5">
               <div className="flex items-center gap-1.5">
                 <div className={cn('w-2 h-2 rounded-full', getStatusDot(deal.nda_status))} />
                 <span>NDA</span>
@@ -192,10 +181,14 @@ export function PipelineKanbanCard({ deal, onDealClick, isDragging }: PipelineKa
                 <div className={cn('w-2 h-2 rounded-full', getStatusDot(deal.fee_agreement_status))} />
                 <span>Fee</span>
               </div>
-              <span className="inline-flex items-center gap-1">
-                <SourceIcon className="w-3 h-3" />
-                {sourceBadge.label}
-              </span>
+              <div className="flex items-center gap-1.5">
+                <BookOpen className={cn('w-3 h-3', deal.memo_sent ? 'text-emerald-500' : 'text-muted-foreground/30')} />
+                <span className={deal.memo_sent ? 'text-emerald-600 font-medium' : ''}>Memo</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <FolderOpen className={cn('w-3 h-3', deal.has_data_room ? 'text-emerald-500' : 'text-muted-foreground/30')} />
+                <span className={deal.has_data_room ? 'text-emerald-600 font-medium' : ''}>DR</span>
+              </div>
             </div>
             <span className="flex items-center gap-1">
               <Clock className="w-3 h-3" />

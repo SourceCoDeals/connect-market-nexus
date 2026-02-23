@@ -105,6 +105,10 @@ export interface Deal {
   deal_score?: number | null;
   is_priority_target?: boolean | null;
   needs_owner_contact?: boolean | null;
+
+  // Document distribution flags
+  memo_sent?: boolean;
+  has_data_room?: boolean;
 }
 
 export interface DealStage {
@@ -210,7 +214,7 @@ export function useDeals() {
         }
       }
 
-      return filteredRows.map((row: any) => {
+      const mapped = filteredRows.map((row: any) => {
         const listing = row.listing;
         const stage = row.stage;
         const admin = row.assigned_admin;
@@ -263,7 +267,7 @@ export function useDeals() {
 
           // Assignment
           assigned_to: row.assigned_to,
-          assigned_admin_name: admin ? `${admin.first_name} ${admin.last_name}` : null,
+          assigned_admin_name: admin ? `${admin.first_name} ${admin.last_name}` : undefined,
           assigned_admin_email: admin?.email,
 
           // Tasks and activity (not available via join, default to 0)
@@ -302,8 +306,36 @@ export function useDeals() {
           deal_score: row.listing_score?.deal_total_score ?? null,
           is_priority_target: row.listing_score?.is_priority_target ?? null,
           needs_owner_contact: row.listing_score?.needs_owner_contact ?? null,
+
+          // Document distribution flags (populated below)
+          memo_sent: false,
+          has_data_room: false,
         };
-      }) as unknown as Deal[];
+      });
+
+      // Batch-fetch memo distribution and data room documents by listing_id
+      const listingIds = [...new Set(mapped.map((d: any) => d.listing_id).filter(Boolean))] as string[];
+      const memoSentListings = new Set<string>();
+      const dataRoomListings = new Set<string>();
+
+      if (listingIds.length > 0) {
+        for (let i = 0; i < listingIds.length; i += 100) {
+          const chunk = listingIds.slice(i, i + 100);
+          const [memoRes, drRes] = await Promise.all([
+            supabase.from('memo_distribution_log').select('deal_id').in('deal_id', chunk),
+            supabase.from('data_room_documents').select('deal_id').in('deal_id', chunk).eq('status', 'active'),
+          ]);
+          memoRes.data?.forEach((r: any) => memoSentListings.add(r.deal_id));
+          drRes.data?.forEach((r: any) => dataRoomListings.add(r.deal_id));
+        }
+      }
+
+      mapped.forEach((deal: any) => {
+        deal.memo_sent = memoSentListings.has(deal.listing_id);
+        deal.has_data_room = dataRoomListings.has(deal.listing_id);
+      });
+
+      return mapped as unknown as Deal[];
     },
     staleTime: 30000,
   });
