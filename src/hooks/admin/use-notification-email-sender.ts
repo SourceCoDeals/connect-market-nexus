@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { logger } from '@/lib/logger';
 
 /**
  * Hook that automatically sends emails for pending notifications
@@ -23,7 +24,9 @@ export function useNotificationEmailSender() {
           .limit(10);
 
         if (error) {
-          console.error('[Email Sender] Error fetching pending notifications:', error);
+          logger.error('Error fetching pending notifications', 'useNotificationEmailSender', {
+            error: String(error),
+          });
           return;
         }
 
@@ -35,44 +38,52 @@ export function useNotificationEmailSender() {
         for (const notification of pendingNotifications) {
           try {
             const metadata = notification.metadata as Record<string, unknown>;
-            
+
             // Call edge function to send email
-            const { error: emailError } = await supabase.functions.invoke('notify-deal-reassignment', {
-              body: {
-                dealId: metadata.deal_id,
-                dealTitle: metadata.deal_title,
-                listingTitle: metadata.listing_title,
-                previousOwnerId: metadata.previous_owner_id,
-                previousOwnerName: metadata.previous_owner_name,
-                previousOwnerEmail: metadata.previous_owner_email,
-                newOwnerId: metadata.new_owner_id,
-                newOwnerName: metadata.new_owner_name,
-                newOwnerEmail: metadata.new_owner_email,
-                companyName: metadata.company_name,
-              }
-            });
+            const { error: emailError } = await supabase.functions.invoke(
+              'notify-deal-reassignment',
+              {
+                body: {
+                  dealId: metadata.deal_id,
+                  dealTitle: metadata.deal_title,
+                  listingTitle: metadata.listing_title,
+                  previousOwnerId: metadata.previous_owner_id,
+                  previousOwnerName: metadata.previous_owner_name,
+                  previousOwnerEmail: metadata.previous_owner_email,
+                  newOwnerId: metadata.new_owner_id,
+                  newOwnerName: metadata.new_owner_name,
+                  newOwnerEmail: metadata.new_owner_email,
+                  companyName: metadata.company_name,
+                },
+              },
+            );
 
             if (emailError) {
-              console.error('[Email Sender] Failed to send email for notification:', notification.id, emailError);
+              logger.error('Failed to send email for notification', 'useNotificationEmailSender', {
+                notificationId: notification.id,
+                error: String(emailError),
+              });
               continue;
             }
 
             // Remove email_pending flag
             const updatedMetadata = { ...metadata };
             delete updatedMetadata.email_pending;
-            
+
             await supabase
               .from('admin_notifications')
-              .update({ 
-                metadata: { 
+              .update({
+                metadata: {
                   ...updatedMetadata,
-                  email_sent_at: new Date().toISOString()
-                }
+                  email_sent_at: new Date().toISOString(),
+                },
               })
               .eq('id', notification.id);
-
           } catch (error) {
-            console.error('[Email Sender] Error processing notification:', notification.id, error);
+            logger.error('Error processing notification', 'useNotificationEmailSender', {
+              notificationId: notification.id,
+              error: String(error),
+            });
           }
         }
       } finally {
