@@ -168,8 +168,8 @@ export function ReferralCSVUpload({
       setShowPreview(false);
       setSkippedCount(0);
       onUploaded();
-    } catch (err: any) {
-      toast.error(err.message || "Failed to submit referrals");
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : "Failed to submit referrals");
     } finally {
       setIsSubmitting(false);
     }

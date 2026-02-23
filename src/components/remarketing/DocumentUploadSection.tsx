@@ -204,9 +204,9 @@ export const DocumentUploadSection = ({
             } catch { /* ignored */ }
           }
         }
-      } catch (err: any) {
+      } catch (err: unknown) {
         failures++;
-        const errMsg = err?.message || 'Unknown error';
+        const errMsg = err instanceof Error ? err.message : 'Unknown error';
         console.error(`Error enriching ${doc.name}:`, errMsg);
         if (queueId) {
           try {

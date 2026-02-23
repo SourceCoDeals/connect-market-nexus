@@ -290,7 +290,7 @@ export const AIResearchSection = ({
       if (readError) throw readError;
 
       const currentDocs = (universe?.documents as any[]) || [];
-      const filteredDocs = currentDocs.filter((d: any) => !d.type || d.type !== 'ma_guide');
+      const filteredDocs = currentDocs.filter((d: { type?: string }) => !d.type || d.type !== 'ma_guide');
       const updatedDocs = [...filteredDocs, guideDoc];
 
       // 4. Save to database — set ma_guide_content to a marker so the system knows a guide exists
@@ -872,9 +872,9 @@ export const AIResearchSection = ({
       // Start polling for progress
       resumeBackgroundGeneration(generationId);
 
-    } catch (error: any) {
+    } catch (error: unknown) {
       setState('error');
-      toast.error(error.message || 'Failed to start background generation');
+      toast.error(error instanceof Error ? error.message : 'Failed to start background generation');
     }
   };
 
