@@ -180,10 +180,9 @@ export function UserActions({ onUserStatusUpdated }: UserActionsProps) {
         console.error('[UserActions] Step 3 FAILED:', emailError);
       }
 
-      // Show success confirmation dialog — do NOT close dialogs after this,
-      // the user will dismiss it by clicking "Done"
+      // Close approval dialog and show success dialog
       setEmailSent(emailSuccess);
-      setDialogState((prev) => ({ ...prev, approvalSuccess: true }));
+      setDialogState((prev) => ({ ...prev, approval: false, approvalSuccess: true }));
       console.log('[UserActions] Approval flow complete');
 
       if (onUserStatusUpdated) onUserStatusUpdated();

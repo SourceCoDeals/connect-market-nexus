@@ -87,16 +87,15 @@ export function ApprovalEmailDialog({
     try {
       console.log('[ApprovalDialog] Calling onSendApprovalEmail for:', user.email);
       await onSendApprovalEmail(user, payload);
-    } catch (error) {
-      console.error('[ApprovalDialog] Error in approval flow:', error);
-    } finally {
-      setIsLoading(false);
-      // Reset form and close dialog after approval completes
+      // Reset form after successful approval - dialog closure is handled by parent (UserActions)
       setCustomSubject('');
       setCustomMessage('');
       setCustomSignatureHtml('');
       setCustomSignatureText('');
-      onOpenChange(false);
+    } catch (error) {
+      console.error('[ApprovalDialog] Error in approval flow:', error);
+    } finally {
+      setIsLoading(false);
     }
   };
 
