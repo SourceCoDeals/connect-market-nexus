@@ -417,6 +417,9 @@ export function useTranscriptActions({ dealId, transcripts, dealInfo }: UseTrans
             call_date: result.date || null, participants: result.participants || [],
             meeting_attendees: Array.isArray(result.participants) ? result.participants.map((p: any) => typeof p === 'string' ? p : p.email).filter(Boolean) : [],
             duration_minutes: result.duration_minutes || null, source: 'fireflies', auto_linked: false, transcript_text: '',
+            has_content: result.has_content !== false,
+            match_type: result.match_type || 'email',
+            external_participants: result.external_participants || [],
           });
           if (insertError) { console.error(`Failed to import ${result.id}:`, insertError); failed++; } else { imported++; }
         } catch (err) { console.error(`Error importing transcript ${ffId}:`, err); failed++; }

@@ -145,10 +145,10 @@ serve(async (req) => {
       );
     }
 
-    // Get the deal_transcript record (include transcript_url for URL-based lookup)
+    // Get the deal_transcript record (include transcript_url and has_content for handling)
     const { data: dealTranscript, error: fetchError } = await supabase
       .from('deal_transcripts')
-      .select('id, fireflies_transcript_id, transcript_text, transcript_url, source')
+      .select('id, fireflies_transcript_id, transcript_text, transcript_url, source, has_content')
       .eq('id', transcriptId)
       .single();
 
@@ -168,6 +168,21 @@ serve(async (req) => {
       return new Response(
         JSON.stringify({ error: "Not a Fireflies transcript" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Handle transcripts flagged as having no content (silent/skipped meetings)
+    if (dealTranscript.has_content === false) {
+      console.log(`Transcript ${transcriptId} has no content (silent/skipped meeting)`);
+      return new Response(
+        JSON.stringify({
+          success: true,
+          content: "[No transcript available — this call was recorded but audio was not captured. This is typically caused by a Teams audio routing issue.]",
+          cached: true,
+          transcript_id: transcriptId,
+          has_content: false,
+        }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
@@ -243,7 +258,26 @@ serve(async (req) => {
 
     if (!transcriptText || transcriptText.length < 50) {
       console.warn("Fetched content is too short or empty:", transcriptText?.substring(0, 100));
-      throw new Error("No valid transcript content found in Fireflies response");
+
+      // Mark as no-content rather than throwing — the recording exists but has no usable transcript
+      await supabase
+        .from('deal_transcripts')
+        .update({
+          has_content: false,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', transcriptId);
+
+      return new Response(
+        JSON.stringify({
+          success: true,
+          content: "[No transcript available — this call was recorded but audio was not captured. This is typically caused by a Teams audio routing issue.]",
+          cached: false,
+          transcript_id: transcriptId,
+          has_content: false,
+        }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
 
     console.log(`Fetched ${transcriptText.length} characters from Fireflies`);

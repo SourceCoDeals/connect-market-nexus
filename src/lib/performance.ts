@@ -154,9 +154,12 @@ export function scheduleIdleWork(
     return window.requestIdleCallback(callback, options);
   }
 
+  if (typeof window === "undefined") return 0 as unknown as number;
+
   // Fallback: use setTimeout with 1ms delay, simulating idle behavior
   const start = Date.now();
-  return window.setTimeout(() => {
+  const w = window as any;
+  return w.setTimeout(() => {
     callback({
       timeRemaining: () => Math.max(0, 50 - (Date.now() - start)),
       didTimeout: false,

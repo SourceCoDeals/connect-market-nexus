@@ -15,6 +15,9 @@ export interface DealTranscript {
   title?: string | null;
   transcript_url?: string | null;
   call_date?: string | null;
+  has_content?: boolean | null;
+  match_type?: string | null;
+  external_participants?: { name: string; email: string }[] | null;
 }
 
 export interface DealTranscriptSectionProps {
@@ -31,6 +34,7 @@ export interface DealTranscriptSectionProps {
   };
   /** Fireflies sync props */
   contactEmail?: string | null;
+  contactEmails?: string[];       // all contact emails for multi-email search
   contactName?: string | null;
   companyName?: string;
   onSyncComplete?: () => void;

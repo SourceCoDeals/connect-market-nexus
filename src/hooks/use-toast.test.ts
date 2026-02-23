@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { reducer } from './use-toast';
 
 describe('toast reducer', () => {
-  const initialState = { toasts: [] };
+  const initialState = { toasts: [] as any[] };
 
   it('adds a toast with ADD_TOAST action', () => {
     const toast = { id: '1', title: 'Test', open: true };

@@ -101,7 +101,7 @@ export function useSimilarListings(currentListing: Listing | undefined, limit = 
           ebitda: Number(listing.ebitda ?? 0),
           description: listing.description ?? '',
           description_html: listing.description_html ?? undefined,
-          description_json: listing.description_json ?? undefined,
+          description_json: (listing.description_json as Record<string, unknown> | undefined) ?? undefined,
           tags: listing.tags || [],
           ownerNotes: listing.owner_notes ?? '',
           files: listing.files ?? undefined,

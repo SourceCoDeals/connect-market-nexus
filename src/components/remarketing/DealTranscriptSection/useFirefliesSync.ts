@@ -6,6 +6,7 @@ import type { DealTranscript } from "./types";
 interface UseFirefliesSyncProps {
   dealId: string;
   contactEmail?: string | null;
+  contactEmails?: string[];
   companyName?: string;
   transcripts: DealTranscript[];
   onSyncComplete?: () => void;
@@ -15,6 +16,7 @@ interface UseFirefliesSyncProps {
 export function useFirefliesSync({
   dealId,
   contactEmail,
+  contactEmails,
   companyName,
   transcripts,
   onSyncComplete,
@@ -34,14 +36,21 @@ export function useFirefliesSync({
   const [ffUploading, setFfUploading] = useState(false);
   const ffFileInputRef = useRef<HTMLInputElement>(null);
 
-  // Fireflies sync handler
+  // Build the full list of emails to search (deduped)
+  const allContactEmails = Array.from(new Set([
+    ...(contactEmails || []),
+    ...(contactEmail ? [contactEmail] : []),
+  ].filter(Boolean).map(e => e.toLowerCase())));
+
+  // Fireflies sync handler — sends all contact emails
   const handleFirefliesSync = async () => {
-    if (!contactEmail) return;
+    if (allContactEmails.length === 0) return;
     setSyncLoading(true);
-    const toastId = toast.loading(`Searching Fireflies for ${contactEmail}...`);
+    const emailDisplay = allContactEmails.length === 1 ? allContactEmails[0] : `${allContactEmails.length} contacts`;
+    const toastId = toast.loading(`Searching Fireflies for ${emailDisplay}...`);
     try {
       const { data, error } = await supabase.functions.invoke('sync-fireflies-transcripts', {
-        body: { listingId: dealId, contactEmail, limit: 50 },
+        body: { listingId: dealId, contactEmails: allContactEmails, companyName, limit: 50 },
       });
       if (error) throw error;
       if (data.linked > 0) {
@@ -64,7 +73,7 @@ export function useFirefliesSync({
     }
   };
 
-  // Quick search handler
+  // Quick search handler — includes contact emails for better results
   const handleFfQuickSearch = async () => {
     const trimmed = ffQuery.trim();
     if (!trimmed) return;
@@ -72,7 +81,7 @@ export function useFirefliesSync({
     const toastId = toast.loading(`Searching Fireflies for "${trimmed}"...`);
     try {
       const { data, error } = await supabase.functions.invoke('search-fireflies-for-buyer', {
-        body: { query: trimmed, limit: 30 },
+        body: { query: trimmed, emails: allContactEmails, companyName, limit: 30 },
       });
       if (error) throw error;
       setFfResults(data.results || []);
@@ -87,7 +96,7 @@ export function useFirefliesSync({
     }
   };
 
-  // Link a search result
+  // Link a search result — includes has_content, match_type, external_participants
   const handleLinkSearchResult = async (transcript: any) => {
     setFfLinking(transcript.id);
     try {
@@ -103,6 +112,9 @@ export function useFirefliesSync({
         transcript_text: transcript.summary || 'Fireflies transcript',
         source: 'fireflies',
         auto_linked: false,
+        has_content: transcript.has_content !== false,
+        match_type: transcript.match_type || 'email',
+        external_participants: transcript.external_participants || [],
       });
       if (error) {
         if (error.code === '23505') toast.info("Already linked");
@@ -203,6 +215,7 @@ export function useFirefliesSync({
   };
 
   return {
+    allContactEmails,
     syncLoading,
     lastSynced,
     ffQuery,

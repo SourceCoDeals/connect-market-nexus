@@ -3,10 +3,21 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 import { getCorsHeaders, corsPreflightResponse } from "../_shared/cors.ts";
 
+/** Internal email domains to filter out when extracting external participants */
+const INTERNAL_DOMAINS = ['sourcecodeals.com', 'captarget.com'];
+
 interface SearchRequest {
-  query: string;
-  participantEmails?: string[];
+  emails?: string[];           // array of contact emails (primary search)
+  query?: string;              // keyword search term
+  companyName?: string;        // for fallback keyword search
+  dealId?: string;
+  participantEmails?: string[]; // legacy field — mapped to emails
   limit?: number;
+}
+
+interface ExternalParticipant {
+  name: string;
+  email: string;
 }
 
 interface SearchResult {
@@ -15,9 +26,12 @@ interface SearchResult {
   date: string;
   duration_minutes: number | null;
   participants: any[];
+  external_participants: ExternalParticipant[];
   summary: string;
   meeting_url: string;
   keywords: string[];
+  has_content: boolean;
+  match_type: 'email' | 'keyword';
 }
 
 /**
@@ -61,6 +75,8 @@ async function firefliesGraphQL(query: string, variables?: Record<string, unknow
  * GraphQL queries that use the Fireflies native filtering:
  * - keyword: searches title + spoken words server-side
  * - participants: filters by attendee email server-side
+ *
+ * Now also fetches meeting_info for silent_meeting and summary_status detection.
  */
 const TRANSCRIPT_FIELDS = `
   id
@@ -79,6 +95,10 @@ const TRANSCRIPT_FIELDS = `
     short_summary
     keywords
     action_items
+  }
+  meeting_info {
+    silent_meeting
+    summary_status
   }
 `;
 
@@ -107,13 +127,77 @@ const ALL_TRANSCRIPTS_QUERY = `
 `;
 
 /**
+ * Check if a transcript has actual content (not a silent/skipped meeting).
+ * Returns false if the meeting was silent AND skipped with no summary.
+ */
+function transcriptHasContent(t: any): boolean {
+  const info = t.meeting_info || {};
+  const isSilent = info.silent_meeting === true;
+  const isSkipped = info.summary_status === 'skipped';
+  const hasSummary = !!(t.summary?.short_summary);
+
+  // Only flag as no-content if it's silent/skipped AND has no summary
+  if ((isSilent || isSkipped) && !hasSummary) {
+    return false;
+  }
+  return true;
+}
+
+/**
+ * Extract external participants from meeting attendees.
+ * Filters out internal @sourcecodeals.com and @captarget.com addresses.
+ */
+function extractExternalParticipants(attendees: any[]): ExternalParticipant[] {
+  if (!Array.isArray(attendees)) return [];
+
+  return attendees
+    .filter((a: any) => {
+      const email = (a.email || '').toLowerCase();
+      if (!email) return false;
+      return !INTERNAL_DOMAINS.some(domain => email.endsWith(`@${domain}`));
+    })
+    .map((a: any) => ({
+      name: a.displayName || a.name || a.email?.split('@')[0] || 'Unknown',
+      email: a.email || '',
+    }));
+}
+
+/**
+ * Paginated fetch from Fireflies API.
+ */
+async function paginatedFetch(
+  gqlQuery: string,
+  variables: Record<string, unknown>,
+  maxPages = 4,
+  batchSize = 50
+): Promise<any[]> {
+  const results: any[] = [];
+  let skip = 0;
+
+  for (let page = 0; page < maxPages; page++) {
+    const data = await firefliesGraphQL(gqlQuery, {
+      ...variables,
+      limit: batchSize,
+      skip,
+    });
+    const batch = data.transcripts || [];
+    results.push(...batch);
+    if (batch.length < batchSize) break;
+    skip += batchSize;
+  }
+
+  return results;
+}
+
+/**
  * Search Fireflies transcripts for buyer/deal linking.
  *
- * Uses the Fireflies API native filtering:
- * 1. keyword param — server-side search of title + spoken words
- * 2. participants param — server-side filter by attendee email
- *
- * Both searches run in parallel, results are merged and deduplicated.
+ * Improvements:
+ * 1. Accepts array of emails for multi-contact search
+ * 2. Filters silent/skipped meetings — flags them as has_content: false
+ * 3. Fallback keyword search by company name when no email results
+ * 4. Extracts external participants (filters out internal domains)
+ * 5. Tags results with match_type: 'email' | 'keyword'
  */
 serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
@@ -161,97 +245,108 @@ serve(async (req) => {
     }
 
     const body = await req.json() as SearchRequest;
-    const { query, participantEmails, limit = 20 } = body;
+    const { query, companyName, dealId, limit = 20 } = body;
 
-    if ((!query || query.trim().length === 0) && (!participantEmails || participantEmails.length === 0)) {
+    // Support both new `emails` and legacy `participantEmails` field
+    const emails = body.emails || body.participantEmails || [];
+    const validEmails = emails.filter(Boolean).map(e => e.toLowerCase());
+
+    const trimmedQuery = (query || '').trim();
+
+    if (!trimmedQuery && validEmails.length === 0 && !companyName) {
       return new Response(
-        JSON.stringify({ error: "Search query or participant emails required" }),
+        JSON.stringify({ error: "Search query, participant emails, or company name required" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    const trimmedQuery = (query || '').trim();
-    const validEmails = (participantEmails || []).filter(Boolean);
+    // === Phase 1: Primary search — emails + keyword in parallel ===
+    const searches: Promise<{ results: any[]; type: 'email' | 'keyword' }>[] = [];
 
-    // Run keyword search and participant search in parallel using native Fireflies API filtering
-    const searches: Promise<any[]>[] = [];
-
-    if (trimmedQuery) {
-      searches.push(
-        (async () => {
-          const results: any[] = [];
-          let skip = 0;
-          const batchSize = 50;
-          const maxPages = 4;
-          for (let page = 0; page < maxPages; page++) {
-            const data = await firefliesGraphQL(KEYWORD_SEARCH_QUERY, {
-              keyword: trimmedQuery,
-              limit: batchSize,
-              skip,
-            });
-            const batch = data.transcripts || [];
-            results.push(...batch);
-            if (batch.length < batchSize) break;
-            skip += batchSize;
-          }
-          console.log(`Keyword search "${trimmedQuery}" returned ${results.length} results`);
-          return results;
-        })()
-      );
-    }
-
+    // Participant search for each email (batched into single API call since Fireflies supports arrays)
     if (validEmails.length > 0) {
       searches.push(
         (async () => {
-          const results: any[] = [];
-          let skip = 0;
-          const batchSize = 50;
-          const maxPages = 4;
-          for (let page = 0; page < maxPages; page++) {
-            const data = await firefliesGraphQL(PARTICIPANT_SEARCH_QUERY, {
-              participants: validEmails,
-              limit: batchSize,
-              skip,
-            });
-            const batch = data.transcripts || [];
-            results.push(...batch);
-            if (batch.length < batchSize) break;
-            skip += batchSize;
-          }
+          const results = await paginatedFetch(PARTICIPANT_SEARCH_QUERY, {
+            participants: validEmails,
+          });
           console.log(`Participant search [${validEmails.join(', ')}] returned ${results.length} results`);
-          return results;
+          return { results, type: 'email' as const };
         })()
       );
     }
 
-    // If no keyword and no emails (shouldn't happen due to validation above), fetch recent
-    if (searches.length === 0) {
+    // Keyword search if provided
+    if (trimmedQuery) {
+      searches.push(
+        (async () => {
+          const results = await paginatedFetch(KEYWORD_SEARCH_QUERY, {
+            keyword: trimmedQuery,
+          });
+          console.log(`Keyword search "${trimmedQuery}" returned ${results.length} results`);
+          return { results, type: 'keyword' as const };
+        })()
+      );
+    }
+
+    // If no keyword and no emails (shouldn't happen due to validation), fetch recent
+    if (searches.length === 0 && !companyName) {
       searches.push(
         (async () => {
           const data = await firefliesGraphQL(ALL_TRANSCRIPTS_QUERY, { limit: 50, skip: 0 });
-          return data.transcripts || [];
+          return { results: data.transcripts || [], type: 'keyword' as const };
         })()
       );
     }
 
     const searchResults = await Promise.all(searches);
 
-    // Merge and deduplicate by transcript ID
-    const seen = new Set<string>();
+    // Merge and deduplicate by transcript ID, tracking match_type per result
+    const seen = new Map<string, 'email' | 'keyword'>();
     const matchingResults: any[] = [];
-    for (const resultSet of searchResults) {
-      for (const t of resultSet) {
+
+    for (const { results, type } of searchResults) {
+      for (const t of results) {
         if (t.id && !seen.has(t.id)) {
-          seen.add(t.id);
+          seen.set(t.id, type);
           matchingResults.push(t);
+        }
+        // If already seen as 'keyword' but now found via 'email', upgrade to 'email'
+        if (t.id && seen.get(t.id) === 'keyword' && type === 'email') {
+          seen.set(t.id, 'email');
         }
       }
     }
 
-    console.log(`${matchingResults.length} unique transcripts after merging`);
+    console.log(`${matchingResults.length} unique transcripts after primary search`);
 
-    // Format results
-    const formattedResults: SearchResult[] = matchingResults
+    // === Phase 2: Fallback keyword search by company name ===
+    // Only run if primary email search returned 0 results with content
+    const emailResultsWithContent = matchingResults.filter(t =>
+      seen.get(t.id) === 'email' && transcriptHasContent(t)
+    );
+
+    let fallbackResults: any[] = [];
+    if (emailResultsWithContent.length === 0 && companyName && companyName.trim().length >= 3) {
+      console.log(`No email results with content, running fallback keyword search for "${companyName}"`);
+      const fallbackRaw = await paginatedFetch(KEYWORD_SEARCH_QUERY, {
+        keyword: companyName.trim(),
+      }, 2); // Limit fallback to 2 pages
+
+      // Only add results not already found
+      for (const t of fallbackRaw) {
+        if (t.id && !seen.has(t.id)) {
+          seen.set(t.id, 'keyword');
+          fallbackResults.push(t);
+        }
+      }
+      console.log(`Fallback search for "${companyName}" returned ${fallbackResults.length} new results`);
+    }
+
+    const allResults = [...matchingResults, ...fallbackResults];
+
+    // === Format results ===
+    const formattedResults: SearchResult[] = allResults
       .slice(0, limit)
       .map((t: any) => {
         // Convert date
@@ -265,15 +360,22 @@ serve(async (req) => {
           }
         }
 
+        const hasContent = transcriptHasContent(t);
+        const matchType = seen.get(t.id) || 'keyword';
+        const externalParticipants = extractExternalParticipants(t.meeting_attendees || []);
+
         return {
           id: t.id,
           title: t.title || 'Untitled Call',
           date: dateStr,
           duration_minutes: t.duration ? Math.round(t.duration) : null,
           participants: t.meeting_attendees || [],
+          external_participants: externalParticipants,
           summary: t.summary?.short_summary || '',
           meeting_url: t.transcript_url || '',
           keywords: t.summary?.keywords || [],
+          has_content: hasContent,
+          match_type: matchType,
         };
       });
 
@@ -283,7 +385,9 @@ serve(async (req) => {
         results: formattedResults,
         total: formattedResults.length,
         query: query,
-        participantEmailsUsed: participantEmails?.length || 0,
+        emailsSearched: validEmails.length,
+        companyNameSearched: companyName || null,
+        fallbackUsed: fallbackResults.length > 0,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );

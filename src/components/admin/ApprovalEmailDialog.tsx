@@ -55,15 +55,20 @@ export function ApprovalEmailDialog({
   const [customSignatureHtml, setCustomSignatureHtml] = useState("");
   const [customSignatureText, setCustomSignatureText] = useState("");
 
-  const userName = user?.first_name && user?.last_name 
-    ? `${user.first_name} ${user.last_name}` 
+  const userName = user?.first_name && user?.last_name
+    ? `${user.first_name} ${user.last_name}`
     : user?.first_name || user?.email?.split('@')[0] || "";
 
   const defaultSubject = DEFAULT_APPROVAL_EMAIL.subject;
   const defaultMessage = DEFAULT_APPROVAL_EMAIL.message.replace(/{{userName}}/g, userName);
 
   const handleSend = () => {
-    if (!user) return;
+    if (!user) {
+      console.error('[ApprovalDialog] handleSend called but user is null');
+      return;
+    }
+    
+    console.log('[ApprovalDialog] handleSend triggered for user:', user.email);
     
     // Capture values before closing dialog to avoid stale state
     const payload = {
@@ -81,9 +86,11 @@ export function ApprovalEmailDialog({
     setCustomSignatureText("");
     onOpenChange(false);
 
+    console.log('[ApprovalDialog] Calling onSendApprovalEmail for:', capturedUser.email);
+    
     // Fire-and-forget: UserActions handles errors via toast
     onSendApprovalEmail(capturedUser, payload).catch((error) => {
-      console.error('Error in approval flow:', error);
+      console.error('[ApprovalDialog] Error in approval flow:', error);
     });
   };
 

@@ -18,7 +18,7 @@ import { useBuyerEnrichmentQueue } from "@/hooks/useBuyerEnrichmentQueue";
 import { useDealEnrichment } from "@/hooks/useDealEnrichment";
 import { useEnrichmentProgress } from "@/hooks/useEnrichmentProgress";
 import { useAlignmentScoring } from "@/hooks/useAlignmentScoring";
-import type { UniverseFormData, BuyerRecord, UniverseDeal, DealEngagementStats } from "./types";
+import type { UniverseFormData } from "./types";
 
 export function useUniverseData() {
   const { id } = useParams<{ id: string }>();

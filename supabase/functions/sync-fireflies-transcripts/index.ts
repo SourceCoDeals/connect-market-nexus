@@ -3,9 +3,14 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 import { getCorsHeaders, corsPreflightResponse } from "../_shared/cors.ts";
 
+/** Internal email domains to filter out when extracting external participants */
+const INTERNAL_DOMAINS = ['sourcecodeals.com', 'captarget.com'];
+
 interface SyncRequest {
   listingId: string;
-  contactEmail: string;
+  contactEmails: string[];     // array of contact emails (new)
+  contactEmail?: string;       // legacy single email — still supported
+  companyName?: string;        // for fallback keyword search
   limit?: number;
 }
 
@@ -48,8 +53,8 @@ async function firefliesGraphQL(query: string, variables?: Record<string, unknow
 }
 
 /**
- * Use the Fireflies native `participants` filter to find transcripts
- * for a specific email — no client-side filtering needed.
+ * Use the Fireflies native `participants` filter to find transcripts.
+ * Now also fetches meeting_info for silent_meeting detection.
  */
 const PARTICIPANT_SEARCH_QUERY = `
   query SearchByParticipant($participants: [String!], $limit: Int, $skip: Int) {
@@ -70,18 +75,84 @@ const PARTICIPANT_SEARCH_QUERY = `
         short_summary
         keywords
       }
+      meeting_info {
+        silent_meeting
+        summary_status
+      }
+    }
+  }
+`;
+
+const KEYWORD_SEARCH_QUERY = `
+  query SearchByKeyword($keyword: String!, $limit: Int, $skip: Int) {
+    transcripts(keyword: $keyword, limit: $limit, skip: $skip) {
+      id
+      title
+      date
+      duration
+      organizer_email
+      participants
+      meeting_attendees {
+        displayName
+        email
+        name
+      }
+      transcript_url
+      summary {
+        short_summary
+        keywords
+      }
+      meeting_info {
+        silent_meeting
+        summary_status
+      }
     }
   }
 `;
 
 /**
- * Sync Fireflies transcripts for a deal by contact email.
+ * Check if a transcript has actual content (not a silent/skipped meeting).
+ */
+function transcriptHasContent(t: any): boolean {
+  const info = t.meeting_info || {};
+  const isSilent = info.silent_meeting === true;
+  const isSkipped = info.summary_status === 'skipped';
+  const hasSummary = !!(t.summary?.short_summary);
+
+  if ((isSilent || isSkipped) && !hasSummary) {
+    return false;
+  }
+  return true;
+}
+
+/**
+ * Extract external participants — filters out internal domains.
+ */
+function extractExternalParticipants(attendees: any[]): { name: string; email: string }[] {
+  if (!Array.isArray(attendees)) return [];
+
+  return attendees
+    .filter((a: any) => {
+      const email = (a.email || '').toLowerCase();
+      if (!email) return false;
+      return !INTERNAL_DOMAINS.some(domain => email.endsWith(`@${domain}`));
+    })
+    .map((a: any) => ({
+      name: a.displayName || a.name || a.email?.split('@')[0] || 'Unknown',
+      email: a.email || '',
+    }));
+}
+
+/**
+ * Sync Fireflies transcripts for a deal.
  *
- * 1. Queries Fireflies API with native participants filter for the contact email
- * 2. Links matching transcripts to the deal (stores ID only, not content)
- * 3. Skips duplicates
- *
- * Transcript content is fetched on-demand by fetch-fireflies-content.
+ * Improvements:
+ * 1. Accepts array of contact emails (with backward compat for single email)
+ * 2. Deduplicates results across multi-email search
+ * 3. Detects silent/skipped meetings and sets has_content flag
+ * 4. Extracts external participants
+ * 5. Falls back to company name keyword search when email search finds nothing
+ * 6. Tags results with match_type
  */
 serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
@@ -96,43 +167,109 @@ serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseKey);
 
     const body = await req.json() as SyncRequest;
-    const { listingId, contactEmail, limit = 50 } = body;
+    const { listingId, companyName, limit = 50 } = body;
 
-    if (!listingId || !contactEmail) {
+    // Support both new `contactEmails` array and legacy `contactEmail` single string
+    const allEmails: string[] = [];
+    if (body.contactEmails && Array.isArray(body.contactEmails)) {
+      allEmails.push(...body.contactEmails);
+    }
+    if (body.contactEmail && !allEmails.includes(body.contactEmail)) {
+      allEmails.push(body.contactEmail);
+    }
+    const validEmails = allEmails.filter(Boolean).map(e => e.toLowerCase());
+
+    if (!listingId) {
       return new Response(
-        JSON.stringify({ error: "listingId and contactEmail are required" }),
+        JSON.stringify({ error: "listingId is required" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    console.log(`Syncing Fireflies transcripts for ${contactEmail} on deal ${listingId}`);
-
-    // Use native Fireflies participants filter — no client-side filtering needed
-    const matchingTranscripts: any[] = [];
-    let skip = 0;
-    const batchSize = 50;
-    const maxPages = 10;
-
-    for (let page = 0; page < maxPages; page++) {
-      const data = await firefliesGraphQL(PARTICIPANT_SEARCH_QUERY, {
-        participants: [contactEmail],
-        limit: batchSize,
-        skip,
-      });
-      const batch = data.transcripts || [];
-      matchingTranscripts.push(...batch);
-
-      if (batch.length < batchSize || matchingTranscripts.length >= limit) break;
-      skip += batchSize;
+    if (validEmails.length === 0 && !companyName) {
+      return new Response(
+        JSON.stringify({ error: "At least one contact email or company name is required" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
 
-    console.log(`Found ${matchingTranscripts.length} Fireflies transcripts for ${contactEmail}`);
+    console.log(`Syncing Fireflies transcripts for [${validEmails.join(', ')}] on deal ${listingId}`);
 
-    if (matchingTranscripts.length === 0) {
+    // === Phase 1: Email-based participant search ===
+    const matchingTranscripts: any[] = [];
+    const transcriptMatchType = new Map<string, 'email' | 'keyword'>();
+
+    if (validEmails.length > 0) {
+      // Search using Fireflies native participants filter (supports array)
+      let skip = 0;
+      const batchSize = 50;
+      const maxPages = 10;
+
+      for (let page = 0; page < maxPages; page++) {
+        const data = await firefliesGraphQL(PARTICIPANT_SEARCH_QUERY, {
+          participants: validEmails,
+          limit: batchSize,
+          skip,
+        });
+        const batch = data.transcripts || [];
+        matchingTranscripts.push(...batch);
+        batch.forEach((t: any) => { if (t.id) transcriptMatchType.set(t.id, 'email'); });
+
+        if (batch.length < batchSize || matchingTranscripts.length >= limit) break;
+        skip += batchSize;
+      }
+
+      console.log(`Participant search returned ${matchingTranscripts.length} transcripts`);
+    }
+
+    // Deduplicate
+    const seen = new Set<string>();
+    const uniqueTranscripts = matchingTranscripts.filter(t => {
+      if (!t.id || seen.has(t.id)) return false;
+      seen.add(t.id);
+      return true;
+    });
+
+    // === Phase 2: Fallback keyword search by company name ===
+    const emailResultsWithContent = uniqueTranscripts.filter(t => transcriptHasContent(t));
+
+    if (emailResultsWithContent.length === 0 && companyName && companyName.trim().length >= 3) {
+      console.log(`No email results with content, running fallback for "${companyName}"`);
+
+      let skip = 0;
+      const batchSize = 50;
+      const maxPages = 4;
+
+      for (let page = 0; page < maxPages; page++) {
+        const data = await firefliesGraphQL(KEYWORD_SEARCH_QUERY, {
+          keyword: companyName.trim(),
+          limit: batchSize,
+          skip,
+        });
+        const batch = data.transcripts || [];
+
+        for (const t of batch) {
+          if (t.id && !seen.has(t.id)) {
+            seen.add(t.id);
+            uniqueTranscripts.push(t);
+            transcriptMatchType.set(t.id, 'keyword');
+          }
+        }
+
+        if (batch.length < batchSize) break;
+        skip += batchSize;
+      }
+
+      console.log(`Fallback search added ${uniqueTranscripts.length - emailResultsWithContent.length} transcripts`);
+    }
+
+    console.log(`Found ${uniqueTranscripts.length} unique Fireflies transcripts total`);
+
+    if (uniqueTranscripts.length === 0) {
       return new Response(
         JSON.stringify({
           success: true,
-          message: `No Fireflies transcripts found for ${contactEmail}`,
+          message: `No Fireflies transcripts found`,
           linked: 0,
           skipped: 0,
           total: 0,
@@ -145,7 +282,7 @@ serve(async (req) => {
     let skipped = 0;
     const errors: string[] = [];
 
-    for (const transcript of matchingTranscripts) {
+    for (const transcript of uniqueTranscripts) {
       if (!transcript.id) {
         skipped++;
         continue;
@@ -182,6 +319,11 @@ serve(async (req) => {
           }
         }
 
+        // Determine content status and match type
+        const hasContent = transcriptHasContent(transcript);
+        const matchType = transcriptMatchType.get(transcript.id) || 'email';
+        const externalParticipants = extractExternalParticipants(transcript.meeting_attendees || []);
+
         const { error: insertError } = await supabase
           .from('deal_transcripts')
           .insert({
@@ -189,7 +331,7 @@ serve(async (req) => {
             fireflies_transcript_id: transcript.id,
             fireflies_meeting_id: transcript.id,
             transcript_url: transcript.transcript_url || null,
-            title: transcript.title || `Call with ${contactEmail}`,
+            title: transcript.title || `Call`,
             call_date: callDate,
             participants: transcript.meeting_attendees || [],
             meeting_attendees: attendeeEmails,
@@ -198,6 +340,9 @@ serve(async (req) => {
             auto_linked: true,
             transcript_text: '', // Fetched on-demand via fetch-fireflies-content
             created_by: null,
+            has_content: hasContent,
+            match_type: matchType,
+            external_participants: externalParticipants,
           });
 
         if (insertError) {
@@ -205,7 +350,7 @@ serve(async (req) => {
           errors.push(`${transcript.id}: ${insertError.message}`);
           skipped++;
         } else {
-          console.log(`Linked transcript ${transcript.id}: ${transcript.title}`);
+          console.log(`Linked transcript ${transcript.id}: ${transcript.title} (has_content=${hasContent}, match_type=${matchType})`);
           linked++;
         }
       } catch (err) {
@@ -220,7 +365,9 @@ serve(async (req) => {
       message: `Linked ${linked} transcript${linked !== 1 ? 's' : ''}, skipped ${skipped}`,
       linked,
       skipped,
-      total: matchingTranscripts.length,
+      total: uniqueTranscripts.length,
+      emailsSearched: validEmails.length,
+      fallbackUsed: uniqueTranscripts.some(t => transcriptMatchType.get(t.id) === 'keyword'),
       errors: errors.length > 0 ? errors : undefined,
     };
 
