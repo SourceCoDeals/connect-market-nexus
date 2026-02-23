@@ -31,6 +31,7 @@ import {
   EnrichmentSummaryDialog,
   ReMarketingChat
 } from "@/components/remarketing";
+import { PushToDialerModal } from "@/components/remarketing/PushToDialerModal";
 import { AddBuyerToUniverseDialog } from "@/components/remarketing/AddBuyerToUniverseDialog";
 import { 
   SizeCriteria, 
@@ -108,7 +109,8 @@ const ReMarketingUniverseDetail = () => {
   const [addBuyerDialogOpen, setAddBuyerDialogOpen] = useState(false);
   const [showBuyerEnrichDialog, setShowBuyerEnrichDialog] = useState(false);
    const [selectedBuyerIds, setSelectedBuyerIds] = useState<string[]>([]);
-   const [isRemovingSelected, setIsRemovingSelected] = useState(false);
+    const [isRemovingSelected, setIsRemovingSelected] = useState(false);
+    const [dialerOpen, setDialerOpen] = useState(false);
    const [editingHeader, setEditingHeader] = useState(false);
 
   // Use the enrichment hook for proper batch processing with progress tracking (legacy - for direct enrichment)
@@ -907,6 +909,7 @@ const ReMarketingUniverseDetail = () => {
                        selectedCount={selectedBuyerIds.length}
                        onRemoveSelected={handleRemoveSelectedBuyers}
                        isRemovingSelected={isRemovingSelected}
+                       onPushToDialer={() => setDialerOpen(true)}
                     />
                   </CardHeader>
                   <CardContent className="p-0">
@@ -941,6 +944,13 @@ const ReMarketingUniverseDetail = () => {
                     Remove Selected{selectedBuyerIds.length ? ` (${selectedBuyerIds.length})` : ""}
                   </Button>
                 </div>
+                <PushToDialerModal
+                  open={dialerOpen}
+                  onOpenChange={setDialerOpen}
+                  contactIds={selectedBuyerIds}
+                  contactCount={selectedBuyerIds.length}
+                  entityType="buyers"
+                />
               </TabsContent>
 
               <TabsContent value="deals">

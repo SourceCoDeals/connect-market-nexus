@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -8,10 +8,11 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { FilterBar, TimeframeSelector, VALUATION_LEAD_FIELDS } from "@/components/filters";
 import { EnrichmentProgressIndicator, DealEnrichmentSummaryDialog } from "@/components/remarketing";
+import { PushToDialerModal } from "@/components/remarketing/PushToDialerModal";
 import {
   Loader2, BarChart3, ChevronDown, ChevronLeft, ChevronRight,
   ChevronsLeft, ChevronsRight, Calculator, XCircle, Users, Clock,
-  Zap, Sparkles, CheckCircle2, Download, EyeOff, Archive,
+  Zap, Sparkles, CheckCircle2, Download, EyeOff, Archive, Phone,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useValuationLeadsData } from "./useValuationLeadsData";
@@ -25,6 +26,7 @@ export { formatAge } from "./helpers";
 
 export default function ValuationLeads() {
   const { setPageContext } = useAICommandCenterContext();
+  const [dialerOpen, setDialerOpen] = useState(false);
   const {
     leads, isLoading, refetch, filteredLeads, paginatedLeads, adminProfiles,
     calculatorTypes, kpiStats,
@@ -190,8 +192,18 @@ export default function ValuationLeads() {
           <Button size="sm" variant="outline" onClick={() => handleArchive(Array.from(selectedIds))} className="gap-2 text-destructive hover:text-destructive">
             <Archive className="h-4 w-4" />Archive
           </Button>
+          <Button size="sm" variant="outline" onClick={() => setDialerOpen(true)} className="gap-2">
+            <Phone className="h-4 w-4" />Push to Dialer
+          </Button>
         </div>
       )}
+      <PushToDialerModal
+        open={dialerOpen}
+        onOpenChange={setDialerOpen}
+        contactIds={Array.from(selectedIds)}
+        contactCount={selectedIds.size}
+        entityType="listings"
+      />
 
       {/* Leads Table */}
       <ValuationLeadsTable

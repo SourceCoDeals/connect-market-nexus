@@ -52,6 +52,7 @@ import { CapTargetSyncBar } from "./components/CapTargetSyncBar";
 import { CapTargetExclusionLog } from "./components/CapTargetExclusionLog";
 import { CapTargetTableRow } from "./components/CapTargetTableRow";
 import { CapTargetBulkActions } from "./components/CapTargetBulkActions";
+import { PushToDialerModal } from "@/components/remarketing/PushToDialerModal";
 
 interface CapTargetDeal {
   id: string;
@@ -166,6 +167,7 @@ export default function CapTargetDeals() {
 
   // Selection
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [dialerOpen, setDialerOpen] = useState(false);
 
   // Wire AI UI actions to this page's state
   useAIUIActionHandler({
@@ -850,6 +852,14 @@ export default function CapTargetDeals() {
         showDeleteDialog={showDeleteDialog}
         setShowDeleteDialog={setShowDeleteDialog}
         onBulkDelete={handleBulkDelete}
+        onPushToDialer={() => setDialerOpen(true)}
+      />
+      <PushToDialerModal
+        open={dialerOpen}
+        onOpenChange={setDialerOpen}
+        contactIds={Array.from(selectedIds)}
+        contactCount={selectedIds.size}
+        entityType="listings"
       />
 
       {/* Active / Inactive Tabs */}

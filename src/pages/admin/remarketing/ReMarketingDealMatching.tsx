@@ -38,6 +38,7 @@ import {
   type OutreachStatus,
   ReMarketingChat,
 } from "@/components/remarketing";
+import { PushToDialerModal } from "@/components/remarketing/PushToDialerModal";
 import { RemarketingErrorBoundary } from "@/components/remarketing/RemarketingErrorBoundary";
 import { AddToUniverseQuickAction } from "@/components/remarketing/AddToUniverseQuickAction";
 import { useBackgroundScoringProgress } from "@/hooks/useBackgroundScoringProgress";
@@ -66,6 +67,7 @@ const ReMarketingDealMatching = () => {
   const [hideDisqualified, setHideDisqualified] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [emailDialogOpen, setEmailDialogOpen] = useState(false);
+  const [dialerOpen, setDialerOpen] = useState(false);
   const [highlightedBuyerIds, setHighlightedBuyerIds] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -947,8 +949,16 @@ const ReMarketingDealMatching = () => {
         onBulkPass={handleBulkPass}
         onExportCSV={handleExportCSV}
         onGenerateEmails={() => setEmailDialogOpen(true)}
+        onPushToDialer={() => setDialerOpen(true)}
         isProcessing={bulkApproveMutation.isPending}
         activeTab={activeTab}
+      />
+      <PushToDialerModal
+        open={dialerOpen}
+        onOpenChange={setDialerOpen}
+        contactIds={Array.from(selectedIds)}
+        contactCount={selectedIds.size}
+        entityType="buyers"
       />
 
       {/* Two-Column Stats Row */}
