@@ -1,7 +1,7 @@
 /**
  * UI Action Tools
  * Return structured commands that the frontend executes —
- * selecting rows, applying filters, navigating to pages.
+ * selecting rows, applying filters, sorting columns, navigating to pages.
  *
  * These tools don't query the database directly. They return
  * UI action payloads that the frontend chat panel intercepts
@@ -15,7 +15,7 @@ import type { ToolResult } from "./index.ts";
 // ---------- UI Action payload types ----------
 
 export interface UIAction {
-  type: 'select_rows' | 'apply_filter' | 'navigate' | 'highlight_rows' | 'clear_selection';
+  type: 'select_rows' | 'apply_filter' | 'sort_column' | 'navigate' | 'highlight_rows' | 'clear_selection';
   target: string;  // Which UI component to target (e.g. 'buyers_table', 'deals_table')
   payload: Record<string, unknown>;
 }
@@ -81,6 +81,30 @@ export const uiActionTools: ClaudeTool[] = [
     },
   },
   {
+    name: 'sort_table_column',
+    description: 'Sort a frontend data table by a specific column. Use when the user asks to sort, order, or arrange results by a field like "sort by revenue" or "order by state".',
+    input_schema: {
+      type: 'object',
+      properties: {
+        table: {
+          type: 'string',
+          enum: ['buyers', 'deals', 'leads', 'scores'],
+          description: 'Which table to sort',
+        },
+        field: {
+          type: 'string',
+          description: 'Column/field name to sort by (e.g. revenue, ebitda, deal_name, score, added, location, industry, priority, googleRating, googleReviews, linkedinCount)',
+        },
+        direction: {
+          type: 'string',
+          enum: ['asc', 'desc'],
+          description: 'Sort direction: asc (smallest first) or desc (largest first). Default: desc',
+        },
+      },
+      required: ['table', 'field'],
+    },
+  },
+  {
     name: 'navigate_to_page',
     description: 'Navigate the user to a specific page or view in the application. Use when the user asks to go to a deal, buyer profile, or specific section.',
     input_schema: {
@@ -88,7 +112,7 @@ export const uiActionTools: ClaudeTool[] = [
       properties: {
         page: {
           type: 'string',
-          enum: ['deal_detail', 'buyer_profile', 'pipeline', 'buyers_list', 'remarketing', 'data_room', 'transcripts', 'analytics'],
+          enum: ['deal_detail', 'buyer_profile', 'pipeline', 'buyers_list', 'remarketing', 'data_room', 'transcripts', 'analytics', 'all_deals', 'captarget', 'gp_partners', 'valuation_leads', 'owner_leads', 'referral_partners'],
           description: 'Target page/view',
         },
         entity_id: { type: 'string', description: 'ID of the entity to navigate to (deal_id or buyer_id)' },
@@ -109,6 +133,7 @@ export async function executeUIActionTool(
   switch (toolName) {
     case 'select_table_rows': return selectTableRows(args);
     case 'apply_table_filter': return applyTableFilter(args);
+    case 'sort_table_column': return sortTableColumn(args);
     case 'navigate_to_page': return navigateToPage(args);
     default: return { error: `Unknown UI action tool: ${toolName}` };
   }
@@ -172,6 +197,32 @@ function applyTableFilter(args: Record<string, unknown>): ToolResult {
   };
 }
 
+function sortTableColumn(args: Record<string, unknown>): ToolResult {
+  const table = args.table as string;
+  const field = args.field as string;
+  const direction = (args.direction as string) || 'desc';
+
+  if (!field) {
+    return { error: 'No field provided for sorting' };
+  }
+
+  const action: UIAction = {
+    type: 'sort_column',
+    target: `${table}_table`,
+    payload: {
+      field,
+      direction,
+    },
+  };
+
+  return {
+    data: {
+      ui_action: action,
+      message: `Sorted ${table} table by ${field} (${direction})`,
+    },
+  };
+}
+
 function navigateToPage(args: Record<string, unknown>): ToolResult {
   const page = args.page as string;
   const entityId = args.entity_id as string;
@@ -184,6 +235,12 @@ function navigateToPage(args: Record<string, unknown>): ToolResult {
     pipeline: '/pipeline',
     buyers_list: '/buyers',
     remarketing: '/remarketing',
+    all_deals: '/admin/remarketing/deals',
+    captarget: '/admin/remarketing/captarget',
+    gp_partners: '/admin/remarketing/gp-partners',
+    valuation_leads: '/admin/remarketing/valuation-leads',
+    owner_leads: '/admin/remarketing/owner-leads',
+    referral_partners: '/admin/remarketing/referral-partners',
     data_room: entityId ? `/deals/${entityId}/data-room` : '/data-room',
     transcripts: entityId ? `/deals/${entityId}/transcripts` : '/transcripts',
     analytics: '/analytics',

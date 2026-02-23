@@ -55,8 +55,8 @@ const TOOL_CATEGORIES: Record<string, string[]> = {
   FOLLOW_UP: ['get_deal_tasks', 'get_outreach_status', 'get_outreach_records', 'get_remarketing_outreach', 'get_meeting_action_items', 'get_current_user_context', 'get_connection_requests'],
 
   // Buyer intelligence
-  BUYER_SEARCH: ['search_buyers', 'search_lead_sources', 'search_valuation_leads', 'query_deals', 'search_inbound_leads'],
-  BUYER_ANALYSIS: ['get_buyer_profile', 'get_score_breakdown', 'get_top_buyers_for_deal', 'get_buyer_decisions', 'get_score_history', 'search_pe_contacts', 'get_buyer_learning_history'],
+  BUYER_SEARCH: ['search_buyers', 'search_lead_sources', 'search_valuation_leads', 'query_deals', 'search_inbound_leads', 'select_table_rows', 'apply_table_filter', 'sort_table_column'],
+  BUYER_ANALYSIS: ['get_buyer_profile', 'get_score_breakdown', 'get_top_buyers_for_deal', 'get_buyer_decisions', 'get_score_history', 'search_pe_contacts', 'get_buyer_learning_history', 'select_table_rows'],
 
   // Universe & outreach
   BUYER_UNIVERSE: ['search_buyer_universes', 'get_universe_details', 'get_outreach_records', 'get_remarketing_outreach', 'get_top_buyers_for_deal'],
@@ -73,10 +73,10 @@ const TOOL_CATEGORIES: Record<string, string[]> = {
 
   // Actions
   ACTION: ['create_deal_task', 'complete_deal_task', 'add_deal_note', 'log_deal_activity', 'update_deal_stage', 'grant_data_room_access'],
-  UI_ACTION: ['select_table_rows', 'apply_table_filter', 'navigate_to_page'],
+  UI_ACTION: ['select_table_rows', 'apply_table_filter', 'sort_table_column', 'navigate_to_page'],
 
   // Remarketing workflow
-  REMARKETING: ['search_buyers', 'get_top_buyers_for_deal', 'get_score_breakdown', 'select_table_rows', 'apply_table_filter', 'get_engagement_signals', 'get_buyer_decisions'],
+  REMARKETING: ['search_buyers', 'get_top_buyers_for_deal', 'get_score_breakdown', 'select_table_rows', 'apply_table_filter', 'sort_table_column', 'get_engagement_signals', 'get_buyer_decisions'],
 
   // Content generation
   MEETING_PREP: ['generate_meeting_prep', 'search_transcripts', 'search_buyer_transcripts', 'get_outreach_records', 'get_connection_messages'],

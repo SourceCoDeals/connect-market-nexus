@@ -316,6 +316,7 @@ function MessageBubble({
                 <MousePointerClick className="h-3 w-3" />
                 {action.type === 'select_rows' ? 'Selected rows' :
                  action.type === 'apply_filter' ? 'Applied filter' :
+                 action.type === 'sort_column' ? 'Sorted column' :
                  action.type === 'navigate' ? 'Navigated' : action.type}
               </Badge>
             ))}

@@ -34,7 +34,7 @@ export interface ToolCallInfo {
 }
 
 export interface UIActionPayload {
-  type: 'select_rows' | 'apply_filter' | 'navigate' | 'highlight_rows' | 'clear_selection';
+  type: 'select_rows' | 'apply_filter' | 'sort_column' | 'navigate' | 'highlight_rows' | 'clear_selection';
   target: string;
   payload: Record<string, unknown>;
 }
