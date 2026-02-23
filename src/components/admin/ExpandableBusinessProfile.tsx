@@ -43,7 +43,7 @@ export const ExpandableBusinessProfile: React.FC<ExpandableBusinessProfileProps>
 
   return (
     <div className={className}>
-      <Collapsible open={isOpen} onOpenChange={setIsOpen}>
+      <Collapsible open={isOpen} onOpenChange={setIsOpen} onClick={(e: React.MouseEvent) => e.stopPropagation()}>
         <CollapsibleTrigger asChild>
           <Button
             variant="ghost"

@@ -482,11 +482,12 @@ function CompactMessageThread({
     if (connectionRequestId) {
       markRead.mutate(connectionRequestId);
     }
-  }, [connectionRequestId, messages.length, markRead]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [connectionRequestId, messages.length]);
 
-  // Auto-scroll to bottom
+  // Auto-scroll to bottom within message container only
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
   }, [messages]);
 
   const handleSend = () => {
