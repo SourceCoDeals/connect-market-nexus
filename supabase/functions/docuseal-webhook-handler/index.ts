@@ -3,8 +3,10 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.47.10";
 
 /**
  * docuseal-webhook-handler
- * Processes DocuSeal webhook events (form.completed, form.viewed, etc.)
- * Updates both DocuSeal-specific fields and legacy boolean fields on firm_agreements.
+ * Processes DocuSeal webhook events (form.completed, form.viewed, form.started, form.declined, form.expired)
+ * Updates DocuSeal-specific fields, legacy booleans, AND expanded status fields on firm_agreements.
+ * Creates admin_notifications on key events.
+ * Includes idempotency checks via docuseal_webhook_log.
  */
 
 // Verify webhook signature using HMAC-SHA256
@@ -27,7 +29,6 @@ async function verifyWebhookSignature(
     const expectedHex = Array.from(new Uint8Array(sig))
       .map((b) => b.toString(16).padStart(2, "0"))
       .join("");
-    // Timing-safe comparison to prevent timing attacks
     const encoder2 = new TextEncoder();
     const a = encoder2.encode(expectedHex);
     const b = encoder2.encode(signature);
@@ -46,14 +47,22 @@ async function verifyWebhookSignature(
 function isValidDocumentUrl(url: string): boolean {
   try {
     const parsed = new URL(url);
-    return parsed.protocol === "https:";
+    if (parsed.protocol !== "https:") return false;
+    // Accept DocuSeal domains + common S3/storage domains
+    const trustedDomains = [
+      "docuseal.com",
+      "docuseal.co",
+      "amazonaws.com",
+      "storage.googleapis.com",
+      "supabase.co",
+    ];
+    return trustedDomains.some(d => parsed.hostname.endsWith(d));
   } catch {
     return false;
   }
 }
 
 serve(async (req: Request) => {
-  // Webhooks are POST only — no CORS needed (server-to-server)
   if (req.method !== "POST") {
     return new Response("Method Not Allowed", { status: 405 });
   }
@@ -61,7 +70,6 @@ serve(async (req: Request) => {
   try {
     const rawBody = await req.text();
 
-    // C1: Webhook signature verification is MANDATORY
     const webhookSecret = Deno.env.get("DOCUSEAL_WEBHOOK_SECRET");
     if (!webhookSecret) {
       console.error("❌ DOCUSEAL_WEBHOOK_SECRET not configured");
@@ -89,6 +97,19 @@ serve(async (req: Request) => {
 
     const submissionId = String(submissionData.submission_id || submissionData.id);
 
+    // ── Idempotency check: skip if we already processed this exact event ──
+    const { data: existingLog } = await supabase
+      .from("docuseal_webhook_log")
+      .select("id")
+      .eq("submission_id", submissionId)
+      .eq("event_type", eventType)
+      .maybeSingle();
+
+    if (existingLog) {
+      console.log(`⏩ Duplicate event skipped: ${eventType} for submission ${submissionId}`);
+      return new Response(JSON.stringify({ success: true, note: "Duplicate event" }), { status: 200 });
+    }
+
     // Log the raw webhook
     const { error: logError } = await supabase.from("docuseal_webhook_log").insert({
       event_type: eventType,
@@ -101,41 +122,40 @@ serve(async (req: Request) => {
     if (logError) console.error("Failed to log webhook:", logError);
 
     // Find the firm that matches this submission
-    // Check both nda and fee columns
     const { data: ndaFirm } = await supabase
       .from("firm_agreements")
-      .select("id")
+      .select("id, primary_company_name")
       .eq("nda_docuseal_submission_id", submissionId)
       .maybeSingle();
 
     const { data: feeFirm } = await supabase
       .from("firm_agreements")
-      .select("id")
+      .select("id, primary_company_name")
       .eq("fee_docuseal_submission_id", submissionId)
       .maybeSingle();
 
     let firmId = ndaFirm?.id || feeFirm?.id;
+    let firmName = ndaFirm?.primary_company_name || feeFirm?.primary_company_name || "Unknown";
     let documentType = ndaFirm ? "nda" : feeFirm ? "fee_agreement" : null;
 
-    // M2: Only fall back to external_id if it matches a registered submission
+    // Fallback to external_id
     if (!firmId || !documentType) {
       if (submissionData.external_id) {
         const { data: extFirm } = await supabase
           .from("firm_agreements")
-          .select("id, nda_docuseal_submission_id, fee_docuseal_submission_id")
+          .select("id, primary_company_name, nda_docuseal_submission_id, fee_docuseal_submission_id")
           .eq("id", submissionData.external_id)
           .maybeSingle();
 
         if (extFirm) {
-          // Only accept external_id if submission_id actually matches a registered column
           if (extFirm.nda_docuseal_submission_id === submissionId) {
             firmId = extFirm.id;
+            firmName = extFirm.primary_company_name || "Unknown";
             documentType = "nda";
           } else if (extFirm.fee_docuseal_submission_id === submissionId) {
             firmId = extFirm.id;
+            firmName = extFirm.primary_company_name || "Unknown";
             documentType = "fee_agreement";
-          } else {
-            console.warn("⚠️ external_id found but submission_id doesn't match any registered column");
           }
         }
       }
@@ -146,12 +166,11 @@ serve(async (req: Request) => {
       }
     }
 
-    await processEvent(supabase, eventType, firmId, documentType, submissionData, submissionId);
+    await processEvent(supabase, eventType, firmId, firmName, documentType, submissionData, submissionId);
 
     return new Response(JSON.stringify({ success: true }), { status: 200 });
   } catch (error: any) {
     console.error("❌ Webhook handler error:", error);
-    // H2: Don't leak internal error details
     return new Response(JSON.stringify({ error: "Internal server error" }), { status: 500 });
   }
 });
@@ -160,19 +179,23 @@ async function processEvent(
   supabase: any,
   eventType: string,
   firmId: string,
+  firmName: string,
   documentType: string,
   submissionData: any,
   submissionId: string
 ) {
   const isNda = documentType === "nda";
   const now = new Date().toISOString();
+  const docLabel = isNda ? "NDA" : "Fee Agreement";
 
   // Map DocuSeal event to status
   let docusealStatus: string;
+  let expandedStatus: string | null = null; // for nda_status / fee_agreement_status sync
   switch (eventType) {
     case "form.completed":
     case "submission.completed":
       docusealStatus = "completed";
+      expandedStatus = "signed";
       break;
     case "form.viewed":
     case "submission.viewed":
@@ -185,6 +208,12 @@ async function processEvent(
     case "form.declined":
     case "submission.declined":
       docusealStatus = "declined";
+      expandedStatus = "declined";
+      break;
+    case "form.expired":
+    case "submission.expired":
+      docusealStatus = "expired";
+      expandedStatus = "expired";
       break;
     default:
       docusealStatus = eventType.replace(/[^a-z0-9._-]/gi, "").substring(0, 50);
@@ -192,25 +221,29 @@ async function processEvent(
 
   console.log(`📝 Processing ${eventType} for ${documentType} on firm ${firmId}`);
 
-  // Build update payload
+  // Build update payload — update BOTH docuseal status AND expanded status
   const updates: Record<string, any> = {
     updated_at: now,
   };
 
   if (isNda) {
     updates.nda_docuseal_status = docusealStatus;
+    if (expandedStatus) updates.nda_status = expandedStatus;
 
     if (docusealStatus === "completed") {
       updates.nda_signed = true;
       updates.nda_signed_at = now;
-      // M4: Validate document URL before storing
       const docUrl = submissionData.documents?.[0]?.url;
       if (docUrl && isValidDocumentUrl(docUrl)) {
         updates.nda_signed_document_url = docUrl;
+        updates.nda_document_url = docUrl; // sync to expanded field too
       }
+    } else if (docusealStatus === "declined" || docusealStatus === "expired") {
+      updates.nda_signed = false;
     }
   } else {
     updates.fee_docuseal_status = docusealStatus;
+    if (expandedStatus) updates.fee_agreement_status = expandedStatus;
 
     if (docusealStatus === "completed") {
       updates.fee_agreement_signed = true;
@@ -218,7 +251,10 @@ async function processEvent(
       const docUrl = submissionData.documents?.[0]?.url;
       if (docUrl && isValidDocumentUrl(docUrl)) {
         updates.fee_signed_document_url = docUrl;
+        updates.fee_agreement_document_url = docUrl; // sync to expanded field too
       }
+    } else if (docusealStatus === "declined" || docusealStatus === "expired") {
+      updates.fee_agreement_signed = false;
     }
   }
 
@@ -229,6 +265,12 @@ async function processEvent(
 
   if (error) {
     console.error("❌ Failed to update firm_agreements:", error);
+  }
+
+  // ── Create admin notifications for key events ──
+  const notifiableEvents = ["completed", "declined", "expired"];
+  if (notifiableEvents.includes(docusealStatus)) {
+    await createAdminNotification(supabase, firmId, firmName, docLabel, docusealStatus);
   }
 
   // If completed, also sync to firm_members profiles
@@ -254,5 +296,59 @@ async function processEvent(
     } catch (syncError) {
       console.error("⚠️ Profile sync error:", syncError);
     }
+  }
+}
+
+/**
+ * Create admin_notifications for all admins when a document event occurs.
+ */
+async function createAdminNotification(
+  supabase: any,
+  firmId: string,
+  firmName: string,
+  docLabel: string,
+  status: string,
+) {
+  try {
+    // Get all admin user IDs
+    const { data: admins } = await supabase
+      .from("profiles")
+      .select("id")
+      .eq("role", "admin");
+
+    if (!admins?.length) return;
+
+    const statusMessages: Record<string, { title: string; message: string }> = {
+      completed: {
+        title: `${docLabel} Signed`,
+        message: `${firmName} has signed the ${docLabel}.`,
+      },
+      declined: {
+        title: `${docLabel} Declined`,
+        message: `${firmName} has declined the ${docLabel}. Follow up may be needed.`,
+      },
+      expired: {
+        title: `${docLabel} Expired`,
+        message: `${docLabel} for ${firmName} has expired and needs to be resent.`,
+      },
+    };
+
+    const notif = statusMessages[status];
+    if (!notif) return;
+
+    const notifications = admins.map((admin: any) => ({
+      admin_id: admin.id,
+      title: notif.title,
+      message: notif.message,
+      notification_type: `document_${status}`,
+      metadata: { firm_id: firmId, document_type: docLabel.toLowerCase().replace(/ /g, '_'), docuseal_status: status },
+      is_read: false,
+    }));
+
+    const { error } = await supabase.from("admin_notifications").insert(notifications);
+    if (error) console.error("⚠️ Failed to create notifications:", error);
+    else console.log(`🔔 Created ${notifications.length} admin notifications for ${docLabel} ${status}`);
+  } catch (err) {
+    console.error("⚠️ Notification creation error:", err);
   }
 }
