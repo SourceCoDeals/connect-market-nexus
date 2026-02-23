@@ -13,29 +13,24 @@ export const useVerificationSuccessEmail = () => {
     firstName = '',
     lastName = ''
   }: SendVerificationSuccessEmailParams) => {
-    try {
-      // Sending verification success email
-      
-      const { data, error } = await supabase.functions.invoke('send-verification-success-email', {
-        body: {
-          email,
-          firstName,
-          lastName
-        }
-      });
+    // Sending verification success email
+    // Note: Don't show toast errors for this as it's a background operation
+    // The user shouldn't be interrupted by email sending failures
 
-      if (error) {
-        throw error;
+    const { data, error } = await supabase.functions.invoke('send-verification-success-email', {
+      body: {
+        email,
+        firstName,
+        lastName
       }
+    });
 
-      // Verification success email sent successfully
-      return data;
-    } catch (error: unknown) {
-      // Don't show toast errors for this as it's a background operation
-      // The user shouldn't be interrupted by email sending failures
-      
+    if (error) {
       throw error;
     }
+
+    // Verification success email sent successfully
+    return data;
   };
 
   return {
