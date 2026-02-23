@@ -476,30 +476,51 @@ const ReMarketingBuyers = () => {
         </div>
         <div className="flex items-center gap-2">
           <BuyerCSVImport />
-          <Button
-            size="sm"
-            variant="outline"
-            className="gap-1.5"
-            disabled={enrichingIds.size > 0 || filteredBuyers.length === 0}
-            onClick={async () => {
-              const ids = selectedIds.size > 0 ? Array.from(selectedIds) : filteredBuyers.map((b: any) => b.id);
-              if (ids.length === 0) return;
-              setEnrichingIds(new Set(ids));
-              try {
-                const { queueBuyerEnrichment } = await import("@/lib/remarketing/queueEnrichment");
-                await queueBuyerEnrichment(ids);
-                queryClient.invalidateQueries({ queryKey: ['remarketing', 'buyers'] });
-              } catch (err) {
-                console.error('Bulk enrich failed:', err);
-                toast.error('Failed to queue enrichment');
-              } finally {
-                setEnrichingIds(new Set());
-              }
-            }}
-          >
-            <Sparkles className="h-3.5 w-3.5" />
-            {enrichingIds.size > 0 ? `Enriching…` : selectedIds.size > 0 ? `Enrich Selected (${selectedIds.size})` : 'Enrich All'}
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                size="sm"
+                variant="outline"
+                className="gap-1.5"
+                disabled={enrichingIds.size > 0 || filteredBuyers.length === 0}
+              >
+                <Sparkles className="h-3.5 w-3.5" />
+                {enrichingIds.size > 0 ? `Enriching…` : selectedIds.size > 0 ? `Enrich Selected (${selectedIds.size})` : 'Enrich All'}
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={async () => {
+                const base = selectedIds.size > 0 ? filteredBuyers.filter((b: any) => selectedIds.has(b.id)) : filteredBuyers;
+                const unenriched = base.filter((b: any) => b.data_completeness !== 'high' && b.data_completeness !== 'medium' && !b.data_last_updated);
+                const ids = unenriched.filter((b: any) => b.company_website || b.platform_website || b.pe_firm_website).map((b: any) => b.id);
+                if (ids.length === 0) { toast.info('No unenriched buyers with websites'); return; }
+                setEnrichingIds(new Set(ids));
+                try {
+                  const { queueBuyerEnrichment } = await import("@/lib/remarketing/queueEnrichment");
+                  await queueBuyerEnrichment(ids);
+                  queryClient.invalidateQueries({ queryKey: ['remarketing', 'buyers'] });
+                } catch (err) { console.error('Bulk enrich failed:', err); toast.error('Failed to queue enrichment'); } finally { setEnrichingIds(new Set()); }
+              }}>
+                <Sparkles className="h-4 w-4 mr-2" />
+                Enrich Unenriched ({(() => { const base = selectedIds.size > 0 ? filteredBuyers.filter((b: any) => selectedIds.has(b.id)) : filteredBuyers; return base.filter((b: any) => b.data_completeness !== 'high' && b.data_completeness !== 'medium' && !b.data_last_updated).filter((b: any) => b.company_website || b.platform_website || b.pe_firm_website).length; })()})
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={async () => {
+                const base = selectedIds.size > 0 ? filteredBuyers.filter((b: any) => selectedIds.has(b.id)) : filteredBuyers;
+                const ids = base.filter((b: any) => b.company_website || b.platform_website || b.pe_firm_website).map((b: any) => b.id);
+                if (ids.length === 0) { toast.info('No buyers with websites to enrich'); return; }
+                setEnrichingIds(new Set(ids));
+                try {
+                  const { queueBuyerEnrichment } = await import("@/lib/remarketing/queueEnrichment");
+                  await queueBuyerEnrichment(ids);
+                  queryClient.invalidateQueries({ queryKey: ['remarketing', 'buyers'] });
+                } catch (err) { console.error('Bulk enrich failed:', err); toast.error('Failed to queue enrichment'); } finally { setEnrichingIds(new Set()); }
+              }}>
+                <Sparkles className="h-4 w-4 mr-2" />
+                Re-enrich All ({(() => { const base = selectedIds.size > 0 ? filteredBuyers.filter((b: any) => selectedIds.has(b.id)) : filteredBuyers; return base.filter((b: any) => b.company_website || b.platform_website || b.pe_firm_website).length; })()})
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+          
           <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
             <DialogTrigger asChild>
               <Button className="gap-2">
