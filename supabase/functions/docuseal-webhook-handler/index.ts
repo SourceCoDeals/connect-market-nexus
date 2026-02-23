@@ -67,16 +67,17 @@ serve(async (req: Request) => {
     const rawBody = await req.text();
 
     const webhookSecret = Deno.env.get("DOCUSEAL_WEBHOOK_SECRET");
-    
-    // If secret is configured, attempt verification but don't block if DocuSeal
-    // doesn't send the header (their webhook auth is inconsistent)
+
+    // If secret is configured, enforce verification — reject if no matching header.
     if (webhookSecret) {
       const valid = verifyDocuSealWebhook(req, webhookSecret);
       if (!valid) {
-        console.warn("⚠️ No matching secret header found — processing with payload validation");
-      } else {
-        console.log("✅ Webhook secret verified");
+        console.error("❌ Webhook secret verification failed — rejecting request");
+        return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401 });
       }
+      console.log("✅ Webhook secret verified");
+    } else {
+      console.warn("⚠️ DOCUSEAL_WEBHOOK_SECRET not configured — webhook verification disabled");
     }
 
     // Parse and validate payload structure

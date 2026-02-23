@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "@/hooks/use-toast";
@@ -20,12 +20,53 @@ import { SignupStepPersonal } from "./SignupStepPersonal";
 import { SignupStepBuyerType } from "./SignupStepBuyerType";
 import { SignupStepBuyerProfile } from "./SignupStepBuyerProfile";
 
+const SIGNUP_DRAFT_KEY = 'sourceco_signup_draft';
+const SIGNUP_STEP_KEY = 'sourceco_signup_step';
+
+/** Fields that should never be persisted to localStorage. */
+const SENSITIVE_FIELDS = new Set(['password', 'confirmPassword']);
+
+function loadDraft(): { formData: SignupFormData; step: number } | null {
+  try {
+    const raw = localStorage.getItem(SIGNUP_DRAFT_KEY);
+    if (!raw) return null;
+    const saved = JSON.parse(raw) as Partial<SignupFormData>;
+    const step = parseInt(localStorage.getItem(SIGNUP_STEP_KEY) || '0', 10);
+    // Merge saved fields on top of initial defaults (handles schema additions)
+    return { formData: { ...INITIAL_FORM_DATA, ...saved }, step: Number.isFinite(step) ? step : 0 };
+  } catch {
+    return null;
+  }
+}
+
+function saveDraft(formData: SignupFormData, step: number) {
+  try {
+    const safe: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(formData)) {
+      if (!SENSITIVE_FIELDS.has(key)) safe[key] = value;
+    }
+    localStorage.setItem(SIGNUP_DRAFT_KEY, JSON.stringify(safe));
+    localStorage.setItem(SIGNUP_STEP_KEY, String(step));
+  } catch { /* quota exceeded — non-critical */ }
+}
+
+function clearDraft() {
+  localStorage.removeItem(SIGNUP_DRAFT_KEY);
+  localStorage.removeItem(SIGNUP_STEP_KEY);
+}
+
 const Signup = () => {
   const { isLoading } = useAuth();
-  const [currentStep, setCurrentStep] = useState(0);
+  const draft = loadDraft();
+  const [currentStep, setCurrentStep] = useState(draft?.step ?? 0);
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [formData, setFormData] = useState<SignupFormData>(INITIAL_FORM_DATA);
+  const [formData, setFormData] = useState<SignupFormData>(draft?.formData ?? INITIAL_FORM_DATA);
+
+  // Persist form data to localStorage on every change (passwords excluded)
+  useEffect(() => {
+    saveDraft(formData, currentStep);
+  }, [formData, currentStep]);
 
   const { handleSubmit: doSubmit } = useSignupSubmit(formData);
 
@@ -47,12 +88,11 @@ const Signup = () => {
 
   const handlePrevious = () => setCurrentStep((prev) => Math.max(prev - 1, 0));
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!doValidation()) { window.scrollTo({ top: 0, behavior: 'smooth' }); return; }
+  const submitForm = useCallback(async () => {
     setIsSubmitting(true);
     try {
       await doSubmit();
+      clearDraft();
     } catch (error: any) {
       console.error('Signup error:', error);
       let errorMessage = "An unexpected error occurred. Please try again.";
@@ -62,6 +102,18 @@ const Signup = () => {
       else if (error.message) errorMessage = error.message;
       toast({ variant: "destructive", title: "Signup failed", description: errorMessage });
     } finally { setIsSubmitting(false); }
+  }, [doSubmit]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!doValidation()) { window.scrollTo({ top: 0, behavior: 'smooth' }); return; }
+    await submitForm();
+  };
+
+  /** Submit without step 4 validation — buyer can complete their profile later. */
+  const handleSkipAndSubmit = async () => {
+    setValidationErrors([]);
+    await submitForm();
   };
 
   const renderStepContent = () => {
@@ -132,7 +184,10 @@ const Signup = () => {
         <CardFooter className="flex flex-col space-y-4 pt-6 px-0">
           <div className="w-full space-y-3">
             {currentStep === STEPS.length - 1 ? (
-              <Button type="submit" onClick={handleSubmit} disabled={isLoading || isSubmitting} className="w-full text-sm font-medium">{isLoading || isSubmitting ? "Creating account..." : "Create account"}</Button>
+              <>
+                <Button type="submit" onClick={handleSubmit} disabled={isLoading || isSubmitting} className="w-full text-sm font-medium">{isLoading || isSubmitting ? "Creating account..." : "Create account"}</Button>
+                <button type="button" onClick={handleSkipAndSubmit} disabled={isLoading || isSubmitting} className="w-full text-xs text-muted-foreground hover:text-foreground transition-colors">Skip for now — complete after approval</button>
+              </>
             ) : currentStep === 2 ? (
               <>
                 <Button type="button" onClick={handleNext} disabled={isLoading || isSubmitting} className="w-full text-sm font-medium">Continue</Button>

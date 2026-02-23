@@ -85,13 +85,26 @@ serve(async (req: Request) => {
     // Determine company name and email domain
     const companyName = profile.company || body.company || "Unknown Company";
     const normalizedName = companyName.toLowerCase().trim().replace(/[^a-z0-9\s]/g, "");
-    const emailDomain = profile.email?.split("@")[1] || null;
+    const emailDomain = profile.email?.split("@")[1]?.toLowerCase() || null;
+
+    // Generic email providers — skip domain-based firm matching for these
+    // to prevent grouping unrelated users who share the same free provider.
+    const GENERIC_EMAIL_DOMAINS = new Set([
+      "gmail.com", "googlemail.com", "yahoo.com", "yahoo.co.uk",
+      "outlook.com", "hotmail.com", "live.com", "msn.com",
+      "aol.com", "icloud.com", "me.com", "mac.com",
+      "mail.com", "protonmail.com", "proton.me",
+      "zoho.com", "yandex.com", "gmx.com", "gmx.net",
+      "tutanota.com", "fastmail.com",
+    ]);
+
+    const isGenericDomain = emailDomain ? GENERIC_EMAIL_DOMAINS.has(emailDomain) : true;
 
     // Find or create firm
     let firmId: string | null = null;
 
-    // Check by email domain first
-    if (emailDomain) {
+    // Check by email domain first (skip for generic providers like gmail)
+    if (emailDomain && !isGenericDomain) {
       const { data } = await supabaseAdmin
         .from("firm_agreements")
         .select("id")
@@ -117,7 +130,9 @@ serve(async (req: Request) => {
         .insert({
           primary_company_name: companyName,
           normalized_company_name: normalizedName,
-          email_domain: emailDomain,
+          // Only store email domain for corporate domains; generic domains
+          // (gmail, outlook, etc.) would incorrectly match unrelated users.
+          email_domain: isGenericDomain ? null : emailDomain,
           nda_signed: false,
           fee_agreement_signed: false,
         })
