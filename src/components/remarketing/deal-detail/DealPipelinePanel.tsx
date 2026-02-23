@@ -12,7 +12,7 @@ import type { AgreementStatus } from "@/hooks/admin/use-firm-agreements";
 
 interface DealPipelineEntry {
   id: string;
-  deal_name: string | null;
+  title: string | null;
   status: string | null;
   probability: number | null;
   nda_status: string | null;
@@ -44,7 +44,7 @@ export const DealPipelinePanel = ({ listingId }: { listingId: string }) => {
         .from('deals')
         .select(`
           id,
-          deal_name,
+          title,
           status,
           probability,
           nda_status,
@@ -107,7 +107,7 @@ export const DealPipelinePanel = ({ listingId }: { listingId: string }) => {
                       to={`/admin/buyers/${entry.remarketing_buyer_id}`}
                       className="font-medium text-sm hover:underline text-primary"
                     >
-                      {entry.remarketing_buyer?.company_name || entry.deal_name || 'Unknown Buyer'}
+                      {entry.remarketing_buyer?.company_name || entry.title || 'Unknown Buyer'}
                     </Link>
                     {entry.remarketing_buyer?.buyer_type && (
                       <Badge variant="outline" className="text-xs">
