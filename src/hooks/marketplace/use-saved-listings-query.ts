@@ -76,7 +76,7 @@ export const useSavedListings = (filters: FilterOptions = {}) => {
         }
         
         if (filters.search) {
-          query = query.or(`title.ilike.%${filters.search}%,description.ilike.%${filters.search}%`);
+          query = query.textSearch('fts', filters.search, { type: 'websearch', config: 'english' });
         }
         
         // Apply pagination

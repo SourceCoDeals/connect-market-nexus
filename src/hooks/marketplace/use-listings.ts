@@ -116,8 +116,7 @@ export const useListings = (filters: FilterOptions = {}) => {
           }
           
           if (filters.search) {
-            query = query.ilike('title', `%${filters.search}%`);
-            // Added search filter
+            query = query.textSearch('fts', filters.search, { type: 'websearch', config: 'english' });
           }
           
           // Apply revenue filters

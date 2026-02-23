@@ -96,7 +96,7 @@ export const AddDealDialog = ({
         .range(pageParam, pageParam + PAGE_SIZE - 1);
 
       if (searchQuery.trim()) {
-        query = query.or(`title.ilike.%${searchQuery}%,internal_company_name.ilike.%${searchQuery}%,location.ilike.%${searchQuery}%`);
+        query = query.textSearch('fts', searchQuery, { type: 'websearch', config: 'english' });
       }
 
       const { data, error } = await query;
