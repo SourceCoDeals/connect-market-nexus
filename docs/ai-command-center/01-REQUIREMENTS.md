@@ -1,6 +1,6 @@
 # SourceCo AI Command Center - Requirements Specification
 
-**Version:** 1.0
+**Version:** 1.1
 **Date:** 2026-02-23
 **Status:** Draft
 **Classification:** Internal - Confidential
@@ -22,13 +22,25 @@ SourceCo admin users currently must navigate 15+ different pages and manually cr
 
 These workflows consume significant time daily and prevent team members from focusing on high-value relationship work.
 
-### 1.3 Success Criteria
+### 1.3 Core Design Philosophy: Speed-First, Depth-On-Demand
+
+**Speed is the #1 product requirement.** The AI Command Center must feel instant for everyday questions and only take time when the user explicitly requests a deep analysis. Users will abandon a tool that makes them wait 5 seconds for "how many active deals do I have?"
+
+- **Fast by default:** Simple queries answered in < 1-2 seconds (not 5-8 seconds)
+- **Depth on demand:** Users can "dive deeper" when they want full analysis — the system doesn't front-load complexity
+- **Progressive disclosure:** Short answer first → follow-up suggestions → expanded analysis on request
+- **Right-size every response:** 1-2 sentences for a count, a prioritized list for follow-ups, a multi-section analysis only when asked
+
+### 1.4 Success Criteria
 
 | Metric | Target | Measurement |
 |--------|--------|-------------|
 | Query accuracy | >= 95% factual accuracy | Automated evaluation suite (100-query benchmark) |
-| Response latency (P50) | < 3 seconds | Server-side instrumentation |
-| Response latency (P95) | < 8 seconds | Server-side instrumentation |
+| Simple query latency (P50) | < 1.5 seconds | Server-side instrumentation |
+| Standard query latency (P50) | < 3 seconds | Server-side instrumentation |
+| Complex query latency (P50) | < 8 seconds | Server-side instrumentation |
+| First token latency | < 500ms | Client-side instrumentation |
+| Cache hit rate | >= 10% of queries | Cache analytics |
 | Daily active users | 100% of admin team within 30 days | Session analytics |
 | User satisfaction | >= 4.2/5.0 | In-chat feedback ratings |
 | Zero hallucination rate | 0% fabricated data points | Weekly audit of flagged responses |
@@ -315,15 +327,28 @@ The AI Command Center must resolve entities across systems:
 
 ## 5. Non-Functional Requirements
 
-### NFR-001: Performance
+### NFR-001: Performance (Speed-First Architecture)
 
-| Metric | Requirement |
-|--------|------------|
-| Response latency (simple queries) | < 2 seconds P50 |
-| Response latency (complex multi-tool queries) | < 8 seconds P50 |
-| Response latency (P99) | < 15 seconds |
-| Concurrent users | 20+ simultaneous |
-| Streaming first token | < 500ms |
+**Design principle:** Every query is fast by default. Depth is opt-in, not default.
+
+| Metric | Requirement | Design Strategy |
+|--------|------------|-----------------|
+| Instant queries (counts, status checks) | < 1s P50 | Haiku direct answer, cache hits |
+| Quick queries (single-tool lookups) | < 1.5s P50 | Haiku + 1 tool call, context bypass routing |
+| Standard queries (multi-tool analysis) | < 3s P50 | Sonnet + 2-3 parallel tool calls |
+| Complex queries (cross-system synthesis) | < 5s P50 | Sonnet + 4-5 parallel tool calls |
+| Deep analysis (briefings, full reports) | < 10s P50 | Opus + 5-7 tool calls, only when explicitly requested |
+| Response latency (P99 all queries) | < 15 seconds | Hard timeout with partial results |
+| First token to screen | < 500ms | Streaming enabled on all tiers |
+| Concurrent users | 20+ simultaneous | Edge function auto-scaling |
+| Cache hit response time | < 100ms | In-memory TTL cache for aggregate queries |
+| Router bypass response time | < 200ms saved | Context-based routing skips Haiku classification |
+
+**Speed Optimization Stack:**
+1. **Client-side:** Prefetch user context on login, Cmd+K opens in < 50ms, optimistic UI
+2. **Router:** Cache hits (< 100ms), context bypass (skip router), compact Haiku classification (< 300ms)
+3. **Tools:** 5s hard timeout, default limit 5 results, parallel dispatch, two-depth mode (quick/full)
+4. **LLM:** Haiku for 40% of queries, prompt caching, compact tool results, max 500 tokens for quick answers
 
 ### NFR-002: Security
 
@@ -343,16 +368,17 @@ The AI Command Center must resolve entities across systems:
 - Automatic retry with exponential backoff for transient failures
 - Fallback responses for common queries when AI is down
 
-### NFR-004: Cost Management
+### NFR-004: Cost Management (Speed-Optimized Distribution)
 
-| Model Tier | Use Case | Cost per Query (est.) |
-|-----------|----------|----------------------|
-| Claude Haiku | Intent classification, routing | $0.001 |
-| Claude Sonnet | Standard queries (90% of traffic) | $0.01-0.02 |
-| Claude Opus | Complex multi-source synthesis | $0.05-0.10 |
-| **Weighted Average** | **All queries** | **< $0.03** |
+| Model Tier | Use Case | % of Traffic | Cost per Query (est.) |
+|-----------|----------|-------------|----------------------|
+| Cache hit | Repeated aggregate queries | ~10% | $0.00 |
+| Claude Haiku | Routing + simple direct answers | ~40% | $0.001-0.003 |
+| Claude Sonnet | Standard multi-tool queries | ~45% | $0.01-0.02 |
+| Claude Opus | Deep analysis (user-requested only) | ~5% | $0.05-0.10 |
+| **Weighted Average** | **All queries** | **100%** | **< $0.02** |
 
-Monthly budget target: < $500/month at 15,000 queries/month
+Monthly budget target: < $300/month at 15,000 queries/month (lower than original estimate due to Haiku handling 40% of traffic)
 
 ### NFR-005: Observability
 
@@ -471,3 +497,4 @@ Monthly budget target: < $500/month at 15,000 queries/month
 | Version | Date | Author | Changes |
 |---------|------|--------|---------|
 | 1.0 | 2026-02-23 | AI/CTO | Initial draft |
+| 1.1 | 2026-02-23 | AI/CTO | Added speed-first design philosophy, updated performance NFRs with tiered latency targets, updated cost model with Haiku-heavy traffic distribution |

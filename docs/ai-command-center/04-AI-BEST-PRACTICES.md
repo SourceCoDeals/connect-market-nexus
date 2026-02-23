@@ -1,11 +1,90 @@
 # SourceCo AI Command Center - AI Best Practices & Prompt Engineering Guide
 
-**Version:** 1.0
+**Version:** 1.1
 **Date:** 2026-02-23
 
 ---
 
 ## 1. Core Principles
+
+### 1.0 Speed-First Response Philosophy
+
+**The AI Command Center's #1 UX principle: answer fast, then offer depth.** Every prompt, every tool call, and every response format is optimized for speed first. Users can always ask for more — but they should never wait for information they didn't request.
+
+#### The Response Spectrum
+
+```
+INSTANT (< 1s)        QUICK (< 2s)          STANDARD (< 4s)        DEEP (< 10s)
+───────────────       ──────────────        ────────────────       ──────────────
+"12 active deals."    "Your 5 most active   "Here are your         "Full pipeline
+                       deals: [list]"        follow-ups,            analysis with
+                                             prioritized:           buyer scores,
+                                             [detailed list]"       transcripts,
+                                                                    and trends."
+
+1 sentence            Bulleted list          Structured sections    Multi-section
+No streaming needed   Light streaming        Full streaming         report with tables
+Haiku direct          Haiku + 1 tool         Sonnet + 2-3 tools    Opus + 5-7 tools
+```
+
+#### Speed-First Prompt Rules
+
+1. **Lead with the answer.** The first sentence of every response IS the answer. Never open with "Let me look into that" or "Based on my analysis."
+2. **Default to concise.** 1-2 sentences for counts/status, bulleted list for "who/what needs X", structured sections only for explicit deep dives.
+3. **Progressive disclosure.** Every response ends with 2-3 specific follow-up suggestions generated from the actual data returned — not generic templates.
+4. **Right-size the model.** If Haiku can answer it, don't use Sonnet. If Sonnet can answer it, don't use Opus. 40% of queries should be Haiku-only.
+5. **Truncate, don't dump.** Show top 5 of N results. Never return all 47 deals when 5 + a total count tells the story.
+
+#### Progressive Disclosure Prompt Pattern
+
+```
+SYSTEM PROMPT ADDITION (for all tiers):
+
+RESPONSE LENGTH RULES:
+- For count/status questions: Answer in 1-2 sentences maximum. Example: "You have 12 active deals, with 3 in LOI stage."
+- For "who/what" list questions: Show top 3-5 items as a bulleted list. Mention the total. Example: "Top 3 of 8 overdue tasks: ..."
+- For analysis questions: Use 2-3 short sections with bold headers. Keep under 300 words.
+- For briefings/deep dives: Use full structured format with sections, tables, and detail. Up to 1000 words.
+
+FOLLOW-UP SUGGESTIONS:
+After every response, suggest 2-3 specific next actions based on the data you just returned.
+These must reference actual entities from the tool results (deal names, buyer names, specific metrics).
+Format as: → "Tell me more about [specific entity]"
+NEVER use generic suggestions like "Would you like to know more?"
+```
+
+#### Speed-First Response Examples
+
+```
+BAD (slow, verbose):
+"Let me look into your active deals. Based on my analysis of the pipeline data,
+I can see that you currently have several deals in various stages of progress.
+After reviewing all the data, here's what I found..."
+
+GOOD (fast, direct):
+"You have 12 active deals. Top 3 by recent activity:
+1. **Acme Corp** (D-0042) — LOI stage, 8 activities this week
+2. **Beta Services** (D-0087) — Due Diligence, 5 activities
+3. **Gamma Corp** (D-0103) — NDA stage, 3 activities
+
+→ 'Tell me more about Acme Corp'
+→ 'Which deals are stalled?'
+→ 'Show all 12 deals'"
+```
+
+```
+BAD (over-fetches data for a simple question):
+User: "How many deals are in LOI?"
+System: *calls get_current_user_context, query_deals, get_pipeline_summary, get_deal_tasks*
+Response: "There are 4 deals currently in the LOI stage. Here are the details for each..."
+
+GOOD (fast, minimal tool calls):
+User: "How many deals are in LOI?"
+System: *calls get_pipeline_summary (quick mode)*
+Response: "4 deals are in LOI stage.
+→ 'Show me the LOI deals'
+→ 'Pipeline breakdown by stage'"
+```
 
 ### 1.1 Zero Hallucination Policy
 
@@ -66,6 +145,11 @@ Every system prompt follows this structure:
 | "Try your best" | LLMs comply literally | "If you cannot answer with available data, say so explicitly" |
 | Long enumerated rules (50+ items) | Gets lost in context | Keep constraints to 10-15 key rules |
 | Negative instructions only ("don't hallucinate") | Less effective than positive framing | "Only reference data returned by tools" |
+| "Let me analyze..." / "Based on my review..." | Wastes tokens with preamble, feels slow | "Lead with the answer. First sentence IS the answer." |
+| Returning all results for a list query | Slow, overwhelming, expensive | "Show top 5 of N results. Mention total. Offer to show more." |
+| Using Sonnet for a count question | Over-powered model for simple query, adds latency | "Use Haiku for single-tool lookups. QUICK is the default tier." |
+| Generic follow-up suggestions | "Would you like to know more?" feels robotic | "Suggest 2-3 specific actions referencing actual entity names from results" |
+| Front-loading all possible data | User didn't ask for full analysis | "Answer what was asked. Offer depth as follow-up." |
 
 ---
 
@@ -146,11 +230,14 @@ CRITICAL RULES:
 9. Never expose internal UUIDs to the user - use names and identifiers instead.
 10. Format responses with markdown: **bold** for key values, bullet points for lists.
 
-RESPONSE FORMAT:
-- Keep responses concise (under 500 words for standard queries)
-- Use structured sections for complex answers (headers, bullets)
-- End with a follow-up suggestion when appropriate: "Would you like me to [specific action]?"
-- For lists of 10+ items, show top 5 and mention the total: "Showing top 5 of 23 results"
+RESPONSE FORMAT (SPEED-FIRST):
+- LEAD WITH THE ANSWER. The first sentence is the direct answer to the question. Never open with preamble.
+- For count/status questions: 1-2 sentences maximum. No sections, no bullets, just the answer.
+- For list questions: Top 3-5 items as bullets. Mention total. "Showing top 5 of 23 results."
+- For analysis questions: 2-3 short sections with **bold headers**. Under 300 words.
+- For briefings/deep dives only: Full structured format, up to 1000 words.
+- ALWAYS end with 2-3 specific follow-up suggestions using actual entity names from tool results.
+  Format: → "Tell me more about [entity name]" — NOT "Would you like to know more?"
 
 SCORE DEFINITIONS:
 - Tier A (80-100): Excellent fit
@@ -192,16 +279,27 @@ DEAL SOURCES: Marketplace, CapTarget, GP Partners, Valuation Leads, Referrals, M
 - Name resolution is needed before data fetch
 - Results need to be validated before next step
 
-### 3.3 Result Size Management
+### 3.3 Result Size Management (Speed-Optimized Defaults)
 
 ```
-TOOL RESULT SIZE GUIDELINES:
+TOOL RESULT SIZE GUIDELINES (TWO-DEPTH MODE):
 
-- search_buyers: limit=25, return only key fields (name, type, geo, score)
-- query_deals: limit=20, return summary not full details
-- get_deal_activities: limit=50, most recent first
-- search_transcripts: limit=10, return key_quotes not full text
-- get_outreach_status: limit=50, group by status
+Every tool supports depth: "quick" | "full"
+
+QUICK MODE (default — used unless user asks for detail):
+- search_buyers: limit=5, fields: [name, type, geo, score]
+- query_deals: limit=5, fields: [name, stage, last_activity, activity_count]
+- get_deal_activities: limit=10, most recent first
+- search_transcripts: limit=5, return key_quotes only (not full text)
+- get_outreach_status: limit=10, group by status
+- get_pipeline_summary: cached for 60s, single aggregate object
+
+FULL MODE (when user says "show all", "dive deeper", "full analysis"):
+- search_buyers: limit=25, all fields including contacts, scores, outreach
+- query_deals: limit=20, all fields including tasks, revenue, buyer counts
+- get_deal_activities: limit=50, with full descriptions
+- search_transcripts: limit=10, key_quotes + surrounding context
+- get_outreach_status: limit=50, with timeline and response details
 
 If initial results are too large (>50 items), ask the user to narrow:
 "I found 127 buyers matching that criteria. Can you narrow by geography or buyer type?"
@@ -337,9 +435,15 @@ Category Distribution:
 | **Completeness** | % of relevant data points included in response | >= 80% |
 | **Relevance** | % of response content directly addressing the question | >= 90% |
 | **Hallucination Rate** | % of responses containing fabricated data | 0% |
-| **Tool Efficiency** | Average tool calls per query | <= 4 |
-| **Latency P50** | 50th percentile response time | < 3s |
-| **Cost per Query** | Average cost across all queries | < $0.03 |
+| **Tool Efficiency** | Average tool calls per query | <= 3 (quick), <= 5 (standard), <= 7 (deep) |
+| **Latency P50 (Quick)** | Simple queries 50th percentile | < 1.5s |
+| **Latency P50 (Standard)** | Multi-tool queries 50th percentile | < 3s |
+| **Latency P50 (Deep)** | Complex analysis 50th percentile | < 8s |
+| **First Token Latency** | Time to first visible token on screen | < 500ms |
+| **Answer-First Rate** | % of responses where sentence 1 is the direct answer | >= 95% |
+| **Cost per Query** | Average cost across all queries | < $0.02 |
+| **Haiku Resolution Rate** | % of queries answered by Haiku without Sonnet/Opus | >= 35% |
+| **Cache Hit Rate** | % of queries served from cache | >= 10% |
 
 ### 6.3 Automated Evaluation Pipeline
 
