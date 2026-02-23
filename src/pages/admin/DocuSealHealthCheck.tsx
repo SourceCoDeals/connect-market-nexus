@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useEffect } from "react";
+import { useState, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -81,7 +81,7 @@ export default function DocuSealHealthCheck() {
   const [runState, setRunState] = useState<RunState>("idle");
   const [response, setResponse] = useState<TestResponse | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const [lastRun, setLastRun] = useState<string | null>(null);
+  const [_lastRun, setLastRun] = useState<string | null>(null);
 
   const runTests = useCallback(async () => {
     setRunState("running");
@@ -253,7 +253,7 @@ export default function DocuSealHealthCheck() {
           <div className="divide-y">
             {groupResults.map((r) => {
               const Icon = STATUS_ICON[r.status];
-              const TestIcon = TEST_META[r.id]?.icon || Shield;
+              // TestIcon available via TEST_META[r.id]?.icon
               return (
                 <div key={r.id} className="px-4 py-3 flex items-start gap-3">
                   <Icon
