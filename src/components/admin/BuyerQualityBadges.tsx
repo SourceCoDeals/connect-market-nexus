@@ -51,7 +51,7 @@ export function BuyerTierBadgeFull({
   );
 }
 
-export function BuyerScoreBadge({ score, size = 'sm' }: { score?: number | null; size?: 'sm' | 'md' | 'lg' | 'xl' }) {
+export function BuyerScoreBadge({ score, size = 'sm', showLabel = false }: { score?: number | null; size?: 'sm' | 'md' | 'lg' | 'xl'; showLabel?: boolean }) {
   if (score == null) {
     return <span className="text-xs text-red-500">—</span>;
   }
@@ -83,15 +83,18 @@ export function BuyerScoreBadge({ score, size = 'sm' }: { score?: number | null;
   };
 
   const badge = (
-    <span
-      className={cn(
-        'inline-flex items-center rounded-md border font-bold',
-        getScoreColor(score),
-        sizeClasses[size],
-      )}
-    >
-      <TrendingUp className={iconSizes[size]} />
-      {score}
+    <span className="inline-flex flex-col items-center gap-0">
+      {showLabel && <span className="text-[9px] uppercase tracking-wider text-muted-foreground font-medium leading-none">Buyer Score</span>}
+      <span
+        className={cn(
+          'inline-flex items-center rounded-md border font-bold',
+          getScoreColor(score),
+          sizeClasses[size],
+        )}
+      >
+        <TrendingUp className={iconSizes[size]} />
+        {score}
+      </span>
     </span>
   );
 
