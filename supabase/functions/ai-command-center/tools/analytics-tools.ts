@@ -11,6 +11,33 @@ import type { ToolResult } from "./index.ts";
 
 export const analyticsTools: ClaudeTool[] = [
   {
+    name: 'get_enrichment_status',
+    description: 'Get enrichment job status and queue — check if buyer or deal enrichment jobs are running, pending, or failed. Shows progress, error counts, and records processed. Also checks the buyer enrichment queue.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        job_type: { type: 'string', enum: ['deal_enrichment', 'buyer_enrichment', 'all'], description: 'Filter by job type (default "all")' },
+        status: { type: 'string', description: 'Filter by job status: pending, processing, completed, failed, paused, cancelled' },
+        limit: { type: 'number', description: 'Max results (default 10)' },
+      },
+      required: [],
+    },
+  },
+  {
+    name: 'get_industry_trackers',
+    description: 'Get industry trackers — named industry verticals that group deals and buyers together with custom scoring weights. Each tracker is linked to a buyer universe and shows deal count, buyer count, and scoring configuration (geography/size/service weights). Use to understand which industries SourceCo tracks and their scoring setup.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        search: { type: 'string', description: 'Search by tracker name or description' },
+        universe_id: { type: 'string', description: 'Filter by associated buyer universe UUID' },
+        active_only: { type: 'boolean', description: 'Only show active (non-archived) trackers (default true)' },
+        limit: { type: 'number', description: 'Max results (default 50)' },
+      },
+      required: [],
+    },
+  },
+  {
     name: 'get_analytics',
     description: 'Get pipeline analytics — deal counts, revenue totals, conversion rates, scoring distributions, and time-based trends. Use for dashboards, reports, and pipeline health checks.',
     input_schema: {
@@ -36,9 +63,96 @@ export async function executeAnalyticsTool(
   args: Record<string, unknown>,
 ): Promise<ToolResult> {
   switch (toolName) {
+    case 'get_enrichment_status': return getEnrichmentStatus(supabase, args);
+    case 'get_industry_trackers': return getIndustryTrackers(supabase, args);
     case 'get_analytics': return getAnalytics(supabase, args);
     default: return { error: `Unknown analytics tool: ${toolName}` };
   }
+}
+
+async function getIndustryTrackers(
+  supabase: SupabaseClient,
+  args: Record<string, unknown>,
+): Promise<ToolResult> {
+  const limit = Math.min(Number(args.limit) || 50, 200);
+
+  let query = supabase
+    .from('industry_trackers')
+    .select('id, name, description, universe_id, deal_count, buyer_count, color, is_active, archived, geography_weight, service_mix_weight, size_weight, owner_goals_weight, geography_mode, size_criteria, service_criteria, geography_criteria, created_at, updated_at')
+    .order('deal_count', { ascending: false })
+    .limit(limit);
+
+  if (args.active_only !== false) query = query.eq('archived', false);
+  if (args.universe_id) query = query.eq('universe_id', args.universe_id as string);
+
+  const { data, error } = await query;
+  if (error) return { error: error.message };
+
+  let results = data || [];
+  if (args.search) {
+    const term = (args.search as string).toLowerCase();
+    results = results.filter(t =>
+      t.name?.toLowerCase().includes(term) ||
+      t.description?.toLowerCase().includes(term)
+    );
+  }
+
+  return {
+    data: {
+      trackers: results,
+      total: results.length,
+      total_deals: results.reduce((s, t) => s + (t.deal_count || 0), 0),
+      total_buyers: results.reduce((s, t) => s + (t.buyer_count || 0), 0),
+    },
+  };
+}
+
+async function getEnrichmentStatus(
+  supabase: SupabaseClient,
+  args: Record<string, unknown>,
+): Promise<ToolResult> {
+  const limit = Math.min(Number(args.limit) || 10, 50);
+  const jobType = (args.job_type as string) || 'all';
+
+  let jobQuery = supabase
+    .from('enrichment_jobs')
+    .select('id, job_type, status, total_records, records_processed, records_succeeded, records_failed, records_skipped, error_summary, error_count, circuit_breaker_tripped, started_at, completed_at, created_at, triggered_by, source')
+    .order('created_at', { ascending: false })
+    .limit(limit);
+
+  if (jobType !== 'all') jobQuery = jobQuery.eq('job_type', jobType);
+  if (args.status) jobQuery = jobQuery.eq('status', args.status as string);
+
+  const [jobsResult, queueResult] = await Promise.all([
+    jobQuery,
+    supabase
+      .from('buyer_enrichment_queue')
+      .select('id, buyer_id, universe_id, status, attempts, queued_at, completed_at, last_error, created_at')
+      .order('queued_at', { ascending: false })
+      .limit(50),
+  ]);
+
+  if (jobsResult.error) return { error: jobsResult.error.message };
+
+  const jobs = jobsResult.data || [];
+  const queue = queueResult.data || [];
+
+  const queueByStatus: Record<string, number> = {};
+  for (const q of queue) {
+    queueByStatus[q.status] = (queueByStatus[q.status] || 0) + 1;
+  }
+
+  return {
+    data: {
+      jobs,
+      total_jobs: jobs.length,
+      buyer_enrichment_queue: {
+        items: queue,
+        total: queue.length,
+        by_status: queueByStatus,
+      },
+    },
+  };
 }
 
 // ---------- Implementations ----------

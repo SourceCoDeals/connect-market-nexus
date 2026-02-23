@@ -36,18 +36,27 @@ const BUYER_FIELDS_FULL = `
   universe_id, created_at, updated_at
 `.replace(/\s+/g, ' ').trim();
 
+// Fields for querying listings (deals/leads) — NOT buyer fields
+const LISTING_LEAD_FIELDS = [
+  'id', 'title', 'industry', 'services', 'revenue', 'ebitda',
+  'location', 'address_state', 'geographic_states',
+  'deal_source', 'deal_total_score', 'is_priority_target', 'status',
+  'captarget_sheet_tab', 'captarget_interest_type', 'updated_at', 'created_at',
+].join(', ');
+
 // ---------- Tool definitions ----------
 
 export const buyerTools: ClaudeTool[] = [
   {
     name: 'search_buyers',
-    description: 'Search remarketing buyers by criteria — geography, type, services, revenue range, acquisition appetite, fee agreement status, and free text. Returns buyer summaries sorted by alignment score.',
+    description: 'Search remarketing buyers by criteria — geography, type, services, revenue range, acquisition appetite, fee agreement status, and free text. When state is provided, returns ALL buyers in that state (not limited to top results). Returns buyer summaries sorted by alignment score.',
     input_schema: {
       type: 'object',
       properties: {
         search: { type: 'string', description: 'Free-text search across company name, PE firm, services, geography' },
         buyer_type: { type: 'string', description: 'Filter by buyer type (e.g. "pe_platform", "strategic", "independent_sponsor")' },
-        state: { type: 'string', description: 'Filter by HQ state or geographic footprint state code (e.g. "TX")' },
+        state: { type: 'string', description: 'Filter by HQ state OR geographic footprint state code (e.g. "OK", "TX"). Applied at database level to find ALL matching buyers.' },
+        universe_id: { type: 'string', description: 'Filter to a specific buyer universe ID — scopes results to buyers in that universe' },
         services: {
           type: 'array', items: { type: 'string' },
           description: 'Filter by target service keywords',
@@ -57,7 +66,7 @@ export const buyerTools: ClaudeTool[] = [
         has_fee_agreement: { type: 'boolean', description: 'Filter by fee agreement status' },
         acquisition_appetite: { type: 'string', description: 'Filter by appetite (e.g. "aggressive", "active", "selective")' },
         include_archived: { type: 'boolean', description: 'Include archived buyers (default false)' },
-        limit: { type: 'number', description: 'Max results (default 25, max 100)' },
+        limit: { type: 'number', description: 'Max results (default 25 for general browsing; when state filter is used, default is 1000 to count all matching buyers)' },
         depth: { type: 'string', enum: ['quick', 'full'], description: 'quick = summary, full = all details' },
       },
       required: [],
@@ -88,27 +97,49 @@ export const buyerTools: ClaudeTool[] = [
   },
   {
     name: 'get_top_buyers_for_deal',
-    description: 'Get the top-ranked buyers for a specific deal, sorted by composite score. Includes score breakdown and status.',
+    description: 'Get buyers scored for a specific deal (its buyer universe), sorted by composite score. Use this to answer questions like "how many buyers in the [deal name] universe are in [state]". Supports filtering by state and high limits for counting.',
     input_schema: {
       type: 'object',
       properties: {
         deal_id: { type: 'string', description: 'The deal/listing UUID' },
+        state: { type: 'string', description: 'Filter buyers by state code (HQ or geographic footprint) — e.g. "OK" for Oklahoma. Use this for geographic count questions.' },
         status: { type: 'string', description: 'Filter by score status (e.g. "approved", "pending", "passed")' },
         min_score: { type: 'number', description: 'Minimum composite score threshold' },
-        limit: { type: 'number', description: 'Max results (default 20, max 50)' },
+        limit: { type: 'number', description: 'Max results (default 20 for top buyers, use 1000+ to count all buyers in the universe)' },
       },
       required: ['deal_id'],
     },
   },
   {
     name: 'search_lead_sources',
-    description: 'Search deals by lead source type — CP Targets, GO Partners, marketplace, internal. Groups deals by their origin for pipeline analysis.',
+    description: 'Search deals/leads by lead source type — CP Targets (captarget), GO Partners, marketplace, internal. Returns deal/listing records with industry, revenue, and status. Use this to answer questions like "how many captarget leads are HVAC companies". Supports industry keyword filtering.',
     input_schema: {
       type: 'object',
       properties: {
         source_type: { type: 'string', enum: ['captarget', 'go_partners', 'marketplace', 'internal', 'all'], description: 'Which lead source to query' },
+        industry: { type: 'string', description: 'Filter by industry keyword (e.g. "hvac", "collision", "plumbing", "auto shop", "landscaping")' },
         status: { type: 'string', description: 'Filter by deal status' },
-        limit: { type: 'number', description: 'Max results (default 25)' },
+        limit: { type: 'number', description: 'Max results (default 5000 for counts)' },
+      },
+      required: [],
+    },
+  },
+  {
+    name: 'search_valuation_leads',
+    description: 'Search valuation calculator leads — business owners who used SourceCo valuation tools (HVAC calculator, collision calculator, auto shop calculator, general calculator). These are high-intent seller leads with self-reported financials. Use for questions about specific calculator lead types.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        calculator_type: {
+          type: 'string',
+          enum: ['general', 'auto_shop', 'hvac', 'collision', 'all'],
+          description: 'Filter by calculator type. "hvac" for HVAC companies, "collision" for collision/auto body, "auto_shop" for auto repair, "general" for general calculator.',
+        },
+        status: { type: 'string', description: 'Filter by lead status (e.g. "new", "contacted", "qualified")' },
+        include_excluded: { type: 'boolean', description: 'Include excluded leads (default false)' },
+        pushed_to_deals: { type: 'boolean', description: 'Filter by whether lead was pushed to All Deals' },
+        min_revenue: { type: 'number', description: 'Minimum reported revenue' },
+        limit: { type: 'number', description: 'Max results (default 5000 for counts)' },
       },
       required: [],
     },
@@ -128,6 +159,7 @@ export async function executeBuyerTool(
     case 'get_score_breakdown': return getScoreBreakdown(supabase, args);
     case 'get_top_buyers_for_deal': return getTopBuyersForDeal(supabase, args);
     case 'search_lead_sources': return searchLeadSources(supabase, args);
+    case 'search_valuation_leads': return searchValuationLeads(supabase, args);
     default: return { error: `Unknown buyer tool: ${toolName}` };
   }
 }
@@ -139,8 +171,13 @@ async function searchBuyers(
   args: Record<string, unknown>,
 ): Promise<ToolResult> {
   const depth = (args.depth as string) || 'quick';
-  const limit = Math.min(Number(args.limit) || 25, 100);
   const fields = depth === 'full' ? BUYER_FIELDS_FULL : BUYER_FIELDS_QUICK;
+
+  // When filtering by state or universe, we need a much higher limit to count all matches
+  const hasSelectiveFilter = !!(args.state || args.universe_id);
+  const limit = hasSelectiveFilter
+    ? Math.min(Number(args.limit) || 1000, 5000)
+    : Math.min(Number(args.limit) || 25, 100);
 
   let query = supabase
     .from('remarketing_buyers')
@@ -156,20 +193,19 @@ async function searchBuyers(
   if (args.buyer_type) query = query.eq('buyer_type', args.buyer_type as string);
   if (args.has_fee_agreement !== undefined) query = query.eq('has_fee_agreement', args.has_fee_agreement as boolean);
   if (args.acquisition_appetite) query = query.eq('acquisition_appetite', args.acquisition_appetite as string);
+  if (args.universe_id) query = query.eq('universe_id', args.universe_id as string);
+
+  // Apply state filter at DB level (checks hq_state OR geographic_footprint array)
+  // This ensures ALL matching buyers are returned, not just the top N by score
+  if (args.state) {
+    const st = (args.state as string).toUpperCase();
+    query = query.or(`hq_state.eq.${st},geographic_footprint.cs.{${st}}`);
+  }
 
   const { data, error } = await query;
   if (error) return { error: error.message };
 
   let results = data || [];
-
-  // Client-side geographic filter (checks hq_state OR geographic_footprint array)
-  if (args.state) {
-    const st = (args.state as string).toUpperCase();
-    results = results.filter(b =>
-      b.hq_state?.toUpperCase() === st ||
-      b.geographic_footprint?.some((g: string) => g.toUpperCase() === st)
-    );
-  }
 
   // Client-side service filter
   if (args.services && (args.services as string[]).length > 0) {
@@ -209,6 +245,7 @@ async function searchBuyers(
       buyers: results,
       total: results.length,
       depth,
+      state_filter: args.state || null,
     },
   };
 }
@@ -261,7 +298,10 @@ async function getTopBuyersForDeal(
   args: Record<string, unknown>,
 ): Promise<ToolResult> {
   const dealId = args.deal_id as string;
-  const limit = Math.min(Number(args.limit) || 20, 50);
+  // Increase default limit to allow counting all buyers in a universe
+  // Use 1000 when state filter is requested so geographic counts are accurate
+  const defaultLimit = args.state ? 1000 : 20;
+  const limit = Math.min(Number(args.limit) || defaultLimit, 2000);
 
   let query = supabase
     .from('remarketing_scores')
@@ -285,25 +325,37 @@ async function getTopBuyersForDeal(
     return { data: { buyers: [], total: 0 } };
   }
 
-  // Fetch buyer names for the scored buyer IDs
+  // Fetch buyer details for the scored buyer IDs
   const buyerIds = scores.map(s => s.buyer_id);
-  const { data: buyers } = await supabase
+  let buyerQuery = supabase
     .from('remarketing_buyers')
-    .select('id, company_name, pe_firm_name, buyer_type, hq_state, has_fee_agreement')
+    .select('id, company_name, pe_firm_name, buyer_type, hq_state, hq_city, has_fee_agreement, geographic_footprint')
     .in('id', buyerIds);
+
+  // Apply state filter at DB level when requested
+  if (args.state) {
+    const st = (args.state as string).toUpperCase();
+    buyerQuery = buyerQuery.or(`hq_state.eq.${st},geographic_footprint.cs.{${st}}`);
+  }
+
+  const { data: buyers } = await buyerQuery;
 
   const buyerMap = new Map((buyers || []).map(b => [b.id, b]));
 
-  const enriched = scores.map(s => ({
-    ...s,
-    buyer: buyerMap.get(s.buyer_id) || null,
-  }));
+  // When state filter is active, only include buyers that matched the state filter
+  const enriched = scores
+    .map(s => ({
+      ...s,
+      buyer: buyerMap.get(s.buyer_id) || null,
+    }))
+    .filter(s => !args.state || s.buyer !== null); // filter out non-matching buyers when state is specified
 
   return {
     data: {
       buyers: enriched,
       total: enriched.length,
       deal_id: dealId,
+      state_filter: args.state || null,
     },
   };
 }
@@ -314,7 +366,6 @@ async function searchLeadSources(
 ): Promise<ToolResult> {
   const sourceType = (args.source_type as string) || 'all';
   const requestedLimit = Number(args.limit) || 5000;
-  const fields = BUYER_FIELDS_QUICK.replace('archived', 'deal_source');
 
   // Map source type to deal_source values
   const sourceMap: Record<string, string[]> = {
@@ -324,7 +375,7 @@ async function searchLeadSources(
     internal: ['internal', 'direct'],
   };
 
-  // Paginate to fetch all matching rows
+  // Paginate to fetch all matching rows using correct listing fields
   const PAGE_SIZE = 1000;
   let allData: Record<string, unknown>[] = [];
   let offset = 0;
@@ -333,7 +384,7 @@ async function searchLeadSources(
     const batchSize = Math.min(PAGE_SIZE, requestedLimit - offset);
     let query = supabase
       .from('listings')
-      .select(fields)
+      .select(LISTING_LEAD_FIELDS)
       .is('deleted_at', null)
       .order('deal_total_score', { ascending: false, nullsFirst: false })
       .range(offset, offset + batchSize - 1);
@@ -352,11 +403,30 @@ async function searchLeadSources(
     offset += batch.length;
   }
 
+  // Client-side industry keyword filter
+  if (args.industry) {
+    const term = (args.industry as string).toLowerCase();
+    allData = allData.filter((d: Record<string, unknown>) => {
+      const industry = (d.industry as string || '').toLowerCase();
+      const title = (d.title as string || '').toLowerCase();
+      const services = (d.services as string[] || []);
+      return (
+        industry.includes(term) ||
+        title.includes(term) ||
+        services.some((s: string) => s.toLowerCase().includes(term))
+      );
+    });
+  }
+
   // Source breakdown
   const sourceBreakdown: Record<string, number> = {};
+  const industryBreakdown: Record<string, number> = {};
   for (const d of allData) {
     const src = (d as Record<string, unknown>).deal_source as string || 'unknown';
     sourceBreakdown[src] = (sourceBreakdown[src] || 0) + 1;
+
+    const ind = (d as Record<string, unknown>).industry as string || 'unknown';
+    industryBreakdown[ind] = (industryBreakdown[ind] || 0) + 1;
   }
 
   return {
@@ -364,6 +434,53 @@ async function searchLeadSources(
       deals: allData,
       total: allData.length,
       source_breakdown: sourceBreakdown,
+      industry_breakdown: industryBreakdown,
+    },
+  };
+}
+
+async function searchValuationLeads(
+  supabase: SupabaseClient,
+  args: Record<string, unknown>,
+): Promise<ToolResult> {
+  const calcType = (args.calculator_type as string) || 'all';
+  const limit = Math.min(Number(args.limit) || 5000, 10000);
+
+  let query = supabase
+    .from('valuation_leads')
+    .select('id, calculator_type, display_name, business_name, industry, region, location, revenue, ebitda, lead_score, quality_tier, status, pushed_to_all_deals, excluded, created_at')
+    .order('created_at', { ascending: false })
+    .limit(limit);
+
+  if (calcType !== 'all') {
+    query = query.eq('calculator_type', calcType);
+  }
+  if (args.status) query = query.eq('status', args.status as string);
+  if (args.include_excluded !== true) query = query.eq('excluded', false);
+  if (args.pushed_to_deals !== undefined) query = query.eq('pushed_to_all_deals', args.pushed_to_deals as boolean);
+  if (args.min_revenue) query = query.gte('revenue', args.min_revenue as number);
+
+  const { data, error } = await query;
+  if (error) return { error: error.message };
+
+  const leads = data || [];
+
+  // Aggregate by calculator type
+  const byType: Record<string, number> = {};
+  const byStatus: Record<string, number> = {};
+  for (const l of leads) {
+    byType[l.calculator_type] = (byType[l.calculator_type] || 0) + 1;
+    const st = l.status || 'unknown';
+    byStatus[st] = (byStatus[st] || 0) + 1;
+  }
+
+  return {
+    data: {
+      leads,
+      total: leads.length,
+      by_calculator_type: byType,
+      by_status: byStatus,
+      calculator_type_filter: calcType,
     },
   };
 }

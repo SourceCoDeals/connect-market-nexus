@@ -14,6 +14,12 @@ import { userTools, executeUserTool } from "./user-tools.ts";
 import { actionTools, executeActionTool } from "./action-tools.ts";
 import { uiActionTools, executeUIActionTool } from "./ui-action-tools.ts";
 import { contentTools, executeContentTool } from "./content-tools.ts";
+import { universeTools, executeUniverseTool } from "./universe-tools.ts";
+import { signalTools, executeSignalTool } from "./signal-tools.ts";
+import { leadTools, executeLeadTool } from "./lead-tools.ts";
+import { contactTools, executeContactTool } from "./contact-tools.ts";
+import { connectionTools, executeConnectionTool } from "./connection-tools.ts";
+import { dealExtraTools, executeDealExtraTool } from "./deal-extra-tools.ts";
 
 // ---------- Tool Result Types ----------
 
@@ -35,23 +41,62 @@ const ALL_TOOLS: ClaudeTool[] = [
   ...actionTools,
   ...uiActionTools,
   ...contentTools,
+  ...universeTools,
+  ...signalTools,
+  ...leadTools,
+  ...contactTools,
+  ...connectionTools,
+  ...dealExtraTools,
 ];
 
 const TOOL_CATEGORIES: Record<string, string[]> = {
-  DEAL_STATUS: ['query_deals', 'get_deal_details', 'get_deal_activities', 'get_pipeline_summary'],
-  FOLLOW_UP: ['get_deal_tasks', 'get_outreach_status', 'get_meeting_action_items', 'get_current_user_context'],
-  BUYER_SEARCH: ['search_buyers', 'search_lead_sources'],
-  BUYER_ANALYSIS: ['get_buyer_profile', 'get_score_breakdown', 'get_top_buyers_for_deal'],
-  MEETING_INTEL: ['search_transcripts', 'search_fireflies', 'get_meeting_action_items'],
-  PIPELINE_ANALYTICS: ['get_pipeline_summary', 'get_analytics'],
-  DAILY_BRIEFING: ['get_current_user_context', 'query_deals', 'get_deal_tasks', 'get_outreach_status', 'get_analytics'],
+  // Deal pipeline
+  DEAL_STATUS: ['query_deals', 'get_deal_details', 'get_deal_activities', 'get_pipeline_summary', 'get_deal_memos', 'get_deal_documents', 'get_deal_comments', 'get_deal_scoring_adjustments'],
+  FOLLOW_UP: ['get_deal_tasks', 'get_outreach_status', 'get_outreach_records', 'get_remarketing_outreach', 'get_meeting_action_items', 'get_current_user_context', 'get_connection_requests'],
+
+  // Buyer intelligence
+  BUYER_SEARCH: ['search_buyers', 'search_lead_sources', 'search_valuation_leads', 'query_deals', 'search_inbound_leads'],
+  BUYER_ANALYSIS: ['get_buyer_profile', 'get_score_breakdown', 'get_top_buyers_for_deal', 'get_buyer_decisions', 'get_score_history', 'search_pe_contacts', 'get_buyer_learning_history'],
+
+  // Universe & outreach
+  BUYER_UNIVERSE: ['search_buyer_universes', 'get_universe_details', 'get_outreach_records', 'get_remarketing_outreach', 'get_top_buyers_for_deal'],
+
+  // Meeting intelligence
+  MEETING_INTEL: ['search_buyer_transcripts', 'search_transcripts', 'search_fireflies', 'get_meeting_action_items'],
+
+  // Analytics
+  PIPELINE_ANALYTICS: ['get_pipeline_summary', 'get_analytics', 'get_enrichment_status', 'get_industry_trackers'],
+  DAILY_BRIEFING: ['get_current_user_context', 'query_deals', 'get_deal_tasks', 'get_outreach_status', 'get_outreach_records', 'get_analytics', 'get_connection_requests'],
+
+  // General / context
   GENERAL: ['get_current_user_context'],
+
+  // Actions
   ACTION: ['create_deal_task', 'complete_deal_task', 'add_deal_note', 'log_deal_activity', 'update_deal_stage', 'grant_data_room_access'],
   UI_ACTION: ['select_table_rows', 'apply_table_filter', 'navigate_to_page'],
-  REMARKETING: ['search_buyers', 'get_top_buyers_for_deal', 'get_score_breakdown', 'select_table_rows', 'apply_table_filter'],
-  MEETING_PREP: ['generate_meeting_prep'],
-  OUTREACH_DRAFT: ['draft_outreach_email'],
+
+  // Remarketing workflow
+  REMARKETING: ['search_buyers', 'get_top_buyers_for_deal', 'get_score_breakdown', 'select_table_rows', 'apply_table_filter', 'get_engagement_signals', 'get_buyer_decisions'],
+
+  // Content generation
+  MEETING_PREP: ['generate_meeting_prep', 'search_transcripts', 'search_buyer_transcripts', 'get_outreach_records', 'get_connection_messages'],
+  OUTREACH_DRAFT: ['get_deal_details', 'get_buyer_profile', 'draft_outreach_email', 'search_pe_contacts', 'get_firm_agreements'],
   PIPELINE_REPORT: ['generate_pipeline_report'],
+
+  // Lead & referral
+  LEAD_INTEL: ['search_inbound_leads', 'get_referral_data', 'search_valuation_leads', 'search_lead_sources', 'get_deal_referrals'],
+
+  // Signals & engagement
+  ENGAGEMENT: ['get_engagement_signals', 'get_interest_signals', 'get_buyer_decisions', 'get_score_history', 'get_buyer_learning_history'],
+
+  // Connection requests & conversations
+  CONNECTION: ['get_connection_requests', 'get_connection_messages', 'get_deal_conversations'],
+
+  // Contacts & agreements
+  CONTACTS: ['search_pe_contacts', 'get_firm_agreements', 'get_nda_logs'],
+
+  // Industry trackers
+  INDUSTRY: ['get_industry_trackers', 'search_buyer_universes'],
 };
 
 // Tools that require user confirmation before executing
@@ -99,11 +144,11 @@ export async function executeTool(
   const startTime = Date.now();
 
   try {
-    // 5-second hard timeout per tool
+    // 15-second hard timeout per tool
     const result = await Promise.race([
       _executeToolInternal(supabase, toolName, args, userId),
       new Promise<ToolResult>((_, reject) =>
-        setTimeout(() => reject(new Error('Tool timeout (5s)')), 5000)
+        setTimeout(() => reject(new Error('Tool timeout (15s)')), 15000)
       ),
     ]);
 
@@ -114,8 +159,6 @@ export async function executeTool(
     const durationMs = Date.now() - startTime;
     const message = err instanceof Error ? err.message : String(err);
     console.error(`[ai-cc] Tool ${toolName} failed after ${durationMs}ms: ${message}`);
-
-    // Return partial/error result instead of throwing
     return { error: message, partial: message.includes('timeout') };
   }
 }
@@ -126,44 +169,27 @@ async function _executeToolInternal(
   args: Record<string, unknown>,
   userId: string
 ): Promise<ToolResult> {
-  // Resolve CURRENT_USER references
   const resolvedArgs = resolveCurrentUser(args, userId);
 
-  // Route to category handler
-  if (dealTools.some(t => t.name === toolName)) {
-    return executeDealTool(supabase, toolName, resolvedArgs);
-  }
-  if (buyerTools.some(t => t.name === toolName)) {
-    return executeBuyerTool(supabase, toolName, resolvedArgs);
-  }
-  if (transcriptTools.some(t => t.name === toolName)) {
-    return executeTranscriptTool(supabase, toolName, resolvedArgs);
-  }
-  if (outreachTools.some(t => t.name === toolName)) {
-    return executeOutreachTool(supabase, toolName, resolvedArgs);
-  }
-  if (analyticsTools.some(t => t.name === toolName)) {
-    return executeAnalyticsTool(supabase, toolName, resolvedArgs);
-  }
-  if (userTools.some(t => t.name === toolName)) {
-    return executeUserTool(supabase, toolName, resolvedArgs, userId);
-  }
-  if (actionTools.some(t => t.name === toolName)) {
-    return executeActionTool(supabase, toolName, resolvedArgs, userId);
-  }
-  if (uiActionTools.some(t => t.name === toolName)) {
-    return executeUIActionTool(supabase, toolName, resolvedArgs);
-  }
-  if (contentTools.some(t => t.name === toolName)) {
-    return executeContentTool(supabase, toolName, resolvedArgs);
-  }
+  if (dealTools.some(t => t.name === toolName)) return executeDealTool(supabase, toolName, resolvedArgs);
+  if (buyerTools.some(t => t.name === toolName)) return executeBuyerTool(supabase, toolName, resolvedArgs);
+  if (transcriptTools.some(t => t.name === toolName)) return executeTranscriptTool(supabase, toolName, resolvedArgs);
+  if (outreachTools.some(t => t.name === toolName)) return executeOutreachTool(supabase, toolName, resolvedArgs);
+  if (analyticsTools.some(t => t.name === toolName)) return executeAnalyticsTool(supabase, toolName, resolvedArgs);
+  if (userTools.some(t => t.name === toolName)) return executeUserTool(supabase, toolName, resolvedArgs, userId);
+  if (actionTools.some(t => t.name === toolName)) return executeActionTool(supabase, toolName, resolvedArgs, userId);
+  if (uiActionTools.some(t => t.name === toolName)) return executeUIActionTool(supabase, toolName, resolvedArgs);
+  if (contentTools.some(t => t.name === toolName)) return executeContentTool(supabase, toolName, resolvedArgs);
+  if (universeTools.some(t => t.name === toolName)) return executeUniverseTool(supabase, toolName, resolvedArgs);
+  if (signalTools.some(t => t.name === toolName)) return executeSignalTool(supabase, toolName, resolvedArgs);
+  if (leadTools.some(t => t.name === toolName)) return executeLeadTool(supabase, toolName, resolvedArgs);
+  if (contactTools.some(t => t.name === toolName)) return executeContactTool(supabase, toolName, resolvedArgs);
+  if (connectionTools.some(t => t.name === toolName)) return executeConnectionTool(supabase, toolName, resolvedArgs);
+  if (dealExtraTools.some(t => t.name === toolName)) return executeDealExtraTool(supabase, toolName, resolvedArgs);
 
   return { error: `Unknown tool: ${toolName}` };
 }
 
-/**
- * Replace 'CURRENT_USER' string values with actual userId.
- */
 function resolveCurrentUser(args: Record<string, unknown>, userId: string): Record<string, unknown> {
   const resolved: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(args)) {
