@@ -251,20 +251,20 @@ export function ConnectionRequestActions({
   return (
     <div className="space-y-5">
       {/* ── DECISION BANNER ── */}
-      {requestStatus === "pending" && requestId && (
-        <div className="bg-card border border-border rounded-xl overflow-hidden shadow-sm" style={{ borderLeftWidth: '4px', borderLeftColor: 'hsl(var(--sourceco))' }}>
+       {requestStatus === "pending" && requestId && (
+        <div className="bg-sourceco rounded-xl overflow-hidden shadow-md">
           <div className="px-5 py-4 flex items-center justify-between gap-4">
             <div className="flex items-center gap-3.5">
-              <div className="w-10 h-10 rounded-xl bg-sourceco/10 flex items-center justify-center shrink-0">
-                <Scale className="h-5 w-5 text-sourceco" />
+              <div className="w-10 h-10 rounded-xl bg-sourceco-foreground/15 flex items-center justify-center shrink-0">
+                <Scale className="h-5 w-5 text-sourceco-foreground" />
               </div>
               <div>
-                <p className="text-sm font-bold text-foreground">Decision Required</p>
-                <p className="text-xs text-muted-foreground">Review this connection request — only approved requests advance to the active pipeline</p>
+                <p className="text-[15px] font-bold text-sourceco-foreground">Decision Required</p>
+                <p className="text-sm text-sourceco-foreground/75">Review this connection request — only approved requests advance to the active pipeline</p>
               </div>
             </div>
             <div className="flex items-center gap-2.5 shrink-0">
-              <span className="text-[10.5px] font-semibold uppercase tracking-wider text-amber-700 bg-amber-50 border border-amber-200/60 rounded-full px-3 py-1">
+              <span className="text-[11px] font-semibold uppercase tracking-wider text-sourceco-foreground/80 bg-sourceco-foreground/15 rounded-full px-3 py-1">
                 Awaiting Action
               </span>
               <Button
@@ -272,7 +272,7 @@ export function ConnectionRequestActions({
                 onClick={() => setShowRejectDialog(true)}
                 disabled={updateStatus.isPending}
                 size="sm"
-                className="border-border text-muted-foreground hover:border-destructive hover:text-destructive hover:bg-destructive/5"
+                className="border-sourceco-foreground/30 text-sourceco-foreground bg-transparent hover:bg-sourceco-foreground/10 hover:border-sourceco-foreground/50"
               >
                 <XCircle className="h-3.5 w-3.5 mr-1.5" />
                 Decline
@@ -281,7 +281,7 @@ export function ConnectionRequestActions({
                 onClick={handleAccept}
                 disabled={updateStatus.isPending}
                 size="sm"
-                className="bg-sourceco hover:bg-sourceco/90 text-sourceco-foreground shadow-sm"
+                className="bg-sourceco-foreground text-sourceco shadow-sm hover:bg-sourceco-foreground/90"
               >
                 <CheckCircle className="h-3.5 w-3.5 mr-1.5" />
                 Accept Request
@@ -394,7 +394,7 @@ export function ConnectionRequestActions({
       )}
 
       {/* ── TWO-COLUMN LAYOUT ── */}
-      <div className="grid grid-cols-1 lg:grid-cols-[1fr_340px] gap-5">
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-5">
         {/* ── LEFT COLUMN ── */}
         <div className="space-y-4">
           {/* Buyer Hero Card */}
@@ -437,7 +437,7 @@ export function ConnectionRequestActions({
           </div>
 
           {/* Tabs + Conversation */}
-          <div className="bg-card border border-border rounded-xl overflow-hidden shadow-sm">
+          <div className="bg-card border border-border rounded-xl overflow-hidden shadow-sm max-h-[400px] flex flex-col">
             {/* Tab bar */}
             <div className="border-b border-border px-5 flex items-center bg-muted/30">
               <button
@@ -463,13 +463,15 @@ export function ConnectionRequestActions({
             </div>
 
             {activeTab === "thread" && requestId && (
-              <ConversationThread
-                connectionRequestId={requestId}
-                buyerName={buyerName}
-                buyerInitials={buyerInitials}
-                buyerMessage={userMessage}
-                submittedAt={createdAt}
-              />
+              <div className="overflow-y-auto flex-1">
+                <ConversationThread
+                  connectionRequestId={requestId}
+                  buyerName={buyerName}
+                  buyerInitials={buyerInitials}
+                  buyerMessage={userMessage}
+                  submittedAt={createdAt}
+                />
+              </div>
             )}
 
             {activeTab === "notes" && (
@@ -524,16 +526,16 @@ export function ConnectionRequestActions({
           <SidebarCard title="Agreements">
             <div className="space-y-0">
               <div className="flex items-center justify-between py-2.5 border-b border-border/30 last:border-b-0">
-                <span className="text-xs text-muted-foreground font-medium">NDA</span>
-                <div className="flex items-center gap-2">
-                  <div className={`w-[7px] h-[7px] rounded-full ${hasNDA ? 'bg-emerald-500' : 'bg-amber-500'}`} />
-                  <span className={`text-[13px] font-semibold ${hasNDA ? 'text-foreground' : 'text-foreground'}`}>
+                <span className="text-sm text-muted-foreground font-medium">NDA</span>
+                <div className="flex items-center gap-2.5">
+                  <div className={`w-2 h-2 rounded-full ${hasNDA ? 'bg-emerald-500' : 'bg-amber-500'}`} />
+                  <span className="text-sm font-semibold text-foreground">
                     {user.nda_signed ? 'Signed' : user.nda_email_sent ? 'Sent' : 'Not Sent'}
                   </span>
                   {!hasNDA && firmInfo?.firm_id && (
                     <button
                       onClick={() => { setSendAgreementType('nda'); setSendAgreementOpen(true); }}
-                      className="text-xs font-semibold text-sourceco bg-sourceco/10 border border-sourceco/20 rounded-md px-2 py-0.5 hover:bg-sourceco/20 transition-colors"
+                      className="text-xs font-bold text-sourceco-foreground bg-sourceco border border-sourceco rounded-md px-2.5 py-1 hover:bg-sourceco/90 transition-colors shadow-sm"
                     >
                       ↗ Send
                     </button>
@@ -541,16 +543,16 @@ export function ConnectionRequestActions({
                 </div>
               </div>
               <div className="flex items-center justify-between py-2.5">
-                <span className="text-xs text-muted-foreground font-medium">Fee Agreement</span>
-                <div className="flex items-center gap-2">
-                  <div className={`w-[7px] h-[7px] rounded-full ${hasFeeAgreement ? 'bg-emerald-500' : 'bg-amber-500'}`} />
-                  <span className="text-[13px] font-semibold text-foreground">
+                <span className="text-sm text-muted-foreground font-medium">Fee Agreement</span>
+                <div className="flex items-center gap-2.5">
+                  <div className={`w-2 h-2 rounded-full ${hasFeeAgreement ? 'bg-emerald-500' : 'bg-amber-500'}`} />
+                  <span className="text-sm font-semibold text-foreground">
                     {user.fee_agreement_signed ? 'Signed' : user.fee_agreement_email_sent ? 'Sent' : 'Not Sent'}
                   </span>
                   {!hasFeeAgreement && firmInfo?.firm_id && (
                     <button
                       onClick={() => { setSendAgreementType('fee_agreement'); setSendAgreementOpen(true); }}
-                      className="text-xs font-semibold text-sourceco bg-sourceco/10 border border-sourceco/20 rounded-md px-2 py-0.5 hover:bg-sourceco/20 transition-colors"
+                      className="text-xs font-bold text-sourceco-foreground bg-sourceco border border-sourceco rounded-md px-2.5 py-1 hover:bg-sourceco/90 transition-colors shadow-sm"
                     >
                       ↗ Send
                     </button>
