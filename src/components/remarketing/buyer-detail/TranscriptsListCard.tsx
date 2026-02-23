@@ -1,26 +1,14 @@
-import { useState, useRef } from "react";
-import { FileText, Plus, Sparkles, Link2, Trash2, ChevronDown, Upload, X, Calendar, Loader2 } from "lucide-react";
+import { useState } from "react";
+import { FileText, Sparkles, Link2, Trash2, ChevronDown, Loader2 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
 import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
-import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/hooks/use-toast";
 import { TranscriptStatusBadge } from "@/components/transcripts/TranscriptStatusBadge";
+import { BuyerTranscriptLinkPanel } from "./BuyerTranscriptLinkPanel";
 
 interface Transcript {
   id: string;
@@ -37,11 +25,12 @@ interface Transcript {
 interface TranscriptsListCardProps {
   transcripts: Transcript[];
   buyerId: string;
+  companyName?: string;
   onAddTranscript: (text: string, source: string, fileName?: string, fileUrl?: string, triggerExtract?: boolean) => Promise<any> | void;
   onExtract: (transcriptId: string) => void;
   onExtractAll: () => void;
   onDelete: (transcriptId: string) => void;
-  isAdding?: boolean;
+  
   isExtracting?: boolean;
   extractionProgress?: { current: number; total: number; isRunning: boolean };
 }
@@ -49,233 +38,27 @@ interface TranscriptsListCardProps {
 export const TranscriptsListCard = ({
   transcripts,
   buyerId,
+  companyName,
   onAddTranscript,
   onExtract,
   onExtractAll,
   onDelete,
-  isAdding = false,
   isExtracting = false,
   extractionProgress,
 }: TranscriptsListCardProps) => {
-  const { toast } = useToast();
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
-  const [isDragging, setIsDragging] = useState(false);
-  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
-  const [isUploading, setIsUploading] = useState(false);
-  const [isParsingFile, setIsParsingFile] = useState(false);
-  const [, setUploadProgress] = useState('');
-
-  // Mode: 'single' for manual entry (link/paste), 'multi' for multi-file upload
-  const [mode, setMode] = useState<'single' | 'multi'>('single');
-  
-  const [formData, setFormData] = useState({
-    title: "",
-    transcript_link: "",
-    call_date: "",
-    transcript_text: "",
-  });
 
   const pendingCount = transcripts.length;
-
-  const parseTranscriptFile = async (file: File): Promise<string> => {
-    const form = new FormData();
-    form.append('file', file);
-    const { data, error } = await supabase.functions.invoke('parse-transcript-file', {
-      body: form,
-    });
-    if (error) throw new Error(error.message || 'Failed to parse file');
-    return String((data as Record<string, unknown>)?.text || '');
-  };
-
-  const validateFile = (file: File): boolean => {
-    const validTypes = ['.txt', '.pdf', '.doc', '.docx', '.vtt', '.srt'];
-    const ext = '.' + file.name.split('.').pop()?.toLowerCase();
-    if (!validTypes.includes(ext)) {
-      toast({ title: "Invalid file type", description: `${file.name}: Please upload .txt, .pdf, .doc, .docx, .vtt, or .srt`, variant: "destructive" });
-      return false;
-    }
-    if (file.size > 10 * 1024 * 1024) {
-      toast({ title: "File too large", description: `${file.name}: Maximum file size is 10MB`, variant: "destructive" });
-      return false;
-    }
-    return true;
-  };
-
-  const addFiles = (files: FileList | File[]) => {
-    const newFiles = Array.from(files).filter(validateFile);
-    if (newFiles.length === 0) return;
-    
-    // Dedupe by name
-    setSelectedFiles(prev => {
-      const existingNames = new Set(prev.map(f => f.name.toLowerCase()));
-      const unique = newFiles.filter(f => !existingNames.has(f.name.toLowerCase()));
-      return [...prev, ...unique];
-    });
-    
-    // If adding files, auto-switch to multi mode
-    if (newFiles.length > 0) setMode('multi');
-    
-    // If single file in single mode, set title
-    if (newFiles.length === 1 && mode === 'single' && !formData.title) {
-      const nameWithoutExt = newFiles[0].name.replace(/\.[^/.]+$/, "");
-      setFormData(prev => ({ ...prev, title: nameWithoutExt }));
-    }
-  };
-
-  const removeFile = (index: number) => {
-    setSelectedFiles(prev => prev.filter((_, i) => i !== index));
-  };
-
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files) addFiles(e.target.files);
-  };
-
-  const handleDragOver = (e: React.DragEvent) => { e.preventDefault(); setIsDragging(true); };
-  const handleDragLeave = (e: React.DragEvent) => { e.preventDefault(); setIsDragging(false); };
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragging(false);
-    if (e.dataTransfer.files) addFiles(e.dataTransfer.files);
-  };
-
-  const uploadFileToStorage = async (file: File): Promise<string> => {
-    const timestamp = Date.now();
-    const filename = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
-    const path = `${buyerId}/${timestamp}_${filename}`;
-    const { error } = await supabase.storage.from('buyer-transcripts').upload(path, file);
-    if (error) throw error;
-    const { data: { publicUrl } } = supabase.storage.from('buyer-transcripts').getPublicUrl(path);
-    return publicUrl;
-  };
-
-  // Single transcript submit (manual entry mode)
-  const handleSubmitSingle = async (triggerExtract: boolean) => {
-    if (!formData.title.trim()) {
-      toast({ title: "Title required", description: "Please provide a title", variant: "destructive" });
-      return;
-    }
-    if (!formData.transcript_text && !formData.transcript_link && selectedFiles.length === 0) {
-      toast({ title: "Content required", description: "Please provide a link, paste content, or upload a file", variant: "destructive" });
-      return;
-    }
-
-    const file = selectedFiles[0];
-    const ext = file ? '.' + file.name.split('.').pop()?.toLowerCase() : '';
-    const isPdfOrWord = ['.pdf', '.doc', '.docx'].includes(ext);
-
-    if (triggerExtract && !formData.transcript_text.trim() && !isPdfOrWord) {
-      toast({ title: "Can't enrich yet", description: "Paste transcript text or upload a parseable file", variant: "destructive" });
-      return;
-    }
-
-    setIsUploading(true);
-    let fileUrl = formData.transcript_link || undefined;
-
-    try {
-      if (file) {
-        fileUrl = await uploadFileToStorage(file);
-        if (isPdfOrWord && !formData.transcript_text.trim()) {
-          setIsParsingFile(true);
-          try {
-            const extracted = await parseTranscriptFile(file);
-            if (extracted.trim()) formData.transcript_text = extracted;
-          } catch (err: any) {
-            // PDF parsing failed — will use empty text
-          } finally {
-            setIsParsingFile(false);
-          }
-        } else if (['.txt', '.vtt', '.srt'].includes(ext) && !formData.transcript_text.trim()) {
-          const text = await file.text();
-          formData.transcript_text = text;
-        }
-      }
-
-      onAddTranscript(formData.transcript_text || "", "call", formData.title.trim(), fileUrl, triggerExtract);
-      resetAndClose();
-    } catch (error: any) {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
-    } finally {
-      setIsUploading(false);
-    }
-  };
-
-  // Multi-file upload (background processing)
-  const handleSubmitMulti = async () => {
-    if (selectedFiles.length === 0) {
-      toast({ title: "No files selected", description: "Please select files to upload", variant: "destructive" });
-      return;
-    }
-
-    setIsUploading(true);
-    const total = selectedFiles.length;
-    let successCount = 0;
-
-    // Close dialog immediately, process in background
-    const filesToProcess = [...selectedFiles];
-    resetAndClose();
-
-    toast({ title: `Uploading ${total} transcripts...`, description: "Processing in background" });
-
-    for (let i = 0; i < filesToProcess.length; i++) {
-      const file = filesToProcess[i];
-      const nameWithoutExt = file.name.replace(/\.[^/.]+$/, "");
-      const ext = '.' + file.name.split('.').pop()?.toLowerCase();
-
-      try {
-        // Upload file
-        const fileUrl = await uploadFileToStorage(file);
-
-        // Extract text
-        let text = '';
-        if (['.txt', '.vtt', '.srt'].includes(ext)) {
-          text = await file.text();
-        } else if (['.pdf', '.doc', '.docx'].includes(ext)) {
-          try {
-            text = await parseTranscriptFile(file);
-          } catch (err: any) {
-            // Parse failed — will use empty text
-          }
-        }
-
-        await onAddTranscript(text, "call", nameWithoutExt, fileUrl, false);
-        successCount++;
-
-        toast({ title: `Uploaded ${i + 1}/${total}`, description: file.name });
-
-        // Delay between files to avoid rate limiting
-        if (i < filesToProcess.length - 1) {
-          await new Promise(r => setTimeout(r, 1500));
-        }
-      } catch (err: any) {
-        toast({ title: `Failed: ${file.name}`, description: err.message, variant: "destructive" });
-      }
-    }
-
-    setIsUploading(false);
-    if (successCount > 0) {
-      toast({ title: `✅ ${successCount}/${total} transcripts uploaded`, description: "You can now extract intelligence from them" });
-    }
-  };
-
-  const resetAndClose = () => {
-    setFormData({ title: "", transcript_link: "", call_date: "", transcript_text: "" });
-    setSelectedFiles([]);
-    setMode('single');
-    setUploadProgress('');
-    setIsDialogOpen(false);
-  };
-
-  const handleClose = () => {
-    if (!isUploading && !isAdding) resetAndClose();
-  };
 
   const getDisplayName = (transcript: Transcript): string => {
     if (transcript.file_name) return transcript.file_name;
     const source = transcript.source || "transcript";
     const date = new Date(transcript.created_at).toLocaleDateString();
     return `${source.charAt(0).toUpperCase() + source.slice(1)} - ${date}`;
+  };
+
+  const handleTranscriptLinked = () => {
+    // Trigger refresh via parent - onAddTranscript with empty will be handled by parent's invalidation
   };
 
   return (
@@ -302,14 +85,6 @@ export const TranscriptsListCard = ({
                 {isExtracting ? 'Extracting...' : `Re-extract All (${pendingCount})`}
               </Button>
             )}
-            <Button 
-              variant="default" 
-              size="sm"
-              onClick={() => setIsDialogOpen(true)}
-            >
-              <Plus className="mr-2 h-4 w-4" />
-              Add Transcript
-            </Button>
           </div>
         </div>
       </CardHeader>
@@ -330,12 +105,22 @@ export const TranscriptsListCard = ({
             </div>
           </div>
         )}
+
+        {/* Always show the 3-tab link panel (Paste Link / Upload / Search) */}
+        <BuyerTranscriptLinkPanel
+          buyerId={buyerId}
+          companyName={companyName}
+          onTranscriptLinked={handleTranscriptLinked}
+          onAddTranscript={onAddTranscript}
+        />
+
+        {/* Transcript list */}
         {transcripts.length === 0 ? (
           <p className="text-sm text-muted-foreground italic py-4">
             No transcripts linked yet.
           </p>
         ) : (
-          <div className="space-y-2">
+          <div className="space-y-2 mt-4">
             {transcripts.map((transcript) => (
               <Collapsible 
                 key={transcript.id}
@@ -397,182 +182,6 @@ export const TranscriptsListCard = ({
           </div>
         )}
       </CardContent>
-
-      {/* Add Transcript Dialog */}
-      <Dialog open={isDialogOpen} onOpenChange={handleClose}>
-        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Add Call Transcript</DialogTitle>
-            <DialogDescription>
-              Add a single transcript manually, or upload multiple files at once
-            </DialogDescription>
-          </DialogHeader>
-          
-          <div className="space-y-4 py-4">
-            {/* Mode Toggle */}
-            <div className="flex gap-2 p-1 bg-muted rounded-lg">
-              <button
-                type="button"
-                onClick={() => setMode('single')}
-                className={`flex-1 text-sm py-1.5 px-3 rounded-md transition-colors ${mode === 'single' ? 'bg-background shadow-sm font-medium' : 'text-muted-foreground hover:text-foreground'}`}
-              >
-                Single Entry
-              </button>
-              <button
-                type="button"
-                onClick={() => setMode('multi')}
-                className={`flex-1 text-sm py-1.5 px-3 rounded-md transition-colors ${mode === 'multi' ? 'bg-background shadow-sm font-medium' : 'text-muted-foreground hover:text-foreground'}`}
-              >
-                Upload Multiple Files
-              </button>
-            </div>
-
-            {mode === 'single' ? (
-              <>
-                {/* Title */}
-                <div className="space-y-2">
-                  <Label htmlFor="title">Title <span className="text-destructive">*</span></Label>
-                  <Input
-                    id="title"
-                    value={formData.title}
-                    onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                    placeholder="E.g., Q1 2024 Buyer Call"
-                  />
-                </div>
-
-                {/* Transcript Link */}
-                <div className="space-y-2">
-                  <Label htmlFor="transcript_link" className="flex items-center gap-1.5">
-                    <Link2 className="h-3.5 w-3.5" />Transcript Link
-                  </Label>
-                  <Input
-                    id="transcript_link"
-                    type="url"
-                    value={formData.transcript_link}
-                    onChange={(e) => setFormData({ ...formData, transcript_link: e.target.value })}
-                    placeholder="https://app.fireflies.ai/view/..."
-                  />
-                </div>
-
-                {/* Notes / Transcript Content */}
-                <div className="space-y-2">
-                  <Label htmlFor="transcript_text">Notes / Transcript Content</Label>
-                  <Textarea
-                    id="transcript_text"
-                    value={formData.transcript_text}
-                    onChange={(e) => setFormData({ ...formData, transcript_text: e.target.value })}
-                    placeholder="Paste transcript content or notes here..."
-                    rows={5}
-                    className="resize-none"
-                  />
-                </div>
-
-                {/* Call Date */}
-                <div className="space-y-2">
-                  <Label htmlFor="call_date" className="flex items-center gap-1.5">
-                    <Calendar className="h-3.5 w-3.5" />Call Date (optional)
-                  </Label>
-                  <Input
-                    id="call_date"
-                    type="date"
-                    value={formData.call_date}
-                    onChange={(e) => setFormData({ ...formData, call_date: e.target.value })}
-                  />
-                </div>
-
-                {/* Action Buttons */}
-                <div className="grid grid-cols-2 gap-2">
-                  <Button type="button" variant="outline" onClick={() => handleSubmitSingle(false)} disabled={isAdding || isUploading}>
-                    Save
-                  </Button>
-                  <Button type="button" onClick={() => handleSubmitSingle(true)} disabled={isAdding || isUploading || isParsingFile || !formData.transcript_text.trim()}>
-                    <Sparkles className="w-4 h-4 mr-2" />Save &amp; Enrich
-                  </Button>
-                </div>
-
-                {/* OR UPLOAD FILE Divider */}
-                <div className="relative flex items-center py-2">
-                  <div className="flex-grow border-t border-muted" />
-                  <span className="px-4 text-xs uppercase tracking-wide text-muted-foreground bg-background">Or Upload File</span>
-                  <div className="flex-grow border-t border-muted" />
-                </div>
-              </>
-            ) : null}
-
-            {/* File Upload Zone (shared between modes, but primary in multi mode) */}
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept=".txt,.pdf,.doc,.docx,.vtt,.srt"
-              multiple
-              onChange={handleInputChange}
-              className="hidden"
-            />
-
-            {/* Selected files list */}
-            {selectedFiles.length > 0 && (
-              <div className="space-y-1.5">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-medium text-muted-foreground">
-                    {selectedFiles.length} file{selectedFiles.length !== 1 ? 's' : ''} selected
-                  </span>
-                  <Button type="button" variant="ghost" size="sm" className="h-6 text-xs" onClick={() => setSelectedFiles([])}>
-                    Clear all
-                  </Button>
-                </div>
-                {selectedFiles.map((file, idx) => (
-                  <div key={file.name} className="flex items-center gap-2 p-2 bg-muted/50 rounded-lg border">
-                    <FileText className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                    <span className="text-sm truncate flex-1">{file.name}</span>
-                    <span className="text-xs text-muted-foreground shrink-0">
-                      {(file.size / 1024).toFixed(0)} KB
-                    </span>
-                    <Button type="button" variant="ghost" size="sm" className="h-5 w-5 p-0" onClick={() => removeFile(idx)}>
-                      <X className="h-3 w-3" />
-                    </Button>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {/* Drop zone */}
-            <div
-              onClick={() => fileInputRef.current?.click()}
-              onDragOver={handleDragOver}
-              onDragLeave={handleDragLeave}
-              onDrop={handleDrop}
-              className={`border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-colors ${
-                isDragging ? "border-primary bg-primary/5" : "border-muted-foreground/25 hover:border-muted-foreground/50"
-              }`}
-            >
-              <Upload className="h-8 w-8 mx-auto text-muted-foreground/50 mb-2" />
-              <p className="text-sm text-muted-foreground">
-                {mode === 'multi' ? 'Click or drag to add files' : 'Click to upload'}
-              </p>
-              <p className="text-xs text-muted-foreground/70 mt-1">.txt, .pdf, .doc, .vtt, .srt</p>
-            </div>
-
-            {/* Multi-file upload button */}
-            {mode === 'multi' && selectedFiles.length > 0 && (
-              <Button
-                type="button"
-                className="w-full"
-                onClick={handleSubmitMulti}
-                disabled={isUploading}
-              >
-                <Upload className="w-4 h-4 mr-2" />
-                Upload {selectedFiles.length} Transcript{selectedFiles.length !== 1 ? 's' : ''}
-              </Button>
-            )}
-          </div>
-          
-          <DialogFooter>
-            <Button variant="outline" onClick={handleClose} disabled={isAdding || isUploading}>
-              Cancel
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </Card>
   );
 };

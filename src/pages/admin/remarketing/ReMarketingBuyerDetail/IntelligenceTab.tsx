@@ -114,6 +114,7 @@ export const IntelligenceTab = ({
       <TranscriptsListCard
         transcripts={transcripts}
         buyerId={buyer.id}
+        companyName={buyer.company_name}
         onAddTranscript={(text, source, fileName, fileUrl, triggerExtract) =>
           addTranscriptMutation.mutateAsync({ text, source, fileName, fileUrl, triggerExtract })
         }
@@ -124,7 +125,6 @@ export const IntelligenceTab = ({
             deleteTranscriptMutation.mutate(transcriptId);
           }
         }}
-        isAdding={addTranscriptMutation.isPending}
         isExtracting={extractTranscriptMutation.isPending || extractionProgress.isRunning}
         extractionProgress={extractionProgress.isRunning ? extractionProgress : undefined}
       />
