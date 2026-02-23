@@ -1,12 +1,9 @@
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { Card, CardContent } from '@/components/ui/card';
-import { Clock, ExternalLink, CalendarCheck } from 'lucide-react';
+import { CalendarCheck } from 'lucide-react';
 import { Deal } from '@/hooks/admin/use-deals';
 import { cn } from '@/lib/utils';
 import { useAdminProfile } from '@/hooks/admin/use-admin-profiles';
-import { DealScoreBadge } from '@/components/ma-intelligence/DealScoreBadge';
-import { BuyerTierBadge, BuyerScoreBadge } from '@/components/admin/BuyerQualityBadges';
 import { DealSourceBadge } from '@/components/remarketing/DealSourceBadge';
 import { supabase } from '@/integrations/supabase/client';
 import { useQueryClient } from '@tanstack/react-query';
@@ -30,6 +27,13 @@ const BUYER_TYPE_LABELS: Record<string, string> = {
   businessOwner: 'Biz Owner',
 };
 
+const TIER_CONFIG: Record<number, { label: string; bg: string; text: string }> = {
+  1: { label: 'T1', bg: 'bg-blue-100', text: 'text-blue-800' },
+  2: { label: 'T2', bg: 'bg-indigo-100', text: 'text-indigo-800' },
+  3: { label: 'T3', bg: 'bg-gray-100', text: 'text-gray-600' },
+  4: { label: 'T4', bg: 'bg-gray-100', text: 'text-gray-500' },
+};
+
 export function PipelineKanbanCard({ deal, onDealClick, isDragging }: PipelineKanbanCardProps) {
   const queryClient = useQueryClient();
   const {
@@ -39,16 +43,14 @@ export function PipelineKanbanCard({ deal, onDealClick, isDragging }: PipelineKa
 
   const style = { transform: CSS.Transform.toString(transform), transition };
   const isBeingDragged = isDragging || isSortableDragging;
-  const isPriority = deal.is_priority_target;
-  const needsOwnerContact = deal.needs_owner_contact;
   const assignedAdmin = useAdminProfile(deal.assigned_to);
   const { data: unreadCounts } = useUnreadMessageCounts();
   const unreadCount = deal.connection_request_id ? (unreadCounts?.byRequest[deal.connection_request_id] || 0) : 0;
+
   const companyName = deal.listing_real_company_name || deal.listing_title || 'Unnamed Company';
   const contactName = deal.contact_name || deal.buyer_name || 'Unknown';
   const buyerCompany = deal.contact_company || deal.buyer_company;
   const buyerTypeLabel = deal.buyer_type ? (BUYER_TYPE_LABELS[deal.buyer_type] || deal.buyer_type) : null;
-  const buyerWebsite = deal.buyer_website?.replace(/^https?:\/\/(www\.)?/, '').replace(/\/$/, '');
 
   const fmt = (val: number) => {
     if (!val) return '—';
@@ -57,15 +59,26 @@ export function PipelineKanbanCard({ deal, onDealClick, isDragging }: PipelineKa
     return `$${val.toLocaleString()}`;
   };
 
-  const lastActivity = (() => {
-    const date = deal.last_activity_at || deal.deal_updated_at;
-    if (!date) return '—';
-    const ms = Math.max(0, Date.now() - new Date(date).getTime());
-    const m = Math.floor(ms / 60000), h = Math.floor(ms / 3600000), d = Math.floor(ms / 86400000);
-    if (m < 1) return 'now';
-    if (m < 60) return `${m}m ago`;
-    if (h < 24) return `${h}h ago`;
-    return `${d}d ago`;
+  const daysInStage = (() => {
+    const entered = deal.deal_stage_entered_at;
+    if (!entered) return '—';
+    const d = Math.floor((Date.now() - new Date(entered).getTime()) / 86400000);
+    return `${d}d`;
+  })();
+
+  const ownerInitials = (() => {
+    const name = assignedAdmin?.displayName;
+    if (!name || name === 'Unassigned') return '—';
+    const parts = name.split(' ');
+    return parts.map(p => p[0]?.toUpperCase()).join('').slice(0, 2);
+  })();
+
+  const ownerDisplayName = (() => {
+    const name = assignedAdmin?.displayName;
+    if (!name || name === 'Unassigned') return 'Unassigned';
+    const parts = name.split(' ');
+    if (parts.length >= 2) return `${parts[0]} ${parts[1][0]}.`;
+    return parts[0];
   })();
 
   const handleCardClick = () => { if (!isBeingDragged) onDealClick(deal); };
@@ -86,92 +99,123 @@ export function PipelineKanbanCard({ deal, onDealClick, isDragging }: PipelineKa
     return 'bg-muted-foreground/30';
   };
 
-  const active = (on?: boolean) => on ? 'text-emerald-500' : 'text-muted-foreground/30';
+  // Score badge color
+  const scoreColor = (() => {
+    const s = deal.deal_score;
+    if (s == null) return null;
+    if (s >= 70) return 'bg-emerald-500';
+    if (s >= 40) return 'bg-amber-500';
+    return 'bg-red-500';
+  })();
+
+  // Tier badge
+  const tierConfig = deal.buyer_tier ? TIER_CONFIG[deal.buyer_tier] || TIER_CONFIG[4] : null;
 
   return (
-    <Card
+    <div
       ref={setNodeRef} style={style} {...listeners} {...attributes}
       className={cn(
-        "group relative mb-2.5 cursor-pointer transition-all duration-200 rounded-xl shadow-sm",
-        isPriority
-          ? "bg-amber-50 border-2 border-amber-400 dark:bg-amber-950/30 dark:border-amber-600"
-          : "bg-card border border-border",
-        isBeingDragged && "shadow-2xl shadow-black/10 scale-[1.02] z-50 opacity-95"
+        "group relative mb-3 cursor-pointer rounded-[10px] bg-card border-2 border-border/60 overflow-hidden transition-all duration-200",
+        isBeingDragged && "shadow-2xl scale-[1.02] z-50 opacity-95",
+        !isBeingDragged && "hover:border-blue-400 hover:shadow-[0_4px_16px_rgba(59,130,246,0.15)] hover:-translate-y-px"
       )}
       onClick={handleCardClick}
     >
-      <CardContent className="p-0">
-        {/* Header: Company + Score + Financials */}
-        <div className={cn(
-          "px-3 pt-2.5 pb-2",
-          needsOwnerContact && "bg-red-50 dark:bg-red-950/40 rounded-t-xl"
-        )}>
-          <div className="flex items-center justify-between gap-2">
-            <h3 className={cn(
-              "text-sm font-semibold leading-snug truncate",
-              needsOwnerContact ? "text-red-900 dark:text-red-200" : "text-foreground"
+      {/* ── Header: Company + Score ── */}
+      <div className={cn(
+        "px-4 pt-3.5 pb-2.5 border-b border-border/30",
+        deal.needs_owner_contact ? "bg-red-50 dark:bg-red-950/30" : "bg-muted/30"
+      )}>
+        <div className="flex items-start justify-between gap-3">
+          <h3 className={cn(
+            "text-[15px] font-bold leading-snug",
+            deal.needs_owner_contact ? "text-red-900 dark:text-red-200" : "text-foreground"
+          )}>
+            {companyName}
+          </h3>
+          {deal.deal_score != null && scoreColor && (
+            <span className={cn(
+              "flex-shrink-0 min-w-[42px] text-center px-2.5 py-1 rounded-md text-sm font-extrabold text-white",
+              scoreColor
             )}>
-              {companyName}
-            </h3>
-            {deal.deal_score != null && <DealScoreBadge score={deal.deal_score} size="sm" />}
-          </div>
-          <div className="flex gap-3 mt-0.5 text-xs text-muted-foreground">
-            <span>Rev: <span className="font-semibold text-foreground">{fmt(deal.listing_revenue)}</span></span>
-            <span>EBITDA: <span className="font-semibold text-foreground">{fmt(deal.listing_ebitda)}</span></span>
-          </div>
+              {deal.deal_score}
+            </span>
+          )}
         </div>
+      </div>
 
-        {/* Buyer block — prominent identity */}
-        <div className="px-3 py-2 border-t border-border/30 space-y-1">
-          <div className="flex items-center justify-between gap-1.5">
-            <span className="text-sm font-bold text-foreground truncate">{buyerCompany || contactName}</span>
-            <BuyerScoreBadge score={deal.buyer_quality_score} size="lg" />
+      {/* ── Body ── */}
+      <div className="px-4 py-3 space-y-3.5">
+        {/* Buyer Section */}
+        <div className="pb-3.5 border-b border-border/30 space-y-1">
+          <div className="text-sm font-bold text-foreground truncate">
+            {buyerCompany || contactName}
           </div>
           {buyerCompany && (
             <div className="text-xs text-muted-foreground truncate">{contactName}</div>
           )}
-          <div className="flex items-center flex-wrap gap-1.5 mt-0.5">
-            <BuyerTierBadge tier={deal.buyer_tier} />
+          <div className="flex items-center gap-1.5 mt-1">
             {buyerTypeLabel && (
-              <span className="px-1.5 py-px rounded bg-primary/10 text-primary text-[11px] font-semibold leading-tight">
-                {buyerTypeLabel}
+              <span className="text-[11px] font-semibold text-muted-foreground">{buyerTypeLabel}</span>
+            )}
+            {tierConfig && (
+              <span className={cn(
+                "text-[9px] font-bold uppercase px-1.5 py-0.5 rounded",
+                tierConfig.bg, tierConfig.text
+              )}>
+                {tierConfig.label}
               </span>
             )}
           </div>
-          {buyerWebsite && (
-            <div className="flex items-center gap-1 text-[11px] text-primary/70 truncate">
-              <ExternalLink className="w-3 h-3 flex-shrink-0" />
-              <span className="truncate">{buyerWebsite}</span>
-            </div>
+        </div>
+
+        {/* Tags Row: Industry + NDA + Fee */}
+        <div className="flex flex-wrap gap-1.5">
+          {deal.listing_category && (
+            <span className="text-[10px] font-bold uppercase tracking-wide px-2.5 py-1 rounded bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300">
+              {deal.listing_category}
+            </span>
+          )}
+          {deal.nda_status === 'signed' && (
+            <span className="text-[10px] font-bold uppercase tracking-wide px-2.5 py-1 rounded bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">
+              NDA
+            </span>
+          )}
+          {deal.fee_agreement_status === 'signed' && (
+            <span className="text-[10px] font-bold uppercase tracking-wide px-2.5 py-1 rounded bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300">
+              Fee
+            </span>
           )}
         </div>
 
-        {/* Compact status row — dots only with tooltips */}
-        <div className="px-3 py-1 border-t border-border/30 flex items-center gap-3 text-[10px] text-muted-foreground">
-          <span className="inline-flex items-center gap-1" title={`NDA: ${deal.nda_status || 'none'}`}>
-            NDA <span className={cn('inline-block w-1.5 h-1.5 rounded-full', statusDot(deal.nda_status))} />
-          </span>
-          <span className="inline-flex items-center gap-1" title={`Fee: ${deal.fee_agreement_status || 'none'}`}>
-            Fee <span className={cn('inline-block w-1.5 h-1.5 rounded-full', statusDot(deal.fee_agreement_status))} />
-          </span>
-          <span className="inline-flex items-center gap-1" title={`Memo: ${deal.memo_sent ? 'Sent' : 'No'}`}>
-            Memo <span className={cn('inline-block w-1.5 h-1.5 rounded-full', deal.memo_sent ? 'bg-emerald-500' : 'bg-muted-foreground/30')} />
-          </span>
-          <span className="inline-flex items-center gap-1" title={`Data Room: ${deal.has_data_room ? 'Yes' : 'No'}`}>
-            DR <span className={cn('inline-block w-1.5 h-1.5 rounded-full', deal.has_data_room ? 'bg-emerald-500' : 'bg-muted-foreground/30')} />
-          </span>
-          <button type="button" onClick={handleMeetingToggle} className="inline-flex items-center gap-1 rounded transition-colors hover:bg-accent p-0.5 -ml-0.5" title={`Meeting: ${deal.meeting_scheduled ? 'Yes' : 'No'}`}>
-            Mtg <CalendarCheck className={cn('w-3 h-3', active(deal.meeting_scheduled))} />
-          </button>
+        {/* Financials */}
+        <div className="space-y-1.5">
+          <div className="flex items-baseline justify-between">
+            <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">EBITDA</span>
+            <span className="text-base font-extrabold text-emerald-600 dark:text-emerald-400 tabular-nums">
+              {fmt(deal.listing_ebitda)}
+            </span>
+          </div>
+          <div className="flex items-baseline justify-between">
+            <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/70">Revenue</span>
+            <span className="text-base font-extrabold text-foreground tabular-nums">
+              {fmt(deal.listing_revenue)}
+            </span>
+          </div>
         </div>
 
-        {/* Footer: Owner + Last Activity + Unread */}
-        <div className="px-3 py-1.5 border-t border-border/30 flex items-center justify-between">
-          <div className="flex items-center gap-1.5">
-            <span className="text-[11px] text-muted-foreground">
-              Owner: <span className="font-medium text-foreground/80">{assignedAdmin?.displayName || 'Unassigned'}</span>
-            </span>
-            <DealSourceBadge source={deal.deal_source} />
+        {/* Footer: Owner + Source + Days */}
+        <div className="flex items-center justify-between pt-3 border-t border-border/30">
+          <div className="flex items-center gap-2">
+            <div className={cn(
+              "w-[26px] h-[26px] rounded-full flex items-center justify-center text-[11px] font-bold text-white flex-shrink-0",
+              assignedAdmin?.displayName && assignedAdmin.displayName !== 'Unassigned'
+                ? "bg-blue-500"
+                : "bg-muted-foreground/40"
+            )}>
+              {ownerInitials}
+            </div>
+            <span className="text-xs font-semibold text-muted-foreground">{ownerDisplayName}</span>
           </div>
           <div className="flex items-center gap-2">
             {unreadCount > 0 && (
@@ -179,13 +223,30 @@ export function PipelineKanbanCard({ deal, onDealClick, isDragging }: PipelineKa
                 {unreadCount}
               </span>
             )}
-            <span className="inline-flex items-center gap-0.5 text-[11px] text-muted-foreground/70">
-              <Clock className="w-3 h-3" />
-              {lastActivity}
-            </span>
+            <DealSourceBadge source={deal.deal_source} />
+            <span className="text-[11px] text-muted-foreground tabular-nums">{daysInStage}</span>
           </div>
         </div>
-      </CardContent>
-    </Card>
+      </div>
+
+      {/* ── Compact status dots row ── */}
+      <div className="px-4 py-1.5 border-t border-border/30 flex items-center gap-3 text-[10px] text-muted-foreground bg-muted/20">
+        <span className="inline-flex items-center gap-1" title={`NDA: ${deal.nda_status || 'none'}`}>
+          NDA <span className={cn('inline-block w-1.5 h-1.5 rounded-full', statusDot(deal.nda_status))} />
+        </span>
+        <span className="inline-flex items-center gap-1" title={`Fee: ${deal.fee_agreement_status || 'none'}`}>
+          Fee <span className={cn('inline-block w-1.5 h-1.5 rounded-full', statusDot(deal.fee_agreement_status))} />
+        </span>
+        <span className="inline-flex items-center gap-1" title={`Memo: ${deal.memo_sent ? 'Sent' : 'No'}`}>
+          Memo <span className={cn('inline-block w-1.5 h-1.5 rounded-full', deal.memo_sent ? 'bg-emerald-500' : 'bg-muted-foreground/30')} />
+        </span>
+        <span className="inline-flex items-center gap-1" title={`Data Room: ${deal.has_data_room ? 'Yes' : 'No'}`}>
+          DR <span className={cn('inline-block w-1.5 h-1.5 rounded-full', deal.has_data_room ? 'bg-emerald-500' : 'bg-muted-foreground/30')} />
+        </span>
+        <button type="button" onClick={handleMeetingToggle} className="inline-flex items-center gap-1 rounded transition-colors hover:bg-accent p-0.5 -ml-0.5" title={`Meeting: ${deal.meeting_scheduled ? 'Yes' : 'No'}`}>
+          Mtg <CalendarCheck className={cn('w-3 h-3', deal.meeting_scheduled ? 'text-emerald-500' : 'text-muted-foreground/30')} />
+        </button>
+      </div>
+    </div>
   );
 }
