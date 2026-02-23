@@ -39,9 +39,9 @@ const MAX_RETRIES = 3;
 
 // Retry with exponential backoff
 const retryWithBackoff = async (
-  fn: () => Promise<any>, 
+  fn: () => Promise<any>,
   maxRetries = MAX_RETRIES,
-  delay = 1000
+  delay = 1000,
 ): Promise<{ success: boolean; error?: any }> => {
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     try {
@@ -51,9 +51,9 @@ const retryWithBackoff = async (
       if (attempt === maxRetries) {
         return { success: false, error };
       }
-      
+
       // Wait with exponential backoff
-      await new Promise(resolve => setTimeout(resolve, delay * Math.pow(2, attempt)));
+      await new Promise((resolve) => setTimeout(resolve, delay * Math.pow(2, attempt)));
     }
   }
   return { success: false };
@@ -64,21 +64,21 @@ const shouldSkipAnalytics = (): boolean => {
   if (!analyticsStats.circuitBreakerOpen) {
     return false;
   }
-  
+
   // Check if timeout has passed
   if (Date.now() - analyticsStats.lastFailureTime > CIRCUIT_BREAKER_TIMEOUT) {
     analyticsStats.circuitBreakerOpen = false;
-    
+
     return false;
   }
-  
+
   return true;
 };
 
 // Update analytics stats and circuit breaker
 const updateAnalyticsStats = (success: boolean, _error?: unknown) => {
   analyticsStats.totalInsertions++;
-  
+
   if (success) {
     // Reset failure count on success
     if (analyticsStats.failedInsertions > 0) {
@@ -87,10 +87,12 @@ const updateAnalyticsStats = (success: boolean, _error?: unknown) => {
   } else {
     analyticsStats.failedInsertions++;
     analyticsStats.lastFailureTime = Date.now();
-    
+
     // Open circuit breaker if too many failures (silent for users)
-    if (analyticsStats.failedInsertions >= CIRCUIT_BREAKER_THRESHOLD && 
-        !analyticsStats.circuitBreakerOpen) {
+    if (
+      analyticsStats.failedInsertions >= CIRCUIT_BREAKER_THRESHOLD &&
+      !analyticsStats.circuitBreakerOpen
+    ) {
       analyticsStats.circuitBreakerOpen = true;
       console.error('🚨 Analytics circuit breaker OPENED - too many failures');
     }
@@ -99,11 +101,11 @@ const updateAnalyticsStats = (success: boolean, _error?: unknown) => {
 
 export function AnalyticsProvider({ children }: { children: React.ReactNode }) {
   const location = useLocation();
-  
+
   // Use shared session ID from SessionContext - ensures page_views use same UUID as user_sessions
   const { sessionId: sharedSessionId } = useSessionContext();
   const sessionIdRef = useRef<string>(sharedSessionId);
-  
+
   // PHASE 1: Remove circular dependency - defer auth usage with local state
   const [authState, setAuthState] = React.useState<{
     user: any | null;
@@ -120,11 +122,14 @@ export function AnalyticsProvider({ children }: { children: React.ReactNode }) {
     // Listen to auth changes without circular dependency
     const checkAuth = async () => {
       try {
-        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+        const {
+          data: { session },
+          error: sessionError,
+        } = await supabase.auth.getSession();
         if (sessionError) throw sessionError;
         setAuthState({
           user: session?.user || null,
-          authChecked: true
+          authChecked: true,
         });
       } catch (error) {
         console.error('Analytics: Failed to get session:', error);
@@ -135,10 +140,12 @@ export function AnalyticsProvider({ children }: { children: React.ReactNode }) {
     checkAuth();
 
     // Listen for auth state changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
       setAuthState({
         user: session?.user || null,
-        authChecked: true
+        authChecked: true,
       });
     });
 
@@ -168,8 +175,6 @@ export function AnalyticsProvider({ children }: { children: React.ReactNode }) {
       console.warn('⚠️ Analytics disabled (circuit breaker)');
       return false;
     }
-
-    
 
     const result = await retryWithBackoff(async () => {
       const { error } = await supabase.from('user_events').insert({
@@ -207,15 +212,13 @@ export function AnalyticsProvider({ children }: { children: React.ReactNode }) {
       return false;
     }
 
-    
-
     const result = await retryWithBackoff(async () => {
       const { error } = await supabase.from('page_views').insert({
         session_id: sessionIdRef.current,
         user_id: authState.user?.id || null,
         page_path: pagePath,
-        page_title: document.title,
-        referrer: document.referrer || null,
+        page_title: typeof document !== 'undefined' ? document.title : null,
+        referrer: typeof document !== 'undefined' ? document.referrer || null : null,
       });
 
       if (error) {
@@ -242,8 +245,6 @@ export function AnalyticsProvider({ children }: { children: React.ReactNode }) {
       console.warn('⚠️ Analytics disabled (circuit breaker)');
       return false;
     }
-
-    
 
     const result = await retryWithBackoff(async () => {
       const { error } = await supabase.from('listing_analytics').insert({
@@ -279,8 +280,6 @@ export function AnalyticsProvider({ children }: { children: React.ReactNode }) {
       return false;
     }
 
-    
-
     const result = await retryWithBackoff(async () => {
       const { error } = await supabase.from('listing_analytics').insert({
         session_id: sessionIdRef.current,
@@ -314,8 +313,6 @@ export function AnalyticsProvider({ children }: { children: React.ReactNode }) {
       console.warn('⚠️ Analytics disabled (circuit breaker)');
       return false;
     }
-
-    
 
     const result = await retryWithBackoff(async () => {
       const { error } = await supabase.from('listing_analytics').insert({
@@ -351,8 +348,6 @@ export function AnalyticsProvider({ children }: { children: React.ReactNode }) {
       return false;
     }
 
-    
-
     const result = await retryWithBackoff(async () => {
       const { error } = await supabase.from('search_analytics').insert({
         session_id: sessionIdRef.current,
@@ -378,9 +373,12 @@ export function AnalyticsProvider({ children }: { children: React.ReactNode }) {
   };
 
   const getAnalyticsHealth = async () => {
-    const successRate = analyticsStats.totalInsertions > 0 
-      ? ((analyticsStats.totalInsertions - analyticsStats.failedInsertions) / analyticsStats.totalInsertions) * 100
-      : 100;
+    const successRate =
+      analyticsStats.totalInsertions > 0
+        ? ((analyticsStats.totalInsertions - analyticsStats.failedInsertions) /
+            analyticsStats.totalInsertions) *
+          100
+        : 100;
 
     return {
       totalInsertions: analyticsStats.totalInsertions,
@@ -400,11 +398,7 @@ export function AnalyticsProvider({ children }: { children: React.ReactNode }) {
     getAnalyticsHealth,
   };
 
-  return (
-    <AnalyticsContext.Provider value={value}>
-      {children}
-    </AnalyticsContext.Provider>
-  );
+  return <AnalyticsContext.Provider value={value}>{children}</AnalyticsContext.Provider>;
 }
 
 // eslint-disable-next-line react-refresh/only-export-components
