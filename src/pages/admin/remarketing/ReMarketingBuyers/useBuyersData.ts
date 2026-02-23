@@ -1,0 +1,414 @@
+import { useState, useMemo } from "react";
+import { useSearchParams } from "react-router-dom";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
+import { normalizeDomain } from "@/lib/ma-intelligence/normalizeDomain";
+import type { BuyerType } from "@/types/remarketing";
+import { isSponsorType, PAGE_SIZE } from "./constants";
+import type { BuyerTab } from "./constants";
+
+export const useBuyersData = () => {
+  const queryClient = useQueryClient();
+
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [search, setSearch] = useState("");
+  const initialTab = (searchParams.get("tab") as BuyerTab) || 'all';
+  const [activeTab, setActiveTab] = useState<BuyerTab>(initialTab);
+  const universeFilter = searchParams.get("universe") ?? "all";
+  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [currentPage, setCurrentPage] = useState(1);
+  const [enrichingIds, setEnrichingIds] = useState<Set<string>>(new Set());
+  const sortColumn = searchParams.get("sort") ?? "company_name";
+  const sortDirection = (searchParams.get("dir") as "asc" | "desc") ?? "asc";
+  // New buyer form state
+  const [newBuyer, setNewBuyer] = useState({
+    company_name: "",
+    company_website: "",
+    buyer_type: "" as BuyerType | "",
+    universe_id: "",
+    thesis_summary: "",
+    notes: "",
+  });
+
+  // Fetch buyers with universe + firm agreement info (for NDA/marketplace)
+  const { data: buyers, isLoading: buyersLoading } = useQuery({
+    queryKey: ['remarketing', 'buyers', universeFilter],
+    queryFn: async () => {
+      let query = supabase
+        .from('remarketing_buyers')
+        .select(`
+          *,
+          universe:remarketing_buyer_universes(id, name),
+          firm_agreement:firm_agreements!remarketing_buyers_marketplace_firm_id_fkey(
+            id,
+            nda_signed,
+            nda_signed_at,
+            fee_agreement_signed,
+            fee_agreement_signed_at,
+            primary_company_name
+          )
+        `)
+        .eq('archived', false)
+        .order('company_name');
+
+      // Filter by universe
+      if (universeFilter !== "all") {
+        query = query.eq('universe_id', universeFilter);
+      }
+
+      const { data, error } = await query;
+      if (error) throw error;
+      return data;
+    }
+  });
+
+  // Fetch buyer IDs that have transcripts - needed to determine "Strong" vs "Some Intel"
+  // Scoped to current buyer set to avoid full table scan
+  const buyerIds = useMemo(() => (buyers || []).map((b: any) => b.id), [buyers]);
+  const { data: buyerIdsWithTranscripts } = useQuery({
+    queryKey: ['remarketing', 'buyer-transcript-ids', buyerIds.slice(0, 5)],
+    queryFn: async () => {
+      if (buyerIds.length === 0) return new Set<string>();
+
+      // Batch in chunks of 100 to stay within Supabase limits
+      const allIds: string[] = [];
+      for (let i = 0; i < buyerIds.length; i += 100) {
+        const chunk = buyerIds.slice(i, i + 100);
+        const { data, error } = await supabase
+          .from('buyer_transcripts')
+          .select('buyer_id')
+          .in('buyer_id', chunk);
+        if (error) {
+          console.error('Error fetching transcripts:', error);
+          continue;
+        }
+        allIds.push(...(data || []).map((t: any) => t.buyer_id));
+      }
+
+      return new Set(allIds);
+    },
+    enabled: buyerIds.length > 0,
+  });
+
+  // Fetch universes for filter/dropdown
+  const { data: universes } = useQuery({
+    queryKey: ['remarketing', 'universes'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('remarketing_buyer_universes')
+        .select('id, name')
+        .eq('archived', false)
+        .order('name');
+
+      if (error) throw error;
+      return data;
+    }
+  });
+
+  // Compute tab counts from loaded buyers
+  const tabCounts = useMemo(() => {
+    if (!buyers) return { all: 0, pe_firm: 0, platform: 0, needs_agreements: 0, needs_enrichment: 0 };
+    let pe_firm = 0, platform = 0, needs_agreements = 0, needs_enrichment = 0;
+    buyers.forEach((b: any) => {
+      if (isSponsorType(b.buyer_type)) pe_firm++;
+      if (b.buyer_type === 'platform' || !b.buyer_type) platform++;
+      if (!b.has_fee_agreement) needs_agreements++;
+      if (b.data_completeness !== 'high') needs_enrichment++;
+    });
+    return { all: buyers.length, pe_firm, platform, needs_agreements, needs_enrichment };
+  }, [buyers]);
+
+  // Calculate platform counts per PE firm (for the PE Firms tab)
+  const platformCountsByFirm = useMemo(() => {
+    if (!buyers) return new Map<string, number>();
+    const counts = new Map<string, number>();
+    buyers.forEach((b: any) => {
+      if (b.pe_firm_name && !isSponsorType(b.buyer_type)) {
+        counts.set(b.pe_firm_name, (counts.get(b.pe_firm_name) || 0) + 1);
+      }
+    });
+    return counts;
+  }, [buyers]);
+
+  // Create buyer mutation
+  const createMutation = useMutation({
+    mutationFn: async () => {
+      // Normalize website for dedup
+      const normalizedWebsite = normalizeDomain(newBuyer.company_website) || newBuyer.company_website?.trim() || null;
+      const universeId = newBuyer.universe_id || null;
+
+      // Check for duplicate buyer by domain
+      if (normalizedWebsite) {
+        const query = supabase
+          .from('remarketing_buyers')
+          .select('id, company_name, company_website')
+          .eq('archived', false)
+          .not('company_website', 'is', null);
+
+        if (universeId) {
+          query.eq('universe_id', universeId);
+        } else {
+          query.is('universe_id', null);
+        }
+
+        const { data: existingBuyers } = await query;
+        const duplicate = existingBuyers?.find(b =>
+          normalizeDomain(b.company_website) === normalizedWebsite
+        );
+        if (duplicate) {
+          throw new Error(`A buyer with this website already exists: "${duplicate.company_name}"`);
+        }
+      }
+
+      const { error } = await supabase
+        .from('remarketing_buyers')
+        .insert({
+          company_name: newBuyer.company_name,
+          company_website: normalizedWebsite,
+          buyer_type: newBuyer.buyer_type || null,
+          universe_id: universeId,
+          thesis_summary: newBuyer.thesis_summary || null,
+          notes: newBuyer.notes || null,
+        });
+
+      if (error) {
+        if (error.message?.includes('unique') || error.message?.includes('duplicate')) {
+          throw new Error("A buyer with this website already exists.");
+        }
+        throw error;
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['remarketing'] });
+      toast.success(`${newBuyer.company_name} has been added.`);
+      setNewBuyer({ company_name: "", company_website: "", buyer_type: "", universe_id: "", thesis_summary: "", notes: "" });
+      setIsAddDialogOpen(false);
+    },
+    onError: (error: Error) => {
+      toast.error(error.message);
+    }
+  });
+
+  // Delete buyer mutation
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .from('remarketing_buyers')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['remarketing'] });
+      toast.success("Buyer deleted");
+    }
+  });
+
+  // Filter buyers by tab + search
+  const filteredBuyers = useMemo(() => {
+    if (!buyers) return [];
+    let result = [...buyers];
+
+    // Tab filter
+    switch (activeTab) {
+      case 'pe_firm':
+        result = result.filter(b => isSponsorType(b.buyer_type));
+        break;
+      case 'platform':
+        result = result.filter(b => b.buyer_type === 'platform' || !b.buyer_type);
+        break;
+      case 'needs_agreements':
+        result = result.filter(b => !b.has_fee_agreement);
+        break;
+      case 'needs_enrichment':
+        result = result.filter(b => b.data_completeness !== 'high');
+        break;
+    }
+
+    if (search) {
+      const searchLower = search.toLowerCase();
+      result = result.filter(b =>
+        b.company_name?.toLowerCase().includes(searchLower) ||
+        b.company_website?.toLowerCase().includes(searchLower) ||
+        b.thesis_summary?.toLowerCase().includes(searchLower) ||
+        b.pe_firm_name?.toLowerCase().includes(searchLower)
+      );
+    }
+
+    // Sort
+    result = [...result].sort((a, b) => {
+      let valA: any, valB: any;
+      switch (sortColumn) {
+        case 'company_name':
+          valA = a.company_name?.toLowerCase() || '';
+          valB = b.company_name?.toLowerCase() || '';
+          break;
+        case 'pe_firm_name':
+          valA = a.pe_firm_name?.toLowerCase() || '';
+          valB = b.pe_firm_name?.toLowerCase() || '';
+          break;
+        case 'universe':
+          valA = (a.universe as { name?: string } | null)?.name?.toLowerCase() || '';
+          valB = (b.universe as { name?: string } | null)?.name?.toLowerCase() || '';
+          break;
+        default:
+          valA = a.company_name?.toLowerCase() || '';
+          valB = b.company_name?.toLowerCase() || '';
+      }
+      if (valA < valB) return sortDirection === 'asc' ? -1 : 1;
+      if (valA > valB) return sortDirection === 'asc' ? 1 : -1;
+      return 0;
+    });
+
+    return result;
+  }, [buyers, search, sortColumn, sortDirection, activeTab]);
+
+  // Pagination
+  const totalPages = Math.max(1, Math.ceil(filteredBuyers.length / PAGE_SIZE));
+  const pagedBuyers = useMemo(() => {
+    const start = (currentPage - 1) * PAGE_SIZE;
+    return filteredBuyers.slice(start, start + PAGE_SIZE);
+  }, [filteredBuyers, currentPage]);
+
+  // Reset to page 1 when filters/search/tab change
+  const handleTabChange = (v: string) => {
+    setActiveTab(v as BuyerTab);
+    setSelectedIds(new Set());
+    setCurrentPage(1);
+  };
+
+  // Enrich single buyer
+  const handleEnrichBuyer = async (e: React.MouseEvent, buyerId: string) => {
+    e.stopPropagation();
+    setEnrichingIds(prev => new Set(prev).add(buyerId));
+    try {
+      const { error } = await supabase.functions.invoke('enrich-buyer', {
+        body: { buyerId, force: false },
+      });
+      if (error) throw error;
+      toast.success('Enrichment started');
+      queryClient.invalidateQueries({ queryKey: ['remarketing', 'buyers'] });
+    } catch (err: any) {
+      toast.error(err.message || 'Enrichment failed');
+    } finally {
+      setEnrichingIds(prev => {
+        const next = new Set(prev);
+        next.delete(buyerId);
+        return next;
+      });
+    }
+  };
+
+  const handleSort = (column: string) => {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      if (next.get("sort") === column) {
+        next.set("dir", next.get("dir") === "asc" ? "desc" : "asc");
+      } else {
+        next.set("sort", column);
+        next.set("dir", "asc");
+      }
+      return next;
+    }, { replace: true });
+  };
+
+  const setUniverseFilter = (value: string) => {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      if (value === "all") next.delete("universe");
+      else next.set("universe", value);
+      return next;
+    }, { replace: true });
+  };
+
+  // Selection helpers
+  const toggleSelect = (id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+  const toggleSelectAll = () => {
+    if (selectedIds.size === filteredBuyers.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(filteredBuyers.map((b: any) => b.id)));
+    }
+  };
+
+  // Export CSV
+  const handleExportCSV = () => {
+    const rows = filteredBuyers.filter((b: any) => selectedIds.size === 0 || selectedIds.has(b.id));
+    const headers = ['Company Name', 'Buyer Type', 'PE Firm', 'Website', 'Location', 'Thesis', 'Fee Agreement', 'NDA'];
+    const csv = [
+      headers.join(','),
+      ...rows.map((b: any) => [
+        `"${(b.company_name || '').replace(/"/g, '""')}"`,
+        b.buyer_type || '',
+        `"${(b.pe_firm_name || '').replace(/"/g, '""')}"`,
+        b.company_website || '',
+        [b.hq_city, b.hq_state].filter(Boolean).join(' '),
+        `"${(b.thesis_summary || '').replace(/"/g, '""').substring(0, 200)}"`,
+        b.has_fee_agreement ? 'Yes' : 'No',
+        b.nda_signed ? 'Yes' : 'No',
+      ].join(','))
+    ].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = 'buyers.csv'; a.click();
+    URL.revokeObjectURL(url);
+    toast.success(`Exported ${rows.length} buyers`);
+  };
+
+  return {
+    // State
+    search,
+    setSearch,
+    activeTab,
+    universeFilter,
+    isAddDialogOpen,
+    setIsAddDialogOpen,
+    selectedIds,
+    setSelectedIds,
+    currentPage,
+    setCurrentPage,
+    enrichingIds,
+    setEnrichingIds,
+    sortColumn,
+    sortDirection,
+    newBuyer,
+    setNewBuyer,
+
+    // Data
+    buyers,
+    buyersLoading,
+    buyerIdsWithTranscripts,
+    universes,
+    tabCounts,
+    platformCountsByFirm,
+    filteredBuyers,
+    totalPages,
+    pagedBuyers,
+
+    // Mutations
+    createMutation,
+    deleteMutation,
+
+    // Handlers
+    handleTabChange,
+    handleEnrichBuyer,
+    handleSort,
+    setUniverseFilter,
+    toggleSelect,
+    toggleSelectAll,
+    handleExportCSV,
+
+    // Query client for bulk operations
+    queryClient,
+  };
+};
