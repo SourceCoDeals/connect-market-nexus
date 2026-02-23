@@ -2128,11 +2128,134 @@ export type Database = {
           },
         ]
       }
+      contact_activities: {
+        Row: {
+          activity_type: string
+          answered_by: string | null
+          call_connected_at: string | null
+          call_duration_seconds: number | null
+          call_ended_at: string | null
+          call_outcome: string | null
+          call_started_at: string | null
+          callback_completed_at: string | null
+          callback_outcome: string | null
+          callback_scheduled_date: string | null
+          contact_id: string | null
+          created_at: string
+          disposition_code: string | null
+          disposition_label: string | null
+          disposition_notes: string | null
+          disposition_set_at: string | null
+          id: string
+          phoneburner_call_id: string | null
+          phoneburner_contact_id: string | null
+          phoneburner_event_id: string | null
+          phoneburner_session_id: string | null
+          recording_duration_seconds: number | null
+          recording_url: string | null
+          remarketing_buyer_id: string | null
+          source_system: string
+          talk_time_seconds: number | null
+          updated_at: string
+          user_email: string | null
+          user_id: string | null
+          user_name: string | null
+        }
+        Insert: {
+          activity_type: string
+          answered_by?: string | null
+          call_connected_at?: string | null
+          call_duration_seconds?: number | null
+          call_ended_at?: string | null
+          call_outcome?: string | null
+          call_started_at?: string | null
+          callback_completed_at?: string | null
+          callback_outcome?: string | null
+          callback_scheduled_date?: string | null
+          contact_id?: string | null
+          created_at?: string
+          disposition_code?: string | null
+          disposition_label?: string | null
+          disposition_notes?: string | null
+          disposition_set_at?: string | null
+          id?: string
+          phoneburner_call_id?: string | null
+          phoneburner_contact_id?: string | null
+          phoneburner_event_id?: string | null
+          phoneburner_session_id?: string | null
+          recording_duration_seconds?: number | null
+          recording_url?: string | null
+          remarketing_buyer_id?: string | null
+          source_system?: string
+          talk_time_seconds?: number | null
+          updated_at?: string
+          user_email?: string | null
+          user_id?: string | null
+          user_name?: string | null
+        }
+        Update: {
+          activity_type?: string
+          answered_by?: string | null
+          call_connected_at?: string | null
+          call_duration_seconds?: number | null
+          call_ended_at?: string | null
+          call_outcome?: string | null
+          call_started_at?: string | null
+          callback_completed_at?: string | null
+          callback_outcome?: string | null
+          callback_scheduled_date?: string | null
+          contact_id?: string | null
+          created_at?: string
+          disposition_code?: string | null
+          disposition_label?: string | null
+          disposition_notes?: string | null
+          disposition_set_at?: string | null
+          id?: string
+          phoneburner_call_id?: string | null
+          phoneburner_contact_id?: string | null
+          phoneburner_event_id?: string | null
+          phoneburner_session_id?: string | null
+          recording_duration_seconds?: number | null
+          recording_url?: string | null
+          remarketing_buyer_id?: string | null
+          source_system?: string
+          talk_time_seconds?: number | null
+          updated_at?: string
+          user_email?: string | null
+          user_id?: string | null
+          user_name?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contact_activities_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contact_activities_phoneburner_session_id_fkey"
+            columns: ["phoneburner_session_id"]
+            isOneToOne: false
+            referencedRelation: "phoneburner_sessions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contact_activities_remarketing_buyer_id_fkey"
+            columns: ["remarketing_buyer_id"]
+            isOneToOne: false
+            referencedRelation: "remarketing_buyers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       contacts: {
         Row: {
           archived: boolean | null
           contact_type: string
           created_at: string | null
+          do_not_call: boolean | null
+          do_not_call_reason: string | null
           email: string | null
           fee_agreement_signed: boolean | null
           fee_agreement_signed_at: string | null
@@ -2141,23 +2264,39 @@ export type Database = {
           id: string
           is_primary_at_firm: boolean | null
           is_primary_seller_contact: boolean | null
+          last_call_attempt_at: string | null
+          last_call_connected_at: string | null
+          last_disposition_code: string | null
+          last_disposition_date: string | null
+          last_disposition_label: string | null
           last_name: string
           linkedin_url: string | null
           listing_id: string | null
           nda_signed: boolean | null
           nda_signed_at: string | null
+          next_action_date: string | null
+          next_action_notes: string | null
+          next_action_type: string | null
           notes: string | null
           phone: string | null
+          phone_number_invalid: boolean | null
+          phoneburner_contact_id: string | null
+          phoneburner_last_sync_at: string | null
           profile_id: string | null
           remarketing_buyer_id: string | null
           source: string | null
           title: string | null
+          total_call_attempts: number | null
+          total_call_duration_seconds: number | null
+          total_calls_connected: number | null
           updated_at: string | null
         }
         Insert: {
           archived?: boolean | null
           contact_type?: string
           created_at?: string | null
+          do_not_call?: boolean | null
+          do_not_call_reason?: string | null
           email?: string | null
           fee_agreement_signed?: boolean | null
           fee_agreement_signed_at?: string | null
@@ -2166,23 +2305,39 @@ export type Database = {
           id?: string
           is_primary_at_firm?: boolean | null
           is_primary_seller_contact?: boolean | null
+          last_call_attempt_at?: string | null
+          last_call_connected_at?: string | null
+          last_disposition_code?: string | null
+          last_disposition_date?: string | null
+          last_disposition_label?: string | null
           last_name?: string
           linkedin_url?: string | null
           listing_id?: string | null
           nda_signed?: boolean | null
           nda_signed_at?: string | null
+          next_action_date?: string | null
+          next_action_notes?: string | null
+          next_action_type?: string | null
           notes?: string | null
           phone?: string | null
+          phone_number_invalid?: boolean | null
+          phoneburner_contact_id?: string | null
+          phoneburner_last_sync_at?: string | null
           profile_id?: string | null
           remarketing_buyer_id?: string | null
           source?: string | null
           title?: string | null
+          total_call_attempts?: number | null
+          total_call_duration_seconds?: number | null
+          total_calls_connected?: number | null
           updated_at?: string | null
         }
         Update: {
           archived?: boolean | null
           contact_type?: string
           created_at?: string | null
+          do_not_call?: boolean | null
+          do_not_call_reason?: string | null
           email?: string | null
           fee_agreement_signed?: boolean | null
           fee_agreement_signed_at?: string | null
@@ -2191,17 +2346,31 @@ export type Database = {
           id?: string
           is_primary_at_firm?: boolean | null
           is_primary_seller_contact?: boolean | null
+          last_call_attempt_at?: string | null
+          last_call_connected_at?: string | null
+          last_disposition_code?: string | null
+          last_disposition_date?: string | null
+          last_disposition_label?: string | null
           last_name?: string
           linkedin_url?: string | null
           listing_id?: string | null
           nda_signed?: boolean | null
           nda_signed_at?: string | null
+          next_action_date?: string | null
+          next_action_notes?: string | null
+          next_action_type?: string | null
           notes?: string | null
           phone?: string | null
+          phone_number_invalid?: boolean | null
+          phoneburner_contact_id?: string | null
+          phoneburner_last_sync_at?: string | null
           profile_id?: string | null
           remarketing_buyer_id?: string | null
           source?: string | null
           title?: string | null
+          total_call_attempts?: number | null
+          total_call_duration_seconds?: number | null
+          total_calls_connected?: number | null
           updated_at?: string | null
         }
         Relationships: [
@@ -3927,6 +4096,84 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      disposition_mappings: {
+        Row: {
+          create_task: boolean | null
+          created_at: string
+          engagement_score_delta: number | null
+          id: string
+          is_active: boolean | null
+          mark_do_not_call: boolean | null
+          mark_phone_invalid: boolean | null
+          next_action_offset_days: number | null
+          next_action_type: string | null
+          notes: string | null
+          phoneburner_disposition_code: string
+          phoneburner_disposition_label: string | null
+          sourceco_contact_stage: string | null
+          sourceco_contact_status: string | null
+          suppress_contact: boolean | null
+          suppress_duration_days: number | null
+          task_due_offset_days: number | null
+          task_priority: string | null
+          task_type: string | null
+          trigger_workflow: boolean | null
+          updated_at: string
+          workflow_config: Json | null
+          workflow_name: string | null
+        }
+        Insert: {
+          create_task?: boolean | null
+          created_at?: string
+          engagement_score_delta?: number | null
+          id?: string
+          is_active?: boolean | null
+          mark_do_not_call?: boolean | null
+          mark_phone_invalid?: boolean | null
+          next_action_offset_days?: number | null
+          next_action_type?: string | null
+          notes?: string | null
+          phoneburner_disposition_code: string
+          phoneburner_disposition_label?: string | null
+          sourceco_contact_stage?: string | null
+          sourceco_contact_status?: string | null
+          suppress_contact?: boolean | null
+          suppress_duration_days?: number | null
+          task_due_offset_days?: number | null
+          task_priority?: string | null
+          task_type?: string | null
+          trigger_workflow?: boolean | null
+          updated_at?: string
+          workflow_config?: Json | null
+          workflow_name?: string | null
+        }
+        Update: {
+          create_task?: boolean | null
+          created_at?: string
+          engagement_score_delta?: number | null
+          id?: string
+          is_active?: boolean | null
+          mark_do_not_call?: boolean | null
+          mark_phone_invalid?: boolean | null
+          next_action_offset_days?: number | null
+          next_action_type?: string | null
+          notes?: string | null
+          phoneburner_disposition_code?: string
+          phoneburner_disposition_label?: string | null
+          sourceco_contact_stage?: string | null
+          sourceco_contact_status?: string | null
+          suppress_contact?: boolean | null
+          suppress_duration_days?: number | null
+          task_due_offset_days?: number | null
+          task_priority?: string | null
+          task_type?: string | null
+          trigger_workflow?: boolean | null
+          updated_at?: string
+          workflow_config?: Json | null
+          workflow_name?: string | null
+        }
+        Relationships: []
       }
       document_release_log: {
         Row: {
@@ -7161,6 +7408,194 @@ export type Database = {
           target_user_id?: string
         }
         Relationships: []
+      }
+      phoneburner_sessions: {
+        Row: {
+          completed_at: string | null
+          connection_rate_percentage: number | null
+          contact_type: string | null
+          created_at: string
+          created_by_user_id: string | null
+          id: string
+          last_activity_at: string | null
+          phoneburner_session_id: string | null
+          qualification_rate_percentage: number | null
+          session_description: string | null
+          session_name: string
+          session_status: string | null
+          session_type: string | null
+          started_at: string | null
+          target_geography: string | null
+          target_industry: string | null
+          total_call_time_seconds: number | null
+          total_callbacks_scheduled: number | null
+          total_connections: number | null
+          total_contacts_active: number | null
+          total_contacts_added: number | null
+          total_contacts_completed: number | null
+          total_decision_maker_conversations: number | null
+          total_dials: number | null
+          total_disqualified: number | null
+          total_meetings_scheduled: number | null
+          total_no_answers: number | null
+          total_qualified_leads: number | null
+          total_talk_time_seconds: number | null
+          total_voicemails_left: number | null
+          updated_at: string
+        }
+        Insert: {
+          completed_at?: string | null
+          connection_rate_percentage?: number | null
+          contact_type?: string | null
+          created_at?: string
+          created_by_user_id?: string | null
+          id?: string
+          last_activity_at?: string | null
+          phoneburner_session_id?: string | null
+          qualification_rate_percentage?: number | null
+          session_description?: string | null
+          session_name: string
+          session_status?: string | null
+          session_type?: string | null
+          started_at?: string | null
+          target_geography?: string | null
+          target_industry?: string | null
+          total_call_time_seconds?: number | null
+          total_callbacks_scheduled?: number | null
+          total_connections?: number | null
+          total_contacts_active?: number | null
+          total_contacts_added?: number | null
+          total_contacts_completed?: number | null
+          total_decision_maker_conversations?: number | null
+          total_dials?: number | null
+          total_disqualified?: number | null
+          total_meetings_scheduled?: number | null
+          total_no_answers?: number | null
+          total_qualified_leads?: number | null
+          total_talk_time_seconds?: number | null
+          total_voicemails_left?: number | null
+          updated_at?: string
+        }
+        Update: {
+          completed_at?: string | null
+          connection_rate_percentage?: number | null
+          contact_type?: string | null
+          created_at?: string
+          created_by_user_id?: string | null
+          id?: string
+          last_activity_at?: string | null
+          phoneburner_session_id?: string | null
+          qualification_rate_percentage?: number | null
+          session_description?: string | null
+          session_name?: string
+          session_status?: string | null
+          session_type?: string | null
+          started_at?: string | null
+          target_geography?: string | null
+          target_industry?: string | null
+          total_call_time_seconds?: number | null
+          total_callbacks_scheduled?: number | null
+          total_connections?: number | null
+          total_contacts_active?: number | null
+          total_contacts_added?: number | null
+          total_contacts_completed?: number | null
+          total_decision_maker_conversations?: number | null
+          total_dials?: number | null
+          total_disqualified?: number | null
+          total_meetings_scheduled?: number | null
+          total_no_answers?: number | null
+          total_qualified_leads?: number | null
+          total_talk_time_seconds?: number | null
+          total_voicemails_left?: number | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      phoneburner_webhooks_log: {
+        Row: {
+          contact_activity_id: string | null
+          created_at: string
+          event_id: string | null
+          event_type: string
+          id: string
+          ip_address: unknown
+          max_retries: number | null
+          next_retry_at: string | null
+          payload: Json
+          phoneburner_call_id: string | null
+          phoneburner_contact_id: string | null
+          phoneburner_session_id: string | null
+          phoneburner_user_id: string | null
+          processing_completed_at: string | null
+          processing_duration_ms: number | null
+          processing_error: string | null
+          processing_started_at: string | null
+          processing_status: string
+          received_at: string
+          retry_count: number | null
+          signature_valid: boolean | null
+          sourceco_contact_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          contact_activity_id?: string | null
+          created_at?: string
+          event_id?: string | null
+          event_type: string
+          id?: string
+          ip_address?: unknown
+          max_retries?: number | null
+          next_retry_at?: string | null
+          payload: Json
+          phoneburner_call_id?: string | null
+          phoneburner_contact_id?: string | null
+          phoneburner_session_id?: string | null
+          phoneburner_user_id?: string | null
+          processing_completed_at?: string | null
+          processing_duration_ms?: number | null
+          processing_error?: string | null
+          processing_started_at?: string | null
+          processing_status?: string
+          received_at?: string
+          retry_count?: number | null
+          signature_valid?: boolean | null
+          sourceco_contact_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          contact_activity_id?: string | null
+          created_at?: string
+          event_id?: string | null
+          event_type?: string
+          id?: string
+          ip_address?: unknown
+          max_retries?: number | null
+          next_retry_at?: string | null
+          payload?: Json
+          phoneburner_call_id?: string | null
+          phoneburner_contact_id?: string | null
+          phoneburner_session_id?: string | null
+          phoneburner_user_id?: string | null
+          processing_completed_at?: string | null
+          processing_duration_ms?: number | null
+          processing_error?: string | null
+          processing_started_at?: string | null
+          processing_status?: string
+          received_at?: string
+          retry_count?: number | null
+          signature_valid?: boolean | null
+          sourceco_contact_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "phoneburner_webhooks_log_contact_activity_id_fkey"
+            columns: ["contact_activity_id"]
+            isOneToOne: false
+            referencedRelation: "contact_activities"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       pipeline_views: {
         Row: {
