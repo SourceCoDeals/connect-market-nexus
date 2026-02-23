@@ -34,7 +34,7 @@ function useInboxThreads() {
           id, status, user_id, listing_id, user_message, created_at,
           conversation_state, last_message_at, last_message_preview, last_message_sender_role,
           claimed_by,
-          user:profiles!connection_requests_user_id_fkey(first_name, last_name, email, company, buyer_type),
+          user:profiles!connection_requests_user_id_profiles_fkey(first_name, last_name, email, company, buyer_type),
           listing:listings!connection_requests_listing_id_fkey(title)
         `)
         .order("last_message_at", { ascending: false, nullsFirst: false })

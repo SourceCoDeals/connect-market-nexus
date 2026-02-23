@@ -268,7 +268,7 @@ export function useMessageCenterThreads() {
           is_read_by_admin, created_at,
           request:connection_requests!inner(
             id, status, user_id, listing_id,
-            user:profiles!connection_requests_user_id_fkey(first_name, last_name, email, company),
+            user:profiles!connection_requests_user_id_profiles_fkey(first_name, last_name, email, company),
             listing:listings!connection_requests_listing_id_fkey(title)
           )
         `)
