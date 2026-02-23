@@ -1,25 +1,20 @@
-import { format } from "date-fns";
-import { Link } from "react-router-dom";
-import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Checkbox } from "@/components/ui/checkbox";
+import { format } from 'date-fns';
+import { Link } from 'react-router-dom';
+import { Card, CardContent } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
-import {
-  ExternalLink,
-  Phone,
-  FileText,
-  FileCheck,
-  Calendar,
-  } from "lucide-react";
-import { cn } from "@/lib/utils";
-import { ScoreBadge, ScoreTierBadge } from "@/components/remarketing";
-import type { ScoreTier } from "@/types/remarketing";
+} from '@/components/ui/select';
+import { ExternalLink, Phone, FileText, FileCheck, Calendar } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { ScoreBadge } from './ScoreBadge';
+import { ScoreTierBadge } from './ScoreTierBadge';
+import type { ScoreTier } from '@/types/remarketing';
 
 interface OutreachRecord {
   contacted_at?: string | null;
@@ -73,12 +68,14 @@ export const IntroductionStatusCard = ({
   ];
 
   return (
-    <Card className={cn(
-      "transition-all",
-      outreach?.outcome === 'won' && "border-emerald-200 bg-emerald-50/30",
-      outreach?.outcome === 'lost' && "border-red-200 bg-red-50/30",
-      isUpdating && "opacity-70"
-    )}>
+    <Card
+      className={cn(
+        'transition-all',
+        outreach?.outcome === 'won' && 'border-emerald-200 bg-emerald-50/30',
+        outreach?.outcome === 'lost' && 'border-red-200 bg-red-50/30',
+        isUpdating && 'opacity-70',
+      )}
+    >
       <CardContent className="p-4">
         <div className="flex flex-col lg:flex-row lg:items-center gap-4">
           {/* Buyer Info */}
@@ -88,7 +85,7 @@ export const IntroductionStatusCard = ({
             </div>
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2">
-                <Link 
+                <Link
                   to={`/admin/buyers/${buyerId}`}
                   className="font-medium hover:underline truncate"
                 >
@@ -96,7 +93,9 @@ export const IntroductionStatusCard = ({
                 </Link>
                 {buyerWebsite && (
                   <a
-                    href={buyerWebsite.startsWith('http') ? buyerWebsite : `https://${buyerWebsite}`}
+                    href={
+                      buyerWebsite.startsWith('http') ? buyerWebsite : `https://${buyerWebsite}`
+                    }
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-muted-foreground hover:text-primary"
@@ -121,7 +120,7 @@ export const IntroductionStatusCard = ({
             {checkboxFields.map(({ key, label, icon: Icon }) => {
               const isChecked = !!outreach?.[key as keyof OutreachRecord];
               const timestamp = outreach?.[key as keyof OutreachRecord];
-              
+
               return (
                 <div key={key} className="flex items-center gap-2">
                   <Checkbox
@@ -133,8 +132,8 @@ export const IntroductionStatusCard = ({
                   <label
                     htmlFor={`${buyerId}-${key}`}
                     className={cn(
-                      "text-sm cursor-pointer flex items-center gap-1",
-                      isChecked ? "text-foreground" : "text-muted-foreground"
+                      'text-sm cursor-pointer flex items-center gap-1',
+                      isChecked ? 'text-foreground' : 'text-muted-foreground',
                     )}
                   >
                     <Icon className="h-3 w-3" />

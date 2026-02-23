@@ -49,7 +49,7 @@ export function useConnectionMessages(connectionRequestId: string | undefined) {
             queryKey: ['connection-messages', connectionRequestId],
           });
           queryClient.invalidateQueries({ queryKey: ['unread-message-counts'] });
-        }
+        },
       )
       .subscribe();
 
@@ -62,12 +62,13 @@ export function useConnectionMessages(connectionRequestId: string | undefined) {
     queryKey: ['connection-messages', connectionRequestId],
     queryFn: async () => {
       if (!connectionRequestId) return [];
-      const { data, error } = await (supabase
-        .from('connection_messages') as any)
-        .select(`
+      const { data, error } = await (supabase.from('connection_messages') as any)
+        .select(
+          `
           *,
           sender:profiles!connection_messages_sender_id_fkey(first_name, last_name, email)
-        `)
+        `,
+        )
         .eq('connection_request_id', connectionRequestId)
         .order('created_at', { ascending: true });
 
@@ -90,12 +91,14 @@ export function useSendMessage() {
       sender_role: 'admin' | 'buyer';
       message_type?: 'message' | 'decision' | 'system';
     }) => {
-      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      const {
+        data: { user },
+        error: authError,
+      } = await supabase.auth.getUser();
       if (authError) throw authError;
       if (!user) throw new Error('Not authenticated');
 
-      const { data, error } = await (supabase
-        .from('connection_messages') as any)
+      const { data, error } = await (supabase.from('connection_messages') as any)
         .insert({
           connection_request_id: params.connection_request_id,
           sender_id: user.id,
@@ -128,8 +131,7 @@ export function useMarkMessagesReadByAdmin() {
 
   return useMutation({
     mutationFn: async (connectionRequestId: string) => {
-      const { error } = await (supabase
-        .from('connection_messages') as any)
+      const { error } = await (supabase.from('connection_messages') as any)
         .update({ is_read_by_admin: true })
         .eq('connection_request_id', connectionRequestId)
         .eq('is_read_by_admin', false);
@@ -153,8 +155,7 @@ export function useMarkMessagesReadByBuyer() {
 
   return useMutation({
     mutationFn: async (connectionRequestId: string) => {
-      const { error } = await (supabase
-        .from('connection_messages') as any)
+      const { error } = await (supabase.from('connection_messages') as any)
         .update({ is_read_by_buyer: true })
         .eq('connection_request_id', connectionRequestId)
         .eq('is_read_by_buyer', false);
@@ -177,8 +178,7 @@ export function useUnreadMessageCounts() {
     queryKey: ['unread-message-counts'],
     queryFn: async () => {
       // Fetch all unread-by-admin messages grouped by request
-      const { data, error } = await (supabase
-        .from('connection_messages') as any)
+      const { data, error } = await (supabase.from('connection_messages') as any)
         .select('connection_request_id')
         .eq('is_read_by_admin', false)
         .eq('sender_role', 'buyer');
@@ -204,8 +204,7 @@ export function useUnreadBuyerMessageCounts() {
   return useQuery({
     queryKey: ['unread-buyer-message-counts'],
     queryFn: async () => {
-      const { data, error } = await (supabase
-        .from('connection_messages') as any)
+      const { data, error } = await (supabase.from('connection_messages') as any)
         .select('connection_request_id')
         .eq('is_read_by_buyer', false)
         .eq('sender_role', 'admin');
@@ -245,9 +244,9 @@ export function useMessageCenterThreads() {
     queryKey: ['message-center-threads'],
     queryFn: async () => {
       // Fetch all messages with request + buyer + listing info
-      const { data: messages, error } = await (supabase
-        .from('connection_messages') as any)
-        .select(`
+      const { data: messages, error } = await (supabase.from('connection_messages') as any)
+        .select(
+          `
           id, connection_request_id, sender_role, body, message_type,
           is_read_by_admin, created_at,
           request:connection_requests!inner(
@@ -255,7 +254,8 @@ export function useMessageCenterThreads() {
             user:profiles!connection_requests_user_id_fkey(first_name, last_name, email, company),
             listing:listings!connection_requests_listing_id_fkey(title)
           )
-        `)
+        `,
+        )
         .order('created_at', { ascending: false })
         .limit(2000);
 
@@ -272,7 +272,9 @@ export function useMessageCenterThreads() {
         if (!threadMap.has(reqId)) {
           threadMap.set(reqId, {
             connection_request_id: reqId,
-            buyer_name: user ? `${user.first_name || ''} ${user.last_name || ''}`.trim() : 'Unknown',
+            buyer_name: user
+              ? `${user.first_name || ''} ${user.last_name || ''}`.trim()
+              : 'Unknown',
             buyer_company: user?.company || null,
             buyer_email: user?.email || null,
             deal_title: req?.listing?.title || null,
@@ -286,8 +288,10 @@ export function useMessageCenterThreads() {
 
         // Count unread (buyer messages not read by admin)
         if (msg.sender_role === 'buyer' && !msg.is_read_by_admin) {
-          const thread = threadMap.get(reqId)!;
-          thread.unread_count++;
+          const thread = threadMap.get(reqId);
+          if (thread) {
+            thread.unread_count++;
+          }
         }
       });
 
