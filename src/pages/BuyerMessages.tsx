@@ -529,7 +529,7 @@ function GeneralChatView({ onBack }: { onBack: () => void }) {
               }`}
             >
               <div
-                className={`max-w-[75%] rounded-xl px-4 py-2.5 text-sm ${
+                className={`max-w-[75%] min-w-0 rounded-xl px-4 py-2.5 text-sm ${
                   msg.sender_role === "buyer" || !msg.sender_role
                     ? "bg-primary text-primary-foreground"
                     : "bg-card text-card-foreground border border-border"
@@ -547,7 +547,9 @@ function GeneralChatView({ onBack }: { onBack: () => void }) {
                     })}
                   </span>
                 </div>
-                <p className="leading-relaxed whitespace-pre-wrap">{msg.body}</p>
+                <div className="leading-relaxed">
+                  <MessageBody body={msg.body} variant={msg.sender_role === "buyer" || !msg.sender_role ? "buyer" : "admin"} />
+                </div>
               </div>
             </div>
           ))
@@ -581,6 +583,59 @@ function GeneralChatView({ onBack }: { onBack: () => void }) {
         </div>
       </div>
     </div>
+  );
+}
+
+/**
+ * MessageBody — renders message text with:
+ * - URLs converted to clickable, truncated links
+ * - Proper word wrapping to prevent overflow
+ * - Distinct styling for system vs user messages
+ */
+function MessageBody({ body, variant }: { body: string; variant: "buyer" | "admin" | "system" }) {
+  const URL_REGEX = /(https?:\/\/[^\s]+)/g;
+
+  const parts = body.split(URL_REGEX);
+
+  return (
+    <p className="whitespace-pre-wrap break-words overflow-wrap-anywhere" style={{ overflowWrap: "anywhere" }}>
+      {parts.map((part, i) => {
+        if (URL_REGEX.test(part)) {
+          // Reset regex lastIndex
+          URL_REGEX.lastIndex = 0;
+          // Truncate display URL
+          let displayUrl: string;
+          try {
+            const url = new URL(part);
+            const path = url.pathname.length > 30
+              ? url.pathname.slice(0, 30) + "…"
+              : url.pathname;
+            displayUrl = url.hostname + path;
+          } catch {
+            displayUrl = part.length > 50 ? part.slice(0, 50) + "…" : part;
+          }
+
+          const linkColor = variant === "buyer"
+            ? "text-primary-foreground/90 underline underline-offset-2"
+            : variant === "system"
+              ? "text-primary underline underline-offset-2"
+              : "text-primary underline underline-offset-2";
+
+          return (
+            <a
+              key={i}
+              href={part}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={`${linkColor} hover:opacity-80 break-all text-xs`}
+            >
+              {displayUrl}
+            </a>
+          );
+        }
+        return <span key={i}>{part}</span>;
+      })}
+    </p>
   );
 }
 
@@ -685,56 +740,53 @@ function BuyerThreadView({
             <p className="text-sm text-muted-foreground">No messages yet</p>
           </div>
         ) : (
-          messages.map((msg) => (
-            <div
-              key={msg.id}
-              className={`flex ${
-                msg.message_type === "decision" || msg.message_type === "system"
-                  ? "justify-center"
-                  : msg.sender_role === "buyer"
-                    ? "justify-end"
-                    : "justify-start"
-              }`}
-            >
+          messages.map((msg) => {
+            const isSystem = msg.message_type === "decision" || msg.message_type === "system";
+            const isBuyer = msg.sender_role === "buyer";
+
+            // System/decision messages — compact notification style
+            if (isSystem) {
+              return (
+                <div key={msg.id} className="flex justify-center px-4">
+                  <div className="max-w-[90%] rounded-lg bg-muted/80 border border-border/50 px-4 py-2.5 text-center">
+                    <div className="text-xs text-muted-foreground leading-relaxed">
+                      <MessageBody body={msg.body} variant="system" />
+                    </div>
+                    <span className="text-[10px] text-muted-foreground/60 mt-1 block">
+                      {formatDistanceToNow(new Date(msg.created_at), { addSuffix: true })}
+                    </span>
+                  </div>
+                </div>
+              );
+            }
+
+            return (
               <div
-                className={`max-w-[75%] rounded-xl px-4 py-2.5 text-sm ${
-                  msg.message_type === "decision" ||
-                  msg.message_type === "system"
-                    ? "bg-muted text-muted-foreground italic text-xs"
-                    : msg.sender_role === "buyer"
+                key={msg.id}
+                className={`flex ${isBuyer ? "justify-end" : "justify-start"}`}
+              >
+                <div
+                  className={`max-w-[75%] min-w-0 rounded-xl px-4 py-2.5 text-sm ${
+                    isBuyer
                       ? "bg-primary text-primary-foreground"
                       : "bg-card text-card-foreground border border-border"
-                }`}
-              >
-                {msg.message_type !== "system" &&
-                  msg.message_type !== "decision" && (
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="font-medium text-xs opacity-80">
-                        {msg.sender_role === "buyer"
-                          ? "You"
-                          : msg.sender?.first_name || "SourceCo"}
-                      </span>
-                      <span className="opacity-50 text-[10px]">
-                        {formatDistanceToNow(new Date(msg.created_at), {
-                          addSuffix: true,
-                        })}
-                      </span>
-                    </div>
-                  )}
-                <p className="leading-relaxed whitespace-pre-wrap">
-                  {msg.body}
-                </p>
-                {(msg.message_type === "system" ||
-                  msg.message_type === "decision") && (
-                  <span className="opacity-50 text-[10px] block mt-0.5">
-                    {formatDistanceToNow(new Date(msg.created_at), {
-                      addSuffix: true,
-                    })}
-                  </span>
-                )}
+                  }`}
+                >
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="font-medium text-xs opacity-80">
+                      {isBuyer ? "You" : msg.sender?.first_name || "SourceCo"}
+                    </span>
+                    <span className="opacity-50 text-[10px]">
+                      {formatDistanceToNow(new Date(msg.created_at), { addSuffix: true })}
+                    </span>
+                  </div>
+                  <div className="leading-relaxed">
+                    <MessageBody body={msg.body} variant={isBuyer ? "buyer" : "admin"} />
+                  </div>
+                </div>
               </div>
-            </div>
-          ))
+            );
+          })
         )}
         <div ref={messagesEndRef} />
       </div>
