@@ -116,7 +116,6 @@ serve(async (req: Request) => {
 
       if (submitterRes.ok) {
         const submitters = await submitterRes.json();
-        // Find the submitter matching this buyer's email
         const data = Array.isArray(submitters?.data) ? submitters.data : Array.isArray(submitters) ? submitters : [];
         const submitter = data.find((s: any) => s.email === profile.email) || data[0];
         if (submitter?.embed_src) {
@@ -125,8 +124,35 @@ serve(async (req: Request) => {
             { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
           );
         }
+        // embed_src not in list response — fetch individual submitter
+        if (submitter?.id) {
+          const individualRes = await fetch(
+            `https://api.docuseal.com/submitters/${submitter.id}`,
+            { headers: { "X-Auth-Token": docusealApiKey } },
+          );
+          if (individualRes.ok) {
+            const ind = await individualRes.json();
+            if (ind?.embed_src) {
+              return new Response(
+                JSON.stringify({ ndaSigned: false, embedSrc: ind.embed_src }),
+                { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
+              );
+            }
+            if (ind?.slug) {
+              return new Response(
+                JSON.stringify({ ndaSigned: false, embedSrc: `https://docuseal.com/s/${ind.slug}` }),
+                { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
+              );
+            }
+          }
+        }
+        if (submitter?.slug) {
+          return new Response(
+            JSON.stringify({ ndaSigned: false, embedSrc: `https://docuseal.com/s/${submitter.slug}` }),
+            { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
+          );
+        }
       }
-    }
 
     // No existing submission or couldn't get embed_src — create new submission
     const ndaTemplateId = Deno.env.get("DOCUSEAL_NDA_TEMPLATE_ID");

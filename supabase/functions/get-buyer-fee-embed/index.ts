@@ -119,14 +119,51 @@ serve(async (req: Request) => {
           ? submitters
           : [];
       const submitter = data.find((s: any) => s.email === profile?.email) || data[0];
-      console.log('📋 Matched submitter:', JSON.stringify({ email: submitter?.email, status: submitter?.status, has_embed: !!submitter?.embed_src }));
+      console.log('📋 Matched submitter:', JSON.stringify({ email: submitter?.email, status: submitter?.status, has_embed: !!submitter?.embed_src, slug: submitter?.slug, id: submitter?.id }));
+      
       if (submitter?.embed_src) {
         return new Response(JSON.stringify({ feeSigned: false, embedSrc: submitter.embed_src }), {
           status: 200,
           headers: { 'Content-Type': 'application/json', ...corsHeaders },
         });
       }
-      // If submitter exists but no embed_src, it may have been completed already
+
+      // embed_src not in list response — fetch individual submitter by ID
+      if (submitter?.id && !submitter?.embed_src) {
+        const individualRes = await fetch(
+          `https://api.docuseal.com/submitters/${submitter.id}`,
+          { headers: { 'X-Auth-Token': docusealApiKey } },
+        );
+        if (individualRes.ok) {
+          const individualData = await individualRes.json();
+          console.log('📋 Individual submitter response:', JSON.stringify({ embed_src: !!individualData?.embed_src, slug: individualData?.slug, status: individualData?.status }));
+          if (individualData?.embed_src) {
+            return new Response(JSON.stringify({ feeSigned: false, embedSrc: individualData.embed_src }), {
+              status: 200,
+              headers: { 'Content-Type': 'application/json', ...corsHeaders },
+            });
+          }
+          // Construct embed URL from slug as fallback
+          if (individualData?.slug) {
+            const embedSrc = `https://docuseal.com/s/${individualData.slug}`;
+            return new Response(JSON.stringify({ feeSigned: false, embedSrc }), {
+              status: 200,
+              headers: { 'Content-Type': 'application/json', ...corsHeaders },
+            });
+          }
+        }
+      }
+
+      // Construct embed URL from slug if available from list response
+      if (submitter?.slug) {
+        const embedSrc = `https://docuseal.com/s/${submitter.slug}`;
+        return new Response(JSON.stringify({ feeSigned: false, embedSrc }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json', ...corsHeaders },
+        });
+      }
+
+      // If submitter exists but completed
       if (submitter?.status === 'completed') {
         return new Response(JSON.stringify({ feeSigned: true, embedSrc: null }), {
           status: 200,
