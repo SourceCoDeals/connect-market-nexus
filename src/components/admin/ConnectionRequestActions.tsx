@@ -1,4 +1,6 @@
 import { useState, useEffect, useRef } from "react";
+import { useConnectionRequestFirm } from "@/hooks/admin/use-connection-request-firm";
+import { SendAgreementDialog } from "@/components/docuseal/SendAgreementDialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
@@ -78,8 +80,11 @@ export function ConnectionRequestActions({
   const updateStatus = useUpdateConnectionRequestStatus();
   const updateAccess = useUpdateAccess();
   const sendMessage = useSendMessage();
+  const { data: firmInfo } = useConnectionRequestFirm(requestId || null);
 
   const [showRejectDialog, setShowRejectDialog] = useState(false);
+  const [sendAgreementOpen, setSendAgreementOpen] = useState(false);
+  const [sendAgreementType, setSendAgreementType] = useState<'nda' | 'fee_agreement'>('nda');
   const [rejectNote, setRejectNote] = useState("");
   const [activeTab, setActiveTab] = useState<"thread" | "notes">("thread");
   const [pendingAccessToggle, setPendingAccessToggle] = useState<{
@@ -557,6 +562,17 @@ export function ConnectionRequestActions({
                   <span className={`text-xs font-medium ${hasNDA ? 'text-emerald-600' : 'text-amber-600'}`}>
                     {user.nda_signed ? 'Signed' : user.nda_email_sent ? 'Sent' : 'Not Sent'}
                   </span>
+                  {!hasNDA && firmInfo?.firm_id && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-5 px-1.5 text-[10px] ml-1"
+                      onClick={() => { setSendAgreementType('nda'); setSendAgreementOpen(true); }}
+                    >
+                      <Send className="h-3 w-3 mr-0.5" />
+                      Send
+                    </Button>
+                  )}
                 </div>
               </div>
               <div className="flex items-center justify-between py-1.5 px-3 rounded-md bg-muted/30">
@@ -566,6 +582,17 @@ export function ConnectionRequestActions({
                   <span className={`text-xs font-medium ${hasFeeAgreement ? 'text-emerald-600' : 'text-amber-600'}`}>
                     {user.fee_agreement_signed ? 'Signed' : user.fee_agreement_email_sent ? 'Sent' : 'Not Sent'}
                   </span>
+                  {!hasFeeAgreement && firmInfo?.firm_id && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-5 px-1.5 text-[10px] ml-1"
+                      onClick={() => { setSendAgreementType('fee_agreement'); setSendAgreementOpen(true); }}
+                    >
+                      <Send className="h-3 w-3 mr-0.5" />
+                      Send
+                    </Button>
+                  )}
                 </div>
               </div>
             </div>
@@ -676,6 +703,18 @@ export function ConnectionRequestActions({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {firmInfo?.firm_id && (
+        <SendAgreementDialog
+          open={sendAgreementOpen}
+          onOpenChange={setSendAgreementOpen}
+          firmId={firmInfo.firm_id}
+          documentType={sendAgreementType}
+          buyerEmail={user.email || ''}
+          buyerName={`${user.first_name || ''} ${user.last_name || ''}`.trim() || user.email || ''}
+          firmName={firmInfo.firm_name || undefined}
+        />
+      )}
     </div>
   );
 }
