@@ -1,3 +1,4 @@
+import { memo } from "react";
 import {
   USFlagIcon,
   CanadaIcon,
@@ -133,7 +134,7 @@ const getCategoryIcon = (category: string) => {
   return <DefaultCategoryIcon className="w-4 h-4 text-slate-500" />;
 };
 
-const ListingCardBadges = ({ location, categories = [], acquisitionType }: ListingCardBadgesProps) => {
+const ListingCardBadges = memo(function ListingCardBadges({ location, categories = [], acquisitionType }: ListingCardBadgesProps) {
   const categoriesToShow = categories.slice(0, 2);
   
   return (
@@ -163,6 +164,6 @@ const ListingCardBadges = ({ location, categories = [], acquisitionType }: Listi
       </div>
     </div>
   );
-};
+});
 
 export default ListingCardBadges;

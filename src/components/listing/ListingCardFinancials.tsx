@@ -1,4 +1,4 @@
-
+import { memo } from "react";
 
 interface ListingCardFinancialsProps {
   revenue: number;

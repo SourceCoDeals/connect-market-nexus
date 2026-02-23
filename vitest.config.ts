@@ -5,7 +5,8 @@ import path from 'path';
 export default defineConfig({
   test: {
     globals: true,
-    environment: 'node',
+    environment: 'jsdom',
+    setupFiles: ['./src/test/setup.ts'],
     include: [
       'src/**/*.test.{ts,tsx}',
       'supabase/functions/**/*.test.ts',
@@ -16,9 +17,12 @@ export default defineConfig({
       reporter: ['text', 'text-summary', 'html'],
       include: [
         'src/lib/**/*.ts',
+        'src/utils/**/*.ts',
+        'src/hooks/**/*.{ts,tsx}',
+        'src/components/**/*.{ts,tsx}',
         'supabase/functions/_shared/**/*.ts',
       ],
-      exclude: ['**/*.test.ts', '**/*.d.ts'],
+      exclude: ['**/*.test.ts', '**/*.test.tsx', '**/*.d.ts'],
     },
   },
   resolve: {
