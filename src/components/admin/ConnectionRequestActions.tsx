@@ -363,7 +363,7 @@ export function ConnectionRequestActions({
       {requestStatus === "approved" && listing && (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {/* Document Status */}
-          <div className="bg-primary/[0.03] border border-primary/15 rounded-lg p-4">
+          <div className="bg-sourceco-background border border-sourceco/25 rounded-lg p-4">
             <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2 mb-3">
               <FileText className="h-3.5 w-3.5" />
               Document Status
@@ -388,7 +388,7 @@ export function ConnectionRequestActions({
 
           {/* Document Access */}
           <TooltipProvider>
-            <div className="bg-primary/[0.03] border border-primary/15 rounded-lg p-4">
+            <div className="bg-sourceco-background border border-sourceco/25 rounded-lg p-4">
               <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2 mb-3">
                 <Eye className="h-3.5 w-3.5" />
                 Document Access
@@ -446,13 +446,13 @@ export function ConnectionRequestActions({
       {/* ── TWO-COLUMN LAYOUT ── */}
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-4">
         {/* ── LEFT: Conversation Thread ── */}
-        <div className="bg-primary/[0.03] border-2 border-primary/15 rounded-xl overflow-hidden shadow-md">
+        <div className="bg-sourceco-background border border-sourceco/25 rounded-xl overflow-hidden shadow-sm">
           {/* Tab bar */}
-          <div className="border-b border-primary/10 px-5 flex items-center bg-primary/[0.04]">
+          <div className="border-b border-sourceco/20 px-5 flex items-center bg-sourceco-muted/30">
             <button
               className={`py-3 px-1 text-sm font-medium border-b-2 transition-colors mr-4 ${
                 activeTab === "thread"
-                  ? "border-primary text-foreground"
+                  ? "border-sourceco text-foreground"
                   : "border-transparent text-muted-foreground hover:text-foreground"
               }`}
               onClick={() => setActiveTab("thread")}
@@ -462,7 +462,7 @@ export function ConnectionRequestActions({
             <button
               className={`py-3 px-1 text-sm font-medium border-b-2 transition-colors ${
                 activeTab === "notes"
-                  ? "border-primary text-foreground"
+                  ? "border-sourceco text-foreground"
                   : "border-transparent text-muted-foreground hover:text-foreground"
               }`}
               onClick={() => setActiveTab("notes")}
@@ -483,7 +483,7 @@ export function ConnectionRequestActions({
 
           {activeTab === "notes" && (
             <div className="p-5 bg-sourceco-muted/20">
-              <div className="bg-sourceco/10 border border-sourceco/30 rounded-lg px-4 py-2.5 mb-4 text-xs text-primary flex items-center gap-2">
+              <div className="bg-sourceco/10 border border-sourceco/30 rounded-lg px-4 py-2.5 mb-4 text-xs text-foreground flex items-center gap-2">
                 <Lock className="h-3.5 w-3.5 shrink-0" />
                 Internal notes are only visible to your team — buyers cannot see these.
               </div>
@@ -495,8 +495,8 @@ export function ConnectionRequestActions({
         {/* ── RIGHT SIDEBAR ── */}
         <div className="space-y-4">
           {/* Buyer Information */}
-          <div className="bg-primary/[0.03] border border-primary/15 rounded-xl overflow-hidden shadow-sm">
-            <div className="px-4 py-3 border-b border-primary/10 bg-primary/[0.05]">
+          <div className="bg-sourceco-background border border-sourceco/25 rounded-xl overflow-hidden shadow-sm">
+            <div className="px-4 py-3 border-b border-sourceco/20 bg-sourceco-muted/30">
               <p className="text-[10px] font-bold uppercase tracking-[0.08em] text-muted-foreground flex items-center gap-1.5">
                 <User className="h-3 w-3" />
                 Buyer Information
@@ -558,8 +558,8 @@ export function ConnectionRequestActions({
 
           {/* Deal Information */}
           {listing && (
-            <div className="bg-primary/[0.03] border border-primary/15 rounded-xl overflow-hidden shadow-sm">
-              <div className="px-4 py-3 border-b border-primary/10 bg-primary/[0.05]">
+            <div className="bg-sourceco-background border border-sourceco/25 rounded-xl overflow-hidden shadow-sm">
+              <div className="px-4 py-3 border-b border-sourceco/20 bg-sourceco-muted/30">
                 <p className="text-[10px] font-bold uppercase tracking-[0.08em] text-muted-foreground flex items-center gap-1.5">
                   <Building2 className="h-3 w-3" />
                   Requested Deal
@@ -585,7 +585,7 @@ export function ConnectionRequestActions({
                 )}
                 {listing.revenue && (
                   <SidebarField label="Revenue">
-                    <span className="text-xs font-semibold text-emerald-600">
+                    <span className="text-xs font-semibold text-success">
                       ${Number(listing.revenue).toLocaleString()}
                     </span>
                   </SidebarField>
@@ -595,13 +595,13 @@ export function ConnectionRequestActions({
           )}
 
           {/* General Notes (compact) */}
-          <div className="bg-primary/[0.03] border border-primary/15 rounded-xl overflow-hidden shadow-sm">
+          <div className="bg-sourceco-background border border-sourceco/25 rounded-xl overflow-hidden shadow-sm">
             <UserNotesSection userId={user.id} userName={`${user.first_name} ${user.last_name}`} />
           </div>
 
           {/* Other Deals by Buyer */}
           {userRequests.length > 1 && (
-            <div className="bg-primary/[0.03] border border-primary/15 rounded-xl overflow-hidden shadow-sm">
+            <div className="bg-sourceco-background border border-sourceco/25 rounded-xl overflow-hidden shadow-sm">
               <BuyerDealsOverview
                 requests={userRequests}
                 currentRequestId={requestId}
@@ -718,7 +718,7 @@ function ConversationThread({
         {buyerMessage && (
           <div>
             <div className="flex items-center gap-3 mb-3">
-              <div className="w-9 h-9 rounded-full bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center text-primary-foreground text-xs font-bold shrink-0 shadow-sm">
+              <div className="w-9 h-9 rounded-full bg-sourceco flex items-center justify-center text-sourceco-foreground text-xs font-bold shrink-0 shadow-sm">
                 {buyerInitials}
               </div>
               <div className="flex items-center gap-2 flex-1 min-w-0">
@@ -727,13 +727,13 @@ function ConversationThread({
                   {submittedAt ? format(new Date(submittedAt), 'MMM d, yyyy') : ''}
                 </span>
               </div>
-              <Badge variant="outline" className="text-xs bg-amber-50 text-amber-700 border-amber-200 shrink-0 font-medium px-2.5 py-1">
+              <Badge variant="outline" className="text-xs bg-sourceco/10 text-sourceco-muted-foreground border-sourceco/30 shrink-0 font-medium px-2.5 py-1">
                 <Link2 className="h-3 w-3 mr-1.5" />
                 Connection Request
               </Badge>
             </div>
             <div className="ml-12">
-              <div className="bg-gradient-to-br from-primary to-primary/80 text-primary-foreground rounded-2xl rounded-tl-sm px-5 py-4 shadow-md">
+              <div className="bg-sourceco-muted border border-sourceco/30 text-foreground rounded-2xl rounded-tl-sm px-5 py-4 shadow-sm">
                 <p className="text-sm leading-relaxed">{buyerMessage}</p>
               </div>
             </div>
@@ -762,9 +762,9 @@ function ConversationThread({
         {messages.map((msg) => (
           <div key={msg.id}>
             {msg.message_type === "decision" || msg.message_type === "system" ? (
-              <div className="bg-amber-50 border border-amber-200 rounded-lg px-5 py-3 text-center mx-auto max-w-md">
-                <p className="text-sm text-amber-800">{msg.body}</p>
-                <span className="text-xs text-amber-600 mt-1 block">
+              <div className="bg-sourceco/10 border border-sourceco/30 rounded-lg px-5 py-3 text-center mx-auto max-w-md">
+                <p className="text-sm text-foreground">{msg.body}</p>
+                <span className="text-xs text-muted-foreground mt-1 block">
                   {formatDistanceToNow(new Date(msg.created_at), { addSuffix: true })}
                 </span>
               </div>
@@ -775,18 +775,18 @@ function ConversationThread({
                     {formatDistanceToNow(new Date(msg.created_at), { addSuffix: true })}
                   </span>
                   <span className="text-sm font-semibold text-foreground">You</span>
-                  <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center text-xs font-bold text-muted-foreground">
+                  <div className="w-8 h-8 rounded-full bg-sourceco/20 flex items-center justify-center text-xs font-bold text-sourceco-muted-foreground">
                     SC
                   </div>
                 </div>
-                <div className="mr-10 bg-muted text-foreground rounded-2xl rounded-tr-sm px-5 py-4 max-w-[85%] shadow-sm">
+                <div className="mr-10 bg-sourceco/10 border border-sourceco/20 text-foreground rounded-2xl rounded-tr-sm px-5 py-4 max-w-[85%] shadow-sm">
                   <p className="text-sm leading-relaxed">{msg.body}</p>
                 </div>
               </div>
             ) : (
               <div>
                 <div className="flex items-center gap-2 mb-2">
-                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center text-primary-foreground text-[10px] font-bold shadow-sm">
+                  <div className="w-8 h-8 rounded-full bg-sourceco flex items-center justify-center text-sourceco-foreground text-[10px] font-bold shadow-sm">
                     {buyerInitials}
                   </div>
                   <span className="text-sm font-semibold text-foreground">
@@ -807,8 +807,8 @@ function ConversationThread({
       </div>
 
       {/* Composer */}
-      <div className="border-t-2 border-primary/10 p-5 bg-primary/[0.03]">
-        <div className="border-2 border-primary/20 rounded-xl overflow-hidden focus-within:border-primary/50 focus-within:ring-2 focus-within:ring-primary/15 transition-all bg-background">
+      <div className="border-t border-sourceco/20 p-5 bg-sourceco-muted/20">
+        <div className="border border-sourceco/30 rounded-xl overflow-hidden focus-within:border-sourceco/60 focus-within:ring-2 focus-within:ring-sourceco/15 transition-all bg-background">
           <textarea
             rows={3}
             placeholder="Reply to this buyer..."
@@ -822,13 +822,13 @@ function ConversationThread({
             }}
             className="w-full border-none resize-none text-sm text-foreground bg-transparent px-5 py-4 focus:outline-none placeholder:text-muted-foreground/60"
           />
-          <div className="flex items-center justify-between px-4 py-3 border-t border-border/30 bg-muted/30">
+           <div className="flex items-center justify-between px-4 py-3 border-t border-sourceco/15 bg-sourceco-muted/20">
             <span className="text-xs text-muted-foreground">⌘ + Enter to send</span>
             <Button
               size="sm"
               onClick={handleSend}
               disabled={!newMessage.trim() || sendMsg.isPending}
-              className="h-9 px-5 text-sm font-semibold bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm"
+              className="h-9 px-5 text-sm font-semibold bg-sourceco hover:bg-sourceco/90 text-sourceco-foreground shadow-sm"
             >
               <Send className="h-3.5 w-3.5 mr-2" />
               Send Reply
