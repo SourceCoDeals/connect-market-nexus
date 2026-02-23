@@ -2,23 +2,21 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Input } from '@/components/ui/input';
-import { Calendar } from '@/components/ui/calendar';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { MultiSelect } from '@/components/ui/multi-select';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
-import { 
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
   DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
-import { 
-  X, 
-  CalendarIcon, 
-  Building2, 
+import {
+  X,
+  CalendarIcon,
+  Building2,
   UserCircle,
   Filter,
   CheckCircle2,
@@ -30,10 +28,10 @@ import {
   ArrowUpDown,
 } from 'lucide-react';
 import { format } from 'date-fns';
-import { cn } from '@/lib/utils';
 import { usePipelineCore } from '@/hooks/admin/use-pipeline-core';
 import { useFilterPresets, useDeleteFilterPreset } from '@/hooks/admin/use-filter-presets';
 import { SaveFilterPresetDialog } from './SaveFilterPresetDialog';
+import { DateRangeFilter } from './DateRangeFilter';
 import { useState as useReactState } from 'react';
 
 interface PipelineFilterPanelProps {
@@ -398,151 +396,19 @@ export function PipelineFilterPanel({ pipeline }: PipelineFilterPanelProps) {
                   </div>
                 </AccordionTrigger>
                 <AccordionContent className="pb-4 space-y-4">
-                  {/* Created Date Range */}
-                  <div>
-                    <label className="text-sm font-medium mb-2 block">Created Date</label>
-                    <div className="space-y-2">
-                      <Popover>
-                        <PopoverTrigger asChild>
-                          <Button
-                            variant="outline"
-                            className={cn(
-                              'w-full justify-start text-left font-normal',
-                              !pipeline.createdDateRange.start && 'text-muted-foreground'
-                            )}
-                          >
-                            <CalendarIcon className="mr-2 h-4 w-4" />
-                            {pipeline.createdDateRange.start ? (
-                              format(pipeline.createdDateRange.start, 'PPP')
-                            ) : (
-                              <span>Start date</span>
-                            )}
-                          </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0" align="start">
-                          <Calendar
-                            mode="single"
-                            selected={pipeline.createdDateRange.start || undefined}
-                            onSelect={(date) =>
-                              pipeline.setCreatedDateRange({
-                                ...pipeline.createdDateRange,
-                                start: date || null,
-                              })
-                            }
-                            initialFocus
-                            className="pointer-events-auto"
-                          />
-                        </PopoverContent>
-                      </Popover>
-
-                      <Popover>
-                        <PopoverTrigger asChild>
-                          <Button
-                            variant="outline"
-                            className={cn(
-                              'w-full justify-start text-left font-normal',
-                              !pipeline.createdDateRange.end && 'text-muted-foreground'
-                            )}
-                          >
-                            <CalendarIcon className="mr-2 h-4 w-4" />
-                            {pipeline.createdDateRange.end ? (
-                              format(pipeline.createdDateRange.end, 'PPP')
-                            ) : (
-                              <span>End date</span>
-                            )}
-                          </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0" align="start">
-                          <Calendar
-                            mode="single"
-                            selected={pipeline.createdDateRange.end || undefined}
-                            onSelect={(date) =>
-                              pipeline.setCreatedDateRange({
-                                ...pipeline.createdDateRange,
-                                end: date || null,
-                              })
-                            }
-                            initialFocus
-                            className="pointer-events-auto"
-                          />
-                        </PopoverContent>
-                      </Popover>
-                    </div>
-                  </div>
+                  <DateRangeFilter
+                    label="Created Date"
+                    range={pipeline.createdDateRange}
+                    onRangeChange={pipeline.setCreatedDateRange}
+                  />
 
                   <Separator />
 
-                  {/* Last Activity Range */}
-                  <div>
-                    <label className="text-sm font-medium mb-2 block">Last Activity</label>
-                    <div className="space-y-2">
-                      <Popover>
-                        <PopoverTrigger asChild>
-                          <Button
-                            variant="outline"
-                            className={cn(
-                              'w-full justify-start text-left font-normal',
-                              !pipeline.lastActivityRange.start && 'text-muted-foreground'
-                            )}
-                          >
-                            <CalendarIcon className="mr-2 h-4 w-4" />
-                            {pipeline.lastActivityRange.start ? (
-                              format(pipeline.lastActivityRange.start, 'PPP')
-                            ) : (
-                              <span>Start date</span>
-                            )}
-                          </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0" align="start">
-                          <Calendar
-                            mode="single"
-                            selected={pipeline.lastActivityRange.start || undefined}
-                            onSelect={(date) =>
-                              pipeline.setLastActivityRange({
-                                ...pipeline.lastActivityRange,
-                                start: date || null,
-                              })
-                            }
-                            initialFocus
-                            className="pointer-events-auto"
-                          />
-                        </PopoverContent>
-                      </Popover>
-
-                      <Popover>
-                        <PopoverTrigger asChild>
-                          <Button
-                            variant="outline"
-                            className={cn(
-                              'w-full justify-start text-left font-normal',
-                              !pipeline.lastActivityRange.end && 'text-muted-foreground'
-                            )}
-                          >
-                            <CalendarIcon className="mr-2 h-4 w-4" />
-                            {pipeline.lastActivityRange.end ? (
-                              format(pipeline.lastActivityRange.end, 'PPP')
-                            ) : (
-                              <span>End date</span>
-                            )}
-                          </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0" align="start">
-                          <Calendar
-                            mode="single"
-                            selected={pipeline.lastActivityRange.end || undefined}
-                            onSelect={(date) =>
-                              pipeline.setLastActivityRange({
-                                ...pipeline.lastActivityRange,
-                                end: date || null,
-                              })
-                            }
-                            initialFocus
-                            className="pointer-events-auto"
-                          />
-                        </PopoverContent>
-                      </Popover>
-                    </div>
-                  </div>
+                  <DateRangeFilter
+                    label="Last Activity"
+                    range={pipeline.lastActivityRange}
+                    onRangeChange={pipeline.setLastActivityRange}
+                  />
                 </AccordionContent>
               </AccordionItem>
 

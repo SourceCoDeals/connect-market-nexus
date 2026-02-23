@@ -3,6 +3,9 @@
 
 export type UserRole = 'admin' | 'buyer';
 
+/** Internal team role for admin-panel access control. */
+export type TeamRole = 'owner' | 'admin' | 'moderator' | 'viewer';
+
 export type BuyerType = 'corporate' | 'privateEquity' | 'familyOffice' | 'searchFund' | 'individual' | 'independentSponsor' | 'advisor' | 'businessOwner';
 
 export type ApprovalStatus = 'pending' | 'approved' | 'rejected';
@@ -42,6 +45,8 @@ export interface User {
   website: string;
   phone_number: string;
   role: UserRole;
+  /** Internal team role fetched from user_roles table. */
+  team_role?: TeamRole;
   email_verified: boolean;
   approval_status: ApprovalStatus;
   is_admin: boolean;

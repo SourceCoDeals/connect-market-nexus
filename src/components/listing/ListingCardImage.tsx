@@ -41,10 +41,12 @@ const ListingCardImage = memo(function ListingCardImage({ imageUrl: initialImage
             <ImageIcon className="h-8 w-8 text-muted-foreground/30" />
           </div>
         ) : (
-          <img 
-            src={imageUrl} 
-            alt={title} 
-            className="object-cover w-full h-full transition-transform duration-500 group-hover:scale-105" 
+          <img
+            src={imageUrl}
+            alt={title}
+            loading="lazy"
+            decoding="async"
+            className="object-cover w-full h-full transition-transform duration-500 group-hover:scale-105"
             onError={handleImageError}
           />
         )}

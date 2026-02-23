@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useUserNotifications } from "@/hooks/use-user-notifications";
 import { useUnreadBuyerMessageCounts } from "@/hooks/use-connection-messages";
-import { MarketplaceIcon, SavedIcon, DealsIcon, MessagesIcon, AdminIcon } from "@/components/icons/NavIcons";
+import { MarketplaceIcon, SavedIcon, DealsIcon, MessagesIcon, ProfileIcon, AdminIcon } from "@/components/icons/NavIcons";
 
 interface DesktopNavItemsProps {
   isAdmin: boolean;
@@ -48,6 +48,12 @@ const DesktopNavItems = ({ isAdmin, isApproved, onNavigateToAdmin }: DesktopNavI
       icon: MessagesIcon,
       isActive: location.pathname === "/messages",
       ...((unreadMessages?.total || 0) > 0 && { badge: unreadMessages?.total }),
+    },
+    {
+      to: "/profile",
+      label: "Profile",
+      icon: ProfileIcon,
+      isActive: location.pathname === "/profile",
     },
   ];
 

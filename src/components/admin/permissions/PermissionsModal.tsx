@@ -39,7 +39,7 @@ export const PermissionsModal = ({ open, onOpenChange }: PermissionsModalProps) 
   });
 
   const getUserRole = (userId: string): AppRole => {
-    return (allUserRoles?.find((ur) => ur.user_id === userId)?.role as AppRole) || 'user';
+    return (allUserRoles?.find((ur) => ur.user_id === userId)?.role as AppRole) || 'viewer';
   };
 
   return (

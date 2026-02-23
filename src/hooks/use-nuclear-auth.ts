@@ -1,7 +1,7 @@
 
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { User as AppUser } from '@/types';
+import { User as AppUser, TeamRole } from '@/types';
 import { createUserObject } from '@/lib/auth-helpers';
 import { selfHealProfile } from '@/lib/profile-self-heal';
 import { processUrl } from '@/lib/url-utils';
@@ -14,6 +14,7 @@ export function useNuclearAuth() {
   const [user, setUser] = useState<AppUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [authChecked, setAuthChecked] = useState(false);
+  const [teamRole, setTeamRole] = useState<TeamRole | null>(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -44,8 +45,25 @@ export function useNuclearAuth() {
 
           if (profile && isMounted) {
             const appUser = createUserObject(profile);
+
+            // Fetch team role from user_roles table (admin panel access control)
+            if (appUser.is_admin) {
+              try {
+                const { data: roleData } = await supabase.rpc('get_my_role');
+                const role = (roleData as TeamRole) || null;
+                if (isMounted) {
+                  setTeamRole(role);
+                  appUser.team_role = role ?? undefined;
+                }
+              } catch {
+                // Non-critical: default to null (useRoleAccess falls back gracefully)
+              }
+            } else {
+              if (isMounted) setTeamRole(null);
+            }
+
             setUser(appUser);
-            
+
             // Link journey AND session to user on successful auth
             const visitorId = localStorage.getItem(VISITOR_ID_KEY);
             const currentSessionId = sessionStorage.getItem('session_id');
@@ -98,6 +116,7 @@ export function useNuclearAuth() {
       
       if (event === 'SIGNED_OUT') {
         setUser(null);
+        setTeamRole(null);
         setIsLoading(false);
         setAuthChecked(true);
       } else if (event === 'SIGNED_IN' && session?.user) {
@@ -399,5 +418,7 @@ export function useNuclearAuth() {
     isAdmin: user?.is_admin === true,
     isBuyer: user?.role === "buyer",
     authChecked,
+    /** Internal team role for admin panel access control. */
+    teamRole,
   };
 }

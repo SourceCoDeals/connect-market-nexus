@@ -260,7 +260,39 @@ const PendingApproval = () => {
                     </p>
                   </div>
                 </div>
-                
+
+                {/* Submitted Information Summary */}
+                <div className="bg-muted/40 border border-border rounded-md p-4 space-y-2">
+                  <h4 className="text-sm font-medium">Submitted Information</h4>
+                  <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
+                    <span className="text-muted-foreground">Name</span>
+                    <span className="font-medium">{user.first_name} {user.last_name}</span>
+                    <span className="text-muted-foreground">Email</span>
+                    <span className="font-medium truncate">{user.email}</span>
+                    {user.company && (
+                      <>
+                        <span className="text-muted-foreground">Company</span>
+                        <span className="font-medium">{user.company}</span>
+                      </>
+                    )}
+                    <span className="text-muted-foreground">Buyer Type</span>
+                    <span className="font-medium capitalize">{user.buyer_type?.replace(/([A-Z])/g, ' $1').trim() || 'N/A'}</span>
+                  </div>
+                </div>
+
+                {/* Estimated Review Timeline */}
+                <div className="bg-blue-50 border border-blue-200 rounded-md p-4">
+                  <div className="flex gap-3 items-start">
+                    <Info className="h-5 w-5 text-blue-600 flex-shrink-0 mt-0.5" />
+                    <div>
+                      <p className="text-sm font-medium text-blue-900">Estimated Review Time</p>
+                      <p className="text-xs text-blue-700 mt-1">
+                        Most applications are reviewed within <strong>1 business day</strong>. You will receive an email notification as soon as your account is approved.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
                 {/* Application Progress Timeline */}
                 <div className="space-y-4">
                   <h4 className="text-sm font-medium text-center">Application Progress</h4>
@@ -454,14 +486,16 @@ const PendingApproval = () => {
                 </>
               )}
             </Button>
-            <div className="text-xs text-center text-muted-foreground">
-              Need help? Contact{" "}
-              <a
-                href={`mailto:${APP_CONFIG.adminEmail}`}
-                className="text-primary hover:underline"
-              >
-                {APP_CONFIG.adminEmail}
-              </a>
+            <div className="bg-muted/30 border border-border rounded-md p-3 text-center">
+              <p className="text-xs text-muted-foreground">
+                Questions? Reach out to our team at{" "}
+                <a
+                  href={`mailto:${APP_CONFIG.adminEmail}`}
+                  className="text-primary font-medium hover:underline"
+                >
+                  {APP_CONFIG.adminEmail}
+                </a>
+              </p>
             </div>
           </CardFooter>
         </Card>
