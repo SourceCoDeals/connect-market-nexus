@@ -81,6 +81,8 @@ export interface Deal {
   buyer_type?: string;
   buyer_phone?: string;
   buyer_priority_score?: number;
+  buyer_quality_score?: number | null;
+  buyer_tier?: number | null;
   buyer_website?: string;
   
   // Real contact tracking
@@ -189,7 +191,7 @@ export function useDeals() {
         .map((r: any) => r.connection_request_id)
         .filter(Boolean) as string[];
       
-      const buyerProfileMap: Record<string, { buyer_type?: string; website?: string }> = {};
+      const buyerProfileMap: Record<string, { buyer_type?: string; website?: string; buyer_quality_score?: number | null; buyer_tier?: number | null }> = {};
       if (filteredCRIds.length > 0) {
         for (let i = 0; i < filteredCRIds.length; i += 100) {
           const chunk = filteredCRIds.slice(i, i + 100);
@@ -202,14 +204,14 @@ export function useDeals() {
             if (userIds.length > 0) {
               const { data: profiles } = await supabase
                 .from('profiles')
-                .select('id, buyer_type, website, buyer_org_url')
+                .select('id, buyer_type, website, buyer_org_url, buyer_quality_score, buyer_tier')
                 .in('id', userIds);
               const profileLookup: Record<string, any> = {};
               profiles?.forEach((p: any) => { profileLookup[p.id] = p; });
               crData.forEach((cr: any) => {
                 const prof = profileLookup[cr.user_id];
                 if (prof) {
-                  buyerProfileMap[cr.id] = { buyer_type: prof.buyer_type, website: prof.website || prof.buyer_org_url };
+                  buyerProfileMap[cr.id] = { buyer_type: prof.buyer_type, website: prof.website || prof.buyer_org_url, buyer_quality_score: prof.buyer_quality_score, buyer_tier: prof.buyer_tier };
                 }
               });
             }
@@ -291,6 +293,8 @@ export function useDeals() {
           buyer_phone: row.contact_phone,
           buyer_priority_score: Number(row.buyer_priority_score ?? 0),
           buyer_website: buyerProfileMap[row.connection_request_id]?.website ?? undefined,
+          buyer_quality_score: buyerProfileMap[row.connection_request_id]?.buyer_quality_score ?? null,
+          buyer_tier: buyerProfileMap[row.connection_request_id]?.buyer_tier ?? null,
 
           // Extras
           connection_request_id: row.connection_request_id,

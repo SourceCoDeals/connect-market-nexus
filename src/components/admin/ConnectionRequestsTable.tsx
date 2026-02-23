@@ -47,6 +47,7 @@ import { processUrl, extractDomainFromEmail, mapRoleToBuyerType, getLeadTierInfo
 import { DuplicateChannelWarning } from './DuplicateChannelWarning';
 import { MessageConflictDisplay } from './MessageConflictDisplay';
 import { ConnectionRequestFirmBadge } from './ConnectionRequestFirmBadge';
+import { BuyerTierBadge, BuyerScoreBadge } from './BuyerQualityBadges';
 import { useUpdateConnectionRequestStatus } from "@/hooks/admin/use-connection-request-status";
 import { useToast } from "@/hooks/use-toast";
 
@@ -413,6 +414,12 @@ function ReactiveRequestCard({
                 <StatusBadge status={request.status} />
                 <SourceBadge source={request.source || 'marketplace'} />
                 <ConnectionRequestFirmBadge requestId={request.id} compact={true} />
+                {request.user && (
+                  <>
+                    <BuyerTierBadge tier={(request.user as any).buyer_tier} />
+                    <BuyerScoreBadge score={(request.user as any).buyer_quality_score} />
+                  </>
+                )}
               </div>
                <div className="text-sm text-muted-foreground space-y-1">
                  <div className="flex items-center gap-2">

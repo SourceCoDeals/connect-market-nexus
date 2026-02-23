@@ -6,6 +6,7 @@ import { Deal } from '@/hooks/admin/use-deals';
 import { cn } from '@/lib/utils';
 import { useAdminProfile } from '@/hooks/admin/use-admin-profiles';
 import { DealScoreBadge } from '@/components/ma-intelligence/DealScoreBadge';
+import { BuyerTierBadge, BuyerScoreBadge } from '@/components/admin/BuyerQualityBadges';
 import { DealSourceBadge } from '@/components/remarketing/DealSourceBadge';
 import { supabase } from '@/integrations/supabase/client';
 import { useQueryClient } from '@tanstack/react-query';
@@ -124,11 +125,15 @@ export function PipelineKanbanCard({ deal, onDealClick, isDragging }: PipelineKa
         <div className="px-3 py-1.5 border-t border-border/30 space-y-0.5">
           <div className="flex items-center justify-between gap-1.5">
             <span className="text-sm font-bold text-foreground truncate">{buyerCompany || contactName}</span>
-            {buyerTypeLabel && (
-              <span className="flex-shrink-0 px-1.5 py-px rounded bg-primary/10 text-primary text-[11px] font-semibold leading-tight">
-                {buyerTypeLabel}
-              </span>
-            )}
+            <div className="flex items-center gap-1">
+              <BuyerTierBadge tier={deal.buyer_tier} />
+              <BuyerScoreBadge score={deal.buyer_quality_score} />
+              {buyerTypeLabel && (
+                <span className="flex-shrink-0 px-1.5 py-px rounded bg-primary/10 text-primary text-[11px] font-semibold leading-tight">
+                  {buyerTypeLabel}
+                </span>
+              )}
+            </div>
           </div>
           {buyerCompany && (
             <div className="text-[11px] text-muted-foreground truncate">{contactName}</div>
