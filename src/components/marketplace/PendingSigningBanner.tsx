@@ -12,7 +12,9 @@ import { AgreementSigningModal } from '@/components/docuseal/AgreementSigningMod
  */
 export function PendingSigningBanner() {
   const { user, isAdmin } = useAuth();
-  const { data: ndaStatus, isLoading: ndaLoading } = useBuyerNdaStatus(!isAdmin ? user?.id : undefined);
+  const { data: ndaStatus, isLoading: ndaLoading } = useBuyerNdaStatus(
+    !isAdmin ? user?.id : undefined,
+  );
   const { data: coverage, isLoading: coverageLoading } = useMyAgreementStatus(!isAdmin && !!user);
   const [signingOpen, setSigningOpen] = useState(false);
   const [signingType, setSigningType] = useState<'nda' | 'fee_agreement'>('nda');
@@ -33,13 +35,15 @@ export function PendingSigningBanner() {
 
   return (
     <>
-      <div className="rounded-lg border-2 border-[#D8B75D]/40 bg-[#FBF8EF] p-4 mb-6">
+      <div className="rounded-lg border-2 border-sourceco/40 bg-sourceco-muted p-4 mb-6">
         <div className="flex items-start gap-3">
-          <div className="p-2 rounded-full bg-[#D8B75D]/20 flex-shrink-0">
-            <FileSignature className="h-5 w-5 text-[#B89A3D]" />
+          <div className="p-2 rounded-full bg-sourceco/20 flex-shrink-0">
+            <FileSignature className="h-5 w-5 text-sourceco" />
           </div>
           <div className="flex-1 min-w-0">
-            <h3 className="text-sm font-semibold text-slate-900">Action Required: Agreement Signing</h3>
+            <h3 className="text-sm font-semibold text-slate-900">
+              Action Required: Agreement Signing
+            </h3>
             <p className="text-xs text-slate-600 mt-1">
               {needsNda && needsFee
                 ? 'An NDA and Fee Agreement are ready for your signature. Sign them to access full deal details and data rooms.'
@@ -51,7 +55,7 @@ export function PendingSigningBanner() {
               {needsNda && (
                 <Button
                   size="sm"
-                  className="h-8 text-xs bg-[#D8B75D] hover:bg-[#C5A54A] text-slate-900 font-medium"
+                  className="h-8 text-xs bg-sourceco hover:bg-sourceco/90 text-sourceco-foreground font-medium"
                   onClick={() => openSigning('nda')}
                 >
                   <Shield className="h-3.5 w-3.5 mr-1.5" />
@@ -63,7 +67,11 @@ export function PendingSigningBanner() {
                 <Button
                   size="sm"
                   variant={needsNda ? 'outline' : 'default'}
-                  className={needsNda ? 'h-8 text-xs' : 'h-8 text-xs bg-[#D8B75D] hover:bg-[#C5A54A] text-slate-900 font-medium'}
+                  className={
+                    needsNda
+                      ? 'h-8 text-xs'
+                      : 'h-8 text-xs bg-sourceco hover:bg-sourceco/90 text-sourceco-foreground font-medium'
+                  }
                   onClick={() => openSigning('fee_agreement')}
                 >
                   <FileSignature className="h-3.5 w-3.5 mr-1.5" />

@@ -37,6 +37,6 @@ describe('AcquisitionTypeBadge', () => {
   it('renders with gold background', () => {
     const { container } = render(<AcquisitionTypeBadge type="platform" />);
     const badge = container.firstChild as HTMLElement;
-    expect(badge.classList.contains('bg-[#D8B75D]')).toBe(true);
+    expect(badge.classList.contains('bg-sourceco')).toBe(true);
   });
 });

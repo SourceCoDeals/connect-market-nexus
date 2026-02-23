@@ -1,7 +1,4 @@
-import {
-  Dialog,
-  DialogContent,
-} from '@/components/ui/dialog';
+import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { FileSignature, Shield, ArrowRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -26,22 +23,27 @@ export function AgreementAlertModal({ open, documentType, onDismiss }: Agreement
   };
 
   return (
-    <Dialog open={open} onOpenChange={() => { /* prevent closing via overlay/escape */ }}>
+    <Dialog
+      open={open}
+      onOpenChange={() => {
+        /* prevent closing via overlay/escape */
+      }}
+    >
       <DialogContent
         className="sm:max-w-lg p-0 gap-0 [&>button]:hidden"
         onPointerDownOutside={(e) => e.preventDefault()}
         onEscapeKeyDown={(e) => e.preventDefault()}
       >
         {/* Header accent bar */}
-        <div className="h-1.5 w-full bg-[#D8B75D] rounded-t-lg" />
+        <div className="h-1.5 w-full bg-sourceco rounded-t-lg" />
 
         <div className="p-8 text-center space-y-6">
           {/* Icon */}
-          <div className="inline-flex p-4 rounded-full bg-[#D8B75D]/15 mx-auto">
+          <div className="inline-flex p-4 rounded-full bg-sourceco/15 mx-auto">
             {isNda ? (
-              <Shield className="h-10 w-10 text-[#B89A3D]" />
+              <Shield className="h-10 w-10 text-sourceco" />
             ) : (
-              <FileSignature className="h-10 w-10 text-[#B89A3D]" />
+              <FileSignature className="h-10 w-10 text-sourceco" />
             )}
           </div>
 
@@ -60,7 +62,7 @@ export function AgreementAlertModal({ open, documentType, onDismiss }: Agreement
           {/* CTA */}
           <Button
             size="lg"
-            className="w-full bg-[#D8B75D] hover:bg-[#C5A54A] text-slate-900 font-semibold text-base h-12"
+            className="w-full bg-sourceco hover:bg-sourceco/90 text-sourceco-foreground font-semibold text-base h-12"
             onClick={handleGoToMessages}
           >
             View in Messages
