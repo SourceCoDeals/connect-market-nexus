@@ -240,31 +240,7 @@ const ReMarketingDeals = () => {
                           adminProfiles={h.adminProfiles} onAssignOwner={h.handleAssignOwner}
                           universesByListing={h.universeDealMap ?? {}}
                           pipelineCount={h.pipelineCounts?.[listing.id] || 0}
-                          onUpdateRank={async (dealId, newRank) => {
-                            const rankSorted = [...h.localOrder].sort((a, b) => (a.manual_rank_override ?? 9999) - (b.manual_rank_override ?? 9999));
-                            const movedIndex = rankSorted.findIndex(l => l.id === dealId);
-                            if (movedIndex === -1) return;
-                            const targetPos = Math.max(1, Math.min(newRank, rankSorted.length));
-                            const [movedDeal] = rankSorted.splice(movedIndex, 1);
-                            rankSorted.splice(targetPos - 1, 0, movedDeal);
-                            const newRanks = new Map(rankSorted.map((l, idx) => [l.id, idx + 1]));
-                            const updatedLocal = h.localOrder.map(l => ({ ...l, manual_rank_override: newRanks.get(l.id) ?? l.manual_rank_override }));
-                            const changedDeals = updatedLocal.filter(deal => { const orig = h.localOrder.find(d => d.id === deal.id); return !orig || orig.manual_rank_override !== deal.manual_rank_override; });
-                            h.setLocalOrder(updatedLocal);
-                            h.sortedListingsRef.current = updatedLocal;
-                            try {
-                              if (changedDeals.length > 0) await Promise.all(changedDeals.map(deal => h.queryClient.getQueryClient ? Promise.resolve() : (globalThis as any).supabase?.from('listings').update({ manual_rank_override: deal.manual_rank_override }).eq('id', deal.id).throwOnError()));
-                              // Use supabase directly
-                              const { supabase: sb } = await import("@/integrations/supabase/client");
-                              if (changedDeals.length > 0) await Promise.all(changedDeals.map(deal => sb.from('listings').update({ manual_rank_override: deal.manual_rank_override }).eq('id', deal.id).throwOnError()));
-                              await h.queryClient.invalidateQueries({ queryKey: ['remarketing', 'deals'] });
-                              h.toast({ title: 'Position updated', description: `Deal moved to position ${targetPos}` });
-                            } catch (err: any) {
-                              console.error('Failed to update rank:', err);
-                              await h.queryClient.invalidateQueries({ queryKey: ['remarketing', 'deals'] });
-                              h.toast({ title: 'Failed to update rank', variant: 'destructive' });
-                            }
-                          }}
+                          onUpdateRank={h.handleUpdateRank}
                         />
                       ))}
                     </SortableContext>
