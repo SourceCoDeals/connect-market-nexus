@@ -2,11 +2,12 @@ import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { CheckSquare, Clock, Building2, User, Globe, FileText, Zap, Target } from 'lucide-react';
+import { CheckSquare, Clock, Building2, User, Globe, FileText, Zap, Target, Phone, Star } from 'lucide-react';
 import { Deal } from '@/hooks/admin/use-deals';
 import { cn } from '@/lib/utils';
 import { formatDistanceToNow } from 'date-fns';
 import { useAdminProfile } from '@/hooks/admin/use-admin-profiles';
+import { DealScoreBadge } from '@/components/ma-intelligence/DealScoreBadge';
 
 interface PipelineKanbanCardProps {
   deal: Deal;
@@ -258,15 +259,38 @@ export function PipelineKanbanCard({ deal, onDealClick, isDragging }: PipelineKa
       onClick={handleCardClick}
     >
       <CardContent className="p-4 space-y-3">
-        {/* Header with priority indicator and clean typography */}
+        {/* Header with priority indicator, score, and flags */}
         <div className="flex items-start justify-between">
           <div className="flex-1 min-w-0 space-y-2">
-            {/* Deal title without company duplication */}
-            <h3 className="text-sm font-medium text-foreground leading-tight truncate">
-              {listingTitle}
-            </h3>
+            {/* Deal title */}
+            <div className="flex items-center gap-2">
+              <h3 className="text-sm font-medium text-foreground leading-tight truncate flex-1">
+                {listingTitle}
+              </h3>
+              {deal.deal_score != null && (
+                <DealScoreBadge score={deal.deal_score} size="sm" />
+              )}
+            </div>
             
-            {/* Internal company name with source label - polished inline style */}
+            {/* Priority & Contact Owner flags */}
+            {(deal.is_priority_target || deal.needs_owner_contact) && (
+              <div className="flex items-center gap-1.5 flex-wrap">
+                {deal.is_priority_target && (
+                  <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-amber-100 border border-amber-300 text-[10px] font-semibold text-amber-800 tracking-wide">
+                    <Star className="w-2.5 h-2.5" />
+                    Priority
+                  </span>
+                )}
+                {deal.needs_owner_contact && (
+                  <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-red-100 border border-red-300 text-[10px] font-semibold text-red-800 tracking-wide animate-pulse">
+                    <Phone className="w-2.5 h-2.5" />
+                    Contact Owner
+                  </span>
+                )}
+              </div>
+            )}
+            
+            {/* Internal company name with source label */}
             {companyName && (
               <div className="flex items-center gap-2 flex-wrap">
                 <div className="flex items-center gap-1.5">
@@ -280,7 +304,7 @@ export function PipelineKanbanCard({ deal, onDealClick, isDragging }: PipelineKa
               </div>
             )}
             
-            {/* Buyer's company with role label - sophisticated inline presentation */}
+            {/* Buyer's company with role label */}
             {deal.contact_company && (
               <div className="flex items-center gap-2 flex-wrap">
                 <div className="flex items-center gap-1.5">
