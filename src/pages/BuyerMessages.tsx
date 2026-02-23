@@ -178,18 +178,37 @@ export default function BuyerMessages() {
     searchParams.get("deal") || null
   );
   const [searchQuery, setSearchQuery] = useState("");
+  const [showGeneralChat, setShowGeneralChat] = useState(false);
 
   // Set selected from URL param
   useEffect(() => {
     const dealParam = searchParams.get("deal");
-    if (dealParam && threads.find((t) => t.connection_request_id === dealParam)) {
+    if (dealParam === "general") {
+      setShowGeneralChat(true);
+      setSelectedThreadId(null);
+    } else if (dealParam && threads.find((t) => t.connection_request_id === dealParam)) {
       setSelectedThreadId(dealParam);
+      setShowGeneralChat(false);
     }
   }, [searchParams, threads]);
 
+  // Auto-show general chat if no threads exist and nothing is selected
+  useEffect(() => {
+    if (!isLoading && threads.length === 0 && !selectedThreadId) {
+      setShowGeneralChat(true);
+    }
+  }, [isLoading, threads.length, selectedThreadId]);
+
   const handleSelectThread = (requestId: string) => {
     setSelectedThreadId(requestId);
+    setShowGeneralChat(false);
     setSearchParams({ deal: requestId });
+  };
+
+  const handleSelectGeneral = () => {
+    setShowGeneralChat(true);
+    setSelectedThreadId(null);
+    setSearchParams({ deal: "general" });
   };
 
   const selectedThread = threads.find(
@@ -201,6 +220,8 @@ export default function BuyerMessages() {
         t.deal_title.toLowerCase().includes(searchQuery.toLowerCase())
       )
     : threads;
+
+  const hasActiveView = selectedThreadId && selectedThread;
 
   return (
     <div className="w-full bg-background min-h-screen">
@@ -226,44 +247,53 @@ export default function BuyerMessages() {
           </div>
         ) : isLoading ? (
           <BuyerMessagesSkeleton />
-        ) : threads.length === 0 ? (
-          <div className="border border-border rounded-xl overflow-hidden bg-card flex flex-col items-center justify-center py-20">
-            <MessageSquare className="h-12 w-12 text-muted-foreground/30 mb-4" />
-            <h3 className="text-lg font-semibold text-foreground mb-1">
-              No messages yet
-            </h3>
-            <p className="text-sm text-muted-foreground max-w-sm text-center">
-              Messages from the SourceCo team about your deals will appear here.
-              You can also start conversations from your{" "}
-              <Link to="/my-deals" className="text-primary hover:text-primary/80">
-                My Deals
-              </Link>{" "}
-              page.
-            </p>
-          </div>
         ) : (
           <div className="border border-border rounded-xl overflow-hidden bg-card min-h-[500px] grid grid-cols-1 md:grid-cols-3">
             {/* Thread List */}
             <div
               className={`md:col-span-1 border-r border-border overflow-y-auto ${
-                selectedThreadId ? "hidden md:block" : ""
+                (selectedThreadId || showGeneralChat) ? "hidden md:block" : ""
               }`}
             >
               {/* Search */}
-              <div className="p-3 border-b border-border">
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-                  <input
-                    type="text"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder="Search deals..."
-                    className="w-full text-sm border border-border rounded-lg pl-8 pr-3 py-2 bg-background focus:outline-none focus:ring-2 focus:ring-ring/20 focus:border-ring transition-all"
-                  />
+              {threads.length > 0 && (
+                <div className="p-3 border-b border-border">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                    <input
+                      type="text"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      placeholder="Search deals..."
+                      className="w-full text-sm border border-border rounded-lg pl-8 pr-3 py-2 bg-background focus:outline-none focus:ring-2 focus:ring-ring/20 focus:border-ring transition-all"
+                    />
+                  </div>
                 </div>
-              </div>
+              )}
 
               <div className="divide-y divide-border">
+                {/* General Inquiry thread — always first */}
+                <button
+                  onClick={handleSelectGeneral}
+                  className={`w-full text-left p-3.5 hover:bg-muted/50 transition-colors ${
+                    showGeneralChat ? "bg-muted/50" : ""
+                  }`}
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <MessageSquarePlus className="h-4 w-4 text-primary shrink-0" />
+                        <span className="text-sm font-semibold text-foreground">
+                          General Inquiry
+                        </span>
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-0.5 ml-6">
+                        Message the SourceCo team directly
+                      </p>
+                    </div>
+                  </div>
+                </button>
+
                 {filteredThreads.map((thread) => (
                   <button
                     key={thread.connection_request_id}
@@ -325,12 +355,19 @@ export default function BuyerMessages() {
             {/* Thread View */}
             <div
               className={`md:col-span-2 flex flex-col ${
-                !selectedThreadId ? "hidden md:flex" : ""
+                !hasActiveView && !showGeneralChat ? "hidden md:flex" : ""
               }`}
             >
-              {selectedThreadId && selectedThread ? (
+              {showGeneralChat ? (
+                <GeneralChatView
+                  onBack={() => {
+                    setShowGeneralChat(false);
+                    setSearchParams({});
+                  }}
+                />
+              ) : hasActiveView ? (
                 <BuyerThreadView
-                  thread={selectedThread}
+                  thread={selectedThread!}
                   onBack={() => {
                     setSelectedThreadId(null);
                     setSearchParams({});
@@ -349,6 +386,199 @@ export default function BuyerMessages() {
             </div>
           </div>
         )}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * GeneralChatView — allows buyers to message admin at any time,
+ * even without an existing deal thread.
+ * Routes through the first active connection request if one exists,
+ * otherwise uses an edge function to notify admin.
+ */
+function GeneralChatView({ onBack }: { onBack: () => void }) {
+  const { user } = useAuth();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [newMessage, setNewMessage] = useState("");
+  const [sending, setSending] = useState(false);
+  const [sentMessages, setSentMessages] = useState<Array<{ id: string; body: string; created_at: string }>>([]);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Try to find any active connection request to attach messages to
+  const { data: activeRequest } = useQuery({
+    queryKey: ["buyer-active-request", user?.id],
+    queryFn: async () => {
+      if (!user?.id) return null;
+      const { data } = await supabase
+        .from("connection_requests")
+        .select("id")
+        .eq("user_id", user.id)
+        .in("status", ["approved", "on_hold", "pending"])
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      return data;
+    },
+    enabled: !!user?.id,
+  });
+
+  // If there's an active request, load existing messages
+  const { data: existingMessages = [] } = useConnectionMessages(
+    activeRequest?.id || ""
+  );
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [existingMessages, sentMessages]);
+
+  const handleSend = async () => {
+    if (!newMessage.trim() || sending || !user?.id) return;
+    setSending(true);
+
+    try {
+      if (activeRequest?.id) {
+        // Send as a connection message on the active thread
+        const { error } = await (supabase.from("connection_messages") as any).insert({
+          connection_request_id: activeRequest.id,
+          sender_id: user.id,
+          body: newMessage.trim(),
+          sender_role: "buyer",
+        });
+        if (error) throw error;
+      } else {
+        // No active thread — notify admin via edge function
+        const OZ_ADMIN_ID = "ea1f0064-52ef-43fb-bec4-22391b720328";
+        await supabase.functions.invoke("notify-admin-document-question", {
+          body: {
+            admin_id: OZ_ADMIN_ID,
+            user_id: user.id,
+            document_type: "General Inquiry",
+            question: newMessage.trim(),
+          },
+        });
+      }
+
+      setSentMessages((prev) => [
+        ...prev,
+        { id: crypto.randomUUID(), body: newMessage.trim(), created_at: new Date().toISOString() },
+      ]);
+      setNewMessage("");
+      queryClient.invalidateQueries({ queryKey: ["buyer-message-threads"] });
+      queryClient.invalidateQueries({ queryKey: ["connection-messages"] });
+
+      if (!activeRequest?.id) {
+        toast({ title: "Message Sent", description: "Our team will respond shortly." });
+      }
+    } catch (error) {
+      console.error("Error sending message:", error);
+      toast({ title: "Failed to Send", description: "Please try again.", variant: "destructive" });
+    } finally {
+      setSending(false);
+    }
+  };
+
+  // Combine existing messages with locally-sent ones (dedup)
+  const allMessages = activeRequest?.id
+    ? existingMessages
+    : sentMessages;
+
+  return (
+    <div className="flex flex-col h-full min-h-[500px]">
+      {/* Header */}
+      <div className="flex items-center gap-3 px-5 py-3.5 border-b border-border bg-card">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={onBack}
+          className="md:hidden h-8 w-8 p-0"
+        >
+          <ArrowLeft className="h-4 w-4" />
+        </Button>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2">
+            <MessageSquare className="h-4 w-4 text-primary" />
+            <h2 className="text-sm font-semibold text-foreground">
+              General Inquiry
+            </h2>
+          </div>
+          <p className="text-xs text-muted-foreground">Message the SourceCo team</p>
+        </div>
+      </div>
+
+      {/* Messages */}
+      <div className="flex-1 overflow-y-auto px-5 py-4 space-y-3 bg-muted/30">
+        {allMessages.length === 0 ? (
+          <div className="flex items-center justify-center h-full">
+            <div className="text-center">
+              <MessageSquare className="h-10 w-10 mx-auto mb-3 text-muted-foreground/30" />
+              <p className="text-sm text-muted-foreground">
+                Send a message to start a conversation with the SourceCo team.
+              </p>
+            </div>
+          </div>
+        ) : (
+          allMessages.map((msg: any) => (
+            <div
+              key={msg.id}
+              className={`flex ${
+                msg.sender_role === "buyer" || !msg.sender_role
+                  ? "justify-end"
+                  : "justify-start"
+              }`}
+            >
+              <div
+                className={`max-w-[75%] rounded-xl px-4 py-2.5 text-sm ${
+                  msg.sender_role === "buyer" || !msg.sender_role
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-card text-card-foreground border border-border"
+                }`}
+              >
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="font-medium text-xs opacity-80">
+                    {msg.sender_role === "buyer" || !msg.sender_role
+                      ? "You"
+                      : msg.sender?.first_name || "SourceCo"}
+                  </span>
+                  <span className="opacity-50 text-[10px]">
+                    {formatDistanceToNow(new Date(msg.created_at), {
+                      addSuffix: true,
+                    })}
+                  </span>
+                </div>
+                <p className="leading-relaxed whitespace-pre-wrap">{msg.body}</p>
+              </div>
+            </div>
+          ))
+        )}
+        <div ref={messagesEndRef} />
+      </div>
+
+      {/* Input */}
+      <div className="border-t border-border px-5 py-3 bg-card">
+        <div className="flex gap-2">
+          <input
+            type="text"
+            value={newMessage}
+            onChange={(e) => setNewMessage(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                handleSend();
+              }
+            }}
+            placeholder="Message the SourceCo team..."
+            className="flex-1 text-sm border border-border rounded-lg px-4 py-2.5 bg-background focus:outline-none focus:ring-2 focus:ring-ring/20 focus:border-ring transition-all"
+          />
+          <Button
+            onClick={handleSend}
+            disabled={!newMessage.trim() || sending}
+            className="bg-primary hover:bg-primary/90 px-4"
+          >
+            <Send className="h-4 w-4" />
+          </Button>
+        </div>
       </div>
     </div>
   );
