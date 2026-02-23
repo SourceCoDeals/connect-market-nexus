@@ -56,7 +56,7 @@ export function ConversationHistory({
         setConversations(data);
       }
     } catch (error) {
-      console.error('[ConversationHistory] Load error:', error);
+      // Load error — will show empty state
     } finally {
       setIsLoading(false);
     }
@@ -81,7 +81,7 @@ export function ConversationHistory({
         setConversations((prev) => prev.filter((c) => c.id !== id));
       }
     } catch (error) {
-      console.error('[ConversationHistory] Delete error:', error);
+      // Delete error — non-critical
     } finally {
       setDeletingId(null);
     }

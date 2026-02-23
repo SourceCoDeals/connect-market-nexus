@@ -5,7 +5,7 @@ export type StatusFilter = 'all' | 'pending' | 'approved' | 'rejected' | 'on_hol
 export type BuyerTypeFilter = 'all' | 'privateEquity' | 'familyOffice' | 'searchFund' | 'corporate' | 'individual' | 'independentSponsor' | 'advisor' | 'businessOwner';
 export type NdaFilter = 'all' | 'signed' | 'not_signed' | 'sent';
 export type FeeAgreementFilter = 'all' | 'signed' | 'not_signed' | 'sent';
-export type SortOption = 'newest' | 'oldest' | 'buyer_priority' | 'deal_size' | 'approval_date';
+export type SortOption = 'newest' | 'oldest' | 'buyer_priority' | 'deal_size' | 'approval_date' | 'score_highest' | 'score_lowest';
 
 export function usePipelineFilters(requests: AdminConnectionRequest[]) {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('pending');
@@ -100,17 +100,28 @@ export function usePipelineFilters(requests: AdminConnectionRequest[]) {
         }
         
         case 'approval_date':
-          // Only consider approved requests for this sort
           if (a.status === 'approved' && b.status === 'approved') {
             const approvalA = a.approved_at ? new Date(a.approved_at).getTime() : 0;
             const approvalB = b.approved_at ? new Date(b.approved_at).getTime() : 0;
-            return approvalB - approvalA; // Most recent approvals first
+            return approvalB - approvalA;
           }
-          // If one is not approved, sort by status (approved first)
           if (a.status === 'approved' && b.status !== 'approved') return -1;
           if (b.status === 'approved' && a.status !== 'approved') return 1;
-          // If neither approved, sort by newest
           return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+
+        case 'score_highest': {
+          const scoreA = (a.user as any)?.buyer_quality_score ?? -1;
+          const scoreB = (b.user as any)?.buyer_quality_score ?? -1;
+          if (scoreB !== scoreA) return scoreB - scoreA;
+          return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+        }
+
+        case 'score_lowest': {
+          const scoreA = (a.user as any)?.buyer_quality_score ?? Infinity;
+          const scoreB = (b.user as any)?.buyer_quality_score ?? Infinity;
+          if (scoreA !== scoreB) return scoreA - scoreB;
+          return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+        }
         
         default:
           return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();

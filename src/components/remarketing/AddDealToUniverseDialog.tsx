@@ -272,7 +272,7 @@ export const AddDealToUniverseDialog = ({
 
       const { data: listing, error: listingError } = await supabase
         .from("listings")
-        .insert(insertData as any)
+        .insert(insertData as Record<string, unknown>)
         .select()
         .maybeSingle();
 
@@ -354,10 +354,10 @@ export const AddDealToUniverseDialog = ({
                   const result = await response.json();
                   transcriptText = result.text || '';
                 } else {
-                  console.error(`Parse error for ${file.name}: ${response.status}`);
+                  // Parse failed — will use fallback text
                 }
               } catch (parseErr) {
-                console.error(`Failed to parse ${file.name}:`, parseErr);
+                // Parse failed — will use fallback text
               }
             }
             
@@ -370,7 +370,7 @@ export const AddDealToUniverseDialog = ({
               source: 'file_upload',
             });
           } catch (err) {
-            console.error("Transcript handling error:", err);
+            // Transcript handling error — non-blocking
           }
         }
         if (filesToUpload.length > 0) {
@@ -392,7 +392,7 @@ export const AddDealToUniverseDialog = ({
           });
           toast.success("Transcript link saved");
         } catch (err) {
-          console.error("Transcript link error:", err);
+          // Transcript link error — non-blocking
         }
       }
       
@@ -434,7 +434,7 @@ export const AddDealToUniverseDialog = ({
       onDealAdded?.();
       onOpenChange(false);
     },
-      onError: (error: any) => {
+      onError: (error: Error) => {
         const message =
           typeof error?.message === "string" && error.message.trim()
             ? error.message

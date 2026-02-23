@@ -117,11 +117,10 @@ export function AgreementSigningModal({
 
     // Invalidate immediately, then again after delays to catch any remaining updates
     invalidateAll();
-    setTimeout(invalidateAll, 2000);
-    setTimeout(invalidateAll, 5000);
 
     // Auto-close after brief delay so user sees success state
-    setTimeout(() => onOpenChange(false), 2500);
+    const timer = setTimeout(() => onOpenChange(false), 2000);
+    return () => clearTimeout(timer);
   };
 
   const handleDownloadDraft = async () => {

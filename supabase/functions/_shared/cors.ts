@@ -31,8 +31,8 @@ function isOriginAllowed(origin: string): boolean {
   if (allowed.includes(origin)) return true;
   // Allow Lovable preview/development domains for this project only
   if (/^https:\/\/[a-z0-9-]+\.lovableproject\.com$/.test(origin)) return true;
-  // Match all Lovable preview patterns: id-preview--<uuid>.lovable.app and <name>-preview--<project>.lovable.app
-  if (/^https:\/\/[a-z0-9-]+--[a-z0-9-]+\.lovable\.app$/.test(origin)) return true;
+  // Match Lovable preview patterns scoped to this project: <branch>--connect-market-nexus.lovable.app
+  if (/^https:\/\/[a-z0-9-]+--connect-market-nexus\.lovable\.app$/.test(origin)) return true;
   return false;
 }
 

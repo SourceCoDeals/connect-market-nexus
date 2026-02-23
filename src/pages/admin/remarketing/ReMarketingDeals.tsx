@@ -259,7 +259,7 @@ const ReMarketingDeals = () => {
         .from('enrichment_queue')
         .upsert(queueEntries, { onConflict: 'listing_id' });
       if (error) {
-        console.error('Failed to queue deals for enrichment:', error);
+        // Failed to queue deals for enrichment
         return;
       }
       toast({
@@ -268,9 +268,9 @@ const ReMarketingDeals = () => {
       });
       void supabase.functions
         .invoke('process-enrichment-queue', { body: { source: 'csv_import' } })
-        .catch((e) => console.warn('Failed to trigger enrichment worker:', e));
+        .catch(() => { /* enrichment worker trigger is non-blocking */ });
     } catch (err) {
-      console.error('Failed to queue deals:', err);
+      void err;
     }
   }, [toast, startOrQueueMajorOp, user?.id]);
 
@@ -295,7 +295,7 @@ const ReMarketingDeals = () => {
     });
     void supabase.functions
       .invoke('process-enrichment-queue', { body: { source: 'retry_failed' } })
-      .catch(console.warn);
+      .catch(() => { /* non-blocking */ });
   }, [dismissSummary, enrichmentSummary, toast]);
 
   // Fetch universes for the filter
@@ -677,7 +677,7 @@ const ReMarketingDeals = () => {
       await queryClient.invalidateQueries({ queryKey: ['remarketing', 'deals'] });
       toast({ title: "Position updated", description });
     } catch (error) {
-      console.error('Failed to update rank:', error);
+      // Failed to update rank — reverting optimistic update
       await queryClient.invalidateQueries({ queryKey: ['remarketing', 'deals'] });
       toast({ title: "Failed to update rank", variant: "destructive" });
     }
@@ -912,7 +912,7 @@ const ReMarketingDeals = () => {
       }
       refetchListings();
     } catch (error: any) {
-      console.error('Calculate scores error:', error);
+      // Calculate scores error — toast shown to user
       toast({ title: "Error", description: error.message, variant: "destructive" });
     } finally {
       setIsCalculating(false);
@@ -946,7 +946,7 @@ const ReMarketingDeals = () => {
         .from('listings')
         .update({ enriched_at: null })
         .in('id', dealIds);
-      if (resetError) console.warn('Failed to reset enriched_at:', resetError);
+      // Reset error is non-critical — continue with enrichment
 
       const nowIso = new Date().toISOString();
       const { error: resetQueueError } = await supabase
@@ -969,11 +969,11 @@ const ReMarketingDeals = () => {
       });
       void supabase.functions
         .invoke('process-enrichment-queue', { body: { source: 'ui_enrich_deals' } })
-        .then(({ error }) => { if (error) console.warn('Failed to trigger enrichment worker:', error); })
-        .catch((e) => console.warn('Failed to trigger enrichment worker:', e));
+        .then(() => { /* enrichment worker triggered */ })
+        .catch(() => { /* enrichment worker trigger is non-blocking */ });
       refetchListings();
     } catch (error: any) {
-      console.error('Enrich deals error:', error);
+      // Enrich deals error — toast shown to user
       toast({ title: "Error", description: error.message, variant: "destructive" });
     } finally {
       setIsEnrichingAll(false);
@@ -1377,7 +1377,7 @@ const ReMarketingDeals = () => {
                               await queryClient.invalidateQueries({ queryKey: ['remarketing', 'deals'] });
                               toast({ title: 'Position updated', description: `Deal moved to position ${targetPos}` });
                             } catch (err: any) {
-                              console.error('Failed to update rank:', err);
+                              void err;
                               await queryClient.invalidateQueries({ queryKey: ['remarketing', 'deals'] });
                               toast({ title: 'Failed to update rank', variant: 'destructive' });
                             }

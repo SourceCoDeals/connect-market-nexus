@@ -193,6 +193,12 @@ export function UnifiedAdminSidebar({ collapsed, onCollapsedChange }: AdminSideb
             href: "/admin/remarketing/leads/referrals",
             icon: <Handshake className="h-4 w-4" />,
           },
+          {
+            label: "Owner/Seller Leads",
+            href: "/admin/settings/owner-leads",
+            icon: <ClipboardList className="h-4 w-4" />,
+            badge: unviewedOwnerLeadsCount,
+          },
         ],
       },
       {
@@ -223,12 +229,6 @@ export function UnifiedAdminSidebar({ collapsed, onCollapsedChange }: AdminSideb
             icon: <UserCog className="h-4 w-4" />,
           },
           {
-            label: "Owner/Seller Leads",
-            href: "/admin/settings/owner-leads",
-            icon: <ClipboardList className="h-4 w-4" />,
-            badge: unviewedOwnerLeadsCount,
-          },
-          {
             label: "Notifications",
             href: "/admin/settings/notifications",
             icon: <Bell className="h-4 w-4" />,
@@ -244,11 +244,6 @@ export function UnifiedAdminSidebar({ collapsed, onCollapsedChange }: AdminSideb
               label: "Enrichment Queue",
               href: "/admin/settings/enrichment-queue",
               icon: <ListChecks className="h-4 w-4" />,
-            },
-            {
-              label: "Enrichment Test",
-              href: "/admin/settings/enrichment-test",
-              icon: <FlaskConical className="h-4 w-4" />,
             },
             {
               label: "ReMarketing Settings",
@@ -272,14 +267,9 @@ export function UnifiedAdminSidebar({ collapsed, onCollapsedChange }: AdminSideb
               icon: <ShieldCheck className="h-4 w-4" />,
             },
             {
-              label: "System Tests",
-              href: "/admin/system-test",
+              label: "Testing & Diagnostics",
+              href: "/admin/testing",
               icon: <FlaskConical className="h-4 w-4" />,
-            },
-            {
-              label: "DocuSeal Health",
-              href: "/admin/docuseal-health",
-              icon: <Activity className="h-4 w-4" />,
             },
         ],
       },

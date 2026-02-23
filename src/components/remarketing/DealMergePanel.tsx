@@ -297,7 +297,7 @@ export const DealMergePanel = ({ onMappingsCreated }: DealMergePanelProps) => {
         }, {} as Record<string, string>);
         localStorage.setItem('dealIdMappings', JSON.stringify({ ...existingMappings, ...newMappings }));
       } catch (e) {
-        console.error('Failed to store deal mappings:', e);
+        // Failed to store deal mappings in localStorage — non-critical
       }
       
       toast.success(`Merged ${result.linked} deals, created ${result.mappings.length} mappings`);

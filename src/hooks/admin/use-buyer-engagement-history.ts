@@ -49,7 +49,7 @@ export function useBuyerEngagementHistory(buyerId: string | undefined, emailDoma
         .order('created_at', { ascending: false });
 
       for (const s of scores || []) {
-        const listing = s.listing as any;
+        const listing = s.listing as { id?: string; title?: string } | null;
         items.push({
           id: `rm-${s.id}`,
           date: s.created_at,
@@ -89,7 +89,7 @@ export function useBuyerEngagementHistory(buyerId: string | undefined, emailDoma
             .order('created_at', { ascending: false });
 
           for (const cr of connectionRequests || []) {
-            const listing = cr.listing as any;
+            const listing = cr.listing as { id?: string; title?: string } | null;
             const profile = domainProfiles?.find(p => p.id === cr.user_id);
             items.push({
               id: `mp-${cr.id}`,
@@ -123,7 +123,7 @@ export function useBuyerEngagementHistory(buyerId: string | undefined, emailDoma
         .order('created_at', { ascending: false });
 
       for (const d of pipelineDeals || []) {
-        const stage = d.stage as any;
+        const stage = d.stage as { id?: string; name?: string; stage_type?: string } | null;
         items.push({
           id: `pl-${d.id}`,
           date: d.created_at || '',

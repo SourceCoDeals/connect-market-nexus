@@ -14,46 +14,24 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.47.10';
  * Override via DOCUSEAL_WEBHOOK_SECRET_HEADER env var if needed.
  */
 
-// DocuSeal webhook verification — checks custom headers for a matching secret value.
-// If no secret header is found, we log a warning but still process (DocuSeal doesn't
-// always send secret headers consistently). We validate the payload structure instead.
-function verifyDocuSealWebhook(req: Request, secret: string): boolean {
-  const standardHeaders = new Set([
-    'host',
-    'content-type',
-    'content-length',
-    'user-agent',
-    'accept',
-    'accept-encoding',
-    'connection',
-    'x-forwarded-for',
-    'x-forwarded-proto',
-    'x-forwarded-host',
-    'x-forwarded-port',
-    'x-request-id',
-    'x-real-ip',
-    'cf-ray',
-    'cf-connecting-ip',
-    'cf-ew-via',
-    'cf-visitor',
-    'cf-worker',
-    'x-envoy-external-address',
-    'x-amzn-trace-id',
-    'authorization',
-    'sb-webhook-id',
-    'sb-webhook-signature',
-    'sb-webhook-timestamp',
-    'sb-request-id',
-    'cdn-loop',
-    'cf-ipcountry',
-    'baggage',
-  ]);
-
-  for (const [key, value] of req.headers.entries()) {
-    if (standardHeaders.has(key.toLowerCase())) continue;
-    if (value === secret) return true;
+// Timing-safe string comparison to prevent timing attacks on secret verification.
+function timingSafeEqual(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  let result = 0;
+  for (let i = 0; i < a.length; i++) {
+    result |= a.charCodeAt(i) ^ b.charCodeAt(i);
   }
-  return false;
+  return result === 0;
+}
+
+// DocuSeal webhook verification — checks the specific secret header configured
+// in DocuSeal's dashboard. Default header name: "onboarding-secret".
+// Override via DOCUSEAL_WEBHOOK_SECRET_HEADER env var if needed.
+function verifyDocuSealWebhook(req: Request, secret: string): boolean {
+  const headerName = (Deno.env.get("DOCUSEAL_WEBHOOK_SECRET_HEADER") || "onboarding-secret").toLowerCase();
+  const headerValue = req.headers.get(headerName);
+  if (!headerValue) return false;
+  return timingSafeEqual(headerValue, secret);
 }
 
 // Validate that a URL is HTTPS and from a trusted domain
@@ -93,17 +71,16 @@ serve(async (req: Request) => {
   try {
     const rawBody = await req.text();
 
-    const webhookSecret = Deno.env.get('DOCUSEAL_WEBHOOK_SECRET');
-
-    // If a secret is configured, reject requests that don't include it.
-    // This prevents unauthenticated payloads from modifying firm signing state.
+    const webhookSecret = Deno.env.get("DOCUSEAL_WEBHOOK_SECRET");
+    
+    // If secret is configured, verify the webhook and reject unauthorized requests
     if (webhookSecret) {
       const valid = verifyDocuSealWebhook(req, webhookSecret);
       if (!valid) {
-        console.error('❌ Webhook secret verification failed — rejecting request');
-        return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 });
+        console.warn("⚠️ Webhook secret verification failed — rejecting request");
+        return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401 });
       }
-      console.log('✅ Webhook secret verified');
+      console.log("✅ Webhook secret verified");
     }
 
     // Parse and validate payload structure
@@ -292,6 +269,21 @@ async function processEvent(
   }
 
   console.log(`📝 Processing ${eventType} for ${documentType} on firm ${firmId}`);
+
+  // Prevent backward state transitions (e.g., "viewed" overwriting "completed")
+  const TERMINAL_STATUSES = new Set(["completed", "declined", "expired"]);
+  const statusCol = isNda ? "nda_docuseal_status" : "fee_docuseal_status";
+  const { data: currentFirm } = await supabase
+    .from("firm_agreements")
+    .select(statusCol)
+    .eq("id", firmId)
+    .single();
+
+  const currentStatus = currentFirm?.[statusCol];
+  if (currentStatus && TERMINAL_STATUSES.has(currentStatus) && !TERMINAL_STATUSES.has(docusealStatus)) {
+    console.log(`⏩ Skipping non-terminal update: current=${currentStatus}, incoming=${docusealStatus}`);
+    return;
+  }
 
   // Build update payload — update BOTH docuseal status AND expanded status
   const updates: Record<string, any> = {

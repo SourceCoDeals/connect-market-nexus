@@ -404,7 +404,7 @@ export default function CapTargetDeals() {
       const chunk = rows.slice(i, i + CHUNK);
       const { error } = await supabase.from("enrichment_queue").upsert(chunk, { onConflict: "listing_id" });
       if (error) {
-        console.error("Queue upsert error:", error);
+        // Queue upsert error — toast shown to user
         sonnerToast.error(`Failed to queue enrichment (batch ${Math.floor(i / CHUNK) + 1})`);
         if (activityItem) completeOperation.mutate({ id: activityItem.id, finalStatus: "failed" });
         setIsEnriching(false);
@@ -449,7 +449,7 @@ export default function CapTargetDeals() {
         body: { batchSource: "captarget", unscoredOnly: mode === "unscored", globalQueueId: activityItem?.id },
       });
     } catch (err) {
-      console.error("Scoring invocation failed:", err);
+      // Scoring invocation failed — toast shown to user
       sonnerToast.error("Failed to start scoring");
       if (activityItem) completeOperation.mutate({ id: activityItem.id, finalStatus: "failed" });
     }
@@ -499,7 +499,7 @@ export default function CapTargetDeals() {
       const chunk = rows.slice(i, i + CHUNK);
       const { error } = await supabase.from("enrichment_queue").upsert(chunk, { onConflict: "listing_id" });
       if (error) {
-        console.error("Queue upsert error:", error);
+        // Queue upsert error — toast shown to user
         sonnerToast.error("Failed to queue enrichment");
         if (activityItem) completeOperation.mutate({ id: activityItem.id, finalStatus: "failed" });
         setIsEnriching(false);

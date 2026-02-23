@@ -26,7 +26,7 @@ interface ExtractionSource {
   source_type: string;
   source_name: string;
   extraction_status: string;
-  extracted_data: any;
+  extracted_data: Record<string, unknown>;
   confidence_scores: {
     size?: number;
     service?: number;
@@ -70,7 +70,7 @@ export const CriteriaReviewPanel = ({
           .map(s => s.id)
       );
       setSelectedSources(unapplied);
-    } catch (error: any) {
+    } catch (_error: unknown) {
       toast.error('Failed to load extraction sources');
     } finally {
       setIsLoading(false);
@@ -129,19 +129,19 @@ export const CriteriaReviewPanel = ({
 
       if (updateError) throw updateError;
 
-      // Mark sources as applied - use type assertion
-      const { error: markError } = await (supabase
-        .from('criteria_extraction_sources' as any) as any)
+      // Mark sources as applied
+      const { error: markError } = await supabase
+        .from('criteria_extraction_sources' as never)
         .update({
           applied_to_criteria: true,
           applied_at: new Date().toISOString()
-        })
+        } as never)
         .in('id', Array.from(selectedSources));
 
       if (markError) throw markError;
 
-      // Create history record - use type assertion
-      await (supabase.from('criteria_extraction_history' as any) as any).insert({
+      // Create history record
+      await supabase.from('criteria_extraction_history' as never).insert({
         universe_id: universeId,
         change_type: 'synthesis',
         changed_sections: ['size_criteria', 'geography_criteria', 'service_criteria', 'buyer_types_criteria'],
@@ -155,9 +155,9 @@ export const CriteriaReviewPanel = ({
 
       loadSources();
       onApplyComplete?.();
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast.error('Failed to apply criteria', {
-        description: error.message
+        description: (error as Error).message
       });
     } finally {
       setIsApplying(false);
@@ -179,7 +179,7 @@ export const CriteriaReviewPanel = ({
     };
   };
 
-  const synthesizeSizeCriteria = (criteria: any[]) => {
+  const synthesizeSizeCriteria = (criteria: Record<string, number | undefined>[]) => {
     if (criteria.length === 0) return {};
 
     // Take min of minimums, max of maximums
@@ -196,7 +196,7 @@ export const CriteriaReviewPanel = ({
     };
   };
 
-  const synthesizeGeographyCriteria = (criteria: any[]) => {
+  const synthesizeGeographyCriteria = (criteria: Record<string, string[] | undefined>[]) => {
     if (criteria.length === 0) return {};
 
     // Union of all arrays
@@ -214,7 +214,7 @@ export const CriteriaReviewPanel = ({
     };
   };
 
-  const synthesizeServiceCriteria = (criteria: any[]) => {
+  const synthesizeServiceCriteria = (criteria: Record<string, string[] | undefined>[]) => {
     if (criteria.length === 0) return {};
 
     const allServices = new Set<string>();
@@ -227,7 +227,7 @@ export const CriteriaReviewPanel = ({
     };
   };
 
-  const synthesizeBuyerTypesCriteria = (criteria: any[]) => {
+  const synthesizeBuyerTypesCriteria = (criteria: Record<string, unknown>[]) => {
     if (criteria.length === 0) return {};
 
     const allBuyerTypes = criteria.flatMap(c => c.buyer_types || []);
@@ -415,7 +415,7 @@ export const CriteriaReviewPanel = ({
                         <div>
                           <div className="font-medium mb-1">Buyer Types</div>
                           <div className="text-muted-foreground space-y-1">
-                            {source.extracted_data.buyer_types_criteria.buyer_types.map((bt: any) => (
+                            {source.extracted_data.buyer_types_criteria.buyer_types.map((bt: Record<string, string>) => (
                               <div key={bt.profile_name}>
                                 {bt.priority_rank}. {bt.profile_name} ({bt.buyer_type})
                               </div>

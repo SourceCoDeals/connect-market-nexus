@@ -368,7 +368,7 @@ export interface ReferralPartner {
   deal_count: number;
   is_active: boolean;
   share_token: string;
-  share_password_hash: string | null;
+  share_password_protected: boolean;
   last_viewed_at: string | null;
   created_at: string;
   updated_at: string;

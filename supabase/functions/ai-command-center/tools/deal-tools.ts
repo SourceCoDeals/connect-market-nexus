@@ -51,7 +51,7 @@ export const dealTools: ClaudeTool[] = [
         min_ebitda: { type: 'number', description: 'Minimum EBITDA filter' },
         search: { type: 'string', description: 'Free-text search across title, description, services, location' },
         is_priority: { type: 'boolean', description: 'Filter to priority targets only' },
-        limit: { type: 'number', description: 'Max results (default 25, max 100)' },
+        limit: { type: 'number', description: 'Max results (default 25 for simple queries, auto-expands for search/industry filters to scan all matching deals)' },
         depth: { type: 'string', enum: ['quick', 'full'], description: 'quick = summary fields, full = all details' },
       },
       required: [],
@@ -130,47 +130,65 @@ async function queryDeals(
   args: Record<string, unknown>,
 ): Promise<ToolResult> {
   const depth = (args.depth as string) || 'quick';
-  const limit = Math.min(Number(args.limit) || 25, 100);
+  const needsClientFilter = !!(args.search || args.industry);
+  // When client-side filtering is needed, fetch all matching rows via pagination
+  const requestedLimit = Number(args.limit) || (needsClientFilter ? 5000 : 25);
   const fields = depth === 'full' ? DEAL_FIELDS_FULL : DEAL_FIELDS_QUICK;
 
-  let query = supabase
-    .from('listings')
-    .select(fields)
-    .is('deleted_at', null)
-    .order('updated_at', { ascending: false })
-    .limit(limit);
+  // Build base query filters
+  const buildQuery = (offset: number, batchSize: number) => {
+    let query = supabase
+      .from('listings')
+      .select(fields)
+      .is('deleted_at', null)
+      .order('updated_at', { ascending: false })
+      .range(offset, offset + batchSize - 1);
 
-  // Apply filters
-  if (args.status) query = query.eq('status', args.status as string);
-  if (args.deal_source) query = query.eq('deal_source', args.deal_source as string);
-  if (args.state) query = query.contains('geographic_states', [args.state as string]);
-  if (args.is_priority === true) query = query.eq('is_priority_target', true);
-  if (args.min_revenue) query = query.gte('revenue', args.min_revenue as number);
-  if (args.max_revenue) query = query.lte('revenue', args.max_revenue as number);
-  if (args.min_ebitda) query = query.gte('ebitda', args.min_ebitda as number);
+    if (args.status) query = query.eq('status', args.status as string);
+    if (args.deal_source) query = query.eq('deal_source', args.deal_source as string);
+    if (args.state) query = query.contains('geographic_states', [args.state as string]);
+    if (args.is_priority === true) query = query.eq('is_priority_target', true);
+    if (args.min_revenue) query = query.gte('revenue', args.min_revenue as number);
+    if (args.max_revenue) query = query.lte('revenue', args.max_revenue as number);
+    if (args.min_ebitda) query = query.gte('ebitda', args.min_ebitda as number);
+    return query;
+  };
 
-  const { data, error } = await query;
-  if (error) return { error: error.message };
+  // Paginate to fetch all rows up to requestedLimit
+  const PAGE_SIZE = 1000;
+  let allData: typeof data = [];
+  let offset = 0;
+  let data: Record<string, unknown>[] | null = null;
 
-  let results = data || [];
+  while (offset < requestedLimit) {
+    const batchSize = Math.min(PAGE_SIZE, requestedLimit - offset);
+    const { data: batch, error } = await buildQuery(offset, batchSize);
+    if (error) return { error: error.message };
+    if (!batch || batch.length === 0) break;
+    allData = allData.concat(batch);
+    if (batch.length < batchSize) break; // last page
+    offset += batch.length;
+  }
+
+  let results = allData;
 
   // Client-side text search
   if (args.search) {
     const term = (args.search as string).toLowerCase();
-    results = results.filter(d =>
-      d.title?.toLowerCase().includes(term) ||
-      d.industry?.toLowerCase().includes(term) ||
-      d.location?.toLowerCase().includes(term) ||
-      d.services?.some((s: string) => s.toLowerCase().includes(term))
+    results = results.filter((d: Record<string, unknown>) =>
+      (d.title as string)?.toLowerCase().includes(term) ||
+      (d.industry as string)?.toLowerCase().includes(term) ||
+      (d.location as string)?.toLowerCase().includes(term) ||
+      (d.services as string[])?.some((s: string) => s.toLowerCase().includes(term))
     );
   }
 
   // Client-side industry keyword filter
   if (args.industry) {
     const term = (args.industry as string).toLowerCase();
-    results = results.filter(d =>
-      d.industry?.toLowerCase().includes(term) ||
-      d.services?.some((s: string) => s.toLowerCase().includes(term))
+    results = results.filter((d: Record<string, unknown>) =>
+      (d.industry as string)?.toLowerCase().includes(term) ||
+      (d.services as string[])?.some((s: string) => s.toLowerCase().includes(term))
     );
   }
 

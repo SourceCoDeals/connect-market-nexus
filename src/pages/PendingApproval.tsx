@@ -70,7 +70,7 @@ const PendingApproval = () => {
 
   // Fetch NDA embed src when buyer has a firm but hasn't signed
   useEffect(() => {
-    const cancelled = false;
+    let cancelled = false;
 
     const fetchNdaEmbed = async () => {
       if (!user || !ndaStatus?.hasFirm || ndaStatus?.ndaSigned || !ndaStatus?.firmId) return;
@@ -80,6 +80,8 @@ const PendingApproval = () => {
       try {
         const { data, error: fnError } = await supabase.functions.invoke('get-buyer-nda-embed');
 
+        if (cancelled) return;
+
         if (fnError) {
           setNdaError('Failed to prepare NDA signing form');
           console.error('DocuSeal error:', fnError);
@@ -88,14 +90,17 @@ const PendingApproval = () => {
         } else if (data?.ndaSigned) {
           setNdaSigned(true);
         }
-      } catch (err: any) {
-        setNdaError(err.message);
+      } catch (err: unknown) {
+        if (!cancelled) {
+          setNdaError(err instanceof Error ? err.message : 'Something went wrong');
+        }
       } finally {
         if (!cancelled) setNdaLoading(false);
       }
     };
 
     fetchNdaEmbed();
+    return () => { cancelled = true; };
   }, [user, ndaStatus, ndaEmbedSrc, ndaLoading]);
 
   // Auto-poll approval status every 30s
@@ -166,11 +171,11 @@ const PendingApproval = () => {
         description:
           "We've sent another verification email to your inbox. Please check your spam folder if you don't see it.",
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
-        variant: 'destructive',
-        title: 'Failed to resend email',
-        description: error.message || 'Please try again later or contact support.',
+        variant: "destructive",
+        title: "Failed to resend email",
+        description: error instanceof Error ? error.message : "Please try again later or contact support.",
       });
     } finally {
       setIsResending(false);
@@ -456,14 +461,8 @@ const PendingApproval = () => {
 
                     <p className="text-[11px] text-muted-foreground text-center">
                       Questions about the NDA? Email{' '}
-                      <a
-                        href="mailto:adam.haile@sourcecodeals.com"
-                        className="text-primary hover:underline"
-                      >
-                        adam.haile@sourcecodeals.com
-                      </a>{' '}
-                      — a small percentage of buyers request modifications and we're happy to
-                      discuss.
+                      <a href={`mailto:${APP_CONFIG.adminEmail}`} className="text-primary hover:underline">{APP_CONFIG.adminEmail}</a>
+                      {' '}— a small percentage of buyers request modifications and we're happy to discuss.
                     </p>
                   </div>
                 )}

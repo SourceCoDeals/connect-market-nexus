@@ -30,7 +30,7 @@ export function useUpdateAgreementViaUser() {
 
   return useMutation({
     mutationFn: async ({ userId, agreementType, action, adminNotes }: UpdateAgreementParams) => {
-      const { data, error } = await (supabase.rpc as any)('update_agreement_via_user', {
+      const { data, error } = await supabase.rpc('update_agreement_via_user' as never, {
         p_user_id: userId,
         p_agreement_type: agreementType,
         p_action: action,
@@ -67,7 +67,7 @@ export function useUpdateAgreementViaUser() {
         description: `Applied to firm: ${data.firm_name}`,
       });
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({
         variant: "destructive",
         title: "Update failed",
@@ -87,8 +87,8 @@ export function useUserFirm(userId: string | undefined) {
       if (!userId) return null;
 
       // Try firm_members first
-      const { data: membership, error: memErr } = await (supabase
-        .from('firm_members') as any)
+      const { data: membership, error: memErr } = await supabase
+        .from('firm_members' as never)
         .select(`
           firm_id,
           firm:firm_agreements!firm_members_firm_id_fkey(
@@ -106,8 +106,8 @@ export function useUserFirm(userId: string | undefined) {
       if (membership?.firm) return membership.firm;
 
       // Try email domain match
-      const { data: profile } = await (supabase
-        .from('profiles') as any)
+      const { data: profile } = await supabase
+        .from('profiles' as never)
         .select('email, company')
         .eq('id', userId)
         .maybeSingle();
@@ -117,8 +117,8 @@ export function useUserFirm(userId: string | undefined) {
       const domain = profile.email.split('@')[1];
       if (!domain) return null;
 
-      const { data: firm } = await (supabase
-        .from('firm_agreements') as any)
+      const { data: firm } = await supabase
+        .from('firm_agreements' as never)
         .select(`
           id, primary_company_name,
           nda_signed, nda_signed_at, nda_signed_by_name, nda_email_sent, nda_email_sent_at, nda_status,

@@ -14,8 +14,8 @@ export function useInboundLeadFirm(leadId: string | null) {
     queryFn: async () => {
       if (!leadId) return null;
 
-      const { data, error } = await (supabase
-        .from('inbound_leads') as any)
+      const { data, error } = await supabase
+        .from('inbound_leads' as never)
         .select(`
           firm_id,
           firm:firm_agreements!inbound_leads_firm_id_fkey (

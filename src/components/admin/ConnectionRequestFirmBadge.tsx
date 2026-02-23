@@ -1,5 +1,4 @@
-import { Badge } from '@/components/ui/badge';
-import { Building2, Users, FileCheck, FileSignature } from 'lucide-react';
+import { Users, FileCheck, FileSignature } from 'lucide-react';
 import { useConnectionRequestFirm } from '@/hooks/admin/use-connection-request-firm';
 import {
   Tooltip,
@@ -17,16 +16,7 @@ interface ConnectionRequestFirmBadgeProps {
 export function ConnectionRequestFirmBadge({ requestId, compact = false }: ConnectionRequestFirmBadgeProps) {
   const { data: firmInfo, isLoading } = useConnectionRequestFirm(requestId);
 
-  if (isLoading) {
-    return (
-      <Badge variant="outline" className="text-xs">
-        <Building2 className="h-3 w-3 mr-1 animate-pulse" />
-        Loading...
-      </Badge>
-    );
-  }
-
-  if (!firmInfo || !firmInfo.firm_id) {
+  if (isLoading || !firmInfo || !firmInfo.firm_id) {
     return null;
   }
 
@@ -34,23 +24,19 @@ export function ConnectionRequestFirmBadge({ requestId, compact = false }: Conne
   const memberCount = firmInfo.member_count || 0;
 
   const content = (
-    <Badge 
-      variant="outline" 
-      className={`text-xs font-medium ${
-        hasSignedAgreements 
-          ? 'bg-emerald-50 text-emerald-700 border-emerald-200' 
-          : 'bg-slate-50 text-slate-700 border-slate-200'
-      }`}
+    <Link
+      to="/admin/buyers/firm-agreements"
+      className="inline-flex items-center gap-1 text-sm text-foreground hover:text-primary transition-colors"
+      onClick={(e) => e.stopPropagation()}
     >
-      <Building2 className="h-3 w-3 mr-1" />
-      {firmInfo.firm_name}
+      <span className="font-medium">{firmInfo.firm_name}</span>
       {memberCount > 1 && (
-        <span className="ml-1 opacity-60">({memberCount})</span>
+        <span className="text-muted-foreground">({memberCount})</span>
       )}
       {hasSignedAgreements && (
-        <FileCheck className="h-3 w-3 ml-1" />
+        <FileCheck className="h-3.5 w-3.5 text-emerald-600" />
       )}
-    </Badge>
+    </Link>
   );
 
   if (compact) {
@@ -80,12 +66,6 @@ export function ConnectionRequestFirmBadge({ requestId, compact = false }: Conne
                 <span>NDA: {firmInfo.nda_signed ? '✓ Signed' : '✗ Not Signed'}</span>
               </div>
             </div>
-            <Link 
-              to="/admin/buyers/firm-agreements" 
-              className="text-xs text-primary hover:underline inline-block mt-2"
-            >
-              View Firm Details →
-            </Link>
           </div>
         </TooltipContent>
       </Tooltip>

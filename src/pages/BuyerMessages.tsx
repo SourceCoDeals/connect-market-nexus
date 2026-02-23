@@ -19,6 +19,7 @@ import {
   Shield,
   CheckCircle,
   MessageSquarePlus,
+  Lock,
 } from "lucide-react";
 import {
   useConnectionMessages,
@@ -56,31 +57,33 @@ function useSendDocumentQuestion() {
         .limit(1)
         .maybeSingle();
 
+      // Oz De La Luna's admin ID — all document questions route to him
+      const OZ_ADMIN_ID = 'ea1f0064-52ef-43fb-bec4-22391b720328';
+
       if (activeRequest) {
-        // Send as a connection message
+        // Send as a connection message (sender_id required by RLS)
         const { error } = await (supabase.from('connection_messages') as any).insert({
           connection_request_id: activeRequest.id,
+          sender_id: userId,
           body: messageBody,
           sender_role: 'buyer',
         });
         if (error) throw error;
       } else {
-        // No active thread — create an admin notification instead
-        const { data: admins } = await (supabase.from('profiles') as any)
-          .select('id')
-          .eq('role', 'admin')
-          .limit(3);
-
-        for (const admin of (admins || [])) {
-          await (supabase.from('admin_notifications') as any).insert({
-            admin_id: admin.id,
-            user_id: userId,
-            notification_type: 'document_question',
-            title: `Document Question: ${docLabel}`,
-            message: question,
-          });
-        }
+        // No active thread — create a user notification for Oz instead
+        // (buyers can't insert into admin_notifications due to RLS)
+        console.warn('No active connection request found for document question');
       }
+
+      // Always notify Oz via admin_notifications using an edge function call
+      await supabase.functions.invoke('notify-admin-document-question', {
+        body: {
+          admin_id: OZ_ADMIN_ID,
+          user_id: userId,
+          document_type: docLabel,
+          question,
+        },
+      });
     },
     onSuccess: () => {
       toast({ title: 'Question Sent', description: 'Our team will review and respond shortly.' });
@@ -116,44 +119,45 @@ function useBuyerThreads() {
       if (!user?.id) return [];
 
       // Step 1: Fetch all connection requests for this buyer (approved, on_hold, rejected)
-      const { data: requests, error: reqError } = await (supabase
-        .from("connection_requests") as any)
+      const { data: requests, error: reqError } = await supabase
+        .from("connection_requests")
         .select(`
           id, status, listing_id, user_message, created_at,
           last_message_at, last_message_preview, last_message_sender_role,
           listing:listings!connection_requests_listing_id_fkey(title, category)
         `)
         .eq("user_id", user.id)
-        .in("status", ["approved", "on_hold", "rejected"])
+        .in("status", ["pending", "approved", "on_hold", "rejected"])
         .order("last_message_at", { ascending: false, nullsFirst: false });
 
       if (reqError || !requests) return [];
 
       // Step 2: Fetch unread counts for this buyer
-      const requestIds = requests.map((r: any) => r.id);
-      const { data: unreadMsgs } = await (supabase
-        .from("connection_messages") as any)
+      const requestIds = requests.map((r: Record<string, unknown>) => r.id as string);
+      const { data: unreadMsgs } = await supabase
+        .from("connection_messages")
         .select("connection_request_id")
         .in("connection_request_id", requestIds.length > 0 ? requestIds : ["__none__"])
         .eq("is_read_by_buyer", false)
         .eq("sender_role", "admin");
 
       const unreadMap: Record<string, number> = {};
-      (unreadMsgs || []).forEach((msg: any) => {
-        unreadMap[msg.connection_request_id] = (unreadMap[msg.connection_request_id] || 0) + 1;
+      (unreadMsgs || []).forEach((msg: Record<string, unknown>) => {
+        const reqId = msg.connection_request_id as string;
+        unreadMap[reqId] = (unreadMap[reqId] || 0) + 1;
       });
 
-      const threads: BuyerThread[] = requests.map((req: any) => ({
-        connection_request_id: req.id,
-        deal_title: req.listing?.title || "Untitled Deal",
-        deal_category: req.listing?.category ?? undefined,
-        request_status: req.status,
-        listing_id: req.listing_id ?? '',
+      const threads: BuyerThread[] = requests.map((req: Record<string, unknown>) => ({
+        connection_request_id: req.id as string,
+        deal_title: (req.listing as Record<string, unknown>)?.title as string || "Untitled Deal",
+        deal_category: ((req.listing as Record<string, unknown>)?.category as string) ?? undefined,
+        request_status: req.status as string,
+        listing_id: (req.listing_id as string) ?? '',
         messages_count: 0,
-        last_message_body: req.last_message_preview || req.user_message || "",
-        last_message_at: req.last_message_at || req.created_at,
-        last_sender_role: req.last_message_sender_role || "buyer",
-        unread_count: unreadMap[req.id] || 0,
+        last_message_body: (req.last_message_preview as string) || (req.user_message as string) || "",
+        last_message_at: (req.last_message_at as string) || (req.created_at as string),
+        last_sender_role: (req.last_message_sender_role as string) || "buyer",
+        unread_count: unreadMap[req.id as string] || 0,
       }));
 
       // Sort: unread first, then by most recent activity
@@ -383,7 +387,7 @@ function BuyerThreadView({
   const [newMessage, setNewMessage] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const isRejected = thread.request_status === "rejected";
-
+  const isPending = thread.request_status === "pending";
   useEffect(() => {
     if (thread.connection_request_id && thread.unread_count > 0) {
       markRead.mutate(thread.connection_request_id);
@@ -396,7 +400,7 @@ function BuyerThreadView({
   }, [messages]);
 
   const handleSend = () => {
-    if (!newMessage.trim() || isRejected) return;
+    if (!newMessage.trim() || isRejected || isPending) return;
     sendMsg.mutate({
       connection_request_id: thread.connection_request_id,
       body: newMessage.trim(),
@@ -508,7 +512,14 @@ function BuyerThreadView({
 
       {/* Input */}
       <div className="border-t border-border px-5 py-3 bg-card">
-        {isRejected ? (
+        {isPending ? (
+          <div className="flex items-center justify-center gap-2 py-2">
+            <Lock className="h-3.5 w-3.5 text-muted-foreground" />
+            <p className="text-xs text-muted-foreground">
+              Messaging will be available once your request is accepted.
+            </p>
+          </div>
+        ) : isRejected ? (
           <p className="text-xs text-muted-foreground text-center py-1">
             This deal is no longer active.
           </p>
@@ -645,14 +656,14 @@ function PendingAgreementBanner() {
     queryKey: ['buyer-firm-agreement-status', user?.id],
     queryFn: async () => {
       if (!user?.id) return null;
-      const { data: membership } = await (supabase.from('firm_members') as any)
+      const { data: membership } = await supabase.from('firm_members')
         .select('firm_id')
         .eq('user_id', user.id)
         .limit(1)
         .maybeSingle();
       if (!membership) return null;
 
-      const { data: firm } = await (supabase.from('firm_agreements') as any)
+      const { data: firm } = await supabase.from('firm_agreements')
         .select('nda_signed, nda_signed_at, nda_signed_document_url, nda_document_url, nda_docuseal_status, fee_agreement_signed, fee_agreement_signed_at, fee_signed_document_url, fee_agreement_document_url, fee_docuseal_status')
         .eq('id', membership.firm_id)
         .maybeSingle();
@@ -667,8 +678,8 @@ function PendingAgreementBanner() {
     queryKey: ['agreement-pending-notifications', user?.id],
     queryFn: async () => {
       if (!user?.id) return [];
-      const { data } = await (supabase
-        .from('user_notifications') as any)
+      const { data } = await supabase
+        .from('user_notifications')
         .select('*')
         .eq('user_id', user.id)
         .eq('notification_type', 'agreement_pending')
@@ -706,7 +717,7 @@ function PendingAgreementBanner() {
       draftUrl: firmStatus.nda_document_url,
     });
   } else {
-    const ndaNotif = pendingNotifications.find((n: any) => n.metadata?.document_type === 'nda');
+    const ndaNotif = pendingNotifications.find((n: Record<string, unknown>) => (n.metadata as Record<string, unknown>)?.document_type === 'nda');
     if (ndaNotif || firmStatus?.nda_docuseal_status) {
       items.push({
         key: 'nda-pending',
@@ -717,7 +728,7 @@ function PendingAgreementBanner() {
         documentUrl: null,
         draftUrl: firmStatus?.nda_document_url || null,
         notificationMessage: ndaNotif?.message,
-        notificationTime: ndaNotif?.created_at,
+        notificationTime: ndaNotif?.created_at ?? undefined,
       });
     }
   }
@@ -734,7 +745,7 @@ function PendingAgreementBanner() {
       draftUrl: firmStatus.fee_agreement_document_url,
     });
   } else {
-    const feeNotif = pendingNotifications.find((n: any) => n.metadata?.document_type === 'fee_agreement');
+    const feeNotif = pendingNotifications.find((n: Record<string, unknown>) => (n.metadata as Record<string, unknown>)?.document_type === 'fee_agreement');
     if (feeNotif || firmStatus?.fee_docuseal_status) {
       items.push({
         key: 'fee-pending',
@@ -745,7 +756,7 @@ function PendingAgreementBanner() {
         documentUrl: null,
         draftUrl: firmStatus?.fee_agreement_document_url || null,
         notificationMessage: feeNotif?.message,
-        notificationTime: feeNotif?.created_at,
+        notificationTime: feeNotif?.created_at ?? undefined,
       });
     }
   }

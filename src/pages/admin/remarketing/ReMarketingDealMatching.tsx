@@ -28,7 +28,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { 
+import {
   PassReasonDialog,
   BuyerMatchCard,
   ScoringInsightsPanel,
@@ -38,6 +38,7 @@ import {
   type OutreachStatus,
   ReMarketingChat,
 } from "@/components/remarketing";
+import { RemarketingErrorBoundary } from "@/components/remarketing/RemarketingErrorBoundary";
 import { AddToUniverseQuickAction } from "@/components/remarketing/AddToUniverseQuickAction";
 import { useBackgroundScoringProgress } from "@/hooks/useBackgroundScoringProgress";
 
@@ -413,7 +414,7 @@ const ReMarketingDealMatching = () => {
         action_by: user?.id,
       });
     } catch (error) {
-      console.error('Failed to log learning history:', error);
+      // Failed to log learning history — non-critical
     }
   };
 
@@ -484,14 +485,14 @@ const ReMarketingDealMatching = () => {
               created_by: user?.id,
             }, { onConflict: 'score_id' });
           } catch (err) {
-            console.error('Failed to create outreach record for score', id, err);
+            // Failed to create outreach record — non-blocking
           }
           
           // Fire-and-forget: discover contacts
           if (scoreData.buyer_id) {
             supabase.functions.invoke('find-buyer-contacts', {
               body: { buyerId: scoreData.buyer_id }
-            }).catch(err => console.warn('Contact discovery failed (non-blocking):', err));
+            }).catch(() => { /* contact discovery failure is non-blocking */ });
           }
         }
       }
@@ -524,7 +525,7 @@ const ReMarketingDealMatching = () => {
       setScoringProgress(100);
       queryClient.invalidateQueries({ queryKey: ['remarketing', 'scores', listingId] });
     } catch (error) {
-      console.error('Scoring error:', error);
+      // Scoring error — toast shown to user
       toast.error('Failed to score buyers');
     } finally {
       setIsScoring(false);
@@ -548,7 +549,7 @@ const ReMarketingDealMatching = () => {
           created_by: user?.id,
         }, { onConflict: 'listing_id,adjustment_type' });
     } catch (error) {
-      console.error('Failed to save custom instructions:', error);
+      // Failed to save custom instructions — non-critical
     }
     
     // Trigger rescore with custom instructions
@@ -567,7 +568,7 @@ const ReMarketingDealMatching = () => {
         .eq('listing_id', listingId!)
         .eq('adjustment_type', 'custom_instructions');
     } catch (error) {
-      console.error('Failed to clear custom instructions:', error);
+      // Failed to clear custom instructions — non-critical
     }
     
     queryClient.invalidateQueries({ queryKey: ['remarketing', 'scores', listingId] });
@@ -628,7 +629,7 @@ const ReMarketingDealMatching = () => {
       // 3. Refresh scores
       queryClient.invalidateQueries({ queryKey: ['remarketing', 'scores', listingId] });
     } catch (err: any) {
-      console.error('Failed to mark interested:', err);
+      // Error shown to user via toast below
       toast.error(err?.message || 'Failed to mark buyer as interested');
     }
   };
@@ -649,18 +650,18 @@ const ReMarketingDealMatching = () => {
       }, { onConflict: 'score_id' });
 
       if (error) {
-        console.error('Failed to auto-create outreach:', error);
+        // Outreach creation failed — non-blocking
         toast.success('Buyer approved as fit — outreach tracking started');
       }
     } catch (error) {
-      console.error('Failed to auto-create outreach:', error);
+      // Outreach creation failed — non-blocking
     }
 
     // Fire-and-forget: auto-discover buyer contacts for approved buyer
     if (scoreData?.buyer_id) {
       supabase.functions.invoke('find-buyer-contacts', {
         body: { buyerId: scoreData.buyer_id }
-      }).catch(err => console.warn('Contact discovery failed (non-blocking):', err));
+      }).catch(() => { /* contact discovery failure is non-blocking */ });
     }
   };
 
@@ -758,7 +759,7 @@ const ReMarketingDealMatching = () => {
     }, { onConflict: 'score_id' });
     
     if (error) {
-      console.error('Failed to update outreach:', error);
+      // Outreach update failed — toast shown to user
       toast.error('Failed to update outreach status');
       return;
     }
@@ -775,7 +776,7 @@ const ReMarketingDealMatching = () => {
         .update({ last_viewed_at: new Date().toISOString() })
         .eq('id', scoreId);
     } catch (err) {
-      console.error('Failed to track view:', err);
+      // View tracking failed — non-critical
     }
   };
 
@@ -830,7 +831,7 @@ const ReMarketingDealMatching = () => {
       queryClient.invalidateQueries({ queryKey: ['pipeline-deals-for-listing', listingId] });
       queryClient.invalidateQueries({ queryKey: ['deals'] });
     } catch (err: any) {
-      console.error('Failed to move to pipeline:', err);
+      // Pipeline move failed — toast shown to user
       toast.error(err?.message || 'Failed to move buyer to pipeline');
     }
   };
@@ -870,6 +871,7 @@ const ReMarketingDealMatching = () => {
   };
 
   return (
+    <RemarketingErrorBoundary fallbackMessage="Failed to load buyer matches">
     <div className="p-6 space-y-6">
       {/* Header */}
       <div className="flex items-center gap-4">
@@ -1271,6 +1273,7 @@ const ReMarketingDealMatching = () => {
         }}
       />
     </div>
+    </RemarketingErrorBoundary>
   );
 };
 

@@ -1,11 +1,12 @@
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useCallback } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { Loader2, Users, Search, FileCheck, ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react";
+import { Loader2, Users, Search, FileCheck, ArrowUp, ArrowDown, ArrowUpDown, ChevronLeft, ChevronRight } from "lucide-react";
 
 type SortColumn = "name" | "pe_firm" | "industry" | "confidence";
 type SortDirection = "asc" | "desc";
@@ -23,54 +24,65 @@ interface BuyerRow {
   fee_agreement_status: string | null;
 }
 
+const PAGE_SIZE = 100;
+
 export default function MAAllBuyers() {
   const [buyers, setBuyers] = useState<BuyerRow[]>([]);
   const [trackers, setTrackers] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [totalCount, setTotalCount] = useState(0);
+  const [page, setPage] = useState(0);
   const [searchParams, setSearchParams] = useSearchParams();
   const sortColumn = (searchParams.get("sort") as SortColumn) ?? "name";
   const sortDirection = (searchParams.get("dir") as SortDirection) ?? "asc";
 
-  useEffect(() => {
-    loadData();
-  }, []);
-
-  const loadData = async () => {
+  const loadData = useCallback(async (pageNum: number) => {
     try {
-    const [trackersRes, buyersRes] = await Promise.all([
-      supabase.from("industry_trackers").select("id, name").limit(500),
-      supabase.from("remarketing_buyers").select("*").order("company_name").limit(2000),
-    ]);
+      setIsLoading(true);
+      const from = pageNum * PAGE_SIZE;
+      const to = from + PAGE_SIZE - 1;
 
-    const trackerMap: Record<string, string> = {};
-    (trackersRes.data || []).forEach((t) => {
-      trackerMap[t.id] = t.name || 'Unknown';
-    });
-    setTrackers(trackerMap);
+      const [trackersRes, buyersRes, countRes] = await Promise.all([
+        supabase.from("industry_trackers").select("id, name").limit(500),
+        supabase.from("remarketing_buyers").select("*").order("company_name").range(from, to),
+        supabase.from("remarketing_buyers").select("id", { count: 'exact', head: true }),
+      ]);
 
-    // Map remarketing_buyers to BuyerRow interface
-    // remarketing_buyers may have columns not in generated types
-    type BuyerRecord = Record<string, unknown>;
-    const mappedBuyers: BuyerRow[] = ((buyersRes.data || []) as BuyerRecord[]).map((b) => ({
-      id: b.id as string,
-      pe_firm_name: (b.company_name as string) || (b.pe_firm_name as string) || 'Unknown',
-      platform_company_name: (b.platform_company_name as string) ?? null,
-      platform_website: (b.platform_website as string) ?? null,
-      thesis_summary: (b.thesis_summary as string) ?? null,
-      thesis_confidence: (b.thesis_confidence as string) ?? null,
-      industry_vertical: (b.industry_vertical as string) ?? null,
-      tracker_id: (b.industry_tracker_id as string) || (b.tracker_id as string) || '',
-      has_fee_agreement: (b.has_fee_agreement as boolean) ?? null,
-      fee_agreement_status: (b.fee_agreement_status as string) ?? null,
-    }));
-    setBuyers(mappedBuyers);
-    setIsLoading(false);
-    } catch (error: any) {
+      const trackerMap: Record<string, string> = {};
+      (trackersRes.data || []).forEach((t) => {
+        trackerMap[t.id] = t.name || 'Unknown';
+      });
+      setTrackers(trackerMap);
+      setTotalCount(countRes.count ?? 0);
+
+      // Map remarketing_buyers to BuyerRow interface
+      type BuyerRecord = Record<string, unknown>;
+      const mappedBuyers: BuyerRow[] = ((buyersRes.data || []) as BuyerRecord[]).map((b) => ({
+        id: b.id as string,
+        pe_firm_name: (b.company_name as string) || (b.pe_firm_name as string) || 'Unknown',
+        platform_company_name: (b.platform_company_name as string) ?? null,
+        platform_website: (b.platform_website as string) ?? null,
+        thesis_summary: (b.thesis_summary as string) ?? null,
+        thesis_confidence: (b.thesis_confidence as string) ?? null,
+        industry_vertical: (b.industry_vertical as string) ?? null,
+        tracker_id: (b.industry_tracker_id as string) || (b.tracker_id as string) || '',
+        has_fee_agreement: (b.has_fee_agreement as boolean) ?? null,
+        fee_agreement_status: (b.fee_agreement_status as string) ?? null,
+      }));
+      setBuyers(mappedBuyers);
+    } catch (error: unknown) {
       console.error("Failed to load buyers:", error);
+    } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    loadData(page);
+  }, [page, loadData]);
+
+  const totalPages = Math.ceil(totalCount / PAGE_SIZE);
 
   const filteredBuyers = useMemo(() => {
     if (!search) return buyers;
@@ -145,6 +157,8 @@ export default function MAAllBuyers() {
   );
 
   const uniqueFirms = new Set(buyers.map(b => b.pe_firm_name)).size;
+  const showingFrom = page * PAGE_SIZE + 1;
+  const showingTo = Math.min((page + 1) * PAGE_SIZE, totalCount);
 
   if (isLoading) {
     return (
@@ -161,7 +175,8 @@ export default function MAAllBuyers() {
           <div>
             <h1 className="text-2xl font-bold">All Buyers</h1>
             <p className="text-muted-foreground">
-              {uniqueFirms} PE firm{uniqueFirms !== 1 ? "s" : ""} · {buyers.length} platform{buyers.length !== 1 ? "s" : ""}
+              {uniqueFirms} PE firm{uniqueFirms !== 1 ? "s" : ""} · {totalCount} total platform{totalCount !== 1 ? "s" : ""}
+              {totalPages > 1 && <span> · Showing {showingFrom}–{showingTo}</span>}
               {search && <span className="text-primary"> (filtered: {filteredBuyers.length})</span>}
             </p>
           </div>
@@ -191,6 +206,7 @@ export default function MAAllBuyers() {
             </p>
           </div>
         ) : (
+          <>
           <div className="bg-card rounded-lg border overflow-hidden">
             <Table>
               <TableHeader>
@@ -278,6 +294,34 @@ export default function MAAllBuyers() {
               </TableBody>
             </Table>
           </div>
+
+          {/* Pagination controls */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between pt-2">
+              <p className="text-sm text-muted-foreground">
+                Page {page + 1} of {totalPages}
+              </p>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setPage(p => Math.max(0, p - 1))}
+                  disabled={page === 0 || isLoading}
+                >
+                  <ChevronLeft className="w-4 h-4 mr-1" /> Previous
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))}
+                  disabled={page >= totalPages - 1 || isLoading}
+                >
+                  Next <ChevronRight className="w-4 h-4 ml-1" />
+                </Button>
+              </div>
+            </div>
+            )}
+          </>
         )}
       </div>
     </TooltipProvider>

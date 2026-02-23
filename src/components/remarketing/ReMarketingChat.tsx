@@ -432,7 +432,7 @@ export function ReMarketingChat({
         }
         return;
       }
-      console.error("Chat error:", error);
+      // Chat error — display message to user below
       const errorMessage: Message = {
         id: `error-${Date.now()}`,
         role: "assistant",
@@ -461,13 +461,16 @@ export function ReMarketingChat({
   // Floating chat bubble (closed state)
   if (!isOpen) {
     return (
-      <div className={cn("fixed bottom-8 right-8 z-50", className)}>
+      <div className={cn("fixed bottom-6 right-6 z-50 flex flex-col items-end gap-2", className)}>
+        <div className="bg-foreground text-background rounded-xl px-4 py-2 text-sm font-medium shadow-lg animate-fade-in max-w-[200px] text-center">
+          Ask me anything
+        </div>
         <Button
           onClick={() => setIsOpen(true)}
           size="lg"
-          className="rounded-full h-14 w-14 shadow-lg hover:scale-105 transition-transform"
+          className="rounded-full h-20 w-20 shadow-2xl hover:scale-110 transition-transform bg-primary text-primary-foreground border-4 border-background"
         >
-          <MessageSquare className="h-6 w-6" />
+          <MessageSquare className="h-9 w-9" />
         </Button>
       </div>
     );

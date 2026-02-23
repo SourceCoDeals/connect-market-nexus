@@ -93,7 +93,7 @@ const ReMarketingBuyers = () => {
                 await queueBuyerEnrichment(ids);
                 queryClient.invalidateQueries({ queryKey: ['remarketing', 'buyers'] });
               } catch (err) {
-                console.error('Bulk enrich failed:', err);
+                // Bulk enrich failed — toast shown to user
                 toast.error('Failed to queue enrichment');
               } finally {
                 setEnrichingIds(new Set());
@@ -154,7 +154,7 @@ const ReMarketingBuyers = () => {
                 await queueBuyerEnrichment(ids);
                 queryClient.invalidateQueries({ queryKey: ['remarketing', 'buyers'] });
               } catch (err) {
-                console.error('Bulk enrich failed:', err);
+                // Bulk enrich failed — toast shown to user
                 toast.error('Failed to queue enrichment');
               } finally {
                 setEnrichingIds(new Set());

@@ -52,7 +52,7 @@ import { ExpandableBusinessProfile } from "./ExpandableBusinessProfile";
 import { EnhancedBuyerProfile } from './EnhancedBuyerProfile';
 import { AssociatedContactsDisplay } from './AssociatedContactsDisplay';
 import { getBuyerTier } from '@/lib/buyer-metrics';
-import { processUrl, extractDomainFromEmail, mapRoleToBuyerType, getLeadTierInfo } from '@/lib/url-utils';
+import { extractDomainFromEmail, mapRoleToBuyerType, getLeadTierInfo } from '@/lib/url-utils';
 import { DuplicateChannelWarning } from './DuplicateChannelWarning';
 import { MessageConflictDisplay } from './MessageConflictDisplay';
 import { ConnectionRequestFirmBadge } from './ConnectionRequestFirmBadge';
@@ -486,7 +486,7 @@ function ReactiveRequestCard({
               <div className="flex items-center gap-3 flex-wrap">
                 {request.user ? (
                   <BuyerProfileHoverCard user={request.user as unknown as AdminUsersUser}>
-                    <h3 className="font-semibold cursor-pointer hover:text-primary transition-colors">
+                     <h3 className="font-semibold text-base cursor-pointer hover:text-primary transition-colors">
                       {request.user?.first_name} {request.user?.last_name}
                     </h3>
                   </BuyerProfileHoverCard>
@@ -503,15 +503,12 @@ function ReactiveRequestCard({
                 <SourceBadge source={request.source || 'marketplace'} />
                 <ConnectionRequestFirmBadge requestId={request.id} compact={true} />
                 {request.user && (
-                  <>
-                    <BuyerTierBadge tier={(request.user as any).buyer_tier} />
-                    <BuyerScoreBadge score={(request.user as any).buyer_quality_score} />
-                  </>
+                  <BuyerTierBadge tier={(request.user as any).buyer_tier} />
                 )}
               </div>
                <div className="text-sm text-muted-foreground space-y-1">
                  <div className="flex items-center gap-2">
-                   <Mail className="h-3 w-3" />
+                   <Mail className="h-3.5 w-3.5" />
                    <div className="flex items-center gap-2">
                      <a 
                        href={`mailto:${request.user?.email || request.lead_email}`}
@@ -522,44 +519,32 @@ function ReactiveRequestCard({
                        {request.user?.email || request.lead_email}
                        <ExternalLink className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity" />
                      </a>
-                     {(request.user?.website || request.lead_company) && (
-                       <span className="text-muted-foreground/60">•</span>
-                     )}
-                     {request.user?.website && (
-                       <a
-                         href={processUrl(request.user.website)}
-                         target="_blank"
-                         rel="noopener noreferrer"
-                         className="text-primary hover:text-primary/80 transition-colors text-xs"
-                        >
-                          {request.user?.company || 'Company'}
-                        </a>
-                     )}
                       {!request.user?.website && request.lead_company && (
-                        <a
-                          href={extractDomainFromEmail(request.lead_email)}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-xs text-primary hover:text-primary/80 cursor-pointer transition-colors flex items-center gap-1 group"
-                        >
-                          {request.lead_company}
-                          <ExternalLink className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity" />
-                        </a>
+                        <>
+                          <span className="text-muted-foreground/60">•</span>
+                          <span className="text-sm">{request.lead_company}</span>
+                        </>
                       )}
                    </div>
                  </div>
                   <div className="flex items-center gap-2">
-                    <Building2 className="h-3 w-3" />
+                    <Building2 className="h-3.5 w-3.5" />
                     {formatEnhancedCompanyName(request.listing?.title || "", request.listing?.internal_company_name, request.listing?.id)}
                   </div>
                </div>
              </div>
             </div>
             
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-muted-foreground">
-                {format(new Date(request.created_at), 'MMM d, yyyy')}
-              </span>
+            <div className="flex items-center gap-4">
+              {request.user && (
+                <BuyerScoreBadge score={(request.user as any).buyer_quality_score} size="lg" showLabel />
+              )}
+              <div className="text-right">
+                <span className="text-xs uppercase tracking-wider text-muted-foreground/70 font-semibold block leading-none mb-0.5">Submitted</span>
+                <span className="text-sm text-muted-foreground">
+                  {format(new Date(request.created_at), 'MMM d, yyyy')}
+                </span>
+              </div>
               <Button
                 variant="ghost"
                 size="sm"

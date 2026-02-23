@@ -34,6 +34,14 @@ export const QUERY_KEYS = {
   // Firm agreements
   firmAgreements: ['firm-agreements'] as const,
   firmMembers: (firmId?: string) => ['firm-members', firmId] as const,
+
+  // DocuSeal / Agreement signing
+  buyerNdaStatus: (userId?: string) => ['buyer-nda-status', userId] as const,
+  myAgreementStatus: ['my-agreement-status'] as const,
+  buyerFirmAgreementStatus: (userId?: string) => ['buyer-firm-agreement-status', userId] as const,
+  agreementPendingNotifications: (userId?: string) => ['agreement-pending-notifications', userId] as const,
+  buyerMessageThreads: (userId?: string) => ['buyer-message-threads', userId] as const,
+  dealNdaStatus: (userId?: string) => ['deal-nda-status', userId] as const,
   
   // Deals & Pipeline
   deals: ['deals'] as const,
@@ -82,6 +90,16 @@ export const INVALIDATION_PATTERNS = {
   firmAgreements: () => [
     { queryKey: QUERY_KEYS.firmAgreements },
     { queryKey: ['firm-agreements'] }, // Legacy support
+  ],
+
+  // Invalidate all DocuSeal / agreement-related queries
+  agreements: (userId?: string) => [
+    { queryKey: QUERY_KEYS.myAgreementStatus },
+    { queryKey: QUERY_KEYS.firmAgreements },
+    { queryKey: QUERY_KEYS.buyerFirmAgreementStatus(userId) },
+    { queryKey: QUERY_KEYS.agreementPendingNotifications(userId) },
+    { queryKey: QUERY_KEYS.buyerNdaStatus(userId) },
+    { queryKey: QUERY_KEYS.buyerMessageThreads(userId) },
   ],
   
   // Invalidate deals
