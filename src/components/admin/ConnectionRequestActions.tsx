@@ -394,14 +394,13 @@ export function ConnectionRequestActions({
       {/* ── TWO-COLUMN LAYOUT ── */}
       {/* Buyer Hero Card — full width */}
       <div className="bg-card border border-border rounded-xl overflow-hidden shadow-sm">
-        {/* Top row: Avatar + Name + AUM */}
-        <div className="px-6 py-5 flex items-start gap-4">
+        <div className="px-6 py-5 flex items-start gap-5">
           {/* Avatar */}
-          <div className="w-[54px] h-[54px] rounded-full bg-primary border-2 border-sourceco flex items-center justify-center shrink-0">
-            <span className="text-primary-foreground text-lg font-bold" style={{ fontFamily: 'Manrope, sans-serif' }}>{buyerInitials}</span>
+          <div className="w-[48px] h-[48px] rounded-full bg-sourceco/20 border-2 border-sourceco flex items-center justify-center shrink-0">
+            <span className="text-foreground text-base font-bold" style={{ fontFamily: 'Manrope, sans-serif' }}>{buyerInitials}</span>
           </div>
 
-          {/* Info */}
+          {/* Left: Name + description */}
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-3">
               <h2 className="text-xl font-extrabold text-foreground tracking-tight" style={{ fontFamily: 'Manrope, sans-serif' }}>{buyerName}</h2>
@@ -413,66 +412,40 @@ export function ConnectionRequestActions({
             </div>
             <p className="text-sm text-muted-foreground mt-0.5">
               {user.job_title ? `${user.job_title} at ` : ''}{firmName}
+              {buyerEmail && <> · {buyerEmail}</>}
             </p>
-            {buyerEmail && (
-              <p className="text-sm text-muted-foreground/70 mt-0.5">✉ {buyerEmail}</p>
-            )}
-            <div className="flex items-center gap-1.5 mt-2.5 flex-wrap">
+
+            {/* Quick snapshot — the key info for fast decisions */}
+            <p className="text-sm text-foreground mt-2 leading-relaxed">
+              {user.bio || `${tierInfo.description || 'Buyer'} ${firmName ? `at ${firmName}` : ''}${user.business_categories && Array.isArray(user.business_categories) && user.business_categories.length > 0 ? `, focused on ${(user.business_categories as string[]).slice(0, 3).join(', ')}` : ''}${aum ? `. AUM: ${aum}` : ''}.`}
+            </p>
+
+            {/* Tags */}
+            <div className="flex items-center gap-2 mt-3 flex-wrap">
               {tierInfo.description && (
                 <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-muted text-foreground">{tierInfo.description}</span>
               )}
               <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-sourceco/15 text-foreground">Marketplace</span>
               {firmName && (
-                <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-sourceco/10 text-sourceco">
-                  {firmName}
-                </span>
+                <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-sourceco/10 text-sourceco">{firmName}</span>
+              )}
+              {aum && (
+                <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-muted text-foreground">AUM: {aum}</span>
               )}
             </div>
           </div>
 
-          {/* Right: AUM block */}
-          <div className="text-right shrink-0 flex flex-col items-end gap-3">
-            {aum && (
-              <div className="bg-primary rounded-xl px-5 py-3 inline-block">
-                <p className="text-2xl font-extrabold text-primary-foreground tracking-tight leading-none" style={{ fontFamily: 'Manrope, sans-serif' }}>{aum}</p>
-                <p className="text-[10px] uppercase tracking-widest text-sourceco mt-1">Assets Under Mgmt.</p>
-              </div>
-            )}
-            <div className="w-36">
+          {/* Right: Key stats */}
+          <div className="shrink-0 text-right space-y-1.5">
+            <p className="text-xs text-muted-foreground">Joined {user.created_at ? format(new Date(user.created_at), 'MMM d, yyyy') : '—'}</p>
+            <p className="text-xs text-muted-foreground">Requested {formattedDate || '—'}</p>
+            <div className="mt-2 w-32 ml-auto">
               <div className="flex items-center justify-between mb-1">
                 <span className="text-xs text-muted-foreground font-medium">Profile</span>
                 <span className={`text-xs font-bold ${completeness >= 70 ? 'text-sourceco' : 'text-muted-foreground'}`}>{completeness}%</span>
               </div>
               <div className="h-[5px] bg-border rounded-full overflow-hidden">
-                <div
-                  className="h-full rounded-full transition-all bg-sourceco"
-                  style={{ width: `${completeness}%` }}
-                />
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Bottom row: Company summary stats */}
-        <div className="border-t border-border px-6 py-4 bg-muted/30">
-          <div className="grid grid-cols-3 gap-6">
-            {/* Company Description */}
-            <div className="col-span-2">
-              <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">About</p>
-              <p className="text-sm text-foreground leading-relaxed">
-                {user.bio || `${firmName || buyerName} — ${tierInfo.description || 'Marketplace buyer'}. ${user.business_categories && Array.isArray(user.business_categories) && user.business_categories.length > 0 ? `Focused on ${(user.business_categories as string[]).slice(0, 3).join(', ')}.` : 'No additional details on file.'}`}
-              </p>
-            </div>
-
-            {/* Key stats */}
-            <div className="space-y-3">
-              <div>
-                <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Joined</p>
-                <p className="text-sm font-medium text-foreground">{user.created_at ? format(new Date(user.created_at), 'MMM d, yyyy') : '—'}</p>
-              </div>
-              <div>
-                <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Request Date</p>
-                <p className="text-sm font-medium text-foreground">{formattedDate || '—'}</p>
+                <div className="h-full rounded-full transition-all bg-sourceco" style={{ width: `${completeness}%` }} />
               </div>
             </div>
           </div>
