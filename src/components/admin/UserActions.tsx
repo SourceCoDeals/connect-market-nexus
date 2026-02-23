@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { useAdminUsers } from '@/hooks/admin/use-admin-users';
 import { useAdminEmail } from '@/hooks/admin/use-admin-email';
-import { useAutoCreateFirmOnApproval } from '@/hooks/admin/use-docuseal';
+// useAutoCreateFirmOnApproval removed — direct user approval doesn't have a connectionRequestId
 import { User } from '@/types';
 import { ApprovalEmailOptions } from '@/types/admin-users';
 
@@ -25,7 +25,7 @@ export function UserActions({ onUserStatusUpdated }: UserActionsProps) {
 
   const { sendCustomApprovalEmail } = useAdminEmail();
 
-  const autoCreateFirm = useAutoCreateFirmOnApproval();
+  
 
   // Get actual mutation functions
   const updateUserStatusMutation = useUpdateUserStatus();
@@ -166,14 +166,10 @@ export function UserActions({ onUserStatusUpdated }: UserActionsProps) {
       // Store approved user for success dialog
       setApprovedUser(user);
 
-      // Step 2: Auto-create firm agreement
-      try {
-        console.log('[UserActions] Step 2: Auto-creating firm...');
-        await autoCreateFirm.mutateAsync({ userId: user.id });
-        console.log('[UserActions] Step 2 SUCCESS');
-      } catch (firmError) {
-        console.error('[UserActions] Step 2 FAILED (non-fatal):', firmError);
-      }
+      // Step 2: Auto-create firm agreement (fire-and-forget, non-blocking)
+      // Note: This edge function expects a connectionRequestId, not a userId.
+      // During direct user approval (not connection request approval), we skip this step.
+      console.log('[UserActions] Step 2: Skipping auto-create firm (no connection request in direct approval flow)');
 
       // Step 3: Send email
       let emailSuccess = false;
