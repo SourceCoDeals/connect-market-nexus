@@ -404,7 +404,14 @@ export function ConnectionRequestActions({
 
           {/* Info */}
           <div className="flex-1 min-w-0">
-            <h2 className="text-xl font-extrabold text-foreground tracking-tight" style={{ fontFamily: 'Manrope, sans-serif' }}>{buyerName}</h2>
+            <div className="flex items-center gap-3">
+              <h2 className="text-xl font-extrabold text-foreground tracking-tight" style={{ fontFamily: 'Manrope, sans-serif' }}>{buyerName}</h2>
+              {user.linkedin_profile && (
+                <a href={processUrl(user.linkedin_profile)} target="_blank" rel="noopener noreferrer" className="text-xs font-semibold text-sourceco hover:underline">
+                  LinkedIn ↗
+                </a>
+              )}
+            </div>
             <p className="text-[13.5px] text-muted-foreground">{firmName}</p>
             {buyerEmail && (
               <p className="text-xs text-muted-foreground/70 mt-0.5">✉ {buyerEmail}</p>
@@ -420,15 +427,27 @@ export function ConnectionRequestActions({
             </div>
           </div>
 
-          {/* Right: Date + AUM */}
-          <div className="text-right shrink-0">
-            <p className="text-xs text-muted-foreground mb-2.5">{formattedDate}</p>
+          {/* Right: Date + AUM + Completeness */}
+          <div className="text-right shrink-0 flex flex-col items-end gap-2.5">
+            <p className="text-xs text-muted-foreground">{formattedDate}</p>
             {aum && (
               <div className="bg-foreground rounded-xl px-4 py-2.5 inline-block">
                 <p className="text-xl font-extrabold text-card tracking-tight leading-none" style={{ fontFamily: 'Manrope, sans-serif' }}>{aum}</p>
                 <p className="text-[9px] uppercase tracking-widest text-muted-foreground mt-1">Assets Under Mgmt.</p>
               </div>
             )}
+            <div className="w-32">
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-[10px] text-muted-foreground font-medium">Profile</span>
+                <span className={`text-[10px] font-bold ${completeness >= 70 ? 'text-emerald-600' : 'text-amber-600'}`}>{completeness}%</span>
+              </div>
+              <div className="h-[4px] bg-border rounded-full overflow-hidden">
+                <div
+                  className={`h-full rounded-full transition-all ${completeness >= 70 ? 'bg-gradient-to-r from-emerald-500 to-emerald-400' : 'bg-gradient-to-r from-amber-500 to-amber-400'}`}
+                  style={{ width: `${completeness}%` }}
+                />
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -488,39 +507,8 @@ export function ConnectionRequestActions({
 
         {/* ── RIGHT SIDEBAR ── */}
         <div className="space-y-4">
-          {/* Buyer Information */}
-          <SidebarCard title="Buyer Information">
-            <div className="space-y-0">
-              <SidebarRow label="Type" value={tierInfo.description} />
-              {aum && <SidebarRow label="AUM" value={aum} bold />}
-              {user.linkedin_profile && (
-                <SidebarRow label="LinkedIn">
-                  <a href={processUrl(user.linkedin_profile)} target="_blank" rel="noopener noreferrer" className="text-xs font-semibold text-sourceco hover:underline">
-                    View Profile ↗
-                  </a>
-                </SidebarRow>
-              )}
-              {/* Profile Completeness */}
-              <div className="pt-3 mt-1">
-                <div className="flex items-center justify-between mb-1.5">
-                  <span className="text-xs text-muted-foreground font-medium">Profile Completeness</span>
-                  <span className={`text-xs font-bold ${completeness >= 70 ? 'text-emerald-600' : 'text-amber-600'}`}>
-                    {completeness}%
-                  </span>
-                </div>
-                <div className="h-[5px] bg-border rounded-full overflow-hidden">
-                  <div
-                    className={`h-full rounded-full transition-all ${
-                      completeness >= 70
-                        ? 'bg-gradient-to-r from-emerald-500 to-emerald-400'
-                        : 'bg-gradient-to-r from-amber-500 to-amber-400'
-                    }`}
-                    style={{ width: `${completeness}%` }}
-                  />
-                </div>
-              </div>
-            </div>
-          </SidebarCard>
+
+
 
           {/* Agreements */}
           <SidebarCard title="Agreements">
@@ -721,23 +709,6 @@ function SidebarCard({ title, children }: { title: string; children: React.React
         <h3 className="text-[11px] font-bold uppercase tracking-[1.2px] text-muted-foreground">{title}</h3>
       </div>
       <div className="px-4 py-3.5">{children}</div>
-    </div>
-  );
-}
-
-// ─── Sidebar Row ───
-
-function SidebarRow({ label, value, bold, children }: { label: string; value?: string; bold?: boolean; children?: React.ReactNode }) {
-  return (
-    <div className="flex items-center justify-between py-2.5 border-b border-border/30 last:border-b-0">
-      <span className="text-xs text-muted-foreground font-medium">{label}</span>
-      {children || (
-        <span className={`text-[13px] text-foreground text-right ${bold ? 'font-extrabold text-xl tracking-tight' : 'font-semibold'}`}
-          style={bold ? { fontFamily: 'Manrope, sans-serif' } : undefined}
-        >
-          {value}
-        </span>
-      )}
     </div>
   );
 }
