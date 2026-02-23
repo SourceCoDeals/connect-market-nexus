@@ -192,12 +192,12 @@ export default function BuyerMessages() {
     }
   }, [searchParams, threads]);
 
-  // Auto-show general chat if no threads exist and nothing is selected
+  // Default to General Inquiry when no specific thread is selected
   useEffect(() => {
-    if (!isLoading && threads.length === 0 && !selectedThreadId) {
+    if (!isLoading && !selectedThreadId && !showGeneralChat) {
       setShowGeneralChat(true);
     }
-  }, [isLoading, threads.length, selectedThreadId]);
+  }, [isLoading, selectedThreadId, showGeneralChat]);
 
   const handleSelectThread = (requestId: string) => {
     setSelectedThreadId(requestId);
