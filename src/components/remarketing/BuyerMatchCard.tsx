@@ -30,6 +30,8 @@ import {
   Mail,
   Calendar,
   ArrowRightCircle,
+  Phone,
+  Linkedin,
 } from "lucide-react";
 import { IntelligenceBadge } from "./IntelligenceBadge";
 import { OutreachStatusDialog, type OutreachStatus } from "./OutreachStatusDialog";
@@ -719,8 +721,45 @@ export const BuyerMatchCard = ({
         {/* Expandable Thesis */}
         <Collapsible open={isExpanded} onOpenChange={handleExpand}>
           <CollapsibleContent className="pt-4">
+            {(() => {
+              const primaryContact = buyer?.contacts?.find((c: any) => c.is_primary_contact || c.is_primary) || buyer?.contacts?.[0];
+              if (!primaryContact) return null;
+              return (
+                <div className="border-t pt-3 pb-1">
+                  <p className="text-xs font-medium text-muted-foreground mb-1.5">Primary Contact</p>
+                  <div className="space-y-1">
+                    <p className="text-sm font-medium">
+                      {primaryContact.name}
+                      {primaryContact.role && (
+                        <span className="text-muted-foreground font-normal"> · {primaryContact.role}</span>
+                      )}
+                    </p>
+                    <div className="flex flex-wrap items-center gap-3">
+                      {primaryContact.email && (
+                        <a href={`mailto:${primaryContact.email}`} className="inline-flex items-center gap-1 text-xs text-primary hover:underline">
+                          <Mail className="h-3 w-3" />
+                          {primaryContact.email}
+                        </a>
+                      )}
+                      {primaryContact.phone && (
+                        <a href={`tel:${primaryContact.phone}`} className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:underline">
+                          <Phone className="h-3 w-3" />
+                          {primaryContact.phone}
+                        </a>
+                      )}
+                      {primaryContact.linkedin_url && (
+                        <a href={primaryContact.linkedin_url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-xs text-primary hover:underline">
+                          <Linkedin className="h-3 w-3" />
+                          LinkedIn
+                        </a>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
             {buyer?.thesis_summary && (
-              <div className="border-t pt-4">
+              <div className="border-t pt-3">
                 <p className="text-xs font-medium text-muted-foreground mb-2">Investment Thesis</p>
                 <p className="text-sm italic text-muted-foreground">
                   "{buyer.thesis_summary}"
