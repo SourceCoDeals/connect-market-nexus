@@ -305,10 +305,13 @@ async function createAdminNotification(
   docLabel: string,
 ) {
   try {
-    const { data: admins } = await supabase
-      .from('profiles')
-      .select('id')
-      .eq('role', 'admin');
+    // Query user_roles table (not profiles.role) for admin/owner users
+    const { data: adminRoles } = await supabase
+      .from('user_roles')
+      .select('user_id')
+      .in('role', ['admin', 'owner']);
+
+    const admins = adminRoles?.map((r: any) => ({ id: r.user_id })) || [];
 
     if (!admins?.length) return;
 

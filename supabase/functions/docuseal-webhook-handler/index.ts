@@ -400,8 +400,25 @@ async function sendBuyerSignedDocNotification(
       ? `You can download your signed copy from your Profile → Documents tab, or use this link: ${signedDocUrl}`
       : `You can view your signed documents in your Profile → Documents tab.`;
 
+    const docType = docLabel.toLowerCase().replace(/ /g, "_");
+
     for (const member of members) {
-      // Create a buyer-facing notification in user_notifications (not admin_notifications)
+      // Deduplicate: check if confirm-agreement-signed already created this notification
+      const { data: existing } = await supabase
+        .from("user_notifications")
+        .select("id")
+        .eq("user_id", member.user_id)
+        .eq("notification_type", "agreement_signed")
+        .eq("title", `${docLabel} Signed Successfully`)
+        .gte("created_at", new Date(Date.now() - 5 * 60 * 1000).toISOString())
+        .limit(1)
+        .maybeSingle();
+
+      if (existing) {
+        console.log(`⏩ Skipping duplicate agreement_signed notification for user ${member.user_id} (${docLabel})`);
+        continue;
+      }
+
       await supabase.from("user_notifications").insert({
         user_id: member.user_id,
         notification_type: "agreement_signed",
@@ -409,7 +426,7 @@ async function sendBuyerSignedDocNotification(
         message: `Your ${docLabel} has been signed and recorded. ${downloadNote}`,
         metadata: {
           firm_id: firmId,
-          document_type: docLabel.toLowerCase().replace(/ /g, "_"),
+          document_type: docType,
           signed_document_url: signedDocUrl || null,
         },
       });

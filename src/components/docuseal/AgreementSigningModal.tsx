@@ -102,11 +102,20 @@ export function AgreementSigningModal({
     queryClient.invalidateQueries({ queryKey: ['user-notifications'] });
   };
 
-  const handleSigned = () => {
+  const handleSigned = async () => {
     toast({ title: `${docLabel} Signed!`, description: 'Thank you for signing. Your access has been updated.' });
 
-    // The webhook may take a moment to update the DB.
-    // Invalidate immediately, then again after delays to catch the webhook update.
+    // Immediately confirm with backend — updates DB, creates notifications & messages
+    // This ensures the DB is updated before the webhook arrives
+    try {
+      await supabase.functions.invoke('confirm-agreement-signed', {
+        body: { documentType },
+      });
+    } catch (err) {
+      console.warn('confirm-agreement-signed call failed (webhook will handle):', err);
+    }
+
+    // Invalidate immediately, then again after delays to catch any remaining updates
     invalidateAll();
     setTimeout(invalidateAll, 2000);
     setTimeout(invalidateAll, 5000);
