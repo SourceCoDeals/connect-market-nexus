@@ -1358,6 +1358,10 @@ const ReMarketingDealDetail = () => {
 
         {/* ════════════════ HISTORY TAB ════════════════ */}
         <TabsContent value="history" className="space-y-6">
+          {/* Notes Section */}
+          <DealActivityLog dealId={dealId!} />
+
+          {/* Buyer History */}
           <DealBuyerHistoryTab listingId={dealId!} />
         </TabsContent>
 
