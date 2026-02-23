@@ -81,6 +81,7 @@ export interface Deal {
   buyer_type?: string;
   buyer_phone?: string;
   buyer_priority_score?: number;
+  buyer_website?: string;
   
   // Real contact tracking
   last_contact_at?: string;
@@ -176,6 +177,39 @@ export function useDeals() {
         !row.connection_request_id || approvedCRIds.has(row.connection_request_id)
       );
 
+      // Batch-fetch buyer profiles (buyer_type, website) via connection_requests → profiles
+      const filteredCRIds = filteredRows
+        .map((r: any) => r.connection_request_id)
+        .filter(Boolean) as string[];
+      
+      const buyerProfileMap: Record<string, { buyer_type?: string; website?: string }> = {};
+      if (filteredCRIds.length > 0) {
+        for (let i = 0; i < filteredCRIds.length; i += 100) {
+          const chunk = filteredCRIds.slice(i, i + 100);
+          const { data: crData } = await supabase
+            .from('connection_requests')
+            .select('id, user_id')
+            .in('id', chunk);
+          if (crData) {
+            const userIds = crData.map((cr: any) => cr.user_id).filter(Boolean);
+            if (userIds.length > 0) {
+              const { data: profiles } = await supabase
+                .from('profiles')
+                .select('id, buyer_type, website')
+                .in('id', userIds);
+              const profileLookup: Record<string, any> = {};
+              profiles?.forEach((p: any) => { profileLookup[p.id] = p; });
+              crData.forEach((cr: any) => {
+                const prof = profileLookup[cr.user_id];
+                if (prof) {
+                  buyerProfileMap[cr.id] = { buyer_type: prof.buyer_type, website: prof.website };
+                }
+              });
+            }
+          }
+        }
+      }
+
       return filteredRows.map((row: any) => {
         const listing = row.listing;
         const stage = row.stage;
@@ -246,9 +280,10 @@ export function useDeals() {
           buyer_name: row.contact_name,
           buyer_email: row.contact_email,
           buyer_company: row.contact_company,
-          buyer_type: null,
+          buyer_type: buyerProfileMap[row.connection_request_id]?.buyer_type ?? null,
           buyer_phone: row.contact_phone,
           buyer_priority_score: Number(row.buyer_priority_score ?? 0),
+          buyer_website: buyerProfileMap[row.connection_request_id]?.website ?? undefined,
 
           // Extras
           connection_request_id: row.connection_request_id,
