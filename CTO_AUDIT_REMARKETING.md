@@ -336,28 +336,28 @@ Only helps queries checking BOTH conditions. Queries checking only `revoked_at I
 
 ## 6. FRONTEND FINDINGS
 
-### 5.1 [HIGH] N+1 Query Pattern in use-deals.ts
+### 6.1 [HIGH] N+1 Query Pattern in use-deals.ts
 **File:** `src/hooks/admin/use-deals.ts` (1,008 lines)
 
 After fetching connection_requests in batches of 100, performs 3 sequential query phases (connection_requests -> user_ids -> profiles) plus additional batch queries for memo_distribution_log and data_room_documents. With 1,000+ deals, this causes 3-5 sequential queries per data fetch and risks connection pool exhaustion.
 
 **Recommendation:** Use a single joined query or a database view that pre-joins connection_requests -> profiles.
 
-### 5.2 [HIGH] No Virtualization in Large Lists
+### 6.2 [HIGH] No Virtualization in Large Lists
 **Files:** `AllBuyers.tsx`, `BuyerTableEnhanced.tsx`, `ReMarketingDealMatching.tsx`
 
 `AllBuyers.tsx` loads 2,000 buyers with `.limit(2000)` and renders all at once. No react-window or TanStack Virtual implementation. DOM tree with 2,000+ rows causes 8-12s render time and 500MB+ memory usage.
 
 **Recommendation:** Implement react-window or TanStack Virtual with a 50-item window.
 
-### 5.3 [HIGH] Type Coercion with `as any` Throughout Frontend Data Layer
+### 6.3 [HIGH] Type Coercion with `as any` Throughout Frontend Data Layer
 **File:** `src/hooks/admin/use-deals.ts` (20+ instances)
 
 Multiple `(row: any)`, `(r: any)`, `(p: any)` assertions and `.rpc(...) as any` calls that bypass type definitions, making refactoring impossible and hiding real type errors.
 
 **Recommendation:** Generate proper types from Supabase introspection. Enable `noImplicitAny: true`.
 
-### 5.4 [MEDIUM] Password Hash Field Exposed in Frontend Types
+### 6.4 [MEDIUM] Password Hash Field Exposed in Frontend Types
 **File:** `src/types/remarketing.ts:371`
 
 ```typescript
@@ -368,17 +368,17 @@ Password hashes should never appear in frontend type definitions. Even if not tr
 
 **Recommendation:** Remove from frontend types; use a `password_verified: boolean` flag instead.
 
-### 5.5 [MEDIUM] Incomplete Error Handling in Data Fetching
+### 6.5 [MEDIUM] Incomplete Error Handling in Data Fetching
 **Files:** `use-buyer-engagement-history.ts`, `use-deals.ts`
 
 Multiple sequential queries with no error checks -- if any query fails silently, incomplete data is returned with no indication to the user.
 
-### 5.6 [MEDIUM] Weak CSV Import Validation
+### 6.6 [MEDIUM] Weak CSV Import Validation
 **File:** `src/components/remarketing/BuyerCSVImport.tsx`
 
 `normalizeDomain()` doesn't validate URL format. No max file size check. No column header validation before mapping.
 
-### 5.7 [MEDIUM] Fake Progress Bar in Bulk Scoring
+### 6.7 [MEDIUM] Fake Progress Bar in Bulk Scoring
 **File:** `src/components/remarketing/BulkScoringPanel.tsx`
 
 ```typescript
@@ -387,17 +387,17 @@ setProgress(prev => prev + Math.random() * 15); // Simulated, not real
 
 Progress bar uses random increments rather than tracking actual server-side progress. Users see 100% while the operation may still be running or may have failed.
 
-### 5.8 [MEDIUM] No Error Boundaries for Scoring/Matching Components
+### 6.8 [MEDIUM] No Error Boundaries for Scoring/Matching Components
 **Files:** `ReMarketingDealMatching.tsx`, `BulkScoringPanel.tsx`
 
 A single component error crashes the entire deal matching page. No fallback UI when scoring fails.
 
-### 5.9 [MEDIUM] Unsafe URL Construction
+### 6.9 [MEDIUM] Unsafe URL Construction
 **File:** `src/lib/buyer-metrics.ts:142-144`
 
 LinkedIn URL construction doesn't validate the stored value, which could contain `javascript:` protocol URLs leading to XSS if rendered as a link.
 
-### 5.10 [LOW] Missing Pagination for AllBuyers
+### 6.10 [LOW] Missing Pagination for AllBuyers
 **File:** `src/pages/admin/ma-intelligence/AllBuyers.tsx:43`
 
 ```typescript
@@ -406,7 +406,7 @@ supabase.from("remarketing_buyers").select("*").limit(2000)
 
 Arbitrary 2,000 limit with no cursor-based pagination. Should use infinite scroll or page-by-page loading.
 
-### 5.11 [LOW] Orphaned Console Logs in Production
+### 6.11 [LOW] Orphaned Console Logs in Production
 29 `console.error`/`console.warn`/`console.log` statements across remarketing components, some containing operation IDs and user identifiers.
 
 ---
