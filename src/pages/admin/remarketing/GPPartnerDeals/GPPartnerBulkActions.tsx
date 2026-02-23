@@ -5,7 +5,7 @@ import { toast as sonnerToast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 import { exportDealsToCSV } from "@/lib/exportUtils";
 import {
-  CheckCircle2, Sparkles, Loader2, Star, XCircle, Download,
+  CheckCircle2, Sparkles, Loader2, Star, XCircle, Download, Phone,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { GPPartnerDeal } from "./types";
@@ -18,6 +18,7 @@ interface GPPartnerBulkActionsProps {
   isEnriching: boolean;
   handlePushToAllDeals: (dealIds: string[]) => Promise<void>;
   handleEnrichSelected: (dealIds: string[]) => Promise<void>;
+  onPushToDialer?: () => void;
 }
 
 export function GPPartnerBulkActions({
@@ -28,6 +29,7 @@ export function GPPartnerBulkActions({
   isEnriching,
   handlePushToAllDeals,
   handleEnrichSelected,
+  onPushToDialer,
 }: GPPartnerBulkActionsProps) {
   const queryClient = useQueryClient();
 
@@ -106,6 +108,12 @@ export function GPPartnerBulkActions({
         <Download className="h-4 w-4" />
         Export CSV
       </Button>
+      {onPushToDialer && (
+        <Button size="sm" variant="outline" onClick={onPushToDialer} className="gap-2">
+          <Phone className="h-4 w-4" />
+          Push to Dialer
+        </Button>
+      )}
     </div>
   );
 }

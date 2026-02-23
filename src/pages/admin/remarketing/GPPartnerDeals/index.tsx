@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -19,10 +19,12 @@ import { GPPartnerBulkActions } from "./GPPartnerBulkActions";
 import { GPPartnerTable } from "./GPPartnerTable";
 import { GPPartnerPagination } from "./GPPartnerPagination";
 import { AddDealDialog } from "./AddDealDialog";
+import { PushToDialerModal } from "@/components/remarketing/PushToDialerModal";
 
 export default function GPPartnerDeals() {
   const hook = useGPPartnerDeals();
   const { setPageContext } = useAICommandCenterContext();
+  const [dialerOpen, setDialerOpen] = useState(false);
 
   useEffect(() => {
     setPageContext({ page: 'gp_partners', entity_type: 'leads' });
@@ -161,6 +163,14 @@ export default function GPPartnerDeals() {
         isEnriching={hook.isEnriching}
         handlePushToAllDeals={hook.handlePushToAllDeals}
         handleEnrichSelected={hook.handleEnrichSelected}
+        onPushToDialer={() => setDialerOpen(true)}
+      />
+      <PushToDialerModal
+        open={dialerOpen}
+        onOpenChange={setDialerOpen}
+        contactIds={Array.from(hook.selectedIds)}
+        contactCount={hook.selectedIds.size}
+        entityType="listings"
       />
 
       {/* Deals Table */}
