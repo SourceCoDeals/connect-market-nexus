@@ -152,7 +152,7 @@ export function useGuideGenerationState(universeId: string | undefined) {
 
       setDbProgress(null);
     } catch (e) {
-      console.error('Failed to clear guide progress:', e);
+      logger.error('Failed to clear guide progress', 'useGuideGenerationState', { error: String(e) });
     }
   }, [universeId]);
 
@@ -175,7 +175,7 @@ export function useGuideGenerationState(universeId: string | undefined) {
           },
         );
       } catch (e) {
-        console.error('Failed to save error state:', e);
+        logger.error('Failed to save error state', 'useGuideGenerationState', { error: String(e) });
       }
     },
     [universeId],

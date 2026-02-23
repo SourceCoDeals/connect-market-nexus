@@ -2,6 +2,7 @@ import { useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuthState } from './auth/use-auth-state';
 import { useSessionContext } from '@/contexts/SessionContext';
+import { logger } from '@/lib/logger';
 import { 
   trackGA4PageView, 
   trackGA4Event, 
@@ -76,7 +77,7 @@ export function useAnalyticsTracking() {
       pageStartTimeRef.current = Date.now();
 
     } catch (error) {
-      console.error('Failed to track page view:', error);
+      logger.error('Failed to track page view', 'useAnalyticsTracking', { error: String(error) });
     }
   }, [user?.id, utmParams]);
 
@@ -117,7 +118,7 @@ export function useAnalyticsTracking() {
         utm_content: utmParams.utm_content || null,
       });
     } catch (error) {
-      console.error('Failed to track event:', error);
+      logger.error('Failed to track event', 'useAnalyticsTracking', { error: String(error) });
     }
   }, [user?.id, utmParams]);
 
@@ -164,7 +165,7 @@ export function useAnalyticsTracking() {
         metadata: metadata,
       });
     } catch (error) {
-      console.error('Failed to track listing interaction:', error);
+      logger.error('Failed to track listing interaction', 'useAnalyticsTracking', { error: String(error) });
     }
   }, [user?.id, trackEvent, utmParams]);
 
@@ -200,7 +201,7 @@ export function useAnalyticsTracking() {
         metadata: { filters, noResults, searchSessionId },
       });
     } catch (error) {
-      console.error('Failed to track search:', error);
+      logger.error('Failed to track search', 'useAnalyticsTracking', { error: String(error) });
     }
   }, [user?.id, trackEvent]);
 
@@ -226,7 +227,7 @@ export function useAnalyticsTracking() {
         .limit(1);
 
     } catch (error) {
-      console.error('Failed to track search result click:', error);
+      logger.error('Failed to track search result click', 'useAnalyticsTracking', { error: String(error) });
     }
   }, []);
 
