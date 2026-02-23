@@ -3,6 +3,12 @@ import { useSearchParams, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
   MessageSquare,
   Send,
   ArrowLeft,
@@ -12,9 +18,7 @@ import {
   FileSignature,
   Shield,
   CheckCircle,
-  FileDown,
-  Download,
-  Loader2 as Loader2Icon,
+  MessageSquarePlus,
 } from "lucide-react";
 import {
   useConnectionMessages,
@@ -22,10 +26,72 @@ import {
   useMarkMessagesReadByBuyer,
 } from "@/hooks/use-connection-messages";
 import { useAuth } from "@/context/AuthContext";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { formatDistanceToNow } from "date-fns";
 import { AgreementSigningModal } from "@/components/docuseal/AgreementSigningModal";
+import { useToast } from "@/hooks/use-toast";
+
+/**
+ * Hook to send a document question as a message to the admin team.
+ * Creates a connection message on the buyer's first active deal thread,
+ * or creates an admin notification if no thread exists.
+ */
+function useSendDocumentQuestion() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async ({ documentType, question, userId }: { documentType: 'nda' | 'fee_agreement'; question: string; userId: string }) => {
+      const docLabel = documentType === 'nda' ? 'NDA' : 'Fee Agreement';
+      const messageBody = `📄 Question about ${docLabel}:\n\n${question}`;
+
+      // Find an active connection request to attach the message to
+      const { data: activeRequest } = await (supabase
+        .from('connection_requests') as any)
+        .select('id')
+        .eq('user_id', userId)
+        .in('status', ['approved', 'on_hold', 'pending'])
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (activeRequest) {
+        // Send as a connection message
+        const { error } = await (supabase.from('connection_messages') as any).insert({
+          connection_request_id: activeRequest.id,
+          body: messageBody,
+          sender_role: 'buyer',
+        });
+        if (error) throw error;
+      } else {
+        // No active thread — create an admin notification instead
+        const { data: admins } = await (supabase.from('profiles') as any)
+          .select('id')
+          .eq('role', 'admin')
+          .limit(3);
+
+        for (const admin of (admins || [])) {
+          await (supabase.from('admin_notifications') as any).insert({
+            admin_id: admin.id,
+            user_id: userId,
+            notification_type: 'document_question',
+            title: `Document Question: ${docLabel}`,
+            message: question,
+          });
+        }
+      }
+    },
+    onSuccess: () => {
+      toast({ title: 'Question Sent', description: 'Our team will review and respond shortly.' });
+      queryClient.invalidateQueries({ queryKey: ['buyer-message-threads'] });
+      queryClient.invalidateQueries({ queryKey: ['connection-messages'] });
+    },
+    onError: () => {
+      toast({ title: 'Failed to Send', description: 'Please try again or contact support.', variant: 'destructive' });
+    },
+  });
+}
 
 interface BuyerThread {
   connection_request_id: string;
@@ -494,6 +560,73 @@ function BuyerMessagesSkeleton() {
 }
 
 /**
+ * Button that downloads a document PDF. Uses cached URL if available,
+ * otherwise calls the get-document-download edge function.
+ */
+function DownloadDocButton({
+  documentUrl,
+  draftUrl,
+  documentType,
+  label,
+  variant = 'outline',
+}: {
+  documentUrl: string | null;
+  draftUrl: string | null;
+  documentType: 'nda' | 'fee_agreement';
+  label: string;
+  variant?: 'outline' | 'default';
+}) {
+  const [loading, setLoading] = useState(false);
+  const { toast } = useToast();
+
+  const handleDownload = async () => {
+    const cachedUrl = documentUrl || draftUrl;
+    if (cachedUrl && cachedUrl.startsWith('https://')) {
+      window.open(cachedUrl, '_blank', 'noopener,noreferrer');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke(
+        `get-document-download?document_type=${documentType}`,
+      );
+
+      if (error) {
+        toast({ title: 'Download Failed', description: 'Could not retrieve document.', variant: 'destructive' });
+        return;
+      }
+
+      if (data?.url) {
+        window.open(data.url, '_blank', 'noopener,noreferrer');
+      } else {
+        toast({ title: 'Not Available', description: 'Document is not yet available for download.', variant: 'destructive' });
+      }
+    } catch {
+      toast({ title: 'Download Failed', description: 'Something went wrong.', variant: 'destructive' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <Button
+      variant={variant}
+      size="sm"
+      onClick={handleDownload}
+      disabled={loading}
+    >
+      {loading ? (
+        <span className="h-3.5 w-3.5 mr-1.5 animate-spin rounded-full border-2 border-current border-t-transparent" />
+      ) : (
+        <FileSignature className="h-3.5 w-3.5 mr-1.5" />
+      )}
+      {label}
+    </Button>
+  );
+}
+
+/**
  * PendingAgreementBanner — shows at top of messages page.
  * Shows pending documents to sign OR already-signed documents with download links.
  * Automatically hides when there's nothing to show.
@@ -502,22 +635,10 @@ function PendingAgreementBanner() {
   const { user } = useAuth();
   const [signingOpen, setSigningOpen] = useState(false);
   const [signingDocType, setSigningDocType] = useState<'nda' | 'fee_agreement'>('nda');
-  const [downloadingDoc, setDownloadingDoc] = useState<string | null>(null);
-
-  const handleDownloadDraft = async (docType: 'nda' | 'fee_agreement') => {
-    setDownloadingDoc(docType);
-    try {
-      const { data, error: fnError } = await supabase.functions.invoke('get-agreement-document', {
-        body: { documentType: docType },
-      });
-      if (fnError || !data?.documentUrl) return;
-      window.open(data.documentUrl, '_blank', 'noopener,noreferrer');
-    } catch {
-      // Silently fail — download is a convenience feature
-    } finally {
-      setDownloadingDoc(null);
-    }
-  };
+  const [docMessageOpen, setDocMessageOpen] = useState(false);
+  const [docMessageType, setDocMessageType] = useState<'nda' | 'fee_agreement'>('nda');
+  const [docQuestion, setDocQuestion] = useState('');
+  const sendDocQuestion = useSendDocumentQuestion();
 
   // Fetch firm agreement status to know what's signed vs pending
   const { data: firmStatus } = useQuery({
@@ -532,7 +653,7 @@ function PendingAgreementBanner() {
       if (!membership) return null;
 
       const { data: firm } = await (supabase.from('firm_agreements') as any)
-        .select('nda_signed, nda_signed_at, nda_signed_document_url, nda_docuseal_status, fee_agreement_signed, fee_agreement_signed_at, fee_signed_document_url, fee_docuseal_status')
+        .select('nda_signed, nda_signed_at, nda_signed_document_url, nda_document_url, nda_docuseal_status, fee_agreement_signed, fee_agreement_signed_at, fee_signed_document_url, fee_agreement_document_url, fee_docuseal_status')
         .eq('id', membership.firm_id)
         .maybeSingle();
       return firm;
@@ -566,6 +687,7 @@ function PendingAgreementBanner() {
     signed: boolean;
     signedAt: string | null;
     documentUrl: string | null;
+    draftUrl: string | null;
     notificationMessage?: string;
     notificationTime?: string;
   };
@@ -581,6 +703,7 @@ function PendingAgreementBanner() {
       signed: true,
       signedAt: firmStatus.nda_signed_at,
       documentUrl: firmStatus.nda_signed_document_url,
+      draftUrl: firmStatus.nda_document_url,
     });
   } else {
     const ndaNotif = pendingNotifications.find((n: any) => n.metadata?.document_type === 'nda');
@@ -592,6 +715,7 @@ function PendingAgreementBanner() {
         signed: false,
         signedAt: null,
         documentUrl: null,
+        draftUrl: firmStatus?.nda_document_url || null,
         notificationMessage: ndaNotif?.message,
         notificationTime: ndaNotif?.created_at,
       });
@@ -607,6 +731,7 @@ function PendingAgreementBanner() {
       signed: true,
       signedAt: firmStatus.fee_agreement_signed_at,
       documentUrl: firmStatus.fee_signed_document_url,
+      draftUrl: firmStatus.fee_agreement_document_url,
     });
   } else {
     const feeNotif = pendingNotifications.find((n: any) => n.metadata?.document_type === 'fee_agreement');
@@ -618,6 +743,7 @@ function PendingAgreementBanner() {
         signed: false,
         signedAt: null,
         documentUrl: null,
+        draftUrl: firmStatus?.fee_agreement_document_url || null,
         notificationMessage: feeNotif?.message,
         notificationTime: feeNotif?.created_at,
       });
@@ -666,50 +792,64 @@ function PendingAgreementBanner() {
                     ? item.signedAt
                       ? `Signed ${formatDistanceToNow(new Date(item.signedAt), { addSuffix: true })}`
                       : 'Signed'
-                    : item.notificationMessage || `A ${item.label} has been prepared for your signature.`}
+                    : item.notificationMessage || `A ${item.label} has been prepared for your signature. Please sign it to continue accessing deal details.`}
                 </p>
               </div>
-              {item.signed ? (
-                item.documentUrl && item.documentUrl.startsWith('https://') ? (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="shrink-0"
-                    onClick={() => window.open(item.documentUrl!, '_blank', 'noopener,noreferrer')}
-                  >
-                    <FileDown className="h-3.5 w-3.5 mr-1.5" />
-                    Download
-                  </Button>
+              <div className="flex items-center gap-2 shrink-0">
+                {item.signed ? (
+                  <>
+                    <DownloadDocButton
+                      documentUrl={item.documentUrl}
+                      draftUrl={item.draftUrl}
+                      documentType={item.type}
+                      label="Download PDF"
+                    />
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-muted-foreground hover:text-foreground"
+                      onClick={() => {
+                        setDocMessageType(item.type);
+                        setDocMessageOpen(true);
+                      }}
+                    >
+                      <MessageSquarePlus className="h-3.5 w-3.5 mr-1.5" />
+                      Questions?
+                    </Button>
+                  </>
                 ) : (
-                  <span className="text-xs text-muted-foreground shrink-0">Available in Profile</span>
-                )
-              ) : (
-                <div className="flex items-center gap-2 shrink-0">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="text-xs"
-                    onClick={() => handleDownloadDraft(item.type)}
-                    disabled={downloadingDoc === item.type}
-                  >
-                    {downloadingDoc === item.type ? (
-                      <Loader2Icon className="h-3.5 w-3.5 mr-1 animate-spin" />
-                    ) : (
-                      <Download className="h-3.5 w-3.5 mr-1" />
-                    )}
-                    Draft
-                  </Button>
-                  <Button
-                    size="sm"
-                    onClick={() => {
-                      setSigningDocType(item.type);
-                      setSigningOpen(true);
-                    }}
-                  >
-                    Sign Now
-                  </Button>
-                </div>
-              )}
+                  <>
+                    <DownloadDocButton
+                      documentUrl={null}
+                      draftUrl={item.draftUrl}
+                      documentType={item.type}
+                      label="Download Draft"
+                      variant="outline"
+                    />
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-muted-foreground hover:text-foreground"
+                      onClick={() => {
+                        setDocMessageType(item.type);
+                        setDocMessageOpen(true);
+                      }}
+                    >
+                      <MessageSquarePlus className="h-3.5 w-3.5 mr-1.5" />
+                      Questions?
+                    </Button>
+                    <Button
+                      size="sm"
+                      onClick={() => {
+                        setSigningDocType(item.type);
+                        setSigningOpen(true);
+                      }}
+                    >
+                      Sign Now
+                    </Button>
+                  </>
+                )}
+              </div>
             </div>
           ))}
         </div>
@@ -719,6 +859,47 @@ function PendingAgreementBanner() {
         onOpenChange={setSigningOpen}
         documentType={signingDocType}
       />
+
+      {/* Document Question Dialog */}
+      <Dialog open={docMessageOpen} onOpenChange={(open) => { setDocMessageOpen(open); if (!open) setDocQuestion(''); }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-base">
+              <MessageSquarePlus className="h-4 w-4" />
+              Question about {docMessageType === 'nda' ? 'NDA' : 'Fee Agreement'}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <p className="text-sm text-muted-foreground">
+              Have questions or redline requests about this document? Send us a message and our team will respond shortly.
+            </p>
+            <textarea
+              value={docQuestion}
+              onChange={(e) => setDocQuestion(e.target.value)}
+              placeholder="Describe your questions, concerns, or requested changes..."
+              className="w-full min-h-[120px] text-sm border border-border rounded-lg px-3 py-2.5 bg-background focus:outline-none focus:ring-2 focus:ring-ring/20 focus:border-ring transition-all resize-none"
+            />
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" size="sm" onClick={() => { setDocMessageOpen(false); setDocQuestion(''); }}>
+                Cancel
+              </Button>
+              <Button
+                size="sm"
+                disabled={!docQuestion.trim() || sendDocQuestion.isPending}
+                onClick={() => {
+                  sendDocQuestion.mutate(
+                    { documentType: docMessageType, question: docQuestion.trim(), userId: user?.id || '' },
+                    { onSuccess: () => { setDocMessageOpen(false); setDocQuestion(''); } }
+                  );
+                }}
+              >
+                <Send className="h-3.5 w-3.5 mr-1.5" />
+                Send Question
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

@@ -153,6 +153,7 @@ serve(async (req: Request) => {
           );
         }
       }
+    }
 
     // No existing submission or couldn't get embed_src — create new submission
     const ndaTemplateId = Deno.env.get("DOCUSEAL_NDA_TEMPLATE_ID");
