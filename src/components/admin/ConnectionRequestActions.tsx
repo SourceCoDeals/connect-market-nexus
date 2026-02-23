@@ -120,7 +120,7 @@ export function ConnectionRequestActions({
       await updateStatus.mutateAsync({ requestId, status: "approved" });
       await sendMessage.mutateAsync({
         connection_request_id: requestId,
-        body: "Request accepted. We will begin the documentation process.",
+        body: "We have sent you a brief overview of the deal. Please let us know if you are still interested.",
         sender_role: "admin",
         message_type: "decision",
       });
