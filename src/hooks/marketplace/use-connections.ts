@@ -132,8 +132,8 @@ export const useRequestConnection = () => {
         }
       } else {
         toast({
-          title: 'Connection Requested',
-          description: 'Your connection request has been submitted for review.',
+          title: 'Request sent.',
+          description: 'We\'ll review it and be in touch. Specific fit explanations get selected — generic ones don\'t.',
         });
       }
       
