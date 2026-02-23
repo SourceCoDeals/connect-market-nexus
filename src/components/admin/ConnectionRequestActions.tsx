@@ -513,34 +513,34 @@ export function ConnectionRequestActions({
           {/* Agreements */}
           <SidebarCard title="Agreements">
             <div className="space-y-0">
-              <div className="flex items-center justify-between py-2.5 border-b border-border/30 last:border-b-0">
-                <span className="text-sm text-muted-foreground font-medium">NDA</span>
+              <div className="flex items-center justify-between py-3 border-b border-border/30 last:border-b-0">
+                <span className="text-base text-muted-foreground font-medium">NDA</span>
                 <div className="flex items-center gap-2.5">
-                  <div className={`w-2 h-2 rounded-full ${hasNDA ? 'bg-emerald-500' : 'bg-amber-500'}`} />
-                  <span className="text-sm font-semibold text-foreground">
+                  <div className={`w-2.5 h-2.5 rounded-full ${hasNDA ? 'bg-emerald-500' : 'bg-amber-500'}`} />
+                  <span className="text-base font-semibold text-foreground">
                     {user.nda_signed ? 'Signed' : user.nda_email_sent ? 'Sent' : 'Not Sent'}
                   </span>
                   {!hasNDA && firmInfo?.firm_id && (
                     <button
                       onClick={() => { setSendAgreementType('nda'); setSendAgreementOpen(true); }}
-                      className="text-xs font-bold text-sourceco-foreground bg-sourceco border border-sourceco rounded-md px-2.5 py-1 hover:bg-sourceco/90 transition-colors shadow-sm"
+                      className="text-sm font-bold text-sourceco-foreground bg-sourceco border border-sourceco rounded-md px-3 py-1 hover:bg-sourceco/90 transition-colors shadow-sm"
                     >
                       ↗ Send
                     </button>
                   )}
                 </div>
               </div>
-              <div className="flex items-center justify-between py-2.5">
-                <span className="text-sm text-muted-foreground font-medium">Fee Agreement</span>
+              <div className="flex items-center justify-between py-3">
+                <span className="text-base text-muted-foreground font-medium">Fee Agreement</span>
                 <div className="flex items-center gap-2.5">
-                  <div className={`w-2 h-2 rounded-full ${hasFeeAgreement ? 'bg-emerald-500' : 'bg-amber-500'}`} />
-                  <span className="text-sm font-semibold text-foreground">
+                  <div className={`w-2.5 h-2.5 rounded-full ${hasFeeAgreement ? 'bg-emerald-500' : 'bg-amber-500'}`} />
+                  <span className="text-base font-semibold text-foreground">
                     {user.fee_agreement_signed ? 'Signed' : user.fee_agreement_email_sent ? 'Sent' : 'Not Sent'}
                   </span>
                   {!hasFeeAgreement && firmInfo?.firm_id && (
                     <button
                       onClick={() => { setSendAgreementType('fee_agreement'); setSendAgreementOpen(true); }}
-                      className="text-xs font-bold text-sourceco-foreground bg-sourceco border border-sourceco rounded-md px-2.5 py-1 hover:bg-sourceco/90 transition-colors shadow-sm"
+                      className="text-sm font-bold text-sourceco-foreground bg-sourceco border border-sourceco rounded-md px-3 py-1 hover:bg-sourceco/90 transition-colors shadow-sm"
                     >
                       ↗ Send
                     </button>
@@ -555,33 +555,33 @@ export function ConnectionRequestActions({
             <SidebarCard title="Requested Deal">
               <div>
                 {/* Tags */}
-                <div className="flex gap-1.5 flex-wrap mb-2.5">
+                <div className="flex gap-1.5 flex-wrap mb-3">
                   {listing.category && (
-                    <span className="px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-muted text-muted-foreground">{listing.category}</span>
+                    <span className="px-3 py-1 rounded-full text-xs font-semibold bg-muted text-muted-foreground">{listing.category}</span>
                   )}
                   {listing.location && (
-                    <span className="px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-muted text-muted-foreground">{listing.location}</span>
+                    <span className="px-3 py-1 rounded-full text-xs font-semibold bg-muted text-muted-foreground">{listing.location}</span>
                   )}
                 </div>
                 {/* Title */}
                 <button
                   onClick={() => window.open(`/listing/${listing.id}`, '_blank')}
-                  className="text-sm font-bold text-foreground hover:text-sourceco transition-colors text-left leading-snug"
+                  className="text-base font-bold text-foreground hover:text-sourceco transition-colors text-left leading-snug"
                   style={{ fontFamily: 'Manrope, sans-serif' }}
                 >
                   {listing.title}
                 </button>
                 {/* Stats grid */}
-                <div className="grid grid-cols-2 gap-2 mt-3">
-                  <div className="bg-muted/40 border border-border rounded-lg px-3 py-2.5">
-                    <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold mb-0.5">EBITDA</p>
-                    <p className="text-lg font-extrabold text-foreground tracking-tight" style={{ fontFamily: 'Manrope, sans-serif' }}>
+                <div className="grid grid-cols-2 gap-2.5 mt-3.5">
+                  <div className="bg-muted/40 border border-border rounded-lg px-4 py-3">
+                    <p className="text-xs uppercase tracking-wider text-muted-foreground font-semibold mb-1">EBITDA</p>
+                    <p className="text-xl font-extrabold text-foreground tracking-tight" style={{ fontFamily: 'Manrope, sans-serif' }}>
                       {listing.ebitda ? `$${Number(listing.ebitda).toLocaleString()}` : 'TBD'}
                     </p>
                   </div>
-                  <div className="bg-muted/40 border border-border rounded-lg px-3 py-2.5">
-                    <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold mb-0.5">Ask Price</p>
-                    <p className="text-lg font-extrabold text-foreground tracking-tight" style={{ fontFamily: 'Manrope, sans-serif' }}>
+                  <div className="bg-muted/40 border border-border rounded-lg px-4 py-3">
+                    <p className="text-xs uppercase tracking-wider text-muted-foreground font-semibold mb-1">Ask Price</p>
+                    <p className="text-xl font-extrabold text-foreground tracking-tight" style={{ fontFamily: 'Manrope, sans-serif' }}>
                       {(listing as any).asking_price ? `$${Number((listing as any).asking_price).toLocaleString()}` : 'TBD'}
                     </p>
                   </div>
@@ -593,9 +593,9 @@ export function ConnectionRequestActions({
           {/* Other Active Interests */}
           {otherRequests.length > 0 && (
             <div className="bg-card border border-border rounded-xl overflow-hidden shadow-sm">
-              <div className="px-4 py-3 border-b border-border bg-muted/30 flex items-center justify-between">
-                <h3 className="text-[11px] font-bold uppercase tracking-[1.2px] text-muted-foreground">Other Active Interests</h3>
-                <span className="text-[11.5px] font-bold px-2.5 py-0.5 rounded-full bg-sourceco/10 text-sourceco border border-sourceco/15">
+              <div className="px-5 py-3.5 border-b border-border bg-muted/30 flex items-center justify-between">
+                <h3 className="text-xs font-bold uppercase tracking-[1.2px] text-muted-foreground">Other Active Interests</h3>
+                <span className="text-sm font-bold px-2.5 py-0.5 rounded-full bg-sourceco/10 text-sourceco border border-sourceco/15">
                   {otherRequests.length}
                 </span>
               </div>
@@ -606,18 +606,18 @@ export function ConnectionRequestActions({
                     href={`/listing/${req.listing_id}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="block px-4 py-3 hover:bg-muted/30 transition-colors"
+                    className="block px-5 py-3.5 hover:bg-muted/30 transition-colors"
                   >
-                    <div className="flex items-start justify-between gap-2">
+                    <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
-                        <p className="text-[13px] font-semibold text-foreground leading-snug">
+                        <p className="text-sm font-semibold text-foreground leading-snug">
                           {req.listing?.title || 'Unknown Listing'}
                         </p>
-                        <p className="text-[11.5px] text-muted-foreground mt-0.5">
+                        <p className="text-xs text-muted-foreground mt-1">
                           {req.listing?.revenue ? `$${Number(req.listing.revenue).toLocaleString()}` : 'N/A'} · {req.listing?.location || 'N/A'}
                         </p>
                       </div>
-                      <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap tracking-wide ${
+                      <span className={`text-xs font-bold px-2.5 py-1 rounded-full whitespace-nowrap tracking-wide ${
                         req.status === 'approved' ? 'bg-emerald-50 text-emerald-600' :
                         req.status === 'rejected' ? 'bg-red-50 text-red-600' :
                         'bg-amber-50 text-amber-600'
@@ -628,7 +628,7 @@ export function ConnectionRequestActions({
                   </a>
                 ))}
               </div>
-              <div className="text-xs text-muted-foreground text-center py-2.5 border-t border-border/30 cursor-pointer hover:text-sourceco transition-colors">
+              <div className="text-sm text-muted-foreground text-center py-3 border-t border-border/30 cursor-pointer hover:text-sourceco transition-colors">
                 Follow-up actions apply to all active requests ›
               </div>
             </div>
@@ -705,10 +705,10 @@ export function ConnectionRequestActions({
 function SidebarCard({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div className="bg-card border border-border rounded-xl overflow-hidden shadow-sm">
-      <div className="px-4 py-3 border-b border-border bg-muted/30">
-        <h3 className="text-[11px] font-bold uppercase tracking-[1.2px] text-muted-foreground">{title}</h3>
+      <div className="px-5 py-3.5 border-b border-border bg-muted/30">
+        <h3 className="text-xs font-bold uppercase tracking-[1.2px] text-muted-foreground">{title}</h3>
       </div>
-      <div className="px-4 py-3.5">{children}</div>
+      <div className="px-5 py-4">{children}</div>
     </div>
   );
 }
