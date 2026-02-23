@@ -136,6 +136,9 @@ export function useDeals() {
           ),
           assigned_admin:profiles!deals_assigned_to_fkey (
             id, first_name, last_name, email
+          ),
+          connection_request:connection_requests!deals_connection_request_id_fkey (
+            id, status
           )
         `)
         .is('deleted_at', null)
@@ -143,7 +146,15 @@ export function useDeals() {
 
       if (dealsError) throw dealsError;
 
-      return (deals || []).map((row: any) => {
+      // Only show deals where connection request is approved (or no connection request, e.g. remarketing/manual)
+      const approvedDeals = (deals || []).filter((row: any) => {
+        if (!row.connection_request_id) return true; // Manual, remarketing, etc.
+        return row.connection_request?.status === 'approved';
+      });
+
+      if (dealsError) throw dealsError;
+
+      return approvedDeals.map((row: any) => {
         const listing = row.listing;
         const stage = row.stage;
         const admin = row.assigned_admin;
