@@ -497,7 +497,7 @@ const ReMarketingDealMatching = () => {
       queryClient.invalidateQueries({ queryKey: ['remarketing', 'scores', listingId] });
       refetchOutreach();
       setSelectedIds(new Set());
-      toast.success(`Approved ${selectedIds.size} buyers — outreach tracking started`);
+      toast.success(`Marked ${selectedIds.size} buyers as interested — outreach tracking started`);
     },
     onError: () => {
       toast.error('Failed to bulk approve');
@@ -623,7 +623,7 @@ const ReMarketingDealMatching = () => {
         console.error('Failed to auto-create outreach:', error);
       } else {
         refetchOutreach();
-        toast.success('Buyer approved - outreach tracking started');
+        toast.success('Buyer marked interested — outreach tracking started');
       }
     } catch (error) {
       console.error('Failed to auto-create outreach:', error);
@@ -941,7 +941,7 @@ const ReMarketingDealMatching = () => {
               </div>
               <div className="flex items-center gap-2 text-sm text-emerald-600">
                 <Check className="h-4 w-4" />
-                <span>{stats.approved} approved</span>
+                <span>{stats.approved} interested</span>
               </div>
               <div className="flex items-center gap-2 pt-2 border-t border-amber-200">
                 <Switch
@@ -1064,10 +1064,10 @@ const ReMarketingDealMatching = () => {
                   All Buyers ({filteredScores.length !== stats.total ? `${filteredScores.length}/` : ''}{stats.total})
                 </TabsTrigger>
                 <TabsTrigger value="approved">
-                  Approved ({stats.approved})
+                  Interested ({stats.approved})
                 </TabsTrigger>
                 <TabsTrigger value="passed">
-                  Passed ({stats.passed})
+                  Not Interested ({stats.passed})
                 </TabsTrigger>
                 <TabsTrigger value="outreach">
                   <Mail className="h-3.5 w-3.5 mr-1" />

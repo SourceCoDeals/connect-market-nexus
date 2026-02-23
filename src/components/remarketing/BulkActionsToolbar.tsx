@@ -53,7 +53,7 @@ export const BulkActionsToolbar = ({
     setIsApproving(true);
     try {
       await onBulkApprove();
-      toast.success(`Approved ${selectedCount} buyers as fit`);
+      toast.success(`Marked ${selectedCount} buyers as interested`);
     } catch (error) {
       toast.error('Failed to approve buyers');
     } finally {
@@ -107,15 +107,15 @@ export const BulkActionsToolbar = ({
           ) : (
             <Check className="h-4 w-4 mr-1" />
           )}
-          Approve Fit
+          Interested
         </Button>
 
-        {/* Not a Fit */}
+        {/* Not Interested */}
         <Button
           size="sm"
           variant="outline"
           className="text-amber-700 border-amber-200 hover:bg-amber-50"
-          onClick={() => handleBulkPass('Not a fit for this deal', 'other')}
+          onClick={() => handleBulkPass('Not interested in this deal', 'other')}
           disabled={isProcessing || isPassing}
         >
           {isPassing ? (
@@ -123,7 +123,7 @@ export const BulkActionsToolbar = ({
           ) : (
             <X className="h-4 w-4 mr-1" />
           )}
-          Not a Fit
+          Not Interested
         </Button>
 
         <div className="h-6 w-px bg-border" />
@@ -170,7 +170,7 @@ export const BulkActionsToolbar = ({
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-64">
             <p className="px-2 py-1.5 text-xs text-muted-foreground font-medium">
-              Select reason for passing:
+              Select reason buyer declined:
             </p>
             <DropdownMenuSeparator />
             {passReasons.map(({ reason, category }) => (
