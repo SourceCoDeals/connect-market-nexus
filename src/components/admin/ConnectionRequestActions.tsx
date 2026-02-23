@@ -11,12 +11,15 @@ import {
   Shield,
   CheckCircle,
   XCircle,
-  MessageSquare,
   Send,
   Lock,
   Eye,
-  FolderOpen,
   Undo2,
+  Scale,
+  ExternalLink,
+  Building2,
+  User,
+  Link2,
 } from "lucide-react";
 import { UserNotesSection } from "./UserNotesSection";
 import { User as UserType, Listing } from "@/types";
@@ -32,13 +35,25 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { formatDistanceToNow } from "date-fns";
+import { formatDistanceToNow, format } from "date-fns";
+import { getBuyerTier, getProfileCompletionDetails } from "@/lib/buyer-metrics";
+import { processUrl } from "@/lib/url-utils";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 interface ConnectionRequestActionsProps {
   user: UserType;
   listing?: Listing;
   requestId?: string;
   requestStatus?: "pending" | "approved" | "rejected" | "on_hold";
+  userMessage?: string;
+  createdAt?: string;
   // Legacy props — kept for call-site compatibility
   followedUp?: boolean;
   negativeFollowedUp?: boolean;
@@ -55,6 +70,8 @@ export function ConnectionRequestActions({
   listing,
   requestId,
   requestStatus = "pending",
+  userMessage,
+  createdAt,
 }: ConnectionRequestActionsProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -62,8 +79,9 @@ export function ConnectionRequestActions({
   const updateAccess = useUpdateAccess();
   const sendMessage = useSendMessage();
 
-  const [showRejectNote, setShowRejectNote] = useState(false);
+  const [showRejectDialog, setShowRejectDialog] = useState(false);
   const [rejectNote, setRejectNote] = useState("");
+  const [activeTab, setActiveTab] = useState<"thread" | "notes">("thread");
 
   // Fetch all connection requests for this user (for BuyerDealsOverview)
   const { data: userRequests = [] } = useUserConnectionRequests(user.id);
@@ -126,7 +144,7 @@ export function ConnectionRequestActions({
         sender_role: "admin",
         message_type: "decision",
       });
-      setShowRejectNote(false);
+      setShowRejectDialog(false);
       setRejectNote("");
       toast({ title: "Request declined", description: "Buyer has been notified." });
     } catch (err) {
@@ -190,8 +208,6 @@ export function ConnectionRequestActions({
     );
   };
 
-  // ─── Status dot helper ───
-
   const getDocStatusDot = (signed: boolean) => (
     <div
       className={`w-2 h-2 rounded-full ${
@@ -200,258 +216,392 @@ export function ConnectionRequestActions({
     />
   );
 
+  const tierInfo = getBuyerTier(user);
+  const completionDetails = getProfileCompletionDetails(user);
+  const completeness = completionDetails.percentage;
+  const buyerInitials = `${user.first_name?.[0] || ''}${user.last_name?.[0] || ''}`.toUpperCase();
+
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        {/* ── Left Column ── */}
-        <div className="lg:col-span-2 space-y-4">
-
-          {/* Decision — pending only */}
-          {requestStatus === "pending" && requestId && (
-            <div className="bg-card border border-border/40 rounded-lg p-4 shadow-sm">
-              <h3 className="text-sm font-semibold text-card-foreground flex items-center gap-2 mb-4">
-                <Shield className="h-4 w-4 text-primary" />
-                Decision
-              </h3>
-              {!showRejectNote ? (
-                <div className="flex items-center gap-3">
-                  <Button
-                    onClick={handleAccept}
-                    disabled={updateStatus.isPending}
-                    className="bg-emerald-600 hover:bg-emerald-700 text-white"
-                    size="sm"
-                  >
-                    <CheckCircle className="h-4 w-4 mr-2" />
-                    Accept
-                  </Button>
-                  <Button
-                    variant="outline"
-                    onClick={() => setShowRejectNote(true)}
-                    disabled={updateStatus.isPending}
-                    className="border-destructive/30 text-destructive hover:bg-destructive/10"
-                    size="sm"
-                  >
-                    <XCircle className="h-4 w-4 mr-2" />
-                    Reject
-                  </Button>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  <Textarea
-                    value={rejectNote}
-                    onChange={(e) => setRejectNote(e.target.value)}
-                    placeholder="Add a reason for rejecting this request..."
-                    className="text-xs min-h-[60px] resize-none"
-                  />
-                  <div className="flex items-center gap-2">
-                    <Button
-                      variant="destructive"
-                      size="sm"
-                      onClick={handleReject}
-                      disabled={updateStatus.isPending}
-                    >
-                      <XCircle className="h-3 w-3 mr-1.5" />
-                      Confirm Reject
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => {
-                        setShowRejectNote(false);
-                        setRejectNote("");
-                      }}
-                    >
-                      Cancel
-                    </Button>
-                  </div>
-                </div>
-              )}
+      {/* ── DECISION BANNER ── */}
+      {requestStatus === "pending" && requestId && (
+        <div className="rounded-xl border-2 border-amber-300/60 shadow-[0_0_0_3px_rgba(245,158,11,0.1),0_4px_20px_rgba(0,0,0,0.06)] overflow-hidden">
+          {/* Amber header */}
+          <div className="bg-gradient-to-r from-amber-50 to-amber-100/80 border-b border-amber-200 px-5 py-3.5 flex items-center gap-3">
+            <div className="w-8 h-8 rounded-lg bg-amber-500 flex items-center justify-center shrink-0">
+              <Scale className="h-4 w-4 text-white" />
             </div>
-          )}
+            <div className="flex-1">
+              <p className="text-sm font-bold text-amber-900">Decision Required</p>
+              <p className="text-xs text-amber-700">Review this connection request and accept or decline</p>
+            </div>
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-amber-700 bg-amber-200/60 border border-amber-300 rounded-md px-2.5 py-1">
+              Awaiting Action
+            </span>
+          </div>
 
-          {/* Status banner — non-pending */}
-          {requestStatus !== "pending" && requestId && (
-            <div
-              className={`flex items-center justify-between py-2 px-4 rounded-lg border ${
-                requestStatus === "approved"
-                  ? "bg-emerald-50 border-emerald-200 dark:bg-emerald-950/30 dark:border-emerald-800"
-                  : requestStatus === "rejected"
-                    ? "bg-red-50 border-red-200 dark:bg-red-950/30 dark:border-red-800"
-                    : "bg-amber-50 border-amber-200 dark:bg-amber-950/30 dark:border-amber-800"
-              }`}
-            >
-              <div className="flex items-center gap-2">
-                {requestStatus === "approved" && (
-                  <CheckCircle className="h-4 w-4 text-emerald-600" />
-                )}
-                {requestStatus === "rejected" && (
-                  <XCircle className="h-4 w-4 text-destructive" />
-                )}
-                {requestStatus === "on_hold" && (
-                  <Shield className="h-4 w-4 text-amber-600" />
-                )}
-                <span className="text-sm font-medium capitalize">
-                  {requestStatus === "on_hold" ? "On Hold" : requestStatus}
-                </span>
+          {/* Deal context */}
+          {listing && (
+            <div className="px-5 py-3 bg-muted/30 border-b border-border/40">
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">Requested Deal</p>
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                  <Building2 className="h-4 w-4 text-primary" />
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-foreground">{listing.title}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {listing.category}{listing.location ? ` · ${listing.location}` : ''}
+                    {listing.revenue ? ` · Revenue: $${Number(listing.revenue).toLocaleString()}` : ''}
+                  </p>
+                </div>
               </div>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleResetToPending}
-                disabled={updateStatus.isPending}
-                className="text-xs h-7"
-              >
-                <Undo2 className="h-3 w-3 mr-1" />
-                Reset to Pending
-              </Button>
             </div>
           )}
 
-          {/* Read-only document status — accepted only */}
-          {requestStatus === "approved" && (
-            <div className="bg-card border border-border/40 rounded-lg p-4 shadow-sm">
-              <h3 className="text-sm font-semibold text-card-foreground flex items-center gap-2 mb-3">
-                <FileText className="h-4 w-4 text-primary" />
-                Document Status
+          {/* Action buttons */}
+          <div className="px-5 py-3.5 flex items-center gap-3 bg-card">
+            <Button
+              onClick={handleAccept}
+              disabled={updateStatus.isPending}
+              className="bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm hover:shadow-emerald-500/25 transition-all"
+              size="sm"
+            >
+              <CheckCircle className="h-4 w-4 mr-2" />
+              Accept Request
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => setShowRejectDialog(true)}
+              disabled={updateStatus.isPending}
+              className="border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700 hover:border-red-300"
+              size="sm"
+            >
+              <XCircle className="h-4 w-4 mr-2" />
+              Decline
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* Status banner — approved */}
+      {requestStatus === "approved" && requestId && (
+        <div className="rounded-xl bg-gradient-to-r from-emerald-50 to-emerald-100/50 border border-emerald-200 px-5 py-3.5 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-7 h-7 rounded-full bg-emerald-600 flex items-center justify-center">
+              <CheckCircle className="h-4 w-4 text-white" />
+            </div>
+            <div>
+              <p className="text-sm font-bold text-emerald-800">Request Approved</p>
+              <p className="text-xs text-emerald-700">Next steps: send NDA, share full materials, add to pipeline</p>
+            </div>
+          </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleResetToPending}
+            disabled={updateStatus.isPending}
+            className="text-xs h-7 text-emerald-700 hover:text-emerald-800 hover:bg-emerald-200/50"
+          >
+            <Undo2 className="h-3 w-3 mr-1" />
+            Undo
+          </Button>
+        </div>
+      )}
+
+      {/* Status banner — rejected */}
+      {requestStatus === "rejected" && requestId && (
+        <div className="rounded-xl bg-gradient-to-r from-red-50 to-red-100/50 border border-red-200 px-5 py-3.5 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-7 h-7 rounded-full bg-red-600 flex items-center justify-center">
+              <XCircle className="h-4 w-4 text-white" />
+            </div>
+            <div>
+              <p className="text-sm font-bold text-red-800">Request Declined</p>
+              <p className="text-xs text-red-700">This buyer has been notified.</p>
+            </div>
+          </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleResetToPending}
+            disabled={updateStatus.isPending}
+            className="text-xs h-7 text-red-700 hover:text-red-800 hover:bg-red-200/50"
+          >
+            <Undo2 className="h-3 w-3 mr-1" />
+            Undo
+          </Button>
+        </div>
+      )}
+
+      {/* Status banner — on hold */}
+      {requestStatus === "on_hold" && requestId && (
+        <div className="rounded-xl bg-gradient-to-r from-amber-50 to-amber-100/50 border border-amber-200 px-5 py-3.5 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-7 h-7 rounded-full bg-amber-600 flex items-center justify-center">
+              <Shield className="h-4 w-4 text-white" />
+            </div>
+            <div>
+              <p className="text-sm font-bold text-amber-800">On Hold</p>
+              <p className="text-xs text-amber-700">This request is paused for review.</p>
+            </div>
+          </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleResetToPending}
+            disabled={updateStatus.isPending}
+            className="text-xs h-7 text-amber-700 hover:text-amber-800 hover:bg-amber-200/50"
+          >
+            <Undo2 className="h-3 w-3 mr-1" />
+            Undo
+          </Button>
+        </div>
+      )}
+
+      {/* Document status + access for approved */}
+      {requestStatus === "approved" && listing && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {/* Document Status */}
+          <div className="bg-card border border-border/40 rounded-lg p-4">
+            <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2 mb-3">
+              <FileText className="h-3.5 w-3.5" />
+              Document Status
+            </h3>
+            <div className="space-y-2">
+              <div className="flex items-center justify-between py-1.5 px-3 rounded-md bg-muted/30">
+                <span className="text-xs font-medium">NDA</span>
+                <div className="flex items-center gap-1.5">
+                  {getDocStatusDot(hasNDA)}
+                  <span className="text-xs text-muted-foreground">{hasNDA ? "Signed" : "Required"}</span>
+                </div>
+              </div>
+              <div className="flex items-center justify-between py-1.5 px-3 rounded-md bg-muted/30">
+                <span className="text-xs font-medium">Fee Agreement</span>
+                <div className="flex items-center gap-1.5">
+                  {getDocStatusDot(hasFeeAgreement)}
+                  <span className="text-xs text-muted-foreground">{hasFeeAgreement ? "Signed" : "Required"}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Document Access */}
+          <TooltipProvider>
+            <div className="bg-card border border-border/40 rounded-lg p-4">
+              <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2 mb-3">
+                <Eye className="h-3.5 w-3.5" />
+                Document Access
               </h3>
               <div className="space-y-2">
-                <div className="flex items-center justify-between py-1.5 px-3 rounded-md bg-background/50">
-                  <div className="flex items-center gap-2">
-                    <Shield className="h-3.5 w-3.5 text-muted-foreground" />
-                    <span className="text-xs font-medium">NDA</span>
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    {getDocStatusDot(hasNDA)}
-                    <span className="text-xs text-muted-foreground">
-                      {hasNDA ? "Signed" : "Required"}
-                    </span>
-                  </div>
+                <div className="flex items-center justify-between py-1.5 px-3 rounded-md bg-muted/30">
+                  <span className="text-xs font-medium">Teaser</span>
+                  <Switch
+                    checked={accessRecord?.can_view_teaser ?? false}
+                    onCheckedChange={(checked) => handleDocumentAccessToggle("can_view_teaser", checked)}
+                    disabled={updateAccess.isPending}
+                    className="scale-75"
+                  />
                 </div>
-                <div className="flex items-center justify-between py-1.5 px-3 rounded-md bg-background/50">
-                  <div className="flex items-center gap-2">
-                    <FileText className="h-3.5 w-3.5 text-muted-foreground" />
-                    <span className="text-xs font-medium">Fee Agreement</span>
-                  </div>
+                <div className="flex items-center justify-between py-1.5 px-3 rounded-md bg-muted/30">
                   <div className="flex items-center gap-1.5">
-                    {getDocStatusDot(hasFeeAgreement)}
-                    <span className="text-xs text-muted-foreground">
-                      {hasFeeAgreement ? "Signed" : "Required"}
-                    </span>
+                    <span className="text-xs font-medium">Full Memo</span>
+                    {!hasFeeAgreement && (
+                      <Tooltip>
+                        <TooltipTrigger asChild><Lock className="h-3 w-3 text-amber-500" /></TooltipTrigger>
+                        <TooltipContent side="top" className="text-xs">Requires signed fee agreement</TooltipContent>
+                      </Tooltip>
+                    )}
                   </div>
+                  <Switch
+                    checked={accessRecord?.can_view_full_memo ?? false}
+                    onCheckedChange={(checked) => handleDocumentAccessToggle("can_view_full_memo", checked)}
+                    disabled={updateAccess.isPending || !hasFeeAgreement}
+                    className="scale-75"
+                  />
+                </div>
+                <div className="flex items-center justify-between py-1.5 px-3 rounded-md bg-muted/30">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs font-medium">Data Room</span>
+                    {!hasFeeAgreement && (
+                      <Tooltip>
+                        <TooltipTrigger asChild><Lock className="h-3 w-3 text-amber-500" /></TooltipTrigger>
+                        <TooltipContent side="top" className="text-xs">Requires signed fee agreement</TooltipContent>
+                      </Tooltip>
+                    )}
+                  </div>
+                  <Switch
+                    checked={accessRecord?.can_view_data_room ?? false}
+                    onCheckedChange={(checked) => handleDocumentAccessToggle("can_view_data_room", checked)}
+                    disabled={updateAccess.isPending || !hasFeeAgreement}
+                    className="scale-75"
+                  />
                 </div>
               </div>
             </div>
+          </TooltipProvider>
+        </div>
+      )}
+
+      {/* ── TWO-COLUMN LAYOUT ── */}
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-4">
+        {/* ── LEFT: Conversation Thread ── */}
+        <div className="bg-card border border-border/40 rounded-xl overflow-hidden shadow-sm">
+          {/* Tab bar */}
+          <div className="border-b border-border/40 px-5 flex items-center">
+            <button
+              className={`py-3 px-1 text-sm font-medium border-b-2 transition-colors mr-4 ${
+                activeTab === "thread"
+                  ? "border-primary text-foreground"
+                  : "border-transparent text-muted-foreground hover:text-foreground"
+              }`}
+              onClick={() => setActiveTab("thread")}
+            >
+              Conversation Thread
+            </button>
+            <button
+              className={`py-3 px-1 text-sm font-medium border-b-2 transition-colors ${
+                activeTab === "notes"
+                  ? "border-primary text-foreground"
+                  : "border-transparent text-muted-foreground hover:text-foreground"
+              }`}
+              onClick={() => setActiveTab("notes")}
+            >
+              Internal Notes
+            </button>
+          </div>
+
+          {activeTab === "thread" && requestId && (
+            <ConversationThread
+              connectionRequestId={requestId}
+              buyerName={`${user.first_name} ${user.last_name}`}
+              buyerInitials={buyerInitials}
+              buyerMessage={userMessage}
+              submittedAt={createdAt}
+            />
           )}
 
-          {/* Document Access — accepted + listing */}
-          {requestStatus === "approved" && listing && (
-            <TooltipProvider>
-              <div className="bg-card border border-border/40 rounded-lg p-4 shadow-sm">
-                <h3 className="text-sm font-semibold text-card-foreground flex items-center gap-2 mb-3">
-                  <Eye className="h-4 w-4 text-primary" />
-                  Document Access
-                </h3>
-                <div className="space-y-2">
-                  {/* Anonymous Teaser */}
-                  <div className="flex items-center justify-between py-2 px-3 rounded-md border border-border/50 bg-background/50">
-                    <div className="flex items-center gap-2">
-                      <FileText className="h-3.5 w-3.5 text-muted-foreground" />
-                      <span className="text-xs font-medium">
-                        Anonymous Teaser
-                      </span>
-                    </div>
-                    <Switch
-                      checked={accessRecord?.can_view_teaser ?? false}
-                      onCheckedChange={(checked) =>
-                        handleDocumentAccessToggle("can_view_teaser", checked)
-                      }
-                      disabled={updateAccess.isPending}
-                      className="scale-90"
-                    />
-                  </div>
-
-                  {/* Full Memo */}
-                  <div className="flex items-center justify-between py-2 px-3 rounded-md border border-border/50 bg-background/50">
-                    <div className="flex items-center gap-2">
-                      <FileText className="h-3.5 w-3.5 text-muted-foreground" />
-                      <span className="text-xs font-medium">
-                        Full Detail Memo
-                      </span>
-                      {!hasFeeAgreement && (
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Lock className="h-3 w-3 text-amber-500" />
-                          </TooltipTrigger>
-                          <TooltipContent side="top" className="text-xs">
-                            Requires signed fee agreement
-                          </TooltipContent>
-                        </Tooltip>
-                      )}
-                    </div>
-                    <Switch
-                      checked={accessRecord?.can_view_full_memo ?? false}
-                      onCheckedChange={(checked) =>
-                        handleDocumentAccessToggle("can_view_full_memo", checked)
-                      }
-                      disabled={updateAccess.isPending || !hasFeeAgreement}
-                      className="scale-90"
-                    />
-                  </div>
-
-                  {/* Data Room */}
-                  <div className="flex items-center justify-between py-2 px-3 rounded-md border border-border/50 bg-background/50">
-                    <div className="flex items-center gap-2">
-                      <FolderOpen className="h-3.5 w-3.5 text-muted-foreground" />
-                      <span className="text-xs font-medium">Data Room</span>
-                      {!hasFeeAgreement && (
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Lock className="h-3 w-3 text-amber-500" />
-                          </TooltipTrigger>
-                          <TooltipContent side="top" className="text-xs">
-                            Requires signed fee agreement
-                          </TooltipContent>
-                        </Tooltip>
-                      )}
-                    </div>
-                    <Switch
-                      checked={accessRecord?.can_view_data_room ?? false}
-                      onCheckedChange={(checked) =>
-                        handleDocumentAccessToggle("can_view_data_room", checked)
-                      }
-                      disabled={updateAccess.isPending || !hasFeeAgreement}
-                      className="scale-90"
-                    />
-                  </div>
-
-                  {!hasFeeAgreement && (
-                    <p className="text-[11px] text-amber-600 flex items-center gap-1 px-1">
-                      <Lock className="h-3 w-3" />
-                      Sign a fee agreement to unlock full memo and data room
-                      access
-                    </p>
-                  )}
-                </div>
+          {activeTab === "notes" && (
+            <div className="p-5">
+              <div className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-2.5 mb-4 text-xs text-amber-800 flex items-center gap-2">
+                <Lock className="h-3.5 w-3.5 shrink-0" />
+                Internal notes are only visible to your team — buyers cannot see these.
               </div>
-            </TooltipProvider>
-          )}
-
-          {/* Compact Message Thread */}
-          {requestId && (
-            <CompactMessageThread connectionRequestId={requestId} />
+              <UserNotesSection userId={user.id} userName={`${user.first_name} ${user.last_name}`} />
+            </div>
           )}
         </div>
 
-        {/* ── Right Column ── */}
+        {/* ── RIGHT SIDEBAR ── */}
         <div className="space-y-4">
-          <div className="max-w-sm">
-            <UserNotesSection
-              userId={user.id}
-              userName={`${user.first_name} ${user.last_name}`}
-            />
+          {/* Buyer Information */}
+          <div className="bg-card border border-border/40 rounded-xl overflow-hidden shadow-sm">
+            <div className="px-4 py-3 border-b border-border/30">
+              <p className="text-[10px] font-bold uppercase tracking-[0.08em] text-muted-foreground flex items-center gap-1.5">
+                <User className="h-3 w-3" />
+                Buyer Information
+              </p>
+            </div>
+            <div className="px-4 py-3 space-y-2.5">
+              <SidebarField label="Type">
+                <span className={`text-xs font-semibold ${tierInfo.color}`}>
+                  {tierInfo.description}
+                </span>
+              </SidebarField>
+              <SidebarField label="Email">
+                <span className="text-xs font-medium text-foreground">{user.email}</span>
+              </SidebarField>
+              <SidebarField label="Company">
+                {user.website ? (
+                  <a href={processUrl(user.website)} target="_blank" rel="noopener noreferrer" className="text-xs font-medium text-primary hover:text-primary/80 flex items-center gap-1 group">
+                    {user.company || user.company_name || 'Company'}
+                    <ExternalLink className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity" />
+                  </a>
+                ) : (
+                  <span className="text-xs font-medium text-foreground">{user.company || user.company_name || '—'}</span>
+                )}
+              </SidebarField>
+              {user.linkedin_profile && (
+                <SidebarField label="LinkedIn">
+                  <a href={processUrl(user.linkedin_profile)} target="_blank" rel="noopener noreferrer" className="text-xs font-medium text-primary hover:text-primary/80">
+                    View Profile ↗
+                  </a>
+                </SidebarField>
+              )}
+              {user.aum && (
+                <SidebarField label="AUM">
+                  <span className="text-xs font-medium text-foreground">{user.aum}</span>
+                </SidebarField>
+              )}
+
+              {/* Profile Completeness */}
+              <div className="pt-2 mt-1 border-t border-border/20">
+                <div className="flex items-center justify-between mb-1.5">
+                  <span className="text-[11px] text-muted-foreground font-medium">Profile Completeness</span>
+                  <span className={`text-[11px] font-bold ${completeness >= 70 ? 'text-emerald-600' : 'text-amber-600'}`}>
+                    {completeness}%
+                  </span>
+                </div>
+                <div className="h-1.5 bg-border/50 rounded-full overflow-hidden">
+                  <div
+                    className={`h-full rounded-full transition-all ${
+                      completeness >= 70
+                        ? 'bg-gradient-to-r from-emerald-500 to-emerald-400'
+                        : 'bg-gradient-to-r from-amber-500 to-red-400'
+                    }`}
+                    style={{ width: `${completeness}%` }}
+                  />
+                </div>
+              </div>
+            </div>
           </div>
+
+          {/* Deal Information */}
+          {listing && (
+            <div className="bg-card border border-border/40 rounded-xl overflow-hidden shadow-sm">
+              <div className="px-4 py-3 border-b border-border/30">
+                <p className="text-[10px] font-bold uppercase tracking-[0.08em] text-muted-foreground flex items-center gap-1.5">
+                  <Building2 className="h-3 w-3" />
+                  Requested Deal
+                </p>
+              </div>
+              <div className="px-4 py-3 space-y-2.5">
+                <SidebarField label="Deal">
+                  <button
+                    onClick={() => window.open(`/listing/${listing.id}`, '_blank')}
+                    className="text-xs font-medium text-primary hover:text-primary/80 flex items-center gap-1 group text-right"
+                  >
+                    <span className="truncate max-w-[160px]">{listing.title}</span>
+                    <ExternalLink className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
+                  </button>
+                </SidebarField>
+                <SidebarField label="Category">
+                  <span className="text-xs font-medium text-foreground">{listing.category}</span>
+                </SidebarField>
+                {listing.location && (
+                  <SidebarField label="Location">
+                    <span className="text-xs font-medium text-foreground">{listing.location}</span>
+                  </SidebarField>
+                )}
+                {listing.revenue && (
+                  <SidebarField label="Revenue">
+                    <span className="text-xs font-semibold text-emerald-600">
+                      ${Number(listing.revenue).toLocaleString()}
+                    </span>
+                  </SidebarField>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* General Notes (compact) */}
+          <div className="bg-card border border-border/40 rounded-xl overflow-hidden shadow-sm">
+            <UserNotesSection userId={user.id} userName={`${user.first_name} ${user.last_name}`} />
+          </div>
+
+          {/* Other Deals by Buyer */}
           {userRequests.length > 1 && (
-            <div className="max-w-sm">
+            <div className="bg-card border border-border/40 rounded-xl overflow-hidden shadow-sm">
               <BuyerDealsOverview
                 requests={userRequests}
                 currentRequestId={requestId}
@@ -460,16 +610,76 @@ export function ConnectionRequestActions({
           )}
         </div>
       </div>
+
+      {/* ── REJECT CONFIRMATION DIALOG ── */}
+      <Dialog open={showRejectDialog} onOpenChange={setShowRejectDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-lg">Reject this request?</DialogTitle>
+            <DialogDescription className="text-sm">
+              <span className="font-medium text-foreground">{user.first_name} {user.last_name}</span> from{" "}
+              <span className="font-medium text-foreground">{user.company || user.company_name || 'Unknown Firm'}</span>{" "}
+              will be notified that their connection request
+              {listing ? ` for "${listing.title}"` : ''} was not approved. This action can be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <Textarea
+            value={rejectNote}
+            onChange={(e) => setRejectNote(e.target.value)}
+            placeholder="Add a reason for rejecting (optional)..."
+            className="min-h-[80px] resize-none text-sm"
+          />
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowRejectDialog(false);
+                setRejectNote("");
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleReject}
+              disabled={updateStatus.isPending}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              <XCircle className="h-4 w-4 mr-2" />
+              Reject Request
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
 
-// ─── Compact Message Thread ───
+// ─── Sidebar Field Helper ───
 
-function CompactMessageThread({
+function SidebarField({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="flex items-center justify-between py-1 border-b border-border/10 last:border-b-0">
+      <span className="text-xs text-muted-foreground">{label}</span>
+      {children}
+    </div>
+  );
+}
+
+// ─── Conversation Thread ───
+
+function ConversationThread({
   connectionRequestId,
+  buyerName,
+  buyerInitials,
+  buyerMessage,
+  submittedAt,
 }: {
   connectionRequestId: string;
+  buyerName: string;
+  buyerInitials: string;
+  buyerMessage?: string;
+  submittedAt?: string;
 }) {
   const { data: messages = [] } = useConnectionMessages(connectionRequestId);
   const sendMsg = useSendMessage();
@@ -477,7 +687,6 @@ function CompactMessageThread({
   const [newMessage, setNewMessage] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // Mark messages as read when viewing
   useEffect(() => {
     if (connectionRequestId) {
       markRead.mutate(connectionRequestId);
@@ -485,7 +694,6 @@ function CompactMessageThread({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [connectionRequestId, messages.length]);
 
-  // Auto-scroll to bottom within message container only
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
   }, [messages]);
@@ -500,100 +708,128 @@ function CompactMessageThread({
     setNewMessage("");
   };
 
-  return (
-    <div className="bg-card border border-border/40 rounded-lg p-4 shadow-sm">
-      <h3 className="text-sm font-semibold text-card-foreground flex items-center gap-2 mb-3">
-        <MessageSquare className="h-4 w-4 text-primary" />
-        Messages
-        {messages.length > 0 && (
-          <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
-            {messages.length}
-          </Badge>
-        )}
-      </h3>
+  
 
-      {/* Message list */}
-      <div className="max-h-48 overflow-y-auto space-y-2 mb-3">
-        {messages.length === 0 ? (
-          <p className="text-xs text-muted-foreground italic py-2">
-            No messages yet. Start the conversation below.
-          </p>
-        ) : (
-          messages.map((msg) => (
-            <div
-              key={msg.id}
-              className={`flex ${
-                msg.message_type === "decision" || msg.message_type === "system"
-                  ? "justify-center"
-                  : msg.sender_role === "admin"
-                    ? "justify-end"
-                    : "justify-start"
-              }`}
-            >
-              <div
-                className={`max-w-[80%] rounded-lg px-3 py-2 text-xs ${
-                  msg.message_type === "decision" ||
-                  msg.message_type === "system"
-                    ? "bg-muted/50 text-muted-foreground italic"
-                    : msg.sender_role === "admin"
-                      ? "bg-primary/10 text-foreground"
-                      : "bg-accent/50 text-foreground"
-                }`}
-              >
-                {msg.message_type !== "system" &&
-                  msg.message_type !== "decision" && (
-                    <div className="flex items-center gap-1.5 mb-0.5">
-                      <span className="font-medium">
-                        {msg.sender_role === "admin"
-                          ? "You"
-                          : msg.sender?.first_name || "Buyer"}
-                      </span>
-                      <span className="text-muted-foreground/50 text-[10px]">
-                        {formatDistanceToNow(new Date(msg.created_at), {
-                          addSuffix: true,
-                        })}
-                      </span>
-                    </div>
-                  )}
-                <p className="leading-relaxed">{msg.body}</p>
-                {(msg.message_type === "system" ||
-                  msg.message_type === "decision") && (
-                  <span className="text-muted-foreground/50 text-[10px] block mt-0.5">
-                    {formatDistanceToNow(new Date(msg.created_at), {
-                      addSuffix: true,
-                    })}
-                  </span>
-                )}
+  return (
+    <div className="flex flex-col">
+      {/* Messages area */}
+      <div className="max-h-[400px] overflow-y-auto p-5 space-y-4 bg-muted/20">
+        {/* Buyer's opening message — always first */}
+        {buyerMessage && (
+          <div>
+            <div className="flex items-center gap-2 mb-2">
+              <div className="w-7 h-7 rounded-full bg-gradient-to-br from-[#1E3A5F] to-[#3B82F6] flex items-center justify-center text-white text-[10px] font-bold shrink-0">
+                {buyerInitials}
+              </div>
+              <div className="flex items-center gap-2 flex-1 min-w-0">
+                <span className="text-sm font-semibold text-foreground">{buyerName}</span>
+                <span className="text-[10px] text-muted-foreground">
+                  {submittedAt ? format(new Date(submittedAt), 'MMM d, yyyy') : ''}
+                </span>
+              </div>
+              <Badge variant="outline" className="text-[10px] bg-primary/5 text-primary border-primary/20 shrink-0">
+                <Link2 className="h-2.5 w-2.5 mr-1" />
+                Connection Request
+              </Badge>
+            </div>
+            <div className="ml-9">
+              <div className="bg-gradient-to-br from-[#1E3A5F] to-[#2563EB] text-white rounded-[14px_14px_14px_4px] px-4 py-3 shadow-sm">
+                <p className="text-[13px] leading-relaxed">{buyerMessage}</p>
               </div>
             </div>
-          ))
+          </div>
         )}
+
+        {/* No messages empty state */}
+        {messages.length === 0 && !buyerMessage && (
+          <p className="text-xs text-muted-foreground italic text-center py-4">
+            No messages yet — respond below to start the conversation.
+          </p>
+        )}
+
+        {messages.length === 0 && buyerMessage && (
+          <p className="text-xs text-muted-foreground italic text-center py-2">
+            No replies yet — respond below to start the conversation.
+          </p>
+        )}
+
+        {/* Subsequent messages */}
+        {messages.map((msg) => (
+          <div key={msg.id}>
+            {msg.message_type === "decision" || msg.message_type === "system" ? (
+              <div className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-2 text-center">
+                <p className="text-xs text-amber-800">{msg.body}</p>
+                <span className="text-[10px] text-amber-600 mt-0.5 block">
+                  {formatDistanceToNow(new Date(msg.created_at), { addSuffix: true })}
+                </span>
+              </div>
+            ) : msg.sender_role === "admin" ? (
+              <div className="flex flex-col items-end">
+                <div className="flex items-center gap-1.5 mb-1.5">
+                  <span className="text-[10px] text-muted-foreground">
+                    {formatDistanceToNow(new Date(msg.created_at), { addSuffix: true })}
+                  </span>
+                  <span className="text-xs font-semibold text-foreground">You</span>
+                  <div className="w-6 h-6 rounded-full bg-muted flex items-center justify-center text-[10px] font-bold text-muted-foreground">
+                    SC
+                  </div>
+                </div>
+                <div className="bg-muted/60 text-foreground rounded-[14px_14px_4px_14px] px-4 py-3 max-w-[80%]">
+                  <p className="text-[13px] leading-relaxed">{msg.body}</p>
+                </div>
+              </div>
+            ) : (
+              <div>
+                <div className="flex items-center gap-2 mb-1.5">
+                  <div className="w-6 h-6 rounded-full bg-gradient-to-br from-[#1E3A5F] to-[#3B82F6] flex items-center justify-center text-white text-[9px] font-bold">
+                    {buyerInitials}
+                  </div>
+                  <span className="text-xs font-semibold text-foreground">
+                    {msg.sender?.first_name || buyerName}
+                  </span>
+                  <span className="text-[10px] text-muted-foreground">
+                    {formatDistanceToNow(new Date(msg.created_at), { addSuffix: true })}
+                  </span>
+                </div>
+                <div className="ml-8 bg-card border border-border/40 text-foreground rounded-[14px_14px_14px_4px] px-4 py-3 max-w-[80%]">
+                  <p className="text-[13px] leading-relaxed">{msg.body}</p>
+                </div>
+              </div>
+            )}
+          </div>
+        ))}
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Send input */}
-      <div className="flex gap-2">
-        <input
-          type="text"
-          value={newMessage}
-          onChange={(e) => setNewMessage(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && !e.shiftKey) {
-              e.preventDefault();
-              handleSend();
-            }
-          }}
-          placeholder="Type a message..."
-          className="flex-1 text-xs border border-border/50 rounded-md px-3 py-2 bg-background focus:outline-none focus:ring-1 focus:ring-primary/30"
-        />
-        <Button
-          size="sm"
-          onClick={handleSend}
-          disabled={!newMessage.trim() || sendMsg.isPending}
-          className="h-8 px-3"
-        >
-          <Send className="h-3 w-3" />
-        </Button>
+      {/* Composer */}
+      <div className="border-t border-border/40 p-4 bg-card">
+        <div className="border border-border/60 rounded-lg overflow-hidden focus-within:border-primary/40 focus-within:ring-1 focus-within:ring-primary/20 transition-all">
+          <textarea
+            rows={3}
+            placeholder="Reply to this buyer..."
+            value={newMessage}
+            onChange={(e) => setNewMessage(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+                e.preventDefault();
+                handleSend();
+              }
+            }}
+            className="w-full border-none resize-none text-[13px] text-foreground bg-transparent px-4 py-3 focus:outline-none placeholder:text-muted-foreground"
+          />
+          <div className="flex items-center justify-between px-3 py-2 border-t border-border/30 bg-muted/20">
+            <span className="text-[10px] text-muted-foreground">⌘ + Enter to send</span>
+            <Button
+              size="sm"
+              onClick={handleSend}
+              disabled={!newMessage.trim() || sendMsg.isPending}
+              className="h-7 px-3 text-xs bg-[#1E3A5F] hover:bg-[#162D4A] text-white"
+            >
+              <Send className="h-3 w-3 mr-1.5" />
+              Send Reply
+            </Button>
+          </div>
+        </div>
       </div>
     </div>
   );

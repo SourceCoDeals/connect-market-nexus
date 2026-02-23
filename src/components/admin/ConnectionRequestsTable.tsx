@@ -3,7 +3,6 @@ import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { 
   ChevronDown, 
@@ -480,141 +479,24 @@ function ReactiveRequestCard({
                   listing={request.listing ?? undefined}
                   requestId={request.id}
                   requestStatus={request.status}
+                  userMessage={request.user_message}
+                  createdAt={request.created_at}
                 />
               ) : (
                 <LeadRequestActions request={request} />
               )}
 
-              <Separator />
-
-              {/* Mobile Layout (< 768px) */}
-              <div className="block md:hidden">
-                <RequestDetails request={request} />
-              </div>
-
-              {/* Desktop/Tablet Layout (>= 768px) */}
-              <div className="hidden md:block">
-                 {/* Top Section: Buyer & Listing Info Grid */}
-                <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
-                   {/* Enhanced Buyer Information or Lead Information */}
-                   <div className="space-y-3">
-                     {request.user ? (
-                       <EnhancedBuyerProfile user={request.user} />
-                     ) : (
-                       /* Lead Information Section */
-                       <div className="space-y-3">
-                         <div className="flex items-center gap-2 pb-1 border-b border-border/40">
-                           <User className="h-3.5 w-3.5 text-muted-foreground" />
-                           <span className="text-xs font-semibold text-card-foreground">Lead Information</span>
-                         </div>
-                         <div className="space-y-2.5 pl-1">
-                           {request.lead_name && (
-                             <div className="space-y-1">
-                               <span className="text-xs text-muted-foreground">Name</span>
-                               <p className="text-xs font-medium text-card-foreground">{request.lead_name}</p>
-                             </div>
-                           )}
-                           {request.lead_email && (
-                             <div className="space-y-1">
-                               <span className="text-xs text-muted-foreground">Email</span>
-                               <a 
-                                 href={`mailto:${request.lead_email}`}
-                                 className="text-xs font-medium text-primary hover:text-primary/80 transition-colors"
-                               >
-                                 {request.lead_email}
-                               </a>
-                             </div>
-                           )}
-                           {request.lead_phone && (
-                             <div className="space-y-1">
-                               <span className="text-xs text-muted-foreground">Phone</span>
-                               <a 
-                                 href={`tel:${request.lead_phone}`}
-                                 className="text-xs font-medium text-primary hover:text-primary/80 transition-colors"
-                               >
-                                 {/* Format phone number for display - handle various formats */}
-                                 {(() => {
-                                   const phone = request.lead_phone.toString();
-                                   // If it's an 11-digit number starting with 1, format as (XXX) XXX-XXXX
-                                   if (phone.length === 11 && phone.startsWith('1')) {
-                                     return phone.replace(/^1(\d{3})(\d{3})(\d{4})$/, '($1) $2-$3');
-                                   }
-                                   // If it's a 10-digit number, format as (XXX) XXX-XXXX
-                                   if (phone.length === 10) {
-                                     return phone.replace(/^(\d{3})(\d{3})(\d{4})$/, '($1) $2-$3');
-                                   }
-                                   // Otherwise return as-is
-                                   return phone;
-                                 })()}
-                               </a>
-                             </div>
-                           )}
-                           {request.lead_company && (
-                             <div className="space-y-1">
-                               <span className="text-xs text-muted-foreground">Company</span>
-                               <p className="text-xs font-medium text-card-foreground">{request.lead_company}</p>
-                             </div>
-                           )}
-                         </div>
-                       </div>
-                     )}
-                   </div>
-
-                  {/* Listing Information */}
-                  <div className="space-y-3">
-                    <div className="flex items-center gap-2 pb-1 border-b border-border/40">
-                      <Building2 className="h-3.5 w-3.5 text-muted-foreground" />
-                      <span className="text-xs font-semibold text-card-foreground">Listing Information</span>
-                    </div>
-                    <div className="space-y-2.5 pl-1">
-                      <div className="space-y-1">
-                        <span className="text-xs text-muted-foreground">Title</span>
-                        <button
-                          onClick={() => {
-                            if (request.listing?.id) {
-                              window.open(`/listing/${request.listing.id}`, '_blank');
-                            }
-                          }}
-                          className="text-xs font-medium text-primary hover:text-primary/80 flex items-center gap-1 group transition-all"
-                        >
-                          {request.listing?.title}
-                          <ExternalLink className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity" />
-                        </button>
-                      </div>
-                      <div className="space-y-1">
-                        <span className="text-xs text-muted-foreground">Category</span>
-                        <div className="text-xs font-medium text-foreground">{request.listing?.category}</div>
-                      </div>
-                      <div className="space-y-1">
-                        <span className="text-xs text-muted-foreground">Location</span>
-                        <div className="text-xs font-medium text-foreground">{request.listing?.location}</div>
-                      </div>
-                      <div className="space-y-1">
-                        <span className="text-xs text-muted-foreground">Revenue</span>
-                        <div className="text-xs font-medium text-foreground">${request.listing?.revenue?.toLocaleString() || 'N/A'}</div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Buyer Message */}
-                  {request.user_message && (
-                    <div className="space-y-3 lg:col-span-1 md:col-span-2">
-                      <div className="flex items-center gap-2 pb-1 border-b border-border/40">
-                        <MessageSquare className="h-3.5 w-3.5 text-muted-foreground" />
-                        <span className="text-xs font-semibold text-card-foreground">Buyer Message</span>
-                      </div>
-                      <div className="border border-border/40 rounded-md p-3 bg-background/50 max-h-32 overflow-y-auto">
-                        <p className="text-xs text-foreground leading-relaxed whitespace-pre-wrap">{request.user_message}</p>
-                      </div>
-                    </div>
-                  )}
+              {/* Mobile fallback for lead-only requests */}
+              {!request.user && (
+                <div className="block md:hidden">
+                  <RequestDetails request={request} />
                 </div>
+              )}
 
-                {/* Business Profile - full width below grid */}
-                {request.user && (
-                  <ExpandableBusinessProfile user={request.user as unknown as AdminUsersUser} />
-                )}
-              </div>
+              {/* Business Profile - full width below (for registered users only, not shown in redesigned actions) */}
+              {request.user && (
+                <ExpandableBusinessProfile user={request.user as unknown as AdminUsersUser} />
+              )}
             </div>
           )}
         </div>
