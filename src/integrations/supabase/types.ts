@@ -5850,6 +5850,7 @@ export type Database = {
           financial_notes: string | null
           fireflies_url: string | null
           founded_year: number | null
+          fts: unknown | null
           full_time_employees: number | null
           general_notes: string | null
           geographic_states: string[] | null
@@ -10361,6 +10362,58 @@ export type Database = {
       restore_soft_deleted: {
         Args: { p_record_id: string; p_table_name: string }
         Returns: boolean
+      }
+      search_listings: {
+        Args: {
+          search_query: string
+          filter_status?: string
+          filter_category?: string
+          filter_location?: string
+          filter_revenue_min?: number
+          filter_revenue_max?: number
+          filter_ebitda_min?: number
+          filter_ebitda_max?: number
+          page_offset?: number
+          page_limit?: number
+        }
+        Returns: {
+          id: string
+          title: string
+          description: string
+          description_html: string
+          hero_description: string
+          category: string
+          categories: string[]
+          acquisition_type: string
+          location: string
+          revenue: number
+          ebitda: number
+          tags: string[]
+          image_url: string
+          status: string
+          status_tag: string
+          visible_to_buyer_types: string[]
+          created_at: string
+          updated_at: string
+          full_time_employees: number
+          part_time_employees: number
+          custom_metric_label: string
+          custom_metric_value: string
+          custom_metric_subtitle: string
+          metric_3_type: string
+          metric_3_custom_label: string
+          metric_3_custom_value: string
+          metric_3_custom_subtitle: string
+          metric_4_type: string
+          metric_4_custom_label: string
+          metric_4_custom_value: string
+          metric_4_custom_subtitle: string
+          revenue_metric_subtitle: string
+          ebitda_metric_subtitle: string
+          owner_notes: string
+          rank: number
+          total_count: number
+        }[]
       }
       soft_delete_deal: {
         Args: { deal_id: string; deletion_reason?: string }

@@ -78,11 +78,9 @@ async function fetchListings(state: PaginationState, buyerTier?: number | null) 
     .is('deleted_at', null)
     .eq('is_internal_deal', false); // Only show marketplace deals, not internal/research deals
 
-  // Apply filters
+  // Apply full-text search (uses GIN-indexed tsvector column for fast ranked search)
   if (state.search) {
-    query = query.or(
-      `title.ilike.%${state.search}%,description.ilike.%${state.search}%,category.ilike.%${state.search}%`,
-    );
+    query = query.textSearch('fts', state.search, { type: 'websearch', config: 'english' });
   }
 
   if (state.category && state.category !== 'all') {
