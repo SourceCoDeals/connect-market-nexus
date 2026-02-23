@@ -7,40 +7,24 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.47.10";
  * Updates DocuSeal-specific fields, legacy booleans, AND expanded status fields on firm_agreements.
  * Creates admin_notifications on key events.
  * Includes idempotency checks via docuseal_webhook_log.
+ *
+ * DocuSeal sends a custom secret header (not HMAC). The header name is
+ * configured in DocuSeal's dashboard (Key) and the value must match
+ * DOCUSEAL_WEBHOOK_SECRET. Default header name: "onboarding-secret".
+ * Override via DOCUSEAL_WEBHOOK_SECRET_HEADER env var if needed.
  */
 
-// Verify webhook signature using HMAC-SHA256
-async function verifyWebhookSignature(
-  body: string,
-  signature: string | null,
-  secret: string
-): Promise<boolean> {
-  if (!signature) return false;
-  try {
-    const encoder = new TextEncoder();
-    const key = await crypto.subtle.importKey(
-      "raw",
-      encoder.encode(secret),
-      { name: "HMAC", hash: "SHA-256" },
-      false,
-      ["sign"]
-    );
-    const sig = await crypto.subtle.sign("HMAC", key, encoder.encode(body));
-    const expectedHex = Array.from(new Uint8Array(sig))
-      .map((b) => b.toString(16).padStart(2, "0"))
-      .join("");
-    const encoder2 = new TextEncoder();
-    const a = encoder2.encode(expectedHex);
-    const b = encoder2.encode(signature);
-    if (a.length !== b.length) return false;
-    let result = 0;
-    for (let i = 0; i < a.length; i++) {
-      result |= a[i] ^ b[i];
-    }
-    return result === 0;
-  } catch {
-    return false;
+// Constant-time string comparison to prevent timing attacks
+function secureCompare(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  const encoder = new TextEncoder();
+  const bufA = encoder.encode(a);
+  const bufB = encoder.encode(b);
+  let result = 0;
+  for (let i = 0; i < bufA.length; i++) {
+    result |= bufA[i] ^ bufB[i];
   }
+  return result === 0;
 }
 
 // Validate that a URL is HTTPS and from a trusted domain
@@ -76,10 +60,12 @@ serve(async (req: Request) => {
       return new Response(JSON.stringify({ error: "Webhook secret not configured" }), { status: 500 });
     }
 
-    const signature = req.headers.get("x-docuseal-signature");
-    const valid = await verifyWebhookSignature(rawBody, signature, webhookSecret);
-    if (!valid) {
-      console.error("❌ Invalid webhook signature");
+    // DocuSeal sends a custom header with the raw secret value (not HMAC).
+    // Header name matches the Key configured in DocuSeal's webhook settings.
+    const secretHeader = Deno.env.get("DOCUSEAL_WEBHOOK_SECRET_HEADER") || "onboarding-secret";
+    const receivedSecret = req.headers.get(secretHeader);
+    if (!receivedSecret || !secureCompare(receivedSecret, webhookSecret)) {
+      console.error(`❌ Invalid webhook secret (header: ${secretHeader}, received: ${receivedSecret ? "present" : "missing"})`);
       return new Response(JSON.stringify({ error: "Invalid signature" }), { status: 401 });
     }
 
