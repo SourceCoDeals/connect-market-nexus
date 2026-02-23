@@ -65,15 +65,21 @@ export async function queueDealEnrichment(dealIds: string[], force = true): Prom
 export async function queueBuyerEnrichment(buyerIds: string[], universeId?: string, force = true): Promise<number> {
   if (buyerIds.length === 0) return 0;
 
-  // Check which are already queued
-  const { data: existing, error: existingError } = await supabase
-    .from("buyer_enrichment_queue")
-    .select("buyer_id")
-    .in("status", ["pending", "processing"])
-    .in("buyer_id", buyerIds);
-  if (existingError) throw existingError;
+  // Batch IDs to avoid Supabase URL length limits (max ~200 per query)
+  const BATCH_SIZE = 200;
+  const existingSet = new Set<string>();
 
-  const existingSet = new Set((existing || []).map((e: any) => e.buyer_id));
+  for (let i = 0; i < buyerIds.length; i += BATCH_SIZE) {
+    const batch = buyerIds.slice(i, i + BATCH_SIZE);
+    const { data: existing, error: existingError } = await supabase
+      .from("buyer_enrichment_queue")
+      .select("buyer_id")
+      .in("status", ["pending", "processing"])
+      .in("buyer_id", batch);
+    if (existingError) throw existingError;
+    (existing || []).forEach((e: any) => existingSet.add(e.buyer_id));
+  }
+
   const newIds = buyerIds.filter(id => !existingSet.has(id));
 
   if (newIds.length === 0) {
@@ -81,23 +87,27 @@ export async function queueBuyerEnrichment(buyerIds: string[], universeId?: stri
     return 0;
   }
 
-  const rows = newIds.map(id => ({
-    buyer_id: id,
-    universe_id: universeId || null,
-    status: "pending",
-    attempts: 0,
-    queued_at: new Date().toISOString(),
-    force,
-  }));
+  // Upsert in batches too
+  for (let i = 0; i < newIds.length; i += BATCH_SIZE) {
+    const batch = newIds.slice(i, i + BATCH_SIZE);
+    const rows = batch.map(id => ({
+      buyer_id: id,
+      universe_id: universeId || null,
+      status: "pending",
+      attempts: 0,
+      queued_at: new Date().toISOString(),
+      force,
+    }));
 
-  const { error } = await supabase
-    .from("buyer_enrichment_queue")
-    .upsert(rows, { onConflict: "buyer_id", ignoreDuplicates: false });
+    const { error } = await supabase
+      .from("buyer_enrichment_queue")
+      .upsert(rows, { onConflict: "buyer_id", ignoreDuplicates: false });
 
-  if (error) {
-    console.error("Failed to queue buyer enrichment:", error);
-    toast.error("Failed to queue enrichment");
-    throw error;
+    if (error) {
+      console.error("Failed to queue buyer enrichment:", error);
+      toast.error("Failed to queue enrichment");
+      throw error;
+    }
   }
 
   // Trigger the worker
