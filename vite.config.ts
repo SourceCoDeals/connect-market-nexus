@@ -20,11 +20,8 @@ export default defineConfig(({ mode }) => ({
     },
   },
   build: {
-    // Target modern browsers for smaller output
     target: 'es2020',
-    // Enable minification
     minify: 'esbuild',
-    // Increase chunk size warning limit
     chunkSizeWarningLimit: 1000,
   },
   esbuild: {

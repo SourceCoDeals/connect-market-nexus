@@ -1,6 +1,6 @@
 import React from 'react';
 import { useSessionHeartbeat } from '@/hooks/use-session-heartbeat';
-import { useAuthState } from '@/hooks/auth/use-auth-state';
+import { useAuth } from '@/context/AuthContext';
 
 interface HeartbeatProviderProps {
   children: React.ReactNode;
@@ -17,7 +17,7 @@ interface HeartbeatProviderProps {
  * - Enables real-time "active users" count
  */
 const HeartbeatTracker: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { user } = useAuthState();
+  const { user } = useAuth();
   
   // Initialize heartbeat tracking
   useSessionHeartbeat(user?.id);
