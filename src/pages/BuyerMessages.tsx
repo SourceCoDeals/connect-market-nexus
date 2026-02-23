@@ -587,7 +587,7 @@ function PendingAgreementBanner() {
       if (!membership) return null;
 
       const { data: firm } = await (supabase.from('firm_agreements') as any)
-        .select('nda_signed, nda_signed_at, nda_signed_document_url, nda_docuseal_status, fee_agreement_signed, fee_agreement_signed_at, fee_signed_document_url, fee_docuseal_status')
+        .select('nda_signed, nda_signed_at, nda_signed_document_url, nda_document_url, nda_docuseal_status, fee_agreement_signed, fee_agreement_signed_at, fee_signed_document_url, fee_agreement_document_url, fee_docuseal_status')
         .eq('id', membership.firm_id)
         .maybeSingle();
       return firm;
@@ -621,6 +621,7 @@ function PendingAgreementBanner() {
     signed: boolean;
     signedAt: string | null;
     documentUrl: string | null;
+    draftUrl: string | null;
     notificationMessage?: string;
     notificationTime?: string;
   };
@@ -636,6 +637,7 @@ function PendingAgreementBanner() {
       signed: true,
       signedAt: firmStatus.nda_signed_at,
       documentUrl: firmStatus.nda_signed_document_url,
+      draftUrl: firmStatus.nda_document_url,
     });
   } else {
     const ndaNotif = pendingNotifications.find((n: any) => n.metadata?.document_type === 'nda');
@@ -647,6 +649,7 @@ function PendingAgreementBanner() {
         signed: false,
         signedAt: null,
         documentUrl: null,
+        draftUrl: firmStatus?.nda_document_url || null,
         notificationMessage: ndaNotif?.message,
         notificationTime: ndaNotif?.created_at,
       });
@@ -662,6 +665,7 @@ function PendingAgreementBanner() {
       signed: true,
       signedAt: firmStatus.fee_agreement_signed_at,
       documentUrl: firmStatus.fee_signed_document_url,
+      draftUrl: firmStatus.fee_agreement_document_url,
     });
   } else {
     const feeNotif = pendingNotifications.find((n: any) => n.metadata?.document_type === 'fee_agreement');
@@ -673,6 +677,7 @@ function PendingAgreementBanner() {
         signed: false,
         signedAt: null,
         documentUrl: null,
+        draftUrl: firmStatus?.fee_agreement_document_url || null,
         notificationMessage: feeNotif?.message,
         notificationTime: feeNotif?.created_at,
       });
@@ -752,6 +757,16 @@ function PendingAgreementBanner() {
                   </>
                 ) : (
                   <>
+                    {item.draftUrl && item.draftUrl.startsWith('https://') && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => window.open(item.draftUrl!, '_blank', 'noopener,noreferrer')}
+                      >
+                        <Download className="h-3.5 w-3.5 mr-1.5" />
+                        Download Draft
+                      </Button>
+                    )}
                     <Button
                       variant="ghost"
                       size="sm"
