@@ -1,0 +1,224 @@
+import { useState, useRef } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
+import type { DealTranscript } from "./types";
+
+interface UseFirefliesSyncProps {
+  dealId: string;
+  contactEmail?: string | null;
+  companyName?: string;
+  transcripts: DealTranscript[];
+  onSyncComplete?: () => void;
+  onTranscriptLinked?: () => void;
+}
+
+export function useFirefliesSync({
+  dealId,
+  contactEmail,
+  companyName,
+  transcripts,
+  onSyncComplete,
+  onTranscriptLinked,
+}: UseFirefliesSyncProps) {
+  const [syncLoading, setSyncLoading] = useState(false);
+  const [lastSynced, setLastSynced] = useState<Date | null>(null);
+  const [, setLinkedCount] = useState(transcripts?.filter((t) => t.source === 'fireflies').length || 0);
+
+  // Manual link state
+  const [ffQuery, setFfQuery] = useState(companyName || '');
+  const [ffSearchLoading, setFfSearchLoading] = useState(false);
+  const [ffResults, setFfResults] = useState<any[]>([]);
+  const [ffLinking, setFfLinking] = useState<string | null>(null);
+  const [firefliesUrl, setFirefliesUrl] = useState("");
+  const [linkingUrl, setLinkingUrl] = useState(false);
+  const [ffUploading, setFfUploading] = useState(false);
+  const ffFileInputRef = useRef<HTMLInputElement>(null);
+
+  // Fireflies sync handler
+  const handleFirefliesSync = async () => {
+    if (!contactEmail) return;
+    setSyncLoading(true);
+    const toastId = toast.loading(`Searching Fireflies for ${contactEmail}...`);
+    try {
+      const { data, error } = await supabase.functions.invoke('sync-fireflies-transcripts', {
+        body: { listingId: dealId, contactEmail, limit: 50 },
+      });
+      if (error) throw error;
+      if (data.linked > 0) {
+        toast.success(`Linked ${data.linked} new transcript${data.linked !== 1 ? 's' : ''}`, { id: toastId });
+        setLinkedCount(prev => prev + data.linked);
+        onSyncComplete?.();
+      } else if (data.skipped > 0) {
+        toast.info(`All ${data.skipped} transcript${data.skipped !== 1 ? 's' : ''} already linked`, { id: toastId });
+      } else {
+        toast.info(`No Fireflies calls found for ${contactEmail}`, { id: toastId });
+      }
+      setLastSynced(new Date());
+      if (data.errors?.length > 0) {
+        toast.warning(`${data.errors.length} transcript${data.errors.length !== 1 ? 's' : ''} failed to link`);
+      }
+    } catch (error) {
+      toast.error(error instanceof Error ? `Failed: ${error.message}` : "Failed to sync", { id: toastId });
+    } finally {
+      setSyncLoading(false);
+    }
+  };
+
+  // Quick search handler
+  const handleFfQuickSearch = async () => {
+    const trimmed = ffQuery.trim();
+    if (!trimmed) return;
+    setFfSearchLoading(true);
+    const toastId = toast.loading(`Searching Fireflies for "${trimmed}"...`);
+    try {
+      const { data, error } = await supabase.functions.invoke('search-fireflies-for-buyer', {
+        body: { query: trimmed, limit: 30 },
+      });
+      if (error) throw error;
+      setFfResults(data.results || []);
+      toast[data.results?.length ? 'success' : 'info'](
+        data.results?.length ? `Found ${data.results.length} call${data.results.length !== 1 ? 's' : ''}` : `No calls found`,
+        { id: toastId }
+      );
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Search failed", { id: toastId });
+    } finally {
+      setFfSearchLoading(false);
+    }
+  };
+
+  // Link a search result
+  const handleLinkSearchResult = async (transcript: any) => {
+    setFfLinking(transcript.id);
+    try {
+      const { error } = await supabase.from('deal_transcripts').insert({
+        listing_id: dealId,
+        fireflies_transcript_id: transcript.id,
+        fireflies_meeting_id: transcript.id,
+        transcript_url: transcript.meeting_url,
+        title: transcript.title,
+        call_date: transcript.date,
+        participants: transcript.participants,
+        duration_minutes: transcript.duration_minutes,
+        transcript_text: transcript.summary || 'Fireflies transcript',
+        source: 'fireflies',
+        auto_linked: false,
+      });
+      if (error) {
+        if (error.code === '23505') toast.info("Already linked");
+        else throw error;
+      } else {
+        toast.success("Transcript linked");
+        setFfResults(prev => prev.filter(r => r.id !== transcript.id));
+        onTranscriptLinked?.();
+      }
+    } catch (error) {
+      toast.error("Failed to link transcript");
+    } finally {
+      setFfLinking(null);
+    }
+  };
+
+  // Link by URL
+  const handleLinkByUrl = async () => {
+    const url = firefliesUrl.trim();
+    if (!url) return;
+    setLinkingUrl(true);
+    try {
+      const match = url.match(/fireflies\.ai\/view\/([^/?#]+)/);
+      const transcriptId = match ? match[1] : `url-${Date.now()}`;
+      const { error } = await supabase.from('deal_transcripts').insert({
+        listing_id: dealId,
+        fireflies_transcript_id: transcriptId,
+        transcript_url: url,
+        title: match ? `Fireflies: ${transcriptId}` : 'Fireflies Transcript',
+        transcript_text: 'Linked via URL - pending fetch',
+        source: 'fireflies',
+        auto_linked: false,
+      });
+      if (error) {
+        if (error.code === '23505') toast.info("Already linked");
+        else throw error;
+      } else {
+        toast.success("Transcript linked");
+        setFirefliesUrl("");
+        onTranscriptLinked?.();
+      }
+    } catch (error) {
+      toast.error("Failed to link");
+    } finally {
+      setLinkingUrl(false);
+    }
+  };
+
+  // File upload handler
+  const handleFfFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files?.length) return;
+    setFfUploading(true);
+    let successCount = 0;
+    for (const file of Array.from(files)) {
+      const toastId = toast.loading(`Uploading ${file.name}...`);
+      try {
+        const textTypes = ['.txt', '.vtt', '.srt', '.md'];
+        const isTextFile = textTypes.some(ext => file.name.toLowerCase().endsWith(ext));
+        let transcriptText = '';
+        if (isTextFile) {
+          transcriptText = await file.text();
+        } else {
+          transcriptText = `Uploaded file: ${file.name} (${(file.size / 1024).toFixed(1)} KB)`;
+        }
+        const docTypes = ['.pdf', '.doc', '.docx'];
+        if (docTypes.some(ext => file.name.toLowerCase().endsWith(ext))) {
+          try {
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('listingId', dealId);
+            const { data, error } = await supabase.functions.invoke('parse-transcript-file', { body: formData });
+            if (!error && data?.text) transcriptText = data.text;
+          } catch { /* file parse failed, use fallback text */ }
+        }
+        const { error } = await supabase.from('deal_transcripts').insert({
+          listing_id: dealId,
+          fireflies_transcript_id: `upload-${Date.now()}-${file.name}`,
+          title: file.name.replace(/\.[^/.]+$/, ''),
+          transcript_text: transcriptText || `Uploaded: ${file.name}`,
+          source: 'upload',
+          auto_linked: false,
+        });
+        if (error) {
+          if (error.code === '23505') toast.info(`${file.name} already linked`, { id: toastId });
+          else throw error;
+        } else {
+          toast.success(`${file.name} uploaded`, { id: toastId });
+          successCount++;
+        }
+      } catch {
+        toast.error(`Failed to upload ${file.name}`, { id: toastId });
+      }
+    }
+    if (successCount > 0) onTranscriptLinked?.();
+    setFfUploading(false);
+    if (ffFileInputRef.current) ffFileInputRef.current.value = '';
+  };
+
+  return {
+    syncLoading,
+    lastSynced,
+    ffQuery,
+    setFfQuery,
+    ffSearchLoading,
+    ffResults,
+    ffLinking,
+    firefliesUrl,
+    setFirefliesUrl,
+    linkingUrl,
+    ffUploading,
+    ffFileInputRef,
+    handleFirefliesSync,
+    handleFfQuickSearch,
+    handleLinkSearchResult,
+    handleLinkByUrl,
+    handleFfFileUpload,
+  };
+}
