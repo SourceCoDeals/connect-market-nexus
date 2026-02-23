@@ -51,7 +51,7 @@ export function ApprovalEmailDialog({
 }: ApprovalEmailDialogProps) {
   const [customSubject, setCustomSubject] = useState("");
   const [customMessage, setCustomMessage] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading] = useState(false);
   const [customSignatureHtml, setCustomSignatureHtml] = useState("");
   const [customSignatureText, setCustomSignatureText] = useState("");
 
