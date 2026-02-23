@@ -26,7 +26,7 @@ describe('createListingFromData', () => {
   });
 
   it('throws error for null data', () => {
-    expect(() => createListingFromData(null)).toThrow('Cannot create listing from null data');
+    expect(() => createListingFromData(null as unknown as Record<string, any>)).toThrow('Cannot create listing from null data');
   });
 
   it('provides defaults for missing fields', () => {
@@ -53,13 +53,13 @@ describe('createListingFromData', () => {
   it('computes multiples correctly', () => {
     const listing = createListingFromData(validData);
     const multiple = 5000000 / 1000000;
-    expect(listing.multiples.revenue).toBe(multiple.toFixed(2));
-    expect(listing.multiples.value).toBe(`${multiple.toFixed(2)}x`);
+    expect(listing.multiples!.revenue).toBe(multiple.toFixed(2));
+    expect(listing.multiples!.value).toBe(`${multiple.toFixed(2)}x`);
   });
 
   it('handles zero ebitda for multiples', () => {
     const listing = createListingFromData({ ...validData, ebitda: 0 });
-    expect(listing.multiples.value).toBe('N/A');
+    expect(listing.multiples!.value).toBe('N/A');
   });
 
   it('handles categories array', () => {

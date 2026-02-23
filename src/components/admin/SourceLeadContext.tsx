@@ -22,7 +22,7 @@ export const SourceLeadContext = ({ request, className }: SourceLeadContextProps
     return null;
   }
 
-  const metadata = request.source_metadata;
+  const metadata = request.source_metadata as Record<string, string | number | undefined>;
   
   return (
     <Card className={`border border-blue-500/20 bg-blue-50/50 ${className}`}>
