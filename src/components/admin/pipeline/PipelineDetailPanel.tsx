@@ -14,8 +14,8 @@ import { usePipelineCore } from '@/hooks/admin/use-pipeline-core';
 import { PipelineDetailOverview } from './tabs/PipelineDetailOverview';
 import { PipelineDetailMessages } from './tabs/PipelineDetailMessages';
 import { PipelineDetailDataRoom } from './tabs/PipelineDetailDataRoom';
-import { PipelineDetailTasks } from './tabs/PipelineDetailTasks';
-import { PipelineDetailActivity } from './tabs/PipelineDetailActivity';
+import { PipelineDetailDealInfo } from './tabs/PipelineDetailDealInfo';
+import { PipelineDetailOtherBuyers } from './tabs/PipelineDetailOtherBuyers';
 import { DeleteDealDialog } from '@/components/admin/deals/DeleteDealDialog';
 
 interface PipelineDetailPanelProps {
@@ -109,17 +109,17 @@ export function PipelineDetailPanel({ pipeline }: PipelineDetailPanelProps) {
             <TabsTrigger value="overview" className="text-xs font-medium data-[state=active]:bg-background data-[state=active]:shadow-sm rounded-md">
               Overview
             </TabsTrigger>
+            <TabsTrigger value="dealinfo" className="text-xs font-medium data-[state=active]:bg-background data-[state=active]:shadow-sm rounded-md">
+              Deal Overview
+            </TabsTrigger>
             <TabsTrigger value="messages" className="text-xs font-medium data-[state=active]:bg-background data-[state=active]:shadow-sm rounded-md">
               Messages
             </TabsTrigger>
             <TabsTrigger value="dataroom" className="text-xs font-medium data-[state=active]:bg-background data-[state=active]:shadow-sm rounded-md">
               Data Room
             </TabsTrigger>
-            <TabsTrigger value="tasks" className="text-xs font-medium data-[state=active]:bg-background data-[state=active]:shadow-sm rounded-md">
-              Tasks
-            </TabsTrigger>
-            <TabsTrigger value="activity" className="text-xs font-medium data-[state=active]:bg-background data-[state=active]:shadow-sm rounded-md">
-              Activity
+            <TabsTrigger value="otherbuyers" className="text-xs font-medium data-[state=active]:bg-background data-[state=active]:shadow-sm rounded-md">
+              Other Buyers
             </TabsTrigger>
           </TabsList>
         </div>
@@ -128,17 +128,17 @@ export function PipelineDetailPanel({ pipeline }: PipelineDetailPanelProps) {
           <TabsContent value="overview" className="h-full mt-0 data-[state=active]:flex data-[state=active]:flex-col">
             <PipelineDetailOverview deal={selectedDeal} onSwitchTab={setActiveTab} />
           </TabsContent>
+          <TabsContent value="dealinfo" className="h-full mt-0 data-[state=active]:flex data-[state=active]:flex-col">
+            <PipelineDetailDealInfo deal={selectedDeal} />
+          </TabsContent>
           <TabsContent value="messages" className="h-full mt-0 data-[state=active]:flex data-[state=active]:flex-col">
             <PipelineDetailMessages deal={selectedDeal} />
           </TabsContent>
           <TabsContent value="dataroom" className="h-full mt-0 data-[state=active]:flex data-[state=active]:flex-col">
             <PipelineDetailDataRoom deal={selectedDeal} />
           </TabsContent>
-          <TabsContent value="tasks" className="h-full mt-0 data-[state=active]:flex data-[state=active]:flex-col">
-            <PipelineDetailTasks deal={selectedDeal} />
-          </TabsContent>
-          <TabsContent value="activity" className="h-full mt-0 data-[state=active]:flex data-[state=active]:flex-col">
-            <PipelineDetailActivity deal={selectedDeal} />
+          <TabsContent value="otherbuyers" className="h-full mt-0 data-[state=active]:flex data-[state=active]:flex-col">
+            <PipelineDetailOtherBuyers deal={selectedDeal} />
           </TabsContent>
         </div>
       </Tabs>

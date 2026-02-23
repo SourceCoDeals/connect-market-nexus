@@ -1,7 +1,7 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Pencil, Trash2, MessageSquare, Users, ExternalLink, Linkedin, Building2, Globe, Mail, Phone } from 'lucide-react';
+import { Pencil, Trash2, MessageSquare, ExternalLink, Linkedin, Building2, Globe, Mail, Phone } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { Deal } from '@/hooks/admin/use-deals';
 import { useAdminProfiles } from '@/hooks/admin/use-admin-profiles';
@@ -13,25 +13,20 @@ import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import { useDealComments, useCreateDealComment, useUpdateDealComment, useDeleteDealComment } from '@/hooks/admin/use-deal-comments';
 import { useConnectionRequestDetails } from '@/hooks/admin/use-connection-request-details';
-import { useConnectionMessages } from '@/hooks/use-connection-messages';
-
-import { cn } from '@/lib/utils';
 
 interface PipelineDetailOverviewProps {
   deal: Deal;
   onSwitchTab?: (tab: string) => void;
 }
 
-export function PipelineDetailOverview({ deal, onSwitchTab }: PipelineDetailOverviewProps) {
+export function PipelineDetailOverview({ deal }: PipelineDetailOverviewProps) {
   const { data: allAdminProfiles, isLoading: adminProfilesLoading } = useAdminProfiles();
   const updateDeal = useUpdateDeal();
   const updateDealFollowup = useUpdateDealFollowup();
   const { data: connectionRequestDetails } = useConnectionRequestDetails(deal.connection_request_id);
-  const { data: chatMessages = [] } = useConnectionMessages(deal.connection_request_id);
 
   const [followedUp, setFollowedUp] = React.useState(deal.followed_up || false);
   const [negativeFollowedUp, setNegativeFollowedUp] = React.useState(deal.negative_followed_up || false);
-  const [relatedBuyers, setRelatedBuyers] = React.useState<any[]>([]);
   const [buyerProfile, setBuyerProfile] = React.useState<any>(null);
 
   // Comments
@@ -95,22 +90,6 @@ export function PipelineDetailOverview({ deal, onSwitchTab }: PipelineDetailOver
     textareaRef.current?.focus();
   };
 
-  // Fetch related buyers (other approved deals for the same listing)
-  React.useEffect(() => {
-    const fetchRelated = async () => {
-      if (!deal.listing_id) return;
-      const { data } = await supabase
-        .from('deals')
-        .select('id, title, contact_name, contact_company, contact_email, stage_id, nda_status, fee_agreement_status')
-        .eq('listing_id', deal.listing_id)
-        .neq('id', deal.deal_id)
-        .is('deleted_at', null)
-        .limit(20);
-      setRelatedBuyers(data || []);
-    };
-    fetchRelated();
-  }, [deal.listing_id, deal.deal_id]);
-
   // Fetch buyer profile if we have a connection request
   React.useEffect(() => {
     const fetchProfile = async () => {
@@ -159,9 +138,6 @@ export function PipelineDetailOverview({ deal, onSwitchTab }: PipelineDetailOver
     });
   };
 
-  // Chat preview - first 3 messages
-  const chatPreview = chatMessages.slice(0, 3);
-
   return (
     <div className="flex-1 overflow-auto">
       <div className="flex gap-6 px-6 py-6">
@@ -180,77 +156,6 @@ export function PipelineDetailOverview({ deal, onSwitchTab }: PipelineDetailOver
                   <p className="text-sm text-foreground/80 whitespace-pre-wrap">{connectionRequestDetails.decision_notes}</p>
                 </div>
               )}
-            </div>
-          )}
-
-          {/* Chat Preview */}
-          {deal.connection_request_id && (
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <h3 className="text-sm font-medium text-foreground">Messages</h3>
-                {chatMessages.length > 3 && (
-                  <button
-                    onClick={() => onSwitchTab?.('messages')}
-                    className="text-xs text-primary hover:text-primary/80 transition-colors"
-                  >
-                    View All ({chatMessages.length})
-                  </button>
-                )}
-              </div>
-              {chatPreview.length > 0 ? (
-                <div className="space-y-2">
-                  {chatPreview.map((msg) => {
-                    const isAdmin = msg.sender_role === 'admin';
-                    const name = msg.sender
-                      ? `${msg.sender.first_name || ''} ${msg.sender.last_name || ''}`.trim() || 'Unknown'
-                      : isAdmin ? 'Admin' : 'Buyer';
-                    return (
-                      <div
-                        key={msg.id}
-                        className={cn(
-                          'rounded-lg px-3 py-2 text-sm',
-                          isAdmin ? 'bg-primary/5 border border-primary/10' : 'bg-muted/20 border border-border/30'
-                        )}
-                      >
-                        <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground mb-0.5">
-                          <span className="font-medium">{name}</span>
-                          <span>·</span>
-                          <span>{formatDistanceToNow(new Date(msg.created_at), { addSuffix: true })}</span>
-                        </div>
-                        <p className="text-foreground/90 line-clamp-2">{msg.body}</p>
-                      </div>
-                    );
-                  })}
-                </div>
-              ) : (
-                <p className="text-xs text-muted-foreground">No messages yet</p>
-              )}
-            </div>
-          )}
-
-          {/* Related Buyers */}
-          {relatedBuyers.length > 0 && (
-            <div className="space-y-2">
-              <div className="flex items-center gap-2">
-                <Users className="w-4 h-4 text-muted-foreground" />
-                <h3 className="text-sm font-medium text-foreground">Related Buyers ({relatedBuyers.length})</h3>
-              </div>
-              <div className="space-y-1.5">
-                {relatedBuyers.map((rb) => (
-                  <div key={rb.id} className="flex items-center justify-between p-2.5 border border-border/30 rounded-lg text-xs">
-                    <div className="min-w-0">
-                      <p className="font-medium text-foreground truncate">{rb.contact_name || 'Unknown'}</p>
-                      {rb.contact_company && (
-                        <p className="text-muted-foreground truncate">{rb.contact_company}</p>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-2 flex-shrink-0">
-                      <div className={cn('w-1.5 h-1.5 rounded-full', rb.nda_status === 'signed' ? 'bg-emerald-500' : 'bg-muted-foreground/30')} />
-                      <div className={cn('w-1.5 h-1.5 rounded-full', rb.fee_agreement_status === 'signed' ? 'bg-emerald-500' : 'bg-muted-foreground/30')} />
-                    </div>
-                  </div>
-                ))}
-              </div>
             </div>
           )}
 
