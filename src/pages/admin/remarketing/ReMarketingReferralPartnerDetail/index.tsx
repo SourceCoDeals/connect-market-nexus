@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -18,6 +19,7 @@ import { toast } from "sonner";
 import { AddPartnerDialog } from "@/components/remarketing/AddPartnerDialog";
 import { AddDealDialog } from "@/components/remarketing/AddDealDialog";
 import { DealImportDialog } from "@/components/remarketing/DealImportDialog";
+import { PushToDialerModal } from "@/components/remarketing/PushToDialerModal";
 import { SubmissionReviewQueue } from "@/components/remarketing/SubmissionReviewQueue";
 import { EnrichmentProgressIndicator } from "@/components/remarketing/EnrichmentProgressIndicator";
 import { SingleDealEnrichmentDialog } from "@/components/remarketing/SingleDealEnrichmentDialog";
@@ -30,6 +32,7 @@ export default function ReMarketingReferralPartnerDetail() {
   const { partnerId } = useParams<{ partnerId: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const [dialerOpen, setDialerOpen] = useState(false);
 
   const data = usePartnerData(partnerId);
   const actions = usePartnerActions(partnerId, data.partner, data.deals);
@@ -192,6 +195,8 @@ export default function ReMarketingReferralPartnerDetail() {
                 <div className="h-5 w-px bg-border" />
                 <Button size="sm" variant="outline" onClick={() => actions.setConfirmAction({ type: "archive", ids: Array.from(actions.selectedDealIds) })}><Archive className="h-4 w-4 mr-1" />Archive</Button>
                 <Button size="sm" variant="outline" className="text-destructive border-destructive/30 hover:bg-destructive/10" onClick={() => actions.setConfirmAction({ type: "delete", ids: Array.from(actions.selectedDealIds) })}><Trash2 className="h-4 w-4 mr-1" />Delete</Button>
+                <div className="h-5 w-px bg-border" />
+                <Button size="sm" variant="outline" onClick={() => setDialerOpen(true)} className="gap-2"><Phone className="h-4 w-4" />Push to Dialer</Button>
               </div>
             </div>
           )}
@@ -235,6 +240,13 @@ export default function ReMarketingReferralPartnerDetail() {
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
+        <PushToDialerModal
+          open={dialerOpen}
+          onOpenChange={setDialerOpen}
+          contactIds={Array.from(actions.selectedDealIds)}
+          contactCount={actions.selectedDealIds.size}
+          entityType="listings"
+        />
       </div>
     </TooltipProvider>
   );
