@@ -151,7 +151,32 @@ export function useDeals() {
 
       if (dealsError) throw dealsError;
 
-      return (deals || []).map((row: any) => {
+      // Filter: only show deals that are approved from marketplace,
+      // or from remarketing/manual sources (no connection_request_id)
+      const allRows = deals || [];
+      const crIds = allRows
+        .map((r: any) => r.connection_request_id)
+        .filter(Boolean) as string[];
+
+      let approvedCRIds = new Set<string>();
+      if (crIds.length > 0) {
+        // Batch lookup in chunks of 100
+        for (let i = 0; i < crIds.length; i += 100) {
+          const chunk = crIds.slice(i, i + 100);
+          const { data: approved } = await supabase
+            .from('connection_requests')
+            .select('id')
+            .in('id', chunk)
+            .eq('status', 'approved');
+          if (approved) approved.forEach((r: any) => approvedCRIds.add(r.id));
+        }
+      }
+
+      const filteredRows = allRows.filter((row: any) =>
+        !row.connection_request_id || approvedCRIds.has(row.connection_request_id)
+      );
+
+      return filteredRows.map((row: any) => {
         const listing = row.listing;
         const stage = row.stage;
         const admin = row.assigned_admin;
