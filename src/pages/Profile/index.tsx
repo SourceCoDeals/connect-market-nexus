@@ -4,6 +4,7 @@ import { DealAlertsTab } from "@/components/deal-alerts/DealAlertsTab";
 import { useProfileData } from "./useProfileData";
 import { ProfileForm } from "./ProfileForm";
 import { ProfileSecurity } from "./ProfileSecurity";
+import { ProfileDocuments } from "./ProfileDocuments";
 
 const Profile = () => {
   const {
@@ -37,6 +38,7 @@ const Profile = () => {
       <Tabs defaultValue="profile" className="w-full">
         <TabsList className="mb-6">
           <TabsTrigger value="profile">Profile Information</TabsTrigger>
+          <TabsTrigger value="documents">Documents</TabsTrigger>
           <TabsTrigger value="deal-alerts">Deal Alerts</TabsTrigger>
           <TabsTrigger value="security">Security</TabsTrigger>
         </TabsList>
@@ -52,6 +54,10 @@ const Profile = () => {
             onSetFormData={setFormData}
             onSubmit={handleProfileUpdate}
           />
+        </TabsContent>
+
+        <TabsContent value="documents">
+          <ProfileDocuments />
         </TabsContent>
 
         <TabsContent value="deal-alerts">

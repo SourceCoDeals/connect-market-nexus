@@ -273,7 +273,7 @@ async function processEvent(
     await createAdminNotification(supabase, firmId, firmName, docLabel, docusealStatus);
   }
 
-  // If completed, also sync to firm_members profiles
+  // If completed, sync to profiles AND send buyer notification with signed doc link
   if (docusealStatus === "completed") {
     try {
       const { data: members } = await supabase
@@ -292,6 +292,12 @@ async function processEvent(
             .update({ ...profileUpdates, updated_at: now })
             .eq("id", member.user_id);
         }
+
+        // Send buyer notification with signed document download link
+        const signedDocUrl = submissionData.documents?.[0]?.url;
+        await sendBuyerSignedDocNotification(
+          supabase, members, firmId, docLabel, signedDocUrl
+        );
       }
     } catch (syncError) {
       console.error("⚠️ Profile sync error:", syncError);
@@ -350,5 +356,67 @@ async function createAdminNotification(
     else console.log(`🔔 Created ${notifications.length} admin notifications for ${docLabel} ${status}`);
   } catch (err) {
     console.error("⚠️ Notification creation error:", err);
+  }
+}
+
+/**
+ * Send a notification + system message to all firm members with a link to download their signed document.
+ */
+async function sendBuyerSignedDocNotification(
+  supabase: any,
+  members: { user_id: string }[],
+  firmId: string,
+  docLabel: string,
+  signedDocUrl: string | null,
+) {
+  try {
+    const downloadNote = signedDocUrl
+      ? `You can download your signed copy from your Profile → Documents tab, or use this link: ${signedDocUrl}`
+      : `You can view your signed documents in your Profile → Documents tab.`;
+
+    for (const member of members) {
+      // Create a buyer-facing notification
+      await supabase.from("admin_notifications").insert({
+        admin_id: member.user_id, // reuse admin_notifications for buyer too
+        title: `${docLabel} Signed Successfully`,
+        message: `Your ${docLabel} has been signed and recorded. ${downloadNote}`,
+        notification_type: "agreement_signed",
+        metadata: {
+          firm_id: firmId,
+          document_type: docLabel.toLowerCase().replace(/ /g, "_"),
+          signed_document_url: signedDocUrl || null,
+        },
+        is_read: false,
+      });
+
+      // Insert a system message into their first connection_request thread
+      const { data: firstRequest } = await supabase
+        .from("connection_requests")
+        .select("id")
+        .eq("user_id", member.user_id)
+        .in("status", ["approved", "pending", "on_hold"])
+        .order("created_at", { ascending: true })
+        .limit(1)
+        .maybeSingle();
+
+      if (firstRequest) {
+        const messageBody = signedDocUrl
+          ? `✅ Your ${docLabel} has been signed successfully. For your compliance records, you can download the signed copy here: ${signedDocUrl}\n\nA copy is also permanently available in your Profile → Documents tab.`
+          : `✅ Your ${docLabel} has been signed successfully. A copy is available in your Profile → Documents tab.`;
+
+        await supabase.from("connection_messages").insert({
+          connection_request_id: firstRequest.id,
+          sender_role: "admin",
+          sender_id: null,
+          body: messageBody,
+          message_type: "system",
+          is_read_by_admin: true,
+          is_read_by_buyer: false,
+        });
+      }
+    }
+    console.log(`📨 Sent signed doc notifications to ${members.length} buyer(s) for ${docLabel}`);
+  } catch (err) {
+    console.error("⚠️ Buyer notification error:", err);
   }
 }
