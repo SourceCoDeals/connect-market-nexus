@@ -446,7 +446,7 @@ export function ConnectionRequestActions({
       {/* ── TWO-COLUMN LAYOUT ── */}
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-4">
         {/* ── LEFT: Conversation Thread ── */}
-        <div className="bg-card border border-border/40 rounded-xl overflow-hidden shadow-sm">
+        <div className="bg-card border-2 border-border/60 rounded-xl overflow-hidden shadow-md">
           {/* Tab bar */}
           <div className="border-b border-border/40 px-5 flex items-center">
             <button
@@ -711,30 +711,30 @@ function ConversationThread({
   
 
   return (
-    <div className="flex flex-col">
+    <div className="flex flex-col h-full">
       {/* Messages area */}
-      <div className="max-h-[400px] overflow-y-auto p-5 space-y-4 bg-muted/20">
+      <div className="min-h-[300px] max-h-[500px] overflow-y-auto p-6 space-y-5 bg-[#F8F9FB]">
         {/* Buyer's opening message — always first */}
         {buyerMessage && (
           <div>
-            <div className="flex items-center gap-2 mb-2">
-              <div className="w-7 h-7 rounded-full bg-gradient-to-br from-[#1E3A5F] to-[#3B82F6] flex items-center justify-center text-white text-[10px] font-bold shrink-0">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-9 h-9 rounded-full bg-gradient-to-br from-[#1E3A5F] to-[#3B82F6] flex items-center justify-center text-white text-xs font-bold shrink-0 shadow-sm">
                 {buyerInitials}
               </div>
               <div className="flex items-center gap-2 flex-1 min-w-0">
-                <span className="text-sm font-semibold text-foreground">{buyerName}</span>
-                <span className="text-[10px] text-muted-foreground">
+                <span className="text-[15px] font-semibold text-foreground">{buyerName}</span>
+                <span className="text-xs text-muted-foreground">
                   {submittedAt ? format(new Date(submittedAt), 'MMM d, yyyy') : ''}
                 </span>
               </div>
-              <Badge variant="outline" className="text-[10px] bg-primary/5 text-primary border-primary/20 shrink-0">
-                <Link2 className="h-2.5 w-2.5 mr-1" />
+              <Badge variant="outline" className="text-xs bg-amber-50 text-amber-700 border-amber-200 shrink-0 font-medium px-2.5 py-1">
+                <Link2 className="h-3 w-3 mr-1.5" />
                 Connection Request
               </Badge>
             </div>
-            <div className="ml-9">
-              <div className="bg-gradient-to-br from-[#1E3A5F] to-[#2563EB] text-white rounded-[14px_14px_14px_4px] px-4 py-3 shadow-sm">
-                <p className="text-[13px] leading-relaxed">{buyerMessage}</p>
+            <div className="ml-12">
+              <div className="bg-gradient-to-br from-[#1E3A5F] to-[#2563EB] text-white rounded-2xl rounded-tl-sm px-5 py-4 shadow-md">
+                <p className="text-sm leading-relaxed">{buyerMessage}</p>
               </div>
             </div>
           </div>
@@ -742,13 +742,18 @@ function ConversationThread({
 
         {/* No messages empty state */}
         {messages.length === 0 && !buyerMessage && (
-          <p className="text-xs text-muted-foreground italic text-center py-4">
-            No messages yet — respond below to start the conversation.
-          </p>
+          <div className="flex flex-col items-center justify-center py-12 text-center">
+            <div className="w-12 h-12 rounded-full bg-muted/50 flex items-center justify-center mb-3">
+              <Send className="h-5 w-5 text-muted-foreground/50" />
+            </div>
+            <p className="text-sm text-muted-foreground">
+              No messages yet — respond below to start the conversation.
+            </p>
+          </div>
         )}
 
         {messages.length === 0 && buyerMessage && (
-          <p className="text-xs text-muted-foreground italic text-center py-2">
+          <p className="text-sm text-muted-foreground italic text-center py-3">
             No replies yet — respond below to start the conversation.
           </p>
         )}
@@ -757,42 +762,42 @@ function ConversationThread({
         {messages.map((msg) => (
           <div key={msg.id}>
             {msg.message_type === "decision" || msg.message_type === "system" ? (
-              <div className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-2 text-center">
-                <p className="text-xs text-amber-800">{msg.body}</p>
-                <span className="text-[10px] text-amber-600 mt-0.5 block">
+              <div className="bg-amber-50 border border-amber-200 rounded-lg px-5 py-3 text-center mx-auto max-w-md">
+                <p className="text-sm text-amber-800">{msg.body}</p>
+                <span className="text-xs text-amber-600 mt-1 block">
                   {formatDistanceToNow(new Date(msg.created_at), { addSuffix: true })}
                 </span>
               </div>
             ) : msg.sender_role === "admin" ? (
               <div className="flex flex-col items-end">
-                <div className="flex items-center gap-1.5 mb-1.5">
-                  <span className="text-[10px] text-muted-foreground">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-xs text-muted-foreground">
                     {formatDistanceToNow(new Date(msg.created_at), { addSuffix: true })}
                   </span>
-                  <span className="text-xs font-semibold text-foreground">You</span>
-                  <div className="w-6 h-6 rounded-full bg-muted flex items-center justify-center text-[10px] font-bold text-muted-foreground">
+                  <span className="text-sm font-semibold text-foreground">You</span>
+                  <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center text-xs font-bold text-muted-foreground">
                     SC
                   </div>
                 </div>
-                <div className="bg-muted/60 text-foreground rounded-[14px_14px_4px_14px] px-4 py-3 max-w-[80%]">
-                  <p className="text-[13px] leading-relaxed">{msg.body}</p>
+                <div className="mr-10 bg-muted text-foreground rounded-2xl rounded-tr-sm px-5 py-4 max-w-[85%] shadow-sm">
+                  <p className="text-sm leading-relaxed">{msg.body}</p>
                 </div>
               </div>
             ) : (
               <div>
-                <div className="flex items-center gap-2 mb-1.5">
-                  <div className="w-6 h-6 rounded-full bg-gradient-to-br from-[#1E3A5F] to-[#3B82F6] flex items-center justify-center text-white text-[9px] font-bold">
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#1E3A5F] to-[#3B82F6] flex items-center justify-center text-white text-[10px] font-bold shadow-sm">
                     {buyerInitials}
                   </div>
-                  <span className="text-xs font-semibold text-foreground">
+                  <span className="text-sm font-semibold text-foreground">
                     {msg.sender?.first_name || buyerName}
                   </span>
-                  <span className="text-[10px] text-muted-foreground">
+                  <span className="text-xs text-muted-foreground">
                     {formatDistanceToNow(new Date(msg.created_at), { addSuffix: true })}
                   </span>
                 </div>
-                <div className="ml-8 bg-card border border-border/40 text-foreground rounded-[14px_14px_14px_4px] px-4 py-3 max-w-[80%]">
-                  <p className="text-[13px] leading-relaxed">{msg.body}</p>
+                <div className="ml-10 bg-card border border-border/50 text-foreground rounded-2xl rounded-tl-sm px-5 py-4 max-w-[85%] shadow-sm">
+                  <p className="text-sm leading-relaxed">{msg.body}</p>
                 </div>
               </div>
             )}
@@ -802,8 +807,8 @@ function ConversationThread({
       </div>
 
       {/* Composer */}
-      <div className="border-t border-border/40 p-4 bg-card">
-        <div className="border border-border/60 rounded-lg overflow-hidden focus-within:border-primary/40 focus-within:ring-1 focus-within:ring-primary/20 transition-all">
+      <div className="border-t-2 border-border/50 p-5 bg-card">
+        <div className="border-2 border-border/60 rounded-xl overflow-hidden focus-within:border-primary/50 focus-within:ring-2 focus-within:ring-primary/15 transition-all bg-background">
           <textarea
             rows={3}
             placeholder="Reply to this buyer..."
@@ -815,17 +820,17 @@ function ConversationThread({
                 handleSend();
               }
             }}
-            className="w-full border-none resize-none text-[13px] text-foreground bg-transparent px-4 py-3 focus:outline-none placeholder:text-muted-foreground"
+            className="w-full border-none resize-none text-sm text-foreground bg-transparent px-5 py-4 focus:outline-none placeholder:text-muted-foreground/60"
           />
-          <div className="flex items-center justify-between px-3 py-2 border-t border-border/30 bg-muted/20">
-            <span className="text-[10px] text-muted-foreground">⌘ + Enter to send</span>
+          <div className="flex items-center justify-between px-4 py-3 border-t border-border/30 bg-muted/30">
+            <span className="text-xs text-muted-foreground">⌘ + Enter to send</span>
             <Button
               size="sm"
               onClick={handleSend}
               disabled={!newMessage.trim() || sendMsg.isPending}
-              className="h-7 px-3 text-xs bg-[#1E3A5F] hover:bg-[#162D4A] text-white"
+              className="h-9 px-5 text-sm font-semibold bg-[#1E3A5F] hover:bg-[#162D4A] text-white shadow-sm"
             >
-              <Send className="h-3 w-3 mr-1.5" />
+              <Send className="h-3.5 w-3.5 mr-2" />
               Send Reply
             </Button>
           </div>
