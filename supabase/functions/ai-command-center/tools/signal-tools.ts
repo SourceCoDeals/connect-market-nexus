@@ -71,6 +71,22 @@ export const signalTools: ClaudeTool[] = [
       required: [],
     },
   },
+  {
+    name: 'get_buyer_learning_history',
+    description: 'Get the learning history of buyer approve/pass decisions with scores at the time of each decision — shows what score a buyer had when approved or passed, which dimension scores (geography, size, service, owner_goals) drove the decision, and the pass reason/category. Use to understand patterns in buyer decisions and score-to-decision correlations.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        buyer_id: { type: 'string', description: 'Filter by buyer UUID' },
+        deal_id: { type: 'string', description: 'Filter by deal/listing UUID' },
+        universe_id: { type: 'string', description: 'Filter by buyer universe UUID' },
+        action: { type: 'string', enum: ['approved', 'passed', 'hidden', 'all'], description: 'Filter by decision action (default "all")' },
+        pass_category: { type: 'string', description: 'Filter by pass category: geographic_mismatch, size_mismatch, service_mismatch, acquisition_timing, competition, other' },
+        limit: { type: 'number', description: 'Max results (default 50)' },
+      },
+      required: [],
+    },
+  },
 ];
 
 // ---------- Executor ----------
@@ -85,6 +101,7 @@ export async function executeSignalTool(
     case 'get_buyer_decisions': return getBuyerDecisions(supabase, args);
     case 'get_score_history': return getScoreHistory(supabase, args);
     case 'get_interest_signals': return getInterestSignals(supabase, args);
+    case 'get_buyer_learning_history': return getBuyerLearningHistory(supabase, args);
     default: return { error: `Unknown signal tool: ${toolName}` };
   }
 }
@@ -243,6 +260,46 @@ async function getInterestSignals(
       signals,
       total: signals.length,
       converted: signals.filter(s => s.converted_to_connection).length,
+    },
+  };
+}
+
+async function getBuyerLearningHistory(
+  supabase: SupabaseClient,
+  args: Record<string, unknown>,
+): Promise<ToolResult> {
+  const limit = Math.min(Number(args.limit) || 50, 500);
+  const action = (args.action as string) || 'all';
+
+  let query = supabase
+    .from('buyer_learning_history')
+    .select('id, buyer_id, listing_id, universe_id, score_id, action, pass_reason, pass_category, composite_score, geography_score, size_score, service_score, owner_goals_score, score_at_decision, action_by, created_at')
+    .order('created_at', { ascending: false })
+    .limit(limit);
+
+  if (args.buyer_id) query = query.eq('buyer_id', args.buyer_id as string);
+  if (args.deal_id) query = query.eq('listing_id', args.deal_id as string);
+  if (args.universe_id) query = query.eq('universe_id', args.universe_id as string);
+  if (action !== 'all') query = query.eq('action', action);
+  if (args.pass_category) query = query.eq('pass_category', args.pass_category as string);
+
+  const { data, error } = await query;
+  if (error) return { error: error.message };
+
+  const records = data || [];
+  const byAction: Record<string, number> = {};
+  const byPassCategory: Record<string, number> = {};
+  for (const r of records) {
+    byAction[r.action] = (byAction[r.action] || 0) + 1;
+    if (r.pass_category) byPassCategory[r.pass_category] = (byPassCategory[r.pass_category] || 0) + 1;
+  }
+
+  return {
+    data: {
+      history: records,
+      total: records.length,
+      by_action: byAction,
+      pass_by_category: byPassCategory,
     },
   };
 }

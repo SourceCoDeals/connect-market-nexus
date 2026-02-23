@@ -24,6 +24,20 @@ export const analyticsTools: ClaudeTool[] = [
     },
   },
   {
+    name: 'get_industry_trackers',
+    description: 'Get industry trackers — named industry verticals that group deals and buyers together with custom scoring weights. Each tracker is linked to a buyer universe and shows deal count, buyer count, and scoring configuration (geography/size/service weights). Use to understand which industries SourceCo tracks and their scoring setup.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        search: { type: 'string', description: 'Search by tracker name or description' },
+        universe_id: { type: 'string', description: 'Filter by associated buyer universe UUID' },
+        active_only: { type: 'boolean', description: 'Only show active (non-archived) trackers (default true)' },
+        limit: { type: 'number', description: 'Max results (default 50)' },
+      },
+      required: [],
+    },
+  },
+  {
     name: 'get_analytics',
     description: 'Get pipeline analytics — deal counts, revenue totals, conversion rates, scoring distributions, and time-based trends. Use for dashboards, reports, and pipeline health checks.',
     input_schema: {
@@ -50,9 +64,47 @@ export async function executeAnalyticsTool(
 ): Promise<ToolResult> {
   switch (toolName) {
     case 'get_enrichment_status': return getEnrichmentStatus(supabase, args);
+    case 'get_industry_trackers': return getIndustryTrackers(supabase, args);
     case 'get_analytics': return getAnalytics(supabase, args);
     default: return { error: `Unknown analytics tool: ${toolName}` };
   }
+}
+
+async function getIndustryTrackers(
+  supabase: SupabaseClient,
+  args: Record<string, unknown>,
+): Promise<ToolResult> {
+  const limit = Math.min(Number(args.limit) || 50, 200);
+
+  let query = supabase
+    .from('industry_trackers')
+    .select('id, name, description, universe_id, deal_count, buyer_count, color, is_active, archived, geography_weight, service_mix_weight, size_weight, owner_goals_weight, geography_mode, size_criteria, service_criteria, geography_criteria, created_at, updated_at')
+    .order('deal_count', { ascending: false })
+    .limit(limit);
+
+  if (args.active_only !== false) query = query.eq('archived', false);
+  if (args.universe_id) query = query.eq('universe_id', args.universe_id as string);
+
+  const { data, error } = await query;
+  if (error) return { error: error.message };
+
+  let results = data || [];
+  if (args.search) {
+    const term = (args.search as string).toLowerCase();
+    results = results.filter(t =>
+      t.name?.toLowerCase().includes(term) ||
+      t.description?.toLowerCase().includes(term)
+    );
+  }
+
+  return {
+    data: {
+      trackers: results,
+      total: results.length,
+      total_deals: results.reduce((s, t) => s + (t.deal_count || 0), 0),
+      total_buyers: results.reduce((s, t) => s + (t.buyer_count || 0), 0),
+    },
+  };
 }
 
 async function getEnrichmentStatus(

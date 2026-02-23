@@ -1,0 +1,210 @@
+/**
+ * Deal Extra Tools
+ * Deal comments, referrals, listing conversations, scoring adjustments.
+ */
+
+import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
+import type { ClaudeTool } from "../../_shared/claude-client.ts";
+import type { ToolResult } from "./index.ts";
+
+// ---------- Tool definitions ----------
+
+export const dealExtraTools: ClaudeTool[] = [
+  {
+    name: 'get_deal_comments',
+    description: 'Get internal admin comments on deals — free-form notes and observations left by deal team members on a deal. Different from deal_activities (structured log) — these are threaded discussion comments with mentions.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        deal_id: { type: 'string', description: 'Filter by deal/listing UUID' },
+        days: { type: 'number', description: 'Lookback period in days (default 30)' },
+        limit: { type: 'number', description: 'Max results (default 50)' },
+      },
+      required: [],
+    },
+  },
+  {
+    name: 'get_deal_referrals',
+    description: 'Get deal referral emails — tracking when a deal listing was shared via email referral. Shows recipient, open/conversion status, delivery tracking, and whether the referral led to a connection request.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        deal_id: { type: 'string', description: 'Filter by deal/listing UUID' },
+        converted: { type: 'boolean', description: 'Filter by whether the referral converted to a connection request' },
+        opened: { type: 'boolean', description: 'Filter by whether the referral email was opened' },
+        days: { type: 'number', description: 'Lookback period in days (default 90)' },
+        limit: { type: 'number', description: 'Max results (default 100)' },
+      },
+      required: [],
+    },
+  },
+  {
+    name: 'get_deal_conversations',
+    description: 'Get listing conversation threads with their messages — messaging threads attached to a deal between admins and buyers/sellers. Includes internal admin notes (is_internal_note=true) and buyer-facing messages.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        deal_id: { type: 'string', description: 'Filter by deal/listing UUID' },
+        connection_request_id: { type: 'string', description: 'Filter by specific connection request UUID' },
+        status: { type: 'string', description: 'Filter conversations by status' },
+        limit: { type: 'number', description: 'Max conversations to return (default 25)' },
+      },
+      required: [],
+    },
+  },
+  {
+    name: 'get_deal_scoring_adjustments',
+    description: 'Get scoring weight adjustments and custom AI instructions for a deal — geography/size/service weight multipliers, custom scoring instructions, and historical pass/approve counts by dimension. Use to understand why a deal\'s buyer scoring is tuned differently from defaults.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        deal_id: { type: 'string', description: 'Filter by deal/listing UUID' },
+        limit: { type: 'number', description: 'Max results (default 10)' },
+      },
+      required: [],
+    },
+  },
+];
+
+// ---------- Executor ----------
+
+export async function executeDealExtraTool(
+  supabase: SupabaseClient,
+  toolName: string,
+  args: Record<string, unknown>,
+): Promise<ToolResult> {
+  switch (toolName) {
+    case 'get_deal_comments': return getDealComments(supabase, args);
+    case 'get_deal_referrals': return getDealReferrals(supabase, args);
+    case 'get_deal_conversations': return getDealConversations(supabase, args);
+    case 'get_deal_scoring_adjustments': return getDealScoringAdjustments(supabase, args);
+    default: return { error: `Unknown deal extra tool: ${toolName}` };
+  }
+}
+
+// ---------- Implementations ----------
+
+async function getDealComments(
+  supabase: SupabaseClient,
+  args: Record<string, unknown>,
+): Promise<ToolResult> {
+  const limit = Math.min(Number(args.limit) || 50, 200);
+  const days = Number(args.days) || 30;
+  const cutoff = new Date(Date.now() - days * 86400000).toISOString();
+
+  let query = supabase
+    .from('deal_comments')
+    .select('id, deal_id, admin_id, comment_text, mentioned_admins, created_at, updated_at')
+    .gte('created_at', cutoff)
+    .order('created_at', { ascending: false })
+    .limit(limit);
+
+  if (args.deal_id) query = query.eq('deal_id', args.deal_id as string);
+
+  const { data, error } = await query;
+  if (error) return { error: error.message };
+
+  return { data: { comments: data || [], total: (data || []).length } };
+}
+
+async function getDealReferrals(
+  supabase: SupabaseClient,
+  args: Record<string, unknown>,
+): Promise<ToolResult> {
+  const limit = Math.min(Number(args.limit) || 100, 500);
+  const days = Number(args.days) || 90;
+  const cutoff = new Date(Date.now() - days * 86400000).toISOString();
+
+  let query = supabase
+    .from('deal_referrals')
+    .select('id, listing_id, referrer_user_id, recipient_email, recipient_name, personal_message, opened, opened_at, converted, converted_at, delivery_status, sent_at, created_at')
+    .gte('created_at', cutoff)
+    .order('created_at', { ascending: false })
+    .limit(limit);
+
+  if (args.deal_id) query = query.eq('listing_id', args.deal_id as string);
+  if (args.converted === true) query = query.eq('converted', true);
+  if (args.converted === false) query = query.eq('converted', false);
+  if (args.opened === true) query = query.eq('opened', true);
+
+  const { data, error } = await query;
+  if (error) return { error: error.message };
+
+  const referrals = data || [];
+  return {
+    data: {
+      referrals,
+      total: referrals.length,
+      opened: referrals.filter(r => r.opened).length,
+      converted: referrals.filter(r => r.converted).length,
+    },
+  };
+}
+
+async function getDealConversations(
+  supabase: SupabaseClient,
+  args: Record<string, unknown>,
+): Promise<ToolResult> {
+  const limit = Math.min(Number(args.limit) || 25, 100);
+
+  let convQuery = supabase
+    .from('listing_conversations')
+    .select('id, listing_id, connection_request_id, user_id, admin_id, status, created_at, updated_at')
+    .order('updated_at', { ascending: false })
+    .limit(limit);
+
+  if (args.deal_id) convQuery = convQuery.eq('listing_id', args.deal_id as string);
+  if (args.connection_request_id) convQuery = convQuery.eq('connection_request_id', args.connection_request_id as string);
+  if (args.status) convQuery = convQuery.eq('status', args.status as string);
+
+  const { data: conversations, error } = await convQuery;
+  if (error) return { error: error.message };
+
+  const convs = conversations || [];
+  if (convs.length === 0) return { data: { conversations: [], total: 0, total_messages: 0 } };
+
+  // Fetch messages for all returned conversations
+  const convIds = convs.map(c => c.id);
+  const { data: messages } = await supabase
+    .from('listing_messages')
+    .select('id, conversation_id, sender_type, message_text, is_internal_note, read_at, created_at')
+    .in('conversation_id', convIds)
+    .order('created_at', { ascending: true })
+    .limit(500);
+
+  const msgsByConv: Record<string, unknown[]> = {};
+  for (const m of (messages || [])) {
+    if (!msgsByConv[m.conversation_id]) msgsByConv[m.conversation_id] = [];
+    msgsByConv[m.conversation_id].push(m);
+  }
+
+  const enriched = convs.map(c => ({ ...c, messages: msgsByConv[c.id] || [] }));
+
+  return {
+    data: {
+      conversations: enriched,
+      total: enriched.length,
+      total_messages: (messages || []).length,
+    },
+  };
+}
+
+async function getDealScoringAdjustments(
+  supabase: SupabaseClient,
+  args: Record<string, unknown>,
+): Promise<ToolResult> {
+  const limit = Math.min(Number(args.limit) || 10, 50);
+
+  let query = supabase
+    .from('deal_scoring_adjustments')
+    .select('id, listing_id, adjustment_type, adjustment_value, reason, created_by, geography_weight_mult, size_weight_mult, services_weight_mult, custom_instructions, approved_count, rejected_count, passed_geography, passed_size, passed_services, last_calculated_at, created_at, updated_at')
+    .order('updated_at', { ascending: false })
+    .limit(limit);
+
+  if (args.deal_id) query = query.eq('listing_id', args.deal_id as string);
+
+  const { data, error } = await query;
+  if (error) return { error: error.message };
+
+  return { data: { adjustments: data || [], total: (data || []).length } };
+}
