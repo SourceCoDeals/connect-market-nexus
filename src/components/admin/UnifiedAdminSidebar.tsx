@@ -149,12 +149,6 @@ export function UnifiedAdminSidebar({ collapsed, onCollapsedChange }: AdminSideb
             badge: unviewedConnectionRequestsCount,
           },
           {
-            label: "Messages",
-            href: "/admin/marketplace/messages",
-            icon: <Mail className="h-4 w-4" />,
-            badge: unreadMessages?.total || 0,
-          },
-          {
             label: "Marketplace Users",
             href: "/admin/marketplace/users",
             icon: <UserCog className="h-4 w-4" />,
@@ -350,8 +344,8 @@ export function UnifiedAdminSidebar({ collapsed, onCollapsedChange }: AdminSideb
           </button>
         </div>
 
-        {/* Dashboard - standalone top item */}
-        <div className="px-3 pb-1">
+        {/* Dashboard + Messages - standalone top items */}
+        <div className="px-3 pb-1 space-y-0.5">
           <SidebarLink
             href="/admin"
             icon={<LayoutDashboard className="h-4 w-4" />}
@@ -359,8 +353,15 @@ export function UnifiedAdminSidebar({ collapsed, onCollapsedChange }: AdminSideb
             isActive={location.pathname === "/admin" || location.pathname === "/admin/dashboard"}
             collapsed={collapsed}
           />
+          <SidebarLink
+            href="/admin/marketplace/messages"
+            icon={<Mail className="h-4 w-4" />}
+            label="Messages"
+            isActive={location.pathname === "/admin/marketplace/messages"}
+            collapsed={collapsed}
+            badge={unreadMessages?.total || 0}
+          />
         </div>
-
 
         {/* Scrollable sections */}
         <nav className="flex-1 overflow-y-auto px-3 py-1 space-y-0.5">
