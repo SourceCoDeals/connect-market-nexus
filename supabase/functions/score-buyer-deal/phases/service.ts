@@ -17,10 +17,10 @@ export async function calculateServiceScore(
   customInstructions?: string
 ): Promise<ServiceResult> {
   const dealServices = (listing.services || listing.categories || [listing.category])
-    .filter(Boolean).map((s: string) => s?.toLowerCase().trim());
+    .filter(Boolean).map((s) => String(s).toLowerCase().trim());
 
   const buyerTargetServices = (buyer.target_services || [])
-    .filter(Boolean).map((s: string) => s?.toLowerCase().trim());
+    .filter(Boolean).map((s) => String(s).toLowerCase().trim());
 
   const buyerServicesOffered = (buyer.services_offered || '')
     .toLowerCase().split(/[,;]/).map((s: string) => s.trim()).filter(Boolean);
@@ -258,7 +258,7 @@ export function calculateServiceOverlap(
   buyer: Buyer
 ): { percentage: number; matchingServices: string[]; allDealServices: string[] } {
   const dealServices = (listing.services || listing.categories || [listing.category])
-    .filter(Boolean).map((s: string) => s?.toLowerCase().trim());
+    .filter(Boolean).map((s) => String(s).toLowerCase().trim());
 
   // Include target_industries and industry_vertical as additional buyer service signals
   const buyerServices = [
@@ -266,7 +266,7 @@ export function calculateServiceOverlap(
     ...(buyer.target_industries || []),
     ...(buyer.services_offered || '').split(/[,;]/).filter(Boolean),
     ...(buyer.industry_vertical || '').split(/[,;]/).filter(Boolean),
-  ].map((s: string) => s?.toLowerCase().trim()).filter(Boolean);
+  ].map((s) => String(s).toLowerCase().trim()).filter(Boolean);
 
   if (buyerServices.length === 0 || dealServices.length === 0) {
     return { percentage: 0, matchingServices: [], allDealServices: dealServices };
