@@ -7,6 +7,11 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.47.10";
  * Updates DocuSeal-specific fields, legacy booleans, AND expanded status fields on firm_agreements.
  * Creates admin_notifications on key events.
  * Includes idempotency checks via docuseal_webhook_log.
+ *
+ * DocuSeal sends a custom secret header (not HMAC). The header name is
+ * configured in DocuSeal's dashboard (Key) and the value must match
+ * DOCUSEAL_WEBHOOK_SECRET. Default header name: "onboarding-secret".
+ * Override via DOCUSEAL_WEBHOOK_SECRET_HEADER env var if needed.
  */
 
 // DocuSeal webhook verification — checks custom headers for a matching secret value.

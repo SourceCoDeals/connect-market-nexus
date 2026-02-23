@@ -22,21 +22,7 @@ interface TestResult {
   durationMs: number;
 }
 
-// ── HMAC-SHA256 signing (matches webhook handler's verification) ──
-async function hmacSign(body: string, secret: string): Promise<string> {
-  const encoder = new TextEncoder();
-  const key = await crypto.subtle.importKey(
-    "raw",
-    encoder.encode(secret),
-    { name: "HMAC", hash: "SHA-256" },
-    false,
-    ["sign"]
-  );
-  const sig = await crypto.subtle.sign("HMAC", key, encoder.encode(body));
-  return Array.from(new Uint8Array(sig))
-    .map((b) => b.toString(16).padStart(2, "0"))
-    .join("");
-}
+// No HMAC needed — DocuSeal uses a simple custom header with the raw secret value.
 
 async function runTest(
   id: string,
@@ -273,7 +259,7 @@ serve(async (req: Request) => {
         }
         testFirmId = testFirm.id;
 
-        // Construct the webhook payload DocuSeal would send on form.completed
+        // Construct the webhook payload DocuSeal would send on form.viewed
         const webhookPayload = JSON.stringify({
           event_type: "form.viewed",
           timestamp: new Date().toISOString(),
@@ -287,16 +273,17 @@ serve(async (req: Request) => {
           },
         });
 
-        // Sign it with HMAC (same algorithm the handler verifies)
-        const signature = await hmacSign(webhookPayload, webhookSecret);
+        // DocuSeal sends the raw secret value in a custom header (not HMAC).
+        // Header name matches the Key configured in DocuSeal's webhook dashboard.
+        const secretHeader = Deno.env.get("DOCUSEAL_WEBHOOK_SECRET_HEADER") || "onboarding-secret";
 
-        // POST to our own webhook handler
+        // POST to our own webhook handler with the secret header
         const webhookUrl = `${supabaseUrl}/functions/v1/docuseal-webhook-handler`;
         const resp = await fetch(webhookUrl, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            "x-docuseal-signature": signature,
+            [secretHeader]: webhookSecret,
           },
           body: webhookPayload,
         });
@@ -389,12 +376,12 @@ serve(async (req: Request) => {
             documents: [],
           },
         });
-        const signature = await hmacSign(webhookPayload, webhookSecret);
+        const secretHeader2 = Deno.env.get("DOCUSEAL_WEBHOOK_SECRET_HEADER") || "onboarding-secret";
         const resp = await fetch(`${supabaseUrl}/functions/v1/docuseal-webhook-handler`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            "x-docuseal-signature": signature,
+            [secretHeader2]: webhookSecret,
           },
           body: webhookPayload,
         });
