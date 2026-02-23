@@ -483,9 +483,9 @@ async function sendBuyerSignedDocNotification(
         .order('created_at', { ascending: false });
 
       if (activeRequests && activeRequests.length > 0) {
-        const messageBody = signedDocUrl
-          ? `✅ Your ${docLabel} has been signed successfully. For your compliance records, you can download the signed copy here: ${signedDocUrl}\n\nA copy is also permanently available in your Profile → Documents tab.`
-          : `✅ Your ${docLabel} has been signed successfully. A copy is available in your Profile → Documents tab.`;
+        // Always use a stable message — never embed raw DocuSeal URLs which can expire.
+        // The signed document is downloadable via the banner on the Messages page.
+        const messageBody = `✅ Your ${docLabel} has been signed successfully and is on file. You can download a permanent copy using the Download PDF button in the Documents section at the top of your Messages page.`;
 
         for (const req of activeRequests) {
           // Dedup system messages: check if one already exists for this connection + doc type
