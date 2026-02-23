@@ -126,7 +126,7 @@ serve(async (req: Request) => {
       }
     }
 
-    // Build DocuSeal submission payload
+    // Build DocuSeal submission payload (use sanitizedMetadata to prevent XSS)
     const submissionPayload: any = {
       template_id: parseInt(templateId),
       send_email: deliveryMode === "email",
@@ -136,9 +136,9 @@ serve(async (req: Request) => {
           email: signerEmail,
           name: signerName,
           external_id: firmId,
-          ...(Object.keys(metadata).length > 0
+          ...(Object.keys(sanitizedMetadata).length > 0
             ? {
-                fields: Object.entries(metadata).map(([name, value]) => ({
+                fields: Object.entries(sanitizedMetadata).map(([name, value]) => ({
                   name,
                   default_value: value,
                 })),
@@ -197,14 +197,19 @@ serve(async (req: Request) => {
     const embedSrc = submitter.embed_src || null;
     const slug = submitter.slug || null;
 
-    // Update firm_agreements with submission info
+    // Update firm_agreements with submission info AND expanded status
     const columnPrefix = documentType === "nda" ? "nda" : "fee";
+    const statusColumn = documentType === "nda" ? "nda_status" : "fee_agreement_status";
+    const sentAtColumn = documentType === "nda" ? "nda_sent_at" : "fee_agreement_sent_at";
+    const now = new Date().toISOString();
     const { error: updateError } = await supabaseAdmin
       .from("firm_agreements")
       .update({
         [`${columnPrefix}_docuseal_submission_id`]: submissionId,
         [`${columnPrefix}_docuseal_status`]: "pending",
-        updated_at: new Date().toISOString(),
+        [statusColumn]: "sent",
+        [sentAtColumn]: now,
+        updated_at: now,
       })
       .eq("id", firmId);
 
@@ -251,11 +256,12 @@ serve(async (req: Request) => {
         });
         console.log(`🔔 Created notification for buyer ${buyerProfile.id} — ${docLabel} pending (${deliveryMode})`);
 
-        // Send a system message to ALL of the buyer's active connection request threads
+        // Send a system message to the buyer's active connection request threads (exclude rejected)
         const { data: buyerRequests } = await supabaseAdmin
           .from("connection_requests")
           .select("id")
           .eq("user_id", buyerProfile.id)
+          .in("status", ["approved", "pending", "on_hold"])
           .order("created_at", { ascending: false });
 
         if (buyerRequests && buyerRequests.length > 0) {
