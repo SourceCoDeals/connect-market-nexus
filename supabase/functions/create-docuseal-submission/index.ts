@@ -251,31 +251,38 @@ serve(async (req: Request) => {
         });
         console.log(`🔔 Created notification for buyer ${buyerProfile.id} — ${docLabel} pending (${deliveryMode})`);
 
-        // Send a system message to the buyer's most recent connection request thread
-        const { data: latestRequest } = await supabaseAdmin
+        // Send a system message to ALL of the buyer's active connection request threads
+        const { data: buyerRequests } = await supabaseAdmin
           .from("connection_requests")
           .select("id")
           .eq("user_id", buyerProfile.id)
-          .order("created_at", { ascending: false })
-          .limit(1)
-          .maybeSingle();
+          .order("created_at", { ascending: false });
 
-        if (latestRequest?.id) {
+        if (buyerRequests && buyerRequests.length > 0) {
           const systemMessageBody =
             documentType === "nda"
               ? "📋 **NDA Ready to Sign**\n\nThis is our standard Non-Disclosure Agreement so we can freely exchange confidential information about the companies on our platform. It's a one-time signing — once done, you'll have full access to every deal.\n\nYou can sign it directly from your notification bell or the banner on the My Deals page."
               : "📋 **Fee Agreement Ready to Sign**\n\nHere is our fee agreement. You only pay a fee if you successfully close a deal with a company you first meet on our platform — no upfront cost.\n\nYou can sign it directly from your notification bell or the banner on the My Deals page.";
 
-          await supabaseAdmin.from("connection_messages").insert({
-            connection_request_id: latestRequest.id,
+          const messageInserts = buyerRequests.map((req) => ({
+            connection_request_id: req.id,
             sender_role: "admin",
             sender_id: null,
             body: systemMessageBody,
             message_type: "system",
             is_read_by_admin: true,
             is_read_by_buyer: false,
-          });
-          console.log(`💬 Sent system message to connection ${latestRequest.id} for ${docLabel}`);
+          }));
+
+          const { error: msgError } = await supabaseAdmin
+            .from("connection_messages")
+            .insert(messageInserts);
+
+          if (msgError) {
+            console.error("⚠️ Failed to insert system messages:", msgError);
+          } else {
+            console.log(`💬 Sent system messages to ${buyerRequests.length} connection(s) for ${docLabel}`);
+          }
         }
       }
     }

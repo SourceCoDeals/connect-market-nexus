@@ -7,19 +7,18 @@ import { cn } from '@/lib/utils';
 import { formatDistanceToNow } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
 import { useState, useEffect, useRef } from 'react';
-import { AgreementSigningModal } from '@/components/docuseal/AgreementSigningModal';
-import { toast } from 'sonner';
+import { AgreementAlertModal } from './AgreementAlertModal';
 
 export function BuyerNotificationBell() {
   const { notifications, unreadCount, isLoading } = useUserNotifications();
   const markAsRead = useMarkNotificationAsRead();
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
-  const [signingOpen, setSigningOpen] = useState(false);
-  const [signingType, setSigningType] = useState<'nda' | 'fee_agreement'>('nda');
+  const [alertModalOpen, setAlertModalOpen] = useState(false);
+  const [alertDocType, setAlertDocType] = useState<'nda' | 'fee_agreement'>('nda');
   const seenNotificationIds = useRef<Set<string>>(new Set());
 
-  // Show toast popup when new agreement_pending notifications arrive
+  // Show big modal popup when new agreement_pending notifications arrive
   useEffect(() => {
     const agreementNotifications = notifications.filter(
       n => n.notification_type === 'agreement_pending' && !n.is_read
@@ -30,23 +29,9 @@ export function BuyerNotificationBell() {
       seenNotificationIds.current.add(n.id);
 
       const docType = n.metadata?.document_type as string;
-      const isNda = docType === 'nda';
-
-      toast(n.title, {
-        description: isNda
-          ? 'This is our standard NDA so we can freely exchange information about the companies on our platform. Sign it to unlock full deal access.'
-          : 'Here is our fee agreement — you only pay a fee if you close a deal you meet on our platform. Sign to continue.',
-        duration: 12000,
-        icon: <FileSignature className="w-5 h-5 text-amber-600" />,
-        action: {
-          label: isNda ? 'Sign NDA' : 'Sign Agreement',
-          onClick: () => {
-            setSigningType(isNda ? 'nda' : 'fee_agreement');
-            setSigningOpen(true);
-            markAsRead.mutate(n.id);
-          },
-        },
-      });
+      setAlertDocType(docType === 'fee_agreement' ? 'fee_agreement' : 'nda');
+      setAlertModalOpen(true);
+      break; // Show one at a time
     }
   }, [notifications]);
 
@@ -89,10 +74,8 @@ export function BuyerNotificationBell() {
     } else if (n.notification_type === 'new_message' && n.connection_request_id) {
       navigate(`/messages?deal=${n.connection_request_id}`);
     } else if (n.notification_type === 'agreement_pending') {
-      // Open signing modal directly
-      const docType = n.metadata?.document_type as string;
-      setSigningType(docType === 'fee_agreement' ? 'fee_agreement' : 'nda');
-      setSigningOpen(true);
+      // Navigate to messages where they can find the agreement details
+      navigate('/messages');
     } else if (n.notification_type === 'request_approved' && n.connection_request_id) {
       navigate(`/deals/${n.connection_request_id}`);
     } else if (n.connection_request_id) {
@@ -202,10 +185,10 @@ export function BuyerNotificationBell() {
       </PopoverContent>
     </Popover>
 
-    <AgreementSigningModal
-      open={signingOpen}
-      onOpenChange={setSigningOpen}
-      documentType={signingType}
+    <AgreementAlertModal
+      open={alertModalOpen}
+      documentType={alertDocType}
+      onDismiss={() => setAlertModalOpen(false)}
     />
     </>
   );
