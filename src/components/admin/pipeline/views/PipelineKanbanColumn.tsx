@@ -40,9 +40,9 @@ export function PipelineKanbanColumn({ stage, deals, onDealClick, onOpenCreateDe
       <div
         ref={setNodeRef}
         className={`h-full flex flex-col rounded-xl transition-colors duration-200 ${
-          isOver ? 'ring-2 ring-primary/50 bg-primary/5' : 'bg-muted/40'
+          isOver ? 'ring-2 ring-primary/50' : ''
         }`}
-        style={{ padding: '18px' }}
+        style={{ padding: '18px', backgroundColor: isOver ? 'hsl(46 33% 95%)' : 'hsl(50 38% 93%)', fontFamily: 'Montserrat, Inter, sans-serif' }}
       >
         {/* Column Header */}
         <div className="mb-4 pb-3.5 border-b-2 border-border/40">
