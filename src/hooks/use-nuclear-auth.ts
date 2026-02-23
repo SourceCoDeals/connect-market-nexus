@@ -341,7 +341,9 @@ export function useNuclearAuth() {
         });
         // Admin notification sent for new user registration
       } catch (notificationError) {
-        console.warn('Admin notification failed but user creation succeeded:', notificationError);
+        logger.warn('Admin notification failed but user creation succeeded', 'useNuclearAuth', {
+          error: String(notificationError),
+        });
       }
     }
   };
