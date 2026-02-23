@@ -19,7 +19,6 @@ import {
   Shield,
   CheckCircle,
   MessageSquarePlus,
-  Download,
 } from "lucide-react";
 import {
   useConnectionMessages,
@@ -561,6 +560,73 @@ function BuyerMessagesSkeleton() {
 }
 
 /**
+ * Button that downloads a document PDF. Uses cached URL if available,
+ * otherwise calls the get-document-download edge function.
+ */
+function DownloadDocButton({
+  documentUrl,
+  draftUrl,
+  documentType,
+  label,
+  variant = 'outline',
+}: {
+  documentUrl: string | null;
+  draftUrl: string | null;
+  documentType: 'nda' | 'fee_agreement';
+  label: string;
+  variant?: 'outline' | 'default';
+}) {
+  const [loading, setLoading] = useState(false);
+  const { toast } = useToast();
+
+  const handleDownload = async () => {
+    const cachedUrl = documentUrl || draftUrl;
+    if (cachedUrl && cachedUrl.startsWith('https://')) {
+      window.open(cachedUrl, '_blank', 'noopener,noreferrer');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke(
+        `get-document-download?document_type=${documentType}`,
+      );
+
+      if (error) {
+        toast({ title: 'Download Failed', description: 'Could not retrieve document.', variant: 'destructive' });
+        return;
+      }
+
+      if (data?.url) {
+        window.open(data.url, '_blank', 'noopener,noreferrer');
+      } else {
+        toast({ title: 'Not Available', description: 'Document is not yet available for download.', variant: 'destructive' });
+      }
+    } catch {
+      toast({ title: 'Download Failed', description: 'Something went wrong.', variant: 'destructive' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <Button
+      variant={variant}
+      size="sm"
+      onClick={handleDownload}
+      disabled={loading}
+    >
+      {loading ? (
+        <span className="h-3.5 w-3.5 mr-1.5 animate-spin rounded-full border-2 border-current border-t-transparent" />
+      ) : (
+        <FileSignature className="h-3.5 w-3.5 mr-1.5" />
+      )}
+      {label}
+    </Button>
+  );
+}
+
+/**
  * PendingAgreementBanner — shows at top of messages page.
  * Shows pending documents to sign OR already-signed documents with download links.
  * Automatically hides when there's nothing to show.
@@ -732,16 +798,12 @@ function PendingAgreementBanner() {
               <div className="flex items-center gap-2 shrink-0">
                 {item.signed ? (
                   <>
-                    {item.documentUrl && item.documentUrl.startsWith('https://') && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => window.open(item.documentUrl!, '_blank', 'noopener,noreferrer')}
-                      >
-                        <Download className="h-3.5 w-3.5 mr-1.5" />
-                        Download PDF
-                      </Button>
-                    )}
+                    <DownloadDocButton
+                      documentUrl={item.documentUrl}
+                      draftUrl={item.draftUrl}
+                      documentType={item.type}
+                      label="Download PDF"
+                    />
                     <Button
                       variant="ghost"
                       size="sm"
@@ -757,16 +819,13 @@ function PendingAgreementBanner() {
                   </>
                 ) : (
                   <>
-                    {item.draftUrl && item.draftUrl.startsWith('https://') && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => window.open(item.draftUrl!, '_blank', 'noopener,noreferrer')}
-                      >
-                        <Download className="h-3.5 w-3.5 mr-1.5" />
-                        Download Draft
-                      </Button>
-                    )}
+                    <DownloadDocButton
+                      documentUrl={null}
+                      draftUrl={item.draftUrl}
+                      documentType={item.type}
+                      label="Download Draft"
+                      variant="outline"
+                    />
                     <Button
                       variant="ghost"
                       size="sm"
