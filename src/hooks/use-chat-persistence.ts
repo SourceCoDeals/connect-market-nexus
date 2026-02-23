@@ -11,6 +11,7 @@ import {
   type ConversationContext,
   type Conversation,
 } from '@/integrations/supabase/chat-persistence';
+import { logger } from '@/lib/logger';
 
 interface UseChatPersistenceOptions {
   context: ConversationContext;
@@ -29,7 +30,7 @@ export function useChatPersistence(options: UseChatPersistenceOptions) {
     try {
       const { success, conversations: data } = await loadConversationsByContext(
         options.context,
-        10
+        10,
       );
 
       if (success && data) {
@@ -42,7 +43,7 @@ export function useChatPersistence(options: UseChatPersistenceOptions) {
         }
       }
     } catch (error) {
-      console.error('[use-chat-persistence] Load error:', error);
+      logger.error('Load error', 'useChatPersistence', { error: String(error) });
     } finally {
       setIsLoading(false);
     }
@@ -75,13 +76,13 @@ export function useChatPersistence(options: UseChatPersistenceOptions) {
 
         return { success: false };
       } catch (error) {
-        console.error('[use-chat-persistence] Save error:', error);
+        logger.error('Save error', 'useChatPersistence', { error: String(error) });
         return { success: false, error: String(error) };
       } finally {
         setIsSaving(false);
       }
     },
-    [conversationId, options.context, loadConversations]
+    [conversationId, options.context, loadConversations],
   );
 
   // Start a new conversation
@@ -90,13 +91,10 @@ export function useChatPersistence(options: UseChatPersistenceOptions) {
   }, []);
 
   // Load a specific conversation
-  const loadConversation = useCallback(
-    (conversation: Conversation) => {
-      setConversationId(conversation.id);
-      return conversation.messages;
-    },
-    []
-  );
+  const loadConversation = useCallback((conversation: Conversation) => {
+    setConversationId(conversation.id);
+    return conversation.messages;
+  }, []);
 
   // Archive a conversation
   const archive = useCallback(
@@ -113,7 +111,7 @@ export function useChatPersistence(options: UseChatPersistenceOptions) {
       }
       return { success };
     },
-    [conversationId]
+    [conversationId],
   );
 
   // Load conversations on mount if context changes

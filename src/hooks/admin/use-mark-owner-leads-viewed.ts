@@ -32,7 +32,9 @@ export function useMarkOwnerLeadsViewed() {
       // Invalidate the unviewed count query to reset the badge
       queryClient.invalidateQueries({ queryKey: ['unviewed-owner-leads-count'] });
     } catch (error) {
-      console.error('Error marking owner leads as viewed:', error);
+      logger.error('Error marking owner leads as viewed', 'useMarkOwnerLeadsViewed', {
+        error: String(error),
+      });
     }
   };
 
