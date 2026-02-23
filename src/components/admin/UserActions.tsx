@@ -4,7 +4,7 @@ import { useAdminUsers } from "@/hooks/admin/use-admin-users";
 import { useAdminEmail } from "@/hooks/admin/use-admin-email";
 import { useAutoCreateFirmOnApproval } from "@/hooks/admin/use-docuseal";
 import { ApprovalEmailDialog } from "./ApprovalEmailDialog";
-
+import { ApprovalSuccessDialog } from "./ApprovalSuccessDialog";
 import { UserConfirmationDialog } from "./UserConfirmationDialog";
 import { User } from "@/types";
 import { ApprovalEmailOptions } from "@/types/admin-users";
@@ -16,6 +16,7 @@ interface UserActionsProps {
 
 interface DialogState {
   approval: boolean;
+  approvalSuccess: boolean;
   makeAdmin: boolean;
   revokeAdmin: boolean;
   delete: boolean;
@@ -42,10 +43,13 @@ export function UserActions({ onUserStatusUpdated }: UserActionsProps) {
   const deleteUserMutation = useDeleteUser();
   
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  const [approvedUser, setApprovedUser] = useState<User | null>(null);
+  const [emailSent, setEmailSent] = useState(false);
   
   // Separate dialog states for each action
   const [dialogState, setDialogState] = useState<DialogState>({
     approval: false,
+    approvalSuccess: false,
     makeAdmin: false,
     revokeAdmin: false,
     delete: false
@@ -54,6 +58,7 @@ export function UserActions({ onUserStatusUpdated }: UserActionsProps) {
   const closeAllDialogs = () => {
     setDialogState({
       approval: false,
+      approvalSuccess: false,
       makeAdmin: false,
       revokeAdmin: false,
       delete: false
@@ -163,10 +168,8 @@ export function UserActions({ onUserStatusUpdated }: UserActionsProps) {
     try {
       await updateUserStatusMutation.mutateAsync({ userId: user.id, status: "approved" });
 
-      toast({
-        title: "User approved",
-        description: `${user.firstName} ${user.lastName} has been approved and can now access the marketplace`,
-      });
+      // Store approved user for success dialog
+      setApprovedUser(user);
 
       // Step 2: Auto-create firm agreement and prepare NDA signing
       try {
@@ -177,19 +180,17 @@ export function UserActions({ onUserStatusUpdated }: UserActionsProps) {
       }
 
       // Step 3: Send email as a separate, non-blocking operation
+      let emailSuccess = false;
       try {
         await sendCustomApprovalEmail(user, options);
-        toast({
-          title: "Email sent successfully",
-          description: `Welcome email delivered to ${user.email}`,
-        });
+        emailSuccess = true;
       } catch (emailError) {
-        toast({
-          variant: 'default',
-          title: 'Email sending failed',
-          description: 'User was approved successfully, but welcome email failed to send.',
-        });
+        // Email failed but approval succeeded
       }
+
+      // Show success confirmation dialog
+      setEmailSent(emailSuccess);
+      setDialogState(prev => ({ ...prev, approvalSuccess: true }));
 
       if (onUserStatusUpdated) onUserStatusUpdated();
       
@@ -216,14 +217,27 @@ export function UserActions({ onUserStatusUpdated }: UserActionsProps) {
     selectedUser,
     isLoading: updateUserStatusMutation.isPending || updateAdminStatusMutation.isPending || deleteUserMutation.isPending,
     ApprovalEmailDialog: () => (
-      <ApprovalEmailDialog
-        open={dialogState.approval}
-        onOpenChange={(open) => {
-          if (!open) closeAllDialogs();
-        }}
-        user={selectedUser}
-        onSendApprovalEmail={handleCustomApprovalEmail}
-      />
+      <>
+        <ApprovalEmailDialog
+          open={dialogState.approval}
+          onOpenChange={(open) => {
+            if (!open) closeAllDialogs();
+          }}
+          user={selectedUser}
+          onSendApprovalEmail={handleCustomApprovalEmail}
+        />
+        <ApprovalSuccessDialog
+          open={dialogState.approvalSuccess}
+          onOpenChange={(open: boolean) => {
+            if (!open) {
+              setDialogState(prev => ({ ...prev, approvalSuccess: false }));
+              setApprovedUser(null);
+            }
+          }}
+          user={approvedUser}
+          emailSent={emailSent}
+        />
+      </>
     ),
     AdminDialog: () => (
       <UserConfirmationDialog
