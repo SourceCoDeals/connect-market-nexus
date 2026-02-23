@@ -468,14 +468,11 @@ export function ReMarketingChat({
         <Button
           onClick={() => setIsOpen(true)}
           size="lg"
-          className="rounded-full h-20 w-20 shadow-2xl hover:scale-110 transition-transform border-4 border-background"
-          style={{ backgroundColor: 'hsl(var(--primary))' }}
+          className="rounded-full h-20 w-20 shadow-2xl hover:scale-110 transition-transform border-4 border-background bg-[#DEC76B] hover:bg-[#d4bc5f]"
         >
           <svg viewBox="0 0 24 24" fill="none" className="h-9 w-9" xmlns="http://www.w3.org/2000/svg">
-            <rect x="2" y="3" width="20" height="14" rx="2" fill="hsl(var(--foreground))" />
-            <path d="M2 5l10 7 10-7" stroke="hsl(var(--primary))" strokeWidth="1.5" fill="none" />
-            <path d="M2 17l7-5" stroke="hsl(var(--primary))" strokeWidth="1.5" />
-            <path d="M22 17l-7-5" stroke="hsl(var(--primary))" strokeWidth="1.5" />
+            <rect x="2" y="4" width="20" height="13" rx="2" stroke="#0E101A" strokeWidth="1.8" fill="none" />
+            <path d="M2 6l10 6 10-6" stroke="#0E101A" strokeWidth="1.8" fill="none" />
           </svg>
         </Button>
       </div>
