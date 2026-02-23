@@ -144,6 +144,27 @@ function extractExternalParticipants(attendees: any[]): { name: string; email: s
 }
 
 /**
+ * Paginated participant email search helper.
+ */
+async function paginatedSearchEmails(emails: string[], batchSize: number, maxPages: number): Promise<any[]> {
+  const results: any[] = [];
+  let skip = 0;
+  for (let page = 0; page < maxPages; page++) {
+    const data = await firefliesGraphQL(PARTICIPANT_SEARCH_QUERY, {
+      participants: emails,
+      limit: batchSize,
+      skip,
+    });
+    const batch = data.transcripts || [];
+    results.push(...batch);
+    if (batch.length < batchSize) break;
+    skip += batchSize;
+  }
+  return results;
+}
+
+
+/**
  * Sync Fireflies transcripts for a deal.
  *
  * Improvements:
@@ -198,28 +219,60 @@ serve(async (req) => {
     // === Phase 1: Email-based participant search ===
     const matchingTranscripts: any[] = [];
     const transcriptMatchType = new Map<string, 'email' | 'keyword'>();
+    const seenIds = new Set<string>();
 
     if (validEmails.length > 0) {
-      // Search using Fireflies native participants filter (supports array)
-      let skip = 0;
       const batchSize = 50;
       const maxPages = 10;
 
-      for (let page = 0; page < maxPages; page++) {
-        const data = await firefliesGraphQL(PARTICIPANT_SEARCH_QUERY, {
-          participants: validEmails,
-          limit: batchSize,
-          skip,
-        });
-        const batch = data.transcripts || [];
-        matchingTranscripts.push(...batch);
-        batch.forEach((t: any) => { if (t.id) transcriptMatchType.set(t.id, 'email'); });
+      // Search with combined emails array
+      const combinedResults = await paginatedSearchEmails(validEmails, batchSize, maxPages);
+      for (const t of combinedResults) {
+        if (t.id && !seenIds.has(t.id)) {
+          seenIds.add(t.id);
+          matchingTranscripts.push(t);
+          transcriptMatchType.set(t.id, 'email');
+        }
+      }
+      console.log(`Combined participant search returned ${combinedResults.length} transcripts`);
 
-        if (batch.length < batchSize || matchingTranscripts.length >= limit) break;
-        skip += batchSize;
+      // Also search each email individually to catch transcripts the combined search misses
+      // (Fireflies may use AND logic for the participants array filter)
+      for (const email of validEmails) {
+        const individualResults = await paginatedSearchEmails([email], batchSize, maxPages);
+        for (const t of individualResults) {
+          if (t.id && !seenIds.has(t.id)) {
+            seenIds.add(t.id);
+            matchingTranscripts.push(t);
+            transcriptMatchType.set(t.id, 'email');
+          }
+        }
+        console.log(`Individual search [${email}] added ${individualResults.filter(t => !seenIds.has(t.id)).length} new transcripts`);
       }
 
-      console.log(`Participant search returned ${matchingTranscripts.length} transcripts`);
+      // Also search each email as a keyword (catches organizer-only matches)
+      for (const email of validEmails.slice(0, 3)) {
+        try {
+          let skip = 0;
+          for (let page = 0; page < 4; page++) {
+            const data = await firefliesGraphQL(KEYWORD_SEARCH_QUERY, { keyword: email, limit: batchSize, skip });
+            const batch = data.transcripts || [];
+            for (const t of batch) {
+              if (t.id && !seenIds.has(t.id)) {
+                seenIds.add(t.id);
+                matchingTranscripts.push(t);
+                transcriptMatchType.set(t.id, 'email');
+              }
+            }
+            if (batch.length < batchSize) break;
+            skip += batchSize;
+          }
+        } catch (err) {
+          console.warn(`Keyword search for email ${email} failed:`, err);
+        }
+      }
+
+      console.log(`Total participant search returned ${matchingTranscripts.length} unique transcripts`);
     }
 
     // Deduplicate

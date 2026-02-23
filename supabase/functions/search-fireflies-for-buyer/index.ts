@@ -263,17 +263,46 @@ serve(async (req) => {
     // === Phase 1: Primary search — emails + keyword in parallel ===
     const searches: Promise<{ results: any[]; type: 'email' | 'keyword' }>[] = [];
 
-    // Participant search for each email (batched into single API call since Fireflies supports arrays)
+    // Search each email individually AND as a group to maximize results.
+    // Fireflies' participants filter may use AND logic with arrays,
+    // so individual searches catch transcripts where only one email matches.
     if (validEmails.length > 0) {
+      // Combined array search
       searches.push(
         (async () => {
           const results = await paginatedFetch(PARTICIPANT_SEARCH_QUERY, {
             participants: validEmails,
-          });
-          console.log(`Participant search [${validEmails.join(', ')}] returned ${results.length} results`);
+          }, 8, 50);
+          console.log(`Combined participant search [${validEmails.join(', ')}] returned ${results.length} results`);
           return { results, type: 'email' as const };
         })()
       );
+
+      // Individual email searches (to catch transcripts the combined search misses)
+      for (const email of validEmails) {
+        searches.push(
+          (async () => {
+            const results = await paginatedFetch(PARTICIPANT_SEARCH_QUERY, {
+              participants: [email],
+            }, 8, 50);
+            console.log(`Individual participant search [${email}] returned ${results.length} results`);
+            return { results, type: 'email' as const };
+          })()
+        );
+      }
+
+      // Also search each email as a keyword (catches organizer-only matches)
+      for (const email of validEmails.slice(0, 3)) {
+        searches.push(
+          (async () => {
+            const results = await paginatedFetch(KEYWORD_SEARCH_QUERY, {
+              keyword: email,
+            }, 4, 50);
+            console.log(`Email keyword search "${email}" returned ${results.length} results`);
+            return { results, type: 'email' as const };
+          })()
+        );
+      }
     }
 
     // Keyword search if provided
@@ -282,7 +311,7 @@ serve(async (req) => {
         (async () => {
           const results = await paginatedFetch(KEYWORD_SEARCH_QUERY, {
             keyword: trimmedQuery,
-          });
+          }, 8, 50);
           console.log(`Keyword search "${trimmedQuery}" returned ${results.length} results`);
           return { results, type: 'keyword' as const };
         })()
