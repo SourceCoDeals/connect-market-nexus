@@ -1,5 +1,5 @@
-import { Suspense, type ReactNode } from 'react';
-import { Routes, Route } from 'react-router-dom';
+import { Suspense, lazy, type ReactNode, type ComponentType } from 'react';
+import { Routes, Route, Navigate, useParams } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 import { AuthProvider } from '@/context/AuthContext';
@@ -12,11 +12,8 @@ import { Toaster as SonnerToaster } from '@/components/ui/sonner';
 import { SimpleToastProvider } from '@/components/ui/simple-toast';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { errorHandler } from '@/lib/error-handler';
-
-import { PublicRoutes } from '@/routes/public-routes';
-import { BuyerRoutes } from '@/routes/buyer-routes';
-import { AdminRoutes } from '@/routes/admin-routes';
-import { MAIntelligenceRoutes } from '@/routes/ma-intelligence-routes';
+import ProtectedRoute from '@/components/ProtectedRoute';
+import { RoleGate } from '@/components/admin/RoleGate';
 
 function AppProviders({ children }: { children: ReactNode }) {
   return (
@@ -78,6 +75,9 @@ const ListingDetail = lazyWithRetry(() => import("@/pages/ListingDetail"));
 const MyRequests = lazyWithRetry(() => import("@/pages/MyRequests"));
 const BuyerMessages = lazyWithRetry(() => import("@/pages/BuyerMessages"));
 const SavedListings = lazyWithRetry(() => import("@/pages/SavedListings"));
+
+// Admin layout
+const MainLayout = lazyWithRetry(() => import("@/components/MainLayout"));
 
 // Admin layout
 const AdminLayout = lazyWithRetry(() => import("@/components/admin/AdminLayout"));

@@ -9632,6 +9632,141 @@ export type Database = {
       }
     }
     Views: {
+      data_room_access_status: {
+        Row: {
+          access_status: string | null
+          access_token: string | null
+          can_view_data_room: boolean | null
+          can_view_full_memo: boolean | null
+          can_view_teaser: boolean | null
+          contact_id: string | null
+          deal_id: string | null
+          expires_at: string | null
+          fee_agreement_override: boolean | null
+          fee_agreement_override_by: string | null
+          fee_agreement_override_reason: string | null
+          granted_at: string | null
+          granted_by: string | null
+          id: string | null
+          last_access_at: string | null
+          last_modified_at: string | null
+          last_modified_by: string | null
+          link_sent_at: string | null
+          link_sent_to_email: string | null
+          link_sent_via: string | null
+          marketplace_user_id: string | null
+          remarketing_buyer_id: string | null
+          revoked_at: string | null
+        }
+        Insert: {
+          access_status?: never
+          access_token?: string | null
+          can_view_data_room?: boolean | null
+          can_view_full_memo?: boolean | null
+          can_view_teaser?: boolean | null
+          contact_id?: string | null
+          deal_id?: string | null
+          expires_at?: string | null
+          fee_agreement_override?: boolean | null
+          fee_agreement_override_by?: string | null
+          fee_agreement_override_reason?: string | null
+          granted_at?: string | null
+          granted_by?: string | null
+          id?: string | null
+          last_access_at?: string | null
+          last_modified_at?: string | null
+          last_modified_by?: string | null
+          link_sent_at?: string | null
+          link_sent_to_email?: string | null
+          link_sent_via?: string | null
+          marketplace_user_id?: string | null
+          remarketing_buyer_id?: string | null
+          revoked_at?: string | null
+        }
+        Update: {
+          access_status?: never
+          access_token?: string | null
+          can_view_data_room?: boolean | null
+          can_view_full_memo?: boolean | null
+          can_view_teaser?: boolean | null
+          contact_id?: string | null
+          deal_id?: string | null
+          expires_at?: string | null
+          fee_agreement_override?: boolean | null
+          fee_agreement_override_by?: string | null
+          fee_agreement_override_reason?: string | null
+          granted_at?: string | null
+          granted_by?: string | null
+          id?: string | null
+          last_access_at?: string | null
+          last_modified_at?: string | null
+          last_modified_by?: string | null
+          link_sent_at?: string | null
+          link_sent_to_email?: string | null
+          link_sent_via?: string | null
+          marketplace_user_id?: string | null
+          remarketing_buyer_id?: string | null
+          revoked_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "data_room_access_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "data_room_access_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "linkedin_manual_review_queue"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "data_room_access_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "listings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "data_room_access_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "listings_needing_enrichment"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "data_room_access_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "marketplace_listings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "data_room_access_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "ranked_deals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "data_room_access_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "unmapped_primary_owners"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "data_room_access_remarketing_buyer_id_fkey"
+            columns: ["remarketing_buyer_id"]
+            isOneToOne: false
+            referencedRelation: "remarketing_buyers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       linkedin_manual_review_queue: {
         Row: {
           address_city: string | null
@@ -10122,6 +10257,52 @@ export type Database = {
           notes: string
           sent_at: string
           sent_by_name: string
+        }[]
+      }
+      get_deals_with_buyer_profiles: {
+        Args: never
+        Returns: {
+          admin_email: string
+          admin_first_name: string
+          admin_id: string
+          admin_last_name: string
+          buyer_quality_score: number
+          buyer_tier: number
+          buyer_type: string
+          buyer_website: string
+          connection_request_id: string
+          deal_created_at: string
+          deal_deleted_at: string
+          deal_description: string
+          deal_expected_close_date: string
+          deal_id: string
+          deal_priority: string
+          deal_probability: number
+          deal_source: string
+          deal_stage_entered_at: string
+          deal_title: string
+          deal_updated_at: string
+          deal_value: number
+          listing_category: string
+          listing_deal_total_score: number
+          listing_ebitda: number
+          listing_id: string
+          listing_image_url: string
+          listing_internal_company_name: string
+          listing_is_priority_target: boolean
+          listing_location: string
+          listing_needs_owner_contact: boolean
+          listing_revenue: number
+          listing_title: string
+          stage_color: string
+          stage_default_probability: number
+          stage_id: string
+          stage_is_active: boolean
+          stage_is_default: boolean
+          stage_is_system_stage: boolean
+          stage_name: string
+          stage_position: number
+          stage_type: string
         }[]
       }
       get_deals_with_details: {
