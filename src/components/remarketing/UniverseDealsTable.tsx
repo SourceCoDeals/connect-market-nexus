@@ -60,6 +60,7 @@ interface UniverseDeal {
     title: string;
     internal_company_name?: string;
     description?: string;
+    executive_summary?: string;
     location?: string;
     revenue?: number;
     ebitda?: number;
@@ -587,9 +588,9 @@ export const UniverseDealsTable = ({
                     </TableCell>
 
                     <TableCell style={{ width: w('description') }}>
-                      {deal.listing.description ? (
+                      {(deal.listing.description || deal.listing.executive_summary) ? (
                         <p className="text-sm text-muted-foreground line-clamp-2 overflow-hidden">
-                          {deal.listing.description}
+                          {deal.listing.description || deal.listing.executive_summary}
                         </p>
                       ) : (
                         <span className="text-sm text-muted-foreground">—</span>
