@@ -16,8 +16,9 @@ export function useUserFirm(userId: string | null) {
       if (!userId) return null;
 
       const { data, error } = await supabase
-        .from('firm_members' as never)
-        .select(`
+        .from('firm_members')
+        .select(
+          `
           firm_id,
           firm:firm_agreements!firm_members_firm_id_fkey (
             id,
@@ -26,7 +27,8 @@ export function useUserFirm(userId: string | null) {
             fee_agreement_signed,
             nda_signed
           )
-        `)
+        `,
+        )
         .eq('user_id', userId)
         .single();
 

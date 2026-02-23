@@ -30,7 +30,7 @@ export function useUpdateAgreementViaUser() {
 
   return useMutation({
     mutationFn: async ({ userId, agreementType, action, adminNotes }: UpdateAgreementParams) => {
-      const { data, error } = await supabase.rpc('update_agreement_via_user' as never, {
+      const { data, error } = await supabase.rpc('update_agreement_via_user', {
         p_user_id: userId,
         p_agreement_type: agreementType,
         p_action: action,
@@ -54,11 +54,16 @@ export function useUpdateAgreementViaUser() {
       const typeLabel = data.agreement_type === 'nda' ? 'NDA' : 'Fee Agreement';
       const actionLabel = (() => {
         switch (data.action) {
-          case 'sign': return 'marked as signed';
-          case 'unsign': return 'revoked';
-          case 'email_sent': return 'email marked as sent';
-          case 'email_unsent': return 'email marked as not sent';
-          default: return 'updated';
+          case 'sign':
+            return 'marked as signed';
+          case 'unsign':
+            return 'revoked';
+          case 'email_sent':
+            return 'email marked as sent';
+          case 'email_unsent':
+            return 'email marked as not sent';
+          default:
+            return 'updated';
         }
       })();
 
@@ -67,11 +72,11 @@ export function useUpdateAgreementViaUser() {
         description: `Applied to firm: ${data.firm_name}`,
       });
     },
-    onError: (error: Error) => {
+    onError: (error: any) => {
       toast({
-        variant: "destructive",
-        title: "Update failed",
-        description: error?.message || "Could not update agreement status",
+        variant: 'destructive',
+        title: 'Update failed',
+        description: error?.message || 'Could not update agreement status',
       });
     },
   });
@@ -88,8 +93,9 @@ export function useUserFirm(userId: string | undefined) {
 
       // Try firm_members first
       const { data: membership, error: memErr } = await supabase
-        .from('firm_members' as never)
-        .select(`
+        .from('firm_members')
+        .select(
+          `
           firm_id,
           firm:firm_agreements!firm_members_firm_id_fkey(
             id, primary_company_name, 
@@ -97,7 +103,8 @@ export function useUserFirm(userId: string | undefined) {
             fee_agreement_signed, fee_agreement_signed_at, fee_agreement_signed_by_name, 
             fee_agreement_email_sent, fee_agreement_email_sent_at, fee_agreement_status
           )
-        `)
+        `,
+        )
         .eq('user_id', userId)
         .limit(1)
         .maybeSingle();
@@ -107,7 +114,7 @@ export function useUserFirm(userId: string | undefined) {
 
       // Try email domain match
       const { data: profile } = await supabase
-        .from('profiles' as never)
+        .from('profiles')
         .select('email, company')
         .eq('id', userId)
         .maybeSingle();
@@ -118,13 +125,15 @@ export function useUserFirm(userId: string | undefined) {
       if (!domain) return null;
 
       const { data: firm } = await supabase
-        .from('firm_agreements' as never)
-        .select(`
+        .from('firm_agreements')
+        .select(
+          `
           id, primary_company_name,
           nda_signed, nda_signed_at, nda_signed_by_name, nda_email_sent, nda_email_sent_at, nda_status,
           fee_agreement_signed, fee_agreement_signed_at, fee_agreement_signed_by_name,
           fee_agreement_email_sent, fee_agreement_email_sent_at, fee_agreement_status
-        `)
+        `,
+        )
         .or(`email_domain.eq.${domain},website_domain.eq.${domain}`)
         .limit(1)
         .maybeSingle();

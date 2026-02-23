@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import type { Database } from '@/integrations/supabase/types';
 import { useToast } from '@/hooks/use-toast';
 // deal-activity-logger imported for future use
 
@@ -16,13 +17,13 @@ export interface Deal {
   deal_created_at: string;
   deal_updated_at: string;
   deal_stage_entered_at: string;
-  
+
   // Stage information
   stage_id: string;
   stage_name: string | null;
   stage_color: string;
   stage_position: number;
-  
+
   // Listing information
   listing_id: string;
   listing_title: string;
@@ -31,14 +32,14 @@ export interface Deal {
   listing_location: string;
   listing_category?: string;
   listing_real_company_name?: string;
-  
+
   // Contact information
   contact_name?: string;
   contact_email?: string;
   contact_company?: string;
   contact_phone?: string;
   contact_role?: string;
-  
+
   // Administrative status information
   nda_status: 'not_sent' | 'sent' | 'signed' | 'declined';
   fee_agreement_status: 'not_sent' | 'sent' | 'signed' | 'declined';
@@ -48,31 +49,31 @@ export interface Deal {
   negative_followed_up: boolean;
   negative_followed_up_at?: string;
   negative_followed_up_by?: string;
-  
+
   // Assignment information (Deal Owner)
   assigned_to?: string; // Deal Owner ID
   assigned_admin_name?: string;
   assigned_admin_email?: string;
   owner_assigned_at?: string;
   owner_assigned_by?: string;
-  
+
   // Primary Owner info (from listing)
   primary_owner_id?: string;
   primary_owner_name?: string;
   primary_owner_email?: string;
-  
+
   // Task counts
   total_tasks: number;
   pending_tasks: number;
   completed_tasks: number;
   pending_tasks_count?: number;
   completed_tasks_count?: number;
-  
+
   // Activity count
   activity_count: number;
   total_activities_count?: number;
   last_activity_at?: string;
-  
+
   // Enhanced buyer information (from profiles)
   buyer_id?: string;
   buyer_name?: string;
@@ -84,16 +85,16 @@ export interface Deal {
   buyer_quality_score?: number | null;
   buyer_tier?: number | null;
   buyer_website?: string;
-  
+
   // Real contact tracking
   last_contact_at?: string;
   last_contact_type?: 'email' | 'phone' | 'meeting' | 'note';
   next_followup_due?: string;
   followup_overdue?: boolean;
-  
+
   // Connection request ID for document management
   connection_request_id?: string;
-  
+
   // Company grouping
   company_deal_count?: number;
   listing_deal_count?: number; // More reliable - counts deals per listing
@@ -131,160 +132,217 @@ export interface DealStage {
   updated_at: string;
 }
 
-
-/** RPC result row from get_deals_with_buyer_profiles */
-interface DealRpcRow {
-  deal_id: string;
-  deal_title: string | null;
-  deal_description: string | null;
-  deal_value: number | null;
-  deal_priority: string | null;
-  deal_probability: number | null;
-  deal_expected_close_date: string | null;
-  deal_source: string | null;
-  deal_created_at: string;
-  deal_updated_at: string;
-  deal_stage_entered_at: string;
-  deal_deleted_at: string | null;
-  connection_request_id: string | null;
-  stage_id: string | null;
-  stage_name: string | null;
-  stage_color: string | null;
-  stage_position: number | null;
-  stage_is_active: boolean | null;
-  stage_is_default: boolean | null;
-  stage_is_system_stage: boolean | null;
-  stage_default_probability: number | null;
-  stage_type: string | null;
-  listing_id: string | null;
-  listing_title: string | null;
-  listing_revenue: number | null;
-  listing_ebitda: number | null;
-  listing_location: string | null;
-  listing_category: string | null;
-  listing_internal_company_name: string | null;
-  listing_image_url: string | null;
-  listing_deal_total_score: number | null;
-  listing_is_priority_target: boolean | null;
-  listing_needs_owner_contact: boolean | null;
-  admin_id: string | null;
-  admin_first_name: string | null;
-  admin_last_name: string | null;
-  admin_email: string | null;
-  buyer_type: string | null;
-  buyer_website: string | null;
-  buyer_quality_score: number | null;
-  buyer_tier: number | null;
-}
-
 export function useDeals() {
   return useQuery({
     queryKey: ['deals'],
     queryFn: async () => {
-      // Single RPC call replaces the previous N+1 pattern
-      // (deals → connection_requests → profiles done server-side)
-      const { data: rpcRows, error: rpcError } = await supabase
-        .rpc('get_deals_with_buyer_profiles') as { data: DealRpcRow[] | null; error: typeof rpcError };
+      // Direct joined query instead of RPC (per architecture pivot)
+      const { data: deals, error: dealsError } = await supabase
+        .from('deals')
+        .select(
+          `
+          *,
+          listing:listings!deals_listing_id_fkey (
+            id, title, revenue, ebitda, location, category,
+            internal_company_name, image_url
+          ),
+          stage:deal_stages!deals_stage_id_fkey (
+            id, name, color, position, is_active, is_default,
+            is_system_stage, default_probability, stage_type
+          ),
+          assigned_admin:profiles!deals_assigned_to_fkey (
+            id, first_name, last_name, email
+          ),
+          listing_score:listings!deals_listing_id_fkey (
+            deal_total_score, is_priority_target, needs_owner_contact
+          )
+        `,
+        )
+        .is('deleted_at', null)
+        .order('created_at', { ascending: false });
 
-      if (rpcError) throw rpcError;
-      const rows = rpcRows || [];
+      if (dealsError) throw dealsError;
 
-      const mapped = rows.map((row) => ({
-        deal_id: row.deal_id,
-        title: row.deal_title || row.listing_title || 'Deal',
-        deal_description: row.deal_description,
-        deal_value: Number(row.deal_value ?? 0),
-        deal_priority: row.deal_priority ?? 'medium',
-        deal_probability: Number(row.deal_probability ?? 50),
-        deal_expected_close_date: row.deal_expected_close_date,
-        deal_source: row.deal_source ?? 'manual',
-        source: row.deal_source ?? 'manual',
-        deal_created_at: row.deal_created_at,
-        deal_updated_at: row.deal_updated_at,
-        deal_stage_entered_at: row.deal_stage_entered_at,
+      // Filter: only show deals that are approved from marketplace,
+      // or from remarketing/manual sources (no connection_request_id)
+      const allRows = deals || [];
+      const crIds = allRows.map((r: any) => r.connection_request_id).filter(Boolean) as string[];
 
-        // Stage
-        stage_id: row.stage_id ?? '',
-        stage_name: row.stage_name,
-        stage_color: row.stage_color ?? '',
-        stage_position: row.stage_position ?? 0,
+      const approvedCRIds = new Set<string>();
+      if (crIds.length > 0) {
+        // Batch lookup in chunks of 100
+        for (let i = 0; i < crIds.length; i += 100) {
+          const chunk = crIds.slice(i, i + 100);
+          const { data: approved } = await supabase
+            .from('connection_requests')
+            .select('id')
+            .in('id', chunk)
+            .eq('status', 'approved');
+          if (approved) approved.forEach((r: any) => approvedCRIds.add(r.id));
+        }
+      }
 
-        // Listing
-        listing_id: row.listing_id ?? '',
-        listing_title: row.listing_title,
-        listing_revenue: Number(row.listing_revenue ?? 0),
-        listing_ebitda: Number(row.listing_ebitda ?? 0),
-        listing_location: row.listing_location,
-        listing_category: row.listing_category,
-        listing_real_company_name: row.listing_internal_company_name,
+      const filteredRows = allRows.filter(
+        (row: any) => !row.connection_request_id || approvedCRIds.has(row.connection_request_id),
+      );
 
-        // Contact (not available via RPC — defaults)
-        contact_name: undefined,
-        contact_email: undefined,
-        contact_company: undefined,
-        contact_phone: undefined,
-        contact_role: undefined,
+      // Batch-fetch buyer profiles (buyer_type, website) via connection_requests → profiles
+      const filteredCRIds = filteredRows
+        .map((r: any) => r.connection_request_id)
+        .filter(Boolean) as string[];
 
-        // Document/status (defaults — enriched below)
-        nda_status: 'not_sent' as const,
-        fee_agreement_status: 'not_sent' as const,
-        followed_up: false,
-        negative_followed_up: false,
+      const buyerProfileMap: Record<
+        string,
+        {
+          buyer_type?: string;
+          website?: string;
+          buyer_quality_score?: number | null;
+          buyer_tier?: number | null;
+        }
+      > = {};
+      if (filteredCRIds.length > 0) {
+        for (let i = 0; i < filteredCRIds.length; i += 100) {
+          const chunk = filteredCRIds.slice(i, i + 100);
+          const { data: crData } = await supabase
+            .from('connection_requests')
+            .select('id, user_id')
+            .in('id', chunk);
+          if (crData) {
+            const userIds = crData.map((cr: any) => cr.user_id).filter(Boolean);
+            if (userIds.length > 0) {
+              const { data: profiles } = await supabase
+                .from('profiles')
+                .select('id, buyer_type, website, buyer_org_url, buyer_quality_score, buyer_tier')
+                .in('id', userIds);
+              const profileLookup: Record<string, any> = {};
+              profiles?.forEach((p: any) => {
+                profileLookup[p.id] = p;
+              });
+              crData.forEach((cr: any) => {
+                const prof = profileLookup[cr.user_id];
+                if (prof) {
+                  buyerProfileMap[cr.id] = {
+                    buyer_type: prof.buyer_type,
+                    website: prof.website || prof.buyer_org_url,
+                    buyer_quality_score: prof.buyer_quality_score,
+                    buyer_tier: prof.buyer_tier,
+                  };
+                }
+              });
+            }
+          }
+        }
+      }
 
-        // Assignment
-        assigned_to: row.admin_id ?? undefined,
-        assigned_admin_name: row.admin_first_name ? `${row.admin_first_name} ${row.admin_last_name}` : undefined,
-        assigned_admin_email: row.admin_email ?? undefined,
+      const mapped = filteredRows.map((row: any) => {
+        const listing = row.listing;
+        const stage = row.stage;
+        const admin = row.assigned_admin;
 
-        // Tasks and activity (not available via RPC, default to 0)
-        total_tasks: 0,
-        pending_tasks: 0,
-        completed_tasks: 0,
-        pending_tasks_count: 0,
-        completed_tasks_count: 0,
-        activity_count: 0,
-        total_activities_count: 0,
-        last_activity_at: undefined,
+        return {
+          deal_id: row.id,
+          title: row.title || listing?.title || 'Deal',
+          deal_description: row.description,
+          deal_value: Number(row.value ?? 0),
+          deal_priority: row.priority ?? 'medium',
+          deal_probability: Number(row.probability ?? 50),
+          deal_expected_close_date: row.expected_close_date,
+          deal_source: row.source ?? 'manual',
+          source: row.source ?? 'manual',
+          deal_created_at: row.created_at,
+          deal_updated_at: row.updated_at,
+          deal_stage_entered_at: row.stage_entered_at ?? row.created_at,
 
-        // Buyer (pre-joined via RPC)
-        buyer_type: row.buyer_type ?? null,
-        buyer_website: row.buyer_website ?? undefined,
-        buyer_quality_score: row.buyer_quality_score ?? null,
-        buyer_tier: row.buyer_tier ?? null,
-        buyer_name: undefined,
-        buyer_email: undefined,
-        buyer_company: undefined,
-        buyer_phone: undefined,
-        buyer_priority_score: 0,
+          // Stage
+          stage_id: stage?.id ?? row.stage_id,
+          stage_name: stage?.name,
+          stage_color: stage?.color,
+          stage_position: stage?.position,
 
-        // Extras
-        connection_request_id: row.connection_request_id ?? undefined,
-        company_deal_count: 0,
-        listing_deal_count: 1,
-        buyer_connection_count: 1,
-        buyer_id: undefined,
-        last_contact_at: undefined,
-        last_contact_type: undefined,
+          // Listing
+          listing_id: row.listing_id,
+          listing_title: listing?.title,
+          listing_revenue: Number(listing?.revenue ?? 0),
+          listing_ebitda: Number(listing?.ebitda ?? 0),
+          listing_location: listing?.location,
+          listing_category: listing?.category,
+          listing_real_company_name: listing?.internal_company_name,
 
-        // Remarketing bridge
-        remarketing_buyer_id: undefined,
-        remarketing_score_id: undefined,
+          // Contact
+          contact_name: row.contact_name,
+          contact_email: row.contact_email,
+          contact_company: row.contact_company,
+          contact_phone: row.contact_phone,
+          contact_role: row.contact_role,
 
-        // Scoring & flags from listing (pre-joined via RPC)
-        deal_score: row.listing_deal_total_score ?? null,
-        is_priority_target: row.listing_is_priority_target ?? null,
-        needs_owner_contact: row.listing_needs_owner_contact ?? null,
+          // Document/status
+          nda_status: row.nda_status ?? 'not_sent',
+          fee_agreement_status: row.fee_agreement_status ?? 'not_sent',
+          followed_up: row.followed_up ?? false,
+          followed_up_at: row.followed_up_at,
+          followed_up_by: row.followed_up_by,
+          negative_followed_up: row.negative_followed_up ?? false,
+          negative_followed_up_at: row.negative_followed_up_at,
+          negative_followed_up_by: row.negative_followed_up_by,
 
-        // Document distribution flags (populated below)
-        memo_sent: false,
-        has_data_room: false,
+          // Assignment
+          assigned_to: row.assigned_to,
+          assigned_admin_name: admin ? `${admin.first_name} ${admin.last_name}` : undefined,
+          assigned_admin_email: admin?.email,
 
-        // Meeting scheduled
-        meeting_scheduled: false,
-      }));
+          // Tasks and activity (not available via join, default to 0)
+          total_tasks: 0,
+          pending_tasks: 0,
+          completed_tasks: 0,
+          pending_tasks_count: 0,
+          completed_tasks_count: 0,
+          activity_count: 0,
+          total_activities_count: 0,
+          last_activity_at: undefined,
+
+          // Buyer
+          buyer_name: row.contact_name,
+          buyer_email: row.contact_email,
+          buyer_company: row.contact_company,
+          buyer_type: buyerProfileMap[row.connection_request_id]?.buyer_type ?? null,
+          buyer_phone: row.contact_phone,
+          buyer_priority_score: Number(row.buyer_priority_score ?? 0),
+          buyer_website: buyerProfileMap[row.connection_request_id]?.website ?? undefined,
+          buyer_quality_score:
+            buyerProfileMap[row.connection_request_id]?.buyer_quality_score ?? null,
+          buyer_tier: buyerProfileMap[row.connection_request_id]?.buyer_tier ?? null,
+
+          // Extras
+          connection_request_id: row.connection_request_id,
+          company_deal_count: 0,
+          listing_deal_count: 1,
+          buyer_connection_count: 1,
+          buyer_id: undefined,
+          last_contact_at: undefined,
+          last_contact_type: undefined,
+
+          // Remarketing bridge
+          remarketing_buyer_id: row.remarketing_buyer_id ?? undefined,
+          remarketing_score_id: row.remarketing_score_id ?? undefined,
+
+          // Scoring & flags from listing
+          deal_score: row.listing_score?.deal_total_score ?? null,
+          is_priority_target: row.listing_score?.is_priority_target ?? null,
+          needs_owner_contact: row.listing_score?.needs_owner_contact ?? null,
+
+          // Document distribution flags (populated below)
+          memo_sent: false,
+          has_data_room: false,
+
+          // Meeting scheduled
+          meeting_scheduled: row.meeting_scheduled ?? false,
+        };
+      });
 
       // Batch-fetch memo distribution and data room documents by listing_id
-      const listingIds = [...new Set(mapped.map((d) => d.listing_id).filter(Boolean))] as string[];
+      const listingIds = [
+        ...new Set(mapped.map((d: any) => d.listing_id).filter(Boolean)),
+      ] as string[];
       const memoSentListings = new Set<string>();
       const dataRoomListings = new Set<string>();
 
@@ -293,16 +351,18 @@ export function useDeals() {
           const chunk = listingIds.slice(i, i + 100);
           const [memoRes, drRes] = await Promise.all([
             supabase.from('memo_distribution_log').select('deal_id').in('deal_id', chunk),
-            supabase.from('data_room_documents').select('deal_id').in('deal_id', chunk).eq('status', 'active'),
+            supabase
+              .from('data_room_documents')
+              .select('deal_id')
+              .in('deal_id', chunk)
+              .eq('status', 'active'),
           ]);
-          if (memoRes.error) throw memoRes.error;
-          if (drRes.error) throw drRes.error;
-          memoRes.data?.forEach((r: { deal_id: string }) => memoSentListings.add(r.deal_id));
-          drRes.data?.forEach((r: { deal_id: string }) => dataRoomListings.add(r.deal_id));
+          memoRes.data?.forEach((r: any) => memoSentListings.add(r.deal_id));
+          drRes.data?.forEach((r: any) => dataRoomListings.add(r.deal_id));
         }
       }
 
-      mapped.forEach((deal) => {
+      mapped.forEach((deal: any) => {
         deal.memo_sent = memoSentListings.has(deal.listing_id);
         deal.has_data_room = dataRoomListings.has(deal.listing_id);
       });
@@ -317,16 +377,13 @@ export function useDealStages(includeClosedStages = true) {
   return useQuery({
     queryKey: ['deal-stages', includeClosedStages],
     queryFn: async () => {
-      let query = supabase
-        .from('deal_stages')
-        .select('*')
-        .eq('is_active', true);
-      
+      let query = supabase.from('deal_stages').select('*').eq('is_active', true);
+
       // Filter out closed stages unless explicitly requested
       if (!includeClosedStages) {
         query = query.eq('stage_type', 'active');
       }
-      
+
       const { data, error } = await query.order('position');
       if (error) throw error;
       return data as DealStage[];
@@ -340,28 +397,31 @@ export function useStageDealCount(stageId: string | undefined) {
     queryKey: ['stage-deal-count', stageId],
     queryFn: async () => {
       if (!stageId) return 0;
-      
-      const { data, error } = await supabase
-        .rpc('get_stage_deal_count', { stage_uuid: stageId });
-      
+
+      const { data, error } = await supabase.rpc('get_stage_deal_count', { stage_uuid: stageId });
+
       if (error) {
         throw error;
       }
-      
+
       return data as number;
     },
     enabled: !!stageId,
   });
 }
 
-
 export function useUpdateDealStage() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: async ({ dealId, stageId, currentAdminId, skipOwnerCheck }: { 
-      dealId: string; 
+    mutationFn: async ({
+      dealId,
+      stageId,
+      currentAdminId,
+      skipOwnerCheck,
+    }: {
+      dealId: string;
       stageId: string;
       fromStage?: string;
       toStage?: string;
@@ -372,17 +432,19 @@ export function useUpdateDealStage() {
       if (!skipOwnerCheck && currentAdminId) {
         const { data: dealData, error: dealDataError } = await supabase
           .from('deals')
-          .select('assigned_to, title, assigned_admin:profiles!deals_assigned_to_fkey(first_name, last_name)')
+          .select(
+            'assigned_to, title, assigned_admin:profiles!deals_assigned_to_fkey(first_name, last_name)',
+          )
           .eq('id', dealId)
           .single();
         if (dealDataError) throw dealDataError;
 
         // Check if someone else owns this deal
         if (dealData?.assigned_to && dealData.assigned_to !== currentAdminId) {
-          const ownerName = dealData.assigned_admin 
+          const ownerName = dealData.assigned_admin
             ? `${dealData.assigned_admin.first_name} ${dealData.assigned_admin.last_name}`.trim()
             : 'Another admin';
-          
+
           // Return a special error that will trigger the warning dialog
           throw {
             type: 'OWNER_WARNING',
@@ -390,18 +452,18 @@ export function useUpdateDealStage() {
             dealTitle: dealData.title,
             ownerId: dealData.assigned_to,
             dealId,
-            stageId
+            stageId,
           };
         }
       }
-      
+
       // Use new RPC function with ownership logic
-      const { data, error } = await supabase.rpc('move_deal_stage_with_ownership' as never, {
+      const { data, error } = await supabase.rpc('move_deal_stage_with_ownership', {
         p_deal_id: dealId,
         p_new_stage_id: stageId,
-        p_current_admin_id: currentAdminId
+        p_admin_id: currentAdminId,
       });
-      
+
       if (error) throw error;
       return data;
     },
@@ -414,9 +476,15 @@ export function useUpdateDealStage() {
         queryClient.setQueryData<Deal[]>(['deals'], (old) =>
           (old || []).map((d) =>
             d.deal_id === dealId
-              ? { ...d, stage_id: stageId, stage_name: toStage ?? d.stage_name, deal_stage_entered_at: nowIso, deal_updated_at: nowIso }
-              : d
-          )
+              ? {
+                  ...d,
+                  stage_id: stageId,
+                  stage_name: toStage ?? d.stage_name,
+                  deal_stage_entered_at: nowIso,
+                  deal_updated_at: nowIso,
+                }
+              : d,
+          ),
         );
       }
       return { previousDeals };
@@ -430,7 +498,7 @@ export function useUpdateDealStage() {
           description: 'You have been assigned as the owner of this deal.',
         });
       }
-      
+
       if (result?.different_owner_warning) {
         toast({
           title: 'Different Owner',
@@ -440,12 +508,15 @@ export function useUpdateDealStage() {
 
         // Send email notification to original owner
         const deals = queryClient.getQueryData<Deal[]>(['deals']);
-        const deal = deals?.find(d => d.deal_id === variables.dealId);
+        const deal = deals?.find((d) => d.deal_id === variables.dealId);
 
         if (deal && result.previous_owner_id && result.previous_owner_name) {
           try {
             // Get current admin info
-            const { data: { user }, error: authError } = await supabase.auth.getUser();
+            const {
+              data: { user },
+              error: authError,
+            } = await supabase.auth.getUser();
             if (authError) throw authError;
             const { data: currentAdmin, error: currentAdminError } = await supabase
               .from('profiles')
@@ -469,8 +540,8 @@ export function useUpdateDealStage() {
                 oldStageName: result.old_stage_name,
                 newStageName: result.new_stage_name,
                 listingTitle: deal.listing_title,
-                companyName: deal.listing_real_company_name
-              }
+                companyName: deal.listing_real_company_name,
+              },
             });
           } catch (error) {
             console.error('Failed to send owner change notification:', error);
@@ -483,8 +554,8 @@ export function useUpdateDealStage() {
       const newStageName = result?.new_stage_name as string | undefined;
       if (newStageName === 'Owner intro requested') {
         const deals = queryClient.getQueryData<Deal[]>(['deals']);
-        const deal = deals?.find(d => d.deal_id === variables.dealId);
-        
+        const deal = deals?.find((d) => d.deal_id === variables.dealId);
+
         if (deal && deal.listing_id) {
           try {
             // Get deal owner info
@@ -495,7 +566,7 @@ export function useUpdateDealStage() {
               .single();
             if (ownerDataError) throw ownerDataError;
 
-            const dealOwnerName = ownerData 
+            const dealOwnerName = ownerData
               ? `${ownerData.first_name} ${ownerData.last_name}`.trim()
               : undefined;
             const dealOwnerEmail = ownerData?.email;
@@ -510,14 +581,15 @@ export function useUpdateDealStage() {
                 dealValue: deal.deal_value,
                 dealTitle: deal.title,
                 dealOwnerName,
-                dealOwnerEmail
-              }
+                dealOwnerEmail,
+              },
             });
-            
+
             if (result.error) {
               toast({
                 title: 'Notification Failed',
-                description: 'The owner intro email could not be sent. Please notify the owner manually.',
+                description:
+                  'The owner intro email could not be sent. Please notify the owner manually.',
                 variant: 'destructive',
               });
             } else if (result.data?.success) {
@@ -545,10 +617,10 @@ export function useUpdateDealStage() {
           }
         }
       }
-      
+
       queryClient.invalidateQueries({ queryKey: ['deals'] });
       queryClient.invalidateQueries({ queryKey: ['deal-activities'] });
-      
+
       if (!result?.owner_assigned && !result?.different_owner_warning) {
         toast({
           title: 'Deal Updated',
@@ -558,7 +630,12 @@ export function useUpdateDealStage() {
     },
     onError: (error: unknown, _vars, context) => {
       // Don't show error toast for OWNER_WARNING - that's handled by the dialog
-      if (error && typeof error === 'object' && 'type' in error && (error as Record<string, unknown>).type === 'OWNER_WARNING') {
+      if (
+        error &&
+        typeof error === 'object' &&
+        'type' in error &&
+        (error as Record<string, unknown>).type === 'OWNER_WARNING'
+      ) {
         return;
       }
 
@@ -574,36 +651,47 @@ export function useUpdateDealStage() {
   });
 }
 
-
-
 export function useUpdateDeal() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: async ({ dealId, updates }: { dealId: string; updates: Record<string, unknown> }) => {
+    mutationFn: async ({
+      dealId,
+      updates,
+    }: {
+      dealId: string;
+      updates: Record<string, unknown>;
+    }) => {
       // Special handling for owner changes - use dedicated RPC to avoid view/column issues
-      const isOwnerChangeOnly = updates.assigned_to !== undefined && Object.keys(updates).length === 1;
-      
+      const isOwnerChangeOnly =
+        updates.assigned_to !== undefined && Object.keys(updates).length === 1;
+
       if (isOwnerChangeOnly) {
-        const { data: { user }, error: authError } = await supabase.auth.getUser();
+        const {
+          data: { user },
+          error: authError,
+        } = await supabase.auth.getUser();
         if (authError) throw authError;
         if (!user) throw new Error('Not authenticated');
 
-        const { data, error } = await supabase.rpc('update_deal_owner' as never, {
+        const { data, error } = await supabase.rpc('update_deal_owner', {
           p_deal_id: dealId,
-          p_assigned_to: updates.assigned_to === 'unassigned' || updates.assigned_to === '' ? null : updates.assigned_to,
-          p_actor_id: user.id
+          p_assigned_to:
+            updates.assigned_to === 'unassigned' || updates.assigned_to === ''
+              ? null
+              : String(updates.assigned_to),
+          p_actor_id: user.id,
         });
-        
+
         if (error) {
           throw error;
         }
-        
+
         // Parse JSONB response if it's a string
         return typeof data === 'string' ? JSON.parse(data) : data;
       }
-      
+
       // For other updates, use standard update with field filtering
       const readOnlyFields = [
         'listing_real_company_name',
@@ -652,7 +740,7 @@ export function useUpdateDeal() {
         'deal_followed_up_by',
         'deal_negative_followed_up',
         'deal_negative_followed_up_at',
-        'deal_negative_followed_up_by'
+        'deal_negative_followed_up_by',
       ];
 
       // Sanitize updates
@@ -661,18 +749,21 @@ export function useUpdateDeal() {
           .filter(([key, v]) => v !== undefined && !readOnlyFields.includes(key))
           .map(([k, v]) => {
             if (v === 'undefined') return [k, null];
-            if (k === 'assigned_to' && (v === '' || v === undefined || v === 'unassigned')) return [k, null];
+            if (k === 'assigned_to' && (v === '' || v === undefined || v === 'unassigned'))
+              return [k, null];
             return [k, v];
-          })
+          }),
       );
 
       const { data, error } = await supabase
         .from('deals')
         .update(safeUpdates)
         .eq('id', dealId)
-        .select('id, assigned_to, stage_id, updated_at, nda_status, fee_agreement_status, followed_up, negative_followed_up')
+        .select(
+          'id, assigned_to, stage_id, updated_at, nda_status, fee_agreement_status, followed_up, negative_followed_up',
+        )
         .single();
-      
+
       if (error) {
         throw error;
       }
@@ -681,37 +772,39 @@ export function useUpdateDeal() {
     onMutate: async ({ dealId, updates }) => {
       // Cancel outgoing refetches
       await queryClient.cancelQueries({ queryKey: ['deals'] });
-      
+
       // Snapshot previous value
       const previousDeals = queryClient.getQueryData<Deal[]>(['deals']);
-      
+
       // Optimistically update the cache
       if (previousDeals) {
-        queryClient.setQueryData<Deal[]>(['deals'], (old) => 
-          old?.map(deal => 
-            deal.deal_id === dealId 
-              ? { ...deal, ...updates }
-              : deal
-          ) ?? []
+        queryClient.setQueryData<Deal[]>(
+          ['deals'],
+          (old) =>
+            old?.map((deal) => (deal.deal_id === dealId ? { ...deal, ...updates } : deal)) ?? [],
         );
       }
-      
+
       return { previousDeals };
     },
     onSuccess: async (data: unknown, { dealId, updates }) => {
       const ownerResult = data as Record<string, unknown> | null;
       // Note: Assignment logging is now handled by the update_deal_owner RPC
-      const isOwnerChangeOnly = updates.assigned_to !== undefined && Object.keys(updates).length === 1;
+      const isOwnerChangeOnly =
+        updates.assigned_to !== undefined && Object.keys(updates).length === 1;
 
       // If owner was changed (not just stage move), notify the previous owner
       if (isOwnerChangeOnly && ownerResult?.owner_changed && ownerResult.previous_owner_id) {
         try {
           const deals = queryClient.getQueryData<Deal[]>(['deals']);
-          const deal = deals?.find(d => d.deal_id === dealId);
-          
+          const deal = deals?.find((d) => d.deal_id === dealId);
+
           if (deal) {
             // Get current admin info
-            const { data: { user }, error: authError } = await supabase.auth.getUser();
+            const {
+              data: { user },
+              error: authError,
+            } = await supabase.auth.getUser();
             if (authError) throw authError;
             const { data: currentAdmin, error: currentAdminError } = await supabase
               .from('profiles')
@@ -723,7 +816,7 @@ export function useUpdateDeal() {
             const currentAdminName = currentAdmin
               ? `${currentAdmin.first_name} ${currentAdmin.last_name}`.trim()
               : 'Another admin';
-            
+
             await supabase.functions.invoke('notify-deal-owner-change', {
               body: {
                 dealId: deal.deal_id,
@@ -736,27 +829,31 @@ export function useUpdateDeal() {
                 oldStageName: (ownerResult.stage_name as string) || deal.stage_name,
                 newStageName: (ownerResult.stage_name as string) || deal.stage_name, // Same stage, just owner change
                 listingTitle: deal.listing_title,
-                companyName: deal.listing_real_company_name
-              }
+                companyName: deal.listing_real_company_name,
+              },
             });
-            
           }
         } catch (error) {
           console.error('Failed to send owner change notification:', error);
           // Don't fail the update, just log
         }
       }
-      
+
       toast({
         title: isOwnerChangeOnly ? 'Owner Updated' : 'Deal Updated',
-        description: isOwnerChangeOnly 
-          ? 'The deal owner has been changed successfully.' 
+        description: isOwnerChangeOnly
+          ? 'The deal owner has been changed successfully.'
           : 'Deal has been updated successfully.',
       });
     },
     onError: (error: unknown, _, context) => {
       // Don't show error toast for OWNER_WARNING - that's handled by the dialog
-      if (error && typeof error === 'object' && 'type' in error && (error as Record<string, unknown>).type === 'OWNER_WARNING') {
+      if (
+        error &&
+        typeof error === 'object' &&
+        'type' in error &&
+        (error as Record<string, unknown>).type === 'OWNER_WARNING'
+      ) {
         return;
       }
 
@@ -791,10 +888,10 @@ export function useCreateDeal() {
     mutationFn: async (deal: Record<string, unknown>) => {
       const { data, error } = await supabase
         .from('deals')
-        .insert(deal as Record<string, unknown>)
+        .insert(deal as Database['public']['Tables']['deals']['Insert'])
         .select()
         .single();
-      
+
       if (error) throw error;
       return data;
     },
@@ -818,12 +915,8 @@ export function useCreateDealStage() {
 
   return useMutation({
     mutationFn: async (stage: Omit<DealStage, 'id' | 'created_at' | 'updated_at'>) => {
-      const { data, error } = await supabase
-        .from('deal_stages')
-        .insert(stage)
-        .select()
-        .single();
-      
+      const { data, error } = await supabase.from('deal_stages').insert(stage).select().single();
+
       if (error) throw error;
       return data;
     },
@@ -849,14 +942,20 @@ export function useUpdateDealStageData() {
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: async ({ stageId, updates }: { stageId: string; updates: Partial<Omit<DealStage, 'id' | 'created_at' | 'updated_at'>> }) => {
+    mutationFn: async ({
+      stageId,
+      updates,
+    }: {
+      stageId: string;
+      updates: Partial<Omit<DealStage, 'id' | 'created_at' | 'updated_at'>>;
+    }) => {
       const { data, error } = await supabase
         .from('deal_stages')
         .update(updates)
         .eq('id', stageId)
         .select()
         .single();
-      
+
       if (error) throw error;
       return data;
     },
@@ -883,11 +982,8 @@ export function useDeleteDealStage() {
 
   return useMutation({
     mutationFn: async (stageId: string) => {
-      const { error } = await supabase
-        .from('deal_stages')
-        .delete()
-        .eq('id', stageId);
-      
+      const { error } = await supabase.from('deal_stages').delete().eq('id', stageId);
+
       if (error) throw error;
     },
     onSuccess: () => {
@@ -918,7 +1014,7 @@ export function useSoftDeleteDeal() {
         deal_id: dealId,
         deletion_reason: reason ?? undefined,
       });
-      
+
       if (error) throw error;
       return data;
     },
@@ -949,7 +1045,7 @@ export function useRestoreDeal() {
       const { data, error } = await supabase.rpc('restore_deal', {
         deal_id: dealId,
       });
-      
+
       if (error) throw error;
       return data;
     },

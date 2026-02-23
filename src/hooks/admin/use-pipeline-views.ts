@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import type { Json } from '@/integrations/supabase/types';
 import { useToast } from '@/hooks/use-toast';
 
 export interface StageConfig {
@@ -59,7 +60,7 @@ export function useCreatePipelineView() {
     }) => {
       const { data, error } = await supabase
         .from('pipeline_views')
-        .insert(view as Record<string, unknown>)
+        .insert({ ...view, stage_config: view.stage_config as unknown as Json })
         .select()
         .single();
 
@@ -88,12 +89,12 @@ export function useUpdatePipelineView() {
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: async ({ 
-      id, 
-      updates 
-    }: { 
-      id: string; 
-      updates: Partial<Omit<PipelineView, 'id' | 'created_at' | 'updated_at'>> 
+    mutationFn: async ({
+      id,
+      updates,
+    }: {
+      id: string;
+      updates: Partial<Omit<PipelineView, 'id' | 'created_at' | 'updated_at'>>;
     }) => {
       const { data, error } = await supabase
         .from('pipeline_views')
@@ -107,12 +108,12 @@ export function useUpdatePipelineView() {
     },
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ['pipeline-views'] });
-      
+
       // Show different message if saving filter config
-      const message = variables.updates.filter_config 
-        ? "View and filters saved successfully."
-        : "Pipeline view has been updated successfully.";
-      
+      const message = variables.updates.filter_config
+        ? 'View and filters saved successfully.'
+        : 'Pipeline view has been updated successfully.';
+
       toast({
         title: 'View updated',
         description: message,
@@ -134,10 +135,7 @@ export function useDeletePipelineView() {
 
   return useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase
-        .from('pipeline_views')
-        .delete()
-        .eq('id', id);
+      const { error } = await supabase.from('pipeline_views').delete().eq('id', id);
 
       if (error) throw error;
     },
