@@ -472,7 +472,7 @@ function ReactiveRequestCard({
 
           {/* Expanded Content */}
           {isExpanded && (
-            <div className="space-y-6 pt-4 border-t border-border/50">
+            <div className="space-y-6 pt-4 border-t border-border/50" onClick={(e) => e.stopPropagation()}>
               {/* Connection Request Actions */}
               {request.user ? (
                 <ConnectionRequestActions
