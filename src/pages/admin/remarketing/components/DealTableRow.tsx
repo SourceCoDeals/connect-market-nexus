@@ -181,11 +181,14 @@ export const DealTableRow = ({
 
       {/* Rank (draggable) */}
       <TableCell style={{ width: columnWidths.rank, minWidth: 50 }} onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center gap-1">
+        <div
+          className="flex items-center gap-1 cursor-grab active:cursor-grabbing"
+          {...attributes}
+          {...listeners}
+        >
           <button
-            className="flex-shrink-0 cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground touch-none p-0.5 rounded hover:bg-muted transition-colors"
-            {...attributes}
-            {...listeners}
+            type="button"
+            className="flex-shrink-0 text-muted-foreground hover:text-foreground touch-none p-0.5 rounded hover:bg-muted transition-colors"
           >
             <GripVertical className="h-3.5 w-3.5" />
           </button>
