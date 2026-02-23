@@ -18,10 +18,13 @@ export function BuyerNotificationBell() {
     switch (type) {
       case 'memo_shared':
         return <FileText className="w-4 h-4 text-blue-600" />;
+      case 'status_changed':
       case 'request_approved':
         return <CheckCircle className="w-4 h-4 text-green-600" />;
       case 'new_message':
         return <MessageSquare className="w-4 h-4 text-primary" />;
+      case 'request_created':
+        return <Bell className="w-4 h-4 text-blue-500" />;
       default:
         return <Bell className="w-4 h-4 text-muted-foreground" />;
     }
