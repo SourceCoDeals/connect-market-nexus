@@ -55,7 +55,7 @@ export function useMatchingActions({
         action_by: user?.id,
       });
     } catch (error) {
-      console.error('Failed to log learning history:', error);
+      // Failed to log learning history — non-critical
     }
   };
 
@@ -126,14 +126,14 @@ export function useMatchingActions({
               created_by: user?.id,
             }, { onConflict: 'score_id' });
           } catch (err) {
-            console.error('Failed to create outreach record for score', id, err);
+            // Failed to create outreach record — non-blocking
           }
 
           // Fire-and-forget: discover contacts
           if (scoreData.buyer_id) {
             supabase.functions.invoke('find-buyer-contacts', {
               body: { buyerId: scoreData.buyer_id }
-            }).catch(err => console.warn('Contact discovery failed (non-blocking):', err));
+            }).catch(() => { /* contact discovery failure is non-blocking */ });
           }
         }
       }
@@ -166,7 +166,7 @@ export function useMatchingActions({
       setScoringProgress(100);
       queryClient.invalidateQueries({ queryKey: ['remarketing', 'scores', listingId] });
     } catch (error) {
-      console.error('Scoring error:', error);
+      // Scoring error — toast shown to user
       toast.error('Failed to score buyers');
     } finally {
       setIsScoring(false);
@@ -190,7 +190,7 @@ export function useMatchingActions({
           created_by: user?.id,
         }, { onConflict: 'listing_id,adjustment_type' });
     } catch (error) {
-      console.error('Failed to save custom instructions:', error);
+      // Failed to save custom instructions — non-critical
     }
 
     // Trigger rescore with custom instructions
@@ -209,7 +209,7 @@ export function useMatchingActions({
         .eq('listing_id', listingId!)
         .eq('adjustment_type', 'custom_instructions');
     } catch (error) {
-      console.error('Failed to clear custom instructions:', error);
+      // Failed to clear custom instructions — non-critical
     }
 
     queryClient.invalidateQueries({ queryKey: ['remarketing', 'scores', listingId] });
@@ -265,20 +265,20 @@ export function useMatchingActions({
       }, { onConflict: 'score_id' });
 
       if (error) {
-        console.error('Failed to auto-create outreach:', error);
+        // Outreach creation failed — non-blocking
       } else {
         refetchOutreach();
         toast.success('Buyer approved - outreach tracking started');
       }
     } catch (error) {
-      console.error('Failed to auto-create outreach:', error);
+      // Outreach creation failed — non-blocking
     }
 
     // Fire-and-forget: auto-discover buyer contacts for approved buyer
     if (scoreData?.buyer_id) {
       supabase.functions.invoke('find-buyer-contacts', {
         body: { buyerId: scoreData.buyer_id }
-      }).catch(err => console.warn('Contact discovery failed (non-blocking):', err));
+      }).catch(() => { /* contact discovery failure is non-blocking */ });
     }
   };
 
@@ -376,7 +376,7 @@ export function useMatchingActions({
     }, { onConflict: 'score_id' });
 
     if (error) {
-      console.error('Failed to update outreach:', error);
+      // Outreach update failed — toast shown to user
       toast.error('Failed to update outreach status');
       return;
     }
@@ -393,7 +393,7 @@ export function useMatchingActions({
         .update({ last_viewed_at: new Date().toISOString() })
         .eq('id', scoreId);
     } catch (err) {
-      console.error('Failed to track view:', err);
+      // View tracking failed — non-critical
     }
   };
 
@@ -422,7 +422,7 @@ export function useMatchingActions({
       queryClient.invalidateQueries({ queryKey: ['pipeline-deals-for-listing', listingId] });
       queryClient.invalidateQueries({ queryKey: ['deals'] });
     } catch (err: any) {
-      console.error('Failed to move to pipeline:', err);
+      // Pipeline move failed — toast shown to user
       toast.error(err?.message || 'Failed to move buyer to pipeline');
     }
   };
