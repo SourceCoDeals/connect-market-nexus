@@ -1,18 +1,21 @@
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Switch } from '@/components/ui/switch';
 import { Edit, Trash2, Bell, BellOff } from 'lucide-react';
 import { DealAlert } from '@/hooks/use-deal-alerts';
 
 interface DealAlertCardProps {
   alert: DealAlert;
+  selected?: boolean;
+  onSelect?: (id: string) => void;
   onEdit: (alert: DealAlert) => void;
   onDelete: (id: string) => void;
   onToggle: (id: string, isActive: boolean) => void;
 }
 
-export function DealAlertCard({ alert, onEdit, onDelete, onToggle }: DealAlertCardProps) {
+export function DealAlertCard({ alert, selected, onSelect, onEdit, onDelete, onToggle }: DealAlertCardProps) {
   const formatCurrency = (value?: number) => {
     if (!value) return 'Any';
     return new Intl.NumberFormat('en-US', {
@@ -56,10 +59,18 @@ export function DealAlertCard({ alert, onEdit, onDelete, onToggle }: DealAlertCa
   };
 
   return (
-    <Card className={`transition-all duration-200 ${alert.is_active ? 'border-primary/20' : 'border-muted opacity-75'}`}>
+    <Card className={`transition-all duration-200 ${selected ? 'ring-2 ring-primary border-primary' : ''} ${alert.is_active ? 'border-primary/20' : 'border-muted opacity-75'}`}>
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
+            {onSelect && (
+              <Checkbox
+                checked={selected}
+                onCheckedChange={() => onSelect(alert.id)}
+                aria-label={`Select ${alert.name}`}
+                className="mt-0.5"
+              />
+            )}
             {alert.is_active ? (
               <Bell className="h-4 w-4 text-primary" />
             ) : (
