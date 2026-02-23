@@ -121,7 +121,7 @@ serve(async (req: Request) => {
   } catch (error: any) {
     console.error("❌ Error in get-buyer-fee-embed:", error);
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ error: "Internal server error" }),
       { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } }
     );
   }
