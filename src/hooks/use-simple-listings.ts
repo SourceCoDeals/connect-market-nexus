@@ -4,18 +4,70 @@ import { PaginationState } from './use-simple-pagination';
 import { Listing, ListingStatus } from '@/types';
 import { expandLocations } from '@/lib/location-hierarchy';
 
-async function fetchListings(state: PaginationState) {
+/**
+ * For Tier 3 buyers, fetch the count of Tier 1/2 connection requests per listing.
+ * Optimized: only fetches counts for listings newer than 14 days (small set),
+ * and uses a lightweight select with minimal columns.
+ */
+async function fetchTier12RequestCounts(listingIds: string[]): Promise<Record<string, number>> {
+  if (listingIds.length === 0) return {};
+
+  // Fast path: use a single query with a join to profiles for tier filtering.
+  // Only select listing_id + the joined tier — minimal data transfer.
+  const { data, error } = await supabase
+    .from('connection_requests')
+    .select('listing_id, profiles:user_id(buyer_tier)')
+    .in('listing_id', listingIds)
+    .in('status', ['pending', 'approved']);
+
+  if (error || !data) return {};
+
+  const counts: Record<string, number> = {};
+  for (const row of data) {
+    const tier = (row as any).profiles?.buyer_tier;
+    if (tier === 1 || tier === 2) {
+      counts[row.listing_id] = (counts[row.listing_id] || 0) + 1;
+    }
+  }
+  return counts;
+}
+
+async function fetchListings(state: PaginationState, buyerTier?: number | null) {
   // Explicit buyer-safe column list — excludes internal admin fields
   const BUYER_VISIBLE_COLUMNS = [
-    'id', 'title', 'description', 'description_html', 'hero_description',
-    'category', 'categories', 'acquisition_type', 'location',
-    'revenue', 'ebitda', 'tags', 'image_url', 'status', 'status_tag',
-    'visible_to_buyer_types', 'created_at', 'updated_at',
-    'full_time_employees', 'part_time_employees',
-    'custom_metric_label', 'custom_metric_value', 'custom_metric_subtitle',
-    'metric_3_type', 'metric_3_custom_label', 'metric_3_custom_value', 'metric_3_custom_subtitle',
-    'metric_4_type', 'metric_4_custom_label', 'metric_4_custom_value', 'metric_4_custom_subtitle',
-    'revenue_metric_subtitle', 'ebitda_metric_subtitle',
+    'id',
+    'title',
+    'description',
+    'description_html',
+    'hero_description',
+    'category',
+    'categories',
+    'acquisition_type',
+    'location',
+    'revenue',
+    'ebitda',
+    'tags',
+    'image_url',
+    'status',
+    'status_tag',
+    'visible_to_buyer_types',
+    'created_at',
+    'updated_at',
+    'full_time_employees',
+    'part_time_employees',
+    'custom_metric_label',
+    'custom_metric_value',
+    'custom_metric_subtitle',
+    'metric_3_type',
+    'metric_3_custom_label',
+    'metric_3_custom_value',
+    'metric_3_custom_subtitle',
+    'metric_4_type',
+    'metric_4_custom_label',
+    'metric_4_custom_value',
+    'metric_4_custom_subtitle',
+    'revenue_metric_subtitle',
+    'ebitda_metric_subtitle',
     'owner_notes',
   ].join(', ');
 
@@ -28,32 +80,34 @@ async function fetchListings(state: PaginationState) {
 
   // Apply filters
   if (state.search) {
-    query = query.or(`title.ilike.%${state.search}%,description.ilike.%${state.search}%,category.ilike.%${state.search}%`);
+    query = query.or(
+      `title.ilike.%${state.search}%,description.ilike.%${state.search}%,category.ilike.%${state.search}%`,
+    );
   }
-  
+
   if (state.category && state.category !== 'all') {
     // Support both single category field and categories array
     query = query.or(`category.eq.${state.category},categories.cs.{${state.category}}`);
   }
-  
+
   if (state.location && state.location !== 'all') {
     // Use location hierarchy expansion for better filtering
     const expandedLocations = expandLocations([state.location]);
     query = query.in('location', expandedLocations);
   }
-  
+
   if (state.revenueMin !== undefined) {
     query = query.gte('revenue', state.revenueMin);
   }
-  
+
   if (state.revenueMax !== undefined) {
     query = query.lte('revenue', state.revenueMax);
   }
-  
+
   if (state.ebitdaMin !== undefined) {
     query = query.gte('ebitda', state.ebitdaMin);
   }
-  
+
   if (state.ebitdaMax !== undefined) {
     query = query.lte('ebitda', state.ebitdaMax);
   }
@@ -74,8 +128,13 @@ async function fetchListings(state: PaginationState) {
   // Cast through unknown because the Supabase TS types can't infer column types
   // from a runtime string column list — the explicit allowlist is enforced above.
   type ListingRow = Record<string, unknown> & {
-    status: string; metric_3_type: string | null; owner_notes: string | null;
-    created_at: string; updated_at: string; revenue: number; ebitda: number;
+    status: string;
+    metric_3_type: string | null;
+    owner_notes: string | null;
+    created_at: string;
+    updated_at: string;
+    revenue: number;
+    ebitda: number;
   };
   const listings = ((data || []) as unknown as ListingRow[]).map((listing) => ({
     ...listing,
@@ -91,6 +150,32 @@ async function fetchListings(state: PaginationState) {
       value: listing.ebitda > 0 ? (listing.revenue / listing.ebitda).toFixed(1) : 'N/A',
     },
   })) as unknown as Listing[];
+
+  // Tier 3 time-gate: only show deals that are 14+ days old OR have <3 Tier 1/2 requests
+  if (buyerTier === 3) {
+    const fourteenDaysAgo = new Date();
+    fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14);
+
+    // Find listings that are newer than 14 days — these need the request-count check
+    const newListingIds = listings
+      .filter((l) => new Date(l.created_at) > fourteenDaysAgo)
+      .map((l) => l.id);
+
+    const tier12Counts = await fetchTier12RequestCounts(newListingIds);
+
+    const filtered = listings.filter((listing) => {
+      const createdAt = new Date(listing.created_at);
+      // If 14+ days old, always show
+      if (createdAt <= fourteenDaysAgo) return true;
+      // If newer, only show if <3 Tier 1/2 requests
+      return (tier12Counts[listing.id] || 0) < 3;
+    });
+
+    return {
+      listings: filtered,
+      totalItems: filtered.length,
+    };
+  }
 
   return {
     listings,
@@ -112,18 +197,30 @@ async function fetchMetadata() {
     throw error;
   }
 
-  const categories = [...new Set(listings?.map(l => l.category).filter(Boolean))] as string[];
-  const locations = [...new Set(listings?.map(l => l.location).filter(Boolean))] as string[];
+  const categories = [...new Set(listings?.map((l) => l.category).filter(Boolean))] as string[];
+  const locations = [...new Set(listings?.map((l) => l.location).filter(Boolean))] as string[];
 
   return { categories, locations };
 }
 
-export function useSimpleListings(state: PaginationState) {
+export function useSimpleListings(state: PaginationState, buyerTier?: number | null) {
   return useQuery({
-    queryKey: ['simple-listings', state.page, state.perPage, state.search, state.category, state.location, state.revenueMin, state.revenueMax, state.ebitdaMin, state.ebitdaMax],
+    queryKey: [
+      'simple-listings',
+      state.page,
+      state.perPage,
+      state.search,
+      state.category,
+      state.location,
+      state.revenueMin,
+      state.revenueMax,
+      state.ebitdaMin,
+      state.ebitdaMax,
+      buyerTier,
+    ],
     queryFn: () => {
       console.time('listings-fetch');
-      return fetchListings(state).finally(() => {
+      return fetchListings(state, buyerTier).finally(() => {
         console.timeEnd('listings-fetch');
       });
     },
