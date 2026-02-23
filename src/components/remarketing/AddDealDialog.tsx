@@ -189,7 +189,7 @@ export const AddDealDialog = ({
           source: 'link',
         } as never);
       } catch (err) {
-        console.error("Transcript link error:", err);
+        // Transcript link error — non-blocking
       }
     }
 
@@ -209,7 +209,7 @@ export const AddDealDialog = ({
           .upload(filePath, file);
 
         if (uploadError) {
-          console.error(`Upload error for ${file.name}:`, uploadError);
+          // Upload error — skipping this file
           continue;
         }
 
@@ -254,7 +254,7 @@ export const AddDealDialog = ({
           await sleep(2000);
         }
       } catch (err) {
-        console.error(`Transcript handling error for ${file.name}:`, err);
+        // Transcript handling error — non-blocking for this file
       }
     }
 

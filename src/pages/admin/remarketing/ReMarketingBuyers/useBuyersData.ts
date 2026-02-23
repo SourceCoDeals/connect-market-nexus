@@ -81,7 +81,7 @@ export const useBuyersData = () => {
           .select('buyer_id')
           .in('buyer_id', chunk);
         if (error) {
-          console.error('Error fetching transcripts:', error);
+          // Error fetching transcripts — skipping this chunk
           continue;
         }
         allIds.push(...(data || []).map((t: any) => t.buyer_id));

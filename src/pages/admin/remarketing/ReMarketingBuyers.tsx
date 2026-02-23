@@ -166,7 +166,7 @@ const ReMarketingBuyers = () => {
           .select('buyer_id')
           .in('buyer_id', chunk);
         if (error) {
-          console.error('Error fetching transcripts:', error);
+          // Error fetching transcripts — skipping this chunk
           continue;
         }
         allIds.push(...(data || []).map((t: any) => t.buyer_id));
@@ -499,7 +499,7 @@ const ReMarketingBuyers = () => {
                   const { queueBuyerEnrichment } = await import("@/lib/remarketing/queueEnrichment");
                   await queueBuyerEnrichment(ids);
                   queryClient.invalidateQueries({ queryKey: ['remarketing', 'buyers'] });
-                } catch (err) { console.error('Bulk enrich failed:', err); toast.error('Failed to queue enrichment'); } finally { setEnrichingIds(new Set()); }
+                } catch (err) { void err; toast.error('Failed to queue enrichment'); } finally { setEnrichingIds(new Set()); }
               }}>
                 <Sparkles className="h-4 w-4 mr-2" />
                 Enrich Unenriched ({(() => { const base = selectedIds.size > 0 ? filteredBuyers.filter((b: any) => selectedIds.has(b.id)) : filteredBuyers; return base.filter((b: any) => b.data_completeness !== 'high').filter((b: any) => b.company_website || b.platform_website || b.pe_firm_website).length; })()})
@@ -513,7 +513,7 @@ const ReMarketingBuyers = () => {
                   const { queueBuyerEnrichment } = await import("@/lib/remarketing/queueEnrichment");
                   await queueBuyerEnrichment(ids);
                   queryClient.invalidateQueries({ queryKey: ['remarketing', 'buyers'] });
-                } catch (err) { console.error('Bulk enrich failed:', err); toast.error('Failed to queue enrichment'); } finally { setEnrichingIds(new Set()); }
+                } catch (err) { void err; toast.error('Failed to queue enrichment'); } finally { setEnrichingIds(new Set()); }
               }}>
                 <Sparkles className="h-4 w-4 mr-2" />
                 Re-enrich All ({(() => { const base = selectedIds.size > 0 ? filteredBuyers.filter((b: any) => selectedIds.has(b.id)) : filteredBuyers; return base.filter((b: any) => b.company_website || b.platform_website || b.pe_firm_website).length; })()})
@@ -667,7 +667,7 @@ const ReMarketingBuyers = () => {
                 await queueBuyerEnrichment(ids);
                 queryClient.invalidateQueries({ queryKey: ['remarketing', 'buyers'] });
               } catch (err) {
-                console.error('Bulk enrich failed:', err);
+                // Bulk enrich failed — toast shown to user
                 toast.error('Failed to queue enrichment');
               } finally {
                 setEnrichingIds(new Set());

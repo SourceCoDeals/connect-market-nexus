@@ -326,7 +326,7 @@ export function useValuationLeadsData() {
           .single();
 
         if (insertError || !listing) {
-          console.error("Failed to create listing for lead:", lead.id, insertError);
+          // Failed to create listing for lead — toast shown to user
           sonnerToast.error("Failed to open deal page");
           return;
         }
@@ -361,21 +361,21 @@ export function useValuationLeadsData() {
             .from("listings")
             .update({ pushed_to_all_deals: true, pushed_to_all_deals_at: new Date().toISOString() })
             .eq("id", listingId);
-          if (error) { console.error("Failed to update listing:", error); errorCount++; continue; }
+          if (error) { errorCount++; continue; }
         } else {
           const { data: listing, error: insertError } = await supabase
             .from("listings")
             .insert(buildListingFromLead(lead, true))
             .select("id")
             .single();
-          if (insertError || !listing) { console.error("Failed to create listing:", insertError); errorCount++; continue; }
+          if (insertError || !listing) { errorCount++; continue; }
           listingId = listing.id;
         }
         const { error: updateError } = await supabase
           .from("valuation_leads")
           .update({ pushed_to_all_deals: true, pushed_to_all_deals_at: new Date().toISOString(), pushed_listing_id: listingId, status: "pushed" } as never)
           .eq("id", lead.id);
-        if (updateError) console.error("Listing created but failed to mark lead as pushed:", lead.id, updateError);
+        void updateError;
         successCount++;
       }
 
@@ -415,14 +415,14 @@ export function useValuationLeadsData() {
             .from("listings")
             .update({ pushed_to_all_deals: true, pushed_to_all_deals_at: new Date().toISOString() })
             .eq("id", listingId);
-          if (error) { console.error("Failed to update listing:", error); continue; }
+          if (error) { continue; }
         } else {
           const { data: listing, error: insertError } = await supabase
             .from("listings")
             .insert(buildListingFromLead(lead, true))
             .select("id")
             .single();
-          if (insertError || !listing) { console.error("Failed to create listing:", insertError); continue; }
+          if (insertError || !listing) { continue; }
           listingId = listing.id;
         }
         listingIds.push(listingId);
@@ -452,7 +452,7 @@ export function useValuationLeadsData() {
           const { error } = await supabase.from("enrichment_queue").upsert(chunk, { onConflict: "listing_id" });
           if (!error) enrichQueued += chunk.length;
           else {
-            console.error("Queue upsert error:", error);
+            // Queue upsert error — toast shown to user
             if (activityItem) completeOperation.mutate({ id: activityItem.id, finalStatus: "failed" });
           }
         }
@@ -523,7 +523,7 @@ export function useValuationLeadsData() {
         const chunk = rows.slice(i, i + CHUNK);
         const { error } = await supabase.from("enrichment_queue").upsert(chunk, { onConflict: "listing_id" });
         if (error) {
-          console.error("Queue upsert error:", error);
+          // Queue upsert error — toast shown to user
           sonnerToast.error("Failed to queue enrichment");
           if (activityItem) completeOperation.mutate({ id: activityItem.id, finalStatus: "failed" });
           setIsReEnriching(false);
@@ -631,10 +631,10 @@ export function useValuationLeadsData() {
         const { error: updateError } = await supabase.from("enrichment_queue")
           .update({ status: "pending", force: mode === "all", attempts: 0, queued_at: now, completed_at: null, last_error: null, started_at: null })
           .in("listing_id", listingIds);
-        if (updateError) console.warn("Queue pre-update error (non-fatal):", updateError);
+        // Queue pre-update error is non-fatal
         const { error } = await supabase.from("enrichment_queue").upsert(chunk, { onConflict: "listing_id", ignoreDuplicates: true });
         if (error) {
-          console.error("Queue upsert error:", error);
+          // Queue upsert error — toast shown to user
           sonnerToast.error(`Failed to queue enrichment (batch ${Math.floor(i / CHUNK) + 1})`);
           if (activityItem) completeOperation.mutate({ id: activityItem.id, finalStatus: "failed" });
           setIsEnriching(false);
@@ -671,7 +671,7 @@ export function useValuationLeadsData() {
       .update({ status: "pending", attempts: 0, last_error: null, queued_at: nowIso })
       .in("listing_id", failedIds);
     sonnerToast.success(`Retrying ${failedIds.length} failed deal${failedIds.length !== 1 ? "s" : ""}`);
-    void supabase.functions.invoke("process-enrichment-queue", { body: { source: "valuation_leads_retry" } }).catch(console.warn);
+    void supabase.functions.invoke("process-enrichment-queue", { body: { source: "valuation_leads_retry" } }).catch(() => { /* non-blocking */ });
   }, [dismissSummary, enrichmentSummary]);
 
   const handleScoreLeads = useCallback(
@@ -687,7 +687,7 @@ export function useValuationLeadsData() {
         if (error) throw error;
         sonnerToast.success(`Scored ${data?.scored ?? targets.length} leads`);
       } catch (err) {
-        console.error("Scoring failed:", err);
+        // Scoring failed — toast shown to user
         sonnerToast.error("Scoring failed");
       }
       setIsScoring(false);

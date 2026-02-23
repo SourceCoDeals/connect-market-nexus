@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 import { getCorsHeaders, corsPreflightResponse } from "../_shared/cors.ts";
+import { errorResponse } from "../_shared/error-response.ts";
 
 interface NotifyRequest {
   score_id: string;
@@ -21,12 +22,32 @@ serve(async (req) => {
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+
+    // Auth guard: require valid JWT + admin role
+    const authHeader = req.headers.get("Authorization") || "";
+    const callerToken = authHeader.replace("Bearer ", "").trim();
+    if (!callerToken) {
+      return errorResponse("Unauthorized", 401, corsHeaders, "unauthorized");
+    }
+
+    const anonClient = createClient(
+      supabaseUrl,
+      Deno.env.get("SUPABASE_ANON_KEY")!,
+      { global: { headers: { Authorization: `Bearer ${callerToken}` } } }
+    );
+    const { data: { user: callerUser }, error: callerError } = await anonClient.auth.getUser();
+    if (callerError || !callerUser) {
+      return errorResponse("Unauthorized", 401, corsHeaders, "unauthorized");
+    }
+
     const supabase = createClient(supabaseUrl, supabaseKey);
+    const { data: isAdmin } = await supabase.rpc("is_admin", { _user_id: callerUser.id });
+    if (!isAdmin) {
+      return errorResponse("Forbidden: admin access required", 403, corsHeaders, "forbidden");
+    }
 
     const body: NotifyRequest = await req.json();
     const { score_id, buyer_id, listing_id, composite_score, tier } = body;
-
-    console.log(`Processing A-tier notification for score ${score_id}`);
 
     // Fetch buyer details
     const { data: buyer, error: buyerError } = await supabase
@@ -99,23 +120,22 @@ serve(async (req) => {
       throw new Error("Failed to create notifications");
     }
 
-    console.log(`Created ${notifications.length} A-tier match notifications`);
+    // Notification count logged without PII
 
     return new Response(
-      JSON.stringify({ 
-        success: true, 
+      JSON.stringify({
+        success: true,
         notified: notifications.length,
-        buyer: buyer.company_name,
-        listing: listing.title,
-        score: composite_score
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (error) {
     console.error("Notify remarketing match error:", error);
-    return new Response(
-      JSON.stringify({ error: error instanceof Error ? error.message : "Unknown error" }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    return errorResponse(
+      error instanceof Error ? error.message : "Unknown error",
+      500,
+      corsHeaders,
+      "internal_error",
     );
   }
 });

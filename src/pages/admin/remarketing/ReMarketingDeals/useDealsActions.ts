@@ -73,11 +73,11 @@ export function useDealsActions({
       if (queued) return;
       const queueEntries = dealIds.map(id => ({ listing_id: id, status: 'pending', attempts: 0, queued_at: nowIso }));
       const { error } = await supabase.from('enrichment_queue').upsert(queueEntries, { onConflict: 'listing_id' });
-      if (error) { console.error('Failed to queue deals:', error); return; }
+      if (error) { return; }
       toast({ title: "Deals queued for enrichment", description: `${dealIds.length} deal${dealIds.length !== 1 ? 's' : ''} added to enrichment queue` });
-      void supabase.functions.invoke('process-enrichment-queue', { body: { source: 'csv_import' } }).catch((e) => console.warn('Failed to trigger enrichment worker:', e));
+      void supabase.functions.invoke('process-enrichment-queue', { body: { source: 'csv_import' } }).catch(() => { /* non-blocking */ });
     } catch (err) {
-      console.error('Failed to queue deals:', err);
+      void err;
     }
   }, [toast, startOrQueueMajorOp, user?.id]);
 
@@ -92,7 +92,7 @@ export function useDealsActions({
     const nowIso = new Date().toISOString();
     await supabase.from('enrichment_queue').update({ status: 'pending', attempts: 0, last_error: null, queued_at: nowIso }).in('listing_id', failedIds);
     toast({ title: "Retrying failed deals", description: `${failedIds.length} deal${failedIds.length !== 1 ? 's' : ''} queued for retry` });
-    void supabase.functions.invoke('process-enrichment-queue', { body: { source: 'retry_failed' } }).catch(console.warn);
+    void supabase.functions.invoke('process-enrichment-queue', { body: { source: 'retry_failed' } }).catch(() => { /* non-blocking */ });
   }, [dismissSummary, enrichmentSummary, toast]);
 
   const persistRankChanges = useCallback(async (reordered: DealListing[], description: string) => {
@@ -105,7 +105,7 @@ export function useDealsActions({
       await queryClient.invalidateQueries({ queryKey: ['remarketing', 'deals'] });
       toast({ title: "Position updated", description });
     } catch (error) {
-      console.error('Failed to update rank:', error);
+      // Failed to update rank — toast shown to user
       await queryClient.invalidateQueries({ queryKey: ['remarketing', 'deals'] });
       toast({ title: "Failed to update rank", variant: "destructive" });
     }
@@ -157,7 +157,7 @@ export function useDealsActions({
       await queryClient.invalidateQueries({ queryKey: ['remarketing', 'deals'] });
       toast({ title: 'Position updated', description: `Deal moved to position ${targetPos}` });
     } catch (err: any) {
-      console.error('Failed to update rank:', err);
+      // Failed to update rank — toast shown to user
       await queryClient.invalidateQueries({ queryKey: ['remarketing', 'deals'] });
       toast({ title: 'Failed to update rank', variant: 'destructive' });
     }
@@ -310,14 +310,14 @@ export function useDealsActions({
       const { queued } = await startOrQueueMajorOp({ operationType: 'deal_enrichment', totalItems: dealIds.length, description: `Enrich ${dealIds.length} deals (${mode})`, userId: user?.id || 'unknown' });
       if (queued) { setIsEnrichingAll(false); return; }
       const { error: resetError } = await supabase.from('listings').update({ enriched_at: null }).in('id', dealIds);
-      if (resetError) console.warn('Failed to reset enriched_at:', resetError);
+      // Reset error is non-critical — continue with enrichment
       const nowIso = new Date().toISOString();
       const { error: resetQueueError } = await supabase.from('enrichment_queue').update({ status: 'pending', attempts: 0, started_at: null, completed_at: null, last_error: null, queued_at: nowIso, updated_at: nowIso }).in('listing_id', dealIds);
       if (resetQueueError) throw resetQueueError;
       const { error: insertMissing } = await supabase.from('enrichment_queue').upsert(dealIds.map(id => ({ listing_id: id, status: 'pending', attempts: 0, queued_at: nowIso })), { onConflict: 'listing_id', ignoreDuplicates: true });
       if (insertMissing) throw insertMissing;
       toast({ title: "Enrichment queued", description: `${dealIds.length} deal${dealIds.length > 1 ? 's' : ''} queued for enrichment. Starting processing now...` });
-      void supabase.functions.invoke('process-enrichment-queue', { body: { source: 'ui_enrich_deals' } }).catch(e => console.warn('Failed to trigger enrichment worker:', e));
+      void supabase.functions.invoke('process-enrichment-queue', { body: { source: 'ui_enrich_deals' } }).catch(() => { /* non-blocking */ });
       refetchListings();
     } catch (error: any) {
       toast({ title: "Error", description: error.message, variant: "destructive" });

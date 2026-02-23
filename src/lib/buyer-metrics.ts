@@ -139,13 +139,22 @@ export function getPrimaryMetrics(user: User | null): BuyerMetric[] {
 
   // LinkedIn (always valuable for validation)
   if (user.linkedin_profile) {
-    const linkedinUrl = user.linkedin_profile.startsWith('http') 
-      ? user.linkedin_profile 
-      : `https://linkedin.com/in/${user.linkedin_profile}`;
+    let linkedinUrl: string | undefined;
+    try {
+      const candidateUrl = user.linkedin_profile.startsWith('http')
+        ? user.linkedin_profile
+        : `https://linkedin.com/in/${user.linkedin_profile}`;
+      const parsed = new URL(candidateUrl);
+      if (parsed.protocol === 'https:' || parsed.protocol === 'http:') {
+        linkedinUrl = parsed.href;
+      }
+    } catch {
+      // Invalid URL — don't construct a link
+    }
     metrics.push({
       label: 'LinkedIn',
       value: 'Profile',
-      isClickable: true,
+      isClickable: !!linkedinUrl,
       href: linkedinUrl,
       completeness: 'complete'
     });

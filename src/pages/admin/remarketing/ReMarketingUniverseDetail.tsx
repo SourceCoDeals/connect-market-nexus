@@ -388,13 +388,13 @@ const ReMarketingUniverseDetail = () => {
           );
 
           if (!response.ok) {
-            console.error('[ReMarketingUniverseDetail] Failed to generate guide document:', response.status);
+            // Failed to generate guide document
             return;
           }
 
           const data = await response.json();
           if (!data.success || !data.document) {
-            console.error('[ReMarketingUniverseDetail] No document returned from generate-guide-pdf');
+            // No document returned from generate-guide-pdf
             return;
           }
 
@@ -408,14 +408,14 @@ const ReMarketingUniverseDetail = () => {
             .eq('id', id);
 
           if (updateError) {
-            console.error('[ReMarketingUniverseDetail] Failed to save document:', updateError);
+            // Failed to save document
             return;
           }
 
           // Update local state for immediate UI feedback
           setDocuments(updatedDocs);
         } catch (error) {
-          console.error('[ReMarketingUniverseDetail] Error syncing guide to documents:', error);
+          // Error syncing guide to documents — non-critical
         }
       }
     };

@@ -120,7 +120,7 @@ export const DealCSVImport = ({
           setColumnMappings(merged);
           setMappingStats(stats);
         } catch (error) {
-          console.error("AI mapping failed:", error);
+          // AI mapping failed — using fallback
           // Fallback to empty mapping - still use merge to ensure all columns present
           const [merged, stats] = mergeColumnMappings(columns, []);
           setColumnMappings(merged);
@@ -344,7 +344,7 @@ export const DealCSVImport = ({
           body: {},
         }).then(({ error }) => {
           if (error) {
-            console.error("Enrichment queue processing error:", error);
+            // Enrichment queue processing error — non-blocking
           }
         });
       }

@@ -131,7 +131,7 @@ export const EmailPreviewDialog = ({
           } : e
         ));
       } catch (error) {
-        console.error('Failed to generate email for', buyer.buyerName, error);
+        // Generation failed — falling back to template
         setEmails(prev => prev.map((e, idx) => 
           idx === i ? {
             ...e,
@@ -184,7 +184,7 @@ export const EmailPreviewDialog = ({
         } : e
       ));
     } catch (error) {
-      console.error('Failed to regenerate email:', error);
+      // Regeneration failed — error state set below
       setEmails(prev => prev.map((e, i) => 
         i === index ? { ...e, isLoading: false, error: 'Failed to regenerate' } : e
       ));

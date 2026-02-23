@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 
 import { getCorsHeaders, corsPreflightResponse } from "../_shared/cors.ts";
+import { errorResponse } from "../_shared/error-response.ts";
 
 // Helper to extract error message from unknown error type
 function getErrorMessage(e: unknown): string {
@@ -111,10 +112,7 @@ serve(async (req) => {
     const authHeader = req.headers.get('Authorization') || '';
     const callerToken = authHeader.replace('Bearer ', '').trim();
     if (!callerToken) {
-      return new Response(
-        JSON.stringify({ error: 'Unauthorized' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      return errorResponse('Unauthorized', 401, corsHeaders, 'unauthorized');
     }
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
@@ -125,19 +123,13 @@ serve(async (req) => {
     });
     const { data: { user: callerUser }, error: callerError } = await callerClient.auth.getUser();
     if (callerError || !callerUser) {
-      return new Response(
-        JSON.stringify({ error: 'Unauthorized' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      return errorResponse('Unauthorized', 401, corsHeaders, 'unauthorized');
     }
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
     const { data: isAdmin } = await supabase.rpc('is_admin', { _user_id: callerUser.id });
     if (!isAdmin) {
-      return new Response(
-        JSON.stringify({ error: 'Forbidden: admin access required' }),
-        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      return errorResponse('Forbidden: admin access required', 403, corsHeaders, 'forbidden');
     }
     // ── End auth guard ──
 
@@ -166,9 +158,6 @@ serve(async (req) => {
       }
 
       // Clear existing data in reverse dependency order
-      console.log('WARNING: Clearing existing remarketing data...');
-      console.log(`Timestamp: ${new Date().toISOString()}`);
-
       // Track what we're deleting for audit
       const { count: learningCount } = await supabase.from('buyer_learning_history').select('*', { count: 'exact', head: true });
       const { count: scoreCount } = await supabase.from('remarketing_scores').select('*', { count: 'exact', head: true });
@@ -177,7 +166,22 @@ serve(async (req) => {
       const { count: buyerCount } = await supabase.from('remarketing_buyers').select('*', { count: 'exact', head: true });
       const { count: universeCount } = await supabase.from('remarketing_buyer_universes').select('*', { count: 'exact', head: true });
 
-      console.log(`Deleting: ${learningCount} learning, ${scoreCount} scores, ${transcriptCount} transcripts, ${contactCount} contacts, ${buyerCount} buyers, ${universeCount} universes`);
+      // Audit log: record who cleared data and what was deleted
+      await supabase.from('user_activity').insert({
+        user_id: callerUser.id,
+        activity_type: 'bulk_clear_remarketing',
+        metadata: {
+          timestamp: new Date().toISOString(),
+          counts_before_delete: {
+            learningHistory: learningCount || 0,
+            scores: scoreCount || 0,
+            transcripts: transcriptCount || 0,
+            contacts: contactCount || 0,
+            buyers: buyerCount || 0,
+            universes: universeCount || 0,
+          }
+        }
+      });
 
       // Delete in order respecting foreign key constraints
       const deleteErrors: string[] = [];
@@ -256,10 +260,7 @@ serve(async (req) => {
     // Handle 'validate' action - dry run to check data before import
     if (action === 'validate') {
       if (!data) {
-        return new Response(JSON.stringify({ error: 'No data provided for validation' }), {
-          status: 400,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
+        return errorResponse('No data provided for validation', 400, corsHeaders, 'validation_error');
       }
 
       const validation = validateImportData(data);
@@ -686,22 +687,28 @@ serve(async (req) => {
       }
       console.log(`Imported ${results.learningHistory.imported} learning history records`);
 
-      return new Response(JSON.stringify(results), {
+      // Sanitize error messages before returning to client (remove buyer names, schema details)
+      const sanitizeErrors = (errors: string[]) =>
+        errors.map(e => e.replace(/Buyer [^:]+:/g, 'Record:').replace(/at index \d+/g, 'at index [N]'));
+      const sanitizedResults = {
+        ...results,
+        universes: { ...results.universes, errors: sanitizeErrors(results.universes.errors) },
+        buyers: { ...results.buyers, errors: sanitizeErrors(results.buyers.errors) },
+        contacts: { ...results.contacts, errors: sanitizeErrors(results.contacts.errors) },
+        scores: { ...results.scores, errors: sanitizeErrors(results.scores.errors) },
+        learningHistory: { ...results.learningHistory, errors: sanitizeErrors(results.learningHistory.errors) },
+      };
+
+      return new Response(JSON.stringify(sanitizedResults), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    return new Response(JSON.stringify({ error: 'Invalid action' }), {
-      status: 400,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+    return errorResponse('Invalid action', 400, corsHeaders, 'validation_error');
 
   } catch (error) {
     console.error('Import error:', error);
-    return new Response(JSON.stringify({ error: getErrorMessage(error) }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+    return errorResponse(getErrorMessage(error), 500, corsHeaders, 'internal_error');
   }
 });
 
@@ -718,12 +725,13 @@ function normalizeDomainUrl(url: string | null | undefined): string | null {
 }
 
 // Helper functions
-function parseJson(value: any): any {
+function parseJson(value: any, fieldName?: string): any {
   if (!value) return null;
   if (typeof value === 'object') return value;
   try {
     return JSON.parse(value);
-  } catch {
+  } catch (e) {
+    console.warn(`Failed to parse JSON${fieldName ? ` in field '${fieldName}'` : ''}: ${e instanceof Error ? e.message : 'unknown error'}`);
     return null;
   }
 }

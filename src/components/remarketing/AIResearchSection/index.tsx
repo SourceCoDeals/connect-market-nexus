@@ -92,8 +92,8 @@ export const AIResearchSection = ({
       const guideDoc = { id: crypto.randomUUID(), name: file.name, url: urlData.publicUrl, uploaded_at: new Date().toISOString(), type: 'ma_guide' };
       const { data: universe, error: readError } = await supabase.from('remarketing_buyer_universes').select('documents, ma_guide_content').eq('id', universeId).single();
       if (readError) throw readError;
-      const currentDocs = (universe?.documents as any[]) || [];
-      const filteredDocs = currentDocs.filter((d: any) => !d.type || d.type !== 'ma_guide');
+      const currentDocs = (universe?.documents as { type?: string; id?: string; name?: string; url?: string }[]) || [];
+      const filteredDocs = currentDocs.filter((d) => !d.type || d.type !== 'ma_guide');
       const updatedDocs = [...filteredDocs, guideDoc];
       const { error: updateError } = await supabase.from('remarketing_buyer_universes').update({ documents: updatedDocs, ma_guide_content: `[Uploaded Guide: ${file.name}]`, updated_at: new Date().toISOString() }).eq('id', universeId);
       if (updateError) throw updateError;
@@ -107,7 +107,7 @@ export const AIResearchSection = ({
   useEffect(() => { if (universeName && !industryName) setIndustryName(universeName); }, [universeName, industryName]);
   useEffect(() => { if (existingContent) { setContent(existingContent); setWordCount(existingContent.split(/\s+/).length); } }, [existingContent]);
 
-  const checkExistingGenerationRef = useRef<any>(null);
+  const checkExistingGenerationRef = useRef<(() => void) | null>(null);
   useEffect(() => { if (universeId) checkExistingGenerationRef.current(); }, [universeId]);
   useEffect(() => { return () => { if (pollIntervalRef.current) { clearInterval(pollIntervalRef.current); pollIntervalRef.current = null; } }; }, []);
 
@@ -139,7 +139,7 @@ export const AIResearchSection = ({
         }
       }
       if (existingContent && existingContent.length > 500) setState('complete');
-    } catch (err) { console.error('[AIResearchSection] checkExistingGeneration failed:', err); }
+    } catch (err) { /* check failed — will re-attempt on next load */ void err; }
   };
   checkExistingGenerationRef.current = checkExistingGeneration;
 
@@ -157,7 +157,7 @@ export const AIResearchSection = ({
         return;
       }
       const { data: generation, error } = await supabase.from('ma_guide_generations').select('*').eq('id', generationId).maybeSingle();
-      if (error) { console.error('[AIResearchSection] Polling error:', error); return; }
+      if (error) { return; }
       if (!generation) return;
       setCurrentPhase(generation.phases_completed); setTotalPhases(generation.total_phases); setPhaseName(generation.current_phase || '');
       const generatedContent = generation.generated_content as { content?: string; criteria?: ExtractedCriteria } | null;
@@ -316,7 +316,7 @@ export const AIResearchSection = ({
       const data = await response.json();
       toast.success('Guide generation started in background. You can navigate away - it will continue.');
       resumeBackgroundGeneration(data.generation_id);
-    } catch (error: any) { setState('error'); toast.error(error.message || 'Failed to start background generation'); }
+    } catch (error: unknown) { setState('error'); toast.error((error as Error).message || 'Failed to start background generation'); }
   };
 
   const resumeGeneration = (progress: typeof savedProgress) => {
@@ -411,7 +411,7 @@ export const AIResearchSection = ({
               case 'timeout_warning': toast.warning(event.message || 'Approaching time limit, saving progress...', { duration: 5000 }); break;
             }
           } catch (e) {
-            parseErrorCount++; console.warn('[AIResearchSection] Failed to parse SSE event', { batchIndex, snippet: jsonStr.slice(0, 200), error: e, parseErrorCount });
+            parseErrorCount++;
             if (parseErrorCount === PARSE_ERROR_THRESHOLD) toast.warning(`Detected ${PARSE_ERROR_THRESHOLD} stream parsing errors.`, { duration: 8000 });
           }
         }

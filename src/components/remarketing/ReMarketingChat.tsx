@@ -432,7 +432,7 @@ export function ReMarketingChat({
         }
         return;
       }
-      console.error("Chat error:", error);
+      // Chat error — display message to user below
       const errorMessage: Message = {
         id: `error-${Date.now()}`,
         role: "assistant",

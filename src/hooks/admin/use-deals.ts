@@ -132,199 +132,159 @@ export interface DealStage {
 }
 
 
+/** RPC result row from get_deals_with_buyer_profiles */
+interface DealRpcRow {
+  deal_id: string;
+  deal_title: string | null;
+  deal_description: string | null;
+  deal_value: number | null;
+  deal_priority: string | null;
+  deal_probability: number | null;
+  deal_expected_close_date: string | null;
+  deal_source: string | null;
+  deal_created_at: string;
+  deal_updated_at: string;
+  deal_stage_entered_at: string;
+  deal_deleted_at: string | null;
+  connection_request_id: string | null;
+  stage_id: string | null;
+  stage_name: string | null;
+  stage_color: string | null;
+  stage_position: number | null;
+  stage_is_active: boolean | null;
+  stage_is_default: boolean | null;
+  stage_is_system_stage: boolean | null;
+  stage_default_probability: number | null;
+  stage_type: string | null;
+  listing_id: string | null;
+  listing_title: string | null;
+  listing_revenue: number | null;
+  listing_ebitda: number | null;
+  listing_location: string | null;
+  listing_category: string | null;
+  listing_internal_company_name: string | null;
+  listing_image_url: string | null;
+  listing_deal_total_score: number | null;
+  listing_is_priority_target: boolean | null;
+  listing_needs_owner_contact: boolean | null;
+  admin_id: string | null;
+  admin_first_name: string | null;
+  admin_last_name: string | null;
+  admin_email: string | null;
+  buyer_type: string | null;
+  buyer_website: string | null;
+  buyer_quality_score: number | null;
+  buyer_tier: number | null;
+}
+
 export function useDeals() {
   return useQuery({
     queryKey: ['deals'],
     queryFn: async () => {
-      // Direct joined query instead of RPC (per architecture pivot)
-      const { data: deals, error: dealsError } = await supabase
-        .from('deals')
-        .select(`
-          *,
-          listing:listings!deals_listing_id_fkey (
-            id, title, revenue, ebitda, location, category,
-            internal_company_name, image_url
-          ),
-          stage:deal_stages!deals_stage_id_fkey (
-            id, name, color, position, is_active, is_default,
-            is_system_stage, default_probability, stage_type
-          ),
-          assigned_admin:profiles!deals_assigned_to_fkey (
-            id, first_name, last_name, email
-          ),
-          listing_score:listings!deals_listing_id_fkey (
-            deal_total_score, is_priority_target, needs_owner_contact
-          )
-        `)
-        .is('deleted_at', null)
-        .order('created_at', { ascending: false });
+      // Single RPC call replaces the previous N+1 pattern
+      // (deals → connection_requests → profiles done server-side)
+      const { data: rpcRows, error: rpcError } = await supabase
+        .rpc('get_deals_with_buyer_profiles') as { data: DealRpcRow[] | null; error: typeof rpcError };
 
-      if (dealsError) throw dealsError;
+      if (rpcError) throw rpcError;
+      const rows = rpcRows || [];
 
-      // Filter: only show deals that are approved from marketplace,
-      // or from remarketing/manual sources (no connection_request_id)
-      const allRows = deals || [];
-      const crIds = allRows
-        .map((r: any) => r.connection_request_id)
-        .filter(Boolean) as string[];
+      const mapped = rows.map((row) => ({
+        deal_id: row.deal_id,
+        title: row.deal_title || row.listing_title || 'Deal',
+        deal_description: row.deal_description,
+        deal_value: Number(row.deal_value ?? 0),
+        deal_priority: row.deal_priority ?? 'medium',
+        deal_probability: Number(row.deal_probability ?? 50),
+        deal_expected_close_date: row.deal_expected_close_date,
+        deal_source: row.deal_source ?? 'manual',
+        source: row.deal_source ?? 'manual',
+        deal_created_at: row.deal_created_at,
+        deal_updated_at: row.deal_updated_at,
+        deal_stage_entered_at: row.deal_stage_entered_at,
 
-      let approvedCRIds = new Set<string>();
-      if (crIds.length > 0) {
-        // Batch lookup in chunks of 100
-        for (let i = 0; i < crIds.length; i += 100) {
-          const chunk = crIds.slice(i, i + 100);
-          const { data: approved } = await supabase
-            .from('connection_requests')
-            .select('id')
-            .in('id', chunk)
-            .eq('status', 'approved');
-          if (approved) approved.forEach((r: any) => approvedCRIds.add(r.id));
-        }
-      }
+        // Stage
+        stage_id: row.stage_id ?? '',
+        stage_name: row.stage_name,
+        stage_color: row.stage_color ?? '',
+        stage_position: row.stage_position ?? 0,
 
-      const filteredRows = allRows.filter((row: any) =>
-        !row.connection_request_id || approvedCRIds.has(row.connection_request_id)
-      );
+        // Listing
+        listing_id: row.listing_id ?? '',
+        listing_title: row.listing_title,
+        listing_revenue: Number(row.listing_revenue ?? 0),
+        listing_ebitda: Number(row.listing_ebitda ?? 0),
+        listing_location: row.listing_location,
+        listing_category: row.listing_category,
+        listing_real_company_name: row.listing_internal_company_name,
 
-      // Batch-fetch buyer profiles (buyer_type, website) via connection_requests → profiles
-      const filteredCRIds = filteredRows
-        .map((r: any) => r.connection_request_id)
-        .filter(Boolean) as string[];
-      
-      const buyerProfileMap: Record<string, { buyer_type?: string; website?: string; buyer_quality_score?: number | null; buyer_tier?: number | null }> = {};
-      if (filteredCRIds.length > 0) {
-        for (let i = 0; i < filteredCRIds.length; i += 100) {
-          const chunk = filteredCRIds.slice(i, i + 100);
-          const { data: crData } = await supabase
-            .from('connection_requests')
-            .select('id, user_id')
-            .in('id', chunk);
-          if (crData) {
-            const userIds = crData.map((cr: any) => cr.user_id).filter(Boolean);
-            if (userIds.length > 0) {
-              const { data: profiles } = await supabase
-                .from('profiles')
-                .select('id, buyer_type, website, buyer_org_url, buyer_quality_score, buyer_tier')
-                .in('id', userIds);
-              const profileLookup: Record<string, any> = {};
-              profiles?.forEach((p: any) => { profileLookup[p.id] = p; });
-              crData.forEach((cr: any) => {
-                const prof = profileLookup[cr.user_id];
-                if (prof) {
-                  buyerProfileMap[cr.id] = { buyer_type: prof.buyer_type, website: prof.website || prof.buyer_org_url, buyer_quality_score: prof.buyer_quality_score, buyer_tier: prof.buyer_tier };
-                }
-              });
-            }
-          }
-        }
-      }
+        // Contact (not available via RPC — defaults)
+        contact_name: undefined,
+        contact_email: undefined,
+        contact_company: undefined,
+        contact_phone: undefined,
+        contact_role: undefined,
 
-      const mapped = filteredRows.map((row: any) => {
-        const listing = row.listing;
-        const stage = row.stage;
-        const admin = row.assigned_admin;
+        // Document/status (defaults — enriched below)
+        nda_status: 'not_sent' as const,
+        fee_agreement_status: 'not_sent' as const,
+        followed_up: false,
+        negative_followed_up: false,
 
-        return {
-          deal_id: row.id,
-          title: row.title || listing?.title || 'Deal',
-          deal_description: row.description,
-          deal_value: Number(row.value ?? 0),
-          deal_priority: row.priority ?? 'medium',
-          deal_probability: Number(row.probability ?? 50),
-          deal_expected_close_date: row.expected_close_date,
-          deal_source: row.source ?? 'manual',
-          source: row.source ?? 'manual',
-          deal_created_at: row.created_at,
-          deal_updated_at: row.updated_at,
-          deal_stage_entered_at: row.stage_entered_at ?? row.created_at,
+        // Assignment
+        assigned_to: row.admin_id ?? undefined,
+        assigned_admin_name: row.admin_first_name ? `${row.admin_first_name} ${row.admin_last_name}` : undefined,
+        assigned_admin_email: row.admin_email ?? undefined,
 
-          // Stage
-          stage_id: stage?.id ?? row.stage_id,
-          stage_name: stage?.name,
-          stage_color: stage?.color,
-          stage_position: stage?.position,
+        // Tasks and activity (not available via RPC, default to 0)
+        total_tasks: 0,
+        pending_tasks: 0,
+        completed_tasks: 0,
+        pending_tasks_count: 0,
+        completed_tasks_count: 0,
+        activity_count: 0,
+        total_activities_count: 0,
+        last_activity_at: undefined,
 
-          // Listing
-          listing_id: row.listing_id,
-          listing_title: listing?.title,
-          listing_revenue: Number(listing?.revenue ?? 0),
-          listing_ebitda: Number(listing?.ebitda ?? 0),
-          listing_location: listing?.location,
-          listing_category: listing?.category,
-          listing_real_company_name: listing?.internal_company_name,
+        // Buyer (pre-joined via RPC)
+        buyer_type: row.buyer_type ?? null,
+        buyer_website: row.buyer_website ?? undefined,
+        buyer_quality_score: row.buyer_quality_score ?? null,
+        buyer_tier: row.buyer_tier ?? null,
+        buyer_name: undefined,
+        buyer_email: undefined,
+        buyer_company: undefined,
+        buyer_phone: undefined,
+        buyer_priority_score: 0,
 
-          // Contact
-          contact_name: row.contact_name,
-          contact_email: row.contact_email,
-          contact_company: row.contact_company,
-          contact_phone: row.contact_phone,
-          contact_role: row.contact_role,
+        // Extras
+        connection_request_id: row.connection_request_id ?? undefined,
+        company_deal_count: 0,
+        listing_deal_count: 1,
+        buyer_connection_count: 1,
+        buyer_id: undefined,
+        last_contact_at: undefined,
+        last_contact_type: undefined,
 
-          // Document/status
-          nda_status: row.nda_status ?? 'not_sent',
-          fee_agreement_status: row.fee_agreement_status ?? 'not_sent',
-          followed_up: row.followed_up ?? false,
-          followed_up_at: row.followed_up_at,
-          followed_up_by: row.followed_up_by,
-          negative_followed_up: row.negative_followed_up ?? false,
-          negative_followed_up_at: row.negative_followed_up_at,
-          negative_followed_up_by: row.negative_followed_up_by,
+        // Remarketing bridge
+        remarketing_buyer_id: undefined,
+        remarketing_score_id: undefined,
 
-          // Assignment
-          assigned_to: row.assigned_to,
-          assigned_admin_name: admin ? `${admin.first_name} ${admin.last_name}` : undefined,
-          assigned_admin_email: admin?.email,
+        // Scoring & flags from listing (pre-joined via RPC)
+        deal_score: row.listing_deal_total_score ?? null,
+        is_priority_target: row.listing_is_priority_target ?? null,
+        needs_owner_contact: row.listing_needs_owner_contact ?? null,
 
-          // Tasks and activity (not available via join, default to 0)
-          total_tasks: 0,
-          pending_tasks: 0,
-          completed_tasks: 0,
-          pending_tasks_count: 0,
-          completed_tasks_count: 0,
-          activity_count: 0,
-          total_activities_count: 0,
-          last_activity_at: undefined,
+        // Document distribution flags (populated below)
+        memo_sent: false,
+        has_data_room: false,
 
-          // Buyer
-          buyer_name: row.contact_name,
-          buyer_email: row.contact_email,
-          buyer_company: row.contact_company,
-          buyer_type: buyerProfileMap[row.connection_request_id]?.buyer_type ?? null,
-          buyer_phone: row.contact_phone,
-          buyer_priority_score: Number(row.buyer_priority_score ?? 0),
-          buyer_website: buyerProfileMap[row.connection_request_id]?.website ?? undefined,
-          buyer_quality_score: buyerProfileMap[row.connection_request_id]?.buyer_quality_score ?? null,
-          buyer_tier: buyerProfileMap[row.connection_request_id]?.buyer_tier ?? null,
-
-          // Extras
-          connection_request_id: row.connection_request_id,
-          company_deal_count: 0,
-          listing_deal_count: 1,
-          buyer_connection_count: 1,
-          buyer_id: undefined,
-          last_contact_at: undefined,
-          last_contact_type: undefined,
-
-          // Remarketing bridge
-          remarketing_buyer_id: row.remarketing_buyer_id ?? undefined,
-          remarketing_score_id: row.remarketing_score_id ?? undefined,
-
-          // Scoring & flags from listing
-          deal_score: row.listing_score?.deal_total_score ?? null,
-          is_priority_target: row.listing_score?.is_priority_target ?? null,
-          needs_owner_contact: row.listing_score?.needs_owner_contact ?? null,
-
-          // Document distribution flags (populated below)
-          memo_sent: false,
-          has_data_room: false,
-
-          // Meeting scheduled
-          meeting_scheduled: row.meeting_scheduled ?? false,
-        };
-      });
+        // Meeting scheduled
+        meeting_scheduled: false,
+      }));
 
       // Batch-fetch memo distribution and data room documents by listing_id
-      const listingIds = [...new Set(mapped.map((d: any) => d.listing_id).filter(Boolean))] as string[];
+      const listingIds = [...new Set(mapped.map((d) => d.listing_id).filter(Boolean))] as string[];
       const memoSentListings = new Set<string>();
       const dataRoomListings = new Set<string>();
 
@@ -335,12 +295,14 @@ export function useDeals() {
             supabase.from('memo_distribution_log').select('deal_id').in('deal_id', chunk),
             supabase.from('data_room_documents').select('deal_id').in('deal_id', chunk).eq('status', 'active'),
           ]);
-          memoRes.data?.forEach((r: any) => memoSentListings.add(r.deal_id));
-          drRes.data?.forEach((r: any) => dataRoomListings.add(r.deal_id));
+          if (memoRes.error) throw memoRes.error;
+          if (drRes.error) throw drRes.error;
+          memoRes.data?.forEach((r: { deal_id: string }) => memoSentListings.add(r.deal_id));
+          drRes.data?.forEach((r: { deal_id: string }) => dataRoomListings.add(r.deal_id));
         }
       }
 
-      mapped.forEach((deal: any) => {
+      mapped.forEach((deal) => {
         deal.memo_sent = memoSentListings.has(deal.listing_id);
         deal.has_data_room = dataRoomListings.has(deal.listing_id);
       });
@@ -434,7 +396,7 @@ export function useUpdateDealStage() {
       }
       
       // Use new RPC function with ownership logic
-      const { data, error } = await supabase.rpc('move_deal_stage_with_ownership' as any, {
+      const { data, error } = await supabase.rpc('move_deal_stage_with_ownership' as never, {
         p_deal_id: dealId,
         p_new_stage_id: stageId,
         p_current_admin_id: currentAdminId
@@ -628,7 +590,7 @@ export function useUpdateDeal() {
         if (authError) throw authError;
         if (!user) throw new Error('Not authenticated');
 
-        const { data, error } = await supabase.rpc('update_deal_owner' as any, {
+        const { data, error } = await supabase.rpc('update_deal_owner' as never, {
           p_deal_id: dealId,
           p_assigned_to: updates.assigned_to === 'unassigned' || updates.assigned_to === '' ? null : updates.assigned_to,
           p_actor_id: user.id
@@ -829,7 +791,7 @@ export function useCreateDeal() {
     mutationFn: async (deal: Record<string, unknown>) => {
       const { data, error } = await supabase
         .from('deals')
-        .insert(deal as any)
+        .insert(deal as Record<string, unknown>)
         .select()
         .single();
       

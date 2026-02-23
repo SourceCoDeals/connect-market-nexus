@@ -182,7 +182,7 @@ export const TranscriptsListCard = ({
             const extracted = await parseTranscriptFile(file);
             if (extracted.trim()) formData.transcript_text = extracted;
           } catch (err: any) {
-            console.warn("PDF parsing failed:", err.message);
+            // PDF parsing failed — will use empty text
           } finally {
             setIsParsingFile(false);
           }
@@ -235,7 +235,7 @@ export const TranscriptsListCard = ({
           try {
             text = await parseTranscriptFile(file);
           } catch (err: any) {
-            console.warn(`Parse failed for ${file.name}:`, err.message);
+            // Parse failed — will use empty text
           }
         }
 
