@@ -33,7 +33,7 @@ const AdminRequests = () => {
   
   const { data: requests = [], isLoading, error, refetch } = useConnectionRequests();
   const { data: inboundLeads = [], isLoading: isLeadsLoading } = useInboundLeadsQuery();
-  const { mutate: updateRequest, isPending: isUpdating } = useConnectionRequestsMutation();
+  const { mutateAsync: updateRequest, isPending: isUpdating } = useConnectionRequestsMutation();
   
   // Inbound leads mutations
   useMapLeadToListing();
