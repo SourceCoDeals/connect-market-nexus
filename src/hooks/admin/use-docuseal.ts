@@ -42,6 +42,7 @@ export function useCreateDocuSealSubmission() {
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['firm-agreements'] });
       queryClient.invalidateQueries({ queryKey: ['buyer-nda-status'] });
+      queryClient.invalidateQueries({ queryKey: ['connection-request-firm'] });
       const docType = variables.documentType === 'nda' ? 'NDA' : 'Fee Agreement';
       const method = variables.sendEmail ? 'sent via email' : 'ready for signing';
       toast({

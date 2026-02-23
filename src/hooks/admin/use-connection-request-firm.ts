@@ -7,6 +7,10 @@ export interface ConnectionRequestFirmInfo {
   member_count: number | null;
   fee_agreement_signed: boolean;
   nda_signed: boolean;
+  nda_status: string | null;
+  fee_agreement_status: string | null;
+  nda_docuseal_status: string | null;
+  fee_docuseal_status: string | null;
 }
 
 export function useConnectionRequestFirm(requestId: string | null) {
@@ -24,7 +28,11 @@ export function useConnectionRequestFirm(requestId: string | null) {
             primary_company_name,
             member_count,
             fee_agreement_signed,
-            nda_signed
+            nda_signed,
+            nda_status,
+            fee_agreement_status,
+            nda_docuseal_status,
+            fee_docuseal_status
           )
         `)
         .eq('id', requestId)
@@ -38,7 +46,7 @@ export function useConnectionRequestFirm(requestId: string | null) {
       if (!data) return null;
       
       // Type guard: check if firm property exists
-      type FirmRow = { id: string; primary_company_name: string | null; member_count: number | null; fee_agreement_signed: boolean; nda_signed: boolean };
+      type FirmRow = { id: string; primary_company_name: string | null; member_count: number | null; fee_agreement_signed: boolean; nda_signed: boolean; nda_status: string | null; fee_agreement_status: string | null; nda_docuseal_status: string | null; fee_docuseal_status: string | null };
       const firmData = data as { firm_id: string | null; firm: FirmRow | FirmRow[] | null };
       if (!firmData.firm) return null;
 
@@ -50,6 +58,10 @@ export function useConnectionRequestFirm(requestId: string | null) {
         member_count: firm.member_count,
         fee_agreement_signed: firm.fee_agreement_signed,
         nda_signed: firm.nda_signed,
+        nda_status: firm.nda_status,
+        fee_agreement_status: firm.fee_agreement_status,
+        nda_docuseal_status: firm.nda_docuseal_status,
+        fee_docuseal_status: firm.fee_docuseal_status,
       } as ConnectionRequestFirmInfo;
     },
     enabled: !!requestId,

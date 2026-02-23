@@ -111,8 +111,10 @@ export function ConnectionRequestActions({
     enabled: !!listing?.id,
   });
 
-  const hasFeeAgreement = user.fee_agreement_signed || false;
-  const hasNDA = user.nda_signed || false;
+  const hasFeeAgreement = firmInfo?.fee_agreement_signed || user.fee_agreement_signed || false;
+  const hasNDA = firmInfo?.nda_signed || user.nda_signed || false;
+  const ndaStatus = firmInfo?.nda_status || (user.nda_signed ? 'signed' : user.nda_email_sent ? 'sent' : 'not_started');
+  const feeStatus = firmInfo?.fee_agreement_status || (user.fee_agreement_signed ? 'signed' : user.fee_agreement_email_sent ? 'sent' : 'not_started');
 
   // ─── Decision Handlers ───
 
@@ -506,7 +508,7 @@ export function ConnectionRequestActions({
                 <div className="flex items-center gap-2.5">
                   <div className={`w-2.5 h-2.5 rounded-full ${hasNDA ? 'bg-emerald-500' : 'bg-amber-500'}`} />
                   <span className="text-base font-semibold text-foreground">
-                    {user.nda_signed ? 'Signed' : user.nda_email_sent ? 'Sent' : 'Not Sent'}
+                    {hasNDA ? 'Signed' : ndaStatus === 'sent' ? 'Sent' : 'Not Sent'}
                   </span>
                   {!hasNDA && firmInfo?.firm_id && (
                     <button
@@ -523,7 +525,7 @@ export function ConnectionRequestActions({
                 <div className="flex items-center gap-2.5">
                   <div className={`w-2.5 h-2.5 rounded-full ${hasFeeAgreement ? 'bg-emerald-500' : 'bg-amber-500'}`} />
                   <span className="text-base font-semibold text-foreground">
-                    {user.fee_agreement_signed ? 'Signed' : user.fee_agreement_email_sent ? 'Sent' : 'Not Sent'}
+                    {hasFeeAgreement ? 'Signed' : feeStatus === 'sent' ? 'Sent' : 'Not Sent'}
                   </span>
                   {!hasFeeAgreement && firmInfo?.firm_id && (
                     <button
