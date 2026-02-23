@@ -2,7 +2,7 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App.tsx';
 import './index.css';
-import { seedDatabase } from './seed.ts';
+// import { seedDatabase } from './seed.ts';
 import { BrowserRouter } from 'react-router-dom';
 
 // Remove pre-React loading indicator once JS modules have loaded
@@ -12,12 +12,10 @@ if (preLoader) {
   setTimeout(() => preLoader.remove(), 300);
 }
 
-// Seed database with sample data for development only
-if (import.meta.env.DEV) {
-  seedDatabase().catch(() => {
-    // Error already logged by seedDatabase function
-  });
-}
+// Seed database disabled — causes 401 errors on cold load without auth session
+// if (import.meta.env.DEV) {
+//   seedDatabase().catch(() => {});
+// }
 
 // Mount React with error recovery
 const rootElement = document.getElementById('root');

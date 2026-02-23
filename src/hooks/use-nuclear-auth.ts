@@ -19,87 +19,115 @@ export function useNuclearAuth() {
   useEffect(() => {
     let isMounted = true;
 
-    // Simplified - no early token detection in auth hook
-    // Let PendingApproval page handle all verification scenarios
-
-    // Simple session check with self-healing for missing profiles
-    const checkSession = async () => {
+    // Load profile and set user state (does NOT control isLoading)
+    const loadProfile = async (sessionUserId: string) => {
       try {
-        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-        if (sessionError) throw sessionError;
-        
+        const { data: fetchedProfile, error: profileError } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', sessionUserId)
+          .single();
+
+        // Self-healing: if profile missing, create one from auth metadata
+        let profile: typeof fetchedProfile = fetchedProfile;
+        if (!fetchedProfile && (profileError?.code === 'PGRST116' || !profileError)) {
+          const { data: { session } } = await supabase.auth.getSession();
+          if (session?.user) {
+            profile = await selfHealProfile(session.user) as typeof fetchedProfile;
+          }
+        }
+
+        if (profile && isMounted) {
+          const appUser = createUserObject(profile);
+
+          // Fetch team role from user_roles table (admin panel access control)
+          if (appUser.is_admin) {
+            try {
+              const { data: roleData } = await supabase.rpc('get_my_role');
+              const role = (roleData as TeamRole) || null;
+              if (isMounted) {
+                setTeamRole(role);
+                appUser.team_role = role ?? undefined;
+              }
+            } catch {
+              // Non-critical: default to null
+            }
+          } else {
+            if (isMounted) setTeamRole(null);
+          }
+
+          if (isMounted) setUser(appUser);
+
+          // Link journey AND session to user (fire-and-forget)
+          const visitorId = localStorage.getItem(VISITOR_ID_KEY);
+          const currentSessionId = sessionStorage.getItem('session_id');
+          
+          if (visitorId) {
+            supabase.rpc('link_journey_to_user', {
+              p_visitor_id: visitorId,
+              p_user_id: sessionUserId
+            }).then(({ error: linkError }) => {
+              if (linkError) console.error('Failed to link journey:', linkError);
+            });
+          }
+          
+          if (currentSessionId) {
+            supabase
+              .from('user_sessions')
+              .update({ 
+                user_id: sessionUserId,
+                last_active_at: new Date().toISOString(),
+              })
+              .eq('session_id', currentSessionId)
+              .is('user_id', null)
+              .then(({ error: mergeError }) => {
+                if (mergeError) console.error('Failed to merge session:', mergeError);
+              });
+          }
+        }
+      } catch (error) {
+        console.error('Profile load error:', error);
+      }
+    };
+
+    // Listener for ONGOING auth changes — does NOT control isLoading
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (event, session) => {
         if (!isMounted) return;
         
+        if (event === 'SIGNED_OUT') {
+          setUser(null);
+          setTeamRole(null);
+          // Don't touch isLoading here — only initial load controls it
+        } else if (event === 'SIGNED_IN' && session?.user) {
+          // Defer to avoid Supabase deadlock
+          setTimeout(() => {
+            if (isMounted) loadProfile(session.user.id);
+          }, 0);
+        } else if (event === 'TOKEN_REFRESHED' && session?.user) {
+          // Silently refresh profile on token refresh
+          setTimeout(() => {
+            if (isMounted) loadProfile(session.user.id);
+          }, 0);
+        }
+      }
+    );
+
+    // INITIAL load — this is the ONLY place that controls isLoading
+    const initializeAuth = async () => {
+      try {
+        const { data: { session }, error } = await supabase.auth.getSession();
+        if (error) throw error;
+        if (!isMounted) return;
+
         if (session?.user) {
-          // Fetch profile data directly
-          const { data: fetchedProfile, error: profileError } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', session.user.id)
-            .single();
-
-          // Self-healing: if profile missing, create one from auth metadata
-          const profile = (!fetchedProfile && (profileError?.code === 'PGRST116' || !profileError))
-            ? await selfHealProfile(session.user)
-            : fetchedProfile;
-
-          if (profile && isMounted) {
-            const appUser = createUserObject(profile);
-
-            // Fetch team role from user_roles table (admin panel access control)
-            if (appUser.is_admin) {
-              try {
-                const { data: roleData } = await supabase.rpc('get_my_role');
-                const role = (roleData as TeamRole) || null;
-                if (isMounted) {
-                  setTeamRole(role);
-                  appUser.team_role = role ?? undefined;
-                }
-              } catch {
-                // Non-critical: default to null (useRoleAccess falls back gracefully)
-              }
-            } else {
-              if (isMounted) setTeamRole(null);
-            }
-
-            setUser(appUser);
-
-            // Link journey AND session to user on successful auth
-            const visitorId = localStorage.getItem(VISITOR_ID_KEY);
-            const currentSessionId = sessionStorage.getItem('session_id');
-            
-            if (visitorId) {
-              supabase.rpc('link_journey_to_user', {
-                p_visitor_id: visitorId,
-                p_user_id: session.user.id
-              }).then(({ error }) => {
-                if (error) console.error('Failed to link journey:', error);
-              });
-            }
-            
-            // Merge anonymous session with auth user (preserves geo data)
-            if (currentSessionId) {
-              supabase
-                .from('user_sessions')
-                .update({ 
-                  user_id: session.user.id,
-                  last_active_at: new Date().toISOString(),
-                })
-                .eq('session_id', currentSessionId)
-                .is('user_id', null) // Only update if not already linked
-                .then(({ error }) => {
-                  if (error) console.error('Failed to merge session:', error);
-                });
-            }
-          }
+          await loadProfile(session.user.id);
         } else {
           setUser(null);
         }
       } catch (error) {
         console.error('Session check error:', error);
-        if (isMounted) {
-          setUser(null);
-        }
+        if (isMounted) setUser(null);
       } finally {
         if (isMounted) {
           setIsLoading(false);
@@ -108,38 +136,13 @@ export function useNuclearAuth() {
       }
     };
 
-    // Simple auth state listener - NO async operations inside
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (!isMounted) return;
-      
-      // Nuclear Auth: Auth event
-      
-      if (event === 'SIGNED_OUT') {
-        setUser(null);
-        setTeamRole(null);
-        setIsLoading(false);
-        setAuthChecked(true);
-      } else if (event === 'SIGNED_IN' && session?.user) {
-        // SECURITY: Set loading state before deferred check to prevent
-        // brief window where isLoading=false but user is not yet loaded
-        setIsLoading(true);
-        // Defer profile loading to prevent deadlocks
-        setTimeout(() => {
-          if (isMounted) {
-            checkSession();
-          }
-        }, 100);
-      }
-    });
-
-    // Initial check
-    checkSession();
+    initializeAuth();
 
     return () => {
       isMounted = false;
       subscription.unsubscribe();
     };
-  }, []); // No dependencies to prevent re-initialization
+  }, []);
 
   // Simple auth actions
   const login = async (email: string, password: string) => {
@@ -149,34 +152,22 @@ export function useNuclearAuth() {
 
   const logout = async () => {
     try {
-      // Starting logout process
-      
-      // Step 1: Clear user state immediately to prevent UI confusion
       setUser(null);
       setIsLoading(true);
       
-      // Step 2: Clean up auth state synchronously
       const { cleanupAuthState } = await import('@/lib/auth-cleanup');
       cleanupAuthState();
       
-      // Step 3: Sign out from Supabase with global scope
       try {
         const { error } = await supabase.auth.signOut({ scope: 'global' });
-        if (error) {
-          console.warn('Supabase logout warning:', error);
-        }
+        if (error) console.warn('Supabase logout warning:', error);
       } catch (signOutError) {
         console.warn('Supabase signOut failed, continuing with cleanup:', signOutError);
       }
       
-      // Logout completed successfully
-      
-      // Step 4: Navigate immediately without delay
       window.location.href = '/login';
-      
     } catch (error) {
       console.error('Logout error:', error);
-      // Ensure navigation happens even on error
       setUser(null);
       window.location.href = '/login';
     }
@@ -185,13 +176,11 @@ export function useNuclearAuth() {
   const signup = async (userData: Partial<AppUser>, password: string) => {
     if (!userData.email) throw new Error("Email is required");
 
-    // Normalize website if present (allow example.com or www.example.com)
     const websiteNormalized =
       userData.website && userData.website.trim() !== ''
         ? processUrl(userData.website)
         : '';
 
-    // Get visitor_id for attribution linking
     const visitorId = localStorage.getItem(VISITOR_ID_KEY);
     
     const { data, error } = await supabase.auth.signUp({
@@ -200,7 +189,6 @@ export function useNuclearAuth() {
       options: {
         emailRedirectTo: `${window.location.origin}/auth/callback`,
         data: {
-          // Pass visitor_id so trigger can link to user_journeys
           visitor_id: visitorId || null,
           first_name: userData.first_name || '',
           last_name: userData.last_name || '',
@@ -215,12 +203,9 @@ export function useNuclearAuth() {
           revenue_range_min: userData.revenue_range_min || '',
           revenue_range_max: userData.revenue_range_max || '',
           specific_business_search: userData.specific_business_search || '',
-          // Missing job_title field
           job_title: userData.job_title || '',
-          // Additional fields for different buyer types
           estimated_revenue: userData.estimated_revenue || '',
           fund_size: userData.fund_size || '',
-          // Ensure investment_size is an array (no stringification)
           investment_size: Array.isArray(userData.investment_size)
             ? userData.investment_size
             : userData.investment_size
@@ -233,17 +218,12 @@ export function useNuclearAuth() {
           funding_source: userData.funding_source || '',
           needs_loan: userData.needs_loan || '',
           ideal_target: userData.ideal_target || '',
-          // All comprehensive buyer-specific fields
-          // Private Equity
           deploying_capital_now: userData.deploying_capital_now || '',
-          // Corporate Development
           owning_business_unit: userData.owning_business_unit || '',
           deal_size_band: userData.deal_size_band || '',
           integration_plan: Array.isArray(userData.integration_plan) ? userData.integration_plan : [],
           corpdev_intent: userData.corpdev_intent || '',
-          // Family Office
           discretion_type: userData.discretion_type || '',
-          // Independent Sponsor
           committed_equity_band: userData.committed_equity_band || '',
           equity_source: Array.isArray(userData.equity_source) ? userData.equity_source : [],
           deployment_timing: userData.deployment_timing || '',
@@ -255,28 +235,22 @@ export function useNuclearAuth() {
           permanent_capital: userData.permanent_capital || null,
           operating_company_targets: Array.isArray(userData.operating_company_targets) ? userData.operating_company_targets : [],
           flex_subxm_ebitda: userData.flex_subxm_ebitda || null,
-          // Search Fund
           search_type: userData.search_type || '',
           acq_equity_band: userData.acq_equity_band || '',
           financing_plan: Array.isArray(userData.financing_plan) ? userData.financing_plan : [],
           search_stage: userData.search_stage || '',
           flex_sub2m_ebitda: userData.flex_sub2m_ebitda || null,
-          // Advisor/Banker
           on_behalf_of_buyer: userData.on_behalf_of_buyer || '',
           buyer_role: userData.buyer_role || '',
           buyer_org_url: userData.buyer_org_url || '',
-          // Business Owner
           owner_timeline: userData.owner_timeline || '',
           owner_intent: userData.owner_intent || '',
-          // Individual Investor
           uses_bank_finance: userData.uses_bank_finance || '',
           max_equity_today_band: userData.max_equity_today_band || '',
-          // Additional comprehensive fields
           mandate_blurb: userData.mandate_blurb || '',
           portfolio_company_addon: userData.portfolio_company_addon || '',
           backers_summary: userData.backers_summary || '',
           anchor_investors_summary: userData.anchor_investors_summary || '',
-          // Special fields to ensure correct capture and snapshot
           deal_intent: userData.deal_intent || '',
           exclusions: Array.isArray(userData.exclusions)
             ? userData.exclusions
@@ -288,10 +262,8 @@ export function useNuclearAuth() {
             : (typeof userData.include_keywords === 'string' && userData.include_keywords
                 ? (userData.include_keywords as string).split(',').map(s => s.trim()).filter(Boolean)
                 : []),
-          // Referral source tracking (Step 3 - How did you hear about us?)
           referral_source: userData.referral_source || '',
           referral_source_detail: userData.referral_source_detail || '',
-          // Deal sourcing questions (Step 3)
           deal_sourcing_methods: Array.isArray(userData.deal_sourcing_methods) ? userData.deal_sourcing_methods : [],
           target_acquisition_volume: userData.target_acquisition_volume || '',
         }
@@ -300,11 +272,7 @@ export function useNuclearAuth() {
     
     if (error) throw error;
 
-    // User signup completed, verification email sent by Supabase
-    
-    // Send admin notification and create firm record
     if (data.user) {
-      // Run admin notification and firm creation in parallel — both are non-blocking
       const adminNotificationPromise = supabase.functions.invoke('enhanced-admin-notification', {
         body: {
           first_name: userData.first_name || '',
@@ -332,18 +300,15 @@ export function useNuclearAuth() {
   const updateUserProfile = async (data: Partial<AppUser>) => {
     if (!user) throw new Error("No user logged in");
 
-    // Normalize website if provided
     const normalizedWebsite =
       data.website && data.website.trim() !== '' ? processUrl(data.website) : undefined;
 
-    // Ensure investment_size is sent as proper JSON/array (not stringified)
     const { investment_size, ...restData } = data;
 
     let preparedInvestmentSize: string[] | undefined = undefined;
     if (Array.isArray(investment_size)) {
       preparedInvestmentSize = investment_size;
     } else if (typeof investment_size === 'string' && investment_size.trim() !== '') {
-      // If it looks like a JSON array, try to parse; otherwise wrap as array
       const trimmed = investment_size.trim();
       if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
         try {
@@ -362,8 +327,6 @@ export function useNuclearAuth() {
       ...(preparedInvestmentSize !== undefined ? { investment_size: preparedInvestmentSize } : {}),
     };
 
-    // SECURITY: Strip privileged fields that must never be set via client-side profile updates.
-    // is_admin is managed by user_roles table + DB trigger; approval_status by admin actions only.
     const PRIVILEGED_FIELDS = ['is_admin', 'approval_status', 'email_verified', 'role', 'id', 'email'];
     for (const field of PRIVILEGED_FIELDS) {
       delete dbPayload[field];
@@ -376,7 +339,6 @@ export function useNuclearAuth() {
 
     if (error) throw error;
     
-    // Simple refresh
     const { data: { session }, error: sessionError } = await supabase.auth.getSession();
     if (sessionError) throw sessionError;
     if (session?.user) {
@@ -388,7 +350,6 @@ export function useNuclearAuth() {
       if (profileError) throw profileError;
 
       if (profile) {
-        // Update user state with new data
         const updatedUser = createUserObject(profile);
         setUser(updatedUser);
       }
@@ -420,12 +381,9 @@ export function useNuclearAuth() {
     updateUserProfile,
     refreshUserProfile,
     isLoading,
-    // SECURITY NOTE: is_admin flag is auto-synced from user_roles table via database trigger
-    // Source of truth is user_roles table, this flag is kept in sync automatically
     isAdmin: user?.is_admin === true,
     isBuyer: user?.role === "buyer",
     authChecked,
-    /** Internal team role for admin panel access control. */
     teamRole,
   };
 }
