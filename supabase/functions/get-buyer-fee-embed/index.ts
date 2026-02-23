@@ -210,13 +210,69 @@ serve(async (req: Request) => {
       clearTimeout(createTimeout);
     }
 
-    if (!docusealResponse.ok) {
-      const errorText = await docusealResponse.text();
-      console.error('❌ DocuSeal API error creating fee submission:', errorText);
-      return new Response(
-        JSON.stringify({ error: 'Failed to create signing form' }),
-        { status: 502, headers: { 'Content-Type': 'application/json', ...corsHeaders } },
-      );
+    if (submitterRes.ok) {
+      const submitters = await submitterRes.json();
+      console.log('📋 DocuSeal submitters response:', JSON.stringify(submitters).substring(0, 500));
+      const data = Array.isArray(submitters?.data)
+        ? submitters.data
+        : Array.isArray(submitters)
+          ? submitters
+          : [];
+      const submitter = data.find((s: any) => s.email === profile?.email) || data[0];
+      console.log('📋 Matched submitter:', JSON.stringify({ email: submitter?.email, status: submitter?.status, has_embed: !!submitter?.embed_src, slug: submitter?.slug, id: submitter?.id }));
+      
+      if (submitter?.embed_src) {
+        return new Response(JSON.stringify({ feeSigned: false, embedSrc: submitter.embed_src }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json', ...corsHeaders },
+        });
+      }
+
+      // embed_src not in list response — fetch individual submitter by ID
+      if (submitter?.id && !submitter?.embed_src) {
+        const individualRes = await fetch(
+          `https://api.docuseal.com/submitters/${submitter.id}`,
+          { headers: { 'X-Auth-Token': docusealApiKey } },
+        );
+        if (individualRes.ok) {
+          const individualData = await individualRes.json();
+          console.log('📋 Individual submitter response:', JSON.stringify({ embed_src: !!individualData?.embed_src, slug: individualData?.slug, status: individualData?.status }));
+          if (individualData?.embed_src) {
+            return new Response(JSON.stringify({ feeSigned: false, embedSrc: individualData.embed_src }), {
+              status: 200,
+              headers: { 'Content-Type': 'application/json', ...corsHeaders },
+            });
+          }
+          // Construct embed URL from slug as fallback
+          if (individualData?.slug) {
+            const embedSrc = `https://docuseal.com/s/${individualData.slug}`;
+            return new Response(JSON.stringify({ feeSigned: false, embedSrc }), {
+              status: 200,
+              headers: { 'Content-Type': 'application/json', ...corsHeaders },
+            });
+          }
+        }
+      }
+
+      // Construct embed URL from slug if available from list response
+      if (submitter?.slug) {
+        const embedSrc = `https://docuseal.com/s/${submitter.slug}`;
+        return new Response(JSON.stringify({ feeSigned: false, embedSrc }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json', ...corsHeaders },
+        });
+      }
+
+      // If submitter exists but completed
+      if (submitter?.status === 'completed') {
+        return new Response(JSON.stringify({ feeSigned: true, embedSrc: null }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json', ...corsHeaders },
+        });
+      }
+    } else {
+      const errorText = await submitterRes.text();
+      console.error('❌ DocuSeal API error:', submitterRes.status, errorText);
     }
 
     const result = await docusealResponse.json();
