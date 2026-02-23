@@ -2,10 +2,10 @@ import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { Mail, FileText, Clock, Loader2 } from "lucide-react";
+import { Mail, FileText, Clock, Loader2, Building2 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { User } from "@/types";
-import { useUpdateFeeAgreement, useUpdateFeeAgreementEmailSent } from "@/hooks/admin/use-fee-agreement";
+import { useUpdateAgreementViaUser, useUserFirm } from "@/hooks/admin/use-firm-agreement-actions";
 import { useState } from "react";
 
 interface DualFeeAgreementToggleProps {
@@ -17,137 +17,124 @@ interface DualFeeAgreementToggleProps {
 export function DualFeeAgreementToggle({ user, onSendEmail, size = "default" }: DualFeeAgreementToggleProps) {
   const [isUpdatingSigned, setIsUpdatingSigned] = useState(false);
   const [isUpdatingEmailSent, setIsUpdatingEmailSent] = useState(false);
-  
-  const updateFeeAgreement = useUpdateFeeAgreement();
-  const updateEmailSent = useUpdateFeeAgreementEmailSent();
+  const updateAgreement = useUpdateAgreementViaUser();
+  const { data: firm } = useUserFirm(user.id);
+
+  // Use firm-level status if available, fallback to profile
+  const isSigned = firm?.fee_agreement_signed ?? (user.fee_agreement_signed || false);
+  const signedAt = firm?.fee_agreement_signed_at ?? user.fee_agreement_signed_at;
+  const signedByName = firm?.fee_agreement_signed_by_name;
+  const emailSent = firm?.fee_agreement_email_sent ?? (user.fee_agreement_email_sent || false);
+  const emailSentAt = firm?.fee_agreement_email_sent_at ?? user.fee_agreement_email_sent_at;
+  const firmName = firm?.primary_company_name;
 
   const handleSignedToggleChange = async (checked: boolean) => {
-    // Fee Agreement Signed Toggle update
-    
-    if (isUpdatingSigned || updateFeeAgreement.isPending) {
-      // Signed toggle update already in progress
-    }
-    
+    if (isUpdatingSigned || updateAgreement.isPending) return;
     setIsUpdatingSigned(true);
     try {
-      await updateFeeAgreement.mutateAsync({
+      await updateAgreement.mutateAsync({
         userId: user.id,
-        isSigned: checked,
-        notes: checked ? 'Manually marked as signed by admin' : 'Manually revoked by admin'
+        agreementType: 'fee_agreement',
+        action: checked ? 'sign' : 'unsign',
+        adminNotes: checked ? 'Manually marked as signed by admin' : 'Manually revoked by admin',
       });
-      // Fee Agreement Signed Toggle Success
     } catch (error) {
-      console.error('❌ Fee Agreement Signed Toggle Error:', error);
+      console.error('Fee Agreement Signed Toggle Error:', error);
     } finally {
       setIsUpdatingSigned(false);
     }
   };
 
   const handleEmailSentToggleChange = async (checked: boolean) => {
-    // Fee Agreement Email Toggle update
-    
-    if (isUpdatingEmailSent || updateEmailSent.isPending) {
-      // Email toggle update already in progress
-    }
-    
+    if (isUpdatingEmailSent || updateAgreement.isPending) return;
     setIsUpdatingEmailSent(true);
     try {
-      await updateEmailSent.mutateAsync({
+      await updateAgreement.mutateAsync({
         userId: user.id,
-        isSent: checked,
-        notes: checked ? 'Manually marked as email sent by admin' : 'Manually marked as email not sent by admin'
+        agreementType: 'fee_agreement',
+        action: checked ? 'email_sent' : 'email_unsent',
+        adminNotes: checked ? 'Manually marked as email sent' : 'Manually marked as email not sent',
       });
-      // Fee Agreement Email Toggle Success
     } catch (error) {
-      console.error('❌ Fee Agreement Email Toggle Error:', error);
+      console.error('Fee Agreement Email Toggle Error:', error);
     } finally {
       setIsUpdatingEmailSent(false);
     }
   };
 
   const handleSendEmail = () => {
-    if (onSendEmail) {
-      onSendEmail(user);
-    }
+    if (onSendEmail) onSendEmail(user);
   };
 
-  const isSigned = user.fee_agreement_signed || false;
-  const signedAt = user.fee_agreement_signed_at;
-  const emailSent = user.fee_agreement_email_sent || false;
-  const emailSentAt = user.fee_agreement_email_sent_at;
-
-  // DualFeeAgreementToggle component render
+  const isPending = updateAgreement.isPending;
 
   if (size === "sm") {
     return (
       <div className="flex items-center gap-3">
-        {/* Email Sent Toggle */}
-        <div className="flex items-center gap-1">
+        {/* Firm indicator */}
+        {firmName && (
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
-                <div className="flex items-center gap-1">
-                  <Mail className="h-3 w-3 text-muted-foreground" />
-                  <Switch
-                    checked={emailSent || false}
-                    onCheckedChange={handleEmailSentToggleChange}
-                    disabled={isUpdatingEmailSent || updateEmailSent.isPending}
-                    className="data-[state=checked]:bg-blue-600 scale-75"
-                  />
-                  {(isUpdatingEmailSent || updateEmailSent.isPending) && (
-                    <Loader2 className="h-3 w-3 animate-spin" />
-                  )}
-                </div>
+                <Building2 className="h-3 w-3 text-muted-foreground/60" />
               </TooltipTrigger>
-              <TooltipContent>
-                <p>Email {emailSent ? 'Sent' : 'Not Sent'}</p>
-              </TooltipContent>
+              <TooltipContent><p>Firm: {firmName}</p></TooltipContent>
             </Tooltip>
           </TooltipProvider>
-        </div>
+        )}
+
+        {/* Email Sent Toggle */}
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div className="flex items-center gap-1">
+                <Mail className="h-3 w-3 text-muted-foreground" />
+                <Switch
+                  checked={emailSent}
+                  onCheckedChange={handleEmailSentToggleChange}
+                  disabled={isUpdatingEmailSent || isPending}
+                  className="data-[state=checked]:bg-blue-600 scale-75"
+                />
+                {(isUpdatingEmailSent || isPending) && <Loader2 className="h-3 w-3 animate-spin" />}
+              </div>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Email {emailSent ? 'Sent' : 'Not Sent'}{firmName ? ` (${firmName})` : ''}</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
 
         {/* Signed Toggle */}
-        <div className="flex items-center gap-1">
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <div className="flex items-center gap-1">
-                  <FileText className="h-3 w-3 text-muted-foreground" />
-                  <Switch
-                    checked={isSigned || false}
-                    onCheckedChange={handleSignedToggleChange}
-                    disabled={isUpdatingSigned || updateFeeAgreement.isPending}
-                    className="data-[state=checked]:bg-green-600 scale-75"
-                  />
-                  {(isUpdatingSigned || updateFeeAgreement.isPending) && (
-                    <Loader2 className="h-3 w-3 animate-spin" />
-                  )}
-                </div>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>Agreement {isSigned ? 'Signed' : 'Not Signed'}</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-        </div>
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div className="flex items-center gap-1">
+                <FileText className="h-3 w-3 text-muted-foreground" />
+                <Switch
+                  checked={isSigned}
+                  onCheckedChange={handleSignedToggleChange}
+                  disabled={isUpdatingSigned || isPending}
+                  className="data-[state=checked]:bg-green-600 scale-75"
+                />
+                {(isUpdatingSigned || isPending) && <Loader2 className="h-3 w-3 animate-spin" />}
+              </div>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Agreement {isSigned ? 'Signed' : 'Not Signed'}{firmName ? ` (${firmName})` : ''}</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
 
         {/* Send Email Button */}
         {!emailSent && onSendEmail && (
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={handleSendEmail}
-                  className="h-6 w-6 p-0"
-                >
+                <Button variant="ghost" size="sm" onClick={handleSendEmail} className="h-6 w-6 p-0">
                   <Mail className="h-3 w-3" />
                 </Button>
               </TooltipTrigger>
-              <TooltipContent>
-                <p>Send Fee Agreement</p>
-              </TooltipContent>
+              <TooltipContent><p>Send Fee Agreement</p></TooltipContent>
             </Tooltip>
           </TooltipProvider>
         )}
@@ -157,6 +144,16 @@ export function DualFeeAgreementToggle({ user, onSendEmail, size = "default" }: 
 
   return (
     <div className="space-y-4">
+      {/* Firm context banner */}
+      {firmName && (
+        <div className="flex items-center gap-2 px-3 py-2 rounded-md bg-muted/50 border border-border/40">
+          <Building2 className="h-3.5 w-3.5 text-muted-foreground" />
+          <span className="text-xs text-muted-foreground">
+            Applied to firm: <span className="font-medium text-foreground">{firmName}</span>
+          </span>
+        </div>
+      )}
+
       {/* Email Sent Section */}
       <div className="space-y-2">
         <div className="flex items-center justify-between">
@@ -165,23 +162,18 @@ export function DualFeeAgreementToggle({ user, onSendEmail, size = "default" }: 
             <span className="text-sm font-medium">Email Sent</span>
           </div>
           <div className="flex items-center gap-2">
-            <div className="flex items-center gap-2">
-              <Switch
-                checked={emailSent || false}
-                onCheckedChange={handleEmailSentToggleChange}
-                disabled={isUpdatingEmailSent || updateEmailSent.isPending}
-                className="data-[state=checked]:bg-blue-600"
-              />
-              {(isUpdatingEmailSent || updateEmailSent.isPending) && (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              )}
-            </div>
+            <Switch
+              checked={emailSent}
+              onCheckedChange={handleEmailSentToggleChange}
+              disabled={isUpdatingEmailSent || isPending}
+              className="data-[state=checked]:bg-blue-600"
+            />
+            {(isUpdatingEmailSent || isPending) && <Loader2 className="h-4 w-4 animate-spin" />}
             <Badge variant={emailSent ? "default" : "secondary"}>
               {emailSent ? "Sent" : "Not Sent"}
             </Badge>
           </div>
         </div>
-        
         {emailSent && emailSentAt && (
           <div className="flex items-center gap-1 text-xs text-muted-foreground">
             <Clock className="h-3 w-3" />
@@ -198,39 +190,32 @@ export function DualFeeAgreementToggle({ user, onSendEmail, size = "default" }: 
             <span className="text-sm font-medium">Fee Agreement</span>
           </div>
           <div className="flex items-center gap-2">
-            <div className="flex items-center gap-2">
-              <Switch
-                checked={isSigned || false}
-                onCheckedChange={handleSignedToggleChange}
-                disabled={isUpdatingSigned || updateFeeAgreement.isPending}
-                className="data-[state=checked]:bg-green-600"
-              />
-              {(isUpdatingSigned || updateFeeAgreement.isPending) && (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              )}
-            </div>
+            <Switch
+              checked={isSigned}
+              onCheckedChange={handleSignedToggleChange}
+              disabled={isUpdatingSigned || isPending}
+              className="data-[state=checked]:bg-green-600"
+            />
+            {(isUpdatingSigned || isPending) && <Loader2 className="h-4 w-4 animate-spin" />}
             <Badge variant={isSigned ? "success" : "secondary"}>
               {isSigned ? "Signed" : "Not Signed"}
             </Badge>
           </div>
         </div>
-        
-        {isSigned && signedAt && (
+        {isSigned && (signedAt || signedByName) && (
           <div className="flex items-center gap-1 text-xs text-muted-foreground">
             <Clock className="h-3 w-3" />
-            <span>Signed {formatDistanceToNow(new Date(signedAt), { addSuffix: true })}</span>
+            <span>
+              {signedByName && `Signed by ${signedByName}`}
+              {signedAt && ` ${formatDistanceToNow(new Date(signedAt), { addSuffix: true })}`}
+            </span>
           </div>
         )}
       </div>
-      
+
       {/* Send Email Button */}
       {!emailSent && (
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={handleSendEmail}
-          className="w-full"
-        >
+        <Button variant="outline" size="sm" onClick={handleSendEmail} className="w-full">
           <Mail className="h-4 w-4 mr-2" />
           Send Fee Agreement
         </Button>

@@ -3,9 +3,9 @@ import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { Mail, Clock, ShieldCheck } from "lucide-react";
+import { Mail, Clock, ShieldCheck, Building2 } from "lucide-react";
 import { User } from "@/types";
-import { useUpdateNDA, useUpdateNDAEmailSent } from "@/hooks/admin/use-nda";
+import { useUpdateAgreementViaUser, useUserFirm } from "@/hooks/admin/use-firm-agreement-actions";
 import { formatDistanceToNow } from "date-fns";
 
 interface DualNDAToggleProps {
@@ -17,20 +17,26 @@ interface DualNDAToggleProps {
 export const DualNDAToggle = ({ user, onSendEmail, size = "default" }: DualNDAToggleProps) => {
   const [isUpdatingSigned, setIsUpdatingSigned] = useState(false);
   const [isUpdatingEmailSent, setIsUpdatingEmailSent] = useState(false);
-  const updateNDA = useUpdateNDA();
-  const updateNDAEmailSent = useUpdateNDAEmailSent();
+  const updateAgreement = useUpdateAgreementViaUser();
+  const { data: firm } = useUserFirm(user.id);
 
-  // Debug log removed
+  // Use firm-level status if available, fallback to profile
+  const isSigned = firm?.nda_signed ?? Boolean(user.nda_signed);
+  const signedAt = firm?.nda_signed_at ?? user.nda_signed_at;
+  const signedByName = firm?.nda_signed_by_name;
+  const emailSent = firm?.nda_email_sent ?? Boolean(user.nda_email_sent);
+  const emailSentAt = firm?.nda_email_sent_at ?? user.nda_email_sent_at;
+  const firmName = firm?.primary_company_name;
 
   const handleSignedToggleChange = async (checked: boolean) => {
-    if (isUpdatingSigned || updateNDA.isPending) return;
-    
+    if (isUpdatingSigned || updateAgreement.isPending) return;
     setIsUpdatingSigned(true);
     try {
-      await updateNDA.mutateAsync({
+      await updateAgreement.mutateAsync({
         userId: user.id,
-        isSigned: checked,
-        adminNotes: checked ? 'Manually marked as signed by admin' : 'Manually revoked by admin'
+        agreementType: 'nda',
+        action: checked ? 'sign' : 'unsign',
+        adminNotes: checked ? 'Manually marked as signed by admin' : 'Manually revoked by admin',
       });
     } finally {
       setIsUpdatingSigned(false);
@@ -38,14 +44,14 @@ export const DualNDAToggle = ({ user, onSendEmail, size = "default" }: DualNDATo
   };
 
   const handleEmailSentToggleChange = async (checked: boolean) => {
-    if (isUpdatingEmailSent || updateNDAEmailSent.isPending) return;
-    
+    if (isUpdatingEmailSent || updateAgreement.isPending) return;
     setIsUpdatingEmailSent(true);
     try {
-      await updateNDAEmailSent.mutateAsync({
+      await updateAgreement.mutateAsync({
         userId: user.id,
-        isSent: checked,
-        adminNotes: checked ? 'Manually marked as email sent by admin' : 'Manually marked as email not sent by admin'
+        agreementType: 'nda',
+        action: checked ? 'email_sent' : 'email_unsent',
+        adminNotes: checked ? 'Manually marked as email sent' : 'Manually marked as email not sent',
       });
     } finally {
       setIsUpdatingEmailSent(false);
@@ -53,80 +59,74 @@ export const DualNDAToggle = ({ user, onSendEmail, size = "default" }: DualNDATo
   };
 
   const handleSendEmail = () => {
-    if (onSendEmail) {
-      onSendEmail(user);
-    }
+    if (onSendEmail) onSendEmail(user);
   };
-
-  const isSigned = Boolean(user.nda_signed);
-  const signedAt = user.nda_signed_at;
-  const emailSent = Boolean(user.nda_email_sent);
-  const emailSentAt = user.nda_email_sent_at;
 
   if (size === "sm") {
     return (
       <div className="flex items-center gap-3">
-        {/* Email Sent Toggle */}
-        <div className="flex items-center gap-1">
+        {/* Firm indicator */}
+        {firmName && (
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
-                <div className="flex items-center gap-1">
-                  <Mail className="h-3 w-3 text-muted-foreground" />
-                   <Switch
-                    checked={emailSent}
-                    onCheckedChange={handleEmailSentToggleChange}
-                    disabled={isUpdatingEmailSent || updateNDAEmailSent.isPending}
-                    className="data-[state=checked]:bg-purple-600 scale-75"
-                  />
-                </div>
+                <Building2 className="h-3 w-3 text-muted-foreground/60" />
               </TooltipTrigger>
-              <TooltipContent>
-                <p>NDA Email {emailSent ? 'Sent' : 'Not Sent'}</p>
-              </TooltipContent>
+              <TooltipContent><p>Firm: {firmName}</p></TooltipContent>
             </Tooltip>
           </TooltipProvider>
-        </div>
+        )}
+
+        {/* Email Sent Toggle */}
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div className="flex items-center gap-1">
+                <Mail className="h-3 w-3 text-muted-foreground" />
+                <Switch
+                  checked={emailSent}
+                  onCheckedChange={handleEmailSentToggleChange}
+                  disabled={isUpdatingEmailSent || updateAgreement.isPending}
+                  className="data-[state=checked]:bg-purple-600 scale-75"
+                />
+              </div>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>NDA Email {emailSent ? 'Sent' : 'Not Sent'}{firmName ? ` (${firmName})` : ''}</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
 
         {/* Signed Toggle */}
-        <div className="flex items-center gap-1">
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <div className="flex items-center gap-1">
-                  <ShieldCheck className="h-3 w-3 text-muted-foreground" />
-                   <Switch
-                    checked={isSigned}
-                    onCheckedChange={handleSignedToggleChange}
-                    disabled={isUpdatingSigned || updateNDA.isPending}
-                    className="data-[state=checked]:bg-emerald-600 scale-75"
-                  />
-                </div>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>NDA {isSigned ? 'Signed' : 'Not Signed'}</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-        </div>
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div className="flex items-center gap-1">
+                <ShieldCheck className="h-3 w-3 text-muted-foreground" />
+                <Switch
+                  checked={isSigned}
+                  onCheckedChange={handleSignedToggleChange}
+                  disabled={isUpdatingSigned || updateAgreement.isPending}
+                  className="data-[state=checked]:bg-emerald-600 scale-75"
+                />
+              </div>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>NDA {isSigned ? 'Signed' : 'Not Signed'}{firmName ? ` (${firmName})` : ''}</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
 
         {/* Send Email Button */}
         {!emailSent && onSendEmail && (
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={handleSendEmail}
-                  className="h-6 w-6 p-0"
-                >
+                <Button variant="ghost" size="sm" onClick={handleSendEmail} className="h-6 w-6 p-0">
                   <Mail className="h-3 w-3" />
                 </Button>
               </TooltipTrigger>
-              <TooltipContent>
-                <p>Send NDA</p>
-              </TooltipContent>
+              <TooltipContent><p>Send NDA</p></TooltipContent>
             </Tooltip>
           </TooltipProvider>
         )}
@@ -136,6 +136,16 @@ export const DualNDAToggle = ({ user, onSendEmail, size = "default" }: DualNDATo
 
   return (
     <div className="space-y-4">
+      {/* Firm context banner */}
+      {firmName && (
+        <div className="flex items-center gap-2 px-3 py-2 rounded-md bg-muted/50 border border-border/40">
+          <Building2 className="h-3.5 w-3.5 text-muted-foreground" />
+          <span className="text-xs text-muted-foreground">
+            Applied to firm: <span className="font-medium text-foreground">{firmName}</span>
+          </span>
+        </div>
+      )}
+
       {/* Email Sent Section */}
       <div className="space-y-2">
         <div className="flex items-center justify-between">
@@ -144,10 +154,10 @@ export const DualNDAToggle = ({ user, onSendEmail, size = "default" }: DualNDATo
             <span className="text-sm font-medium">NDA Email Sent</span>
           </div>
           <div className="flex items-center gap-2">
-           <Switch
+            <Switch
               checked={emailSent}
               onCheckedChange={handleEmailSentToggleChange}
-              disabled={isUpdatingEmailSent || updateNDAEmailSent.isPending}
+              disabled={isUpdatingEmailSent || updateAgreement.isPending}
               className="data-[state=checked]:bg-purple-600"
             />
             <Badge variant={emailSent ? "default" : "secondary"}>
@@ -155,7 +165,6 @@ export const DualNDAToggle = ({ user, onSendEmail, size = "default" }: DualNDATo
             </Badge>
           </div>
         </div>
-        
         {emailSent && emailSentAt && (
           <div className="flex items-center gap-1 text-xs text-muted-foreground">
             <Clock className="h-3 w-3" />
@@ -172,10 +181,10 @@ export const DualNDAToggle = ({ user, onSendEmail, size = "default" }: DualNDATo
             <span className="text-sm font-medium">NDA Signed</span>
           </div>
           <div className="flex items-center gap-2">
-           <Switch
+            <Switch
               checked={isSigned}
               onCheckedChange={handleSignedToggleChange}
-              disabled={isUpdatingSigned || updateNDA.isPending}
+              disabled={isUpdatingSigned || updateAgreement.isPending}
               className="data-[state=checked]:bg-emerald-600"
             />
             <Badge variant={isSigned ? "success" : "secondary"}>
@@ -183,23 +192,20 @@ export const DualNDAToggle = ({ user, onSendEmail, size = "default" }: DualNDATo
             </Badge>
           </div>
         </div>
-        
-        {isSigned && signedAt && (
+        {isSigned && (signedAt || signedByName) && (
           <div className="flex items-center gap-1 text-xs text-muted-foreground">
             <Clock className="h-3 w-3" />
-            <span>Signed {formatDistanceToNow(new Date(signedAt), { addSuffix: true })}</span>
+            <span>
+              {signedByName && `Signed by ${signedByName}`}
+              {signedAt && ` ${formatDistanceToNow(new Date(signedAt), { addSuffix: true })}`}
+            </span>
           </div>
         )}
       </div>
-      
+
       {/* Send Email Button */}
       {!emailSent && onSendEmail && (
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={handleSendEmail}
-          className="w-full"
-        >
+        <Button variant="outline" size="sm" onClick={handleSendEmail} className="w-full">
           <Mail className="h-4 w-4 mr-2" />
           Send NDA Email
         </Button>

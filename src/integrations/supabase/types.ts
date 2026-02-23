@@ -9904,6 +9904,15 @@ export type Database = {
         Returns: boolean
       }
       soft_delete_listing: { Args: { listing_id: string }; Returns: boolean }
+      update_agreement_via_user: {
+        Args: {
+          p_action: string
+          p_admin_notes?: string
+          p_agreement_type: string
+          p_user_id: string
+        }
+        Returns: Json
+      }
       update_connection_request_followup: {
         Args: {
           admin_notes?: string
