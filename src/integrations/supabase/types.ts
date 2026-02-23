@@ -9926,10 +9926,23 @@ export type Database = {
         }
         Returns: number
       }
-      change_user_role: {
-        Args: { _new_role: string; _reason?: string; _target_user_id: string }
-        Returns: undefined
-      }
+      change_user_role:
+        | {
+            Args: {
+              _new_role: string
+              _reason?: string
+              _target_user_id: string
+            }
+            Returns: undefined
+          }
+        | {
+            Args: {
+              change_reason?: string
+              new_role: Database["public"]["Enums"]["app_role"]
+              target_user_id: string
+            }
+            Returns: boolean
+          }
       check_agreement_coverage: {
         Args: { p_agreement_type?: string; p_email: string }
         Returns: {
