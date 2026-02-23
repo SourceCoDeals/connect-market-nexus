@@ -1022,7 +1022,7 @@ const ReMarketingDealMatching = () => {
         const missingFields: string[] = [];
         if (!listing.revenue) missingFields.push('Revenue');
         if (!listing.ebitda) missingFields.push('EBITDA');
-        if (!listing.location?.trim()) missingFields.push('Location');
+        if (!listing.location?.trim() && !listing.address_city?.trim() && !listing.address_state?.trim() && !((listing.geographic_states?.length ?? 0) > 0)) missingFields.push('Location');
         if (!((listing.services?.length ?? 0) > 0 || (listing.categories?.length ?? 0) > 0 || listing.category?.trim())) missingFields.push('Services/Category');
         if (!(listing.hero_description?.trim() || listing.description?.trim() || listing.executive_summary?.trim())) missingFields.push('Description');
 
