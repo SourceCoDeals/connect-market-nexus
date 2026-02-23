@@ -56,7 +56,7 @@ export function BuyerDataRoom({ dealId }: BuyerDataRoomProps) {
   });
 
   // Fetch documents (RLS will filter based on access)
-  const { data: documents = [], isLoading: _isLoading } = useQuery({
+  const { data: documents = [] } = useQuery({
     queryKey: ['buyer-data-room-documents', dealId],
     queryFn: async () => {
       const { data, error } = await supabase

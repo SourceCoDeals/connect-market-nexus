@@ -25,11 +25,10 @@ const ConnectionButton = ({
   isAdmin,
   handleRequestConnection,
   listingTitle,
-  listingId: _listingId,
 }: ConnectionButtonProps) => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [showFeeGate, setShowFeeGate] = useState(false);
-  const { connectionsConnected: _connectionsConnected } = useRealtime();
+  useRealtime();
   const { user } = useAuth();
   const { data: coverage } = useMyAgreementStatus(!isAdmin && !!user);
   const { data: ndaStatus } = useBuyerNdaStatus(!isAdmin ? user?.id : undefined);
