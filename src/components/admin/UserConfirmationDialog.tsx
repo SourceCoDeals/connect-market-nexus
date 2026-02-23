@@ -1,6 +1,12 @@
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { User } from "@/types";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { User } from '@/types';
 
 interface UserConfirmationDialogProps {
   open: boolean;
@@ -9,7 +15,7 @@ interface UserConfirmationDialogProps {
   title: string;
   description: string;
   confirmText: string;
-  confirmVariant?: "default" | "destructive";
+  confirmVariant?: 'default' | 'destructive';
   onConfirm: () => void;
   isLoading: boolean;
 }
@@ -21,9 +27,9 @@ export function UserConfirmationDialog({
   title,
   description,
   confirmText,
-  confirmVariant = "default",
+  confirmVariant = 'default',
   onConfirm,
-  isLoading
+  isLoading,
 }: UserConfirmationDialogProps) {
   if (!user) return null;
 
@@ -35,24 +41,16 @@ export function UserConfirmationDialog({
         </DialogHeader>
         <div id="confirmation-dialog-description">
           <p className="text-sm text-muted-foreground">
-            {description.replace("{userName}", `${user.first_name} ${user.last_name}`)}
+            {description.replace('{userName}', `${user.first_name} ${user.last_name}`)}
           </p>
         </div>
-        
+
         <DialogFooter>
-          <Button 
-            variant="outline" 
-            onClick={() => onOpenChange(false)}
-            disabled={isLoading}
-          >
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isLoading}>
             Cancel
           </Button>
-          <Button 
-            variant={confirmVariant} 
-            onClick={onConfirm}
-            disabled={isLoading}
-          >
-            {isLoading ? "Processing..." : confirmText}
+          <Button variant={confirmVariant} onClick={onConfirm} disabled={isLoading}>
+            {isLoading ? 'Processing...' : confirmText}
           </Button>
         </DialogFooter>
       </DialogContent>

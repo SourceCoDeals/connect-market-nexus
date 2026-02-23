@@ -73,10 +73,10 @@ export function useSessionHeartbeat(userId?: string | null) {
           user_id: userId || null,
           ended: true,
         });
-        
+
         navigator.sendBeacon?.(
-          `${import.meta.env.VITE_SUPABASE_URL || 'https://vhzipqarkmmfuqadefep.supabase.co'}/functions/v1/session-heartbeat`,
-          payload
+          `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/session-heartbeat`,
+          payload,
         );
       } catch (error) {
         console.error('Failed to send final heartbeat:', error);

@@ -81,11 +81,7 @@ export const RoleSelector = ({ userId, currentRole, userEmail, disabled }: RoleS
         </SelectTrigger>
         <SelectContent>
           {roleOptions.map((option) => (
-            <SelectItem
-              key={option.value}
-              value={option.value}
-              disabled={option.value === 'owner'}
-            >
+            <SelectItem key={option.value} value={option.value} disabled={option.value === 'owner'}>
               <div className="flex flex-col gap-1">
                 <span className="font-medium">{option.label}</span>
                 <span className="text-xs text-muted-foreground">{option.description}</span>

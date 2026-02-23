@@ -12,56 +12,56 @@ export const ADMIN_PROFILES: Record<string, AdminProfile> = {
     name: 'Adam Haile',
     title: 'Founder & CEO',
     phone: '',
-    calendlyUrl: ''
+    calendlyUrl: '',
   },
   'ahaile14@gmail.com': {
     email: 'ahaile14@gmail.com',
     name: 'Adam Haile',
     title: 'Founder & CEO',
     phone: '',
-    calendlyUrl: ''
+    calendlyUrl: '',
   },
   'tomos.mughan@sourcecodeals.com': {
     email: 'tomos.mughan@sourcecodeals.com',
     name: 'Tomos Mughan',
     title: 'CEO',
     phone: '',
-    calendlyUrl: ''
+    calendlyUrl: '',
   },
   'bill.martin@sourcecodeals.com': {
     email: 'bill.martin@sourcecodeals.com',
     name: 'Bill Martin',
     title: 'Principal & SVP - Growth',
     phone: '',
-    calendlyUrl: ''
+    calendlyUrl: '',
   },
   'kyle.collins@sourcecodeals.com': {
     email: 'kyle.collins@sourcecodeals.com',
     name: 'Kyle Collins',
     title: 'Team Member',
     phone: '',
-    calendlyUrl: ''
+    calendlyUrl: '',
   },
   'daniel.kobayashi@sourcecodeals.com': {
     email: 'daniel.kobayashi@sourcecodeals.com',
     name: 'Daniel Kobayashi',
     title: 'Team Member',
     phone: '',
-    calendlyUrl: ''
+    calendlyUrl: '',
   },
   'oz.delaluna@captarget.com': {
     email: 'oz.delaluna@captarget.com',
     name: 'Oz De La Luna',
     title: 'Team Member',
     phone: '',
-    calendlyUrl: ''
+    calendlyUrl: '',
   },
   'oz.delaluna@sourcecodeals.com': {
     email: 'oz.delaluna@sourcecodeals.com',
     name: 'Oz De La Luna',
     title: 'Team Member',
     phone: '',
-    calendlyUrl: ''
+    calendlyUrl: '',
   },
 };
 

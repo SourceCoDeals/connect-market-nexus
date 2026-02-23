@@ -15,7 +15,14 @@ interface DealAlertCardProps {
   onToggle: (id: string, isActive: boolean) => void;
 }
 
-export function DealAlertCard({ alert, selected, onSelect, onEdit, onDelete, onToggle }: DealAlertCardProps) {
+export function DealAlertCard({
+  alert,
+  selected,
+  onSelect,
+  onEdit,
+  onDelete,
+  onToggle,
+}: DealAlertCardProps) {
   const formatCurrency = (value?: number) => {
     if (!value) return 'Any';
     return new Intl.NumberFormat('en-US', {
@@ -30,9 +37,11 @@ export function DealAlertCard({ alert, selected, onSelect, onEdit, onDelete, onT
     const criteria = alert.criteria;
     const parts = [];
 
-    if (criteria.categories && criteria.categories.length > 0) parts.push(`Categories: ${criteria.categories.join(', ')}`);
+    if (criteria.categories && criteria.categories.length > 0)
+      parts.push(`Categories: ${criteria.categories.join(', ')}`);
     else if (criteria.category) parts.push(`Category: ${criteria.category}`);
-    if (criteria.locations && criteria.locations.length > 0) parts.push(`Locations: ${criteria.locations.join(', ')}`);
+    if (criteria.locations && criteria.locations.length > 0)
+      parts.push(`Locations: ${criteria.locations.join(', ')}`);
     else if (criteria.location) parts.push(`Location: ${criteria.location}`);
     if (criteria.revenueMin || criteria.revenueMax) {
       const min = formatCurrency(criteria.revenueMin);
@@ -51,15 +60,21 @@ export function DealAlertCard({ alert, selected, onSelect, onEdit, onDelete, onT
 
   const getFrequencyBadgeVariant = (frequency: string) => {
     switch (frequency) {
-      case 'instant': return 'default';
-      case 'daily': return 'secondary';
-      case 'weekly': return 'outline';
-      default: return 'secondary';
+      case 'instant':
+        return 'default';
+      case 'daily':
+        return 'secondary';
+      case 'weekly':
+        return 'outline';
+      default:
+        return 'secondary';
     }
   };
 
   return (
-    <Card className={`transition-all duration-200 ${selected ? 'ring-2 ring-primary border-primary' : ''} ${alert.is_active ? 'border-primary/20' : 'border-muted opacity-75'}`}>
+    <Card
+      className={`transition-all duration-200 ${selected ? 'ring-2 ring-primary border-primary' : ''} ${alert.is_active ? 'border-primary/20' : 'border-muted opacity-75'}`}
+    >
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between">
           <div className="flex items-center gap-3">
@@ -79,9 +94,7 @@ export function DealAlertCard({ alert, selected, onSelect, onEdit, onDelete, onT
             <CardTitle className="text-lg">{alert.name}</CardTitle>
           </div>
           <div className="flex items-center gap-2">
-            <Badge variant={getFrequencyBadgeVariant(alert.frequency)}>
-              {alert.frequency}
-            </Badge>
+            <Badge variant={getFrequencyBadgeVariant(alert.frequency)}>{alert.frequency}</Badge>
             <Switch
               checked={alert.is_active}
               onCheckedChange={(checked) => onToggle(alert.id, checked)}
@@ -89,11 +102,11 @@ export function DealAlertCard({ alert, selected, onSelect, onEdit, onDelete, onT
           </div>
         </div>
       </CardHeader>
-      
+
       <CardContent>
         <div className="space-y-3">
           <p className="text-sm text-muted-foreground">{formatCriteria()}</p>
-          
+
           <div className="flex items-center justify-between">
             <div className="text-xs text-muted-foreground">
               Created {new Date(alert.created_at).toLocaleDateString()}
@@ -103,13 +116,9 @@ export function DealAlertCard({ alert, selected, onSelect, onEdit, onDelete, onT
                 </span>
               )}
             </div>
-            
+
             <div className="flex gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => onEdit(alert)}
-              >
+              <Button variant="outline" size="sm" onClick={() => onEdit(alert)}>
                 <Edit className="h-3 w-3 mr-1" />
                 Edit
               </Button>

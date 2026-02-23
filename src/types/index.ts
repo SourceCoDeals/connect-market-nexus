@@ -6,7 +6,15 @@ export type UserRole = 'admin' | 'buyer';
 /** Internal team role for admin-panel access control. */
 export type TeamRole = 'owner' | 'admin' | 'moderator' | 'viewer';
 
-export type BuyerType = 'corporate' | 'privateEquity' | 'familyOffice' | 'searchFund' | 'individual' | 'independentSponsor' | 'advisor' | 'businessOwner';
+export type BuyerType =
+  | 'corporate'
+  | 'privateEquity'
+  | 'familyOffice'
+  | 'searchFund'
+  | 'individual'
+  | 'independentSponsor'
+  | 'advisor'
+  | 'businessOwner';
 
 export type ApprovalStatus = 'pending' | 'approved' | 'rejected';
 
@@ -302,7 +310,21 @@ export interface PaginationState {
 }
 
 // ── Re-exports from sibling type modules ─────────────────────────────
-export type { AdminListing, CreateListingData, AdminConnectionRequest, AdminStats, AdminActivity } from './admin';
-export type { AnalyticsEvent, FeedbackAnalytics, DailyTrend, TopUser, MarketplaceAnalytics, TestResult, AnalyticsHealth } from './analytics';
+export type {
+  AdminListing,
+  CreateListingData,
+  AdminConnectionRequest,
+  AdminStats,
+  AdminActivity,
+} from './admin';
+export type {
+  AnalyticsEvent,
+  FeedbackAnalytics,
+  DailyTrend,
+  TopUser,
+  MarketplaceAnalytics,
+  TestResult,
+  AnalyticsHealth,
+} from './analytics';
 export type { NonMarketplaceUser, NonMarketplaceUserFilters } from './non-marketplace-user';
 export type { Transcript, WebhookConfig, WebhookDelivery, TranscriptHealth } from './transcript';

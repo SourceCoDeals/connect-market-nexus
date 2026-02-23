@@ -1,7 +1,6 @@
-
-import React, { createContext, useContext } from "react";
-import { User as AppUser, TeamRole } from "@/types";
-import { useNuclearAuth } from "@/hooks/use-nuclear-auth";
+import React, { createContext, useContext } from 'react';
+import { User as AppUser, TeamRole } from '@/types';
+import { useNuclearAuth } from '@/hooks/use-nuclear-auth';
 
 interface AuthContextType {
   user: AppUser | null;
@@ -25,14 +24,12 @@ export const AuthContext = createContext<AuthContextType | undefined>(undefined)
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (context === undefined) {
-    throw new Error("useAuth must be used within an AuthProvider");
+    throw new Error('useAuth must be used within an AuthProvider');
   }
   return context;
 };
 
-export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
-  children,
-}) => {
+export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const auth = useNuclearAuth();
 
   const value: AuthContextType = {

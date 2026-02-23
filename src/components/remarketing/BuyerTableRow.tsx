@@ -1,21 +1,16 @@
-import { memo } from "react";
-import { useNavigate } from "react-router-dom";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { TableCell, TableRow } from "@/components/ui/table";
+import { memo } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { TableCell, TableRow } from '@/components/ui/table';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
-import { Checkbox } from "@/components/ui/checkbox";
+} from '@/components/ui/dropdown-menu';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   MoreHorizontal,
   Sparkles,
@@ -26,10 +21,10 @@ import {
   DollarSign,
   // Loader2 removed - unused
   FileCheck,
-} from "lucide-react";
-import { IntelligenceBadge } from "./IntelligenceBadge";
-import { AlignmentScoreBadge } from "./AlignmentScoreBadge";
-import type { DataCompleteness } from "@/types/remarketing";
+} from 'lucide-react';
+import { IntelligenceBadge } from './IntelligenceBadge';
+import { AlignmentScoreBadge } from './AlignmentScoreBadge';
+import type { DataCompleteness } from '@/types/remarketing';
 
 interface BuyerRow {
   id: string;
@@ -103,7 +98,12 @@ export const BuyerTableRow = memo(function BuyerTableRow({
     <TableRow
       key={buyer.id}
       className={`cursor-pointer hover:bg-muted/50 group ${isSelected ? 'bg-muted/30' : ''}`}
-      onClick={() => navigate(`/admin/buyers/${buyer.id}`, universeId ? { state: { from: `/admin/buyers/universes/${universeId}` } } : undefined)}
+      onClick={() =>
+        navigate(
+          `/admin/buyers/${buyer.id}`,
+          universeId ? { state: { from: `/admin/buyers/universes/${universeId}` } } : undefined,
+        )
+      }
     >
       {selectable && (
         <TableCell
@@ -131,14 +131,16 @@ export const BuyerTableRow = memo(function BuyerTableRow({
           </div>
           <div className="min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
-              <span className="font-medium text-foreground truncate">
-                {buyer.company_name}
-              </span>
-              {buyer.data_completeness === 'high' && (buyer.business_summary || buyer.thesis_summary || buyer.pe_firm_name) && (
-                <Badge variant="default" className="bg-emerald-500 hover:bg-emerald-600 text-xs px-1.5 py-0">
-                  Enriched
-                </Badge>
-              )}
+              <span className="font-medium text-foreground truncate">{buyer.company_name}</span>
+              {buyer.data_completeness === 'high' &&
+                (buyer.business_summary || buyer.thesis_summary || buyer.pe_firm_name) && (
+                  <Badge
+                    variant="default"
+                    className="bg-emerald-500 hover:bg-emerald-600 text-xs px-1.5 py-0"
+                  >
+                    Enriched
+                  </Badge>
+                )}
               {buyer.has_fee_agreement && (
                 <Badge
                   variant="default"
@@ -146,16 +148,16 @@ export const BuyerTableRow = memo(function BuyerTableRow({
                     buyer.fee_agreement_source === 'pe_firm_inherited'
                       ? 'bg-blue-600 hover:bg-blue-700'
                       : buyer.fee_agreement_source === 'manual_override'
-                      ? 'bg-amber-600 hover:bg-amber-700'
-                      : 'bg-green-600 hover:bg-green-700'
+                        ? 'bg-amber-600 hover:bg-amber-700'
+                        : 'bg-green-600 hover:bg-green-700'
                   }`}
                 >
                   <DollarSign className="h-3 w-3" />
                   {buyer.fee_agreement_source === 'pe_firm_inherited'
                     ? `via ${buyer.pe_firm_name || 'PE Firm'}`
                     : buyer.fee_agreement_source === 'manual_override'
-                    ? 'Manual'
-                    : 'Fee Agreed'}
+                      ? 'Manual'
+                      : 'Fee Agreed'}
                 </Badge>
               )}
             </div>
@@ -231,7 +233,7 @@ export const BuyerTableRow = memo(function BuyerTableRow({
 
       {/* Description Column */}
       <TableCell>
-        {(buyer.business_summary || buyer.thesis_summary) ? (
+        {buyer.business_summary || buyer.thesis_summary ? (
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
@@ -289,10 +291,12 @@ export const BuyerTableRow = memo(function BuyerTableRow({
                   e.stopPropagation();
                   onToggleFeeAgreement(buyer.id, buyer.has_fee_agreement || false);
                 }}
-                className={buyer.has_fee_agreement ? "text-green-600" : ""}
+                className={buyer.has_fee_agreement ? 'text-green-600' : ''}
               >
-                <FileCheck className={`mr-2 h-4 w-4 ${buyer.has_fee_agreement ? "text-green-600" : ""}`} />
-                {buyer.has_fee_agreement ? "Remove Fee Agreement" : "Mark Fee Agreement"}
+                <FileCheck
+                  className={`mr-2 h-4 w-4 ${buyer.has_fee_agreement ? 'text-green-600' : ''}`}
+                />
+                {buyer.has_fee_agreement ? 'Remove Fee Agreement' : 'Mark Fee Agreement'}
               </DropdownMenuItem>
             )}
             {onDelete && (
@@ -304,7 +308,7 @@ export const BuyerTableRow = memo(function BuyerTableRow({
                 className="text-destructive"
               >
                 <Trash2 className="mr-2 h-4 w-4" />
-                 Remove
+                Remove
               </DropdownMenuItem>
             )}
           </DropdownMenuContent>

@@ -53,7 +53,7 @@ export const useRoleManagement = () => {
         title: 'Role updated',
         description: 'User role has been successfully updated.',
       });
-      
+
       // Invalidate related queries
       queryClient.invalidateQueries({ queryKey: ['admin-users'] });
       queryClient.invalidateQueries({ queryKey: ['user-role'] });

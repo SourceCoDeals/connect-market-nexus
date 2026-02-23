@@ -30,7 +30,7 @@ export const usePermissions = () => {
       if (!user?.id) return null;
 
       const { data, error } = await supabase.rpc('get_user_role', {
-        _user_id: user.id
+        _user_id: user.id,
       });
 
       if (error) {

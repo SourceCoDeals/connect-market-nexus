@@ -16,10 +16,19 @@ import { useUnreadBuyerMessageCounts } from '@/hooks/use-connection-messages';
 
 /** Fields we consider for "profile completeness". */
 const PROFILE_FIELDS = [
-  'first_name', 'last_name', 'email', 'company', 'phone_number',
-  'buyer_type', 'ideal_target_description', 'business_categories',
-  'target_locations', 'revenue_range_min', 'revenue_range_max',
-  'linkedin_profile', 'bio',
+  'first_name',
+  'last_name',
+  'email',
+  'company',
+  'phone_number',
+  'buyer_type',
+  'ideal_target_description',
+  'business_categories',
+  'target_locations',
+  'revenue_range_min',
+  'revenue_range_max',
+  'linkedin_profile',
+  'bio',
 ] as const;
 
 function computeCompleteness(user: Record<string, unknown>): number {
@@ -63,13 +72,21 @@ export function BuyerDashboard() {
             </div>
 
             {/* Saved listings */}
-            <Link to="/saved-listings" className="flex items-center gap-2 text-xs text-slate-600 hover:text-slate-900 transition-colors">
+            <Link
+              to="/saved-listings"
+              className="flex items-center gap-2 text-xs text-slate-600 hover:text-slate-900 transition-colors"
+            >
               <Bookmark className="h-4 w-4" />
-              <span><strong className="text-slate-900">{savedCount}</strong> saved</span>
+              <span>
+                <strong className="text-slate-900">{savedCount}</strong> saved
+              </span>
             </Link>
 
             {/* Messages */}
-            <Link to="/messages" className="flex items-center gap-2 text-xs text-slate-600 hover:text-slate-900 transition-colors">
+            <Link
+              to="/messages"
+              className="flex items-center gap-2 text-xs text-slate-600 hover:text-slate-900 transition-colors"
+            >
               <MessageSquare className="h-4 w-4" />
               <span>
                 Messages
@@ -96,7 +113,11 @@ export function BuyerDashboard() {
         <div className="flex items-center gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-2.5 text-xs text-amber-800">
           <AlertTriangle className="h-4 w-4 flex-shrink-0" />
           <span>
-            Your profile is {completeness}% complete. <Link to="/profile" className="font-medium underline">Complete it</Link> to improve deal matches.
+            Your profile is {completeness}% complete.{' '}
+            <Link to="/profile" className="font-medium underline">
+              Complete it
+            </Link>{' '}
+            to improve deal matches.
           </span>
         </div>
       )}

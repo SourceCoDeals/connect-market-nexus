@@ -25,8 +25,6 @@ export function UserActions({ onUserStatusUpdated }: UserActionsProps) {
 
   const { sendCustomApprovalEmail } = useAdminEmail();
 
-  
-
   // Get actual mutation functions
   const updateUserStatusMutation = useUpdateUserStatus();
   const updateAdminStatusMutation = useUpdateAdminStatus();
@@ -169,7 +167,9 @@ export function UserActions({ onUserStatusUpdated }: UserActionsProps) {
       // Step 2: Auto-create firm agreement (fire-and-forget, non-blocking)
       // Note: This edge function expects a connectionRequestId, not a userId.
       // During direct user approval (not connection request approval), we skip this step.
-      console.log('[UserActions] Step 2: Skipping auto-create firm (no connection request in direct approval flow)');
+      console.log(
+        '[UserActions] Step 2: Skipping auto-create firm (no connection request in direct approval flow)',
+      );
 
       // Step 3: Send email
       let emailSuccess = false;
@@ -193,7 +193,10 @@ export function UserActions({ onUserStatusUpdated }: UserActionsProps) {
       toast({
         variant: 'destructive',
         title: 'Approval failed',
-        description: approvalError instanceof Error ? approvalError.message : 'Failed to approve user. Please try again.',
+        description:
+          approvalError instanceof Error
+            ? approvalError.message
+            : 'Failed to approve user. Please try again.',
       });
     }
   };

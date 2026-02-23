@@ -179,17 +179,21 @@ export function useSecureForm<T>(options: SecureFormOptions<T>): SecureFormResul
     return token;
   });
 
+  // Keep onSubmit in a ref so the debounced handler always calls the latest version
+  const onSubmitRef = useRef(onSubmit);
+  onSubmitRef.current = onSubmit;
+
   // Create the debounced submission handler once
   const debouncedSubmitRef = useRef(
     createDebouncedSubmission(
       async (data: T) => {
-        await onSubmit(data);
+        await onSubmitRef.current(data);
       },
       {
         minIntervalMs: minSubmitIntervalMs,
         rateLimiter: authRateLimiter,
-      }
-    )
+      },
+    ),
   );
 
   // Memoize to avoid re-creating on every render
@@ -229,7 +233,7 @@ export function useSecureForm<T>(options: SecureFormOptions<T>): SecureFormResul
         setIsSubmitting(false);
       }
     },
-    [csrfToken, enableCsrf, sanitizeInputs, validate]
+    [csrfToken, enableCsrf, sanitizeInputs, validate],
   );
 
   const clearErrors = useCallback(() => setErrors([]), []);
@@ -248,6 +252,6 @@ export function useSecureForm<T>(options: SecureFormOptions<T>): SecureFormResul
       clearErrors,
       reset,
     }),
-    [handleSubmit, isSubmitting, errors, csrfToken, clearErrors, reset]
+    [handleSubmit, isSubmitting, errors, csrfToken, clearErrors, reset],
   );
 }

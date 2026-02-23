@@ -98,7 +98,8 @@ export function ApprovalEmailDialog({
       setErrorMessage(null);
     } catch (error) {
       console.error('[ApprovalDialog] Error in approval flow:', error);
-      const msg = error instanceof Error ? error.message : 'An unexpected error occurred during approval.';
+      const msg =
+        error instanceof Error ? error.message : 'An unexpected error occurred during approval.';
       setErrorMessage(msg);
     } finally {
       setIsLoading(false);

@@ -1,12 +1,11 @@
-
-import { useAuth } from "@/context/AuthContext";
-import { Navigate, useLocation } from "react-router-dom";
-import { Loader2 } from "lucide-react";
-import { useEffect, useState } from "react";
-import { useMFAChallengeRequired } from "@/hooks/use-mfa";
-import { MFAChallenge } from "@/components/auth/MFAChallenge";
-import { supabase } from "@/integrations/supabase/client";
-import { meetsRole, type TeamRole } from "@/config/role-permissions";
+import { useAuth } from '@/context/AuthContext';
+import { Navigate, useLocation } from 'react-router-dom';
+import { Loader2 } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { useMFAChallengeRequired } from '@/hooks/use-mfa';
+import { MFAChallenge } from '@/components/auth/MFAChallenge';
+import { supabase } from '@/integrations/supabase/client';
+import { meetsRole, type TeamRole } from '@/config/role-permissions';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
