@@ -116,8 +116,8 @@ function useBuyerThreads() {
       if (!user?.id) return [];
 
       // Step 1: Fetch all connection requests for this buyer (approved, on_hold, rejected)
-      const { data: requests, error: reqError } = await (supabase
-        .from("connection_requests") as any)
+      const { data: requests, error: reqError } = await supabase
+        .from("connection_requests")
         .select(`
           id, status, listing_id, user_message, created_at,
           last_message_at, last_message_preview, last_message_sender_role,
@@ -130,30 +130,31 @@ function useBuyerThreads() {
       if (reqError || !requests) return [];
 
       // Step 2: Fetch unread counts for this buyer
-      const requestIds = requests.map((r: any) => r.id);
-      const { data: unreadMsgs } = await (supabase
-        .from("connection_messages") as any)
+      const requestIds = requests.map((r: Record<string, unknown>) => r.id as string);
+      const { data: unreadMsgs } = await supabase
+        .from("connection_messages")
         .select("connection_request_id")
         .in("connection_request_id", requestIds.length > 0 ? requestIds : ["__none__"])
         .eq("is_read_by_buyer", false)
         .eq("sender_role", "admin");
 
       const unreadMap: Record<string, number> = {};
-      (unreadMsgs || []).forEach((msg: any) => {
-        unreadMap[msg.connection_request_id] = (unreadMap[msg.connection_request_id] || 0) + 1;
+      (unreadMsgs || []).forEach((msg: Record<string, unknown>) => {
+        const reqId = msg.connection_request_id as string;
+        unreadMap[reqId] = (unreadMap[reqId] || 0) + 1;
       });
 
-      const threads: BuyerThread[] = requests.map((req: any) => ({
-        connection_request_id: req.id,
-        deal_title: req.listing?.title || "Untitled Deal",
-        deal_category: req.listing?.category ?? undefined,
-        request_status: req.status,
-        listing_id: req.listing_id ?? '',
+      const threads: BuyerThread[] = requests.map((req: Record<string, unknown>) => ({
+        connection_request_id: req.id as string,
+        deal_title: (req.listing as Record<string, unknown>)?.title as string || "Untitled Deal",
+        deal_category: ((req.listing as Record<string, unknown>)?.category as string) ?? undefined,
+        request_status: req.status as string,
+        listing_id: (req.listing_id as string) ?? '',
         messages_count: 0,
-        last_message_body: req.last_message_preview || req.user_message || "",
-        last_message_at: req.last_message_at || req.created_at,
-        last_sender_role: req.last_message_sender_role || "buyer",
-        unread_count: unreadMap[req.id] || 0,
+        last_message_body: (req.last_message_preview as string) || (req.user_message as string) || "",
+        last_message_at: (req.last_message_at as string) || (req.created_at as string),
+        last_sender_role: (req.last_message_sender_role as string) || "buyer",
+        unread_count: unreadMap[req.id as string] || 0,
       }));
 
       // Sort: unread first, then by most recent activity
@@ -645,14 +646,14 @@ function PendingAgreementBanner() {
     queryKey: ['buyer-firm-agreement-status', user?.id],
     queryFn: async () => {
       if (!user?.id) return null;
-      const { data: membership } = await (supabase.from('firm_members') as any)
+      const { data: membership } = await supabase.from('firm_members')
         .select('firm_id')
         .eq('user_id', user.id)
         .limit(1)
         .maybeSingle();
       if (!membership) return null;
 
-      const { data: firm } = await (supabase.from('firm_agreements') as any)
+      const { data: firm } = await supabase.from('firm_agreements')
         .select('nda_signed, nda_signed_at, nda_signed_document_url, nda_document_url, nda_docuseal_status, fee_agreement_signed, fee_agreement_signed_at, fee_signed_document_url, fee_agreement_document_url, fee_docuseal_status')
         .eq('id', membership.firm_id)
         .maybeSingle();
@@ -667,8 +668,8 @@ function PendingAgreementBanner() {
     queryKey: ['agreement-pending-notifications', user?.id],
     queryFn: async () => {
       if (!user?.id) return [];
-      const { data } = await (supabase
-        .from('user_notifications') as any)
+      const { data } = await supabase
+        .from('user_notifications')
         .select('*')
         .eq('user_id', user.id)
         .eq('notification_type', 'agreement_pending')
@@ -706,7 +707,7 @@ function PendingAgreementBanner() {
       draftUrl: firmStatus.nda_document_url,
     });
   } else {
-    const ndaNotif = pendingNotifications.find((n: any) => n.metadata?.document_type === 'nda');
+    const ndaNotif = pendingNotifications.find((n: Record<string, unknown>) => (n.metadata as Record<string, unknown>)?.document_type === 'nda');
     if (ndaNotif || firmStatus?.nda_docuseal_status) {
       items.push({
         key: 'nda-pending',
@@ -734,7 +735,7 @@ function PendingAgreementBanner() {
       draftUrl: firmStatus.fee_agreement_document_url,
     });
   } else {
-    const feeNotif = pendingNotifications.find((n: any) => n.metadata?.document_type === 'fee_agreement');
+    const feeNotif = pendingNotifications.find((n: Record<string, unknown>) => (n.metadata as Record<string, unknown>)?.document_type === 'fee_agreement');
     if (feeNotif || firmStatus?.fee_docuseal_status) {
       items.push({
         key: 'fee-pending',

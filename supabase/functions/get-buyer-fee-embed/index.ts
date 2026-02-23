@@ -181,7 +181,7 @@ serve(async (req: Request) => {
     }
 
     const submissionPayload = {
-      template_id: parseInt(feeTemplateId),
+      template_id: Number(feeTemplateId),
       send_email: false,
       submitters: [
         {
@@ -252,10 +252,9 @@ serve(async (req: Request) => {
       JSON.stringify({ feeSigned: false, embedSrc }),
       { status: 200, headers: { 'Content-Type': 'application/json', ...corsHeaders } },
     );
-  } catch (error: any) {
-    const msg = error?.message || String(error);
-    console.error('❌ Error in get-buyer-fee-embed:', msg, error?.stack || '');
-    return new Response(JSON.stringify({ error: `Internal server error: ${msg}` }), {
+  } catch (error: unknown) {
+    console.error('❌ Error in get-buyer-fee-embed:', error instanceof Error ? error.message : String(error));
+    return new Response(JSON.stringify({ error: 'Internal server error' }), {
       status: 500,
       headers: { 'Content-Type': 'application/json', ...corsHeaders },
     });

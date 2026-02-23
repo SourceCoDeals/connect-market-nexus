@@ -25,6 +25,13 @@ serve(async (req: Request) => {
     return corsPreflightResponse(req);
   }
 
+  if (req.method !== 'POST') {
+    return new Response(JSON.stringify({ error: 'Method not allowed' }), {
+      status: 405,
+      headers: { 'Content-Type': 'application/json', ...corsHeaders },
+    });
+  }
+
   try {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -163,7 +170,8 @@ serve(async (req: Request) => {
     // ─── DocuSeal confirmed completed — update everything ───
 
     const now = new Date().toISOString();
-    const signedDocUrl = submitter.documents?.[0]?.url || null;
+    const rawSignedDocUrl = submitter.documents?.[0]?.url || null;
+    const signedDocUrl = rawSignedDocUrl && rawSignedDocUrl.startsWith('https://') ? rawSignedDocUrl : null;
     const firmName = firm.firm_name || 'Unknown Firm';
 
     // 1. Update firm_agreements
@@ -192,6 +200,21 @@ serve(async (req: Request) => {
       .from('firm_agreements')
       .update(updates)
       .eq('id', firmId);
+
+    // Write to webhook log for deduplication with the webhook handler.
+    // If the webhook already processed this event, the unique constraint will
+    // cause a conflict — we ignore it since the DB is already up to date.
+    await supabaseAdmin.from('docuseal_webhook_log').insert({
+      event_type: 'form.completed',
+      submission_id: String(submissionId),
+      external_id: firmId,
+      raw_payload: { confirmed_by_frontend: userId, document_type: documentType },
+      processed_at: now,
+    }).then(({ error: logErr }: { error: any }) => {
+      if (logErr && logErr.code !== '23505') {
+        console.warn('Failed to write dedup log entry:', logErr);
+      }
+    });
 
     // 2. Sync to profiles for all firm members
     const { data: members } = await supabaseAdmin
@@ -224,11 +247,10 @@ serve(async (req: Request) => {
       JSON.stringify({ confirmed: true, signedDocumentUrl: signedDocUrl }),
       { status: 200, headers: { 'Content-Type': 'application/json', ...corsHeaders } },
     );
-  } catch (error: any) {
-    const msg = error?.message || String(error);
-    console.error('Error in confirm-agreement-signed:', msg);
+  } catch (error: unknown) {
+    console.error('Error in confirm-agreement-signed:', error instanceof Error ? error.message : String(error));
     return new Response(
-      JSON.stringify({ error: msg }),
+      JSON.stringify({ error: 'Internal server error' }),
       { status: 500, headers: { 'Content-Type': 'application/json', ...corsHeaders } },
     );
   }
