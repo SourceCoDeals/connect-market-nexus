@@ -23,7 +23,30 @@ const PendingApproval = () => {
   const [ndaError, setNdaError] = useState<string | null>(null);
   const [ndaSigned, setNdaSigned] = useState(false);
   
-  const { data: ndaStatus } = useBuyerNdaStatus(user?.id);
+  const { data: ndaStatus, refetch: refetchNdaStatus } = useBuyerNdaStatus(user?.id);
+  const [firmCreationAttempted, setFirmCreationAttempted] = useState(false);
+
+  // Fallback: if firm doesn't exist yet (e.g., signup edge function failed), create it now
+  useEffect(() => {
+    if (!user || firmCreationAttempted) return;
+    if (ndaStatus === undefined) return; // Still loading
+    if (ndaStatus?.hasFirm) return; // Firm already exists
+
+    setFirmCreationAttempted(true);
+
+    supabase.functions.invoke('auto-create-firm-on-signup', {
+      body: { userId: user.id, company: user.company || '' },
+    }).then(({ error }) => {
+      if (!error) {
+        // Firm created — re-fetch NDA status so the signing panel appears
+        refetchNdaStatus();
+      } else {
+        console.warn('Fallback firm creation failed:', error);
+      }
+    }).catch((err) => {
+      console.warn('Fallback firm creation error:', err);
+    });
+  }, [user, ndaStatus, firmCreationAttempted, refetchNdaStatus]);
 
   // Fetch NDA embed src when buyer has a firm but hasn't signed
   useEffect(() => {
@@ -32,7 +55,7 @@ const PendingApproval = () => {
     const fetchNdaEmbed = async () => {
       if (!user || !ndaStatus?.hasFirm || ndaStatus?.ndaSigned || !ndaStatus?.firmId) return;
       if (ndaEmbedSrc || ndaLoading) return;
-      
+
       setNdaLoading(true);
       try {
         const { data, error: fnError } = await supabase.functions.invoke('get-buyer-nda-embed');
