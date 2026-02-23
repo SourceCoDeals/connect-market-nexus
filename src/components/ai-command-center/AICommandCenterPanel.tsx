@@ -157,7 +157,7 @@ export function AICommandCenterPanel({ pageContext, onUIAction, className }: AIC
   // ---------- Full panel ----------
   return (
     <div className={cn('fixed bottom-8 right-8 z-50', className)}>
-      <Card className="w-[640px] max-w-[calc(100vw-64px)] h-[800px] max-h-[85vh] flex flex-col shadow-2xl border-[#DEC76B]/30">
+      <Card className="w-[640px] max-w-[calc(100vw-64px)] h-[800px] max-h-[85vh] flex flex-col shadow-2xl border-[#DEC76B]/30" style={{ backgroundColor: '#FCF9F0' }}>
         {/* Header */}
         <CardHeader className="pb-3 bg-[#0E101A] text-[#FCF9F0] rounded-t-lg">
           <div className="flex items-center justify-between">
@@ -190,7 +190,7 @@ export function AICommandCenterPanel({ pageContext, onUIAction, className }: AIC
         </CardHeader>
 
         {/* Messages */}
-        <ScrollArea className="flex-1 p-4" ref={scrollRef}>
+        <ScrollArea className="flex-1 p-4" ref={scrollRef} style={{ backgroundColor: '#FCF9F0' }}>
           <div className="space-y-4">
             {/* Empty state */}
             {messages.length === 0 && !isLoading && (
@@ -221,7 +221,7 @@ export function AICommandCenterPanel({ pageContext, onUIAction, className }: AIC
         </ScrollArea>
 
         {/* Input */}
-        <div className="p-3 border-t">
+        <div className="p-3 border-t border-[#DEC76B]/20" style={{ backgroundColor: '#FCF9F0' }}>
           <form onSubmit={handleSubmit} className="flex gap-2">
             <Input
               ref={inputRef}
@@ -312,7 +312,7 @@ function MessageBubble({
         {message.uiActions && message.uiActions.length > 0 && (
           <div className="flex flex-wrap gap-1 mb-2">
             {message.uiActions.map((action, i) => (
-              <Badge key={i} variant="outline" className="text-xs gap-1 border-blue-300 text-blue-700">
+              <Badge key={i} variant="outline" className="text-xs gap-1 border-[#DEC76B]/50 text-[#0E101A]">
                 <MousePointerClick className="h-3 w-3" />
                 {action.type === 'select_rows' ? 'Selected rows' :
                  action.type === 'apply_filter' ? 'Applied filter' :
@@ -373,10 +373,10 @@ function ToolBadge({ tool }: { tool: ToolCallInfo }) {
     : <XCircle className="h-3 w-3" />;
 
   const statusClass = tool.status === 'running'
-    ? 'border-blue-300 text-blue-700'
+    ? 'border-[#DEC76B]/50 text-[#0E101A]'
     : tool.status === 'success'
-    ? 'border-green-300 text-green-700'
-    : 'border-red-300 text-red-700';
+    ? 'border-green-400 text-green-800'
+    : 'border-red-400 text-red-800';
 
   return (
     <Badge variant="outline" className={cn('text-xs gap-1', statusClass)}>
@@ -406,7 +406,7 @@ function StreamingIndicator({
       <div className="w-7 h-7 rounded-full bg-[#F7F4DD] flex items-center justify-center flex-shrink-0 mt-0.5">
         <Bot className="h-4 w-4 text-[#DEC76B]" />
       </div>
-      <div className="max-w-[85%] rounded-lg px-3 py-2 bg-muted">
+      <div className="max-w-[85%] rounded-lg px-3 py-2" style={{ backgroundColor: '#F7F4DD' }}>
         {/* Active tools */}
         {tools.length > 0 && (
           <div className="flex flex-wrap gap-1 mb-2">
