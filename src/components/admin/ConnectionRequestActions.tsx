@@ -394,47 +394,49 @@ export function ConnectionRequestActions({
       )}
 
       {/* ── TWO-COLUMN LAYOUT ── */}
+      {/* Buyer Hero Card — full width */}
+      <div className="bg-card border border-border rounded-xl overflow-hidden shadow-sm">
+        <div className="px-6 py-5 flex items-start gap-4">
+          {/* Avatar */}
+          <div className="w-[50px] h-[50px] rounded-full bg-foreground border-2 border-sourceco flex items-center justify-center shrink-0">
+            <span className="text-card text-base font-bold" style={{ fontFamily: 'Manrope, sans-serif' }}>{buyerInitials}</span>
+          </div>
+
+          {/* Info */}
+          <div className="flex-1 min-w-0">
+            <h2 className="text-xl font-extrabold text-foreground tracking-tight" style={{ fontFamily: 'Manrope, sans-serif' }}>{buyerName}</h2>
+            <p className="text-[13.5px] text-muted-foreground">{firmName}</p>
+            {buyerEmail && (
+              <p className="text-xs text-muted-foreground/70 mt-0.5">✉ {buyerEmail}</p>
+            )}
+            <div className="flex items-center gap-1.5 mt-2.5 flex-wrap">
+              {tierInfo.description && (
+                <span className="px-2.5 py-0.5 rounded-full text-[11.5px] font-semibold bg-muted text-foreground">{tierInfo.description}</span>
+              )}
+              <span className="px-2.5 py-0.5 rounded-full text-[11.5px] font-semibold bg-sourceco/10 text-sourceco">Marketplace</span>
+              {firmName && (
+                <span className="px-2.5 py-0.5 rounded-full text-[11.5px] font-semibold bg-emerald-50 text-emerald-700">{firmName}</span>
+              )}
+            </div>
+          </div>
+
+          {/* Right: Date + AUM */}
+          <div className="text-right shrink-0">
+            <p className="text-xs text-muted-foreground mb-2.5">{formattedDate}</p>
+            {aum && (
+              <div className="bg-foreground rounded-xl px-4 py-2.5 inline-block">
+                <p className="text-xl font-extrabold text-card tracking-tight leading-none" style={{ fontFamily: 'Manrope, sans-serif' }}>{aum}</p>
+                <p className="text-[9px] uppercase tracking-widest text-muted-foreground mt-1">Assets Under Mgmt.</p>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
         {/* ── LEFT COLUMN ── */}
         <div className="space-y-4">
-          {/* Buyer Hero Card */}
-          <div className="bg-card border border-border rounded-xl overflow-hidden shadow-sm">
-            <div className="px-6 py-5 flex items-start gap-4">
-              {/* Avatar */}
-              <div className="w-[50px] h-[50px] rounded-full bg-foreground border-2 border-sourceco flex items-center justify-center shrink-0">
-                <span className="text-card text-base font-bold" style={{ fontFamily: 'Manrope, sans-serif' }}>{buyerInitials}</span>
-              </div>
-
-              {/* Info */}
-              <div className="flex-1 min-w-0">
-                <h2 className="text-xl font-extrabold text-foreground tracking-tight" style={{ fontFamily: 'Manrope, sans-serif' }}>{buyerName}</h2>
-                <p className="text-[13.5px] text-muted-foreground">{firmName}</p>
-                {buyerEmail && (
-                  <p className="text-xs text-muted-foreground/70 mt-0.5">✉ {buyerEmail}</p>
-                )}
-                <div className="flex items-center gap-1.5 mt-2.5 flex-wrap">
-                  {tierInfo.description && (
-                    <span className="px-2.5 py-0.5 rounded-full text-[11.5px] font-semibold bg-muted text-foreground">{tierInfo.description}</span>
-                  )}
-                  <span className="px-2.5 py-0.5 rounded-full text-[11.5px] font-semibold bg-sourceco/10 text-sourceco">Marketplace</span>
-                  {firmName && (
-                    <span className="px-2.5 py-0.5 rounded-full text-[11.5px] font-semibold bg-emerald-50 text-emerald-700">{firmName}</span>
-                  )}
-                </div>
-              </div>
-
-              {/* Right: Date + AUM */}
-              <div className="text-right shrink-0">
-                <p className="text-xs text-muted-foreground mb-2.5">{formattedDate}</p>
-                {aum && (
-                  <div className="bg-foreground rounded-xl px-4 py-2.5 inline-block">
-                    <p className="text-xl font-extrabold text-card tracking-tight leading-none" style={{ fontFamily: 'Manrope, sans-serif' }}>{aum}</p>
-                    <p className="text-[9px] uppercase tracking-widest text-muted-foreground mt-1">Assets Under Mgmt.</p>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
+          {/* Buyer Hero Card moved to full-width above grid */}
 
           {/* Tabs + Conversation */}
           <div className="bg-card border border-border rounded-xl overflow-hidden shadow-sm max-h-[400px] flex flex-col">
