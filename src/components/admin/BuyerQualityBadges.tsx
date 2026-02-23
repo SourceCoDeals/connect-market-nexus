@@ -19,8 +19,8 @@ export function BuyerTierBadge({
   }
   const config = TIER_CONFIG[tier] || TIER_CONFIG[4];
   return (
-    <Badge className={`text-[10px] px-1.5 py-0 leading-4 ${config.className}`}>
-      {isOverride ? '★ ' : ''}T{tier}
+    <Badge className={`text-[11px] px-2 py-0.5 leading-4 ${config.className}`}>
+      {isOverride ? '★ ' : ''}T{tier} · {config.label}
     </Badge>
   );
 }
@@ -48,9 +48,14 @@ export function BuyerScoreBadge({ score }: { score?: number | null }) {
     return <span className="text-xs text-red-500">—</span>;
   }
   let color = 'text-red-600';
-  if (score >= 70) color = 'text-green-600 font-semibold';
-  else if (score >= 45) color = 'text-blue-600 font-medium';
-  else if (score >= 15) color = 'text-amber-600';
+  if (score >= 70) color = 'text-green-700 font-bold';
+  else if (score >= 45) color = 'text-blue-700 font-semibold';
+  else if (score >= 15) color = 'text-amber-600 font-semibold';
 
-  return <span className={`text-xs ${color}`}>{score}</span>;
+  return (
+    <span className="inline-flex items-center gap-1">
+      <span className="text-[10px] text-muted-foreground uppercase tracking-wide">Score</span>
+      <span className={`text-sm font-mono ${color}`}>{score}</span>
+    </span>
+  );
 }
