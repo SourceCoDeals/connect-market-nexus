@@ -82,6 +82,11 @@ export function ConnectionRequestActions({
   const [showRejectDialog, setShowRejectDialog] = useState(false);
   const [rejectNote, setRejectNote] = useState("");
   const [activeTab, setActiveTab] = useState<"thread" | "notes">("thread");
+  const [pendingAccessToggle, setPendingAccessToggle] = useState<{
+    field: "can_view_teaser" | "can_view_full_memo" | "can_view_data_room";
+    newValue: boolean;
+    label: string;
+  } | null>(null);
 
   // Fetch all connection requests for this user (for BuyerDealsOverview)
   const { data: userRequests = [] } = useUserConnectionRequests(user.id);
@@ -163,7 +168,7 @@ export function ConnectionRequestActions({
 
   // ─── Document Access ───
 
-  const handleDocumentAccessToggle = (
+  const requestAccessToggle = (
     field: "can_view_teaser" | "can_view_full_memo" | "can_view_data_room",
     newValue: boolean
   ) => {
@@ -181,6 +186,17 @@ export function ConnectionRequestActions({
       });
       return;
     }
+    const labels: Record<string, string> = {
+      can_view_teaser: "Teaser",
+      can_view_full_memo: "Full Memo",
+      can_view_data_room: "Data Room",
+    };
+    setPendingAccessToggle({ field, newValue, label: labels[field] });
+  };
+
+  const confirmAccessToggle = () => {
+    if (!pendingAccessToggle || !listing?.id) return;
+    const { field, newValue } = pendingAccessToggle;
     updateAccess.mutate(
       {
         deal_id: listing.id,
@@ -206,6 +222,7 @@ export function ConnectionRequestActions({
         },
       }
     );
+    setPendingAccessToggle(null);
   };
 
   const getDocStatusDot = (signed: boolean) => (
@@ -398,7 +415,7 @@ export function ConnectionRequestActions({
                   <span className="text-xs font-medium">Teaser</span>
                   <Switch
                     checked={accessRecord?.can_view_teaser ?? false}
-                    onCheckedChange={(checked) => handleDocumentAccessToggle("can_view_teaser", checked)}
+                    onCheckedChange={(checked) => requestAccessToggle("can_view_teaser", checked)}
                     disabled={updateAccess.isPending}
                     className="scale-75"
                   />
@@ -415,7 +432,7 @@ export function ConnectionRequestActions({
                   </div>
                   <Switch
                     checked={accessRecord?.can_view_full_memo ?? false}
-                    onCheckedChange={(checked) => handleDocumentAccessToggle("can_view_full_memo", checked)}
+                    onCheckedChange={(checked) => requestAccessToggle("can_view_full_memo", checked)}
                     disabled={updateAccess.isPending || !hasFeeAgreement}
                     className="scale-75"
                   />
@@ -432,7 +449,7 @@ export function ConnectionRequestActions({
                   </div>
                   <Switch
                     checked={accessRecord?.can_view_data_room ?? false}
-                    onCheckedChange={(checked) => handleDocumentAccessToggle("can_view_data_room", checked)}
+                    onCheckedChange={(checked) => requestAccessToggle("can_view_data_room", checked)}
                     disabled={updateAccess.isPending || !hasFeeAgreement}
                     className="scale-75"
                   />
@@ -647,6 +664,34 @@ export function ConnectionRequestActions({
             >
               <XCircle className="h-4 w-4 mr-2" />
               Reject Request
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── DOCUMENT ACCESS CONFIRMATION DIALOG ── */}
+      <Dialog open={!!pendingAccessToggle} onOpenChange={(open) => { if (!open) setPendingAccessToggle(null); }}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="text-lg">
+              {pendingAccessToggle?.newValue ? "Grant" : "Revoke"} {pendingAccessToggle?.label} Access?
+            </DialogTitle>
+            <DialogDescription className="text-sm">
+              {pendingAccessToggle?.newValue
+                ? `This will allow ${user.first_name} ${user.last_name} to view the ${pendingAccessToggle?.label}.`
+                : `This will remove ${user.first_name} ${user.last_name}'s access to the ${pendingAccessToggle?.label}.`}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="outline" onClick={() => setPendingAccessToggle(null)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={confirmAccessToggle}
+              disabled={updateAccess.isPending}
+              className="bg-sourceco hover:bg-sourceco/90 text-sourceco-foreground"
+            >
+              {pendingAccessToggle?.newValue ? "Grant Access" : "Revoke Access"}
             </Button>
           </DialogFooter>
         </DialogContent>
