@@ -437,12 +437,12 @@ export function PipelineDetailOverview({ deal }: PipelineDetailOverviewProps) {
 
             {/* Compose bar */}
             <div className="px-8 py-3" style={{ borderTop: '1px solid #E5DDD0' }}>
-              <div className="flex items-end gap-3">
+              <div className="flex items-end gap-3 rounded-lg border-2 p-2" style={{ borderColor: '#E5DDD0', backgroundColor: '#FFFFFF' }}>
                 <Textarea
                   placeholder="Type a message..."
                   value={newMessage}
                   onChange={(e) => setNewMessage(e.target.value)}
-                  className="min-h-[50px] max-h-[100px] resize-none text-sm flex-1"
+                  className="min-h-[50px] max-h-[100px] resize-none text-sm flex-1 border-0 shadow-none focus-visible:ring-0 p-1"
                   onKeyDown={(e) => {
                     if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) handleSend();
                   }}
