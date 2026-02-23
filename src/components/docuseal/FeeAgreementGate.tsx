@@ -65,6 +65,9 @@ export function FeeAgreementGate({ userId, firmId, listingTitle: _listingTitle, 
   const handleSigned = () => {
     queryClient.invalidateQueries({ queryKey: ['my-agreement-status'] });
     queryClient.invalidateQueries({ queryKey: ['firm-agreements'] });
+    queryClient.invalidateQueries({ queryKey: ['buyer-firm-agreement-status'] });
+    queryClient.invalidateQueries({ queryKey: ['agreement-pending-notifications'] });
+    queryClient.invalidateQueries({ queryKey: ['buyer-nda-status'] });
     setSigned(true);
   };
 

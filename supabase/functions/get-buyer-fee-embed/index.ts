@@ -126,8 +126,40 @@ serve(async (req: Request) => {
             headers: { 'Content-Type': 'application/json', ...corsHeaders },
           });
         }
-        // If submitter exists but no embed_src, it may have been completed already
+        // If submitter exists but no embed_src, it may have been completed already.
+        // Self-heal: if DocuSeal says completed but our DB doesn't reflect it,
+        // update the DB now (covers missed webhook events).
         if (submitter?.status === 'completed') {
+          const now = new Date().toISOString();
+          const docUrl = submitter.documents?.[0]?.url || null;
+          await supabaseAdmin
+            .from('firm_agreements')
+            .update({
+              fee_agreement_signed: true,
+              fee_agreement_signed_at: now,
+              fee_docuseal_status: 'completed',
+              fee_agreement_status: 'signed',
+              ...(docUrl ? { fee_signed_document_url: docUrl, fee_agreement_document_url: docUrl } : {}),
+              updated_at: now,
+            })
+            .eq('id', firmId);
+
+          // Also sync to profiles for all firm members
+          const { data: members } = await supabaseAdmin
+            .from('firm_members')
+            .select('user_id')
+            .eq('firm_id', firmId);
+          if (members?.length) {
+            for (const member of members) {
+              await supabaseAdmin
+                .from('profiles')
+                .update({ fee_agreement_signed: true, fee_agreement_signed_at: now, updated_at: now })
+                .eq('id', member.user_id);
+            }
+          }
+
+          console.log(`🔧 Self-healed: fee agreement for firm ${firmId} marked as signed (DocuSeal says completed)`);
+
           return new Response(JSON.stringify({ feeSigned: true, embedSrc: null }), {
             status: 200,
             headers: { 'Content-Type': 'application/json', ...corsHeaders },
