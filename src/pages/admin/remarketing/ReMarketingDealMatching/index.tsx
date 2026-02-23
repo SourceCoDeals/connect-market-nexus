@@ -177,17 +177,17 @@ export default function ReMarketingDealMatching() {
                 score={score as any}
                 listingId={listingId}
                 outreach={outreach as any}
-                hasFeeAgreement={feeAgreement?.signed || false}
+                firmFeeAgreement={feeAgreement ? { signed: feeAgreement.signed || false, signedAt: feeAgreement.signedAt || null } : undefined}
                 isSelected={actions.selectedIds.has(score.id)}
+                isHighlighted={actions.highlightedBuyerIds?.includes(score.buyer_id)}
                 onSelect={actions.handleSelect}
                 onApprove={(id) => actions.handleApprove(id, score)}
                 onPass={(id) => actions.handleOpenPassDialog(id, score.buyer?.company_name || 'Unknown', score)}
                 onToggleInterested={(id, interested) => actions.handleToggleInterested(id, interested, score)}
                 onOutreachUpdate={actions.handleOutreachUpdate}
-                onScoreViewed={actions.handleScoreViewed}
+                onViewed={actions.handleScoreViewed}
                 onMoveToPipeline={actions.handleMoveToPipeline}
                 pipelineDealId={score.buyer_id ? data.pipelineDealByBuyer.get(score.buyer_id) : undefined}
-                highlightedBuyerIds={actions.highlightedBuyerIds}
               />
             );
           })}
