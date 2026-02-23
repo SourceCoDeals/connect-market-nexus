@@ -49,6 +49,7 @@ export function useConnectionMessages(connectionRequestId: string | undefined) {
             queryKey: ['connection-messages', connectionRequestId],
           });
           queryClient.invalidateQueries({ queryKey: ['unread-message-counts'] });
+          queryClient.invalidateQueries({ queryKey: ['message-center-threads'] });
         }
       )
       .subscribe();
@@ -225,7 +226,7 @@ export function useUnreadBuyerMessageCounts() {
   });
 }
 
-// ─── Message Center thread list (admin) ───
+// ─── Message Center thread list (admin) — server-side summaries ───
 
 export interface MessageThread {
   connection_request_id: string;
@@ -233,71 +234,128 @@ export interface MessageThread {
   buyer_company: string | null;
   buyer_email: string | null;
   deal_title: string | null;
+  deal_owner_id: string | null;
   request_status: string;
   last_message_body: string;
   last_message_at: string;
   last_sender_role: string;
   unread_count: number;
+  total_messages: number;
 }
 
 export function useMessageCenterThreads() {
+  const queryClient = useQueryClient();
+
+  // Global realtime subscription for new messages across all threads
+  useEffect(() => {
+    const channel = supabase
+      .channel('message-center-global')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'connection_messages',
+        },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ['message-center-threads'] });
+          queryClient.invalidateQueries({ queryKey: ['unread-message-counts'] });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [queryClient]);
+
   return useQuery({
     queryKey: ['message-center-threads'],
     queryFn: async () => {
-      // Fetch all messages with request + buyer + listing info
-      const { data: messages, error } = await (supabase
-        .from('connection_messages') as any)
-        .select(`
-          id, connection_request_id, sender_role, body, message_type,
-          is_read_by_admin, created_at,
-          request:connection_requests!inner(
-            id, status, user_id, listing_id,
-            user:profiles!connection_requests_user_id_fkey(first_name, last_name, email, company),
-            listing:listings!connection_requests_listing_id_fkey(title)
-          )
-        `)
-        .order('created_at', { ascending: false })
-        .limit(2000);
+      // Use the server-side view for thread summaries
+      const { data, error } = await supabase
+        .from('message_thread_summaries')
+        .select('*')
+        .order('last_message_at', { ascending: false });
 
-      if (error) throw error;
+      if (error) {
+        // Fallback to legacy client-side aggregation if view doesn't exist yet
+        console.warn('message_thread_summaries view not available, using fallback:', error.message);
+        return fetchThreadsFallback();
+      }
 
-      // Group by connection_request_id and build thread summaries
-      const threadMap = new Map<string, MessageThread>();
-
-      (messages || []).forEach((msg: any) => {
-        const reqId = msg.connection_request_id;
-        const req = msg.request;
-        const user = req?.user;
-
-        if (!threadMap.has(reqId)) {
-          threadMap.set(reqId, {
-            connection_request_id: reqId,
-            buyer_name: user ? `${user.first_name || ''} ${user.last_name || ''}`.trim() : 'Unknown',
-            buyer_company: user?.company || null,
-            buyer_email: user?.email || null,
-            deal_title: req?.listing?.title || null,
-            request_status: req?.status || 'pending',
-            last_message_body: msg.body,
-            last_message_at: msg.created_at,
-            last_sender_role: msg.sender_role,
-            unread_count: 0,
-          });
-        }
-
-        // Count unread (buyer messages not read by admin)
-        if (msg.sender_role === 'buyer' && !msg.is_read_by_admin) {
-          const thread = threadMap.get(reqId)!;
-          thread.unread_count++;
-        }
-      });
-
-      // Sort: unread first, then by last message time
-      return Array.from(threadMap.values()).sort((a, b) => {
-        if (a.unread_count > 0 && b.unread_count === 0) return -1;
-        if (a.unread_count === 0 && b.unread_count > 0) return 1;
-        return new Date(b.last_message_at).getTime() - new Date(a.last_message_at).getTime();
-      });
+      return (data || []).map((row): MessageThread => ({
+        connection_request_id: row.connection_request_id,
+        buyer_name: row.buyer_name,
+        buyer_company: row.buyer_company,
+        buyer_email: row.buyer_email,
+        deal_title: row.deal_title,
+        deal_owner_id: row.deal_owner_id,
+        request_status: row.request_status,
+        last_message_body: row.last_message_body,
+        last_message_at: row.last_message_at,
+        last_sender_role: row.last_sender_role,
+        unread_count: row.admin_unread_count,
+        total_messages: row.total_messages,
+      }));
     },
     staleTime: 30000,
+  });
+}
+
+// Legacy fallback if the view migration hasn't been applied yet
+async function fetchThreadsFallback(): Promise<MessageThread[]> {
+  const { data: messages, error } = await (supabase
+    .from('connection_messages') as any)
+    .select(`
+      id, connection_request_id, sender_role, body, message_type,
+      is_read_by_admin, created_at,
+      request:connection_requests!inner(
+        id, status, user_id, listing_id,
+        user:profiles!connection_requests_user_id_fkey(first_name, last_name, email, company),
+        listing:listings!connection_requests_listing_id_fkey(title, primary_owner_id)
+      )
+    `)
+    .order('created_at', { ascending: false })
+    .limit(2000);
+
+  if (error) throw error;
+
+  const threadMap = new Map<string, MessageThread>();
+
+  (messages || []).forEach((msg: any) => {
+    const reqId = msg.connection_request_id;
+    const req = msg.request;
+    const user = req?.user;
+
+    if (!threadMap.has(reqId)) {
+      threadMap.set(reqId, {
+        connection_request_id: reqId,
+        buyer_name: user ? `${user.first_name || ''} ${user.last_name || ''}`.trim() || 'Unknown' : 'Unknown',
+        buyer_company: user?.company || null,
+        buyer_email: user?.email || null,
+        deal_title: req?.listing?.title || null,
+        deal_owner_id: req?.listing?.primary_owner_id || null,
+        request_status: req?.status || 'pending',
+        last_message_body: msg.body,
+        last_message_at: msg.created_at,
+        last_sender_role: msg.sender_role,
+        unread_count: 0,
+        total_messages: 0,
+      });
+    }
+
+    const thread = threadMap.get(reqId)!;
+    thread.total_messages++;
+
+    if (msg.sender_role === 'buyer' && !msg.is_read_by_admin) {
+      thread.unread_count++;
+    }
+  });
+
+  return Array.from(threadMap.values()).sort((a, b) => {
+    if (a.unread_count > 0 && b.unread_count === 0) return -1;
+    if (a.unread_count === 0 && b.unread_count > 0) return 1;
+    return new Date(b.last_message_at).getTime() - new Date(a.last_message_at).getTime();
   });
 }

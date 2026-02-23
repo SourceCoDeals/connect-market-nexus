@@ -94,13 +94,8 @@ export function ConnectionRequestActions({
   const handleAccept = async () => {
     if (!requestId) return;
     try {
+      // Status update triggers an automatic system message via DB trigger
       await updateStatus.mutateAsync({ requestId, status: "approved" });
-      await sendMessage.mutateAsync({
-        connection_request_id: requestId,
-        body: "Request accepted. We will begin the documentation process.",
-        sender_role: "admin",
-        message_type: "decision",
-      });
       toast({ title: "Request approved", description: "Buyer has been notified." });
     } catch (err) {
       toast({
@@ -115,17 +110,21 @@ export function ConnectionRequestActions({
     if (!requestId) return;
     const note = rejectNote.trim();
     try {
+      // Status update triggers an automatic system message via DB trigger
       await updateStatus.mutateAsync({
         requestId,
         status: "rejected",
         notes: note || undefined,
       });
-      await sendMessage.mutateAsync({
-        connection_request_id: requestId,
-        body: note || "Request declined.",
-        sender_role: "admin",
-        message_type: "decision",
-      });
+      // If the admin added a custom rejection note, send it as a separate message
+      if (note) {
+        await sendMessage.mutateAsync({
+          connection_request_id: requestId,
+          body: note,
+          sender_role: "admin",
+          message_type: "message",
+        });
+      }
       setShowRejectNote(false);
       setRejectNote("");
       toast({ title: "Request declined", description: "Buyer has been notified." });

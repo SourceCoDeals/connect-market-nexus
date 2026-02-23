@@ -9317,6 +9317,26 @@ export type Database = {
       }
     }
     Views: {
+      message_thread_summaries: {
+        Row: {
+          connection_request_id: string
+          request_status: string
+          buyer_user_id: string | null
+          listing_id: string
+          buyer_name: string
+          buyer_company: string | null
+          buyer_email: string | null
+          deal_title: string | null
+          deal_owner_id: string | null
+          last_message_body: string
+          last_sender_role: string
+          last_message_at: string
+          admin_unread_count: number
+          buyer_unread_count: number
+          total_messages: number
+        }
+        Relationships: []
+      }
       linkedin_manual_review_queue: {
         Row: {
           address_city: string | null

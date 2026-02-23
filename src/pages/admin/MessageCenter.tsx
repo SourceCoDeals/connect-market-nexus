@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
@@ -9,6 +9,8 @@ import {
   ArrowLeft,
   Inbox,
   Search,
+  User,
+  Users,
 } from "lucide-react";
 import {
   useMessageCenterThreads,
@@ -17,30 +19,75 @@ import {
   useMarkMessagesReadByAdmin,
   type MessageThread,
 } from "@/hooks/use-connection-messages";
+import { useAuth } from "@/context/AuthContext";
 import { formatDistanceToNow } from "date-fns";
+
+type ThreadFilter = "my_deals" | "all";
 
 export default function MessageCenter() {
   const { data: threads = [], isLoading } = useMessageCenterThreads();
+  const { user } = useAuth();
   const [selectedThreadId, setSelectedThreadId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [threadFilter, setThreadFilter] = useState<ThreadFilter>("my_deals");
 
   const selectedThread = threads.find(
     (t) => t.connection_request_id === selectedThreadId
   );
 
-  // Filter threads by search
-  const filteredThreads = searchQuery.trim()
-    ? threads.filter(
+  // Determine if the current admin owns any deals
+  const myDealThreads = useMemo(
+    () => threads.filter((t) => t.deal_owner_id === user?.id),
+    [threads, user?.id]
+  );
+
+  // Auto-switch to "all" if admin doesn't own any deals
+  useEffect(() => {
+    if (!isLoading && myDealThreads.length === 0 && threads.length > 0) {
+      setThreadFilter("all");
+    }
+  }, [isLoading, myDealThreads.length, threads.length]);
+
+  // Apply filter and search
+  const filteredThreads = useMemo(() => {
+    let result = threads;
+
+    // Apply tab filter
+    if (threadFilter === "my_deals") {
+      result = result.filter((t) => t.deal_owner_id === user?.id);
+    }
+
+    // Apply search
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      result = result.filter(
         (t) =>
-          t.buyer_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          (t.deal_title || "")
-            .toLowerCase()
-            .includes(searchQuery.toLowerCase()) ||
-          (t.buyer_company || "")
-            .toLowerCase()
-            .includes(searchQuery.toLowerCase())
-      )
-    : threads;
+          t.buyer_name.toLowerCase().includes(q) ||
+          (t.deal_title || "").toLowerCase().includes(q) ||
+          (t.buyer_company || "").toLowerCase().includes(q)
+      );
+    }
+
+    // Sort: unread first, then by last message time
+    return result.sort((a, b) => {
+      if (a.unread_count > 0 && b.unread_count === 0) return -1;
+      if (a.unread_count === 0 && b.unread_count > 0) return 1;
+      return (
+        new Date(b.last_message_at).getTime() -
+        new Date(a.last_message_at).getTime()
+      );
+    });
+  }, [threads, threadFilter, searchQuery, user?.id]);
+
+  // Count unread for each tab
+  const myDealsUnread = useMemo(
+    () => myDealThreads.reduce((sum, t) => sum + t.unread_count, 0),
+    [myDealThreads]
+  );
+  const allUnread = useMemo(
+    () => threads.reduce((sum, t) => sum + t.unread_count, 0),
+    [threads]
+  );
 
   return (
     <div className="container max-w-6xl mx-auto py-8 px-4">
@@ -66,6 +113,24 @@ export default function MessageCenter() {
               selectedThreadId ? "hidden md:block" : ""
             }`}
           >
+            {/* Tab Filter */}
+            <div className="flex border-b border-border">
+              <TabButton
+                active={threadFilter === "my_deals"}
+                onClick={() => setThreadFilter("my_deals")}
+                icon={<User className="h-3.5 w-3.5" />}
+                label="My Deals"
+                count={myDealsUnread}
+              />
+              <TabButton
+                active={threadFilter === "all"}
+                onClick={() => setThreadFilter("all")}
+                icon={<Users className="h-3.5 w-3.5" />}
+                label="All"
+                count={allUnread}
+              />
+            </div>
+
             {/* Search */}
             <div className="p-3 border-b border-border">
               <div className="relative">
@@ -89,14 +154,19 @@ export default function MessageCenter() {
                   isSelected={
                     selectedThreadId === thread.connection_request_id
                   }
+                  isOwnDeal={thread.deal_owner_id === user?.id}
                   onClick={() =>
                     setSelectedThreadId(thread.connection_request_id)
                   }
                 />
               ))}
-              {filteredThreads.length === 0 && searchQuery && (
+              {filteredThreads.length === 0 && (
                 <div className="p-6 text-center text-xs text-muted-foreground">
-                  No conversations match your search.
+                  {searchQuery
+                    ? "No conversations match your search."
+                    : threadFilter === "my_deals"
+                      ? "No conversations on your deals yet."
+                      : "No conversations yet."}
                 </div>
               )}
             </div>
@@ -130,15 +200,55 @@ export default function MessageCenter() {
   );
 }
 
+// ─── Tab Button ───
+
+function TabButton({
+  active,
+  onClick,
+  icon,
+  label,
+  count,
+}: {
+  active: boolean;
+  onClick: () => void;
+  icon: React.ReactNode;
+  label: string;
+  count: number;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-medium transition-colors ${
+        active
+          ? "border-b-2 border-primary text-foreground"
+          : "text-muted-foreground hover:text-foreground hover:bg-accent/30"
+      }`}
+    >
+      {icon}
+      {label}
+      {count > 0 && (
+        <Badge
+          variant="default"
+          className="text-[10px] px-1.5 py-0 h-4 min-w-[18px] flex items-center justify-center"
+        >
+          {count}
+        </Badge>
+      )}
+    </button>
+  );
+}
+
 // ─── Thread List Item ───
 
 function ThreadListItem({
   thread,
   isSelected,
+  isOwnDeal,
   onClick,
 }: {
   thread: MessageThread;
   isSelected: boolean;
+  isOwnDeal: boolean;
   onClick: () => void;
 }) {
   return (
@@ -171,6 +281,9 @@ function ThreadListItem({
           {thread.deal_title && (
             <p className="text-xs text-muted-foreground/70 truncate mt-0.5">
               {thread.deal_title}
+              {isOwnDeal && (
+                <span className="ml-1 text-primary/60">(yours)</span>
+              )}
             </p>
           )}
           <p
