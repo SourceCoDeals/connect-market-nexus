@@ -3,7 +3,12 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { ExternalLink, Linkedin, Building2, Globe, Mail, Phone, Send, AlertCircle, MessageSquare } from 'lucide-react';
+import { Card, CardContent } from '@/components/ui/card';
+import {
+  Linkedin, Building2, Mail, Phone, Send,
+  AlertCircle, MessageSquare, User, Briefcase, DollarSign, MapPin,
+  CalendarDays, Clock, Star, FileText,
+} from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { Deal } from '@/hooks/admin/use-deals';
 import { useAdminProfiles } from '@/hooks/admin/use-admin-profiles';
@@ -105,7 +110,15 @@ export function PipelineDetailOverview({ deal }: PipelineDetailOverviewProps) {
     });
   };
 
-  // Build combined messages: buyer inquiry as first message, then connection_messages
+  // Format currency helper
+  const formatCurrency = (val?: number | null) => {
+    if (val == null) return '—';
+    if (val >= 1_000_000) return `$${(val / 1_000_000).toFixed(1)}M`;
+    if (val >= 1_000) return `$${(val / 1_000).toFixed(0)}K`;
+    return `$${val.toLocaleString()}`;
+  };
+
+  // Build combined messages
   const allMessages = React.useMemo(() => {
     const combined: Array<{
       id: string;
@@ -117,7 +130,6 @@ export function PipelineDetailOverview({ deal }: PipelineDetailOverviewProps) {
       isInquiry?: boolean;
     }> = [];
 
-    // Add the buyer's original inquiry as the first message
     if (connectionRequestDetails?.user_message) {
       combined.push({
         id: 'inquiry',
@@ -129,7 +141,6 @@ export function PipelineDetailOverview({ deal }: PipelineDetailOverviewProps) {
       });
     }
 
-    // Add all connection messages
     messages.forEach((msg) => {
       const isAdmin = msg.sender_role === 'admin';
       const senderName = msg.sender
@@ -148,113 +159,161 @@ export function PipelineDetailOverview({ deal }: PipelineDetailOverviewProps) {
     return combined;
   }, [connectionRequestDetails, messages, deal.contact_name, deal.deal_created_at]);
 
-  return (
-    <div className="flex-1 flex flex-col min-h-0">
-      <div className="flex flex-1 min-h-0">
-        {/* Left Column - Messages */}
-        <div className="flex-1 flex flex-col min-h-0 border-r border-border/40">
-          {!connectionRequestId ? (
-            <div className="flex-1 flex items-center justify-center">
-              <div className="text-center space-y-3 max-w-xs">
-                <AlertCircle className="w-10 h-10 text-muted-foreground/30 mx-auto" />
-                <p className="text-sm text-muted-foreground">No messaging available</p>
-                <p className="text-xs text-muted-foreground/60">
-                  This deal was not created from a marketplace connection request.
-                </p>
-              </div>
-            </div>
-          ) : (
-            <>
-              <ScrollArea className="flex-1 px-6">
-                <div className="py-4 space-y-3">
-                  {messagesLoading ? (
-                    <div className="space-y-3">
-                      {[1, 2, 3].map((i) => (
-                        <div key={i} className="p-3 rounded-lg bg-muted/20 animate-pulse h-16" />
-                      ))}
-                    </div>
-                  ) : allMessages.length === 0 ? (
-                    <div className="text-center py-12 space-y-2">
-                      <MessageSquare className="w-8 h-8 text-muted-foreground/30 mx-auto" />
-                      <p className="text-sm text-muted-foreground">No messages yet</p>
-                      <p className="text-xs text-muted-foreground/60">Send a message to start the conversation.</p>
-                    </div>
-                  ) : (
-                    allMessages.map((msg) => {
-                      const isAdmin = msg.sender_role === 'admin';
-                      return (
-                        <div
-                          key={msg.id}
-                          className={cn(
-                            'max-w-[85%] rounded-xl px-4 py-3 space-y-1',
-                            isAdmin
-                              ? 'ml-auto bg-primary/10 border border-primary/20'
-                              : 'mr-auto bg-muted/30 border border-border/40'
-                          )}
-                        >
-                          <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
-                            <span className="font-medium">{msg.senderName}</span>
-                            <span>·</span>
-                            <span>{formatDistanceToNow(new Date(msg.created_at), { addSuffix: true })}</span>
-                            {msg.isInquiry && (
-                              <span className="inline-block px-1.5 py-0.5 rounded bg-accent/20 text-accent-foreground font-medium text-[10px]">
-                                Initial Inquiry
-                              </span>
-                            )}
-                          </div>
-                          <p className="text-sm text-foreground whitespace-pre-wrap">{msg.body}</p>
-                          {msg.message_type === 'decision' && (
-                            <span className="inline-block mt-1 text-[10px] px-1.5 py-0.5 rounded bg-accent/20 text-accent-foreground font-medium">
-                              Decision
-                            </span>
-                          )}
-                        </div>
-                      );
-                    })
-                  )}
-                  <div ref={bottomRef} />
-                </div>
-              </ScrollArea>
+  // Derive display values
+  const sellerName = deal.listing_real_company_name || deal.listing_title || deal.title || '—';
+  const buyerName = deal.contact_name || buyerProfile?.first_name ? `${buyerProfile?.first_name || ''} ${buyerProfile?.last_name || ''}`.trim() : deal.contact_name || 'Unknown Buyer';
+  const buyerCompany = deal.contact_company || buyerProfile?.company || null;
+  const buyerType = buyerProfile?.buyer_type || null;
+  const inquiryMessage = connectionRequestDetails?.user_message || deal.deal_description || null;
+  const stageName = deal.stage_name || 'Unknown';
+  const ownerName = deal.assigned_to && allAdminProfiles?.[deal.assigned_to]
+    ? allAdminProfiles[deal.assigned_to].displayName
+    : 'Unassigned';
 
-              {/* Compose bar */}
-              <div className="border-t border-border/40 px-6 py-3">
-                <div className="flex items-end gap-3">
-                  <Textarea
-                    placeholder="Type a message..."
-                    value={newMessage}
-                    onChange={(e) => setNewMessage(e.target.value)}
-                    className="min-h-[50px] max-h-[100px] resize-none text-sm flex-1"
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) handleSend();
-                    }}
-                  />
-                  <Button
-                    size="sm"
-                    onClick={handleSend}
-                    disabled={!newMessage.trim() || sendMessage.isPending}
-                    className="h-9 px-4"
-                  >
-                    <Send className="w-3.5 h-3.5 mr-1.5" />
-                    Send
-                  </Button>
-                </div>
-                <p className="text-[10px] text-muted-foreground mt-1">Cmd/Ctrl + Enter to send</p>
+  return (
+    <div className="flex-1 flex flex-col min-h-0 overflow-y-auto">
+      {/* ═══════════ HIGH-LEVEL SUMMARY ═══════════ */}
+      <div className="px-8 pb-5 space-y-4">
+        {/* Three-column summary cards */}
+        <div className="grid grid-cols-3 gap-4">
+          {/* Buyer Card */}
+          <Card className="border-border/60 bg-muted/20">
+            <CardContent className="p-4 space-y-2.5">
+              <div className="flex items-center gap-2 text-xs text-muted-foreground uppercase tracking-wider font-medium">
+                <User className="h-3.5 w-3.5" />
+                Buyer
               </div>
-            </>
-          )}
+              <p className="text-sm font-semibold text-foreground leading-tight">{buyerName}</p>
+              {buyerCompany && (
+                <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                  <Building2 className="h-3 w-3 shrink-0" />
+                  <span className="truncate">{buyerCompany}</span>
+                </div>
+              )}
+              {buyerType && (
+                <span className="inline-block px-2 py-0.5 rounded-full text-[10px] font-medium bg-primary/10 text-primary border border-primary/20">
+                  {buyerType === 'privateEquity' ? 'Private Equity' : buyerType === 'strategicBuyer' ? 'Strategic Buyer' : buyerType === 'searchFund' ? 'Search Fund' : buyerType}
+                </span>
+              )}
+              <div className="flex flex-wrap gap-2 pt-1">
+                {deal.contact_email && (
+                  <a href={`mailto:${deal.contact_email}`} className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground transition-colors">
+                    <Mail className="h-3 w-3" />
+                    <span className="truncate max-w-[120px]">{deal.contact_email}</span>
+                  </a>
+                )}
+                {(deal.contact_phone || buyerProfile?.phone_number) && (
+                  <a href={`tel:${deal.contact_phone || buyerProfile?.phone_number}`} className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground transition-colors">
+                    <Phone className="h-3 w-3" />
+                    <span>{deal.contact_phone || buyerProfile?.phone_number}</span>
+                  </a>
+                )}
+                {buyerProfile?.linkedin_url && (
+                  <a href={buyerProfile.linkedin_url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-[11px] text-primary hover:underline">
+                    <Linkedin className="h-3 w-3" />
+                    LinkedIn
+                  </a>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Seller / Deal Card */}
+          <Card className="border-border/60 bg-muted/20">
+            <CardContent className="p-4 space-y-2.5">
+              <div className="flex items-center gap-2 text-xs text-muted-foreground uppercase tracking-wider font-medium">
+                <Briefcase className="h-3.5 w-3.5" />
+                Seller / Deal
+              </div>
+              <p className="text-sm font-semibold text-foreground leading-tight truncate">{sellerName}</p>
+              {deal.listing_location && (
+                <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                  <MapPin className="h-3 w-3 shrink-0" />
+                  <span className="truncate">{deal.listing_location}</span>
+                </div>
+              )}
+              {deal.listing_category && (
+                <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                  <FileText className="h-3 w-3 shrink-0" />
+                  <span className="truncate">{deal.listing_category}</span>
+                </div>
+              )}
+              <div className="flex items-center gap-3 pt-1">
+                {deal.listing_revenue != null && deal.listing_revenue > 0 && (
+                  <div className="text-xs">
+                    <span className="text-muted-foreground">Rev: </span>
+                    <span className="font-semibold text-foreground">{formatCurrency(deal.listing_revenue)}</span>
+                  </div>
+                )}
+                {deal.listing_ebitda != null && deal.listing_ebitda > 0 && (
+                  <div className="text-xs">
+                    <span className="text-muted-foreground">EBITDA: </span>
+                    <span className="font-semibold text-foreground">{formatCurrency(deal.listing_ebitda)}</span>
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Deal Status Card */}
+          <Card className="border-border/60 bg-muted/20">
+            <CardContent className="p-4 space-y-2.5">
+              <div className="flex items-center gap-2 text-xs text-muted-foreground uppercase tracking-wider font-medium">
+                <Star className="h-3.5 w-3.5" />
+                Deal Status
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="inline-block w-2 h-2 rounded-full" style={{ backgroundColor: deal.stage_color || 'hsl(var(--muted-foreground))' }} />
+                <span className="text-sm font-semibold text-foreground">{stageName}</span>
+              </div>
+              <div className="space-y-1.5 pt-0.5">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-muted-foreground flex items-center gap-1.5"><User className="h-3 w-3" /> Owner</span>
+                  <span className="text-foreground font-medium">{ownerName}</span>
+                </div>
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-muted-foreground flex items-center gap-1.5"><Clock className="h-3 w-3" /> Deal Age</span>
+                  <span className="text-foreground">{formatDateSafely(deal.deal_created_at)}</span>
+                </div>
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-muted-foreground flex items-center gap-1.5"><CalendarDays className="h-3 w-3" /> In Stage</span>
+                  <span className="text-foreground">{formatDateSafely(deal.deal_stage_entered_at)}</span>
+                </div>
+                {deal.deal_score != null && (
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-muted-foreground flex items-center gap-1.5"><DollarSign className="h-3 w-3" /> Score</span>
+                    <span className="text-foreground font-mono font-semibold">{deal.deal_score}</span>
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
         </div>
 
-        {/* Right Sidebar - Buyer Details */}
-        <div className="w-72 flex-shrink-0 overflow-y-auto px-6 py-6 space-y-5">
-          {/* Deal Owner */}
-          <div className="space-y-2">
-            <Label className="text-xs text-muted-foreground uppercase tracking-wider">Owner</Label>
+        {/* Reason for Interest / Initial Inquiry */}
+        {inquiryMessage && (
+          <Card className="border-border/60 bg-accent/5">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-2 mb-2 text-xs text-muted-foreground uppercase tracking-wider font-medium">
+                <MessageSquare className="h-3.5 w-3.5" />
+                Reason for Interest
+              </div>
+              <p className="text-sm text-foreground leading-relaxed">{inquiryMessage}</p>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Quick Actions Row */}
+        <div className="flex items-center gap-4 flex-wrap">
+          {/* Owner Selector */}
+          <div className="flex items-center gap-2">
+            <Label className="text-xs text-muted-foreground whitespace-nowrap">Owner:</Label>
             <Select
               value={deal.assigned_to || 'unassigned'}
               onValueChange={handleOwnerChange}
               disabled={adminProfilesLoading || updateDeal.isPending}
             >
-              <SelectTrigger className="w-full h-8 text-sm">
+              <SelectTrigger className="w-[150px] h-7 text-xs">
                 <SelectValue placeholder="Unassigned" />
               </SelectTrigger>
               <SelectContent>
@@ -266,118 +325,138 @@ export function PipelineDetailOverview({ deal }: PipelineDetailOverviewProps) {
             </Select>
           </div>
 
-          <div className="h-px bg-border" />
-
-          {/* Contact Info */}
-          <div className="space-y-3">
-            <Label className="text-xs text-muted-foreground uppercase tracking-wider">Contact</Label>
-            <p className="text-sm text-foreground font-medium">{deal.contact_name || 'Unknown'}</p>
-
-            {(buyerProfile?.linkedin_url || deal.contact_email) && (
-              <div className="space-y-1.5">
-                {buyerProfile?.linkedin_url && (
-                  <a href={buyerProfile.linkedin_url} target="_blank" rel="noopener noreferrer"
-                    className="flex items-center gap-1.5 text-xs text-primary hover:underline">
-                    <Linkedin className="w-3 h-3" />
-                    LinkedIn
-                    <ExternalLink className="w-2.5 h-2.5" />
-                  </a>
-                )}
-                {deal.contact_email && (
-                  <a href={`mailto:${deal.contact_email}`} className="flex items-center gap-1.5 text-xs text-foreground/80 hover:text-foreground">
-                    <Mail className="w-3 h-3 text-muted-foreground" />
-                    <span className="font-mono truncate">{deal.contact_email}</span>
-                  </a>
-                )}
-                {(deal.contact_phone || buyerProfile?.phone_number) && (
-                  <a href={`tel:${deal.contact_phone || buyerProfile?.phone_number}`} className="flex items-center gap-1.5 text-xs text-foreground/80 hover:text-foreground">
-                    <Phone className="w-3 h-3 text-muted-foreground" />
-                    <span>{deal.contact_phone || buyerProfile?.phone_number}</span>
-                  </a>
-                )}
-              </div>
-            )}
-          </div>
-
-          <div className="h-px bg-border" />
-
-          {/* Company */}
-          <div className="space-y-3">
-            <Label className="text-xs text-muted-foreground uppercase tracking-wider">Company</Label>
-            {deal.contact_company && (
-              <div className="flex items-center gap-1.5">
-                <Building2 className="w-3 h-3 text-muted-foreground" />
-                <span className="text-sm text-foreground">{deal.contact_company}</span>
-              </div>
-            )}
-            {buyerProfile?.website && (
-              <a href={buyerProfile.website.startsWith('http') ? buyerProfile.website : `https://${buyerProfile.website}`}
-                target="_blank" rel="noopener noreferrer"
-                className="flex items-center gap-1.5 text-xs text-primary hover:underline">
-                <Globe className="w-3 h-3" />
-                Website
-                <ExternalLink className="w-2.5 h-2.5" />
-              </a>
-            )}
-            {buyerProfile?.buyer_type && (
-              <div className="space-y-1">
-                <Label className="text-xs text-muted-foreground uppercase tracking-wider">Type</Label>
-                <p className="text-sm text-foreground">{buyerProfile.buyer_type}</p>
-              </div>
-            )}
-          </div>
-
-          <div className="h-px bg-border" />
-
-          {/* Deal Metadata */}
-          <div className="space-y-3">
-            <div className="space-y-1">
-              <Label className="text-xs text-muted-foreground uppercase tracking-wider">Stage Duration</Label>
-              <p className="text-sm text-foreground">{formatDateSafely(deal.deal_stage_entered_at)}</p>
-            </div>
-            <div className="space-y-1">
-              <Label className="text-xs text-muted-foreground uppercase tracking-wider">Deal Age</Label>
-              <p className="text-sm text-foreground">{formatDateSafely(deal.deal_created_at)}</p>
-            </div>
-          </div>
-
-          <div className="h-px bg-border" />
+          <div className="h-4 w-px bg-border" />
 
           {/* Follow-up Toggles */}
-          <div className="space-y-3">
-            <Label className="text-xs text-muted-foreground uppercase tracking-wider">Follow-up</Label>
-            <div className="flex items-center justify-between">
-              <span className="text-xs text-foreground">Positive</span>
-              <Switch checked={followedUp} onCheckedChange={(v) => handleFollowupToggle('positive', v)} className="scale-75" />
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-muted-foreground">Follow-up:</span>
+            <div className="flex items-center gap-1">
+              <span className="text-[11px] text-foreground">Positive</span>
+              <Switch checked={followedUp} onCheckedChange={(v) => handleFollowupToggle('positive', v)} className="scale-[0.65]" />
             </div>
-            {followedUp && deal.followed_up_at && (
-              <p className="text-[10px] text-muted-foreground">
-                {formatDateSafely(deal.followed_up_at)}
-                {deal.followed_up_by && allAdminProfiles?.[deal.followed_up_by] && ` by ${allAdminProfiles[deal.followed_up_by].displayName}`}
-              </p>
-            )}
-            <div className="flex items-center justify-between">
-              <span className="text-xs text-foreground">Rejection</span>
-              <Switch checked={negativeFollowedUp} onCheckedChange={(v) => handleFollowupToggle('negative', v)} className="scale-75" />
+            <div className="flex items-center gap-1">
+              <span className="text-[11px] text-foreground">Rejection</span>
+              <Switch checked={negativeFollowedUp} onCheckedChange={(v) => handleFollowupToggle('negative', v)} className="scale-[0.65]" />
             </div>
-            {negativeFollowedUp && deal.negative_followed_up_at && (
-              <p className="text-[10px] text-muted-foreground">
-                {formatDateSafely(deal.negative_followed_up_at)}
-                {deal.negative_followed_up_by && allAdminProfiles?.[deal.negative_followed_up_by] && ` by ${allAdminProfiles[deal.negative_followed_up_by].displayName}`}
-              </p>
-            )}
           </div>
 
-          {deal.deal_score != null && (
-            <>
-              <div className="h-px bg-border" />
-              <div className="space-y-1">
-                <Label className="text-xs text-muted-foreground uppercase tracking-wider">Deal Score</Label>
-                <p className="text-sm text-foreground font-mono">{deal.deal_score}</p>
-              </div>
-            </>
-          )}
+          {/* NDA / Fee Status indicators */}
+          <div className="h-4 w-px bg-border" />
+          <div className="flex items-center gap-3 text-[11px]">
+            <span className={cn(
+              "px-2 py-0.5 rounded-full border font-medium",
+              deal.nda_status === 'signed' ? "bg-green-50 text-green-700 border-green-200" :
+              deal.nda_status === 'sent' ? "bg-yellow-50 text-yellow-700 border-yellow-200" :
+              "bg-muted text-muted-foreground border-border"
+            )}>
+              NDA: {deal.nda_status === 'not_sent' ? 'Not Sent' : deal.nda_status.charAt(0).toUpperCase() + deal.nda_status.slice(1)}
+            </span>
+            <span className={cn(
+              "px-2 py-0.5 rounded-full border font-medium",
+              deal.fee_agreement_status === 'signed' ? "bg-green-50 text-green-700 border-green-200" :
+              deal.fee_agreement_status === 'sent' ? "bg-yellow-50 text-yellow-700 border-yellow-200" :
+              "bg-muted text-muted-foreground border-border"
+            )}>
+              Fee: {deal.fee_agreement_status === 'not_sent' ? 'Not Sent' : deal.fee_agreement_status.charAt(0).toUpperCase() + deal.fee_agreement_status.slice(1)}
+            </span>
+          </div>
         </div>
+      </div>
+
+      {/* ═══════════ MESSAGING AREA ═══════════ */}
+      <div className="flex-1 flex flex-col min-h-0 border-t border-border/40">
+        {!connectionRequestId ? (
+          <div className="flex-1 flex items-center justify-center py-8">
+            <div className="text-center space-y-3 max-w-xs">
+              <AlertCircle className="w-10 h-10 text-muted-foreground/30 mx-auto" />
+              <p className="text-sm text-muted-foreground">No messaging available</p>
+              <p className="text-xs text-muted-foreground/60">
+                This deal was not created from a marketplace connection request.
+              </p>
+            </div>
+          </div>
+        ) : (
+          <>
+            <div className="px-8 pt-4 pb-2">
+              <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Conversation</h3>
+            </div>
+            <ScrollArea className="flex-1 px-8">
+              <div className="pb-4 space-y-3">
+                {messagesLoading ? (
+                  <div className="space-y-3">
+                    {[1, 2, 3].map((i) => (
+                      <div key={i} className="p-3 rounded-lg bg-muted/20 animate-pulse h-16" />
+                    ))}
+                  </div>
+                ) : allMessages.length === 0 ? (
+                  <div className="text-center py-8 space-y-2">
+                    <MessageSquare className="w-8 h-8 text-muted-foreground/30 mx-auto" />
+                    <p className="text-sm text-muted-foreground">No messages yet</p>
+                    <p className="text-xs text-muted-foreground/60">Send a message to start the conversation.</p>
+                  </div>
+                ) : (
+                  allMessages.map((msg) => {
+                    const isAdmin = msg.sender_role === 'admin';
+                    return (
+                      <div
+                        key={msg.id}
+                        className={cn(
+                          'max-w-[85%] rounded-xl px-4 py-3 space-y-1',
+                          isAdmin
+                            ? 'ml-auto bg-primary/10 border border-primary/20'
+                            : 'mr-auto bg-muted/30 border border-border/40'
+                        )}
+                      >
+                        <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
+                          <span className="font-medium">{msg.senderName}</span>
+                          <span>·</span>
+                          <span>{formatDistanceToNow(new Date(msg.created_at), { addSuffix: true })}</span>
+                          {msg.isInquiry && (
+                            <span className="inline-block px-1.5 py-0.5 rounded bg-accent/20 text-accent-foreground font-medium text-[10px]">
+                              Initial Inquiry
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-sm text-foreground whitespace-pre-wrap">{msg.body}</p>
+                        {msg.message_type === 'decision' && (
+                          <span className="inline-block mt-1 text-[10px] px-1.5 py-0.5 rounded bg-accent/20 text-accent-foreground font-medium">
+                            Decision
+                          </span>
+                        )}
+                      </div>
+                    );
+                  })
+                )}
+                <div ref={bottomRef} />
+              </div>
+            </ScrollArea>
+
+            {/* Compose bar */}
+            <div className="border-t border-border/40 px-8 py-3">
+              <div className="flex items-end gap-3">
+                <Textarea
+                  placeholder="Type a message..."
+                  value={newMessage}
+                  onChange={(e) => setNewMessage(e.target.value)}
+                  className="min-h-[50px] max-h-[100px] resize-none text-sm flex-1"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) handleSend();
+                  }}
+                />
+                <Button
+                  size="sm"
+                  onClick={handleSend}
+                  disabled={!newMessage.trim() || sendMessage.isPending}
+                  className="h-9 px-4"
+                >
+                  <Send className="w-3.5 h-3.5 mr-1.5" />
+                  Send
+                </Button>
+              </div>
+              <p className="text-[10px] text-muted-foreground mt-1">Cmd/Ctrl + Enter to send</p>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );
