@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { MessageSquare, Send, Lock } from "lucide-react";
+import { MessageSquare, Send } from "lucide-react";
 import {
   useConnectionMessages,
   useSendMessage,
@@ -21,9 +21,8 @@ export function DealMessagesTab({ requestId, requestStatus }: DealMessagesTabPro
   const [newMessage, setNewMessage] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const canSend = requestStatus === "approved";
+  const canSend = requestStatus !== "rejected";
   const isRejected = requestStatus === "rejected";
-  const isPending = requestStatus === "pending";
 
   // Mark messages as read when viewing
   useEffect(() => {
@@ -55,27 +54,6 @@ export function DealMessagesTab({ requestId, requestStatus }: DealMessagesTabPro
     );
     setNewMessage("");
   };
-
-  // Pending state — messaging not yet available
-  if (isPending) {
-    return (
-      <div className="bg-card border border-border rounded-xl overflow-hidden">
-        <div className="px-5 py-3.5 border-b border-border/50 flex items-center gap-2">
-          <MessageSquare className="h-4 w-4 text-muted-foreground" />
-          <h3 className="text-sm font-semibold text-foreground">Messages</h3>
-        </div>
-        <div className="flex flex-col items-center justify-center py-16 px-6">
-          <div className="rounded-full bg-muted p-3 mb-3">
-            <Lock className="h-5 w-5 text-muted-foreground" />
-          </div>
-          <p className="text-sm font-medium text-foreground mb-1">Messages will be available soon</p>
-          <p className="text-xs text-muted-foreground text-center max-w-xs">
-            Once your request is accepted, you'll be able to message the SourceCo team about this deal.
-          </p>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="bg-card border border-border rounded-xl overflow-hidden flex flex-col">
