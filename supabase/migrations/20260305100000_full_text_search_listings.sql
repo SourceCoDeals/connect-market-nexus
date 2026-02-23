@@ -3,22 +3,52 @@
 -- Replaces slow ILIKE queries with PostgreSQL native tsvector/tsquery full-text search.
 -- Uses english dictionary for stemming (e.g. "manufacturing" matches "manufacture").
 -- Weighted ranking: title (A) > category (B) > location (B) > description (C) > tags (D)
+--
+-- NOTE: to_tsvector() is STABLE not IMMUTABLE, so we cannot use GENERATED ALWAYS AS.
+-- Instead we use a plain column + trigger to keep it in sync.
 
--- 1. Add the generated tsvector column
+-- 1. Add the tsvector column (plain, not generated)
 ALTER TABLE public.listings
-ADD COLUMN IF NOT EXISTS fts tsvector
-GENERATED ALWAYS AS (
+ADD COLUMN IF NOT EXISTS fts tsvector;
+
+-- 2. Create the trigger function that builds the weighted tsvector
+CREATE OR REPLACE FUNCTION public.listings_fts_trigger()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  NEW.fts :=
+    setweight(to_tsvector('english', coalesce(NEW.title, '')), 'A') ||
+    setweight(to_tsvector('english', coalesce(NEW.category, '')), 'B') ||
+    setweight(to_tsvector('english', coalesce(NEW.location, '')), 'B') ||
+    setweight(to_tsvector('english', coalesce(NEW.description, '')), 'C') ||
+    setweight(to_tsvector('english', coalesce(array_to_string(NEW.tags, ' '), '')), 'D');
+  RETURN NEW;
+END;
+$$;
+
+-- 3. Attach trigger on INSERT and UPDATE
+DROP TRIGGER IF EXISTS trg_listings_fts ON public.listings;
+CREATE TRIGGER trg_listings_fts
+  BEFORE INSERT OR UPDATE OF title, category, location, description, tags
+  ON public.listings
+  FOR EACH ROW
+  EXECUTE FUNCTION public.listings_fts_trigger();
+
+-- 4. Backfill existing rows so they have fts populated
+UPDATE public.listings
+SET fts =
   setweight(to_tsvector('english', coalesce(title, '')), 'A') ||
   setweight(to_tsvector('english', coalesce(category, '')), 'B') ||
   setweight(to_tsvector('english', coalesce(location, '')), 'B') ||
   setweight(to_tsvector('english', coalesce(description, '')), 'C') ||
   setweight(to_tsvector('english', coalesce(array_to_string(tags, ' '), '')), 'D')
-) STORED;
+WHERE fts IS NULL;
 
--- 2. Create GIN index for fast full-text lookups
+-- 5. Create GIN index for fast full-text lookups
 CREATE INDEX IF NOT EXISTS idx_listings_fts ON public.listings USING gin(fts);
 
--- 3. Create an RPC function for ranked full-text search with filters
+-- 6. Create an RPC function for ranked full-text search with filters
 --    Returns listings ordered by relevance score, with optional filtering.
 CREATE OR REPLACE FUNCTION public.search_listings(
   search_query text,
@@ -151,11 +181,7 @@ BEGIN
 END;
 $$;
 
--- 4. Grant execute to authenticated users (Supabase RLS still applies)
+-- 7. Grant execute to authenticated users (Supabase RLS still applies)
 GRANT EXECUTE ON FUNCTION public.search_listings TO authenticated;
 
--- 5. Add a simpler textSearch-compatible function for Supabase PostgREST .textSearch()
---    This allows using: supabase.from('listings').select().textSearch('fts', 'query')
---    The fts column + GIN index already enables this pattern directly.
-
-COMMENT ON COLUMN public.listings.fts IS 'Auto-generated tsvector for full-text search. Weighted: title(A) > category/location(B) > description(C) > tags(D)';
+COMMENT ON COLUMN public.listings.fts IS 'Trigger-maintained tsvector for full-text search. Weighted: title(A) > category/location(B) > description(C) > tags(D)';
