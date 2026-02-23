@@ -106,6 +106,7 @@ const FormMonitoringPage = lazyWithRetry(() => import("@/pages/admin/FormMonitor
 const SecuritySettings = lazyWithRetry(() => import("@/pages/admin/settings/SecuritySettings"));
 const GlobalApprovalsPage = lazyWithRetry(() => import("@/pages/admin/GlobalApprovalsPage"));
 const SystemTestRunner = lazyWithRetry(() => import("@/pages/admin/SystemTestRunner"));
+const DocuSealHealthCheck = lazyWithRetry(() => import("@/pages/admin/DocuSealHealthCheck"));
 const MessageCenter = lazyWithRetry(() => import("@/pages/admin/MessageCenter"));
 
 // ReMarketing pages (now rendered inside AdminLayout via shared sidebar)
@@ -284,6 +285,7 @@ function App() {
                           <Route path="settings/form-monitoring" element={<RoleGate min="admin"><FormMonitoringPage /></RoleGate>} />
                           <Route path="settings/security" element={<RoleGate min="admin"><SecuritySettings /></RoleGate>} />
                           <Route path="system-test" element={<RoleGate min="owner"><SystemTestRunner /></RoleGate>} />
+                          <Route path="docuseal-health" element={<RoleGate min="admin"><DocuSealHealthCheck /></RoleGate>} />
 
                           {/* OLD ADMIN URL REDIRECTS */}
                           <Route path="listings" element={<Navigate to="/admin/deals?tab=marketplace" replace />} />
