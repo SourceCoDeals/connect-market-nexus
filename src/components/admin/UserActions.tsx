@@ -192,10 +192,7 @@ export function UserActions({ onUserStatusUpdated }: UserActionsProps) {
       toast({
         variant: 'destructive',
         title: 'Approval failed',
-        description:
-          approvalError instanceof Error
-            ? approvalError.message
-            : 'Failed to approve user. Please try again.',
+        description: approvalError instanceof Error ? approvalError.message : 'Failed to approve user. Please try again.',
       });
     }
   };
