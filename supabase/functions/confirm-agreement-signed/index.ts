@@ -299,42 +299,41 @@ async function sendBuyerSignedDocNotification(
         });
       }
 
-      // System messages — dedup by checking for recent system message with same doc type
-      const { data: activeRequests } = await supabase
+      // System messages — only to General Inquiry (first active request), dedup by checking for recent system message
+      const { data: generalRequest } = await supabase
         .from('connection_requests')
         .select('id')
         .eq('user_id', member.user_id)
         .in('status', ['approved', 'pending', 'on_hold'])
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
 
-      if (activeRequests && activeRequests.length > 0) {
+      if (generalRequest) {
         const messageBody = signedDocUrl
           ? `✅ Your ${docLabel} has been signed successfully. For your compliance records, you can download the signed copy here: ${signedDocUrl}\n\nA copy is also permanently available in your Profile → Documents tab.`
           : `✅ Your ${docLabel} has been signed successfully. A copy is available in your Profile → Documents tab.`;
 
-        for (const req of activeRequests) {
-          // Check if system message already exists for this connection + doc type
-          const { data: existingMsg } = await supabase
-            .from('connection_messages')
-            .select('id')
-            .eq('connection_request_id', req.id)
-            .eq('message_type', 'system')
-            .ilike('body', `%Your ${docLabel} has been signed%`)
-            .gte('created_at', new Date(Date.now() - 5 * 60 * 1000).toISOString())
-            .limit(1)
-            .maybeSingle();
+        const { data: existingMsg } = await supabase
+          .from('connection_messages')
+          .select('id')
+          .eq('connection_request_id', generalRequest.id)
+          .eq('message_type', 'system')
+          .ilike('body', `%Your ${docLabel} has been signed%`)
+          .gte('created_at', new Date(Date.now() - 5 * 60 * 1000).toISOString())
+          .limit(1)
+          .maybeSingle();
 
-          if (!existingMsg) {
-            await supabase.from('connection_messages').insert({
-              connection_request_id: req.id,
-              sender_role: 'admin',
-              sender_id: null,
-              body: messageBody,
-              message_type: 'system',
-              is_read_by_admin: true,
-              is_read_by_buyer: false,
-            });
-          }
+        if (!existingMsg) {
+          await supabase.from('connection_messages').insert({
+            connection_request_id: generalRequest.id,
+            sender_role: 'admin',
+            sender_id: null,
+            body: messageBody,
+            message_type: 'system',
+            is_read_by_admin: true,
+            is_read_by_buyer: false,
+          });
         }
       }
     }

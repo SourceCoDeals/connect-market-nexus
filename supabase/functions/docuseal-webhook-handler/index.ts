@@ -474,50 +474,47 @@ async function sendBuyerSignedDocNotification(
         },
       });
 
-      // Insert a system message into ALL active connection request threads
-      const { data: activeRequests } = await supabase
+      // Insert a system message into General Inquiry only (first active connection request)
+      const { data: generalRequest } = await supabase
         .from('connection_requests')
         .select('id')
         .eq('user_id', member.user_id)
         .in('status', ['approved', 'pending', 'on_hold'])
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
 
-      if (activeRequests && activeRequests.length > 0) {
-        // Always use a stable message — never embed raw DocuSeal URLs which can expire.
-        // The signed document is downloadable via the banner on the Messages page.
+      if (generalRequest) {
         const messageBody = `✅ Your ${docLabel} has been signed successfully and is on file. You can download a permanent copy using the Download PDF button in the Documents section at the top of your Messages page.`;
 
-        for (const req of activeRequests) {
-          // Dedup system messages: check if one already exists for this connection + doc type
-          const { data: existingMsg } = await supabase
-            .from('connection_messages')
-            .select('id')
-            .eq('connection_request_id', req.id)
-            .eq('message_type', 'system')
-            .ilike('body', `%Your ${docLabel} has been signed%`)
-            .gte('created_at', new Date(Date.now() - 5 * 60 * 1000).toISOString())
-            .limit(1)
-            .maybeSingle();
+        const { data: existingMsg } = await supabase
+          .from('connection_messages')
+          .select('id')
+          .eq('connection_request_id', generalRequest.id)
+          .eq('message_type', 'system')
+          .ilike('body', `%Your ${docLabel} has been signed%`)
+          .gte('created_at', new Date(Date.now() - 5 * 60 * 1000).toISOString())
+          .limit(1)
+          .maybeSingle();
 
-          if (!existingMsg) {
-            const { error: msgError } = await supabase.from('connection_messages').insert({
-              connection_request_id: req.id,
-              sender_role: 'admin',
-              sender_id: null,
-              body: messageBody,
-              message_type: 'system',
-              is_read_by_admin: true,
-              is_read_by_buyer: false,
-            });
+        if (!existingMsg) {
+          const { error: msgError } = await supabase.from('connection_messages').insert({
+            connection_request_id: generalRequest.id,
+            sender_role: 'admin',
+            sender_id: null,
+            body: messageBody,
+            message_type: 'system',
+            is_read_by_admin: true,
+            is_read_by_buyer: false,
+          });
 
-            if (msgError) {
-              console.error('⚠️ Failed to insert signed doc system message:', msgError);
-            }
-          } else {
-            console.log(
-              `⏩ Skipping duplicate system message for connection ${req.id} (${docLabel})`,
-            );
+          if (msgError) {
+            console.error('⚠️ Failed to insert signed doc system message:', msgError);
           }
+        } else {
+          console.log(
+            `⏩ Skipping duplicate system message for connection ${generalRequest.id} (${docLabel})`,
+          );
         }
       }
     }
