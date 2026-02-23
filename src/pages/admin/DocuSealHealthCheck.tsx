@@ -16,6 +16,8 @@ import {
   Database,
   Copy,
   MinusCircle,
+  ChevronDown,
+  ChevronRight,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
@@ -82,6 +84,16 @@ export default function DocuSealHealthCheck() {
   const [response, setResponse] = useState<TestResponse | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [_lastRun, setLastRun] = useState<string | null>(null);
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+
+  const toggleExpand = useCallback((id: string) => {
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
 
   const runTests = useCallback(async () => {
     setRunState("running");
@@ -105,9 +117,16 @@ export default function DocuSealHealthCheck() {
         return;
       }
 
-      setResponse(data as TestResponse);
-      setLastRun(data.ranAt);
+      const resp = data as TestResponse;
+      setResponse(resp);
+      setLastRun(resp.ranAt);
       setRunState("done");
+      // Auto-expand failed and warned tests so errors are immediately visible
+      const autoExpand = new Set<string>();
+      for (const r of resp.results) {
+        if (r.status === "fail" || r.status === "warn") autoExpand.add(r.id);
+      }
+      setExpanded(autoExpand);
     } catch (e: any) {
       setRunState("error");
       setErrorMsg(e.message || "Unexpected error");
@@ -184,7 +203,7 @@ export default function DocuSealHealthCheck() {
             <div>
               <p className="font-medium text-foreground mb-1">Webhook Pipeline</p>
               <ul className="space-y-1 list-disc list-inside">
-                <li>HMAC-signed event accepted by handler</li>
+                <li>Simulated webhook accepted by handler</li>
                 <li>firm_agreements DB updated correctly</li>
                 <li>Duplicate events rejected (idempotency)</li>
               </ul>
@@ -253,33 +272,53 @@ export default function DocuSealHealthCheck() {
           <div className="divide-y">
             {groupResults.map((r) => {
               const Icon = STATUS_ICON[r.status];
-              // TestIcon available via TEST_META[r.id]?.icon
+              const isOpen = expanded.has(r.id);
               return (
-                <div key={r.id} className="px-4 py-3 flex items-start gap-3">
-                  <Icon
-                    className={cn("h-5 w-5 mt-0.5 shrink-0", STATUS_COLOR[r.status])}
-                  />
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-0.5">
-                      <span className="text-sm font-medium">{r.name}</span>
-                      <Badge
-                        variant="outline"
-                        className={cn(
-                          "text-[10px] px-1.5 py-0",
-                          STATUS_BG[r.status],
-                          STATUS_COLOR[r.status]
-                        )}
-                      >
-                        {r.status}
-                      </Badge>
-                      <span className="text-[10px] text-muted-foreground ml-auto">
-                        {r.durationMs}ms
-                      </span>
-                    </div>
-                    <p className="text-xs text-muted-foreground break-words">
+                <div key={r.id}>
+                  <button
+                    type="button"
+                    onClick={() => toggleExpand(r.id)}
+                    className="w-full px-4 py-3 flex items-center gap-3 text-left hover:bg-muted/30 transition-colors"
+                  >
+                    <Icon
+                      className={cn("h-5 w-5 shrink-0", STATUS_COLOR[r.status])}
+                    />
+                    <span className="text-sm font-medium flex-1">{r.name}</span>
+                    <Badge
+                      variant="outline"
+                      className={cn(
+                        "text-[10px] px-1.5 py-0",
+                        STATUS_BG[r.status],
+                        STATUS_COLOR[r.status]
+                      )}
+                    >
+                      {r.status}
+                    </Badge>
+                    <span className="text-[10px] text-muted-foreground">
+                      {r.durationMs}ms
+                    </span>
+                    {isOpen ? (
+                      <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" />
+                    ) : (
+                      <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
+                    )}
+                  </button>
+                  {isOpen && r.detail && (
+                    <div
+                      className={cn(
+                        "mx-4 mb-3 p-3 rounded-md text-xs font-mono break-words whitespace-pre-wrap border",
+                        r.status === "fail"
+                          ? "bg-red-500/10 border-red-500/30 text-red-300"
+                          : r.status === "warn"
+                            ? "bg-amber-500/10 border-amber-500/30 text-amber-300"
+                            : r.status === "pass"
+                              ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-300"
+                              : "bg-muted border-border text-muted-foreground"
+                      )}
+                    >
                       {r.detail}
-                    </p>
-                  </div>
+                    </div>
+                  )}
                 </div>
               );
             })}
