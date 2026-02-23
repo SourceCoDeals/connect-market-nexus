@@ -136,9 +136,6 @@ export function useDeals() {
           ),
           assigned_admin:profiles!deals_assigned_to_fkey (
             id, first_name, last_name, email
-          ),
-          connection_request:connection_requests!deals_connection_request_id_fkey (
-            id, status
           )
         `)
         .is('deleted_at', null)
@@ -146,13 +143,27 @@ export function useDeals() {
 
       if (dealsError) throw dealsError;
 
+      // Get IDs of deals that have a connection_request_id so we can check approval status
+      const dealIdsWithCR = (deals || [])
+        .filter((d: any) => d.connection_request_id)
+        .map((d: any) => d.connection_request_id);
+
+      // Batch-fetch connection request statuses
+      let approvedCRIds = new Set<string>();
+      if (dealIdsWithCR.length > 0) {
+        const { data: crData } = await supabase
+          .from('connection_requests')
+          .select('id, status')
+          .in('id', dealIdsWithCR)
+          .eq('status', 'approved');
+        approvedCRIds = new Set((crData || []).map((cr: any) => cr.id));
+      }
+
       // Only show deals where connection request is approved (or no connection request, e.g. remarketing/manual)
       const approvedDeals = (deals || []).filter((row: any) => {
-        if (!row.connection_request_id) return true; // Manual, remarketing, etc.
-        return row.connection_request?.status === 'approved';
+        if (!row.connection_request_id) return true;
+        return approvedCRIds.has(row.connection_request_id);
       });
-
-      if (dealsError) throw dealsError;
 
       return approvedDeals.map((row: any) => {
         const listing = row.listing;
