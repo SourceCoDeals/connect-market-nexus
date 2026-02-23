@@ -1,10 +1,13 @@
-import { useState } from "react";
+import { useState, lazy, Suspense } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { RichTextEditor } from "@/components/ui/rich-text-editor";
 import { RichTextDisplay } from "@/components/ui/rich-text-display";
+
+const RichTextEditor = lazy(() =>
+  import("@/components/ui/rich-text-editor").then(m => ({ default: m.RichTextEditor }))
+);
 import { 
   FileText, 
   Eye, 
@@ -16,6 +19,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { stripHtml } from "@/lib/sanitize";
 
 interface MAGuideEditorProps {
   content: string;
@@ -171,10 +175,9 @@ export const MAGuideEditor = ({
 
   const handleCopyToClipboard = async () => {
     try {
-      // Convert HTML to plain text for clipboard
-      const tempDiv = document.createElement('div');
-      tempDiv.innerHTML = content;
-      await navigator.clipboard.writeText(tempDiv.textContent || '');
+      // Convert HTML to plain text safely for clipboard
+      const plainText = stripHtml(content);
+      await navigator.clipboard.writeText(plainText);
       setCopied(true);
       toast.success('Copied to clipboard');
       setTimeout(() => setCopied(false), 2000);
@@ -273,11 +276,13 @@ export const MAGuideEditor = ({
           </TabsList>
 
           <TabsContent value="edit" className="mt-4">
-            <RichTextEditor
-              content={content}
-              onChange={(html) => onChange(html)}
-              placeholder="Start writing your M&A guide, or use the templates above..."
-            />
+            <Suspense fallback={<div className="h-[300px] animate-pulse bg-muted rounded-lg" />}>
+              <RichTextEditor
+                content={content}
+                onChange={(html) => onChange(html)}
+                placeholder="Start writing your M&A guide, or use the templates above..."
+              />
+            </Suspense>
           </TabsContent>
 
           <TabsContent value="preview" className="mt-4">

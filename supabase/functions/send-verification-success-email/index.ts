@@ -1,7 +1,9 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { Resend } from "https://esm.sh/resend@2.0.0";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 import { getCorsHeaders, corsPreflightResponse } from "../_shared/cors.ts";
+import { logEmailDelivery } from "../_shared/email-logger.ts";
 
 const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
 
@@ -33,10 +35,13 @@ const handler = async (req: Request): Promise<Response> => {
 
     console.log(`Sending email verification success notification to: ${email}`);
 
+    const supabase = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
+    const correlationId = crypto.randomUUID();
+
     const userName = firstName && lastName ? `${firstName} ${lastName}` : firstName || 'there';
 
     const emailResponse = await resend.emails.send({
-      from: "SourceCodeALS <noreply@sourcecodeals.com>",
+      from: `SourceCodeALS <${Deno.env.get('NOREPLY_EMAIL') || 'noreply@sourcecodeals.com'}>`,
       to: [email],
       subject: "✅ Email Verified Successfully - What's Next",
       html: `
@@ -141,7 +146,7 @@ const handler = async (req: Request): Promise<Response> => {
                 
                 <div class="support">
                   <p><strong>Questions?</strong> Our support team is here to help.</p>
-                  <p>Email us at <a href="mailto:adam.haile@sourcecodeals.com">adam.haile@sourcecodeals.com</a></p>
+                  <p>Email us at <a href="mailto:${Deno.env.get('ADMIN_EMAIL') || 'adam.haile@sourcecodeals.com'}">${Deno.env.get('ADMIN_EMAIL') || 'adam.haile@sourcecodeals.com'}</a></p>
                   <p>Visit our marketplace: <a href="https://marketplace.sourcecodeals.com">marketplace.sourcecodeals.com</a></p>
                 </div>
               </div>
@@ -173,7 +178,7 @@ Feel free to log in to your account and complete your profile. You can also book
 Log in: https://marketplace.sourcecodeals.com/login
 
 Questions? Our support team is here to help.
-Email: adam.haile@sourcecodeals.com
+Email: ${Deno.env.get('ADMIN_EMAIL') || 'adam.haile@sourcecodeals.com'}
 Website: https://marketplace.sourcecodeals.com
 
 Best regards,
@@ -183,9 +188,11 @@ The SourceCodeALS Team
 
     console.log("Email sent successfully:", emailResponse);
 
-    return new Response(JSON.stringify({ 
-      success: true, 
-      messageId: emailResponse.data?.id 
+    await logEmailDelivery(supabase, { email, emailType: 'verification_success', status: 'sent', correlationId });
+
+    return new Response(JSON.stringify({
+      success: true,
+      messageId: emailResponse.data?.id
     }), {
       status: 200,
       headers: {
@@ -195,6 +202,12 @@ The SourceCodeALS Team
     });
   } catch (error: any) {
     console.error("Error in send-verification-success-email function:", error);
+
+    try {
+      const sbClient = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
+      await logEmailDelivery(sbClient, { email: 'unknown', emailType: 'verification_success', status: 'failed', correlationId: crypto.randomUUID(), errorMessage: error.message });
+    } catch (_) { /* logging best-effort */ }
+
     return new Response(
       JSON.stringify({ 
         error: error.message,

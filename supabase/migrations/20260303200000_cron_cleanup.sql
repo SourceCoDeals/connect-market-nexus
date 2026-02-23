@@ -37,6 +37,12 @@ $$;
 -- Unschedule the materialized views refresh cron job (was running every 15 min)
 -- ============================================================================
 
-SELECT cron.unschedule('refresh-materialized-views');
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM cron.job WHERE jobname = 'refresh-materialized-views') THEN
+    PERFORM cron.unschedule('refresh-materialized-views');
+  END IF;
+END;
+$$;
 
 COMMIT;

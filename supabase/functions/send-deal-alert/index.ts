@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 import { getCorsHeaders, corsPreflightResponse } from "../_shared/cors.ts";
+import { logEmailDelivery } from "../_shared/email-logger.ts";
 
 interface DealAlertRequest {
   alert_id: string;
@@ -182,7 +183,7 @@ const handler = async (req: Request): Promise<Response> => {
         "Accept": "application/json",
       },
       body: JSON.stringify({
-        sender: { name: "SourceCo Marketplace", email: "adam.haile@sourcecodeals.com" },
+        sender: { name: "SourceCo Marketplace", email: Deno.env.get('ADMIN_EMAIL') || "adam.haile@sourcecodeals.com" },
         to: [{ email: user_email, name: user_email.split("@")[0] }],
         subject: `🚨 New Deal Alert: ${listing_data.title}`,
         htmlContent: emailHtml,
@@ -192,11 +193,25 @@ const handler = async (req: Request): Promise<Response> => {
 
     if (!brevoResponse.ok) {
       const errText = await brevoResponse.text();
+      await logEmailDelivery(supabaseClient, {
+        email: user_email,
+        emailType: 'deal_alert',
+        status: 'failed',
+        correlationId: crypto.randomUUID(),
+        errorMessage: `Brevo error ${brevoResponse.status}: ${errText}`,
+      });
       throw new Error(`Brevo error ${brevoResponse.status}: ${errText}`);
     }
 
     const emailResponse = await brevoResponse.json();
     console.log("Email sent via Brevo:", emailResponse);
+
+    await logEmailDelivery(supabaseClient, {
+      email: user_email,
+      emailType: 'deal_alert',
+      status: 'sent',
+      correlationId: crypto.randomUUID(),
+    });
 
     // Update delivery log status
     const { error: updateError } = await supabaseClient

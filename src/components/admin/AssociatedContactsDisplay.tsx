@@ -144,7 +144,7 @@ export const AssociatedContactsDisplay = ({
         open={isDialogOpen}
         onOpenChange={setIsDialogOpen}
         connectionRequestId={connectionRequest.id}
-        companyName={companyName}
+        companyName={companyName as string}
       />
     </div>
   );

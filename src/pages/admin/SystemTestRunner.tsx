@@ -489,14 +489,15 @@ function buildTests(): TestDef[] {
     // Get a document (required — document_id is NOT NULL)
     const { data: docs, error: docsError } = await supabase.from("data_room_documents").select("id").limit(1);
     if (docsError) throw docsError;
+    let docId: string;
     if (!docs?.length) {
       // Try deal_documents as fallback
       const { data: dealDocs, error: dealDocsError } = await supabase.from("deal_documents").select("id").limit(1);
       if (dealDocsError) throw dealDocsError;
       if (!dealDocs?.length) throw new Error("No documents exist to create tracked link (document_id is NOT NULL)");
-      var docId = dealDocs[0].id;
+      docId = dealDocs[0].id;
     } else {
-      var docId = docs[0].id;
+      docId = docs[0].id;
     }
 
     const token = crypto.randomUUID();
@@ -642,7 +643,7 @@ export default function SystemTestRunner() {
     try {
       const stored = localStorage.getItem(STORAGE_KEY);
       if (stored) return JSON.parse(stored);
-    } catch {}
+    } catch { /* ignore parse errors */ }
     return [];
   });
   const [isRunning, setIsRunning] = useState(false);
@@ -660,7 +661,7 @@ export default function SystemTestRunner() {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(res));
       localStorage.setItem(STORAGE_KEY + "-ts", ts);
-    } catch {}
+    } catch { /* ignore storage errors */ }
   }, []);
 
   const runTests = useCallback(
@@ -743,7 +744,7 @@ export default function SystemTestRunner() {
   const toggleCategory = (cat: string) => {
     setCollapsedCategories((prev) => {
       const next = new Set(prev);
-      next.has(cat) ? next.delete(cat) : next.add(cat);
+      if (next.has(cat)) { next.delete(cat); } else { next.add(cat); }
       return next;
     });
   };

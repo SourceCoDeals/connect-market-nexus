@@ -4,7 +4,7 @@ import { Listing, ListingStatus } from "@/types";
 /**
  * Converts raw listing data from Supabase to a Listing object with computed properties
  */
-export const createListingFromData = (data: any): Listing => {
+export const createListingFromData = (data: Record<string, any>): Listing => {
   if (!data) {
     throw new Error("Cannot create listing from null data");
   }

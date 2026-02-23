@@ -19,9 +19,9 @@ export function getEventIcon(
   return 'Circle';
 }
 
-export function formatEventDescription(source: string, data: any): string {
+export function formatEventDescription(source: string, data: Record<string, any>): string {
   if (source === 'page_view') {
-    let title = data.page_title || data.page_path || 'Unknown Page';
+    let title = (data.page_title || data.page_path || 'Unknown Page') as string;
     
     // Clean up the title - remove " | Marketplace" suffix and similar
     title = title.replace(/\s*\|\s*Marketplace\s*$/i, '');
@@ -35,9 +35,9 @@ export function formatEventDescription(source: string, data: any): string {
   }
   
   if (source === 'user_event') {
-    const action = data.event_action || data.event_type || 'Event';
-    const label = data.event_label || '';
-    const category = data.event_category || '';
+    const action = (data.event_action || data.event_type || 'Event') as string;
+    const label = (data.event_label || '') as string;
+    const category = (data.event_category || '') as string;
     
     // For search events, just show the search term
     if (action === 'has_results' || data.event_type === 'search') {
@@ -57,8 +57,8 @@ export function formatEventDescription(source: string, data: any): string {
   }
   
   if (source === 'listing_analytics') {
-    const action = data.action_type || 'Action';
-    const listingTitle = data.listing_title || 'Listing';
+    const action = (data.action_type || 'Action') as string;
+    const listingTitle = (data.listing_title || 'Listing') as string;
     
     // Show the actual listing title for better context
     return `${capitalize(action)} - ${listingTitle}`;

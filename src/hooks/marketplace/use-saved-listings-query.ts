@@ -19,9 +19,8 @@ const MARKETPLACE_SAFE_COLUMNS = [
 
 export const useSavedListings = (filters: FilterOptions = {}) => {
   return useQuery({
-    queryKey: createQueryKey.savedListings(filters),
+    queryKey: createQueryKey.savedListings(filters as Record<string, unknown>),
     queryFn: async () => {
-      try {
         const { data: { session }, error: sessionError } = await supabase.auth.getSession();
         if (sessionError) throw sessionError;
         if (!session) throw new Error('You must be logged in to view saved listings');
@@ -134,9 +133,6 @@ export const useSavedListings = (filters: FilterOptions = {}) => {
           listings,
           totalCount: count || 0
         };
-      } catch (error: any) {
-        throw error;
-      }
     },
     staleTime: 1000 * 60 * 5, // 5 minutes
   });

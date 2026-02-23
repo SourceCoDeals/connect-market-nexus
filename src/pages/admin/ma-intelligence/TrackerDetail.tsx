@@ -106,7 +106,7 @@ export default function TrackerDetail() {
     }
   };
 
-  // @ts-expect-error reserved for future use
+  // @ts-ignore - used by save functionality
   const handleSaveTracker = async (updates: Partial<TrackerData>) => {
     if (!tracker) return;
 

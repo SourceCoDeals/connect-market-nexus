@@ -16,6 +16,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { requireAdmin } from "../_shared/auth.ts";
 import { sendViaBervo } from "../_shared/brevo-sender.ts";
+import { logEmailDelivery } from "../_shared/email-logger.ts";
 
 Deno.serve(async (req: Request) => {
   const corsHeaders = getCorsHeaders(req);
@@ -101,7 +102,7 @@ Deno.serve(async (req: Request) => {
       .single();
 
     const senderName = adminProfile?.full_name || "SourceCo Team";
-    const senderEmail = Deno.env.get("ADMIN_NOTIFICATION_EMAIL") || adminProfile?.email || "deals@sourceco.com";
+    const senderEmail = Deno.env.get("ADMIN_NOTIFICATION_EMAIL") || adminProfile?.email || Deno.env.get('DEALS_EMAIL') || 'deals@sourcecodeals.com';
 
     // Send email via Brevo
     const emailResult = await sendViaBervo({
@@ -115,12 +116,28 @@ Deno.serve(async (req: Request) => {
       replyToName: senderName,
     });
 
+    const correlationId = crypto.randomUUID();
+
     if (!emailResult.success) {
+      await logEmailDelivery(supabaseAdmin, {
+        email: email_address,
+        emailType: 'memo_email',
+        status: 'failed',
+        correlationId,
+        errorMessage: emailResult.error,
+      });
       return new Response(
         JSON.stringify({ error: "Failed to send email", details: emailResult.error }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
+
+    await logEmailDelivery(supabaseAdmin, {
+      email: email_address,
+      emailType: 'memo_email',
+      status: 'sent',
+      correlationId,
+    });
 
     // Log distribution
     const { error: logError } = await supabaseAdmin

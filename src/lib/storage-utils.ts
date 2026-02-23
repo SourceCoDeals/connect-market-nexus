@@ -51,7 +51,7 @@ export const ensureListingsBucketExists = async (): Promise<boolean> => {
     } catch (err) {
       return false;
     }
-  } catch (error: any) {
+  } catch (_error: unknown) {
     return false;
   }
 };
@@ -90,11 +90,12 @@ export const uploadListingImage = async (file: File, listingId: string): Promise
     }
     
     return urlData.publicUrl;
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Failed to upload image';
     toast({
       variant: 'destructive',
       title: 'Image upload failed',
-      description: error.message || 'Failed to upload image',
+      description: message,
     });
     throw error;
   }

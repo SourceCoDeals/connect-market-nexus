@@ -15,11 +15,12 @@ export function useSimilarListings(currentListing: Listing | undefined, limit = 
 
       const { data: listings, error } = await supabase
         .from('listings')
-        .select('*')
+        .select('id, title, category, categories, location, revenue, ebitda, description, description_html, description_json, tags, owner_notes, files, created_at, updated_at, image_url, status, status_tag, acquisition_type, visible_to_buyer_types, deal_identifier, internal_company_name, internal_primary_owner, primary_owner_id, internal_salesforce_link, internal_deal_memo_link, internal_contact_info, internal_notes, full_time_employees, part_time_employees')
         .eq('status', 'active')
         .is('deleted_at', null)
         .eq('is_internal_deal', false)
-        .neq('id', currentListing.id);
+        .neq('id', currentListing.id)
+        .limit(200);
 
       if (error) throw error;
       if (!listings) return [];
@@ -100,7 +101,7 @@ export function useSimilarListings(currentListing: Listing | undefined, limit = 
           ebitda: Number(listing.ebitda ?? 0),
           description: listing.description ?? '',
           description_html: listing.description_html ?? undefined,
-          description_json: listing.description_json ?? undefined,
+          description_json: (listing.description_json as Record<string, unknown> | undefined) ?? undefined,
           tags: listing.tags || [],
           ownerNotes: listing.owner_notes ?? '',
           files: listing.files ?? undefined,

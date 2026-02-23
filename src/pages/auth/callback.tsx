@@ -44,9 +44,9 @@ export default function AuthCallback() {
           if (userJustVerified && profile) {
             try {
               await sendVerificationSuccessEmail({
-                email: profile.email,
-                firstName: profile.first_name || '',
-                lastName: profile.last_name || ''
+                email: profile.email as string,
+                firstName: (profile.first_name || '') as string,
+                lastName: (profile.last_name || '') as string
               });
             } catch (emailError) {
               // Don't block the flow if email fails - just log it
@@ -65,8 +65,8 @@ export default function AuthCallback() {
         } else {
           navigate('/login');
         }
-      } catch (err: any) {
-        setError(err.message || 'Authentication failed');
+      } catch (err: unknown) {
+        setError(err instanceof Error ? err.message : 'Authentication failed');
       } finally {
         setIsLoading(false);
       }

@@ -166,7 +166,7 @@ export default function EnrichmentQueue() {
 
       // Fetch labels for deals
       const dealListingIds = (dealRes.data || []).map((d: any) => d.listing_id).filter(Boolean);
-      let dealLabels: Record<string, string> = {};
+      const dealLabels: Record<string, string> = {};
       if (dealListingIds.length > 0) {
         const { data: listings, error: listingsError } = await supabase.from("listings").select("id, internal_company_name, title").in("id", dealListingIds.slice(0, 100));
         if (listingsError) throw listingsError;
@@ -176,7 +176,7 @@ export default function EnrichmentQueue() {
 
       // Fetch labels for buyers
       const buyerIds = (buyerRes.data || []).map((b: any) => b.buyer_id).filter(Boolean);
-      let buyerLabels: Record<string, string> = {};
+      const buyerLabels: Record<string, string> = {};
       if (buyerIds.length > 0) {
         const { data: buyers, error: buyersError } = await supabase.from("remarketing_buyers").select("id, company_name").in("id", buyerIds.slice(0, 100));
         if (buyersError) throw buyersError;

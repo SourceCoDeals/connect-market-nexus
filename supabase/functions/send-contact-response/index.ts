@@ -1,7 +1,9 @@
 
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 import { getCorsHeaders, corsPreflightResponse } from "../_shared/cors.ts";
+import { logEmailDelivery } from "../_shared/email-logger.ts";
 
 interface ContactResponseData {
   to: string;
@@ -137,9 +139,9 @@ This is an automated response. Please do not reply to this email.`;
       },
       body: JSON.stringify({
         to: [{ email: to }],
-        sender: { 
-          email: 'noreply@sourcecodeals.com', 
-          name: 'SourcecodeAls Team' 
+        sender: {
+          email: Deno.env.get('NOREPLY_EMAIL') || 'noreply@sourcecodeals.com',
+          name: 'SourcecodeAls Team'
         },
         subject: emailSubject,
         textContent: emailHtml,
@@ -152,17 +154,36 @@ This is an automated response. Please do not reply to this email.`;
       }),
     });
 
+    const supabase = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+    );
+
     if (!emailResponse.ok) {
       const errorData = await emailResponse.text();
       console.error('❌ Brevo API error response:', errorData);
       console.error('❌ Brevo API status:', emailResponse.status, emailResponse.statusText);
+      await logEmailDelivery(supabase, {
+        email: to,
+        emailType: 'contact_response',
+        status: 'failed',
+        correlationId: crypto.randomUUID(),
+        errorMessage: `${emailResponse.statusText} - ${errorData}`,
+      });
       throw new Error(`Failed to send email via Brevo: ${emailResponse.statusText} - ${errorData}`);
     }
 
     const result = await emailResponse.json();
     console.log('✅ Email sent successfully via Brevo:', result);
 
-    return new Response(JSON.stringify({ 
+    await logEmailDelivery(supabase, {
+      email: to,
+      emailType: 'contact_response',
+      status: 'sent',
+      correlationId: crypto.randomUUID(),
+    });
+
+    return new Response(JSON.stringify({
       success: true, 
       messageId: result.messageId,
       feedbackId,

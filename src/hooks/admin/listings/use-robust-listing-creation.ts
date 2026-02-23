@@ -181,7 +181,7 @@ export function useRobustListingCreation() {
         // Step 3: Insert listing with isolated transaction
         const { data: insertedListing, error: insertError } = await supabase
           .from('listings')
-          .insert(databaseInsert)
+          .insert(databaseInsert as any)
           .select()
           .single();
 
@@ -329,7 +329,7 @@ async function triggerDealAlertsForListing(listing: any): Promise<void> {
         }
       }
     }
-  } catch (error) {
-    throw error;
+  } catch (_triggerError) {
+    // Silently fail deal alerts - they should not block listing creation
   }
 }

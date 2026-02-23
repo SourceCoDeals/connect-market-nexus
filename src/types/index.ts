@@ -1,3 +1,5 @@
+// ── Core domain types ────────────────────────────────────────────────
+// This barrel file is the single import point for shared application types.
 
 export type UserRole = 'admin' | 'buyer';
 
@@ -6,6 +8,30 @@ export type BuyerType = 'corporate' | 'privateEquity' | 'familyOffice' | 'search
 export type ApprovalStatus = 'pending' | 'approved' | 'rejected';
 
 export type ListingStatus = 'active' | 'inactive';
+
+export type ConnectionRequestStatus = 'pending' | 'approved' | 'rejected';
+
+/** Severity levels used by the error handling subsystem. */
+export type ErrorSeverity = 'low' | 'medium' | 'high' | 'critical';
+
+/** JSON-compatible value (mirrors Supabase Json type). */
+export type JsonValue =
+  | string
+  | number
+  | boolean
+  | null
+  | JsonValue[]
+  | { [key: string]: JsonValue };
+
+/** Generic async operation result wrapper. */
+export interface AsyncResult<T> {
+  data: T | null;
+  error: Error | null;
+  isLoading: boolean;
+}
+
+/** Metadata record that avoids bare `any`. */
+export type Metadata = Record<string, unknown>;
 
 export interface User {
   id: string;
@@ -44,32 +70,32 @@ export interface User {
   revenue_range_max?: string;
   specific_business_search?: string;
   onboarding_completed?: boolean;
-  
+
   // Independent sponsor specific fields
   target_deal_size_min?: number;
   target_deal_size_max?: number;
   geographic_focus?: string[];
   industry_expertise?: string[];
   deal_structure_preference?: string;
-  
+
   // New common fields
   job_title?: string;
-  
+
   // Private Equity fields
   portfolio_company_addon?: string;
   deploying_capital_now?: string;
-  
+
   // Corporate Development fields
   owning_business_unit?: string;
   deal_size_band?: string;
   integration_plan?: string[];
   corpdev_intent?: string;
-  
+
   // Family Office fields
   discretion_type?: string;
   permanent_capital?: boolean;
   operating_company_targets?: string[];
-  
+
   // Independent Sponsor fields (enhanced)
   committed_equity_band?: string;
   equity_source?: string[];
@@ -79,7 +105,7 @@ export interface User {
   flex_subXm_ebitda?: boolean;
   backers_summary?: string;
   deployment_timing?: string;
-  
+
   // Search Fund fields (redesigned)
   search_type?: string;
   acq_equity_band?: string;
@@ -87,40 +113,40 @@ export interface User {
   flex_sub2m_ebitda?: boolean;
   anchor_investors_summary?: string;
   search_stage?: string;
-  
+
   // Advisor/Banker fields
   on_behalf_of_buyer?: string;
   buyer_role?: string;
   buyer_org_url?: string;
   mandate_blurb?: string;
-  
+
   // Business Owner fields
   owner_intent?: string;
   owner_timeline?: string;
-  
+
   // Individual Investor fields (enhanced)
   max_equity_today_band?: string;
   uses_bank_finance?: string;
-  
+
   // New Step 4 fields
   deal_intent?: string;
   exclusions?: string[];
   include_keywords?: string[];
-  
+
   // Referral source tracking (How did you hear about us?)
   referral_source?: string;
   referral_source_detail?: string;
-  
+
   // Deal sourcing questions (stored as jsonb in DB)
   deal_sourcing_methods?: string[] | unknown;
   target_acquisition_volume?: string;
-  
+
   // First-touch cross-domain attribution (permanent, from user_journeys)
   first_external_referrer?: string;
   first_blog_landing?: string;
   first_seen_at?: string;
   first_utm_source?: string;
-  
+
   // Additional investment criteria fields
   company_type?: string;
   years_in_business?: number;
@@ -136,19 +162,19 @@ export interface User {
   additional_thesis_details?: string;
   ebitda_min?: string;
   ebitda_max?: string;
-  
+
   // Fee agreement tracking
   fee_agreement_signed?: boolean;
   fee_agreement_signed_at?: string;
   fee_agreement_email_sent?: boolean;
   fee_agreement_email_sent_at?: string;
-  
+
   // NDA tracking
   nda_signed?: boolean;
   nda_signed_at?: string;
   nda_email_sent?: boolean;
   nda_email_sent_at?: string;
-  
+
   // Computed properties (aliases for snake_case properties)
   readonly firstName: string;
   readonly lastName: string;
@@ -173,7 +199,7 @@ export interface Listing {
   ebitda: number;
   description: string;
   description_html?: string;
-  description_json?: any;
+  description_json?: Record<string, unknown>;
   hero_description?: string | null;
   tags: string[];
   owner_notes?: string;
@@ -183,10 +209,10 @@ export interface Listing {
   image_url?: string | null;
   status: ListingStatus;
   status_tag?: string | null;
-  
+
   // Buyer visibility control
   visible_to_buyer_types?: string[] | null;
-  
+
   // Internal admin fields
   deal_identifier?: string | null;
   internal_company_name?: string | null;
@@ -196,11 +222,11 @@ export interface Listing {
   internal_deal_memo_link?: string | null;
   internal_contact_info?: string | null;
   internal_notes?: string | null;
-  
+
   // Employee information
   full_time_employees?: number;
   part_time_employees?: number;
-  
+
   // Enhanced metrics
   custom_metric_label?: string | null;
   custom_metric_value?: string | null;
@@ -242,7 +268,7 @@ export interface ConnectionRequest {
   id: string;
   user_id: string;
   listing_id: string;
-  status: 'pending' | 'approved' | 'rejected';
+  status: ConnectionRequestStatus;
   admin_comment?: string;
   user_message?: string;
   created_at: string;
@@ -269,3 +295,9 @@ export interface PaginationState {
   totalItems: number;
   perPage: number;
 }
+
+// ── Re-exports from sibling type modules ─────────────────────────────
+export type { AdminListing, CreateListingData, AdminConnectionRequest, AdminStats, AdminActivity } from './admin';
+export type { AnalyticsEvent, FeedbackAnalytics, DailyTrend, TopUser, MarketplaceAnalytics, TestResult, AnalyticsHealth } from './analytics';
+export type { NonMarketplaceUser, NonMarketplaceUserFilters } from './non-marketplace-user';
+export type { Transcript, WebhookConfig, WebhookDelivery, TranscriptHealth } from './transcript';

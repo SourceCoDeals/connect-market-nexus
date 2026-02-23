@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 import { getCorsHeaders, corsPreflightResponse } from "../_shared/cors.ts";
+import { logEmailDelivery } from "../_shared/email-logger.ts";
 
 interface OwnerIntroRequest {
   dealId: string;
@@ -297,13 +298,29 @@ const handler = async (req: Request): Promise<Response> => {
       body: JSON.stringify(emailPayload),
     });
 
+    const correlationId = crypto.randomUUID();
+
     if (!emailResponse.ok) {
       const errorText = await emailResponse.text();
+      await logEmailDelivery(supabase, {
+        email: primaryOwnerData.email,
+        emailType: 'owner_intro',
+        status: 'failed',
+        correlationId,
+        errorMessage: errorText,
+      });
       throw new Error(`Failed to send email: ${errorText}`);
     }
 
     const emailResult = await emailResponse.json();
     console.log("Email sent successfully:", emailResult);
+
+    await logEmailDelivery(supabase, {
+      email: primaryOwnerData.email,
+      emailType: 'owner_intro',
+      status: 'sent',
+      correlationId,
+    });
 
     // Log to database
     await supabase

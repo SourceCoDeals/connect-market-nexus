@@ -27,9 +27,10 @@ export function useUserNotifications() {
 
       const { data, error } = await supabase
         .from('user_notifications')
-        .select('*')
+        .select('id, user_id, connection_request_id, notification_type, title, message, is_read, read_at, metadata, created_at')
         .eq('user_id', user.id)
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: false })
+        .limit(100);
 
       if (error) throw error;
       return data as UserNotification[];

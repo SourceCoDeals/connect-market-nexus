@@ -3,6 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 import { getCorsHeaders, corsPreflightResponse } from "../_shared/cors.ts";
 import { requireAdmin } from "../_shared/auth.ts";
+import { logEmailDelivery } from "../_shared/email-logger.ts";
 
 interface SendApprovalEmailRequest {
   userId: string;
@@ -64,7 +65,7 @@ const handler = async (req: Request): Promise<Response> => {
 
     // Get admin profile for signature - use dynamic admin info
     let senderInfo = {
-      email: 'noreply@sourcecodeals.com',
+      email: Deno.env.get('NOREPLY_EMAIL') || 'noreply@sourcecodeals.com',
       name: 'SourceCo Admin'
     };
 
@@ -120,13 +121,28 @@ const handler = async (req: Request): Promise<Response> => {
 
     if (!emailResponse.ok) {
       console.error('Brevo API error:', emailResult);
+      await logEmailDelivery(supabase, {
+        email: userEmail,
+        emailType: 'approval_email',
+        status: 'failed',
+        correlationId: crypto.randomUUID(),
+        errorMessage: emailResult.message || 'Brevo API error',
+      });
       throw new Error(`Email API error: ${emailResult.message || 'Unknown error'}`);
     }
 
     console.log('Approval email sent successfully:', emailResult);
 
-    return new Response(JSON.stringify({ 
-      success: true, 
+    const correlationId = crypto.randomUUID();
+    await logEmailDelivery(supabase, {
+      email: userEmail,
+      emailType: 'approval_email',
+      status: 'sent',
+      correlationId,
+    });
+
+    return new Response(JSON.stringify({
+      success: true,
       messageId: emailResult.messageId || 'unknown',
       message: 'Approval email sent successfully'
     }), {
@@ -136,7 +152,7 @@ const handler = async (req: Request): Promise<Response> => {
 
   } catch (error: any) {
     console.error('Error in send-approval-email function:', error);
-    return new Response(JSON.stringify({ 
+    return new Response(JSON.stringify({
       error: error.message || 'Failed to send approval email',
       details: error.toString()
     }), {

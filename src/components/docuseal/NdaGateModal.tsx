@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Shield, ArrowLeft, Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useQueryClient } from '@tanstack/react-query';
+import { APP_CONFIG } from '@/config/app';
 
 interface NdaGateModalProps {
   userId: string;
@@ -44,9 +45,9 @@ export function NdaGateModal({ userId, firmId, onSigned }: NdaGateModalProps) {
         } else {
           setError('NDA signing form not available. Please contact support.');
         }
-      } catch (err: any) {
+      } catch (err: unknown) {
         if (!cancelled) {
-          setError(err.message || 'Something went wrong');
+          setError(err instanceof Error ? err.message : 'Something went wrong');
         }
       } finally {
         if (!cancelled) {
@@ -95,7 +96,7 @@ export function NdaGateModal({ userId, firmId, onSigned }: NdaGateModalProps) {
             <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-6 text-center">
               <p className="text-sm text-destructive">{error}</p>
               <p className="text-xs text-muted-foreground mt-2">
-                Please contact <a href="mailto:adam.haile@sourcecodeals.com" className="underline">adam.haile@sourcecodeals.com</a> for assistance.
+                Please contact <a href={`mailto:${APP_CONFIG.adminEmail}`} className="underline">{APP_CONFIG.adminEmail}</a> for assistance.
               </p>
             </div>
           )}

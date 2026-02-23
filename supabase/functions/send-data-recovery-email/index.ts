@@ -56,7 +56,7 @@ const handler = async (req: Request): Promise<Response> => {
     const emailPromises = users.map(async (user) => {
       try {
         const emailResponse = await resend.emails.send({
-          from: "Data Recovery <noreply@yourdomain.com>",
+          from: `Data Recovery <${Deno.env.get('NOREPLY_EMAIL') || 'noreply@sourcecodeals.com'}>`,
           to: [user.email],
           subject: "Complete Your Profile - Missing Information",
           html: `

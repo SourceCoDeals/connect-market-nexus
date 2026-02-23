@@ -21,7 +21,6 @@ export function useUpdateListing() {
       listing: Partial<Omit<AdminListing, 'id' | 'created_at' | 'updated_at'>>;
       image?: File | null;
     }) => {
-      try {
         // Ensure bucket exists before attempting upload
         if (image) {
           const bucketExists = await ensureListingsBucketExists();
@@ -84,19 +83,16 @@ export function useUpdateListing() {
               // Listing updated with new image URL
               updatedListing = updatedData;
             }
-          } catch (imageError: any) {
+          } catch (imageError: unknown) {
             toast({
               variant: 'destructive',
               title: 'Image Upload Failed',
-              description: imageError.message || 'Failed to update image, but listing was updated',
+              description: imageError instanceof Error ? imageError.message : 'Failed to update image, but listing was updated',
             });
           }
         }
         
         return updatedListing as unknown as AdminListing;
-      } catch (error: any) {
-        throw error;
-      }
     },
     onSuccess: () => {
       // Small delay to ensure DB transaction is committed
@@ -112,7 +108,7 @@ export function useUpdateListing() {
         description: 'The listing has been updated successfully.',
       });
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({
         variant: 'destructive',
         title: 'Error Updating Listing',

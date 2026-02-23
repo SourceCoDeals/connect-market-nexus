@@ -1,8 +1,11 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, lazy, Suspense } from "react";
 import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 import { useEnhancedRealTimeAnalytics } from "@/hooks/useEnhancedRealTimeAnalytics";
-import { MapboxGlobeMap } from "../realtime/MapboxGlobeMap";
+
+const MapboxGlobeMap = lazy(() =>
+  import("../realtime/MapboxGlobeMap").then(m => ({ default: m.MapboxGlobeMap }))
+);
 
 interface FullscreenGlobeViewProps {
   onClose: () => void;
@@ -54,13 +57,19 @@ export function FullscreenGlobeView({ onClose }: FullscreenGlobeViewProps) {
           <div className="text-white/60 text-lg">Unable to load real-time data</div>
         </div>
       ) : (
-        <MapboxGlobeMap 
-          users={users}
-          events={events}
-          onUserClick={(user) => setFocusedSessionId(user.sessionId)}
-          focusedSessionId={focusedSessionId}
-          className="w-full h-full"
-        />
+        <Suspense fallback={
+          <div className="w-full h-full flex items-center justify-center">
+            <div className="w-10 h-10 border-2 border-white/20 border-t-white/60 rounded-full animate-spin" />
+          </div>
+        }>
+          <MapboxGlobeMap
+            users={users}
+            events={events}
+            onUserClick={(user) => setFocusedSessionId(user.sessionId)}
+            focusedSessionId={focusedSessionId}
+            className="w-full h-full"
+          />
+        </Suspense>
       )}
 
       {/* ESC hint - bottom right */}

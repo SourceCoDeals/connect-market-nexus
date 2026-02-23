@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import { APP_CONFIG } from '@/config/app';
 
 
 interface UpdateNDAParams {
@@ -214,7 +215,7 @@ export const useLogNDAEmail = () => {
           customMessage,
           customSignatureText,
           adminId,
-          adminEmail: adminEmail || 'adam.haile@sourcecodeals.com',
+          adminEmail: adminEmail || APP_CONFIG.adminEmail,
           adminName: adminName || 'Adam Haile',
           listingTitle,
           useTemplate: !customMessage // Use template only if no custom message

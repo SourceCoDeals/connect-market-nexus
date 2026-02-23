@@ -14,7 +14,7 @@ export interface AdminListing {
   part_time_employees?: number;
   description: string;
   description_html?: string;
-  description_json?: any;
+  description_json?: Record<string, unknown>;
   hero_description?: string | null;
   tags: string[];
   owner_notes?: string;
@@ -41,8 +41,8 @@ export interface AdminListing {
   management_depth?: string;
   revenue_model_breakdown?: Record<string, number>;
   customer_concentration?: number;
-  market_position?: Record<string, any>;
-  transaction_preferences?: Record<string, any>;
+  market_position?: Record<string, unknown>;
+  transaction_preferences?: Record<string, unknown>;
   growth_drivers?: string[];
   key_risks?: string[];
   investment_thesis?: string;
@@ -123,8 +123,8 @@ export interface CreateListingData {
   management_depth?: string;
   revenue_model_breakdown?: Record<string, number>;
   customer_concentration?: number;
-  market_position?: Record<string, any>;
-  transaction_preferences?: Record<string, any>;
+  market_position?: Record<string, unknown>;
+  transaction_preferences?: Record<string, unknown>;
   growth_drivers?: string[];
   key_risks?: string[];
   investment_thesis?: string;
@@ -170,7 +170,7 @@ export interface AdminConnectionRequest {
   // Phase 4: Source tracking fields
   source: 'marketplace' | 'webflow' | 'manual' | 'import' | 'api' | 'website' | 'referral' | 'cold_outreach' | 'networking' | 'linkedin' | 'email';
   source_lead_id?: string;
-  source_metadata?: Record<string, any>;
+  source_metadata?: Record<string, unknown>;
   converted_by?: string;
   converted_at?: string;
   // Lead-only request fields (when user_id is null)
