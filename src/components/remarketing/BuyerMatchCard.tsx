@@ -578,7 +578,7 @@ export const BuyerMatchCard = ({
               <>
                 <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200">
                   <Check className="h-3 w-3 mr-1" />
-                  Approved
+                  Interested
                 </Badge>
                 {/* Outreach Status Badge */}
                 {outreachBadge && outreach?.status !== 'pending' && (
