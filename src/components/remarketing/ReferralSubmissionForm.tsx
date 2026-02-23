@@ -102,8 +102,8 @@ export function ReferralSubmissionForm({
       toast.success("Referral submitted successfully");
       setForm(defaultForm);
       onSubmitted();
-    } catch (err: any) {
-      toast.error(err.message || "Failed to submit referral");
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : "Failed to submit referral");
     } finally {
       setIsSubmitting(false);
     }
