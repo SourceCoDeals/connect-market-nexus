@@ -3,6 +3,9 @@ import { BuyerDealHistoryPanel } from "@/components/admin/data-room/BuyerDealHis
 import { ExtractionSummaryDialog } from "@/components/remarketing/buyer-detail/ExtractionSummaryDialog";
 import { BuyerNotesSection } from "@/components/remarketing/buyer-detail/BuyerNotesSection";
 import { FirefliesTranscriptSearch } from "@/components/buyers/FirefliesTranscriptSearch";
+import { BuyerEngagementTab } from "@/components/remarketing/buyer-detail/BuyerEngagementTab";
+import { BuyerContactsHub } from "@/components/remarketing/buyer-detail/BuyerContactsHub";
+import { BuyerAgreementsRebuild } from "@/components/remarketing/buyer-detail/BuyerAgreementsRebuild";
 import { useParams, useNavigate, useLocation, Link } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -11,17 +14,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Label } from "@/components/ui/label";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import {
   Dialog,
   DialogContent,
@@ -32,20 +26,14 @@ import {
 } from "@/components/ui/dialog";
 import {
   ArrowLeft,
-  BarChart3,
-  Plus,
-  Trash2,
   Users,
-  Mail,
   Phone,
-  Linkedin,
   BarChart2,
-  Clock,
   FileSignature,
-  FolderOpen
+  FolderOpen,
+  Activity,
 } from "lucide-react";
 import { toast } from "sonner";
-import { BuyerAgreementsPanel } from "@/components/ma-intelligence/BuyerAgreementsPanel";
 import {
   BuyerDetailHeader,
   CriteriaCompletenessBanner,
@@ -94,6 +82,7 @@ interface BuyerData {
   hq_state: string | null;
   hq_country: string | null;
   has_fee_agreement: boolean | null;
+  email_domain: string | null;
   marketplace_firm_id?: string | null;
   fee_agreement_source?: string | null;
   industry_vertical: string | null;
@@ -234,31 +223,7 @@ const ReMarketingBuyerDetail = () => {
     enabled: !isNew
   });
 
-  // Fetch recent scores for this buyer
-  const { data: recentScores = [] } = useQuery({
-    queryKey: ['remarketing', 'buyer-scores', id],
-    queryFn: async () => {
-      if (isNew) return [];
-      
-      const { data, error } = await supabase
-        .from('remarketing_scores')
-        .select(`
-          id,
-          composite_score,
-          tier,
-          status,
-          created_at,
-          listing:listings(id, title)
-        `)
-        .eq('buyer_id', id!)
-        .order('created_at', { ascending: false })
-        .limit(10);
-      
-      if (error) throw error;
-      return data || [];
-    },
-    enabled: !isNew
-  });
+  // Recent scores query removed - now handled by BuyerEngagementTab
 
   // Calculate data completeness percentage
   const dataCompleteness = useMemo(() => {
@@ -698,33 +663,42 @@ const ReMarketingBuyerDetail = () => {
       </div>
 
       {/* Main Content Tabs */}
-      <Tabs defaultValue="intelligence" className="space-y-4">
+      <Tabs defaultValue="engagement" className="space-y-4">
         <TabsList>
+          <TabsTrigger value="engagement" className="text-sm">
+            <Activity className="mr-1.5 h-3.5 w-3.5" />
+            Engagement
+          </TabsTrigger>
           <TabsTrigger value="intelligence" className="text-sm">
             <BarChart2 className="mr-1.5 h-3.5 w-3.5" />
             Intelligence
           </TabsTrigger>
-          <TabsTrigger value="call-history" className="text-sm">
-            <Phone className="mr-1.5 h-3.5 w-3.5" />
-            Call History
-          </TabsTrigger>
-          <TabsTrigger value="history" className="text-sm">
-            <Clock className="mr-1.5 h-3.5 w-3.5" />
-            Deal History ({recentScores?.length || 0})
-          </TabsTrigger>
           <TabsTrigger value="contacts" className="text-sm">
             <Users className="mr-1.5 h-3.5 w-3.5" />
-            Contacts ({contacts?.length || 0})
+            Contacts
           </TabsTrigger>
           <TabsTrigger value="agreements" className="text-sm">
             <FileSignature className="mr-1.5 h-3.5 w-3.5" />
             Agreements
           </TabsTrigger>
-          <TabsTrigger value="materials" className="text-sm">
+          <TabsTrigger value="call-history" className="text-sm">
+            <Phone className="mr-1.5 h-3.5 w-3.5" />
+            Call History
+          </TabsTrigger>
+          <TabsTrigger value="documents" className="text-sm">
             <FolderOpen className="mr-1.5 h-3.5 w-3.5" />
-            Materials
+            Documents
           </TabsTrigger>
         </TabsList>
+
+        {/* Engagement Tab (NEW DEFAULT) */}
+        <TabsContent value="engagement">
+          <BuyerEngagementTab
+            buyerId={buyer!.id}
+            emailDomain={buyer?.email_domain}
+            marketplaceFirmId={buyer?.marketplace_firm_id}
+          />
+        </TabsContent>
 
         {/* Intelligence Tab */}
         <TabsContent value="intelligence" className="space-y-4">
@@ -841,180 +815,29 @@ const ReMarketingBuyerDetail = () => {
           </Card>
         </TabsContent>
 
-        {/* Deal History Tab */}
-        <TabsContent value="history">
-          <Card>
-            <CardHeader>
-              <CardTitle>Match History</CardTitle>
-              <CardDescription>Recent scoring activity for this buyer</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {recentScores?.length === 0 ? (
-                <div className="text-center py-8 text-muted-foreground">
-                  <BarChart3 className="mx-auto h-8 w-8 mb-2 opacity-50" />
-                  <p>No matches scored yet</p>
-                </div>
-              ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Listing</TableHead>
-                      <TableHead>Score</TableHead>
-                      <TableHead>Tier</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Date</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {recentScores?.map((score: any) => (
-                      <TableRow key={score.id}>
-                        <TableCell>
-                          <Link 
-                            to={`/admin/remarketing/matching/${score.listing?.id}`}
-                            className="font-medium hover:underline"
-                          >
-                            {score.listing?.title || 'Unknown'}
-                          </Link>
-                        </TableCell>
-                        <TableCell className="font-semibold">
-                          {Math.round(score.composite_score)}
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant={
-                            score.tier === 'A' ? 'default' :
-                            score.tier === 'B' ? 'secondary' :
-                            'outline'
-                          }>
-                            Tier {score.tier}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant={
-                            score.status === 'approved' ? 'default' :
-                            score.status === 'passed' ? 'secondary' :
-                            'outline'
-                          }>
-                            {score.status}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-muted-foreground">
-                          {new Date(score.created_at).toLocaleDateString()}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* Contacts Tab */}
+        {/* Contacts Tab (REBUILT) */}
         <TabsContent value="contacts">
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle>All Contacts</CardTitle>
-                  <CardDescription>Key contacts at this organization</CardDescription>
-                </div>
-                <Button size="sm" onClick={() => setIsContactDialogOpen(true)}>
-                  <Plus className="mr-2 h-4 w-4" />
-                  Add Contact
-                </Button>
-              </div>
-            </CardHeader>
-            <CardContent>
-              {contacts?.length === 0 ? (
-                <div className="text-center py-8 text-muted-foreground">
-                  <Users className="mx-auto h-8 w-8 mb-2 opacity-50" />
-                  <p>No contacts added yet</p>
-                </div>
-              ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Name</TableHead>
-                      <TableHead>Role</TableHead>
-                      <TableHead>Email</TableHead>
-                      <TableHead>Phone</TableHead>
-                      <TableHead>LinkedIn</TableHead>
-                      <TableHead className="w-[50px]"></TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {contacts?.map((contact) => (
-                      <TableRow key={contact.id}>
-                        <TableCell className="font-medium">
-                          {contact.name}
-                          {contact.is_primary && (
-                            <Badge variant="secondary" className="ml-2">Primary</Badge>
-                          )}
-                        </TableCell>
-                        <TableCell>{contact.role || '—'}</TableCell>
-                        <TableCell>
-                          {contact.email ? (
-                            <a href={`mailto:${contact.email}`} className="flex items-center gap-1 text-primary hover:underline">
-                              <Mail className="h-3 w-3" />
-                              {contact.email}
-                            </a>
-                          ) : '—'}
-                        </TableCell>
-                        <TableCell>
-                          {contact.phone ? (
-                            <a href={`tel:${contact.phone}`} className="flex items-center gap-1 hover:underline">
-                              <Phone className="h-3 w-3" />
-                              {contact.phone}
-                            </a>
-                          ) : '—'}
-                        </TableCell>
-                        <TableCell>
-                          {contact.linkedin_url ? (
-                            <a 
-                              href={contact.linkedin_url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="flex items-center gap-1 text-primary hover:underline"
-                            >
-                              <Linkedin className="h-3 w-3" />
-                              Profile
-                            </a>
-                          ) : '—'}
-                        </TableCell>
-                        <TableCell>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8 text-destructive"
-                            onClick={() => {
-                              if (confirm('Delete this contact?')) {
-                                deleteContactMutation.mutate(contact.id);
-                              }
-                            }}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* Agreements Tab */}
-        <TabsContent value="agreements">
-          <BuyerAgreementsPanel
-            buyerId={buyer?.id || ''}
-            marketplaceFirmId={buyer?.marketplace_firm_id || null}
-            hasFeeAgreement={buyer?.has_fee_agreement || false}
-            feeAgreementSource={buyer?.fee_agreement_source || null}
+          <BuyerContactsHub
+            buyerId={buyer!.id}
+            emailDomain={buyer?.email_domain}
+            onAddContact={() => setIsContactDialogOpen(true)}
+            onDeleteContact={(contactId) => deleteContactMutation.mutate(contactId)}
           />
         </TabsContent>
 
-        <TabsContent value="materials">
+        {/* Agreements Tab (REBUILT) */}
+        <TabsContent value="agreements">
+          <BuyerAgreementsRebuild
+            marketplaceFirmId={buyer?.marketplace_firm_id || null}
+            hasFeeAgreement={buyer?.has_fee_agreement || false}
+            feeAgreementSource={buyer?.fee_agreement_source || null}
+            primaryContactEmail={contacts?.[0]?.email}
+            primaryContactName={contacts?.[0]?.name}
+          />
+        </TabsContent>
+
+        {/* Documents Tab */}
+        <TabsContent value="documents">
           <BuyerDealHistoryPanel buyerId={id!} />
         </TabsContent>
       </Tabs>
