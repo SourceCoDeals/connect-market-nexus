@@ -228,3 +228,7 @@ verify_jwt = false
 verify_jwt = false
 [functions.phoneburner-webhook]
 verify_jwt = false
+[functions.phoneburner-oauth-callback]
+verify_jwt = false
+[functions.phoneburner-push-contacts]
+verify_jwt = false

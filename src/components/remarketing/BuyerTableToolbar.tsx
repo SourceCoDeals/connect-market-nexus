@@ -14,7 +14,8 @@ import {
   Target,
   RotateCcw,
    Clock,
-   Unlink
+   Unlink,
+   Phone,
 } from "lucide-react";
 
 interface EnrichmentProgress {
@@ -53,6 +54,7 @@ interface BuyerTableToolbarProps {
   selectedCount?: number;
    onRemoveSelected?: () => void;
    isRemovingSelected?: boolean;
+  onPushToDialer?: () => void;
   enrichmentProgress?: EnrichmentProgress;
   alignmentProgress?: AlignmentProgress;
   hideSearch?: boolean;
@@ -75,6 +77,7 @@ export const BuyerTableToolbar = ({
   selectedCount = 0,
    onRemoveSelected,
    isRemovingSelected = false,
+  onPushToDialer,
   enrichmentProgress,
   alignmentProgress,
   hideSearch = false,
@@ -221,6 +224,17 @@ export const BuyerTableToolbar = ({
                Remove Selected{selectedCount > 0 ? ` (${selectedCount})` : ''}
              </Button>
            )}
+          {onPushToDialer && (
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={onPushToDialer}
+              disabled={selectedCount === 0}
+            >
+              <Phone className="h-4 w-4 mr-1" />
+              Push to Dialer{selectedCount > 0 ? ` (${selectedCount})` : ''}
+            </Button>
+          )}
           {onAddBuyer && (
             <Button onClick={onAddBuyer} size="sm">
               <Plus className="h-4 w-4 mr-1" />

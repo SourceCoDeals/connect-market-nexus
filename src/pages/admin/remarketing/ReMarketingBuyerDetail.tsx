@@ -2,6 +2,7 @@ import { useState, useMemo } from "react";
 import { BuyerDealHistoryPanel } from "@/components/admin/data-room/BuyerDealHistoryPanel";
 import { ExtractionSummaryDialog } from "@/components/remarketing/buyer-detail/ExtractionSummaryDialog";
 import { BuyerNotesSection } from "@/components/remarketing/buyer-detail/BuyerNotesSection";
+import { ContactCallTimeline } from "@/components/remarketing/buyer-detail/ContactCallTimeline";
 import { FirefliesTranscriptSearch } from "@/components/buyers/FirefliesTranscriptSearch";
 import { BuyerEngagementTab } from "@/components/remarketing/buyer-detail/BuyerEngagementTab";
 import { BuyerContactsHub } from "@/components/remarketing/buyer-detail/BuyerContactsHub";
@@ -793,6 +794,10 @@ const ReMarketingBuyerDetail = () => {
 
         {/* Call History Tab */}
         <TabsContent value="call-history" className="space-y-4">
+          {/* PhoneBurner Call Activity Timeline */}
+          <ContactCallTimeline buyerId={buyer!.id} />
+
+          {/* Fireflies Transcript Search */}
           <Card>
             <CardHeader>
               <CardTitle>Find Call Transcripts</CardTitle>
