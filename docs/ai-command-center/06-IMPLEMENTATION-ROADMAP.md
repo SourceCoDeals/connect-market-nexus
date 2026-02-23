@@ -1,6 +1,6 @@
 # SourceCo AI Command Center - Implementation Roadmap
 
-**Version:** 1.0
+**Version:** 1.1
 **Date:** 2026-02-23
 
 ---
@@ -21,16 +21,26 @@ Phase 1: Foundation          Phase 2: Core Intelligence    Phase 3: Advanced Fea
 v                            v                             v
 MVP: Deal queries work       Full: All core queries work   Complete: Production-ready
 
-                                                           Phase 4: Polish & Scale
-                                                           (Weeks 17-20)
-                                                           |
-                                                           |-- Performance optimization
-                                                           |-- Prompt tuning from feedback
-                                                           |-- Load testing at scale
-                                                           |-- Documentation & training
-                                                           |-- Production deployment
-                                                           v
-                                                           Launch: GA release
+Phase 1.5: Action Mode       Phase 2.5: Content Gen        Phase 4: Polish & Scale
+(Weeks 5-6, parallel)        (Weeks 11-12, parallel)       (Weeks 17-20)
+|                            |                             |
+|-- Task creation/complete   |-- Outreach email drafting   |-- Performance optimization
+|-- Deal note logging        |-- Deal stage updates        |-- Prompt tuning from feedback
+|-- Meeting prep briefs      |-- Enhanced daily briefing   |-- Load testing at scale
+|-- Activity logging         |-- Weekly pipeline reports   |-- Documentation & training
+|                            |                             |-- Production deployment
+v                            v                             v
+Action: Chat does things     Generate: AI creates content  Launch: GA release
+
+                             Phase 3.5: Proactive Intel    Phase 5: Full Co-Pilot
+                             (Weeks 15-16)                 (Weeks 21-24)
+                             |                             |
+                             |-- Deal health monitoring    |-- Multi-step workflows
+                             |-- Smart match alerts        |-- Buyer conflict analysis
+                             |-- Data room access mgmt    |-- Data quality monitoring
+                             |                             |-- Full workflow orchestration
+                             v                             v
+                             Monitor: AI watches for you   Co-Pilot: AI runs with you
 ```
 
 ---
@@ -222,6 +232,80 @@ MVP: Deal queries work       Full: All core queries work   Complete: Production-
 
 ---
 
+## 4.5 Phase 1.5: Action Mode (Weeks 5-6, parallel with Phase 2)
+
+> **Goal:** Transform the Command Center from read-only intelligence to a tool that takes action. See [07-VALUE-EXPANSION.md](./07-VALUE-EXPANSION.md) for full details.
+
+| Task | Description | Deliverable |
+|------|------------|-------------|
+| 1.5.1 | Implement confirmation framework for write actions | `confirmation-handler.ts` with approve/cancel flow |
+| 1.5.2 | Implement `create_deal_task` action tool | Task creation with NL date parsing |
+| 1.5.3 | Implement `complete_deal_task` action tool | Task completion by ID or fuzzy title match |
+| 1.5.4 | Implement `add_deal_note` action tool | Note creation with AI formatting |
+| 1.5.5 | Implement `log_deal_activity` action tool | Activity logging from conversation |
+| 1.5.6 | Implement `generate_meeting_prep` meta-tool | Orchestrates 6 tools in parallel for meeting briefs |
+| 1.5.7 | Create action audit trail table | `ai_command_center_actions` with rollback tracking |
+| 1.5.8 | Write unit + integration tests for action tools | 15+ tests |
+
+**Phase 1.5 Exit Criteria:**
+- Users can create tasks, log notes, and complete tasks via chat
+- Meeting prep briefs generated in < 10 seconds
+- All actions logged with audit trail
+- Confirmation flow working for medium/high-risk actions
+
+---
+
+## 4.6 Phase 2.5: Content Generation (Weeks 11-12, parallel with Phase 3)
+
+| Task | Description | Deliverable |
+|------|------------|-------------|
+| 2.5.1 | Implement `update_deal_stage` with confirmation | Stage change + activity logging |
+| 2.5.2 | Implement `draft_outreach_email` tool | Wraps existing edge function with AI personalization |
+| 2.5.3 | Implement enhanced daily briefing (Opus) | Full briefing with urgent items, buyer activity, AI insights |
+| 2.5.4 | Implement `generate_pipeline_report` tool | Weekly/monthly reports with team breakdown |
+| 2.5.5 | Implement end-of-day/week recap | Activity summary with carry-over identification |
+| 2.5.6 | Build outreach sequence builder | Multi-touch email templates from buyer criteria |
+| 2.5.7 | Write benchmark suite for generation quality | 20 generation quality benchmarks |
+
+**Phase 2.5 Exit Criteria:**
+- Outreach emails drafted with buyer-specific personalization
+- Pipeline reports generated and formatted for Slack/email sharing
+- Daily briefings include actionable insights beyond raw data
+- All generated content grounded in tool results (no hallucinated content)
+
+---
+
+## 4.7 Phase 3.5: Proactive Intelligence (Weeks 15-16)
+
+| Task | Description | Deliverable |
+|------|------------|-------------|
+| 3.5.1 | Implement deal health scoring algorithm | Composite health score from stage duration, activity velocity, response times |
+| 3.5.2 | Implement `grant_data_room_access` action | Wraps existing data-room-access edge function |
+| 3.5.3 | Build proactive alert pipeline | Cron-triggered deal health checks, push alerts to chat |
+| 3.5.4 | Implement smart lead-to-buyer match alerts | Event-driven matching on lead import |
+| 3.5.5 | Build buyer conflict detection | Cross-reference buyers across active deals |
+| 3.5.6 | Implement data quality dashboard query | Completeness analysis across all data domains |
+
+**Phase 3.5 Exit Criteria:**
+- Deal health alerts fire automatically for stalled/declining deals
+- New lead matches surface within 5 minutes of import
+- Buyer conflicts identified and flagged with strategic context
+
+---
+
+## 4.8 Phase 5: Full Co-Pilot (Weeks 21-24, post-launch)
+
+| Task | Description | Deliverable |
+|------|------------|-------------|
+| 5.1 | Build workflow orchestration engine | Multi-step action chains with rollback |
+| 5.2 | Implement pre-built workflow templates | "Start DD", "Close deal", "Onboard buyer" one-liners |
+| 5.3 | Implement full data quality monitoring | Proactive data gap identification + enrichment queuing |
+| 5.4 | Build buyer portfolio intelligence | Cross-deal buyer analysis, conflict detection, engagement scoring |
+| 5.5 | Implement scheduled briefings (push) | Morning briefing auto-delivered at configurable time |
+| 5.6 | Build AI Command Center admin dashboard v2 | Action analytics, workflow metrics, generation quality |
+
+---
+
 ## 5. Phase 4: Polish & Scale (Weeks 17-20)
 
 ### Week 17-18: Performance + Prompt Tuning
@@ -285,26 +369,34 @@ MVP: Deal queries work       Full: All core queries work   Complete: Production-
 |------|------------|--------|-----------|
 | Claude API latency exceeds targets | Medium | High | Implement caching, optimize tool results, add timeout handling |
 | Hallucination in production | Low | Critical | Zero-tolerance benchmark, post-processing validation, user feedback loop |
-| Cost overrun | Medium | Medium | Model tier routing (Haiku for 20% of queries), tool call limits, daily budget alerts |
+| Cost overrun | Medium | Medium | Model tier routing (Haiku for 40% of queries), tool call limits, daily budget alerts |
 | Fireflies API reliability | Medium | Medium | Two-tier architecture with local fallback, graceful degradation |
 | User adoption below target | Low | High | Training sessions, contextual onboarding tips, suggested questions |
 | Data staleness (enrichment lag) | Medium | Low | Show data freshness indicators, last-enriched timestamps |
 | Concurrent user scaling | Low | Medium | Edge function auto-scaling, connection pooling, rate limiting |
+| **Action mode: unintended data modification** | Medium | High | Confirmation required for all medium/high-risk actions, audit trail, rate limits (10 actions/conversation), rollback guidance |
+| **Content generation: inaccurate outreach** | Medium | High | All generated content grounded in tool results, user review before send, no auto-send without approval |
+| **Proactive alerts: alert fatigue** | Medium | Medium | Configurable thresholds, snooze/dismiss options, smart batching (group related alerts), progressive rollout |
+| **Workflow orchestration: partial failure** | Low | High | Each step independent, partial results returned, failed steps clearly reported, manual retry option |
 
 ---
 
 ## 8. Success Metrics by Phase
 
-| Metric | Phase 1 Target | Phase 2 Target | Phase 4 (Launch) Target |
-|--------|---------------|---------------|----------------------|
-| Supported query types | 5 (deal pipeline) | 20 (all categories) | 20+ |
-| Benchmark accuracy | >= 90% | >= 95% | >= 97% |
-| Hallucination rate | < 5% | 0% | 0% |
-| P50 latency | < 5s | < 3s | < 3s |
-| Daily active users | 2-3 (testing) | 50% of team | 100% of team |
-| User satisfaction | N/A | >= 3.5/5 | >= 4.2/5 |
-| Cost per query | < $0.05 | < $0.03 | < $0.03 |
-| Test coverage | 50% | 80% | 90% |
+| Metric | Phase 1 | Phase 1.5 | Phase 2 | Phase 2.5 | Phase 4 (Launch) | Phase 5 |
+|--------|---------|-----------|---------|-----------|-----------------|---------|
+| Supported query types | 5 (pipeline) | 5 + 5 actions | 20 (all reads) | 20 + 8 actions + 4 generators | 30+ | 40+ |
+| Benchmark accuracy | >= 90% | >= 90% | >= 95% | >= 95% | >= 97% | >= 97% |
+| Hallucination rate | < 5% | 0% | 0% | 0% | 0% | 0% |
+| P50 latency (quick) | < 2s | < 2s | < 1.5s | < 1.5s | < 1s | < 1s |
+| P50 latency (standard) | < 5s | < 5s | < 3s | < 3s | < 3s | < 3s |
+| Daily active users | 2-3 (test) | 5-10 | 50% team | 75% team | 100% team | 100% team |
+| User satisfaction | N/A | >= 3.0/5 | >= 3.5/5 | >= 4.0/5 | >= 4.2/5 | >= 4.5/5 |
+| Cost per query | < $0.05 | < $0.03 | < $0.03 | < $0.03 | < $0.02 | < $0.02 |
+| Tasks created via chat | 0 | 5/user/day | 5/user/day | 5/user/day | 5/user/day | 10/user/day |
+| Outreach emails drafted | 0 | 0 | 0 | 5/user/day | 10/user/day | 15/user/day |
+| Time saved/user/day | 30 min | 45 min | 60 min | 90 min | 120 min | 150 min |
+| Test coverage | 50% | 60% | 80% | 85% | 90% | 90% |
 
 ---
 

@@ -618,6 +618,144 @@ Respond with compact JSON only:
 }
 ```
 
+#### Category 8: Action Tools (Write-Back) — v1.5+
+
+These tools modify data. All require `confirmation_required` handling in the orchestrator.
+See [07-VALUE-EXPANSION.md](./07-VALUE-EXPANSION.md) for full action framework details.
+
+```typescript
+// Tool: create_deal_task
+{
+  name: "create_deal_task",
+  description: "Create a task on a deal. Interprets natural language dates. Use when user says 'remind me', 'create a task', 'I need to'.",
+  input_schema: {
+    type: "object",
+    properties: {
+      deal_id: { type: "string" },
+      deal_name: { type: "string", description: "Fuzzy match if deal_id not provided" },
+      title: { type: "string" },
+      due_date: { type: "string", description: "ISO date. AI resolves 'next Tuesday', 'in 3 days', etc." },
+      assigned_to: { type: "string", description: "UUID, 'CURRENT_USER', or team member name" },
+      priority: { type: "string", enum: ["high", "medium", "low"] }
+    },
+    required: ["title"]
+  },
+  confirmation_required: false
+}
+
+// Tool: add_deal_note
+{
+  name: "add_deal_note",
+  description: "Add a note to a deal. Use when user says 'note that', 'remember that', 'log that'.",
+  input_schema: {
+    type: "object",
+    properties: {
+      deal_id: { type: "string" },
+      deal_name: { type: "string" },
+      content: { type: "string" }
+    },
+    required: ["content"]
+  },
+  confirmation_required: false
+}
+
+// Tool: update_deal_stage
+{
+  name: "update_deal_stage",
+  description: "Move a deal to a different pipeline stage. ALWAYS requires user confirmation before executing.",
+  input_schema: {
+    type: "object",
+    properties: {
+      deal_id: { type: "string" },
+      deal_name: { type: "string" },
+      new_stage: { type: "string" },
+      reason: { type: "string" }
+    },
+    required: ["new_stage"]
+  },
+  confirmation_required: true
+}
+
+// Tool: grant_data_room_access
+{
+  name: "grant_data_room_access",
+  description: "Grant buyer access to deal documents. Wraps existing data-room-access edge function.",
+  input_schema: {
+    type: "object",
+    properties: {
+      deal_id: { type: "string" },
+      buyer_id: { type: "string" },
+      buyer_name: { type: "string" },
+      access_level: { type: "string", enum: ["teaser", "memo", "full_data_room"] }
+    }
+  },
+  confirmation_required: true
+}
+
+// Tool: complete_deal_task
+{
+  name: "complete_deal_task",
+  description: "Mark a task as completed.",
+  input_schema: {
+    type: "object",
+    properties: {
+      task_id: { type: "string" },
+      task_title: { type: "string", description: "Fuzzy match" }
+    }
+  },
+  confirmation_required: false
+}
+```
+
+#### Category 9: Content Generation Tools — v2+
+
+```typescript
+// Tool: generate_meeting_prep
+{
+  name: "generate_meeting_prep",
+  description: "Generate a comprehensive meeting preparation brief. Orchestrates 6+ tools in parallel for maximum speed.",
+  input_schema: {
+    type: "object",
+    properties: {
+      deal_id: { type: "string" },
+      deal_name: { type: "string" },
+      buyer_id: { type: "string" },
+      buyer_name: { type: "string" }
+    }
+  },
+  // Meta-tool: internally calls get_deal_details, get_buyer_profile,
+  // get_score_breakdown, search_transcripts, get_deal_tasks, get_outreach_status
+}
+
+// Tool: draft_outreach_email
+{
+  name: "draft_outreach_email",
+  description: "Draft personalized outreach emails for buyers on a deal. Wraps existing draft-outreach-email edge function with AI personalization.",
+  input_schema: {
+    type: "object",
+    properties: {
+      listing_id: { type: "string" },
+      buyer_ids: { type: "array", items: { type: "string" } },
+      tier_filter: { type: "string", enum: ["A", "B", "C"] },
+      tone: { type: "string", enum: ["formal", "warm", "urgent"], default: "warm" }
+    }
+  }
+}
+
+// Tool: generate_pipeline_report
+{
+  name: "generate_pipeline_report",
+  description: "Generate a formatted pipeline report with week-over-week comparisons, stage movement, and team activity.",
+  input_schema: {
+    type: "object",
+    properties: {
+      period: { type: "string", enum: ["daily", "weekly", "monthly"], default: "weekly" },
+      include_team_breakdown: { type: "boolean", default: true }
+    }
+  }
+}
+```
+
 ### 3.3 Tool Execution Pipeline
 
 ```

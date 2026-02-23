@@ -1,6 +1,6 @@
 # SourceCo AI Command Center - User Stories & Acceptance Criteria
 
-**Version:** 1.0
+**Version:** 1.1
 **Date:** 2026-02-23
 
 ---
@@ -28,6 +28,24 @@ Epic 4: Meeting Intelligence
   |-- US-011: Transcript Query
   |-- US-012: Meeting Summary
   |-- US-013: Action Item Extraction
+
+Epic 7: Action Mode (Write-Back)              ← NEW
+  |-- US-021: Create Task from Conversation
+  |-- US-022: Log Deal Notes via Chat
+  |-- US-023: Update Deal Stage via Chat
+  |-- US-024: Grant Data Room Access via Chat
+
+Epic 8: Content Generation                     ← NEW
+  |-- US-025: Meeting Preparation Brief
+  |-- US-026: Draft Outreach Emails
+  |-- US-027: Generate Weekly Pipeline Report
+  |-- US-028: End-of-Day / End-of-Week Recap
+
+Epic 9: Proactive Operations                   ← NEW
+  |-- US-029: Deal Health Alerts
+  |-- US-030: Smart Lead-to-Buyer Match Alerts
+  |-- US-031: Data Quality Monitoring
+  |-- US-032: Buyer Conflict Detection
 
 Epic 5: Proactive Intelligence
   |-- US-014: Daily Briefing
@@ -611,6 +629,216 @@ Epic 6: Conversational UX
 
 ---
 
+---
+
+## Epic 7: Action Mode (Write-Back) — NEW
+
+### US-021: Create Task from Conversation (5 points)
+
+**As a** deal manager, **I want to** say "remind me to send financials to Summit Capital by Friday" in the chat **so that** a task is created without leaving the conversation.
+
+**Acceptance Criteria:**
+
+1. **Given** I say "remind me to [X]" or "create a task to [X]",
+   **When** the AI processes my request,
+   **Then** it creates a task on the appropriate deal with the correct title, due date, and assignment.
+
+2. **Given** I use natural language dates ("next Friday", "in 3 days", "end of month"),
+   **When** the AI interprets the date,
+   **Then** it resolves to the correct calendar date and shows the resolved date in the confirmation.
+
+3. **Given** no deal is specified but I'm on a deal page or discussing a deal,
+   **When** the AI creates the task,
+   **Then** it links the task to the contextual deal and confirms: "Task created on **Acme Corp**: Send financials — due Feb 28."
+
+4. **Given** the task is created,
+   **When** I view the deal's task list,
+   **Then** the task appears with `source: ai_command_center` in the activity log.
+
+### US-022: Log Deal Notes via Chat (3 points)
+
+**As a** deal manager, **I want to** say "note that the seller wants to close by Q2" **so that** the insight is logged to the deal without navigating away.
+
+**Acceptance Criteria:**
+
+1. **Given** I say "note that...", "remember that...", or "log that...",
+   **When** the AI processes my request,
+   **Then** it creates a note on the contextual or specified deal.
+
+2. **Given** the note is created,
+   **When** I view the deal notes,
+   **Then** the note appears with attribution: "Added via AI Command Center by [my name]."
+
+### US-023: Update Deal Stage via Chat (5 points)
+
+**As a** deal manager, **I want to** say "move Acme Corp to Due Diligence" **so that** the stage is updated without navigating to the pipeline board.
+
+**Acceptance Criteria:**
+
+1. **Given** I request a stage change,
+   **When** the AI prepares the action,
+   **Then** it shows a confirmation: "Move **Acme Corp** from **LOI** → **Due Diligence**? [Confirm] [Cancel]"
+
+2. **Given** I confirm the action,
+   **When** the stage is updated,
+   **Then** an activity is logged: "Stage changed to Due Diligence (via AI Command Center)."
+
+3. **Given** I say "advance this deal" without specifying a stage,
+   **When** the AI processes the request,
+   **Then** it suggests the next logical stage based on the current stage.
+
+### US-024: Grant Data Room Access via Chat (5 points)
+
+**As a** deal manager, **I want to** say "give Summit Capital access to the Acme Corp teaser" **so that** document access is granted in one sentence.
+
+**Acceptance Criteria:**
+
+1. **Given** I request data room access for a buyer,
+   **When** the AI prepares the action,
+   **Then** it confirms: "Grant **Summit Capital** access to **teaser** for **Acme Corp**? [Confirm]"
+
+2. **Given** I confirm,
+   **When** access is granted,
+   **Then** it leverages the existing `data-room-access` edge function and logs the action.
+
+---
+
+## Epic 8: Content Generation — NEW
+
+### US-025: Meeting Preparation Brief (8 points)
+
+**As a** deal manager, **I want to** say "prepare me for my meeting with Summit Capital about Acme Corp" **so that** I get a comprehensive brief in 10 seconds instead of 15 minutes of manual research.
+
+**Acceptance Criteria:**
+
+1. **Given** I request a meeting prep,
+   **When** the AI generates the brief,
+   **Then** it includes: deal status, buyer profile, composite score + breakdown, transcript highlights from previous calls, open tasks, outreach timeline, and suggested talking points.
+
+2. **Given** all data sources are queried in parallel,
+   **When** the response is streamed,
+   **Then** the full brief is delivered in < 10 seconds.
+
+3. **Given** there are overdue action items from previous meetings,
+   **When** the brief is generated,
+   **Then** overdue items are highlighted with a warning indicator.
+
+4. **Given** the previous meeting transcript mentions buyer concerns,
+   **When** talking points are generated,
+   **Then** they specifically address those concerns with data from the deal.
+
+### US-026: Draft Outreach Emails (8 points)
+
+**As a** business development lead, **I want to** say "draft outreach to Tier A buyers for the Acme Corp deal" **so that** I get personalized email drafts I can review and send.
+
+**Acceptance Criteria:**
+
+1. **Given** I request outreach drafts,
+   **When** the AI identifies matching buyers,
+   **Then** each draft is personalized to the buyer's thesis, target geography, and revenue criteria.
+
+2. **Given** a draft is generated,
+   **When** I review it,
+   **Then** I can approve, edit, or regenerate each draft individually.
+
+3. **Given** the existing `draft-outreach-email` edge function,
+   **When** the AI generates drafts,
+   **Then** it leverages the existing function's personalization logic enhanced with deal-specific context.
+
+### US-027: Generate Weekly Pipeline Report (5 points)
+
+**As a** managing director, **I want to** say "weekly pipeline report" **so that** I get a formatted summary ready for the team meeting.
+
+**Acceptance Criteria:**
+
+1. **Given** I request a pipeline report,
+   **When** the AI generates it,
+   **Then** it includes: pipeline summary by stage (with week-over-week delta), deals that moved stages, attention items (stalled deals, overdue tasks, no-response buyers), team activity comparison, and key metrics.
+
+2. **Given** the report is generated,
+   **When** I want to share it,
+   **Then** the report is formatted in clean markdown suitable for copy-paste into Slack or email.
+
+### US-028: End-of-Day / End-of-Week Recap (5 points)
+
+**As a** deal manager, **I want to** say "end of day recap" **so that** I can verify what I accomplished and plan for tomorrow.
+
+**Acceptance Criteria:**
+
+1. **Given** I request a recap,
+   **When** the AI generates it,
+   **Then** it includes: activities logged today, tasks completed vs. remaining, outreach sent and responses received, and tomorrow's priorities.
+
+2. **Given** it's Friday,
+   **When** I request a recap,
+   **Then** it automatically generates a weekly recap with wins, carry-overs, and next-week preview.
+
+---
+
+## Epic 9: Proactive Operations — NEW
+
+### US-029: Deal Health Alerts (8 points)
+
+**As a** deal manager, **I want the** system to alert me when a deal shows warning signs **so that** I can intervene before it goes cold.
+
+**Acceptance Criteria:**
+
+1. **Given** a deal's stage duration exceeds 2x the average for that stage,
+   **When** the system detects this,
+   **Then** an alert appears in the chat panel with specific data and suggested actions.
+
+2. **Given** a deal's weekly activity count drops by more than 50%,
+   **When** the system detects the decline,
+   **Then** it surfaces a velocity warning with comparison data.
+
+3. **Given** a key buyer hasn't responded to outreach in > 2 weeks,
+   **When** the system detects no response,
+   **Then** it suggests escalation options (re-send, call, different contact).
+
+### US-030: Smart Lead-to-Buyer Match Alerts (5 points)
+
+**As a** business development lead, **I want the** system to alert me when new leads match active deal criteria or buyer profiles **so that** I don't miss acquisition opportunities.
+
+**Acceptance Criteria:**
+
+1. **Given** a new lead is imported into the system,
+   **When** it matches criteria for active deals or remarketing buyers,
+   **Then** a notification appears in the chat panel identifying the matches.
+
+2. **Given** the alert fires,
+   **When** I view it,
+   **Then** it shows the estimated score and lets me take immediate action: "Score this lead" or "Draft outreach."
+
+### US-031: Data Quality Monitoring (5 points)
+
+**As an** operations manager, **I want to** ask "how's our data quality?" **so that** I can identify and fix data gaps that degrade scoring and matching accuracy.
+
+**Acceptance Criteria:**
+
+1. **Given** I ask about data quality,
+   **When** the AI analyzes the database,
+   **Then** it reports: buyer profile completeness distribution, deals missing key data, transcripts not synced from Fireflies, and stale enrichment data.
+
+2. **Given** issues are identified,
+   **When** the report is shown,
+   **Then** each issue includes a suggested action: "Queue enrichment for 312 low-completeness buyers."
+
+### US-032: Buyer Conflict Detection (5 points)
+
+**As a** deal manager, **I want to** say "show buyer conflicts" **so that** I know which buyers are being pitched competing deals.
+
+**Acceptance Criteria:**
+
+1. **Given** I request buyer conflict analysis,
+   **When** the AI cross-references buyers across active deals,
+   **Then** it identifies buyers active on multiple deals with potential geographic or industry conflicts.
+
+2. **Given** a conflict is detected,
+   **When** it's displayed,
+   **Then** it shows the specific overlap (same industry, same geography) and suggests strategy adjustments.
+
+---
+
 ## Story Point Summary
 
 | Epic | Stories | Total Points |
@@ -621,12 +849,16 @@ Epic 6: Conversational UX
 | Meeting Intelligence | 3 | 18 |
 | Proactive Intelligence | 3 | 18 |
 | Conversational UX | 4 | 21 |
-| **Total** | **20** | **117** |
+| **Action Mode (Write-Back)** | **4** | **18** |
+| **Content Generation** | **4** | **26** |
+| **Proactive Operations** | **4** | **23** |
+| **Total** | **32** | **184** |
 
 ## Priority Matrix
 
 | Priority | Stories | Points |
 |----------|---------|--------|
 | P0 (Must Have) | US-001, 002, 005, 006, 008, 009, 011, 017, 019 | 68 |
-| P1 (Should Have) | US-003, 004, 007, 010, 012, 013, 014, 018, 020 | 39 |
-| P2 (Nice to Have) | US-015, 016 | 10 |
+| P1 (Should Have) | US-003, 004, 007, 010, 012, 013, 014, 018, 020, **021, 022, 025** | 55 |
+| P2 (Nice to Have) | US-015, 016, **023, 024, 026, 027, 028** | 43 |
+| P3 (Future) | **029, 030, 031, 032** | 23 |
