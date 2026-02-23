@@ -109,8 +109,8 @@ export function DealAlertsTab() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="flex items-start justify-between mb-6">
-            <div className="max-w-2xl">
+          <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 mb-6">
+            <div className="flex-1 min-w-0">
               <p className="text-muted-foreground mb-2">
                 Never miss opportunities. Create alerts and get in-app notifications the moment a matching deal is published.
               </p>
@@ -118,7 +118,9 @@ export function DealAlertsTab() {
                 Choose instant, daily, or weekly summaries based on your preference.
               </p>
             </div>
-            <CreateDealAlertDialog />
+            <div className="shrink-0">
+              <CreateDealAlertDialog />
+            </div>
           </div>
 
           {!alerts || alerts.length === 0 ? (

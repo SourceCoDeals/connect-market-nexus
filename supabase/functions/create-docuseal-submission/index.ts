@@ -221,6 +221,32 @@ serve(async (req: Request) => {
       raw_payload: { created_by: auth.userId },
     });
 
+    // Create buyer notification for in-app signing
+    if (deliveryMode === "embedded") {
+      // Find the buyer user by email to send them a notification
+      const { data: buyerProfile } = await supabaseAdmin
+        .from("profiles")
+        .select("id")
+        .eq("email", signerEmail)
+        .maybeSingle();
+
+      if (buyerProfile?.id) {
+        const docLabel = documentType === "nda" ? "NDA" : "Fee Agreement";
+        await supabaseAdmin.from("user_notifications").insert({
+          user_id: buyerProfile.id,
+          notification_type: "agreement_pending",
+          title: `${docLabel} Ready to Sign`,
+          message: `A ${docLabel} has been prepared for your signature. Please sign it to continue accessing deal details.`,
+          metadata: {
+            document_type: documentType,
+            firm_id: firmId,
+            submission_id: submissionId,
+          },
+        });
+        console.log(`🔔 Created notification for buyer ${buyerProfile.id} — ${docLabel} pending`);
+      }
+    }
+
     return new Response(
       JSON.stringify({
         success: true,

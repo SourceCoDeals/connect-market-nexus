@@ -13,6 +13,7 @@ import { cn } from "@/lib/utils";
 import { LoadingSpinner } from "@/components/LoadingSpinner";
 import { useAllSavedListingIds } from "@/hooks/marketplace/use-saved-listings";
 import { useAllConnectionStatuses } from "@/hooks/marketplace/use-connections";
+import { PendingSigningBanner } from "@/components/marketplace/PendingSigningBanner";
 
 import {
   Select,
@@ -154,6 +155,9 @@ const MarketplaceContent = () => {
       )}
       
       <div className="container mx-auto px-4 py-8">
+        {/* Pending Agreement Signing Banner */}
+        <PendingSigningBanner />
+        
         <div className="flex flex-col gap-6">
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
             <div className="flex items-center gap-3">
