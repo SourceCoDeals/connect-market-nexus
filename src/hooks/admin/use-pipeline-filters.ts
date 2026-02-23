@@ -8,7 +8,7 @@ export type FeeAgreementFilter = 'all' | 'signed' | 'not_signed' | 'sent';
 export type SortOption = 'newest' | 'oldest' | 'buyer_priority' | 'deal_size' | 'approval_date';
 
 export function usePipelineFilters(requests: AdminConnectionRequest[]) {
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('pending');
   const [buyerTypeFilter, setBuyerTypeFilter] = useState<BuyerTypeFilter>('all');
   const [ndaFilter, setNdaFilter] = useState<NdaFilter>('all');
   const [feeAgreementFilter, setFeeAgreementFilter] = useState<FeeAgreementFilter>('all');
