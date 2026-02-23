@@ -21,7 +21,7 @@ export function useUniverseActions(data: UseUniverseDataReturn) {
     setScoringBehavior,
     setIsParsing,
     buyers,
-    queueProgress,
+    queueProgress: _queueProgress,
     queueBuyers,
     resetQueueEnrichment,
     setShowBuyerEnrichDialog,

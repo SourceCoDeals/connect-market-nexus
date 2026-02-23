@@ -16,7 +16,7 @@ import DOMPurify from 'dompurify';
  * Only allows safe formatting tags; strips all event handlers, scripts,
  * iframes, forms, and other dangerous elements.
  */
-const STRICT_SANITIZE_CONFIG: DOMPurify.Config = {
+const STRICT_SANITIZE_CONFIG: Record<string, unknown> = {
   ALLOWED_TAGS: [
     // Text formatting
     'p', 'br', 'strong', 'em', 'u', 's', 'span', 'sub', 'sup',
@@ -59,14 +59,14 @@ export function sanitizeHtml(dirty: string, allowLinks = true): string {
 
   const config = { ...STRICT_SANITIZE_CONFIG };
   if (!allowLinks) {
-    config.ALLOWED_TAGS = config.ALLOWED_TAGS?.filter(tag => tag !== 'a');
+    config.ALLOWED_TAGS = (config.ALLOWED_TAGS as string[])?.filter((tag: string) => tag !== 'a');
   }
 
   // Add noopener noreferrer to all links after sanitization
-  const clean = DOMPurify.sanitize(dirty, config);
+  const clean = DOMPurify.sanitize(dirty, config as any);
 
   // Post-process: ensure all <a> tags have rel="noopener noreferrer"
-  return clean.replace(
+  return String(clean).replace(
     /<a\s/g,
     '<a rel="noopener noreferrer" '
   );

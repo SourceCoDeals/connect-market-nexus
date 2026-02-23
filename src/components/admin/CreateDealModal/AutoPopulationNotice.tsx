@@ -1,4 +1,4 @@
-import React from 'react';
+// React is auto-imported via JSX transform
 import { UseFormReturn } from 'react-hook-form';
 import { CreateDealFormData } from './schema';
 

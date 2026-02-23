@@ -1,3 +1,4 @@
+import { vi } from 'vitest';
 import '@testing-library/jest-dom';
 
 // Mock window.matchMedia
@@ -165,7 +166,7 @@ vi.mock('@/hooks/use-analytics-tracking', () => ({
   }),
 }));
 
-// Reset mocks between tests
+import { beforeEach } from 'vitest';
 beforeEach(() => {
   sessionStorageMock.clear();
   localStorageMock.clear();

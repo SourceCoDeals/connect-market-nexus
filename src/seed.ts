@@ -80,7 +80,7 @@ export const seedDatabase = async () => {
       // Insert sample listings
       const { error: listingsError } = await supabase
         .from('listings')
-        .insert(sampleListings);
+        .insert(sampleListings as any);
       
       if (listingsError) throw listingsError;
       

@@ -68,7 +68,7 @@ describe('validateCriteria', () => {
   it('handles buyer types criteria', () => {
     const result = validateCriteria({
       buyer_types_criteria: {
-        buyer_types: [{ name: 'PE Firms', rank: 1 }],
+        buyer_types: [{ name: 'PE Firms', id: 'pe', priority: 1, enabled: true }],
       },
     });
     expect(result.buyerTypes.isComplete).toBe(true);

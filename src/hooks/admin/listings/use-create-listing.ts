@@ -49,7 +49,7 @@ export function useCreateListing() {
 
         const { data, error } = await supabase
           .from('listings')
-          .insert(insertData)
+          .insert(insertData as any)
           .select()
           .single();
         

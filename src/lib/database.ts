@@ -142,7 +142,7 @@ export async function fetchRows<T extends TableName>(
   table: T,
   options: QueryOptions<T> = {},
 ): Promise<DatabaseResult<Row<T>[]>> {
-  return safeQuery(async () => {
+  return safeQuery(async (): Promise<any> => {
     const { filters, order, pagination, select } = options;
 
     let query = supabase
@@ -154,31 +154,31 @@ export async function fetchRows<T extends TableName>(
       for (const f of filters) {
         switch (f.operator) {
           case 'eq':
-            query = query.eq(f.column, f.value as string);
+            query = query.eq(f.column, f.value as any);
             break;
           case 'neq':
-            query = query.neq(f.column, f.value as string);
+            query = query.neq(f.column, f.value as any);
             break;
           case 'gt':
-            query = query.gt(f.column, f.value as string);
+            query = query.gt(f.column, f.value as any);
             break;
           case 'gte':
-            query = query.gte(f.column, f.value as string);
+            query = query.gte(f.column, f.value as any);
             break;
           case 'lt':
-            query = query.lt(f.column, f.value as string);
+            query = query.lt(f.column, f.value as any);
             break;
           case 'lte':
-            query = query.lte(f.column, f.value as string);
+            query = query.lte(f.column, f.value as any);
             break;
           case 'like':
-            query = query.like(f.column, f.value as string);
+            query = query.like(f.column, f.value as any);
             break;
           case 'ilike':
-            query = query.ilike(f.column, f.value as string);
+            query = query.ilike(f.column, f.value as any);
             break;
           case 'in':
-            query = query.in(f.column, f.value as string[]);
+            query = query.in(f.column, f.value as any[]);
             break;
           case 'is':
             query = query.is(f.column, f.value as null);
@@ -189,7 +189,7 @@ export async function fetchRows<T extends TableName>(
 
     // Apply ordering
     if (order) {
-      query = query.order(order.column, {
+      query = query.order(order.column as any, {
         ascending: order.ascending ?? true,
       });
     }
@@ -218,7 +218,7 @@ export async function fetchById<T extends TableName>(
     return supabase
       .from(table)
       .select(select ?? '*')
-      .eq('id', id)
+      .eq('id' as any, id)
       .single();
   });
 }
@@ -251,7 +251,7 @@ export async function updateRow<T extends TableName>(
     return supabase
       .from(table)
       .update(updates as never)
-      .eq('id', id)
+      .eq('id' as any, id)
       .select()
       .single();
   });
@@ -271,7 +271,7 @@ export async function deleteRow<T extends TableName>(
       return supabase
         .from(table)
         .update({ deleted_at: new Date().toISOString() } as never)
-        .eq('id', id)
+        .eq('id' as any, id)
         .select()
         .single();
     });
@@ -280,7 +280,7 @@ export async function deleteRow<T extends TableName>(
     return supabase
       .from(table)
       .delete()
-      .eq('id', id)
+      .eq('id' as any, id)
       .select()
       .single();
   });

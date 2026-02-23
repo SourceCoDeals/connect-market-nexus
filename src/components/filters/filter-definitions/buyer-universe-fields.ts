@@ -2,7 +2,6 @@ import {
   Building2,
   DollarSign,
   MapPin,
-  Users,
   Calendar,
   Activity,
   TrendingUp,

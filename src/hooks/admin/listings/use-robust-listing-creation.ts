@@ -181,7 +181,7 @@ export function useRobustListingCreation() {
         // Step 3: Insert listing with isolated transaction
         const { data: insertedListing, error: insertError } = await supabase
           .from('listings')
-          .insert(databaseInsert)
+          .insert(databaseInsert as any)
           .select()
           .single();
 

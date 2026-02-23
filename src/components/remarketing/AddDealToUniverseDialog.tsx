@@ -272,7 +272,7 @@ export const AddDealToUniverseDialog = ({
 
       const { data: listing, error: listingError } = await supabase
         .from("listings")
-        .insert(insertData)
+        .insert(insertData as any)
         .select()
         .maybeSingle();
 
