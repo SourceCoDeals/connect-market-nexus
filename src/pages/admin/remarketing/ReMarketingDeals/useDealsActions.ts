@@ -56,7 +56,7 @@ export function useDealsActions({
   const [singleDeleteTarget, setSingleDeleteTarget] = useState<{ id: string; name: string } | null>(null);
 
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(PointerSensor, { activationConstraint: { distance: 3 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
 
