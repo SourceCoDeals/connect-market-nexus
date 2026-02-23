@@ -184,7 +184,7 @@ export function UsersTable({
                       isOverride={user.admin_tier_override != null}
                     />
                     {user.platform_signal_detected && (
-                      <Zap className="h-3 w-3 text-green-600" title="Add-On Signal" />
+                      <Zap className="h-3 w-3 text-green-600" aria-label="Add-On Signal" />
                     )}
                   </div>
                 </TableCell>
