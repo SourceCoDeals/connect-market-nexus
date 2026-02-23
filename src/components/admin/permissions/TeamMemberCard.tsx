@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { User } from '@/types';
 import { AppRole } from '@/hooks/permissions/usePermissions';
 import { Card, CardContent } from '@/components/ui/card';
@@ -5,6 +6,11 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { RoleBadge } from './RoleBadge';
 import { RoleSelector } from './RoleSelector';
 import { formatDistanceToNow } from 'date-fns';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { Button } from '@/components/ui/button';
+import { MoreVertical, KeyRound, Loader2 } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 
 interface TeamMemberCardProps {
   user: User;
@@ -12,6 +18,24 @@ interface TeamMemberCardProps {
 }
 
 export const TeamMemberCard = ({ user, role }: TeamMemberCardProps) => {
+  const [sendingReset, setSendingReset] = useState(false);
+
+  const handleSendPasswordReset = async () => {
+    if (!user.email) return;
+    setSendingReset(true);
+    try {
+      const { error } = await supabase.functions.invoke('password-reset', {
+        body: { email: user.email, action: 'request' },
+      });
+      if (error) throw error;
+      toast.success(`Password reset link sent to ${user.email}`);
+    } catch (err: any) {
+      console.error('Failed to send password reset:', err);
+      toast.error('Failed to send password reset link');
+    } finally {
+      setSendingReset(false);
+    }
+  };
   const initials = `${user.first_name?.[0] || ''}${user.last_name?.[0] || ''}`.toUpperCase() || (user.email?.[0] || '?').toUpperCase();
   
   // Map 'owner' to 'admin' for display
@@ -64,6 +88,24 @@ export const TeamMemberCard = ({ user, role }: TeamMemberCardProps) => {
               userEmail={user.email}
               disabled={role === 'owner'}
             />
+
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-8 w-8">
+                  <MoreVertical className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={handleSendPasswordReset} disabled={sendingReset}>
+                  {sendingReset ? (
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  ) : (
+                    <KeyRound className="h-4 w-4 mr-2" />
+                  )}
+                  Send Password Reset Link
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
       </CardContent>
