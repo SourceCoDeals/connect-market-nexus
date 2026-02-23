@@ -401,16 +401,19 @@ export function ConnectionRequestActions({
           {/* Left: Name + description */}
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-3">
-              <h2 className="text-xl font-extrabold text-foreground tracking-tight" style={{ fontFamily: 'Manrope, sans-serif' }}>{buyerName}</h2>
+              <h2 className="text-2xl font-extrabold text-foreground tracking-tight" style={{ fontFamily: 'Manrope, sans-serif' }}>{buyerName}</h2>
               {user.linkedin_profile && (
-                <a href={processUrl(user.linkedin_profile)} target="_blank" rel="noopener noreferrer" className="text-sm font-semibold text-sourceco hover:underline">
+                <a href={processUrl(user.linkedin_profile)} target="_blank" rel="noopener noreferrer" className="text-sm font-semibold text-primary hover:underline">
                   LinkedIn ↗
                 </a>
               )}
             </div>
             <p className="text-sm text-muted-foreground mt-0.5">
               {user.job_title ? `${user.job_title} at ` : ''}{firmName}
-              {buyerEmail && <> · {buyerEmail}</>}
+              {buyerEmail && <> · <a href={`mailto:${buyerEmail}`} className="text-foreground hover:underline">{buyerEmail}</a></>}
+              {user.website && (
+                <> · <a href={processUrl(user.website)} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">{user.website.replace(/^https?:\/\//, '')}</a></>
+              )}
             </p>
 
             {/* Quick snapshot — the key info for fast decisions */}
