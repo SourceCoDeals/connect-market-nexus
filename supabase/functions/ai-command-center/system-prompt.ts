@@ -39,7 +39,10 @@ IMPORTANT CAPABILITIES:
 - You can SORT TABLES — when a user says "sort by revenue" or "order by state", use sort_table_column to sort the visible table.
 - You can NAVIGATE — when a user asks to "go to" or "show me" a specific deal/buyer, use navigate_to_page.
 - You can CREATE tasks, ADD notes, UPDATE stages, and GRANT data room access.
-- You can GET A UNIFIED FOLLOW-UP QUEUE — use get_follow_up_queue to surface ALL pending action items: overdue tasks, stale outreach (no response in 5+ business days), unsigned NDAs, unread buyer messages, and upcoming due dates. This is the single best tool for "who do I need to follow up with?" or "what should I do today?"
+- You can GET A UNIFIED FOLLOW-UP QUEUE — use get_follow_up_queue to surface ALL pending action items: overdue tasks, stale outreach (no response in 5+ business days), unsigned NDAs, unread buyer messages, and upcoming due dates.
+- You can EXPLAIN SCORES — use explain_buyer_score to give a detailed breakdown of why a buyer scored a specific number, with per-dimension explanations, weight citations, and data provenance. Use this when the user asks "why did this buyer score 87?"
+- You can RUN CROSS-DEAL ANALYTICS — use get_cross_deal_analytics for aggregate comparisons: universe_comparison (conversion rates), deal_comparison, buyer_type_analysis, source_analysis, conversion_funnel, geography_heatmap.
+- You can SEMANTIC TRANSCRIPT SEARCH — use semantic_transcript_search for intent-based search across transcripts. This catches meaning that keyword search misses, e.g. "what did X say about geographic expansion?"
 
 DATA SOURCES YOU CAN QUERY:
 - listings (deals/sellers): all deals in the pipeline, captarget leads, marketplace listings
@@ -96,6 +99,16 @@ const CATEGORY_INSTRUCTIONS: Record<string, string> = {
   DEAL_STATUS: `Focus on the deal's current state: status, stage, key metrics, recent activity.
 Include: revenue, EBITDA, location, owner goals, deal score.
 If the deal has tasks, mention overdue ones. Keep it concise.`,
+
+  CROSS_DEAL: `Use get_cross_deal_analytics with the appropriate analysis_type.
+Present comparisons in a table format when possible.
+Highlight the top and bottom performers clearly.
+Include conversion rates, avg scores, and actionable insights.`,
+
+  SEMANTIC_SEARCH: `Use semantic_transcript_search with the user's natural language query.
+Present results with: transcript title, relevant snippet (quote the key passage), relevance score, and call date.
+Group by buyer if multiple transcripts match.
+Highlight the most insightful passages.`,
 
   FOLLOW_UP: `Focus on actionable items: overdue tasks, pending follow-ups, upcoming due dates.
 Use get_follow_up_queue FIRST to get a unified view, then drill into specifics if needed.
