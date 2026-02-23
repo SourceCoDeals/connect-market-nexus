@@ -3,12 +3,18 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Textarea } from "@/components/ui/textarea";
+
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 import {
   MessageSquare,
   Send,
@@ -24,6 +30,12 @@ import {
   FileText,
   MailWarning,
   Archive,
+  ChevronDown,
+  ChevronRight,
+  ExternalLink,
+  LayoutList,
+  FolderOpen,
+  UserCheck,
 } from "lucide-react";
 import {
   useConnectionMessages,
@@ -35,6 +47,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { formatDistanceToNow } from "date-fns";
 import { cn } from "@/lib/utils";
 import { useAdminProfiles } from "@/hooks/admin/use-admin-profiles";
+import { useNavigate } from "react-router-dom";
 
 // ─── Types ───
 
@@ -56,17 +69,26 @@ interface InboxThread {
   total_messages: number;
   user_message: string | null;
   created_at: string;
+  pipeline_deal_id: string | null;
 }
 
 type InboxFilter = "all" | "unread" | "waiting_on_admin" | "waiting_on_buyer" | "claimed" | "closed";
+type ViewMode = "all" | "by_deal";
 
-// ─── Inbox Threads Hook (uses new conversation fields) ───
+interface DealGroup {
+  listing_id: string;
+  deal_title: string;
+  threads: InboxThread[];
+  total_unread: number;
+  last_activity: string;
+}
+
+// ─── Inbox Threads Hook ───
 
 function useInboxThreads() {
   return useQuery({
     queryKey: ["inbox-threads"],
     queryFn: async () => {
-      // Fetch connection requests with conversation state fields
       const { data: requests, error: reqError } = await (supabase
         .from("connection_requests") as any)
         .select(`
@@ -89,13 +111,23 @@ function useInboxThreads() {
 
       if (unreadError) throw unreadError;
 
-      // Count unread per request
       const unreadMap: Record<string, number> = {};
       (unreadMessages || []).forEach((msg: any) => {
         unreadMap[msg.connection_request_id] = (unreadMap[msg.connection_request_id] || 0) + 1;
       });
 
-      // Build threads
+      // Fetch pipeline deal IDs for these connection requests
+      const requestIds = (requests || []).map((r: any) => r.id);
+      const { data: deals } = await supabase
+        .from("deals")
+        .select("id, connection_request_id")
+        .in("connection_request_id", requestIds.length > 0 ? requestIds : ["__none__"]);
+
+      const dealMap: Record<string, string> = {};
+      (deals || []).forEach((d: any) => {
+        dealMap[d.connection_request_id] = d.id;
+      });
+
       const threads: InboxThread[] = (requests || []).map((req: any) => {
         const user = req.user;
         return {
@@ -116,10 +148,10 @@ function useInboxThreads() {
           total_messages: 0,
           user_message: req.user_message,
           created_at: req.created_at,
+          pipeline_deal_id: dealMap[req.id] || null,
         };
       });
 
-      // Sort: unread first, then by last message time, then by created_at
       return threads.sort((a, b) => {
         if (a.unread_count > 0 && b.unread_count === 0) return -1;
         if (a.unread_count === 0 && b.unread_count > 0) return 1;
@@ -155,6 +187,29 @@ function useUpdateConversationState() {
   });
 }
 
+// ─── Claim Thread Hook ───
+
+function useClaimThread() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ requestId, adminId }: { requestId: string; adminId: string | null }) => {
+      const updates: any = {
+        claimed_by: adminId,
+        claimed_at: adminId ? new Date().toISOString() : null,
+        conversation_state: adminId ? "claimed" : "new",
+      };
+      const { error } = await (supabase
+        .from("connection_requests") as any)
+        .update(updates)
+        .eq("id", requestId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["inbox-threads"] });
+    },
+  });
+}
+
 // ─── Main Component ───
 
 export default function MessageCenter() {
@@ -163,14 +218,13 @@ export default function MessageCenter() {
   const [selectedThreadId, setSelectedThreadId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [activeFilter, setActiveFilter] = useState<InboxFilter>("all");
+  const [viewMode, setViewMode] = useState<ViewMode>("all");
 
   const selectedThread = threads.find(t => t.connection_request_id === selectedThreadId);
 
   // Filter threads
   const filteredThreads = useMemo(() => {
     let filtered = threads;
-
-    // Apply status filter
     switch (activeFilter) {
       case "unread":
         filtered = filtered.filter(t => t.unread_count > 0);
@@ -188,8 +242,6 @@ export default function MessageCenter() {
         filtered = filtered.filter(t => t.conversation_state === "closed");
         break;
     }
-
-    // Apply search
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
       filtered = filtered.filter(t =>
@@ -199,11 +251,39 @@ export default function MessageCenter() {
         (t.buyer_email || "").toLowerCase().includes(q)
       );
     }
-
     return filtered;
   }, [threads, activeFilter, searchQuery]);
 
-  // Counts for filter badges
+  // Group by deal
+  const dealGroups = useMemo((): DealGroup[] => {
+    const groupMap = new Map<string, DealGroup>();
+    filteredThreads.forEach(t => {
+      const key = t.listing_id || `no-deal-${t.connection_request_id}`;
+      if (!groupMap.has(key)) {
+        groupMap.set(key, {
+          listing_id: t.listing_id || key,
+          deal_title: t.deal_title || "No Deal Linked",
+          threads: [],
+          total_unread: 0,
+          last_activity: t.last_message_at || t.created_at,
+        });
+      }
+      const group = groupMap.get(key)!;
+      group.threads.push(t);
+      group.total_unread += t.unread_count;
+      const tTime = t.last_message_at || t.created_at;
+      if (new Date(tTime) > new Date(group.last_activity)) {
+        group.last_activity = tTime;
+      }
+    });
+    return Array.from(groupMap.values()).sort((a, b) => {
+      if (a.total_unread > 0 && b.total_unread === 0) return -1;
+      if (a.total_unread === 0 && b.total_unread > 0) return 1;
+      return new Date(b.last_activity).getTime() - new Date(a.last_activity).getTime();
+    });
+  }, [filteredThreads]);
+
+  // Counts
   const counts = useMemo(() => ({
     all: threads.length,
     unread: threads.filter(t => t.unread_count > 0).length,
@@ -231,6 +311,34 @@ export default function MessageCenter() {
             <p className="text-sm text-muted-foreground mt-0.5">
               {counts.unread > 0 ? `${counts.unread} unread conversation${counts.unread !== 1 ? 's' : ''}` : 'All caught up'}
             </p>
+          </div>
+
+          {/* View mode toggle */}
+          <div className="flex items-center gap-1 bg-muted/50 rounded-lg p-0.5">
+            <button
+              onClick={() => setViewMode("all")}
+              className={cn(
+                "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors",
+                viewMode === "all"
+                  ? "bg-background text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              <LayoutList className="w-3.5 h-3.5" />
+              All Messages
+            </button>
+            <button
+              onClick={() => setViewMode("by_deal")}
+              className={cn(
+                "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors",
+                viewMode === "by_deal"
+                  ? "bg-background text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              <FolderOpen className="w-3.5 h-3.5" />
+              By Deal
+            </button>
           </div>
         </div>
 
@@ -279,7 +387,7 @@ export default function MessageCenter() {
         <div className="flex-1 min-h-0 mx-6 mb-6 border border-border rounded-xl overflow-hidden bg-card flex">
           {/* Thread List (left panel) */}
           <div className={cn(
-            "w-[360px] flex-shrink-0 border-r border-border flex flex-col min-h-0",
+            "w-[380px] flex-shrink-0 border-r border-border flex flex-col min-h-0",
             selectedThreadId ? "hidden md:flex" : "flex"
           )}>
             {/* Search */}
@@ -290,33 +398,52 @@ export default function MessageCenter() {
                   type="text"
                   value={searchQuery}
                   onChange={e => setSearchQuery(e.target.value)}
-                  placeholder="Search conversations..."
+                  placeholder="Search by buyer, company, or deal..."
                   className="w-full text-xs border border-border/50 rounded-lg pl-8 pr-3 py-2 bg-background focus:outline-none focus:ring-1 focus:ring-primary/30"
                 />
               </div>
             </div>
 
-            {/* Thread items */}
             <ScrollArea className="flex-1">
-              <div className="divide-y divide-border/40">
-                {filteredThreads.map(thread => (
-                  <ThreadListItem
-                    key={thread.connection_request_id}
-                    thread={thread}
-                    isSelected={selectedThreadId === thread.connection_request_id}
-                    onClick={() => setSelectedThreadId(thread.connection_request_id)}
-                    adminProfiles={adminProfiles}
-                  />
-                ))}
-                {filteredThreads.length === 0 && (
-                  <div className="p-8 text-center">
-                    <Filter className="h-8 w-8 text-muted-foreground/30 mx-auto mb-2" />
-                    <p className="text-xs text-muted-foreground">
-                      {searchQuery ? "No conversations match your search" : "No conversations in this filter"}
-                    </p>
-                  </div>
-                )}
-              </div>
+              {viewMode === "all" ? (
+                <div className="divide-y divide-border/40">
+                  {filteredThreads.map(thread => (
+                    <ThreadListItem
+                      key={thread.connection_request_id}
+                      thread={thread}
+                      isSelected={selectedThreadId === thread.connection_request_id}
+                      onClick={() => setSelectedThreadId(thread.connection_request_id)}
+                      adminProfiles={adminProfiles}
+                    />
+                  ))}
+                  {filteredThreads.length === 0 && (
+                    <div className="p-8 text-center">
+                      <Filter className="h-8 w-8 text-muted-foreground/30 mx-auto mb-2" />
+                      <p className="text-xs text-muted-foreground">
+                        {searchQuery ? "No conversations match your search" : "No conversations in this filter"}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="divide-y divide-border/40">
+                  {dealGroups.map(group => (
+                    <DealGroupSection
+                      key={group.listing_id}
+                      group={group}
+                      selectedThreadId={selectedThreadId}
+                      onSelectThread={setSelectedThreadId}
+                      adminProfiles={adminProfiles}
+                    />
+                  ))}
+                  {dealGroups.length === 0 && (
+                    <div className="p-8 text-center">
+                      <Filter className="h-8 w-8 text-muted-foreground/30 mx-auto mb-2" />
+                      <p className="text-xs text-muted-foreground">No deals with conversations</p>
+                    </div>
+                  )}
+                </div>
+              )}
             </ScrollArea>
           </div>
 
@@ -347,17 +474,82 @@ export default function MessageCenter() {
   );
 }
 
+// ─── Deal Group Section (collapsible) ───
+
+function DealGroupSection({
+  group,
+  selectedThreadId,
+  onSelectThread,
+  adminProfiles,
+}: {
+  group: DealGroup;
+  selectedThreadId: string | null;
+  onSelectThread: (id: string) => void;
+  adminProfiles?: Record<string, any> | null;
+}) {
+  const hasSelected = group.threads.some(t => t.connection_request_id === selectedThreadId);
+  const [open, setOpen] = useState(hasSelected || group.total_unread > 0);
+
+  return (
+    <Collapsible open={open} onOpenChange={setOpen}>
+      <CollapsibleTrigger className="w-full">
+        <div className={cn(
+          "flex items-center gap-3 px-4 py-3 hover:bg-accent/50 transition-colors",
+          group.total_unread > 0 && "bg-primary/[0.03]"
+        )}>
+          {open ? <ChevronDown className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" /> : <ChevronRight className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />}
+          <FileText className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
+          <div className="flex-1 min-w-0 text-left">
+            <p className={cn(
+              "text-sm truncate",
+              group.total_unread > 0 ? "font-semibold text-foreground" : "font-medium text-foreground/90"
+            )}>
+              {group.deal_title}
+            </p>
+            <p className="text-[10px] text-muted-foreground mt-0.5">
+              {group.threads.length} conversation{group.threads.length !== 1 ? 's' : ''}
+              {' · '}
+              {formatDistanceToNow(new Date(group.last_activity), { addSuffix: true })}
+            </p>
+          </div>
+          {group.total_unread > 0 && (
+            <span className="flex-shrink-0 flex h-5 min-w-[20px] items-center justify-center rounded-full bg-destructive px-1.5 text-[10px] font-bold text-destructive-foreground">
+              {group.total_unread}
+            </span>
+          )}
+        </div>
+      </CollapsibleTrigger>
+      <CollapsibleContent>
+        <div className="border-t border-border/20">
+          {group.threads.map(thread => (
+            <ThreadListItem
+              key={thread.connection_request_id}
+              thread={thread}
+              isSelected={selectedThreadId === thread.connection_request_id}
+              onClick={() => onSelectThread(thread.connection_request_id)}
+              adminProfiles={adminProfiles}
+              nested
+            />
+          ))}
+        </div>
+      </CollapsibleContent>
+    </Collapsible>
+  );
+}
+
 // ─── Thread List Item ───
 
 function ThreadListItem({
   thread,
   isSelected,
   onClick,
+  nested,
 }: {
   thread: InboxThread;
   isSelected: boolean;
   onClick: () => void;
   adminProfiles?: Record<string, any> | null;
+  nested?: boolean;
 }) {
   const stateIcon = (() => {
     switch (thread.conversation_state) {
@@ -378,14 +570,13 @@ function ThreadListItem({
       onClick={onClick}
       className={cn(
         "w-full text-left px-4 py-3 transition-colors",
+        nested && "pl-10",
         isSelected ? "bg-accent" : "hover:bg-accent/50",
         thread.unread_count > 0 && !isSelected && "bg-primary/[0.03]"
       )}
     >
       <div className="flex items-start gap-2.5">
-        {/* State indicator */}
         <div className="mt-1.5 flex-shrink-0">{stateIcon}</div>
-
         <div className="flex-1 min-w-0">
           {/* Row 1: Buyer name + time */}
           <div className="flex items-center justify-between gap-2">
@@ -401,17 +592,47 @@ function ThreadListItem({
           {/* Row 2: Company + deal */}
           <div className="flex items-center gap-1.5 mt-0.5">
             {thread.buyer_company && (
-              <span className="text-[11px] text-muted-foreground truncate">{thread.buyer_company}</span>
+              <span className="text-[11px] text-muted-foreground flex items-center gap-1">
+                <Building2 className="w-3 h-3 flex-shrink-0" />
+                <span className="truncate">{thread.buyer_company}</span>
+              </span>
             )}
-            {thread.buyer_company && thread.deal_title && (
-              <span className="text-muted-foreground/40">·</span>
-            )}
-            {thread.deal_title && (
-              <span className="text-[11px] text-muted-foreground/70 truncate">{thread.deal_title}</span>
+            {!nested && thread.deal_title && (
+              <>
+                {thread.buyer_company && <span className="text-muted-foreground/40">·</span>}
+                <span className="text-[11px] text-muted-foreground/70 truncate flex items-center gap-1">
+                  <FileText className="w-3 h-3 flex-shrink-0" />
+                  <span className="truncate">{thread.deal_title}</span>
+                </span>
+              </>
             )}
           </div>
 
-          {/* Row 3: Last message preview */}
+          {/* Row 3: Request status + pipeline badge */}
+          <div className="flex items-center gap-1.5 mt-0.5">
+            <span className={cn(
+              "text-[10px] px-1.5 py-0.5 rounded font-medium",
+              thread.request_status === 'approved' ? "bg-emerald-500/10 text-emerald-600" :
+              thread.request_status === 'pending' ? "bg-amber-500/10 text-amber-600" :
+              thread.request_status === 'rejected' ? "bg-destructive/10 text-destructive" :
+              "bg-muted text-muted-foreground"
+            )}>
+              {thread.request_status}
+            </span>
+            {thread.pipeline_deal_id && (
+              <span className="text-[10px] px-1.5 py-0.5 rounded bg-primary/10 text-primary font-medium">
+                In Pipeline
+              </span>
+            )}
+            {thread.claimed_by && (
+              <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground font-medium flex items-center gap-0.5">
+                <UserCheck className="w-2.5 h-2.5" />
+                Claimed
+              </span>
+            )}
+          </div>
+
+          {/* Row 4: Last message preview */}
           <p className={cn(
             "text-[11px] mt-0.5 truncate",
             thread.unread_count > 0 ? "text-foreground font-medium" : "text-muted-foreground"
@@ -437,6 +658,7 @@ function ThreadListItem({
 function ThreadView({
   thread,
   onBack,
+  adminProfiles,
 }: {
   thread: InboxThread;
   onBack: () => void;
@@ -446,17 +668,23 @@ function ThreadView({
   const sendMsg = useSendMessage();
   const markRead = useMarkMessagesReadByAdmin();
   const updateState = useUpdateConversationState();
+  const claimThread = useClaimThread();
+  const navigate = useNavigate();
   const [newMessage, setNewMessage] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // Mark as read
+  // Get current admin ID for claim
+  const [currentAdminId, setCurrentAdminId] = useState<string | null>(null);
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => setCurrentAdminId(data.user?.id || null));
+  }, []);
+
   useEffect(() => {
     if (thread.connection_request_id && thread.unread_count > 0) {
       markRead.mutate(thread.connection_request_id);
     }
   }, [thread.connection_request_id, thread.unread_count]);
 
-  // Auto-scroll
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
@@ -471,7 +699,6 @@ function ThreadView({
     setNewMessage("");
   };
 
-  // Build combined messages: inquiry first, then connection_messages
   const allMessages = useMemo(() => {
     const combined: Array<{
       id: string;
@@ -522,6 +749,10 @@ function ThreadView({
     }
   })();
 
+  const claimedByName = thread.claimed_by && adminProfiles?.[thread.claimed_by]
+    ? `${adminProfiles[thread.claimed_by].first_name || ''} ${adminProfiles[thread.claimed_by].last_name || ''}`.trim()
+    : null;
+
   return (
     <div className="flex flex-col h-full min-h-0">
       {/* Header */}
@@ -552,11 +783,76 @@ function ThreadView({
                 </span>
               </>
             )}
+            {claimedByName && (
+              <>
+                <span className="text-muted-foreground/40">·</span>
+                <span className="flex items-center gap-1">
+                  <UserCheck className="w-3 h-3" />
+                  {claimedByName}
+                </span>
+              </>
+            )}
           </div>
         </div>
 
         {/* Quick actions */}
         <div className="flex items-center gap-1 flex-shrink-0">
+          {/* Pipeline link */}
+          {thread.pipeline_deal_id && (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 w-7 p-0"
+                    onClick={() => navigate(`/admin/pipeline?deal=${thread.pipeline_deal_id}`)}
+                  >
+                    <ExternalLink className="w-3.5 h-3.5" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>View in Pipeline</TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          )}
+
+          {/* Claim / Unclaim */}
+          {!thread.claimed_by && currentAdminId && (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 w-7 p-0"
+                    onClick={() => claimThread.mutate({ requestId: thread.connection_request_id, adminId: currentAdminId })}
+                  >
+                    <UserCheck className="w-3.5 h-3.5" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Claim this conversation</TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          )}
+          {thread.claimed_by === currentAdminId && (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 text-xs"
+                    onClick={() => claimThread.mutate({ requestId: thread.connection_request_id, adminId: null })}
+                  >
+                    Unclaim
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Release this conversation</TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          )}
+
+          {/* Close / Reopen */}
           {thread.conversation_state !== "closed" && (
             <TooltipProvider>
               <Tooltip>
