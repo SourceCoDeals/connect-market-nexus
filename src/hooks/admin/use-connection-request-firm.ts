@@ -15,11 +15,11 @@ export function useConnectionRequestFirm(requestId: string | null) {
     queryFn: async () => {
       if (!requestId) return null;
 
-      const { data, error } = await supabase
-        .from('connection_requests')
+      const { data, error } = await (supabase
+        .from('connection_requests') as any)
         .select(`
           firm_id,
-          firm:firm_agreements (
+          firm:firm_agreements!connection_requests_firm_id_fkey (
             id,
             primary_company_name,
             member_count,
