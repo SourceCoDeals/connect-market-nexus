@@ -1,18 +1,28 @@
+# SourceCo Platform QA & Testing Plan
 
+## Testing Guides Saved
+- `docs/testing/ai-chatbot-testing-guide.md` — AI Command Center chatbot QA (help + action modes)
+- `docs/testing/platform-testing-guide.md` — Full platform workflow QA (deals, messaging, enrichment, memos, remarketing, contacts, Fireflies, universes, permissions, errors)
 
-## Remove Redundant Document & Message Previews from Overview Tab
+## Active Testing Focus
 
-The buyer's deal detail page (My Requests) currently has:
-- **Tabs**: Overview, Documents, Messages
-- **Inside the Overview tab**: Deal info card, Process Steps, then redundant "Documents" and "Messages" preview sections
+### Phase 1: Browser Testing (In Progress)
+Manual browser testing of core workflows:
+- [ ] Login & navigation
+- [ ] Deal ranking & scoring (All Deals page)
+- [ ] Buyer messaging flow
+- [ ] Enrichment status display
+- [ ] AI Command Center chatbot (help + action queries)
+- [ ] Message Center (By Deal sorting)
+- [ ] Remarketing universe management
+- [ ] Error handling edge cases
 
-Since Documents and Messages already have their own dedicated tabs, the preview sections in the Overview tab are unnecessary clutter. We will remove them.
+### Phase 2: Gap Audit
+Compare testing guide requirements against current codebase:
+- [ ] Identify missing features referenced in guides
+- [ ] Document UI/UX gaps
+- [ ] Log bugs found during browser testing
 
-### Changes
-
-**File: `src/pages/MyRequests.tsx`**
-- Remove the `DealDocumentPreview` section (lines 418-424) from the Overview tab
-- Remove the `DealMessagePreview` section (lines 426-431) from the Overview tab
-- Remove the corresponding imports for `DealDocumentPreview` and `DealMessagePreview` if they become unused
-
-The Overview tab will then show only: Deal Metrics Card, Process Steps, and the "About this opportunity" Deal Details Card -- keeping it clean and non-redundant with the other tabs.
+### Phase 3: Automated Tests (Future)
+- [ ] Edge function integration tests
+- [ ] Component unit tests for critical flows
