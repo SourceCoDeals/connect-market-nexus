@@ -1,23 +1,25 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { corsHeaders } from "../_shared/cors.ts";
+import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.47.10";
+import { getCorsHeaders, corsPreflightResponse } from "../_shared/cors.ts";
+import { requireAuth } from "../_shared/auth.ts";
 
 /**
- * Edge function to get a downloadable PDF URL for unsigned (or signed) documents.
- * Uses DocuSeal's GET /submissions/{id}/documents API.
- * 
- * Requires authenticated buyer session.
+ * get-document-download
+ *
+ * Returns a downloadable PDF URL for unsigned (draft) or signed documents.
+ * Uses DocuSeal's GET /submissions/{id}/documents API, with template fallback.
+ *
  * Query params: document_type=nda|fee_agreement
  */
-Deno.serve(async (req: Request) => {
+serve(async (req: Request) => {
+  const corsHeaders = getCorsHeaders(req);
+
   if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
+    return corsPreflightResponse(req);
   }
 
   try {
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const docusealApiKey = Deno.env.get("DOCUSEAL_API_KEY");
-
     if (!docusealApiKey) {
       return new Response(
         JSON.stringify({ error: "DocuSeal API not configured" }),
@@ -25,35 +27,34 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    // Auth
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader) {
+    // Auth via shared helper
+    const auth = await requireAuth(req);
+    if (!auth.authenticated || !auth.userId) {
       return new Response(
-        JSON.stringify({ error: "Unauthorized" }),
+        JSON.stringify({ error: auth.error }),
         { status: 401, headers: { "Content-Type": "application/json", ...corsHeaders } },
       );
     }
 
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
-    const token = authHeader.replace("Bearer ", "");
-    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
 
-    if (authError || !user) {
-      return new Response(
-        JSON.stringify({ error: "Unauthorized" }),
-        { status: 401, headers: { "Content-Type": "application/json", ...corsHeaders } },
-      );
-    }
-
-    // Parse document type
+    // Parse document type from query string
     const url = new URL(req.url);
     const documentType = url.searchParams.get("document_type") || "nda";
+    if (documentType !== "nda" && documentType !== "fee_agreement") {
+      return new Response(
+        JSON.stringify({ error: 'Invalid document_type. Must be "nda" or "fee_agreement".' }),
+        { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } },
+      );
+    }
 
     // Get user's firm
     const { data: membership } = await supabase
       .from("firm_members")
       .select("firm_id")
-      .eq("user_id", user.id)
+      .eq("user_id", auth.userId)
       .limit(1)
       .maybeSingle();
 
@@ -64,10 +65,10 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    // Get firm's submission ID
-    const submissionField = documentType === "nda" ? "nda_docuseal_submission_id" : "fee_docuseal_submission_id";
-    const documentUrlField = documentType === "nda" ? "nda_document_url" : "fee_agreement_document_url";
-    const signedUrlField = documentType === "nda" ? "nda_signed_document_url" : "fee_signed_document_url";
+    const isNda = documentType === "nda";
+    const submissionField = isNda ? "nda_docuseal_submission_id" : "fee_docuseal_submission_id";
+    const documentUrlField = isNda ? "nda_document_url" : "fee_agreement_document_url";
+    const signedUrlField = isNda ? "nda_signed_document_url" : "fee_signed_document_url";
 
     const { data: firm } = await supabase
       .from("firm_agreements")
@@ -82,7 +83,7 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    // If we already have a document URL cached, return it
+    // Return cached URL if available
     const existingUrl = (firm as any)[signedUrlField] || (firm as any)[documentUrlField];
     if (existingUrl) {
       return new Response(
@@ -94,8 +95,8 @@ Deno.serve(async (req: Request) => {
     // Fetch from DocuSeal API
     const submissionId = (firm as any)[submissionField];
     if (!submissionId) {
-      // No submission exists — try to get template PDF instead
-      const templateId = documentType === "nda"
+      // No submission — try template PDF fallback
+      const templateId = isNda
         ? Deno.env.get("DOCUSEAL_NDA_TEMPLATE_ID")
         : Deno.env.get("DOCUSEAL_FEE_TEMPLATE_ID");
 
@@ -106,7 +107,6 @@ Deno.serve(async (req: Request) => {
         );
       }
 
-      // Fetch template info to get document URLs
       const templateRes = await fetch(`https://api.docuseal.com/templates/${templateId}`, {
         headers: { "X-Auth-Token": docusealApiKey },
       });
@@ -120,6 +120,8 @@ Deno.serve(async (req: Request) => {
             { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } },
           );
         }
+      } else {
+        await templateRes.text(); // consume body
       }
 
       return new Response(
@@ -128,12 +130,22 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    // Fetch submission documents from DocuSeal
+    // Fetch submission documents
     console.log(`📄 Fetching documents for submission ${submissionId}`);
-    const docsRes = await fetch(
-      `https://api.docuseal.com/submissions/${submissionId}/documents`,
-      { headers: { "X-Auth-Token": docusealApiKey } },
-    );
+    const fetchController = new AbortController();
+    const fetchTimeout = setTimeout(() => fetchController.abort(), 15000);
+    let docsRes: Response;
+    try {
+      docsRes = await fetch(
+        `https://api.docuseal.com/submissions/${submissionId}/documents`,
+        {
+          headers: { "X-Auth-Token": docusealApiKey },
+          signal: fetchController.signal,
+        },
+      );
+    } finally {
+      clearTimeout(fetchTimeout);
+    }
 
     if (!docsRes.ok) {
       const errText = await docsRes.text();
@@ -155,7 +167,7 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    // Cache the URL in the firm record
+    // Cache URL
     await supabase
       .from("firm_agreements")
       .update({ [documentUrlField]: docUrl, updated_at: new Date().toISOString() })
@@ -167,7 +179,8 @@ Deno.serve(async (req: Request) => {
       JSON.stringify({ url: docUrl }),
       { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } },
     );
-  } catch (err) {
+  } catch (err: any) {
+    const corsHeaders = getCorsHeaders(req);
     console.error("❌ Unexpected error:", err);
     return new Response(
       JSON.stringify({ error: "Internal server error" }),
