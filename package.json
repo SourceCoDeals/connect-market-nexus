@@ -128,7 +128,7 @@
   },
   "lint-staged": {
     "*.{ts,tsx}": [
-      "eslint --fix",
+      "eslint --fix --no-warn-ignored --max-warnings 999",
       "prettier --write"
     ],
     "*.{json,md,yml,yaml}": [

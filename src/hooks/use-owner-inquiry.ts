@@ -1,7 +1,7 @@
-
-import { useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
-import { toast } from "@/hooks/use-toast";
+import { useState } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from '@/hooks/use-toast';
+import { logger } from '@/lib/logger';
 
 interface OwnerInquiryData {
   name: string;
@@ -21,35 +21,33 @@ export function useOwnerInquiry() {
     setIsSubmitting(true);
 
     try {
-      const { error } = await supabase
-        .from("inbound_leads")
-        .insert({
-          name: data.name,
-          email: data.email,
-          phone_number: data.phone_number,
-          company_name: data.company_name,
-          business_website: data.business_website,
-          estimated_revenue_range: data.estimated_revenue_range,
-          sale_timeline: data.sale_timeline,
-          message: data.message,
-          source: "owner_inquiry_form",
-          lead_type: "owner",
-          status: "new",
-          role: "business_owner",
-        });
+      const { error } = await supabase.from('inbound_leads').insert({
+        name: data.name,
+        email: data.email,
+        phone_number: data.phone_number,
+        company_name: data.company_name,
+        business_website: data.business_website,
+        estimated_revenue_range: data.estimated_revenue_range,
+        sale_timeline: data.sale_timeline,
+        message: data.message,
+        source: 'owner_inquiry_form',
+        lead_type: 'owner',
+        status: 'new',
+        role: 'business_owner',
+      });
 
       if (error) {
         toast({
-          variant: "destructive",
-          title: "Submission failed",
-          description: "There was an error submitting your inquiry. Please try again.",
+          variant: 'destructive',
+          title: 'Submission failed',
+          description: 'There was an error submitting your inquiry. Please try again.',
         });
         return false;
       }
 
       // Send email notification to admin (fire and forget)
       try {
-        await supabase.functions.invoke("send-owner-inquiry-notification", {
+        await supabase.functions.invoke('send-owner-inquiry-notification', {
           body: {
             name: data.name,
             email: data.email,
@@ -63,19 +61,21 @@ export function useOwnerInquiry() {
         });
       } catch (emailError) {
         // Don't fail the submission if email fails
-        console.error("Failed to send notification email:", emailError);
+        logger.error('Failed to send notification email', 'useOwnerInquiry', {
+          error: String(emailError),
+        });
       }
 
       toast({
-        title: "Inquiry submitted",
+        title: 'Inquiry submitted',
         description: "We'll be in touch within 24-48 hours.",
       });
       return true;
     } catch (err) {
       toast({
-        variant: "destructive",
-        title: "Submission failed",
-        description: "There was an error submitting your inquiry. Please try again.",
+        variant: 'destructive',
+        title: 'Submission failed',
+        description: 'There was an error submitting your inquiry. Please try again.',
       });
       return false;
     } finally {

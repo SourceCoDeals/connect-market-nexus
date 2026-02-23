@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { logger } from '@/lib/logger';
 
 export interface UTMParams {
   utm_source?: string;
@@ -34,7 +35,7 @@ export function useUTMParams() {
     // Check if we have stored UTM params that haven't expired
     const stored = sessionStorage.getItem(UTM_STORAGE_KEY);
     const expiry = sessionStorage.getItem(UTM_EXPIRY_KEY);
-    
+
     if (stored && expiry) {
       const expiryTime = parseInt(expiry, 10);
       if (Date.now() < expiryTime) {
@@ -45,7 +46,7 @@ export function useUTMParams() {
         sessionStorage.removeItem(UTM_EXPIRY_KEY);
       }
     }
-    
+
     return {};
   });
 
@@ -63,15 +64,15 @@ export function useUTMParams() {
     };
 
     // Only update if we have new UTM params
-    const hasNewUtms = Object.values(newUtmParams).some(value => value !== undefined);
-    
+    const hasNewUtms = Object.values(newUtmParams).some((value) => value !== undefined);
+
     if (hasNewUtms) {
       // Store new UTM params with expiry (last-touch)
       const expiryTime = Date.now() + UTM_SESSION_DURATION;
       sessionStorage.setItem(UTM_STORAGE_KEY, JSON.stringify(newUtmParams));
       sessionStorage.setItem(UTM_EXPIRY_KEY, expiryTime.toString());
       setUtmParams(newUtmParams);
-      
+
       // First-touch attribution - only set if not already present (localStorage persists)
       const existingFirstTouch = localStorage.getItem(FIRST_TOUCH_KEY);
       if (!existingFirstTouch) {
@@ -90,7 +91,7 @@ export function useUTMParams() {
       const expiryTime = Date.now() + UTM_SESSION_DURATION;
       sessionStorage.setItem(UTM_EXPIRY_KEY, expiryTime.toString());
     }
-    
+
     // Also store first-touch if this is the first visit (even without UTMs)
     const existingFirstTouch = localStorage.getItem(FIRST_TOUCH_KEY);
     if (!existingFirstTouch) {
@@ -113,7 +114,7 @@ export function useUTMParams() {
 export function getCurrentUTMParams(): UTMParams {
   const stored = sessionStorage.getItem(UTM_STORAGE_KEY);
   const expiry = sessionStorage.getItem(UTM_EXPIRY_KEY);
-  
+
   if (stored && expiry) {
     const expiryTime = parseInt(expiry, 10);
     if (Date.now() < expiryTime) {
@@ -124,7 +125,7 @@ export function getCurrentUTMParams(): UTMParams {
       sessionStorage.removeItem(UTM_EXPIRY_KEY);
     }
   }
-  
+
   return {};
 }
 
@@ -139,7 +140,7 @@ export function getFirstTouchAttribution(): EnhancedUTMParams {
       return JSON.parse(stored);
     }
   } catch (e) {
-    console.error('Error reading first-touch attribution:', e);
+    logger.error('Error reading first-touch attribution', 'useUTMParams', { error: String(e) });
   }
   return {};
 }
@@ -155,7 +156,7 @@ export function getFullAttribution(): {
 } {
   const firstTouch = getFirstTouchAttribution();
   const lastTouch = getCurrentUTMParams();
-  
+
   return {
     firstTouch,
     lastTouch,

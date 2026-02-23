@@ -1,6 +1,7 @@
 import { useEffect, useRef, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useSessionContext } from '@/contexts/SessionContext';
+import { logger } from '@/lib/logger';
 
 interface PageEngagementData {
   pageStartTime: number;
@@ -39,35 +40,39 @@ export function usePageEngagement(userId?: string | null) {
   }, []);
 
   // Flush engagement data to database
-  const flushEngagementData = useCallback(async (isExit: boolean = false) => {
-    const engagement = engagementRef.current;
-    const timeOnPage = Math.floor((Date.now() - engagement.pageStartTime) / 1000);
-    
-    // Add any remaining focus time
-    let totalFocusTime = engagement.focusTime;
-    if (engagement.isFocused && engagement.lastFocusStart) {
-      totalFocusTime += Date.now() - engagement.lastFocusStart;
-    }
+  const flushEngagementData = useCallback(
+    async (isExit: boolean = false) => {
+      const engagement = engagementRef.current;
+      const timeOnPage = Math.floor((Date.now() - engagement.pageStartTime) / 1000);
 
-    // Only flush if we have meaningful data (more than 1 second)
-    if (timeOnPage < 1) return;
+      // Add any remaining focus time
+      let totalFocusTime = engagement.focusTime;
+      if (engagement.isFocused && engagement.lastFocusStart) {
+        totalFocusTime += Date.now() - engagement.lastFocusStart;
+      }
 
-    try {
-      await supabase.from('page_views').insert({
-        session_id: sessionId,
-        user_id: userId || null,
-        page_path: currentPathRef.current,
-        page_title: document.title,
-        referrer: document.referrer || null,
-        time_on_page: timeOnPage,
-        scroll_depth: engagement.maxScrollDepth,
-        exit_page: isExit,
-      });
+      // Only flush if we have meaningful data (more than 1 second)
+      if (timeOnPage < 1) return;
 
-    } catch (error) {
-      console.error('Failed to flush page engagement:', error);
-    }
-  }, [sessionId, userId]);
+      try {
+        await supabase.from('page_views').insert({
+          session_id: sessionId,
+          user_id: userId || null,
+          page_path: currentPathRef.current,
+          page_title: document.title,
+          referrer: document.referrer || null,
+          time_on_page: timeOnPage,
+          scroll_depth: engagement.maxScrollDepth,
+          exit_page: isExit,
+        });
+      } catch (error) {
+        logger.error('Failed to flush page engagement', 'usePageEngagement', {
+          error: String(error),
+        });
+      }
+    },
+    [sessionId, userId],
+  );
 
   // Reset engagement tracking for new page
   const resetEngagement = useCallback(() => {
@@ -142,7 +147,7 @@ export function usePageEngagement(userId?: string | null) {
       window.removeEventListener('click', handleClick);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       window.removeEventListener('beforeunload', handleBeforeUnload);
-      
+
       // Clear any pending timeout
       if (flushTimeoutRef.current) {
         clearTimeout(flushTimeoutRef.current);

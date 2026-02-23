@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { RealtimePostgresChangesPayload } from '@supabase/supabase-js';
+import { logger } from '@/lib/logger';
 
 /**
  * Hook to listen for deal assignment notifications and trigger email notifications
@@ -15,7 +16,7 @@ export function useDealOwnerNotifications() {
           event: 'INSERT',
           schema: 'public',
           table: 'admin_notifications',
-          filter: 'notification_type=eq.deal_assignment'
+          filter: 'notification_type=eq.deal_assignment',
         },
         async (payload: RealtimePostgresChangesPayload<Record<string, unknown>>) => {
           const notification = payload.new;
@@ -36,13 +37,17 @@ export function useDealOwnerNotifications() {
                 buyerName: metadata.buyer_name,
                 buyerEmail: metadata.buyer_email,
                 buyerCompany: metadata.buyer_company,
-                assignedByName: metadata.assigned_by_name
-              }
+                assignedByName: metadata.assigned_by_name,
+              },
             });
           } catch (error) {
-            console.error('Failed to send new owner email notification:', error);
+            logger.error(
+              'Failed to send new owner email notification',
+              'useDealOwnerNotifications',
+              { error: String(error) },
+            );
           }
-        }
+        },
       )
       .on(
         'postgres_changes',
@@ -50,7 +55,7 @@ export function useDealOwnerNotifications() {
           event: 'INSERT',
           schema: 'public',
           table: 'admin_notifications',
-          filter: 'notification_type=eq.deal_reassignment'
+          filter: 'notification_type=eq.deal_reassignment',
         },
         async (payload: RealtimePostgresChangesPayload<Record<string, unknown>>) => {
           const notification = payload.new;
@@ -71,13 +76,17 @@ export function useDealOwnerNotifications() {
                 previousOwnerEmail: metadata.previous_owner_email,
                 newOwnerId: metadata.new_owner_id,
                 newOwnerName: metadata.new_owner_name,
-                newOwnerEmail: metadata.new_owner_email
-              }
+                newOwnerEmail: metadata.new_owner_email,
+              },
             });
           } catch (error) {
-            console.error('Failed to send reassignment email notification:', error);
+            logger.error(
+              'Failed to send reassignment email notification',
+              'useDealOwnerNotifications',
+              { error: String(error) },
+            );
           }
-        }
+        },
       )
       .subscribe();
 

@@ -2,6 +2,7 @@ import { useEffect, useRef, useCallback } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { logger } from '@/lib/logger';
 
 const POLL_INTERVAL_MS = 5000;
 const MAX_POLL_DURATION_MS = 5 * 60 * 1000; // 5 minutes
@@ -56,7 +57,7 @@ export function useEnrichmentQueueStatus({
           .maybeSingle();
 
         if (error) {
-          console.warn('[EnrichmentQueueStatus] Poll error:', error);
+          logger.warn('Poll error', 'useEnrichmentQueueStatus', { error: String(error) });
           return;
         }
 
@@ -68,7 +69,9 @@ export function useEnrichmentQueueStatus({
           stopPolling();
           toast.success('Deal enrichment complete — data updated', { duration: 5000 });
           queryClient.invalidateQueries({ queryKey: ['remarketing', 'deal', listingId] });
-          queryClient.invalidateQueries({ queryKey: ['remarketing', 'deal-transcripts', listingId] });
+          queryClient.invalidateQueries({
+            queryKey: ['remarketing', 'deal-transcripts', listingId],
+          });
           onComplete?.('completed');
         } else if (status === 'failed') {
           stopPolling();
@@ -77,7 +80,7 @@ export function useEnrichmentQueueStatus({
           onComplete?.('failed');
         }
       } catch (err) {
-        console.warn('[EnrichmentQueueStatus] Unexpected poll error:', err);
+        logger.warn('Unexpected poll error', 'useEnrichmentQueueStatus', { error: String(err) });
       }
     };
 

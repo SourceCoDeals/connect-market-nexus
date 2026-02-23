@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { logger } from '@/lib/logger';
 
 interface UserActivity {
   id: string;
@@ -41,9 +42,15 @@ export function useRecentUserActivity() {
 
       // Get all unique user IDs
       const userIds = new Set<string>([
-        ...(listingActivity || []).map(item => item.user_id).filter((id): id is string => id !== null && id !== undefined),
-        ...(pageActivity || []).map(item => item.user_id).filter((id): id is string => id !== null && id !== undefined),
-        ...(userEvents || []).map(item => item.user_id).filter((id): id is string => id !== null && id !== undefined),
+        ...(listingActivity || [])
+          .map((item) => item.user_id)
+          .filter((id): id is string => id !== null && id !== undefined),
+        ...(pageActivity || [])
+          .map((item) => item.user_id)
+          .filter((id): id is string => id !== null && id !== undefined),
+        ...(userEvents || [])
+          .map((item) => item.user_id)
+          .filter((id): id is string => id !== null && id !== undefined),
       ]);
 
       // Get user profiles in one query
@@ -53,27 +60,33 @@ export function useRecentUserActivity() {
         .in('id', Array.from(userIds));
 
       if (profileError) {
-        console.error('Error fetching profiles:', profileError);
+        logger.error('Error fetching profiles', 'useRecentUserActivity', {
+          error: String(profileError),
+        });
       }
 
       // Get listings for listing activities
-      const listingIds = (listingActivity || []).map(item => item.listing_id).filter((id): id is string => id !== null && id !== undefined);
+      const listingIds = (listingActivity || [])
+        .map((item) => item.listing_id)
+        .filter((id): id is string => id !== null && id !== undefined);
       const { data: listings, error: listingsError } = await supabase
         .from('listings')
         .select('id, title')
         .in('id', listingIds);
 
       if (listingsError) {
-        console.error('Error fetching listings:', listingsError);
+        logger.error('Error fetching listings', 'useRecentUserActivity', {
+          error: String(listingsError),
+        });
       }
 
       // Create lookup maps
-      const profileMap = new Map((profiles || []).map(p => [p.id, p]));
-      const listingMap = new Map((listings || []).map(l => [l.id, l]));
+      const profileMap = new Map((profiles || []).map((p) => [p.id, p]));
+      const listingMap = new Map((listings || []).map((l) => [l.id, l]));
 
       // Combine and format all activities
       const activities: UserActivity[] = [
-        ...(listingActivity || []).map(item => {
+        ...(listingActivity || []).map((item) => {
           const profile = item.user_id ? profileMap.get(item.user_id) : undefined;
           const listing = item.listing_id ? listingMap.get(item.listing_id) : undefined;
           return {
@@ -89,7 +102,7 @@ export function useRecentUserActivity() {
             listing_title: listing?.title ?? 'Unknown Listing',
           };
         }),
-        ...(pageActivity || []).map(item => {
+        ...(pageActivity || []).map((item) => {
           const profile = item.user_id ? profileMap.get(item.user_id) : undefined;
           return {
             id: item.id,
@@ -102,7 +115,7 @@ export function useRecentUserActivity() {
             last_name: (profile?.last_name ?? '') || '',
           };
         }),
-        ...(userEvents || []).map(item => {
+        ...(userEvents || []).map((item) => {
           const profile = item.user_id ? profileMap.get(item.user_id) : undefined;
           return {
             id: item.id,
@@ -116,12 +129,12 @@ export function useRecentUserActivity() {
             last_name: (profile?.last_name ?? '') || '',
             metadata: item.metadata,
           };
-        })
+        }),
       ];
 
       // Filter out activities from unknown users and sort by timestamp
       const validActivities = activities
-        .filter(activity => activity.user_id && activity.email !== 'Unknown User')
+        .filter((activity) => activity.user_id && activity.email !== 'Unknown User')
         .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
       return validActivities;
@@ -147,9 +160,9 @@ export function useUserActivityStats(userId?: string) {
 
       return {
         total_actions: stats?.length || 0,
-        views: stats?.filter(s => s.action_type === 'view').length || 0,
-        saves: stats?.filter(s => s.action_type === 'save').length || 0,
-        connections: stats?.filter(s => s.action_type === 'request_connection').length || 0,
+        views: stats?.filter((s) => s.action_type === 'view').length || 0,
+        saves: stats?.filter((s) => s.action_type === 'save').length || 0,
+        connections: stats?.filter((s) => s.action_type === 'request_connection').length || 0,
       };
     },
     enabled: !!userId,

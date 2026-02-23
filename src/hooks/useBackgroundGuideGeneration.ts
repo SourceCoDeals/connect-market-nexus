@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { invokeWithTimeout } from '@/lib/invoke-with-timeout';
 import { toast } from 'sonner';
 import { useGlobalGateCheck } from '@/hooks/remarketing/useGlobalActivityQueue';
+import { logger } from '@/lib/logger';
 
 interface GenerationStatus {
   id: string;
@@ -25,7 +26,7 @@ interface UseBackgroundGuideGenerationProps {
 export function useBackgroundGuideGeneration({
   universeId,
   onComplete,
-  onError
+  onError,
 }: UseBackgroundGuideGenerationProps) {
   const [isGenerating, setIsGenerating] = useState(false);
   const [currentGeneration, setCurrentGeneration] = useState<GenerationStatus | null>(null);
@@ -63,9 +64,11 @@ export function useBackgroundGuideGeneration({
         setIsGenerating(true);
 
         // Restore progress from the database record
-        const progressPercent = Math.round((generation.phases_completed / generation.total_phases) * 100);
+        const progressPercent = Math.round(
+          (generation.phases_completed / generation.total_phases) * 100,
+        );
         setProgress(progressPercent);
-        
+
         startPolling(generation.id);
       }
     } catch (err) {
@@ -98,20 +101,24 @@ export function useBackgroundGuideGeneration({
       }
 
       // Call the background generation endpoint using supabase functions invoke
-      const { data, error } = await invokeWithTimeout<{ generation_id: string }>('generate-ma-guide-background', {
-        body: { universe_id: universeId },
-        timeoutMs: 120_000,
-      });
+      const { data, error } = await invokeWithTimeout<{ generation_id: string }>(
+        'generate-ma-guide-background',
+        {
+          body: { universe_id: universeId },
+          timeoutMs: 120_000,
+        },
+      );
 
       if (error) {
         throw new Error(error.message || 'Failed to start generation');
       }
 
-      toast.success('Guide generation started. You can navigate away - it will continue in the background.');
+      toast.success(
+        'Guide generation started. You can navigate away - it will continue in the background.',
+      );
 
       // Start polling for progress
       startPolling(data!.generation_id);
-
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Failed to start guide generation';
       toast.error(message);
@@ -157,7 +164,9 @@ export function useBackgroundGuideGeneration({
       setCurrentGeneration(generation);
 
       // Calculate progress percentage
-      const progressPercent = Math.round((generation.phases_completed / generation.total_phases) * 100);
+      const progressPercent = Math.round(
+        (generation.phases_completed / generation.total_phases) * 100,
+      );
       setProgress(progressPercent);
 
       // Handle completion
@@ -180,9 +189,10 @@ export function useBackgroundGuideGeneration({
         }
         setIsGenerating(false);
       }
-
     } catch (error: unknown) {
-      console.error('Error checking generation status:', error);
+      logger.error('Error checking generation status', 'useBackgroundGuideGeneration', {
+        error: String(error),
+      });
 
       // Don't show errors on every poll, just log them
       // Only show error if polling fails multiple times in a row
@@ -231,7 +241,9 @@ export function useBackgroundGuideGeneration({
     setIsGenerating(false);
     setCurrentGeneration(null);
     setProgress(0);
-    toast.info('Stopped monitoring generation progress. The generation will continue in the background.');
+    toast.info(
+      'Stopped monitoring generation progress. The generation will continue in the background.',
+    );
   };
 
   return {
@@ -242,6 +254,6 @@ export function useBackgroundGuideGeneration({
     cancelGeneration,
     phaseName: currentGeneration?.current_phase || '',
     phasesCompleted: currentGeneration?.phases_completed || 0,
-    totalPhases: currentGeneration?.total_phases || 14
+    totalPhases: currentGeneration?.total_phases || 14,
   };
 }

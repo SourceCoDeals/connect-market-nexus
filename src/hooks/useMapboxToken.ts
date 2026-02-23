@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { logger } from '@/lib/logger';
 
 // Module-level cache for the Mapbox token
 let cachedToken: string | null = null;
@@ -15,7 +16,7 @@ async function fetchMapboxToken(): Promise<string | null> {
     }
     return null;
   } catch (error) {
-    console.error('Failed to fetch Mapbox token:', error);
+    logger.error('Failed to fetch Mapbox token', 'useMapboxToken', { error: String(error) });
     return null;
   }
 }

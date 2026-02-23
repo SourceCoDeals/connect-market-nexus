@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react';
 import { errorHandler } from '@/lib/error-handler';
+import { logger } from '@/lib/logger';
 
 export interface RetryConfig {
   maxRetries?: number;
@@ -26,10 +27,10 @@ const defaultConfig: Required<RetryConfig> = {
 
 export function useRetry<T extends unknown[], R>(
   asyncFn: (...args: T) => Promise<R>,
-  config: RetryConfig = {}
+  config: RetryConfig = {},
 ) {
   const finalConfig = { ...defaultConfig, ...config };
-  
+
   const [state, setState] = useState<RetryState>({
     isRetrying: false,
     currentAttempt: 0,
@@ -39,7 +40,7 @@ export function useRetry<T extends unknown[], R>(
 
   const executeWithRetry = useCallback(
     async (...args: T): Promise<R> => {
-      setState(prev => ({
+      setState((prev) => ({
         ...prev,
         isRetrying: true,
         currentAttempt: 0,
@@ -51,7 +52,7 @@ export function useRetry<T extends unknown[], R>(
 
       for (let attempt = 0; attempt <= finalConfig.maxRetries; attempt++) {
         try {
-          setState(prev => ({ ...prev, currentAttempt: attempt + 1 }));
+          setState((prev) => ({ ...prev, currentAttempt: attempt + 1 }));
 
           const result = await asyncFn(...args);
 
@@ -64,11 +65,13 @@ export function useRetry<T extends unknown[], R>(
           });
 
           return result;
-
         } catch (error) {
           lastError = error instanceof Error ? error : new Error(String(error));
-          
-          console.warn(`🔄 Attempt ${attempt + 1}/${finalConfig.maxRetries + 1} failed:`, lastError.message);
+
+          logger.warn(
+            `Attempt ${attempt + 1}/${finalConfig.maxRetries + 1} failed: ${lastError.message}`,
+            'useRetry',
+          );
 
           // Check if we should retry this error
           if (!finalConfig.retryCondition(lastError, attempt)) {
@@ -79,10 +82,10 @@ export function useRetry<T extends unknown[], R>(
           if (attempt < finalConfig.maxRetries) {
             const delay = Math.min(
               finalConfig.initialDelay * Math.pow(finalConfig.backoffFactor, attempt),
-              finalConfig.maxDelay
+              finalConfig.maxDelay,
             );
-            
-            await new Promise(resolve => setTimeout(resolve, delay));
+
+            await new Promise((resolve) => setTimeout(resolve, delay));
           }
         }
       }
@@ -106,12 +109,12 @@ export function useRetry<T extends unknown[], R>(
             finalAttempt: finalConfig.maxRetries + 1,
           },
         },
-        'medium'
+        'medium',
       );
 
       throw lastError!;
     },
-    [asyncFn, finalConfig]
+    [asyncFn, finalConfig],
   );
 
   const reset = useCallback(() => {
@@ -135,9 +138,12 @@ export const retryConditions = {
   // Retry network errors but not validation errors
   networkOnly: (error: unknown) => {
     const err = error as Record<string, unknown> | null;
-    return err?.name === 'NetworkError' ||
-           err?.code === 'NETWORK_ERROR' ||
-           (typeof err?.message === 'string' && (err.message.includes('network') || err.message.includes('fetch')));
+    return (
+      err?.name === 'NetworkError' ||
+      err?.code === 'NETWORK_ERROR' ||
+      (typeof err?.message === 'string' &&
+        (err.message.includes('network') || err.message.includes('fetch')))
+    );
   },
 
   // Retry 5xx server errors but not 4xx client errors
@@ -151,9 +157,11 @@ export const retryConditions = {
   // Retry everything except auth errors
   nonAuthErrors: (error: unknown) => {
     const message = error instanceof Error ? error.message.toLowerCase() : '';
-    return !message.includes('auth') &&
-           !message.includes('unauthorized') &&
-           !message.includes('forbidden');
+    return (
+      !message.includes('auth') &&
+      !message.includes('unauthorized') &&
+      !message.includes('forbidden')
+    );
   },
 
   // Exponential backoff with jitter
@@ -168,7 +176,7 @@ export const retryConditions = {
 // Specialized retry hooks for common use cases
 export function useNetworkRetry<T extends unknown[], R>(
   networkFn: (...args: T) => Promise<R>,
-  config?: Omit<RetryConfig, 'retryCondition'>
+  config?: Omit<RetryConfig, 'retryCondition'>,
 ) {
   return useRetry(networkFn, {
     ...config,
@@ -178,7 +186,7 @@ export function useNetworkRetry<T extends unknown[], R>(
 
 export function useAuthRetry<T extends unknown[], R>(
   authFn: (...args: T) => Promise<R>,
-  config?: Omit<RetryConfig, 'retryCondition'>
+  config?: Omit<RetryConfig, 'retryCondition'>,
 ) {
   return useRetry(authFn, {
     ...config,

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useSessionContext } from '@/contexts/SessionContext';
+import { logger } from '@/lib/logger';
 
 const HEARTBEAT_INTERVAL = 30000; // 30 seconds
 
@@ -39,13 +40,13 @@ export function useSessionHeartbeat(userId?: string | null) {
       });
 
       if (error) {
-        console.error('Heartbeat failed:', error);
+        logger.error('Heartbeat failed', 'useSessionHeartbeat', { error: String(error) });
       } else {
         stateRef.current.lastHeartbeat = Date.now();
         stateRef.current.isActive = true;
       }
     } catch (error) {
-      console.error('Heartbeat error:', error);
+      logger.error('Heartbeat error', 'useSessionHeartbeat', { error: String(error) });
     }
   }, [sessionId, userId]);
 
@@ -73,13 +74,15 @@ export function useSessionHeartbeat(userId?: string | null) {
           user_id: userId || null,
           ended: true,
         });
-        
+
         navigator.sendBeacon?.(
           `${import.meta.env.VITE_SUPABASE_URL || 'https://vhzipqarkmmfuqadefep.supabase.co'}/functions/v1/session-heartbeat`,
-          payload
+          payload,
         );
       } catch (error) {
-        console.error('Failed to send final heartbeat:', error);
+        logger.error('Failed to send final heartbeat', 'useSessionHeartbeat', {
+          error: String(error),
+        });
       }
     };
 

@@ -1,9 +1,9 @@
-
-import { User } from "@/types";
-import { AdminConnectionRequest } from "@/types/admin";
-import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/hooks/use-toast";
-import { useEmailDeliveryMonitoring } from "./use-email-delivery-monitoring";
+import { User } from '@/types';
+import { AdminConnectionRequest } from '@/types/admin';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
+import { useEmailDeliveryMonitoring } from './use-email-delivery-monitoring';
+import { logger } from '@/lib/logger';
 
 /**
  * Hook for sending email notifications from admin actions
@@ -17,256 +17,263 @@ export function useAdminEmail() {
   const sendUserApprovalEmail = async (user: User) => {
     // Sending approval email
     const correlationId = `approval-${user.id}-${Date.now()}`;
-    
+
     try {
       const notificationPayload = {
         email: user.email,
-        subject: "Your SourceCo Marketplace Account Has Been Approved!",
+        subject: 'Your SourceCo Marketplace Account Has Been Approved!',
         message: `Hi ${user.first_name},\n\nGreat news! Your SourceCo Marketplace account has been approved and you now have full access to our platform.\n\nYou can now:\n• Browse all available business listings\n• Request connections with sellers\n• Save listings for later review\n• Access detailed financial information\n\nStart exploring opportunities that match your investment criteria.`,
         type: 'success',
         actionUrl: 'https://marketplace.sourcecodeals.com/marketplace',
-        actionText: 'Browse Marketplace'
+        actionText: 'Browse Marketplace',
       };
-      
-      const { data, error } = await supabase.functions.invoke(
-        "send-user-notification", 
-        { 
-          body: notificationPayload
-        }
-      );
-      
+
+      const { data, error } = await supabase.functions.invoke('send-user-notification', {
+        body: notificationPayload,
+      });
+
       if (error) {
         trackEmailDelivery(correlationId, {
           success: false,
-          error: error.message || 'Failed to send approval email'
+          error: error.message || 'Failed to send approval email',
         });
         throw error;
       }
-      
+
       if (data && !data.success) {
         trackEmailDelivery(correlationId, {
           success: false,
-          error: data.message || 'Failed to send approval email'
+          error: data.message || 'Failed to send approval email',
         });
         throw new Error(data.message || 'Failed to send approval email');
       }
-      
+
       // User approval email sent successfully
       trackEmailDelivery(correlationId, {
         success: true,
         messageId: data?.messageId,
-        emailProvider: data?.emailProvider
+        emailProvider: data?.emailProvider,
       });
-      
+
       toast({
-        title: "Email sent",
+        title: 'Email sent',
         description: `Approval email sent to ${user.email}`,
       });
-      
+
       return true;
     } catch (error) {
       trackEmailDelivery(correlationId, {
         success: false,
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error',
       });
-      
+
       toast({
-        variant: "destructive",
-        title: "Email failed",
-        description: "Failed to send approval email. Please try again.",
+        variant: 'destructive',
+        title: 'Email failed',
+        description: 'Failed to send approval email. Please try again.',
       });
       throw error;
     }
   };
-  
+
   /**
    * Send an email notification to a user when their account is rejected
    */
   const sendUserRejectionEmail = async (user: User, reason?: string) => {
     // Sending rejection email
     const correlationId = `rejection-${user.id}-${Date.now()}`;
-    
+
     try {
       const notificationPayload = {
         email: user.email,
-        subject: "SourceCo Marketplace Account Status Update",
+        subject: 'SourceCo Marketplace Account Status Update',
         message: `Hi ${user.first_name},\n\nThank you for your interest in SourceCo Marketplace. After reviewing your application, we are unable to approve your account at this time.\n\n${reason ? `Reason: ${reason}\n\n` : ''}If you believe this decision was made in error or if you have additional information to share, please don't hesitate to contact our support team.\n\nWe appreciate your understanding.`,
         type: 'error',
         actionUrl: 'mailto:adam.haile@sourcecodeals.com',
-        actionText: 'Contact Support'
+        actionText: 'Contact Support',
       };
-      
-      const { data, error } = await supabase.functions.invoke(
-        "send-user-notification", 
-        { 
-          body: notificationPayload
-        }
-      );
-      
+
+      const { data, error } = await supabase.functions.invoke('send-user-notification', {
+        body: notificationPayload,
+      });
+
       if (error) {
         trackEmailDelivery(correlationId, {
           success: false,
-          error: error.message || 'Failed to send rejection email'
+          error: error.message || 'Failed to send rejection email',
         });
         throw error;
       }
-      
+
       if (data && !data.success) {
         trackEmailDelivery(correlationId, {
           success: false,
-          error: data.message || 'Failed to send rejection email'
+          error: data.message || 'Failed to send rejection email',
         });
         throw new Error(data.message || 'Failed to send rejection email');
       }
-      
+
       // User rejection email sent successfully
       trackEmailDelivery(correlationId, {
         success: true,
         messageId: data?.messageId,
-        emailProvider: data?.emailProvider
+        emailProvider: data?.emailProvider,
       });
-      
+
       toast({
-        title: "Email sent",
+        title: 'Email sent',
         description: `Rejection email sent to ${user.email}`,
       });
-      
+
       return true;
     } catch (error) {
       trackEmailDelivery(correlationId, {
         success: false,
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error',
       });
-      
+
       toast({
-        variant: "destructive",
-        title: "Email failed",
-        description: "Failed to send rejection email. Please try again.",
+        variant: 'destructive',
+        title: 'Email failed',
+        description: 'Failed to send rejection email. Please try again.',
       });
       throw error;
     }
   };
-  
+
   /**
    * Send an email notification to a user when their connection request is approved
    */
   const sendConnectionApprovalEmail = async (request: AdminConnectionRequest) => {
     if (!request.user || !request.listing) {
-      console.error("Cannot send connection approval email: missing user or listing data");
+      logger.error(
+        'Cannot send connection approval email: missing user or listing data',
+        'useAdminEmail',
+      );
       return false;
     }
-    
+
     try {
       // Include the original message for context
-      const originalMessage = request.user_message 
+      const originalMessage = request.user_message
         ? `\n\nYour original message:\n"${request.user_message}"\n`
         : '';
-      
+
       const notificationPayload = {
         email: request.user.email,
-        subject: "Connection Request Approved!",
+        subject: 'Connection Request Approved!',
         message: `Great news! Your connection request for "${request.listing.title}" has been approved.${originalMessage}\nYou can now proceed with your due diligence process. The seller's contact information and additional details will be shared with you shortly.\n\nIf you have any questions about next steps, please contact our support team.`,
         type: 'success',
         actionUrl: `https://marketplace.sourcecodeals.com/listing/${request.listing_id}`,
-        actionText: 'View Listing'
+        actionText: 'View Listing',
       };
-      
-      const { data, error } = await supabase.functions.invoke(
-        "send-user-notification", 
-        { 
-          body: notificationPayload
-        }
-      );
-      
+
+      const { data, error } = await supabase.functions.invoke('send-user-notification', {
+        body: notificationPayload,
+      });
+
       if (error) {
-        console.error("Error sending connection approval notification:", error);
+        logger.error('Error sending connection approval notification', 'useAdminEmail', {
+          error: String(error),
+        });
         return false;
       }
-      
+
       if (data && !data.success) {
-        console.error("Failed to send connection approval email:", data.message);
+        logger.error('Failed to send connection approval email', 'useAdminEmail', {
+          message: String(data.message),
+        });
         return false;
       }
-      
+
       return true;
     } catch (error) {
-      console.error("Failed to send connection approval email:", error);
+      logger.error('Failed to send connection approval email', 'useAdminEmail', {
+        error: String(error),
+      });
       return false;
     }
   };
-  
+
   /**
    * Send an email notification to a user when their connection request is rejected
    */
   const sendConnectionRejectionEmail = async (request: AdminConnectionRequest) => {
     if (!request.user || !request.listing) {
-      console.error("Cannot send connection rejection email: missing user or listing data");
+      logger.error(
+        'Cannot send connection rejection email: missing user or listing data',
+        'useAdminEmail',
+      );
       return false;
     }
-    
+
     try {
       // Include the original message for context
-      const originalMessage = request.user_message 
+      const originalMessage = request.user_message
         ? `\nYour original message:\n"${request.user_message}"\n\n`
         : '\n';
-      
+
       const notificationPayload = {
         email: request.user.email,
-        subject: "Connection Request Update",
+        subject: 'Connection Request Update',
         message: `Thank you for your interest in "${request.listing.title}". After careful consideration, we are unable to approve your connection request at this time.${originalMessage}${request.admin_comment ? `Admin note: ${request.admin_comment}\n\n` : ''}We encourage you to continue exploring other opportunities on our marketplace that might be a better fit for your investment criteria.`,
         type: 'warning',
         actionUrl: 'https://marketplace.sourcecodeals.com/marketplace',
-        actionText: 'Browse Other Listings'
+        actionText: 'Browse Other Listings',
       };
-      
-      const { data, error } = await supabase.functions.invoke(
-        "send-user-notification", 
-        { 
-          body: notificationPayload
-        }
-      );
-      
+
+      const { data, error } = await supabase.functions.invoke('send-user-notification', {
+        body: notificationPayload,
+      });
+
       if (error) {
-        console.error("Error sending connection rejection notification:", error);
+        logger.error('Error sending connection rejection notification', 'useAdminEmail', {
+          error: String(error),
+        });
         return false;
       }
-      
+
       if (data && !data.success) {
-        console.error("Failed to send connection rejection email:", data.message);
+        logger.error('Failed to send connection rejection email', 'useAdminEmail', {
+          message: String(data.message),
+        });
         return false;
       }
-      
+
       return true;
     } catch (error) {
-      console.error("Failed to send connection rejection email:", error);
+      logger.error('Failed to send connection rejection email', 'useAdminEmail', {
+        error: String(error),
+      });
       return false;
     }
   };
-  
+
   /**
    * Send an email notification to admins when a new connection request is submitted
    */
   const sendAdminConnectionRequestEmail = async (request: AdminConnectionRequest) => {
     if (!request.user || !request.listing) {
-      console.error("Cannot send admin notification: missing user or listing data");
+      logger.error('Cannot send admin notification: missing user or listing data', 'useAdminEmail');
       return false;
     }
-    
+
     try {
       // Format buyer name
       const buyerName = `${request.user.first_name} ${request.user.last_name}`.trim();
-      
+
       // Format timestamp
-      const timestamp = new Date(request.created_at).toLocaleString('en-US', {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-        timeZone: 'UTC',
-        hour12: false,
-      }) + ' UTC';
-      
+      const timestamp =
+        new Date(request.created_at).toLocaleString('en-US', {
+          year: 'numeric',
+          month: 'short',
+          day: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit',
+          timeZone: 'UTC',
+          hour12: false,
+        }) + ' UTC';
+
       const notificationPayload = {
         type: 'new_request',
         listing: {
@@ -282,46 +289,51 @@ export function useAdminEmail() {
         timestamp: timestamp,
         message: request.user_message, // Include the user's message
       };
-      
-      const { data, error } = await supabase.functions.invoke(
-        "send-connection-notification", 
-        { 
-          body: JSON.stringify(notificationPayload) 
-        }
-      );
-      
+
+      const { data, error } = await supabase.functions.invoke('send-connection-notification', {
+        body: JSON.stringify(notificationPayload),
+      });
+
       if (error) {
-        console.error("Error sending admin notification:", error);
+        logger.error('Error sending admin notification', 'useAdminEmail', { error: String(error) });
         return false;
       }
-      
+
       if (data && !data.success) {
-        console.error("Failed to send admin notification:", data.message);
+        logger.error('Failed to send admin notification', 'useAdminEmail', {
+          message: String(data.message),
+        });
         return false;
       }
-      
+
       return true;
     } catch (error) {
-      console.error("Failed to send admin notification:", error);
+      logger.error('Failed to send admin notification', 'useAdminEmail', { error: String(error) });
       return false;
     }
   };
-  
+
   /**
    * Send a custom approval email - ONLY EMAIL, NO DATABASE UPDATES
    * Database updates are handled by UserActions component
    */
-  const sendCustomApprovalEmail = async (user: User, options: {
-    subject: string;
-    message: string;
-    customSignatureHtml?: string;
-    customSignatureText?: string;
-  }) => {
+  const sendCustomApprovalEmail = async (
+    user: User,
+    options: {
+      subject: string;
+      message: string;
+      customSignatureHtml?: string;
+      customSignatureText?: string;
+    },
+  ) => {
     const correlationId = `custom-approval-${user.id}-${Date.now()}`;
-    
+
     try {
       // Get current admin user info first
-      const { data: { user: currentUser }, error: authError } = await supabase.auth.getUser();
+      const {
+        data: { user: currentUser },
+        error: authError,
+      } = await supabase.auth.getUser();
       if (authError || !currentUser) {
         throw new Error('Authentication required. Please refresh and try again.');
       }
@@ -336,9 +348,10 @@ export function useAdminEmail() {
         throw new Error('Admin profile not found. Please contact support.');
       }
 
-      const adminName = adminProfile.first_name && adminProfile.last_name 
-        ? `${adminProfile.first_name} ${adminProfile.last_name}`
-        : adminProfile.email;
+      const adminName =
+        adminProfile.first_name && adminProfile.last_name
+          ? `${adminProfile.first_name} ${adminProfile.last_name}`
+          : adminProfile.email;
 
       // Send email only - no database updates
       const requestPayload = {
@@ -350,17 +363,17 @@ export function useAdminEmail() {
         adminEmail: adminProfile.email,
         adminName: adminName,
         customSignatureHtml: options.customSignatureHtml,
-        customSignatureText: options.customSignatureText
+        customSignatureText: options.customSignatureText,
       };
 
       const { data, error } = await supabase.functions.invoke('send-approval-email', {
-        body: requestPayload
+        body: requestPayload,
       });
 
       if (error || (data && !data.success)) {
         trackEmailDelivery(correlationId, {
           success: false,
-          error: error?.message || data?.message || 'Failed to send email'
+          error: error?.message || data?.message || 'Failed to send email',
         });
         throw new Error(error?.message || data?.message || 'Failed to send email');
       }
@@ -368,14 +381,14 @@ export function useAdminEmail() {
       trackEmailDelivery(correlationId, {
         success: true,
         messageId: data?.messageId,
-        emailProvider: data?.emailProvider
+        emailProvider: data?.emailProvider,
       });
-      
+
       return true;
     } catch (error) {
       trackEmailDelivery(correlationId, {
         success: false,
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error',
       });
       throw error;
     }
@@ -387,6 +400,6 @@ export function useAdminEmail() {
     sendConnectionApprovalEmail,
     sendConnectionRejectionEmail,
     sendAdminConnectionRequestEmail,
-    sendCustomApprovalEmail
+    sendCustomApprovalEmail,
   };
 }

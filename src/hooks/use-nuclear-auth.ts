@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { User as AppUser } from '@/types';
@@ -6,6 +5,7 @@ import { createUserObject } from '@/lib/auth-helpers';
 import { selfHealProfile } from '@/lib/profile-self-heal';
 import { processUrl } from '@/lib/url-utils';
 import { standardizeCategories, standardizeLocations } from '@/lib/standardization';
+import { logger } from '@/lib/logger';
 
 const VISITOR_ID_KEY = 'sourceco_visitor_id';
 
@@ -24,11 +24,14 @@ export function useNuclearAuth() {
     // Simple session check with self-healing for missing profiles
     const checkSession = async () => {
       try {
-        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+        const {
+          data: { session },
+          error: sessionError,
+        } = await supabase.auth.getSession();
         if (sessionError) throw sessionError;
-        
+
         if (!isMounted) return;
-        
+
         if (session?.user) {
           // Fetch profile data directly
           const { data: fetchedProfile, error: profileError } = await supabase
@@ -38,32 +41,38 @@ export function useNuclearAuth() {
             .single();
 
           // Self-healing: if profile missing, create one from auth metadata
-          const profile = (!fetchedProfile && (profileError?.code === 'PGRST116' || !profileError))
-            ? await selfHealProfile(session.user)
-            : fetchedProfile;
+          const profile =
+            !fetchedProfile && (profileError?.code === 'PGRST116' || !profileError)
+              ? await selfHealProfile(session.user)
+              : fetchedProfile;
 
           if (profile && isMounted) {
             const appUser = createUserObject(profile);
             setUser(appUser);
-            
+
             // Link journey AND session to user on successful auth
             const visitorId = localStorage.getItem(VISITOR_ID_KEY);
             const currentSessionId = sessionStorage.getItem('session_id');
-            
+
             if (visitorId) {
-              supabase.rpc('link_journey_to_user', {
-                p_visitor_id: visitorId,
-                p_user_id: session.user.id
-              }).then(({ error }) => {
-                if (error) console.error('Failed to link journey:', error);
-              });
+              supabase
+                .rpc('link_journey_to_user', {
+                  p_visitor_id: visitorId,
+                  p_user_id: session.user.id,
+                })
+                .then(({ error }) => {
+                  if (error)
+                    logger.error('Failed to link journey', 'useNuclearAuth', {
+                      error: String(error),
+                    });
+                });
             }
-            
+
             // Merge anonymous session with auth user (preserves geo data)
             if (currentSessionId) {
               supabase
                 .from('user_sessions')
-                .update({ 
+                .update({
                   user_id: session.user.id,
                   last_active_at: new Date().toISOString(),
                 })
@@ -91,11 +100,13 @@ export function useNuclearAuth() {
     };
 
     // Simple auth state listener - NO async operations inside
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event, session) => {
       if (!isMounted) return;
-      
+
       // Nuclear Auth: Auth event
-      
+
       if (event === 'SIGNED_OUT') {
         setUser(null);
         setIsLoading(false);
@@ -131,15 +142,15 @@ export function useNuclearAuth() {
   const logout = async () => {
     try {
       // Starting logout process
-      
+
       // Step 1: Clear user state immediately to prevent UI confusion
       setUser(null);
       setIsLoading(true);
-      
+
       // Step 2: Clean up auth state synchronously
       const { cleanupAuthState } = await import('@/lib/auth-cleanup');
       cleanupAuthState();
-      
+
       // Step 3: Sign out from Supabase with global scope
       try {
         const { error } = await supabase.auth.signOut({ scope: 'global' });
@@ -149,12 +160,11 @@ export function useNuclearAuth() {
       } catch (signOutError) {
         console.warn('Supabase signOut failed, continuing with cleanup:', signOutError);
       }
-      
+
       // Logout completed successfully
-      
+
       // Step 4: Navigate immediately without delay
       window.location.href = '/login';
-      
     } catch (error) {
       console.error('Logout error:', error);
       // Ensure navigation happens even on error
@@ -164,17 +174,15 @@ export function useNuclearAuth() {
   };
 
   const signup = async (userData: Partial<AppUser>, password: string) => {
-    if (!userData.email) throw new Error("Email is required");
+    if (!userData.email) throw new Error('Email is required');
 
     // Normalize website if present (allow example.com or www.example.com)
     const websiteNormalized =
-      userData.website && userData.website.trim() !== ''
-        ? processUrl(userData.website)
-        : '';
+      userData.website && userData.website.trim() !== '' ? processUrl(userData.website) : '';
 
     // Get visitor_id for attribution linking
     const visitorId = localStorage.getItem(VISITOR_ID_KEY);
-    
+
     const { data, error } = await supabase.auth.signUp({
       email: userData.email,
       password,
@@ -191,8 +199,12 @@ export function useNuclearAuth() {
           buyer_type: userData.buyer_type || 'corporate',
           linkedin_profile: userData.linkedin_profile || '',
           ideal_target_description: userData.ideal_target_description || '',
-          business_categories: Array.isArray(userData.business_categories) ? standardizeCategories(userData.business_categories) : [],
-          target_locations: Array.isArray(userData.target_locations) ? standardizeLocations(userData.target_locations) : [],
+          business_categories: Array.isArray(userData.business_categories)
+            ? standardizeCategories(userData.business_categories)
+            : [],
+          target_locations: Array.isArray(userData.target_locations)
+            ? standardizeLocations(userData.target_locations)
+            : [],
           revenue_range_min: userData.revenue_range_min || '',
           revenue_range_max: userData.revenue_range_max || '',
           specific_business_search: userData.specific_business_search || '',
@@ -220,7 +232,9 @@ export function useNuclearAuth() {
           // Corporate Development
           owning_business_unit: userData.owning_business_unit || '',
           deal_size_band: userData.deal_size_band || '',
-          integration_plan: Array.isArray(userData.integration_plan) ? userData.integration_plan : [],
+          integration_plan: Array.isArray(userData.integration_plan)
+            ? userData.integration_plan
+            : [],
           corpdev_intent: userData.corpdev_intent || '',
           // Family Office
           discretion_type: userData.discretion_type || '',
@@ -228,13 +242,29 @@ export function useNuclearAuth() {
           committed_equity_band: userData.committed_equity_band || '',
           equity_source: Array.isArray(userData.equity_source) ? userData.equity_source : [],
           deployment_timing: userData.deployment_timing || '',
-          target_deal_size_min: typeof userData.target_deal_size_min === 'number' ? userData.target_deal_size_min : (userData.target_deal_size_min ? Number(userData.target_deal_size_min) : null),
-          target_deal_size_max: typeof userData.target_deal_size_max === 'number' ? userData.target_deal_size_max : (userData.target_deal_size_max ? Number(userData.target_deal_size_max) : null),
-          geographic_focus: Array.isArray(userData.geographic_focus) ? standardizeLocations(userData.geographic_focus) : [],
-          industry_expertise: Array.isArray(userData.industry_expertise) ? standardizeCategories(userData.industry_expertise) : [],
+          target_deal_size_min:
+            typeof userData.target_deal_size_min === 'number'
+              ? userData.target_deal_size_min
+              : userData.target_deal_size_min
+                ? Number(userData.target_deal_size_min)
+                : null,
+          target_deal_size_max:
+            typeof userData.target_deal_size_max === 'number'
+              ? userData.target_deal_size_max
+              : userData.target_deal_size_max
+                ? Number(userData.target_deal_size_max)
+                : null,
+          geographic_focus: Array.isArray(userData.geographic_focus)
+            ? standardizeLocations(userData.geographic_focus)
+            : [],
+          industry_expertise: Array.isArray(userData.industry_expertise)
+            ? standardizeCategories(userData.industry_expertise)
+            : [],
           deal_structure_preference: userData.deal_structure_preference || '',
           permanent_capital: userData.permanent_capital || null,
-          operating_company_targets: Array.isArray(userData.operating_company_targets) ? userData.operating_company_targets : [],
+          operating_company_targets: Array.isArray(userData.operating_company_targets)
+            ? userData.operating_company_targets
+            : [],
           flex_subxm_ebitda: userData.flex_subxm_ebitda || null,
           // Search Fund
           search_type: userData.search_type || '',
@@ -261,28 +291,36 @@ export function useNuclearAuth() {
           deal_intent: userData.deal_intent || '',
           exclusions: Array.isArray(userData.exclusions)
             ? userData.exclusions
-            : (typeof userData.exclusions === 'string' && userData.exclusions
-                ? (userData.exclusions as string).split(',').map(s => s.trim()).filter(Boolean)
-                : []),
+            : typeof userData.exclusions === 'string' && userData.exclusions
+              ? (userData.exclusions as string)
+                  .split(',')
+                  .map((s) => s.trim())
+                  .filter(Boolean)
+              : [],
           include_keywords: Array.isArray(userData.include_keywords)
             ? userData.include_keywords
-            : (typeof userData.include_keywords === 'string' && userData.include_keywords
-                ? (userData.include_keywords as string).split(',').map(s => s.trim()).filter(Boolean)
-                : []),
+            : typeof userData.include_keywords === 'string' && userData.include_keywords
+              ? (userData.include_keywords as string)
+                  .split(',')
+                  .map((s) => s.trim())
+                  .filter(Boolean)
+              : [],
           // Referral source tracking (Step 3 - How did you hear about us?)
           referral_source: userData.referral_source || '',
           referral_source_detail: userData.referral_source_detail || '',
           // Deal sourcing questions (Step 3)
-          deal_sourcing_methods: Array.isArray(userData.deal_sourcing_methods) ? userData.deal_sourcing_methods : [],
+          deal_sourcing_methods: Array.isArray(userData.deal_sourcing_methods)
+            ? userData.deal_sourcing_methods
+            : [],
           target_acquisition_volume: userData.target_acquisition_volume || '',
-        }
-      }
+        },
+      },
     });
-    
+
     if (error) throw error;
 
     // User signup completed, verification email sent by Supabase
-    
+
     // Send admin notification about new user registration
     if (data.user) {
       try {
@@ -290,11 +328,11 @@ export function useNuclearAuth() {
           first_name: userData.first_name || '',
           last_name: userData.last_name || '',
           email: userData.email,
-          company: userData.company || ''
+          company: userData.company || '',
         };
-        
+
         await supabase.functions.invoke('enhanced-admin-notification', {
-          body: adminNotificationPayload
+          body: adminNotificationPayload,
         });
         // Admin notification sent for new user registration
       } catch (notificationError) {
@@ -304,7 +342,7 @@ export function useNuclearAuth() {
   };
 
   const updateUserProfile = async (data: Partial<AppUser>) => {
-    if (!user) throw new Error("No user logged in");
+    if (!user) throw new Error('No user logged in');
 
     // Normalize website if provided
     const normalizedWebsite =
@@ -338,20 +376,27 @@ export function useNuclearAuth() {
 
     // SECURITY: Strip privileged fields that must never be set via client-side profile updates.
     // is_admin is managed by user_roles table + DB trigger; approval_status by admin actions only.
-    const PRIVILEGED_FIELDS = ['is_admin', 'approval_status', 'email_verified', 'role', 'id', 'email'];
+    const PRIVILEGED_FIELDS = [
+      'is_admin',
+      'approval_status',
+      'email_verified',
+      'role',
+      'id',
+      'email',
+    ];
     for (const field of PRIVILEGED_FIELDS) {
       delete dbPayload[field];
     }
 
-    const { error } = await supabase
-      .from('profiles')
-      .update(dbPayload)
-      .eq('id', user.id);
+    const { error } = await supabase.from('profiles').update(dbPayload).eq('id', user.id);
 
     if (error) throw error;
-    
+
     // Simple refresh
-    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+    const {
+      data: { session },
+      error: sessionError,
+    } = await supabase.auth.getSession();
     if (sessionError) throw sessionError;
     if (session?.user) {
       const { data: profile, error: profileError } = await supabase
@@ -370,7 +415,10 @@ export function useNuclearAuth() {
   };
 
   const refreshUserProfile = async () => {
-    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+    const {
+      data: { session },
+      error: sessionError,
+    } = await supabase.auth.getSession();
     if (sessionError) throw sessionError;
     if (session?.user) {
       const { data: profile, error: profileError } = await supabase
@@ -397,7 +445,7 @@ export function useNuclearAuth() {
     // SECURITY NOTE: is_admin flag is auto-synced from user_roles table via database trigger
     // Source of truth is user_roles table, this flag is kept in sync automatically
     isAdmin: user?.is_admin === true,
-    isBuyer: user?.role === "buyer",
+    isBuyer: user?.role === 'buyer',
     authChecked,
   };
 }
