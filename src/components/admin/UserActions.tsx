@@ -192,15 +192,11 @@ export function UserActions({ onUserStatusUpdated }: UserActionsProps) {
     } catch (approvalError) {
       console.error('[UserActions] Step 1 FAILED:', approvalError);
       toast({
-        variant: 'default',
-        title: 'Email sending failed',
-        description: 'User was approved successfully, but welcome email failed to send.',
+        variant: 'destructive',
+        title: 'Approval failed',
+        description: approvalError instanceof Error ? approvalError.message : 'Failed to approve user. Please try again.',
       });
     }
-
-    // Close dialogs and refresh after everything succeeds
-    closeAllDialogs();
-    if (onUserStatusUpdated) onUserStatusUpdated();
   };
 
   const handleCloseApprovalSuccess = (open: boolean) => {
