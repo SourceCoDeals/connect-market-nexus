@@ -51,21 +51,22 @@ export function ApprovalEmailDialog({
 }: ApprovalEmailDialogProps) {
   const [customSubject, setCustomSubject] = useState("");
   const [customMessage, setCustomMessage] = useState("");
-  const [isLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const [customSignatureHtml, setCustomSignatureHtml] = useState("");
   const [customSignatureText, setCustomSignatureText] = useState("");
 
-  const userName = user?.first_name && user?.last_name 
-    ? `${user.first_name} ${user.last_name}` 
+  const userName = user?.first_name && user?.last_name
+    ? `${user.first_name} ${user.last_name}`
     : user?.first_name || user?.email?.split('@')[0] || "";
 
   const defaultSubject = DEFAULT_APPROVAL_EMAIL.subject;
   const defaultMessage = DEFAULT_APPROVAL_EMAIL.message.replace(/{{userName}}/g, userName);
 
-  const handleSend = () => {
-    if (!user) return;
-    
-    // Capture values before closing dialog to avoid stale state
+  const handleSend = async () => {
+    if (!user || isLoading) return;
+
+    setIsLoading(true);
+
     const payload = {
       subject: customSubject || defaultSubject,
       message: customMessage || defaultMessage,
@@ -74,17 +75,20 @@ export function ApprovalEmailDialog({
     };
     const capturedUser = user;
 
-    // Reset form and close dialog immediately — don't await async work
-    setCustomSubject("");
-    setCustomMessage("");
-    setCustomSignatureHtml("");
-    setCustomSignatureText("");
-    onOpenChange(false);
-
-    // Fire-and-forget: UserActions handles errors via toast
-    onSendApprovalEmail(capturedUser, payload).catch((error) => {
-      console.error('Error in approval flow:', error);
-    });
+    try {
+      await onSendApprovalEmail(capturedUser, payload);
+      // Success — reset form and close dialog
+      setCustomSubject("");
+      setCustomMessage("");
+      setCustomSignatureHtml("");
+      setCustomSignatureText("");
+      onOpenChange(false);
+    } catch (error) {
+      // Error already shown via toast in UserActions
+      console.error('Approval flow error:', error);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   if (!user) return null;
