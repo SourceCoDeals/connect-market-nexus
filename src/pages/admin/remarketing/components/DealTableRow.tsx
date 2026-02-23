@@ -36,6 +36,7 @@ import {
   PhoneCall,
   Network,
   GitBranch,
+  GripVertical,
 } from "lucide-react";
 import { format } from "date-fns";
 import { useSortable } from "@dnd-kit/sortable";
@@ -180,11 +181,14 @@ export const DealTableRow = ({
 
       {/* Rank (draggable) */}
       <TableCell style={{ width: columnWidths.rank, minWidth: 50 }} onClick={(e) => e.stopPropagation()}>
-        <div
-          className="flex items-center justify-center cursor-grab active:cursor-grabbing"
-          {...attributes}
-          {...listeners}
-        >
+        <div className="flex items-center gap-1">
+          <button
+            className="flex-shrink-0 cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground touch-none p-0.5 rounded hover:bg-muted transition-colors"
+            {...attributes}
+            {...listeners}
+          >
+            <GripVertical className="h-3.5 w-3.5" />
+          </button>
           <EditableRankCell
             value={listing.manual_rank_override ?? (index + 1)}
             onSave={(newRank) => onUpdateRank(listing.id, newRank)}
