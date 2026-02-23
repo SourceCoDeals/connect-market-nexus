@@ -143,7 +143,7 @@ export function useDeals() {
             id, first_name, last_name, email
           ),
           listing_score:listings!deals_listing_id_fkey (
-            deal_total_score, is_priority_target, need_to_contact_owner
+            deal_total_score, is_priority_target, needs_owner_contact
           )
         `)
         .is('deleted_at', null)
@@ -266,7 +266,7 @@ export function useDeals() {
           // Scoring & flags from listing
           deal_score: row.listing_score?.deal_total_score ?? null,
           is_priority_target: row.listing_score?.is_priority_target ?? null,
-          needs_owner_contact: row.listing_score?.need_to_contact_owner ?? null,
+          needs_owner_contact: row.listing_score?.needs_owner_contact ?? null,
         };
       }) as unknown as Deal[];
     },
