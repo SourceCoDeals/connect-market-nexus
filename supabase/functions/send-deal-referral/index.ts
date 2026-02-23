@@ -136,7 +136,7 @@ serve(async (req: Request) => {
               </div>
 
               <div style="text-align: center;">
-                <a href="${supabaseUrl.replace('.supabase.co', '')}/listing/${listingId}" 
+                <a href="${Deno.env.get('SITE_URL') ?? 'https://marketplace.sourcecodeals.com'}/listing/${listingId}"
                    style="display: inline-block; padding: 12px 32px; background-color: #0f172a; color: white; text-decoration: none; border-radius: 6px; font-size: 14px; font-weight: 500;">
                   View full listing
                 </a>
