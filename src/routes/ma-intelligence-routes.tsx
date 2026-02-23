@@ -1,21 +1,6 @@
 import { Route, Navigate, useParams } from 'react-router-dom';
-import { lazy, type ComponentType } from 'react';
+import { lazyWithRetry } from '@/lib/lazy-with-retry';
 import ProtectedRoute from '@/components/ProtectedRoute';
-
-const lazyWithRetry = (importFn: () => Promise<{ default: ComponentType }>) =>
-  lazy(() =>
-    importFn().catch((error: Error) => {
-      if (
-        error?.message?.includes('Failed to fetch dynamically imported module') ||
-        error?.message?.includes('Importing a module script failed')
-      ) {
-        console.warn('[ChunkRecovery] Stale module detected, reloading...', error.message);
-        window.location.reload();
-        return new Promise(() => {});
-      }
-      throw error;
-    }),
-  );
 
 const MAIntelligenceLayout = lazyWithRetry(() =>
   import('@/components/ma-intelligence').then((m) => ({ default: m.MAIntelligenceLayout })),

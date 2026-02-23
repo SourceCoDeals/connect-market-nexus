@@ -1,22 +1,7 @@
 import { Route, Navigate, useParams } from 'react-router-dom';
-import { lazy, type ComponentType } from 'react';
+import { lazyWithRetry } from '@/lib/lazy-with-retry';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import { RoleGate } from '@/components/admin/RoleGate';
-
-const lazyWithRetry = (importFn: () => Promise<{ default: ComponentType }>) =>
-  lazy(() =>
-    importFn().catch((error: Error) => {
-      if (
-        error?.message?.includes('Failed to fetch dynamically imported module') ||
-        error?.message?.includes('Importing a module script failed')
-      ) {
-        console.warn('[ChunkRecovery] Stale module detected, reloading...', error.message);
-        window.location.reload();
-        return new Promise(() => {});
-      }
-      throw error;
-    }),
-  );
 
 // Admin layout
 const AdminLayout = lazyWithRetry(() => import('@/components/admin/AdminLayout'));

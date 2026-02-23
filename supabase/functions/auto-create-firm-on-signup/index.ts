@@ -8,9 +8,7 @@ import { getCorsHeaders, corsPreflightResponse } from '../_shared/cors.ts';
  * and firm_members records. This allows the NDA signing panel to
  * render on the Pending Approval page before admin approval.
  *
- * Accepts either:
- * - Authenticated request (JWT) — extracts userId from token
- * - Body with { userId, email, company } — validates user exists in profiles
+ * Requires an authenticated request (JWT) — extracts userId from token.
  */
 
 serve(async (req: Request) => {
@@ -25,7 +23,7 @@ serve(async (req: Request) => {
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Try to authenticate from JWT first
+    // Authenticate from JWT — no body fallback to prevent impersonation
     let userId: string | null = null;
 
     const authHeader = req.headers.get('Authorization');
@@ -41,11 +39,7 @@ serve(async (req: Request) => {
       }
     }
 
-    // Fallback: accept userId from body (for cases where JWT isn't available post-signup)
     const body = await req.json().catch(() => ({}));
-    if (!userId && body.userId) {
-      userId = body.userId;
-    }
 
     if (!userId) {
       return new Response(JSON.stringify({ error: 'Authentication required' }), {
@@ -87,10 +81,16 @@ serve(async (req: Request) => {
 
     // Determine company name and email domain
     const companyName = profile.company || body.company || 'Unknown Company';
+    // Strip common business suffixes before normalizing so "ABC Inc" and "ABC Inc." match.
+    const BUSINESS_SUFFIXES =
+      /\b(inc|llc|llp|ltd|corp|corporation|company|co|group|holdings|partners|lp|plc|pllc|pa|pc|sa|gmbh|ag|pty|srl|bv|nv)\b/gi;
     const normalizedName = companyName
       .toLowerCase()
       .trim()
-      .replace(/[^a-z0-9\s]/g, '');
+      .replace(/[^a-z0-9\s]/g, '')
+      .replace(BUSINESS_SUFFIXES, '')
+      .replace(/\s+/g, ' ')
+      .trim();
     const emailDomain = profile.email?.split('@')[1] || null;
 
     // Generic/free email providers — never use these for firm matching because

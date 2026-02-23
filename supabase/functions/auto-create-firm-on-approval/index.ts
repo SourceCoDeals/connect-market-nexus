@@ -90,10 +90,16 @@ serve(async (req: Request) => {
 
     let firmId = cr.firm_id;
     const companyName = cr.lead_company || 'Unknown Company';
+    // Strip common business suffixes before normalizing so "ABC Inc" and "ABC Inc." match.
+    const BUSINESS_SUFFIXES =
+      /\b(inc|llc|llp|ltd|corp|corporation|company|co|group|holdings|partners|lp|plc|pllc|pa|pc|sa|gmbh|ag|pty|srl|bv|nv)\b/gi;
     const normalizedName = companyName
       .toLowerCase()
       .trim()
-      .replace(/[^a-z0-9\s]/g, '');
+      .replace(/[^a-z0-9\s]/g, '')
+      .replace(BUSINESS_SUFFIXES, '')
+      .replace(/\s+/g, ' ')
+      .trim();
     const emailDomain = cr.lead_email?.split('@')[1] || null;
 
     // Generic/free email providers — never use these for firm matching.

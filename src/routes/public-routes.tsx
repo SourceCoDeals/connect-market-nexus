@@ -1,25 +1,10 @@
 import { Route } from 'react-router-dom';
-import { lazy, type ComponentType } from 'react';
+import { lazyWithRetry } from '@/lib/lazy-with-retry';
 
 import Login from '@/pages/Login';
 import Signup from '@/pages/Signup';
 import AuthCallback from '@/pages/auth/callback';
 import PendingApproval from '@/pages/PendingApproval';
-
-const lazyWithRetry = (importFn: () => Promise<{ default: ComponentType }>) =>
-  lazy(() =>
-    importFn().catch((error: Error) => {
-      if (
-        error?.message?.includes('Failed to fetch dynamically imported module') ||
-        error?.message?.includes('Importing a module script failed')
-      ) {
-        console.warn('[ChunkRecovery] Stale module detected, reloading...', error.message);
-        window.location.reload();
-        return new Promise(() => {});
-      }
-      throw error;
-    }),
-  );
 
 const Welcome = lazyWithRetry(() => import('@/pages/Welcome'));
 const SignupSuccess = lazyWithRetry(() => import('@/pages/SignupSuccess'));

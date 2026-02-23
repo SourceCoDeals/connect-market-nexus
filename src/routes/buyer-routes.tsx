@@ -1,22 +1,7 @@
 import { Route, Navigate } from 'react-router-dom';
-import { lazy, type ComponentType } from 'react';
+import { lazyWithRetry } from '@/lib/lazy-with-retry';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import MainLayout from '@/components/MainLayout';
-
-const lazyWithRetry = (importFn: () => Promise<{ default: ComponentType }>) =>
-  lazy(() =>
-    importFn().catch((error: Error) => {
-      if (
-        error?.message?.includes('Failed to fetch dynamically imported module') ||
-        error?.message?.includes('Importing a module script failed')
-      ) {
-        console.warn('[ChunkRecovery] Stale module detected, reloading...', error.message);
-        window.location.reload();
-        return new Promise(() => {});
-      }
-      throw error;
-    }),
-  );
 
 const Marketplace = lazyWithRetry(() => import('@/pages/Marketplace'));
 const Profile = lazyWithRetry(() => import('@/pages/Profile'));

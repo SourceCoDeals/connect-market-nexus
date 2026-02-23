@@ -1,8 +1,25 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Mail, CheckCircle, Clock, LogOut, Loader2, Info, RefreshCw, Shield, XCircle } from 'lucide-react';
+import {
+  Mail,
+  CheckCircle,
+  Clock,
+  LogOut,
+  Loader2,
+  Info,
+  RefreshCw,
+  Shield,
+  XCircle,
+} from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
@@ -17,12 +34,12 @@ const PendingApproval = () => {
   const [isResending, setIsResending] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [isCheckingStatus, setIsCheckingStatus] = useState(false);
-  const [_isAutoPolling] = useState(true);
+  const [checkCooldown, setCheckCooldown] = useState(false);
   const [ndaEmbedSrc, setNdaEmbedSrc] = useState<string | null>(null);
   const [ndaLoading, setNdaLoading] = useState(false);
   const [ndaError, setNdaError] = useState<string | null>(null);
   const [ndaSigned, setNdaSigned] = useState(false);
-  
+
   const { data: ndaStatus, refetch: refetchNdaStatus } = useBuyerNdaStatus(user?.id);
   const [firmCreationAttempted, setFirmCreationAttempted] = useState(false);
 
@@ -34,18 +51,21 @@ const PendingApproval = () => {
 
     setFirmCreationAttempted(true);
 
-    supabase.functions.invoke('auto-create-firm-on-signup', {
-      body: { userId: user.id, company: user.company || '' },
-    }).then(({ error }) => {
-      if (!error) {
-        // Firm created — re-fetch NDA status so the signing panel appears
-        refetchNdaStatus();
-      } else {
-        console.warn('Fallback firm creation failed:', error);
-      }
-    }).catch((err) => {
-      console.warn('Fallback firm creation error:', err);
-    });
+    supabase.functions
+      .invoke('auto-create-firm-on-signup', {
+        body: { userId: user.id, company: user.company || '' },
+      })
+      .then(({ error }) => {
+        if (!error) {
+          // Firm created — re-fetch NDA status so the signing panel appears
+          refetchNdaStatus();
+        } else {
+          console.warn('Fallback firm creation failed:', error);
+        }
+      })
+      .catch((err) => {
+        console.warn('Fallback firm creation error:', err);
+      });
   }, [user, ndaStatus, firmCreationAttempted, refetchNdaStatus]);
 
   // Fetch NDA embed src when buyer has a firm but hasn't signed
@@ -80,12 +100,12 @@ const PendingApproval = () => {
 
   // Auto-poll approval status every 30s
   useEffect(() => {
-    if (!_isAutoPolling || user?.approval_status === 'approved' || user?.approval_status === 'rejected') return;
+    if (user?.approval_status === 'approved' || user?.approval_status === 'rejected') return;
     const interval = setInterval(() => {
       refreshUserProfile().catch(() => {});
     }, 30000);
     return () => clearInterval(interval);
-  }, [_isAutoPolling, user?.approval_status, refreshUserProfile]);
+  }, [user?.approval_status, refreshUserProfile]);
 
   // Handle navigation for approved users (skip redirect if NDA signing is pending)
   useEffect(() => {
@@ -112,44 +132,45 @@ const PendingApproval = () => {
   const handleResendVerification = async () => {
     if (user.email_verified) {
       toast({
-        title: "Email already verified",
-        description: "Your email is already verified. No need to resend.",
+        title: 'Email already verified',
+        description: 'Your email is already verified. No need to resend.',
       });
       return;
     }
 
     setIsResending(true);
-    
+
     try {
       // Resending verification email
       const { error: resendError } = await supabase.auth.resend({
         type: 'signup',
         email: user.email,
         options: {
-          emailRedirectTo: `${window.location.origin}/pending-approval`
-        }
+          emailRedirectTo: `${window.location.origin}/pending-approval`,
+        },
       });
 
       if (resendError) {
         if (resendError.message?.includes('rate limit')) {
-          throw new Error("Please wait a moment before requesting another verification email.");
+          throw new Error('Please wait a moment before requesting another verification email.');
         } else if (resendError.message?.includes('already verified')) {
           window.location.reload();
           return;
         } else {
-          throw new Error(resendError.message || "Failed to resend verification email");
+          throw new Error(resendError.message || 'Failed to resend verification email');
         }
       }
 
       toast({
-        title: "Email sent",
-        description: "We've sent another verification email to your inbox. Please check your spam folder if you don't see it.",
+        title: 'Email sent',
+        description:
+          "We've sent another verification email to your inbox. Please check your spam folder if you don't see it.",
       });
     } catch (error: any) {
       toast({
-        variant: "destructive",
-        title: "Failed to resend email", 
-        description: error.message || "Please try again later or contact support.",
+        variant: 'destructive',
+        title: 'Failed to resend email',
+        description: error.message || 'Please try again later or contact support.',
       });
     } finally {
       setIsResending(false);
@@ -171,21 +192,24 @@ const PendingApproval = () => {
   };
 
   const handleCheckStatus = async () => {
+    if (checkCooldown) return;
     setIsCheckingStatus(true);
     try {
       await refreshUserProfile();
       toast({
-        title: "Status checked",
-        description: "Your account status has been refreshed.",
+        title: 'Status checked',
+        description: 'Your account status has been refreshed.',
       });
     } catch (error) {
       toast({
-        variant: "destructive",
-        title: "Failed to check status",
-        description: "Please try again.",
+        variant: 'destructive',
+        title: 'Failed to check status',
+        description: 'Please try again.',
       });
     } finally {
       setIsCheckingStatus(false);
+      setCheckCooldown(true);
+      setTimeout(() => setCheckCooldown(false), 10000);
     }
   };
 
@@ -207,9 +231,9 @@ const PendingApproval = () => {
         {/* Brand Header */}
         <div className="flex flex-col items-center space-y-3">
           <div className="flex items-center">
-            <img 
-              src="/lovable-uploads/b879fa06-6a99-4263-b973-b9ced4404acb.png" 
-              alt="SourceCo Logo" 
+            <img
+              src="/lovable-uploads/b879fa06-6a99-4263-b973-b9ced4404acb.png"
+              alt="SourceCo Logo"
               className="h-10 w-10 mr-3"
             />
             <div className="text-center">
@@ -222,10 +246,15 @@ const PendingApproval = () => {
         <Card>
           <CardHeader className="space-y-1">
             <div className="flex justify-center mb-4">
-              <div className={`p-3 rounded-full ${
-                uiState === 'rejected' ? 'bg-destructive/10' :
-                uiState === 'approved_pending' ? 'bg-green-100' : 'bg-primary/10'
-              }`}>
+              <div
+                className={`p-3 rounded-full ${
+                  uiState === 'rejected'
+                    ? 'bg-destructive/10'
+                    : uiState === 'approved_pending'
+                      ? 'bg-green-100'
+                      : 'bg-primary/10'
+                }`}
+              >
                 {uiState === 'rejected' ? (
                   <XCircle className="h-8 w-8 text-destructive" />
                 ) : uiState === 'approved_pending' ? (
@@ -236,26 +265,29 @@ const PendingApproval = () => {
               </div>
             </div>
             <CardTitle className="text-2xl font-bold text-center">
-              {uiState === 'rejected' ? 'Application Not Approved' :
-               uiState === 'approved_pending' ? 'Your Application Is Under Review' : 'Check Your Email'}
+              {uiState === 'rejected'
+                ? 'Application Not Approved'
+                : uiState === 'approved_pending'
+                  ? 'Your Application Is Under Review'
+                  : 'Check Your Email'}
             </CardTitle>
             <CardDescription className="text-center">
               {uiState === 'rejected'
                 ? 'Unfortunately, your application was not approved at this time'
-                : uiState === 'approved_pending' 
-                  ? 'We typically review applications within one business day. You\'ll get an email the moment you\'re approved.'
-                  : `We've sent a verification link to ${user.email}. Click it to continue — check your spam folder if you don't see it within a few minutes.`
-              }
+                : uiState === 'approved_pending'
+                  ? "We typically review applications within one business day. You'll get an email the moment you're approved."
+                  : `We've sent a verification link to ${user.email}. Click it to continue — check your spam folder if you don't see it within a few minutes.`}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-          {uiState === 'rejected' ? (
+            {uiState === 'rejected' ? (
               <>
                 <div className="bg-destructive/10 border border-destructive/20 rounded-md p-4">
                   <div className="flex gap-3 items-center">
                     <XCircle className="h-5 w-5 text-destructive flex-shrink-0" />
                     <p className="text-sm text-destructive">
-                      Your application did not meet our current criteria. If you believe this was in error, please reach out to our team.
+                      Your application did not meet our current criteria. If you believe this was in
+                      error, please reach out to our team.
                     </p>
                   </div>
                 </div>
@@ -279,9 +311,13 @@ const PendingApproval = () => {
                   <div className="flex gap-3 items-start">
                     <Clock className="h-5 w-5 text-amber-600 flex-shrink-0 mt-0.5" />
                     <div>
-                      <p className="text-amber-800 text-sm font-medium">While you wait — sign your NDA below.</p>
+                      <p className="text-amber-800 text-sm font-medium">
+                        While you wait — sign your NDA below.
+                      </p>
                       <p className="text-amber-700 text-xs mt-1">
-                        It covers every deal on the platform and takes about 60 seconds. Buyers who sign before approval get immediate access the moment their account is approved.
+                        It covers every deal on the platform and takes about 60 seconds. Buyers who
+                        sign before approval get immediate access the moment their account is
+                        approved.
                       </p>
                     </div>
                   </div>
@@ -292,7 +328,9 @@ const PendingApproval = () => {
                   <h4 className="text-sm font-medium">Submitted Information</h4>
                   <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
                     <span className="text-muted-foreground">Name</span>
-                    <span className="font-medium">{user.first_name} {user.last_name}</span>
+                    <span className="font-medium">
+                      {user.first_name} {user.last_name}
+                    </span>
                     <span className="text-muted-foreground">Email</span>
                     <span className="font-medium truncate">{user.email}</span>
                     {user.company && (
@@ -302,7 +340,9 @@ const PendingApproval = () => {
                       </>
                     )}
                     <span className="text-muted-foreground">Buyer Type</span>
-                    <span className="font-medium capitalize">{user.buyer_type?.replace(/([A-Z])/g, ' $1').trim() || 'N/A'}</span>
+                    <span className="font-medium capitalize">
+                      {user.buyer_type?.replace(/([A-Z])/g, ' $1').trim() || 'N/A'}
+                    </span>
                   </div>
                 </div>
 
@@ -313,7 +353,8 @@ const PendingApproval = () => {
                     <div>
                       <p className="text-sm font-medium text-blue-900">Estimated Review Time</p>
                       <p className="text-xs text-blue-700 mt-1">
-                        Most applications are reviewed within <strong>1 business day</strong>. You will receive an email notification as soon as your account is approved.
+                        Most applications are reviewed within <strong>1 business day</strong>. You
+                        will receive an email notification as soon as your account is approved.
                       </p>
                     </div>
                   </div>
@@ -329,7 +370,9 @@ const PendingApproval = () => {
                       </div>
                       <div className="flex-1">
                         <p className="text-sm font-medium">Account Created</p>
-                        <p className="text-xs text-muted-foreground">Your account has been successfully created</p>
+                        <p className="text-xs text-muted-foreground">
+                          Your account has been successfully created
+                        </p>
                       </div>
                     </div>
                     <div className="flex items-center gap-3">
@@ -338,7 +381,9 @@ const PendingApproval = () => {
                       </div>
                       <div className="flex-1">
                         <p className="text-sm font-medium">Email Verified</p>
-                        <p className="text-xs text-muted-foreground">Your email address has been confirmed</p>
+                        <p className="text-xs text-muted-foreground">
+                          Your email address has been confirmed
+                        </p>
                       </div>
                     </div>
                     <div className="flex items-center gap-3">
@@ -347,7 +392,9 @@ const PendingApproval = () => {
                       </div>
                       <div className="flex-1">
                         <p className="text-sm font-medium">Admin Review</p>
-                        <p className="text-xs text-muted-foreground">Pending approval from our team</p>
+                        <p className="text-xs text-muted-foreground">
+                          Pending approval from our team
+                        </p>
                       </div>
                     </div>
                   </div>
@@ -367,21 +414,30 @@ const PendingApproval = () => {
                     <div className="bg-muted/40 border border-border rounded-md p-4">
                       <h5 className="text-xs font-semibold mb-1">Why we require an NDA</h5>
                       <p className="text-xs text-muted-foreground leading-relaxed">
-                        Every deal on SourceCo contains confidential information — real financials, real business names, real owner details. Sellers share this with us specifically because we control access carefully. Your NDA is the agreement that allows us to share that information with you. It covers every deal on the platform, so you only need to sign it once.
+                        Every deal on SourceCo contains confidential information — real financials,
+                        real business names, real owner details. Sellers share this with us
+                        specifically because we control access carefully. Your NDA is the agreement
+                        that allows us to share that information with you. It covers every deal on
+                        the platform, so you only need to sign it once.
                       </p>
                     </div>
 
                     <div className="bg-muted/40 border border-border rounded-md p-4">
                       <h5 className="text-xs font-semibold mb-1">What you're agreeing to</h5>
                       <p className="text-xs text-muted-foreground leading-relaxed">
-                        You agree to keep deal information confidential and not use it outside of your evaluation of a potential acquisition. Standard language — most buyers sign in under a minute. If you have questions or need to redline anything, reply to your approval email and we'll work through it.
+                        You agree to keep deal information confidential and not use it outside of
+                        your evaluation of a potential acquisition. Standard language — most buyers
+                        sign in under a minute. If you have questions or need to redline anything,
+                        reply to your approval email and we'll work through it.
                       </p>
                     </div>
 
                     {ndaLoading && (
                       <div className="flex items-center justify-center py-4">
                         <Loader2 className="h-5 w-5 animate-spin text-primary" />
-                        <span className="text-xs text-muted-foreground ml-2">Loading signing form...</span>
+                        <span className="text-xs text-muted-foreground ml-2">
+                          Loading signing form...
+                        </span>
                       </div>
                     )}
                     {ndaError && (
@@ -400,8 +456,14 @@ const PendingApproval = () => {
 
                     <p className="text-[11px] text-muted-foreground text-center">
                       Questions about the NDA? Email{' '}
-                      <a href="mailto:adam.haile@sourcecodeals.com" className="text-primary hover:underline">adam.haile@sourcecodeals.com</a>
-                      {' '}— a small percentage of buyers request modifications and we're happy to discuss.
+                      <a
+                        href="mailto:adam.haile@sourcecodeals.com"
+                        className="text-primary hover:underline"
+                      >
+                        adam.haile@sourcecodeals.com
+                      </a>{' '}
+                      — a small percentage of buyers request modifications and we're happy to
+                      discuss.
                     </p>
                   </div>
                 )}
@@ -409,10 +471,13 @@ const PendingApproval = () => {
                   <div className="bg-green-50 border border-green-200 rounded-md p-4 text-center space-y-1">
                     <div className="flex items-center justify-center gap-2">
                       <CheckCircle className="h-4 w-4 text-green-600" />
-                      <p className="text-sm font-semibold text-green-800">NDA signed — you're in.</p>
+                      <p className="text-sm font-semibold text-green-800">
+                        NDA signed — you're in.
+                      </p>
                     </div>
                     <p className="text-xs text-green-700">
-                      Full access to every deal on the platform — we'll notify you by email the moment your account is approved.
+                      Full access to every deal on the platform — we'll notify you by email the
+                      moment your account is approved.
                     </p>
                   </div>
                 )}
@@ -429,7 +494,9 @@ const PendingApproval = () => {
                       </div>
                       <div className="flex-1">
                         <p className="text-sm font-medium">Account Created</p>
-                        <p className="text-xs text-muted-foreground">Your account has been created</p>
+                        <p className="text-xs text-muted-foreground">
+                          Your account has been created
+                        </p>
                       </div>
                     </div>
                     <div className="flex items-center gap-3">
@@ -438,7 +505,9 @@ const PendingApproval = () => {
                       </div>
                       <div className="flex-1">
                         <p className="text-sm font-medium">Email Verification</p>
-                        <p className="text-xs text-muted-foreground">Check your inbox and click the verification link</p>
+                        <p className="text-xs text-muted-foreground">
+                          Check your inbox and click the verification link
+                        </p>
                       </div>
                     </div>
                     <div className="flex items-center gap-3">
@@ -468,21 +537,20 @@ const PendingApproval = () => {
                 </div>
               </>
             )}
-            
+
             <div className="text-sm text-center text-muted-foreground">
               {uiState === 'rejected'
                 ? 'You can create a new account or contact our team to discuss your options.'
                 : uiState === 'approved_pending'
-                  ? 'We aim to review all applications within one business day. Signing your NDA now means you\'ll have full access the moment you\'re approved.'
-                  : 'After verification, our team will review your application — usually within one business day.'
-              }
+                  ? "We aim to review all applications within one business day. Signing your NDA now means you'll have full access the moment you're approved."
+                  : 'After verification, our team will review your application — usually within one business day.'}
             </div>
           </CardContent>
           <CardFooter className="flex flex-col space-y-4">
             {uiState === 'approved_pending' && (
               <Button
                 onClick={handleCheckStatus}
-                disabled={isCheckingStatus}
+                disabled={isCheckingStatus || checkCooldown}
                 className="w-full"
               >
                 {isCheckingStatus ? (
@@ -499,11 +567,7 @@ const PendingApproval = () => {
               </Button>
             )}
             {uiState !== 'approved_pending' && (
-              <Button
-                onClick={handleResendVerification}
-                disabled={isResending}
-                className="w-full"
-              >
+              <Button onClick={handleResendVerification} disabled={isResending} className="w-full">
                 {isResending ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -534,7 +598,7 @@ const PendingApproval = () => {
             </Button>
             <div className="bg-muted/30 border border-border rounded-md p-3 text-center">
               <p className="text-xs text-muted-foreground">
-                Questions? Reach out to our team at{" "}
+                Questions? Reach out to our team at{' '}
                 <a
                   href={`mailto:${APP_CONFIG.adminEmail}`}
                   className="text-primary font-medium hover:underline"
