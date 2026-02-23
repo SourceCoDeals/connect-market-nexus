@@ -18,14 +18,11 @@ import {
   Eye,
   Undo2,
   Scale,
-  ExternalLink,
-  Building2,
-  User,
   Link2,
 } from "lucide-react";
 import { UserNotesSection } from "./UserNotesSection";
 import { User as UserType, Listing } from "@/types";
-import { BuyerDealsOverview } from "./BuyerDealsOverview";
+
 import { useUpdateConnectionRequestStatus } from "@/hooks/admin/use-connection-request-status";
 import { useUserConnectionRequests } from "@/hooks/admin/use-user-connection-requests";
 import { useUpdateAccess } from "@/hooks/admin/data-room/use-data-room";
@@ -243,78 +240,78 @@ export function ConnectionRequestActions({
   const completeness = completionDetails.percentage;
   const buyerInitials = `${user.first_name?.[0] || ''}${user.last_name?.[0] || ''}`.toUpperCase();
 
+  const buyerName = `${user.first_name || ''} ${user.last_name || ''}`.trim();
+  const firmName = user.company || user.company_name || '';
+  const buyerEmail = user.email || '';
+  const formattedDate = createdAt ? format(new Date(createdAt), 'MMM d, yyyy') : '';
+  const aum = user.aum;
+
+  const otherRequests = userRequests.filter(r => r.id !== requestId);
+
   return (
-    <div className="space-y-4 bg-sourceco-background rounded-xl p-5">
+    <div className="space-y-5">
       {/* ── DECISION BANNER ── */}
       {requestStatus === "pending" && requestId && (
-        <div className="rounded-xl border-2 border-sourceco/40 shadow-lg overflow-hidden">
-          {/* Amber header */}
-          <div className="bg-gradient-to-r from-sourceco-muted to-sourceco-muted/60 border-b border-sourceco/30 px-5 py-3.5 flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-sourceco flex items-center justify-center shrink-0">
-              <Scale className="h-4 w-4 text-sourceco-foreground" />
+        <div className="bg-card border border-border rounded-xl overflow-hidden shadow-sm" style={{ borderLeftWidth: '4px', borderLeftColor: 'hsl(var(--sourceco))' }}>
+          <div className="px-5 py-4 flex items-center justify-between gap-4">
+            <div className="flex items-center gap-3.5">
+              <div className="w-10 h-10 rounded-xl bg-sourceco/10 flex items-center justify-center shrink-0">
+                <Scale className="h-5 w-5 text-sourceco" />
+              </div>
+              <div>
+                <p className="text-sm font-bold text-foreground">Decision Required</p>
+                <p className="text-xs text-muted-foreground">Review this connection request — only approved requests advance to the active pipeline</p>
+              </div>
             </div>
-            <div className="flex-1">
-            <p className="text-sm font-bold text-foreground">Decision Required</p>
-              <p className="text-xs text-muted-foreground">Review this connection request — only approved requests move to the pipeline</p>
+            <div className="flex items-center gap-2.5 shrink-0">
+              <span className="text-[10.5px] font-semibold uppercase tracking-wider text-amber-700 bg-amber-50 border border-amber-200/60 rounded-full px-3 py-1">
+                Awaiting Action
+              </span>
+              <Button
+                variant="outline"
+                onClick={() => setShowRejectDialog(true)}
+                disabled={updateStatus.isPending}
+                size="sm"
+                className="border-border text-muted-foreground hover:border-destructive hover:text-destructive hover:bg-destructive/5"
+              >
+                <XCircle className="h-3.5 w-3.5 mr-1.5" />
+                Decline
+              </Button>
+              <Button
+                onClick={handleAccept}
+                disabled={updateStatus.isPending}
+                size="sm"
+                className="bg-sourceco hover:bg-sourceco/90 text-sourceco-foreground shadow-sm"
+              >
+                <CheckCircle className="h-3.5 w-3.5 mr-1.5" />
+                Accept Request
+              </Button>
             </div>
-            <span className="text-[10px] font-semibold uppercase tracking-wider text-primary bg-sourceco/20 border border-sourceco/40 rounded-md px-2.5 py-1">
-              Awaiting Action
-            </span>
-          </div>
-
-          {/* Action buttons */}
-          <div className="px-5 py-3.5 flex items-center gap-3 bg-sourceco-muted/30">
-            <Button
-              onClick={handleAccept}
-              disabled={updateStatus.isPending}
-              className="bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm hover:shadow-emerald-500/25 transition-all"
-              size="sm"
-            >
-              <CheckCircle className="h-4 w-4 mr-2" />
-              Accept Request
-            </Button>
-            <Button
-              variant="outline"
-              onClick={() => setShowRejectDialog(true)}
-              disabled={updateStatus.isPending}
-              className="border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700 hover:border-red-300"
-              size="sm"
-            >
-              <XCircle className="h-4 w-4 mr-2" />
-              Decline
-            </Button>
           </div>
         </div>
       )}
 
       {/* Status banner — approved */}
       {requestStatus === "approved" && requestId && (
-        <div className="rounded-xl bg-gradient-to-r from-emerald-50 to-emerald-100/50 border border-emerald-200 px-5 py-3.5 flex items-center justify-between">
+        <div className="rounded-xl bg-emerald-50 border border-emerald-200 px-5 py-3.5 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-7 h-7 rounded-full bg-emerald-600 flex items-center justify-center">
               <CheckCircle className="h-4 w-4 text-white" />
             </div>
             <div>
               <p className="text-sm font-bold text-emerald-800">Request Approved</p>
-              <p className="text-xs text-emerald-700">This buyer has been moved to the pipeline. Next: send NDA & share materials.</p>
+              <p className="text-xs text-emerald-700">This buyer has been moved to the pipeline.</p>
             </div>
           </div>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={handleResetToPending}
-            disabled={updateStatus.isPending}
-            className="text-xs h-7 text-emerald-700 hover:text-emerald-800 hover:bg-emerald-200/50"
-          >
-            <Undo2 className="h-3 w-3 mr-1" />
-            Undo
+          <Button variant="ghost" size="sm" onClick={handleResetToPending} disabled={updateStatus.isPending} className="text-xs h-7 text-emerald-700 hover:text-emerald-800 hover:bg-emerald-200/50">
+            <Undo2 className="h-3 w-3 mr-1" /> Undo
           </Button>
         </div>
       )}
 
       {/* Status banner — rejected */}
       {requestStatus === "rejected" && requestId && (
-        <div className="rounded-xl bg-gradient-to-r from-red-50 to-red-100/50 border border-red-200 px-5 py-3.5 flex items-center justify-between">
+        <div className="rounded-xl bg-red-50 border border-red-200 px-5 py-3.5 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-7 h-7 rounded-full bg-red-600 flex items-center justify-center">
               <XCircle className="h-4 w-4 text-white" />
@@ -324,22 +321,15 @@ export function ConnectionRequestActions({
               <p className="text-xs text-red-700">This buyer has been notified.</p>
             </div>
           </div>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={handleResetToPending}
-            disabled={updateStatus.isPending}
-            className="text-xs h-7 text-red-700 hover:text-red-800 hover:bg-red-200/50"
-          >
-            <Undo2 className="h-3 w-3 mr-1" />
-            Undo
+          <Button variant="ghost" size="sm" onClick={handleResetToPending} disabled={updateStatus.isPending} className="text-xs h-7 text-red-700 hover:text-red-800 hover:bg-red-200/50">
+            <Undo2 className="h-3 w-3 mr-1" /> Undo
           </Button>
         </div>
       )}
 
       {/* Status banner — on hold */}
       {requestStatus === "on_hold" && requestId && (
-        <div className="rounded-xl bg-gradient-to-r from-amber-50 to-amber-100/50 border border-amber-200 px-5 py-3.5 flex items-center justify-between">
+        <div className="rounded-xl bg-amber-50 border border-amber-200 px-5 py-3.5 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-7 h-7 rounded-full bg-amber-600 flex items-center justify-center">
               <Shield className="h-4 w-4 text-white" />
@@ -349,15 +339,8 @@ export function ConnectionRequestActions({
               <p className="text-xs text-amber-700">This request is paused for review.</p>
             </div>
           </div>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={handleResetToPending}
-            disabled={updateStatus.isPending}
-            className="text-xs h-7 text-amber-700 hover:text-amber-800 hover:bg-amber-200/50"
-          >
-            <Undo2 className="h-3 w-3 mr-1" />
-            Undo
+          <Button variant="ghost" size="sm" onClick={handleResetToPending} disabled={updateStatus.isPending} className="text-xs h-7 text-amber-700 hover:text-amber-800 hover:bg-amber-200/50">
+            <Undo2 className="h-3 w-3 mr-1" /> Undo
           </Button>
         </div>
       )}
@@ -365,80 +348,44 @@ export function ConnectionRequestActions({
       {/* Document status + access for approved */}
       {requestStatus === "approved" && listing && (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          {/* Document Status */}
-          <div className="bg-sourceco-background border border-sourceco/25 rounded-lg p-4">
+          <div className="bg-card border border-border rounded-lg p-4">
             <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2 mb-3">
-              <FileText className="h-3.5 w-3.5" />
-              Document Status
+              <FileText className="h-3.5 w-3.5" /> Document Status
             </h3>
             <div className="space-y-2">
               <div className="flex items-center justify-between py-1.5 px-3 rounded-md bg-muted/30">
                 <span className="text-xs font-medium">NDA</span>
-                <div className="flex items-center gap-1.5">
-                  {getDocStatusDot(hasNDA)}
-                  <span className="text-xs text-muted-foreground">{hasNDA ? "Signed" : "Required"}</span>
-                </div>
+                <div className="flex items-center gap-1.5">{getDocStatusDot(hasNDA)}<span className="text-xs text-muted-foreground">{hasNDA ? "Signed" : "Required"}</span></div>
               </div>
               <div className="flex items-center justify-between py-1.5 px-3 rounded-md bg-muted/30">
                 <span className="text-xs font-medium">Fee Agreement</span>
-                <div className="flex items-center gap-1.5">
-                  {getDocStatusDot(hasFeeAgreement)}
-                  <span className="text-xs text-muted-foreground">{hasFeeAgreement ? "Signed" : "Required"}</span>
-                </div>
+                <div className="flex items-center gap-1.5">{getDocStatusDot(hasFeeAgreement)}<span className="text-xs text-muted-foreground">{hasFeeAgreement ? "Signed" : "Required"}</span></div>
               </div>
             </div>
           </div>
-
-          {/* Document Access */}
           <TooltipProvider>
-            <div className="bg-sourceco-background border border-sourceco/25 rounded-lg p-4">
+            <div className="bg-card border border-border rounded-lg p-4">
               <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2 mb-3">
-                <Eye className="h-3.5 w-3.5" />
-                Document Access
+                <Eye className="h-3.5 w-3.5" /> Document Access
               </h3>
               <div className="space-y-2">
                 <div className="flex items-center justify-between py-1.5 px-3 rounded-md bg-muted/30">
                   <span className="text-xs font-medium">Teaser</span>
-                  <Switch
-                    checked={accessRecord?.can_view_teaser ?? false}
-                    onCheckedChange={(checked) => requestAccessToggle("can_view_teaser", checked)}
-                    disabled={updateAccess.isPending}
-                    className="scale-75"
-                  />
+                  <Switch checked={accessRecord?.can_view_teaser ?? false} onCheckedChange={(checked) => requestAccessToggle("can_view_teaser", checked)} disabled={updateAccess.isPending} className="scale-75" />
                 </div>
                 <div className="flex items-center justify-between py-1.5 px-3 rounded-md bg-muted/30">
                   <div className="flex items-center gap-1.5">
                     <span className="text-xs font-medium">Full Memo</span>
-                    {!hasFeeAgreement && (
-                      <Tooltip>
-                        <TooltipTrigger asChild><Lock className="h-3 w-3 text-amber-500" /></TooltipTrigger>
-                        <TooltipContent side="top" className="text-xs">Requires signed fee agreement</TooltipContent>
-                      </Tooltip>
-                    )}
+                    {!hasFeeAgreement && <Tooltip><TooltipTrigger asChild><Lock className="h-3 w-3 text-amber-500" /></TooltipTrigger><TooltipContent side="top" className="text-xs">Requires signed fee agreement</TooltipContent></Tooltip>}
                   </div>
-                  <Switch
-                    checked={accessRecord?.can_view_full_memo ?? false}
-                    onCheckedChange={(checked) => requestAccessToggle("can_view_full_memo", checked)}
-                    disabled={updateAccess.isPending || !hasFeeAgreement}
-                    className="scale-75"
-                  />
+                  <Switch checked={accessRecord?.can_view_full_memo ?? false} onCheckedChange={(checked) => requestAccessToggle("can_view_full_memo", checked)} disabled={updateAccess.isPending || !hasFeeAgreement} className="scale-75" />
                 </div>
                 <div className="flex items-center justify-between py-1.5 px-3 rounded-md bg-muted/30">
                   <div className="flex items-center gap-1.5">
                     <span className="text-xs font-medium">Data Room</span>
-                    {!hasFeeAgreement && (
-                      <Tooltip>
-                        <TooltipTrigger asChild><Lock className="h-3 w-3 text-amber-500" /></TooltipTrigger>
-                        <TooltipContent side="top" className="text-xs">Requires signed fee agreement</TooltipContent>
-                      </Tooltip>
-                    )}
+                    {!hasFeeAgreement && <Tooltip><TooltipTrigger asChild><Lock className="h-3 w-3 text-amber-500" /></TooltipTrigger><TooltipContent side="top" className="text-xs">Requires signed fee agreement</TooltipContent></Tooltip>}
                   </div>
-                  <Switch
-                    checked={accessRecord?.can_view_data_room ?? false}
-                    onCheckedChange={(checked) => requestAccessToggle("can_view_data_room", checked)}
-                    disabled={updateAccess.isPending || !hasFeeAgreement}
-                    className="scale-75"
-                  />
+                  <Switch checked={accessRecord?.can_view_data_room ?? false} onCheckedChange={(checked) => requestAccessToggle("can_view_data_room", checked)} disabled={updateAccess.isPending || !hasFeeAgreement} className="scale-75" />
                 </div>
               </div>
             </div>
@@ -447,189 +394,253 @@ export function ConnectionRequestActions({
       )}
 
       {/* ── TWO-COLUMN LAYOUT ── */}
-      <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-4">
-        {/* ── LEFT: Conversation Thread ── */}
-        <div className="bg-sourceco-background border border-sourceco/25 rounded-xl overflow-hidden shadow-sm">
-          {/* Tab bar */}
-          <div className="border-b border-sourceco/20 px-5 flex items-center bg-sourceco-muted/30">
-            <button
-              className={`py-3 px-1 text-sm font-medium border-b-2 transition-colors mr-4 ${
-                activeTab === "thread"
-                  ? "border-sourceco text-foreground"
-                  : "border-transparent text-muted-foreground hover:text-foreground"
-              }`}
-              onClick={() => setActiveTab("thread")}
-            >
-              Conversation Thread
-            </button>
-            <button
-              className={`py-3 px-1 text-sm font-medium border-b-2 transition-colors ${
-                activeTab === "notes"
-                  ? "border-sourceco text-foreground"
-                  : "border-transparent text-muted-foreground hover:text-foreground"
-              }`}
-              onClick={() => setActiveTab("notes")}
-            >
-              Internal Notes
-            </button>
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_340px] gap-5">
+        {/* ── LEFT COLUMN ── */}
+        <div className="space-y-4">
+          {/* Buyer Hero Card */}
+          <div className="bg-card border border-border rounded-xl overflow-hidden shadow-sm">
+            <div className="px-6 py-5 flex items-start gap-4">
+              {/* Avatar */}
+              <div className="w-[50px] h-[50px] rounded-full bg-foreground border-2 border-sourceco flex items-center justify-center shrink-0">
+                <span className="text-card text-base font-bold" style={{ fontFamily: 'Manrope, sans-serif' }}>{buyerInitials}</span>
+              </div>
+
+              {/* Info */}
+              <div className="flex-1 min-w-0">
+                <h2 className="text-xl font-extrabold text-foreground tracking-tight" style={{ fontFamily: 'Manrope, sans-serif' }}>{buyerName}</h2>
+                <p className="text-[13.5px] text-muted-foreground">{firmName}</p>
+                {buyerEmail && (
+                  <p className="text-xs text-muted-foreground/70 mt-0.5">✉ {buyerEmail}</p>
+                )}
+                <div className="flex items-center gap-1.5 mt-2.5 flex-wrap">
+                  {tierInfo.description && (
+                    <span className="px-2.5 py-0.5 rounded-full text-[11.5px] font-semibold bg-muted text-foreground">{tierInfo.description}</span>
+                  )}
+                  <span className="px-2.5 py-0.5 rounded-full text-[11.5px] font-semibold bg-sourceco/10 text-sourceco">Marketplace</span>
+                  {firmName && (
+                    <span className="px-2.5 py-0.5 rounded-full text-[11.5px] font-semibold bg-emerald-50 text-emerald-700">{firmName}</span>
+                  )}
+                </div>
+              </div>
+
+              {/* Right: Date + AUM */}
+              <div className="text-right shrink-0">
+                <p className="text-xs text-muted-foreground mb-2.5">{formattedDate}</p>
+                {aum && (
+                  <div className="bg-foreground rounded-xl px-4 py-2.5 inline-block">
+                    <p className="text-xl font-extrabold text-card tracking-tight leading-none" style={{ fontFamily: 'Manrope, sans-serif' }}>{aum}</p>
+                    <p className="text-[9px] uppercase tracking-widest text-muted-foreground mt-1">Assets Under Mgmt.</p>
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
 
-          {activeTab === "thread" && requestId && (
-            <ConversationThread
-              connectionRequestId={requestId}
-              buyerName={`${user.first_name} ${user.last_name}`}
-              buyerInitials={buyerInitials}
-              buyerMessage={userMessage}
-              submittedAt={createdAt}
-            />
-          )}
-
-          {activeTab === "notes" && (
-            <div className="p-5 bg-sourceco-muted/20">
-              <div className="bg-sourceco/10 border border-sourceco/30 rounded-lg px-4 py-2.5 mb-4 text-xs text-foreground flex items-center gap-2">
-                <Lock className="h-3.5 w-3.5 shrink-0" />
-                Internal notes are only visible to your team — buyers cannot see these.
-              </div>
-              <UserNotesSection userId={user.id} userName={`${user.first_name} ${user.last_name}`} />
+          {/* Tabs + Conversation */}
+          <div className="bg-card border border-border rounded-xl overflow-hidden shadow-sm">
+            {/* Tab bar */}
+            <div className="border-b border-border px-5 flex items-center bg-muted/30">
+              <button
+                className={`py-3 px-1 text-[13.5px] font-medium border-b-2 transition-colors mr-5 ${
+                  activeTab === "thread"
+                    ? "border-sourceco text-sourceco font-bold"
+                    : "border-transparent text-muted-foreground hover:text-foreground"
+                }`}
+                onClick={() => setActiveTab("thread")}
+              >
+                Conversation Thread
+              </button>
+              <button
+                className={`py-3 px-1 text-[13.5px] font-medium border-b-2 transition-colors ${
+                  activeTab === "notes"
+                    ? "border-sourceco text-sourceco font-bold"
+                    : "border-transparent text-muted-foreground hover:text-foreground"
+                }`}
+                onClick={() => setActiveTab("notes")}
+              >
+                Internal Notes
+              </button>
             </div>
-          )}
+
+            {activeTab === "thread" && requestId && (
+              <ConversationThread
+                connectionRequestId={requestId}
+                buyerName={buyerName}
+                buyerInitials={buyerInitials}
+                buyerMessage={userMessage}
+                submittedAt={createdAt}
+              />
+            )}
+
+            {activeTab === "notes" && (
+              <div className="p-5 bg-muted/20">
+                <div className="bg-muted/50 border border-border rounded-lg px-4 py-2.5 mb-4 text-xs text-foreground flex items-center gap-2">
+                  <Lock className="h-3.5 w-3.5 shrink-0" />
+                  Internal notes are only visible to your team — buyers cannot see these.
+                </div>
+                <UserNotesSection userId={user.id} userName={buyerName} />
+              </div>
+            )}
+          </div>
         </div>
 
         {/* ── RIGHT SIDEBAR ── */}
         <div className="space-y-4">
           {/* Buyer Information */}
-          <div className="bg-sourceco-background border border-sourceco/25 rounded-xl overflow-hidden shadow-sm">
-            <div className="px-4 py-3 border-b border-sourceco/20 bg-sourceco-muted/30">
-              <p className="text-[10px] font-bold uppercase tracking-[0.08em] text-muted-foreground flex items-center gap-1.5">
-                <User className="h-3 w-3" />
-                Buyer Information
-              </p>
-            </div>
-            <div className="px-4 py-3 space-y-2.5">
-              <SidebarField label="Type">
-                <span className={`text-xs font-semibold ${tierInfo.color}`}>
-                  {tierInfo.description}
-                </span>
-              </SidebarField>
+          <SidebarCard title="Buyer Information">
+            <div className="space-y-0">
+              <SidebarRow label="Type" value={tierInfo.description} />
+              {aum && <SidebarRow label="AUM" value={aum} bold />}
               {user.linkedin_profile && (
-                <SidebarField label="LinkedIn">
-                  <a href={processUrl(user.linkedin_profile)} target="_blank" rel="noopener noreferrer" className="text-xs font-medium text-primary hover:text-primary/80">
+                <SidebarRow label="LinkedIn">
+                  <a href={processUrl(user.linkedin_profile)} target="_blank" rel="noopener noreferrer" className="text-xs font-semibold text-sourceco hover:underline">
                     View Profile ↗
                   </a>
-                </SidebarField>
+                </SidebarRow>
               )}
-              {user.aum && (
-                <SidebarField label="AUM">
-                  <span className="text-xs font-medium text-foreground">{user.aum}</span>
-                </SidebarField>
-              )}
-
               {/* Profile Completeness */}
-              <div className="pt-2 mt-1 border-t border-border/20">
+              <div className="pt-3 mt-1">
                 <div className="flex items-center justify-between mb-1.5">
-                  <span className="text-[11px] text-muted-foreground font-medium">Profile Completeness</span>
-                  <span className={`text-[11px] font-bold ${completeness >= 70 ? 'text-emerald-600' : 'text-amber-600'}`}>
+                  <span className="text-xs text-muted-foreground font-medium">Profile Completeness</span>
+                  <span className={`text-xs font-bold ${completeness >= 70 ? 'text-emerald-600' : 'text-amber-600'}`}>
                     {completeness}%
                   </span>
                 </div>
-                <div className="h-1.5 bg-border/50 rounded-full overflow-hidden">
+                <div className="h-[5px] bg-border rounded-full overflow-hidden">
                   <div
                     className={`h-full rounded-full transition-all ${
                       completeness >= 70
                         ? 'bg-gradient-to-r from-emerald-500 to-emerald-400'
-                        : 'bg-gradient-to-r from-amber-500 to-red-400'
+                        : 'bg-gradient-to-r from-amber-500 to-amber-400'
                     }`}
                     style={{ width: `${completeness}%` }}
                   />
                 </div>
               </div>
             </div>
-          </div>
+          </SidebarCard>
 
-          {/* NDA & Fee Agreement Status */}
-          <div className="bg-sourceco-background border border-sourceco/25 rounded-xl overflow-hidden shadow-sm">
-            <div className="px-4 py-3 border-b border-sourceco/20 bg-sourceco-muted/30">
-              <p className="text-[10px] font-bold uppercase tracking-[0.08em] text-muted-foreground flex items-center gap-1.5">
-                <FileText className="h-3 w-3" />
-                Agreements
-              </p>
-            </div>
-            <div className="px-4 py-3 space-y-2">
-              <div className="flex items-center justify-between py-1.5 px-3 rounded-md bg-muted/30">
-                <span className="text-xs font-medium">NDA</span>
-                <div className="flex items-center gap-1.5">
-                  {getDocStatusDot(hasNDA)}
-                  <span className={`text-xs font-medium ${hasNDA ? 'text-emerald-600' : 'text-amber-600'}`}>
+          {/* Agreements */}
+          <SidebarCard title="Agreements">
+            <div className="space-y-0">
+              <div className="flex items-center justify-between py-2.5 border-b border-border/30 last:border-b-0">
+                <span className="text-xs text-muted-foreground font-medium">NDA</span>
+                <div className="flex items-center gap-2">
+                  <div className={`w-[7px] h-[7px] rounded-full ${hasNDA ? 'bg-emerald-500' : 'bg-amber-500'}`} />
+                  <span className={`text-[13px] font-semibold ${hasNDA ? 'text-foreground' : 'text-foreground'}`}>
                     {user.nda_signed ? 'Signed' : user.nda_email_sent ? 'Sent' : 'Not Sent'}
                   </span>
                   {!hasNDA && firmInfo?.firm_id && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-5 px-1.5 text-[10px] ml-1"
+                    <button
                       onClick={() => { setSendAgreementType('nda'); setSendAgreementOpen(true); }}
+                      className="text-xs font-semibold text-sourceco bg-sourceco/10 border border-sourceco/20 rounded-md px-2 py-0.5 hover:bg-sourceco/20 transition-colors"
                     >
-                      <Send className="h-3 w-3 mr-0.5" />
-                      Send
-                    </Button>
+                      ↗ Send
+                    </button>
                   )}
                 </div>
               </div>
-              <div className="flex items-center justify-between py-1.5 px-3 rounded-md bg-muted/30">
-                <span className="text-xs font-medium">Fee Agreement</span>
-                <div className="flex items-center gap-1.5">
-                  {getDocStatusDot(hasFeeAgreement)}
-                  <span className={`text-xs font-medium ${hasFeeAgreement ? 'text-emerald-600' : 'text-amber-600'}`}>
+              <div className="flex items-center justify-between py-2.5">
+                <span className="text-xs text-muted-foreground font-medium">Fee Agreement</span>
+                <div className="flex items-center gap-2">
+                  <div className={`w-[7px] h-[7px] rounded-full ${hasFeeAgreement ? 'bg-emerald-500' : 'bg-amber-500'}`} />
+                  <span className="text-[13px] font-semibold text-foreground">
                     {user.fee_agreement_signed ? 'Signed' : user.fee_agreement_email_sent ? 'Sent' : 'Not Sent'}
                   </span>
                   {!hasFeeAgreement && firmInfo?.firm_id && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-5 px-1.5 text-[10px] ml-1"
+                    <button
                       onClick={() => { setSendAgreementType('fee_agreement'); setSendAgreementOpen(true); }}
+                      className="text-xs font-semibold text-sourceco bg-sourceco/10 border border-sourceco/20 rounded-md px-2 py-0.5 hover:bg-sourceco/20 transition-colors"
                     >
-                      <Send className="h-3 w-3 mr-0.5" />
-                      Send
-                    </Button>
+                      ↗ Send
+                    </button>
                   )}
                 </div>
               </div>
             </div>
-          </div>
+          </SidebarCard>
 
-          {/* Deal Summary (compact) */}
+          {/* Requested Deal */}
           {listing && (
-            <div className="bg-sourceco-background border border-sourceco/25 rounded-xl overflow-hidden shadow-sm">
-              <div className="px-4 py-3 border-b border-sourceco/20 bg-sourceco-muted/30">
-                <p className="text-[10px] font-bold uppercase tracking-[0.08em] text-muted-foreground flex items-center gap-1.5">
-                  <Building2 className="h-3 w-3" />
-                  Requested Deal
-                </p>
-              </div>
-              <div className="px-4 py-3">
+            <SidebarCard title="Requested Deal">
+              <div>
+                {/* Tags */}
+                <div className="flex gap-1.5 flex-wrap mb-2.5">
+                  {listing.category && (
+                    <span className="px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-muted text-muted-foreground">{listing.category}</span>
+                  )}
+                  {listing.location && (
+                    <span className="px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-muted text-muted-foreground">{listing.location}</span>
+                  )}
+                </div>
+                {/* Title */}
                 <button
                   onClick={() => window.open(`/listing/${listing.id}`, '_blank')}
-                  className="text-xs font-medium text-primary hover:text-primary/80 flex items-center gap-1 group"
+                  className="text-sm font-bold text-foreground hover:text-sourceco transition-colors text-left leading-snug"
+                  style={{ fontFamily: 'Manrope, sans-serif' }}
                 >
-                  <span className="truncate">{listing.title}</span>
-                  <ExternalLink className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
+                  {listing.title}
                 </button>
-                <p className="text-[11px] text-muted-foreground mt-0.5">
-                  {listing.category}{listing.location ? ` · ${listing.location}` : ''}
-                  {listing.revenue ? ` · $${Number(listing.revenue).toLocaleString()}` : ''}
-                </p>
+                {/* Stats grid */}
+                <div className="grid grid-cols-2 gap-2 mt-3">
+                  <div className="bg-muted/40 border border-border rounded-lg px-3 py-2.5">
+                    <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold mb-0.5">EBITDA</p>
+                    <p className="text-lg font-extrabold text-foreground tracking-tight" style={{ fontFamily: 'Manrope, sans-serif' }}>
+                      {listing.ebitda ? `$${Number(listing.ebitda).toLocaleString()}` : 'TBD'}
+                    </p>
+                  </div>
+                  <div className="bg-muted/40 border border-border rounded-lg px-3 py-2.5">
+                    <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold mb-0.5">Ask Price</p>
+                    <p className="text-lg font-extrabold text-foreground tracking-tight" style={{ fontFamily: 'Manrope, sans-serif' }}>
+                      {(listing as any).asking_price ? `$${Number((listing as any).asking_price).toLocaleString()}` : 'TBD'}
+                    </p>
+                  </div>
+                </div>
               </div>
-            </div>
+            </SidebarCard>
           )}
 
-          {/* Other Deals by Buyer */}
-          {userRequests.length > 1 && (
-            <div className="bg-sourceco-background border border-sourceco/25 rounded-xl overflow-hidden shadow-sm">
-              <BuyerDealsOverview
-                requests={userRequests}
-                currentRequestId={requestId}
-              />
+          {/* Other Active Interests */}
+          {otherRequests.length > 0 && (
+            <div className="bg-card border border-border rounded-xl overflow-hidden shadow-sm">
+              <div className="px-4 py-3 border-b border-border bg-muted/30 flex items-center justify-between">
+                <h3 className="text-[11px] font-bold uppercase tracking-[1.2px] text-muted-foreground">Other Active Interests</h3>
+                <span className="text-[11.5px] font-bold px-2.5 py-0.5 rounded-full bg-sourceco/10 text-sourceco border border-sourceco/15">
+                  {otherRequests.length}
+                </span>
+              </div>
+              <div className="divide-y divide-border/30">
+                {otherRequests.map((req) => (
+                  <a
+                    key={req.id}
+                    href={`/listing/${req.listing_id}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="block px-4 py-3 hover:bg-muted/30 transition-colors"
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="text-[13px] font-semibold text-foreground leading-snug">
+                          {req.listing?.title || 'Unknown Listing'}
+                        </p>
+                        <p className="text-[11.5px] text-muted-foreground mt-0.5">
+                          {req.listing?.revenue ? `$${Number(req.listing.revenue).toLocaleString()}` : 'N/A'} · {req.listing?.location || 'N/A'}
+                        </p>
+                      </div>
+                      <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap tracking-wide ${
+                        req.status === 'approved' ? 'bg-emerald-50 text-emerald-600' :
+                        req.status === 'rejected' ? 'bg-red-50 text-red-600' :
+                        'bg-amber-50 text-amber-600'
+                      }`}>
+                        {req.status === 'approved' ? 'Approved' : req.status === 'rejected' ? 'Declined' : 'Pending'}
+                      </span>
+                    </div>
+                  </a>
+                ))}
+              </div>
+              <div className="text-xs text-muted-foreground text-center py-2.5 border-t border-border/30 cursor-pointer hover:text-sourceco transition-colors">
+                Follow-up actions apply to all active requests ›
+              </div>
             </div>
           )}
         </div>
@@ -641,8 +652,8 @@ export function ConnectionRequestActions({
           <DialogHeader>
             <DialogTitle className="text-lg">Reject this request?</DialogTitle>
             <DialogDescription className="text-sm">
-              <span className="font-medium text-foreground">{user.first_name} {user.last_name}</span> from{" "}
-              <span className="font-medium text-foreground">{user.company || user.company_name || 'Unknown Firm'}</span>{" "}
+              <span className="font-medium text-foreground">{buyerName}</span> from{" "}
+              <span className="font-medium text-foreground">{firmName || 'Unknown Firm'}</span>{" "}
               will be notified that their connection request
               {listing ? ` for "${listing.title}"` : ''} was not approved. This action can be undone.
             </DialogDescription>
@@ -654,23 +665,9 @@ export function ConnectionRequestActions({
             className="min-h-[80px] resize-none text-sm"
           />
           <DialogFooter className="gap-2 sm:gap-0">
-            <Button
-              variant="outline"
-              onClick={() => {
-                setShowRejectDialog(false);
-                setRejectNote("");
-              }}
-            >
-              Cancel
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={handleReject}
-              disabled={updateStatus.isPending}
-              className="bg-red-600 hover:bg-red-700"
-            >
-              <XCircle className="h-4 w-4 mr-2" />
-              Reject Request
+            <Button variant="outline" onClick={() => { setShowRejectDialog(false); setRejectNote(""); }}>Cancel</Button>
+            <Button variant="destructive" onClick={handleReject} disabled={updateStatus.isPending} className="bg-red-600 hover:bg-red-700">
+              <XCircle className="h-4 w-4 mr-2" /> Reject Request
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -685,19 +682,13 @@ export function ConnectionRequestActions({
             </DialogTitle>
             <DialogDescription className="text-sm">
               {pendingAccessToggle?.newValue
-                ? `This will allow ${user.first_name} ${user.last_name} to view the ${pendingAccessToggle?.label}.`
-                : `This will remove ${user.first_name} ${user.last_name}'s access to the ${pendingAccessToggle?.label}.`}
+                ? `This will allow ${buyerName} to view the ${pendingAccessToggle?.label}.`
+                : `This will remove ${buyerName}'s access to the ${pendingAccessToggle?.label}.`}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="gap-2 sm:gap-0">
-            <Button variant="outline" onClick={() => setPendingAccessToggle(null)}>
-              Cancel
-            </Button>
-            <Button
-              onClick={confirmAccessToggle}
-              disabled={updateAccess.isPending}
-              className="bg-sourceco hover:bg-sourceco/90 text-sourceco-foreground"
-            >
+            <Button variant="outline" onClick={() => setPendingAccessToggle(null)}>Cancel</Button>
+            <Button onClick={confirmAccessToggle} disabled={updateAccess.isPending} className="bg-sourceco hover:bg-sourceco/90 text-sourceco-foreground">
               {pendingAccessToggle?.newValue ? "Grant Access" : "Revoke Access"}
             </Button>
           </DialogFooter>
@@ -710,8 +701,8 @@ export function ConnectionRequestActions({
           onOpenChange={setSendAgreementOpen}
           firmId={firmInfo.firm_id}
           documentType={sendAgreementType}
-          buyerEmail={user.email || ''}
-          buyerName={`${user.first_name || ''} ${user.last_name || ''}`.trim() || user.email || ''}
+          buyerEmail={buyerEmail}
+          buyerName={buyerName || buyerEmail}
           firmName={firmInfo.firm_name || undefined}
         />
       )}
@@ -719,13 +710,32 @@ export function ConnectionRequestActions({
   );
 }
 
-// ─── Sidebar Field Helper ───
+// ─── Sidebar Card ───
 
-function SidebarField({ label, children }: { label: string; children: React.ReactNode }) {
+function SidebarCard({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="flex items-center justify-between py-1 border-b border-border/10 last:border-b-0">
-      <span className="text-xs text-muted-foreground">{label}</span>
-      {children}
+    <div className="bg-card border border-border rounded-xl overflow-hidden shadow-sm">
+      <div className="px-4 py-3 border-b border-border bg-muted/30">
+        <h3 className="text-[11px] font-bold uppercase tracking-[1.2px] text-muted-foreground">{title}</h3>
+      </div>
+      <div className="px-4 py-3.5">{children}</div>
+    </div>
+  );
+}
+
+// ─── Sidebar Row ───
+
+function SidebarRow({ label, value, bold, children }: { label: string; value?: string; bold?: boolean; children?: React.ReactNode }) {
+  return (
+    <div className="flex items-center justify-between py-2.5 border-b border-border/30 last:border-b-0">
+      <span className="text-xs text-muted-foreground font-medium">{label}</span>
+      {children || (
+        <span className={`text-[13px] text-foreground text-right ${bold ? 'font-extrabold text-xl tracking-tight' : 'font-semibold'}`}
+          style={bold ? { fontFamily: 'Manrope, sans-serif' } : undefined}
+        >
+          {value}
+        </span>
+      )}
     </div>
   );
 }
