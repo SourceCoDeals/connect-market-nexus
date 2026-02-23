@@ -103,36 +103,32 @@ export function PipelineKanbanCard({ deal, onDealClick, isDragging }: PipelineKa
           needsOwnerContact && "bg-red-50 dark:bg-red-950/40 rounded-t-xl"
         )}>
           <div className="flex items-center justify-between gap-2">
-            <h3 className={cn(
-              "text-[13px] font-semibold leading-snug truncate",
+           <h3 className={cn(
+              "text-sm font-semibold leading-snug truncate",
               needsOwnerContact ? "text-red-900 dark:text-red-200" : "text-foreground"
             )}>
               {companyName}
             </h3>
             {deal.deal_score != null && <DealScoreBadge score={deal.deal_score} size="sm" />}
           </div>
-          <div className="flex gap-3 mt-0.5 text-[11px] text-muted-foreground">
-            <span>Rev: <span className="font-semibold text-foreground">{fmt(deal.listing_revenue)}</span></span>
-            <span>EBITDA: <span className="font-semibold text-foreground">{fmt(deal.listing_ebitda)}</span></span>
-          </div>
-        </div>
+          <div className="flex gap-3 mt-0.5 text-xs text-muted-foreground">
 
         {/* Buyer block */}
         <div className="px-3 py-1.5 border-t border-border/30 space-y-0.5">
           <div className="flex items-center justify-between gap-1.5">
-            <span className="text-[12px] font-semibold text-foreground truncate">{contactName}</span>
+            <span className="text-[13px] font-semibold text-foreground truncate">{buyerCompany || contactName}</span>
             {buyerTypeLabel && (
-              <span className="flex-shrink-0 px-1.5 py-px rounded bg-primary/10 text-primary text-[10px] font-semibold leading-tight">
+              <span className="flex-shrink-0 px-1.5 py-px rounded bg-primary/10 text-primary text-[11px] font-semibold leading-tight">
                 {buyerTypeLabel}
               </span>
             )}
           </div>
           {buyerCompany && (
-            <div className="text-[11px] text-muted-foreground truncate">{buyerCompany}</div>
+            <div className="text-xs text-muted-foreground truncate">{contactName}</div>
           )}
           {buyerWebsite && (
-            <div className="flex items-center gap-1 text-[11px] text-primary/70 truncate">
-              <ExternalLink className="w-2.5 h-2.5 flex-shrink-0" />
+            <div className="flex items-center gap-1 text-xs text-primary/70 truncate">
+              <ExternalLink className="w-3 h-3 flex-shrink-0" />
               <span className="truncate">{buyerWebsite}</span>
             </div>
           )}
@@ -140,7 +136,7 @@ export function PipelineKanbanCard({ deal, onDealClick, isDragging }: PipelineKa
 
         {/* Labeled status grid */}
         <div className="px-3 py-1.5 border-t border-border/30">
-          <div className="grid grid-cols-2 gap-x-4 gap-y-0.5 text-[10px] text-muted-foreground">
+          <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-[11px] text-muted-foreground">
             <span className="inline-flex items-center gap-1">
               NDA <span className={cn('inline-block w-1.5 h-1.5 rounded-full', statusDot(deal.nda_status))} />
               <span className="font-medium text-foreground/80">{deal.nda_status === 'signed' ? 'Signed' : deal.nda_status === 'sent' ? 'Sent' : deal.nda_status === 'declined' ? 'Declined' : '—'}</span>
@@ -161,7 +157,7 @@ export function PipelineKanbanCard({ deal, onDealClick, isDragging }: PipelineKa
           <button
             type="button"
             onClick={handleMeetingToggle}
-            className="mt-0.5 inline-flex items-center gap-1 text-[10px] text-muted-foreground rounded p-0.5 -ml-0.5 transition-colors hover:bg-accent"
+            className="mt-0.5 inline-flex items-center gap-1 text-[11px] text-muted-foreground rounded p-0.5 -ml-0.5 transition-colors hover:bg-accent"
           >
             Mtg <CalendarCheck className={cn('w-3 h-3', active(deal.meeting_scheduled))} />
             <span className="font-medium text-foreground/80">{deal.meeting_scheduled ? 'Yes' : '—'}</span>
@@ -170,11 +166,11 @@ export function PipelineKanbanCard({ deal, onDealClick, isDragging }: PipelineKa
 
         {/* Footer: Owner + Last Activity */}
         <div className="px-3 py-1.5 border-t border-border/30 flex items-center justify-between">
-          <span className="text-[10px] text-muted-foreground">
+          <span className="text-[11px] text-muted-foreground">
             Owner: <span className="font-medium text-foreground/80">{assignedAdmin?.displayName || 'Unassigned'}</span>
           </span>
-          <span className="inline-flex items-center gap-0.5 text-[10px] text-muted-foreground/70">
-            <Clock className="w-2.5 h-2.5" />
+          <span className="inline-flex items-center gap-0.5 text-[11px] text-muted-foreground/70">
+            <Clock className="w-3 h-3" />
             {lastActivity}
           </span>
         </div>
