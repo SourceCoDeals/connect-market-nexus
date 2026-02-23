@@ -265,7 +265,7 @@ export const BuyerMatchCard = ({
   isHighlighted = false,
   onSelect,
   onApprove: _onApprove,
-  onPass,
+  onPass: _onPass,
   onToggleInterested: _onToggleInterested,
   onOutreachUpdate,
   onViewed,
@@ -620,19 +620,6 @@ export const BuyerMatchCard = ({
               </>
             )}
 
-            {/* Pass button - available for pending/approved, not for already passed */}
-            {score.status !== 'passed' && (
-              <Button
-                size="sm"
-                variant="outline"
-                className="text-red-600 border-red-200 hover:bg-red-50"
-                onClick={() => onPass(score.id, buyer?.company_name || 'Unknown', score)}
-                disabled={isPending}
-              >
-                <X className="mr-1 h-3.5 w-3.5" />
-                Pass
-              </Button>
-            )}
           </div>
         </div>
       </div>

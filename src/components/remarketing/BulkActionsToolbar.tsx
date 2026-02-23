@@ -53,7 +53,7 @@ export const BulkActionsToolbar = ({
     setIsApproving(true);
     try {
       await onBulkApprove();
-      toast.success(`Approved ${selectedCount} buyers`);
+      toast.success(`Approved ${selectedCount} buyers as fit`);
     } catch (error) {
       toast.error('Failed to approve buyers');
     } finally {
@@ -76,7 +76,7 @@ export const BulkActionsToolbar = ({
   if (selectedCount === 0) return null;
 
   return (
-    <div className="sticky top-0 z-20 bg-background border rounded-lg p-3 shadow-sm mb-4 flex items-center justify-between gap-4">
+    <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-background border border-border rounded-xl px-4 py-3 shadow-lg flex items-center gap-4 min-w-[500px] max-w-[700px]">
       <div className="flex items-center gap-3">
         <Badge variant="secondary" className="text-sm font-medium">
           {selectedCount} selected
@@ -92,8 +92,10 @@ export const BulkActionsToolbar = ({
         </Button>
       </div>
 
+      <div className="flex-1" />
+
       <div className="flex items-center gap-2">
-        {/* Approve All */}
+        {/* Approve Fit */}
         <Button
           size="sm"
           className="bg-emerald-600 hover:bg-emerald-700 text-white"
@@ -105,10 +107,54 @@ export const BulkActionsToolbar = ({
           ) : (
             <Check className="h-4 w-4 mr-1" />
           )}
-          Approve All
+          Approve Fit
         </Button>
 
-        {/* Pass All with Reason Dropdown */}
+        {/* Not a Fit */}
+        <Button
+          size="sm"
+          variant="outline"
+          className="text-amber-700 border-amber-200 hover:bg-amber-50"
+          onClick={() => handleBulkPass('Not a fit for this deal', 'other')}
+          disabled={isProcessing || isPassing}
+        >
+          {isPassing ? (
+            <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+          ) : (
+            <X className="h-4 w-4 mr-1" />
+          )}
+          Not a Fit
+        </Button>
+
+        <div className="h-6 w-px bg-border" />
+
+        {/* Export CSV */}
+        <Button
+          size="sm"
+          variant="ghost"
+          onClick={onExportCSV}
+          disabled={isProcessing}
+          className="text-muted-foreground"
+        >
+          <Download className="h-4 w-4 mr-1" />
+          Export
+        </Button>
+
+        {/* Generate Emails */}
+        <Button
+          size="sm"
+          variant="ghost"
+          disabled={isProcessing || !onGenerateEmails}
+          onClick={onGenerateEmails}
+          className="text-muted-foreground"
+        >
+          <Mail className="h-4 w-4 mr-1" />
+          Emails
+        </Button>
+
+        <div className="h-6 w-px bg-border" />
+
+        {/* Pass All with Reason - far right */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button
@@ -117,12 +163,8 @@ export const BulkActionsToolbar = ({
               className="text-red-600 border-red-200 hover:bg-red-50"
               disabled={isProcessing || isPassing}
             >
-              {isPassing ? (
-                <Loader2 className="h-4 w-4 mr-1 animate-spin" />
-              ) : (
-                <X className="h-4 w-4 mr-1" />
-              )}
-              Pass All
+              <X className="h-4 w-4 mr-1" />
+              Pass
               <ChevronDown className="h-4 w-4 ml-1" />
             </Button>
           </DropdownMenuTrigger>
@@ -141,30 +183,6 @@ export const BulkActionsToolbar = ({
             ))}
           </DropdownMenuContent>
         </DropdownMenu>
-
-        <div className="h-6 w-px bg-border" />
-
-        {/* Export CSV */}
-        <Button
-          size="sm"
-          variant="outline"
-          onClick={onExportCSV}
-          disabled={isProcessing}
-        >
-          <Download className="h-4 w-4 mr-1" />
-          Export CSV
-        </Button>
-
-        {/* Generate Emails */}
-        <Button
-          size="sm"
-          variant="outline"
-          disabled={isProcessing || !onGenerateEmails}
-          onClick={onGenerateEmails}
-        >
-          <Mail className="h-4 w-4 mr-1" />
-          Generate Emails
-        </Button>
       </div>
     </div>
   );
