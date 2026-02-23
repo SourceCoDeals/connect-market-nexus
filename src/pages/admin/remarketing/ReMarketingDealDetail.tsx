@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { MemosTab } from "@/components/admin/data-room/MemosTab";
 import { DocumentsPanel } from "@/components/admin/data-room/DocumentsPanel";
 import { AccessMatrixPanel } from "@/components/admin/data-room/AccessMatrixPanel";
@@ -286,18 +286,26 @@ const ReMarketingDealDetail = () => {
   // Handle website enrichment with progress tracking
   const [enrichmentProgress, setEnrichmentProgress] = useState(0);
   const [enrichmentStage, setEnrichmentStage] = useState('');
+  const progressTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Clean up progress timer on unmount to prevent memory leaks
+  useEffect(() => {
+    return () => {
+      if (progressTimerRef.current) clearInterval(progressTimerRef.current);
+    };
+  }, []);
 
   const handleEnrichFromWebsite = async () => {
     if (!deal) return;
-    
+
     setIsEnriching(true);
     setEnrichmentProgress(10);
     setEnrichmentStage('Scraping website...');
 
     // Simulate progress stages while waiting for the edge function
-    const progressTimer = setInterval(() => {
+    progressTimerRef.current = setInterval(() => {
       setEnrichmentProgress(prev => {
-        if (prev >= 85) { clearInterval(progressTimer); return 85; }
+        if (prev >= 85) { if (progressTimerRef.current) clearInterval(progressTimerRef.current); progressTimerRef.current = null; return 85; }
         if (prev < 30) { setEnrichmentStage('Scraping website...'); return prev + 3; }
         if (prev < 55) { setEnrichmentStage('Extracting business intelligence...'); return prev + 2; }
         if (prev < 75) { setEnrichmentStage('Processing company data...'); return prev + 1.5; }
@@ -310,12 +318,14 @@ const ReMarketingDealDetail = () => {
       const { queueDealEnrichment } = await import("@/lib/remarketing/queueEnrichment");
       await queueDealEnrichment([dealId!]);
 
-      clearInterval(progressTimer);
+      if (progressTimerRef.current) clearInterval(progressTimerRef.current);
+      progressTimerRef.current = null;
       setEnrichmentProgress(100);
       setEnrichmentStage('Queued for background processing');
       setTimeout(() => { setIsEnriching(false); setEnrichmentProgress(0); setEnrichmentStage(''); }, 1500);
     } catch (error: any) {
-      clearInterval(progressTimer);
+      if (progressTimerRef.current) clearInterval(progressTimerRef.current);
+      progressTimerRef.current = null;
       toast.error(error.message || "Failed to queue enrichment");
       setIsEnriching(false);
       setEnrichmentProgress(0);

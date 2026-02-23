@@ -69,6 +69,14 @@ export default defineConfig(({ mode }) => ({
           if (id.includes('node_modules/lucide-react')) {
             return 'icons-vendor';
           }
+          // DocuSeal (e-signature, rarely used — separate chunk)
+          if (id.includes('node_modules/@docuseal/')) {
+            return 'docuseal-vendor';
+          }
+          // CSV parsing + document generation (used only for imports/exports)
+          if (id.includes('node_modules/papaparse') || id.includes('node_modules/docx') || id.includes('node_modules/file-saver')) {
+            return 'file-utils-vendor';
+          }
           // All other node_modules go in a general vendor chunk
           if (id.includes('node_modules/')) {
             return 'vendor';
