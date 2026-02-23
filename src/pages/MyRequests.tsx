@@ -14,9 +14,7 @@ import { DealProcessSteps } from "@/components/deals/DealProcessSteps";
 import { DealDetailsCard } from "@/components/deals/DealDetailsCard";
 import { DealMetricsCard } from "@/components/deals/DealMetricsCard";
 import { DealMessagesTab } from "@/components/deals/DealMessagesTab";
-import { DealMessagePreview } from "@/components/deals/DealMessagePreview";
 import { DealDocumentsTab } from "@/components/deals/DealDocumentsTab";
-import { DealDocumentPreview } from "@/components/deals/DealDocumentPreview";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -415,20 +413,6 @@ const MyRequests = () => {
                         profileCompletionPercentage={getProfileCompletionDetails(profileForCalc).percentage}
                       />
 
-                      {/* Document Preview */}
-                      <DealDocumentPreview
-                        requestId={request.id}
-                        requestStatus={requestStatus}
-                        dealId={request.listing_id}
-                        onViewAll={() => setDealInnerTab(request.id, "documents")}
-                      />
-
-                      {/* Message Preview */}
-                      <DealMessagePreview
-                        requestId={request.id}
-                        requestStatus={requestStatus}
-                        onViewAll={() => setDealInnerTab(request.id, "messages")}
-                      />
 
                       {/* Deal Details */}
                       <DealDetailsCard
