@@ -42,7 +42,7 @@ const ConnectionRequestDialog = ({
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
       <DialogContent
-        className="sm:max-w-md w-[95vw] max-h-[90vh] overflow-y-auto z-[100]"
+        className="sm:max-w-2xl w-[95vw] max-h-[90vh] overflow-y-auto z-[100]"
         onClick={(e) => e.stopPropagation()}
       >
         <DialogHeader>
