@@ -95,6 +95,8 @@ export function AgreementSigningModal({
     queryClient.invalidateQueries({ queryKey: ['buyer-nda-status'] });
     queryClient.invalidateQueries({ queryKey: ['my-agreement-status'] });
     queryClient.invalidateQueries({ queryKey: ['firm-agreements'] });
+    queryClient.invalidateQueries({ queryKey: ['buyer-firm-agreement-status'] });
+    queryClient.invalidateQueries({ queryKey: ['agreement-pending-notifications'] });
     toast({ title: `${docLabel} Signed!`, description: 'Thank you for signing. Your access has been updated.' });
 
     // Auto-close after brief delay so user sees success state
