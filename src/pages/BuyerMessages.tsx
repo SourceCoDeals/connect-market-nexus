@@ -9,6 +9,8 @@ import {
   Inbox,
   Search,
   ExternalLink,
+  FileSignature,
+  Shield,
 } from "lucide-react";
 import {
   useConnectionMessages,
@@ -19,6 +21,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { formatDistanceToNow } from "date-fns";
+import { AgreementSigningModal } from "@/components/docuseal/AgreementSigningModal";
 
 // Fetch buyer's threads — single batch query instead of N+1
 function useBuyerThreads() {
@@ -477,16 +480,87 @@ function BuyerMessagesSkeleton() {
 }
 
 function BuyerMessagesEmpty() {
+  const { user } = useAuth();
+  const [signingOpen, setSigningOpen] = useState(false);
+  const [signingDocType, setSigningDocType] = useState<'nda' | 'fee_agreement'>('nda');
+
+  const { data: pendingNotifications = [] } = useQuery({
+    queryKey: ['agreement-pending-notifications', user?.id],
+    queryFn: async () => {
+      if (!user?.id) return [];
+      const { data } = await (supabase
+        .from('user_notifications') as any)
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('notification_type', 'agreement_pending')
+        .order('created_at', { ascending: false })
+        .limit(10);
+      return data || [];
+    },
+    enabled: !!user?.id,
+  });
+
+  if (pendingNotifications.length > 0) {
+    return (
+      <>
+        <div className="border border-border rounded-xl overflow-hidden bg-card">
+          <div className="px-5 py-4 border-b border-border">
+            <h3 className="text-sm font-semibold text-foreground">Action Required</h3>
+            <p className="text-xs text-muted-foreground mt-0.5">Sign these documents to get started</p>
+          </div>
+          <div className="divide-y divide-border">
+            {pendingNotifications.map((n: any) => {
+              const isNda = n.metadata?.document_type === 'nda';
+              return (
+                <div key={n.id} className="flex items-start gap-4 px-5 py-4">
+                  <div className="mt-0.5 p-2 rounded-full bg-amber-100 dark:bg-amber-900/30">
+                    {isNda ? (
+                      <Shield className="h-5 w-5 text-amber-600" />
+                    ) : (
+                      <FileSignature className="h-5 w-5 text-amber-600" />
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-foreground">{n.title}</p>
+                    <p className="text-xs text-muted-foreground mt-1 leading-relaxed">{n.message}</p>
+                    <p className="text-[10px] text-muted-foreground/60 mt-1.5">
+                      {formatDistanceToNow(new Date(n.created_at), { addSuffix: true })}
+                    </p>
+                  </div>
+                  <Button
+                    size="sm"
+                    className="shrink-0"
+                    onClick={() => {
+                      setSigningDocType(isNda ? 'nda' : 'fee_agreement');
+                      setSigningOpen(true);
+                    }}
+                  >
+                    Sign Now
+                  </Button>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+        <AgreementSigningModal
+          open={signingOpen}
+          onOpenChange={setSigningOpen}
+          documentType={signingDocType}
+        />
+      </>
+    );
+  }
+
   return (
-    <div className="border border-slate-200 rounded-xl overflow-hidden bg-white flex flex-col items-center justify-center py-20">
-      <MessageSquare className="h-12 w-12 text-slate-300 mb-4" />
-      <h3 className="text-lg font-semibold text-slate-900 mb-1">
+    <div className="border border-border rounded-xl overflow-hidden bg-card flex flex-col items-center justify-center py-20">
+      <MessageSquare className="h-12 w-12 text-muted-foreground/30 mb-4" />
+      <h3 className="text-lg font-semibold text-foreground mb-1">
         No messages yet
       </h3>
-      <p className="text-sm text-slate-500 max-w-sm text-center">
+      <p className="text-sm text-muted-foreground max-w-sm text-center">
         Messages from the SourceCo team about your deals will appear here.
         You can also start conversations from your{" "}
-        <Link to="/my-deals" className="text-blue-600 hover:text-blue-700">
+        <Link to="/my-deals" className="text-primary hover:text-primary/80">
           My Deals
         </Link>{" "}
         page.
