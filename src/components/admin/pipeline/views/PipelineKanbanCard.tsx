@@ -121,23 +121,23 @@ export function PipelineKanbanCard({ deal, onDealClick, isDragging }: PipelineKa
           </div>
         </div>
 
-        {/* Buyer block — company/firm prominent, individual smaller */}
-        <div className="px-3 py-1.5 border-t border-border/30 space-y-0.5">
+        {/* Buyer block — prominent identity */}
+        <div className="px-3 py-2 border-t border-border/30 space-y-1">
           <div className="flex items-center justify-between gap-1.5">
             <span className="text-sm font-bold text-foreground truncate">{buyerCompany || contactName}</span>
-            <div className="flex items-center gap-1">
-              <BuyerTierBadge tier={deal.buyer_tier} />
-              <BuyerScoreBadge score={deal.buyer_quality_score} size="lg" />
-              {buyerTypeLabel && (
-                <span className="flex-shrink-0 px-1.5 py-px rounded bg-primary/10 text-primary text-[11px] font-semibold leading-tight">
-                  {buyerTypeLabel}
-                </span>
-              )}
-            </div>
+            <BuyerScoreBadge score={deal.buyer_quality_score} size="lg" />
           </div>
           {buyerCompany && (
-            <div className="text-[11px] text-muted-foreground truncate">{contactName}</div>
+            <div className="text-xs text-muted-foreground truncate">{contactName}</div>
           )}
+          <div className="flex items-center flex-wrap gap-1.5 mt-0.5">
+            <BuyerTierBadge tier={deal.buyer_tier} />
+            {buyerTypeLabel && (
+              <span className="px-1.5 py-px rounded bg-primary/10 text-primary text-[11px] font-semibold leading-tight">
+                {buyerTypeLabel}
+              </span>
+            )}
+          </div>
           {buyerWebsite && (
             <div className="flex items-center gap-1 text-[11px] text-primary/70 truncate">
               <ExternalLink className="w-3 h-3 flex-shrink-0" />
@@ -146,33 +146,22 @@ export function PipelineKanbanCard({ deal, onDealClick, isDragging }: PipelineKa
           )}
         </div>
 
-        {/* Labeled status grid */}
-        <div className="px-3 py-1.5 border-t border-border/30">
-          <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-[11px] text-muted-foreground">
-            <span className="inline-flex items-center gap-1">
-              NDA <span className={cn('inline-block w-1.5 h-1.5 rounded-full', statusDot(deal.nda_status))} />
-              <span className="font-medium text-foreground/80">{deal.nda_status === 'signed' ? 'Signed' : deal.nda_status === 'sent' ? 'Sent' : deal.nda_status === 'declined' ? 'Declined' : '—'}</span>
-            </span>
-            <span className="inline-flex items-center gap-1">
-              Fee <span className={cn('inline-block w-1.5 h-1.5 rounded-full', statusDot(deal.fee_agreement_status))} />
-              <span className="font-medium text-foreground/80">{deal.fee_agreement_status === 'signed' ? 'Signed' : deal.fee_agreement_status === 'sent' ? 'Sent' : deal.fee_agreement_status === 'declined' ? 'Declined' : '—'}</span>
-            </span>
-            <span className="inline-flex items-center gap-1">
-              Memo <span className={cn('inline-block w-1.5 h-1.5 rounded-full', deal.memo_sent ? 'bg-emerald-500' : 'bg-muted-foreground/30')} />
-              <span className="font-medium text-foreground/80">{deal.memo_sent ? 'Sent' : '—'}</span>
-            </span>
-            <span className="inline-flex items-center gap-1">
-              DR <span className={cn('inline-block w-1.5 h-1.5 rounded-full', deal.has_data_room ? 'bg-emerald-500' : 'bg-muted-foreground/30')} />
-              <span className="font-medium text-foreground/80">{deal.has_data_room ? 'Yes' : '—'}</span>
-            </span>
-          </div>
-          <button
-            type="button"
-            onClick={handleMeetingToggle}
-            className="mt-0.5 inline-flex items-center gap-1 text-[11px] text-muted-foreground rounded p-0.5 -ml-0.5 transition-colors hover:bg-accent"
-          >
+        {/* Compact status row — dots only with tooltips */}
+        <div className="px-3 py-1 border-t border-border/30 flex items-center gap-3 text-[10px] text-muted-foreground">
+          <span className="inline-flex items-center gap-1" title={`NDA: ${deal.nda_status || 'none'}`}>
+            NDA <span className={cn('inline-block w-1.5 h-1.5 rounded-full', statusDot(deal.nda_status))} />
+          </span>
+          <span className="inline-flex items-center gap-1" title={`Fee: ${deal.fee_agreement_status || 'none'}`}>
+            Fee <span className={cn('inline-block w-1.5 h-1.5 rounded-full', statusDot(deal.fee_agreement_status))} />
+          </span>
+          <span className="inline-flex items-center gap-1" title={`Memo: ${deal.memo_sent ? 'Sent' : 'No'}`}>
+            Memo <span className={cn('inline-block w-1.5 h-1.5 rounded-full', deal.memo_sent ? 'bg-emerald-500' : 'bg-muted-foreground/30')} />
+          </span>
+          <span className="inline-flex items-center gap-1" title={`Data Room: ${deal.has_data_room ? 'Yes' : 'No'}`}>
+            DR <span className={cn('inline-block w-1.5 h-1.5 rounded-full', deal.has_data_room ? 'bg-emerald-500' : 'bg-muted-foreground/30')} />
+          </span>
+          <button type="button" onClick={handleMeetingToggle} className="inline-flex items-center gap-1 rounded transition-colors hover:bg-accent p-0.5 -ml-0.5" title={`Meeting: ${deal.meeting_scheduled ? 'Yes' : 'No'}`}>
             Mtg <CalendarCheck className={cn('w-3 h-3', active(deal.meeting_scheduled))} />
-            <span className="font-medium text-foreground/80">{deal.meeting_scheduled ? 'Yes' : '—'}</span>
           </button>
         </div>
 
