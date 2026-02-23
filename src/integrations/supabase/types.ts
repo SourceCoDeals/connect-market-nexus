@@ -10340,11 +10340,21 @@ export type Database = {
           admin_first_name: string
           admin_id: string
           admin_last_name: string
+          buyer_company: string
+          buyer_email: string
+          buyer_first_name: string
+          buyer_last_name: string
+          buyer_phone: string
           buyer_quality_score: number
           buyer_tier: number
           buyer_type: string
           buyer_website: string
           connection_request_id: string
+          contact_company: string
+          contact_email: string
+          contact_name: string
+          contact_phone: string
+          contact_role: string
           deal_created_at: string
           deal_deleted_at: string
           deal_description: string
@@ -10357,6 +10367,9 @@ export type Database = {
           deal_title: string
           deal_updated_at: string
           deal_value: number
+          fee_agreement_status: string
+          followed_up: boolean
+          followed_up_at: string
           listing_category: string
           listing_deal_total_score: number
           listing_ebitda: number
@@ -10368,6 +10381,10 @@ export type Database = {
           listing_needs_owner_contact: boolean
           listing_revenue: number
           listing_title: string
+          meeting_scheduled: boolean
+          nda_status: string
+          negative_followed_up: boolean
+          negative_followed_up_at: string
           stage_color: string
           stage_default_probability: number
           stage_id: string

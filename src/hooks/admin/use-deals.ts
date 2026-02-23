@@ -175,6 +175,25 @@ interface DealRpcRow {
   buyer_website: string | null;
   buyer_quality_score: number | null;
   buyer_tier: number | null;
+  // Contact/buyer fields
+  contact_name: string | null;
+  contact_email: string | null;
+  contact_company: string | null;
+  contact_phone: string | null;
+  contact_role: string | null;
+  buyer_first_name: string | null;
+  buyer_last_name: string | null;
+  buyer_email: string | null;
+  buyer_company: string | null;
+  buyer_phone: string | null;
+  // Status fields
+  nda_status: string | null;
+  fee_agreement_status: string | null;
+  followed_up: boolean | null;
+  followed_up_at: string | null;
+  negative_followed_up: boolean | null;
+  negative_followed_up_at: string | null;
+  meeting_scheduled: boolean | null;
 }
 
 export function useDeals() {
@@ -218,18 +237,20 @@ export function useDeals() {
         listing_category: row.listing_category,
         listing_real_company_name: row.listing_internal_company_name,
 
-        // Contact (not available via RPC — defaults)
-        contact_name: undefined,
-        contact_email: undefined,
-        contact_company: undefined,
-        contact_phone: undefined,
-        contact_role: undefined,
+        // Contact info (from connection_requests lead fields)
+        contact_name: row.contact_name ?? undefined,
+        contact_email: row.contact_email ?? undefined,
+        contact_company: row.contact_company ?? undefined,
+        contact_phone: row.contact_phone ?? undefined,
+        contact_role: row.contact_role ?? undefined,
 
-        // Document/status (defaults — enriched below)
-        nda_status: 'not_sent' as const,
-        fee_agreement_status: 'not_sent' as const,
-        followed_up: false,
-        negative_followed_up: false,
+        // Document/status (from RPC)
+        nda_status: (row.nda_status ?? 'not_sent') as 'not_sent' | 'sent' | 'signed' | 'declined',
+        fee_agreement_status: (row.fee_agreement_status ?? 'not_sent') as 'not_sent' | 'sent' | 'signed' | 'declined',
+        followed_up: row.followed_up ?? false,
+        followed_up_at: row.followed_up_at ?? undefined,
+        negative_followed_up: row.negative_followed_up ?? false,
+        negative_followed_up_at: row.negative_followed_up_at ?? undefined,
 
         // Assignment
         assigned_to: row.admin_id ?? undefined,
@@ -251,10 +272,10 @@ export function useDeals() {
         buyer_website: row.buyer_website ?? undefined,
         buyer_quality_score: row.buyer_quality_score ?? null,
         buyer_tier: row.buyer_tier ?? null,
-        buyer_name: undefined,
-        buyer_email: undefined,
-        buyer_company: undefined,
-        buyer_phone: undefined,
+        buyer_name: row.buyer_first_name ? `${row.buyer_first_name} ${row.buyer_last_name || ''}`.trim() : undefined,
+        buyer_email: row.buyer_email ?? undefined,
+        buyer_company: row.buyer_company ?? undefined,
+        buyer_phone: row.buyer_phone ?? undefined,
         buyer_priority_score: 0,
 
         // Extras
@@ -280,7 +301,7 @@ export function useDeals() {
         has_data_room: false,
 
         // Meeting scheduled
-        meeting_scheduled: false,
+        meeting_scheduled: row.meeting_scheduled ?? false,
       }));
 
       // Batch-fetch memo distribution and data room documents by listing_id
