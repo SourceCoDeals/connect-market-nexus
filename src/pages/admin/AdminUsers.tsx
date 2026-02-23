@@ -1,29 +1,36 @@
-import { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
-import { useAdmin } from "@/hooks/use-admin";
-import { AlertCircle, RefreshCw, Building2, Loader2 } from "lucide-react";
-import { UsersTable } from "@/components/admin/UsersTable";
-import { MobileUsersTable } from "@/components/admin/MobileUsersTable";
-import { User } from "@/types";
-import { UserActions } from "@/components/admin/UserActions";
-import { Button } from "@/components/ui/button";
-import { useToast } from "@/hooks/use-toast";
-import { useIsMobile } from "@/hooks/use-mobile";
-import { useRealtimeAdmin } from "@/hooks/use-realtime-admin";
-import { EnhancedUserManagement } from "@/components/admin/EnhancedUserManagement";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useNonMarketplaceUsers } from "@/hooks/admin/use-non-marketplace-users";
-import { NonMarketplaceUsersTable } from "@/components/admin/NonMarketplaceUsersTable";
-import { UserViewSwitcher } from "@/components/admin/UserViewSwitcher";
-import { useMarkUsersViewed } from "@/hooks/admin/use-mark-users-viewed";
-import { useOwnerLeads, useUpdateOwnerLeadStatus, useUpdateOwnerLeadContacted } from "@/hooks/admin/use-owner-leads";
-import { useUpdateOwnerLeadNotes } from "@/hooks/admin/use-update-owner-lead-notes";
-import { useMarkOwnerLeadsViewed } from "@/hooks/admin/use-mark-owner-leads-viewed";
-import { OwnerLeadsStats } from "@/components/admin/OwnerLeadsStats";
-import { OwnerLeadsFilters } from "@/components/admin/OwnerLeadsFilters";
-import { OwnerLeadsTableContent } from "@/components/admin/OwnerLeadsTableContent";
-import { OwnerLead } from "@/hooks/admin/use-owner-leads";
-import { cn } from "@/lib/utils";
+import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
+import { useAdmin } from '@/hooks/use-admin';
+import { AlertCircle, RefreshCw, Building2, Loader2 } from 'lucide-react';
+import { UsersTable } from '@/components/admin/UsersTable';
+import { MobileUsersTable } from '@/components/admin/MobileUsersTable';
+import { User } from '@/types';
+import { UserActions } from '@/components/admin/UserActions';
+import { Button } from '@/components/ui/button';
+import { useToast } from '@/hooks/use-toast';
+import { useIsMobile } from '@/hooks/use-mobile';
+import { useRealtimeAdmin } from '@/hooks/use-realtime-admin';
+import { EnhancedUserManagement } from '@/components/admin/EnhancedUserManagement';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { useNonMarketplaceUsers } from '@/hooks/admin/use-non-marketplace-users';
+import { NonMarketplaceUsersTable } from '@/components/admin/NonMarketplaceUsersTable';
+import { UserViewSwitcher } from '@/components/admin/UserViewSwitcher';
+import { useMarkUsersViewed } from '@/hooks/admin/use-mark-users-viewed';
+import {
+  useOwnerLeads,
+  useUpdateOwnerLeadStatus,
+  useUpdateOwnerLeadContacted,
+} from '@/hooks/admin/use-owner-leads';
+import { useUpdateOwnerLeadNotes } from '@/hooks/admin/use-update-owner-lead-notes';
+import { useMarkOwnerLeadsViewed } from '@/hooks/admin/use-mark-owner-leads-viewed';
+import { OwnerLeadsStats } from '@/components/admin/OwnerLeadsStats';
+import { OwnerLeadsFilters } from '@/components/admin/OwnerLeadsFilters';
+import { OwnerLeadsTableContent } from '@/components/admin/OwnerLeadsTableContent';
+import { OwnerLead } from '@/hooks/admin/use-owner-leads';
+import { cn } from '@/lib/utils';
+import { ApprovalEmailDialog } from '@/components/admin/ApprovalEmailDialog';
+import { ApprovalSuccessDialog } from '@/components/admin/ApprovalSuccessDialog';
+import { UserConfirmationDialog } from '@/components/admin/UserConfirmationDialog';
 
 type PrimaryView = 'buyers' | 'owners';
 type SecondaryView = 'marketplace' | 'non-marketplace';
@@ -31,7 +38,8 @@ type SecondaryView = 'marketplace' | 'non-marketplace';
 const AdminUsers = () => {
   const { users } = useAdmin();
   const { data: usersData = [], isLoading, error, refetch } = users;
-  const { data: nonMarketplaceUsers = [], isLoading: isLoadingNonMarketplace } = useNonMarketplaceUsers();
+  const { data: nonMarketplaceUsers = [], isLoading: isLoadingNonMarketplace } =
+    useNonMarketplaceUsers();
   const { data: ownerLeads = [], isLoading: isLoadingOwnerLeads } = useOwnerLeads();
   const updateOwnerStatus = useUpdateOwnerLeadStatus();
   const updateOwnerNotes = useUpdateOwnerLeadNotes();
@@ -69,12 +77,19 @@ const AdminUsers = () => {
     handleMakeAdmin,
     handleRevokeAdmin,
     handleDeleteUser,
-    ApprovalEmailDialog,
-    AdminDialog,
-    RevokeAdminDialog,
-    DeleteDialog,
+    handleCustomApprovalEmail,
+    confirmMakeAdmin,
+    confirmRevokeAdmin,
+    confirmDeleteUser,
+    dialogState,
+    selectedUser,
+    approvedUser,
+    emailSent,
+    handleCloseDialog,
+    handleCloseApprovalSuccess,
+    isLoading: actionsLoading,
   } = UserActions({ onUserStatusUpdated: () => refetch() });
-  
+
   useEffect(() => {
     if (error) {
       toast({
@@ -84,7 +99,7 @@ const AdminUsers = () => {
       });
     }
   }, [error, toast]);
-  
+
   const handleRetry = () => {
     refetch();
     toast({
@@ -145,23 +160,22 @@ const AdminUsers = () => {
             <div className="space-y-1">
               <h1 className="text-2xl font-semibold tracking-tight">Users</h1>
               <p className="text-sm text-muted-foreground">
-                {isBuyersView 
+                {isBuyersView
                   ? 'Manage buyer registrations, approvals, and profile data'
-                  : 'Manage owner/seller inquiries and leads'
-                }
+                  : 'Manage owner/seller inquiries and leads'}
               </p>
             </div>
           </div>
 
           <Tabs defaultValue="users" className="mt-6">
             <TabsList className="h-auto p-0 bg-transparent border-0 gap-6">
-              <TabsTrigger 
+              <TabsTrigger
                 value="users"
                 className="rounded-none border-b-2 border-transparent data-[state=active]:border-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none px-0 pb-2 pt-0 font-medium text-sm data-[state=active]:text-foreground text-muted-foreground hover:text-foreground transition-colors"
               >
                 Users
               </TabsTrigger>
-              <TabsTrigger 
+              <TabsTrigger
                 value="firms"
                 asChild
                 className="rounded-none border-b-2 border-transparent data-[state=active]:border-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none px-0 pb-2 pt-0 font-medium text-sm data-[state=active]:text-foreground text-muted-foreground hover:text-foreground transition-colors"
@@ -194,7 +208,7 @@ const AdminUsers = () => {
         {/* Stats & Filters - Keep both mounted, toggle visibility with CSS */}
         <div className="mb-6">
           {/* Buyers stats/filters - hidden when owners view */}
-          <div className={cn(!isBuyersView && "hidden")}>
+          <div className={cn(!isBuyersView && 'hidden')}>
             <EnhancedUserManagement
               users={usersData}
               onApprove={approveUser}
@@ -207,19 +221,16 @@ const AdminUsers = () => {
           </div>
 
           {/* Owners stats/filters - hidden when buyers view */}
-          <div className={cn(!isOwnersView && "hidden", "space-y-6")}>
+          <div className={cn(!isOwnersView && 'hidden', 'space-y-6')}>
             <OwnerLeadsStats leads={ownerLeads} />
-            <OwnerLeadsFilters 
-              leads={ownerLeads} 
-              onFilteredLeadsChange={setFilteredOwnerLeads} 
-            />
+            <OwnerLeadsFilters leads={ownerLeads} onFilteredLeadsChange={setFilteredOwnerLeads} />
           </div>
         </div>
 
         {/* Table Container - Keep all tables mounted, toggle visibility */}
         <div className="bg-card rounded-lg border overflow-hidden">
           {/* Buyers table - marketplace */}
-          <div className={cn(!(isBuyersView && secondaryView === 'marketplace') && "hidden")}>
+          <div className={cn(!(isBuyersView && secondaryView === 'marketplace') && 'hidden')}>
             {isLoading ? (
               <div className="flex items-center justify-center py-12">
                 <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
@@ -252,7 +263,7 @@ const AdminUsers = () => {
           </div>
 
           {/* Buyers table - non-marketplace */}
-          <div className={cn(!(isBuyersView && secondaryView === 'non-marketplace') && "hidden")}>
+          <div className={cn(!(isBuyersView && secondaryView === 'non-marketplace') && 'hidden')}>
             <NonMarketplaceUsersTable
               users={nonMarketplaceUsers}
               isLoading={isLoadingNonMarketplace}
@@ -261,7 +272,7 @@ const AdminUsers = () => {
           </div>
 
           {/* Owners table */}
-          <div className={cn(!isOwnersView && "hidden")}>
+          <div className={cn(!isOwnersView && 'hidden')}>
             {isLoadingOwnerLeads ? (
               <div className="flex items-center justify-center py-12">
                 <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
@@ -288,10 +299,50 @@ const AdminUsers = () => {
         </div>
 
         {/* Dialogs */}
-        <ApprovalEmailDialog />
-        <AdminDialog />
-        <RevokeAdminDialog />
-        <DeleteDialog />
+        <ApprovalEmailDialog
+          open={dialogState.approval}
+          onOpenChange={handleCloseDialog}
+          user={selectedUser}
+          onSendApprovalEmail={handleCustomApprovalEmail}
+        />
+        <ApprovalSuccessDialog
+          open={dialogState.approvalSuccess}
+          onOpenChange={handleCloseApprovalSuccess}
+          user={approvedUser}
+          emailSent={emailSent}
+        />
+        <UserConfirmationDialog
+          open={dialogState.makeAdmin}
+          onOpenChange={handleCloseDialog}
+          user={selectedUser}
+          title="Grant Admin Privileges"
+          description="Are you sure you want to grant admin privileges to {userName}?"
+          confirmText="Make Admin"
+          onConfirm={confirmMakeAdmin}
+          isLoading={actionsLoading}
+        />
+        <UserConfirmationDialog
+          open={dialogState.revokeAdmin}
+          onOpenChange={handleCloseDialog}
+          user={selectedUser}
+          title="Revoke Admin Privileges"
+          description="Are you sure you want to revoke admin privileges from {userName}?"
+          confirmText="Revoke Admin"
+          confirmVariant="destructive"
+          onConfirm={confirmRevokeAdmin}
+          isLoading={actionsLoading}
+        />
+        <UserConfirmationDialog
+          open={dialogState.delete}
+          onOpenChange={handleCloseDialog}
+          user={selectedUser}
+          title="Delete User"
+          description="Are you sure you want to permanently delete {userName}? This action cannot be undone."
+          confirmText="Delete User"
+          confirmVariant="destructive"
+          onConfirm={confirmDeleteUser}
+          isLoading={actionsLoading}
+        />
       </div>
     </div>
   );

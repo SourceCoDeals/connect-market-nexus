@@ -2,14 +2,14 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/context/AuthContext';
 
-export type AppRole = 'owner' | 'admin' | 'moderator' | 'user';
+export type AppRole = 'owner' | 'admin' | 'moderator' | 'viewer';
 
 /** Display label for each role. 'moderator' shows as 'Team Member' everywhere. */
 export const ROLE_DISPLAY_LABELS: Record<AppRole, string> = {
   owner: 'Owner',
   admin: 'Admin',
   moderator: 'Team Member',
-  user: 'User',
+  viewer: 'Viewer',
 };
 
 export interface UserRole {
@@ -30,7 +30,7 @@ export const usePermissions = () => {
       if (!user?.id) return null;
 
       const { data, error } = await supabase.rpc('get_user_role', {
-        _user_id: user.id
+        _user_id: user.id,
       });
 
       if (error) {
@@ -54,7 +54,7 @@ export const usePermissions = () => {
     owner: 4,
     admin: 3,
     moderator: 2,
-    user: 1,
+    viewer: 1,
   };
 
   const checkPermission = (requiredRole: AppRole): boolean => {

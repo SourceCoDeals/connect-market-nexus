@@ -39,7 +39,7 @@ export const PermissionsModal = ({ open, onOpenChange }: PermissionsModalProps) 
   });
 
   const getUserRole = (userId: string): AppRole => {
-    return (allUserRoles?.find((ur) => ur.user_id === userId)?.role as AppRole) || 'user';
+    return (allUserRoles?.find((ur) => ur.user_id === userId)?.role as AppRole) || 'viewer';
   };
 
   return (
@@ -87,11 +87,7 @@ export const PermissionsModal = ({ open, onOpenChange }: PermissionsModalProps) 
               ) : (
                 <>
                   {filteredUsers?.map((user) => (
-                    <TeamMemberCard
-                      key={user.id}
-                      user={user}
-                      role={getUserRole(user.id)}
-                    />
+                    <TeamMemberCard key={user.id} user={user} role={getUserRole(user.id)} />
                   ))}
                 </>
               )}

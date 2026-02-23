@@ -59,9 +59,9 @@ export function InviteTeamMemberDialog({ open, onOpenChange }: InviteTeamMemberD
       if (existingProfile) {
         // User exists — promote them to the selected role
         const { error } = await supabase.rpc('change_user_role', {
-          target_user_id: existingProfile.id,
-          new_role: role as AppRole,
-          change_reason: `Invited to team as ${role === 'admin' ? 'Admin' : 'Team Member'}`,
+          _target_user_id: existingProfile.id,
+          _new_role: role as AppRole,
+          _reason: `Invited to team as ${role === 'admin' ? 'Admin' : 'Team Member'}`,
         });
 
         if (error) throw error;
@@ -114,7 +114,8 @@ export function InviteTeamMemberDialog({ open, onOpenChange }: InviteTeamMemberD
         <DialogHeader>
           <DialogTitle>Invite Team Member</DialogTitle>
           <DialogDescription>
-            Add a new member to the SourceCo admin team. If they already have an account, their role will be updated.
+            Add a new member to the SourceCo admin team. If they already have an account, their role
+            will be updated.
           </DialogDescription>
         </DialogHeader>
 

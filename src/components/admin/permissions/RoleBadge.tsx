@@ -1,23 +1,21 @@
 import { Crown, Shield, User, Users } from 'lucide-react';
 import { AppRole } from '@/hooks/permissions/usePermissions';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface RoleBadgeProps {
   role: AppRole;
   showTooltip?: boolean;
 }
 
-const roleConfig: Record<AppRole, {
-  label: string;
-  icon: typeof Crown;
-  gradient: string;
-  description: string;
-}> = {
+const roleConfig: Record<
+  AppRole,
+  {
+    label: string;
+    icon: typeof Crown;
+    gradient: string;
+    description: string;
+  }
+> = {
   owner: {
     label: 'Owner',
     icon: Crown,
@@ -36,27 +34,29 @@ const roleConfig: Record<AppRole, {
     gradient: 'from-blue-500 to-blue-400',
     description: 'Team member with view access and limited actions',
   },
-  user: {
-    label: 'User',
+  viewer: {
+    label: 'Viewer',
     icon: User,
     gradient: 'from-muted-foreground to-muted',
-    description: 'Standard user access',
+    description: 'View-only access',
   },
 };
 
 export const RoleBadge = ({ role, showTooltip = true }: RoleBadgeProps) => {
-  const config = roleConfig[role] || roleConfig.user;
+  const config = roleConfig[role] || roleConfig.viewer;
   const Icon = config.icon;
 
   const badge = (
-    <div className={`
+    <div
+      className={`
       inline-flex items-center gap-1.5 px-3 py-1
       rounded-full text-xs font-medium
       bg-gradient-to-r ${config.gradient}
       text-white shadow-sm
       transition-all duration-200
       hover:shadow-md hover:scale-105
-    `}>
+    `}
+    >
       <Icon className="h-3 w-3" />
       {config.label}
     </div>
@@ -67,9 +67,7 @@ export const RoleBadge = ({ role, showTooltip = true }: RoleBadgeProps) => {
   return (
     <TooltipProvider>
       <Tooltip>
-        <TooltipTrigger asChild>
-          {badge}
-        </TooltipTrigger>
+        <TooltipTrigger asChild>{badge}</TooltipTrigger>
         <TooltipContent>
           <p className="text-sm">{config.description}</p>
         </TooltipContent>

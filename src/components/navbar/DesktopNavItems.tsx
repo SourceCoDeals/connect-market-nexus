@@ -1,10 +1,16 @@
-
-import { Link, useLocation } from "react-router-dom";
-import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
-import { useUserNotifications } from "@/hooks/use-user-notifications";
-import { useUnreadBuyerMessageCounts } from "@/hooks/use-connection-messages";
-import { MarketplaceIcon, SavedIcon, DealsIcon, MessagesIcon, AdminIcon } from "@/components/icons/NavIcons";
+import { Link, useLocation } from 'react-router-dom';
+import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
+import { useUserNotifications } from '@/hooks/use-user-notifications';
+import { useUnreadBuyerMessageCounts } from '@/hooks/use-connection-messages';
+import {
+  MarketplaceIcon,
+  SavedIcon,
+  DealsIcon,
+  MessagesIcon,
+  ProfileIcon,
+  AdminIcon,
+} from '@/components/icons/NavIcons';
 
 interface DesktopNavItemsProps {
   isAdmin: boolean;
@@ -24,30 +30,36 @@ const DesktopNavItems = ({ isAdmin, isApproved, onNavigateToAdmin }: DesktopNavI
 
   const navItems = [
     {
-      to: "/",
-      label: "Marketplace",
+      to: '/',
+      label: 'Marketplace',
       icon: MarketplaceIcon,
-      isActive: location.pathname === "/",
+      isActive: location.pathname === '/',
     },
     {
-      to: "/saved-listings",
-      label: "Saved",
+      to: '/saved-listings',
+      label: 'Saved',
       icon: SavedIcon,
-      isActive: location.pathname === "/saved-listings",
+      isActive: location.pathname === '/saved-listings',
     },
     {
-      to: "/my-deals",
-      label: "My Deals",
+      to: '/my-deals',
+      label: 'My Deals',
       icon: DealsIcon,
-      isActive: location.pathname === "/my-deals" || location.pathname === "/my-requests",
+      isActive: location.pathname === '/my-deals' || location.pathname === '/my-requests',
       ...(totalDealsUnread > 0 && { badge: totalDealsUnread }),
     },
     {
-      to: "/messages",
-      label: "Messages",
+      to: '/messages',
+      label: 'Messages',
       icon: MessagesIcon,
-      isActive: location.pathname === "/messages",
+      isActive: location.pathname === '/messages',
       ...((unreadMessages?.total || 0) > 0 && { badge: unreadMessages?.total }),
+    },
+    {
+      to: '/profile',
+      label: 'Profile',
+      icon: ProfileIcon,
+      isActive: location.pathname === '/profile',
     },
   ];
 
@@ -60,10 +72,10 @@ const DesktopNavItems = ({ isAdmin, isApproved, onNavigateToAdmin }: DesktopNavI
             key={item.to}
             to={item.to}
             className={cn(
-              "relative inline-flex items-center gap-2 px-3.5 py-2 rounded-lg text-[13px] font-medium transition-all duration-200",
+              'relative inline-flex items-center gap-2 px-3.5 py-2 rounded-lg text-[13px] font-medium transition-all duration-200',
               item.isActive
-                ? "bg-slate-900 text-white shadow-sm"
-                : "text-slate-700 hover:text-slate-900 hover:bg-slate-100"
+                ? 'bg-slate-900 text-white shadow-sm'
+                : 'text-slate-700 hover:text-slate-900 hover:bg-slate-100',
             )}
           >
             <Icon className="w-[15px] h-[15px]" />

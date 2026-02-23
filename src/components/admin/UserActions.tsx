@@ -1,14 +1,10 @@
-import { useState } from "react";
-import { useToast } from "@/hooks/use-toast";
-import { useAdminUsers } from "@/hooks/admin/use-admin-users";
-import { useAdminEmail } from "@/hooks/admin/use-admin-email";
-import { useAutoCreateFirmOnApproval } from "@/hooks/admin/use-docuseal";
-import { ApprovalEmailDialog as ApprovalEmailDialogComponent } from "./ApprovalEmailDialog";
-import { ApprovalSuccessDialog } from "./ApprovalSuccessDialog";
-import { UserConfirmationDialog } from "./UserConfirmationDialog";
-import { User } from "@/types";
-import { ApprovalEmailOptions } from "@/types/admin-users";
-
+import { useState } from 'react';
+import { useToast } from '@/hooks/use-toast';
+import { useAdminUsers } from '@/hooks/admin/use-admin-users';
+import { useAdminEmail } from '@/hooks/admin/use-admin-email';
+// useAutoCreateFirmOnApproval removed — direct user approval doesn't have a connectionRequestId
+import { User } from '@/types';
+import { ApprovalEmailOptions } from '@/types/admin-users';
 
 interface UserActionsProps {
   onUserStatusUpdated?: () => void;
@@ -24,35 +20,27 @@ interface DialogState {
 
 export function UserActions({ onUserStatusUpdated }: UserActionsProps) {
   const { toast } = useToast();
-  
-  const {
-    useUpdateUserStatus,
-    useUpdateAdminStatus,
-    useDeleteUser,
-  } = useAdminUsers();
-  
-  const {
-    sendCustomApprovalEmail
-  } = useAdminEmail();
 
-  const autoCreateFirm = useAutoCreateFirmOnApproval();
-  
+  const { useUpdateUserStatus, useUpdateAdminStatus, useDeleteUser } = useAdminUsers();
+
+  const { sendCustomApprovalEmail } = useAdminEmail();
+
   // Get actual mutation functions
   const updateUserStatusMutation = useUpdateUserStatus();
   const updateAdminStatusMutation = useUpdateAdminStatus();
   const deleteUserMutation = useDeleteUser();
-  
+
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [approvedUser, setApprovedUser] = useState<User | null>(null);
   const [emailSent, setEmailSent] = useState(false);
-  
+
   // Separate dialog states for each action
   const [dialogState, setDialogState] = useState<DialogState>({
     approval: false,
     approvalSuccess: false,
     makeAdmin: false,
     revokeAdmin: false,
-    delete: false
+    delete: false,
   });
 
   const closeAllDialogs = () => {
@@ -61,32 +49,36 @@ export function UserActions({ onUserStatusUpdated }: UserActionsProps) {
       approvalSuccess: false,
       makeAdmin: false,
       revokeAdmin: false,
-      delete: false
+      delete: false,
     });
     setSelectedUser(null);
   };
 
   const handleUserApproval = (user: User) => {
+    console.log('[UserActions] handleUserApproval called for:', user.email);
     setSelectedUser(user);
-    setDialogState(prev => ({ ...prev, approval: true }));
-  };
-  
-  
-  const handleMakeAdmin = (user: User) => {
-    setSelectedUser(user);
-    setDialogState(prev => ({ ...prev, makeAdmin: true }));
-  };
-  
-  const handleRevokeAdmin = (user: User) => {
-    setSelectedUser(user);
-    setDialogState(prev => ({ ...prev, revokeAdmin: true }));
-  };
-  
-  const handleDeleteUser = (user: User) => {
-    setSelectedUser(user);
-    setDialogState(prev => ({ ...prev, delete: true }));
+    // Use setTimeout to avoid Radix DropdownMenu/Dialog portal race condition
+    // The dropdown's cleanup can interfere with the dialog opening if they happen simultaneously
+    setTimeout(() => {
+      console.log('[UserActions] Opening approval dialog (deferred)');
+      setDialogState((prev) => ({ ...prev, approval: true }));
+    }, 50);
   };
 
+  const handleMakeAdmin = (user: User) => {
+    setSelectedUser(user);
+    setDialogState((prev) => ({ ...prev, makeAdmin: true }));
+  };
+
+  const handleRevokeAdmin = (user: User) => {
+    setSelectedUser(user);
+    setDialogState((prev) => ({ ...prev, revokeAdmin: true }));
+  };
+
+  const handleDeleteUser = (user: User) => {
+    setSelectedUser(user);
+    setDialogState((prev) => ({ ...prev, delete: true }));
+  };
 
   const confirmMakeAdmin = async () => {
     if (!selectedUser) return;
@@ -96,8 +88,8 @@ export function UserActions({ onUserStatusUpdated }: UserActionsProps) {
       {
         onSuccess: () => {
           toast({
-            title: "Admin privileges granted",
-            description: `${selectedUser.firstName} ${selectedUser.lastName} is now an admin.`,
+            title: 'Admin privileges granted',
+            description: `${selectedUser.first_name} ${selectedUser.last_name} is now an admin.`,
           });
           closeAllDialogs();
           if (onUserStatusUpdated) onUserStatusUpdated();
@@ -108,8 +100,8 @@ export function UserActions({ onUserStatusUpdated }: UserActionsProps) {
             title: 'Admin promotion failed',
             description: error.message || 'Failed to promote user to admin. Please try again.',
           });
-        }
-      }
+        },
+      },
     );
   };
 
@@ -121,8 +113,8 @@ export function UserActions({ onUserStatusUpdated }: UserActionsProps) {
       {
         onSuccess: () => {
           toast({
-            title: "Admin privileges revoked",
-            description: `${selectedUser.firstName} ${selectedUser.lastName} is no longer an admin.`,
+            title: 'Admin privileges revoked',
+            description: `${selectedUser.first_name} ${selectedUser.last_name} is no longer an admin.`,
           });
           closeAllDialogs();
           if (onUserStatusUpdated) onUserStatusUpdated();
@@ -133,8 +125,8 @@ export function UserActions({ onUserStatusUpdated }: UserActionsProps) {
             title: 'Admin revocation failed',
             description: error.message || 'Failed to revoke admin privileges. Please try again.',
           });
-        }
-      }
+        },
+      },
     );
   };
 
@@ -144,8 +136,8 @@ export function UserActions({ onUserStatusUpdated }: UserActionsProps) {
     deleteUserMutation.mutate(selectedUser.id, {
       onSuccess: () => {
         toast({
-          title: "User deleted",
-          description: `${selectedUser.firstName} ${selectedUser.lastName} has been permanently deleted.`,
+          title: 'User deleted',
+          description: `${selectedUser.first_name} ${selectedUser.last_name} has been permanently deleted.`,
         });
         closeAllDialogs();
         if (onUserStatusUpdated) onUserStatusUpdated();
@@ -156,33 +148,28 @@ export function UserActions({ onUserStatusUpdated }: UserActionsProps) {
           title: 'Deletion failed',
           description: error.message || 'Failed to delete user. Please try again.',
         });
-      }
+      },
     });
   };
 
   const handleCustomApprovalEmail = async (user: User, options: ApprovalEmailOptions) => {
     console.log('[UserActions] handleCustomApprovalEmail called for:', user.email, user.id);
-    
-    // Close dialog immediately 
-    closeAllDialogs();
-    
+
     // Step 1: Approve user FIRST
     try {
       console.log('[UserActions] Step 1: Approving user...');
-      await updateUserStatusMutation.mutateAsync({ userId: user.id, status: "approved" });
+      await updateUserStatusMutation.mutateAsync({ userId: user.id, status: 'approved' });
       console.log('[UserActions] Step 1 SUCCESS: User approved');
 
       // Store approved user for success dialog
       setApprovedUser(user);
 
-      // Step 2: Auto-create firm agreement
-      try {
-        console.log('[UserActions] Step 2: Auto-creating firm...');
-        await autoCreateFirm.mutateAsync({ userId: user.id });
-        console.log('[UserActions] Step 2 SUCCESS');
-      } catch (firmError) {
-        console.error('[UserActions] Step 2 FAILED (non-fatal):', firmError);
-      }
+      // Step 2: Auto-create firm agreement (fire-and-forget, non-blocking)
+      // Note: This edge function expects a connectionRequestId, not a userId.
+      // During direct user approval (not connection request approval), we skip this step.
+      console.log(
+        '[UserActions] Step 2: Skipping auto-create firm (no connection request in direct approval flow)',
+      );
 
       // Step 3: Send email
       let emailSuccess = false;
@@ -195,26 +182,40 @@ export function UserActions({ onUserStatusUpdated }: UserActionsProps) {
         console.error('[UserActions] Step 3 FAILED:', emailError);
       }
 
-      // Show success confirmation dialog
+      // Close approval dialog and show success dialog
       setEmailSent(emailSuccess);
-      setDialogState(prev => ({ ...prev, approvalSuccess: true }));
+      setDialogState((prev) => ({ ...prev, approval: false, approvalSuccess: true }));
       console.log('[UserActions] Approval flow complete');
 
       if (onUserStatusUpdated) onUserStatusUpdated();
-      
     } catch (approvalError) {
       console.error('[UserActions] Step 1 FAILED:', approvalError);
       toast({
-        variant: 'default',
-        title: 'Email sending failed',
-        description: 'User was approved successfully, but welcome email failed to send.',
+        variant: 'destructive',
+        title: 'Approval failed',
+        description:
+          approvalError instanceof Error
+            ? approvalError.message
+            : 'Failed to approve user. Please try again.',
       });
     }
-
-    // Close dialogs and refresh after everything succeeds
-    closeAllDialogs();
-    if (onUserStatusUpdated) onUserStatusUpdated();
   };
+
+  const handleCloseApprovalSuccess = (open: boolean) => {
+    if (!open) {
+      setDialogState((prev) => ({ ...prev, approvalSuccess: false }));
+      setApprovedUser(null);
+    }
+  };
+
+  const handleCloseDialog = (open: boolean) => {
+    if (!open) closeAllDialogs();
+  };
+
+  const mutationsPending =
+    updateUserStatusMutation.isPending ||
+    updateAdminStatusMutation.isPending ||
+    deleteUserMutation.isPending;
 
   return {
     handleUserApproval,
@@ -228,73 +229,10 @@ export function UserActions({ onUserStatusUpdated }: UserActionsProps) {
     dialogState,
     closeAllDialogs,
     selectedUser,
-    isLoading: updateUserStatusMutation.isPending || updateAdminStatusMutation.isPending || deleteUserMutation.isPending,
-    ApprovalEmailDialog: () => (
-      <>
-        <ApprovalEmailDialogComponent
-          open={dialogState.approval}
-          onOpenChange={(open) => {
-            if (!open) closeAllDialogs();
-          }}
-          user={selectedUser}
-          onSendApprovalEmail={handleCustomApprovalEmail}
-        />
-        <ApprovalSuccessDialog
-          open={dialogState.approvalSuccess}
-          onOpenChange={(open: boolean) => {
-            if (!open) {
-              setDialogState(prev => ({ ...prev, approvalSuccess: false }));
-              setApprovedUser(null);
-            }
-          }}
-          user={approvedUser}
-          emailSent={emailSent}
-        />
-      </>
-    ),
-    AdminDialog: () => (
-      <UserConfirmationDialog
-        open={dialogState.makeAdmin}
-        onOpenChange={(open) => {
-          if (!open) closeAllDialogs();
-        }}
-        user={selectedUser}
-        title="Grant Admin Privileges"
-        description="Are you sure you want to grant admin privileges to {userName}?"
-        confirmText="Grant Admin Access"
-        onConfirm={confirmMakeAdmin}
-        isLoading={updateUserStatusMutation.isPending || updateAdminStatusMutation.isPending || deleteUserMutation.isPending}
-      />
-    ),
-    RevokeAdminDialog: () => (
-      <UserConfirmationDialog
-        open={dialogState.revokeAdmin}
-        onOpenChange={(open) => {
-          if (!open) closeAllDialogs();
-        }}
-        user={selectedUser}
-        title="Revoke Admin Privileges"
-        description="Are you sure you want to revoke admin privileges from {userName}?"
-        confirmText="Revoke Admin Access"
-        confirmVariant="destructive"
-        onConfirm={confirmRevokeAdmin}
-        isLoading={updateUserStatusMutation.isPending || updateAdminStatusMutation.isPending || deleteUserMutation.isPending}
-      />
-    ),
-    DeleteDialog: () => (
-      <UserConfirmationDialog
-        open={dialogState.delete}
-        onOpenChange={(open) => {
-          if (!open) closeAllDialogs();
-        }}
-        user={selectedUser}
-        title="Delete User"
-        description="Are you sure you want to permanently delete {userName}? This action cannot be undone."
-        confirmText="Delete User"
-        confirmVariant="destructive"
-        onConfirm={confirmDeleteUser}
-        isLoading={updateUserStatusMutation.isPending || updateAdminStatusMutation.isPending || deleteUserMutation.isPending}
-      />
-    ),
+    approvedUser,
+    emailSent,
+    handleCloseDialog,
+    handleCloseApprovalSuccess,
+    isLoading: mutationsPending,
   };
 }

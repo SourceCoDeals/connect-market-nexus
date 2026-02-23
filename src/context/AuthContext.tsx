@@ -1,7 +1,6 @@
-
-import React, { createContext, useContext } from "react";
-import { User as AppUser } from "@/types";
-import { useNuclearAuth } from "@/hooks/use-nuclear-auth";
+import React, { createContext, useContext } from 'react';
+import { User as AppUser, TeamRole } from '@/types';
+import { useNuclearAuth } from '@/hooks/use-nuclear-auth';
 
 interface AuthContextType {
   user: AppUser | null;
@@ -14,6 +13,8 @@ interface AuthContextType {
   isAdmin: boolean;
   isBuyer: boolean;
   authChecked: boolean;
+  /** Internal team role from user_roles table (owner/admin/moderator/viewer). */
+  teamRole: TeamRole | null;
 }
 
 // eslint-disable-next-line react-refresh/only-export-components
@@ -23,14 +24,12 @@ export const AuthContext = createContext<AuthContextType | undefined>(undefined)
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (context === undefined) {
-    throw new Error("useAuth must be used within an AuthProvider");
+    throw new Error('useAuth must be used within an AuthProvider');
   }
   return context;
 };
 
-export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
-  children,
-}) => {
+export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const auth = useNuclearAuth();
 
   const value: AuthContextType = {
@@ -44,6 +43,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     isAdmin: auth.isAdmin,
     isBuyer: auth.isBuyer,
     authChecked: auth.authChecked,
+    teamRole: auth.teamRole,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

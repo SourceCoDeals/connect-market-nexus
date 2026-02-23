@@ -1,18 +1,21 @@
-import { useState, useEffect, Component, ErrorInfo, ReactNode } from "react";
-import { Link } from "react-router-dom";
-import { useAdmin } from "@/hooks/use-admin";
-import { AlertCircle, RefreshCw, Loader2, Users } from "lucide-react";
-import { UsersTable } from "@/components/admin/UsersTable";
-import { MobileUsersTable } from "@/components/admin/MobileUsersTable";
-import { User } from "@/types";
-import { UserActions } from "@/components/admin/UserActions";
-import { Button } from "@/components/ui/button";
-import { useIsMobile } from "@/hooks/use-mobile";
-import { useRealtimeAdmin } from "@/hooks/use-realtime-admin";
-import { EnhancedUserManagement } from "@/components/admin/EnhancedUserManagement";
-import { useMarkUsersViewed } from "@/hooks/admin/use-mark-users-viewed";
-import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { useState, useEffect, Component, ErrorInfo, ReactNode } from 'react';
+import { Link } from 'react-router-dom';
+import { useAdmin } from '@/hooks/use-admin';
+import { AlertCircle, RefreshCw, Loader2, Users } from 'lucide-react';
+import { UsersTable } from '@/components/admin/UsersTable';
+import { MobileUsersTable } from '@/components/admin/MobileUsersTable';
+import { User } from '@/types';
+import { UserActions } from '@/components/admin/UserActions';
+import { ApprovalEmailDialog } from '@/components/admin/ApprovalEmailDialog';
+import { ApprovalSuccessDialog } from '@/components/admin/ApprovalSuccessDialog';
+import { UserConfirmationDialog } from '@/components/admin/UserConfirmationDialog';
+import { Button } from '@/components/ui/button';
+import { useIsMobile } from '@/hooks/use-mobile';
+import { useRealtimeAdmin } from '@/hooks/use-realtime-admin';
+import { EnhancedUserManagement } from '@/components/admin/EnhancedUserManagement';
+import { useMarkUsersViewed } from '@/hooks/admin/use-mark-users-viewed';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
 
 // Error boundary to catch silent rendering crashes in the table
 class TableErrorBoundary extends Component<
@@ -74,8 +77,10 @@ const MarketplaceUsersPage = () => {
     staleTime: 60_000,
   });
 
-  useEffect(() => { markAsViewed(); }, []);
-  
+  useEffect(() => {
+    markAsViewed();
+  }, []);
+
   // Initialize filteredUsers from usersData when it loads
   // EnhancedUserManagement will then manage the filtered state via onFilteredUsersChange
   useEffect(() => {
@@ -89,10 +94,17 @@ const MarketplaceUsersPage = () => {
     handleMakeAdmin,
     handleRevokeAdmin,
     handleDeleteUser,
-    ApprovalEmailDialog,
-    AdminDialog,
-    RevokeAdminDialog,
-    DeleteDialog,
+    handleCustomApprovalEmail,
+    confirmMakeAdmin,
+    confirmRevokeAdmin,
+    confirmDeleteUser,
+    dialogState,
+    selectedUser,
+    approvedUser,
+    emailSent,
+    handleCloseDialog,
+    handleCloseApprovalSuccess,
+    isLoading: actionsLoading,
   } = UserActions({ onUserStatusUpdated: () => refetch() });
 
   const approveUser = (user: User) => handleUserApproval(user);
@@ -119,7 +131,9 @@ const MarketplaceUsersPage = () => {
           <div className="flex items-start justify-between">
             <div className="space-y-1">
               <h1 className="text-2xl font-semibold tracking-tight">Marketplace Users</h1>
-              <p className="text-sm text-muted-foreground">Manage buyer registrations, approvals, and profile data</p>
+              <p className="text-sm text-muted-foreground">
+                Manage buyer registrations, approvals, and profile data
+              </p>
             </div>
           </div>
         </div>
@@ -130,8 +144,11 @@ const MarketplaceUsersPage = () => {
           <div className="mb-4 flex items-center gap-2 px-4 py-3 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-800">
             <Users className="h-4 w-4 shrink-0" />
             <span>
-              <strong>{linkedBuyerCount}</strong> remarketing {linkedBuyerCount === 1 ? 'buyer' : 'buyers'} linked to marketplace firms.{' '}
-              <Link to="/admin/buyers" className="underline font-medium hover:text-blue-900">View All Buyers</Link>
+              <strong>{linkedBuyerCount}</strong> remarketing{' '}
+              {linkedBuyerCount === 1 ? 'buyer' : 'buyers'} linked to marketplace firms.{' '}
+              <Link to="/admin/buyers" className="underline font-medium hover:text-blue-900">
+                View All Buyers
+              </Link>
             </span>
           </div>
         )}
@@ -184,10 +201,50 @@ const MarketplaceUsersPage = () => {
           )}
         </div>
 
-        <ApprovalEmailDialog />
-        <AdminDialog />
-        <RevokeAdminDialog />
-        <DeleteDialog />
+        <ApprovalEmailDialog
+          open={dialogState.approval}
+          onOpenChange={handleCloseDialog}
+          user={selectedUser}
+          onSendApprovalEmail={handleCustomApprovalEmail}
+        />
+        <ApprovalSuccessDialog
+          open={dialogState.approvalSuccess}
+          onOpenChange={handleCloseApprovalSuccess}
+          user={approvedUser}
+          emailSent={emailSent}
+        />
+        <UserConfirmationDialog
+          open={dialogState.makeAdmin}
+          onOpenChange={handleCloseDialog}
+          user={selectedUser}
+          title="Grant Admin Privileges"
+          description="Are you sure you want to grant admin privileges to {userName}?"
+          confirmText="Grant Admin Access"
+          onConfirm={confirmMakeAdmin}
+          isLoading={actionsLoading}
+        />
+        <UserConfirmationDialog
+          open={dialogState.revokeAdmin}
+          onOpenChange={handleCloseDialog}
+          user={selectedUser}
+          title="Revoke Admin Privileges"
+          description="Are you sure you want to revoke admin privileges from {userName}?"
+          confirmText="Revoke Admin Access"
+          confirmVariant="destructive"
+          onConfirm={confirmRevokeAdmin}
+          isLoading={actionsLoading}
+        />
+        <UserConfirmationDialog
+          open={dialogState.delete}
+          onOpenChange={handleCloseDialog}
+          user={selectedUser}
+          title="Delete User"
+          description="Are you sure you want to permanently delete {userName}? This action cannot be undone."
+          confirmText="Delete User"
+          confirmVariant="destructive"
+          onConfirm={confirmDeleteUser}
+          isLoading={actionsLoading}
+        />
       </div>
     </div>
   );
