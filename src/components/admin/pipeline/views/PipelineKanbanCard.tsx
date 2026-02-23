@@ -1,11 +1,9 @@
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { Card, CardContent } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { CheckSquare, Clock, Building2, User, Globe, FileText, Zap, Target, Phone, Star } from 'lucide-react';
+import { Clock, Building2, User, Globe, FileText, Zap, Target, Phone, Star } from 'lucide-react';
 import { Deal } from '@/hooks/admin/use-deals';
 import { cn } from '@/lib/utils';
-import { formatDistanceToNow } from 'date-fns';
 import { useAdminProfile } from '@/hooks/admin/use-admin-profiles';
 import { DealScoreBadge } from '@/components/ma-intelligence/DealScoreBadge';
 
@@ -31,222 +29,58 @@ export function PipelineKanbanCard({ deal, onDealClick, isDragging }: PipelineKa
     transform: CSS.Transform.toString(transform),
     transition,
   };
-  
+
   const isBeingDragged = isDragging || isSortableDragging;
-// Apple/Stripe-style design helpers - Clean, minimal approach
+
   const isValidDate = (value?: string | null) => {
     if (!value) return false;
-    const time = new Date(value).getTime();
-    return !Number.isNaN(time);
-  };
-  const getBuyerTypeLabel = (buyerType?: string) => {
-    if (!buyerType) return 'Individual';
-    
-    const type = buyerType.toLowerCase().replace(/[^a-z]/g, '');
-    switch (type) {
-      case 'privateequity':
-        return 'PE';
-      case 'familyoffice':
-        return 'Family Office';
-      case 'searchfund':
-        return 'Search Fund';
-      case 'corporate':
-        return 'Corporate';
-      case 'individual':
-        return 'Individual';
-      case 'independentsponsor':
-        return 'Ind. Sponsor';
-      default:
-        return 'Individual';
-    }
+    return !Number.isNaN(new Date(value).getTime());
   };
 
-  const getStatusIndicator = (status: string) => {
+  const getStatusDot = (status: string) => {
     switch (status) {
-      case 'signed':
-        return { 
-          color: 'bg-secondary', 
-          label: 'Signed',
-          textColor: 'text-secondary-foreground'
-        };
-      case 'sent':
-        return { 
-          color: 'bg-accent', 
-          label: 'Sent',
-          textColor: 'text-accent-foreground'
-        };
-      case 'declined':
-        return { 
-          color: 'bg-destructive/60', 
-          label: 'Declined',
-          textColor: 'text-destructive-foreground'
-        };
-      default:
-        return { 
-          color: 'bg-muted', 
-          label: 'Not Sent',
-          textColor: 'text-muted-foreground'
-        };
+      case 'signed': return 'bg-emerald-500';
+      case 'sent': return 'bg-amber-500';
+      case 'declined': return 'bg-destructive';
+      default: return 'bg-muted-foreground/30';
     }
   };
 
-  // Enhanced Buyer Priority Logic - Clean priority system
-  const getBuyerPriority = (buyerType?: string, score?: number) => {
-    switch (buyerType) {
-      case 'privateEquity':
-      case 'familyOffice':
-      case 'corporate':
-        return { level: 'High', dot: 'bg-primary' };
-      case 'searchFund':
-      case 'independentSponsor':
-        return { level: 'Medium', dot: 'bg-accent' };
-      case 'individual':
-        if (score && score >= 70) return { level: 'High', dot: 'bg-primary' };
-        if (score && score >= 40) return { level: 'Medium', dot: 'bg-accent' };
-        return { level: 'Standard', dot: 'bg-muted-foreground' };
-      default:
-        return { level: 'Standard', dot: 'bg-muted-foreground' };
-    }
-  };
-
-  // Fix buyer type detection - use buyer_type from profiles OR contact_role from deal
-  // For CSV imports without user profiles, contact_role contains the lead_role
-  const actualBuyerType = deal.buyer_type || deal.contact_role;
-
-  // Task calculation using real task data only
-  const getTaskInfo = () => {
-    // Only show task info if we actually have task data from the database
-    const total = deal.total_tasks;
-    const completed = deal.completed_tasks;
-    
-    // If no task data or total is 0/null, don't show any task info
-    if (!total || total === 0) {
-      return { completed: 0, total: 0, pending: 0, hasAnyTasks: false };
-    }
-    
-    const pending = total - (completed || 0);
-    return { completed: completed || 0, total, pending, hasAnyTasks: true };
-  };
-
-  // Calculate meaningful data
-  const taskInfo = getTaskInfo();
-  const buyerPriority = getBuyerPriority(actualBuyerType, deal.buyer_priority_score);
-  const ndaStatus = getStatusIndicator(deal.nda_status);
-  const feeStatus = getStatusIndicator(deal.fee_agreement_status);
-  const assignedAdmin = useAdminProfile(deal.assigned_to);
-  // Key information display - Clean data extraction
-  const listingTitle = deal.listing_title || 'Business Acquisition Opportunity';
-  
-  // Only use real listing company name (admin-only internal name), show nothing if missing
-  const companyName = (deal.listing_real_company_name || '').trim();
-  const contactName = deal.contact_name || deal.buyer_name || 'Unknown Contact';
-  // Use buyer_connection_count to show this buyer's total connection requests
-  const buyerConnectionCount = deal.buyer_connection_count || 1; // Default to 1 if undefined
-
-  // Calculate time in stage precisely (seconds/minutes/hours/days)
-  const { daysInStage, stageDurationLabel } = (() => {
-    const invalid = !deal.deal_stage_entered_at || !isValidDate(deal.deal_stage_entered_at);
-    if (invalid) {
-      return { daysInStage: 0, stageDurationLabel: '-' };
-    }
-    const entered = new Date(deal.deal_stage_entered_at).getTime();
-    const diffMs = Math.max(0, Date.now() - entered);
-    const minutes = Math.floor(diffMs / 60000);
-    const hours = Math.floor(diffMs / 3600000);
-    const days = Math.floor(diffMs / 86400000);
-
-    let label: string;
-    if (minutes < 1) label = 'just now';
-    else if (minutes < 60) label = `${minutes}m`;
-    else if (hours < 24) label = `${hours}h`;
-    else label = `${days}d`;
-
-    return { daysInStage: days, stageDurationLabel: label };
-  })();
-  
-  const daysInStageText = `${stageDurationLabel} in ${deal.stage_name || 'Stage'}`;
-
-  // Enhanced last contact logic with real context
-  const getLastContactInfo = () => {
-    const lastContactDate = deal.last_contact_at || deal.followed_up_at;
-    
-    if (!lastContactDate || !isValidDate(lastContactDate)) {
-      return {
-        text: 'No contact yet',
-        isOverdue: daysInStage > 3,
-        context: 'contact_needed'
-      };
-    }
-    
-    const daysSinceContact = Math.floor((Date.now() - new Date(lastContactDate).getTime()) / (1000 * 60 * 60 * 24));
-    
-    return {
-      text: formatDistanceToNow(new Date(lastContactDate), { addSuffix: true }),
-      isOverdue: daysSinceContact > 7,
-      context: 'contacted'
-    };
-  };
-
-  const lastContactInfo = getLastContactInfo();
-
-  // Smart next action based on document status and contact history
-  const getNextAction = () => {
-    if (deal.nda_status === 'not_sent') return 'Send NDA';
-    if (deal.nda_status === 'sent' && deal.fee_agreement_status === 'not_sent') return 'Follow up NDA';
-    if (deal.nda_status === 'signed' && deal.fee_agreement_status === 'not_sent') return 'Send Fee Agreement';
-    if (deal.fee_agreement_status === 'sent') return 'Follow up Fee Agreement';
-    if (deal.fee_agreement_status === 'signed') return 'Schedule Meeting';
-    if (lastContactInfo.isOverdue) return 'Follow up';
-    return 'Continue engagement';
-  };
-
-  const nextAction = getNextAction();
-
-  // Last activity tracking
-  const getLastActivity = () => {
-    if (deal.last_contact_at && isValidDate(deal.last_contact_at)) {
-      return `Contact: ${formatDistanceToNow(new Date(deal.last_contact_at), { addSuffix: true })}`;
-    }
-    if (deal.followed_up_at && isValidDate(deal.followed_up_at)) {
-      return `Follow-up: ${formatDistanceToNow(new Date(deal.followed_up_at), { addSuffix: true })}`;
-    }
-    if (deal.deal_created_at && isValidDate(deal.deal_created_at)) {
-      return `Created: ${formatDistanceToNow(new Date(deal.deal_created_at), { addSuffix: true })}`;
-    }
-    return 'Recently created';
-  };
-
-  const lastActivity = getLastActivity();
-
-  // Get source badge info - Sophisticated, minimal design with better contrast
   const getSourceBadge = () => {
     const source = deal.source || 'manual';
     switch (source) {
-      case 'marketplace':
-        return { icon: Globe, label: 'Marketplace', color: 'bg-secondary/20 text-secondary-foreground/95 border-secondary/30' };
-      case 'webflow':
-        return { icon: FileText, label: 'Webflow', color: 'bg-accent/20 text-accent-foreground/95 border-accent/30' };
-      case 'remarketing':
-        return { icon: Target, label: 'Remarketing', color: 'bg-indigo-100/50 text-indigo-700 border-indigo-200/60' };
-      case 'manual':
-        return { icon: Zap, label: 'Manual', color: 'bg-foreground/8 text-foreground/90 border-foreground/20' };
-      default:
-        return { icon: Globe, label: source, color: 'bg-muted/30 text-foreground/90 border-border/40' };
+      case 'marketplace': return { icon: Globe, label: 'Mkt' };
+      case 'remarketing': return { icon: Target, label: 'Rmkt' };
+      case 'webflow': return { icon: FileText, label: 'Web' };
+      default: return { icon: Zap, label: 'Man' };
     }
   };
 
+  const assignedAdmin = useAdminProfile(deal.assigned_to);
+  const listingTitle = deal.listing_title || 'Business Acquisition Opportunity';
+  const contactName = deal.contact_name || deal.buyer_name || 'Unknown';
   const sourceBadge = getSourceBadge();
   const SourceIcon = sourceBadge.icon;
 
+  const stageDurationLabel = (() => {
+    if (!deal.deal_stage_entered_at || !isValidDate(deal.deal_stage_entered_at)) return '-';
+    const diffMs = Math.max(0, Date.now() - new Date(deal.deal_stage_entered_at).getTime());
+    const minutes = Math.floor(diffMs / 60000);
+    const hours = Math.floor(diffMs / 3600000);
+    const days = Math.floor(diffMs / 86400000);
+    if (minutes < 1) return 'now';
+    if (minutes < 60) return `${minutes}m`;
+    if (hours < 24) return `${hours}h`;
+    return `${days}d`;
+  })();
+
   const handleCardClick = () => {
-    if (isBeingDragged) {
-      return;
-    }
+    if (isBeingDragged) return;
     onDealClick(deal);
   };
 
   return (
-    <Card 
+    <Card
       ref={setNodeRef}
       style={style}
       {...listeners}
@@ -254,162 +88,83 @@ export function PipelineKanbanCard({ deal, onDealClick, isDragging }: PipelineKa
       className={cn(
         "group relative mb-3 cursor-pointer transition-all duration-200",
         "bg-card border border-border rounded-xl shadow-sm",
-        isBeingDragged && "shadow-2xl shadow-black/10 scale-[1.02] z-50 border-primary/30 bg-card opacity-95"
+        isBeingDragged && "shadow-2xl shadow-black/10 scale-[1.02] z-50 border-primary/30 opacity-95"
       )}
       onClick={handleCardClick}
     >
-      <CardContent className="p-4 space-y-3">
-        {/* Header with priority indicator, score, and flags */}
-        <div className="flex items-start justify-between">
-          <div className="flex-1 min-w-0 space-y-2">
-            {/* Deal title */}
-            <div className="flex items-center gap-2">
-              <h3 className="text-sm font-medium text-foreground leading-tight truncate flex-1">
-                {listingTitle}
-              </h3>
-              {deal.deal_score != null && (
-                <DealScoreBadge score={deal.deal_score} size="sm" />
-              )}
-            </div>
-            
-            {/* Priority & Contact Owner flags */}
-            {(deal.is_priority_target || deal.needs_owner_contact) && (
-              <div className="flex items-center gap-1.5 flex-wrap">
-                {deal.is_priority_target && (
-                  <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-amber-100 border border-amber-300 text-[10px] font-semibold text-amber-800 tracking-wide">
-                    <Star className="w-2.5 h-2.5" />
-                    Priority
-                  </span>
-                )}
-                {deal.needs_owner_contact && (
-                  <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-red-100 border border-red-300 text-[10px] font-semibold text-red-800 tracking-wide animate-pulse">
-                    <Phone className="w-2.5 h-2.5" />
-                    Contact Owner
-                  </span>
-                )}
-              </div>
+      <CardContent className="p-3.5 space-y-2.5">
+        {/* Row 1: Title + Score + Flags */}
+        <div className="flex items-start justify-between gap-2">
+          <div className="flex-1 min-w-0">
+            <h3 className="text-sm font-medium text-foreground leading-tight truncate">
+              {listingTitle}
+            </h3>
+          </div>
+          <div className="flex items-center gap-1.5 flex-shrink-0">
+            {deal.is_priority_target && (
+              <span className="inline-flex items-center gap-0.5 px-1 py-0.5 rounded bg-amber-100 border border-amber-300 text-[9px] font-semibold text-amber-800">
+                <Star className="w-2.5 h-2.5" />
+              </span>
             )}
-            
-            {/* Internal company name with source label */}
-            {companyName && (
-              <div className="flex items-center gap-2 flex-wrap">
-                <div className="flex items-center gap-1.5">
-                  <Building2 className="w-3 h-3 text-muted-foreground/60 flex-shrink-0" />
-                  <span className="text-xs font-medium text-foreground/80 truncate">{companyName}</span>
-                </div>
-                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-background border border-border/60 text-[10px] font-medium text-muted-foreground tracking-wide">
-                  <SourceIcon className="w-2.5 h-2.5" />
-                  {sourceBadge.label}
-                </span>
-              </div>
+            {deal.needs_owner_contact && (
+              <span className="inline-flex items-center gap-0.5 px-1 py-0.5 rounded bg-red-100 border border-red-300 text-[9px] font-semibold text-red-800 animate-pulse">
+                <Phone className="w-2.5 h-2.5" />
+              </span>
             )}
-            
-            {/* Buyer's company with role label */}
-            {deal.contact_company && (
-              <div className="flex items-center gap-2 flex-wrap">
-                <div className="flex items-center gap-1.5">
-                  <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-primary/8 border border-primary/20">
-                    <Building2 className="w-2.5 h-2.5 text-primary/70 flex-shrink-0" />
-                    <span className="text-[10px] font-medium text-primary/80 tracking-wide uppercase">
-                      Buyer
-                    </span>
-                  </div>
-                  <span className="text-xs text-foreground/90 font-medium truncate">
-                    {deal.contact_company}
-                  </span>
-                </div>
-                <span className="inline-flex items-center px-1.5 py-0.5 rounded-md bg-background border border-border/60 text-[10px] font-medium text-muted-foreground tracking-wide">
-                  {getBuyerTypeLabel(actualBuyerType)}
-                </span>
-              </div>
+            {deal.deal_score != null && (
+              <DealScoreBadge score={deal.deal_score} size="sm" />
             )}
           </div>
-          <div className={cn("w-2 h-2 rounded-full ml-3 mt-0.5 flex-shrink-0", buyerPriority.dot)} />
         </div>
 
-        {/* Contact person with deal count badge */}
-        <div className="flex items-center gap-1.5 flex-wrap">
-          <User className="w-3 h-3 text-muted-foreground/60 flex-shrink-0" />
-          <span className="text-xs text-muted-foreground">Contact:</span>
-          <span className="text-xs font-medium text-foreground/90">{contactName}</span>
-          {buyerConnectionCount > 1 && (
-            <Badge className="text-[9px] px-1.5 py-0 h-4 bg-primary/12 text-primary border border-primary/25 font-semibold tracking-wide">
-              +{buyerConnectionCount - 1}
-            </Badge>
-          )}
-        </div>
-
-        {/* Deal Owner */}
-        {assignedAdmin && (
-          <div className="flex items-center gap-1.5">
+        {/* Row 2: Key People - Deal Owner (left) | Buyer (right) */}
+        <div className="flex items-center justify-between gap-2 text-xs">
+          <div className="flex items-center gap-1 min-w-0 truncate">
             <User className="w-3 h-3 text-muted-foreground/60 flex-shrink-0" />
-            <span className="text-xs text-muted-foreground">Owner:</span>
-            <span className="text-xs font-medium text-foreground/90">{assignedAdmin.displayName}</span>
+            <span className="text-muted-foreground/70">Owner:</span>
+            <span className="font-medium text-foreground/90 truncate">
+              {assignedAdmin?.displayName || 'Unassigned'}
+            </span>
+          </div>
+          <div className="flex items-center gap-1 min-w-0 truncate text-right">
+            <Building2 className="w-3 h-3 text-primary/50 flex-shrink-0" />
+            <span className="font-medium text-foreground/90 truncate">
+              {deal.contact_company || contactName}
+            </span>
+          </div>
+        </div>
+
+        {/* Row 2b: Buyer contact name if company shown above */}
+        {deal.contact_company && (
+          <div className="flex items-center gap-1 text-xs">
+            <User className="w-3 h-3 text-muted-foreground/40 flex-shrink-0" />
+            <span className="text-muted-foreground truncate">{contactName}</span>
           </div>
         )}
 
-        {/* Document Status - Clean design with brand colors */}
-        <div className="flex items-center gap-4 text-xs">
+        {/* Row 3: Status strip - NDA + Fee dots */}
+        <div className="flex items-center gap-4 text-[11px]">
           <div className="flex items-center gap-1.5">
-            <div className={cn('w-1.5 h-1.5 rounded-full', ndaStatus.color)} />
-            <span className="text-muted-foreground">NDA:</span>
-            <span className={cn('font-medium', ndaStatus.textColor)}>
-              {ndaStatus.label}
-            </span>
+            <div className={cn('w-1.5 h-1.5 rounded-full', getStatusDot(deal.nda_status))} />
+            <span className="text-muted-foreground">NDA</span>
           </div>
-          
           <div className="flex items-center gap-1.5">
-            <div className={cn('w-1.5 h-1.5 rounded-full', feeStatus.color)} />
-            <span className="text-muted-foreground">Fee:</span>
-            <span className={cn('font-medium', feeStatus.textColor)}>
-              {feeStatus.label}
-            </span>
+            <div className={cn('w-1.5 h-1.5 rounded-full', getStatusDot(deal.fee_agreement_status))} />
+            <span className="text-muted-foreground">Fee</span>
           </div>
         </div>
 
-        {/* Task Progress - Only show if there are actual tasks */}
-        {taskInfo.hasAnyTasks && (
-          <div className="flex items-center gap-1.5 text-xs">
-            <CheckSquare className={cn(
-              'h-3 w-3',
-              taskInfo.pending === 0 ? 'text-foreground' : 'text-muted-foreground'
-            )} />
-            <span className={cn('font-medium',
-              taskInfo.pending === 0 ? 'text-foreground' : 'text-muted-foreground'
-            )}>
-              {taskInfo.pending === 0 ? `${taskInfo.total} tasks completed` : 
-               `${taskInfo.pending}/${taskInfo.total} tasks pending`}
-            </span>
-          </div>
-        )}
-
-        {/* Next Action & Last Activity */}
-        <div className="space-y-2 text-xs">
-          <div className="flex items-center gap-1.5">
-            <div className="w-1.5 h-1.5 rounded-full bg-primary/60" />
-            <span className="text-muted-foreground">Next:</span>
-            <span className="font-medium text-primary">{nextAction}</span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <Clock className="w-3 h-3 text-muted-foreground" />
-            <span className="text-muted-foreground truncate">{lastActivity}</span>
-          </div>
-        </div>
-
-        {/* Bottom metadata row */}
-        <div className="flex items-center justify-between text-xs text-muted-foreground pt-2 border-t border-border/5">
-          <span className="font-medium text-foreground/80">
-            {daysInStageText}
+        {/* Row 4: Source + Stage duration */}
+        <div className="flex items-center justify-between text-[11px] text-muted-foreground pt-1 border-t border-border/10">
+          <span className="inline-flex items-center gap-1">
+            <SourceIcon className="w-2.5 h-2.5" />
+            {sourceBadge.label}
           </span>
-          <span className={cn(
-            'truncate font-medium',
-            lastContactInfo.isOverdue && 'text-accent-foreground',
-            lastContactInfo.context === 'contact_needed' && 'text-muted-foreground'
-          )}>
-            {lastContactInfo.text}
+          <span className="flex items-center gap-1">
+            <Clock className="w-2.5 h-2.5" />
+            {stageDurationLabel}
           </span>
         </div>
-
       </CardContent>
     </Card>
   );
