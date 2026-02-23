@@ -4,6 +4,7 @@
  */
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { logger } from '@/lib/logger';
 
 interface QueueDealScoringParams {
   universeId: string;
@@ -61,7 +62,7 @@ export async function queueDealScoring({ universeId, listingIds }: QueueDealScor
     })
   );
   if (upsertErrors.length > 0) {
-    console.error("Failed to queue deal scoring:", upsertErrors);
+    logger.error('Failed to queue deal scoring', 'queueScoring', { errors: upsertErrors.join('; ') });
     toast.error("Failed to queue scoring");
     throw new Error(upsertErrors.join('; '));
   }
@@ -69,7 +70,7 @@ export async function queueDealScoring({ universeId, listingIds }: QueueDealScor
   // Fire-and-forget worker invocation
   supabase.functions.invoke("process-scoring-queue", {
     body: { trigger: "deal-scoring" },
-  }).catch(err => console.warn("Worker trigger failed:", err));
+  }).catch(err => logger.warn('Worker trigger failed', 'queueScoring', { error: String(err) }));
 
   toast.info(`Queued ${newIds.length} deal(s) for background scoring`);
   return newIds.length;
@@ -119,14 +120,14 @@ export async function queueAlignmentScoring({ universeId, buyerIds }: QueueAlign
     })
   );
   if (upsertErrors.length > 0) {
-    console.error("Failed to queue alignment scoring:", upsertErrors);
+    logger.error('Failed to queue alignment scoring', 'queueScoring', { errors: upsertErrors.join('; ') });
     toast.error("Failed to queue scoring");
     throw new Error(upsertErrors.join('; '));
   }
 
   supabase.functions.invoke("process-scoring-queue", {
     body: { trigger: "alignment-scoring" },
-  }).catch(err => console.warn("Worker trigger failed:", err));
+  }).catch(err => logger.warn('Worker trigger failed', 'queueScoring', { error: String(err) }));
 
   toast.info(`Queued ${newIds.length} buyer(s) for alignment scoring`);
   return newIds.length;

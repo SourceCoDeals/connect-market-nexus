@@ -96,6 +96,12 @@ export interface FirmMember {
   } | null;
 }
 
+/**
+ * Fetches all firm agreements with member details, plus batch-counted stats for leads, requests, and deals.
+ * Results are ordered by company name with a 60-second stale time.
+ *
+ * @returns A React Query result containing an array of `FirmAgreement` objects with computed `lead_count`, `request_count`, and `deal_count`
+ */
 export function useFirmAgreements() {
   return useQuery({
     queryKey: ['firm-agreements'],
@@ -176,6 +182,12 @@ export function useFirmAgreements() {
   });
 }
 
+/**
+ * Fetches members of a specific firm with their linked user profile data.
+ *
+ * @param firmId - The firm UUID to fetch members for, or null to disable the query
+ * @returns A React Query result containing an array of `FirmMember` objects with nested user profiles
+ */
 export function useFirmMembers(firmId: string | null) {
   return useQuery({
     queryKey: ['firm-members', firmId],
@@ -206,7 +218,11 @@ export function useFirmMembers(firmId: string | null) {
   });
 }
 
-// Minimal members index for global search (firm_id + user names)
+/**
+ * Fetches a minimal index of all firm members for global search (firm_id + user name/email).
+ *
+ * @returns A React Query result containing an array of `{ firm_id, user }` entries for search indexing
+ */
 export function useAllFirmMembersForSearch() {
   return useQuery({
     queryKey: ['firm-members-search'],
@@ -231,6 +247,12 @@ export function useAllFirmMembersForSearch() {
   });
 }
 
+/**
+ * Mutation hook to update a firm's fee agreement signed/unsigned status via the `update_fee_agreement_firm_status` RPC.
+ * Performs optimistic cache updates and invalidates related queries on success.
+ *
+ * @returns A React Query mutation that accepts `{ firmId, isSigned, signedByUserId?, signedByName? }`
+ */
 export function useUpdateFirmFeeAgreement() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -300,6 +322,12 @@ export function useUpdateFirmFeeAgreement() {
   });
 }
 
+/**
+ * Mutation hook to update a firm's NDA signed/unsigned status via the `update_nda_firm_status` RPC.
+ * Performs optimistic cache updates and invalidates related queries on success.
+ *
+ * @returns A React Query mutation that accepts `{ firmId, isSigned, signedByUserId?, signedByName? }`
+ */
 export function useUpdateFirmNDA() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -390,6 +418,12 @@ export interface UpdateAgreementStatusParams {
   notes?: string | null;
 }
 
+/**
+ * Mutation hook for the expanded agreement status workflow (not_started, sent, redlined, under_review, signed, expired, declined).
+ * Supports document URLs, redline notes, custom terms, expiry dates, and source/scope tracking via the `update_firm_agreement_status` RPC.
+ *
+ * @returns A React Query mutation that accepts `UpdateAgreementStatusParams`
+ */
 export function useUpdateAgreementStatus() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -485,6 +519,12 @@ export interface AgreementAuditEntry {
   created_at: string;
 }
 
+/**
+ * Fetches the audit log of agreement status changes for a specific firm, ordered by most recent first.
+ *
+ * @param firmId - The firm UUID to fetch audit entries for, or null to disable the query
+ * @returns A React Query result containing an array of `AgreementAuditEntry` objects
+ */
 export function useAgreementAuditLog(firmId: string | null) {
   return useQuery({
     queryKey: ['agreement-audit-log', firmId],
@@ -507,6 +547,12 @@ export function useAgreementAuditLog(firmId: string | null) {
 // DOMAIN ALIASES
 // ──────────────────────────────────────────────────────────────────────
 
+/**
+ * Fetches domain aliases associated with a firm, with primary domains listed first.
+ *
+ * @param firmId - The firm UUID to fetch domain aliases for, or null to disable the query
+ * @returns A React Query result containing an array of domain alias objects
+ */
 export function useFirmDomainAliases(firmId: string | null) {
   return useQuery({
     queryKey: ['firm-domain-aliases', firmId],
@@ -531,6 +577,11 @@ export function useFirmDomainAliases(firmId: string | null) {
   });
 }
 
+/**
+ * Mutation hook to add a new domain alias to a firm.
+ *
+ * @returns A React Query mutation that accepts `{ firmId, domain }` to associate a domain with a firm
+ */
 export function useAddDomainAlias() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -553,6 +604,11 @@ export function useAddDomainAlias() {
   });
 }
 
+/**
+ * Mutation hook to remove a domain alias from a firm.
+ *
+ * @returns A React Query mutation that accepts `{ aliasId, firmId }` to delete a domain alias
+ */
 export function useRemoveDomainAlias() {
   const queryClient = useQueryClient();
   const { toast } = useToast();

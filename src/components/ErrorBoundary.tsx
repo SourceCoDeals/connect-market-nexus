@@ -3,12 +3,14 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { AlertTriangle, RefreshCw, Home } from 'lucide-react';
+import { logger } from '@/lib/logger';
 
 interface Props {
   children: ReactNode;
   fallback?: ReactNode;
   onError?: (error: Error, errorInfo: React.ErrorInfo) => void;
   showDetails?: boolean;
+  context?: string;
 }
 
 interface State {
@@ -39,8 +41,13 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
-    console.error('🚨 Error Boundary caught an error:', error, errorInfo);
-    
+    const boundaryContext = this.props.context || 'component';
+    logger.error(`Error in ${boundaryContext}`, 'ErrorBoundary', {
+      error: error.message,
+      stack: error.stack || '',
+      componentStack: errorInfo.componentStack || '',
+    });
+
     this.setState({
       error,
       errorInfo,

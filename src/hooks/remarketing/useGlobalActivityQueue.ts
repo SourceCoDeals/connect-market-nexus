@@ -3,6 +3,7 @@ import { useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import type { Json } from "@/integrations/supabase/types";
+import { logger } from '@/lib/logger';
 import type {
   GlobalActivityQueueItem,
   GlobalActivityOperationType,
@@ -90,7 +91,7 @@ export function useGlobalGateCheck() {
         const startedAt = item.started_at ? new Date(item.started_at).getTime() : new Date(item.created_at).getTime();
         const elapsed = Date.now() - startedAt;
         if (elapsed > STALE_THRESHOLD_MS) {
-          console.warn(`[global-gate] Auto-failing stale operation ${item.id} (${item.operation_type}) — 0 progress after ${Math.round(elapsed / 60000)}min`);
+          logger.warn(`Auto-failing stale operation ${item.id} (${item.operation_type}) — 0 progress after ${Math.round(elapsed / 60000)}min`, 'useGlobalGateCheck');
           await supabase
             .from("global_activity_queue")
             .update({

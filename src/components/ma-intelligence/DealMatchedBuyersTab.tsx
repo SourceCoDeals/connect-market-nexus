@@ -115,7 +115,7 @@ export function DealMatchedBuyersTab({ dealId }: DealMatchedBuyersTabProps) {
     loadBuyerScores();
   }, [loadBuyerScores]);
 
-  const handleRecalculateScores = async () => {
+  const handleRecalculateScores = useCallback(async () => {
     try {
       const { error } = await supabase.functions.invoke("score-deal-buyers", {
         body: { dealId },
@@ -138,9 +138,9 @@ export function DealMatchedBuyersTab({ dealId }: DealMatchedBuyersTabProps) {
         variant: "destructive",
       });
     }
-  };
+  }, [dealId, toast, loadBuyerScores]);
 
-  const handleMarkInterested = async (buyerId: string) => {
+  const handleMarkInterested = useCallback(async (buyerId: string) => {
     try {
       const score = buyerScores.find((s) => s.buyer_id === buyerId);
       if (!score) return;
@@ -168,14 +168,14 @@ export function DealMatchedBuyersTab({ dealId }: DealMatchedBuyersTabProps) {
         variant: "destructive",
       });
     }
-  };
+  }, [buyerScores, toast, loadBuyerScores]);
 
-  const handlePass = (buyerId: string) => {
+  const handlePass = useCallback((buyerId: string) => {
     setSelectedBuyerId(buyerId);
     setIsPassDialogOpen(true);
-  };
+  }, []);
 
-  const handleToggleHidden = async (buyerId: string) => {
+  const handleToggleHidden = useCallback(async (buyerId: string) => {
     try {
       const score = buyerScores.find((s) => s.buyer_id === buyerId);
       if (!score) return;
@@ -204,7 +204,7 @@ export function DealMatchedBuyersTab({ dealId }: DealMatchedBuyersTabProps) {
         variant: "destructive",
       });
     }
-  };
+  }, [buyerScores, toast, loadBuyerScores]);
 
   const filteredAndSortedScores = useMemo(() => {
     let filtered = buyerScores;
@@ -286,14 +286,17 @@ export function DealMatchedBuyersTab({ dealId }: DealMatchedBuyersTabProps) {
     return filtered;
   }, [buyerScores, filterTab, searchQuery, sortField, sortDirection]);
 
-  const handleSort = (field: SortField) => {
-    if (sortField === field) {
-      setSortDirection(sortDirection === "asc" ? "desc" : "asc");
-    } else {
-      setSortField(field);
-      setSortDirection("desc");
-    }
-  };
+  const handleSort = useCallback((field: SortField) => {
+    setSortField(prev => {
+      if (prev === field) {
+        setSortDirection(d => d === "asc" ? "desc" : "asc");
+        return prev;
+      } else {
+        setSortDirection("desc");
+        return field;
+      }
+    });
+  }, []);
 
   const getSortIcon = (field: SortField) => {
     if (sortField !== field) return <ArrowUpDown className="w-4 h-4" />;

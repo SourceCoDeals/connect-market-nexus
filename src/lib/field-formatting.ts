@@ -141,7 +141,11 @@ export function formatFieldValueForExport(fieldKey: string, value: unknown): str
 }
 
 /**
- * Get all relevant fields for a buyer type with proper formatting
+ * Returns all non-null user fields formatted for display using the appropriate lookup maps and formatting rules.
+ *
+ * @param user - A record of user profile fields
+ * @param _buyerType - The buyer type (reserved for future per-type field filtering)
+ * @returns A record mapping field keys to their formatted display strings
  */
 export function getFormattedUserFields(user: Record<string, unknown>, _buyerType: string) {
   const fields: Record<string, string> = {};

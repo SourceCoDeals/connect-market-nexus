@@ -4,6 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { createQueryKey } from '@/lib/query-keys';
 import { invalidateSavedListings } from '@/lib/query-client-helpers';
+import { logger } from '@/lib/logger';
 
 // Save/unsave a listing
 export const useSaveListingMutation = () => {
@@ -89,7 +90,7 @@ export const useAllSavedListingIds = () => {
         
         return new Set((data || []).map(r => r.listing_id));
       } catch (error: unknown) {
-        console.error('Error fetching saved listing ids:', error);
+        logger.error('Error fetching saved listing ids', 'useSavedListingIds', { error: String(error) });
         return new Set<string>();
       }
     },
@@ -122,7 +123,7 @@ export const useSavedStatus = (listingId: string | undefined, savedIds?: Set<str
         
         return !!data;
       } catch (error: unknown) {
-        console.error('Error checking saved status:', error);
+        logger.error('Error checking saved status', 'useSavedStatus', { error: String(error) });
         return false;
       }
     },

@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useSessionContext } from '@/contexts/SessionContext';
 import { useVisitorIdentity, getGA4ClientIdAsync } from './useVisitorIdentity';
+import { logger } from '@/lib/logger';
 
 // Helper functions
 function getBrowserName(): string {
@@ -187,7 +188,7 @@ export const useInitialSessionTracking = () => {
         });
 
         if (error) {
-          console.error('❌ Error tracking session via edge function:', error);
+          logger.error('Error tracking session via edge function', 'useInitialSessionTracking', { error: String(error) });
           // Fallback: create session directly without geo data
           await createSessionDirectly(trackingData);
           return;
@@ -201,7 +202,7 @@ export const useInitialSessionTracking = () => {
         hasTracked.current = true;
 
       } catch (error) {
-        console.error('❌ Unexpected error in session tracking:', error);
+        logger.error('Unexpected error in session tracking', 'useInitialSessionTracking', { error: String(error) });
       }
     };
 
@@ -226,10 +227,10 @@ export const useInitialSessionTracking = () => {
         });
 
         if (error) {
-          console.error('❌ Error tracking initial session:', error);
+          logger.error('Error tracking initial session', 'useInitialSessionTracking', { error: String(error) });
         }
       } catch (error) {
-        console.error('❌ Error in trackInitialSessionForUser:', error);
+        logger.error('Error in trackInitialSessionForUser', 'useInitialSessionTracking', { error: String(error) });
       }
     };
 

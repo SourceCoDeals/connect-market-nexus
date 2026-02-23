@@ -1,3 +1,4 @@
+import { memo, useCallback, useMemo } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -8,8 +9,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
-import { 
-  X, 
+import {
+  X,
   SlidersHorizontal,
   Search
 } from "lucide-react";
@@ -53,20 +54,22 @@ const BUYER_TYPE_OPTIONS = [
   { value: 'family_office', label: 'Family Office' }
 ];
 
-export const ScoreFilters = ({
+export const ScoreFilters = memo(({
   filters,
   onFiltersChange,
   totalCount,
   filteredCount
 }: ScoreFiltersProps) => {
-  const hasActiveFilters = 
-    filters.status !== 'all' || 
-    filters.tier !== 'all' || 
+  const hasActiveFilters = useMemo(() =>
+    filters.status !== 'all' ||
+    filters.tier !== 'all' ||
     filters.buyerType !== 'all' ||
     filters.minScore !== null ||
-    filters.search !== '';
+    filters.search !== '',
+    [filters]
+  );
 
-  const clearFilters = () => {
+  const clearFilters = useCallback(() => {
     onFiltersChange({
       status: 'all',
       tier: 'all',
@@ -74,7 +77,7 @@ export const ScoreFilters = ({
       buyerType: 'all',
       search: ''
     });
-  };
+  }, [onFiltersChange]);
 
   return (
     <div className="space-y-3">
@@ -204,7 +207,9 @@ export const ScoreFilters = ({
       )}
     </div>
   );
-};
+});
+
+ScoreFilters.displayName = 'ScoreFilters';
 
 // Helper to filter scores based on filter state
 // eslint-disable-next-line react-refresh/only-export-components

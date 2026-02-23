@@ -2,6 +2,15 @@ import { useState, useCallback } from 'react';
 import { errorHandler } from '@/lib/error-handler';
 import { logger } from '@/lib/logger';
 
+/**
+ * Configuration options for the retry mechanism.
+ *
+ * @param maxRetries - Maximum number of retry attempts (default: 3)
+ * @param initialDelay - Initial delay in ms before the first retry (default: 1000)
+ * @param maxDelay - Maximum delay cap in ms between retries (default: 10000)
+ * @param backoffFactor - Multiplier applied to the delay on each subsequent retry (default: 2)
+ * @param retryCondition - Predicate that determines whether a given error should trigger a retry
+ */
 export interface RetryConfig {
   maxRetries?: number;
   initialDelay?: number;
@@ -25,6 +34,19 @@ const defaultConfig: Required<RetryConfig> = {
   retryCondition: () => true,
 };
 
+/**
+ * Hook that wraps an async function with configurable retry logic and exponential backoff.
+ *
+ * @param asyncFn - The async function to wrap with retry behavior
+ * @param config - Optional retry configuration (maxRetries, delays, backoff, retry condition)
+ * @returns An object with `execute` (the retried function), `state` (current retry state), and `reset`
+ *
+ * @example
+ * ```ts
+ * const { execute, state } = useRetry(fetchData, { maxRetries: 3, initialDelay: 500 });
+ * await execute(userId);
+ * ```
+ */
 export function useRetry<T extends unknown[], R>(
   asyncFn: (...args: T) => Promise<R>,
   config: RetryConfig = {},
@@ -133,7 +155,10 @@ export function useRetry<T extends unknown[], R>(
   };
 }
 
-// Common retry conditions
+/**
+ * Pre-built retry condition predicates for common use cases.
+ * Pass these as the `retryCondition` option to `useRetry`.
+ */
 export const retryConditions = {
   // Retry network errors but not validation errors
   networkOnly: (error: unknown) => {
@@ -173,7 +198,13 @@ export const retryConditions = {
   },
 };
 
-// Specialized retry hooks for common use cases
+/**
+ * Specialized retry hook that only retries on network-related errors.
+ *
+ * @param networkFn - The async function to retry on network failures
+ * @param config - Optional retry configuration (excluding retryCondition)
+ * @returns Same return shape as `useRetry`
+ */
 export function useNetworkRetry<T extends unknown[], R>(
   networkFn: (...args: T) => Promise<R>,
   config?: Omit<RetryConfig, 'retryCondition'>,
@@ -184,6 +215,13 @@ export function useNetworkRetry<T extends unknown[], R>(
   });
 }
 
+/**
+ * Specialized retry hook that retries all errors except authentication errors, with a maximum of 2 retries.
+ *
+ * @param authFn - The async function to retry on non-auth failures
+ * @param config - Optional retry configuration (excluding retryCondition)
+ * @returns Same return shape as `useRetry`
+ */
 export function useAuthRetry<T extends unknown[], R>(
   authFn: (...args: T) => Promise<R>,
   config?: Omit<RetryConfig, 'retryCondition'>,

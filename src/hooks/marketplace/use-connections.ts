@@ -5,10 +5,23 @@ import { toast } from '@/hooks/use-toast';
 import { ConnectionRequest } from '@/types';
 import { createQueryKey } from '@/lib/query-keys';
 import { invalidateConnectionRequests } from '@/lib/query-client-helpers';
+import { logger } from '@/lib/logger';
 
 const VISITOR_ID_KEY = 'sourceco_visitor_id';
 
-// Request connection to a listing
+/**
+ * Mutation hook to request a connection to a marketplace listing.
+ * Handles duplicate/merge detection, sends confirmation and admin notification emails,
+ * and records activity and journey milestones.
+ *
+ * @returns A React Query mutation that accepts `{ listingId, message }` (message must be >= 20 chars)
+ *
+ * @example
+ * ```ts
+ * const requestConnection = useRequestConnection();
+ * requestConnection.mutate({ listingId: "abc-123", message: "I am interested in acquiring this business..." });
+ * ```
+ */
 export const useRequestConnection = () => {
   const queryClient = useQueryClient();
   
@@ -52,7 +65,7 @@ export const useRequestConnection = () => {
             p_milestone_key: 'first_connection_at',
             p_milestone_time: new Date().toISOString()
           }).then(({ error }) => {
-            if (error) console.error('Failed to record connection milestone:', error);
+            if (error) logger.error('Failed to record connection milestone', 'useRequestConnection', { error: String(error) });
           });
         }
 
@@ -109,11 +122,11 @@ export const useRequestConnection = () => {
               body: adminNotificationPayload
             });
           } catch (adminNotifError) {
-            console.error('Failed to send admin notification:', adminNotifError);
+            logger.error('Failed to send admin notification', 'useRequestConnection', { error: String(adminNotifError) });
           }
         } catch (notificationError) {
           // Log the error but don't fail the whole request
-          console.error('Failed to send notification:', notificationError);
+          logger.error('Failed to send notification', 'useRequestConnection', { error: String(notificationError) });
         }
         
         return parsedResult;
@@ -154,7 +167,12 @@ export const useRequestConnection = () => {
   });
 };
 
-// Batch fetch all connection statuses for the current user (single query)
+/**
+ * Fetches all connection request statuses for the current user in a single batch query.
+ * Returns a Map keyed by listing ID for O(1) lookups.
+ *
+ * @returns A React Query result containing a `Map<string, { exists, status, id }>` of all connection statuses
+ */
 export const useAllConnectionStatuses = () => {
   return useQuery({
     queryKey: ['all-connection-statuses'],
@@ -176,7 +194,7 @@ export const useAllConnectionStatuses = () => {
         }
         return map;
       } catch (error: unknown) {
-        console.error('Error fetching all connection statuses:', error);
+        logger.error('Error fetching all connection statuses', 'useAllConnectionStatuses', { error: String(error) });
         return new Map<string, { exists: boolean; status: string; id: string }>();
       }
     },
@@ -184,7 +202,14 @@ export const useAllConnectionStatuses = () => {
   });
 };
 
-// Get connection status for a listing - uses batch map when provided, falls back to individual query
+/**
+ * Gets connection status for a specific listing. Uses a pre-fetched batch map when provided,
+ * otherwise falls back to an individual Supabase query.
+ *
+ * @param listingId - The listing to check connection status for
+ * @param connectionMap - Optional pre-fetched map from `useAllConnectionStatuses` for batch lookups
+ * @returns A React Query result with `{ exists, status, id }` for the connection
+ */
 export const useConnectionStatus = (listingId: string | undefined, connectionMap?: Map<string, { exists: boolean; status: string; id: string }>) => {
   const skip = !!connectionMap;
   const query = useQuery({
@@ -211,7 +236,7 @@ export const useConnectionStatus = (listingId: string | undefined, connectionMap
           id: data?.id || ''
         };
       } catch (error: unknown) {
-        console.error('Error checking connection status:', error);
+        logger.error('Error checking connection status', 'useConnectionStatus', { error: String(error) });
         return { exists: false, status: '', id: '' };
       }
     },
@@ -226,7 +251,12 @@ export const useConnectionStatus = (listingId: string | undefined, connectionMap
   return query;
 };
 
-// Get user connection requests with full listing details including acquisition type
+/**
+ * Fetches the current user's connection requests with full listing details (title, category, financials, acquisition type).
+ * Results are ordered by creation date descending with a 1-minute stale time.
+ *
+ * @returns A React Query result containing an array of `ConnectionRequest` objects with nested listing data
+ */
 export const useUserConnectionRequests = () => {
   return useQuery({
     queryKey: createQueryKey.userConnectionRequests(),
@@ -260,7 +290,7 @@ export const useUserConnectionRequests = () => {
         
         return data as ConnectionRequest[];
       } catch (error: unknown) {
-        console.error('Error fetching user connection requests:', error);
+        logger.error('Error fetching user connection requests', 'useUserConnectionRequests', { error: String(error) });
         return [];
       }
     },

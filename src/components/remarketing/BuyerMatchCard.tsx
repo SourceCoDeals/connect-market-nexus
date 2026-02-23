@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useCallback, useMemo, memo, useRef } from "react";
 import { Link } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
@@ -260,7 +260,7 @@ const getOutreachBadge = (status: OutreachStatus) => {
   return config[status] || config.pending;
 };
 
-export const BuyerMatchCard = ({
+export const BuyerMatchCard = memo(({
   score,
   dealLocation,
   isSelected = false,
@@ -281,36 +281,47 @@ export const BuyerMatchCard = ({
 }: BuyerMatchCardProps) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const [outreachDialogOpen, setOutreachDialogOpen] = useState(false);
-  
+  const hasBeenViewed = useRef(false);
+
   // Track when card is expanded for the first time
-  const handleExpand = (expanded: boolean) => {
-    if (expanded && !isExpanded && onViewed) {
+  const handleExpand = useCallback((expanded: boolean) => {
+    if (expanded && !hasBeenViewed.current && onViewed) {
+      hasBeenViewed.current = true;
       onViewed(score.id);
     }
     setIsExpanded(expanded);
-  };
-  
+  }, [onViewed, score.id]);
+
   const buyer = score.buyer;
-  const disqualified = isDisqualified(score);
+  const disqualified = useMemo(() => isDisqualified(score), [score]);
   // Prefer backend missing_fields, fallback to client-side calculation
-  const missingData = score.missing_fields && score.missing_fields.length > 0
-    ? score.missing_fields
-    : getMissingDataFields(buyer);
-  
+  const missingData = useMemo(() =>
+    score.missing_fields && score.missing_fields.length > 0
+      ? score.missing_fields
+      : getMissingDataFields(buyer),
+    [score.missing_fields, buyer]
+  );
+
   // Format financial range
-  const financialRange = buyer?.target_revenue_min || buyer?.target_revenue_max
-    ? `${formatCurrency(buyer?.target_revenue_min) || '?'}-${formatCurrency(buyer?.target_revenue_max) || '?'}`
-    : null;
-  
+  const financialRange = useMemo(() =>
+    buyer?.target_revenue_min || buyer?.target_revenue_max
+      ? `${formatCurrency(buyer?.target_revenue_min) || '?'}-${formatCurrency(buyer?.target_revenue_max) || '?'}`
+      : null,
+    [buyer?.target_revenue_min, buyer?.target_revenue_max]
+  );
+
   // Buyer footprint summary
-  const buyerFootprint = buyer?.geographic_footprint?.slice(0, 3).join(', ') || 'Unknown';
-  
+  const buyerFootprint = useMemo(() =>
+    buyer?.geographic_footprint?.slice(0, 3).join(', ') || 'Unknown',
+    [buyer?.geographic_footprint]
+  );
+
   // Handle outreach save
-  const handleOutreachSave = async (status: OutreachStatus, notes: string) => {
+  const handleOutreachSave = useCallback(async (status: OutreachStatus, notes: string) => {
     if (onOutreachUpdate) {
       await onOutreachUpdate(score.id, status, notes);
     }
-  };
+  }, [onOutreachUpdate, score.id]);
   
   // Get outreach badge info
   const outreachBadge = outreach ? getOutreachBadge(outreach.status) : null;
@@ -772,6 +783,8 @@ export const BuyerMatchCard = ({
       </div>
     </div>
   );
-};
+});
+
+BuyerMatchCard.displayName = 'BuyerMatchCard';
 
 export default BuyerMatchCard;

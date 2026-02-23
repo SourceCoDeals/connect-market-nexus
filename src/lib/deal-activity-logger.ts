@@ -1,4 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
+import { logger } from '@/lib/logger';
 
 export type DealActivityType = 
   | 'stage_change'
@@ -47,9 +48,9 @@ export async function logDealActivity({
       });
 
     if (error) {
-      console.error('Failed to log deal activity:', error);
+      logger.error('Failed to log deal activity', 'dealActivityLogger', { error: String(error) });
     }
   } catch (error) {
-    console.error('Error logging deal activity:', error);
+    logger.error('Error logging deal activity', 'dealActivityLogger', { error: String(error) });
   }
 }

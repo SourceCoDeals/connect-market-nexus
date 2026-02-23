@@ -3,8 +3,18 @@ import { errorHandler, ErrorContext, ErrorSeverity } from '@/lib/error-handler';
 import { errorLogger } from '@/lib/error-logger';
 
 /**
- * Production-ready error handling hook
- * Provides standardized error handling for components
+ * Production-ready error handling hook that provides standardized error logging and reporting for components.
+ * Logs errors to both the error handler and error logger for redundancy.
+ *
+ * @param componentName - The name of the component using this hook, included in all error context
+ * @returns `handleError` for general errors, `handleAsyncError` for wrapping async operations,
+ *          `handleNetworkError` for API failures, and `handleFormError` for form submission errors
+ *
+ * @example
+ * ```ts
+ * const { handleError, handleAsyncError } = useProductionErrorHandler("UserProfile");
+ * await handleAsyncError(() => fetchUserData(), "fetchUserData");
+ * ```
  */
 export const useProductionErrorHandler = (componentName: string) => {
   const handleError = useCallback((

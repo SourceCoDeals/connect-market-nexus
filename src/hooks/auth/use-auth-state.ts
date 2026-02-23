@@ -3,7 +3,21 @@ import { useState, useEffect } from "react";
 import { User, ApprovalStatus } from "@/types";
 import { supabase } from "@/integrations/supabase/client";
 import { createUserObject } from "@/lib/auth-helpers";
+import { logger } from '@/lib/logger';
 
+/**
+ * Manages Supabase authentication state, including session checking, profile fetching, and real-time auth event handling.
+ * Uses localStorage caching to prevent UI flashing on page load, and includes a 3-second timeout fallback.
+ *
+ * @returns `user` (current User object or null), `isLoading`, `isAdmin`, `isBuyer`, and `authChecked` flags
+ *
+ * @example
+ * ```ts
+ * const { user, isLoading, isAdmin, authChecked } = useAuthState();
+ * if (!authChecked) return <Spinner />;
+ * if (!user) return <LoginPage />;
+ * ```
+ */
 export function useAuthState() {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -22,7 +36,7 @@ export function useAuthState() {
         // Loaded cached user
       }
     } catch (err) {
-      console.error("Error parsing cached user:", err);
+      logger.error('Error parsing cached user', 'useAuthState', { error: String(err) });
       localStorage.removeItem("user");
     }
     
@@ -58,7 +72,7 @@ export function useAuthState() {
                   .single();
                 
                 if (error) {
-                  console.error(`Error fetching profile after ${event}:`, error);
+                  logger.error(`Error fetching profile after ${event}`, 'useAuthState', { error: String(error) });
                   // Create a minimal user object if profile doesn't exist yet
                   const minimalUser: User = {
                     id: session.user.id,
@@ -107,7 +121,7 @@ export function useAuthState() {
                   localStorage.setItem("user", JSON.stringify(userData));
                 }
               } catch (err) {
-                console.error(`Error in ${event} handler:`, err);
+                logger.error(`Error in ${event} handler`, 'useAuthState', { error: String(err) });
                 setUser(null);
                 localStorage.removeItem("user");
               } finally {
@@ -134,7 +148,7 @@ export function useAuthState() {
         // Timeout to prevent infinite loading
         const timeoutId = setTimeout(() => {
           if (isSubscribed) {
-            console.warn("Auth check timeout - forcing completion");
+            logger.warn('Auth check timeout - forcing completion', 'useAuthState');
             setIsLoading(false);
             setAuthChecked(true);
           }
@@ -146,7 +160,7 @@ export function useAuthState() {
         clearTimeout(timeoutId);
         
         if (sessionError) {
-          console.error("Session error:", sessionError);
+          logger.error('Session error', 'useAuthState', { error: String(sessionError) });
           setUser(null);
           localStorage.removeItem("user");
           setIsLoading(false);
@@ -164,7 +178,7 @@ export function useAuthState() {
             .single();
           
           if (profileError) {
-            console.error("Profile error:", profileError);
+            logger.error('Profile error', 'useAuthState', { error: String(profileError) });
             // Create minimal user object for users without profiles yet
             const minimalUser: User = {
               id: session.user.id,
@@ -220,7 +234,7 @@ export function useAuthState() {
           }
         }
       } catch (error) {
-        console.error("Auth check error:", error);
+        logger.error('Auth check error', 'useAuthState', { error: String(error) });
         if (isSubscribed) {
           setUser(null);
           localStorage.removeItem("user");

@@ -44,7 +44,12 @@ export interface DealScoreResult {
   scoring_confidence: string;
 }
 
-// Parse linkedin_employee_range strings like "11-50 employees" → midpoint estimate
+/**
+ * Parses LinkedIn employee range strings (e.g., "11-50 employees", "200+") into a numeric midpoint estimate.
+ *
+ * @param range - The employee range string from LinkedIn, or null
+ * @returns The estimated employee count (midpoint for ranges, 1.2x for "N+" formats), or 0 if unparseable
+ */
 export function estimateEmployeesFromRange(range: string | null): number {
   if (!range) return 0;
   const cleaned = range.replace(/,/g, '').toLowerCase();
@@ -80,6 +85,20 @@ const SECONDARY_CITIES = [
   'green bay', 'des moines', 'knoxville', 'chattanooga', 'birmingham',
 ];
 
+/**
+ * Calculates a quality score (0-100) for a deal using financials, employee counts, location, and industry signals.
+ * Path A uses revenue/EBITDA when available; Path B falls back to employee counts, Google reviews, and location signals.
+ * Applies industry tier multipliers and market bonuses for metro locations and recurring revenue models.
+ *
+ * @param deal - The deal input data containing financials, employee data, location, and enrichment signals
+ * @returns A `DealScoreResult` with total score, component scores, confidence level, and scoring notes
+ *
+ * @example
+ * ```ts
+ * const result = calculateDealScore({ revenue: 5000000, ebitda: 1000000, location: "New York" });
+ * console.log(result.deal_total_score); // e.g., 82
+ * ```
+ */
 export function calculateDealScore(deal: DealInput): DealScoreResult {
   const notes: string[] = [];
 

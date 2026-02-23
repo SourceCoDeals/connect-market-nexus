@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useEnrichmentProgress } from "@/hooks/useEnrichmentProgress";
 import { EnrichmentProgressIndicator } from "@/components/remarketing/EnrichmentProgressIndicator";
 import { supabase } from "@/integrations/supabase/client";
@@ -228,7 +228,7 @@ export function TrackerDealsTab({ trackerId, onDealCountChange }: TrackerDealsTa
     }
   };
 
-  const handleScoreSingle = async (dealId: string) => {
+  const handleScoreSingle = useCallback(async (dealId: string) => {
     try {
       await invokeWithTimeout("score-deal", {
         body: { dealId },
@@ -248,9 +248,9 @@ export function TrackerDealsTab({ trackerId, onDealCountChange }: TrackerDealsTa
         variant: "destructive",
       });
     }
-  };
+  }, [toast, loadDeals]);
 
-  const handleEnrichSingle = async (dealId: string) => {
+  const handleEnrichSingle = useCallback(async (dealId: string) => {
     try {
       const { queueDealEnrichment } = await import("@/lib/remarketing/queueEnrichment");
       await queueDealEnrichment([dealId]);
@@ -268,9 +268,9 @@ export function TrackerDealsTab({ trackerId, onDealCountChange }: TrackerDealsTa
         variant: "destructive",
       });
     }
-  };
+  }, [toast, loadDeals]);
 
-  const handleArchiveDeal = async (dealId: string) => {
+  const handleArchiveDeal = useCallback(async (dealId: string) => {
     try {
       // deals table doesn't have 'status' column - use soft delete via deleted_at
       await supabase
@@ -287,9 +287,9 @@ export function TrackerDealsTab({ trackerId, onDealCountChange }: TrackerDealsTa
         variant: "destructive",
       });
     }
-  };
+  }, [toast, loadDeals]);
 
-  const handleDeleteDeal = async (dealId: string) => {
+  const handleDeleteDeal = useCallback(async (dealId: string) => {
     if (!confirm("Are you sure you want to delete this deal? This action cannot be undone.")) {
       return;
     }
@@ -309,27 +309,31 @@ export function TrackerDealsTab({ trackerId, onDealCountChange }: TrackerDealsTa
         variant: "destructive",
       });
     }
-  };
+  }, [toast, loadDeals]);
 
-  const handleToggleSelect = (dealId: string) => {
-    const newSelected = new Set(selectedDeals);
-    if (newSelected.has(dealId)) {
-      newSelected.delete(dealId);
-    } else {
-      newSelected.add(dealId);
-    }
-    setSelectedDeals(newSelected);
-  };
+  const handleToggleSelect = useCallback((dealId: string) => {
+    setSelectedDeals(prev => {
+      const newSelected = new Set(prev);
+      if (newSelected.has(dealId)) {
+        newSelected.delete(dealId);
+      } else {
+        newSelected.add(dealId);
+      }
+      return newSelected;
+    });
+  }, []);
 
-  const handleSelectAll = () => {
-    if (selectedDeals.size === deals.length) {
-      setSelectedDeals(new Set());
-    } else {
-      setSelectedDeals(new Set(deals.map(d => d.id)));
-    }
-  };
+  const handleSelectAll = useCallback(() => {
+    setSelectedDeals(prev => {
+      if (prev.size === deals.length) {
+        return new Set();
+      } else {
+        return new Set(deals.map(d => d.id));
+      }
+    });
+  }, [deals]);
 
-  const filteredDeals = deals.filter(deal => {
+  const filteredDeals = useMemo(() => deals.filter(deal => {
     // Search filter
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
@@ -357,7 +361,7 @@ export function TrackerDealsTab({ trackerId, onDealCountChange }: TrackerDealsTa
     }
 
     return true;
-  });
+  }), [deals, searchQuery, filterStatus, filterScore]);
 
   if (isLoading) {
     return (

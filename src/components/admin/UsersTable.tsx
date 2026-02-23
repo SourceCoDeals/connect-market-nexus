@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -480,18 +480,26 @@ export function UsersTable({
   usePermissions();
   const { allUserRoles, isLoadingRoles } = useRoleManagement();
 
-  const getUserRole = (userId: string): AppRole => {
-    if (!allUserRoles || allUserRoles.length === 0) return 'user';
-    const roleData = allUserRoles.find((ur) => ur.user_id === userId);
-    return (roleData?.role as AppRole) || 'user';
-  };
+  const userRoleMap = useMemo(() => {
+    const map = new Map<string, AppRole>();
+    if (allUserRoles) {
+      for (const ur of allUserRoles) {
+        map.set(ur.user_id, (ur.role as AppRole) || 'user');
+      }
+    }
+    return map;
+  }, [allUserRoles]);
+
+  const getUserRole = useCallback((userId: string): AppRole => {
+    return userRoleMap.get(userId) || 'user';
+  }, [userRoleMap]);
   const logEmailMutation = useLogFeeAgreementEmail();
   const logNDAEmail = useLogNDAEmail();
   const { user: currentAuthUser } = useAuth();
   
-  const toggleExpand = (userId: string) => {
-    setExpandedUserId(expandedUserId === userId ? null : userId);
-  };
+  const toggleExpand = useCallback((userId: string) => {
+    setExpandedUserId(prev => prev === userId ? null : userId);
+  }, []);
   
   const formatDate = (dateString: string) => {
     try {
@@ -500,6 +508,69 @@ export function UsersTable({
       return "Invalid date";
     }
   };
+
+  const handleFeeAgreementSendEmail = useCallback(async (user: User, options?: { subject?: string; content?: string; attachments?: string[]; customSignatureText?: string }) => {
+    if (!currentAuthUser) {
+      throw new Error('Authentication required');
+    }
+
+    const { data: adminProfile, error: profileError } = await supabase
+      .from('profiles')
+      .select('email, first_name, last_name')
+      .eq('id', currentAuthUser.id)
+      .single();
+
+    if (profileError || !adminProfile) {
+      throw new Error('Admin profile not found');
+    }
+
+    const adminName = `${adminProfile.first_name} ${adminProfile.last_name}`;
+
+    await logEmailMutation.mutateAsync({
+      userId: user.id,
+      userEmail: user.email,
+      subject: options?.subject,
+      content: options?.content,
+      attachments: options?.attachments,
+      customSignatureText: options?.customSignatureText,
+      adminId: currentAuthUser.id,
+      adminEmail: adminProfile.email,
+      adminName: adminName,
+      notes: options?.subject ? `Custom fee agreement email: ${options.subject}` : 'Standard fee agreement email sent'
+    });
+  }, [currentAuthUser, logEmailMutation]);
+
+  const handleNDASendEmail = useCallback(async (user: User, options?: { subject?: string; message?: string }) => {
+    if (!currentAuthUser) {
+      throw new Error('Authentication required');
+    }
+
+    const { data: adminProfile, error: profileError } = await supabase
+      .from('profiles')
+      .select('email, first_name, last_name')
+      .eq('id', currentAuthUser.id)
+      .single();
+
+    if (profileError || !adminProfile) {
+      throw new Error('Admin profile not found');
+    }
+
+    const adminName = `${adminProfile.first_name} ${adminProfile.last_name}`;
+
+    await logNDAEmail.mutateAsync({
+      userId: user.id,
+      userEmail: user.email,
+      customSubject: options?.subject || 'NDA Agreement | SourceCo',
+      customMessage: options?.message || 'Please review and sign the attached NDA.',
+      adminId: currentAuthUser.id,
+      adminEmail: adminProfile.email,
+      adminName: adminName,
+      notes: options?.message ? `Custom NDA email sent: ${options.subject}` : 'Standard NDA email sent'
+    });
+  }, [currentAuthUser, logNDAEmail]);
+
+  const handleCloseFeeDialog = useCallback(() => setSelectedUserForEmail(null), []);
+  const handleCloseNDADialog = useCallback((open: boolean) => { if (!open) setSelectedUserForNDA(null); }, []);
 
   if (isLoading) {
     return <UsersTableSkeleton />;
@@ -642,71 +713,15 @@ export function UsersTable({
       <SimpleFeeAgreementDialog
         user={selectedUserForEmail}
         isOpen={!!selectedUserForEmail}
-        onClose={() => setSelectedUserForEmail(null)}
-        onSendEmail={async (user, options) => {
-          if (!currentAuthUser) {
-            throw new Error('Authentication required');
-          }
-
-          const { data: adminProfile, error: profileError } = await supabase
-            .from('profiles')
-            .select('email, first_name, last_name')
-            .eq('id', currentAuthUser.id)
-            .single();
-
-          if (profileError || !adminProfile) {
-            throw new Error('Admin profile not found');
-          }
-
-          const adminName = `${adminProfile.first_name} ${adminProfile.last_name}`;
-
-          await logEmailMutation.mutateAsync({
-            userId: user.id,
-            userEmail: user.email,
-            subject: options?.subject,
-            content: options?.content,
-            attachments: options?.attachments,
-            customSignatureText: options?.customSignatureText,
-            adminId: currentAuthUser.id,
-            adminEmail: adminProfile.email,
-            adminName: adminName,
-            notes: options?.subject ? `Custom fee agreement email: ${options.subject}` : 'Standard fee agreement email sent'
-          });
-        }}
+        onClose={handleCloseFeeDialog}
+        onSendEmail={handleFeeAgreementSendEmail}
       />
       
       <SimpleNDADialog
         open={!!selectedUserForNDA}
-        onOpenChange={(open) => !open && setSelectedUserForNDA(null)}
+        onOpenChange={handleCloseNDADialog}
         user={selectedUserForNDA}
-        onSendEmail={async (user, options) => {
-          if (!currentAuthUser) {
-            throw new Error('Authentication required');
-          }
-
-          const { data: adminProfile, error: profileError } = await supabase
-            .from('profiles')
-            .select('email, first_name, last_name')
-            .eq('id', currentAuthUser.id)
-            .single();
-
-          if (profileError || !adminProfile) {
-            throw new Error('Admin profile not found');
-          }
-
-          const adminName = `${adminProfile.first_name} ${adminProfile.last_name}`;
-
-        await logNDAEmail.mutateAsync({
-          userId: user.id,
-          userEmail: user.email,
-          customSubject: options?.subject || 'NDA Agreement | SourceCo',
-          customMessage: options?.message || 'Please review and sign the attached NDA.',
-          adminId: currentAuthUser.id,
-          adminEmail: adminProfile.email,
-          adminName: adminName,
-          notes: options?.message ? `Custom NDA email sent: ${options.subject}` : 'Standard NDA email sent'
-        });
-        }}
+        onSendEmail={handleNDASendEmail}
       />
     </>
   );

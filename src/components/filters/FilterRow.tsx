@@ -1,3 +1,4 @@
+import { memo, useCallback, useMemo } from "react";
 import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -25,7 +26,7 @@ interface FilterRowProps {
   onFieldChange: (newFieldKey: string) => void;
 }
 
-export function FilterRow({
+export const FilterRow = memo(function FilterRow({
   rule,
   fieldDef,
   options,
@@ -34,16 +35,16 @@ export function FilterRow({
   onRemove,
   onFieldChange,
 }: FilterRowProps) {
-  const operatorDefs = OPERATORS_BY_TYPE[fieldDef.type] ?? [];
-  const currentOp = operatorDefs.find((o) => o.value === rule.operator);
+  const operatorDefs = useMemo(() => OPERATORS_BY_TYPE[fieldDef.type] ?? [], [fieldDef.type]);
+  const currentOp = useMemo(() => operatorDefs.find((o) => o.value === rule.operator), [operatorDefs, rule.operator]);
 
-  const handleOperatorChange = (op: string) => {
+  const handleOperatorChange = useCallback((op: string) => {
     onChange({ ...rule, operator: op as Operator, value: null });
-  };
+  }, [onChange, rule]);
 
-  const handleValueChange = (value: FilterRule['value']) => {
+  const handleValueChange = useCallback((value: FilterRule['value']) => {
     onChange({ ...rule, value });
-  };
+  }, [onChange, rule]);
 
   const isMultiOperator =
     rule.operator === "is_any_of" ||
@@ -105,7 +106,7 @@ export function FilterRow({
       </Button>
     </div>
   );
-}
+});
 
 // ─── Value Input Router ─────────────────────────────────────────
 function ValueInput({

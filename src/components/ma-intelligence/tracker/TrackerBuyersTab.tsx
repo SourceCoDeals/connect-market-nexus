@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Loader2 } from "lucide-react";
@@ -150,7 +150,7 @@ export function TrackerBuyersTab({ trackerId, onBuyerCountChange }: TrackerBuyer
     }
   };
 
-  const handleEnrichSingle = async (buyerId: string) => {
+  const handleEnrichSingle = useCallback(async (buyerId: string) => {
     try {
       const { queueBuyerEnrichment } = await import("@/lib/remarketing/queueEnrichment");
       await queueBuyerEnrichment([buyerId]);
@@ -168,9 +168,9 @@ export function TrackerBuyersTab({ trackerId, onBuyerCountChange }: TrackerBuyer
         variant: "destructive",
       });
     }
-  };
+  }, [toast, loadBuyers]);
 
-  const handleArchiveBuyer = async (buyerId: string) => {
+  const handleArchiveBuyer = useCallback(async (buyerId: string) => {
     try {
       // remarketing_buyers doesn't have 'status' column - use 'archived' boolean instead
       await supabase
@@ -187,9 +187,9 @@ export function TrackerBuyersTab({ trackerId, onBuyerCountChange }: TrackerBuyer
         variant: "destructive",
       });
     }
-  };
+  }, [toast, loadBuyers]);
 
-  const handleDeleteBuyer = async (buyerId: string) => {
+  const handleDeleteBuyer = useCallback(async (buyerId: string) => {
     if (!confirm("Are you sure you want to delete this buyer? This action cannot be undone.")) {
       return;
     }
@@ -209,7 +209,7 @@ export function TrackerBuyersTab({ trackerId, onBuyerCountChange }: TrackerBuyer
         variant: "destructive",
       });
     }
-  };
+  }, [toast, loadBuyers]);
 
   const handleBulkScore = async (dealId: string) => {
     if (selectedBuyers.size === 0) {
@@ -243,25 +243,29 @@ export function TrackerBuyersTab({ trackerId, onBuyerCountChange }: TrackerBuyer
     }
   };
 
-  const handleToggleSelect = (buyerId: string) => {
-    const newSelected = new Set(selectedBuyers);
-    if (newSelected.has(buyerId)) {
-      newSelected.delete(buyerId);
-    } else {
-      newSelected.add(buyerId);
-    }
-    setSelectedBuyers(newSelected);
-  };
+  const handleToggleSelect = useCallback((buyerId: string) => {
+    setSelectedBuyers(prev => {
+      const newSelected = new Set(prev);
+      if (newSelected.has(buyerId)) {
+        newSelected.delete(buyerId);
+      } else {
+        newSelected.add(buyerId);
+      }
+      return newSelected;
+    });
+  }, []);
 
-  const handleSelectAll = () => {
-    if (selectedBuyers.size === buyers.length) {
-      setSelectedBuyers(new Set());
-    } else {
-      setSelectedBuyers(new Set(buyers.map(b => b.id)));
-    }
-  };
+  const handleSelectAll = useCallback(() => {
+    setSelectedBuyers(prev => {
+      if (prev.size === buyers.length) {
+        return new Set();
+      } else {
+        return new Set(buyers.map(b => b.id));
+      }
+    });
+  }, [buyers]);
 
-  const filteredBuyers = buyers.filter(buyer => {
+  const filteredBuyers = useMemo(() => buyers.filter(buyer => {
     // Search filter
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
@@ -287,7 +291,7 @@ export function TrackerBuyersTab({ trackerId, onBuyerCountChange }: TrackerBuyer
     }
 
     return true;
-  });
+  }), [buyers, searchQuery, filterCoverage]);
 
   if (isLoading) {
     return (

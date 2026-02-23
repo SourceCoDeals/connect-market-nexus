@@ -117,6 +117,12 @@ export interface DealStage {
   updated_at: string;
 }
 
+/**
+ * Fetches all deals with full details (stage, listing, contact, buyer, tasks, activities) via the `get_deals_with_details` RPC.
+ * Maps the RPC response to the `Deal` interface with fallbacks for legacy field names.
+ *
+ * @returns A React Query result containing an array of `Deal` objects with a 30-second stale time
+ */
 export function useDeals() {
   return useQuery({
     queryKey: ['deals'],
@@ -231,6 +237,12 @@ export function useDeals() {
   });
 }
 
+/**
+ * Fetches active deal pipeline stages, optionally including closed (won/lost) stages.
+ *
+ * @param includeClosedStages - Whether to include closed_won and closed_lost stages (default: true)
+ * @returns A React Query result containing an array of `DealStage` objects ordered by position
+ */
 export function useDealStages(includeClosedStages = true) {
   return useQuery({
     queryKey: ['deal-stages', includeClosedStages],
@@ -249,7 +261,12 @@ export function useDealStages(includeClosedStages = true) {
   });
 }
 
-// Get deal count for a stage using the DB function
+/**
+ * Fetches the number of deals in a specific pipeline stage using the `get_stage_deal_count` RPC.
+ *
+ * @param stageId - The stage UUID to count deals for
+ * @returns A React Query result containing the deal count as a number
+ */
 export function useStageDealCount(stageId: string | undefined) {
   return useQuery({
     queryKey: ['stage-deal-count', stageId],
@@ -268,6 +285,13 @@ export function useStageDealCount(stageId: string | undefined) {
   });
 }
 
+/**
+ * Mutation hook to move a deal to a different pipeline stage with ownership tracking.
+ * Performs optimistic updates, handles owner conflict warnings, and triggers email notifications
+ * for owner changes and "Owner intro requested" stage transitions.
+ *
+ * @returns A React Query mutation that accepts `{ dealId, stageId, currentAdminId?, skipOwnerCheck? }`
+ */
 export function useUpdateDealStage() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -514,6 +538,12 @@ export function useUpdateDealStage() {
   });
 }
 
+/**
+ * Mutation hook to update deal fields (owner assignment, NDA/fee status, follow-up flags, etc.).
+ * Uses a dedicated RPC for owner-only changes and standard updates for other fields, with optimistic cache updates.
+ *
+ * @returns A React Query mutation that accepts `{ dealId, updates }` where updates is a record of field changes
+ */
 export function useUpdateDeal() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -746,6 +776,11 @@ export function useUpdateDeal() {
   });
 }
 
+/**
+ * Mutation hook to create a new deal by inserting a record into the deals table.
+ *
+ * @returns A React Query mutation that accepts a record of deal fields to insert
+ */
 export function useCreateDeal() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -776,6 +811,11 @@ export function useCreateDeal() {
   });
 }
 
+/**
+ * Mutation hook to create a new pipeline stage in the deal stages table.
+ *
+ * @returns A React Query mutation that accepts stage data (name, position, color, etc.)
+ */
 export function useCreateDealStage() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -804,6 +844,11 @@ export function useCreateDealStage() {
   });
 }
 
+/**
+ * Mutation hook to update an existing pipeline stage's properties (name, color, position, etc.).
+ *
+ * @returns A React Query mutation that accepts `{ stageId, updates }` with partial stage fields
+ */
 export function useUpdateDealStageData() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -843,6 +888,11 @@ export function useUpdateDealStageData() {
   });
 }
 
+/**
+ * Mutation hook to permanently delete a pipeline stage from the deal stages table.
+ *
+ * @returns A React Query mutation that accepts a stage ID string
+ */
 export function useDeleteDealStage() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -870,7 +920,11 @@ export function useDeleteDealStage() {
   });
 }
 
-// Soft delete deal
+/**
+ * Mutation hook to soft-delete a deal (marks as deleted without permanent removal).
+ *
+ * @returns A React Query mutation that accepts `{ dealId, reason? }` to soft-delete with an optional reason
+ */
 export function useSoftDeleteDeal() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -902,7 +956,11 @@ export function useSoftDeleteDeal() {
   });
 }
 
-// Restore deleted deal
+/**
+ * Mutation hook to restore a previously soft-deleted deal back to active status.
+ *
+ * @returns A React Query mutation that accepts a deal ID string
+ */
 export function useRestoreDeal() {
   const queryClient = useQueryClient();
   const { toast } = useToast();

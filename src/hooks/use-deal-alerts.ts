@@ -34,7 +34,11 @@ export interface UpdateDealAlertRequest extends Partial<CreateDealAlertRequest> 
   is_active?: boolean;
 }
 
-// Fetch user's deal alerts
+/**
+ * Fetches all deal alerts for the current user, ordered by creation date descending.
+ *
+ * @returns A React Query result containing an array of `DealAlert` objects
+ */
 export function useDealAlerts() {
   return useQuery({
     queryKey: ['deal-alerts'],
@@ -50,7 +54,17 @@ export function useDealAlerts() {
   });
 }
 
-// Create a new deal alert
+/**
+ * Mutation hook to create a new deal alert with the specified criteria and notification frequency.
+ *
+ * @returns A React Query mutation that accepts a `CreateDealAlertRequest` payload
+ *
+ * @example
+ * ```ts
+ * const createAlert = useCreateDealAlert();
+ * createAlert.mutate({ name: "Tech deals", criteria: { category: "Technology" }, frequency: "daily" });
+ * ```
+ */
 export function useCreateDealAlert() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -92,7 +106,11 @@ export function useCreateDealAlert() {
   });
 }
 
-// Update an existing deal alert
+/**
+ * Mutation hook to update an existing deal alert's name, criteria, frequency, or active status.
+ *
+ * @returns A React Query mutation that accepts `{ id, updates }` with partial alert fields
+ */
 export function useUpdateDealAlert() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -126,7 +144,11 @@ export function useUpdateDealAlert() {
   });
 }
 
-// Delete a deal alert
+/**
+ * Mutation hook to permanently delete a deal alert by ID.
+ *
+ * @returns A React Query mutation that accepts a deal alert ID string
+ */
 export function useDeleteDealAlert() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -158,7 +180,11 @@ export function useDeleteDealAlert() {
   });
 }
 
-// Toggle alert active status
+/**
+ * Mutation hook to toggle a deal alert's active/paused status.
+ *
+ * @returns A React Query mutation that accepts `{ id, is_active }` to enable or disable an alert
+ */
 export function useToggleDealAlert() {
   const queryClient = useQueryClient();
   const { toast } = useToast();

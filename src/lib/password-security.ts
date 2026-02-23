@@ -1,5 +1,6 @@
 
 import { supabase } from '@/integrations/supabase/client';
+import { logger } from '@/lib/logger';
 
 export interface PasswordStrengthResult {
   score: number;
@@ -37,7 +38,7 @@ export class PasswordSecurity {
       });
 
       if (error) {
-        console.error('Password strength validation error:', error);
+        logger.error('Password strength validation error', 'PasswordSecurity', { error: String(error) });
         return {
           score: 0,
           strength: 'very_weak',
@@ -48,7 +49,7 @@ export class PasswordSecurity {
 
       return result;
     } catch (error) {
-      console.error('Password strength validation failed:', error);
+      logger.error('Password strength validation failed', 'PasswordSecurity', { error: String(error) });
       return {
         score: 0,
         strength: 'very_weak',
@@ -71,13 +72,13 @@ export class PasswordSecurity {
       });
 
       if (error) {
-        console.error('Password breach check error:', error);
+        logger.error('Password breach check error', 'PasswordSecurity', { error: String(error) });
         return { is_breached: false, breach_count: 0 };
       }
 
       return result;
     } catch (error) {
-      console.error('Password breach check failed:', error);
+      logger.error('Password breach check failed', 'PasswordSecurity', { error: String(error) });
       return { is_breached: false, breach_count: 0 };
     }
   }
@@ -96,7 +97,7 @@ export class PasswordSecurity {
       });
 
       if (error) {
-        console.error('Password policy enforcement error:', error);
+        logger.error('Password policy enforcement error', 'PasswordSecurity', { error: String(error) });
         return {
           compliant: false,
           violations: ['Policy service unavailable'],
@@ -114,7 +115,7 @@ export class PasswordSecurity {
 
       return result;
     } catch (error) {
-      console.error('Password policy enforcement failed:', error);
+      logger.error('Password policy enforcement failed', 'PasswordSecurity', { error: String(error) });
       return {
         compliant: false,
         violations: ['Policy enforcement failed'],

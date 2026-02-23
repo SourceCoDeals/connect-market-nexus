@@ -1,3 +1,5 @@
+import { logger } from '@/lib/logger';
+
 // All valid US state abbreviations
 export const ALL_US_STATES = [
   'AL','AK','AZ','AR','CA','CO','CT','DE','DC','FL','GA','HI','ID','IL','IN',
@@ -232,7 +234,7 @@ export function normalizeGeography(input: string[] | string | null | undefined):
     }
 
     // Skip invalid entries
-    console.warn(`[normalizeGeography] Skipping invalid: "${item}"`);
+    logger.warn(`Skipping invalid: "${item}"`, 'normalizeGeography');
   }
 
   // Remove duplicates and return sorted

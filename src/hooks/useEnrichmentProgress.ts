@@ -242,7 +242,7 @@ export function useEnrichmentProgress() {
       if (error) throw error;
       void supabase.functions
         .invoke('process-enrichment-queue', { body: { source: 'resume' } })
-        .catch(console.warn);
+        .catch((err: unknown) => logger.warn('Worker trigger failed', 'useEnrichmentProgress', { error: String(err) }));
       toast({
         title: 'Enrichment resumed',
         description: 'Remaining deals will continue enriching.',

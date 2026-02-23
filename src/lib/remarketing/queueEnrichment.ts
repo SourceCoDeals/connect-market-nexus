@@ -4,6 +4,7 @@
  */
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { logger } from '@/lib/logger';
 
 /**
  * Queue a single deal for enrichment via the enrichment_queue table.
@@ -40,7 +41,7 @@ export async function queueDealEnrichment(dealIds: string[], force = true): Prom
     .from("enrichment_queue")
     .upsert(rows, { onConflict: "listing_id", ignoreDuplicates: false });
   if (error) {
-    console.error("Failed to queue deal enrichment:", error);
+    logger.error('Failed to queue deal enrichment', 'queueEnrichment', { error: String(error) });
     toast.error("Failed to queue enrichment");
     throw error;
   }
@@ -48,7 +49,7 @@ export async function queueDealEnrichment(dealIds: string[], force = true): Prom
   // Trigger the worker
   supabase.functions.invoke("process-enrichment-queue", {
     body: { trigger: "deal-enrichment" },
-  }).catch(err => console.warn("Worker trigger failed:", err));
+  }).catch(err => logger.warn('Worker trigger failed', 'queueEnrichment', { error: String(err) }));
 
   if (newIds.length === 1) {
     toast.info("Deal queued for background enrichment");
@@ -95,7 +96,7 @@ export async function queueBuyerEnrichment(buyerIds: string[], universeId?: stri
     .upsert(rows, { onConflict: "buyer_id", ignoreDuplicates: false });
 
   if (error) {
-    console.error("Failed to queue buyer enrichment:", error);
+    logger.error('Failed to queue buyer enrichment', 'queueEnrichment', { error: String(error) });
     toast.error("Failed to queue enrichment");
     throw error;
   }
@@ -103,7 +104,7 @@ export async function queueBuyerEnrichment(buyerIds: string[], universeId?: stri
   // Trigger the worker
   supabase.functions.invoke("process-buyer-enrichment-queue", {
     body: { trigger: "buyer-enrichment" },
-  }).catch(err => console.warn("Worker trigger failed:", err));
+  }).catch(err => logger.warn('Worker trigger failed', 'queueEnrichment', { error: String(err) }));
 
   if (newIds.length === 1) {
     toast.info("Buyer queued for background enrichment");

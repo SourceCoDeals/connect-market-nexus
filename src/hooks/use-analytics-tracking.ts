@@ -261,7 +261,7 @@ export function useAnalyticsTracking() {
         metadata: { timeSpent, formData, dropOffReason },
       });
     } catch (error) {
-      console.error('Failed to track registration step:', error);
+      logger.error('Failed to track registration step', 'useAnalyticsTracking', { error: String(error) });
     }
   }, [user?.id, user?.email, trackEvent]);
 
@@ -294,7 +294,7 @@ export function useAnalyticsTracking() {
             })
             .eq('session_id', sessionIdRef.current);
         } catch (error) {
-          console.error('Failed to end session:', error);
+          logger.error('Failed to end session', 'useAnalyticsTracking', { error: String(error) });
         }
       }
     };

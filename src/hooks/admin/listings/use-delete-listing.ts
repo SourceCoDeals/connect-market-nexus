@@ -3,6 +3,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { deleteListingImages } from '@/lib/storage-utils';
+import { logger } from '@/lib/logger';
 
 /**
  * Hook for soft deleting a listing (using the new soft_delete_listing function)
@@ -33,7 +34,7 @@ export function useDeleteListing() {
           await deleteListingImages(id);
           // Listing images cleaned up successfully
         } catch (imageError) {
-          console.warn('Failed to clean up listing images:', imageError);
+          logger.warn('Failed to clean up listing images', 'useDeleteListing', { error: String(imageError) });
           // Don't fail the whole operation for image cleanup issues
         }
         

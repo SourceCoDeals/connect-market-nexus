@@ -2,6 +2,7 @@ import React from 'react';
 import { toast } from '@/hooks/use-toast';
 import { errorLogger } from '@/lib/error-logger';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
+import { logger } from '@/lib/logger';
 
 export type ErrorSeverity = 'low' | 'medium' | 'high' | 'critical';
 
@@ -41,16 +42,16 @@ class ErrorManager {
     
     switch (severity) {
       case 'critical':
-        console.error(logMessage, { error, context, stack: errorStack });
+        logger.error(logMessage, 'ErrorManager', { error: String(error), context: context as Record<string, unknown>, stack: errorStack });
         break;
       case 'high':
-        console.error(logMessage, { error, context });
+        logger.error(logMessage, 'ErrorManager', { error: String(error), context: context as Record<string, unknown> });
         break;
       case 'medium':
-        console.warn(logMessage, { error, context });
+        logger.warn(logMessage, 'ErrorManager', { error: String(error), context: context as Record<string, unknown> });
         break;
       case 'low':
-        console.log(logMessage, { error, context });
+        logger.debug(logMessage, 'ErrorManager', { error: String(error), context: context as Record<string, unknown> });
         break;
     }
 
@@ -122,11 +123,11 @@ class ErrorManager {
         userId: context.userId,
       };
 
-      console.log('📊 Would report to external service:', errorData);
+      logger.debug('Would report to external service', 'ErrorManager', { errorData: errorData as Record<string, unknown> });
       
       // Example: await fetch('/api/errors', { method: 'POST', body: JSON.stringify(errorData) });
     } catch (reportingError) {
-      console.error('❌ Failed to report error to external service:', reportingError);
+      logger.error('Failed to report error to external service', 'ErrorManager', { error: String(reportingError) });
     }
   }
 

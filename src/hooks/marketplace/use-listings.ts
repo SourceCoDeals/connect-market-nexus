@@ -5,6 +5,7 @@ import { FilterOptions, Listing, ListingStatus } from '@/types';
 import { withPerformanceMonitoring } from '@/lib/performance-monitor';
 import { useAuth } from '@/context/AuthContext';
 import { toStandardCategory, toStandardLocation } from '@/lib/standardization';
+import { logger } from '@/lib/logger';
 
 // N02 FIX: Explicit safe columns for marketplace queries.
 // SELECT * was returning all 170 columns including confidential data
@@ -51,7 +52,19 @@ const MARKETPLACE_SAFE_COLUMNS = [
   'ebitda_metric_subtitle',
 ].join(', ');
 
-// Fetch listings with filters and pagination
+/**
+ * Fetches marketplace listings with filtering, pagination, and category/location standardization.
+ * Only returns active, non-deleted, non-internal listings using safe column selection (N02 fix).
+ * Requires authenticated, email-verified, and approved (or admin) users.
+ *
+ * @param filters - Filter options including category, location, search, revenue/EBITDA ranges, and pagination
+ * @returns A React Query result containing `{ listings: Listing[], totalCount: number }`
+ *
+ * @example
+ * ```ts
+ * const { data } = useListings({ category: "Technology", page: 1, perPage: 20 });
+ * ```
+ */
 export const useListings = (filters: FilterOptions = {}) => {
   const { user } = useAuth();
   
@@ -226,7 +239,13 @@ export const useListings = (filters: FilterOptions = {}) => {
   });
 };
 
-// Get a single listing by ID
+/**
+ * Fetches a single marketplace listing by ID using safe column selection.
+ * Returns null if the listing is deleted or internal.
+ *
+ * @param id - The listing UUID to fetch
+ * @returns A React Query result containing a `Listing` object or null
+ */
 export const useListing = (id: string | undefined) => {
   const { user } = useAuth();
   
@@ -305,7 +324,12 @@ export const useListing = (id: string | undefined) => {
   });
 };
 
-// Get listing metadata for filters (categories, locations) using standardized constants
+/**
+ * Fetches standardized categories and locations for marketplace filter dropdowns.
+ * Uses constants from the financial parser for consistent filtering, with a 1-hour stale time.
+ *
+ * @returns A React Query result containing `{ categories: string[], locations: string[] }`
+ */
 export const useListingMetadata = () => {
   const { user } = useAuth();
   
@@ -323,7 +347,7 @@ export const useListingMetadata = () => {
             locations: STANDARDIZED_LOCATIONS 
           };
         } catch (error: unknown) {
-          console.error('💥 Error in useListingMetadata:', error);
+          logger.error('Error in useListingMetadata', 'useListingMetadata', { error: String(error) });
           // Fallback to hardcoded arrays if import fails
           return { 
             categories: ['Technology', 'Healthcare', 'Manufacturing', 'Retail', 'Financial Services'], 

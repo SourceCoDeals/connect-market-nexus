@@ -171,24 +171,24 @@ function App() {
         <SonnerToaster />
         <Suspense fallback={<div className="flex items-center justify-center h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" /></div>}>
           <Routes>
-                        {/* ─── PUBLIC ─── */}
-                        <Route path="/welcome" element={<Welcome />} />
-                        <Route path="/sell" element={<OwnerInquiry />} />
-                        <Route path="/sell/success" element={<OwnerInquirySuccess />} />
-                        <Route path="/login" element={<Login />} />
-                        <Route path="/signup" element={<Signup />} />
-                        <Route path="/signup-success" element={<SignupSuccess />} />
-                        <Route path="/forgot-password" element={<ForgotPassword />} />
-                        <Route path="/reset-password" element={<ResetPassword />} />
-                        <Route path="/pending-approval" element={<PendingApproval />} />
-                        <Route path="/auth/callback" element={<AuthCallback />} />
-                        <Route path="/unauthorized" element={<Unauthorized />} />
-                        <Route path="/referrals/:shareToken" element={<ReferralTrackerPage />} />
-                        <Route path="/dataroom/:accessToken" element={<DataRoomPortal />} />
-                        <Route path="/view/:linkToken" element={<TrackedDocumentViewer />} />
+                        {/* ─── PUBLIC / AUTH ─── */}
+                        <Route path="/welcome" element={<ErrorBoundary context="public-pages"><Welcome /></ErrorBoundary>} />
+                        <Route path="/sell" element={<ErrorBoundary context="public-pages"><OwnerInquiry /></ErrorBoundary>} />
+                        <Route path="/sell/success" element={<ErrorBoundary context="public-pages"><OwnerInquirySuccess /></ErrorBoundary>} />
+                        <Route path="/login" element={<ErrorBoundary context="auth"><Login /></ErrorBoundary>} />
+                        <Route path="/signup" element={<ErrorBoundary context="auth"><Signup /></ErrorBoundary>} />
+                        <Route path="/signup-success" element={<ErrorBoundary context="auth"><SignupSuccess /></ErrorBoundary>} />
+                        <Route path="/forgot-password" element={<ErrorBoundary context="auth"><ForgotPassword /></ErrorBoundary>} />
+                        <Route path="/reset-password" element={<ErrorBoundary context="auth"><ResetPassword /></ErrorBoundary>} />
+                        <Route path="/pending-approval" element={<ErrorBoundary context="auth"><PendingApproval /></ErrorBoundary>} />
+                        <Route path="/auth/callback" element={<ErrorBoundary context="auth"><AuthCallback /></ErrorBoundary>} />
+                        <Route path="/unauthorized" element={<ErrorBoundary context="auth"><Unauthorized /></ErrorBoundary>} />
+                        <Route path="/referrals/:shareToken" element={<ErrorBoundary context="public-pages"><ReferralTrackerPage /></ErrorBoundary>} />
+                        <Route path="/dataroom/:accessToken" element={<ErrorBoundary context="public-pages"><DataRoomPortal /></ErrorBoundary>} />
+                        <Route path="/view/:linkToken" element={<ErrorBoundary context="public-pages"><TrackedDocumentViewer /></ErrorBoundary>} />
 
-                        {/* ─── BUYER-FACING (unchanged) ─── */}
-                        <Route path="/" element={<ProtectedRoute requireApproved={true}><MainLayout /></ProtectedRoute>}>
+                        {/* ─── BUYER-FACING (marketplace) ─── */}
+                        <Route path="/" element={<ErrorBoundary context="marketplace"><ProtectedRoute requireApproved={true}><MainLayout /></ProtectedRoute></ErrorBoundary>}>
                           <Route index element={<Marketplace />} />
                           <Route path="profile" element={<Profile />} />
                           <Route path="listing/:id" element={<ListingDetail />} />
@@ -201,7 +201,7 @@ function App() {
 
                         {/* ─── UNIFIED ADMIN LAYOUT ─── */}
                         {/* All admin + remarketing routes share one layout with the unified sidebar */}
-                        <Route path="/admin" element={<ProtectedRoute requireAdmin={true}><AdminLayout /></ProtectedRoute>}>
+                        <Route path="/admin" element={<ErrorBoundary context="admin"><ProtectedRoute requireAdmin={true}><AdminLayout /></ProtectedRoute></ErrorBoundary>}>
                           {/* Dashboard */}
                           <Route index element={<AdminDashboard />} />
 
@@ -290,8 +290,8 @@ function App() {
                           <Route path="enrichment-test" element={<Navigate to="/admin/settings/enrichment-test" replace />} />
                         </Route>
 
-                        {/* ─── M&A INTELLIGENCE (separate layout — unchanged) ─── */}
-                        <Route path="/admin/ma-intelligence" element={<ProtectedRoute requireAdmin={true}><MAIntelligenceLayout /></ProtectedRoute>}>
+                        {/* ─── M&A INTELLIGENCE (separate layout) ─── */}
+                        <Route path="/admin/ma-intelligence" element={<ErrorBoundary context="ma-intelligence"><ProtectedRoute requireAdmin={true}><MAIntelligenceLayout /></ProtectedRoute></ErrorBoundary>}>
                           <Route index element={<MADashboard />} />
                           <Route path="trackers" element={<MATrackers />} />
                           <Route path="trackers/new" element={<MATrackerDetail />} />

@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/context/AuthContext';
+import { logger } from '@/lib/logger';
 
 export type AppRole = 'owner' | 'admin' | 'moderator' | 'user';
 
@@ -34,7 +35,7 @@ export const usePermissions = () => {
       });
 
       if (error) {
-        console.error('Error fetching user role:', error);
+        logger.error('Error fetching user role', 'usePermissions', { error: String(error) });
         return null;
       }
 

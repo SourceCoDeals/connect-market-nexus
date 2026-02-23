@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { useNavigate, useSearchParams, Link } from "react-router-dom";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -359,14 +359,14 @@ const ReMarketingBuyers = () => {
   }, [filteredBuyers, currentPage]);
 
   // Reset to page 1 when filters/search/tab change
-  const handleTabChange = (v: string) => {
+  const handleTabChange = useCallback((v: string) => {
     setActiveTab(v as BuyerTab);
     setSelectedIds(new Set());
     setCurrentPage(1);
-  };
+  }, []);
 
   // Enrich single buyer
-  const handleEnrichBuyer = async (e: React.MouseEvent, buyerId: string) => {
+  const handleEnrichBuyer = useCallback(async (e: React.MouseEvent, buyerId: string) => {
     e.stopPropagation();
     setEnrichingIds(prev => new Set(prev).add(buyerId));
     try {
@@ -385,9 +385,9 @@ const ReMarketingBuyers = () => {
         return next;
       });
     }
-  };
+  }, [queryClient]);
 
-  const handleSort = (column: string) => {
+  const handleSort = useCallback((column: string) => {
     setSearchParams((prev) => {
       const next = new URLSearchParams(prev);
       if (next.get("sort") === column) {
@@ -398,16 +398,16 @@ const ReMarketingBuyers = () => {
       }
       return next;
     }, { replace: true });
-  };
+  }, [setSearchParams]);
 
-  const setUniverseFilter = (value: string) => {
+  const setUniverseFilter = useCallback((value: string) => {
     setSearchParams((prev) => {
       const next = new URLSearchParams(prev);
       if (value === "all") next.delete("universe");
       else next.set("universe", value);
       return next;
     }, { replace: true });
-  };
+  }, [setSearchParams]);
 
   const SortIcon = ({ column }: { column: string }) => {
     if (sortColumn !== column) return <ArrowUpDown className="h-3.5 w-3.5 ml-1 opacity-40" />;
@@ -424,23 +424,25 @@ const ReMarketingBuyers = () => {
   };
 
   // Selection helpers
-  const toggleSelect = (id: string) => {
+  const toggleSelect = useCallback((id: string) => {
     setSelectedIds(prev => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id); else next.add(id);
       return next;
     });
-  };
-  const toggleSelectAll = () => {
-    if (selectedIds.size === filteredBuyers.length) {
-      setSelectedIds(new Set());
-    } else {
-      setSelectedIds(new Set(filteredBuyers.map((b) => b.id)));
-    }
-  };
+  }, []);
+  const toggleSelectAll = useCallback(() => {
+    setSelectedIds(prev => {
+      if (prev.size === filteredBuyers.length) {
+        return new Set();
+      } else {
+        return new Set(filteredBuyers.map((b) => b.id));
+      }
+    });
+  }, [filteredBuyers]);
 
   // Export CSV
-  const handleExportCSV = () => {
+  const handleExportCSV = useCallback(() => {
     const rows = filteredBuyers.filter((b) => selectedIds.size === 0 || selectedIds.has(b.id));
     const headers = ['Company Name', 'Buyer Type', 'PE Firm', 'Website', 'Location', 'Thesis', 'Fee Agreement', 'NDA'];
     const csv = [
@@ -462,7 +464,7 @@ const ReMarketingBuyers = () => {
     a.href = url; a.download = 'buyers.csv'; a.click();
     URL.revokeObjectURL(url);
     toast.success(`Exported ${rows.length} buyers`);
-  };
+  }, [filteredBuyers, selectedIds]);
 
   return (
     <div className="p-6 space-y-6">

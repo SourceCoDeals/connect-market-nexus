@@ -231,11 +231,23 @@ function createMinimalUser(id: string, email: string, issues: string[]): UserWit
   };
 }
 
+/**
+ * Checks whether a user has admin privileges.
+ *
+ * @param user - The user object to check, or null
+ * @returns True if the user exists and has `is_admin` set to true
+ */
 export function isUserAdmin(user: User | null): boolean {
   if (!user) return false;
   return user.is_admin === true;
 }
 
+/**
+ * Returns the user's display name, falling back to email or "Unknown User" if name fields are empty.
+ *
+ * @param user - The user object, or null
+ * @returns A display-friendly name string
+ */
 export function getUserDisplayName(user: User | null): string {
   if (!user) return 'Unknown User';
   if (user.first_name && user.last_name) {
@@ -246,6 +258,12 @@ export function getUserDisplayName(user: User | null): string {
   return user.email || 'Unknown User';
 }
 
+/**
+ * Returns the user's initials (first letter of first and last name), falling back to the first letter of the email.
+ *
+ * @param user - The user object, or null
+ * @returns A 1-2 character uppercase initials string
+ */
 export function getUserInitials(user: User | null): string {
   if (!user) return 'U';
   const firstName = user.first_name || '';
@@ -253,6 +271,12 @@ export function getUserInitials(user: User | null): string {
   return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase() || user.email?.charAt(0).toUpperCase() || 'U';
 }
 
+/**
+ * Validates required user fields (id, email, name) and checks for valid email format, approval status, and buyer type.
+ *
+ * @param user - The user object to validate
+ * @returns An object with `isValid` boolean and an `errors` array of validation messages
+ */
 export function validateUserData(user: User): { isValid: boolean; errors: string[] } {
   const errors: string[] = [];
   
@@ -282,8 +306,9 @@ export function validateUserData(user: User): { isValid: boolean; errors: string
   };
 }
 
-// Nuclear simplification: Remove all localStorage cleanup functions
-// Let Supabase handle all session management
+/**
+ * Placeholder for auth state cleanup. Session management is fully delegated to Supabase.
+ */
 export async function cleanupAuthState(): Promise<void> {
   // Nuclear auth cleanup - let Supabase handle everything
 }

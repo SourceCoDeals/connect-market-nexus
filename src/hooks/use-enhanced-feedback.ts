@@ -3,6 +3,7 @@ import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/AuthContext";
 import { useToast } from "@/hooks/use-toast";
+import { logger } from '@/lib/logger';
 
 export interface EnhancedFeedbackData {
   message: string;
@@ -148,10 +149,10 @@ export function useEnhancedFeedback() {
         });
 
         if (emailError) {
-          console.warn('⚠️ Email delivery failed, but feedback was saved');
+          logger.warn('Email delivery failed, but feedback was saved', 'useEnhancedFeedback');
         }
       } catch (emailError) {
-        console.warn('⚠️ Email service unavailable, but feedback was saved');
+        logger.warn('Email service unavailable, but feedback was saved', 'useEnhancedFeedback');
       }
 
       // Show success message
@@ -177,7 +178,7 @@ export function useEnhancedFeedback() {
           },
         });
       } catch (notificationError) {
-        console.warn("⚠️ Admin notification failed (non-critical)");
+        logger.warn('Admin notification failed (non-critical)', 'useEnhancedFeedback');
       }
 
       return feedback;
@@ -239,7 +240,7 @@ export function useEnhancedFeedback() {
 
       return result as FeedbackMessageWithUser[];
     } catch (error) {
-      console.error("❌ Error fetching feedback with user details:", error);
+      logger.error('Error fetching feedback with user details', 'useEnhancedFeedback', { error: String(error) });
       return [];
     }
   };
@@ -257,7 +258,7 @@ export function useEnhancedFeedback() {
       if (error) throw error;
       return data || [];
     } catch (error) {
-      console.error("Error fetching feedback history:", error);
+      logger.error('Error fetching feedback history', 'useEnhancedFeedback', { error: String(error) });
       return [];
     }
   };
@@ -272,7 +273,7 @@ export function useEnhancedFeedback() {
 
       if (error) throw error;
     } catch (error) {
-      console.error("Error marking message as read:", error);
+      logger.error('Error marking message as read', 'useEnhancedFeedback', { error: String(error) });
     }
   };
 

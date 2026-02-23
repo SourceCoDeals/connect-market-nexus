@@ -21,6 +21,18 @@ interface EnrollResult {
   };
 }
 
+/**
+ * Hook for managing Multi-Factor Authentication (TOTP) enrollment, verification, and unenrollment.
+ *
+ * @returns MFA status, enrolled factors, loading/error state, and methods to enroll, verify, unenroll, and check assurance level
+ *
+ * @example
+ * ```ts
+ * const { status, enroll, verify, unenroll } = useMFA();
+ * const enrollResult = await enroll("My Authenticator");
+ * const verified = await verify(enrollResult.id, "123456");
+ * ```
+ */
 export function useMFA() {
   const [status, setStatus] = useState<MFAStatus>("disabled");
   const [factors, setFactors] = useState<MFAFactor[]>([]);

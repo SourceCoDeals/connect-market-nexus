@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useCallback, useMemo, memo } from "react";
 import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -350,7 +350,7 @@ const RequestDetails = ({ request }: { request: AdminConnectionRequest }) => {
   );
 };
 
-function ReactiveRequestCard({
+const ReactiveRequestCard = memo(function ReactiveRequestCard({
   request,
   isExpanded,
   onToggleExpanded,
@@ -617,7 +617,7 @@ function ReactiveRequestCard({
       </CardContent>
     </Card>
   );
-}
+});
 
 export default function ConnectionRequestsTable({
   requests,
@@ -631,19 +631,24 @@ export default function ConnectionRequestsTable({
   const { data: unreadCounts } = useUnreadMessageCounts();
 
   // Filter requests by selected sources
-  const filteredRequests = selectedSources.length > 0 
-    ? requests.filter(req => selectedSources.includes(req.source || 'marketplace'))
-    : requests;
+  const filteredRequests = useMemo(() =>
+    selectedSources.length > 0
+      ? requests.filter(req => selectedSources.includes(req.source || 'marketplace'))
+      : requests,
+    [requests, selectedSources]
+  );
 
-  const toggleExpanded = (requestId: string) => {
-    const newExpanded = new Set(expandedRows);
-    if (newExpanded.has(requestId)) {
-      newExpanded.delete(requestId);
-    } else {
-      newExpanded.add(requestId);
-    }
-    setExpandedRows(newExpanded);
-  };
+  const toggleExpanded = useCallback((requestId: string) => {
+    setExpandedRows(prev => {
+      const newExpanded = new Set(prev);
+      if (newExpanded.has(requestId)) {
+        newExpanded.delete(requestId);
+      } else {
+        newExpanded.add(requestId);
+      }
+      return newExpanded;
+    });
+  }, []);
 
   if (isLoading) {
     return <ConnectionRequestsTableSkeleton />;

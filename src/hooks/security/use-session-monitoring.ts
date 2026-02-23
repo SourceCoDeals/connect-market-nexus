@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { SessionSecurity, SessionValidationResult, SessionAnomalyResult } from '@/lib/session-security';
 import { useAuth } from '@/context/AuthContext';
 import { toast } from '@/hooks/use-toast';
+import { logger } from '@/lib/logger';
 
 interface SessionMonitoringState {
   isValidating: boolean;
@@ -76,7 +77,7 @@ export const useSessionMonitoring = () => {
         }
 
       } catch (error) {
-        console.error('Session monitoring failed:', error);
+        logger.error('Session monitoring failed', 'useSessionMonitoring', { error: String(error) });
         setState(prev => ({ ...prev, isValidating: false }));
       }
     };

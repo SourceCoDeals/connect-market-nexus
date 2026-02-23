@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/context/AuthContext';
+import { logger } from '@/lib/logger';
 
 interface DataQualityAlert {
   id: string;
@@ -24,6 +25,20 @@ interface DataQualityMetrics {
   dataCompletenessScore: number;
 }
 
+/**
+ * Admin-only hook that monitors data quality metrics across user profiles and registration funnels.
+ * Automatically refreshes every 5 minutes and generates prioritized alerts for issues like
+ * high drop-off rates, incomplete profiles, and low onboarding completion.
+ *
+ * @returns `metrics` (completeness scores, error rates), `alerts` (prioritized issues),
+ *          `dismissAlert`, `triggerDataRecoveryCampaign`, and `refreshMetrics`
+ *
+ * @example
+ * ```ts
+ * const { metrics, alerts, dismissAlert } = useDataQualityMonitor();
+ * if (metrics?.dataCompletenessScore < 70) { ... }
+ * ```
+ */
 export const useDataQualityMonitor = () => {
   const { isAdmin } = useAuth();
   const [metrics, setMetrics] = useState<DataQualityMetrics | null>(null);
@@ -67,7 +82,7 @@ export const useDataQualityMonitor = () => {
       setAlerts(generatedAlerts);
 
     } catch (error) {
-      console.error('Error loading data quality metrics:', error);
+      logger.error('Error loading data quality metrics', 'useDataQualityMonitor', { error: String(error) });
     } finally {
       setIsLoading(false);
     }
@@ -209,7 +224,7 @@ export const useDataQualityMonitor = () => {
 
       return { success: true };
     } catch (error) {
-      console.error('Error triggering data recovery campaign:', error);
+      logger.error('Error triggering data recovery campaign', 'useDataQualityMonitor', { error: String(error) });
       return { success: false, error };
     }
   };

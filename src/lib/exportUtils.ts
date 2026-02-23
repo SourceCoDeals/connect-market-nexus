@@ -4,6 +4,19 @@ import { supabase } from "@/integrations/supabase/client";
  * Utility functions for exporting data to CSV
  */
 
+/**
+ * Exports an array of data objects to a CSV file and triggers a browser download.
+ * Handles quoting, escaping, and type conversion for string, number, null, and undefined values.
+ *
+ * @param data - Array of record objects to export
+ * @param filename - The download filename (without .csv extension)
+ * @param columns - Optional column definitions; if omitted, all keys from the first row are used
+ *
+ * @example
+ * ```ts
+ * exportToCSV(users, "users-export", [{ key: "name", label: "Full Name" }, { key: "email", label: "Email" }]);
+ * ```
+ */
 export function exportToCSV<T extends Record<string, unknown>>(
   data: T[],
   filename: string,
@@ -127,6 +140,19 @@ const DEAL_EXPORT_COLUMNS: { key: string; label: string }[] = [
   { key: "created_at", label: "Added" },
 ];
 
+/**
+ * Fetches deal listings by IDs from Supabase and exports them as a CSV file with standardized columns.
+ * Includes deal details, financials, contact info, enrichment data, and referral/owner information.
+ *
+ * @param dealIds - Array of listing UUIDs to export
+ * @returns A result object with `success`, `count` of exported rows, and optional `error` message
+ *
+ * @example
+ * ```ts
+ * const result = await exportDealsToCSV(["uuid-1", "uuid-2"]);
+ * if (result.success) console.log(`Exported ${result.count} deals`);
+ * ```
+ */
 export async function exportDealsToCSV(dealIds: string[]): Promise<{ success: boolean; count: number; error?: string }> {
   if (dealIds.length === 0) return { success: false, count: 0, error: "No deals selected" };
 

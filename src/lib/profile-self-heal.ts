@@ -2,7 +2,10 @@ import { supabase } from '@/integrations/supabase/client';
 import { User as SupabaseUser } from '@supabase/supabase-js';
 
 /**
- * Parse arrays safely from auth metadata (handles JSON strings, arrays, and fallback).
+ * Safely parses a value into an array, handling JSON strings, existing arrays, and fallback to empty array.
+ *
+ * @param val - The value to parse (array, JSON string starting with "[", or other)
+ * @returns The parsed array, or an empty array if parsing fails
  */
 export function parseArray(val: unknown): unknown[] {
   if (Array.isArray(val)) return val;
@@ -20,8 +23,12 @@ function meta(obj: Record<string, unknown>, snake: string, camel: string, fallba
 }
 
 /**
- * Build the full profile upsert payload from auth user metadata.
- * This is the single source of truth — used by both use-nuclear-auth and auth/callback.
+ * Builds the full profile upsert payload from Supabase auth user metadata.
+ * This is the single source of truth used by both use-nuclear-auth and auth/callback.
+ * Handles both snake_case and camelCase metadata keys with fallback defaults.
+ *
+ * @param authUser - The Supabase auth user object containing user_metadata
+ * @returns A complete profile record ready for database upsert
  */
 export function buildProfileFromMetadata(authUser: SupabaseUser) {
   const m = authUser.user_metadata || {};
@@ -100,9 +107,19 @@ export function buildProfileFromMetadata(authUser: SupabaseUser) {
 }
 
 /**
- * Self-heal a missing profile by upserting from auth metadata.
- * Returns the created profile data or null on failure.
- * @param selectColumns - optional column list for the returning .select() (default: '*')
+ * Repairs a missing or incomplete profile by upserting from auth metadata.
+ * If the profile already exists, preserves privileged fields like `approval_status` and only fills in missing data.
+ * If the profile is truly missing, creates a new one with pending approval status.
+ *
+ * @param authUser - The Supabase auth user to self-heal from
+ * @param selectColumns - Optional column list for the returning `.select()` (default: '*')
+ * @returns The created/updated profile data, or null on failure
+ *
+ * @example
+ * ```ts
+ * const profile = await selfHealProfile(authUser);
+ * if (!profile) console.error("Self-heal failed");
+ * ```
  */
 export async function selfHealProfile(
   authUser: SupabaseUser,

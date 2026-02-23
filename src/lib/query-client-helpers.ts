@@ -1,5 +1,6 @@
 import { QueryClient } from '@tanstack/react-query';
 import { INVALIDATION_PATTERNS } from './query-keys';
+import { logger } from '@/lib/logger';
 
 // Enhanced query client helpers with safe invalidation
 export const safeInvalidateQueries = async (
@@ -13,7 +14,7 @@ export const safeInvalidateQueries = async (
       )
     );
   } catch (error) {
-    console.error('Error invalidating queries:', error);
+    logger.error('Error invalidating queries', 'queryClientHelpers', { error: String(error) });
     // Don't throw - invalidation errors shouldn't break user operations
   }
 };

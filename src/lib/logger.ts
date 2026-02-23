@@ -62,6 +62,16 @@ function log(
   }
 }
 
+/**
+ * Structured logger utility with level-based filtering.
+ * In production, only `warn` and `error` messages are emitted; in development, all levels are active.
+ *
+ * @example
+ * ```ts
+ * logger.info("User logged in", "AuthService", { userId: "abc" });
+ * logger.error("Failed to fetch data", "API", { endpoint: "/users" });
+ * ```
+ */
 export const logger = {
   debug: (message: string, context?: string, data?: Record<string, unknown>) =>
     log('debug', message, context, data),

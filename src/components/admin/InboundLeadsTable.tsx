@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -90,10 +90,10 @@ export const InboundLeadsTable = ({
   // Enhanced bulk operations
   const { bulkImportWithMapping, isLoading: isBulkOperationLoading } = useEnhancedBulkLeadOperations();
 
-  const handleMapToListing = (lead: InboundLead) => {
+  const handleMapToListing = useCallback((lead: InboundLead) => {
     setSelectedLead(lead);
     setIsMappingDialogOpen(true);
-  };
+  }, []);
 
   const handleConfirmMapping = (listingId: string, listingTitle: string) => {
     if (selectedLead) {
@@ -145,25 +145,25 @@ export const InboundLeadsTable = ({
   };
 
   // Filter leads based on search and filters
-  const filteredLeads = leads.filter((lead) => {
+  const filteredLeads = useMemo(() => leads.filter((lead) => {
     // Hide archived leads from main view unless specifically filtered for them
     const showArchived = statusFilter === "archived";
     if (lead.status === "archived" && !showArchived) {
       return false;
     }
-    
-    const matchesSearch = searchTerm === "" || 
+
+    const matchesSearch = searchTerm === "" ||
       lead.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       lead.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (lead.company_name && lead.company_name.toLowerCase().includes(searchTerm.toLowerCase()));
-    
+
     const matchesStatus = statusFilter === "all" || lead.status === statusFilter;
     const matchesSource = sourceFilter === "all" || lead.source === sourceFilter;
-    
-    return matchesSearch && matchesStatus && matchesSource;
-  });
 
-  const selectedLeads = filteredLeads.filter(lead => selectedLeadIds.has(lead.id));
+    return matchesSearch && matchesStatus && matchesSource;
+  }), [leads, searchTerm, statusFilter, sourceFilter]);
+
+  const selectedLeads = useMemo(() => filteredLeads.filter(lead => selectedLeadIds.has(lead.id)), [filteredLeads, selectedLeadIds]);
 
   const handleBulkCreate = async (
     leadsData: Record<string, unknown>[],
@@ -266,28 +266,32 @@ export const InboundLeadsTable = ({
     }
   };
 
-  const handleSelectionChange = (leadId: string, selected: boolean) => {
-    const newSelection = new Set(selectedLeadIds);
-    if (selected) {
-      newSelection.add(leadId);
-    } else {
-      newSelection.delete(leadId);
-    }
-    setSelectedLeadIds(newSelection);
-  };
+  const handleSelectionChange = useCallback((leadId: string, selected: boolean) => {
+    setSelectedLeadIds(prev => {
+      const newSelection = new Set(prev);
+      if (selected) {
+        newSelection.add(leadId);
+      } else {
+        newSelection.delete(leadId);
+      }
+      return newSelection;
+    });
+  }, []);
 
-  const handleSelectAll = () => {
-    if (selectedLeadIds.size === filteredLeads.length) {
-      setSelectedLeadIds(new Set());
-    } else {
-      setSelectedLeadIds(new Set(filteredLeads.map(lead => lead.id)));
-    }
-  };
+  const handleSelectAll = useCallback(() => {
+    setSelectedLeadIds(prev => {
+      if (prev.size === filteredLeads.length) {
+        return new Set();
+      } else {
+        return new Set(filteredLeads.map(lead => lead.id));
+      }
+    });
+  }, [filteredLeads]);
 
-  const clearSelection = () => {
+  const clearSelection = useCallback(() => {
     setSelectedLeadIds(new Set());
     setIsSelectMode(false);
-  };
+  }, []);
 
   if (isLoading) {
     return <InboundLeadsTableSkeleton />;
