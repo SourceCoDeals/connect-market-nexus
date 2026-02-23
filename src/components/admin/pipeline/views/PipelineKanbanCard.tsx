@@ -66,12 +66,6 @@ export function PipelineKanbanCard({ deal, onDealClick, isDragging }: PipelineKa
     return `${d}d`;
   })();
 
-  const ownerInitials = (() => {
-    const name = assignedAdmin?.displayName;
-    if (!name || name === 'Unassigned') return '—';
-    const parts = name.split(' ');
-    return parts.map(p => p[0]?.toUpperCase()).join('').slice(0, 2);
-  })();
 
   const ownerDisplayName = (() => {
     const name = assignedAdmin?.displayName;
@@ -189,11 +183,11 @@ export function PipelineKanbanCard({ deal, onDealClick, isDragging }: PipelineKa
           )}
         </div>
 
-        {/* Financials */}
+      {/* Financials */}
         <div className="space-y-1.5">
           <div className="flex items-baseline justify-between">
             <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">EBITDA</span>
-            <span className="text-base font-extrabold text-emerald-600 dark:text-emerald-400 tabular-nums">
+            <span className="text-base font-extrabold text-foreground tabular-nums">
               {fmt(deal.listing_ebitda)}
             </span>
           </div>
@@ -207,17 +201,7 @@ export function PipelineKanbanCard({ deal, onDealClick, isDragging }: PipelineKa
 
         {/* Footer: Owner + Source + Days */}
         <div className="flex items-center justify-between pt-3 border-t border-border/30">
-          <div className="flex items-center gap-2">
-            <div className={cn(
-              "w-[26px] h-[26px] rounded-full flex items-center justify-center text-[11px] font-bold text-white flex-shrink-0",
-              assignedAdmin?.displayName && assignedAdmin.displayName !== 'Unassigned'
-                ? "bg-blue-500"
-                : "bg-muted-foreground/40"
-            )}>
-              {ownerInitials}
-            </div>
-            <span className="text-xs font-semibold text-muted-foreground">{ownerDisplayName}</span>
-          </div>
+          <span className="text-[13px] font-bold text-foreground">{ownerDisplayName}</span>
           <div className="flex items-center gap-2">
             {unreadCount > 0 && (
               <span className="flex h-4 min-w-[16px] items-center justify-center rounded-full bg-destructive px-1 text-[9px] font-bold text-destructive-foreground">
