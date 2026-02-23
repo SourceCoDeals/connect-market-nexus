@@ -24,6 +24,7 @@ import { SmartSuggestions, type Suggestion } from "./SmartSuggestions";
 import { ProactiveRecommendation, type Recommendation } from "./ProactiveRecommendation";
 import { generateSmartSuggestions } from "@/utils/smart-suggestions-client";
 import { generateProactiveRecommendations } from "@/utils/proactive-recommendations-client";
+import { logChatAnalytics, markUserContinued } from "@/integrations/supabase/chat-analytics";
 
 export type ChatContext = 
   | { type: "deal"; dealId: string; dealName?: string }
@@ -43,6 +44,9 @@ interface Message {
   content: string;
   timestamp: Date;
 }
+
+/** Streaming timeout in ms — auto-cancels if no data received within this window */
+const STREAM_TIMEOUT_MS = 60_000;
 
 const getExampleQueries = (context: ChatContext): string[] => {
   switch (context.type) {
@@ -146,8 +150,17 @@ export function ReMarketingChat({
     isSaving,
   } = useChatPersistence({
     context: persistenceContext,
-    autoLoad: true, // Auto-load latest conversation for this context
+    autoLoad: true,
   });
+
+  // Cleanup abort controller on unmount
+  useEffect(() => {
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
+  }, []);
 
   // Auto-scroll to bottom
   useEffect(() => {
@@ -173,7 +186,6 @@ export function ReMarketingChat({
         return [];
       }
     }
-    // Also check old format
     const buyerMatch = content.match(/<!-- BUYER_HIGHLIGHT: \[(.*?)\] -->/);
     if (buyerMatch) {
       try {
@@ -204,16 +216,32 @@ export function ReMarketingChat({
       timestamp: new Date(),
     };
 
+    // Track analytics: mark user continued if there are prior messages
+    if (conversationId && messages.length > 0) {
+      markUserContinued(conversationId, messages.length - 1).catch(() => {});
+    }
+
     setMessages((prev) => [...prev, userMessage]);
     setInput("");
     setIsLoading(true);
     setStreamingContent("");
+
+    const startTime = Date.now();
 
     // Cancel previous request if any
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
     }
     abortControllerRef.current = new AbortController();
+
+    // Streaming timeout — abort if no data for STREAM_TIMEOUT_MS
+    let streamTimeoutId: ReturnType<typeof setTimeout> | null = null;
+    const resetStreamTimeout = () => {
+      if (streamTimeoutId) clearTimeout(streamTimeoutId);
+      streamTimeoutId = setTimeout(() => {
+        abortControllerRef.current?.abort();
+      }, STREAM_TIMEOUT_MS);
+    };
 
     try {
       const { data: sessionData, error: authError } = await supabase.auth.getSession();
@@ -238,6 +266,8 @@ export function ReMarketingChat({
       } else if (context.type === "universe") {
         requestBody.universeId = context.universeId;
       }
+
+      resetStreamTimeout(); // Start the timeout clock
 
       const response = await fetch(
         `${SUPABASE_URL}/functions/v1/chat-remarketing`,
@@ -278,6 +308,7 @@ export function ReMarketingChat({
         const { done, value } = await reader.read();
         if (done) break;
 
+        resetStreamTimeout(); // Reset timeout on each chunk
         textBuffer += decoder.decode(value, { stream: true });
 
         // Process line by line
@@ -331,11 +362,14 @@ export function ReMarketingChat({
         onHighlightItems(itemIds);
       }
 
+      const responseTimeMs = Date.now() - startTime;
+      const cleanedContent = cleanContent(fullContent);
+
       // Add assistant message
       const assistantMessage: Message = {
         id: `assistant-${Date.now()}`,
         role: "assistant",
-        content: cleanContent(fullContent),
+        content: cleanedContent,
         timestamp: new Date(),
       };
       setMessages((prev) => {
@@ -348,7 +382,21 @@ export function ReMarketingChat({
             content: m.content,
             timestamp: m.timestamp.toISOString(),
           }))
-        ).catch(() => { /* save failure is non-critical */ });
+        ).then((result) => {
+          // Log analytics after save so we have a conversationId
+          const cId = result?.conversationId || conversationId;
+          if (cId) {
+            logChatAnalytics({
+              conversationId: cId,
+              queryText: userMessage.content,
+              responseText: cleanedContent,
+              responseTimeMs,
+              contextType: context.type,
+              dealId: context.type === 'deal' ? context.dealId : undefined,
+              universeId: context.type === 'universe' ? context.universeId : undefined,
+            }).catch((err) => console.error('[ReMarketingChat] Analytics error:', err));
+          }
+        }).catch((err) => console.error('[ReMarketingChat] Save error:', err));
 
         // Generate smart suggestions
         const suggestions = generateSmartSuggestions(
@@ -371,7 +419,18 @@ export function ReMarketingChat({
       setStreamingContent("");
     } catch (error) {
       if (error instanceof Error && error.name === "AbortError") {
-        return; // User cancelled, don't show error
+        // Check if this was a timeout-triggered abort
+        if (streamTimeoutId) {
+          const timeoutMessage: Message = {
+            id: `error-${Date.now()}`,
+            role: "assistant",
+            content: "The response timed out after 60 seconds. Please try a simpler question or try again.",
+            timestamp: new Date(),
+          };
+          setMessages((prev) => [...prev, timeoutMessage]);
+          setStreamingContent("");
+        }
+        return;
       }
       // Chat error — display message to user below
       const errorMessage: Message = {
@@ -383,6 +442,7 @@ export function ReMarketingChat({
       setMessages((prev) => [...prev, errorMessage]);
       setStreamingContent("");
     } finally {
+      if (streamTimeoutId) clearTimeout(streamTimeoutId);
       setIsLoading(false);
     }
   };
@@ -395,20 +455,22 @@ export function ReMarketingChat({
   const clearConversation = () => {
     setMessages([]);
     setStreamingContent("");
-    // Start a new conversation in persistence
     startNewConversation();
   };
 
   // Floating chat bubble (closed state)
   if (!isOpen) {
     return (
-      <div className={cn("fixed bottom-8 right-8 z-50", className)}>
+      <div className={cn("fixed bottom-6 right-6 z-50 flex flex-col items-end gap-2", className)}>
+        <div className="bg-foreground text-background rounded-xl px-4 py-2 text-sm font-medium shadow-lg animate-fade-in max-w-[200px] text-center">
+          Ask me anything
+        </div>
         <Button
           onClick={() => setIsOpen(true)}
           size="lg"
-          className="rounded-full h-14 w-14 shadow-lg hover:scale-105 transition-transform"
+          className="rounded-full h-20 w-20 shadow-2xl hover:scale-110 transition-transform bg-primary text-primary-foreground border-4 border-background"
         >
-          <MessageSquare className="h-6 w-6" />
+          <MessageSquare className="h-9 w-9" />
         </Button>
       </div>
     );

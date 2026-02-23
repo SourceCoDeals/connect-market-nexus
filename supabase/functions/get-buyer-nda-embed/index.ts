@@ -116,12 +116,111 @@ serve(async (req: Request) => {
 
       if (submitterRes.ok) {
         const submitters = await submitterRes.json();
-        // Find the submitter matching this buyer's email
         const data = Array.isArray(submitters?.data) ? submitters.data : Array.isArray(submitters) ? submitters : [];
         const submitter = data.find((s: any) => s.email === profile.email) || data[0];
         if (submitter?.embed_src) {
           return new Response(
             JSON.stringify({ ndaSigned: false, embedSrc: submitter.embed_src }),
+            { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
+          );
+        }
+        // Self-heal: if DocuSeal says completed but our DB doesn't reflect it
+        if (submitter?.status === 'completed') {
+          const now = new Date().toISOString();
+          const docUrl = submitter.documents?.[0]?.url || null;
+          await supabaseAdmin
+            .from("firm_agreements")
+            .update({
+              nda_signed: true,
+              nda_signed_at: now,
+              nda_docuseal_status: "completed",
+              nda_status: "signed",
+              ...(docUrl ? { nda_signed_document_url: docUrl, nda_document_url: docUrl } : {}),
+              updated_at: now,
+            })
+            .eq("id", firmId);
+
+          const { data: members } = await supabaseAdmin
+            .from("firm_members")
+            .select("user_id")
+            .eq("firm_id", firmId);
+          if (members?.length) {
+            for (const member of members) {
+              await supabaseAdmin
+                .from("profiles")
+                .update({ nda_signed: true, nda_signed_at: now, updated_at: now })
+                .eq("id", member.user_id);
+            }
+          }
+
+          console.log(`🔧 Self-healed: NDA for firm ${firmId} marked as signed (DocuSeal says completed)`);
+
+          return new Response(
+            JSON.stringify({ ndaSigned: true, embedSrc: null }),
+            { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
+          );
+        }
+        // embed_src not in list response — fetch individual submitter
+        if (submitter?.id) {
+          const individualRes = await fetch(
+            `https://api.docuseal.com/submitters/${submitter.id}`,
+            { headers: { "X-Auth-Token": docusealApiKey } },
+          );
+          if (individualRes.ok) {
+            const ind = await individualRes.json();
+            if (ind?.embed_src) {
+              return new Response(
+                JSON.stringify({ ndaSigned: false, embedSrc: ind.embed_src }),
+                { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
+              );
+            }
+            if (ind?.slug) {
+              return new Response(
+                JSON.stringify({ ndaSigned: false, embedSrc: `https://docuseal.com/s/${ind.slug}` }),
+                { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
+              );
+            }
+          }
+        }
+        if (submitter?.slug) {
+          return new Response(
+            JSON.stringify({ ndaSigned: false, embedSrc: `https://docuseal.com/s/${submitter.slug}` }),
+            { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
+          );
+        }
+        // Self-heal: if DocuSeal says completed but our DB doesn't reflect it
+        if (submitter?.status === 'completed') {
+          const now = new Date().toISOString();
+          const docUrl = submitter.documents?.[0]?.url || null;
+          await supabaseAdmin
+            .from("firm_agreements")
+            .update({
+              nda_signed: true,
+              nda_signed_at: now,
+              nda_docuseal_status: "completed",
+              nda_status: "signed",
+              ...(docUrl ? { nda_signed_document_url: docUrl, nda_document_url: docUrl } : {}),
+              updated_at: now,
+            })
+            .eq("id", firmId);
+
+          const { data: members } = await supabaseAdmin
+            .from("firm_members")
+            .select("user_id")
+            .eq("firm_id", firmId);
+          if (members?.length) {
+            for (const member of members) {
+              await supabaseAdmin
+                .from("profiles")
+                .update({ nda_signed: true, nda_signed_at: now, updated_at: now })
+                .eq("id", member.user_id);
+            }
+          }
+
+          console.log(`🔧 Self-healed: NDA for firm ${firmId} marked as signed (DocuSeal says completed)`);
+
+          return new Response(
+            JSON.stringify({ ndaSigned: true, embedSrc: null }),
             { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
           );
         }
@@ -138,7 +237,7 @@ serve(async (req: Request) => {
     }
 
     const submissionPayload = {
-      template_id: parseInt(ndaTemplateId),
+      template_id: Number(ndaTemplateId),
       send_email: false,
       submitters: [
         {

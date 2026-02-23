@@ -97,9 +97,9 @@ export function DealDocumentsTab({ requestId: _requestId, requestStatus, dealId 
     enabled: !!dealId && !!access,
   });
 
-  // Check NDA status
+  // Check NDA status — uses a distinct query key to avoid collision with useBuyerNdaStatus hook
   const { data: ndaStatus } = useQuery({
-    queryKey: ["buyer-nda-status", user?.id],
+    queryKey: ["deal-nda-status", user?.id],
     queryFn: async () => {
       const { data, error } = await supabase.functions.invoke("get-buyer-nda-embed");
       if (error) return { ndaSigned: false };

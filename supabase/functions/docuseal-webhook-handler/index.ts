@@ -7,27 +7,31 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.47.10";
  * Updates DocuSeal-specific fields, legacy booleans, AND expanded status fields on firm_agreements.
  * Creates admin_notifications on key events.
  * Includes idempotency checks via docuseal_webhook_log.
+ *
+ * DocuSeal sends a custom secret header (not HMAC). The header name is
+ * configured in DocuSeal's dashboard (Key) and the value must match
+ * DOCUSEAL_WEBHOOK_SECRET. Default header name: "onboarding-secret".
+ * Override via DOCUSEAL_WEBHOOK_SECRET_HEADER env var if needed.
  */
 
-// DocuSeal webhook verification — checks custom headers for a matching secret value.
-// If no secret header is found, we log a warning but still process (DocuSeal doesn't
-// always send secret headers consistently). We validate the payload structure instead.
-function verifyDocuSealWebhook(req: Request, secret: string): boolean {
-  const standardHeaders = new Set([
-    'host', 'content-type', 'content-length', 'user-agent', 'accept',
-    'accept-encoding', 'connection', 'x-forwarded-for', 'x-forwarded-proto',
-    'x-forwarded-host', 'x-forwarded-port', 'x-request-id', 'x-real-ip',
-    'cf-ray', 'cf-connecting-ip', 'cf-ew-via', 'cf-visitor', 'cf-worker',
-    'x-envoy-external-address', 'x-amzn-trace-id', 'authorization',
-    'sb-webhook-id', 'sb-webhook-signature', 'sb-webhook-timestamp',
-    'sb-request-id', 'cdn-loop', 'cf-ipcountry', 'baggage',
-  ]);
-
-  for (const [key, value] of req.headers.entries()) {
-    if (standardHeaders.has(key.toLowerCase())) continue;
-    if (value === secret) return true;
+// Timing-safe string comparison to prevent timing attacks on secret verification.
+function timingSafeEqual(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  let result = 0;
+  for (let i = 0; i < a.length; i++) {
+    result |= a.charCodeAt(i) ^ b.charCodeAt(i);
   }
-  return false;
+  return result === 0;
+}
+
+// DocuSeal webhook verification — checks the specific secret header configured
+// in DocuSeal's dashboard. Default header name: "onboarding-secret".
+// Override via DOCUSEAL_WEBHOOK_SECRET_HEADER env var if needed.
+function verifyDocuSealWebhook(req: Request, secret: string): boolean {
+  const headerName = (Deno.env.get("DOCUSEAL_WEBHOOK_SECRET_HEADER") || "onboarding-secret").toLowerCase();
+  const headerValue = req.headers.get(headerName);
+  if (!headerValue) return false;
+  return timingSafeEqual(headerValue, secret);
 }
 
 // Validate that a URL is HTTPS and from a trusted domain
@@ -63,15 +67,14 @@ serve(async (req: Request) => {
 
     const webhookSecret = Deno.env.get("DOCUSEAL_WEBHOOK_SECRET");
     
-    // If secret is configured, attempt verification but don't block if DocuSeal
-    // doesn't send the header (their webhook auth is inconsistent)
+    // If secret is configured, verify the webhook and reject unauthorized requests
     if (webhookSecret) {
       const valid = verifyDocuSealWebhook(req, webhookSecret);
       if (!valid) {
-        console.warn("⚠️ No matching secret header found — processing with payload validation");
-      } else {
-        console.log("✅ Webhook secret verified");
+        console.warn("⚠️ Webhook secret verification failed — rejecting request");
+        return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401 });
       }
+      console.log("✅ Webhook secret verified");
     }
 
     // Parse and validate payload structure
@@ -177,6 +180,15 @@ serve(async (req: Request) => {
       }
     }
 
+    // Lifecycle events (submission.created, submission.archived) are logged but should
+    // NOT update firm signing status — they'd overwrite meaningful statuses like "viewed"
+    // or "completed" due to race conditions with DocuSeal's real-time webhooks.
+    const lifecycleEvents = new Set(["submission.created", "submission.archived"]);
+    if (lifecycleEvents.has(eventType)) {
+      console.log(`ℹ️ Lifecycle event ${eventType} logged for submission ${submissionId} — skipping status update`);
+      return new Response(JSON.stringify({ success: true, note: "Lifecycle event logged" }), { status: 200 });
+    }
+
     await processEvent(supabase, eventType, firmId, firmName, documentType, submissionData, submissionId);
 
     return new Response(JSON.stringify({ success: true }), { status: 200 });
@@ -231,6 +243,21 @@ async function processEvent(
   }
 
   console.log(`📝 Processing ${eventType} for ${documentType} on firm ${firmId}`);
+
+  // Prevent backward state transitions (e.g., "viewed" overwriting "completed")
+  const TERMINAL_STATUSES = new Set(["completed", "declined", "expired"]);
+  const statusCol = isNda ? "nda_docuseal_status" : "fee_docuseal_status";
+  const { data: currentFirm } = await supabase
+    .from("firm_agreements")
+    .select(statusCol)
+    .eq("id", firmId)
+    .single();
+
+  const currentStatus = currentFirm?.[statusCol];
+  if (currentStatus && TERMINAL_STATUSES.has(currentStatus) && !TERMINAL_STATUSES.has(docusealStatus)) {
+    console.log(`⏩ Skipping non-terminal update: current=${currentStatus}, incoming=${docusealStatus}`);
+    return;
+  }
 
   // Build update payload — update BOTH docuseal status AND expanded status
   const updates: Record<string, any> = {
@@ -327,13 +354,14 @@ async function createAdminNotification(
   status: string,
 ) {
   try {
-    // Get all admin user IDs
-    const { data: admins } = await supabase
-      .from("profiles")
-      .select("id")
-      .eq("role", "admin");
+    // Get all admin user IDs from user_roles table (RBAC source of truth)
+    const { data: adminRoles } = await supabase
+      .from("user_roles")
+      .select("user_id")
+      .in("role", ["admin", "owner"]);
 
-    if (!admins?.length) return;
+    const admins = (adminRoles || []).map((r: any) => ({ id: r.user_id }));
+    if (!admins.length) return;
 
     const statusMessages: Record<string, { title: string; message: string }> = {
       completed: {
@@ -385,8 +413,25 @@ async function sendBuyerSignedDocNotification(
       ? `You can download your signed copy from your Profile → Documents tab, or use this link: ${signedDocUrl}`
       : `You can view your signed documents in your Profile → Documents tab.`;
 
+    const docType = docLabel.toLowerCase().replace(/ /g, "_");
+
     for (const member of members) {
-      // Create a buyer-facing notification in user_notifications (not admin_notifications)
+      // Deduplicate: check if confirm-agreement-signed already created this notification
+      const { data: existing } = await supabase
+        .from("user_notifications")
+        .select("id")
+        .eq("user_id", member.user_id)
+        .eq("notification_type", "agreement_signed")
+        .eq("title", `${docLabel} Signed Successfully`)
+        .gte("created_at", new Date(Date.now() - 5 * 60 * 1000).toISOString())
+        .limit(1)
+        .maybeSingle();
+
+      if (existing) {
+        console.log(`⏩ Skipping duplicate agreement_signed notification for user ${member.user_id} (${docLabel})`);
+        continue;
+      }
+
       await supabase.from("user_notifications").insert({
         user_id: member.user_id,
         notification_type: "agreement_signed",
@@ -394,7 +439,7 @@ async function sendBuyerSignedDocNotification(
         message: `Your ${docLabel} has been signed and recorded. ${downloadNote}`,
         metadata: {
           firm_id: firmId,
-          document_type: docLabel.toLowerCase().replace(/ /g, "_"),
+          document_type: docType,
           signed_document_url: signedDocUrl || null,
         },
       });
@@ -412,22 +457,37 @@ async function sendBuyerSignedDocNotification(
           ? `✅ Your ${docLabel} has been signed successfully. For your compliance records, you can download the signed copy here: ${signedDocUrl}\n\nA copy is also permanently available in your Profile → Documents tab.`
           : `✅ Your ${docLabel} has been signed successfully. A copy is available in your Profile → Documents tab.`;
 
-        const messageInserts = activeRequests.map((req: any) => ({
-          connection_request_id: req.id,
-          sender_role: "admin",
-          sender_id: null,
-          body: messageBody,
-          message_type: "system",
-          is_read_by_admin: true,
-          is_read_by_buyer: false,
-        }));
+        for (const req of activeRequests) {
+          // Dedup system messages: check if one already exists for this connection + doc type
+          const { data: existingMsg } = await supabase
+            .from("connection_messages")
+            .select("id")
+            .eq("connection_request_id", req.id)
+            .eq("message_type", "system")
+            .ilike("body", `%Your ${docLabel} has been signed%`)
+            .gte("created_at", new Date(Date.now() - 5 * 60 * 1000).toISOString())
+            .limit(1)
+            .maybeSingle();
 
-        const { error: msgError } = await supabase
-          .from("connection_messages")
-          .insert(messageInserts);
+          if (!existingMsg) {
+            const { error: msgError } = await supabase
+              .from("connection_messages")
+              .insert({
+                connection_request_id: req.id,
+                sender_role: "admin",
+                sender_id: null,
+                body: messageBody,
+                message_type: "system",
+                is_read_by_admin: true,
+                is_read_by_buyer: false,
+              });
 
-        if (msgError) {
-          console.error("⚠️ Failed to insert signed doc system messages:", msgError);
+            if (msgError) {
+              console.error("⚠️ Failed to insert signed doc system message:", msgError);
+            }
+          } else {
+            console.log(`⏩ Skipping duplicate system message for connection ${req.id} (${docLabel})`);
+          }
         }
       }
     }

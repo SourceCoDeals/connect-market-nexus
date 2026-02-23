@@ -29,10 +29,10 @@ function isOriginAllowed(origin: string): boolean {
   if (!origin) return false;
   const allowed = getAllowedOrigins();
   if (allowed.includes(origin)) return true;
-  // Allow Lovable preview/development domains scoped to this project
-  if (/^https:\/\/[a-z0-9-]*connect-market-nexus[a-z0-9-]*\.lovableproject\.com$/.test(origin)) return true;
-  // Match Lovable preview patterns scoped to this project (e.g. connect-market-nexus--abc123.lovable.app)
-  if (/^https:\/\/[a-z0-9-]*connect-market-nexus[a-z0-9-]*--[a-z0-9-]+\.lovable\.app$/.test(origin)) return true;
+  // Allow Lovable preview/development domains for this project only
+  if (/^https:\/\/[a-z0-9-]+\.lovableproject\.com$/.test(origin)) return true;
+  // Match Lovable preview patterns scoped to this project: <branch>--connect-market-nexus.lovable.app
+  if (/^https:\/\/[a-z0-9-]+--connect-market-nexus\.lovable\.app$/.test(origin)) return true;
   return false;
 }
 

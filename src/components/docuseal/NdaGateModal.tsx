@@ -30,7 +30,6 @@ export function NdaGateModal({ userId, firmId, onSigned }: NdaGateModalProps) {
 
     const fetchEmbedSrc = async () => {
       try {
-        // Call buyer-facing edge function (no admin required)
         const { data, error: fnError } = await supabase.functions.invoke('get-buyer-nda-embed');
 
         if (cancelled) return;
@@ -38,7 +37,6 @@ export function NdaGateModal({ userId, firmId, onSigned }: NdaGateModalProps) {
         if (fnError) {
           setError('Failed to prepare NDA signing form');
         } else if (data?.ndaSigned) {
-          // Already signed, dismiss gate
           onSigned?.();
         } else if (data?.embedSrc) {
           setEmbedSrc(data.embedSrc);
@@ -60,7 +58,14 @@ export function NdaGateModal({ userId, firmId, onSigned }: NdaGateModalProps) {
     return () => { cancelled = true; };
   }, [userId, firmId]);
 
-  const handleSigned = () => {
+  const handleSigned = async () => {
+    try {
+      await supabase.functions.invoke('confirm-agreement-signed', {
+        body: { documentType: 'nda' },
+      });
+    } catch (err) {
+      console.warn('confirm-agreement-signed call failed (webhook will handle):', err);
+    }
     queryClient.invalidateQueries({ queryKey: ['buyer-nda-status'] });
     queryClient.invalidateQueries({ queryKey: ['firm-agreements'] });
     onSigned?.();
@@ -70,7 +75,6 @@ export function NdaGateModal({ userId, firmId, onSigned }: NdaGateModalProps) {
     <div className="fixed inset-0 z-50 bg-background/95 backdrop-blur-sm overflow-y-auto" role="dialog" aria-modal="true" aria-labelledby="nda-gate-title">
       <div className="min-h-screen flex flex-col items-center justify-center p-4">
         <div className="w-full max-w-2xl space-y-6">
-          {/* Header */}
           <div className="text-center space-y-3">
             <div className="inline-flex p-3 rounded-full bg-primary/10">
               <Shield className="h-8 w-8 text-primary" />
@@ -81,7 +85,6 @@ export function NdaGateModal({ userId, firmId, onSigned }: NdaGateModalProps) {
             </p>
           </div>
 
-          {/* Signing Form */}
           {isLoading && (
             <div className="flex items-center justify-center py-12">
               <div className="flex flex-col items-center gap-3">
@@ -109,7 +112,6 @@ export function NdaGateModal({ userId, firmId, onSigned }: NdaGateModalProps) {
             />
           )}
 
-          {/* Navigation */}
           <div className="text-center">
             <Button
               variant="ghost"

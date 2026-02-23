@@ -125,7 +125,7 @@ export function AICommandCenterPanel({ pageContext, onUIAction, className }: AIC
         <Button
           onClick={() => setIsOpen(true)}
           size="lg"
-          className="rounded-full h-14 w-14 shadow-lg hover:scale-105 transition-transform bg-gradient-to-br from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500"
+          className="rounded-full h-14 w-14 shadow-lg hover:scale-105 transition-transform bg-[#0E101A] hover:bg-[#000000] text-[#DEC76B]"
         >
           <Sparkles className="h-6 w-6" />
         </Button>
@@ -139,7 +139,7 @@ export function AICommandCenterPanel({ pageContext, onUIAction, className }: AIC
       <div className={cn('fixed bottom-8 right-8 z-50', className)}>
         <Button
           onClick={() => setIsMinimized(false)}
-          className="gap-2 shadow-lg rounded-full px-4 bg-gradient-to-r from-violet-600 to-indigo-600"
+          className="gap-2 shadow-lg rounded-full px-4 bg-[#0E101A] hover:bg-[#000000] text-[#DEC76B]"
         >
           <Sparkles className="h-4 w-4" />
           AI Command Center
@@ -157,9 +157,9 @@ export function AICommandCenterPanel({ pageContext, onUIAction, className }: AIC
   // ---------- Full panel ----------
   return (
     <div className={cn('fixed bottom-8 right-8 z-50', className)}>
-      <Card className="w-[640px] max-w-[calc(100vw-64px)] h-[800px] max-h-[85vh] flex flex-col shadow-2xl border-violet-200/50">
+      <Card className="w-[640px] max-w-[calc(100vw-64px)] h-[800px] max-h-[85vh] flex flex-col shadow-2xl border-[#DEC76B]/30">
         {/* Header */}
-        <CardHeader className="pb-3 bg-gradient-to-r from-violet-600 to-indigo-600 text-white rounded-t-lg">
+        <CardHeader className="pb-3 bg-[#0E101A] text-[#FCF9F0] rounded-t-lg">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Sparkles className="h-5 w-5" />
@@ -236,7 +236,7 @@ export function AICommandCenterPanel({ pageContext, onUIAction, className }: AIC
                 <Square className="h-4 w-4" />
               </Button>
             ) : (
-              <Button type="submit" disabled={!input.trim()} size="icon" className="bg-violet-600 hover:bg-violet-700">
+              <Button type="submit" disabled={!input.trim()} size="icon" className="bg-[#0E101A] hover:bg-[#000000] text-[#DEC76B]">
                 <Send className="h-4 w-4" />
               </Button>
             )}
@@ -252,11 +252,11 @@ export function AICommandCenterPanel({ pageContext, onUIAction, className }: AIC
 function EmptyState({ suggestions, onSuggestion }: { suggestions: string[]; onSuggestion: (text: string) => void }) {
   return (
     <div className="text-center py-8">
-      <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-violet-100 mb-4">
-        <Sparkles className="h-6 w-6 text-violet-600" />
+      <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-[#F7F4DD] mb-4">
+        <Sparkles className="h-6 w-6 text-[#DEC76B]" />
       </div>
-      <h3 className="text-sm font-semibold text-foreground mb-1">AI Command Center</h3>
-      <p className="text-xs text-muted-foreground mb-4">
+      <h3 className="text-base font-semibold text-foreground mb-1">AI Command Center</h3>
+      <p className="text-sm text-muted-foreground mb-4">
         Search any deal, buyer, or lead. Take actions. Get insights.
       </p>
       <div className="flex flex-wrap gap-2 justify-center">
@@ -264,7 +264,7 @@ function EmptyState({ suggestions, onSuggestion }: { suggestions: string[]; onSu
           <button
             key={i}
             onClick={() => onSuggestion(s)}
-            className="text-xs px-3 py-1.5 rounded-full border border-violet-200 text-violet-700 hover:bg-violet-50 transition-colors"
+            className="text-sm px-3 py-1.5 rounded-full border border-[#DEC76B]/40 text-[#0E101A] hover:bg-[#F7F4DD] transition-colors"
           >
             {s}
           </button>
@@ -288,16 +288,16 @@ function MessageBubble({
   return (
     <div className={cn('flex gap-2', isUser ? 'justify-end' : 'justify-start')}>
       {!isUser && (
-        <div className="w-7 h-7 rounded-full bg-violet-100 flex items-center justify-center flex-shrink-0 mt-0.5">
-          <Bot className="h-4 w-4 text-violet-600" />
+        <div className="w-7 h-7 rounded-full bg-[#F7F4DD] flex items-center justify-center flex-shrink-0 mt-0.5">
+          <Bot className="h-4 w-4 text-[#DEC76B]" />
         </div>
       )}
 
       <div className={cn(
         'max-w-[85%] rounded-lg px-3 py-2',
         isUser
-          ? 'bg-violet-600 text-white'
-          : 'bg-muted',
+          ? 'bg-[#0E101A] text-[#FCF9F0]'
+          : 'bg-[#FCF9F0] text-[#0E101A]',
       )}>
         {/* Tool call indicators */}
         {message.toolCalls && message.toolCalls.length > 0 && (
@@ -324,7 +324,7 @@ function MessageBubble({
 
         {/* Message content */}
         {message.content && (
-          <div className={cn('text-sm prose prose-sm max-w-none', isUser ? 'prose-invert' : '')}>
+          <div className={cn('text-base prose prose-base max-w-none', isUser ? 'prose-invert' : '[&_*]:text-[#0E101A]')}>
             <ReactMarkdown>{message.content}</ReactMarkdown>
           </div>
         )}
@@ -356,8 +356,8 @@ function MessageBubble({
       </div>
 
       {isUser && (
-        <div className="w-7 h-7 rounded-full bg-violet-600 flex items-center justify-center flex-shrink-0 mt-0.5">
-          <User className="h-4 w-4 text-white" />
+        <div className="w-7 h-7 rounded-full bg-[#0E101A] flex items-center justify-center flex-shrink-0 mt-0.5">
+          <User className="h-4 w-4 text-[#DEC76B]" />
         </div>
       )}
     </div>
@@ -402,8 +402,8 @@ function StreamingIndicator({
 
   return (
     <div className="flex gap-2">
-      <div className="w-7 h-7 rounded-full bg-violet-100 flex items-center justify-center flex-shrink-0 mt-0.5">
-        <Bot className="h-4 w-4 text-violet-600" />
+      <div className="w-7 h-7 rounded-full bg-[#F7F4DD] flex items-center justify-center flex-shrink-0 mt-0.5">
+        <Bot className="h-4 w-4 text-[#DEC76B]" />
       </div>
       <div className="max-w-[85%] rounded-lg px-3 py-2 bg-muted">
         {/* Active tools */}
@@ -417,7 +417,7 @@ function StreamingIndicator({
 
         {/* Streaming text */}
         {content ? (
-          <div className="text-sm prose prose-sm max-w-none">
+          <div className="text-base prose prose-base max-w-none">
             <ReactMarkdown>{content}</ReactMarkdown>
           </div>
         ) : (

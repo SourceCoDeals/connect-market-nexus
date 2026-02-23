@@ -3,6 +3,12 @@ import { useSearchParams, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
   MessageSquare,
   Send,
   ArrowLeft,
@@ -12,7 +18,7 @@ import {
   FileSignature,
   Shield,
   CheckCircle,
-  FileDown,
+  MessageSquarePlus,
 } from "lucide-react";
 import {
   useConnectionMessages,
@@ -20,10 +26,74 @@ import {
   useMarkMessagesReadByBuyer,
 } from "@/hooks/use-connection-messages";
 import { useAuth } from "@/context/AuthContext";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { formatDistanceToNow } from "date-fns";
 import { AgreementSigningModal } from "@/components/docuseal/AgreementSigningModal";
+import { useToast } from "@/hooks/use-toast";
+
+/**
+ * Hook to send a document question as a message to the admin team.
+ * Creates a connection message on the buyer's first active deal thread,
+ * or creates an admin notification if no thread exists.
+ */
+function useSendDocumentQuestion() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async ({ documentType, question, userId }: { documentType: 'nda' | 'fee_agreement'; question: string; userId: string }) => {
+      const docLabel = documentType === 'nda' ? 'NDA' : 'Fee Agreement';
+      const messageBody = `📄 Question about ${docLabel}:\n\n${question}`;
+
+      // Find an active connection request to attach the message to
+      const { data: activeRequest } = await (supabase
+        .from('connection_requests') as any)
+        .select('id')
+        .eq('user_id', userId)
+        .in('status', ['approved', 'on_hold', 'pending'])
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      // Oz De La Luna's admin ID — all document questions route to him
+      const OZ_ADMIN_ID = 'ea1f0064-52ef-43fb-bec4-22391b720328';
+
+      if (activeRequest) {
+        // Send as a connection message (sender_id required by RLS)
+        const { error } = await (supabase.from('connection_messages') as any).insert({
+          connection_request_id: activeRequest.id,
+          sender_id: userId,
+          body: messageBody,
+          sender_role: 'buyer',
+        });
+        if (error) throw error;
+      } else {
+        // No active thread — create a user notification for Oz instead
+        // (buyers can't insert into admin_notifications due to RLS)
+        console.warn('No active connection request found for document question');
+      }
+
+      // Always notify Oz via admin_notifications using an edge function call
+      await supabase.functions.invoke('notify-admin-document-question', {
+        body: {
+          admin_id: OZ_ADMIN_ID,
+          user_id: userId,
+          document_type: docLabel,
+          question,
+        },
+      });
+    },
+    onSuccess: () => {
+      toast({ title: 'Question Sent', description: 'Our team will review and respond shortly.' });
+      queryClient.invalidateQueries({ queryKey: ['buyer-message-threads'] });
+      queryClient.invalidateQueries({ queryKey: ['connection-messages'] });
+    },
+    onError: () => {
+      toast({ title: 'Failed to Send', description: 'Please try again or contact support.', variant: 'destructive' });
+    },
+  });
+}
 
 interface BuyerThread {
   connection_request_id: string;
@@ -48,8 +118,8 @@ function useBuyerThreads() {
       if (!user?.id) return [];
 
       // Step 1: Fetch all connection requests for this buyer (approved, on_hold, rejected)
-      const { data: requests, error: reqError } = await (supabase
-        .from("connection_requests") as any)
+      const { data: requests, error: reqError } = await supabase
+        .from("connection_requests")
         .select(`
           id, status, listing_id, user_message, created_at,
           last_message_at, last_message_preview, last_message_sender_role,
@@ -62,30 +132,31 @@ function useBuyerThreads() {
       if (reqError || !requests) return [];
 
       // Step 2: Fetch unread counts for this buyer
-      const requestIds = requests.map((r: any) => r.id);
-      const { data: unreadMsgs } = await (supabase
-        .from("connection_messages") as any)
+      const requestIds = requests.map((r: Record<string, unknown>) => r.id as string);
+      const { data: unreadMsgs } = await supabase
+        .from("connection_messages")
         .select("connection_request_id")
         .in("connection_request_id", requestIds.length > 0 ? requestIds : ["__none__"])
         .eq("is_read_by_buyer", false)
         .eq("sender_role", "admin");
 
       const unreadMap: Record<string, number> = {};
-      (unreadMsgs || []).forEach((msg: any) => {
-        unreadMap[msg.connection_request_id] = (unreadMap[msg.connection_request_id] || 0) + 1;
+      (unreadMsgs || []).forEach((msg: Record<string, unknown>) => {
+        const reqId = msg.connection_request_id as string;
+        unreadMap[reqId] = (unreadMap[reqId] || 0) + 1;
       });
 
-      const threads: BuyerThread[] = requests.map((req: any) => ({
-        connection_request_id: req.id,
-        deal_title: req.listing?.title || "Untitled Deal",
-        deal_category: req.listing?.category ?? undefined,
-        request_status: req.status,
-        listing_id: req.listing_id ?? '',
+      const threads: BuyerThread[] = requests.map((req: Record<string, unknown>) => ({
+        connection_request_id: req.id as string,
+        deal_title: (req.listing as Record<string, unknown>)?.title as string || "Untitled Deal",
+        deal_category: ((req.listing as Record<string, unknown>)?.category as string) ?? undefined,
+        request_status: req.status as string,
+        listing_id: (req.listing_id as string) ?? '',
         messages_count: 0,
-        last_message_body: req.last_message_preview || req.user_message || "",
-        last_message_at: req.last_message_at || req.created_at,
-        last_sender_role: req.last_message_sender_role || "buyer",
-        unread_count: unreadMap[req.id] || 0,
+        last_message_body: (req.last_message_preview as string) || (req.user_message as string) || "",
+        last_message_at: (req.last_message_at as string) || (req.created_at as string),
+        last_sender_role: (req.last_message_sender_role as string) || "buyer",
+        unread_count: unreadMap[req.id as string] || 0,
       }));
 
       // Sort: unread first, then by most recent activity
@@ -492,6 +563,73 @@ function BuyerMessagesSkeleton() {
 }
 
 /**
+ * Button that downloads a document PDF. Uses cached URL if available,
+ * otherwise calls the get-document-download edge function.
+ */
+function DownloadDocButton({
+  documentUrl,
+  draftUrl,
+  documentType,
+  label,
+  variant = 'outline',
+}: {
+  documentUrl: string | null;
+  draftUrl: string | null;
+  documentType: 'nda' | 'fee_agreement';
+  label: string;
+  variant?: 'outline' | 'default';
+}) {
+  const [loading, setLoading] = useState(false);
+  const { toast } = useToast();
+
+  const handleDownload = async () => {
+    const cachedUrl = documentUrl || draftUrl;
+    if (cachedUrl && cachedUrl.startsWith('https://')) {
+      window.open(cachedUrl, '_blank', 'noopener,noreferrer');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke(
+        `get-document-download?document_type=${documentType}`,
+      );
+
+      if (error) {
+        toast({ title: 'Download Failed', description: 'Could not retrieve document.', variant: 'destructive' });
+        return;
+      }
+
+      if (data?.url) {
+        window.open(data.url, '_blank', 'noopener,noreferrer');
+      } else {
+        toast({ title: 'Not Available', description: 'Document is not yet available for download.', variant: 'destructive' });
+      }
+    } catch {
+      toast({ title: 'Download Failed', description: 'Something went wrong.', variant: 'destructive' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <Button
+      variant={variant}
+      size="sm"
+      onClick={handleDownload}
+      disabled={loading}
+    >
+      {loading ? (
+        <span className="h-3.5 w-3.5 mr-1.5 animate-spin rounded-full border-2 border-current border-t-transparent" />
+      ) : (
+        <FileSignature className="h-3.5 w-3.5 mr-1.5" />
+      )}
+      {label}
+    </Button>
+  );
+}
+
+/**
  * PendingAgreementBanner — shows at top of messages page.
  * Shows pending documents to sign OR already-signed documents with download links.
  * Automatically hides when there's nothing to show.
@@ -500,21 +638,25 @@ function PendingAgreementBanner() {
   const { user } = useAuth();
   const [signingOpen, setSigningOpen] = useState(false);
   const [signingDocType, setSigningDocType] = useState<'nda' | 'fee_agreement'>('nda');
+  const [docMessageOpen, setDocMessageOpen] = useState(false);
+  const [docMessageType, setDocMessageType] = useState<'nda' | 'fee_agreement'>('nda');
+  const [docQuestion, setDocQuestion] = useState('');
+  const sendDocQuestion = useSendDocumentQuestion();
 
   // Fetch firm agreement status to know what's signed vs pending
   const { data: firmStatus } = useQuery({
     queryKey: ['buyer-firm-agreement-status', user?.id],
     queryFn: async () => {
       if (!user?.id) return null;
-      const { data: membership } = await (supabase.from('firm_members') as any)
+      const { data: membership } = await supabase.from('firm_members')
         .select('firm_id')
         .eq('user_id', user.id)
         .limit(1)
         .maybeSingle();
       if (!membership) return null;
 
-      const { data: firm } = await (supabase.from('firm_agreements') as any)
-        .select('nda_signed, nda_signed_at, nda_signed_document_url, nda_docuseal_status, fee_agreement_signed, fee_agreement_signed_at, fee_signed_document_url, fee_docuseal_status')
+      const { data: firm } = await supabase.from('firm_agreements')
+        .select('nda_signed, nda_signed_at, nda_signed_document_url, nda_document_url, nda_docuseal_status, fee_agreement_signed, fee_agreement_signed_at, fee_signed_document_url, fee_agreement_document_url, fee_docuseal_status')
         .eq('id', membership.firm_id)
         .maybeSingle();
       return firm;
@@ -528,8 +670,8 @@ function PendingAgreementBanner() {
     queryKey: ['agreement-pending-notifications', user?.id],
     queryFn: async () => {
       if (!user?.id) return [];
-      const { data } = await (supabase
-        .from('user_notifications') as any)
+      const { data } = await supabase
+        .from('user_notifications')
         .select('*')
         .eq('user_id', user.id)
         .eq('notification_type', 'agreement_pending')
@@ -548,6 +690,7 @@ function PendingAgreementBanner() {
     signed: boolean;
     signedAt: string | null;
     documentUrl: string | null;
+    draftUrl: string | null;
     notificationMessage?: string;
     notificationTime?: string;
   };
@@ -563,9 +706,10 @@ function PendingAgreementBanner() {
       signed: true,
       signedAt: firmStatus.nda_signed_at,
       documentUrl: firmStatus.nda_signed_document_url,
+      draftUrl: firmStatus.nda_document_url,
     });
   } else {
-    const ndaNotif = pendingNotifications.find((n: any) => n.metadata?.document_type === 'nda');
+    const ndaNotif = pendingNotifications.find((n: Record<string, unknown>) => (n.metadata as Record<string, unknown>)?.document_type === 'nda');
     if (ndaNotif || firmStatus?.nda_docuseal_status) {
       items.push({
         key: 'nda-pending',
@@ -574,8 +718,9 @@ function PendingAgreementBanner() {
         signed: false,
         signedAt: null,
         documentUrl: null,
+        draftUrl: firmStatus?.nda_document_url || null,
         notificationMessage: ndaNotif?.message,
-        notificationTime: ndaNotif?.created_at,
+        notificationTime: ndaNotif?.created_at ?? undefined,
       });
     }
   }
@@ -589,9 +734,10 @@ function PendingAgreementBanner() {
       signed: true,
       signedAt: firmStatus.fee_agreement_signed_at,
       documentUrl: firmStatus.fee_signed_document_url,
+      draftUrl: firmStatus.fee_agreement_document_url,
     });
   } else {
-    const feeNotif = pendingNotifications.find((n: any) => n.metadata?.document_type === 'fee_agreement');
+    const feeNotif = pendingNotifications.find((n: Record<string, unknown>) => (n.metadata as Record<string, unknown>)?.document_type === 'fee_agreement');
     if (feeNotif || firmStatus?.fee_docuseal_status) {
       items.push({
         key: 'fee-pending',
@@ -600,8 +746,9 @@ function PendingAgreementBanner() {
         signed: false,
         signedAt: null,
         documentUrl: null,
+        draftUrl: firmStatus?.fee_agreement_document_url || null,
         notificationMessage: feeNotif?.message,
-        notificationTime: feeNotif?.created_at,
+        notificationTime: feeNotif?.created_at ?? undefined,
       });
     }
   }
@@ -648,35 +795,64 @@ function PendingAgreementBanner() {
                     ? item.signedAt
                       ? `Signed ${formatDistanceToNow(new Date(item.signedAt), { addSuffix: true })}`
                       : 'Signed'
-                    : item.notificationMessage || `A ${item.label} has been prepared for your signature.`}
+                    : item.notificationMessage || `A ${item.label} has been prepared for your signature. Please sign it to continue accessing deal details.`}
                 </p>
               </div>
-              {item.signed ? (
-                item.documentUrl && item.documentUrl.startsWith('https://') ? (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="shrink-0"
-                    onClick={() => window.open(item.documentUrl!, '_blank', 'noopener,noreferrer')}
-                  >
-                    <FileDown className="h-3.5 w-3.5 mr-1.5" />
-                    Download
-                  </Button>
+              <div className="flex items-center gap-2 shrink-0">
+                {item.signed ? (
+                  <>
+                    <DownloadDocButton
+                      documentUrl={item.documentUrl}
+                      draftUrl={item.draftUrl}
+                      documentType={item.type}
+                      label="Download PDF"
+                    />
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-muted-foreground hover:text-foreground"
+                      onClick={() => {
+                        setDocMessageType(item.type);
+                        setDocMessageOpen(true);
+                      }}
+                    >
+                      <MessageSquarePlus className="h-3.5 w-3.5 mr-1.5" />
+                      Questions?
+                    </Button>
+                  </>
                 ) : (
-                  <span className="text-xs text-muted-foreground shrink-0">Available in Profile</span>
-                )
-              ) : (
-                <Button
-                  size="sm"
-                  className="shrink-0"
-                  onClick={() => {
-                    setSigningDocType(item.type);
-                    setSigningOpen(true);
-                  }}
-                >
-                  Sign Now
-                </Button>
-              )}
+                  <>
+                    <DownloadDocButton
+                      documentUrl={null}
+                      draftUrl={item.draftUrl}
+                      documentType={item.type}
+                      label="Download Draft"
+                      variant="outline"
+                    />
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-muted-foreground hover:text-foreground"
+                      onClick={() => {
+                        setDocMessageType(item.type);
+                        setDocMessageOpen(true);
+                      }}
+                    >
+                      <MessageSquarePlus className="h-3.5 w-3.5 mr-1.5" />
+                      Questions?
+                    </Button>
+                    <Button
+                      size="sm"
+                      onClick={() => {
+                        setSigningDocType(item.type);
+                        setSigningOpen(true);
+                      }}
+                    >
+                      Sign Now
+                    </Button>
+                  </>
+                )}
+              </div>
             </div>
           ))}
         </div>
@@ -686,6 +862,47 @@ function PendingAgreementBanner() {
         onOpenChange={setSigningOpen}
         documentType={signingDocType}
       />
+
+      {/* Document Question Dialog */}
+      <Dialog open={docMessageOpen} onOpenChange={(open) => { setDocMessageOpen(open); if (!open) setDocQuestion(''); }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-base">
+              <MessageSquarePlus className="h-4 w-4" />
+              Question about {docMessageType === 'nda' ? 'NDA' : 'Fee Agreement'}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <p className="text-sm text-muted-foreground">
+              Have questions or redline requests about this document? Send us a message and our team will respond shortly.
+            </p>
+            <textarea
+              value={docQuestion}
+              onChange={(e) => setDocQuestion(e.target.value)}
+              placeholder="Describe your questions, concerns, or requested changes..."
+              className="w-full min-h-[120px] text-sm border border-border rounded-lg px-3 py-2.5 bg-background focus:outline-none focus:ring-2 focus:ring-ring/20 focus:border-ring transition-all resize-none"
+            />
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" size="sm" onClick={() => { setDocMessageOpen(false); setDocQuestion(''); }}>
+                Cancel
+              </Button>
+              <Button
+                size="sm"
+                disabled={!docQuestion.trim() || sendDocQuestion.isPending}
+                onClick={() => {
+                  sendDocQuestion.mutate(
+                    { documentType: docMessageType, question: docQuestion.trim(), userId: user?.id || '' },
+                    { onSuccess: () => { setDocMessageOpen(false); setDocQuestion(''); } }
+                  );
+                }}
+              >
+                <Send className="h-3.5 w-3.5 mr-1.5" />
+                Send Question
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
