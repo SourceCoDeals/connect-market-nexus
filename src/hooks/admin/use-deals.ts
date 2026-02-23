@@ -183,8 +183,8 @@ export function useDeals() {
     queryFn: async () => {
       // Single RPC call replaces the previous N+1 pattern
       // (deals → connection_requests → profiles done server-side)
-      const { data: rpcRows, error: rpcError } = await supabase
-        .rpc('get_deals_with_buyer_profiles') as { data: DealRpcRow[] | null; error: typeof rpcError };
+      const { data: rpcRows, error: rpcError } = await (supabase
+        .rpc as any)('get_deals_with_buyer_profiles') as { data: DealRpcRow[] | null; error: any };
 
       if (rpcError) throw rpcError;
       const rows = rpcRows || [];
@@ -396,7 +396,7 @@ export function useUpdateDealStage() {
       }
       
       // Use new RPC function with ownership logic
-      const { data, error } = await supabase.rpc('move_deal_stage_with_ownership' as never, {
+      const { data, error } = await (supabase.rpc as any)('move_deal_stage_with_ownership', {
         p_deal_id: dealId,
         p_new_stage_id: stageId,
         p_current_admin_id: currentAdminId
@@ -590,7 +590,7 @@ export function useUpdateDeal() {
         if (authError) throw authError;
         if (!user) throw new Error('Not authenticated');
 
-        const { data, error } = await supabase.rpc('update_deal_owner' as never, {
+        const { data, error } = await (supabase.rpc as any)('update_deal_owner', {
           p_deal_id: dealId,
           p_assigned_to: updates.assigned_to === 'unassigned' || updates.assigned_to === '' ? null : updates.assigned_to,
           p_actor_id: user.id
@@ -791,7 +791,7 @@ export function useCreateDeal() {
     mutationFn: async (deal: Record<string, unknown>) => {
       const { data, error } = await supabase
         .from('deals')
-        .insert(deal as Record<string, unknown>)
+        .insert(deal as never)
         .select()
         .single();
       

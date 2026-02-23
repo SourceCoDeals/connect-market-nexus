@@ -36,9 +36,9 @@ export function useUserFirm(userId: string | null) {
         throw error;
       }
 
-      if (!data || !data.firm) return null;
+      if (!data || !(data as any).firm) return null;
 
-      const firm = Array.isArray(data.firm) ? data.firm[0] : data.firm;
+      const firm = Array.isArray((data as any).firm) ? (data as any).firm[0] : (data as any).firm;
 
       return {
         firm_id: firm.id,

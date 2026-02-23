@@ -30,7 +30,7 @@ export function useUpdateAgreementViaUser() {
 
   return useMutation({
     mutationFn: async ({ userId, agreementType, action, adminNotes }: UpdateAgreementParams) => {
-      const { data, error } = await supabase.rpc('update_agreement_via_user' as never, {
+      const { data, error } = await (supabase.rpc as any)('update_agreement_via_user', {
         p_user_id: userId,
         p_agreement_type: agreementType,
         p_action: action,
@@ -103,7 +103,7 @@ export function useUserFirm(userId: string | undefined) {
         .maybeSingle();
 
       if (memErr) throw memErr;
-      if (membership?.firm) return membership.firm;
+      if ((membership as any)?.firm) return (membership as any).firm;
 
       // Try email domain match
       const { data: profile } = await supabase
@@ -112,9 +112,9 @@ export function useUserFirm(userId: string | undefined) {
         .eq('id', userId)
         .maybeSingle();
 
-      if (!profile?.email) return null;
+      if (!(profile as any)?.email) return null;
 
-      const domain = profile.email.split('@')[1];
+      const domain = (profile as any).email.split('@')[1];
       if (!domain) return null;
 
       const { data: firm } = await supabase

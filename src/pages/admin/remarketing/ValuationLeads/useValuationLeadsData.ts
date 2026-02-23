@@ -628,7 +628,7 @@ export function useValuationLeadsData() {
       for (let i = 0; i < rows.length; i += CHUNK) {
         const chunk = rows.slice(i, i + CHUNK);
         const listingIds = chunk.map((r) => r.listing_id);
-        const { error: updateError } = await supabase.from("enrichment_queue")
+        const { error: _updateError } = await supabase.from("enrichment_queue")
           .update({ status: "pending", force: mode === "all", attempts: 0, queued_at: now, completed_at: null, last_error: null, started_at: null })
           .in("listing_id", listingIds);
         // Queue pre-update error is non-fatal

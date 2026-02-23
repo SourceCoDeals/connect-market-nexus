@@ -309,7 +309,7 @@ export function useDealsActions({
       const dealIds = toEnrich.map(l => l.id);
       const { queued } = await startOrQueueMajorOp({ operationType: 'deal_enrichment', totalItems: dealIds.length, description: `Enrich ${dealIds.length} deals (${mode})`, userId: user?.id || 'unknown' });
       if (queued) { setIsEnrichingAll(false); return; }
-      const { error: resetError } = await supabase.from('listings').update({ enriched_at: null }).in('id', dealIds);
+      const { error: _resetError } = await supabase.from('listings').update({ enriched_at: null }).in('id', dealIds);
       // Reset error is non-critical — continue with enrichment
       const nowIso = new Date().toISOString();
       const { error: resetQueueError } = await supabase.from('enrichment_queue').update({ status: 'pending', attempts: 0, started_at: null, completed_at: null, last_error: null, queued_at: nowIso, updated_at: nowIso }).in('listing_id', dealIds);

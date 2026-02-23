@@ -59,7 +59,7 @@ export function useCreatePipelineView() {
     }) => {
       const { data, error } = await supabase
         .from('pipeline_views')
-        .insert(view as Record<string, unknown>)
+        .insert(view as never)
         .select()
         .single();
 

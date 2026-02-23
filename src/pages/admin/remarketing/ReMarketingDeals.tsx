@@ -942,7 +942,7 @@ const ReMarketingDeals = () => {
       });
       if (queued) { setIsEnrichingAll(false); return; }
 
-      const { error: resetError } = await supabase
+      const { error: _resetError } = await supabase
         .from('listings')
         .update({ enriched_at: null })
         .in('id', dealIds);

@@ -108,7 +108,7 @@ export const AIResearchSection = ({
   useEffect(() => { if (existingContent) { setContent(existingContent); setWordCount(existingContent.split(/\s+/).length); } }, [existingContent]);
 
   const checkExistingGenerationRef = useRef<(() => void) | null>(null);
-  useEffect(() => { if (universeId) checkExistingGenerationRef.current(); }, [universeId]);
+  useEffect(() => { if (universeId) checkExistingGenerationRef.current?.(); }, [universeId]);
   useEffect(() => { return () => { if (pollIntervalRef.current) { clearInterval(pollIntervalRef.current); pollIntervalRef.current = null; } }; }, []);
 
   const checkExistingGeneration = async () => {

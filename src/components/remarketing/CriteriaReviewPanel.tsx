@@ -15,10 +15,46 @@ import {
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import type { Json } from "@/integrations/supabase/types";
 
 interface CriteriaReviewPanelProps {
   universeId: string;
   onApplyComplete?: () => void;
+}
+
+interface SizeCriteria {
+  revenue_min?: number;
+  revenue_max?: number;
+  ebitda_min?: number;
+  ebitda_max?: number;
+}
+
+interface GeoCriteria {
+  target_regions?: string[];
+  target_states?: string[];
+}
+
+interface ServiceCriteria {
+  target_services?: string[];
+}
+
+interface BuyerTypeEntry {
+  profile_name?: string;
+  buyer_type?: string;
+  priority_rank?: string | number;
+  [key: string]: unknown;
+}
+
+interface BuyerTypesCriteria {
+  buyer_types?: BuyerTypeEntry[];
+}
+
+interface ExtractedData {
+  size_criteria?: SizeCriteria;
+  geography_criteria?: GeoCriteria;
+  service_criteria?: ServiceCriteria;
+  buyer_types_criteria?: BuyerTypesCriteria;
+  [key: string]: unknown;
 }
 
 interface ExtractionSource {
@@ -26,7 +62,7 @@ interface ExtractionSource {
   source_type: string;
   source_name: string;
   extraction_status: string;
-  extracted_data: Record<string, unknown>;
+  extracted_data: ExtractedData;
   confidence_scores: {
     size?: number;
     service?: number;
@@ -51,7 +87,6 @@ export const CriteriaReviewPanel = ({
   const loadSources = useCallback(async () => {
     setIsLoading(true);
     try {
-      // Use type assertion to bypass missing table type definition
       const { data, error } = await supabase
         .from('criteria_extraction_sources' as never)
         .select('*')
@@ -63,7 +98,6 @@ export const CriteriaReviewPanel = ({
 
       setSources((data || []) as ExtractionSource[]);
 
-      // Auto-select unapplied sources
       const unapplied = new Set(
         ((data || []) as ExtractionSource[])
           .filter(s => !s.applied_to_criteria)
@@ -109,27 +143,22 @@ export const CriteriaReviewPanel = ({
 
     setIsApplying(true);
     try {
-      // Get selected sources data
       const selectedData = sources.filter(s => selectedSources.has(s.id));
-
-      // Synthesize criteria from multiple sources
       const synthesizedCriteria = synthesizeCriteria(selectedData);
 
-      // Update universe with synthesized criteria
       const { error: updateError } = await supabase
         .from('remarketing_buyer_universes')
         .update({
-          size_criteria: synthesizedCriteria.size_criteria,
-          geography_criteria: synthesizedCriteria.geography_criteria,
-          service_criteria: synthesizedCriteria.service_criteria,
-          buyer_types_criteria: synthesizedCriteria.buyer_types_criteria,
+          size_criteria: synthesizedCriteria.size_criteria as unknown as Json,
+          geography_criteria: synthesizedCriteria.geography_criteria as unknown as Json,
+          service_criteria: synthesizedCriteria.service_criteria as unknown as Json,
+          buyer_types_criteria: synthesizedCriteria.buyer_types_criteria as unknown as Json,
           updated_at: new Date().toISOString()
         })
         .eq('id', universeId);
 
       if (updateError) throw updateError;
 
-      // Mark sources as applied
       const { error: markError } = await supabase
         .from('criteria_extraction_sources' as never)
         .update({
@@ -140,8 +169,7 @@ export const CriteriaReviewPanel = ({
 
       if (markError) throw markError;
 
-      // Create history record
-      await supabase.from('criteria_extraction_history' as never).insert({
+      await (supabase.from('criteria_extraction_history' as never) as any).insert({
         universe_id: universeId,
         change_type: 'synthesis',
         changed_sections: ['size_criteria', 'geography_criteria', 'service_criteria', 'buyer_types_criteria'],
@@ -164,12 +192,11 @@ export const CriteriaReviewPanel = ({
     }
   };
 
-  // Synthesize criteria from multiple sources
   const synthesizeCriteria = (sources: ExtractionSource[]) => {
-    const sizeCriteria = sources.map(s => s.extracted_data?.size_criteria).filter(Boolean);
-    const geoCriteria = sources.map(s => s.extracted_data?.geography_criteria).filter(Boolean);
-    const serviceCriteria = sources.map(s => s.extracted_data?.service_criteria).filter(Boolean);
-    const buyerTypesCriteria = sources.map(s => s.extracted_data?.buyer_types_criteria).filter(Boolean);
+    const sizeCriteria = sources.map(s => s.extracted_data?.size_criteria).filter(Boolean) as SizeCriteria[];
+    const geoCriteria = sources.map(s => s.extracted_data?.geography_criteria).filter(Boolean) as GeoCriteria[];
+    const serviceCriteria = sources.map(s => s.extracted_data?.service_criteria).filter(Boolean) as ServiceCriteria[];
+    const buyerTypesCriteria = sources.map(s => s.extracted_data?.buyer_types_criteria).filter(Boolean) as BuyerTypesCriteria[];
 
     return {
       size_criteria: synthesizeSizeCriteria(sizeCriteria),
@@ -179,14 +206,13 @@ export const CriteriaReviewPanel = ({
     };
   };
 
-  const synthesizeSizeCriteria = (criteria: Record<string, number | undefined>[]) => {
+  const synthesizeSizeCriteria = (criteria: SizeCriteria[]) => {
     if (criteria.length === 0) return {};
 
-    // Take min of minimums, max of maximums
-    const revenueMin = Math.min(...criteria.map(c => c.revenue_min).filter(Boolean));
-    const revenueMax = Math.max(...criteria.map(c => c.revenue_max).filter(Boolean));
-    const ebitdaMin = Math.min(...criteria.map(c => c.ebitda_min).filter(Boolean));
-    const ebitdaMax = Math.max(...criteria.map(c => c.ebitda_max).filter(Boolean));
+    const revenueMin = Math.min(...criteria.map(c => c.revenue_min).filter((v): v is number => v != null));
+    const revenueMax = Math.max(...criteria.map(c => c.revenue_max).filter((v): v is number => v != null));
+    const ebitdaMin = Math.min(...criteria.map(c => c.ebitda_min).filter((v): v is number => v != null));
+    const ebitdaMax = Math.max(...criteria.map(c => c.ebitda_max).filter((v): v is number => v != null));
 
     return {
       revenue_min: isFinite(revenueMin) ? revenueMin : undefined,
@@ -196,10 +222,9 @@ export const CriteriaReviewPanel = ({
     };
   };
 
-  const synthesizeGeographyCriteria = (criteria: Record<string, string[] | undefined>[]) => {
+  const synthesizeGeographyCriteria = (criteria: GeoCriteria[]) => {
     if (criteria.length === 0) return {};
 
-    // Union of all arrays
     const allRegions = new Set<string>();
     const allStates = new Set<string>();
 
@@ -214,7 +239,7 @@ export const CriteriaReviewPanel = ({
     };
   };
 
-  const synthesizeServiceCriteria = (criteria: Record<string, string[] | undefined>[]) => {
+  const synthesizeServiceCriteria = (criteria: ServiceCriteria[]) => {
     if (criteria.length === 0) return {};
 
     const allServices = new Set<string>();
@@ -227,7 +252,7 @@ export const CriteriaReviewPanel = ({
     };
   };
 
-  const synthesizeBuyerTypesCriteria = (criteria: Record<string, unknown>[]) => {
+  const synthesizeBuyerTypesCriteria = (criteria: BuyerTypesCriteria[]) => {
     if (criteria.length === 0) return {};
 
     const allBuyerTypes = criteria.flatMap(c => c.buyer_types || []);
@@ -303,134 +328,142 @@ export const CriteriaReviewPanel = ({
 
         <ScrollArea className="h-[500px]">
           <div className="space-y-3">
-            {sources.map((source) => (
-              <Collapsible
-                key={source.id}
-                open={expandedSources.has(source.id)}
-                onOpenChange={() => toggleExpanded(source.id)}
-              >
-                <div className="border rounded-lg p-3">
-                  <div className="flex items-start gap-3">
-                    <Checkbox
-                      checked={selectedSources.has(source.id)}
-                      onCheckedChange={() => toggleSource(source.id)}
-                      disabled={source.applied_to_criteria}
-                    />
+            {sources.map((source) => {
+              const ed = source.extracted_data;
+              const sizeCrit = ed?.size_criteria;
+              const geoCrit = ed?.geography_criteria;
+              const serviceCrit = ed?.service_criteria;
+              const buyerTypesCrit = ed?.buyer_types_criteria;
 
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between gap-2">
-                        <div className="flex-1 min-w-0">
-                          <div className="font-medium truncate">{source.source_name}</div>
-                          <div className="text-xs text-muted-foreground">
-                            {new Date(source.created_at).toLocaleString()}
+              return (
+                <Collapsible
+                  key={source.id}
+                  open={expandedSources.has(source.id)}
+                  onOpenChange={() => toggleExpanded(source.id)}
+                >
+                  <div className="border rounded-lg p-3">
+                    <div className="flex items-start gap-3">
+                      <Checkbox
+                        checked={selectedSources.has(source.id)}
+                        onCheckedChange={() => toggleSource(source.id)}
+                        disabled={source.applied_to_criteria}
+                      />
+
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="flex-1 min-w-0">
+                            <div className="font-medium truncate">{source.source_name}</div>
+                            <div className="text-xs text-muted-foreground">
+                              {new Date(source.created_at).toLocaleString()}
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-2">
+                            {source.applied_to_criteria && (
+                              <Badge variant="secondary" className="flex items-center gap-1">
+                                <CheckCircle2 className="h-3 w-3" />
+                                Applied
+                              </Badge>
+                            )}
+                            {source.confidence_scores?.overall && (
+                              <Badge
+                                variant={source.confidence_scores.overall >= 80 ? 'default' : 'secondary'}
+                              >
+                                {source.confidence_scores.overall}%
+                              </Badge>
+                            )}
                           </div>
                         </div>
 
-                        <div className="flex items-center gap-2">
-                          {source.applied_to_criteria && (
-                            <Badge variant="secondary" className="flex items-center gap-1">
-                              <CheckCircle2 className="h-3 w-3" />
-                              Applied
-                            </Badge>
-                          )}
-                          {source.confidence_scores?.overall && (
-                            <Badge
-                              variant={source.confidence_scores.overall >= 80 ? 'default' : 'secondary'}
-                            >
-                              {source.confidence_scores.overall}%
-                            </Badge>
-                          )}
-                        </div>
+                        <CollapsibleTrigger asChild>
+                          <Button variant="ghost" size="sm" className="mt-2">
+                            {expandedSources.has(source.id) ? (
+                              <>
+                                <ChevronUp className="mr-2 h-4 w-4" />
+                                Hide Details
+                              </>
+                            ) : (
+                              <>
+                                <ChevronDown className="mr-2 h-4 w-4" />
+                                Show Details
+                              </>
+                            )}
+                          </Button>
+                        </CollapsibleTrigger>
                       </div>
-
-                      <CollapsibleTrigger asChild>
-                        <Button variant="ghost" size="sm" className="mt-2">
-                          {expandedSources.has(source.id) ? (
-                            <>
-                              <ChevronUp className="mr-2 h-4 w-4" />
-                              Hide Details
-                            </>
-                          ) : (
-                            <>
-                              <ChevronDown className="mr-2 h-4 w-4" />
-                              Show Details
-                            </>
-                          )}
-                        </Button>
-                      </CollapsibleTrigger>
                     </div>
-                  </div>
 
-                  <CollapsibleContent className="mt-3">
-                    <div className="pl-8 space-y-3 text-sm">
-                      {/* Size Criteria */}
-                      {source.extracted_data?.size_criteria && (
-                        <div>
-                          <div className="font-medium mb-1">Size Criteria</div>
-                          <div className="text-muted-foreground space-y-1">
-                            <div>Revenue: {formatCurrency(source.extracted_data.size_criteria.revenue_min)} - {formatCurrency(source.extracted_data.size_criteria.revenue_max)}</div>
-                            <div>EBITDA: {formatCurrency(source.extracted_data.size_criteria.ebitda_min)} - {formatCurrency(source.extracted_data.size_criteria.ebitda_max)}</div>
-                            <div className="text-xs">
-                              Confidence: {source.confidence_scores?.size}%
-                            </div>
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Geography Criteria */}
-                      {source.extracted_data?.geography_criteria && (
-                        <div>
-                          <div className="font-medium mb-1">Geography Criteria</div>
-                          <div className="text-muted-foreground space-y-1">
-                            {source.extracted_data.geography_criteria.target_regions?.length > 0 && (
-                              <div>Regions: {source.extracted_data.geography_criteria.target_regions.join(', ')}</div>
-                            )}
-                            {source.extracted_data.geography_criteria.target_states?.length > 0 && (
-                              <div>States: {source.extracted_data.geography_criteria.target_states.join(', ')}</div>
-                            )}
-                            <div className="text-xs">
-                              Confidence: {source.confidence_scores?.geography}%
-                            </div>
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Service Criteria */}
-                      {source.extracted_data?.service_criteria && (
-                        <div>
-                          <div className="font-medium mb-1">Service Criteria</div>
-                          <div className="text-muted-foreground space-y-1">
-                            {source.extracted_data.service_criteria.target_services?.length > 0 && (
-                              <div>Target: {source.extracted_data.service_criteria.target_services.join(', ')}</div>
-                            )}
-                            <div className="text-xs">
-                              Confidence: {source.confidence_scores?.service}%
-                            </div>
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Buyer Types */}
-                      {source.extracted_data?.buyer_types_criteria?.buyer_types?.length > 0 && (
-                        <div>
-                          <div className="font-medium mb-1">Buyer Types</div>
-                          <div className="text-muted-foreground space-y-1">
-                            {source.extracted_data.buyer_types_criteria.buyer_types.map((bt: Record<string, string>) => (
-                              <div key={bt.profile_name}>
-                                {bt.priority_rank}. {bt.profile_name} ({bt.buyer_type})
+                    <CollapsibleContent className="mt-3">
+                      <div className="pl-8 space-y-3 text-sm">
+                        {/* Size Criteria */}
+                        {sizeCrit && (
+                          <div>
+                            <div className="font-medium mb-1">Size Criteria</div>
+                            <div className="text-muted-foreground space-y-1">
+                              <div>Revenue: {formatCurrency(sizeCrit.revenue_min)} - {formatCurrency(sizeCrit.revenue_max)}</div>
+                              <div>EBITDA: {formatCurrency(sizeCrit.ebitda_min)} - {formatCurrency(sizeCrit.ebitda_max)}</div>
+                              <div className="text-xs">
+                                Confidence: {source.confidence_scores?.size}%
                               </div>
-                            ))}
-                            <div className="text-xs">
-                              Confidence: {source.confidence_scores?.buyer_types}%
                             </div>
                           </div>
-                        </div>
-                      )}
-                    </div>
-                  </CollapsibleContent>
-                </div>
-              </Collapsible>
-            ))}
+                        )}
+
+                        {/* Geography Criteria */}
+                        {geoCrit && (
+                          <div>
+                            <div className="font-medium mb-1">Geography Criteria</div>
+                            <div className="text-muted-foreground space-y-1">
+                              {(geoCrit.target_regions?.length ?? 0) > 0 && (
+                                <div>Regions: {geoCrit.target_regions!.join(', ')}</div>
+                              )}
+                              {(geoCrit.target_states?.length ?? 0) > 0 && (
+                                <div>States: {geoCrit.target_states!.join(', ')}</div>
+                              )}
+                              <div className="text-xs">
+                                Confidence: {source.confidence_scores?.geography}%
+                              </div>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Service Criteria */}
+                        {serviceCrit && (
+                          <div>
+                            <div className="font-medium mb-1">Service Criteria</div>
+                            <div className="text-muted-foreground space-y-1">
+                              {(serviceCrit.target_services?.length ?? 0) > 0 && (
+                                <div>Target: {serviceCrit.target_services!.join(', ')}</div>
+                              )}
+                              <div className="text-xs">
+                                Confidence: {source.confidence_scores?.service}%
+                              </div>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Buyer Types */}
+                        {(buyerTypesCrit?.buyer_types?.length ?? 0) > 0 && (
+                          <div>
+                            <div className="font-medium mb-1">Buyer Types</div>
+                            <div className="text-muted-foreground space-y-1">
+                              {buyerTypesCrit!.buyer_types!.map((bt) => (
+                                <div key={String(bt.profile_name)}>
+                                  {String(bt.priority_rank)}. {String(bt.profile_name)} ({String(bt.buyer_type)})
+                                </div>
+                              ))}
+                              <div className="text-xs">
+                                Confidence: {source.confidence_scores?.buyer_types}%
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </CollapsibleContent>
+                  </div>
+                </Collapsible>
+              );
+            })}
           </div>
         </ScrollArea>
       </CardContent>
