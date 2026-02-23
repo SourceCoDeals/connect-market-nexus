@@ -506,8 +506,8 @@ export function ReMarketingChat({
   // Full chat panel
   return (
     <div className={cn("fixed bottom-8 right-8 z-50 w-[624px] max-w-[calc(100vw-64px)]", className)}>
-      <Card className="flex flex-col h-[845px] max-h-[85vh] shadow-2xl border-2 bg-background">
-        <CardHeader className="py-3 px-4 border-b flex-shrink-0 bg-gradient-to-r from-primary/10 to-transparent">
+      <Card className="flex flex-col h-[845px] max-h-[85vh] shadow-2xl border-2 border-primary/30" style={{ backgroundColor: 'hsl(48, 70%, 95%)' }}>
+        <CardHeader className="py-3 px-4 border-b border-primary/20 flex-shrink-0 bg-primary/10">
           <div className="flex items-center justify-between">
             <CardTitle className="text-lg flex items-center gap-2">
               <Sparkles className="h-4 w-4 text-primary" />
@@ -555,7 +555,7 @@ export function ReMarketingChat({
           </div>
         </CardHeader>
 
-        <ScrollArea ref={scrollRef} className="flex-1 p-4">
+        <ScrollArea ref={scrollRef} className="flex-1 p-4" style={{ backgroundColor: 'hsl(48, 70%, 95%)' }}>
           {/* Proactive recommendation */}
           {activeRecommendation && (
             <ProactiveRecommendation
@@ -610,12 +610,12 @@ export function ReMarketingChat({
                     className={cn(
                       "max-w-[90%] rounded-lg px-3 py-2",
                       message.role === "user"
-                        ? "bg-primary text-primary-foreground"
-                        : "bg-muted"
+                        ? "bg-foreground text-background"
+                        : "bg-background border border-primary/20"
                     )}
                   >
                     {message.role === "assistant" ? (
-                      <div className="text-base prose prose-base dark:prose-invert max-w-none">
+                      <div className="text-base prose prose-base dark:prose-invert max-w-none prose-a:text-foreground prose-a:underline prose-strong:text-foreground">
                         <ReactMarkdown>{message.content}</ReactMarkdown>
                       </div>
                     ) : (
@@ -657,8 +657,8 @@ export function ReMarketingChat({
               {/* Streaming content */}
               {streamingContent && (
                 <div className="flex flex-col items-start">
-                  <div className="max-w-[90%] rounded-lg px-3 py-2 bg-muted">
-                    <div className="text-base prose prose-base dark:prose-invert max-w-none">
+                  <div className="max-w-[90%] rounded-lg px-3 py-2 bg-background border border-primary/20">
+                    <div className="text-base prose prose-base dark:prose-invert max-w-none prose-a:text-foreground prose-a:underline prose-strong:text-foreground">
                       <ReactMarkdown>{streamingContent}</ReactMarkdown>
                     </div>
                   </div>
@@ -676,7 +676,7 @@ export function ReMarketingChat({
           )}
         </ScrollArea>
 
-        <div className="p-3 border-t flex-shrink-0 bg-background">
+        <div className="p-3 border-t border-primary/20 flex-shrink-0" style={{ backgroundColor: 'hsl(48, 70%, 95%)' }}>
           <form onSubmit={handleSubmit} className="flex gap-2">
             <Input
               ref={inputRef}
