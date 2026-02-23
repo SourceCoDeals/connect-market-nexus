@@ -1005,6 +1005,7 @@ export type Database = {
           call_date: string | null
           created_at: string | null
           duration_minutes: number | null
+          embedding: string | null
           extracted_insights: Json | null
           extraction_status: string | null
           file_url: string | null
@@ -1028,6 +1029,7 @@ export type Database = {
           call_date?: string | null
           created_at?: string | null
           duration_minutes?: number | null
+          embedding?: string | null
           extracted_insights?: Json | null
           extraction_status?: string | null
           file_url?: string | null
@@ -1051,6 +1053,7 @@ export type Database = {
           call_date?: string | null
           created_at?: string | null
           duration_minutes?: number | null
+          embedding?: string | null
           extracted_insights?: Json | null
           extraction_status?: string | null
           file_url?: string | null
@@ -3579,6 +3582,7 @@ export type Database = {
           created_at: string | null
           created_by: string | null
           duration_minutes: number | null
+          embedding: string | null
           external_participants: Json | null
           extracted_data: Json | null
           extraction_status: string | null
@@ -3605,6 +3609,7 @@ export type Database = {
           created_at?: string | null
           created_by?: string | null
           duration_minutes?: number | null
+          embedding?: string | null
           external_participants?: Json | null
           extracted_data?: Json | null
           extraction_status?: string | null
@@ -3631,6 +3636,7 @@ export type Database = {
           created_at?: string | null
           created_by?: string | null
           duration_minutes?: number | null
+          embedding?: string | null
           external_participants?: Json | null
           extracted_data?: Json | null
           extraction_status?: string | null
@@ -10704,6 +10710,24 @@ export type Database = {
           total_count: number
           updated_at: string
           visible_to_buyer_types: string[]
+        }[]
+      }
+      search_transcripts_semantic: {
+        Args: {
+          match_count?: number
+          match_threshold?: number
+          p_buyer_id?: string
+          query_embedding: string
+        }
+        Returns: {
+          buyer_id: string
+          call_date: string
+          created_at: string
+          id: string
+          similarity: number
+          source_type: string
+          title: string
+          transcript_snippet: string
         }[]
       }
       soft_delete_deal: {

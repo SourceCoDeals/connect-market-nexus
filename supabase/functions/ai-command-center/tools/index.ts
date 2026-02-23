@@ -21,6 +21,9 @@ import { contactTools, executeContactTool } from "./contact-tools.ts";
 import { connectionTools, executeConnectionTool } from "./connection-tools.ts";
 import { dealExtraTools, executeDealExtraTool } from "./deal-extra-tools.ts";
 import { followupTools, executeFollowupTool } from "./followup-tools.ts";
+import { scoringExplainTools, executeScoringExplainTool } from "./scoring-explain-tools.ts";
+import { crossDealAnalyticsTools, executeCrossDealAnalyticsTool } from "./cross-deal-analytics-tools.ts";
+import { semanticSearchTools, executeSemanticSearchTool } from "./semantic-search-tools.ts";
 
 // ---------- Tool Result Types ----------
 
@@ -49,6 +52,9 @@ const ALL_TOOLS: ClaudeTool[] = [
   ...connectionTools,
   ...dealExtraTools,
   ...followupTools,
+  ...scoringExplainTools,
+  ...crossDealAnalyticsTools,
+  ...semanticSearchTools,
 ];
 
 const TOOL_CATEGORIES: Record<string, string[]> = {
@@ -58,17 +64,17 @@ const TOOL_CATEGORIES: Record<string, string[]> = {
 
   // Buyer intelligence
   BUYER_SEARCH: ['search_buyers', 'search_lead_sources', 'search_valuation_leads', 'query_deals', 'search_inbound_leads', 'select_table_rows', 'apply_table_filter', 'sort_table_column'],
-  BUYER_ANALYSIS: ['get_buyer_profile', 'get_score_breakdown', 'get_top_buyers_for_deal', 'get_buyer_decisions', 'get_score_history', 'search_pe_contacts', 'get_buyer_learning_history', 'select_table_rows'],
+  BUYER_ANALYSIS: ['get_buyer_profile', 'get_score_breakdown', 'explain_buyer_score', 'get_top_buyers_for_deal', 'get_buyer_decisions', 'get_score_history', 'search_pe_contacts', 'get_buyer_learning_history', 'select_table_rows'],
 
   // Universe & outreach
   BUYER_UNIVERSE: ['search_buyer_universes', 'get_universe_details', 'get_outreach_records', 'get_remarketing_outreach', 'get_top_buyers_for_deal'],
 
   // Meeting intelligence
-  MEETING_INTEL: ['search_buyer_transcripts', 'search_transcripts', 'search_fireflies', 'get_meeting_action_items'],
+  MEETING_INTEL: ['search_buyer_transcripts', 'search_transcripts', 'search_fireflies', 'get_meeting_action_items', 'semantic_transcript_search'],
 
   // Analytics
-  PIPELINE_ANALYTICS: ['get_pipeline_summary', 'get_analytics', 'get_enrichment_status', 'get_industry_trackers'],
-  DAILY_BRIEFING: ['get_current_user_context', 'query_deals', 'get_deal_tasks', 'get_outreach_status', 'get_outreach_records', 'get_analytics', 'get_connection_requests', 'get_follow_up_queue'],
+  PIPELINE_ANALYTICS: ['get_pipeline_summary', 'get_analytics', 'get_enrichment_status', 'get_industry_trackers', 'get_cross_deal_analytics'],
+  DAILY_BRIEFING: ['get_current_user_context', 'get_follow_up_queue', 'get_cross_deal_analytics', 'get_analytics', 'get_deal_tasks', 'get_outreach_status', 'get_connection_requests'],
 
   // General / context
   GENERAL: ['get_current_user_context'],
@@ -78,10 +84,10 @@ const TOOL_CATEGORIES: Record<string, string[]> = {
   UI_ACTION: ['select_table_rows', 'apply_table_filter', 'sort_table_column', 'navigate_to_page'],
 
   // Remarketing workflow
-  REMARKETING: ['search_buyers', 'get_top_buyers_for_deal', 'get_score_breakdown', 'select_table_rows', 'apply_table_filter', 'sort_table_column', 'get_engagement_signals', 'get_buyer_decisions'],
+  REMARKETING: ['search_buyers', 'get_top_buyers_for_deal', 'get_score_breakdown', 'explain_buyer_score', 'select_table_rows', 'apply_table_filter', 'sort_table_column', 'get_engagement_signals', 'get_buyer_decisions'],
 
   // Content generation
-  MEETING_PREP: ['generate_meeting_prep', 'search_transcripts', 'search_buyer_transcripts', 'get_outreach_records', 'get_connection_messages'],
+  MEETING_PREP: ['generate_meeting_prep', 'search_transcripts', 'search_buyer_transcripts', 'semantic_transcript_search', 'get_outreach_records', 'get_connection_messages'],
   OUTREACH_DRAFT: ['get_deal_details', 'get_buyer_profile', 'draft_outreach_email', 'search_pe_contacts', 'get_firm_agreements'],
   PIPELINE_REPORT: ['generate_pipeline_report'],
 
@@ -99,6 +105,12 @@ const TOOL_CATEGORIES: Record<string, string[]> = {
 
   // Industry trackers
   INDUSTRY: ['get_industry_trackers', 'search_buyer_universes'],
+
+  // Cross-deal analytics
+  CROSS_DEAL: ['get_cross_deal_analytics', 'get_analytics', 'get_pipeline_summary'],
+
+  // Semantic search
+  SEMANTIC_SEARCH: ['semantic_transcript_search', 'search_buyer_transcripts', 'search_transcripts'],
 };
 
 // Tools that require user confirmation before executing
@@ -189,6 +201,9 @@ async function _executeToolInternal(
   if (connectionTools.some(t => t.name === toolName)) return executeConnectionTool(supabase, toolName, resolvedArgs);
   if (dealExtraTools.some(t => t.name === toolName)) return executeDealExtraTool(supabase, toolName, resolvedArgs);
   if (followupTools.some(t => t.name === toolName)) return executeFollowupTool(supabase, toolName, resolvedArgs, userId);
+  if (scoringExplainTools.some(t => t.name === toolName)) return executeScoringExplainTool(supabase, toolName, resolvedArgs);
+  if (crossDealAnalyticsTools.some(t => t.name === toolName)) return executeCrossDealAnalyticsTool(supabase, toolName, resolvedArgs);
+  if (semanticSearchTools.some(t => t.name === toolName)) return executeSemanticSearchTool(supabase, toolName, resolvedArgs);
 
   return { error: `Unknown tool: ${toolName}` };
 }

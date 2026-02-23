@@ -31,8 +31,8 @@ const BYPASS_RULES: Array<{
 }> = [
   // Pipeline overview questions
   {
-    test: (q) => /^(pipeline|summary|overview|how.?s the pipeline|briefing|daily)/i.test(q),
-    result: { category: 'PIPELINE_ANALYTICS', tier: 'QUICK', tools: ['get_pipeline_summary', 'get_analytics'], confidence: 0.9 },
+    test: (q) => /^(pipeline|summary|overview|how.?s the pipeline|briefing|daily|good morning|what.?s new|catch me up)/i.test(q),
+    result: { category: 'DAILY_BRIEFING', tier: 'STANDARD', tools: ['get_follow_up_queue', 'get_analytics', 'get_cross_deal_analytics'], confidence: 0.9 },
   },
   // Deal-specific questions when on a deal page
   {
@@ -52,12 +52,12 @@ const BYPASS_RULES: Array<{
   // Score questions
   {
     test: (q) => /\b(score|scoring|rank|top buyer|best buyer|fit)\b/i.test(q),
-    result: { category: 'BUYER_ANALYSIS', tier: 'STANDARD', tools: ['get_top_buyers_for_deal', 'get_score_breakdown'], confidence: 0.85 },
+    result: { category: 'BUYER_ANALYSIS', tier: 'STANDARD', tools: ['get_top_buyers_for_deal', 'explain_buyer_score'], confidence: 0.85 },
   },
   // Transcript / meeting questions
   {
     test: (q) => /\b(transcript|call|meeting|fireflies|recording|said|mentioned|discussed)\b/i.test(q),
-    result: { category: 'MEETING_INTEL', tier: 'STANDARD', tools: ['search_transcripts', 'search_fireflies'], confidence: 0.8 },
+    result: { category: 'MEETING_INTEL', tier: 'STANDARD', tools: ['semantic_transcript_search', 'search_transcripts', 'search_fireflies'], confidence: 0.8 },
   },
   // Select / filter / sort / action on table rows
   {
@@ -142,7 +142,22 @@ const BYPASS_RULES: Array<{
   // Score history
   {
     test: (q) => /\b(score history|score change|score over time|historical score|score trend)\b/i.test(q),
-    result: { category: 'ENGAGEMENT', tier: 'STANDARD', tools: ['get_score_history', 'get_score_breakdown'], confidence: 0.87 },
+    result: { category: 'ENGAGEMENT', tier: 'STANDARD', tools: ['get_score_history', 'explain_buyer_score'], confidence: 0.87 },
+  },
+  // Why did buyer score X — explainable scoring
+  {
+    test: (q) => /\b(why.*score|explain.*score|score.*because|score.*breakdown|how.*score.*calculated)\b/i.test(q),
+    result: { category: 'BUYER_ANALYSIS', tier: 'STANDARD', tools: ['explain_buyer_score'], confidence: 0.92 },
+  },
+  // Cross-deal / cross-universe analytics
+  {
+    test: (q) => /\b(cross.?deal|compare.*universe|compare.*deal|conversion rate|which universe|best.*universe|worst.*universe|across.*deal)\b/i.test(q),
+    result: { category: 'CROSS_DEAL', tier: 'STANDARD', tools: ['get_cross_deal_analytics'], confidence: 0.9 },
+  },
+  // Semantic transcript search — intent-based
+  {
+    test: (q) => /\b(what did.*say|what was said|anyone.*mention|discuss.*about|talk.*about|sentiment|intent)\b/i.test(q),
+    result: { category: 'SEMANTIC_SEARCH', tier: 'STANDARD', tools: ['semantic_transcript_search'], confidence: 0.88 },
   },
   // Enrichment status
   {
@@ -199,10 +214,12 @@ Categories:
 - DEAL_STATUS: Questions about specific deal details, status, stage, financials, documents, memos
 - FOLLOW_UP: Tasks, to-dos, follow-ups, assignments, reminders, outreach tracking (NDA, meetings, next actions)
 - BUYER_SEARCH: Finding or searching for buyers, leads, acquirers
-- BUYER_ANALYSIS: Score breakdowns, rankings, fit analysis, comparisons, buyer contacts
+- BUYER_ANALYSIS: Score breakdowns, rankings, fit analysis, comparisons, buyer contacts, explainable scoring
 - BUYER_UNIVERSE: Buyer universe queries, universe details, geographic counts within a universe
-- MEETING_INTEL: Call transcripts, meeting notes, what was discussed
+- MEETING_INTEL: Call transcripts, meeting notes, what was discussed, semantic transcript search
 - PIPELINE_ANALYTICS: Pipeline overview, metrics, trends, reports, enrichment status
+- CROSS_DEAL: Cross-deal/universe comparisons, conversion rates, buyer type analysis, source quality
+- SEMANTIC_SEARCH: Intent-based transcript search, "what did X say about Y"
 - DAILY_BRIEFING: Morning briefing, what's happening, daily summary
 - ACTION: Creating tasks, adding notes, updating stages, granting access
 - REMARKETING: Selecting rows, filtering tables, remarketing operations
