@@ -62,7 +62,7 @@ export function PipelineDetailMessages({ deal }: PipelineDetailMessagesProps) {
     <div className="flex-1 flex flex-col min-h-0">
       {/* Message thread */}
       <ScrollArea className="flex-1 px-6">
-        <div className="py-4 space-y-3">
+        <div className="py-4 space-y-3 rounded-lg p-4" style={{ backgroundColor: '#FCF9F0' }}>
           {isLoading ? (
             <div className="space-y-3">
               {[1, 2, 3].map((i) => (
@@ -86,11 +86,15 @@ export function PipelineDetailMessages({ deal }: PipelineDetailMessagesProps) {
                 <div
                   key={msg.id}
                   className={cn(
-                    'max-w-[80%] rounded-xl px-4 py-3 space-y-1',
+                    'max-w-[80%] rounded-xl px-4 py-3 space-y-1 shadow-sm',
                     isAdmin
-                      ? 'ml-auto bg-primary/10 border border-primary/20'
-                      : 'mr-auto bg-muted/30 border border-border/40'
+                      ? 'ml-auto border'
+                      : 'mr-auto border'
                   )}
+                  style={isAdmin
+                    ? { backgroundColor: '#F7F4DD', borderColor: '#E5DDD0', color: '#0E101A' }
+                    : { backgroundColor: '#FFFFFF', borderColor: '#E5DDD0', color: '#0E101A' }
+                  }
                 >
                   <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
                     <span className="font-medium">{senderName}</span>
@@ -99,7 +103,7 @@ export function PipelineDetailMessages({ deal }: PipelineDetailMessagesProps) {
                   </div>
                   <p className="text-sm text-foreground whitespace-pre-wrap">{msg.body}</p>
                   {msg.message_type === 'decision' && (
-                    <span className="inline-block mt-1 text-[10px] px-1.5 py-0.5 rounded bg-accent/20 text-accent-foreground font-medium">
+                    <span className="inline-block mt-1 text-[10px] px-1.5 py-0.5 rounded font-semibold" style={{ backgroundColor: '#DEC76B', color: '#0E101A' }}>
                       Decision
                     </span>
                   )}
@@ -112,7 +116,7 @@ export function PipelineDetailMessages({ deal }: PipelineDetailMessagesProps) {
       </ScrollArea>
 
       {/* Compose bar */}
-      <div className="border-t border-border/40 px-6 py-4">
+      <div className="px-6 py-4" style={{ borderTop: '1px solid #E5DDD0' }}>
         <div className="flex items-end gap-3">
           <Textarea
             placeholder="Type a message..."
