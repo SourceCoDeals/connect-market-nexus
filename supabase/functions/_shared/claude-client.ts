@@ -9,9 +9,9 @@ const ANTHROPIC_API_URL = 'https://api.anthropic.com/v1/messages';
 
 // Model identifiers
 export const CLAUDE_MODELS = {
-  haiku: 'claude-haiku-4-5-20250514',
-  sonnet: 'claude-sonnet-4-20250514',
-  opus: 'claude-opus-4-20250514',
+  haiku: 'claude-haiku-4-5-20251001',
+  sonnet: 'claude-sonnet-4-6',
+  opus: 'claude-opus-4-6',
 } as const;
 
 export type ModelTier = 'QUICK' | 'STANDARD' | 'DEEP';
@@ -27,7 +27,7 @@ export function getModelForTier(tier: ModelTier): string {
 
 // Cost per million tokens (Feb 2026 pricing)
 const MODEL_COSTS: Record<string, { input: number; output: number }> = {
-  [CLAUDE_MODELS.haiku]:  { input: 0.80, output: 4.00 },
+  [CLAUDE_MODELS.haiku]:  { input: 1.00, output: 5.00 },
   [CLAUDE_MODELS.sonnet]: { input: 3.00, output: 15.00 },
   [CLAUDE_MODELS.opus]:   { input: 15.00, output: 75.00 },
 };
