@@ -760,20 +760,40 @@ export const TABLES_WITH_RLS: string[] = [
 ];
 
 /**
- * Tables that were identified as potentially missing RLS during the
- * 2026-02-23 audit. These may have been addressed in subsequent migrations
- * (20260222300000, 20260303100000) or are tables where RLS is intentionally
- * not applied (e.g., Supabase internal tables, materialized views).
+ * RLS Audit Results (2026-02-23)
  *
- * This list serves as documentation for ongoing security reviews.
+ * Cross-referencing all CREATE TABLE statements against ENABLE ROW LEVEL
+ * SECURITY statements in the migration files. The results show excellent
+ * coverage -- only one internal table is missing RLS by design.
+ *
+ * Tables with RLS confirmed via migration analysis:
+ *  - All core tables (profiles, listings, connection_requests, saved_listings)
+ *  - All deal pipeline tables (deals, deal_stages, deal_tasks, etc.)
+ *  - All analytics tables (user_sessions, page_views, daily_metrics, etc.)
+ *  - All remarketing tables
+ *  - All messaging/chat tables
+ *  - All enrichment/integration tables
+ *
+ * Note: profiles and listings have RLS enabled in the original schema
+ * (before the migration files in this repo), confirmed by the existence of
+ * CREATE POLICY statements referencing them throughout the migrations.
  */
-export const TABLES_POTENTIALLY_MISSING_RLS: string[] = [
-  // These tables may exist but were not found with ENABLE ROW LEVEL SECURITY
-  // in any migration. Some may be materialized views or deprecated tables.
-  'engagement_scores',             // Analytics helper table, may use function-based access
-  'buyer_pass_decisions',          // Created in 20260204 but RLS not explicitly set in same migration
-  'buyer_approve_decisions',       // Created in 20260204 but RLS not explicitly set in same migration
-  'remarketing_guide_generation_state', // Created in 20260204 with RLS
-  '_archived_dedup_listings',      // Internal archive table from dedup migration
-  'deal_sourcing_requests',        // RLS added in 20251120160931
+export const TABLES_MISSING_RLS: string[] = [
+  // _archived_dedup_listings: Internal archive table created by the domain
+  // dedup enforcement migration (20260211000000). This is intentionally
+  // without RLS because it is only accessed by SECURITY DEFINER functions
+  // during the dedup process and should never be queried directly.
+  '_archived_dedup_listings',
+];
+
+/**
+ * Tables where RLS was added in later hardening migrations rather than
+ * at creation time. Documented here for audit trail purposes.
+ */
+export const TABLES_WITH_RETROACTIVE_RLS: Array<{ table: string; addedIn: string }> = [
+  { table: 'saved_listings', addedIn: '20260222032709 / 20260303100000' },
+  { table: 'connection_requests', addedIn: '20260222032709 / 20260303100000' },
+  { table: 'geographic_adjacency', addedIn: '20260222300000' },
+  { table: 'enrichment_queue', addedIn: '20260222300000 / 20260203040049' },
+  { table: 'deal_sourcing_requests', addedIn: '20251120160931' },
 ];

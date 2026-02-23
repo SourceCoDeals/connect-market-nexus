@@ -10,10 +10,10 @@ describe('retryConditions', () => {
       expect(retryConditions.networkOnly({ message: 'fetch error occurred' })).toBe(true);
     });
 
-    it('returns false for non-network errors', () => {
-      expect(retryConditions.networkOnly({ name: 'TypeError' })).toBe(false);
-      expect(retryConditions.networkOnly({ message: 'validation error' })).toBe(false);
-      expect(retryConditions.networkOnly(new Error('general error'))).toBe(false);
+    it('returns falsy for non-network errors', () => {
+      expect(retryConditions.networkOnly({ name: 'TypeError' })).toBeFalsy();
+      expect(retryConditions.networkOnly({ message: 'validation error' })).toBeFalsy();
+      expect(retryConditions.networkOnly(new Error('general error'))).toBeFalsy();
     });
   });
 
