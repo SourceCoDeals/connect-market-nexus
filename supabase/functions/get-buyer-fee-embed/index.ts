@@ -112,25 +112,37 @@ serve(async (req: Request) => {
 
     if (submitterRes.ok) {
       const submitters = await submitterRes.json();
+      console.log('📋 DocuSeal submitters response:', JSON.stringify(submitters).substring(0, 500));
       const data = Array.isArray(submitters?.data)
         ? submitters.data
         : Array.isArray(submitters)
           ? submitters
           : [];
       const submitter = data.find((s: any) => s.email === profile?.email) || data[0];
+      console.log('📋 Matched submitter:', JSON.stringify({ email: submitter?.email, status: submitter?.status, has_embed: !!submitter?.embed_src }));
       if (submitter?.embed_src) {
         return new Response(JSON.stringify({ feeSigned: false, embedSrc: submitter.embed_src }), {
           status: 200,
           headers: { 'Content-Type': 'application/json', ...corsHeaders },
         });
       }
+      // If submitter exists but no embed_src, it may have been completed already
+      if (submitter?.status === 'completed') {
+        return new Response(JSON.stringify({ feeSigned: true, embedSrc: null }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json', ...corsHeaders },
+        });
+      }
+    } else {
+      const errorText = await submitterRes.text();
+      console.error('❌ DocuSeal API error:', submitterRes.status, errorText);
     }
 
     return new Response(
       JSON.stringify({
         feeSigned: false,
         embedSrc: null,
-        error: 'Could not retrieve signing form',
+        error: 'Could not retrieve signing form. The submission may need to be resent by an admin.',
       }),
       { status: 200, headers: { 'Content-Type': 'application/json', ...corsHeaders } },
     );
