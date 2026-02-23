@@ -1,55 +1,18 @@
 
 
-## Problem Summary
+## Remove Redundant Document & Message Previews from Overview Tab
 
-When an admin sends NDA and Fee Agreement to a buyer (e.g., tommughan@gmail.com) from the Connection Request screen, the buyer:
-1. **Gets no in-app notification** -- because the notification is only created for "embedded" delivery mode, but the dialog defaults to "email"
-2. **Has no visible place to find/sign these documents** -- there's no buyer-facing agreements page, and the signing banners only appear deep in specific listing detail pages
+The buyer's deal detail page (My Requests) currently has:
+- **Tabs**: Overview, Documents, Messages
+- **Inside the Overview tab**: Deal info card, Process Steps, then redundant "Documents" and "Messages" preview sections
 
-## Root Cause
+Since Documents and Messages already have their own dedicated tabs, the preview sections in the Overview tab are unnecessary clutter. We will remove them.
 
-In the `create-docuseal-submission` edge function (line 225), the buyer notification is gated behind `if (deliveryMode === "embedded")`. When the admin uses the default "Email Link" option (or "Generate Link"), no `agreement_pending` notification is created in `user_notifications`.
+### Changes
 
-Additionally, even if a notification were created, clicking it just navigates to `/marketplace` with no clear way for the buyer to find their pending agreements.
+**File: `src/pages/MyRequests.tsx`**
+- Remove the `DealDocumentPreview` section (lines 418-424) from the Overview tab
+- Remove the `DealMessagePreview` section (lines 426-431) from the Overview tab
+- Remove the corresponding imports for `DealDocumentPreview` and `DealMessagePreview` if they become unused
 
-## Plan
-
-### 1. Always create buyer notifications (regardless of delivery mode)
-
-**File:** `supabase/functions/create-docuseal-submission/index.ts`
-
-- Remove the `if (deliveryMode === "embedded")` gate around the notification insert (lines 225-248)
-- Always insert an `agreement_pending` notification when a submission is created, adjusting the message slightly based on delivery mode:
-  - Embedded: "Please sign it in-app"
-  - Email: "Check your email for the signing link"
-  - Link: "A signing link has been shared with you"
-
-### 2. Add a buyer-facing "My Agreements" section
-
-**New file:** `src/components/buyer/BuyerAgreementsBanner.tsx`
-
-- Create a prominent banner component that checks the buyer's firm agreement status
-- Shows pending NDA/Fee Agreement with a "Sign Now" action
-- For embedded mode: opens the NdaGateModal or FeeAgreementGate inline
-- For email/link mode: shows "Check your email" or directs them to the signing link
-- Display this banner on the Marketplace page and/or in a "My Deals" section
-
-### 3. Improve notification click navigation
-
-**File:** `src/components/buyer/BuyerNotificationBell.tsx`
-
-- Update the `agreement_pending` handler to navigate to a more useful destination (e.g., `/marketplace` with a query param that triggers the signing modal, or to a dedicated profile/agreements section)
-
-### 4. Add agreements banner to Marketplace page
-
-**File:** `src/pages/Marketplace.tsx`
-
-- Add the `BuyerAgreementsBanner` component near the top of the Marketplace page so buyers immediately see pending agreements when they log in
-
-## Technical Details
-
-- The `firm_agreements` table already has `nda_docuseal_status: "pending"` and `fee_docuseal_status: "pending"` for tommughan's firm -- the data is there, just not surfaced
-- The `AgreementStatusBanner` component already exists but only shows on `ListingDetail` pages -- we can reuse/extend it for the marketplace
-- The `get-buyer-nda-embed` edge function already handles fetching embed URLs for the buyer, so the in-app signing infrastructure exists
-- Edge function will need redeployment after the notification gate fix
-
+The Overview tab will then show only: Deal Metrics Card, Process Steps, and the "About this opportunity" Deal Details Card -- keeping it clean and non-redundant with the other tabs.
