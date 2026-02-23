@@ -41,8 +41,9 @@ export function useDealAlerts() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('deal_alerts')
-        .select('*')
-        .order('created_at', { ascending: false });
+        .select('id, user_id, name, criteria, frequency, is_active, last_sent_at, created_at, updated_at')
+        .order('created_at', { ascending: false })
+        .limit(100);
 
       if (error) throw error;
       return data as DealAlert[];

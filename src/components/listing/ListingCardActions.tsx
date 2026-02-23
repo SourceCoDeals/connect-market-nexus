@@ -15,7 +15,7 @@ interface ListingCardActionsProps {
   listingTitle?: string;
 }
 
-const ListingCardActions = ({
+const ListingCardActions = memo(function ListingCardActions({
   viewType,
   connectionExists,
   connectionStatus,
@@ -25,7 +25,7 @@ const ListingCardActions = ({
   handleRequestConnection,
   handleToggleSave,
   listingTitle
-}: ListingCardActionsProps) => {
+}: ListingCardActionsProps) {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
 
   const getConnectionButtonContent = () => {
@@ -171,6 +171,6 @@ const ListingCardActions = ({
       />
     </>
   );
-};
+});
 
 export default ListingCardActions;

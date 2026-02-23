@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { stripHtml } from "@/lib/sanitize";
 
 interface MAGuideEditorProps {
   content: string;
@@ -171,10 +172,9 @@ export const MAGuideEditor = ({
 
   const handleCopyToClipboard = async () => {
     try {
-      // Convert HTML to plain text for clipboard
-      const tempDiv = document.createElement('div');
-      tempDiv.innerHTML = content;
-      await navigator.clipboard.writeText(tempDiv.textContent || '');
+      // Convert HTML to plain text safely for clipboard
+      const plainText = stripHtml(content);
+      await navigator.clipboard.writeText(plainText);
       setCopied(true);
       toast.success('Copied to clipboard');
       setTimeout(() => setCopied(false), 2000);

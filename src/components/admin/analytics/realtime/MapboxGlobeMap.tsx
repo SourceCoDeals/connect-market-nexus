@@ -176,14 +176,20 @@ export function MapboxGlobeMap({
       // High value = logged in with NDA or active engagement
       const isHighValue = !user.isAnonymous && (user.ndaSigned || user.connectionsSent > 0 || user.listingsSaved > 0);
       
-      el.innerHTML = `
-        <div class="marker-container ${isHighValue ? 'high-value' : ''}">
-          <div class="marker-pulse"></div>
-          <div class="marker-avatar">
-            <img src="${getAvatarUrl(user)}" alt="${user.displayName}" />
-          </div>
-        </div>
-      `;
+      // Build marker DOM safely (avoid innerHTML with user data to prevent XSS)
+      const container = document.createElement('div');
+      container.className = `marker-container ${isHighValue ? 'high-value' : ''}`;
+      const pulse = document.createElement('div');
+      pulse.className = 'marker-pulse';
+      const avatar = document.createElement('div');
+      avatar.className = 'marker-avatar';
+      const img = document.createElement('img');
+      img.src = getAvatarUrl(user);
+      img.alt = user.displayName || '';
+      avatar.appendChild(img);
+      container.appendChild(pulse);
+      container.appendChild(avatar);
+      el.appendChild(container);
 
       el.addEventListener('click', (e) => {
         e.stopPropagation();

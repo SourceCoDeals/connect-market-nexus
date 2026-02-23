@@ -3,6 +3,7 @@ import { UseFormReturn } from "react-hook-form";
 import { PremiumRichTextEditor } from "@/components/ui/premium-rich-text-editor";
 import { EDITOR_DESIGN } from "@/lib/editor-design-system";
 import { cn } from "@/lib/utils";
+import { stripHtml } from "@/lib/sanitize";
 
 interface EditorDescriptionSectionProps {
   form: UseFormReturn<any>;
@@ -26,10 +27,8 @@ export function EditorDescriptionSection({ form }: EditorDescriptionSectionProps
                 onChange={(html, json) => {
                   form.setValue('description_html', html);
                   form.setValue('description_json', json);
-                  // Extract plain text and set the validated 'description' field
-                  const tempDiv = document.createElement('div');
-                  tempDiv.innerHTML = html;
-                  const plainText = tempDiv.textContent || tempDiv.innerText || '';
+                  // Extract plain text safely using sanitize utility
+                  const plainText = stripHtml(html);
                   field.onChange(plainText);
                 }}
               />

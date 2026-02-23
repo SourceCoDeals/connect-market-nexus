@@ -16,6 +16,7 @@ import {
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/context/AuthContext';
+import { sanitizeHtml } from '@/lib/sanitize';
 
 interface BuyerDataRoomProps {
   dealId: string;
@@ -184,7 +185,7 @@ export function BuyerDataRoom({ dealId }: BuyerDataRoomProps) {
                   {memo.html_content ? (
                     <div
                       className="prose prose-sm max-w-none"
-                      dangerouslySetInnerHTML={{ __html: memo.html_content }}
+                      dangerouslySetInnerHTML={{ __html: sanitizeHtml(memo.html_content) }}
                     />
                   ) : (
                     <div className="space-y-3">

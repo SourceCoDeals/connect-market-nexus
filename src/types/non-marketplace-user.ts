@@ -26,9 +26,9 @@ export interface NonMarketplaceUser {
   
   // All associated records
   associated_records: {
-    connection_requests: any[];
-    inbound_leads: any[];
-    deals: any[];
+    connection_requests: Record<string, unknown>[];
+    inbound_leads: Record<string, unknown>[];
+    deals: Record<string, unknown>[];
   };
 }
 

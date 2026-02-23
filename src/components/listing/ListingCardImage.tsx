@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { ImageIcon } from "lucide-react";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
 import { useState, useEffect } from "react";
@@ -9,7 +10,7 @@ interface ListingCardImageProps {
   viewType: "grid" | "list";
 }
 
-const ListingCardImage = ({ imageUrl: initialImageUrl, title, viewType }: ListingCardImageProps) => {
+const ListingCardImage = memo(function ListingCardImage({ imageUrl: initialImageUrl, title, viewType }: ListingCardImageProps) {
   const [imageError, setImageError] = useState(false);
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   
@@ -50,6 +51,6 @@ const ListingCardImage = ({ imageUrl: initialImageUrl, title, viewType }: Listin
       </AspectRatio>
     </div>
   );
-};
+});
 
 export default ListingCardImage;

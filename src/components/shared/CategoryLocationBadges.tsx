@@ -1,3 +1,4 @@
+import { memo } from "react";
 import {
   USFlagIcon,
   CanadaIcon,
@@ -139,14 +140,14 @@ const getCategoryIcon = (category: string) => {
   return <DefaultCategoryIcon className={iconClass} />;
 };
 
-export const CategoryLocationBadges = ({ 
+export const CategoryLocationBadges = memo(function CategoryLocationBadges({
   category,
   categories,
   acquisitionType,
-  location, 
+  location,
   variant = "default",
-  className = "" 
-}: CategoryLocationBadgesProps) => {
+  className = ""
+}: CategoryLocationBadgesProps) {
   // Use categories array if provided, otherwise fall back to single category
   const categoryList = categories && categories.length > 0 ? categories : (category ? [category] : []);
   const standardCategories = categoryList.map(cat => toStandardCategory(cat)).filter(Boolean);
@@ -216,4 +217,4 @@ export const CategoryLocationBadges = ({
       )}
     </div>
   );
-};
+});
