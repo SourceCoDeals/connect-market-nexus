@@ -3,7 +3,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAdminUsers } from "@/hooks/admin/use-admin-users";
 import { useAdminEmail } from "@/hooks/admin/use-admin-email";
 import { useAutoCreateFirmOnApproval } from "@/hooks/admin/use-docuseal";
-import { ApprovalEmailDialog } from "./ApprovalEmailDialog";
+import { ApprovalEmailDialog as ApprovalEmailDialogComponent } from "./ApprovalEmailDialog";
 import { ApprovalSuccessDialog } from "./ApprovalSuccessDialog";
 import { UserConfirmationDialog } from "./UserConfirmationDialog";
 import { User } from "@/types";
@@ -227,7 +227,7 @@ export function UserActions({ onUserStatusUpdated }: UserActionsProps) {
     isLoading: updateUserStatusMutation.isPending || updateAdminStatusMutation.isPending || deleteUserMutation.isPending,
     ApprovalEmailDialog: () => (
       <>
-        <ApprovalEmailDialog
+        <ApprovalEmailDialogComponent
           open={dialogState.approval}
           onOpenChange={(open) => {
             if (!open) closeAllDialogs();
