@@ -6,8 +6,26 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 import { formatDistanceToNow } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { AgreementAlertModal } from './AgreementAlertModal';
+import { useMyAgreementStatus } from '@/hooks/use-agreement-status';
+
+const DISMISSED_KEY = 'agreement_popup_dismissed';
+
+function getDismissedSet(): Set<string> {
+  try {
+    const raw = sessionStorage.getItem(DISMISSED_KEY);
+    return raw ? new Set(JSON.parse(raw)) : new Set();
+  } catch {
+    return new Set();
+  }
+}
+
+function addDismissed(id: string) {
+  const set = getDismissedSet();
+  set.add(id);
+  try { sessionStorage.setItem(DISMISSED_KEY, JSON.stringify([...set])); } catch {}
+}
 
 export function BuyerNotificationBell() {
   const { notifications, unreadCount, isLoading } = useUserNotifications();
@@ -16,24 +34,48 @@ export function BuyerNotificationBell() {
   const [open, setOpen] = useState(false);
   const [alertModalOpen, setAlertModalOpen] = useState(false);
   const [alertDocType, setAlertDocType] = useState<'nda' | 'fee_agreement'>('nda');
-  const seenNotificationIds = useRef<Set<string>>(new Set());
+  const [currentAlertNotificationId, setCurrentAlertNotificationId] = useState<string | null>(null);
+
+  // Check if NDA/Fee are already signed — don't show popup if so
+  const { data: agreementStatus } = useMyAgreementStatus();
 
   // Show big modal popup when new agreement_pending notifications arrive
   useEffect(() => {
+    const dismissed = getDismissedSet();
     const agreementNotifications = notifications.filter(
-      n => n.notification_type === 'agreement_pending' && !n.is_read
+      n => n.notification_type === 'agreement_pending' && !n.is_read && !dismissed.has(n.id)
     );
 
     for (const n of agreementNotifications) {
-      if (seenNotificationIds.current.has(n.id)) continue;
-      seenNotificationIds.current.add(n.id);
-
       const docType = n.metadata?.document_type as string;
-      setAlertDocType(docType === 'fee_agreement' ? 'fee_agreement' : 'nda');
+      const isNda = docType !== 'fee_agreement';
+
+      // Skip if already signed
+      if (isNda && agreementStatus?.nda_covered) {
+        // Auto-mark as read since it's signed
+        markAsRead.mutate(n.id);
+        continue;
+      }
+      if (!isNda && agreementStatus?.fee_covered) {
+        markAsRead.mutate(n.id);
+        continue;
+      }
+
+      setAlertDocType(isNda ? 'nda' : 'fee_agreement');
+      setCurrentAlertNotificationId(n.id);
       setAlertModalOpen(true);
       break; // Show one at a time
     }
-  }, [notifications]);
+  }, [notifications, agreementStatus]);
+
+  const handleDismissAlert = useCallback(() => {
+    if (currentAlertNotificationId) {
+      addDismissed(currentAlertNotificationId);
+      markAsRead.mutate(currentAlertNotificationId);
+    }
+    setAlertModalOpen(false);
+    setCurrentAlertNotificationId(null);
+  }, [currentAlertNotificationId, markAsRead]);
 
   const getIcon = (type: string) => {
     switch (type) {
@@ -60,7 +102,6 @@ export function BuyerNotificationBell() {
       markAsRead.mutate(n.id);
     }
 
-    // Navigate based on notification type
     if (n.notification_type === 'memo_shared') {
       if (n.connection_request_id) {
         navigate(`/deals/${n.connection_request_id}`);
@@ -74,7 +115,6 @@ export function BuyerNotificationBell() {
     } else if (n.notification_type === 'new_message' && n.connection_request_id) {
       navigate(`/messages?deal=${n.connection_request_id}`);
     } else if (n.notification_type === 'agreement_pending') {
-      // Navigate to messages where they can find the agreement details
       navigate('/messages');
     } else if (n.notification_type === 'request_approved' && n.connection_request_id) {
       navigate(`/deals/${n.connection_request_id}`);
@@ -188,7 +228,7 @@ export function BuyerNotificationBell() {
     <AgreementAlertModal
       open={alertModalOpen}
       documentType={alertDocType}
-      onDismiss={() => setAlertModalOpen(false)}
+      onDismiss={handleDismissAlert}
     />
     </>
   );

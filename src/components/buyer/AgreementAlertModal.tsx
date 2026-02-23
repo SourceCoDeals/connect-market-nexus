@@ -33,6 +33,7 @@ export function AgreementAlertModal({ open, documentType, onDismiss }: Agreement
         className="sm:max-w-lg p-0 gap-0 [&>button]:hidden"
         onPointerDownOutside={(e) => e.preventDefault()}
         onEscapeKeyDown={(e) => e.preventDefault()}
+        onInteractOutside={(e) => e.preventDefault()}
       >
         {/* Header accent bar */}
         <div className="h-1.5 w-full bg-sourceco rounded-t-lg" />
