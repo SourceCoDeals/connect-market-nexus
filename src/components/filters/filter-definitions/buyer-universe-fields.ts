@@ -1,17 +1,16 @@
 import {
   Building2,
-  DollarSign,
   MapPin,
-  Calendar,
+  Globe,
+  Briefcase,
   Activity,
   TrendingUp,
-  Briefcase,
-  Globe,
+  Shield,
 } from "lucide-react";
 
 import type { FilterFieldDef } from "./types";
 
-/** Buyer Universe / Tracker detail */
+/** Buyer Universe / Tracker detail — fields match remarketing_buyers columns */
 export const BUYER_UNIVERSE_FIELDS: FilterFieldDef[] = [
   {
     key: "company_name",
@@ -26,6 +25,19 @@ export const BUYER_UNIVERSE_FIELDS: FilterFieldDef[] = [
     type: "text",
     group: "Core",
     icon: Building2,
+  },
+  {
+    key: "buyer_type",
+    label: "Buyer Type",
+    type: "select",
+    group: "Core",
+    icon: Briefcase,
+    options: [
+      { label: "PE Firm", value: "pe_firm" },
+      { label: "Platform", value: "platform" },
+      { label: "Strategic", value: "strategic" },
+      { label: "Family Office", value: "family_office" },
+    ],
   },
   {
     key: "hq_state",
@@ -44,53 +56,32 @@ export const BUYER_UNIVERSE_FIELDS: FilterFieldDef[] = [
     dynamicOptions: true,
   },
   {
-    key: "industry_vertical",
-    label: "Industry Vertical",
-    type: "text",
-    group: "Business",
-    icon: Briefcase,
-  },
-  {
-    key: "services_offered",
-    label: "Services Offered",
-    type: "text",
-    group: "Business",
-    icon: Briefcase,
-  },
-  {
-    key: "revenue_target",
-    label: "Revenue Target",
-    type: "currency",
-    group: "Financial",
-    icon: DollarSign,
-  },
-  {
-    key: "ebitda_target",
-    label: "EBITDA Target",
-    type: "currency",
-    group: "Financial",
-    icon: DollarSign,
-  },
-  {
-    key: "enrichment_status",
-    label: "Enrichment Status",
+    key: "data_completeness",
+    label: "Data Completeness",
     type: "select",
     group: "Enrichment",
     icon: Activity,
     dynamicOptions: true,
   },
   {
-    key: "fit_score",
-    label: "Fit Score",
+    key: "alignment_score",
+    label: "Alignment Score",
     type: "number",
     group: "Scoring",
     icon: TrendingUp,
   },
   {
-    key: "enriched_at",
-    label: "Enriched Date",
-    type: "date",
+    key: "has_fee_agreement",
+    label: "Fee Agreement",
+    type: "boolean",
     group: "Admin",
-    icon: Calendar,
+    icon: Shield,
+  },
+  {
+    key: "thesis_summary",
+    label: "Thesis Summary",
+    type: "text",
+    group: "Business",
+    icon: Briefcase,
   },
 ];
