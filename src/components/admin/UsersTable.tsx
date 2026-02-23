@@ -2,24 +2,16 @@ import { useState } from "react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { User } from "@/types";
-import { CheckCircle, MoreHorizontal, UserCheck, Trash2, ChevronDown, ChevronRight, ExternalLink, Mail, Building, UserIcon, Linkedin, Shield, Search } from "lucide-react";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { CheckCircle, ChevronDown, ChevronRight } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
-import { UserSavedListings } from "./UserSavedListings";
 import { UserDataCompleteness } from "./UserDataCompleteness";
 import { DualFeeAgreementToggle } from "./DualFeeAgreementToggle";
 import { SimpleFeeAgreementDialog } from "./SimpleFeeAgreementDialog";
 import { DualNDAToggle } from "./DualNDAToggle";
 import { SimpleNDADialog } from "./SimpleNDADialog";
-import { UserActivityTimeline } from "./UserActivityTimeline";
 import { UserFirmBadge } from "./UserFirmBadge";
 
-import { getFieldCategories, FIELD_LABELS } from '@/lib/buyer-type-fields';
-import { formatFieldValue } from '@/lib/field-formatting';
 import { useEnhancedUserExport } from '@/hooks/admin/use-enhanced-user-export';
 import { useLogFeeAgreementEmail } from '@/hooks/admin/use-fee-agreement';
 import { useLogNDAEmail } from '@/hooks/admin/use-nda';
@@ -27,11 +19,13 @@ import { usePermissions } from '@/hooks/permissions/usePermissions';
 import { useAuth } from '@/context/AuthContext';
 import { useRoleManagement } from '@/hooks/permissions/useRoleManagement';
 import { RoleBadge } from './permissions/RoleBadge';
-import { RoleSelector } from './permissions/RoleSelector';
 import { AppRole } from '@/hooks/permissions/usePermissions';
 
 import { supabase } from '@/integrations/supabase/client';
-import { useToast } from "@/hooks/use-toast";
+
+import { UserDetails } from './users-table/UserDetails';
+import { UserActionButtons } from './users-table/UserActionButtons';
+import { UsersTableSkeleton } from './users-table/UsersTableSkeleton';
 
 interface UsersTableProps {
   users: User[];
@@ -42,436 +36,13 @@ interface UsersTableProps {
   isLoading: boolean;
 }
 
-// Helper function to render user detail with proper field filtering
-const UserDetails = ({ user }: { user: User }) => {
-  // Get buyer-type specific field categories
-  const fieldCategories = getFieldCategories(user.buyer_type || 'corporate');
-
-  return (
-    <div className="space-y-6 p-4 bg-muted/20 rounded-lg">
-      <Tabs defaultValue="profile" className="w-full">
-        <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="profile">Profile</TabsTrigger>
-          <TabsTrigger value="saved">Saved Listings</TabsTrigger>
-          <TabsTrigger value="timeline">Activity Timeline</TabsTrigger>
-        </TabsList>
-        
-        <TabsContent value="profile" className="space-y-6 mt-6">
-          {/* Account Information Section */}
-          <div className="space-y-3">
-            <h4 className="font-medium text-foreground flex items-center gap-2">
-              <UserIcon className="h-4 w-4" />
-              Account Information
-            </h4>
-            <div className="pl-6 grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-              <div><span className="text-muted-foreground">Created:</span> {new Date(user.created_at).toLocaleString()}</div>
-              <div>
-                <span className="text-muted-foreground">Email Verified:</span> 
-                {user.email_verified ? " Yes" : " No"}
-              </div>
-              <div>
-                <span className="text-muted-foreground">Status:</span> 
-                <span className={`capitalize ml-1 ${
-                  user.approval_status === "approved" ? "text-green-600" : 
-                  user.approval_status === "rejected" ? "text-red-600" : 
-                  "text-yellow-600"
-                }`}>
-                  {user.approval_status}
-                </span>
-              </div>
-              <div>
-                <span className="text-muted-foreground">Admin:</span> {user.is_admin ? " Yes" : " No"}
-              </div>
-            </div>
-          </div>
-
-          {/* Render each field category dynamically */}
-          {Object.entries(fieldCategories).map(([categoryName, fields]) => {
-            if (fields.length === 0) return null;
-            
-            return (
-              <div key={categoryName} className="space-y-3">
-                <h4 className="font-medium text-foreground flex items-center gap-2">
-                  {categoryName === 'Contact Information' && <Mail className="h-4 w-4" />}
-                  {categoryName === 'Business Profile' && <Building className="h-4 w-4" />}
-                  {categoryName === 'Financial Information' && <UserIcon className="h-4 w-4" />}
-                  {categoryName === 'Sourcing & Discovery' && <Search className="h-4 w-4" />}
-                  {categoryName}
-                  {categoryName === 'Financial Information' && ` (${user.buyer_type})`}
-                </h4>
-                <div className="pl-6 grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                  {fields.map((fieldKey: string) => {
-                    const fieldLabel = FIELD_LABELS[fieldKey as keyof typeof FIELD_LABELS] || fieldKey;
-                    const fieldValue = user[fieldKey as keyof User];
-                    
-                    // Handle special field rendering
-                    if (fieldKey === 'website' && fieldValue) {
-                      return (
-                        <div key={fieldKey} className="flex items-center gap-2">
-                          <span className="text-muted-foreground">{fieldLabel}:</span>
-                          <a href={fieldValue as string} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline flex items-center gap-1">
-                            {fieldValue as string} <ExternalLink className="h-3 w-3" />
-                          </a>
-                        </div>
-                      );
-                    }
-                    
-                    if (fieldKey === 'linkedin_profile' && fieldValue) {
-                      return (
-                        <div key={fieldKey} className="flex items-center gap-2">
-                          <span className="text-muted-foreground">{fieldLabel}:</span>
-                          <a href={fieldValue as string} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline flex items-center gap-1">
-                            <Linkedin className="h-3 w-3" />
-                            Profile
-                          </a>
-                        </div>
-                      );
-                    }
-                    
-                    if (fieldKey === 'business_categories') {
-                      return (
-                        <div key={fieldKey} className="col-span-2">
-                          <span className="text-muted-foreground">{fieldLabel}:</span>
-                          <div className="mt-1">
-                            {fieldValue && Array.isArray(fieldValue) && fieldValue.length > 0 ? (
-                              <div className="flex flex-wrap gap-1">
-                                {fieldValue.map((cat, index) => (
-                                  <span key={index} className="text-xs bg-muted px-2 py-1 rounded">
-                                    {cat}
-                                  </span>
-                                ))}
-                              </div>
-                            ) : '—'}
-                          </div>
-                        </div>
-                      );
-                    }
-                    
-                    if (fieldKey === 'target_locations') {
-                      const locationsToDisplay = Array.isArray(fieldValue) ? fieldValue : (fieldValue ? [fieldValue] : []);
-                      return (
-                        <div key={fieldKey} className="col-span-2">
-                          <span className="text-muted-foreground">{fieldLabel}:</span>
-                          <div className="mt-1">
-                            {locationsToDisplay.length > 0 ? (
-                              <div className="flex flex-wrap gap-1">
-                                {locationsToDisplay.map((loc, index) => (
-                                  <span key={index} className="text-xs bg-muted px-2 py-1 rounded">
-                                    {loc}
-                                  </span>
-                                ))}
-                              </div>
-                            ) : '—'}
-                          </div>
-                        </div>
-                      );
-                    }
-                    
-                    if (fieldKey === 'ideal_target_description' || fieldKey === 'specific_business_search') {
-                      return (
-                        <div key={fieldKey} className="col-span-2">
-                          <span className="text-muted-foreground">{fieldLabel}:</span>
-                          <p className="mt-1 text-xs leading-relaxed">{fieldValue as string || '—'}</p>
-                        </div>
-                      );
-                    }
-                    
-                    if (fieldKey === 'revenue_range_min' || fieldKey === 'revenue_range_max' || fieldKey === 'target_deal_size_min' || fieldKey === 'target_deal_size_max') {
-                      const numValue = fieldValue as number;
-                      return (
-                        <div key={fieldKey}>
-                          <span className="text-muted-foreground">{fieldLabel}:</span> 
-                          {numValue ? `$${numValue.toLocaleString()}` : '—'}
-                        </div>
-                      );
-                    }
-                    
-                    if (fieldKey === 'industry_expertise') {
-                      // Handle both array and text formats for industry_expertise
-                      const displayValue = Array.isArray(fieldValue) ? fieldValue.join(', ') : (fieldValue as string || '—');
-                      return (
-                        <div key={fieldKey} className="col-span-2">
-                          <span className="text-muted-foreground">{fieldLabel}:</span> {displayValue}
-                        </div>
-                      );
-                    }
-                    
-                    // Skip funded_by if user is not funded
-                    if (fieldKey === 'funded_by' && user.is_funded !== 'yes') {
-                      return null;
-                    }
-                    
-                    // Handle Independent Sponsor specific fields with proper formatting
-                    if (['committed_equity_band', 'equity_source', 'deployment_timing', 'flex_subxm_ebitda'].includes(fieldKey)) {
-                      return (
-                        <div key={fieldKey}>
-                          <span className="text-muted-foreground">{fieldLabel}:</span> {formatFieldValue(fieldKey, fieldValue)}
-                        </div>
-                      );
-                    }
-                    
-                    // Handle deal_sourcing_methods array
-                    if (fieldKey === 'deal_sourcing_methods') {
-                      const methods = fieldValue as string[] | undefined;
-                      return (
-                        <div key={fieldKey} className="col-span-2">
-                          <span className="text-muted-foreground">{fieldLabel}:</span>
-                          <div className="mt-1">
-                            {methods && methods.length > 0 ? (
-                              <div className="flex flex-wrap gap-1">
-                                {methods.map((method, index) => (
-                                  <span key={index} className="text-xs bg-muted px-2 py-1 rounded capitalize">
-                                    {method.replace(/_/g, ' ')}
-                                  </span>
-                                ))}
-                              </div>
-                            ) : '—'}
-                          </div>
-                        </div>
-                      );
-                    }
-                    
-                    // Handle referral_source with special formatting
-                    if (fieldKey === 'referral_source') {
-                      return (
-                        <div key={fieldKey}>
-                          <span className="text-muted-foreground">{fieldLabel}:</span>{' '}
-                          <span className="capitalize">{fieldValue ? String(fieldValue).replace(/_/g, ' ') : '—'}</span>
-                        </div>
-                      );
-                    }
-                    
-                    // Handle target_acquisition_volume with special formatting
-                    if (fieldKey === 'target_acquisition_volume') {
-                      return (
-                        <div key={fieldKey}>
-                          <span className="text-muted-foreground">{fieldLabel}:</span>{' '}
-                          <span className="capitalize">{fieldValue ? String(fieldValue).replace(/_/g, ' ') : '—'}</span>
-                        </div>
-                      );
-                    }
-                    
-                    // Handle first_seen_at timestamp
-                    if (fieldKey === 'first_seen_at' && fieldValue) {
-                      return (
-                        <div key={fieldKey}>
-                          <span className="text-muted-foreground">{fieldLabel}:</span>{' '}
-                          {new Date(fieldValue as string).toLocaleString()}
-                        </div>
-                      );
-                    }
-                    
-                    // Handle first_external_referrer - show with external link styling
-                    if (fieldKey === 'first_external_referrer' && fieldValue) {
-                      return (
-                        <div key={fieldKey}>
-                          <span className="text-muted-foreground">{fieldLabel}:</span>{' '}
-                          <span className="text-primary">{fieldValue as string}</span>
-                        </div>
-                      );
-                    }
-                    
-                    // Handle first_blog_landing - show the blog path
-                    if (fieldKey === 'first_blog_landing' && fieldValue) {
-                      return (
-                        <div key={fieldKey}>
-                          <span className="text-muted-foreground">{fieldLabel}:</span>{' '}
-                          <span className="text-xs font-mono bg-muted px-1.5 py-0.5 rounded">{fieldValue as string}</span>
-                        </div>
-                      );
-                    }
-                    
-                    // Default field rendering with formatting
-                    return (
-                      <div key={fieldKey}>
-                        <span className="text-muted-foreground">{fieldLabel}:</span> {formatFieldValue(fieldKey, fieldValue)}
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            );
-          })}
-        </TabsContent>
-        
-        <TabsContent value="saved" className="mt-6">
-          <UserSavedListings userId={user.id} />
-        </TabsContent>
-        
-        <TabsContent value="timeline" className="mt-6">
-          <UserActivityTimeline userId={user.id} />
-        </TabsContent>
-      </Tabs>
-    </div>
-  );
-};
-
-// Component for user action buttons
-function UserActionButtons({
-  user,
+export function UsersTable({
+  users,
   onApprove,
-  onDelete,
-  isLoading,
-}: {
-  user: User;
-  onApprove: (user: User) => void;
-  onMakeAdmin: (user: User) => void;
-  onRevokeAdmin: (user: User) => void;
-  onDelete: (user: User) => void;
-  isLoading: boolean;
-}) {
-  const { toast } = useToast();
-  const { canManagePermissions } = usePermissions();
-  const { user: currentUser } = useAuth();
-  const { allUserRoles } = useRoleManagement();
-  const [isRoleDialogOpen, setIsRoleDialogOpen] = useState(false);
-
-  const getUserRole = (userId: string): AppRole => {
-    return (allUserRoles?.find((ur) => ur.user_id === userId)?.role as AppRole) || 'user';
-  };
-
-  const currentUserRole = getUserRole(user.id);
-
-  const handleSendPasswordReset = async () => {
-    try {
-      const { error } = await supabase.functions.invoke('password-reset', {
-        body: { action: 'request', email: user.email }
-      });
-      if (error) throw error;
-      toast({
-        title: 'Password reset initiated',
-        description: 'If the email exists, the user will receive a reset link.'
-      });
-    } catch (err: any) {
-      toast({
-        variant: 'destructive',
-        title: 'Failed to send reset',
-        description: err.message || 'Please try again.'
-      });
-    }
-  };
-
-  return (
-    <>
-      <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon" disabled={isLoading}>
-              <MoreHorizontal className="h-4 w-4" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuLabel>User Actions</DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            
-            {user.approval_status === "pending" && (
-              <DropdownMenuItem 
-                onClick={() => onApprove(user)}
-                className="text-green-600"
-              >
-                <UserCheck className="h-4 w-4 mr-2" />
-                Approve User
-              </DropdownMenuItem>
-            )}
-            
-            {user.approval_status === "rejected" && (
-              <DropdownMenuItem 
-                onClick={() => onApprove(user)}
-                className="text-green-600"
-              >
-                <UserCheck className="h-4 w-4 mr-2" />
-                Approve User
-              </DropdownMenuItem>
-            )}
-            
-            <DropdownMenuSeparator />
-            
-            {canManagePermissions && (
-              <DropdownMenuItem 
-                onClick={() => setIsRoleDialogOpen(true)}
-                className="text-blue-600"
-              >
-                <Shield className="h-4 w-4 mr-2" />
-                Change Role
-              </DropdownMenuItem>
-            )}
-            
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={handleSendPasswordReset}>
-              <Mail className="h-4 w-4 mr-2" />
-              Send password reset
-            </DropdownMenuItem>
-            
-            {/* Only owner can delete users (not even self) */}
-            {canManagePermissions && user.id !== currentUser?.id && (
-              <DropdownMenuItem 
-                onClick={() => {
-                  if (window.confirm(`Are you sure you want to permanently delete ${user.email}? This action cannot be undone.`)) {
-                    onDelete(user);
-                  }
-                }}
-                className="text-red-600"
-              >
-                <Trash2 className="h-4 w-4 mr-2" />
-                Delete User
-              </DropdownMenuItem>
-            )}
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
-
-      <Dialog open={isRoleDialogOpen} onOpenChange={setIsRoleDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Manage User Role</DialogTitle>
-            <DialogDescription>
-              Change the role for <strong>{user.email}</strong>
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label>Current Role</Label>
-              <div>
-                <RoleBadge role={currentUserRole} showTooltip={true} />
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label>Select New Role</Label>
-              <RoleSelector 
-                userId={user.id}
-                currentRole={currentUserRole}
-                userEmail={user.email}
-                disabled={false}
-              />
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
-    </>
-  );
-}
-
-// Loading skeleton component
-const UsersTableSkeleton = () => (
-  <div className="space-y-3">
-    <div className="h-10 bg-muted/50 rounded-md animate-pulse"></div>
-    {Array(5)
-      .fill(0)
-      .map((_, i) => (
-        <div key={i} className="h-20 bg-muted/30 rounded-md animate-pulse"></div>
-      ))}
-  </div>
-);
-
-export function UsersTable({ 
-  users, 
-  onApprove, 
   onMakeAdmin,
   onRevokeAdmin,
   onDelete,
-  isLoading 
+  isLoading
 }: UsersTableProps) {
   const [expandedUserId, setExpandedUserId] = useState<string | null>(null);
   const [selectedUserForEmail, setSelectedUserForEmail] = useState<User | null>(null);
@@ -488,11 +59,11 @@ export function UsersTable({
   const logEmailMutation = useLogFeeAgreementEmail();
   const logNDAEmail = useLogNDAEmail();
   const { user: currentAuthUser } = useAuth();
-  
+
   const toggleExpand = (userId: string) => {
     setExpandedUserId(expandedUserId === userId ? null : userId);
   };
-  
+
   const formatDate = (dateString: string) => {
     try {
       return formatDistanceToNow(new Date(dateString), { addSuffix: true });
@@ -524,7 +95,7 @@ export function UsersTable({
           </TableHeader>
           <TableBody>
             {users.flatMap((user) => [
-              <TableRow 
+              <TableRow
                 key={user.id}
                 className="cursor-pointer hover:bg-muted/50"
                 onClick={() => toggleExpand(user.id)}
@@ -548,7 +119,7 @@ export function UsersTable({
                         const effectiveRole: AppRole = role === 'user' && user?.is_admin === true ? 'admin' : role;
                         // Map 'owner' to 'admin' for display
                         const displayRole = effectiveRole === 'owner' ? 'admin' : effectiveRole;
-                        
+
                         // Only show badge for admin
                         if (displayRole === 'admin') {
                           return <RoleBadge role={displayRole} showTooltip={false} />;
@@ -578,21 +149,21 @@ export function UsersTable({
                      user.buyer_type === 'searchFund' ? 'SF' :
                      user.buyer_type === 'independentSponsor' ? 'IS' :
                      user.buyer_type === 'corporate' ? 'Corp' :
-                     user.buyer_type === 'individual' ? 'Indiv' : '—'}
+                     user.buyer_type === 'individual' ? 'Indiv' : '\u2014'}
                   </div>
                 </TableCell>
                 <TableCell className="py-2">
                   <UserDataCompleteness user={user} size="sm" />
                 </TableCell>
                 <TableCell className="py-2" onClick={(e) => e.stopPropagation()}>
-                  <DualFeeAgreementToggle 
+                  <DualFeeAgreementToggle
                     user={user}
                     onSendEmail={(user) => setSelectedUserForEmail(user)}
                     size="sm"
                   />
                 </TableCell>
                 <TableCell className="py-2" onClick={(e) => e.stopPropagation()}>
-                  <DualNDAToggle 
+                  <DualNDAToggle
                     user={user}
                     onSendEmail={(user) => setSelectedUserForNDA(user)}
                     size="sm"
@@ -638,7 +209,7 @@ export function UsersTable({
           </TableBody>
         </Table>
       </div>
-      
+
       <SimpleFeeAgreementDialog
         user={selectedUserForEmail}
         isOpen={!!selectedUserForEmail}
@@ -674,7 +245,7 @@ export function UsersTable({
           });
         }}
       />
-      
+
       <SimpleNDADialog
         open={!!selectedUserForNDA}
         onOpenChange={(open) => !open && setSelectedUserForNDA(null)}

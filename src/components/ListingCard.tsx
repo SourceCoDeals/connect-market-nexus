@@ -1,4 +1,4 @@
-import { useContext } from "react";
+import { useContext, memo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useMarketplace } from "@/hooks/use-marketplace";
 import { useAnalytics } from "@/context/AnalyticsContext";
@@ -23,7 +23,7 @@ interface ListingCardProps {
   connectionMap?: Map<string, { exists: boolean; status: string; id: string }>;
 }
 
-const ListingCard = ({ listing, viewType, savedIds, connectionMap }: ListingCardProps) => {
+const ListingCard = memo(function ListingCard({ listing, viewType, savedIds, connectionMap }: ListingCardProps) {
   const { 
     useConnectionStatus, 
     useSaveListingMutation, 
@@ -190,6 +190,6 @@ const ListingCard = ({ listing, viewType, savedIds, connectionMap }: ListingCard
         </div>
       </div>
   );
-};
+});
 
 export default ListingCard;
