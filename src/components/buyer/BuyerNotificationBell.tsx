@@ -54,8 +54,8 @@ export function BuyerNotificationBell() {
     } else if (n.notification_type === 'new_message' && n.connection_request_id) {
       navigate(`/messages?deal=${n.connection_request_id}`);
     } else if (n.notification_type === 'agreement_pending') {
-      // Navigate to marketplace where the signing banner will be shown
-      navigate('/marketplace');
+      // Navigate to marketplace where the PendingSigningBanner will prompt signing
+      navigate('/marketplace?signing=pending');
     } else if (n.notification_type === 'request_approved' && n.connection_request_id) {
       navigate(`/deals/${n.connection_request_id}`);
     } else if (n.connection_request_id) {
