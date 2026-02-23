@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -14,6 +14,12 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { 
   ChevronDown, 
   ChevronUp, 
@@ -29,7 +35,10 @@ import {
   MessageSquare,
   Shield,
   ExternalLink,
+  Zap,
+  Loader2,
 } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 import { AdminConnectionRequest } from "@/types/admin";
 import { User as AdminUsersUser } from "@/types/admin-users";
 import { useUnreadMessageCounts } from "@/hooks/use-connection-messages";
@@ -114,6 +123,83 @@ const CleanTierDisplay = ({ user, leadRole }: { user: any; leadRole?: string }) 
         {buyerTypeAbbrev}
       </span>
     </div>
+  );
+};
+
+// Score Buyers button with dropdown for All / Unscored Only
+const ScoreBuyersButton = ({ requests, onRefresh }: { requests: AdminConnectionRequest[]; onRefresh?: () => void }) => {
+  const [isScoring, setIsScoring] = useState(false);
+  const [progress, setProgress] = useState({ done: 0, total: 0 });
+  const { toast } = useToast();
+
+  const handleScore = useCallback(async (unscoredOnly: boolean) => {
+    const profileIds = [...new Set(
+      requests
+        .map(r => (r.user as any)?.id)
+        .filter(Boolean) as string[]
+    )];
+
+    const toScore = unscoredOnly
+      ? profileIds.filter(id => {
+          const req = requests.find(r => (r.user as any)?.id === id);
+          return req && (req.user as any)?.buyer_quality_score == null;
+        })
+      : profileIds;
+
+    if (toScore.length === 0) {
+      toast({ title: 'Nothing to score', description: unscoredOnly ? 'All buyers already have scores.' : 'No buyer profiles found.' });
+      return;
+    }
+
+    setIsScoring(true);
+    setProgress({ done: 0, total: toScore.length });
+
+    let successes = 0;
+    let failures = 0;
+
+    for (let i = 0; i < toScore.length; i += 5) {
+      const batch = toScore.slice(i, i + 5);
+      const results = await Promise.allSettled(
+        batch.map(profileId =>
+          supabase.functions.invoke('calculate-buyer-quality-score', { body: { profile_id: profileId } })
+        )
+      );
+      results.forEach(r => r.status === 'fulfilled' && !r.value.error ? successes++ : failures++);
+      setProgress({ done: Math.min(i + 5, toScore.length), total: toScore.length });
+    }
+
+    setIsScoring(false);
+    toast({ title: 'Scoring complete', description: `${successes} scored${failures > 0 ? `, ${failures} failed` : ''}` });
+    onRefresh?.();
+  }, [requests, onRefresh, toast]);
+
+  if (isScoring) {
+    return (
+      <Button variant="outline" size="sm" disabled>
+        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+        Scoring {progress.done}/{progress.total}
+      </Button>
+    );
+  }
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="outline" size="sm">
+          <Zap className="h-4 w-4 mr-2" />
+          Score Buyers
+          <ChevronDown className="h-3 w-3 ml-1" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        <DropdownMenuItem onClick={() => handleScore(false)}>
+          Score All
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => handleScore(true)}>
+          Unscored Only
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 };
 
@@ -666,6 +752,7 @@ export default function ConnectionRequestsTable({
               Refresh
             </Button>
           )}
+          <ScoreBuyersButton requests={requests} onRefresh={onRefresh} />
         </div>
       </div>
 
