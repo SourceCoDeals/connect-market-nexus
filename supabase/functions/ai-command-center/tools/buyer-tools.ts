@@ -313,44 +313,56 @@ async function searchLeadSources(
   args: Record<string, unknown>,
 ): Promise<ToolResult> {
   const sourceType = (args.source_type as string) || 'all';
-  const limit = Math.min(Number(args.limit) || 25, 100);
-
-  let query = supabase
-    .from('listings')
-    .select(BUYER_FIELDS_QUICK.replace('archived', 'deal_source'))  // reuse compact fields adapted
-    .is('deleted_at', null)
-    .order('deal_total_score', { ascending: false, nullsFirst: false })
-    .limit(limit);
+  const requestedLimit = Number(args.limit) || 5000;
+  const fields = BUYER_FIELDS_QUICK.replace('archived', 'deal_source');
 
   // Map source type to deal_source values
-  if (sourceType !== 'all') {
-    const sourceMap: Record<string, string[]> = {
-      captarget: ['captarget', 'cp_target'],
-      go_partners: ['go_partners', 'go-partners'],
-      marketplace: ['marketplace'],
-      internal: ['internal', 'direct'],
-    };
-    const sources = sourceMap[sourceType] || [sourceType];
-    query = query.in('deal_source', sources);
+  const sourceMap: Record<string, string[]> = {
+    captarget: ['captarget', 'cp_target'],
+    go_partners: ['go_partners', 'go-partners'],
+    marketplace: ['marketplace'],
+    internal: ['internal', 'direct'],
+  };
+
+  // Paginate to fetch all matching rows
+  const PAGE_SIZE = 1000;
+  let allData: Record<string, unknown>[] = [];
+  let offset = 0;
+
+  while (offset < requestedLimit) {
+    const batchSize = Math.min(PAGE_SIZE, requestedLimit - offset);
+    let query = supabase
+      .from('listings')
+      .select(fields)
+      .is('deleted_at', null)
+      .order('deal_total_score', { ascending: false, nullsFirst: false })
+      .range(offset, offset + batchSize - 1);
+
+    if (sourceType !== 'all') {
+      const sources = sourceMap[sourceType] || [sourceType];
+      query = query.in('deal_source', sources);
+    }
+    if (args.status) query = query.eq('status', args.status as string);
+
+    const { data: batch, error } = await query;
+    if (error) return { error: error.message };
+    if (!batch || batch.length === 0) break;
+    allData = allData.concat(batch);
+    if (batch.length < batchSize) break;
+    offset += batch.length;
   }
 
-  if (args.status) query = query.eq('status', args.status as string);
-
-  const { data, error } = await query;
-  if (error) return { error: error.message };
-
-  // Also provide source breakdown
-  const deals = data || [];
+  // Source breakdown
   const sourceBreakdown: Record<string, number> = {};
-  for (const d of deals) {
+  for (const d of allData) {
     const src = (d as Record<string, unknown>).deal_source as string || 'unknown';
     sourceBreakdown[src] = (sourceBreakdown[src] || 0) + 1;
   }
 
   return {
     data: {
-      deals,
-      total: deals.length,
+      deals: allData,
+      total: allData.length,
       source_breakdown: sourceBreakdown,
     },
   };
