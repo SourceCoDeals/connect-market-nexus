@@ -167,11 +167,10 @@ serve(async (req: Request) => {
       }),
       { status: 200, headers: { 'Content-Type': 'application/json', ...corsHeaders } },
     );
-  } catch (error: any) {
-    const msg = error?.message || String(error);
-    console.error('Error in get-agreement-document:', msg);
+  } catch (error: unknown) {
+    console.error('Error in get-agreement-document:', error instanceof Error ? error.message : String(error));
     return new Response(
-      JSON.stringify({ error: msg }),
+      JSON.stringify({ error: 'Internal server error' }),
       { status: 500, headers: { 'Content-Type': 'application/json', ...corsHeaders } },
     );
   }

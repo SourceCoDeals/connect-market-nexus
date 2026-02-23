@@ -63,7 +63,7 @@ export function FeeAgreementGate({ userId, firmId, listingTitle: _listingTitle, 
 
     fetchEmbedSrc();
     return () => { cancelled = true; };
-  }, [userId, firmId]);
+  }, [userId, firmId, onSigned]);
 
   const invalidateAllCaches = useCallback(() => {
     queryClient.invalidateQueries({ queryKey: ['my-agreement-status'] });
@@ -237,7 +237,7 @@ export function FeeAgreementGate({ userId, firmId, listingTitle: _listingTitle, 
           {!embedSrc && !isLoading && !error && (
             <p className="text-xs text-muted-foreground text-center">
               Questions about the fee agreement? Email{' '}
-              <a href="mailto:adam.haile@sourcecodeals.com" className="text-primary hover:underline">adam.haile@sourcecodeals.com</a>
+              <a href={`mailto:${APP_CONFIG.adminEmail}`} className="text-primary hover:underline">{APP_CONFIG.adminEmail}</a>
               {' '}before signing.
             </p>
           )}

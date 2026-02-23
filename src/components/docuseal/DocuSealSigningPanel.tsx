@@ -7,6 +7,7 @@ interface DocuSealSigningPanelProps {
   embedSrc: string;
   onCompleted?: (data: Record<string, unknown>) => void;
   onDeclined?: () => void;
+  onError?: (error: unknown) => void;
   title?: string;
   description?: string;
   successMessage?: string;
@@ -22,6 +23,7 @@ export function DocuSealSigningPanel({
   embedSrc,
   onCompleted,
   onDeclined,
+  onError,
   title = 'Sign Document',
   description = 'Please review and sign the document below.',
   successMessage = 'Document signed successfully.',
@@ -103,6 +105,10 @@ export function DocuSealSigningPanel({
           onComplete={handleCompleted}
           onDecline={handleDeclined}
           onLoad={() => setStatus('ready')}
+          onError={(error: unknown) => {
+            setStatus('error');
+            onError?.(error);
+          }}
           withTitle={false}
         />
       </div>

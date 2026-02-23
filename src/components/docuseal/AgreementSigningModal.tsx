@@ -102,17 +102,25 @@ export function AgreementSigningModal({
     queryClient.invalidateQueries({ queryKey: ['user-notifications'] });
   };
 
-  const handleSigned = () => {
+  const handleSigned = async () => {
+    // Immediately confirm with backend — updates DB, creates notifications & messages
+    try {
+      await supabase.functions.invoke('confirm-agreement-signed', {
+        body: { documentType },
+      });
+    } catch (err) {
+      console.error('Failed to confirm signing:', err);
+    }
+
+    // Show toast after confirm so DB is updated before cache invalidation
     toast({ title: `${docLabel} Signed!`, description: 'Thank you for signing. Your access has been updated.' });
 
-    // The webhook may take a moment to update the DB.
-    // Invalidate immediately, then again after delays to catch the webhook update.
+    // Now invalidate caches — DB should be updated by now
     invalidateAll();
-    setTimeout(invalidateAll, 2000);
-    setTimeout(invalidateAll, 5000);
 
     // Auto-close after brief delay so user sees success state
-    setTimeout(() => onOpenChange(false), 2500);
+    const timer = setTimeout(() => onOpenChange(false), 2000);
+    return () => clearTimeout(timer);
   };
 
   const handleDownloadDraft = async () => {

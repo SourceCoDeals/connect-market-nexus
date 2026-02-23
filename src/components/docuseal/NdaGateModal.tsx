@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { DocuSealSigningPanel } from './DocuSealSigningPanel';
 import { Button } from '@/components/ui/button';
@@ -58,11 +58,28 @@ export function NdaGateModal({ userId, firmId, onSigned }: NdaGateModalProps) {
 
     fetchEmbedSrc();
     return () => { cancelled = true; };
-  }, [userId, firmId]);
+  }, [userId, firmId, onSigned]);
 
-  const handleSigned = () => {
-    queryClient.invalidateQueries({ queryKey: ['buyer-nda-status'] });
+  const invalidateAllCaches = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: ['my-agreement-status'] });
     queryClient.invalidateQueries({ queryKey: ['firm-agreements'] });
+    queryClient.invalidateQueries({ queryKey: ['buyer-firm-agreement-status'] });
+    queryClient.invalidateQueries({ queryKey: ['agreement-pending-notifications'] });
+    queryClient.invalidateQueries({ queryKey: ['buyer-nda-status'] });
+    queryClient.invalidateQueries({ queryKey: ['buyer-message-threads'] });
+  }, [queryClient]);
+
+  const handleSigned = async () => {
+    // Immediately confirm with backend — updates DB, creates notifications & messages
+    try {
+      await supabase.functions.invoke('confirm-agreement-signed', {
+        body: { documentType: 'nda' },
+      });
+    } catch (err) {
+      console.error('Failed to confirm signing:', err);
+    }
+
+    invalidateAllCaches();
     onSigned?.();
   };
 
