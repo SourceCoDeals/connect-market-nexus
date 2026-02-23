@@ -146,8 +146,10 @@ const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       refetchOnWindowFocus: true,
-      staleTime: 5 * 60 * 1000,
-      gcTime: 10 * 60 * 1000,
+      // N14 FIX: Increased from 5min to 15min to reduce excessive re-fetching.
+      // Stable data (listings, buyers, universes) changes infrequently.
+      staleTime: 15 * 60 * 1000,
+      gcTime: 30 * 60 * 1000,
       retry: 3,
       refetchOnReconnect: true,
     },

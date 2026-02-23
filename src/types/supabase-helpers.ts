@@ -38,20 +38,32 @@ export type ProfileRow = TableRow<'profiles'>;
 export type ProfileInsert = TableInsert<'profiles'>;
 export type ProfileUpdate = TableUpdate<'profiles'>;
 
-// Listings
+// Listings (the `listings` table holds the COMPANY/DEAL — the business being sold)
 export type ListingRow = TableRow<'listings'>;
 export type ListingInsert = TableInsert<'listings'>;
 export type ListingUpdate = TableUpdate<'listings'>;
+
+// Semantic aliases — the `listings` table is really "companies" or "deals" in business terms.
+// The `deals` table is really "pipeline entries" (a buyer pursuing a deal).
+// These aliases clarify the inverted naming convention (see audit Section 5).
+export type CompanyRow = ListingRow;
+export type CompanyInsert = ListingInsert;
+export type CompanyUpdate = ListingUpdate;
 
 // Connection Requests
 export type ConnectionRequestRow = TableRow<'connection_requests'>;
 export type ConnectionRequestInsert = TableInsert<'connection_requests'>;
 export type ConnectionRequestUpdate = TableUpdate<'connection_requests'>;
 
-// Deals
+// Deals (the `deals` table holds PIPELINE ENTRIES — a buyer pursuing a listing/company)
 export type DealRow = TableRow<'deals'>;
 export type DealInsert = TableInsert<'deals'>;
 export type DealUpdate = TableUpdate<'deals'>;
+
+// Semantic aliases — see CompanyRow above for context.
+export type PipelineEntryRow = DealRow;
+export type PipelineEntryInsert = DealInsert;
+export type PipelineEntryUpdate = DealUpdate;
 
 // Deal Stages
 export type DealStageRow = TableRow<'deal_stages'>;
