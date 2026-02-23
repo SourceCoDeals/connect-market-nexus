@@ -261,22 +261,32 @@ Deno.serve(async (req) => {
       }
     }
 
-    // ENRICHMENT LOCK: Prevent concurrent enrichments
+    // ENRICHMENT LOCK: Prevent concurrent enrichments using atomic compare-and-set
     // Skip lock when called from queue worker (queue already manages concurrency via status)
+    const now = new Date().toISOString();
     if (!skipLock) {
       const ENRICHMENT_LOCK_SECONDS = 15;
       const lockCutoff = new Date(Date.now() - ENRICHMENT_LOCK_SECONDS * 1000).toISOString();
 
-      const { data: lockCheck } = await supabase
+      // Atomic compare-and-set: only update if not recently locked
+      // This prevents race conditions where two concurrent requests both read the old timestamp
+      const { data: lockResult, error: lockError } = await supabase
         .from('remarketing_buyers')
-        .select('id, data_last_updated')
+        .update({ data_last_updated: now })
         .eq('id', buyerId)
-        .single();
+        .or(`data_last_updated.is.null,data_last_updated.lt.${lockCutoff}`)
+        .select('id')
+        .maybeSingle();
 
-      const isLocked = lockCheck?.data_last_updated && lockCheck.data_last_updated > lockCutoff;
+      if (lockError) {
+        return new Response(
+          JSON.stringify({ success: false, error: 'Failed to acquire enrichment lock' }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
 
-      if (isLocked) {
-        console.log(`[enrich-buyer] Lock active for buyer ${buyerId}: data_last_updated=${lockCheck.data_last_updated}, cutoff=${lockCutoff}`);
+      if (!lockResult) {
+        // Lock was held by another request
         return new Response(
           JSON.stringify({
             success: false,
@@ -286,19 +296,12 @@ Deno.serve(async (req) => {
           { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
-
-      // Claim the lock
-      await supabase
-        .from('remarketing_buyers')
-        .update({ data_last_updated: new Date().toISOString() })
-        .eq('id', buyerId);
     } else {
       // Queue-based call: just update timestamp without lock check
       await supabase
         .from('remarketing_buyers')
-        .update({ data_last_updated: new Date().toISOString() })
+        .update({ data_last_updated: now })
         .eq('id', buyerId);
-      console.log(`[enrich-buyer] Skipping lock (queue-based call) for buyer ${buyerId}`);
     }
 
     console.log(`Starting 4-prompt enrichment for buyer: ${buyer.company_name || buyer.pe_firm_name || buyerId}`);

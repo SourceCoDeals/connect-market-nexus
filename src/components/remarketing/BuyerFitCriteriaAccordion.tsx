@@ -134,7 +134,7 @@ export const BuyerFitCriteriaAccordion = ({
       onCriteriaExtracted?.();
 
     } catch (error) {
-      console.error('Criteria extraction error:', error);
+      // Criteria extraction error — shown in summary dialog below
       const errorMessage = (error as Error).message;
       
       // Show error in summary dialog

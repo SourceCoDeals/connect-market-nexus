@@ -46,7 +46,7 @@ export const processFileText = async (file: File, retryCount = 0): Promise<strin
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error(`Parse error for ${file.name}:`, errorText);
+      void errorText;
       throw new Error(`Failed to parse ${file.name} (${response.status})`);
     }
 

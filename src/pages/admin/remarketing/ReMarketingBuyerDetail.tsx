@@ -539,7 +539,7 @@ const ReMarketingBuyerDetail = () => {
         successCount++;
         results.push({ fileName: transcripts[i].file_name || `Transcript ${i + 1}`, insights: data?.insights?.buyer });
       } catch (e: any) {
-        console.warn(`Extraction failed for ${transcripts[i].id}:`, e);
+        // Extraction failed — tracked in results
         errorCount++;
         results.push({ fileName: transcripts[i].file_name || `Transcript ${i + 1}`, error: e?.message || 'Failed' });
       }

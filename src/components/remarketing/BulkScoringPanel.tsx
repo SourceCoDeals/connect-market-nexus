@@ -98,20 +98,16 @@ export const BulkScoringPanel = ({
         return;
       }
 
-      // Simulate progress updates
-      const progressInterval = setInterval(() => {
-        setProgress(prev => {
-          if (prev >= 90) return prev;
-          return prev + Math.random() * 15;
-        });
-      }, 500);
+      setProgress(10);
+      setProgressMessage("Preparing scoring request...");
 
+      // Progress steps: 10% start -> 30% module loaded -> 60% request sent -> 100% complete
+      const { queueDealScoring } = await import("@/lib/remarketing/queueScoring");
+      setProgress(30);
       setProgressMessage("Queuing scoring task...");
 
-      const { queueDealScoring } = await import("@/lib/remarketing/queueScoring");
       await queueDealScoring({ universeId: selectedUniverse, listingIds: [listingId] });
 
-      clearInterval(progressInterval);
       setProgress(100);
       toast.success("Scoring queued — processing in background");
       setProgressMessage("Queued for background processing");

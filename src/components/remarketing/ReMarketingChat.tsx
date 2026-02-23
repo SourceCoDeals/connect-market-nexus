@@ -348,7 +348,7 @@ export function ReMarketingChat({
             content: m.content,
             timestamp: m.timestamp.toISOString(),
           }))
-        ).catch((err) => console.error('[ReMarketingChat] Save error:', err));
+        ).catch(() => { /* save failure is non-critical */ });
 
         // Generate smart suggestions
         const suggestions = generateSmartSuggestions(
@@ -373,7 +373,7 @@ export function ReMarketingChat({
       if (error instanceof Error && error.name === "AbortError") {
         return; // User cancelled, don't show error
       }
-      console.error("Chat error:", error);
+      // Chat error — display message to user below
       const errorMessage: Message = {
         id: `error-${Date.now()}`,
         role: "assistant",

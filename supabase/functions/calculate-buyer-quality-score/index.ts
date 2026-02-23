@@ -1,6 +1,7 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { getCorsHeaders, corsPreflightResponse } from '../_shared/cors.ts';
+import { errorResponse } from '../_shared/error-response.ts';
 
 // ============================================================================
 // TYPES
@@ -297,16 +298,35 @@ const handler = async (req: Request): Promise<Response> => {
   }
 
   try {
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
-    );
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+
+    // Auth guard: require valid JWT + admin role
+    const authHeader = req.headers.get('Authorization') || '';
+    const callerToken = authHeader.replace('Bearer ', '').trim();
+    if (!callerToken) {
+      return errorResponse('Unauthorized', 401, corsHeaders, 'unauthorized');
+    }
+
+    const anonClient = createClient(supabaseUrl, Deno.env.get('SUPABASE_ANON_KEY')!, {
+      global: { headers: { Authorization: `Bearer ${callerToken}` } },
+    });
+    const { data: { user: callerUser }, error: callerError } = await anonClient.auth.getUser();
+    if (callerError || !callerUser) {
+      return errorResponse('Unauthorized', 401, corsHeaders, 'unauthorized');
+    }
+
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    const { data: isAdmin } = await supabase.rpc('is_admin', { _user_id: callerUser.id });
+    if (!isAdmin) {
+      return errorResponse('Forbidden: admin access required', 403, corsHeaders, 'forbidden');
+    }
 
     const body = await req.json();
 
     // ─── BATCH MODE: score all unscored buyers ────────────────────────
     if (body.batch_all_unscored) {
-      const batchLimit = body.batch_limit || 30;
+      const batchLimit = Math.min(body.batch_limit || 30, 500);
       const { data: unscored, error: unscoredErr } = await supabase
         .from('profiles')
         .select('id')
@@ -382,10 +402,7 @@ const handler = async (req: Request): Promise<Response> => {
     const { profile_id, deal_request_message, connection_request_id } = body as ScoreRequest;
 
     if (!profile_id) {
-      return new Response(JSON.stringify({ error: 'profile_id is required' }), {
-        status: 400,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+      return errorResponse('profile_id is required', 400, corsHeaders, 'validation_error');
     }
 
     // ─── STEP 1: Fetch buyer data ──────────────────────────────────────
@@ -396,10 +413,7 @@ const handler = async (req: Request): Promise<Response> => {
       .single();
 
     if (profileErr || !profile) {
-      return new Response(
-        JSON.stringify({ error: 'Profile not found', detail: profileErr?.message }),
-        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
-      );
+      return errorResponse('Profile not found', 404, corsHeaders, 'not_found');
     }
 
     // Try to find a linked remarketing_buyer record
@@ -495,10 +509,12 @@ const handler = async (req: Request): Promise<Response> => {
     });
   } catch (error) {
     console.error('calculate-buyer-quality-score error:', error);
-    return new Response(JSON.stringify({ error: (error as Error).message }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+    return errorResponse(
+      error instanceof Error ? error.message : 'Unknown error',
+      500,
+      corsHeaders,
+      'internal_error',
+    );
   }
 };
 

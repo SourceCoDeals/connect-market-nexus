@@ -179,6 +179,22 @@ const SCORING_CONFIG = {
 } as const;
 
 // ============================================================================
+// AI FALLBACK TRACKING
+// Track when AI scoring fails and falls back to rules-based scoring
+// ============================================================================
+
+const aiFallbackCounts: Record<string, number> = {
+  service_fit: 0,
+  owner_goals: 0,
+  thesis_alignment: 0,
+};
+
+function trackAiFallback(phase: string, error: unknown) {
+  aiFallbackCounts[phase] = (aiFallbackCounts[phase] || 0) + 1;
+  console.warn(`[AI Fallback] ${phase} failed (count: ${aiFallbackCounts[phase]}):`, error instanceof Error ? error.message : 'unknown');
+}
+
+// ============================================================================
 // DEFAULT SERVICE ADJACENCY MAP
 // ============================================================================
 
@@ -832,7 +848,7 @@ async function calculateServiceScore(
     try {
       aiScore = await callServiceFitAI(listing, buyer, tracker, apiKey, customInstructions);
     } catch (e) {
-      console.warn("Service fit AI call failed, falling back to keyword+adjacency:", e);
+      trackAiFallback('service_fit', e);
     }
   }
 
@@ -1081,7 +1097,7 @@ async function calculateOwnerGoalsScore(
   try {
     return await callOwnerGoalsFitAI(listing, buyer, apiKey, customInstructions);
   } catch (e) {
-    console.warn("Owner goals AI call failed, using fallback:", e);
+    trackAiFallback('owner_goals', e);
   }
 
   // Fallback: buyer-type norms lookup
@@ -1273,7 +1289,7 @@ DEAL: ${listing.title}, Services: ${(listing.services || []).join(', ')}, Locati
       }
     }
   } catch (e) {
-    console.warn("Thesis alignment AI call failed:", e);
+    trackAiFallback('thesis_alignment', e);
   }
 
   // Fallback to pattern matching

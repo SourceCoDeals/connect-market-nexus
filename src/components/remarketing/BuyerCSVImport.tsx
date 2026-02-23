@@ -103,14 +103,33 @@ interface BuyerCSVImportProps {
   hideTrigger?: boolean;
 }
 
-// Normalize domain for comparison
+// Max file size: 5MB
+const MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024;
+// Max rows allowed
+const MAX_ROW_COUNT = 5000;
+
+// Normalize domain for comparison — validates URL structure
 function normalizeDomain(url: string): string {
   if (!url) return '';
   let normalized = url.trim().toLowerCase();
-  normalized = normalized.replace(/^https?:\/\//, '');
+  // Validate URL structure if it looks like a full URL
+  if (normalized.startsWith('http://') || normalized.startsWith('https://')) {
+    try {
+      const parsed = new URL(normalized);
+      if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return '';
+      normalized = parsed.hostname;
+    } catch {
+      return '';
+    }
+  } else {
+    // Strip protocol-like prefixes and path components
+    normalized = normalized.replace(/^www\./, '');
+    normalized = normalized.split('/')[0];
+    normalized = normalized.split(':')[0];
+    // Basic domain validation: must contain a dot and only valid characters
+    if (!/^[a-z0-9.-]+\.[a-z]{2,}$/.test(normalized)) return '';
+  }
   normalized = normalized.replace(/^www\./, '');
-  normalized = normalized.split('/')[0];
-  normalized = normalized.split(':')[0];
   return normalized;
 }
 
@@ -200,7 +219,7 @@ export const BuyerCSVImport = ({ universeId, onComplete, open: controlledOpen, o
       });
 
       if (error) {
-        console.error('AI mapping error:', error);
+        // AI mapping error — falling back to heuristic mapping
         setMappings(headers.map(col => ({
           csvColumn: col,
           targetField: guessMapping(col),
@@ -216,7 +235,7 @@ export const BuyerCSVImport = ({ universeId, onComplete, open: controlledOpen, o
         })));
       }
     } catch (err) {
-      console.error('Column analysis error:', err);
+      // Column analysis error — falling back to heuristic mapping
       setMappings(headers.map(col => ({
         csvColumn: col,
         targetField: guessMapping(col),
@@ -232,6 +251,13 @@ export const BuyerCSVImport = ({ universeId, onComplete, open: controlledOpen, o
     const file = event.target.files?.[0];
     if (!file) return;
 
+    // Check file size before processing
+    if (file.size > MAX_FILE_SIZE_BYTES) {
+      toast.error(`File too large. Maximum size is 5MB, but file is ${(file.size / (1024 * 1024)).toFixed(1)}MB.`);
+      event.target.value = '';
+      return;
+    }
+
     Papa.parse(file, {
       header: true,
       skipEmptyLines: true,
@@ -241,6 +267,11 @@ export const BuyerCSVImport = ({ universeId, onComplete, open: controlledOpen, o
 
         if (data.length === 0) {
           toast.error('CSV file is empty');
+          return;
+        }
+
+        if (data.length > MAX_ROW_COUNT) {
+          toast.error(`CSV has ${data.length.toLocaleString()} rows, which exceeds the ${MAX_ROW_COUNT.toLocaleString()} row limit. Please split the file into smaller batches.`);
           return;
         }
 
@@ -451,7 +482,7 @@ export const BuyerCSVImport = ({ universeId, onComplete, open: controlledOpen, o
       });
 
       if (error) {
-        console.error('Dedupe check error:', error);
+        // Dedupe check failed — proceeding with import
         await handleImport();
         return;
       }
@@ -465,7 +496,7 @@ export const BuyerCSVImport = ({ universeId, onComplete, open: controlledOpen, o
         await handleImport();
       }
     } catch (err) {
-      console.error('Dedupe error:', err);
+      // Dedupe error — proceeding with import
       await handleImport();
     } finally {
       setIsCheckingDuplicates(false);
@@ -516,7 +547,7 @@ export const BuyerCSVImport = ({ universeId, onComplete, open: controlledOpen, o
           .select('id, platform_website, pe_firm_website, company_website');
 
         if (error) {
-          console.error('Insert error:', error);
+          // Insert error — counted in error total
           errors += buyersToInsert.length;
         } else {
           success += buyersToInsert.length;

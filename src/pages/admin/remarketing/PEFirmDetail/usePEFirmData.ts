@@ -140,7 +140,7 @@ export const usePEFirmData = () => {
           .limit(50);
 
         if (error) {
-          console.error("Error fetching deal scores:", error);
+          // Error fetching deal scores — skipping this chunk
           continue;
         }
         allScores.push(...(data || []));

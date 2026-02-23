@@ -150,7 +150,7 @@ export const DocumentUploadSection = ({
         setActiveQueueId(item.id);
       }
     } catch (e) {
-      console.warn('Failed to register in activity queue:', e);
+      // Failed to register in activity queue — continuing without it
     }
 
     for (let i = 0; i < enrichableDocs.length; i++) {
@@ -194,7 +194,7 @@ export const DocumentUploadSection = ({
         } else {
           failures++;
           const errMsg = data?.error || 'Unknown extraction error';
-          console.error(`Extraction failed for ${doc.name}:`, errMsg);
+          // Extraction failure tracked via queue error entry
           if (queueId) {
             try {
               updateProgress.mutate({
@@ -207,7 +207,7 @@ export const DocumentUploadSection = ({
       } catch (err: any) {
         failures++;
         const errMsg = err?.message || 'Unknown error';
-        console.error(`Error enriching ${doc.name}:`, errMsg);
+        // Enrichment error tracked via queue error entry
         if (queueId) {
           try {
             updateProgress.mutate({

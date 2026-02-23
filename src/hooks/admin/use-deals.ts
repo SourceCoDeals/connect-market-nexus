@@ -173,11 +173,12 @@ export function useDeals() {
         // Batch lookup in chunks of 100
         for (let i = 0; i < crIds.length; i += 100) {
           const chunk = crIds.slice(i, i + 100);
-          const { data: approved } = await supabase
+          const { data: approved, error: approvedError } = await supabase
             .from('connection_requests')
             .select('id')
             .in('id', chunk)
             .eq('status', 'approved');
+          if (approvedError) throw approvedError;
           if (approved) approved.forEach((r: any) => approvedCRIds.add(r.id));
         }
       }
@@ -195,17 +196,19 @@ export function useDeals() {
       if (filteredCRIds.length > 0) {
         for (let i = 0; i < filteredCRIds.length; i += 100) {
           const chunk = filteredCRIds.slice(i, i + 100);
-          const { data: crData } = await supabase
+          const { data: crData, error: crError } = await supabase
             .from('connection_requests')
             .select('id, user_id')
             .in('id', chunk);
+          if (crError) throw crError;
           if (crData) {
             const userIds = crData.map((cr: any) => cr.user_id).filter(Boolean);
             if (userIds.length > 0) {
-              const { data: profiles } = await supabase
+              const { data: profiles, error: profilesError } = await supabase
                 .from('profiles')
                 .select('id, buyer_type, website, buyer_org_url, buyer_quality_score, buyer_tier')
                 .in('id', userIds);
+              if (profilesError) throw profilesError;
               const profileLookup: Record<string, any> = {};
               profiles?.forEach((p: any) => { profileLookup[p.id] = p; });
               crData.forEach((cr: any) => {
@@ -335,6 +338,8 @@ export function useDeals() {
             supabase.from('memo_distribution_log').select('deal_id').in('deal_id', chunk),
             supabase.from('data_room_documents').select('deal_id').in('deal_id', chunk).eq('status', 'active'),
           ]);
+          if (memoRes.error) throw memoRes.error;
+          if (drRes.error) throw drRes.error;
           memoRes.data?.forEach((r: any) => memoSentListings.add(r.deal_id));
           drRes.data?.forEach((r: any) => dataRoomListings.add(r.deal_id));
         }

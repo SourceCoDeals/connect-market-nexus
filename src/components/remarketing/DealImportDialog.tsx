@@ -156,18 +156,12 @@ export function DealImportDialog({
           // This ensures all parsed columns are visible even if AI returns partial list
           const [merged, stats] = mergeColumnMappings(columns, mappingResult?.mappings);
 
-          // Warn if AI returned incomplete mappings
-          if (stats.filledCount > 0) {
-            console.warn(
-              `[DealImportDialog] AI mapping incomplete: ${stats.filledCount} columns were not mapped by AI`
-            );
-          }
+          // AI may return incomplete mappings — this is handled by the merge step above
           
           setColumnMappings(merged);
           setMappingStats(stats);
         } catch (error) {
-          console.error("AI mapping failed:", error);
-          // Fallback to empty mapping - still use merge to ensure all columns present
+          // AI mapping failed — fallback to empty mapping, use merge to ensure all columns present
           const [merged, stats] = mergeColumnMappings(columns, []);
           setColumnMappings(merged);
           setMappingStats(stats);
@@ -275,7 +269,6 @@ export function DealImportDialog({
             results.importedIds.push(insertedData.id);
           }
         } catch (error) {
-          console.error(`Row ${i + 2} error:`, error);
           results.errors.push(`Row ${i + 2}: ${(error as Error).message}`);
         }
       }

@@ -293,7 +293,7 @@ export function DealBuyerChat({
             content: m.content,
             timestamp: m.timestamp.toISOString(),
           }))
-        ).catch((err) => console.error('[DealBuyerChat] Save error:', err));
+        ).catch(() => { /* save failure is non-critical */ });
 
         // Generate smart suggestions
         const suggestions = generateSmartSuggestions(

@@ -47,12 +47,17 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Mark exhausted items as failed
-    await supabase
+    // Dead letter handling: mark exhausted items as permanently failed
+    const { data: exhaustedItems } = await supabase
       .from('remarketing_scoring_queue')
       .update({ status: 'failed', last_error: 'Max attempts reached', processed_at: new Date().toISOString() })
       .eq('status', 'pending')
-      .gte('attempts', MAX_ATTEMPTS);
+      .gte('attempts', MAX_ATTEMPTS)
+      .select('id, buyer_id, listing_id, last_error');
+
+    if (exhaustedItems && exhaustedItems.length > 0) {
+      console.warn(`[Dead Letter] ${exhaustedItems.length} items exhausted all ${MAX_ATTEMPTS} retries`);
+    }
 
     let totalProcessed = 0;
     let totalSucceeded = 0;
@@ -124,6 +129,9 @@ Deno.serve(async (req) => {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 120000);
 
+        // SECURITY NOTE: Service key is passed as Bearer token for internal function-to-function calls.
+        // This is acceptable because both functions run in the same Supabase project.
+        // The called function should validate the caller is authorized.
         const response = await fetch(`${supabaseUrl}/functions/v1/${functionName}`, {
           method: 'POST',
           headers: {
@@ -225,7 +233,14 @@ Deno.serve(async (req) => {
     }
 
     return new Response(
-      JSON.stringify({ success: true, processed: totalProcessed, succeeded: totalSucceeded, failed: totalFailed, remaining: remaining || 0 }),
+      JSON.stringify({
+        success: true,
+        processed: totalProcessed,
+        succeeded: totalSucceeded,
+        failed: totalFailed,
+        dead_letter_count: exhaustedItems?.length || 0,
+        remaining: remaining || 0,
+      }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   } catch (error) {

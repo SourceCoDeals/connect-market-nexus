@@ -138,7 +138,7 @@ export function useTranscriptActions({ dealId, transcripts, dealInfo }: UseTrans
             setSelectedFiles(prev => prev.map((f, idx) => idx === i ? { ...f, status: 'processing' as const } : f));
             setProcessingProgress({ current: i + 1, total: totalFiles });
             let transcriptText = '';
-            try { transcriptText = await processFileText(sf.file); } catch (parseErr: any) { console.warn(`Text extraction failed for ${sf.file.name}:`, parseErr.message); }
+            try { transcriptText = await processFileText(sf.file); } catch (parseErr: any) { /* text extraction failed — will use fallback text */ void parseErr; }
             const filePath = `${dealId}/${uuidv4()}-${sf.file.name}`;
             let fileUrl = null;
             const { error: uploadError } = await supabase.storage.from('deal-transcripts').upload(filePath, sf.file);
@@ -153,7 +153,7 @@ export function useTranscriptActions({ dealId, transcripts, dealInfo }: UseTrans
             setSelectedFiles(prev => prev.map((f, idx) => idx === i ? { ...f, status: 'done' as const } : f));
             successCount++;
           } catch (err: any) {
-            console.error(`Error processing ${sf.file.name}:`, err);
+            // Error processing file — status set to 'error' below
             setSelectedFiles(prev => prev.map((f, idx) => idx === i ? { ...f, status: 'error' as const } : f));
           }
           if (i < selectedFiles.length - 1) await new Promise(resolve => setTimeout(resolve, 200));
@@ -324,7 +324,7 @@ export function useTranscriptActions({ dealId, transcripts, dealInfo }: UseTrans
       queryClient.invalidateQueries({ queryKey: ['remarketing', 'deal', dealId] });
       queryClient.invalidateQueries({ queryKey: ['remarketing', 'deal-transcripts', dealId] });
     } catch (error: any) {
-      console.error('Enrich error:', error);
+      // Enrich error — handled by toast/UI below
       const errorMessage = error.message || '';
       const isTimeout = errorMessage.includes('Failed to send') || errorMessage.includes('timeout') || errorMessage.includes('aborted') || errorMessage.includes('network');
       if (isTimeout) {
@@ -421,8 +421,8 @@ export function useTranscriptActions({ dealId, transcripts, dealInfo }: UseTrans
             match_type: result.match_type || 'email',
             external_participants: result.external_participants || [],
           });
-          if (insertError) { console.error(`Failed to import ${result.id}:`, insertError); failed++; } else { imported++; }
-        } catch (err) { console.error(`Error importing transcript ${ffId}:`, err); failed++; }
+          if (insertError) { failed++; } else { imported++; }
+        } catch (err) { void err; failed++; }
       }
       if (imported > 0) { toast.success(`Imported ${imported} transcript${imported !== 1 ? 's' : ''}`, { id: toastId }); queryClient.invalidateQueries({ queryKey: ['remarketing', 'deal-transcripts', dealId] }); }
       if (failed > 0) toast.warning(`${failed} transcript${failed !== 1 ? 's' : ''} failed to import`);

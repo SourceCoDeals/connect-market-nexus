@@ -139,7 +139,7 @@ export const AIResearchSection = ({
         }
       }
       if (existingContent && existingContent.length > 500) setState('complete');
-    } catch (err) { console.error('[AIResearchSection] checkExistingGeneration failed:', err); }
+    } catch (err) { /* check failed — will re-attempt on next load */ void err; }
   };
   checkExistingGenerationRef.current = checkExistingGeneration;
 
@@ -157,7 +157,7 @@ export const AIResearchSection = ({
         return;
       }
       const { data: generation, error } = await supabase.from('ma_guide_generations').select('*').eq('id', generationId).maybeSingle();
-      if (error) { console.error('[AIResearchSection] Polling error:', error); return; }
+      if (error) { return; }
       if (!generation) return;
       setCurrentPhase(generation.phases_completed); setTotalPhases(generation.total_phases); setPhaseName(generation.current_phase || '');
       const generatedContent = generation.generated_content as { content?: string; criteria?: ExtractedCriteria } | null;
@@ -411,7 +411,7 @@ export const AIResearchSection = ({
               case 'timeout_warning': toast.warning(event.message || 'Approaching time limit, saving progress...', { duration: 5000 }); break;
             }
           } catch (e) {
-            parseErrorCount++; console.warn('[AIResearchSection] Failed to parse SSE event', { batchIndex, snippet: jsonStr.slice(0, 200), error: e, parseErrorCount });
+            parseErrorCount++;
             if (parseErrorCount === PARSE_ERROR_THRESHOLD) toast.warning(`Detected ${PARSE_ERROR_THRESHOLD} stream parsing errors.`, { duration: 8000 });
           }
         }
