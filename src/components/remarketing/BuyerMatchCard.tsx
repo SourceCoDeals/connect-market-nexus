@@ -76,6 +76,7 @@ interface BuyerMatchCardProps {
   onApprove: (scoreId: string, scoreData: any) => void;
   onPass: (scoreId: string, buyerName: string, scoreData: any) => void;
   onToggleInterested?: (scoreId: string, interested: boolean, scoreData: any) => void;
+  onMarkInterested?: (scoreId: string, buyerId: string, listingId: string) => Promise<void>;
   onOutreachUpdate?: (scoreId: string, status: OutreachStatus, notes: string) => Promise<void>;
   onViewed?: (scoreId: string) => void;
   onMoveToPipeline?: (scoreId: string, buyerId: string, listingId: string) => Promise<void>;
@@ -269,9 +270,10 @@ export const BuyerMatchCard = ({
   onApprove: _onApprove,
   onPass: _onPass,
   onToggleInterested: _onToggleInterested,
+  onMarkInterested,
   onOutreachUpdate,
   onViewed,
-  onMoveToPipeline,
+  onMoveToPipeline: _onMoveToPipeline,
   outreach,
   isPending = false,
   universeName,
@@ -578,7 +580,7 @@ export const BuyerMatchCard = ({
               <>
                 <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200">
                   <Check className="h-3 w-3 mr-1" />
-                  Interested
+                  Approved
                 </Badge>
                 {/* Outreach Status Badge */}
                 {outreachBadge && outreach?.status !== 'pending' && (
@@ -599,25 +601,43 @@ export const BuyerMatchCard = ({
                     {outreach ? 'Update' : 'Track'}
                   </Button>
                 )}
-                {/* Move to Pipeline / In Pipeline */}
-                {pipelineDealId ? (
+                {/* Mark Interested Button - triggers pipeline conversion */}
+                {onMarkInterested && listingId && score.buyer?.id && !pipelineDealId && (
+                  <Button
+                    size="sm"
+                    className="h-7 px-2 text-xs bg-blue-600 hover:bg-blue-700 text-white"
+                    onClick={() => onMarkInterested(score.id, score.buyer!.id, listingId)}
+                    disabled={isPending}
+                  >
+                    <ArrowRightCircle className="h-3 w-3 mr-1" />
+                    Mark Interested
+                  </Button>
+                )}
+                {/* Already in Pipeline */}
+                {pipelineDealId && (
                   <Link to={`/admin/deals/pipeline?deal=${pipelineDealId}`}>
                     <Badge className="bg-blue-100 text-blue-700 border-blue-200 cursor-pointer hover:bg-blue-200">
                       <ArrowRightCircle className="h-3 w-3 mr-1" />
                       In Pipeline
                     </Badge>
                   </Link>
-                ) : onMoveToPipeline && listingId && score.buyer?.id ? (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="h-7 px-2 text-xs text-blue-600 border-blue-200 hover:bg-blue-50"
-                    onClick={() => onMoveToPipeline(score.id, score.buyer!.id, listingId)}
-                    disabled={isPending}
-                  >
-                    <ArrowRightCircle className="h-3 w-3 mr-1" />
-                    Move to Pipeline
-                  </Button>
+                )}
+              </>
+            )}
+
+            {score.status === 'interested' && (
+              <>
+                <Badge className="bg-blue-100 text-blue-700 border-blue-200">
+                  <Check className="h-3 w-3 mr-1" />
+                  Interested
+                </Badge>
+                {pipelineDealId ? (
+                  <Link to={`/admin/deals/pipeline?deal=${pipelineDealId}`}>
+                    <Badge className="bg-blue-100 text-blue-700 border-blue-200 cursor-pointer hover:bg-blue-200">
+                      <ArrowRightCircle className="h-3 w-3 mr-1" />
+                      View in Pipeline
+                    </Badge>
+                  </Link>
                 ) : null}
               </>
             )}

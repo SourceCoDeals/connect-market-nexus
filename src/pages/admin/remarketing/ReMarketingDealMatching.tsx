@@ -42,7 +42,7 @@ import { AddToUniverseQuickAction } from "@/components/remarketing/AddToUniverse
 import { useBackgroundScoringProgress } from "@/hooks/useBackgroundScoringProgress";
 
 type SortOption = 'score' | 'geography' | 'score_geo';
-type FilterTab = 'all' | 'approved' | 'passed' | 'outreach';
+type FilterTab = 'all' | 'approved' | 'interested' | 'passed' | 'outreach';
 
 const ReMarketingDealMatching = () => {
   const { listingId } = useParams<{ listingId: string }>();
@@ -273,13 +273,14 @@ const ReMarketingDealMatching = () => {
 
   // Compute stats including primary disqualification reason (aligned with spec v2 tiers)
   const stats = useMemo(() => {
-    if (!scores) return { qualified: 0, disqualified: 0, strong: 0, approved: 0, passed: 0, total: 0, disqualificationReason: '' };
+    if (!scores) return { qualified: 0, disqualified: 0, strong: 0, approved: 0, interested: 0, passed: 0, total: 0, disqualificationReason: '' };
 
     const qualified = scores.filter(s => !s.is_disqualified && s.composite_score >= 50 && s.status !== 'passed').length;
     const disqualifiedScores = scores.filter(s => s.is_disqualified || s.composite_score < 35);
     const disqualified = disqualifiedScores.length;
     const strong = scores.filter(s => s.composite_score >= 80).length;
     const approved = scores.filter(s => s.status === 'approved').length;
+    const interested = scores.filter(s => s.status === 'interested').length;
     const passed = scores.filter(s => s.status === 'passed').length;
     
     // Compute most common disqualification reason using score-based detection
@@ -311,7 +312,7 @@ const ReMarketingDealMatching = () => {
     const reasonCounts = reasons.reduce((acc, r) => ({ ...acc, [r]: (acc[r] || 0) + 1 }), {} as Record<string, number>);
     const topReason = Object.entries(reasonCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || '';
 
-    return { qualified, disqualified, strong, approved, passed, total: scores.length, disqualificationReason: topReason };
+    return { qualified, disqualified, strong, approved, interested, passed, total: scores.length, disqualificationReason: topReason };
   }, [scores]);
 
   // Get active outreach score IDs
@@ -334,6 +335,8 @@ const ReMarketingDealMatching = () => {
     // Apply tab filter
     if (activeTab === 'approved') {
       filtered = filtered.filter(s => s.status === 'approved');
+    } else if (activeTab === 'interested') {
+      filtered = filtered.filter(s => s.status === 'interested');
     } else if (activeTab === 'passed') {
       filtered = filtered.filter(s => s.status === 'passed');
     } else if (activeTab === 'outreach') {
@@ -497,7 +500,7 @@ const ReMarketingDealMatching = () => {
       queryClient.invalidateQueries({ queryKey: ['remarketing', 'scores', listingId] });
       refetchOutreach();
       setSelectedIds(new Set());
-      toast.success(`Marked ${selectedIds.size} buyers as interested — outreach tracking started`);
+      toast.success(`Approved ${selectedIds.size} buyers as fit — outreach tracking started`);
     },
     onError: () => {
       toast.error('Failed to bulk approve');
@@ -592,15 +595,41 @@ const ReMarketingDealMatching = () => {
     }
   };
 
-  // Handle toggle interested (approve/revert to pending)
-  const handleToggleInterested = async (scoreId: string, interested: boolean, scoreData?: any) => {
-    if (interested) {
+  // Handle toggle approved (approve/revert to pending)
+  const handleToggleApproved = async (scoreId: string, approved: boolean, scoreData?: any) => {
+    if (approved) {
       // Toggling ON → approve
       await handleApprove(scoreId, scoreData);
     } else {
       // Toggling OFF → revert to pending
       await updateScoreMutation.mutateAsync({ id: scoreId, status: 'pending', scoreData });
       toast.success('Reverted to pending');
+    }
+  };
+
+  // Handle "Mark Interested" — updates status to 'interested' and auto-creates pipeline deal
+  const handleMarkInterested = async (scoreId: string, buyerId: string, targetListingId: string) => {
+    try {
+      // 1. Update score status to interested
+      const { error: updateError } = await supabase
+        .from('remarketing_scores')
+        .update({ 
+          status: 'interested', 
+          interested: true, 
+          interested_at: new Date().toISOString() 
+        })
+        .eq('id', scoreId);
+      
+      if (updateError) throw updateError;
+
+      // 2. Auto-create pipeline deal
+      await handleMoveToPipeline(scoreId, buyerId, targetListingId);
+
+      // 3. Refresh scores
+      queryClient.invalidateQueries({ queryKey: ['remarketing', 'scores', listingId] });
+    } catch (err: any) {
+      console.error('Failed to mark interested:', err);
+      toast.error(err?.message || 'Failed to mark buyer as interested');
     }
   };
 
@@ -621,9 +650,7 @@ const ReMarketingDealMatching = () => {
 
       if (error) {
         console.error('Failed to auto-create outreach:', error);
-      } else {
-        refetchOutreach();
-        toast.success('Buyer marked interested — outreach tracking started');
+        toast.success('Buyer approved as fit — outreach tracking started');
       }
     } catch (error) {
       console.error('Failed to auto-create outreach:', error);
@@ -919,6 +946,7 @@ const ReMarketingDealMatching = () => {
         onExportCSV={handleExportCSV}
         onGenerateEmails={() => setEmailDialogOpen(true)}
         isProcessing={bulkApproveMutation.isPending}
+        activeTab={activeTab}
       />
 
       {/* Two-Column Stats Row */}
@@ -941,8 +969,14 @@ const ReMarketingDealMatching = () => {
               </div>
               <div className="flex items-center gap-2 text-sm text-emerald-600">
                 <Check className="h-4 w-4" />
-                <span>{stats.approved} interested</span>
+                <span>{stats.approved} approved</span>
               </div>
+              {stats.interested > 0 && (
+                <div className="flex items-center gap-2 text-sm text-blue-600">
+                  <Check className="h-4 w-4" />
+                  <span>{stats.interested} interested</span>
+                </div>
+              )}
               <div className="flex items-center gap-2 pt-2 border-t border-amber-200">
                 <Switch
                   id="hide-disqualified"
@@ -1064,7 +1098,10 @@ const ReMarketingDealMatching = () => {
                   All Buyers ({filteredScores.length !== stats.total ? `${filteredScores.length}/` : ''}{stats.total})
                 </TabsTrigger>
                 <TabsTrigger value="approved">
-                  Interested ({stats.approved})
+                  Approved ({stats.approved})
+                </TabsTrigger>
+                <TabsTrigger value="interested">
+                  Interested ({stats.interested})
                 </TabsTrigger>
                 <TabsTrigger value="passed">
                   Not Interested ({stats.passed})
@@ -1168,7 +1205,8 @@ const ReMarketingDealMatching = () => {
                   onSelect={handleSelect}
                   onApprove={handleApprove}
                   onPass={handleOpenPassDialog}
-                  onToggleInterested={handleToggleInterested}
+                  onToggleInterested={handleToggleApproved}
+                  onMarkInterested={handleMarkInterested}
                   onOutreachUpdate={handleOutreachUpdate}
                   onViewed={handleScoreViewed}
                   onMoveToPipeline={handleMoveToPipeline}

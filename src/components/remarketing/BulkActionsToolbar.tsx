@@ -27,6 +27,7 @@ interface BulkActionsToolbarProps {
   onExportCSV: () => void;
   onGenerateEmails?: () => void;
   isProcessing?: boolean;
+  activeTab?: string;
 }
 
 const passReasons = [
@@ -45,6 +46,7 @@ export const BulkActionsToolbar = ({
   onExportCSV,
   onGenerateEmails,
   isProcessing = false,
+  activeTab = 'all',
 }: BulkActionsToolbarProps) => {
   const [isApproving, setIsApproving] = useState(false);
   const [isPassing, setIsPassing] = useState(false);
@@ -95,20 +97,22 @@ export const BulkActionsToolbar = ({
       <div className="flex-1" />
 
       <div className="flex items-center gap-2">
-        {/* Approve Fit */}
-        <Button
-          size="sm"
-          className="bg-emerald-600 hover:bg-emerald-700 text-white"
-          onClick={handleBulkApprove}
-          disabled={isProcessing || isApproving}
-        >
-          {isApproving ? (
-            <Loader2 className="h-4 w-4 mr-1 animate-spin" />
-          ) : (
-            <Check className="h-4 w-4 mr-1" />
-          )}
-          Interested
-        </Button>
+        {/* Approve Fit - shown on All Buyers tab */}
+        {activeTab !== 'approved' && (
+          <Button
+            size="sm"
+            className="bg-emerald-600 hover:bg-emerald-700 text-white"
+            onClick={handleBulkApprove}
+            disabled={isProcessing || isApproving}
+          >
+            {isApproving ? (
+              <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+            ) : (
+              <Check className="h-4 w-4 mr-1" />
+            )}
+            Approve Fit
+          </Button>
+        )}
 
         {/* Not Interested */}
         <Button
