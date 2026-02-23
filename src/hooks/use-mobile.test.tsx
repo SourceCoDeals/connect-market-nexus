@@ -3,7 +3,7 @@ import { renderHook, act } from '@testing-library/react';
 import { useIsMobile } from './use-mobile';
 
 describe('useIsMobile', () => {
-  let matchMediaListeners: Map<string, Function>;
+  let matchMediaListeners: Map<string, (...args: unknown[]) => void>;
 
   beforeEach(() => {
     matchMediaListeners = new Map();

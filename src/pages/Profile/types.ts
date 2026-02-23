@@ -1,6 +1,6 @@
 import { User } from "@/types";
 
-export interface ProfileFormData extends Partial<User> {}
+export type ProfileFormData = Partial<User>;
 
 export interface ProfileFormProps {
   user: User;

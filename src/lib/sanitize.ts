@@ -243,6 +243,7 @@ export function sanitizeTextInput(input: string | null | undefined): string {
     // Remove null bytes
     .replace(/\0/g, '')
     // Remove other control characters (except newline, tab, carriage return)
+    // eslint-disable-next-line no-control-regex
     .replace(/[\x01-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '')
     .trim();
 }

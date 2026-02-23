@@ -8,6 +8,7 @@ describe('cn', () => {
   });
 
   it('handles conditional class names', () => {
+    // eslint-disable-next-line no-constant-binary-expression
     const result = cn('base', false && 'hidden', 'visible');
     expect(result).toBe('base visible');
   });

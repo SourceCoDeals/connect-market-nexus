@@ -13,8 +13,8 @@ import { DEAL_LISTING_FIELDS } from "@/components/filters";
 import { useTimeframe } from "@/hooks/use-timeframe";
 import { useSavedViews } from "@/hooks/use-saved-views";
 import {
-  DndContext, closestCorners, KeyboardSensor, PointerSensor,
-  useSensor, useSensors, DragEndEvent, MeasuringStrategy,
+  KeyboardSensor, PointerSensor,
+  useSensor, useSensors, DragEndEvent,
 } from "@dnd-kit/core";
 import {
   arrayMove, sortableKeyboardCoordinates,
