@@ -1,10 +1,13 @@
 /**
- * PhoneBurner Push Contacts
+ * PhoneBurner Push Contacts — Multi-entity support
  *
- * Pushes selected buyer contacts from SourceCo to a PhoneBurner dial session.
- * MVP flow: receive contact IDs → validate → map fields → push via PB API.
+ * Accepts entity_type + entity_ids to resolve contacts from any source:
+ * - buyer_contacts: direct contact IDs (original flow)
+ * - buyers: resolve via remarketing_buyer_contacts + buyer_contacts
+ * - listings: resolve main_contact_* fields from listings table
+ * - leads: resolve from inbound_leads table
  *
- * Requires: User must have connected PhoneBurner via OAuth first.
+ * Falls back to legacy { contact_ids } for backward compatibility.
  */
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -12,10 +15,26 @@ import { getCorsHeaders, corsPreflightResponse } from "../_shared/cors.ts";
 
 const PB_API_BASE = "https://www.phoneburner.com/rest/1";
 
+type EntityType = "buyer_contacts" | "buyers" | "listings" | "leads";
+
 interface PushRequest {
-  contact_ids: string[];       // buyer_contacts IDs
-  session_name?: string;       // Name for new session
-  skip_recent_days?: number;   // Skip contacts called within N days (default 7)
+  entity_type?: EntityType;
+  entity_ids?: string[];
+  contact_ids?: string[];       // Legacy — treated as buyer_contacts
+  session_name?: string;
+  skip_recent_days?: number;
+}
+
+interface ResolvedContact {
+  id: string;
+  name: string;
+  phone: string | null;
+  email: string | null;
+  title: string | null;
+  company: string | null;
+  source_entity: string;       // For logging
+  last_contacted_date: string | null;
+  extra_context?: Record<string, string>;
 }
 
 async function getValidToken(
@@ -30,13 +49,11 @@ async function getValidToken(
 
   if (!tokenRow) return null;
 
-  // Check if token is expired (with 5-min buffer)
   const expiresAt = new Date(tokenRow.expires_at).getTime();
   if (Date.now() < expiresAt - 5 * 60 * 1000) {
     return tokenRow.access_token;
   }
 
-  // Refresh the token
   const clientId = Deno.env.get("PHONEBURNER_CLIENT_ID")!;
   const clientSecret = Deno.env.get("PHONEBURNER_CLIENT_SECRET")!;
 
@@ -70,6 +87,161 @@ async function getValidToken(
 
   return tokens.access_token;
 }
+
+// ─── Contact resolvers ───
+
+async function resolveFromBuyerContacts(
+  supabase: ReturnType<typeof createClient>,
+  ids: string[],
+): Promise<ResolvedContact[]> {
+  const { data: contacts } = await supabase
+    .from("buyer_contacts")
+    .select("id, name, email, phone, title, buyer_id, company_type, last_contacted_date")
+    .in("id", ids);
+
+  if (!contacts?.length) return [];
+
+  const buyerIds = [...new Set(contacts.map(c => c.buyer_id))];
+  const { data: buyers } = await supabase
+    .from("remarketing_buyers")
+    .select("id, company_name, pe_firm_name, buyer_type, target_services, target_geographies")
+    .in("id", buyerIds);
+  const buyerMap = new Map((buyers || []).map(b => [b.id, b]));
+
+  return contacts.map(c => {
+    const buyer = buyerMap.get(c.buyer_id);
+    return {
+      id: c.id,
+      name: c.name,
+      phone: c.phone,
+      email: c.email,
+      title: c.title,
+      company: buyer?.company_name || c.company_type || null,
+      source_entity: "buyer_contact",
+      last_contacted_date: c.last_contacted_date,
+      extra_context: {
+        buyer_type: buyer?.buyer_type || "",
+        pe_firm: buyer?.pe_firm_name || "",
+        target_services: Array.isArray(buyer?.target_services) ? buyer.target_services.join(", ") : "",
+        target_geographies: Array.isArray(buyer?.target_geographies) ? buyer.target_geographies.join(", ") : "",
+      },
+    };
+  });
+}
+
+async function resolveFromBuyers(
+  supabase: ReturnType<typeof createClient>,
+  buyerIds: string[],
+): Promise<ResolvedContact[]> {
+  // Get contacts from remarketing_buyer_contacts first
+  const { data: rmContacts } = await supabase
+    .from("remarketing_buyer_contacts")
+    .select("id, buyer_id, name, email, phone, role, company_type, is_primary")
+    .in("buyer_id", buyerIds);
+
+  // Also get from buyer_contacts
+  const { data: bcContacts } = await supabase
+    .from("buyer_contacts")
+    .select("id, buyer_id, name, email, phone, title, company_type, last_contacted_date, is_primary_contact")
+    .in("buyer_id", buyerIds);
+
+  const { data: buyers } = await supabase
+    .from("remarketing_buyers")
+    .select("id, company_name, pe_firm_name, buyer_type")
+    .in("id", buyerIds);
+  const buyerMap = new Map((buyers || []).map(b => [b.id, b]));
+
+  const seen = new Set<string>();
+  const result: ResolvedContact[] = [];
+
+  // Prefer remarketing_buyer_contacts (primary first)
+  for (const c of (rmContacts || []).sort((a, b) => (b.is_primary ? 1 : 0) - (a.is_primary ? 1 : 0))) {
+    const key = `${c.email?.toLowerCase() || ""}-${c.phone || ""}`;
+    if (seen.has(key) && key !== "-") continue;
+    seen.add(key);
+    const buyer = buyerMap.get(c.buyer_id);
+    result.push({
+      id: `rm-${c.id}`,
+      name: c.name,
+      phone: c.phone,
+      email: c.email,
+      title: c.role,
+      company: buyer?.company_name || c.company_type || null,
+      source_entity: "remarketing_buyer",
+      last_contacted_date: null,
+    });
+  }
+
+  // Add buyer_contacts not already seen
+  for (const c of (bcContacts || [])) {
+    const key = `${c.email?.toLowerCase() || ""}-${c.phone || ""}`;
+    if (seen.has(key) && key !== "-") continue;
+    seen.add(key);
+    const buyer = buyerMap.get(c.buyer_id);
+    result.push({
+      id: c.id,
+      name: c.name,
+      phone: c.phone,
+      email: c.email,
+      title: c.title,
+      company: buyer?.company_name || c.company_type || null,
+      source_entity: "buyer_contact",
+      last_contacted_date: c.last_contacted_date,
+    });
+  }
+
+  return result;
+}
+
+async function resolveFromListings(
+  supabase: ReturnType<typeof createClient>,
+  listingIds: string[],
+): Promise<ResolvedContact[]> {
+  const { data: listings } = await supabase
+    .from("listings")
+    .select("id, title, internal_company_name, main_contact_name, main_contact_email, main_contact_phone, main_contact_title, deal_source")
+    .in("id", listingIds);
+
+  if (!listings?.length) return [];
+
+  return listings
+    .filter(l => l.main_contact_name)
+    .map(l => ({
+      id: `listing-${l.id}`,
+      name: l.main_contact_name!,
+      phone: l.main_contact_phone,
+      email: l.main_contact_email,
+      title: l.main_contact_title,
+      company: l.internal_company_name || l.title || null,
+      source_entity: `listing:${l.deal_source || "unknown"}`,
+      last_contacted_date: null,
+    }));
+}
+
+async function resolveFromLeads(
+  supabase: ReturnType<typeof createClient>,
+  leadIds: string[],
+): Promise<ResolvedContact[]> {
+  const { data: leads } = await supabase
+    .from("inbound_leads")
+    .select("id, name, email, phone, company, title")
+    .in("id", leadIds);
+
+  if (!leads?.length) return [];
+
+  return leads.map(l => ({
+    id: `lead-${l.id}`,
+    name: l.name || l.email || "Unknown",
+    phone: l.phone,
+    email: l.email,
+    title: l.title,
+    company: l.company,
+    source_entity: "inbound_lead",
+    last_contacted_date: null,
+  }));
+}
+
+// ─── Main handler ───
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return corsPreflightResponse(req);
@@ -105,7 +277,6 @@ Deno.serve(async (req) => {
     });
   }
 
-  // Admin check
   const { data: isAdmin } = await supabase.rpc("is_admin", { user_id: user.id });
   if (!isAdmin) {
     return new Response(JSON.stringify({ error: "Admin access required" }), {
@@ -124,40 +295,51 @@ Deno.serve(async (req) => {
   }
 
   const body: PushRequest = await req.json();
-  const { contact_ids, session_name, skip_recent_days = 7 } = body;
+  const { session_name, skip_recent_days = 7 } = body;
 
-  if (!contact_ids?.length) {
-    return new Response(JSON.stringify({ error: "No contacts provided" }), {
+  // Resolve entity_type + entity_ids (with legacy fallback)
+  const entityType: EntityType = body.entity_type || "buyer_contacts";
+  const entityIds = body.entity_ids || body.contact_ids || [];
+
+  if (!entityIds.length) {
+    return new Response(JSON.stringify({ error: "No entities provided" }), {
       status: 400,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
 
-  // Fetch contacts from buyer_contacts
-  const { data: contacts, error: fetchError } = await supabase
-    .from("buyer_contacts")
-    .select("id, name, email, phone, title, linkedin_url, buyer_id, company_type, last_contacted_date")
-    .in("id", contact_ids);
+  // Resolve to contacts
+  let contacts: ResolvedContact[];
+  switch (entityType) {
+    case "buyer_contacts":
+      contacts = await resolveFromBuyerContacts(supabase, entityIds);
+      break;
+    case "buyers":
+      contacts = await resolveFromBuyers(supabase, entityIds);
+      break;
+    case "listings":
+      contacts = await resolveFromListings(supabase, entityIds);
+      break;
+    case "leads":
+      contacts = await resolveFromLeads(supabase, entityIds);
+      break;
+    default:
+      return new Response(JSON.stringify({ error: `Unknown entity_type: ${entityType}` }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+  }
 
-  if (fetchError || !contacts?.length) {
-    return new Response(JSON.stringify({ error: "No contacts found" }), {
+  if (!contacts.length) {
+    return new Response(JSON.stringify({ error: "No contacts found for the given entities" }), {
       status: 404,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
 
-  // Also fetch buyer company names for context
-  const buyerIds = [...new Set(contacts.map(c => c.buyer_id))];
-  const { data: buyers } = await supabase
-    .from("remarketing_buyers")
-    .select("id, company_name, pe_firm_name, buyer_type, target_services, target_geographies")
-    .in("id", buyerIds);
-
-  const buyerMap = new Map((buyers || []).map(b => [b.id, b]));
-
-  // Filter: skip recently contacted
+  // Filter: skip recently contacted + no phone
   const skipCutoff = new Date(Date.now() - skip_recent_days * 24 * 60 * 60 * 1000);
-  const eligible: typeof contacts = [];
+  const eligible: ResolvedContact[] = [];
   const excluded: { name: string; reason: string }[] = [];
 
   for (const contact of contacts) {
@@ -177,22 +359,21 @@ Deno.serve(async (req) => {
       JSON.stringify({
         success: false,
         contacts_added: 0,
+        contacts_failed: 0,
         contacts_excluded: excluded.length,
         exclusions: excluded,
-        error: "All contacts were excluded",
+        error: "All contacts were excluded (no phone number or recently contacted)",
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   }
 
-  // Map contacts to PhoneBurner format and push one by one
-  // (PhoneBurner REST API v1 uses POST /contacts for individual creates)
+  // Push to PhoneBurner
   let added = 0;
   let failed = 0;
   const errors: string[] = [];
 
   for (const contact of eligible) {
-    const buyer = buyerMap.get(contact.buyer_id);
     const nameParts = contact.name.split(" ");
     const firstName = nameParts[0] || "";
     const lastName = nameParts.slice(1).join(" ") || "";
@@ -202,15 +383,13 @@ Deno.serve(async (req) => {
       last_name: lastName,
       phone: contact.phone,
       email: contact.email || "",
-      company: buyer?.company_name || "",
+      company: contact.company || "",
       title: contact.title || "",
       custom_fields: {
-        sourceco_contact_id: contact.id,
-        buyer_type: buyer?.buyer_type || "",
-        pe_firm: buyer?.pe_firm_name || "",
-        target_services: Array.isArray(buyer?.target_services) ? buyer.target_services.join(", ") : "",
-        target_geographies: Array.isArray(buyer?.target_geographies) ? buyer.target_geographies.join(", ") : "",
+        sourceco_id: contact.id,
+        source_entity: contact.source_entity,
         contact_source: "SourceCo Push to Dialer",
+        ...(contact.extra_context || {}),
       },
     };
 
@@ -226,14 +405,6 @@ Deno.serve(async (req) => {
 
       if (pbRes.ok) {
         added++;
-        // Update the contact's phoneburner sync status
-        const pbData = await pbRes.json();
-        if (pbData?.contacts?.[0]?.contact_id) {
-          await supabase
-            .from("buyer_contacts")
-            .update({ salesforce_id: String(pbData.contacts[0].contact_id) }) // Repurpose salesforce_id for PB ID
-            .eq("id", contact.id);
-        }
       } else {
         const errBody = await pbRes.text();
         console.error(`PB push failed for ${contact.name}:`, errBody);
@@ -250,7 +421,7 @@ Deno.serve(async (req) => {
   // Log the push session
   await supabase.from("phoneburner_sessions").insert({
     session_name: session_name || `Push - ${new Date().toLocaleDateString()}`,
-    session_type: "buyer_outreach",
+    session_type: entityType === "buyer_contacts" || entityType === "buyers" ? "buyer_outreach" : entityType,
     total_contacts_added: added,
     session_status: "active",
     created_by_user_id: user.id,

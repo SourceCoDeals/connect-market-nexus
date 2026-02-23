@@ -25,6 +25,7 @@ import {
   Archive,
   Trash2,
   Download,
+  Phone,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { exportDealsToCSV } from "@/lib/exportUtils";
@@ -50,6 +51,7 @@ interface CapTargetBulkActionsProps {
   showDeleteDialog: boolean;
   setShowDeleteDialog: (v: boolean) => void;
   onBulkDelete: () => void;
+  onPushToDialer?: () => void;
 }
 
 export function CapTargetBulkActions({
@@ -69,6 +71,7 @@ export function CapTargetBulkActions({
   showDeleteDialog,
   setShowDeleteDialog,
   onBulkDelete,
+  onPushToDialer,
 }: CapTargetBulkActionsProps) {
   const { toast } = useToast();
 
@@ -163,6 +166,17 @@ export function CapTargetBulkActions({
           <Download className="h-4 w-4" />
           Export CSV
         </Button>
+        {onPushToDialer && (
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={onPushToDialer}
+            className="gap-2"
+          >
+            <Phone className="h-4 w-4" />
+            Push to Dialer
+          </Button>
+        )}
         <Button
           size="sm"
           variant="outline"
