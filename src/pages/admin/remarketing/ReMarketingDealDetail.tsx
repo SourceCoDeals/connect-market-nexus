@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import { MemosTab } from "@/components/admin/data-room/MemosTab";
 import { DocumentsPanel } from "@/components/admin/data-room/DocumentsPanel";
 import { AccessMatrixPanel } from "@/components/admin/data-room/AccessMatrixPanel";

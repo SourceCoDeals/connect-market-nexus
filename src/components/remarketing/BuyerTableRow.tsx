@@ -24,7 +24,7 @@ import {
   Building,
   ExternalLink,
   DollarSign,
-  Loader2,
+  // Loader2 removed - unused
   FileCheck,
 } from "lucide-react";
 import { IntelligenceBadge } from "./IntelligenceBadge";

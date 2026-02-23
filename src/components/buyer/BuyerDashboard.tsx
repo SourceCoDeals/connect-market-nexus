@@ -42,7 +42,7 @@ export function BuyerDashboard() {
   if (!user) return null;
 
   const completeness = computeCompleteness(user as unknown as Record<string, unknown>);
-  const savedCount = savedIds?.length ?? 0;
+  const savedCount = savedIds?.size ?? 0;
   const unreadCount = unreadMessages?.total ?? 0;
 
   return (
