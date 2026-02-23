@@ -420,26 +420,28 @@ export function ConnectionRequestActions({
               {user.bio || `${tierInfo.description || 'Buyer'} ${firmName ? `at ${firmName}` : ''}${user.business_categories && Array.isArray(user.business_categories) && user.business_categories.length > 0 ? `, focused on ${(user.business_categories as string[]).slice(0, 3).join(', ')}` : ''}${aum ? `. AUM: ${aum}` : ''}.`}
             </p>
 
-            {/* Tags */}
+            {/* Tags — no Marketplace badge, no duplicate AUM */}
             <div className="flex items-center gap-2 mt-3 flex-wrap">
               {tierInfo.description && (
                 <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-muted text-foreground">{tierInfo.description}</span>
               )}
-              <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-sourceco/15 text-foreground">Marketplace</span>
               {firmName && (
                 <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-sourceco/10 text-sourceco">{firmName}</span>
-              )}
-              {aum && (
-                <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-muted text-foreground">AUM: {aum}</span>
               )}
             </div>
           </div>
 
-          {/* Right: Key stats */}
-          <div className="shrink-0 text-right space-y-1.5">
-            <p className="text-xs text-muted-foreground">Joined {user.created_at ? format(new Date(user.created_at), 'MMM d, yyyy') : '—'}</p>
-            <p className="text-xs text-muted-foreground">Requested {formattedDate || '—'}</p>
-            <div className="mt-2 w-32 ml-auto">
+          {/* Right: Key stats — bigger text */}
+          <div className="shrink-0 text-right space-y-2">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Joined</p>
+              <p className="text-sm font-medium text-foreground">{user.created_at ? format(new Date(user.created_at), 'MMM d, yyyy') : '—'}</p>
+            </div>
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Requested</p>
+              <p className="text-sm font-medium text-foreground">{formattedDate || '—'}</p>
+            </div>
+            <div className="mt-1 w-36 ml-auto">
               <div className="flex items-center justify-between mb-1">
                 <span className="text-xs text-muted-foreground font-medium">Profile</span>
                 <span className={`text-xs font-bold ${completeness >= 70 ? 'text-sourceco' : 'text-muted-foreground'}`}>{completeness}%</span>
