@@ -18,6 +18,15 @@ export const APP_CONFIG = {
 
   /** Support / contact email */
   supportEmail: 'support@connectmarketnexus.com',
+
+  /** Default admin email (used for mailto links, reply-to, etc.) */
+  adminEmail: 'adam.haile@sourcecodeals.com',
+
+  /** No-reply sender email for transactional emails */
+  noreplyEmail: 'noreply@sourcecodeals.com',
+
+  /** Deals inbox email */
+  dealsEmail: 'deals@sourcecodeals.com',
 } as const;
 
 // ─── Feature Flags ───────────────────────────────────────────────────────────

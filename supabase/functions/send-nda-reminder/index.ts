@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.47.10";
+import { logEmailDelivery } from "../_shared/email-logger.ts";
 
 /**
  * send-nda-reminder
@@ -146,7 +147,7 @@ serve(async (req: Request) => {
               "api-key": brevoApiKey,
             },
             body: JSON.stringify({
-              sender: { name: "SourceCo", email: "noreply@sourcecodeals.com" },
+              sender: { name: "SourceCo", email: Deno.env.get('NOREPLY_EMAIL') || 'noreply@sourcecodeals.com' },
               to: [{ email: recipientEmail, name: safeRecipientName }],
               subject,
               htmlContent,
@@ -157,6 +158,8 @@ serve(async (req: Request) => {
         } finally {
           clearTimeout(timeout);
         }
+
+        const reminderCorrelationId = crypto.randomUUID();
 
         if (brevoResponse.ok) {
           remindersSent++;
@@ -170,9 +173,23 @@ serve(async (req: Request) => {
             raw_payload: { reminder_type: reminderType },
             processed_at: new Date().toISOString(),
           });
+
+          await logEmailDelivery(supabase, {
+            email: recipientEmail,
+            emailType: 'nda_reminder',
+            status: 'sent',
+            correlationId: reminderCorrelationId,
+          });
         } else {
           const errorText = await brevoResponse.text();
           console.error(`❌ Brevo error for firm ${firm.id}:`, errorText);
+          await logEmailDelivery(supabase, {
+            email: recipientEmail,
+            emailType: 'nda_reminder',
+            status: 'failed',
+            correlationId: reminderCorrelationId,
+            errorMessage: errorText,
+          });
         }
       } catch (emailError: any) {
         if (emailError.name === "AbortError") {
@@ -180,6 +197,13 @@ serve(async (req: Request) => {
         } else {
           console.error(`❌ Email error for firm ${firm.id}:`, emailError);
         }
+        await logEmailDelivery(supabase, {
+          email: recipientEmail,
+          emailType: 'nda_reminder',
+          status: 'failed',
+          correlationId: crypto.randomUUID(),
+          errorMessage: emailError.name === "AbortError" ? "Brevo API timeout" : emailError.message,
+        });
       }
     }
 

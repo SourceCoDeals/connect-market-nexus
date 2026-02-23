@@ -4,6 +4,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 
 import { getCorsHeaders, corsPreflightResponse } from "../_shared/cors.ts";
 import { requireAuth, escapeHtml, escapeHtmlWithBreaks } from "../_shared/auth.ts";
+import { logEmailDelivery } from "../_shared/email-logger.ts";
 
 interface FeedbackNotificationRequest {
   feedbackId: string;
@@ -162,7 +163,7 @@ const handler = async (req: Request): Promise<Response> => {
         body: JSON.stringify({
           sender: {
             name: "SourceCo Marketplace Feedback",
-            email: "adam.haile@sourcecodeals.com"
+            email: Deno.env.get('ADMIN_EMAIL') || 'adam.haile@sourcecodeals.com'
           },
           to: adminUsers.map(admin => ({
             email: admin.email,
@@ -171,7 +172,7 @@ const handler = async (req: Request): Promise<Response> => {
           subject: emailSubject,
           htmlContent: emailHtml,
           replyTo: {
-            email: "adam.haile@sourcecodeals.com",
+            email: Deno.env.get('ADMIN_EMAIL') || 'adam.haile@sourcecodeals.com',
             name: "SourceCo Support"
           },
           // Disable click tracking to prevent broken links
@@ -181,6 +182,8 @@ const handler = async (req: Request): Promise<Response> => {
           }
         })
       });
+
+      const correlationId = crypto.randomUUID();
 
       if (!emailResponse.ok) {
         const errorText = await emailResponse.text();
@@ -196,8 +199,25 @@ const handler = async (req: Request): Promise<Response> => {
           userName,
           adminCount: adminUsers.length
         });
+        for (const admin of adminUsers) {
+          await logEmailDelivery(supabase, {
+            email: admin.email,
+            emailType: 'feedback_notification',
+            status: 'failed',
+            correlationId,
+            errorMessage: errorText,
+          });
+        }
       } else {
         console.log("Email sent successfully to admin");
+        for (const admin of adminUsers) {
+          await logEmailDelivery(supabase, {
+            email: admin.email,
+            emailType: 'feedback_notification',
+            status: 'sent',
+            correlationId,
+          });
+        }
       }
     } catch (error) {
       console.error("Email delivery error:", error);

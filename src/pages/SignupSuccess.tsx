@@ -6,6 +6,7 @@ import { CheckCircle, Mail, ArrowRight, Clock, Shield } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { CountdownTimer } from "@/components/ui/countdown-timer";
+import { APP_CONFIG } from "@/config/app";
 
 const SignupSuccess = () => {
   const [searchParams] = useSearchParams();
@@ -227,8 +228,8 @@ const SignupSuccess = () => {
             <div className="text-center">
               <p className="text-xs text-muted-foreground">
                 Need help? Contact us at{' '}
-                <a href="mailto:adam.haile@sourcecodeals.com" className="text-primary hover:underline">
-                  adam.haile@sourcecodeals.com
+                <a href={`mailto:${APP_CONFIG.adminEmail}`} className="text-primary hover:underline">
+                  {APP_CONFIG.adminEmail}
                 </a>
               </p>
             </div>

@@ -1,7 +1,10 @@
-import { useState } from "react";
+import { useState, lazy, Suspense } from "react";
 import { RichTextDisplay } from "@/components/ui/rich-text-display";
-import { PremiumRichTextEditor } from "@/components/ui/premium-rich-text-editor";
 import { useAdminListings } from "@/hooks/admin/use-admin-listings";
+
+const PremiumRichTextEditor = lazy(() =>
+  import("@/components/ui/premium-rich-text-editor").then(m => ({ default: m.PremiumRichTextEditor }))
+);
 import { Check, X, Edit } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -56,10 +59,12 @@ export function EditableDescription({
   if (isActive) {
     return (
       <div className="space-y-3 border-2 border-sourceco-accent rounded-lg p-4">
-        <PremiumRichTextEditor
-          content={value}
-          onChange={(html) => setValue(html)}
-        />
+        <Suspense fallback={<div className="h-[300px] animate-pulse bg-muted rounded-lg" />}>
+          <PremiumRichTextEditor
+            content={value}
+            onChange={(html) => setValue(html)}
+          />
+        </Suspense>
         <div className="flex gap-2 pt-2 border-t border-sourceco-form">
           <Button
             size="sm"

@@ -1,6 +1,8 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 import { getCorsHeaders, corsPreflightResponse } from "../_shared/cors.ts";
+import { logEmailDelivery } from "../_shared/email-logger.ts";
 
 interface PasswordResetEmailRequest {
   email: string;
@@ -50,6 +52,9 @@ const handler = async (req: Request): Promise<Response> => {
 
     console.log(`Sending password reset email to: ${email}`);
 
+    const supabase = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
+    const correlationId = crypto.randomUUID();
+
     // Try Brevo FIRST (primary provider)
     const brevoApiKey = Deno.env.get("BREVO_API_KEY");
     if (brevoApiKey) {
@@ -63,7 +68,7 @@ const handler = async (req: Request): Promise<Response> => {
           body: JSON.stringify({
             sender: {
               name: "SourceCo Marketplace",
-              email: "noreply@sourcecodeals.com"
+              email: Deno.env.get('NOREPLY_EMAIL') || 'noreply@sourcecodeals.com'
             },
             to: [{ email, name: email }],
             subject: "Reset Your Password",
@@ -81,7 +86,7 @@ const handler = async (req: Request): Promise<Response> => {
               </div>
             `,
             textContent: `Reset your password using this link: ${resetUrl}\nThis link will expire in 1 hour. If you didn't request this, please ignore this email.`,
-            replyTo: { email: "adam.haile@sourcecodeals.com", name: "SourceCo" },
+            replyTo: { email: Deno.env.get('ADMIN_EMAIL') || 'adam.haile@sourcecodeals.com', name: "SourceCo" },
             tags: ["password-reset"],
             // Keep consistent behavior with other Brevo calls in project
             params: { trackClicks: false, trackOpens: true }
@@ -90,6 +95,7 @@ const handler = async (req: Request): Promise<Response> => {
 
         if (brevoResponse.ok) {
           console.log("Password reset email sent successfully via Brevo");
+          await logEmailDelivery(supabase, { email, emailType: 'password_reset', status: 'sent', correlationId });
           return new Response(
             JSON.stringify({ success: true, provider: "brevo" }),
             {
@@ -98,10 +104,13 @@ const handler = async (req: Request): Promise<Response> => {
             }
           );
         } else {
-          console.error("Brevo failed:", await brevoResponse.text());
+          const errorText = await brevoResponse.text();
+          console.error("Brevo failed:", errorText);
+          await logEmailDelivery(supabase, { email, emailType: 'password_reset', status: 'failed', correlationId, errorMessage: errorText });
         }
       } catch (error) {
         console.error("Brevo error:", error);
+        await logEmailDelivery(supabase, { email, emailType: 'password_reset', status: 'failed', correlationId, errorMessage: String(error) });
       }
     }
 

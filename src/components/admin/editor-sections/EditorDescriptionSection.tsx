@@ -1,7 +1,11 @@
+import { lazy, Suspense } from "react";
 import { FormField, FormItem, FormControl, FormMessage } from "@/components/ui/form";
 import { UseFormReturn } from "react-hook-form";
-import { PremiumRichTextEditor } from "@/components/ui/premium-rich-text-editor";
 import { EDITOR_DESIGN } from "@/lib/editor-design-system";
+
+const PremiumRichTextEditor = lazy(() =>
+  import("@/components/ui/premium-rich-text-editor").then(m => ({ default: m.PremiumRichTextEditor }))
+);
 import { cn } from "@/lib/utils";
 import { stripHtml } from "@/lib/sanitize";
 
@@ -22,16 +26,18 @@ export function EditorDescriptionSection({ form }: EditorDescriptionSectionProps
         render={({ field }) => (
           <FormItem>
             <FormControl>
-              <PremiumRichTextEditor
-                content={form.getValues('description_html') || field.value || ''}
-                onChange={(html, json) => {
-                  form.setValue('description_html', html);
-                  form.setValue('description_json', json);
-                  // Extract plain text safely using sanitize utility
-                  const plainText = stripHtml(html);
-                  field.onChange(plainText);
-                }}
-              />
+              <Suspense fallback={<div className="h-[300px] animate-pulse bg-muted rounded-lg" />}>
+                <PremiumRichTextEditor
+                  content={form.getValues('description_html') || field.value || ''}
+                  onChange={(html, json) => {
+                    form.setValue('description_html', html);
+                    form.setValue('description_json', json);
+                    // Extract plain text safely using sanitize utility
+                    const plainText = stripHtml(html);
+                    field.onChange(plainText);
+                  }}
+                />
+              </Suspense>
             </FormControl>
             <FormMessage />
           </FormItem>

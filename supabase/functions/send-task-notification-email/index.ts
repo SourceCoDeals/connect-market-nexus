@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
 
 import { getCorsHeaders, corsPreflightResponse } from "../_shared/cors.ts";
+import { logEmailDelivery } from "../_shared/email-logger.ts";
 
 interface TaskNotificationRequest {
   assignee_email: string;
@@ -41,6 +42,7 @@ serve(async (req) => {
       deal_id
     }: TaskNotificationRequest = await req.json();
 
+    const correlationId = crypto.randomUUID();
     console.log('Sending task notification email to:', assignee_email);
 
     // Format due date if provided
@@ -200,7 +202,7 @@ This is an automated notification from your admin task management system.`;
       body: JSON.stringify({
         sender: {
           name: 'SourceCo Pipeline',
-          email: 'adam.haile@sourcecodeals.com'
+          email: Deno.env.get('ADMIN_EMAIL') || 'adam.haile@sourcecodeals.com'
         },
         to: [{
           email: assignee_email,
@@ -215,18 +217,21 @@ This is an automated notification from your admin task management system.`;
     if (!brevoResponse.ok) {
       const errorData = await brevoResponse.text();
       console.error('Brevo email error:', errorData);
+      await logEmailDelivery(supabaseClient, { email: assignee_email, emailType: 'task_notification', status: 'failed', correlationId, errorMessage: errorData });
       // Don't throw - return success anyway since notification was created
       return new Response(
         JSON.stringify({ success: true, warning: 'Email failed but notification created', error: errorData }),
-        { 
+        {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          status: 200 
+          status: 200
         }
       );
     }
 
     const result = await brevoResponse.json();
     console.log('Email sent successfully via Brevo:', result);
+
+    await logEmailDelivery(supabaseClient, { email: assignee_email, emailType: 'task_notification', status: 'sent', correlationId });
 
     return new Response(
       JSON.stringify({ success: true, message: 'Email notification sent', messageId: result.messageId }),
@@ -238,6 +243,10 @@ This is an automated notification from your admin task management system.`;
 
   } catch (error) {
     console.error('Error sending task notification email:', error);
+    try {
+      const sbClient = createClient(Deno.env.get('SUPABASE_URL') ?? '', Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '');
+      await logEmailDelivery(sbClient, { email: 'unknown', emailType: 'task_notification', status: 'failed', errorMessage: String(error) });
+    } catch (_) { /* logging best-effort */ }
     return new Response(
       JSON.stringify({ error: error.message }),
       { 

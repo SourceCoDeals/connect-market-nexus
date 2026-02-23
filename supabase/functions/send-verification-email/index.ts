@@ -1,7 +1,9 @@
 
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 import { getCorsHeaders, corsPreflightResponse } from "../_shared/cors.ts";
+import { logEmailDelivery } from "../_shared/email-logger.ts";
 
 interface VerificationEmailRequest {
   email: string;
@@ -20,6 +22,11 @@ const handler = async (req: Request): Promise<Response> => {
   }
 
   // FUNCTION DISABLED: Only Supabase native verification is used now
+  try {
+    const supabase = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
+    await logEmailDelivery(supabase, { email: 'unknown', emailType: 'verification_legacy', status: 'failed', correlationId: crypto.randomUUID(), errorMessage: 'Function is deprecated (410 Gone)' });
+  } catch (_) { /* logging best-effort */ }
+
   return new Response(
     JSON.stringify({ 
       success: false,

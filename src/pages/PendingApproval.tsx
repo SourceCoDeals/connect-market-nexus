@@ -7,6 +7,7 @@ import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { cleanupAuthState } from '@/lib/auth-helpers';
+import { APP_CONFIG } from '@/config/app';
 import { useBuyerNdaStatus } from '@/hooks/admin/use-docuseal';
 import { DocuSealSigningPanel } from '@/components/docuseal/DocuSealSigningPanel';
 
@@ -456,10 +457,10 @@ const PendingApproval = () => {
             <div className="text-xs text-center text-muted-foreground">
               Need help? Contact{" "}
               <a
-                href="mailto:adam.haile@sourcecodeals.com"
+                href={`mailto:${APP_CONFIG.adminEmail}`}
                 className="text-primary hover:underline"
               >
-                adam.haile@sourcecodeals.com
+                {APP_CONFIG.adminEmail}
               </a>
             </div>
           </CardFooter>

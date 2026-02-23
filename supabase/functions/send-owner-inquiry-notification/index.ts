@@ -1,6 +1,8 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 import { getCorsHeaders, corsPreflightResponse } from "../_shared/cors.ts";
+import { logEmailDelivery } from "../_shared/email-logger.ts";
 
 interface OwnerInquiryNotification {
   name: string;
@@ -47,6 +49,8 @@ const handler = async (req: Request): Promise<Response> => {
     const data: OwnerInquiryNotification = await req.json();
     
     console.log("Sending owner inquiry notification for:", data.companyName);
+
+    const supabase = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
 
     const brevoApiKey = Deno.env.get("BREVO_API_KEY");
     if (!brevoApiKey) {
@@ -116,6 +120,9 @@ const handler = async (req: Request): Promise<Response> => {
       </div>
     `;
 
+    const recipientEmail = Deno.env.get('OWNER_INQUIRY_RECIPIENT_EMAIL') || "adam.haile@sourcecodeals.com";
+    const correlationId = crypto.randomUUID();
+
     const emailResponse = await fetch("https://api.brevo.com/v3/smtp/email", {
       method: "POST",
       headers: {
@@ -129,7 +136,7 @@ const handler = async (req: Request): Promise<Response> => {
           email: Deno.env.get('OWNER_INQUIRY_SENDER_EMAIL') || "adam.haile@sourcecodeals.com"
         },
         to: [{
-          email: Deno.env.get('OWNER_INQUIRY_RECIPIENT_EMAIL') || "adam.haile@sourcecodeals.com",
+          email: recipientEmail,
           name: Deno.env.get('OWNER_INQUIRY_RECIPIENT_NAME') || "Adam Haile"
         }],
         subject: `🏢 New Owner Inquiry: ${data.companyName} (${formatRevenueRange(data.revenueRange)})`,
@@ -147,11 +154,25 @@ const handler = async (req: Request): Promise<Response> => {
         status: emailResponse.status,
         error: errorText
       });
+      await logEmailDelivery(supabase, {
+        email: recipientEmail,
+        emailType: 'owner_inquiry',
+        status: 'failed',
+        correlationId,
+        errorMessage: errorText,
+      });
       throw new Error(`Brevo API error: ${errorText}`);
     }
 
     const responseData = await emailResponse.json();
     console.log("Owner inquiry notification sent successfully:", responseData.messageId);
+
+    await logEmailDelivery(supabase, {
+      email: recipientEmail,
+      emailType: 'owner_inquiry',
+      status: 'sent',
+      correlationId,
+    });
 
     return new Response(
       JSON.stringify({ success: true, message: "Notification sent" }),
