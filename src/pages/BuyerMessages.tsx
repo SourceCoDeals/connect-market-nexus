@@ -56,6 +56,9 @@ function useSendDocumentQuestion() {
         .limit(1)
         .maybeSingle();
 
+      // Oz De La Luna's admin ID — all document questions route to him
+      const OZ_ADMIN_ID = 'ea1f0064-52ef-43fb-bec4-22391b720328';
+
       if (activeRequest) {
         // Send as a connection message
         const { error } = await (supabase.from('connection_messages') as any).insert({
@@ -64,22 +67,25 @@ function useSendDocumentQuestion() {
           sender_role: 'buyer',
         });
         if (error) throw error;
-      } else {
-        // No active thread — create an admin notification instead
-        const { data: admins } = await (supabase.from('profiles') as any)
-          .select('id')
-          .eq('role', 'admin')
-          .limit(3);
 
-        for (const admin of (admins || [])) {
-          await (supabase.from('admin_notifications') as any).insert({
-            admin_id: admin.id,
-            user_id: userId,
-            notification_type: 'document_question',
-            title: `Document Question: ${docLabel}`,
-            message: question,
-          });
-        }
+        // Also notify Oz directly so it appears in his inbox
+        await (supabase.from('admin_notifications') as any).insert({
+          admin_id: OZ_ADMIN_ID,
+          user_id: userId,
+          notification_type: 'document_question',
+          title: `Document Question: ${docLabel}`,
+          message: question,
+          action_url: `/admin/marketplace/requests`,
+        });
+      } else {
+        // No active thread — create an admin notification for Oz
+        await (supabase.from('admin_notifications') as any).insert({
+          admin_id: OZ_ADMIN_ID,
+          user_id: userId,
+          notification_type: 'document_question',
+          title: `Document Question: ${docLabel}`,
+          message: question,
+        });
       }
     },
     onSuccess: () => {
