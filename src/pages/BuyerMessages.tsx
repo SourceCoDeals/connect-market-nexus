@@ -60,33 +60,29 @@ function useSendDocumentQuestion() {
       const OZ_ADMIN_ID = 'ea1f0064-52ef-43fb-bec4-22391b720328';
 
       if (activeRequest) {
-        // Send as a connection message
+        // Send as a connection message (sender_id required by RLS)
         const { error } = await (supabase.from('connection_messages') as any).insert({
           connection_request_id: activeRequest.id,
+          sender_id: userId,
           body: messageBody,
           sender_role: 'buyer',
         });
         if (error) throw error;
-
-        // Also notify Oz directly so it appears in his inbox
-        await (supabase.from('admin_notifications') as any).insert({
-          admin_id: OZ_ADMIN_ID,
-          user_id: userId,
-          notification_type: 'document_question',
-          title: `Document Question: ${docLabel}`,
-          message: question,
-          action_url: `/admin/marketplace/requests`,
-        });
       } else {
-        // No active thread — create an admin notification for Oz
-        await (supabase.from('admin_notifications') as any).insert({
+        // No active thread — create a user notification for Oz instead
+        // (buyers can't insert into admin_notifications due to RLS)
+        console.warn('No active connection request found for document question');
+      }
+
+      // Always notify Oz via admin_notifications using an edge function call
+      await supabase.functions.invoke('notify-admin-document-question', {
+        body: {
           admin_id: OZ_ADMIN_ID,
           user_id: userId,
-          notification_type: 'document_question',
-          title: `Document Question: ${docLabel}`,
-          message: question,
-        });
-      }
+          document_type: docLabel,
+          question,
+        },
+      });
     },
     onSuccess: () => {
       toast({ title: 'Question Sent', description: 'Our team will review and respond shortly.' });
