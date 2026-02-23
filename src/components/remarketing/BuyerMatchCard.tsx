@@ -4,8 +4,6 @@ import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Switch } from "@/components/ui/switch";
-import { Label } from "@/components/ui/label";
 import {
   Tooltip,
   TooltipContent,
@@ -266,9 +264,9 @@ export const BuyerMatchCard = ({
   isSelected = false,
   isHighlighted = false,
   onSelect,
-  onApprove,
+  onApprove: _onApprove,
   onPass,
-  onToggleInterested,
+  onToggleInterested: _onToggleInterested,
   onOutreachUpdate,
   onViewed,
   onMoveToPipeline,
@@ -559,39 +557,14 @@ export const BuyerMatchCard = ({
           </div>
         </div>
         
-        {/* Action Buttons - Interested Toggle + Pass */}
+        {/* Action Buttons */}
         <div className="flex items-center justify-between mt-2">
-          {/* Left: Interested Toggle */}
+          {/* Left: Status */}
           <div className="flex items-center gap-3">
-            {score.status !== 'passed' ? (
-              <div className="flex items-center gap-2">
-                <Switch
-                  id={`interested-${score.id}`}
-                  checked={score.status === 'approved'}
-                  onCheckedChange={(checked) => {
-                    if (onToggleInterested) {
-                      onToggleInterested(score.id, checked, score);
-                    } else if (checked) {
-                      onApprove(score.id, score);
-                    }
-                  }}
-                  disabled={isPending}
-                  className="data-[state=checked]:bg-emerald-600"
-                />
-                <Label
-                  htmlFor={`interested-${score.id}`}
-                  className={cn(
-                    "text-sm font-medium cursor-pointer",
-                    score.status === 'approved' ? "text-emerald-700" : "text-muted-foreground"
-                  )}
-                >
-                  {score.status === 'approved' ? 'Interested' : 'Not Interested'}
-                </Label>
-              </div>
-            ) : (
+            {score.status === 'passed' && (
               <Badge variant="outline" className="text-muted-foreground">
                 <X className="h-3 w-3 mr-1" />
-                Not Interested
+                Passed
                 {score.pass_reason && ` - ${score.pass_category}`}
               </Badge>
             )}
