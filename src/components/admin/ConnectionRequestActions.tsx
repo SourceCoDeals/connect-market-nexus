@@ -573,7 +573,37 @@ export function ConnectionRequestActions({
             </div>
           </div>
 
-          {/* Deal Information */}
+          {/* NDA & Fee Agreement Status */}
+          <div className="bg-sourceco-background border border-sourceco/25 rounded-xl overflow-hidden shadow-sm">
+            <div className="px-4 py-3 border-b border-sourceco/20 bg-sourceco-muted/30">
+              <p className="text-[10px] font-bold uppercase tracking-[0.08em] text-muted-foreground flex items-center gap-1.5">
+                <FileText className="h-3 w-3" />
+                Agreements
+              </p>
+            </div>
+            <div className="px-4 py-3 space-y-2">
+              <div className="flex items-center justify-between py-1.5 px-3 rounded-md bg-muted/30">
+                <span className="text-xs font-medium">NDA</span>
+                <div className="flex items-center gap-1.5">
+                  {getDocStatusDot(hasNDA)}
+                  <span className={`text-xs font-medium ${hasNDA ? 'text-emerald-600' : 'text-amber-600'}`}>
+                    {user.nda_signed ? 'Signed' : user.nda_email_sent ? 'Sent' : 'Not Sent'}
+                  </span>
+                </div>
+              </div>
+              <div className="flex items-center justify-between py-1.5 px-3 rounded-md bg-muted/30">
+                <span className="text-xs font-medium">Fee Agreement</span>
+                <div className="flex items-center gap-1.5">
+                  {getDocStatusDot(hasFeeAgreement)}
+                  <span className={`text-xs font-medium ${hasFeeAgreement ? 'text-emerald-600' : 'text-amber-600'}`}>
+                    {user.fee_agreement_signed ? 'Signed' : user.fee_agreement_email_sent ? 'Sent' : 'Not Sent'}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Deal Summary (compact) */}
           {listing && (
             <div className="bg-sourceco-background border border-sourceco/25 rounded-xl overflow-hidden shadow-sm">
               <div className="px-4 py-3 border-b border-sourceco/20 bg-sourceco-muted/30">
@@ -582,39 +612,21 @@ export function ConnectionRequestActions({
                   Requested Deal
                 </p>
               </div>
-              <div className="px-4 py-3 space-y-2.5">
-                <SidebarField label="Deal">
-                  <button
-                    onClick={() => window.open(`/listing/${listing.id}`, '_blank')}
-                    className="text-xs font-medium text-primary hover:text-primary/80 flex items-center gap-1 group text-right"
-                  >
-                    <span className="truncate max-w-[160px]">{listing.title}</span>
-                    <ExternalLink className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
-                  </button>
-                </SidebarField>
-                <SidebarField label="Category">
-                  <span className="text-xs font-medium text-foreground">{listing.category}</span>
-                </SidebarField>
-                {listing.location && (
-                  <SidebarField label="Location">
-                    <span className="text-xs font-medium text-foreground">{listing.location}</span>
-                  </SidebarField>
-                )}
-                {listing.revenue && (
-                  <SidebarField label="Revenue">
-                    <span className="text-xs font-semibold text-success">
-                      ${Number(listing.revenue).toLocaleString()}
-                    </span>
-                  </SidebarField>
-                )}
+              <div className="px-4 py-3">
+                <button
+                  onClick={() => window.open(`/listing/${listing.id}`, '_blank')}
+                  className="text-xs font-medium text-primary hover:text-primary/80 flex items-center gap-1 group"
+                >
+                  <span className="truncate">{listing.title}</span>
+                  <ExternalLink className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
+                </button>
+                <p className="text-[11px] text-muted-foreground mt-0.5">
+                  {listing.category}{listing.location ? ` · ${listing.location}` : ''}
+                  {listing.revenue ? ` · $${Number(listing.revenue).toLocaleString()}` : ''}
+                </p>
               </div>
             </div>
           )}
-
-          {/* General Notes (compact) */}
-          <div className="bg-sourceco-background border border-sourceco/25 rounded-xl overflow-hidden shadow-sm">
-            <UserNotesSection userId={user.id} userName={`${user.first_name} ${user.last_name}`} />
-          </div>
 
           {/* Other Deals by Buyer */}
           {userRequests.length > 1 && (
