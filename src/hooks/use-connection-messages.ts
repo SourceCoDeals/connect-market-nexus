@@ -49,6 +49,7 @@ export function useConnectionMessages(connectionRequestId: string | undefined) {
             queryKey: ['connection-messages', connectionRequestId],
           });
           queryClient.invalidateQueries({ queryKey: ['unread-message-counts'] });
+          queryClient.invalidateQueries({ queryKey: ['unread-buyer-message-counts'] });
         }
       )
       .subscribe();
@@ -116,6 +117,7 @@ export function useSendMessage() {
         queryKey: ['connection-messages', variables.connection_request_id],
       });
       queryClient.invalidateQueries({ queryKey: ['unread-message-counts'] });
+      queryClient.invalidateQueries({ queryKey: ['unread-buyer-message-counts'] });
       queryClient.invalidateQueries({ queryKey: ['message-center-threads'] });
     },
   });
@@ -166,6 +168,7 @@ export function useMarkMessagesReadByBuyer() {
         queryKey: ['connection-messages', connectionRequestId],
       });
       queryClient.invalidateQueries({ queryKey: ['unread-message-counts'] });
+      queryClient.invalidateQueries({ queryKey: ['unread-buyer-message-counts'] });
     },
   });
 }
