@@ -85,10 +85,20 @@ export function useUserNotifications() {
       return acc;
     }, {} as Record<string, number>);
 
+  // Get unread document notification count by deal_id (from metadata)
+  const unreadDocsByDeal = (query.data || [])
+    .filter(n => !n.is_read && n.notification_type === 'document_uploaded' && n.metadata?.deal_id)
+    .reduce((acc, n) => {
+      const dealId = n.metadata.deal_id as string;
+      acc[dealId] = (acc[dealId] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+
   return {
     notifications: query.data || [],
     unreadCount,
     unreadByRequest,
+    unreadDocsByDeal,
     isLoading: query.isLoading,
   };
 }

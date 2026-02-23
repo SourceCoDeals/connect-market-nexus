@@ -55,7 +55,7 @@ const MyRequests = () => {
   const [searchParams] = useSearchParams();
   const [selectedDeal, setSelectedDeal] = useState<string | null>(null);
   const [innerTab, setInnerTab] = useState<Record<string, string>>({});
-  const { unreadByRequest } = useUserNotifications();
+  const { unreadByRequest, unreadDocsByDeal } = useUserNotifications();
   const markRequestNotificationsAsRead = useMarkRequestNotificationsAsRead();
   const { data: unreadMsgCounts } = useUnreadBuyerMessageCounts();
 
@@ -318,6 +318,7 @@ const MyRequests = () => {
             const requestStatus = request.status as "pending" | "approved" | "rejected" | "on_hold";
             const currentInnerTab = getInnerTab(request.id);
             const msgUnread = unreadMsgCounts?.byRequest[request.id] || 0;
+            const docUnread = unreadDocsByDeal[request.listing_id] || 0;
 
             return (
               <TabsContent
@@ -355,6 +356,11 @@ const MyRequests = () => {
                       >
                         <FolderOpen className="h-3.5 w-3.5" />
                         Documents
+                        {docUnread > 0 && (
+                          <span className="flex h-4 min-w-[16px] items-center justify-center rounded-full bg-amber-500 px-1 text-[9px] font-bold text-white">
+                            {docUnread > 99 ? "99+" : docUnread}
+                          </span>
+                        )}
                       </TabsTrigger>
                       <TabsTrigger
                         value="messages"

@@ -1,4 +1,4 @@
-import { Bell, Clock, MessageSquare, FileText, CheckCircle } from 'lucide-react';
+import { Bell, Clock, MessageSquare, FileText, CheckCircle, FolderOpen } from 'lucide-react';
 import { useUserNotifications, useMarkNotificationAsRead, UserNotification } from '@/hooks/use-user-notifications';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -18,6 +18,8 @@ export function BuyerNotificationBell() {
     switch (type) {
       case 'memo_shared':
         return <FileText className="w-4 h-4 text-blue-600" />;
+      case 'document_uploaded':
+        return <FolderOpen className="w-4 h-4 text-amber-600" />;
       case 'status_changed':
       case 'request_approved':
         return <CheckCircle className="w-4 h-4 text-green-600" />;
@@ -37,11 +39,15 @@ export function BuyerNotificationBell() {
 
     // Navigate based on notification type
     if (n.notification_type === 'memo_shared') {
-      // Go to the deal detail if we have a connection_request_id
       if (n.connection_request_id) {
         navigate(`/deals/${n.connection_request_id}`);
       } else if (n.metadata?.deal_slug) {
         navigate(`/marketplace/${n.metadata.deal_slug}`);
+      }
+    } else if (n.notification_type === 'document_uploaded') {
+      // Deep-link to the Documents tab in My Deals
+      if (n.metadata?.deal_id) {
+        navigate(`/my-requests?deal=${n.metadata.deal_id}&tab=documents`);
       }
     } else if (n.notification_type === 'new_message' && n.connection_request_id) {
       navigate(`/messages?deal=${n.connection_request_id}`);
