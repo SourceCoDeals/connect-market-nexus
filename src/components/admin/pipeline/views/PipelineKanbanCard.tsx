@@ -127,7 +127,7 @@ export function PipelineKanbanCard({ deal, onDealClick, isDragging }: PipelineKa
             <span className="text-sm font-bold text-foreground truncate">{buyerCompany || contactName}</span>
             <div className="flex items-center gap-1">
               <BuyerTierBadge tier={deal.buyer_tier} />
-              <BuyerScoreBadge score={deal.buyer_quality_score} />
+              <BuyerScoreBadge score={deal.buyer_quality_score} size="lg" />
               {buyerTypeLabel && (
                 <span className="flex-shrink-0 px-1.5 py-px rounded bg-primary/10 text-primary text-[11px] font-semibold leading-tight">
                   {buyerTypeLabel}
