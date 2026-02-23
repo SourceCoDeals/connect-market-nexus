@@ -3,6 +3,13 @@
 
 export type UserRole = 'admin' | 'buyer';
 
+/**
+ * Internal team role hierarchy: owner > admin > moderator > viewer.
+ * This maps to the app_role enum in the database (user_roles table).
+ * 'viewer' was previously called 'user' — renamed for clarity.
+ */
+export type TeamRole = 'owner' | 'admin' | 'moderator' | 'viewer';
+
 export type BuyerType = 'corporate' | 'privateEquity' | 'familyOffice' | 'searchFund' | 'individual' | 'independentSponsor' | 'advisor' | 'businessOwner';
 
 export type ApprovalStatus = 'pending' | 'approved' | 'rejected';
@@ -45,6 +52,8 @@ export interface User {
   email_verified: boolean;
   approval_status: ApprovalStatus;
   is_admin: boolean;
+  /** The user's internal team role from user_roles table, or null for marketplace-only users */
+  team_role: TeamRole | null;
   buyer_type: BuyerType;
   created_at: string;
   updated_at: string;
@@ -180,6 +189,7 @@ export interface User {
   readonly lastName: string;
   readonly phoneNumber: string;
   readonly isAdmin: boolean;
+  readonly teamRole: TeamRole | null;
   readonly buyerType: BuyerType;
   readonly emailVerified: boolean;
   readonly isApproved: boolean;

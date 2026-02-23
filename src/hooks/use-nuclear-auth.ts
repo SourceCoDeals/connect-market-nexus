@@ -43,7 +43,16 @@ export function useNuclearAuth() {
             : fetchedProfile;
 
           if (profile && isMounted) {
-            const appUser = createUserObject(profile);
+            // Fetch team role from user_roles table via RPC
+            let teamRole: string | null = null;
+            try {
+              const { data: roleData } = await supabase.rpc('get_my_role');
+              if (roleData) teamRole = roleData;
+            } catch {
+              // Non-admin users may not have a role — that's fine
+            }
+
+            const appUser = createUserObject({ ...profile, team_role: teamRole });
             setUser(appUser);
             
             // Link journey AND session to user on successful auth
@@ -362,8 +371,15 @@ export function useNuclearAuth() {
       if (profileError) throw profileError;
 
       if (profile) {
-        // Update user state with new data
-        const updatedUser = createUserObject(profile);
+        // Update user state with new data including team role
+        let teamRole: string | null = null;
+        try {
+          const { data: roleData } = await supabase.rpc('get_my_role');
+          if (roleData) teamRole = roleData;
+        } catch {
+          // Non-admin users may not have a role
+        }
+        const updatedUser = createUserObject({ ...profile, team_role: teamRole });
         setUser(updatedUser);
       }
     }
@@ -380,7 +396,14 @@ export function useNuclearAuth() {
         .single();
       if (profileError) throw profileError;
       if (profile) {
-        const updatedUser = createUserObject(profile);
+        let teamRole: string | null = null;
+        try {
+          const { data: roleData } = await supabase.rpc('get_my_role');
+          if (roleData) teamRole = roleData;
+        } catch {
+          // Non-admin users may not have a role
+        }
+        const updatedUser = createUserObject({ ...profile, team_role: teamRole });
         setUser(updatedUser);
       }
     }

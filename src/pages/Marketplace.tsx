@@ -35,6 +35,7 @@ import { useRealtime } from "@/components/realtime/RealtimeProvider";
 import { useAuth } from "@/context/AuthContext";
 import { Wifi } from "lucide-react";
 import { CreateDealAlertDialog } from "@/components/deal-alerts/CreateDealAlertDialog";
+import { BuyerDashboard } from "@/components/buyer/BuyerDashboard";
 
 const MarketplaceContent = () => {
   const { user, authChecked } = useAuth();
@@ -154,6 +155,9 @@ const MarketplaceContent = () => {
       )}
       
       <div className="container mx-auto px-4 py-8">
+        {/* Buyer Dashboard — personalized activity summary */}
+        <BuyerDashboard />
+
         <div className="flex flex-col gap-6">
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
             <div className="flex items-center gap-3">

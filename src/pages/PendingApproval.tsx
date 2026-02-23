@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Mail, CheckCircle, Clock, LogOut, Loader2, Info, RefreshCw, Shield, XCircle } from 'lucide-react';
+import { Mail, CheckCircle, Clock, LogOut, Loader2, Info, RefreshCw, Shield, XCircle, User, Building2, Briefcase } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
@@ -295,6 +295,39 @@ const PendingApproval = () => {
                   </div>
                 </div>
 
+                {/* Submitted Information Summary */}
+                <div className="bg-muted/50 border border-border rounded-md p-4">
+                  <h4 className="text-sm font-medium mb-3 flex items-center gap-2">
+                    <User className="h-4 w-4" />
+                    Your Submitted Information
+                  </h4>
+                  <div className="grid grid-cols-2 gap-2 text-xs">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-muted-foreground">Name:</span>
+                      <span className="font-medium">{user.first_name} {user.last_name}</span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-muted-foreground">Email:</span>
+                      <span className="font-medium truncate">{user.email}</span>
+                    </div>
+                    {user.company && (
+                      <div className="flex items-center gap-1.5">
+                        <Building2 className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+                        <span className="font-medium truncate">{user.company}</span>
+                      </div>
+                    )}
+                    {user.buyer_type && (
+                      <div className="flex items-center gap-1.5">
+                        <Briefcase className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+                        <span className="font-medium capitalize">{user.buyer_type.replace(/([A-Z])/g, ' $1').trim()}</span>
+                      </div>
+                    )}
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-3 italic">
+                    Our team will review this information to verify your account. You will receive an email notification once your account has been reviewed.
+                  </p>
+                </div>
+
                 {/* NDA Signing Section — shows when firm exists and NDA unsigned */}
                 {ndaStatus?.hasFirm && !ndaStatus?.ndaSigned && !ndaSigned && (
                   <div className="space-y-3 pt-2">
@@ -395,7 +428,15 @@ const PendingApproval = () => {
               {uiState === 'rejected'
                 ? 'You can create a new account or contact our team to discuss your options.'
                 : uiState === 'approved_pending'
-                  ? 'You will not be able to access the marketplace until your account has been approved. This process typically takes 1-2 business days.'
+                  ? (
+                    <div className="space-y-2">
+                      <p>You will not be able to access the marketplace until your account has been approved.</p>
+                      <div className="bg-primary/5 border border-primary/20 rounded-md p-3 text-xs">
+                        <p className="font-medium text-foreground">Estimated review time: 1-2 business days</p>
+                        <p className="mt-1">We review new applications during business hours (Mon-Fri). You will be notified by email as soon as a decision is made.</p>
+                      </div>
+                    </div>
+                  )
                   : 'After verification, our team will review your application. This typically takes 1-2 business days.'
               }
             </div>

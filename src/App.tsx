@@ -13,6 +13,7 @@ import { TabVisibilityProvider } from "@/context/TabVisibilityContext";
 import { NavigationStateProvider } from "@/context/NavigationStateContext";
 import SessionTrackingProvider from "@/components/SessionTrackingProvider";
 import ProtectedRoute from "@/components/ProtectedRoute";
+import { RoleGate } from "@/components/RoleGate";
 import MainLayout from "@/components/MainLayout";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as SonnerToaster } from "@/components/ui/sonner";
@@ -61,6 +62,9 @@ const lazyWithRetry = (importFn: () => Promise<{ default: ComponentType }>) =>
       throw error;
     })
   );
+
+// Internal team login (separate entry point for admin)
+const AdminLogin = lazyWithRetry(() => import("@/pages/AdminLogin"));
 
 // Public pages
 const Welcome = lazyWithRetry(() => import("@/pages/Welcome"));
@@ -178,6 +182,7 @@ function App() {
                         <Route path="/sell" element={<OwnerInquiry />} />
                         <Route path="/sell/success" element={<OwnerInquirySuccess />} />
                         <Route path="/login" element={<Login />} />
+                        <Route path="/admin-login" element={<AdminLogin />} />
                         <Route path="/signup" element={<Signup />} />
                         <Route path="/signup-success" element={<SignupSuccess />} />
                         <Route path="/forgot-password" element={<ForgotPassword />} />
@@ -210,27 +215,27 @@ function App() {
                           {/* DEALS */}
                           <Route path="deals" element={<ReMarketingDeals />} />
                           <Route path="deals/:dealId" element={<ReMarketingDealDetail />} />
-                          <Route path="deals/pipeline" element={<AdminPipeline />} />
+                          <Route path="deals/pipeline" element={<RoleGate minRole="admin"><AdminPipeline /></RoleGate>} />
 
                           {/* BUYERS */}
                           <Route path="buyers" element={<ReMarketingBuyers />} />
                           <Route path="buyers/pe-firms" element={<Navigate to="/admin/buyers?tab=pe_firm" replace />} />
                           <Route path="buyers/pe-firms/:id" element={<PEFirmDetail />} />
                           <Route path="buyers/:id" element={<ReMarketingBuyerDetail />} />
-                          <Route path="buyers/universes" element={<ReMarketingUniverses />} />
-                          <Route path="buyers/universes/:id" element={<ReMarketingUniverseDetail />} />
+                          <Route path="buyers/universes" element={<RoleGate minRole="admin"><ReMarketingUniverses /></RoleGate>} />
+                          <Route path="buyers/universes/:id" element={<RoleGate minRole="admin"><ReMarketingUniverseDetail /></RoleGate>} />
                           <Route path="buyers/firm-agreements" element={<Navigate to="/admin/buyers?tab=needs_agreements" replace />} />
-                          <Route path="buyers/deal-sourcing" element={<AdminDealSourcing />} />
+                          <Route path="buyers/deal-sourcing" element={<RoleGate minRole="admin"><AdminDealSourcing /></RoleGate>} />
                           <Route path="buyers/contacts" element={<BuyerContactsPage />} />
 
                           {/* MARKETPLACE (listings absorbed into unified All Deals page) */}
                           <Route path="marketplace/listings" element={<Navigate to="/admin/deals?tab=marketplace" replace />} />
                           <Route path="marketplace/requests" element={<AdminRequests />} />
                           <Route path="marketplace/messages" element={<MessageCenter />} />
-                          <Route path="marketplace/users" element={<MarketplaceUsersPage />} />
+                          <Route path="marketplace/users" element={<RoleGate minRole="admin"><MarketplaceUsersPage /></RoleGate>} />
 
-                          {/* REMARKETING (GlobalActivityStatusBar lives in ReMarketingLayout wrapper) */}
-                          <Route path="remarketing" element={<ReMarketingLayout />}>
+                          {/* REMARKETING — admin+ only (moderators blocked) */}
+                          <Route path="remarketing" element={<RoleGate minRole="admin"><ReMarketingLayout /></RoleGate>}>
                             <Route index element={<ReMarketingDashboard />} />
                             <Route path="activity-queue" element={<ReMarketingActivityQueue />} />
                             <Route path="leads/captarget" element={<CapTargetDeals />} />
@@ -261,25 +266,25 @@ function App() {
                             <Route path="referral-partners/:partnerId" element={<RedirectWithId to="/admin/remarketing/leads/referrals/:partnerId" />} />
                           </Route>
 
-                          {/* APPROVALS */}
-                          <Route path="approvals" element={<GlobalApprovalsPage />} />
+                          {/* APPROVALS — admin+ only */}
+                          <Route path="approvals" element={<RoleGate minRole="admin"><GlobalApprovalsPage /></RoleGate>} />
 
                           {/* ANALYTICS */}
                           <Route path="analytics" element={<ReMarketingAnalytics />} />
                           <Route path="analytics/transcripts" element={<TranscriptAnalytics />} />
 
-                          {/* ADMIN / SETTINGS */}
-                          <Route path="settings/team" element={<InternalTeamPage />} />
-                          <Route path="settings/owner-leads" element={<OwnerLeadsPage />} />
-                          <Route path="settings/notifications" element={<AdminNotifications />} />
-                          <Route path="settings/webhooks" element={<WebhooksPage />} />
-                          <Route path="settings/enrichment-queue" element={<EnrichmentQueue />} />
-                          <Route path="settings/enrichment-test" element={<EnrichmentTest />} />
-                          <Route path="settings/remarketing" element={<ReMarketingSettings />} />
-                          <Route path="settings/data-recovery" element={<DataRecoveryPage />} />
-                          <Route path="settings/form-monitoring" element={<FormMonitoringPage />} />
-                          <Route path="settings/security" element={<SecuritySettings />} />
-                          <Route path="system-test" element={<SystemTestRunner />} />
+                          {/* ADMIN / SETTINGS — admin+ only (moderators blocked) */}
+                          <Route path="settings/team" element={<RoleGate minRole="admin"><InternalTeamPage /></RoleGate>} />
+                          <Route path="settings/owner-leads" element={<RoleGate minRole="admin"><OwnerLeadsPage /></RoleGate>} />
+                          <Route path="settings/notifications" element={<RoleGate minRole="admin"><AdminNotifications /></RoleGate>} />
+                          <Route path="settings/webhooks" element={<RoleGate minRole="admin"><WebhooksPage /></RoleGate>} />
+                          <Route path="settings/enrichment-queue" element={<RoleGate minRole="admin"><EnrichmentQueue /></RoleGate>} />
+                          <Route path="settings/enrichment-test" element={<RoleGate minRole="admin"><EnrichmentTest /></RoleGate>} />
+                          <Route path="settings/remarketing" element={<RoleGate minRole="admin"><ReMarketingSettings /></RoleGate>} />
+                          <Route path="settings/data-recovery" element={<RoleGate minRole="owner"><DataRecoveryPage /></RoleGate>} />
+                          <Route path="settings/form-monitoring" element={<RoleGate minRole="admin"><FormMonitoringPage /></RoleGate>} />
+                          <Route path="settings/security" element={<RoleGate minRole="admin"><SecuritySettings /></RoleGate>} />
+                          <Route path="system-test" element={<RoleGate minRole="owner"><SystemTestRunner /></RoleGate>} />
 
                           {/* OLD ADMIN URL REDIRECTS */}
                           <Route path="listings" element={<Navigate to="/admin/deals?tab=marketplace" replace />} />
@@ -292,8 +297,8 @@ function App() {
                           <Route path="enrichment-test" element={<Navigate to="/admin/settings/enrichment-test" replace />} />
                         </Route>
 
-                        {/* ─── M&A INTELLIGENCE (separate layout — unchanged) ─── */}
-                        <Route path="/admin/ma-intelligence" element={<ProtectedRoute requireAdmin={true}><MAIntelligenceLayout /></ProtectedRoute>}>
+                        {/* ─── M&A INTELLIGENCE — admin+ only ─── */}
+                        <Route path="/admin/ma-intelligence" element={<ProtectedRoute requireAdmin={true} requireRole="admin"><MAIntelligenceLayout /></ProtectedRoute>}>
                           <Route index element={<MADashboard />} />
                           <Route path="trackers" element={<MATrackers />} />
                           <Route path="trackers/new" element={<MATrackerDetail />} />

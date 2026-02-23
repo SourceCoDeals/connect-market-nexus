@@ -6,11 +6,17 @@ import { useEffect, useState } from "react";
 import { useMFAChallengeRequired } from "@/hooks/use-mfa";
 import { MFAChallenge } from "@/components/auth/MFAChallenge";
 import { supabase } from "@/integrations/supabase/client";
+import type { TeamRole } from "@/types";
+import { canAccessAdmin, hasMinRole } from "@/config/role-permissions";
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
+  /** Require admin-level access (owner, admin, or moderator with is_admin=true) */
   requireAdmin?: boolean;
+  /** Require the user to be approved (marketplace buyers) */
   requireApproved?: boolean;
+  /** Require a minimum team role (e.g., 'admin' blocks moderators) */
+  requireRole?: TeamRole;
 }
 
 const AUTH_TIMEOUT_MS = 10_000; // 10 seconds max wait for auth
@@ -18,9 +24,10 @@ const AUTH_TIMEOUT_MS = 10_000; // 10 seconds max wait for auth
 const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   children,
   requireAdmin = false,
-  requireApproved = true
+  requireApproved = true,
+  requireRole,
 }) => {
-  const { user, isLoading, authChecked, logout } = useAuth();
+  const { user, isLoading, authChecked, logout, teamRole } = useAuth();
   const location = useLocation();
   const [timedOut, setTimedOut] = useState(false);
   const { needsChallenge, isChecking } = useMFAChallengeRequired();
@@ -49,9 +56,24 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     return <Navigate to={redirectPath} state={{ from: location.pathname }} replace />;
   }
 
-  // Check admin requirement
-  if (requireAdmin && user.is_admin !== true) {
-    return <Navigate to="/unauthorized" replace />;
+  // Check admin requirement using the role system
+  // A user needs a team_role that can access the admin panel (owner, admin, or moderator)
+  if (requireAdmin) {
+    const effectiveRole = teamRole ?? (user.is_admin ? 'admin' : null);
+
+    if (!effectiveRole || !canAccessAdmin(effectiveRole)) {
+      return <Navigate to="/unauthorized" replace />;
+    }
+  }
+
+  // Check specific role requirement (stricter than requireAdmin)
+  // e.g., requireRole='admin' means moderators are blocked
+  if (requireRole) {
+    const effectiveRole = teamRole ?? (user.is_admin ? 'admin' : null);
+
+    if (!effectiveRole || !hasMinRole(effectiveRole, requireRole)) {
+      return <Navigate to="/unauthorized" replace />;
+    }
   }
 
   // Check approval requirement (admin users bypass this)

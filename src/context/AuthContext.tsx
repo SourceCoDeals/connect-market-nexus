@@ -1,6 +1,6 @@
 
 import React, { createContext, useContext } from "react";
-import { User as AppUser } from "@/types";
+import { User as AppUser, TeamRole } from "@/types";
 import { useNuclearAuth } from "@/hooks/use-nuclear-auth";
 
 interface AuthContextType {
@@ -14,6 +14,8 @@ interface AuthContextType {
   isAdmin: boolean;
   isBuyer: boolean;
   authChecked: boolean;
+  /** The user's internal team role (owner/admin/moderator/viewer), or null for marketplace-only users */
+  teamRole: TeamRole | null;
 }
 
 // eslint-disable-next-line react-refresh/only-export-components
@@ -44,6 +46,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     isAdmin: auth.isAdmin,
     isBuyer: auth.isBuyer,
     authChecked: auth.authChecked,
+    teamRole: auth.user?.team_role ?? null,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

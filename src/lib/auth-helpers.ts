@@ -1,5 +1,5 @@
 
-import { User, ApprovalStatus, BuyerType } from "@/types";
+import { User, ApprovalStatus, BuyerType, TeamRole } from "@/types";
 
 // Extended User type with data quality flag
 export interface UserWithDataIssues extends User {
@@ -85,6 +85,7 @@ export function createUserObject(profile: any): UserWithDataIssues {
     email_verified: Boolean(profile.email_verified === true),
     approval_status: (profile.approval_status || 'pending') as ApprovalStatus,
     is_admin: Boolean(profile.is_admin === true),
+    team_role: (profile.team_role as TeamRole) || null,
     buyer_type: (profile.buyer_type || 'corporate') as BuyerType,
     created_at: profile.created_at || new Date().toISOString(),
     updated_at: profile.updated_at || new Date().toISOString(),
@@ -188,6 +189,7 @@ export function createUserObject(profile: any): UserWithDataIssues {
     get lastName() { return this.last_name; },
     get phoneNumber() { return this.phone_number; },
     get isAdmin() { return this.is_admin; },
+    get teamRole() { return this.team_role; },
     get buyerType() { return this.buyer_type; },
     get emailVerified() { return this.email_verified; },
     get isApproved() { return this.approval_status === 'approved'; },
@@ -214,6 +216,7 @@ function createMinimalUser(id: string, email: string, issues: string[]): UserWit
     email_verified: false,
     approval_status: 'pending' as ApprovalStatus,
     is_admin: false,
+    team_role: null,
     buyer_type: 'individual' as BuyerType,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
@@ -223,6 +226,7 @@ function createMinimalUser(id: string, email: string, issues: string[]): UserWit
     get lastName() { return this.last_name; },
     get phoneNumber() { return this.phone_number; },
     get isAdmin() { return this.is_admin; },
+    get teamRole() { return this.team_role; },
     get buyerType() { return this.buyer_type; },
     get emailVerified() { return this.email_verified; },
     get isApproved() { return this.approval_status === 'approved'; },
