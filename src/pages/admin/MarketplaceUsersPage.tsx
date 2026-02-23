@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, Component, ErrorInfo, ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { useAdmin } from "@/hooks/use-admin";
 import { AlertCircle, RefreshCw, Loader2, Users } from "lucide-react";
@@ -13,6 +13,45 @@ import { EnhancedUserManagement } from "@/components/admin/EnhancedUserManagemen
 import { useMarkUsersViewed } from "@/hooks/admin/use-mark-users-viewed";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+
+// Error boundary to catch silent rendering crashes in the table
+class TableErrorBoundary extends Component<
+  { children: ReactNode; fallback?: ReactNode },
+  { hasError: boolean; error: Error | null }
+> {
+  constructor(props: { children: ReactNode; fallback?: ReactNode }) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error: Error) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error: Error, errorInfo: ErrorInfo) {
+    console.error('UsersTable render error:', error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="p-8 text-center space-y-2">
+          <AlertCircle className="h-8 w-8 text-destructive mx-auto" />
+          <p className="text-sm text-destructive font-medium">Table rendering error</p>
+          <p className="text-xs text-muted-foreground">{this.state.error?.message}</p>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => this.setState({ hasError: false, error: null })}
+          >
+            Retry
+          </Button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 const MarketplaceUsersPage = () => {
   const { users } = useAdmin();
@@ -36,7 +75,14 @@ const MarketplaceUsersPage = () => {
   });
 
   useEffect(() => { markAsViewed(); }, []);
-  useEffect(() => { setFilteredUsers(usersData); }, [usersData]);
+  
+  // Initialize filteredUsers from usersData when it loads
+  // EnhancedUserManagement will then manage the filtered state via onFilteredUsersChange
+  useEffect(() => {
+    if (usersData.length > 0) {
+      setFilteredUsers(usersData);
+    }
+  }, [usersData]);
 
   const {
     handleUserApproval,
@@ -109,27 +155,31 @@ const MarketplaceUsersPage = () => {
             </div>
           ) : isMobile ? (
             <div className="p-4">
-              <MobileUsersTable
-                users={filteredUsers}
-                onApprove={approveUser}
-                onMakeAdmin={makeAdmin}
-                onRevokeAdmin={revokeAdmin}
-                onDelete={deleteUser}
-                isLoading={isLoading}
-                onSendFeeAgreement={() => {}}
-                onSendNDAEmail={() => {}}
-              />
+              <TableErrorBoundary>
+                <MobileUsersTable
+                  users={filteredUsers}
+                  onApprove={approveUser}
+                  onMakeAdmin={makeAdmin}
+                  onRevokeAdmin={revokeAdmin}
+                  onDelete={deleteUser}
+                  isLoading={isLoading}
+                  onSendFeeAgreement={() => {}}
+                  onSendNDAEmail={() => {}}
+                />
+              </TableErrorBoundary>
             </div>
           ) : (
             <div className="overflow-x-auto">
-              <UsersTable
-                users={filteredUsers}
-                onApprove={approveUser}
-                onMakeAdmin={makeAdmin}
-                onRevokeAdmin={revokeAdmin}
-                onDelete={deleteUser}
-                isLoading={isLoading}
-              />
+              <TableErrorBoundary>
+                <UsersTable
+                  users={filteredUsers.length > 0 ? filteredUsers : usersData}
+                  onApprove={approveUser}
+                  onMakeAdmin={makeAdmin}
+                  onRevokeAdmin={revokeAdmin}
+                  onDelete={deleteUser}
+                  isLoading={isLoading}
+                />
+              </TableErrorBoundary>
             </div>
           )}
         </div>
