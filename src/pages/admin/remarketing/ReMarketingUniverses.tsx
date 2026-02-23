@@ -10,6 +10,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Table,
   TableBody,
@@ -56,7 +57,9 @@ import {
   Trash2,
   ArrowUpDown,
   X,
-  Handshake
+  Handshake,
+  Network,
+  
 } from "lucide-react";
 import { toast } from "sonner";
 import { IntelligenceCoverageBar, ReMarketingChat } from "@/components/remarketing";
@@ -99,6 +102,7 @@ const ReMarketingUniverses = () => {
   const queryClient = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
   
+  const [activeTab, setActiveTab] = useState<'existing' | 'to_be_created'>('existing');
   const search = searchParams.get("q") ?? "";
   const [showArchived, setShowArchived] = useState(false);
   const sortField = (searchParams.get("sort") as SortField) ?? "name";
@@ -222,6 +226,19 @@ const ReMarketingUniverses = () => {
     }
   });
 
+  // Fetch deals flagged for universe build ("To Be Created")
+  const { data: flaggedDeals } = useQuery({
+    queryKey: ['remarketing', 'universe-build-flagged-deals'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('listings')
+        .select('id, title, internal_company_name, industry, address_state, universe_build_flagged_at, created_at')
+        .eq('universe_build_flagged', true)
+        .order('universe_build_flagged_at', { ascending: false });
+      if (error) throw error;
+      return data || [];
+    }
+  });
   // Create universe mutation
   const createMutation = useMutation({
     mutationFn: async () => {
@@ -412,7 +429,7 @@ const ReMarketingUniverses = () => {
         <div>
           <h1 className="text-2xl font-bold text-foreground">Buyer Universes</h1>
           <p className="text-muted-foreground">
-            {universes?.length || 0} universes {archivedCount ? `· ${archivedCount} archived` : ''}
+            {universes?.length || 0} existing · {flaggedDeals?.length || 0} to be created {archivedCount ? `· ${archivedCount} archived` : ''}
           </p>
         </div>
         <Button onClick={() => setSearchParams((prev) => { const n = new URLSearchParams(prev); n.set('new', 'true'); return n; })} className="gap-2">
@@ -421,7 +438,22 @@ const ReMarketingUniverses = () => {
         </Button>
       </div>
 
-      {/* Filters */}
+      {/* Tabs */}
+      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'existing' | 'to_be_created')}>
+        <TabsList>
+          <TabsTrigger value="existing">
+            <Globe2 className="h-4 w-4 mr-1.5" />
+            Existing ({universes?.length || 0})
+          </TabsTrigger>
+          <TabsTrigger value="to_be_created">
+            <Network className="h-4 w-4 mr-1.5" />
+            To Be Created ({flaggedDeals?.length || 0})
+          </TabsTrigger>
+        </TabsList>
+      </Tabs>
+
+      {activeTab === 'existing' ? (
+        <>
       <Card>
         <CardContent className="p-4">
           <div className="flex items-center gap-4">
@@ -673,6 +705,84 @@ const ReMarketingUniverses = () => {
           </Table>
         </CardContent>
       </Card>
+        </>
+      ) : (
+        /* To Be Created Tab */
+        <Card>
+          <CardContent className="p-0">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Deal Name</TableHead>
+                  <TableHead>Industry</TableHead>
+                  <TableHead>State</TableHead>
+                  <TableHead>Flagged At</TableHead>
+                  <TableHead className="w-[120px]">Action</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {!flaggedDeals || flaggedDeals.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                      <Network className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                      <p>No deals flagged for universe build</p>
+                      <p className="text-sm">Flag deals in All Deals to queue them for universe creation</p>
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  flaggedDeals.map((deal) => (
+                    <TableRow 
+                      key={deal.id} 
+                      className="cursor-pointer hover:bg-muted/50"
+                      onClick={() => navigate(`/admin/deals/${deal.id}`)}
+                    >
+                      <TableCell>
+                        <div className="flex items-center gap-3">
+                          <div className="h-9 w-9 rounded-lg bg-blue-500/10 flex items-center justify-center shrink-0">
+                            <Network className="h-4 w-4 text-blue-600" />
+                          </div>
+                          <p className="font-medium text-foreground truncate">{deal.internal_company_name || deal.title}</p>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        {deal.industry ? (
+                          <Badge variant="secondary" className="text-xs">{deal.industry}</Badge>
+                        ) : (
+                          <span className="text-muted-foreground text-sm">—</span>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <span className="text-sm">{deal.address_state || '—'}</span>
+                      </TableCell>
+                      <TableCell>
+                        <span className="text-sm text-muted-foreground">
+                          {deal.universe_build_flagged_at 
+                            ? new Date(deal.universe_build_flagged_at).toLocaleDateString() 
+                            : '—'}
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        <Button 
+                          size="sm" 
+                          variant="outline" 
+                          className="gap-1.5"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSearchParams((prev) => { const n = new URLSearchParams(prev); n.set('new', 'true'); return n; });
+                          }}
+                        >
+                          <Plus className="h-3.5 w-3.5" />
+                          Create
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      )}
 
       {/* New Universe Dialog */}
       <Dialog open={showNewDialog} onOpenChange={(open) => !open && setSearchParams((prev) => { const n = new URLSearchParams(prev); n.delete('new'); return n; })}>
