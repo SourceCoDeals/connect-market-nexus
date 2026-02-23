@@ -411,6 +411,7 @@ function App() {
               <Route path="analytics/transcripts" element={<TranscriptAnalytics />} />
 
               {/* ADMIN / SETTINGS — role-gated */}
+              <Route path="settings" element={<Navigate to="/admin/settings/team" replace />} />
               <Route
                 path="settings/team"
                 element={
