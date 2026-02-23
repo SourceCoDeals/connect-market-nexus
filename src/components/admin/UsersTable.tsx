@@ -52,9 +52,9 @@ export function UsersTable({
   const { allUserRoles, isLoadingRoles } = useRoleManagement();
 
   const getUserRole = (userId: string): AppRole => {
-    if (!allUserRoles || allUserRoles.length === 0) return 'user';
+    if (!allUserRoles || allUserRoles.length === 0) return 'viewer';
     const roleData = allUserRoles.find((ur) => ur.user_id === userId);
-    return (roleData?.role as AppRole) || 'user';
+    return (roleData?.role as AppRole) || 'viewer';
   };
   const logEmailMutation = useLogFeeAgreementEmail();
   const logNDAEmail = useLogNDAEmail();
@@ -116,7 +116,7 @@ export function UsersTable({
                       {!isLoadingRoles && (() => {
                         const role = getUserRole(user.id);
                         // Fallback to legacy profile flag while migrating
-                        const effectiveRole: AppRole = role === 'user' && user?.is_admin === true ? 'admin' : role;
+                        const effectiveRole: AppRole = role === 'viewer' && user?.is_admin === true ? 'admin' : role;
                         // Map 'owner' to 'admin' for display
                         const displayRole = effectiveRole === 'owner' ? 'admin' : effectiveRole;
 

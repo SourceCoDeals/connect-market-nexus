@@ -29,6 +29,7 @@ import { SimilarListingsCarousel } from "@/components/listing-detail/SimilarList
 import { EnhancedSaveButton } from "@/components/listing-detail/EnhancedSaveButton";
 import { InternalCompanyInfoDisplay } from "@/components/admin/InternalCompanyInfoDisplay";
 import { BuyerDataRoom } from "@/components/marketplace/BuyerDataRoom";
+import { MFAGate } from "@/components/auth/MFAGate";
 import { NdaGateModal } from "@/components/docuseal/NdaGateModal";
 import { useBuyerNdaStatus } from "@/hooks/admin/use-docuseal";
 import { AgreementStatusBanner } from "@/components/marketplace/AgreementStatusBanner";
@@ -369,8 +370,11 @@ const ListingDetail = () => {
             </div>
 
             {/* Buyer Data Room - shows memos and documents if buyer has access */}
+            {/* MFA verification required when user has MFA enrolled */}
             {!isAdmin && user && (
-              <BuyerDataRoom dealId={id!} />
+              <MFAGate loadingText="Verifying identity for data room access...">
+                <BuyerDataRoom dealId={id!} />
+              </MFAGate>
             )}
 
             {isAdmin && listing.owner_notes && (
