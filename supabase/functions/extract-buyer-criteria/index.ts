@@ -296,7 +296,10 @@ serve(async (req) => {
     const { universe_id, guide_content, source_name, industry_name = 'Unknown Industry' }: ExtractionRequest = await req.json();
 
     if (!universe_id || !guide_content) {
-      throw new Error('Missing required fields: universe_id, guide_content');
+      return new Response(JSON.stringify({ success: false, error: 'Missing required fields: universe_id, guide_content' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
 
     console.log(`[REQUEST] Universe: ${universe_id}, Source: ${source_name}, Industry: ${industry_name}`);

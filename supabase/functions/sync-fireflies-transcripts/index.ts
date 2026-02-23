@@ -54,7 +54,7 @@ async function firefliesGraphQL(query: string, variables?: Record<string, unknow
 
 /**
  * Use the Fireflies native `participants` filter to find transcripts.
- * Now also fetches meetingInfo for silent_meeting detection.
+ * Now also fetches meeting_info for silent_meeting detection.
  */
 const PARTICIPANT_SEARCH_QUERY = `
   query SearchByParticipant($participants: [String!], $limit: Int, $skip: Int) {
@@ -75,7 +75,7 @@ const PARTICIPANT_SEARCH_QUERY = `
         short_summary
         keywords
       }
-      meetingInfo {
+      meeting_info {
         silent_meeting
         summary_status
       }
@@ -102,7 +102,7 @@ const KEYWORD_SEARCH_QUERY = `
         short_summary
         keywords
       }
-      meetingInfo {
+      meeting_info {
         silent_meeting
         summary_status
       }
@@ -114,9 +114,9 @@ const KEYWORD_SEARCH_QUERY = `
  * Check if a transcript has actual content (not a silent/skipped meeting).
  */
 function transcriptHasContent(t: any): boolean {
-  const meetingInfo = t.meetingInfo || {};
-  const isSilent = meetingInfo.silent_meeting === true;
-  const isSkipped = meetingInfo.summary_status === 'skipped';
+  const info = t.meeting_info || {};
+  const isSilent = info.silent_meeting === true;
+  const isSkipped = info.summary_status === 'skipped';
   const hasSummary = !!(t.summary?.short_summary);
 
   if ((isSilent || isSkipped) && !hasSummary) {

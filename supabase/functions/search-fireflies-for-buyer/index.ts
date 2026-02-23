@@ -76,7 +76,7 @@ async function firefliesGraphQL(query: string, variables?: Record<string, unknow
  * - keyword: searches title + spoken words server-side
  * - participants: filters by attendee email server-side
  *
- * Now also fetches meetingInfo for silent_meeting and summary_status detection.
+ * Now also fetches meeting_info for silent_meeting and summary_status detection.
  */
 const TRANSCRIPT_FIELDS = `
   id
@@ -96,7 +96,7 @@ const TRANSCRIPT_FIELDS = `
     keywords
     action_items
   }
-  meetingInfo {
+  meeting_info {
     silent_meeting
     summary_status
   }
@@ -131,9 +131,9 @@ const ALL_TRANSCRIPTS_QUERY = `
  * Returns false if the meeting was silent AND skipped with no summary.
  */
 function transcriptHasContent(t: any): boolean {
-  const meetingInfo = t.meetingInfo || {};
-  const isSilent = meetingInfo.silent_meeting === true;
-  const isSkipped = meetingInfo.summary_status === 'skipped';
+  const info = t.meeting_info || {};
+  const isSilent = info.silent_meeting === true;
+  const isSkipped = info.summary_status === 'skipped';
   const hasSummary = !!(t.summary?.short_summary);
 
   // Only flag as no-content if it's silent/skipped AND has no summary
