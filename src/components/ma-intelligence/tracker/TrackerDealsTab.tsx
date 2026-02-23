@@ -103,7 +103,7 @@ export function TrackerDealsTab({ trackerId, onDealCountChange }: TrackerDealsTa
       const { queueDealEnrichment } = await import("@/lib/remarketing/queueEnrichment");
       await queueDealEnrichment(dealIds);
 
-      let successCount = dealIds.length;
+      const successCount = dealIds.length;
       if (activityItem) {
         updateProgress.mutate({ id: activityItem.id, completedItems: successCount });
       }

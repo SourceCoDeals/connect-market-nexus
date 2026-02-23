@@ -176,7 +176,7 @@ export function ImprovedListingEditor({
   const [imageError, setImageError] = useState<string | null>(null);
 
   const form = useForm<ListingFormInput, unknown, ListingFormValues>({
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     resolver: zodResolver(listingFormSchema as unknown as Parameters<typeof zodResolver>[0]),
     defaultValues: convertListingToFormInput(listing),
   });
