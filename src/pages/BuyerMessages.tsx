@@ -134,13 +134,13 @@ export default function BuyerMessages() {
     : threads;
 
   return (
-    <div className="w-full bg-white min-h-screen">
+    <div className="w-full bg-background min-h-screen">
       {/* Header */}
       <div className="px-4 sm:px-8 pt-8 pb-6 max-w-7xl mx-auto">
-        <h1 className="text-3xl font-semibold text-gray-900 tracking-tight">
+        <h1 className="text-3xl font-semibold text-foreground tracking-tight">
           Messages
         </h1>
-        <p className="text-sm text-gray-600 mt-1">
+        <p className="text-sm text-muted-foreground mt-1">
           Conversations with the SourceCo team across your deals
         </p>
       </div>
@@ -148,53 +148,53 @@ export default function BuyerMessages() {
       {/* Content */}
       <div className="px-4 sm:px-8 pb-8 max-w-7xl mx-auto">
         {error ? (
-          <div className="border border-slate-200 rounded-xl bg-white flex flex-col items-center justify-center py-16">
-            <p className="text-sm text-red-600 mb-1">Failed to load messages</p>
-            <p className="text-xs text-slate-500">Please try refreshing the page.</p>
+          <div className="border border-border rounded-xl bg-card flex flex-col items-center justify-center py-16">
+            <p className="text-sm text-destructive mb-1">Failed to load messages</p>
+            <p className="text-xs text-muted-foreground">Please try refreshing the page.</p>
           </div>
         ) : isLoading ? (
           <BuyerMessagesSkeleton />
         ) : threads.length === 0 ? (
           <BuyerMessagesEmpty />
         ) : (
-          <div className="border border-slate-200 rounded-xl overflow-hidden bg-white min-h-[500px] grid grid-cols-1 md:grid-cols-3">
+          <div className="border border-border rounded-xl overflow-hidden bg-card min-h-[500px] grid grid-cols-1 md:grid-cols-3">
             {/* Thread List */}
             <div
-              className={`md:col-span-1 border-r border-slate-200 overflow-y-auto ${
+              className={`md:col-span-1 border-r border-border overflow-y-auto ${
                 selectedThreadId ? "hidden md:block" : ""
               }`}
             >
               {/* Search */}
-              <div className="p-3 border-b border-slate-100">
+              <div className="p-3 border-b border-border">
                 <div className="relative">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
                   <input
                     type="text"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     placeholder="Search deals..."
-                    className="w-full text-sm border border-slate-200 rounded-lg pl-8 pr-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-300 transition-all"
+                    className="w-full text-sm border border-border rounded-lg pl-8 pr-3 py-2 bg-background focus:outline-none focus:ring-2 focus:ring-ring/20 focus:border-ring transition-all"
                   />
                 </div>
               </div>
 
-              <div className="divide-y divide-slate-100">
+              <div className="divide-y divide-border">
                 {filteredThreads.map((thread) => (
                   <button
                     key={thread.connection_request_id}
                     onClick={() =>
                       handleSelectThread(thread.connection_request_id)
                     }
-                    className={`w-full text-left p-3.5 hover:bg-slate-50 transition-colors ${
+                    className={`w-full text-left p-3.5 hover:bg-muted/50 transition-colors ${
                       selectedThreadId === thread.connection_request_id
-                        ? "bg-slate-50"
+                        ? "bg-muted/50"
                         : ""
-                    } ${thread.unread_count > 0 ? "bg-blue-50/30" : ""}`}
+                    } ${thread.unread_count > 0 ? "bg-primary/5" : ""}`}
                   >
                     <div className="flex items-start justify-between gap-2">
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
-                          <span className="text-sm font-semibold text-slate-900 truncate">
+                          <span className="text-sm font-semibold text-foreground truncate">
                             {thread.deal_title}
                           </span>
                           {thread.unread_count > 0 && (
@@ -203,7 +203,7 @@ export default function BuyerMessages() {
                             </span>
                           )}
                         </div>
-                        <p className="text-xs text-slate-500 mt-0.5">
+                        <p className="text-xs text-muted-foreground mt-0.5">
                           {thread.deal_category || "Deal"} ·{" "}
                           <span className="capitalize">
                             {thread.request_status === "on_hold"
@@ -214,8 +214,8 @@ export default function BuyerMessages() {
                         <p
                           className={`text-xs mt-1 truncate ${
                             thread.unread_count > 0
-                              ? "font-medium text-slate-900"
-                              : "text-slate-400"
+                              ? "font-medium text-foreground"
+                              : "text-muted-foreground"
                           }`}
                         >
                           {thread.last_sender_role === "buyer" && "You: "}
@@ -223,7 +223,7 @@ export default function BuyerMessages() {
                         </p>
                       </div>
                       <div className="flex flex-col items-end gap-1 shrink-0">
-                        <span className="text-[10px] text-slate-400">
+                        <span className="text-[10px] text-muted-foreground">
                           {formatDistanceToNow(
                             new Date(thread.last_message_at),
                             { addSuffix: true }
@@ -254,8 +254,8 @@ export default function BuyerMessages() {
               ) : (
                 <div className="flex-1 flex items-center justify-center">
                   <div className="text-center">
-                    <Inbox className="h-12 w-12 mx-auto mb-3 text-slate-300" />
-                    <p className="text-sm text-slate-400">
+                    <Inbox className="h-12 w-12 mx-auto mb-3 text-muted-foreground/40" />
+                    <p className="text-sm text-muted-foreground">
                       Select a conversation to view messages
                     </p>
                   </div>
@@ -274,10 +274,10 @@ function StatusDot({ status }: { status: string }) {
     status === "approved"
       ? "bg-emerald-500"
       : status === "rejected"
-        ? "bg-red-500"
+        ? "bg-destructive"
         : status === "on_hold"
           ? "bg-amber-500"
-          : "bg-slate-300";
+          : "bg-muted-foreground/30";
   return <div className={`w-2 h-2 rounded-full ${color}`} />;
 }
 
@@ -325,7 +325,7 @@ function BuyerThreadView({
   return (
     <div className="flex flex-col h-full min-h-[500px]">
       {/* Header */}
-      <div className="flex items-center gap-3 px-5 py-3.5 border-b border-slate-100 bg-white">
+      <div className="flex items-center gap-3 px-5 py-3.5 border-b border-border bg-card">
         <Button
           variant="ghost"
           size="sm"
@@ -336,28 +336,28 @@ function BuyerThreadView({
         </Button>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
-            <h2 className="text-sm font-semibold text-slate-900 truncate">
+            <h2 className="text-sm font-semibold text-foreground truncate">
               {thread.deal_title}
             </h2>
             <StatusDot status={thread.request_status} />
-            <span className="text-xs text-slate-500 capitalize">
+            <span className="text-xs text-muted-foreground capitalize">
               {thread.request_status === "on_hold"
                 ? "On Hold"
                 : thread.request_status}
             </span>
           </div>
-          <p className="text-xs text-slate-400">SourceCo Team</p>
+          <p className="text-xs text-muted-foreground">SourceCo Team</p>
         </div>
         <Link
           to={`/my-deals?deal=${thread.connection_request_id}`}
-          className="text-xs text-blue-600 hover:text-blue-700 flex items-center gap-1 shrink-0"
+          className="text-xs text-primary hover:text-primary/80 flex items-center gap-1 shrink-0"
         >
           View deal <ExternalLink className="h-3 w-3" />
         </Link>
       </div>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto px-5 py-4 space-y-3 bg-slate-50/50">
+      <div className="flex-1 overflow-y-auto px-5 py-4 space-y-3 bg-muted/30">
         {isLoading ? (
           <div className="space-y-3">
             {[...Array(3)].map((_, i) => (
@@ -366,7 +366,7 @@ function BuyerThreadView({
           </div>
         ) : messages.length === 0 ? (
           <div className="flex items-center justify-center h-full">
-            <p className="text-sm text-slate-400">No messages yet</p>
+            <p className="text-sm text-muted-foreground">No messages yet</p>
           </div>
         ) : (
           messages.map((msg) => (
@@ -384,10 +384,10 @@ function BuyerThreadView({
                 className={`max-w-[75%] rounded-xl px-4 py-2.5 text-sm ${
                   msg.message_type === "decision" ||
                   msg.message_type === "system"
-                    ? "bg-slate-100 text-slate-500 italic text-xs"
+                    ? "bg-muted text-muted-foreground italic text-xs"
                     : msg.sender_role === "buyer"
-                      ? "bg-slate-900 text-white"
-                      : "bg-white text-slate-900 border border-slate-200"
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-card text-card-foreground border border-border"
                 }`}
               >
                 {msg.message_type !== "system" &&
@@ -424,9 +424,9 @@ function BuyerThreadView({
       </div>
 
       {/* Input */}
-      <div className="border-t border-slate-100 px-5 py-3 bg-white">
+      <div className="border-t border-border px-5 py-3 bg-card">
         {isRejected ? (
-          <p className="text-xs text-slate-400 text-center py-1">
+          <p className="text-xs text-muted-foreground text-center py-1">
             This deal is no longer active.
           </p>
         ) : (
@@ -442,12 +442,12 @@ function BuyerThreadView({
                 }
               }}
               placeholder="Message SourceCo about this deal..."
-              className="flex-1 text-sm border border-slate-200 rounded-lg px-4 py-2.5 bg-white focus:outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-300 transition-all"
+              className="flex-1 text-sm border border-border rounded-lg px-4 py-2.5 bg-background focus:outline-none focus:ring-2 focus:ring-ring/20 focus:border-ring transition-all"
             />
             <Button
               onClick={handleSend}
               disabled={!newMessage.trim() || sendMsg.isPending}
-              className="bg-slate-900 hover:bg-slate-800 px-4"
+              className="bg-primary hover:bg-primary/90 px-4"
             >
               <Send className="h-4 w-4" />
             </Button>
@@ -460,7 +460,7 @@ function BuyerThreadView({
 
 function BuyerMessagesSkeleton() {
   return (
-    <div className="border border-slate-200 rounded-xl overflow-hidden bg-white p-8">
+    <div className="border border-border rounded-xl overflow-hidden bg-card p-8">
       <div className="space-y-4">
         {[...Array(3)].map((_, i) => (
           <div key={i} className="flex items-start gap-4">
