@@ -30,89 +30,65 @@ const BUYER_TYPE_LABELS: Record<string, string> = {
 export function PipelineKanbanCard({ deal, onDealClick, isDragging }: PipelineKanbanCardProps) {
   const queryClient = useQueryClient();
   const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
+    attributes, listeners, setNodeRef, transform, transition,
     isDragging: isSortableDragging,
-  } = useSortable({
-    id: `deal:${deal.deal_id}`,
-  });
+  } = useSortable({ id: `deal:${deal.deal_id}` });
 
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-  };
-
+  const style = { transform: CSS.Transform.toString(transform), transition };
   const isBeingDragged = isDragging || isSortableDragging;
   const isPriority = deal.is_priority_target;
   const needsOwnerContact = deal.needs_owner_contact;
-
   const assignedAdmin = useAdminProfile(deal.assigned_to);
 
   const companyName = deal.listing_real_company_name || deal.listing_title || 'Unnamed Company';
   const contactName = deal.contact_name || deal.buyer_name || 'Unknown';
   const buyerCompany = deal.contact_company || deal.buyer_company;
   const buyerTypeLabel = deal.buyer_type ? (BUYER_TYPE_LABELS[deal.buyer_type] || deal.buyer_type) : null;
+  const buyerWebsite = deal.buyer_website?.replace(/^https?:\/\/(www\.)?/, '').replace(/\/$/, '');
 
-  const formatCurrency = (val: number) => {
+  const fmt = (val: number) => {
     if (!val) return '—';
     if (val >= 1_000_000) return `$${(val / 1_000_000).toFixed(1)}M`;
     if (val >= 1_000) return `$${(val / 1_000).toFixed(0)}K`;
     return `$${val.toLocaleString()}`;
   };
 
-  const lastActivityLabel = (() => {
+  const lastActivity = (() => {
     const date = deal.last_activity_at || deal.deal_updated_at;
     if (!date) return '—';
-    const diffMs = Math.max(0, Date.now() - new Date(date).getTime());
-    const minutes = Math.floor(diffMs / 60000);
-    const hours = Math.floor(diffMs / 3600000);
-    const days = Math.floor(diffMs / 86400000);
-    if (minutes < 1) return 'now';
-    if (minutes < 60) return `${minutes}m ago`;
-    if (hours < 24) return `${hours}h ago`;
-    return `${days}d ago`;
+    const ms = Math.max(0, Date.now() - new Date(date).getTime());
+    const m = Math.floor(ms / 60000), h = Math.floor(ms / 3600000), d = Math.floor(ms / 86400000);
+    if (m < 1) return 'now';
+    if (m < 60) return `${m}m ago`;
+    if (h < 24) return `${h}h ago`;
+    return `${d}d ago`;
   })();
 
-  const handleCardClick = () => {
-    if (isBeingDragged) return;
-    onDealClick(deal);
-  };
+  const handleCardClick = () => { if (!isBeingDragged) onDealClick(deal); };
 
   const handleMeetingToggle = async (e: React.MouseEvent) => {
     e.stopPropagation();
-    const newValue = !deal.meeting_scheduled;
-    const { error } = await supabase
-      .from('deals')
-      .update({ meeting_scheduled: newValue })
-      .eq('id', deal.deal_id);
-    if (error) {
-      toast.error('Failed to update meeting status');
-      return;
-    }
-    toast.success(newValue ? 'Meeting scheduled' : 'Meeting unscheduled');
+    const next = !deal.meeting_scheduled;
+    const { error } = await supabase.from('deals').update({ meeting_scheduled: next }).eq('id', deal.deal_id);
+    if (error) { toast.error('Failed to update'); return; }
+    toast.success(next ? 'Meeting scheduled' : 'Meeting unscheduled');
     queryClient.invalidateQueries({ queryKey: ['deals'] });
   };
 
-  const getStatusDot = (status: string) => {
-    switch (status) {
-      case 'signed': return 'bg-emerald-500';
-      case 'sent': return 'bg-amber-500';
-      case 'declined': return 'bg-destructive';
-      default: return 'bg-muted-foreground/30';
-    }
+  const statusDot = (status: string) => {
+    if (status === 'signed') return 'bg-emerald-500';
+    if (status === 'sent') return 'bg-amber-500';
+    if (status === 'declined') return 'bg-destructive';
+    return 'bg-muted-foreground/30';
   };
+
+  const active = (on?: boolean) => on ? 'text-emerald-500' : 'text-muted-foreground/30';
 
   return (
     <Card
-      ref={setNodeRef}
-      style={style}
-      {...listeners}
-      {...attributes}
+      ref={setNodeRef} style={style} {...listeners} {...attributes}
       className={cn(
-        "group relative mb-3 cursor-pointer transition-all duration-200 rounded-xl shadow-sm",
+        "group relative mb-2.5 cursor-pointer transition-all duration-200 rounded-xl shadow-sm",
         isPriority
           ? "bg-amber-50 border-2 border-amber-400 dark:bg-amber-950/30 dark:border-amber-600"
           : "bg-card border border-border",
@@ -121,106 +97,87 @@ export function PipelineKanbanCard({ deal, onDealClick, isDragging }: PipelineKa
       onClick={handleCardClick}
     >
       <CardContent className="p-0">
-        {/* Row 1: Company Name — red background if needs_owner_contact */}
-        <div
-          className={cn(
-            "px-3.5 py-2 rounded-t-xl flex items-center justify-between gap-2",
-            needsOwnerContact
-              ? "bg-red-100 dark:bg-red-950/40 border-b border-red-200 dark:border-red-800"
-              : "border-b border-border/50"
-          )}
-        >
-          <h3
-            className={cn(
-              "text-sm font-semibold leading-tight truncate",
-              needsOwnerContact ? "text-red-900 dark:text-red-200" : "text-foreground"
-            )}
-          >
+        {/* Header: Company name */}
+        <div className={cn(
+          "px-3 py-1.5 rounded-t-xl flex items-center gap-2",
+          needsOwnerContact
+            ? "bg-red-100 dark:bg-red-950/40 border-b border-red-200 dark:border-red-800"
+            : "border-b border-border/40"
+        )}>
+          <h3 className={cn(
+            "text-[13px] font-semibold leading-snug truncate flex-1",
+            needsOwnerContact ? "text-red-900 dark:text-red-200" : "text-foreground"
+          )}>
             {companyName}
           </h3>
         </div>
 
-        <div className="px-4 py-3 space-y-3">
-          {/* Row 2: Score + Revenue & EBITDA */}
-          <div className="flex items-center justify-between gap-2">
-            <div className="flex items-center gap-4 text-sm">
-              <span className="text-muted-foreground">
-                Rev: <span className="font-semibold text-foreground">{formatCurrency(deal.listing_revenue)}</span>
-              </span>
-              <span className="text-muted-foreground">
-                EBITDA: <span className="font-semibold text-foreground">{formatCurrency(deal.listing_ebitda)}</span>
-              </span>
+        <div className="px-3 py-2 space-y-2">
+          {/* Financials + Score */}
+          <div className="flex items-center justify-between">
+            <div className="flex gap-3 text-xs text-muted-foreground">
+              <span>Rev: <span className="font-semibold text-foreground">{fmt(deal.listing_revenue)}</span></span>
+              <span>EBITDA: <span className="font-semibold text-foreground">{fmt(deal.listing_ebitda)}</span></span>
             </div>
-            {deal.deal_score != null && (
-              <DealScoreBadge score={deal.deal_score} size="md" />
-            )}
+            {deal.deal_score != null && <DealScoreBadge score={deal.deal_score} size="sm" />}
           </div>
 
-          {/* Row 3: Buyer section */}
-          <div className="space-y-1.5 pt-1 border-t border-border/30">
-            <div className="flex items-center justify-between gap-2">
-              <span className="text-sm font-semibold text-foreground truncate">
-                {contactName}
-              </span>
+          {/* Buyer */}
+          <div className="pt-1.5 border-t border-border/30 space-y-0.5">
+            <div className="flex items-center justify-between gap-1.5">
+              <span className="text-[13px] font-semibold text-foreground truncate">{contactName}</span>
               {buyerTypeLabel && (
-                <span className="flex-shrink-0 px-2 py-0.5 rounded-md bg-primary/10 text-primary text-xs font-semibold">
+                <span className="flex-shrink-0 px-1.5 py-px rounded bg-primary/10 text-primary text-[10px] font-semibold leading-tight">
                   {buyerTypeLabel}
                 </span>
               )}
             </div>
             {buyerCompany && (
-              <div className="text-xs text-muted-foreground truncate">
-                {buyerCompany}
-              </div>
+              <div className="text-[11px] text-muted-foreground truncate">{buyerCompany}</div>
             )}
-            {deal.buyer_website && (
-              <div className="flex items-center gap-1 text-xs text-primary/70 truncate">
-                <ExternalLink className="w-3 h-3 flex-shrink-0" />
-                <span className="truncate">{deal.buyer_website.replace(/^https?:\/\/(www\.)?/, '')}</span>
+            {buyerWebsite && (
+              <div className="flex items-center gap-1 text-[11px] text-primary/70 truncate">
+                <ExternalLink className="w-2.5 h-2.5 flex-shrink-0" />
+                <span className="truncate">{buyerWebsite}</span>
               </div>
             )}
           </div>
 
-          {/* Row 4: Deal Owner */}
-          <div className="text-xs text-muted-foreground">
-            Owner: <span className="font-semibold text-foreground/80">{assignedAdmin?.displayName || 'Unassigned'}</span>
+          {/* Owner */}
+          <div className="text-[11px] text-muted-foreground">
+            Owner: <span className="font-medium text-foreground/80">{assignedAdmin?.displayName || 'Unassigned'}</span>
           </div>
 
-          {/* Row 5: NDA/Fee + Memo/DR + Meeting + Last Activity */}
-          <div className="flex items-center justify-between text-xs text-muted-foreground pt-2 border-t border-border/30">
-            <div className="flex items-center gap-2.5">
-              <div className="flex items-center gap-1.5">
-                <div className={cn('w-2 h-2 rounded-full', getStatusDot(deal.nda_status))} />
-                <span>NDA</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <div className={cn('w-2 h-2 rounded-full', getStatusDot(deal.fee_agreement_status))} />
-                <span>Fee</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <BookOpen className={cn('w-3 h-3', deal.memo_sent ? 'text-emerald-500' : 'text-muted-foreground/30')} />
-                <span className={deal.memo_sent ? 'text-emerald-600 font-medium' : ''}>Memo</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <FolderOpen className={cn('w-3 h-3', deal.has_data_room ? 'text-emerald-500' : 'text-muted-foreground/30')} />
-                <span className={deal.has_data_room ? 'text-emerald-600 font-medium' : ''}>DR</span>
-              </div>
+          {/* Status strip */}
+          <div className="flex items-center justify-between text-[10px] text-muted-foreground pt-1.5 border-t border-border/30">
+            <div className="flex items-center gap-2">
+              <span className="inline-flex items-center gap-1">
+                <div className={cn('w-1.5 h-1.5 rounded-full', statusDot(deal.nda_status))} />NDA
+              </span>
+              <span className="inline-flex items-center gap-1">
+                <div className={cn('w-1.5 h-1.5 rounded-full', statusDot(deal.fee_agreement_status))} />Fee
+              </span>
+              <span className="inline-flex items-center gap-1">
+                <BookOpen className={cn('w-2.5 h-2.5', active(deal.memo_sent))} />Memo
+              </span>
+              <span className="inline-flex items-center gap-1">
+                <FolderOpen className={cn('w-2.5 h-2.5', active(deal.has_data_room))} />DR
+              </span>
               <button
                 type="button"
                 onClick={handleMeetingToggle}
                 className={cn(
-                  'flex items-center gap-1.5 rounded px-1 -mx-1 transition-colors hover:bg-accent',
-                  deal.meeting_scheduled ? 'text-emerald-600 font-medium' : ''
+                  'inline-flex items-center gap-1 rounded px-0.5 -mx-0.5 transition-colors hover:bg-accent',
+                  deal.meeting_scheduled && 'font-medium'
                 )}
-                title={deal.meeting_scheduled ? 'Meeting scheduled — click to unmark' : 'No meeting — click to mark as scheduled'}
+                title={deal.meeting_scheduled ? 'Meeting scheduled — click to unmark' : 'Click to mark meeting scheduled'}
               >
-                <CalendarCheck className={cn('w-3 h-3', deal.meeting_scheduled ? 'text-emerald-500' : 'text-muted-foreground/30')} />
-                <span>Mtg</span>
+                <CalendarCheck className={cn('w-2.5 h-2.5', active(deal.meeting_scheduled))} />Mtg
               </button>
             </div>
-            <span className="flex items-center gap-1">
-              <Clock className="w-3 h-3" />
-              {lastActivityLabel}
+            <span className="inline-flex items-center gap-0.5 text-muted-foreground/70">
+              <Clock className="w-2.5 h-2.5" />
+              {lastActivity}
             </span>
           </div>
         </div>
