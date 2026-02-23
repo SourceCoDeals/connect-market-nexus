@@ -250,7 +250,7 @@ export function ConnectionRequestActions({
             </div>
             <div className="flex-1">
             <p className="text-sm font-bold text-foreground">Decision Required</p>
-              <p className="text-xs text-muted-foreground">Review this connection request and accept or decline</p>
+              <p className="text-xs text-muted-foreground">Review this connection request — only approved requests move to the pipeline</p>
             </div>
             <span className="text-[10px] font-semibold uppercase tracking-wider text-primary bg-sourceco/20 border border-sourceco/40 rounded-md px-2.5 py-1">
               Awaiting Action
@@ -291,7 +291,7 @@ export function ConnectionRequestActions({
             </div>
             <div>
               <p className="text-sm font-bold text-emerald-800">Request Approved</p>
-              <p className="text-xs text-emerald-700">Next steps: send NDA, share full materials, add to pipeline</p>
+              <p className="text-xs text-emerald-700">This buyer has been moved to the pipeline. Next: send NDA & share materials.</p>
             </div>
           </div>
           <Button
