@@ -5850,7 +5850,7 @@ export type Database = {
           financial_notes: string | null
           fireflies_url: string | null
           founded_year: number | null
-          fts: unknown | null
+          fts: unknown
           full_time_employees: number | null
           general_notes: string | null
           geographic_states: string[] | null
@@ -6021,6 +6021,7 @@ export type Database = {
           financial_notes?: string | null
           fireflies_url?: string | null
           founded_year?: number | null
+          fts?: unknown
           full_time_employees?: number | null
           general_notes?: string | null
           geographic_states?: string[] | null
@@ -6191,6 +6192,7 @@ export type Database = {
           financial_notes?: string | null
           fireflies_url?: string | null
           founded_year?: number | null
+          fts?: unknown
           full_time_employees?: number | null
           general_notes?: string | null
           geographic_states?: string[] | null
@@ -10365,54 +10367,54 @@ export type Database = {
       }
       search_listings: {
         Args: {
-          search_query: string
-          filter_status?: string
           filter_category?: string
-          filter_location?: string
-          filter_revenue_min?: number
-          filter_revenue_max?: number
-          filter_ebitda_min?: number
           filter_ebitda_max?: number
-          page_offset?: number
+          filter_ebitda_min?: number
+          filter_location?: string
+          filter_revenue_max?: number
+          filter_revenue_min?: number
+          filter_status?: string
           page_limit?: number
+          page_offset?: number
+          search_query: string
         }
         Returns: {
-          id: string
-          title: string
+          acquisition_type: string
+          categories: string[]
+          category: string
+          created_at: string
+          custom_metric_label: string
+          custom_metric_subtitle: string
+          custom_metric_value: string
           description: string
           description_html: string
-          hero_description: string
-          category: string
-          categories: string[]
-          acquisition_type: string
-          location: string
-          revenue: number
           ebitda: number
-          tags: string[]
+          ebitda_metric_subtitle: string
+          full_time_employees: number
+          hero_description: string
+          id: string
           image_url: string
+          location: string
+          metric_3_custom_label: string
+          metric_3_custom_subtitle: string
+          metric_3_custom_value: string
+          metric_3_type: string
+          metric_4_custom_label: string
+          metric_4_custom_subtitle: string
+          metric_4_custom_value: string
+          metric_4_type: string
+          owner_notes: string
+          part_time_employees: number
+          rank: number
+          revenue: number
+          revenue_metric_subtitle: string
           status: string
           status_tag: string
-          visible_to_buyer_types: string[]
-          created_at: string
-          updated_at: string
-          full_time_employees: number
-          part_time_employees: number
-          custom_metric_label: string
-          custom_metric_value: string
-          custom_metric_subtitle: string
-          metric_3_type: string
-          metric_3_custom_label: string
-          metric_3_custom_value: string
-          metric_3_custom_subtitle: string
-          metric_4_type: string
-          metric_4_custom_label: string
-          metric_4_custom_value: string
-          metric_4_custom_subtitle: string
-          revenue_metric_subtitle: string
-          ebitda_metric_subtitle: string
-          owner_notes: string
-          rank: number
+          tags: string[]
+          title: string
           total_count: number
+          updated_at: string
+          visible_to_buyer_types: string[]
         }[]
       }
       soft_delete_deal: {
