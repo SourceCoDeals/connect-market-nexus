@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { usePipelineCore } from '@/hooks/admin/use-pipeline-core';
 import { formatDistanceToNow } from 'date-fns';
+import { DealScoreBadge } from '@/components/ma-intelligence/DealScoreBadge';
 
 interface PipelineListViewProps {
   pipeline: ReturnType<typeof usePipelineCore>;
@@ -113,9 +114,14 @@ export function PipelineListView({ pipeline }: PipelineListViewProps) {
                   />
                   
                   {/* Deal Info */}
-                  <div className="flex-1 min-w-0">
+                    <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between mb-2">
-                      <h3 className="font-semibold text-sm truncate">{deal.title}</h3>
+                      <div className="flex items-center gap-2 min-w-0 flex-1">
+                        <h3 className="font-semibold text-sm truncate">{deal.title}</h3>
+                        {deal.deal_score != null && (
+                          <DealScoreBadge score={deal.deal_score} size="sm" />
+                        )}
+                      </div>
                       <div className="flex items-center gap-2">
                         {(deal.deal_priority === 'high' || deal.deal_priority === 'urgent') && (
                           <Badge className={`${getPriorityColor(deal.deal_priority)} h-5 px-2 text-xs`}>

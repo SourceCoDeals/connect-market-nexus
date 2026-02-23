@@ -99,6 +99,11 @@ export interface Deal {
   // Remarketing bridge (when deal originated from remarketing)
   remarketing_buyer_id?: string | null;
   remarketing_score_id?: string | null;
+
+  // Scoring & flags from listing
+  deal_score?: number | null;
+  is_priority_target?: boolean | null;
+  needs_owner_contact?: boolean | null;
 }
 
 export interface DealStage {
@@ -136,6 +141,9 @@ export function useDeals() {
           ),
           assigned_admin:profiles!deals_assigned_to_fkey (
             id, first_name, last_name, email
+          ),
+          listing_score:listings!deals_listing_id_fkey (
+            deal_total_score, is_priority_target, need_to_contact_owner
           )
         `)
         .is('deleted_at', null)
@@ -143,29 +151,7 @@ export function useDeals() {
 
       if (dealsError) throw dealsError;
 
-      // Get IDs of deals that have a connection_request_id so we can check approval status
-      const dealIdsWithCR = (deals || [])
-        .filter((d: any) => d.connection_request_id)
-        .map((d: any) => d.connection_request_id);
-
-      // Batch-fetch connection request statuses
-      let approvedCRIds = new Set<string>();
-      if (dealIdsWithCR.length > 0) {
-        const { data: crData } = await supabase
-          .from('connection_requests')
-          .select('id, status')
-          .in('id', dealIdsWithCR)
-          .eq('status', 'approved');
-        approvedCRIds = new Set((crData || []).map((cr: any) => cr.id));
-      }
-
-      // Only show deals where connection request is approved (or no connection request, e.g. remarketing/manual)
-      const approvedDeals = (deals || []).filter((row: any) => {
-        if (!row.connection_request_id) return true;
-        return approvedCRIds.has(row.connection_request_id);
-      });
-
-      return approvedDeals.map((row: any) => {
+      return (deals || []).map((row: any) => {
         const listing = row.listing;
         const stage = row.stage;
         const admin = row.assigned_admin;
@@ -251,6 +237,11 @@ export function useDeals() {
           // Remarketing bridge
           remarketing_buyer_id: row.remarketing_buyer_id ?? undefined,
           remarketing_score_id: row.remarketing_score_id ?? undefined,
+
+          // Scoring & flags from listing
+          deal_score: row.listing_score?.deal_total_score ?? null,
+          is_priority_target: row.listing_score?.is_priority_target ?? null,
+          needs_owner_contact: row.listing_score?.need_to_contact_owner ?? null,
         };
       }) as unknown as Deal[];
     },
