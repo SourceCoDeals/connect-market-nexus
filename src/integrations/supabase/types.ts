@@ -3578,6 +3578,7 @@ export type Database = {
           inbound_lead_id: string | null
           last_enriched_at: string | null
           listing_id: string | null
+          meeting_scheduled: boolean
           nda_status: string | null
           negative_followed_up: boolean | null
           negative_followed_up_at: string | null
@@ -3619,6 +3620,7 @@ export type Database = {
           inbound_lead_id?: string | null
           last_enriched_at?: string | null
           listing_id?: string | null
+          meeting_scheduled?: boolean
           nda_status?: string | null
           negative_followed_up?: boolean | null
           negative_followed_up_at?: string | null
@@ -3660,6 +3662,7 @@ export type Database = {
           inbound_lead_id?: string | null
           last_enriched_at?: string | null
           listing_id?: string | null
+          meeting_scheduled?: boolean
           nda_status?: string | null
           negative_followed_up?: boolean | null
           negative_followed_up_at?: string | null
