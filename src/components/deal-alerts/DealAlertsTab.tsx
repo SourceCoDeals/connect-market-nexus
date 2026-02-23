@@ -1,17 +1,21 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { AlertCircle, Bell, Plus } from 'lucide-react';
+import { AlertCircle, Bell, Plus, Trash2 } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Checkbox } from '@/components/ui/checkbox';
 import { LoadingSpinner } from '@/components/LoadingSpinner';
 import { CreateDealAlertDialog } from './CreateDealAlertDialog';
 import { EditDealAlertDialog } from './EditDealAlertDialog';
 import { DealAlertCard } from './DealAlertCard';
 import { useDealAlerts, useDeleteDealAlert, useToggleDealAlert, DealAlert } from '@/hooks/use-deal-alerts';
+import { toast } from 'sonner';
 
 export function DealAlertsTab() {
   const [selectedAlert, setSelectedAlert] = useState<DealAlert | null>(null);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false);
   
   const { data: alerts, isLoading, error } = useDealAlerts();
   const deleteAlert = useDeleteDealAlert();
@@ -25,11 +29,52 @@ export function DealAlertsTab() {
   const handleDelete = async (id: string) => {
     if (window.confirm('Are you sure you want to delete this alert?')) {
       await deleteAlert.mutateAsync(id);
+      setSelectedIds((prev) => {
+        const next = new Set(prev);
+        next.delete(id);
+        return next;
+      });
     }
   };
 
   const handleToggle = async (id: string, isActive: boolean) => {
     await toggleAlert.mutateAsync({ id, is_active: isActive });
+  };
+
+  const handleSelectToggle = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const handleSelectAll = () => {
+    if (!alerts) return;
+    if (selectedIds.size === alerts.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(alerts.map((a) => a.id)));
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedIds.size === 0) return;
+    const count = selectedIds.size;
+    if (!window.confirm(`Are you sure you want to delete ${count} alert${count !== 1 ? 's' : ''}?`)) return;
+    
+    setIsBulkDeleting(true);
+    try {
+      await Promise.all(Array.from(selectedIds).map((id) => deleteAlert.mutateAsync(id)));
+      toast.success(`Deleted ${count} alert${count !== 1 ? 's' : ''}`);
+      setSelectedIds(new Set());
+    } catch (err) {
+      console.error('Bulk delete error:', err);
+      toast.error('Some alerts failed to delete');
+    } finally {
+      setIsBulkDeleting(false);
+    }
   };
 
   if (isLoading) {
@@ -50,6 +95,9 @@ export function DealAlertsTab() {
       </Alert>
     );
   }
+
+  const allSelected = alerts && alerts.length > 0 && selectedIds.size === alerts.length;
+  const someSelected = selectedIds.size > 0;
 
   return (
     <div className="space-y-6">
@@ -92,11 +140,39 @@ export function DealAlertsTab() {
           ) : (
             <div className="space-y-4">
               <div className="flex items-center justify-between">
-                <p className="text-sm text-muted-foreground">
-                  {alerts.length} alert{alerts.length !== 1 ? 's' : ''} configured
-                </p>
-                <div className="text-xs text-muted-foreground">
-                  {alerts.filter(a => a.is_active).length} active • {alerts.filter(a => !a.is_active).length} paused
+                <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-2">
+                    <Checkbox
+                      checked={allSelected}
+                      onCheckedChange={handleSelectAll}
+                      aria-label="Select all alerts"
+                    />
+                    <button
+                      onClick={handleSelectAll}
+                      className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                      {allSelected ? 'Deselect All' : 'Select All'}
+                    </button>
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    {alerts.length} alert{alerts.length !== 1 ? 's' : ''} configured
+                  </p>
+                </div>
+                <div className="flex items-center gap-3">
+                  {someSelected && (
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={handleBulkDelete}
+                      disabled={isBulkDeleting}
+                    >
+                      <Trash2 className="h-3.5 w-3.5 mr-1.5" />
+                      {isBulkDeleting ? 'Deleting...' : `Delete ${selectedIds.size} Selected`}
+                    </Button>
+                  )}
+                  <div className="text-xs text-muted-foreground">
+                    {alerts.filter(a => a.is_active).length} active • {alerts.filter(a => !a.is_active).length} paused
+                  </div>
                 </div>
               </div>
               
@@ -105,6 +181,8 @@ export function DealAlertsTab() {
                   <DealAlertCard
                     key={alert.id}
                     alert={alert}
+                    selected={selectedIds.has(alert.id)}
+                    onSelect={handleSelectToggle}
                     onEdit={handleEdit}
                     onDelete={handleDelete}
                     onToggle={handleToggle}
