@@ -42,11 +42,11 @@ export const AgreementToggle = ({ user, type, checked }: AgreementToggleProps) =
 
         if (user.associated_records.connection_requests.length > 0) {
           const cr = user.associated_records.connection_requests[0];
-          signerId = type === 'nda' ? cr.lead_nda_signed_by : cr.lead_fee_agreement_signed_by;
-          signingDate = type === 'nda' ? cr.lead_nda_signed_at : cr.lead_fee_agreement_signed_at;
+          signerId = (type === 'nda' ? cr.lead_nda_signed_by : cr.lead_fee_agreement_signed_by) as string | null;
+          signingDate = (type === 'nda' ? cr.lead_nda_signed_at : cr.lead_fee_agreement_signed_at) as string | null;
         } else if (user.associated_records.deals.length > 0) {
           const deal = user.associated_records.deals[0];
-          signingDate = deal.created_at;
+          signingDate = deal.created_at as string | null;
         }
 
         if (signerId) {
@@ -118,7 +118,7 @@ export const AgreementToggle = ({ user, type, checked }: AgreementToggleProps) =
           const { error } = await supabase
             .from('deals')
             .update(dealUpdates)
-            .in('id', user.associated_records.deals.map(d => d.id));
+            .in('id', user.associated_records.deals.map(d => d.id) as string[]);
           if (error) throw error;
         }
       }

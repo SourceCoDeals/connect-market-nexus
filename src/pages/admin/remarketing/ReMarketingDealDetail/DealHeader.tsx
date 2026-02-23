@@ -166,7 +166,7 @@ export function DealHeader({
         ) : null}
       </div>
       <div className="flex items-center gap-2">
-        {tier && <ScoreTierBadge tier={tier} size="lg" />}
+        {tier && <ScoreTierBadge tier={tier as any} size="lg" />}
       </div>
     </div>
   );

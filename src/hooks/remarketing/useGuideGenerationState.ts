@@ -50,7 +50,7 @@ export function useGuideGenerationState(universeId: string | undefined) {
         if (error) {
           console.error('Error loading guide progress:', error);
         } else if (data && data.status !== 'completed') {
-          setDbProgress(data);
+          setDbProgress(data as unknown as GenerationState);
         }
       } catch (e) {
         console.error('Failed to load guide progress:', e);
@@ -98,7 +98,7 @@ export function useGuideGenerationState(universeId: string | undefined) {
         if (error) {
           console.error('Error saving guide progress:', error);
         } else {
-          setDbProgress(data);
+          setDbProgress(data as unknown as GenerationState);
         }
       } catch (e) {
         console.error('Failed to save guide progress:', e);

@@ -19,7 +19,7 @@ const MARKETPLACE_SAFE_COLUMNS = [
 
 export const useSavedListings = (filters: FilterOptions = {}) => {
   return useQuery({
-    queryKey: createQueryKey.savedListings(filters),
+    queryKey: createQueryKey.savedListings(filters as Record<string, unknown>),
     queryFn: async () => {
         const { data: { session }, error: sessionError } = await supabase.auth.getSession();
         if (sessionError) throw sessionError;

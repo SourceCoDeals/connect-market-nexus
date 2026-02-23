@@ -1,4 +1,4 @@
-import React from 'react';
+// React is auto-imported via JSX transform
 import { UseFormReturn } from 'react-hook-form';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -184,7 +184,7 @@ export function ContactInfoSection({
                           <Badge variant="outline" className="text-xs">
                             {companyData.userCount} existing user{companyData.userCount !== 1 ? 's' : ''}
                           </Badge>
-                          {companyData.buyerTypes.map(type => (
+                          {companyData.buyerTypes.map((type: string) => (
                             <Badge key={type} variant="secondary" className="text-xs capitalize">
                               {type}
                             </Badge>

@@ -3,7 +3,7 @@ import { render, screen } from '@/test/test-utils';
 import { ProductionErrorBoundary, AdminErrorBoundary, AuthErrorBoundary } from './ProductionErrorBoundary';
 
 // A component that throws an error
-function ThrowingComponent() {
+function ThrowingComponent(): JSX.Element {
   throw new Error('Production test error');
 }
 
