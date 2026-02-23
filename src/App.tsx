@@ -1,25 +1,22 @@
-import { lazy, Suspense, type ComponentType, type ReactNode } from "react";
-import {
-  Routes,
-  Route,
-  Navigate,
-  useParams,
-} from "react-router-dom";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { Suspense, type ReactNode } from 'react';
+import { Routes, Route } from 'react-router-dom';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
-import { AuthProvider } from "@/context/AuthContext";
-import { AnalyticsProvider } from "@/context/AnalyticsContext";
-import { TabVisibilityProvider } from "@/context/TabVisibilityContext";
-import { NavigationStateProvider } from "@/context/NavigationStateContext";
-import SessionTrackingProvider from "@/components/SessionTrackingProvider";
-import ProtectedRoute from "@/components/ProtectedRoute";
-import { RoleGate } from "@/components/admin/RoleGate";
-import MainLayout from "@/components/MainLayout";
-import { Toaster } from "@/components/ui/toaster";
-import { Toaster as SonnerToaster } from "@/components/ui/sonner";
-import { SimpleToastProvider } from "@/components/ui/simple-toast";
-import { ErrorBoundary } from "@/components/ErrorBoundary";
-import { errorHandler } from "@/lib/error-handler";
+import { AuthProvider } from '@/context/AuthContext';
+import { AnalyticsProvider } from '@/context/AnalyticsContext';
+import { TabVisibilityProvider } from '@/context/TabVisibilityContext';
+import { NavigationStateProvider } from '@/context/NavigationStateContext';
+import SessionTrackingProvider from '@/components/SessionTrackingProvider';
+import { Toaster } from '@/components/ui/toaster';
+import { Toaster as SonnerToaster } from '@/components/ui/sonner';
+import { SimpleToastProvider } from '@/components/ui/simple-toast';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
+import { errorHandler } from '@/lib/error-handler';
+
+import { PublicRoutes } from '@/routes/public-routes';
+import { BuyerRoutes } from '@/routes/buyer-routes';
+import { AdminRoutes } from '@/routes/admin-routes';
+import { MAIntelligenceRoutes } from '@/routes/ma-intelligence-routes';
 
 function AppProviders({ children }: { children: ReactNode }) {
   return (
@@ -29,9 +26,7 @@ function AppProviders({ children }: { children: ReactNode }) {
           <AuthProvider>
             <SessionTrackingProvider>
               <AnalyticsProvider>
-                <SimpleToastProvider>
-                  {children}
-                </SimpleToastProvider>
+                <SimpleToastProvider>{children}</SimpleToastProvider>
               </AnalyticsProvider>
             </SessionTrackingProvider>
           </AuthProvider>
@@ -147,32 +142,40 @@ const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       refetchOnWindowFocus: true,
-      // N14 FIX: Increased from 5min to 15min to reduce excessive re-fetching.
-      // Stable data (listings, buyers, universes) changes infrequently.
       staleTime: 15 * 60 * 1000,
       gcTime: 30 * 60 * 1000,
       retry: 3,
       refetchOnReconnect: true,
     },
     mutations: { retry: 1 },
-  }
+  },
 });
 
 function App() {
   return (
     <ErrorBoundary
       onError={(error, errorInfo) => {
-        errorHandler(error, {
-          component: 'App',
-          operation: 'application root',
-          metadata: { componentStack: errorInfo.componentStack }
-        }, 'critical');
+        errorHandler(
+          error,
+          {
+            component: 'App',
+            operation: 'application root',
+            metadata: { componentStack: errorInfo.componentStack },
+          },
+          'critical',
+        );
       }}
     >
       <AppProviders>
         <Toaster />
         <SonnerToaster />
-        <Suspense fallback={<div className="flex items-center justify-center h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" /></div>}>
+        <Suspense
+          fallback={
+            <div className="flex items-center justify-center h-screen">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+            </div>
+          }
+        >
           <Routes>
                         {/* ─── PUBLIC ─── */}
                         <Route path="/welcome" element={<Welcome />} />
@@ -325,7 +328,9 @@ function NotFound() {
       <div className="text-center">
         <h1 className="text-4xl font-bold text-foreground">404 Not Found</h1>
         <p className="text-muted-foreground mt-2">The page you are looking for does not exist.</p>
-        <a href="/" className="text-primary mt-4 inline-block">Go back to homepage</a>
+        <a href="/" className="text-primary mt-4 inline-block">
+          Go back to homepage
+        </a>
       </div>
     </div>
   );
