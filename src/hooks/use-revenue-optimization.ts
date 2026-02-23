@@ -111,7 +111,7 @@ export function useRevenueOptimization(daysBack: number = 90) {
 
       const revenueOptimizations: RevenueOptimization[] = Array.from(categoryMap.entries())
         .map(([category, data]) => {
-          const avgRevenue = data.listings.reduce((sum: number, l: any) => sum + l.revenue, 0) / data.listings.length;
+          const avgRevenue = data.listings.reduce((sum: number, l: Record<string, unknown>) => sum + (Number(l.revenue) || 0), 0) / data.listings.length;
           const conversionRate = data.totalViews > 0 ? (data.totalConnections / data.totalViews) * 100 : 0;
           const currentCommission = avgRevenue * 0.02; // Assume 2% commission
           
@@ -280,7 +280,7 @@ export function useRevenueOptimization(daysBack: number = 90) {
           category,
           our_market_share: Math.min((data.listings.length / 100) * 100, 100), // Simplified
           avg_time_to_sale: 75, // days
-          competitor_pricing: data.listings.reduce((sum: number, l: any) => sum + l.revenue, 0) / data.listings.length * 1.1,
+          competitor_pricing: data.listings.reduce((sum: number, l: Record<string, unknown>) => sum + (Number(l.revenue) || 0), 0) / data.listings.length * 1.1,
           our_competitive_advantage: [
             'Comprehensive due diligence',
             'Expert advisory support',

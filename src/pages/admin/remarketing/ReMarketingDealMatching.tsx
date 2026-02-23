@@ -62,9 +62,9 @@ const ReMarketingDealMatching = () => {
   const [selectedBuyerForPass, setSelectedBuyerForPass] = useState<{ 
     id: string; 
     name: string;
-    scoreData?: any;
+    scoreData?: Record<string, unknown>;
   } | null>(null);
-  
+
   // New state for enhanced features
   const [activeTab, setActiveTab] = useState<FilterTab>('all');
   const [sortBy, setSortBy] = useState<SortOption>('score');
@@ -408,7 +408,7 @@ const ReMarketingDealMatching = () => {
   }, [scores, activeTab, hideDisqualified, sortBy, sortDesc, activeOutreachScoreIds, selectedUniverse, linkedUniverses, searchQuery]);
 
   // Log learning history helper
-  const logLearningHistory = async (scoreData: any, action: 'approved' | 'passed', passReason?: string, passCategory?: string) => {
+  const logLearningHistory = async (scoreData: Record<string, unknown>, action: 'approved' | 'passed', passReason?: string, passCategory?: string) => {
     try {
       await supabase.from('buyer_learning_history').insert({
         buyer_id: scoreData.buyer_id,
@@ -443,7 +443,7 @@ const ReMarketingDealMatching = () => {
       status: string; 
       pass_reason?: string;
       pass_category?: string;
-      scoreData?: any;
+      scoreData?: Record<string, unknown>;
     }) => {
       const { error } = await supabase
         .from('remarketing_scores')
@@ -589,7 +589,7 @@ const ReMarketingDealMatching = () => {
   };
 
   // Handle pass with dialog
-  const handleOpenPassDialog = (scoreId: string, buyerName: string, scoreData?: any) => {
+  const handleOpenPassDialog = (scoreId: string, buyerName: string, scoreData?: Record<string, unknown>) => {
     setSelectedBuyerForPass({ id: scoreId, name: buyerName, scoreData });
     setPassDialogOpen(true);
   };
@@ -609,7 +609,7 @@ const ReMarketingDealMatching = () => {
   };
 
   // Handle toggle interested (approve/revert to pending)
-  const handleToggleInterested = async (scoreId: string, interested: boolean, scoreData?: any) => {
+  const handleToggleInterested = async (scoreId: string, interested: boolean, scoreData?: Record<string, unknown>) => {
     if (interested) {
       // Toggling ON → approve
       await handleApprove(scoreId, scoreData);
@@ -621,7 +621,7 @@ const ReMarketingDealMatching = () => {
   };
 
   // Handle approve - auto-creates outreach record + triggers contact discovery
-  const handleApprove = async (scoreId: string, scoreData?: any) => {
+  const handleApprove = async (scoreId: string, scoreData?: Record<string, unknown>) => {
     // First update the score status
     await updateScoreMutation.mutateAsync({ id: scoreId, status: 'approved', scoreData });
 
@@ -818,9 +818,9 @@ const ReMarketingDealMatching = () => {
       // Refresh pipeline deals query
       queryClient.invalidateQueries({ queryKey: ['pipeline-deals-for-listing', listingId] });
       queryClient.invalidateQueries({ queryKey: ['deals'] });
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Failed to move to pipeline:', err);
-      toast.error(err?.message || 'Failed to move buyer to pipeline');
+      toast.error(err instanceof Error ? err.message : 'Failed to move buyer to pipeline');
     }
   };
 
@@ -1211,7 +1211,7 @@ const ReMarketingDealMatching = () => {
           </Card>
         ) : (
           <div className="space-y-3">
-            {filteredScores.map((score: any) => {
+            {filteredScores.map((score) => {
               const outreach = outreachRecords?.find(o => o.score_id === score.id);
               return (
                 <BuyerMatchCard

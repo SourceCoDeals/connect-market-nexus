@@ -51,34 +51,35 @@ export const useUpdateNDA = () => {
       const previousRequests = queryClient.getQueryData(['connection-requests']);
 
       // Update admin users
-      queryClient.setQueryData(['admin-users'], (old: any) => {
-        if (!old) return old;
-        return old.map((user: any) => 
-          user.id === userId 
-            ? { 
-                ...user, 
+      queryClient.setQueryData(['admin-users'], (old: unknown) => {
+        if (!Array.isArray(old)) return old;
+        return old.map((user: Record<string, unknown>) =>
+          user.id === userId
+            ? {
+                ...user,
                 nda_signed: isSigned,
-                nda_signed_at: isSigned ? new Date().toISOString() : null 
+                nda_signed_at: isSigned ? new Date().toISOString() : null
               }
             : user
         );
       });
 
       // Update connection requests
-      queryClient.setQueryData(['connection-requests'], (old: any) => {
-        if (!old) return old;
-        return old.map((request: any) => 
-          request.user?.id === userId 
-            ? { 
-                ...request, 
+      queryClient.setQueryData(['connection-requests'], (old: unknown) => {
+        if (!Array.isArray(old)) return old;
+        return old.map((request: Record<string, unknown>) => {
+          const reqUser = request.user as Record<string, unknown> | null;
+          return reqUser?.id === userId
+            ? {
+                ...request,
                 user: {
-                  ...request.user,
+                  ...reqUser,
                   nda_signed: isSigned,
-                  nda_signed_at: isSigned ? new Date().toISOString() : null 
+                  nda_signed_at: isSigned ? new Date().toISOString() : null
                 }
               }
-            : request
-        );
+            : request;
+        });
       });
 
       return { previousUsers, previousRequests };
@@ -132,34 +133,35 @@ export const useUpdateNDAEmailSent = () => {
       const previousRequests = queryClient.getQueryData(['connection-requests']);
 
       // Update admin users
-      queryClient.setQueryData(['admin-users'], (old: any) => {
-        if (!old) return old;
-        return old.map((user: any) => 
-          user.id === userId 
-            ? { 
-                ...user, 
+      queryClient.setQueryData(['admin-users'], (old: unknown) => {
+        if (!Array.isArray(old)) return old;
+        return old.map((user: Record<string, unknown>) =>
+          user.id === userId
+            ? {
+                ...user,
                 nda_email_sent: isSent,
-                nda_email_sent_at: isSent ? new Date().toISOString() : null 
+                nda_email_sent_at: isSent ? new Date().toISOString() : null
               }
             : user
         );
       });
 
       // Update connection requests
-      queryClient.setQueryData(['connection-requests'], (old: any) => {
-        if (!old) return old;
-        return old.map((request: any) => 
-          request.user?.id === userId 
-            ? { 
-                ...request, 
+      queryClient.setQueryData(['connection-requests'], (old: unknown) => {
+        if (!Array.isArray(old)) return old;
+        return old.map((request: Record<string, unknown>) => {
+          const reqUser = request.user as Record<string, unknown> | null;
+          return reqUser?.id === userId
+            ? {
+                ...request,
                 user: {
-                  ...request.user,
+                  ...reqUser,
                   nda_email_sent: isSent,
-                  nda_email_sent_at: isSent ? new Date().toISOString() : null 
+                  nda_email_sent_at: isSent ? new Date().toISOString() : null
                 }
               }
-            : request
-        );
+            : request;
+        });
       });
 
       return { previousUsers, previousRequests };

@@ -554,7 +554,7 @@ const ReMarketingBuyerDetail = () => {
   const [extractionProgress, setExtractionProgress] = useState<{ current: number; total: number; isRunning: boolean }>({ current: 0, total: 0, isRunning: false });
   const [extractionSummary, setExtractionSummary] = useState<{
     open: boolean;
-    results: Array<{ fileName?: string; insights?: any; error?: string }>;
+    results: Array<{ fileName?: string; insights?: Record<string, unknown>; error?: string }>;
     totalCount: number;
     successCount: number;
     errorCount: number;
@@ -566,17 +566,17 @@ const ReMarketingBuyerDetail = () => {
     setExtractionProgress({ current: 0, total: transcripts.length, isRunning: true });
     let successCount = 0;
     let errorCount = 0;
-    const results: Array<{ fileName?: string; insights?: any; error?: string }> = [];
+    const results: Array<{ fileName?: string; insights?: Record<string, unknown>; error?: string }> = [];
     
     for (let i = 0; i < transcripts.length; i++) {
       try {
         const data = await extractTranscriptMutation.mutateAsync({ transcriptId: transcripts[i].id });
         successCount++;
         results.push({ fileName: transcripts[i].file_name || `Transcript ${i + 1}`, insights: data?.insights?.buyer });
-      } catch (e: any) {
+      } catch (e: unknown) {
         console.warn(`Extraction failed for ${transcripts[i].id}:`, e);
         errorCount++;
-        results.push({ fileName: transcripts[i].file_name || `Transcript ${i + 1}`, error: e?.message || 'Failed' });
+        results.push({ fileName: transcripts[i].file_name || `Transcript ${i + 1}`, error: e instanceof Error ? e.message : 'Failed' });
       }
       setExtractionProgress({ current: i + 1, total: transcripts.length, isRunning: i < transcripts.length - 1 });
     }
@@ -597,11 +597,11 @@ const ReMarketingBuyerDetail = () => {
         successCount: 1,
         errorCount: 0,
       });
-    } catch (e: any) {
+    } catch (e: unknown) {
       const transcript = transcripts.find(t => t.id === transcriptId);
       setExtractionSummary({
         open: true,
-        results: [{ fileName: transcript?.file_name || 'Transcript', error: e?.message || 'Failed' }],
+        results: [{ fileName: transcript?.file_name || 'Transcript', error: e instanceof Error ? e.message : 'Failed' }],
         totalCount: 1,
         successCount: 0,
         errorCount: 1,
@@ -832,7 +832,7 @@ const ReMarketingBuyerDetail = () => {
                 companyName={buyer?.company_name || buyer?.pe_firm_name || ''}
                 peFirmName={buyer?.pe_firm_name}
                 platformWebsite={buyer?.platform_website || buyer?.company_website}
-                contacts={contacts?.map((c: any) => ({ email: c.email })) || []}
+                contacts={contacts?.map((c) => ({ email: c.email })) || []}
                 onTranscriptLinked={() => {
                   queryClient.invalidateQueries({ queryKey: ['remarketing', 'transcripts', id] });
                 }}
@@ -866,7 +866,7 @@ const ReMarketingBuyerDetail = () => {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {recentScores?.map((score: any) => (
+                    {recentScores?.map((score) => (
                       <TableRow key={score.id}>
                         <TableCell>
                           <Link 

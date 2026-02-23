@@ -104,23 +104,23 @@ export function useConnectionRequestsMutation() {
         // The old automatic email functionality has been removed
         
         return fullRequestData;
-      } catch (error: any) {
+      } catch (error: unknown) {
         throw error;
       }
     },
     onSuccess: (data) => {
       // PHASE 2: Use centralized cache invalidation
       invalidateConnectionRequests(queryClient);
-      
+
       const status = data.status;
       const action = status === 'approved' ? 'approved' : 'rejected';
-      
+
       toast({
         title: `Connection request ${action}`,
         description: `The connection request has been ${action} successfully.`,
       });
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({
         variant: 'destructive',
         title: 'Update failed',

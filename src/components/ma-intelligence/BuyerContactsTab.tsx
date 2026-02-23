@@ -112,10 +112,10 @@ export function BuyerContactsTab({ buyerId }: BuyerContactsTabProps) {
       if (error) throw error;
       setContacts(data || []);
       setFilteredContacts(data || []);
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "Error loading contacts",
-        description: error.message,
+        description: error instanceof Error ? error.message : String(error),
         variant: "destructive",
       });
     } finally {
@@ -182,10 +182,10 @@ export function BuyerContactsTab({ buyerId }: BuyerContactsTabProps) {
       resetForm();
       setIsAddDialogOpen(false);
       loadContacts();
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "Error adding contact",
-        description: error.message,
+        description: error instanceof Error ? error.message : String(error),
         variant: "destructive",
       });
     }
@@ -226,10 +226,10 @@ export function BuyerContactsTab({ buyerId }: BuyerContactsTabProps) {
       setEditingContact(null);
       setIsAddDialogOpen(false);
       loadContacts();
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "Error updating contact",
-        description: error.message,
+        description: error instanceof Error ? error.message : String(error),
         variant: "destructive",
       });
     }
@@ -252,10 +252,10 @@ export function BuyerContactsTab({ buyerId }: BuyerContactsTabProps) {
       });
 
       loadContacts();
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "Error deleting contact",
-        description: error.message,
+        description: error instanceof Error ? error.message : String(error),
         variant: "destructive",
       });
     }
@@ -542,7 +542,7 @@ export function BuyerContactsTab({ buyerId }: BuyerContactsTabProps) {
                 <Label htmlFor="company_type">Company Type</Label>
                 <Select
                   value={formData.company_type}
-                  onValueChange={(value: any) =>
+                  onValueChange={(value: "PE Firm" | "Platform" | "Other") =>
                     setFormData({ ...formData, company_type: value })
                   }
                 >

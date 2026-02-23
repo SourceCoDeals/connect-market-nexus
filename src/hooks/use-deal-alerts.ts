@@ -82,7 +82,7 @@ export function useCreateDealAlert() {
         description: "You'll be notified when new opportunities match your criteria.",
       });
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({
         title: "Error creating alert",
         description: error.message,
@@ -116,7 +116,7 @@ export function useUpdateDealAlert() {
         description: "Your alert preferences have been saved.",
       });
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({
         title: "Error updating alert",
         description: error.message,
@@ -148,7 +148,7 @@ export function useDeleteDealAlert() {
         description: "You will no longer receive notifications for this alert.",
       });
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({
         title: "Error deleting alert",
         description: error.message,
@@ -184,7 +184,7 @@ export function useToggleDealAlert() {
           : "Notifications for this alert are paused.",
       });
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({
         title: "Error updating alert",
         description: error.message,

@@ -30,7 +30,7 @@ export const useVerificationSuccessEmail = () => {
 
       // Verification success email sent successfully
       return data;
-    } catch (error: any) {
+    } catch (error: unknown) {
       // Don't show toast errors for this as it's a background operation
       // The user shouldn't be interrupted by email sending failures
       

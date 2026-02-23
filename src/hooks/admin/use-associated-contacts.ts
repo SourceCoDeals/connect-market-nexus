@@ -7,7 +7,7 @@ export interface AssociatedContact {
   primary_request_id: string;
   related_request_id: string;
   relationship_type: string;
-  relationship_metadata: any; // Using any for now to handle JSON type flexibility
+  relationship_metadata: Record<string, unknown>;
   created_at: string;
 }
 

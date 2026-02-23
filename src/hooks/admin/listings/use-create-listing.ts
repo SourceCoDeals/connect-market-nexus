@@ -95,17 +95,17 @@ export function useCreateListing() {
               
               updatedListing = updatedData;
             }
-          } catch (imageError: any) {
+          } catch (imageError: unknown) {
             toast({
               variant: 'destructive',
               title: 'Image Upload Failed',
-              description: imageError.message || 'Failed to upload image, but listing was created',
+              description: imageError instanceof Error ? imageError.message : 'Failed to upload image, but listing was created',
             });
           }
         }
         
         return updatedListing as unknown as AdminListing;
-      } catch (error: any) {
+      } catch (error: unknown) {
         throw error;
       }
     },
@@ -151,7 +151,7 @@ export function useCreateListing() {
         description: `"${data.title}" has been created. Use Publish to make it visible on the marketplace.`,
       });
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({
         variant: 'destructive',
         title: 'Error Creating Listing',

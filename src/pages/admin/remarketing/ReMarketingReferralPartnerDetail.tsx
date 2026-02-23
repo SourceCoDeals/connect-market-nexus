@@ -188,7 +188,7 @@ export default function ReMarketingReferralPartnerDetail() {
     enabled: !!deals?.length,
     refetchInterval: (enrichmentQueue) => {
       const data = enrichmentQueue.state?.data;
-      const hasActive = data?.some((d: any) => d.status === 'pending' || d.status === 'processing');
+      const hasActive = data?.some((d) => d.status === 'pending' || d.status === 'processing');
       return hasActive ? 5000 : false;
     },
   });
@@ -258,11 +258,11 @@ export default function ReMarketingReferralPartnerDetail() {
   // Enrichment queue progress
   const enrichmentProgress = useMemo(() => {
     if (!enrichmentQueue?.length) return null;
-    const active = enrichmentQueue.filter((q: any) => q.status === 'pending' || q.status === 'processing');
+    const active = enrichmentQueue.filter((q) => q.status === 'pending' || q.status === 'processing');
     if (active.length === 0) return null; // all done, hide the bar
     const total = enrichmentQueue.length;
-    const completed = enrichmentQueue.filter((q: any) => q.status === 'completed').length;
-    const failed = enrichmentQueue.filter((q: any) => q.status === 'failed').length;
+    const completed = enrichmentQueue.filter((q) => q.status === 'completed').length;
+    const failed = enrichmentQueue.filter((q) => q.status === 'failed').length;
     return { total, completed, failed };
   }, [enrichmentQueue]);
 
@@ -475,8 +475,8 @@ export default function ReMarketingReferralPartnerDetail() {
       const { queueDealEnrichment } = await import("@/lib/remarketing/queueEnrichment");
       await queueDealEnrichment([dealId]);
       queryClient.invalidateQueries({ queryKey: ["referral-partners", partnerId, "deals"] });
-    } catch (err: any) {
-      toast.error(`Enrichment failed: ${err.message}`);
+    } catch (err: unknown) {
+      toast.error(`Enrichment failed: ${err instanceof Error ? err.message : String(err)}`);
     }
   };
 
@@ -575,8 +575,8 @@ export default function ReMarketingReferralPartnerDetail() {
       queryClient.invalidateQueries({ queryKey: ["referral-partners", partnerId] });
       queryClient.invalidateQueries({ queryKey: ["referral-partners", partnerId, "deals"] });
       queryClient.invalidateQueries({ queryKey: ["remarketing", "deals"] });
-    } catch (err: any) {
-      toast.error(`Delete failed: ${err.message}`);
+    } catch (err: unknown) {
+      toast.error(`Delete failed: ${err instanceof Error ? err.message : String(err)}`);
     }
     setConfirmAction(null);
   };

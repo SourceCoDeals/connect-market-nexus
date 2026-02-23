@@ -80,7 +80,7 @@ export function BuyerActivitySection({ buyerId }: BuyerActivitySectionProps) {
         .order("scored_at", { ascending: false });
       if (approvalsError) throw approvalsError;
 
-      approvals?.forEach((approval: any) => {
+      approvals?.forEach((approval: Record<string, unknown> & { id: string; scored_at: string; deal?: { deal_name?: string } }) => {
         activityEvents.push({
           id: `approval-${approval.id}`,
           type: "approval",
@@ -103,7 +103,7 @@ export function BuyerActivitySection({ buyerId }: BuyerActivitySectionProps) {
         .order("passed_at", { ascending: false });
       if (passesError) throw passesError;
 
-      passes?.forEach((pass: any) => {
+      passes?.forEach((pass: Record<string, unknown> & { id: string; scored_at: string; passed_at?: string; pass_category?: string; deal?: { deal_name?: string } }) => {
         activityEvents.push({
           id: `pass-${pass.id}`,
           type: "pass",
@@ -139,10 +139,10 @@ export function BuyerActivitySection({ buyerId }: BuyerActivitySectionProps) {
       );
 
       setActivities(activityEvents);
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "Error loading activity",
-        description: error.message,
+        description: error instanceof Error ? error.message : String(error),
         variant: "destructive",
       });
     } finally {

@@ -28,7 +28,7 @@ interface ActivityEvent {
   title: string;
   description: string;
   timestamp: string;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }
 
 interface DealActivitySectionProps {
@@ -69,7 +69,7 @@ export function DealActivitySection({ dealId }: DealActivitySectionProps) {
         .order("scored_at", { ascending: false });
       if (approvalsError) throw approvalsError;
 
-      approvals?.forEach((approval: any) => {
+      approvals?.forEach((approval: Record<string, unknown> & { id: string; scored_at: string; buyer?: { platform_company_name?: string; pe_firm_name?: string } }) => {
         activityEvents.push({
           id: `approval-${approval.id}`,
           type: "buyer_action",
@@ -94,7 +94,7 @@ export function DealActivitySection({ dealId }: DealActivitySectionProps) {
         .order("passed_at", { ascending: false });
       if (passesError) throw passesError;
 
-      passes?.forEach((pass: any) => {
+      passes?.forEach((pass: Record<string, unknown> & { id: string; scored_at: string; passed_at?: string; pass_category?: string; buyer?: { platform_company_name?: string; pe_firm_name?: string } }) => {
         activityEvents.push({
           id: `pass-${pass.id}`,
           type: "buyer_action",
@@ -120,7 +120,7 @@ export function DealActivitySection({ dealId }: DealActivitySectionProps) {
         .limit(20);
       if (scoringsError) throw scoringsError;
 
-      scorings?.forEach((scoring: any) => {
+      scorings?.forEach((scoring: Record<string, unknown> & { id: string; scored_at: string; composite_score?: number; buyer?: { platform_company_name?: string; pe_firm_name?: string } }) => {
         activityEvents.push({
           id: `score-${scoring.id}`,
           type: "scoring",
@@ -160,10 +160,10 @@ export function DealActivitySection({ dealId }: DealActivitySectionProps) {
       );
 
       setActivities(activityEvents);
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "Error loading activity",
-        description: error.message,
+        description: error instanceof Error ? error.message : String(error),
         variant: "destructive",
       });
     } finally {

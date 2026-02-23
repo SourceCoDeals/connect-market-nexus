@@ -80,7 +80,7 @@ interface SortableStageCardProps {
   onDelete: () => void;
   onSave: (data: StageFormData) => void;
   onCancel: () => void;
-  editForm: any;
+  editForm: ReturnType<typeof useForm<StageFormData>>;
   dealCount?: number;
 }
 
@@ -267,7 +267,7 @@ function StageRow({
   onDelete: (dealCount: number) => void;
   onSave: (data: StageFormData) => void;
   onCancel: () => void;
-  editForm: any;
+  editForm: ReturnType<typeof useForm<StageFormData>>;
 }) {
   const { data: dealCount = 0 } = useStageDealCount(stage.id);
   return (
@@ -307,6 +307,7 @@ export const StageManagementModal = ({ open, onOpenChange }: StageManagementModa
   }, [stages]);
 
   const form = useForm<StageFormData>({
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     resolver: zodResolver(stageSchema as any),
     defaultValues: {
       name: '',
@@ -316,6 +317,7 @@ export const StageManagementModal = ({ open, onOpenChange }: StageManagementModa
   });
 
   const editForm = useForm<StageFormData>({
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     resolver: zodResolver(stageSchema as any),
   });
 
@@ -338,6 +340,7 @@ export const StageManagementModal = ({ open, onOpenChange }: StageManagementModa
         position: stages.length,
         is_active: true,
         is_default: false,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } as any);
       form.reset();
       setShowCreateForm(false);
@@ -403,7 +406,7 @@ export const StageManagementModal = ({ open, onOpenChange }: StageManagementModa
         if (views && views.length > 0) {
           for (const view of views) {
             if (view.stage_config && Array.isArray(view.stage_config)) {
-              const updatedConfig = view.stage_config.filter((sc: any) => sc.stageId !== stageId);
+              const updatedConfig = view.stage_config.filter((sc: { stageId?: string }) => sc.stageId !== stageId);
               
               if (updatedConfig.length !== view.stage_config.length) {
                 await supabase
@@ -419,10 +422,10 @@ export const StageManagementModal = ({ open, onOpenChange }: StageManagementModa
           title: "Stage deleted",
           description: "The stage has been successfully deleted and removed from all views.",
         });
-      } catch (error: any) {
+      } catch (error: unknown) {
         toast({
           title: "Failed to delete stage",
-          description: error?.message || "An error occurred while deleting the stage.",
+          description: error instanceof Error ? error.message : "An error occurred while deleting the stage.",
           variant: "destructive",
         });
       }

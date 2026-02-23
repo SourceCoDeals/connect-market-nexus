@@ -58,36 +58,37 @@ const SignupSuccess = () => {
         title: "Email sent!",
         description: "We've sent another verification email to your inbox.",
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Resend verification error:', error);
-      
+      const errMsg = error instanceof Error ? error.message : String(error);
+
       setAttemptCount(prev => prev + 1);
-      
+
       let errorMessage = "Failed to resend verification email. Please try again.";
       let waitTime = 60; // Default 60 seconds
-      
-      if (error.message?.includes('already verified')) {
+
+      if (errMsg?.includes('already verified')) {
         errorMessage = "Your email is already verified! You can now log in.";
         setEmailVerified(true);
-      } else if (error.message?.includes('rate limit') || error.message?.includes('too many requests')) {
+      } else if (errMsg?.includes('rate limit') || errMsg?.includes('too many requests')) {
         // Parse rate limit time from error message if possible
-        const timeMatch = error.message.match(/(\d+)\s*(second|minute)/i);
+        const timeMatch = errMsg.match(/(\d+)\s*(second|minute)/i);
         if (timeMatch) {
           const time = parseInt(timeMatch[1]);
           waitTime = timeMatch[2].toLowerCase() === 'minute' ? time * 60 : time;
         }
-        
+
         setRateLimitRemaining(waitTime);
         errorMessage = `Please wait ${waitTime} seconds before requesting another email.`;
-        
+
         if (attemptCount > 0) {
           errorMessage += ` This is attempt ${attemptCount + 1}.`;
         }
       }
-      
+
       toast({
-        variant: error.message?.includes('already verified') ? "default" : "destructive",
-        title: error.message?.includes('already verified') ? "Already verified" : "Rate Limited",
+        variant: errMsg?.includes('already verified') ? "default" : "destructive",
+        title: errMsg?.includes('already verified') ? "Already verified" : "Rate Limited",
         description: errorMessage,
       });
     } finally {

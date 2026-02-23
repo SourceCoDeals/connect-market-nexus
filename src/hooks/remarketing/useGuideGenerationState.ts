@@ -5,7 +5,7 @@ interface GuideProgress {
   industryName: string;
   batchIndex: number;
   content: string;
-  clarificationContext?: Record<string, any>;
+  clarificationContext?: Record<string, unknown>;
   lastPhaseId?: string;
   lastPhase?: number;
   wordCount?: number;
@@ -19,7 +19,7 @@ interface GenerationState {
   current_phase: number | null;
   phase_name: string | null;
   saved_content: string | null;
-  last_error: any;
+  last_error: Record<string, unknown> | string | null;
   updated_at: string | null;
 }
 

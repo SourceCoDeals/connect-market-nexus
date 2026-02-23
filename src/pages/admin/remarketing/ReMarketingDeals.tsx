@@ -283,7 +283,7 @@ const ReMarketingDeals = () => {
   const handleRetryFailedEnrichment = useCallback(async () => {
     dismissSummary();
     if (!enrichmentSummary?.errors.length) return;
-    const failedIds = enrichmentSummary.errors.map((e: any) => e.listingId);
+    const failedIds = enrichmentSummary.errors.map((e: Record<string, unknown>) => e.listingId);
     const nowIso = new Date().toISOString();
     await supabase
       .from('enrichment_queue')
@@ -428,9 +428,9 @@ const ReMarketingDeals = () => {
     return null;
   };
 
-  const getEffectiveWebsite = (listing: any): string | null => {
-    if (listing.website) return listing.website;
-    return extractWebsiteFromMemo(listing.internal_deal_memo_link);
+  const getEffectiveWebsite = (listing: Record<string, unknown>): string | null => {
+    if (listing.website) return listing.website as string;
+    return extractWebsiteFromMemo(listing.internal_deal_memo_link as string | null);
   };
 
   const formatGeographyBadges = (states: string[] | null): string | null => {
@@ -556,7 +556,7 @@ const ReMarketingDeals = () => {
     return [...filteredListings].sort((a, b) => {
       const stats_a = scoreStats?.[a.id];
       const stats_b = scoreStats?.[b.id];
-      let aVal: any, bVal: any;
+      let aVal: unknown, bVal: unknown;
       switch (sortColumn) {
         case "rank":
           aVal = a.manual_rank_override ?? 9999;
@@ -747,8 +747,8 @@ const ReMarketingDeals = () => {
       if (error) throw error;
       toast({ title: "Deal deleted", description: `${dealName} has been permanently deleted` });
       refetchListings();
-    } catch (error: any) {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+    } catch (error: unknown) {
+      toast({ title: "Error", description: error instanceof Error ? error.message : String(error), variant: "destructive" });
     } finally {
       setSingleDeleteTarget(null);
     }
@@ -837,8 +837,8 @@ const ReMarketingDeals = () => {
       setSelectedDeals(new Set());
       setShowArchiveDialog(false);
       refetchListings();
-    } catch (error: any) {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+    } catch (error: unknown) {
+      toast({ title: "Error", description: error instanceof Error ? error.message : String(error), variant: "destructive" });
     } finally {
       setIsArchiving(false);
     }
@@ -878,8 +878,8 @@ const ReMarketingDeals = () => {
       setSelectedDeals(new Set());
       setShowDeleteDialog(false);
       refetchListings();
-    } catch (error: any) {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+    } catch (error: unknown) {
+      toast({ title: "Error", description: error instanceof Error ? error.message : String(error), variant: "destructive" });
     } finally {
       setIsDeleting(false);
     }
@@ -911,9 +911,9 @@ const ReMarketingDeals = () => {
         });
       }
       refetchListings();
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Calculate scores error:', error);
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+      toast({ title: "Error", description: error instanceof Error ? error.message : String(error), variant: "destructive" });
     } finally {
       setIsCalculating(false);
     }
@@ -972,9 +972,9 @@ const ReMarketingDeals = () => {
         .then(({ error }) => { if (error) console.warn('Failed to trigger enrichment worker:', error); })
         .catch((e) => console.warn('Failed to trigger enrichment worker:', e));
       refetchListings();
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Enrich deals error:', error);
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+      toast({ title: "Error", description: error instanceof Error ? error.message : String(error), variant: "destructive" });
     } finally {
       setIsEnrichingAll(false);
     }
@@ -1376,7 +1376,7 @@ const ReMarketingDeals = () => {
                               }
                               await queryClient.invalidateQueries({ queryKey: ['remarketing', 'deals'] });
                               toast({ title: 'Position updated', description: `Deal moved to position ${targetPos}` });
-                            } catch (err: any) {
+                            } catch (err: unknown) {
                               console.error('Failed to update rank:', err);
                               await queryClient.invalidateQueries({ queryKey: ['remarketing', 'deals'] });
                               toast({ title: 'Failed to update rank', variant: 'destructive' });

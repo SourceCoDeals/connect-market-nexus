@@ -148,9 +148,9 @@ export default function MAAllDeals() {
     setBuyerCounts(counts);
 
     setIsLoading(false);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Failed to load deals:", error);
-      toast({ title: "Error loading deals", description: error.message || "Something went wrong", variant: "destructive" });
+      toast({ title: "Error loading deals", description: error instanceof Error ? error.message : "Something went wrong", variant: "destructive" });
       setIsLoading(false);
     }
   };
@@ -252,10 +252,10 @@ export default function MAAllDeals() {
           description: "Deal priority has been updated",
         });
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "Error",
-        description: error.message,
+        description: error instanceof Error ? error.message : String(error),
         variant: "destructive",
       });
       loadDeals();
@@ -275,7 +275,7 @@ export default function MAAllDeals() {
 
   const sortedDeals = useMemo(() => {
     return [...filteredDeals].sort((a, b) => {
-      let aVal: any, bVal: any;
+      let aVal: unknown, bVal: unknown;
 
       switch (sortColumn) {
         case "deal_name":

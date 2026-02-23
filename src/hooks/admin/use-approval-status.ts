@@ -25,7 +25,7 @@ export const useUpdateApprovalStatus = () => {
         throw new Error('Admin not authenticated');
       }
 
-      const updateData: any = {
+      const updateData: Record<string, string | null> = {
         status: isApproved ? 'approved' : 'pending',
         updated_at: new Date().toISOString()
       };
@@ -55,15 +55,15 @@ export const useUpdateApprovalStatus = () => {
 
       const previousRequests = queryClient.getQueryData(['connection-requests']);
 
-      queryClient.setQueryData(['connection-requests'], (old: any) => {
-        if (!old) return old;
-        return old.map((request: any) => 
-          request.id === requestId 
-            ? { 
-                ...request, 
+      queryClient.setQueryData(['connection-requests'], (old: unknown) => {
+        if (!Array.isArray(old)) return old;
+        return old.map((request: Record<string, unknown>) =>
+          request.id === requestId
+            ? {
+                ...request,
                 status: isApproved ? 'approved' : 'pending',
                 approved_by: isApproved ? 'current-admin' : null,
-                approved_at: isApproved ? new Date().toISOString() : null 
+                approved_at: isApproved ? new Date().toISOString() : null
               }
             : request
         );
@@ -100,7 +100,7 @@ export const useUpdateRejectionStatus = () => {
         throw new Error('Admin not authenticated');
       }
 
-      const updateData: any = {
+      const updateData: Record<string, string | null> = {
         status: isRejected ? 'rejected' : 'pending',
         updated_at: new Date().toISOString()
       };
@@ -130,15 +130,15 @@ export const useUpdateRejectionStatus = () => {
 
       const previousRequests = queryClient.getQueryData(['connection-requests']);
 
-      queryClient.setQueryData(['connection-requests'], (old: any) => {
-        if (!old) return old;
-        return old.map((request: any) => 
-          request.id === requestId 
-            ? { 
-                ...request, 
+      queryClient.setQueryData(['connection-requests'], (old: unknown) => {
+        if (!Array.isArray(old)) return old;
+        return old.map((request: Record<string, unknown>) =>
+          request.id === requestId
+            ? {
+                ...request,
                 status: isRejected ? 'rejected' : 'pending',
                 rejected_by: isRejected ? 'current-admin' : null,
-                rejected_at: isRejected ? new Date().toISOString() : null 
+                rejected_at: isRejected ? new Date().toISOString() : null
               }
             : request
         );

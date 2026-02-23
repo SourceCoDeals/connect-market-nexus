@@ -642,7 +642,7 @@ export default function SystemTestRunner() {
     try {
       const stored = localStorage.getItem(STORAGE_KEY);
       if (stored) return JSON.parse(stored);
-    } catch {}
+    } catch (error) { console.warn('localStorage operation failed:', error); }
     return [];
   });
   const [isRunning, setIsRunning] = useState(false);
@@ -660,7 +660,7 @@ export default function SystemTestRunner() {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(res));
       localStorage.setItem(STORAGE_KEY + "-ts", ts);
-    } catch {}
+    } catch (error) { console.warn('localStorage operation failed:', error); }
   }, []);
 
   const runTests = useCallback(
@@ -716,8 +716,8 @@ export default function SystemTestRunner() {
             durationMs: Math.round(performance.now() - start),
             error: undefined,
           };
-        } catch (err: any) {
-          const msg = err?.message || String(err);
+        } catch (err: unknown) {
+          const msg = err instanceof Error ? err.message : String(err);
           // Treat missing test data preconditions and some errors as warnings
           const isWarning = (msg.includes("does not exist") && !msg.includes("table"))
             || msg.includes("No documents exist")

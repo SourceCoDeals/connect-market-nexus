@@ -33,7 +33,7 @@ const listingFormSchema = z.object({
   part_time_employees: z.number().int().min(0).optional(),
   description: z.string().min(20, "Description must be at least 20 characters"),
   description_html: z.string().optional(),
-  description_json: z.any().optional(),
+  description_json: z.unknown().optional(),
   hero_description: z.string().max(500, "Hero description must be 500 characters or less").nullable().optional(),
   owner_notes: z.string().nullable().optional(),
   status: z.enum(["active", "inactive"]).default("active"),
@@ -87,7 +87,7 @@ type ListingFormInput = {
   part_time_employees?: number;
   description: string;
   description_html?: string;
-  description_json?: any;
+  description_json?: unknown;
   hero_description?: string | null;
   owner_notes?: string;
   status: "active" | "inactive";
@@ -118,7 +118,7 @@ type ListingFormInput = {
 type ListingFormValues = z.infer<typeof listingFormSchema>;
 
 interface ImprovedListingEditorProps {
-  onSubmit: (data: ListingFormValues & { description_html?: string; description_json?: any }, image?: File | null) => Promise<void>;
+  onSubmit: (data: ListingFormValues & { description_html?: string; description_json?: unknown }, image?: File | null) => Promise<void>;
   listing?: AdminListing;
   isLoading?: boolean;
   targetType?: 'marketplace' | 'research';
@@ -268,7 +268,7 @@ export function ImprovedListingEditor({
         return;
       }
       
-      const transformedData: ListingFormValues & { description_html?: string; description_json?: any } = {
+      const transformedData: ListingFormValues & { description_html?: string; description_json?: unknown } = {
         ...formData,
         acquisition_type: (formData.acquisition_type === 'add_on' || formData.acquisition_type === 'platform') ? formData.acquisition_type : null,
         part_time_employees: formData.part_time_employees,
@@ -310,11 +310,11 @@ export function ImprovedListingEditor({
         setImagePreview(null);
         setIsImageChanged(false);
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         variant: "destructive",
         title: "Error",
-        description: error.message || "Failed to save listing",
+        description: error instanceof Error ? error.message : "Failed to save listing",
       });
     }
   };

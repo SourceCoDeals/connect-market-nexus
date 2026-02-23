@@ -173,7 +173,7 @@ export const useListings = (filters: FilterOptions = {}) => {
           }
           
           // Transform data to include computed properties
-          const listings = data?.map((item: any) => {
+          const listings = data?.map((item) => {
             const listing: Listing = {
               ...item,
               // Ensure categories is always an array, fallback to single category
@@ -211,7 +211,7 @@ export const useListings = (filters: FilterOptions = {}) => {
             listings: listings || [],
             totalCount: count || 0
           };
-        } catch (error: any) {
+        } catch (error: unknown) {
           throw error;
         }
       });
@@ -293,7 +293,7 @@ export const useListing = (id: string | undefined) => {
           };
           
           return listing as Listing;
-        } catch (error: any) {
+        } catch (error: unknown) {
           throw error;
         }
       });
@@ -322,7 +322,7 @@ export const useListingMetadata = () => {
             categories: STANDARDIZED_CATEGORIES, 
             locations: STANDARDIZED_LOCATIONS 
           };
-        } catch (error: any) {
+        } catch (error: unknown) {
           console.error('💥 Error in useListingMetadata:', error);
           // Fallback to hardcoded arrays if import fails
           return { 

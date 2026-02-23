@@ -102,10 +102,10 @@ export const InboundLeadsTable = ({
         listingId,
         listingTitle
       }, {
-        onError: (error: any) => {
+        onError: (error: Error & { isDuplicateError?: boolean; duplicateResult?: DuplicateCheckResult }) => {
           if (error.isDuplicateError) {
             // Handle duplicate detection
-            setDuplicateResult(error.duplicateResult);
+            setDuplicateResult(error.duplicateResult ?? null);
             setPendingMappingData({ listingId, listingTitle });
             setIsDuplicateWarningOpen(true);
             setIsMappingDialogOpen(false);
@@ -166,7 +166,7 @@ export const InboundLeadsTable = ({
   const selectedLeads = filteredLeads.filter(lead => selectedLeadIds.has(lead.id));
 
   const handleBulkCreate = async (
-    leadsData: any[], 
+    leadsData: Record<string, unknown>[],
     listingId?: string, 
     listingTitle?: string, 
     shouldConvert?: boolean
@@ -214,11 +214,11 @@ export const InboundLeadsTable = ({
           description: `Successfully mapped ${successCount} of ${pendingLeads.length} leads`,
         });
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         variant: "destructive",
         title: "Mapping failed",
-        description: error.message || 'Failed to map leads',
+        description: error instanceof Error ? error.message : 'Failed to map leads',
       });
     }
   };
@@ -238,7 +238,7 @@ export const InboundLeadsTable = ({
               successCount++;
               resolve(null);
             },
-            onError: (error: any) => {
+            onError: (error: Error) => {
               errorCount++;
               errors.push(`${lead.name}: ${error.message}`);
               reject(error);

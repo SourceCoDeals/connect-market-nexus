@@ -13,7 +13,7 @@ interface UserActivity {
   first_name: string;
   last_name: string;
   listing_title?: string;
-  metadata?: any;
+  metadata?: Record<string, unknown>;
 }
 
 export function useRecentUserActivity() {

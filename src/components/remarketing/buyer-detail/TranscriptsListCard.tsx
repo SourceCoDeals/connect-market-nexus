@@ -37,7 +37,7 @@ interface Transcript {
 interface TranscriptsListCardProps {
   transcripts: Transcript[];
   buyerId: string;
-  onAddTranscript: (text: string, source: string, fileName?: string, fileUrl?: string, triggerExtract?: boolean) => Promise<any> | void;
+  onAddTranscript: (text: string, source: string, fileName?: string, fileUrl?: string, triggerExtract?: boolean) => Promise<unknown> | void;
   onExtract: (transcriptId: string) => void;
   onExtractAll: () => void;
   onDelete: (transcriptId: string) => void;
@@ -181,8 +181,8 @@ export const TranscriptsListCard = ({
           try {
             const extracted = await parseTranscriptFile(file);
             if (extracted.trim()) formData.transcript_text = extracted;
-          } catch (err: any) {
-            console.warn("PDF parsing failed:", err.message);
+          } catch (err: unknown) {
+            console.warn("PDF parsing failed:", err instanceof Error ? err.message : String(err));
           } finally {
             setIsParsingFile(false);
           }
@@ -194,8 +194,8 @@ export const TranscriptsListCard = ({
 
       onAddTranscript(formData.transcript_text || "", "call", formData.title.trim(), fileUrl, triggerExtract);
       resetAndClose();
-    } catch (error: any) {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+    } catch (error: unknown) {
+      toast({ title: "Error", description: error instanceof Error ? error.message : String(error), variant: "destructive" });
     } finally {
       setIsUploading(false);
     }
@@ -234,8 +234,8 @@ export const TranscriptsListCard = ({
         } else if (['.pdf', '.doc', '.docx'].includes(ext)) {
           try {
             text = await parseTranscriptFile(file);
-          } catch (err: any) {
-            console.warn(`Parse failed for ${file.name}:`, err.message);
+          } catch (err: unknown) {
+            console.warn(`Parse failed for ${file.name}:`, err instanceof Error ? err.message : String(err));
           }
         }
 
@@ -248,8 +248,8 @@ export const TranscriptsListCard = ({
         if (i < filesToProcess.length - 1) {
           await new Promise(r => setTimeout(r, 1500));
         }
-      } catch (err: any) {
-        toast({ title: `Failed: ${file.name}`, description: err.message, variant: "destructive" });
+      } catch (err: unknown) {
+        toast({ title: `Failed: ${file.name}`, description: err instanceof Error ? err.message : String(err), variant: "destructive" });
       }
     }
 

@@ -231,10 +231,11 @@ function DealEnrichSection({ addLog }: { addLog: (m: string, d?: number, ok?: bo
 
       const fieldsUpdated = data?.fieldsUpdated?.length ?? 0;
       addLog(`enrich-deal for ${dealId.slice(0, 8)}… (${fieldsUpdated} fields updated)`, dur);
-    } catch (e: any) {
+    } catch (e: unknown) {
       const dur = Date.now() - t0;
-      setError(e.message);
-      addLog(`enrich-deal for ${dealId.slice(0, 8)}… — ${e.message}`, dur, false);
+      const msg = e instanceof Error ? e.message : String(e);
+      setError(msg);
+      addLog(`enrich-deal for ${dealId.slice(0, 8)}… — ${msg}`, dur, false);
     } finally {
       setLoading(false);
     }
@@ -345,10 +346,11 @@ function BuyerEnrichSection({ addLog }: { addLog: (m: string, d?: number, ok?: b
         `enrich-buyer for ${buyerId.slice(0, 8)}… (${data?.fieldsExtracted ?? "?"} fields, ${data?.dataCompleteness ?? "?"})`,
         dur,
       );
-    } catch (e: any) {
+    } catch (e: unknown) {
       const dur = Date.now() - t0;
-      setError(e.message);
-      addLog(`enrich-buyer for ${buyerId.slice(0, 8)}… — ${e.message}`, dur, false);
+      const msg = e instanceof Error ? e.message : String(e);
+      setError(msg);
+      addLog(`enrich-buyer for ${buyerId.slice(0, 8)}… — ${msg}`, dur, false);
     } finally {
       setLoading(false);
     }
@@ -420,6 +422,7 @@ function ProvenanceSection({ addLog }: { addLog: (m: string, d?: number, ok?: bo
       // Fetch extraction sources
       // extraction_sources table is not in generated Supabase types;
       // use type assertion on the untyped table name
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const { data: srcData, error: srcDataError } = await (supabase
         .from("extraction_sources" as any) as any)
         .select("*")
@@ -453,10 +456,11 @@ function ProvenanceSection({ addLog }: { addLog: (m: string, d?: number, ok?: bo
         sources: sourceMap,
       });
       addLog(`provenance test for ${dealId.slice(0, 8)}…`, dur);
-    } catch (e: any) {
+    } catch (e: unknown) {
       const dur = Date.now() - t0;
-      setError(e.message);
-      addLog(`provenance test — ${e.message}`, dur, false);
+      const msg = e instanceof Error ? e.message : String(e);
+      setError(msg);
+      addLog(`provenance test — ${msg}`, dur, false);
     } finally {
       setLoading(false);
     }
@@ -564,10 +568,11 @@ function ScoringSection({ addLog }: { addLog: (m: string, d?: number, ok?: boole
       if (listingError) throw listingError;
       setScores(listing);
       addLog(`calculate-deal-quality for ${dealId.slice(0, 8)}… (score: ${listing?.deal_total_score ?? "—"})`, dur);
-    } catch (e: any) {
+    } catch (e: unknown) {
       const dur = Date.now() - t0;
-      setError(e.message);
-      addLog(`scoring — ${e.message}`, dur, false);
+      const msg = e instanceof Error ? e.message : String(e);
+      setError(msg);
+      addLog(`scoring — ${msg}`, dur, false);
     } finally {
       setLoading(false);
     }
@@ -631,9 +636,10 @@ function QueueSection({ addLog }: { addLog: (m: string, d?: number, ok?: boolean
       setQueue(data);
       setCount(c);
       addLog(`Fetched queue — ${c ?? 0} total items`);
-    } catch (e: any) {
-      setError(e.message);
-      addLog(`Queue fetch — ${e.message}`, undefined, false);
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e);
+      setError(msg);
+      addLog(`Queue fetch — ${msg}`, undefined, false);
     } finally {
       setLoading(false);
     }
@@ -652,8 +658,8 @@ function QueueSection({ addLog }: { addLog: (m: string, d?: number, ok?: boolean
       } else {
         addLog(`process-enrichment-queue triggered`, dur);
       }
-    } catch (e: any) {
-      addLog(`process-enrichment-queue — ${e.message}`, Date.now() - t0, false);
+    } catch (e: unknown) {
+      addLog(`process-enrichment-queue — ${e instanceof Error ? e.message : String(e)}`, Date.now() - t0, false);
     } finally {
       setTriggerLoading(false);
     }

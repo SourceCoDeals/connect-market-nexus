@@ -12,7 +12,7 @@ export default function AdminNotifications() {
   const markAllAsRead = useMarkAllNotificationsAsRead();
   const navigate = useNavigate();
 
-  const handleNotificationClick = (notification: any) => {
+  const handleNotificationClick = (notification: { id: string; groupedIds?: string[]; action_url?: string }) => {
     const idsToMark = notification.groupedIds || [notification.id];
     markAsRead.mutate(idsToMark);
 

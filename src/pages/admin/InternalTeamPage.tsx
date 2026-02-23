@@ -36,7 +36,7 @@ const InternalTeamPage = () => {
   }, [teamMembers, search]);
 
   // Convert role data to User-compatible shape for TeamMemberCard
-  const toUserShape = (member: any): User => {
+  const toUserShape = (member: { user_id: string; user_email?: string; user_first_name?: string; user_last_name?: string; granted_at?: string }): User => {
     const firstName = member.user_first_name || '';
     const lastName = member.user_last_name || '';
     const now = member.granted_at || new Date().toISOString();
@@ -59,7 +59,7 @@ const InternalTeamPage = () => {
       get lastName() { return lastName; },
       get phoneNumber() { return ''; },
       get isAdmin() { return true; },
-      get buyerType(): any { return 'individual'; },
+      get buyerType() { return 'individual' as const; },
       get emailVerified() { return true; },
       get isApproved() { return true; },
       get createdAt() { return now; },

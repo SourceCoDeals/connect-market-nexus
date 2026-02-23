@@ -202,11 +202,11 @@ const Profile = () => {
         title: "Profile updated",
         description: "Your profile information has been successfully updated.",
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         variant: "destructive",
         title: "Update failed",
-        description: error.message || "Something went wrong while updating your profile.",
+        description: error instanceof Error ? error.message : "Something went wrong while updating your profile.",
       });
     } finally {
       setIsLoading(false);
@@ -254,13 +254,14 @@ const Profile = () => {
         title: "Password updated",
         description: "Your password has been changed. All other sessions have been signed out.",
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Password update error:", error);
-      setPasswordError(error.message || "Failed to update password");
+      const errMsg = error instanceof Error ? error.message : "Failed to update password";
+      setPasswordError(errMsg);
       toast({
         variant: "destructive",
         title: "Password update failed",
-        description: error.message || "Something went wrong while updating your password.",
+        description: errMsg || "Something went wrong while updating your password.",
       });
     } finally {
       setIsLoading(false);

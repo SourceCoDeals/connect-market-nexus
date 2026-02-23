@@ -87,7 +87,7 @@ export const useUpdateDealFollowup = () => {
         description: `Successfully updated deal and ${data.requestsUpdated} connection request(s).`,
       });
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({
         variant: "destructive",
         title: "Update failed",

@@ -206,7 +206,7 @@ export const useInitialSessionTracking = () => {
     };
 
     // Track first-touch attribution for authenticated users
-    const trackInitialSessionForUser = async (userId: string, data: any) => {
+    const trackInitialSessionForUser = async (userId: string, data: Record<string, unknown>) => {
       try {
         const { error } = await supabase.functions.invoke('track-initial-session', {
           body: {
@@ -235,7 +235,7 @@ export const useInitialSessionTracking = () => {
 
     // Removed fallback session creation - track-session edge function is the single source of truth
     // This prevents race conditions that skip journey upsert logic
-    const createSessionDirectly = async (_data: any) => {
+    const createSessionDirectly = async (_data: Record<string, unknown>) => {
       hasTracked.current = true;
     };
 

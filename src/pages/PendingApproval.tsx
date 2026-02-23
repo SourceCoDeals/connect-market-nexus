@@ -43,8 +43,8 @@ const PendingApproval = () => {
         } else if (data?.ndaSigned) {
           setNdaSigned(true);
         }
-      } catch (err: any) {
-        setNdaError(err.message);
+      } catch (err: unknown) {
+        setNdaError(err instanceof Error ? err.message : String(err));
       } finally {
         if (!cancelled) setNdaLoading(false);
       }
@@ -111,11 +111,11 @@ const PendingApproval = () => {
         title: "Email sent",
         description: "We've sent another verification email to your inbox. Please check your spam folder if you don't see it.",
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         variant: "destructive",
-        title: "Failed to resend email", 
-        description: error.message || "Please try again later or contact support.",
+        title: "Failed to resend email",
+        description: error instanceof Error ? error.message : "Please try again later or contact support.",
       });
     } finally {
       setIsResending(false);

@@ -16,10 +16,10 @@ import { useMutation } from "@tanstack/react-query";
 interface StructuredCriteriaPanelProps {
   trackerId: string;
   tracker: {
-    size_criteria?: any;
-    service_criteria?: any;
-    geography_criteria?: any;
-    buyer_types_criteria?: any;
+    size_criteria?: Record<string, unknown>;
+    service_criteria?: Record<string, unknown>;
+    geography_criteria?: Record<string, unknown>;
+    buyer_types_criteria?: Record<string, unknown>;
   };
   onSave?: () => void;
 }
@@ -86,7 +86,7 @@ export function StructuredCriteriaPanel({
         });
       }
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       setValidationStatus('invalid');
       toast({
         title: "Validation Failed",
@@ -121,10 +121,10 @@ export function StructuredCriteriaPanel({
 
       // Validate after save
       validateCriteria.mutate();
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "Error",
-        description: error.message,
+        description: error instanceof Error ? error.message : String(error),
         variant: "destructive",
       });
     }

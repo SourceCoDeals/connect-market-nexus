@@ -75,10 +75,10 @@ export function DealTranscriptsTab({ dealId }: DealTranscriptsTabProps) {
 
       if (error) throw error;
       setTranscripts((data || []) as unknown as Transcript[]);
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "Error loading transcripts",
-        description: error.message,
+        description: error instanceof Error ? error.message : String(error),
         variant: "destructive",
       });
     } finally {
@@ -115,10 +115,10 @@ export function DealTranscriptsTab({ dealId }: DealTranscriptsTabProps) {
       setTimeout(() => {
         loadTranscripts();
       }, 1000);
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "Error processing transcript",
-        description: error.message,
+        description: error instanceof Error ? error.message : String(error),
         variant: "destructive",
       });
     }
@@ -142,10 +142,10 @@ export function DealTranscriptsTab({ dealId }: DealTranscriptsTabProps) {
       });
 
       loadTranscripts();
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "Error deleting transcript",
-        description: error.message,
+        description: error instanceof Error ? error.message : String(error),
         variant: "destructive",
       });
     }

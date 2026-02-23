@@ -37,7 +37,7 @@ export function useToggleListingStatus() {
         
         // Listing status updated
         return data as unknown as AdminListing;
-      } catch (error: any) {
+      } catch (error: unknown) {
         throw error;
       }
     },
@@ -78,7 +78,7 @@ export function useToggleListingStatus() {
         description: `The listing "${data.title}" has been ${statusText} successfully.`,
       });
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({
         variant: 'destructive',
         title: 'Error Updating Status',

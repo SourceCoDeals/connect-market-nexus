@@ -125,7 +125,7 @@ export const useSessionEvents = (sessionId: string | null, userId: string | null
 
       // Process listing analytics
       if (listingAnalytics) {
-        listingAnalytics.forEach((la: any) => {
+        listingAnalytics.forEach((la) => {
           allEvents.push({
             id: la.id,
             timestamp: la.created_at,

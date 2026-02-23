@@ -73,9 +73,9 @@ interface BuyerMatchCardProps {
   isSelected?: boolean;
   isHighlighted?: boolean;
   onSelect?: (id: string, selected: boolean) => void;
-  onApprove: (scoreId: string, scoreData: any) => void;
-  onPass: (scoreId: string, buyerName: string, scoreData: any) => void;
-  onToggleInterested?: (scoreId: string, interested: boolean, scoreData: any) => void;
+  onApprove: (scoreId: string, scoreData: BuyerMatchCardProps['score']) => void;
+  onPass: (scoreId: string, buyerName: string, scoreData: BuyerMatchCardProps['score']) => void;
+  onToggleInterested?: (scoreId: string, interested: boolean, scoreData: BuyerMatchCardProps['score']) => void;
   onOutreachUpdate?: (scoreId: string, status: OutreachStatus, notes: string) => Promise<void>;
   onViewed?: (scoreId: string) => void;
   onMoveToPipeline?: (scoreId: string, buyerId: string, listingId: string) => Promise<void>;
@@ -108,7 +108,7 @@ const isDisqualified = (scoreData: { composite_score: number; is_disqualified?: 
 
 // Get disqualification reason from reasoning text
 // Uses specific patterns to avoid over-triggering (e.g., "size mismatch" just because reasoning mentions revenue)
-const getDisqualificationReason = (reasoning: string | null, score?: any): string => {
+const getDisqualificationReason = (reasoning: string | null, score?: { size_score?: number; geography_score?: number; service_score?: number; owner_goals_score?: number }): string => {
   if (!reasoning) return 'criteria mismatch';
   const lower = reasoning.toLowerCase();
 
@@ -540,7 +540,7 @@ export const BuyerMatchCard = ({
             {/* Intelligence Badge with missing fields */}
             <IntelligenceBadge
               completeness={score.data_completeness}
-              hasTranscript={!!buyer?.extraction_sources?.some((s: any) => s.type === 'transcript')}
+              hasTranscript={!!buyer?.extraction_sources?.some((s: { type?: string }) => s.type === 'transcript')}
               missingFields={missingData}
               size="sm"
             />

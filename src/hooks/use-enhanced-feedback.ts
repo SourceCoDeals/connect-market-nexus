@@ -26,7 +26,7 @@ export interface FeedbackMessageWithUser {
   thread_id: string;
   parent_message_id: string | null;
   is_internal_note: boolean;
-  attachments: any[];
+  attachments: unknown[];
   read_by_user: boolean;
   read_by_admin: boolean;
   satisfaction_rating: number | null;
@@ -182,9 +182,10 @@ export function useEnhancedFeedback() {
 
       return feedback;
 
-    } catch (error: any) {
+    } catch (error: unknown) {
       // Generic error handling
-      if (!error.message.includes("Database error") && !error.message.includes("Message is required")) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      if (!errorMessage.includes("Database error") && !errorMessage.includes("Message is required")) {
         toast({
           title: "Submission error",
           description: "Something went wrong. Please try again.",

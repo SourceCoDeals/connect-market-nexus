@@ -427,7 +427,7 @@ const ReMarketingDashboard = () => {
               });
             return (
               <div className="space-y-3 max-h-64 overflow-y-auto">
-                {entries.map((item: any) => {
+                {entries.map((item) => {
                   const oid = item.owner_id;
                   const profile = oid !== "__unassigned" && adminProfiles ? adminProfiles[oid] : null;
                   const name = profile ? profile.displayName : "Unassigned";
@@ -481,7 +481,7 @@ const ReMarketingDashboard = () => {
                 </tr>
               </thead>
               <tbody>
-                {topDeals.map((deal: any, i: number) => (
+                {topDeals.map((deal, i: number) => (
                   <tr key={deal.id} className="border-b border-gray-50 last:border-0">
                     <td className="py-2.5 pr-2 text-gray-400 font-medium">{i + 1}</td>
                     <td className="py-2.5 pr-3">

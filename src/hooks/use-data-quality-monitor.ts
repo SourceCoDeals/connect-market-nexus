@@ -73,10 +73,10 @@ export const useDataQualityMonitor = () => {
     }
   };
 
-  const calculateMetrics = (profiles: any[], funnelData: any[]): DataQualityMetrics => {
+  const calculateMetrics = (profiles: Array<Record<string, unknown>>, funnelData: Array<Record<string, unknown>>): DataQualityMetrics => {
     const totalUsers = profiles.length;
-    const recentUsers = profiles.filter(p => 
-      new Date(p.created_at) > new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
+    const recentUsers = profiles.filter(p =>
+      new Date(String(p.created_at)) > new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
     );
 
     // Critical fields that should be completed
@@ -107,7 +107,7 @@ export const useDataQualityMonitor = () => {
     const formDropOffRate = totalSessions > 0 ? ((totalSessions - completedSessions) / totalSessions) * 100 : 0;
 
     // Calculate validation error rate (mock for now)
-    const validationErrors = funnelData.filter(f => f.drop_off_reason?.includes('validation')).length;
+    const validationErrors = funnelData.filter(f => typeof f.drop_off_reason === 'string' && f.drop_off_reason.includes('validation')).length;
     const validationErrorRate = totalSessions > 0 ? (validationErrors / totalSessions) * 100 : 0;
 
     // Calculate onboarding completion rate

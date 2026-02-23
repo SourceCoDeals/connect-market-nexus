@@ -40,6 +40,7 @@ export function useUpdateListing() {
           .update({
             ...listing,
             updated_at: new Date().toISOString(),
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           } as any)
           .eq('id', id)
           .select()
@@ -84,17 +85,17 @@ export function useUpdateListing() {
               // Listing updated with new image URL
               updatedListing = updatedData;
             }
-          } catch (imageError: any) {
+          } catch (imageError: unknown) {
             toast({
               variant: 'destructive',
               title: 'Image Upload Failed',
-              description: imageError.message || 'Failed to update image, but listing was updated',
+              description: imageError instanceof Error ? imageError.message : 'Failed to update image, but listing was updated',
             });
           }
         }
         
         return updatedListing as unknown as AdminListing;
-      } catch (error: any) {
+      } catch (error: unknown) {
         throw error;
       }
     },
@@ -112,7 +113,7 @@ export function useUpdateListing() {
         description: 'The listing has been updated successfully.',
       });
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({
         variant: 'destructive',
         title: 'Error Updating Listing',

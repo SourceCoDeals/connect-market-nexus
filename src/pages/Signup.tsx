@@ -590,20 +590,21 @@ const Signup = () => {
       // Navigate to static success page with email parameter
       navigate(`/signup-success?email=${encodeURIComponent(formData.email)}`);
       
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Signup error:', error);
-      
+
       // More specific error handling
       let errorMessage = "An unexpected error occurred. Please try again.";
-      
-      if (error.message?.includes('User already registered')) {
+      const errMsg = error instanceof Error ? error.message : String(error);
+
+      if (errMsg?.includes('User already registered')) {
         errorMessage = "An account with this email already exists. Please sign in instead.";
-      } else if (error.message?.includes('Password')) {
+      } else if (errMsg?.includes('Password')) {
         errorMessage = "Password requirements not met. Please ensure it's at least 6 characters.";
-      } else if (error.message?.includes('Email')) {
+      } else if (errMsg?.includes('Email')) {
         errorMessage = "Invalid email address. Please check and try again.";
-      } else if (error.message) {
-        errorMessage = error.message;
+      } else if (errMsg) {
+        errorMessage = errMsg;
       }
       
       toast({

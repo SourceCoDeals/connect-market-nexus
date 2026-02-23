@@ -10,7 +10,7 @@ interface GenerationStatus {
   current_phase: string | null;
   phases_completed: number;
   total_phases: number;
-  generated_content: any;
+  generated_content: Record<string, unknown> | null;
   error: string | null;
   started_at: string;
   completed_at: string | null;
@@ -18,7 +18,7 @@ interface GenerationStatus {
 
 interface UseBackgroundGuideGenerationProps {
   universeId: string;
-  onComplete?: (content: string, criteria: any) => void;
+  onComplete?: (content: string, criteria: unknown) => void;
   onError?: (error: string) => void;
 }
 
@@ -112,11 +112,12 @@ export function useBackgroundGuideGeneration({
       // Start polling for progress
       startPolling(data!.generation_id);
 
-    } catch (error: any) {
-      toast.error(error.message || 'Failed to start guide generation');
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Failed to start guide generation';
+      toast.error(message);
       setIsGenerating(false);
       if (onError) {
-        onError(error.message);
+        onError(message);
       }
     }
   };
@@ -180,7 +181,7 @@ export function useBackgroundGuideGeneration({
         setIsGenerating(false);
       }
 
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error checking generation status:', error);
 
       // Don't show errors on every poll, just log them

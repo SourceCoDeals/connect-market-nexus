@@ -26,7 +26,7 @@ import {
 interface BulkDealImportDialogProps {
   isOpen: boolean;
   onClose: () => void;
-  onConfirm: (data: any) => Promise<ImportResult | void>;
+  onConfirm: (data: Record<string, unknown>) => Promise<ImportResult | void>;
   isLoading: boolean;
 }
 
@@ -178,7 +178,7 @@ export function BulkDealImportDialog({ isOpen, onClose, onConfirm, isLoading }: 
             return;
           }
 
-          results.data.forEach((row: any, index) => {
+          results.data.forEach((row: Record<string, string>, index: number) => {
             const rowNumber = index + 2;
             const dealErrors: string[] = [];
             
@@ -222,8 +222,8 @@ export function BulkDealImportDialog({ isOpen, onClose, onConfirm, isLoading }: 
           setParseErrors([`CSV parsing error: ${error.message}`]);
         },
       });
-    } catch (error: any) {
-      setParseErrors([`Error: ${error.message}`]);
+    } catch (error: unknown) {
+      setParseErrors([`Error: ${error instanceof Error ? error.message : String(error)}`]);
     }
   };
 
@@ -424,9 +424,9 @@ export function BulkDealImportDialog({ isOpen, onClose, onConfirm, isLoading }: 
           break;
         }
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast.error('Failed to process duplicate', {
-        description: error.message,
+        description: error instanceof Error ? error.message : String(error),
       });
     }
 

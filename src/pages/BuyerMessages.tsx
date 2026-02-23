@@ -30,6 +30,7 @@ function useBuyerThreads() {
       if (!user?.id) return [];
 
       // Single query: get all messages for this buyer's requests with joined request + listing data
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const { data: messages, error } = await (supabase
         .from("connection_messages") as any)
         .select(`

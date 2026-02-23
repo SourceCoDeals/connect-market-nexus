@@ -29,7 +29,7 @@ export function EnhancedAnalyticsHealthDashboard() {
   const [liveStats, setLiveStats] = useState<LiveStats>({ pageViews: 0, listingAnalytics: 0, userEvents: 0, searchAnalytics: 0, userSessions: 0 });
   const [isLoading, setIsLoading] = useState(false);
   const [isTestingRunning, setIsTestingRunning] = useState(false);
-  const [testResults, setTestResults] = useState<Array<{ test: string; success: boolean; details?: any }>>([]);
+  const [testResults, setTestResults] = useState<Array<{ test: string; success: boolean; details?: unknown }>>([]);
   const [autoRefresh, setAutoRefresh] = useState(false);
   
   const analytics = useAnalytics();
@@ -71,12 +71,12 @@ export function EnhancedAnalyticsHealthDashboard() {
             recordCount,
             lastInsert,
           };
-        } catch (error: any) {
+        } catch (error: unknown) {
           return {
             table,
             status: 'error' as const,
             recordCount: 0,
-            errorMessage: error.message,
+            errorMessage: error instanceof Error ? error.message : String(error),
           };
         }
       });
@@ -98,10 +98,10 @@ export function EnhancedAnalyticsHealthDashboard() {
       
       setLiveStats(stats);
 
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "Health Check Failed",
-        description: error.message,
+        description: error instanceof Error ? error.message : String(error),
         variant: "destructive",
       });
     } finally {
@@ -113,7 +113,7 @@ export function EnhancedAnalyticsHealthDashboard() {
     setIsTestingRunning(true);
     setTestResults([]);
     
-    const logTestResult = (testName: string, success: boolean, details?: any) => {
+    const logTestResult = (testName: string, success: boolean, details?: unknown) => {
       setTestResults(prev => [...prev, { test: testName, success, details }]);
     };
 
@@ -158,8 +158,8 @@ export function EnhancedAnalyticsHealthDashboard() {
         title: "Comprehensive Test Completed",
         description: "Check results below",
       });
-    } catch (error: any) {
-      logTestResult('Test Suite Execution', false, error.message);
+    } catch (error: unknown) {
+      logTestResult('Test Suite Execution', false, error instanceof Error ? error.message : String(error));
     } finally {
       setIsTestingRunning(false);
     }
@@ -185,10 +185,10 @@ export function EnhancedAnalyticsHealthDashboard() {
       });
 
       checkAnalyticsHealth();
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "Clear Failed",
-        description: error.message,
+        description: error instanceof Error ? error.message : String(error),
         variant: "destructive",
       });
     } finally {

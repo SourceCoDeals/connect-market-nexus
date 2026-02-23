@@ -339,7 +339,7 @@ export function PipelineDetailBuyer({ deal }: PipelineDetailBuyerProps) {
             <Tabs defaultValue="direct" className="w-full">
               <TabsList className="w-full grid grid-cols-3">
                 <TabsTrigger value="direct" className="text-xs">
-                  Direct ({connectionRequests.filter((r: any) => !associatedRequests.some((a: any) => a.id === r.id)).length})
+                  Direct ({connectionRequests.filter((r: { id: string }) => !associatedRequests.some((a: { id: string }) => a.id === r.id)).length})
                 </TabsTrigger>
                 <TabsTrigger value="colleagues" className="text-xs flex items-center gap-1">
                   <Users className="w-3 h-3" />
@@ -356,7 +356,7 @@ export function PipelineDetailBuyer({ deal }: PipelineDetailBuyerProps) {
                   {connectionRequests.length === 0 ? (
                     <p className="text-sm text-muted-foreground py-4 text-center">No direct connection history</p>
                   ) : (
-                    connectionRequests.map((req: any) => (
+                    connectionRequests.map((req: Record<string, unknown> & { id: string; listings?: { internal_company_name?: string; title?: string; location?: string; revenue?: number }; created_at?: string; status?: string }) => (
                       <div key={req.id} className="p-3 border border-border/40 rounded-lg hover:border-border/60 transition-colors">
                         <div className="flex items-start justify-between">
                           <div className="space-y-1">
@@ -385,7 +385,7 @@ export function PipelineDetailBuyer({ deal }: PipelineDetailBuyerProps) {
                   {associatedRequests.length === 0 ? (
                     <p className="text-sm text-muted-foreground py-4 text-center">No colleague activity</p>
                   ) : (
-                    associatedRequests.map((req: any) => {
+                    associatedRequests.map((req: Record<string, unknown> & { id: string; lead_name?: string; lead_email?: string; user?: { first_name?: string; last_name?: string; email?: string }; listing?: { internal_company_name?: string; title?: string; location?: string; revenue?: number }; created_at?: string; status?: string }) => {
                       const displayName = req.user 
                         ? `${req.user.first_name || ''} ${req.user.last_name || ''}`.trim() || req.lead_name || req.lead_email
                         : req.lead_name || req.lead_email;
@@ -429,7 +429,7 @@ export function PipelineDetailBuyer({ deal }: PipelineDetailBuyerProps) {
                   {savedListings.length === 0 ? (
                     <p className="text-sm text-muted-foreground py-4 text-center">No saved listings</p>
                   ) : (
-                    savedListings.map((saved: any) => (
+                    savedListings.map((saved: Record<string, unknown> & { id: string; listings?: { internal_company_name?: string; title?: string; location?: string; revenue?: number }; created_at: string }) => (
                       <div key={saved.id} className="p-3 border border-border/40 rounded-lg">
                         <p className="text-sm font-medium text-foreground">
                           {saved.listings?.internal_company_name || saved.listings?.title || 'Unknown'}
