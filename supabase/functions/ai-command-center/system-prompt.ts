@@ -98,7 +98,8 @@ DATA PROVENANCE:
 const CATEGORY_INSTRUCTIONS: Record<string, string> = {
   DEAL_STATUS: `Focus on the deal's current state: status, stage, key metrics, recent activity.
 Include: revenue, EBITDA, location, owner goals, deal score.
-If the deal has tasks, mention overdue ones. Keep it concise.`,
+If the deal has tasks, mention overdue ones. Keep it concise.
+IMPORTANT: When the user asks about a company by name, use query_deals with a search term to find it, then use get_deal_details to get full information. Never say you can't look up individual deals — you CAN.`,
 
   CROSS_DEAL: `Use get_cross_deal_analytics with the appropriate analysis_type.
 Present comparisons in a table format when possible.

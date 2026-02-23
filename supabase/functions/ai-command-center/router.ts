@@ -34,6 +34,11 @@ const BYPASS_RULES: Array<{
     test: (q) => /^(pipeline|summary|overview|how.?s the pipeline|briefing|daily|good morning|what.?s new|catch me up)/i.test(q),
     result: { category: 'DAILY_BRIEFING', tier: 'STANDARD', tools: ['get_follow_up_queue', 'get_analytics', 'get_cross_deal_analytics'], confidence: 0.9 },
   },
+  // Deal lookup by name — "what kind of company is X", "tell me about [deal name]", "what is [company]"
+  {
+    test: (q) => /\b(what kind of|what type of|tell me about|what is|info on|details on|look up|pull up)\b.*(company|deal|business|firm|listing)/i.test(q) || /\b(company|deal|business|firm|listing)\b.*(what kind|what type|tell me|what is)/i.test(q),
+    result: { category: 'DEAL_STATUS', tier: 'STANDARD', tools: ['query_deals', 'get_deal_details'], confidence: 0.9 },
+  },
   // Deal-specific questions when on a deal page
   {
     test: (q, ctx) => !!ctx.entity_id && ctx.entity_type === 'deal' && /^(status|where|stage|update|what.?s happening)/i.test(q),
