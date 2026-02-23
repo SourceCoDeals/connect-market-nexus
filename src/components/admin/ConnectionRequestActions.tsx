@@ -439,7 +439,7 @@ export function ConnectionRequestActions({
           {/* Buyer Hero Card moved to full-width above grid */}
 
           {/* Tabs + Conversation */}
-          <div className="bg-card border border-border rounded-xl overflow-hidden shadow-sm max-h-[400px] flex flex-col">
+          <div className="bg-card border border-border rounded-xl overflow-hidden shadow-sm">
             {/* Tab bar */}
             <div className="border-b border-border px-5 flex items-center bg-muted/30">
               <button
@@ -465,15 +465,13 @@ export function ConnectionRequestActions({
             </div>
 
             {activeTab === "thread" && requestId && (
-              <div className="overflow-y-auto flex-1">
-                <ConversationThread
-                  connectionRequestId={requestId}
-                  buyerName={buyerName}
-                  buyerInitials={buyerInitials}
-                  buyerMessage={userMessage}
-                  submittedAt={createdAt}
-                />
-              </div>
+              <ConversationThread
+                connectionRequestId={requestId}
+                buyerName={buyerName}
+                buyerInitials={buyerInitials}
+                buyerMessage={userMessage}
+                submittedAt={createdAt}
+              />
             )}
 
             {activeTab === "notes" && (
