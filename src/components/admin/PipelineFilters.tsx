@@ -29,7 +29,7 @@ export type StatusFilter = 'all' | 'pending' | 'approved' | 'rejected' | 'on_hol
 export type BuyerTypeFilter = 'all' | 'privateEquity' | 'familyOffice' | 'searchFund' | 'corporate' | 'individual' | 'independentSponsor' | 'advisor' | 'businessOwner';
 export type NdaFilter = 'all' | 'signed' | 'not_signed' | 'sent';
 export type FeeAgreementFilter = 'all' | 'signed' | 'not_signed' | 'sent';
-export type SortOption = 'newest' | 'oldest' | 'buyer_priority' | 'deal_size' | 'approval_date';
+export type SortOption = 'newest' | 'oldest' | 'buyer_priority' | 'deal_size' | 'approval_date' | 'score_highest' | 'score_lowest';
 
 interface PipelineFiltersProps {
   requests: AdminConnectionRequest[];
@@ -191,6 +191,8 @@ export function PipelineFilters({
   const sortOptions = [
     { value: 'newest', label: 'Newest First', icon: Calendar },
     { value: 'oldest', label: 'Oldest First', icon: Calendar },
+    { value: 'score_highest', label: 'Score (Highest)', icon: Users },
+    { value: 'score_lowest', label: 'Score (Lowest)', icon: Users },
     { value: 'buyer_priority', label: 'Buyer Priority', icon: Users },
     { value: 'deal_size', label: 'Deal Size', icon: DollarSign },
     { value: 'approval_date', label: 'Approval Date', icon: CheckCircle2 },
