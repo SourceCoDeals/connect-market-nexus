@@ -523,7 +523,7 @@ export function useValuationLeadsData() {
         const chunk = rows.slice(i, i + CHUNK);
         const { error } = await supabase.from("enrichment_queue").upsert(chunk, { onConflict: "listing_id" });
         if (error) {
-          console.error("Queue upsert error:", error);
+          // Queue upsert error — toast shown to user
           sonnerToast.error("Failed to queue enrichment");
           if (activityItem) completeOperation.mutate({ id: activityItem.id, finalStatus: "failed" });
           setIsReEnriching(false);
@@ -631,10 +631,10 @@ export function useValuationLeadsData() {
         const { error: updateError } = await supabase.from("enrichment_queue")
           .update({ status: "pending", force: mode === "all", attempts: 0, queued_at: now, completed_at: null, last_error: null, started_at: null })
           .in("listing_id", listingIds);
-        if (updateError) console.warn("Queue pre-update error (non-fatal):", updateError);
+        // Queue pre-update error is non-fatal
         const { error } = await supabase.from("enrichment_queue").upsert(chunk, { onConflict: "listing_id", ignoreDuplicates: true });
         if (error) {
-          console.error("Queue upsert error:", error);
+          // Queue upsert error — toast shown to user
           sonnerToast.error(`Failed to queue enrichment (batch ${Math.floor(i / CHUNK) + 1})`);
           if (activityItem) completeOperation.mutate({ id: activityItem.id, finalStatus: "failed" });
           setIsEnriching(false);
@@ -671,7 +671,7 @@ export function useValuationLeadsData() {
       .update({ status: "pending", attempts: 0, last_error: null, queued_at: nowIso })
       .in("listing_id", failedIds);
     sonnerToast.success(`Retrying ${failedIds.length} failed deal${failedIds.length !== 1 ? "s" : ""}`);
-    void supabase.functions.invoke("process-enrichment-queue", { body: { source: "valuation_leads_retry" } }).catch(console.warn);
+    void supabase.functions.invoke("process-enrichment-queue", { body: { source: "valuation_leads_retry" } }).catch(() => { /* non-blocking */ });
   }, [dismissSummary, enrichmentSummary]);
 
   const handleScoreLeads = useCallback(
@@ -687,7 +687,7 @@ export function useValuationLeadsData() {
         if (error) throw error;
         sonnerToast.success(`Scored ${data?.scored ?? targets.length} leads`);
       } catch (err) {
-        console.error("Scoring failed:", err);
+        // Scoring failed — toast shown to user
         sonnerToast.error("Scoring failed");
       }
       setIsScoring(false);
