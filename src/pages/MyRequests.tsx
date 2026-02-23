@@ -15,6 +15,7 @@ import { DealDetailsCard } from "@/components/deals/DealDetailsCard";
 import { DealMetricsCard } from "@/components/deals/DealMetricsCard";
 import { DealMessagesTab } from "@/components/deals/DealMessagesTab";
 import { DealDocumentsTab } from "@/components/deals/DealDocumentsTab";
+import { PendingSigningBanner } from "@/components/marketplace/PendingSigningBanner";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -247,6 +248,9 @@ const MyRequests = () => {
         <p className="text-sm text-gray-600 mt-1 max-w-md">
           Track and manage your connection requests
         </p>
+        <div className="mt-4">
+          <PendingSigningBanner />
+        </div>
       </div>
 
       {/* Tabs - Professional pill style with category icons and status */}
