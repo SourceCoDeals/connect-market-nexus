@@ -489,14 +489,15 @@ function buildTests(): TestDef[] {
     // Get a document (required — document_id is NOT NULL)
     const { data: docs, error: docsError } = await supabase.from("data_room_documents").select("id").limit(1);
     if (docsError) throw docsError;
+    let docId: string;
     if (!docs?.length) {
       // Try deal_documents as fallback
       const { data: dealDocs, error: dealDocsError } = await supabase.from("deal_documents").select("id").limit(1);
       if (dealDocsError) throw dealDocsError;
       if (!dealDocs?.length) throw new Error("No documents exist to create tracked link (document_id is NOT NULL)");
-      var docId = dealDocs[0].id;
+      docId = dealDocs[0].id;
     } else {
-      var docId = docs[0].id;
+      docId = docs[0].id;
     }
 
     const token = crypto.randomUUID();

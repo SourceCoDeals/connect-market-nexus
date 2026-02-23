@@ -17,13 +17,12 @@ export const useSaveListingMutation = () => {
       listingId: string, 
       action: 'save' | 'unsave' 
     }) => {
-      try {
         const { data: { session }, error: sessionError } = await supabase.auth.getSession();
         if (sessionError) throw sessionError;
         if (!session) throw new Error('You must be logged in to save listings');
-        
+
         const userId = session.user.id;
-        
+
         if (action === 'save') {
           const { data, error } = await supabase
             .from('saved_listings')
@@ -33,7 +32,7 @@ export const useSaveListingMutation = () => {
             })
             .select()
             .single();
-          
+
           if (error) throw error;
           return data;
         } else {
@@ -42,13 +41,10 @@ export const useSaveListingMutation = () => {
             .delete()
             .eq('user_id', userId)
             .eq('listing_id', listingId);
-          
+
           if (error) throw error;
           return { success: true };
         }
-      } catch (error: any) {
-        throw error;
-      }
     },
     onSuccess: (_, variables) => {
       // PHASE 2: Use centralized cache invalidation with backward compatibility

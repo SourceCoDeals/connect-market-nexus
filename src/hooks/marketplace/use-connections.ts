@@ -117,9 +117,6 @@ export const useRequestConnection = () => {
         }
         
         return parsedResult;
-      } catch (error: any) {
-        throw error;
-      }
     },
     onSuccess: (data: any) => {
       if (data.is_duplicate) {
