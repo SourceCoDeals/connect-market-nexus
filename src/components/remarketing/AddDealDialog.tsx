@@ -1,23 +1,41 @@
-import { useState, useRef, useCallback } from "react";
-import { useMutation, useQuery, useQueryClient, useInfiniteQuery } from "@tanstack/react-query";
-import { useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
+import { useState, useRef, useCallback } from 'react';
+import { useMutation, useQuery, useQueryClient, useInfiniteQuery } from '@tanstack/react-query';
+import { useNavigate } from 'react-router-dom';
+import { supabase } from '@/integrations/supabase/client';
 import {
   Dialog,
   DialogContent,
   DialogDescription,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { Badge } from "@/components/ui/badge";
-import { Plus, Loader2, Link2, Upload, X, FileText, Search, Building2, MapPin, DollarSign, Check, Users, ChevronDown, ChevronUp, ExternalLink, Globe, ArrowRight } from "lucide-react";
-import { toast } from "sonner";
-import { normalizeDomain } from "@/lib/ma-intelligence/normalizeDomain";
+} from '@/components/ui/dialog';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Badge } from '@/components/ui/badge';
+import {
+  Plus,
+  Loader2,
+  Link2,
+  Upload,
+  X,
+  FileText,
+  Search,
+  Building2,
+  MapPin,
+  DollarSign,
+  Check,
+  Users,
+  ChevronDown,
+  ChevronUp,
+  ExternalLink,
+  Globe,
+  ArrowRight,
+} from 'lucide-react';
+import { toast } from 'sonner';
+import { normalizeDomain } from '@/lib/ma-intelligence/normalizeDomain';
 
 interface AddDealDialogProps {
   open: boolean;
@@ -29,7 +47,11 @@ interface AddDealDialogProps {
 const TEXT_EXTENSIONS = ['txt', 'vtt', 'srt'];
 const DOC_EXTENSIONS = ['pdf', 'doc', 'docx'];
 
-const normalizeName = (name: string) => name.trim().toLowerCase().replace(/\.[^.]+$/, '');
+const normalizeName = (name: string) =>
+  name
+    .trim()
+    .toLowerCase()
+    .replace(/\.[^.]+$/, '');
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 const formatCurrency = (value: number | null) => {
@@ -49,23 +71,23 @@ export const AddDealDialog = ({
   const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const transcriptFilesRef = useRef<File[]>([]);
-  const [activeTab, setActiveTab] = useState<"marketplace" | "new">("marketplace");
-  const [searchQuery, setSearchQuery] = useState("");
+  const [activeTab, setActiveTab] = useState<'marketplace' | 'new'>('marketplace');
+  const [searchQuery, setSearchQuery] = useState('');
   const [addedIds, setAddedIds] = useState<Set<string>>(new Set());
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [addingToRemarketing, setAddingToRemarketing] = useState<string | null>(null);
   const [formData, setFormData] = useState({
-    title: "",
-    website: "",
-    location: "",
-    revenue: "",
-    ebitda: "",
-    description: "",
-    transcriptLink: "",
-    mainContactName: "",
-    mainContactEmail: "",
-    mainContactPhone: "",
-    mainContactTitle: "",
+    title: '',
+    website: '',
+    location: '',
+    revenue: '',
+    ebitda: '',
+    description: '',
+    transcriptLink: '',
+    mainContactName: '',
+    mainContactEmail: '',
+    mainContactPhone: '',
+    mainContactTitle: '',
   });
   const [transcriptFiles, setTranscriptFiles] = useState<File[]>([]);
 
@@ -88,7 +110,9 @@ export const AddDealDialog = ({
     queryFn: async ({ pageParam = 0 }) => {
       let query = supabase
         .from('listings')
-        .select('id, title, internal_company_name, location, revenue, ebitda, website, category, status, is_internal_deal, description, executive_summary, created_at')
+        .select(
+          'id, title, internal_company_name, location, revenue, ebitda, website, category, status, is_internal_deal, description, executive_summary, created_at',
+        )
         .is('deleted_at', null)
         .eq('is_internal_deal', false)
         .eq('status', 'active')
@@ -108,7 +132,7 @@ export const AddDealDialog = ({
       if (lastPage.length < PAGE_SIZE) return undefined;
       return allPages.length * PAGE_SIZE;
     },
-    enabled: open && activeTab === "marketplace",
+    enabled: open && activeTab === 'marketplace',
   });
 
   const marketplaceListings = marketplaceData?.pages.flat() ?? [];
@@ -139,12 +163,12 @@ export const AddDealDialog = ({
         .select('id')
         .eq('is_internal_deal', true);
       if (error) throw error;
-      return new Set((data || []).map(d => d.id));
+      return new Set((data || []).map((d) => d.id));
     },
-    enabled: open && activeTab === "marketplace",
+    enabled: open && activeTab === 'marketplace',
   });
 
-  const handleAddFromMarketplace = async (listing: typeof marketplaceListings[number]) => {
+  const handleAddFromMarketplace = async (listing: (typeof marketplaceListings)[number]) => {
     setAddingToRemarketing(listing.id);
     try {
       const updateData: Record<string, unknown> = { is_internal_deal: true };
@@ -159,7 +183,7 @@ export const AddDealDialog = ({
 
       if (error) throw error;
 
-      setAddedIds(prev => new Set(prev).add(listing.id));
+      setAddedIds((prev) => new Set(prev).add(listing.id));
       toast.success(`"${listing.title || listing.internal_company_name}" added to remarketing`);
       queryClient.invalidateQueries({ queryKey: ['remarketing', 'deals'] });
       queryClient.invalidateQueries({ queryKey: ['listings'] });
@@ -183,8 +207,8 @@ export const AddDealDialog = ({
         await supabase.from('deal_transcripts').insert({
           listing_id: listingId,
           transcript_url: transcriptLink,
-          transcript_text: "Pending text extraction from link",
-          title: "Linked Transcript",
+          transcript_text: 'Pending text extraction from link',
+          title: 'Linked Transcript',
           created_by: userId,
           source: 'link',
         } as never);
@@ -213,11 +237,11 @@ export const AddDealDialog = ({
           continue;
         }
 
-        const { data: { publicUrl } } = supabase.storage
-          .from('deal-transcripts')
-          .getPublicUrl(filePath);
+        const {
+          data: { publicUrl },
+        } = supabase.storage.from('deal-transcripts').getPublicUrl(filePath);
 
-        let transcriptText = "";
+        let transcriptText = '';
         if (TEXT_EXTENSIONS.includes(fileExt)) {
           transcriptText = await file.text();
         } else if (DOC_EXTENSIONS.includes(fileExt)) {
@@ -226,29 +250,32 @@ export const AddDealDialog = ({
             parseFormData.append('file', file);
             const { data: parseResult, error: parseError } = await supabase.functions.invoke(
               'parse-transcript-file',
-              { body: parseFormData }
+              { body: parseFormData },
             );
             if (parseError) {
-              transcriptText = "Pending text extraction";
+              transcriptText = 'Pending text extraction';
             } else {
-              transcriptText = parseResult?.text || "Pending text extraction";
+              transcriptText = parseResult?.text || 'Pending text extraction';
             }
           } catch (parseErr) {
-            transcriptText = "Pending text extraction";
+            transcriptText = 'Pending text extraction';
           }
         }
 
         await supabase.from('deal_transcripts').insert({
           listing_id: listingId,
           transcript_url: publicUrl,
-          transcript_text: transcriptText || "Pending text extraction",
+          transcript_text: transcriptText || 'Pending text extraction',
           title: file.name,
           created_by: userId,
           source: 'file_upload',
         } as never);
 
         uploaded++;
-        toast.info(`Uploading ${uploaded}/${files.length} transcripts...`, { id: toastId, duration: Infinity });
+        toast.info(`Uploading ${uploaded}/${files.length} transcripts...`, {
+          id: toastId,
+          duration: Infinity,
+        });
 
         if (uploaded < files.length) {
           await sleep(2000);
@@ -259,13 +286,16 @@ export const AddDealDialog = ({
     }
 
     toast.success(`${uploaded} transcript${uploaded > 1 ? 's' : ''} uploaded`, { id: toastId });
-    queryClient.invalidateQueries({ queryKey: ["listings"] });
-    queryClient.invalidateQueries({ queryKey: ["remarketing", "deals"] });
+    queryClient.invalidateQueries({ queryKey: ['listings'] });
+    queryClient.invalidateQueries({ queryKey: ['remarketing', 'deals'] });
   };
 
   const createDealMutation = useMutation({
     mutationFn: async () => {
-      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      const {
+        data: { user },
+        error: authError,
+      } = await supabase.auth.getUser();
       if (authError) throw authError;
 
       // Check for duplicate deal by website domain
@@ -274,19 +304,19 @@ export const AddDealDialog = ({
         const normalizedInput = normalizeDomain(websiteUrl);
         if (normalizedInput) {
           const { data: existingListings, error: existingListingsError } = await supabase
-            .from("listings")
-            .select("id, title, internal_company_name, website")
-            .not("website", "is", null);
+            .from('listings')
+            .select('id, title, internal_company_name, website')
+            .not('website', 'is', null);
           if (existingListingsError) throw existingListingsError;
 
           const duplicate = existingListings?.find(
-            (l) => l.website && normalizeDomain(l.website) === normalizedInput
+            (l) => l.website && normalizeDomain(l.website) === normalizedInput,
           );
 
           if (duplicate) {
             const dupName = duplicate.internal_company_name || duplicate.title || 'Unknown';
             throw new Error(
-              `A deal with this website already exists: "${dupName}". Use "From Marketplace" tab to add it instead.`
+              `A deal with this website already exists: "${dupName}". Use "From Marketplace" tab to add it instead.`,
             );
           }
         }
@@ -299,8 +329,8 @@ export const AddDealDialog = ({
         revenue: formData.revenue ? parseFloat(formData.revenue.replace(/[^0-9.]/g, '')) : null,
         ebitda: formData.ebitda ? parseFloat(formData.ebitda.replace(/[^0-9.]/g, '')) : null,
         description: formData.description || null,
-        category: "Other",
-        status: referralPartnerId ? "pending_referral_review" : "active",
+        category: 'Other',
+        status: referralPartnerId ? 'pending_referral_review' : 'active',
         is_internal_deal: true,
         main_contact_name: formData.mainContactName || null,
         main_contact_email: formData.mainContactEmail || null,
@@ -314,28 +344,40 @@ export const AddDealDialog = ({
       }
 
       const { data: listing, error } = await supabase
-        .from("listings")
+        .from('listings')
         .insert(insertData as never)
         .select()
         .single();
 
       if (error) {
         if (error.message?.includes('unique') || error.message?.includes('duplicate')) {
-          throw new Error("A deal with this website already exists.");
+          throw new Error('A deal with this website already exists.');
         }
         throw error;
       }
       return { listing, userId: user?.id };
     },
     onSuccess: ({ listing, userId }) => {
-      queryClient.invalidateQueries({ queryKey: ["listings"] });
-      queryClient.invalidateQueries({ queryKey: ["remarketing", "deals"] });
+      queryClient.invalidateQueries({ queryKey: ['listings'] });
+      queryClient.invalidateQueries({ queryKey: ['remarketing', 'deals'] });
       toast.success(`Created "${listing.title}" successfully`);
 
       const filesToUpload = [...transcriptFilesRef.current];
       const linkToSave = formData.transcriptLink;
 
-      setFormData({ title: "", website: "", location: "", revenue: "", ebitda: "", description: "", transcriptLink: "", mainContactName: "", mainContactEmail: "", mainContactPhone: "", mainContactTitle: "" });
+      setFormData({
+        title: '',
+        website: '',
+        location: '',
+        revenue: '',
+        ebitda: '',
+        description: '',
+        transcriptLink: '',
+        mainContactName: '',
+        mainContactEmail: '',
+        mainContactPhone: '',
+        mainContactTitle: '',
+      });
       updateFiles([]);
       onDealCreated?.();
       onOpenChange(false);
@@ -343,12 +385,6 @@ export const AddDealDialog = ({
 
       if (userId && (filesToUpload.length > 0 || linkToSave)) {
         uploadTranscriptsInBackground(listing.id, userId, filesToUpload, linkToSave);
-      }
-
-      if (listing.website) {
-        import("@/lib/remarketing/queueEnrichment").then(({ queueDealEnrichment }) => {
-          queueDealEnrichment([listing.id]);
-        });
       }
     },
     onError: (error) => {
@@ -364,8 +400,8 @@ export const AddDealDialog = ({
     const newFiles = Array.from(e.target.files || []);
     if (newFiles.length === 0) return;
 
-    const existingNames = new Set(transcriptFilesRef.current.map(f => normalizeName(f.name)));
-    const uniqueNew = newFiles.filter(f => !existingNames.has(normalizeName(f.name)));
+    const existingNames = new Set(transcriptFilesRef.current.map((f) => normalizeName(f.name)));
+    const uniqueNew = newFiles.filter((f) => !existingNames.has(normalizeName(f.name)));
 
     if (uniqueNew.length < newFiles.length) {
       const skipped = newFiles.length - uniqueNew.length;
@@ -374,10 +410,10 @@ export const AddDealDialog = ({
 
     if (uniqueNew.length > 0) {
       updateFiles([...transcriptFilesRef.current, ...uniqueNew]);
-      setFormData(prev => ({ ...prev, transcriptLink: "" }));
+      setFormData((prev) => ({ ...prev, transcriptLink: '' }));
     }
 
-    if (fileInputRef.current) fileInputRef.current.value = "";
+    if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
   const removeFile = (index: number) => {
@@ -394,14 +430,21 @@ export const AddDealDialog = ({
           </DialogDescription>
         </DialogHeader>
 
-        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "marketplace" | "new")} className="flex-1 overflow-hidden flex flex-col">
+        <Tabs
+          value={activeTab}
+          onValueChange={(v) => setActiveTab(v as 'marketplace' | 'new')}
+          className="flex-1 overflow-hidden flex flex-col"
+        >
           <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="marketplace">From Marketplace</TabsTrigger>
             <TabsTrigger value="new">Create New</TabsTrigger>
           </TabsList>
 
           {/* Marketplace Tab */}
-          <TabsContent value="marketplace" className="flex-1 overflow-hidden flex flex-col mt-4 space-y-3">
+          <TabsContent
+            value="marketplace"
+            className="flex-1 overflow-hidden flex flex-col mt-4 space-y-3"
+          >
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
@@ -427,12 +470,15 @@ export const AddDealDialog = ({
                   <div className="text-center py-8 text-muted-foreground">
                     <Building2 className="h-8 w-8 mx-auto mb-2 opacity-50" />
                     <p className="text-sm">
-                      {searchQuery ? "No listings match your search" : "No marketplace listings found"}
+                      {searchQuery
+                        ? 'No listings match your search'
+                        : 'No marketplace listings found'}
                     </p>
                   </div>
                 ) : (
                   marketplaceListings.map((listing, index) => {
-                    const displayName = listing.internal_company_name || listing.title || "Untitled";
+                    const displayName =
+                      listing.internal_company_name || listing.title || 'Untitled';
                     const isAlreadyAdded = addedIds.has(listing.id);
                     const isLast = index === marketplaceListings.length - 1;
                     const isExpanded = expandedId === listing.id;
@@ -510,12 +556,16 @@ export const AddDealDialog = ({
                                   <p className="font-medium">{formatCurrency(listing.ebitda)}</p>
                                 </div>
                               )}
-                              {listing.revenue != null && listing.ebitda != null && listing.revenue > 0 && (
-                                <div className="bg-muted/50 rounded p-2">
-                                  <span className="text-muted-foreground">Margin</span>
-                                  <p className="font-medium">{((listing.ebitda / listing.revenue) * 100).toFixed(0)}%</p>
-                                </div>
-                              )}
+                              {listing.revenue != null &&
+                                listing.ebitda != null &&
+                                listing.revenue > 0 && (
+                                  <div className="bg-muted/50 rounded p-2">
+                                    <span className="text-muted-foreground">Margin</span>
+                                    <p className="font-medium">
+                                      {((listing.ebitda / listing.revenue) * 100).toFixed(0)}%
+                                    </p>
+                                  </div>
+                                )}
                               {listing.website && (
                                 <div className="bg-muted/50 rounded p-2">
                                   <span className="text-muted-foreground">Website</span>
@@ -598,7 +648,7 @@ export const AddDealDialog = ({
                   id="title"
                   placeholder="Enter company name"
                   value={formData.title}
-                  onChange={(e) => handleFormChange("title", e.target.value)}
+                  onChange={(e) => handleFormChange('title', e.target.value)}
                 />
               </div>
 
@@ -608,7 +658,7 @@ export const AddDealDialog = ({
                   id="website"
                   placeholder="https://example.com"
                   value={formData.website}
-                  onChange={(e) => handleFormChange("website", e.target.value)}
+                  onChange={(e) => handleFormChange('website', e.target.value)}
                 />
                 <p className="text-xs text-muted-foreground">
                   Required for AI enrichment to extract company data
@@ -621,7 +671,7 @@ export const AddDealDialog = ({
                   id="location"
                   placeholder="City, State"
                   value={formData.location}
-                  onChange={(e) => handleFormChange("location", e.target.value)}
+                  onChange={(e) => handleFormChange('location', e.target.value)}
                 />
               </div>
 
@@ -632,7 +682,7 @@ export const AddDealDialog = ({
                     id="revenue"
                     placeholder="$0"
                     value={formData.revenue}
-                    onChange={(e) => handleFormChange("revenue", e.target.value)}
+                    onChange={(e) => handleFormChange('revenue', e.target.value)}
                   />
                 </div>
                 <div className="space-y-2">
@@ -641,7 +691,7 @@ export const AddDealDialog = ({
                     id="ebitda"
                     placeholder="$0"
                     value={formData.ebitda}
-                    onChange={(e) => handleFormChange("ebitda", e.target.value)}
+                    onChange={(e) => handleFormChange('ebitda', e.target.value)}
                   />
                 </div>
               </div>
@@ -652,7 +702,7 @@ export const AddDealDialog = ({
                   id="description"
                   placeholder="Brief description of the business..."
                   value={formData.description}
-                  onChange={(e) => handleFormChange("description", e.target.value)}
+                  onChange={(e) => handleFormChange('description', e.target.value)}
                   rows={3}
                 />
               </div>
@@ -665,41 +715,49 @@ export const AddDealDialog = ({
                 </Label>
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1">
-                    <Label htmlFor="mainContactName" className="text-xs">Name</Label>
+                    <Label htmlFor="mainContactName" className="text-xs">
+                      Name
+                    </Label>
                     <Input
                       id="mainContactName"
                       placeholder="Contact name"
                       value={formData.mainContactName}
-                      onChange={(e) => handleFormChange("mainContactName", e.target.value)}
+                      onChange={(e) => handleFormChange('mainContactName', e.target.value)}
                     />
                   </div>
                   <div className="space-y-1">
-                    <Label htmlFor="mainContactEmail" className="text-xs">Email</Label>
+                    <Label htmlFor="mainContactEmail" className="text-xs">
+                      Email
+                    </Label>
                     <Input
                       id="mainContactEmail"
                       type="email"
                       placeholder="email@example.com"
                       value={formData.mainContactEmail}
-                      onChange={(e) => handleFormChange("mainContactEmail", e.target.value)}
+                      onChange={(e) => handleFormChange('mainContactEmail', e.target.value)}
                     />
                   </div>
                   <div className="space-y-1">
-                    <Label htmlFor="mainContactPhone" className="text-xs">Phone</Label>
+                    <Label htmlFor="mainContactPhone" className="text-xs">
+                      Phone
+                    </Label>
                     <Input
                       id="mainContactPhone"
                       type="tel"
                       placeholder="(555) 123-4567"
                       value={formData.mainContactPhone}
-                      onChange={(e) => handleFormChange("mainContactPhone", e.target.value)}
+                      onChange={(e) => handleFormChange('mainContactPhone', e.target.value)}
                     />
                   </div>
                   <div className="space-y-1">
-                    <Label htmlFor="mainContactTitle" className="text-xs">Title</Label>
+                    <Label htmlFor="mainContactTitle" className="text-xs">
+                      Title
+                    </Label>
                     <Input
                       id="mainContactTitle"
                       placeholder="CEO, CFO, Owner..."
                       value={formData.mainContactTitle}
-                      onChange={(e) => handleFormChange("mainContactTitle", e.target.value)}
+                      onChange={(e) => handleFormChange('mainContactTitle', e.target.value)}
                     />
                   </div>
                 </div>
@@ -722,7 +780,7 @@ export const AddDealDialog = ({
                       id="transcriptLink"
                       placeholder="Fireflies, Otter.ai, or other transcript link..."
                       value={formData.transcriptLink}
-                      onChange={(e) => handleFormChange("transcriptLink", e.target.value)}
+                      onChange={(e) => handleFormChange('transcriptLink', e.target.value)}
                       disabled={transcriptFiles.length > 0}
                       className="flex-1"
                     />
@@ -749,10 +807,14 @@ export const AddDealDialog = ({
                   {transcriptFiles.length > 0 && (
                     <div className="space-y-1.5">
                       <p className="text-xs text-muted-foreground font-medium">
-                        {transcriptFiles.length} file{transcriptFiles.length > 1 ? 's' : ''} selected
+                        {transcriptFiles.length} file{transcriptFiles.length > 1 ? 's' : ''}{' '}
+                        selected
                       </p>
                       {transcriptFiles.map((file, index) => (
-                        <div key={file.name} className="flex items-center gap-2 p-2 bg-muted rounded-md">
+                        <div
+                          key={file.name}
+                          className="flex items-center gap-2 p-2 bg-muted rounded-md"
+                        >
                           <FileText className="h-4 w-4 shrink-0 text-primary" />
                           <span className="text-sm flex-1 truncate">{file.name}</span>
                           <span className="text-xs text-muted-foreground shrink-0">

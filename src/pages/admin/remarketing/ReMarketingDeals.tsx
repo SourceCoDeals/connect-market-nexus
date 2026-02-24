@@ -1,34 +1,24 @@
-import { useState, useMemo, useCallback, useRef, useEffect } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
-import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Skeleton } from "@/components/ui/skeleton";
+import { useState, useMemo, useCallback, useRef, useEffect } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+import { Card, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Skeleton } from '@/components/ui/skeleton';
 
-import {
-  TooltipProvider,
-} from "@/components/ui/tooltip";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import {
-  TableBody,
-  TableCell,
-  TableRow,
-} from "@/components/ui/table";
+import { TooltipProvider } from '@/components/ui/tooltip';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { TableBody, TableCell, TableRow } from '@/components/ui/table';
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
-import { Checkbox } from "@/components/ui/checkbox";
-import { useToast } from "@/hooks/use-toast";
+} from '@/components/ui/select';
+import { Checkbox } from '@/components/ui/checkbox';
+import { useToast } from '@/hooks/use-toast';
 import {
   Building2,
   TrendingUp,
@@ -42,13 +32,13 @@ import {
   Zap,
   Plus,
   Network,
-} from "lucide-react";
-import { format } from "date-fns";
-import { getTierFromScore, EnrichmentProgressIndicator } from "@/components/remarketing";
-import { useEnrichmentProgress } from "@/hooks/useEnrichmentProgress";
-import { useGlobalGateCheck } from "@/hooks/remarketing/useGlobalActivityQueue";
-import { useAuth } from "@/context/AuthContext";
-import { useAdminProfiles } from "@/hooks/admin/use-admin-profiles";
+} from 'lucide-react';
+import { format } from 'date-fns';
+import { getTierFromScore, EnrichmentProgressIndicator } from '@/components/remarketing';
+import { useEnrichmentProgress } from '@/hooks/useEnrichmentProgress';
+import { useGlobalGateCheck } from '@/hooks/remarketing/useGlobalActivityQueue';
+import { useAuth } from '@/context/AuthContext';
+import { useAdminProfiles } from '@/hooks/admin/use-admin-profiles';
 import {
   DndContext,
   closestCorners,
@@ -58,26 +48,26 @@ import {
   useSensors,
   DragEndEvent,
   MeasuringStrategy,
-} from "@dnd-kit/core";
+} from '@dnd-kit/core';
 import {
   arrayMove,
   SortableContext,
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
-} from "@dnd-kit/sortable";
-import { cn } from "@/lib/utils";
-import { FilterBar, DEAL_LISTING_FIELDS } from "@/components/filters";
-import { useFilterEngine } from "@/hooks/use-filter-engine";
-import { useTimeframe } from "@/hooks/use-timeframe";
-import { useSavedViews } from "@/hooks/use-saved-views";
+} from '@dnd-kit/sortable';
+import { cn } from '@/lib/utils';
+import { FilterBar, DEAL_LISTING_FIELDS } from '@/components/filters';
+import { useFilterEngine } from '@/hooks/use-filter-engine';
+import { useTimeframe } from '@/hooks/use-timeframe';
+import { useSavedViews } from '@/hooks/use-saved-views';
 
-import type { DealListing, ColumnWidths } from "./types";
-import { DEFAULT_COLUMN_WIDTHS } from "./types";
-import { ResizableHeader } from "./components/ResizableHeader";
-import { DealTableRow } from "./components/DealTableRow";
-import { DealsKPICards } from "./components/DealsKPICards";
-import { DealsBulkActions } from "./components/DealsBulkActions";
-import { DealsActionDialogs } from "./components/DealsActionDialogs";
+import type { DealListing, ColumnWidths } from './types';
+import { DEFAULT_COLUMN_WIDTHS } from './types';
+import { ResizableHeader } from './components/ResizableHeader';
+import { DealTableRow } from './components/DealTableRow';
+import { DealsKPICards } from './components/DealsKPICards';
+import { DealsBulkActions } from './components/DealsBulkActions';
+import { DealsActionDialogs } from './components/DealsActionDialogs';
 
 const ReMarketingDeals = () => {
   const navigate = useNavigate();
@@ -85,16 +75,16 @@ const ReMarketingDeals = () => {
   const queryClient = useQueryClient();
   const { user } = useAuth();
   const { startOrQueueMajorOp } = useGlobalGateCheck();
-  const [universeFilter] = useState<string>("all");
-  const [scoreFilter] = useState<string>("all");
-  const [dateFilter, setDateFilter] = useState<string>("all");
+  const [universeFilter] = useState<string>('all');
+  const [scoreFilter] = useState<string>('all');
+  const [dateFilter, setDateFilter] = useState<string>('all');
   const [customDateFrom, setCustomDateFrom] = useState<Date | undefined>(undefined);
   const [customDateTo, setCustomDateTo] = useState<Date | undefined>(undefined);
   const [showCustomDatePicker, setShowCustomDatePicker] = useState(false);
-  const [industryFilter] = useState<string>("all");
-  const [stateFilter] = useState<string>("all");
-  const [employeeFilter] = useState<string>("all");
-  const [referralPartnerFilter] = useState<string>("all");
+  const [industryFilter] = useState<string>('all');
+  const [stateFilter] = useState<string>('all');
+  const [employeeFilter] = useState<string>('all');
+  const [referralPartnerFilter] = useState<string>('all');
   const [universeBuildFilter, setUniverseBuildFilter] = useState<boolean>(false);
 
   // Admin profiles for deal owner assignment
@@ -104,13 +94,21 @@ const ReMarketingDeals = () => {
   const [showImportDialog, setShowImportDialog] = useState(false);
   const [showAddDealDialog, setShowAddDealDialog] = useState(false);
   const [searchParams, setSearchParams] = useSearchParams();
-  const sortColumn = searchParams.get("sort") ?? "rank";
-  const sortDirection = (searchParams.get("dir") as "asc" | "desc") ?? "asc";
+  const sortColumn = searchParams.get('sort') ?? 'rank';
+  const sortDirection = (searchParams.get('dir') as 'asc' | 'desc') ?? 'asc';
   const [isCalculating, setIsCalculating] = useState(false);
   const [isEnrichingAll, setIsEnrichingAll] = useState(false);
 
   // Enrichment progress tracking
-  const { progress: enrichmentProgress, summary: enrichmentSummary, showSummary: showEnrichmentSummary, dismissSummary, pauseEnrichment, resumeEnrichment, cancelEnrichment } = useEnrichmentProgress();
+  const {
+    progress: enrichmentProgress,
+    summary: enrichmentSummary,
+    showSummary: showEnrichmentSummary,
+    dismissSummary,
+    pauseEnrichment,
+    resumeEnrichment,
+    cancelEnrichment,
+  } = useEnrichmentProgress();
 
   // Multi-select and archive/delete state
   const [selectedDeals, setSelectedDeals] = useState<Set<string>>(new Set());
@@ -131,7 +129,7 @@ const ReMarketingDeals = () => {
 
   // Handle column resize
   const handleColumnResize = useCallback((column: keyof ColumnWidths, newWidth: number) => {
-    setColumnWidths(prev => ({ ...prev, [column]: newWidth }));
+    setColumnWidths((prev) => ({ ...prev, [column]: newWidth }));
   }, []);
 
   // Track which deals have been queued in this session
@@ -149,7 +147,7 @@ const ReMarketingDeals = () => {
     }),
     useSensor(KeyboardSensor, {
       coordinateGetter: sortableKeyboardCoordinates,
-    })
+    }),
   );
 
   // Pagination state
@@ -157,7 +155,12 @@ const ReMarketingDeals = () => {
   const PAGE_SIZE = 50;
 
   // Fetch all listings (deals) — slim select, no heavy text columns
-  const { data: listings, isLoading: listingsLoading, isError: listingsError, refetch: refetchListings } = useQuery({
+  const {
+    data: listings,
+    isLoading: listingsLoading,
+    isError: listingsError,
+    refetch: refetchListings,
+  } = useQuery({
     queryKey: ['remarketing', 'deals'],
     refetchOnMount: 'always',
     staleTime: 30_000,
@@ -170,7 +173,8 @@ const ReMarketingDeals = () => {
       while (hasMore) {
         const { data, error } = await supabase
           .from('listings')
-          .select(`
+          .select(
+            `
             id,
             title,
             description,
@@ -211,11 +215,12 @@ const ReMarketingDeals = () => {
             universe_build_flagged_at,
             universe_build_flagged_by,
             is_internal_deal
-          `)
+          `,
+          )
           .eq('remarketing_status', 'active')
           .or(
             'deal_source.in.(marketplace,manual,referral,remarketing),' +
-            'and(deal_source.in.(captarget,valuation_calculator,valuation_lead),pushed_to_all_deals.eq.true)'
+              'and(deal_source.in.(captarget,valuation_calculator,valuation_lead),pushed_to_all_deals.eq.true)',
           )
           .order('manual_rank_override', { ascending: true, nullsFirst: false })
           .order('deal_total_score', { ascending: false, nullsFirst: true })
@@ -233,52 +238,14 @@ const ReMarketingDeals = () => {
       }
 
       return allRows;
-    }
+    },
   });
 
-  // Queue specific deals for enrichment (used by CSV import)
-  const queueDealsForEnrichment = useCallback(async (dealIds: string[]) => {
-    if (dealIds.length === 0) return;
-    const nowIso = new Date().toISOString();
-    try {
-      const { queued } = await startOrQueueMajorOp({
-        operationType: 'deal_enrichment',
-        totalItems: dealIds.length,
-        description: `Enrich ${dealIds.length} imported deals`,
-        userId: user?.id || 'unknown',
-      });
-      if (queued) return;
-
-      const queueEntries = dealIds.map(id => ({
-        listing_id: id,
-        status: 'pending',
-        attempts: 0,
-        queued_at: nowIso,
-      }));
-      const { error } = await supabase
-        .from('enrichment_queue')
-        .upsert(queueEntries, { onConflict: 'listing_id' });
-      if (error) {
-        // Failed to queue deals for enrichment
-        return;
-      }
-      toast({
-        title: "Deals queued for enrichment",
-        description: `${dealIds.length} deal${dealIds.length !== 1 ? 's' : ''} added to enrichment queue`
-      });
-      void supabase.functions
-        .invoke('process-enrichment-queue', { body: { source: 'csv_import' } })
-        .catch(() => { /* enrichment worker trigger is non-blocking */ });
-    } catch (err) {
-      void err;
-    }
-  }, [toast, startOrQueueMajorOp, user?.id]);
-
-  const handleImportCompleteWithIds = useCallback((importedIds: string[]) => {
-    if (importedIds.length > 0) {
-      queueDealsForEnrichment(importedIds);
-    }
-  }, [queueDealsForEnrichment]);
+  // Auto-enrichment after import has been disabled.
+  // Enrichment is now only triggered via explicit user action.
+  const handleImportCompleteWithIds = useCallback((_importedIds: string[]) => {
+    // no-op: enrichment must be triggered manually
+  }, []);
 
   const handleRetryFailedEnrichment = useCallback(async () => {
     dismissSummary();
@@ -290,12 +257,14 @@ const ReMarketingDeals = () => {
       .update({ status: 'pending', attempts: 0, last_error: null, queued_at: nowIso })
       .in('listing_id', failedIds);
     toast({
-      title: "Retrying failed deals",
-      description: `${failedIds.length} deal${failedIds.length !== 1 ? 's' : ''} queued for retry`
+      title: 'Retrying failed deals',
+      description: `${failedIds.length} deal${failedIds.length !== 1 ? 's' : ''} queued for retry`,
     });
     void supabase.functions
       .invoke('process-enrichment-queue', { body: { source: 'retry_failed' } })
-      .catch(() => { /* non-blocking */ });
+      .catch(() => {
+        /* non-blocking */
+      });
   }, [dismissSummary, enrichmentSummary, toast]);
 
   // Fetch universes for the filter
@@ -309,7 +278,7 @@ const ReMarketingDeals = () => {
         .order('name');
       if (error) throw error;
       return data;
-    }
+    },
   });
 
   // Fetch universe membership map: listing_id -> array of universes
@@ -330,7 +299,7 @@ const ReMarketingDeals = () => {
         map[row.listing_id].push({ id: u.id, name: u.name });
       });
       return map;
-    }
+    },
   });
 
   // Fetch score stats for engagement metrics (bounded to prevent timeout)
@@ -344,17 +313,26 @@ const ReMarketingDeals = () => {
         .limit(10000);
       if (error) throw error;
 
-      const stats: Record<string, {
-        totalMatches: number;
-        approved: number;
-        passed: number;
-        avgScore: number;
-        universeIds: Set<string>;
-      }> = {};
+      const stats: Record<
+        string,
+        {
+          totalMatches: number;
+          approved: number;
+          passed: number;
+          avgScore: number;
+          universeIds: Set<string>;
+        }
+      > = {};
 
-      data?.forEach(score => {
+      data?.forEach((score) => {
         if (!stats[score.listing_id]) {
-          stats[score.listing_id] = { totalMatches: 0, approved: 0, passed: 0, avgScore: 0, universeIds: new Set() };
+          stats[score.listing_id] = {
+            totalMatches: 0,
+            approved: 0,
+            passed: 0,
+            avgScore: 0,
+            universeIds: new Set(),
+          };
         }
         stats[score.listing_id].totalMatches++;
         if (score.status === 'approved') stats[score.listing_id].approved++;
@@ -363,14 +341,14 @@ const ReMarketingDeals = () => {
         if (score.universe_id) stats[score.listing_id].universeIds.add(score.universe_id);
       });
 
-      Object.keys(stats).forEach(key => {
+      Object.keys(stats).forEach((key) => {
         if (stats[key].totalMatches > 0) {
           stats[key].avgScore = stats[key].avgScore / stats[key].totalMatches;
         }
       });
 
       return stats;
-    }
+    },
   });
 
   // Fetch pipeline counts: how many active pipeline entries per listing_id
@@ -385,17 +363,17 @@ const ReMarketingDeals = () => {
         .limit(5000);
       if (error) throw error;
       const counts: Record<string, number> = {};
-      data?.forEach(row => {
+      data?.forEach((row) => {
         if (row.listing_id) {
           counts[row.listing_id] = (counts[row.listing_id] || 0) + 1;
         }
       });
       return counts;
-    }
+    },
   });
 
   // Deal tab state for quick filter tabs - initialize from URL ?tab= param
-  const initialTab = searchParams.get("tab") || "all";
+  const initialTab = searchParams.get('tab') || 'all';
   const [dealTab, setDealTab] = useState<string>(initialTab);
 
   const universeCount = universes?.length || 0;
@@ -403,17 +381,19 @@ const ReMarketingDeals = () => {
   // KPI Stats
   const kpiStats = useMemo(() => {
     const totalDeals = listings?.length || 0;
-    const priorityDeals = listings?.filter(listing => listing.is_priority_target === true).length || 0;
+    const priorityDeals =
+      listings?.filter((listing) => listing.is_priority_target === true).length || 0;
     let totalScore = 0;
     let scoredDeals = 0;
-    listings?.forEach(listing => {
+    listings?.forEach((listing) => {
       if (listing.deal_total_score !== null) {
         totalScore += listing.deal_total_score;
         scoredDeals++;
       }
     });
     const avgScore = scoredDeals > 0 ? Math.round(totalScore / scoredDeals) : 0;
-    const needsScoring = listings?.filter(listing => listing.deal_total_score === null).length || 0;
+    const needsScoring =
+      listings?.filter((listing) => listing.deal_total_score === null).length || 0;
     return { totalDeals, priorityDeals, avgScore, needsScoring };
   }, [listings]);
 
@@ -423,7 +403,8 @@ const ReMarketingDeals = () => {
     if (memoLink.includes('sharepoint.com') || memoLink.includes('onedrive')) return null;
     const websiteMatch = memoLink.match(/Website:\s*(https?:\/\/[^\s]+)/i);
     if (websiteMatch) return websiteMatch[1];
-    if (memoLink.match(/^https?:\/\/[a-zA-Z0-9]/) && !memoLink.includes('sharepoint')) return memoLink;
+    if (memoLink.match(/^https?:\/\/[a-zA-Z0-9]/) && !memoLink.includes('sharepoint'))
+      return memoLink;
     if (memoLink.match(/^[a-zA-Z0-9][a-zA-Z0-9-]*\.[a-zA-Z]{2,}/)) return `https://${memoLink}`;
     return null;
   };
@@ -440,7 +421,7 @@ const ReMarketingDeals = () => {
   };
 
   // Timeframe, filter engine, and saved views
-  const { timeframe, setTimeframe } = useTimeframe("all_time");
+  const { timeframe, setTimeframe } = useTimeframe('all_time');
   const {
     filteredItems: engineFiltered,
     filterState,
@@ -448,43 +429,43 @@ const ReMarketingDeals = () => {
     dynamicOptions,
     totalCount,
   } = useFilterEngine(listings || [], DEAL_LISTING_FIELDS);
-  const { views: savedViews, addView, removeView } = useSavedViews("remarketing-deals");
+  const { views: savedViews, addView, removeView } = useSavedViews('remarketing-deals');
 
   // Filter listings - use engineFiltered (which handles search + filter rules) as the base
   const filteredListings = useMemo(() => {
     if (!engineFiltered) return [];
-    return engineFiltered.filter(listing => {
-      if (universeFilter === "needs_build") {
+    return engineFiltered.filter((listing) => {
+      if (universeFilter === 'needs_build') {
         if (!listing.need_buyer_universe) return false;
-      } else if (universeFilter !== "all") {
+      } else if (universeFilter !== 'all') {
         const stats = scoreStats?.[listing.id];
         if (!stats || !stats.universeIds.has(universeFilter)) return false;
       }
-      if (scoreFilter !== "all") {
+      if (scoreFilter !== 'all') {
         const score = listing.deal_total_score ?? 0;
         const tier = getTierFromScore(score);
         if (scoreFilter !== tier) return false;
       }
-      if (referralPartnerFilter !== "all") {
-        if (referralPartnerFilter === "referred") {
+      if (referralPartnerFilter !== 'all') {
+        if (referralPartnerFilter === 'referred') {
           if (!listing.referral_partner_id) return false;
         } else {
           if (listing.referral_partner_id !== referralPartnerFilter) return false;
         }
       }
-      if (industryFilter !== "all") {
+      if (industryFilter !== 'all') {
         const listingIndustry = listing.industry || listing.category;
         if (listingIndustry !== industryFilter) return false;
       }
-      if (stateFilter !== "all") {
+      if (stateFilter !== 'all') {
         if (listing.address_state !== stateFilter) return false;
       }
-      if (employeeFilter !== "all") {
+      if (employeeFilter !== 'all') {
         if (listing.linkedin_employee_range !== employeeFilter) return false;
       }
-      if (dateFilter !== "all") {
+      if (dateFilter !== 'all') {
         const createdAt = new Date(listing.created_at);
-        if (dateFilter === "custom") {
+        if (dateFilter === 'custom') {
           if (customDateFrom && createdAt < customDateFrom) return false;
           if (customDateTo) {
             const endOfDay = new Date(customDateTo);
@@ -493,33 +474,51 @@ const ReMarketingDeals = () => {
           }
         } else {
           const now = new Date();
-          const daysDiff = Math.floor((now.getTime() - createdAt.getTime()) / (1000 * 60 * 60 * 24));
-          if (dateFilter === "7d" && daysDiff > 7) return false;
-          if (dateFilter === "30d" && daysDiff > 30) return false;
-          if (dateFilter === "90d" && daysDiff > 90) return false;
+          const daysDiff = Math.floor(
+            (now.getTime() - createdAt.getTime()) / (1000 * 60 * 60 * 24),
+          );
+          if (dateFilter === '7d' && daysDiff > 7) return false;
+          if (dateFilter === '30d' && daysDiff > 30) return false;
+          if (dateFilter === '90d' && daysDiff > 90) return false;
         }
       }
       // Universe Build filter
       if (universeBuildFilter && !listing.universe_build_flagged) return false;
       // Deal tab filters
-      if (dealTab === "marketplace") {
+      if (dealTab === 'marketplace') {
         if (listing.is_internal_deal !== false || listing.status !== 'active') return false;
-      } else if (dealTab === "internal") {
+      } else if (dealTab === 'internal') {
         if (listing.is_internal_deal === false) return false;
-      } else if (dealTab === "pipeline") {
+      } else if (dealTab === 'pipeline') {
         if (!pipelineCounts?.[listing.id]) return false;
-      } else if (dealTab === "needs_universe") {
+      } else if (dealTab === 'needs_universe') {
         const universes = universeDealMap?.[listing.id];
         if (universes && universes.length > 0) return false;
-      } else if (dealTab === "needs_enrichment") {
+      } else if (dealTab === 'needs_enrichment') {
         if (listing.enriched_at && listing.deal_total_score !== null) return false;
       }
       return true;
     });
-  }, [engineFiltered, universeFilter, scoreFilter, dateFilter, customDateFrom, customDateTo, industryFilter, stateFilter, employeeFilter, referralPartnerFilter, scoreStats, universeBuildFilter, dealTab, pipelineCounts, universeDealMap]);
+  }, [
+    engineFiltered,
+    universeFilter,
+    scoreFilter,
+    dateFilter,
+    customDateFrom,
+    customDateTo,
+    industryFilter,
+    stateFilter,
+    employeeFilter,
+    referralPartnerFilter,
+    scoreStats,
+    universeBuildFilter,
+    dealTab,
+    pipelineCounts,
+    universeDealMap,
+  ]);
 
   const formatCurrency = (value: number | null) => {
-    if (!value) return "—";
+    if (!value) return '—';
     if (value >= 1000000) return `$${(value / 1000000).toFixed(1)}M`;
     if (value >= 1000) return `$${(value / 1000).toFixed(0)}K`;
     return `$${value}`;
@@ -527,7 +526,10 @@ const ReMarketingDeals = () => {
 
   const formatWebsiteDomain = (website: string | null) => {
     if (!website) return null;
-    return website.replace(/^https?:\/\//, '').replace(/^www\./, '').split('/')[0];
+    return website
+      .replace(/^https?:\/\//, '')
+      .replace(/^www\./, '')
+      .split('/')[0];
   };
 
   const getScoreTrendIcon = (score: number) => {
@@ -538,16 +540,19 @@ const ReMarketingDeals = () => {
 
   // Handle sort column click
   const handleSort = (column: string) => {
-    setSearchParams((prev) => {
-      const next = new URLSearchParams(prev);
-      if (next.get("sort") === column) {
-        next.set("dir", next.get("dir") === "asc" ? "desc" : "asc");
-      } else {
-        next.set("sort", column);
-        next.set("dir", column === "rank" ? "asc" : "desc");
-      }
-      return next;
-    }, { replace: true });
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        if (next.get('sort') === column) {
+          next.set('dir', next.get('dir') === 'asc' ? 'desc' : 'asc');
+        } else {
+          next.set('sort', column);
+          next.set('dir', column === 'rank' ? 'asc' : 'desc');
+        }
+        return next;
+      },
+      { replace: true },
+    );
   };
 
   // Sort listings
@@ -558,35 +563,35 @@ const ReMarketingDeals = () => {
       const stats_b = scoreStats?.[b.id];
       let aVal: any, bVal: any;
       switch (sortColumn) {
-        case "rank":
+        case 'rank':
           aVal = a.manual_rank_override ?? 9999;
           bVal = b.manual_rank_override ?? 9999;
           break;
-        case "deal_name":
-          aVal = (a.internal_company_name || a.title || "").toLowerCase();
-          bVal = (b.internal_company_name || b.title || "").toLowerCase();
+        case 'deal_name':
+          aVal = (a.internal_company_name || a.title || '').toLowerCase();
+          bVal = (b.internal_company_name || b.title || '').toLowerCase();
           break;
-        case "referral_source":
-          aVal = (a.referral_partners?.name || "").toLowerCase();
-          bVal = (b.referral_partners?.name || "").toLowerCase();
+        case 'referral_source':
+          aVal = (a.referral_partners?.name || '').toLowerCase();
+          bVal = (b.referral_partners?.name || '').toLowerCase();
           break;
-        case "industry":
-          aVal = (a.industry || a.category || "").toLowerCase();
-          bVal = (b.industry || b.category || "").toLowerCase();
+        case 'industry':
+          aVal = (a.industry || a.category || '').toLowerCase();
+          bVal = (b.industry || b.category || '').toLowerCase();
           break;
-        case "revenue":
+        case 'revenue':
           aVal = a.revenue || 0;
           bVal = b.revenue || 0;
           break;
-        case "ebitda":
+        case 'ebitda':
           aVal = a.ebitda || 0;
           bVal = b.ebitda || 0;
           break;
-        case "linkedinCount":
+        case 'linkedinCount':
           aVal = a.linkedin_employee_count || 0;
           bVal = b.linkedin_employee_count || 0;
           break;
-        case "linkedinRange": {
+        case 'linkedinRange': {
           const parseRangeA = (r: string | null) => {
             if (!r) return 0;
             const match = r.match(/^(\d+)/);
@@ -596,27 +601,27 @@ const ReMarketingDeals = () => {
           bVal = parseRangeA(b.linkedin_employee_range);
           break;
         }
-        case "googleReviews":
+        case 'googleReviews':
           aVal = a.google_review_count || 0;
           bVal = b.google_review_count || 0;
           break;
-        case "googleRating":
+        case 'googleRating':
           aVal = a.google_rating || 0;
           bVal = b.google_rating || 0;
           break;
-        case "score":
+        case 'score':
           aVal = a.deal_total_score ?? 0;
           bVal = b.deal_total_score ?? 0;
           break;
-        case "engagement":
-          aVal = (stats_a?.totalMatches || 0);
-          bVal = (stats_b?.totalMatches || 0);
+        case 'engagement':
+          aVal = stats_a?.totalMatches || 0;
+          bVal = stats_b?.totalMatches || 0;
           break;
-        case "added":
+        case 'added':
           aVal = new Date(a.created_at).getTime();
           bVal = new Date(b.created_at).getTime();
           break;
-        case "priority":
+        case 'priority':
           aVal = a.is_priority_target ? 1 : 0;
           bVal = b.is_priority_target ? 1 : 0;
           break;
@@ -624,11 +629,11 @@ const ReMarketingDeals = () => {
           aVal = a.manual_rank_override ?? 9999;
           bVal = b.manual_rank_override ?? 9999;
       }
-      if (typeof aVal === "string") {
+      if (typeof aVal === 'string') {
         const comparison = aVal.localeCompare(bVal);
-        return sortDirection === "asc" ? comparison : -comparison;
+        return sortDirection === 'asc' ? comparison : -comparison;
       }
-      return sortDirection === "asc" ? aVal - bVal : bVal - aVal;
+      return sortDirection === 'asc' ? aVal - bVal : bVal - aVal;
     });
   }, [filteredListings, sortColumn, sortDirection, scoreStats]);
 
@@ -651,53 +656,59 @@ const ReMarketingDeals = () => {
   }, [paginatedListings, sortedListings]);
 
   // Shared helper: reorder deals, optimistically update UI, persist only changed ranks
-  const persistRankChanges = useCallback(async (reordered: DealListing[], description: string) => {
-    const updatedListings = reordered.map((listing, idx) => ({
-      ...listing,
-      manual_rank_override: idx + 1,
-    }));
-    const changedDeals = updatedListings.filter((deal, idx) => {
-      const original = localOrder.find(d => d.id === deal.id);
-      return !original || original.manual_rank_override !== idx + 1;
-    });
-    setLocalOrder(updatedListings);
-    sortedListingsRef.current = updatedListings;
-    try {
-      if (changedDeals.length > 0) {
-        await Promise.all(
-          changedDeals.map((deal) =>
-            supabase
-              .from('listings')
-              .update({ manual_rank_override: deal.manual_rank_override })
-              .eq('id', deal.id)
-              .throwOnError()
-          )
-        );
+  const persistRankChanges = useCallback(
+    async (reordered: DealListing[], description: string) => {
+      const updatedListings = reordered.map((listing, idx) => ({
+        ...listing,
+        manual_rank_override: idx + 1,
+      }));
+      const changedDeals = updatedListings.filter((deal, idx) => {
+        const original = localOrder.find((d) => d.id === deal.id);
+        return !original || original.manual_rank_override !== idx + 1;
+      });
+      setLocalOrder(updatedListings);
+      sortedListingsRef.current = updatedListings;
+      try {
+        if (changedDeals.length > 0) {
+          await Promise.all(
+            changedDeals.map((deal) =>
+              supabase
+                .from('listings')
+                .update({ manual_rank_override: deal.manual_rank_override })
+                .eq('id', deal.id)
+                .throwOnError(),
+            ),
+          );
+        }
+        await queryClient.invalidateQueries({ queryKey: ['remarketing', 'deals'] });
+        toast({ title: 'Position updated', description });
+      } catch (error) {
+        // Failed to update rank — reverting optimistic update
+        await queryClient.invalidateQueries({ queryKey: ['remarketing', 'deals'] });
+        toast({ title: 'Failed to update rank', variant: 'destructive' });
       }
-      await queryClient.invalidateQueries({ queryKey: ['remarketing', 'deals'] });
-      toast({ title: "Position updated", description });
-    } catch (error) {
-      // Failed to update rank — reverting optimistic update
-      await queryClient.invalidateQueries({ queryKey: ['remarketing', 'deals'] });
-      toast({ title: "Failed to update rank", variant: "destructive" });
-    }
-  }, [localOrder, queryClient, toast]);
+    },
+    [localOrder, queryClient, toast],
+  );
 
   // Handle drag end
-  const handleDragEnd = useCallback(async (event: DragEndEvent) => {
-    const { active, over } = event;
-    if (!over || active.id === over.id) return;
-    const currentListings = [...localOrder];
-    const oldIndex = currentListings.findIndex((l) => l.id === active.id);
-    const newIndex = currentListings.findIndex((l) => l.id === over.id);
-    if (oldIndex === -1 || newIndex === -1) return;
-    const reordered = arrayMove(currentListings, oldIndex, newIndex);
-    await persistRankChanges(reordered, `Deal moved to position ${newIndex + 1}`);
-  }, [localOrder, persistRankChanges]);
+  const handleDragEnd = useCallback(
+    async (event: DragEndEvent) => {
+      const { active, over } = event;
+      if (!over || active.id === over.id) return;
+      const currentListings = [...localOrder];
+      const oldIndex = currentListings.findIndex((l) => l.id === active.id);
+      const newIndex = currentListings.findIndex((l) => l.id === over.id);
+      if (oldIndex === -1 || newIndex === -1) return;
+      const reordered = arrayMove(currentListings, oldIndex, newIndex);
+      await persistRankChanges(reordered, `Deal moved to position ${newIndex + 1}`);
+    },
+    [localOrder, persistRankChanges],
+  );
 
   // Multi-select handlers
   const handleToggleSelect = useCallback((dealId: string) => {
-    setSelectedDeals(prev => {
+    setSelectedDeals((prev) => {
       const newSelected = new Set(prev);
       if (newSelected.has(dealId)) newSelected.delete(dealId);
       else newSelected.add(dealId);
@@ -709,7 +720,7 @@ const ReMarketingDeals = () => {
     if (selectedDeals.size === localOrder.length) {
       setSelectedDeals(new Set());
     } else {
-      setSelectedDeals(new Set(localOrder.map(d => d.id)));
+      setSelectedDeals(new Set(localOrder.map((d) => d.id)));
     }
   }, [selectedDeals.size, localOrder]);
 
@@ -718,21 +729,26 @@ const ReMarketingDeals = () => {
   }, []);
 
   // Archive handlers
-  const handleArchiveDeal = useCallback(async (dealId: string, dealName: string) => {
-    const { error } = await supabase
-      .from('listings')
-      .update({ remarketing_status: 'archived' })
-      .eq('id', dealId);
-    if (error) {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
-      return;
-    }
-    toast({ title: "Deal archived", description: `${dealName} has been archived` });
-    refetchListings();
-  }, [toast, refetchListings]);
+  const handleArchiveDeal = useCallback(
+    async (dealId: string, dealName: string) => {
+      const { error } = await supabase
+        .from('listings')
+        .update({ remarketing_status: 'archived' })
+        .eq('id', dealId);
+      if (error) {
+        toast({ title: 'Error', description: error.message, variant: 'destructive' });
+        return;
+      }
+      toast({ title: 'Deal archived', description: `${dealName} has been archived` });
+      refetchListings();
+    },
+    [toast, refetchListings],
+  );
 
   // Single deal delete state
-  const [singleDeleteTarget, setSingleDeleteTarget] = useState<{ id: string; name: string } | null>(null);
+  const [singleDeleteTarget, setSingleDeleteTarget] = useState<{ id: string; name: string } | null>(
+    null,
+  );
 
   const handleDeleteDeal = useCallback((dealId: string, dealName: string) => {
     setSingleDeleteTarget({ id: dealId, name: dealName });
@@ -745,84 +761,125 @@ const ReMarketingDeals = () => {
       // N05 FIX: Use server-side cascade function instead of 27 sequential client DELETE calls
       const { error } = await supabase.rpc('delete_listing_cascade', { p_listing_id: dealId });
       if (error) throw error;
-      toast({ title: "Deal deleted", description: `${dealName} has been permanently deleted` });
+      toast({ title: 'Deal deleted', description: `${dealName} has been permanently deleted` });
       refetchListings();
     } catch (error: any) {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
     } finally {
       setSingleDeleteTarget(null);
     }
   }, [singleDeleteTarget, toast, refetchListings]);
 
-  const handleTogglePriority = useCallback(async (dealId: string, currentStatus: boolean) => {
-    const newStatus = !currentStatus;
-    setLocalOrder(prev => prev.map(deal =>
-      deal.id === dealId ? { ...deal, is_priority_target: newStatus } : deal
-    ));
-    const { error } = await supabase
-      .from('listings')
-      .update({ is_priority_target: newStatus })
-      .eq('id', dealId);
-    if (error) {
-      setLocalOrder(prev => prev.map(deal =>
-        deal.id === dealId ? { ...deal, is_priority_target: currentStatus } : deal
-      ));
-      toast({ title: "Error", description: error.message, variant: "destructive" });
-      return;
-    }
-    toast({
-      title: newStatus ? "Priority target set" : "Priority removed",
-      description: newStatus ? "Deal marked as priority target" : "Deal is no longer a priority target"
-    });
-  }, [toast]);
+  const handleTogglePriority = useCallback(
+    async (dealId: string, currentStatus: boolean) => {
+      const newStatus = !currentStatus;
+      setLocalOrder((prev) =>
+        prev.map((deal) =>
+          deal.id === dealId ? { ...deal, is_priority_target: newStatus } : deal,
+        ),
+      );
+      const { error } = await supabase
+        .from('listings')
+        .update({ is_priority_target: newStatus })
+        .eq('id', dealId);
+      if (error) {
+        setLocalOrder((prev) =>
+          prev.map((deal) =>
+            deal.id === dealId ? { ...deal, is_priority_target: currentStatus } : deal,
+          ),
+        );
+        toast({ title: 'Error', description: error.message, variant: 'destructive' });
+        return;
+      }
+      toast({
+        title: newStatus ? 'Priority target set' : 'Priority removed',
+        description: newStatus
+          ? 'Deal marked as priority target'
+          : 'Deal is no longer a priority target',
+      });
+    },
+    [toast],
+  );
 
-  const handleToggleUniverseBuild = useCallback(async (dealId: string, currentStatus: boolean) => {
-    const newStatus = !currentStatus;
-    const now = new Date().toISOString();
-    setLocalOrder(prev => prev.map(deal =>
-      deal.id === dealId ? { ...deal, universe_build_flagged: newStatus, universe_build_flagged_at: newStatus ? now : null } : deal
-    ));
-    const { error } = await supabase
-      .from('listings')
-      .update({
-        universe_build_flagged: newStatus,
-        universe_build_flagged_at: newStatus ? now : null,
-        universe_build_flagged_by: newStatus ? user?.id : null,
-      })
-      .eq('id', dealId);
-    if (error) {
-      setLocalOrder(prev => prev.map(deal =>
-        deal.id === dealId ? { ...deal, universe_build_flagged: currentStatus } : deal
-      ));
-      toast({ title: "Error", description: error.message, variant: "destructive" });
-      return;
-    }
-    toast({
-      title: newStatus ? "Flagged: Build Buyer Universe" : "Flag removed",
-      description: newStatus ? "Deal flagged — a buyer universe needs to be built" : "Universe build flag removed"
-    });
-  }, [toast, user?.id]);
+  const handleToggleUniverseBuild = useCallback(
+    async (dealId: string, currentStatus: boolean) => {
+      const newStatus = !currentStatus;
+      const now = new Date().toISOString();
+      setLocalOrder((prev) =>
+        prev.map((deal) =>
+          deal.id === dealId
+            ? {
+                ...deal,
+                universe_build_flagged: newStatus,
+                universe_build_flagged_at: newStatus ? now : null,
+              }
+            : deal,
+        ),
+      );
+      const { error } = await supabase
+        .from('listings')
+        .update({
+          universe_build_flagged: newStatus,
+          universe_build_flagged_at: newStatus ? now : null,
+          universe_build_flagged_by: newStatus ? user?.id : null,
+        })
+        .eq('id', dealId);
+      if (error) {
+        setLocalOrder((prev) =>
+          prev.map((deal) =>
+            deal.id === dealId ? { ...deal, universe_build_flagged: currentStatus } : deal,
+          ),
+        );
+        toast({ title: 'Error', description: error.message, variant: 'destructive' });
+        return;
+      }
+      toast({
+        title: newStatus ? 'Flagged: Build Buyer Universe' : 'Flag removed',
+        description: newStatus
+          ? 'Deal flagged — a buyer universe needs to be built'
+          : 'Universe build flag removed',
+      });
+    },
+    [toast, user?.id],
+  );
 
-  const handleAssignOwner = useCallback(async (dealId: string, ownerId: string | null) => {
-    const ownerProfile = ownerId && adminProfiles ? adminProfiles[ownerId] : null;
-    setLocalOrder(prev => prev.map(deal =>
-      deal.id === dealId ? {
-        ...deal,
-        deal_owner_id: ownerId,
-        deal_owner: ownerProfile ? { id: ownerProfile.id, first_name: ownerProfile.first_name, last_name: ownerProfile.last_name, email: ownerProfile.email } : null,
-      } : deal
-    ));
-    const { error } = await supabase
-      .from('listings')
-      .update({ deal_owner_id: ownerId })
-      .eq('id', dealId);
-    if (error) {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
-      await queryClient.invalidateQueries({ queryKey: ['remarketing', 'deals'] });
-      return;
-    }
-    toast({ title: "Deal owner updated", description: ownerId ? "Owner has been assigned" : "Owner has been removed" });
-  }, [adminProfiles, toast, queryClient]);
+  const handleAssignOwner = useCallback(
+    async (dealId: string, ownerId: string | null) => {
+      const ownerProfile = ownerId && adminProfiles ? adminProfiles[ownerId] : null;
+      setLocalOrder((prev) =>
+        prev.map((deal) =>
+          deal.id === dealId
+            ? {
+                ...deal,
+                deal_owner_id: ownerId,
+                deal_owner: ownerProfile
+                  ? {
+                      id: ownerProfile.id,
+                      first_name: ownerProfile.first_name,
+                      last_name: ownerProfile.last_name,
+                      email: ownerProfile.email,
+                    }
+                  : null,
+              }
+            : deal,
+        ),
+      );
+      const { error } = await supabase
+        .from('listings')
+        .update({ deal_owner_id: ownerId })
+        .eq('id', dealId);
+      if (error) {
+        toast({ title: 'Error', description: error.message, variant: 'destructive' });
+        await queryClient.invalidateQueries({ queryKey: ['remarketing', 'deals'] });
+        return;
+      }
+      toast({
+        title: 'Deal owner updated',
+        description: ownerId ? 'Owner has been assigned' : 'Owner has been removed',
+      });
+    },
+    [adminProfiles, toast, queryClient],
+  );
 
   const handleBulkArchive = useCallback(async () => {
     setIsArchiving(true);
@@ -833,12 +890,15 @@ const ReMarketingDeals = () => {
         .update({ remarketing_status: 'archived' })
         .in('id', dealIds);
       if (error) throw error;
-      toast({ title: "Deals archived", description: `${dealIds.length} deal(s) have been archived` });
+      toast({
+        title: 'Deals archived',
+        description: `${dealIds.length} deal(s) have been archived`,
+      });
       setSelectedDeals(new Set());
       setShowArchiveDialog(false);
       refetchListings();
     } catch (error: any) {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
     } finally {
       setIsArchiving(false);
     }
@@ -874,12 +934,15 @@ const ReMarketingDeals = () => {
         const { error } = await supabase.from('listings').delete().eq('id', dealId);
         if (error) throw error;
       }
-      toast({ title: "Deals permanently deleted", description: `${dealIds.length} deal(s) have been permanently deleted` });
+      toast({
+        title: 'Deals permanently deleted',
+        description: `${dealIds.length} deal(s) have been permanently deleted`,
+      });
       setSelectedDeals(new Set());
       setShowDeleteDialog(false);
       refetchListings();
     } catch (error: any) {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
     } finally {
       setIsDeleting(false);
     }
@@ -894,26 +957,31 @@ const ReMarketingDeals = () => {
     setIsCalculating(true);
     try {
       const { data, error } = await supabase.functions.invoke('calculate-deal-quality', {
-        body: mode === 'all'
-          ? { forceRecalculate: true, triggerEnrichment: true }
-          : { calculateAll: true }
+        body:
+          mode === 'all'
+            ? { forceRecalculate: true, triggerEnrichment: true }
+            : { calculateAll: true },
       });
       if (error) throw new Error(error.message || 'Failed to calculate scores');
       if (data?.scored === 0 && !data?.enrichmentQueued) {
-        toast({ title: "All deals scored", description: "All deals already have quality scores calculated" });
-      } else {
-        const enrichmentMsg = data?.enrichmentQueued > 0
-          ? `. Queued ${data.enrichmentQueued} deals for enrichment.`
-          : '';
         toast({
-          title: "Scoring complete",
-          description: `Calculated quality scores for ${data?.scored || 0} deals${data?.errors > 0 ? ` (${data.errors} errors)` : ''}${enrichmentMsg}`
+          title: 'All deals scored',
+          description: 'All deals already have quality scores calculated',
+        });
+      } else {
+        const enrichmentMsg =
+          data?.enrichmentQueued > 0
+            ? `. Queued ${data.enrichmentQueued} deals for enrichment.`
+            : '';
+        toast({
+          title: 'Scoring complete',
+          description: `Calculated quality scores for ${data?.scored || 0} deals${data?.errors > 0 ? ` (${data.errors} errors)` : ''}${enrichmentMsg}`,
         });
       }
       refetchListings();
     } catch (error: any) {
       // Calculate scores error — toast shown to user
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
     } finally {
       setIsCalculating(false);
     }
@@ -922,25 +990,32 @@ const ReMarketingDeals = () => {
   const handleEnrichDeals = async (mode: 'all' | 'unenriched') => {
     setShowEnrichDialog(false);
     if (!listings || listings.length === 0) {
-      toast({ title: "No deals", description: "No deals available to enrich", variant: "destructive" });
+      toast({
+        title: 'No deals',
+        description: 'No deals available to enrich',
+        variant: 'destructive',
+      });
       return;
     }
     setIsEnrichingAll(true);
     try {
-      const dealsToEnrich = mode === 'all' ? listings : listings.filter(l => !l.enriched_at);
+      const dealsToEnrich = mode === 'all' ? listings : listings.filter((l) => !l.enriched_at);
       if (dealsToEnrich.length === 0) {
-        toast({ title: "All deals enriched", description: "All deals have already been enriched" });
+        toast({ title: 'All deals enriched', description: 'All deals have already been enriched' });
         setIsEnrichingAll(false);
         return;
       }
-      const dealIds = dealsToEnrich.map(l => l.id);
+      const dealIds = dealsToEnrich.map((l) => l.id);
       const { queued } = await startOrQueueMajorOp({
         operationType: 'deal_enrichment',
         totalItems: dealIds.length,
         description: `Enrich ${dealIds.length} deals (${mode})`,
         userId: user?.id || 'unknown',
       });
-      if (queued) { setIsEnrichingAll(false); return; }
+      if (queued) {
+        setIsEnrichingAll(false);
+        return;
+      }
 
       const { error: _resetError } = await supabase
         .from('listings')
@@ -951,44 +1026,71 @@ const ReMarketingDeals = () => {
       const nowIso = new Date().toISOString();
       const { error: resetQueueError } = await supabase
         .from('enrichment_queue')
-        .update({ status: 'pending', attempts: 0, started_at: null, completed_at: null, last_error: null, queued_at: nowIso, updated_at: nowIso })
+        .update({
+          status: 'pending',
+          attempts: 0,
+          started_at: null,
+          completed_at: null,
+          last_error: null,
+          queued_at: nowIso,
+          updated_at: nowIso,
+        })
         .in('listing_id', dealIds);
       if (resetQueueError) throw resetQueueError;
 
-      const { error: insertMissingError } = await supabase
-        .from('enrichment_queue')
-        .upsert(
-          dealIds.map(id => ({ listing_id: id, status: 'pending', attempts: 0, queued_at: nowIso })),
-          { onConflict: 'listing_id', ignoreDuplicates: true }
-        );
+      const { error: insertMissingError } = await supabase.from('enrichment_queue').upsert(
+        dealIds.map((id) => ({
+          listing_id: id,
+          status: 'pending',
+          attempts: 0,
+          queued_at: nowIso,
+        })),
+        { onConflict: 'listing_id', ignoreDuplicates: true },
+      );
       if (insertMissingError) throw insertMissingError;
 
       toast({
-        title: "Enrichment queued",
+        title: 'Enrichment queued',
         description: `${dealIds.length} deal${dealIds.length > 1 ? 's' : ''} queued for enrichment. Starting processing now...`,
       });
       void supabase.functions
         .invoke('process-enrichment-queue', { body: { source: 'ui_enrich_deals' } })
-        .then(() => { /* enrichment worker triggered */ })
-        .catch(() => { /* enrichment worker trigger is non-blocking */ });
+        .then(() => {
+          /* enrichment worker triggered */
+        })
+        .catch(() => {
+          /* enrichment worker trigger is non-blocking */
+        });
       refetchListings();
     } catch (error: any) {
       // Enrich deals error — toast shown to user
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
     } finally {
       setIsEnrichingAll(false);
     }
   };
 
   // Sortable header component
-  const SortableHeader = ({ column, label, className = "" }: { column: string; label: string; className?: string }) => (
+  const SortableHeader = ({
+    column,
+    label,
+    className = '',
+  }: {
+    column: string;
+    label: string;
+    className?: string;
+  }) => (
     <button
       onClick={() => handleSort(column)}
-      className={cn("flex items-center gap-1 hover:text-foreground transition-colors", className)}
+      className={cn('flex items-center gap-1 hover:text-foreground transition-colors', className)}
     >
       {label}
       {sortColumn === column ? (
-        sortDirection === "desc" ? <ChevronDown className="h-3 w-3" /> : <ChevronUp className="h-3 w-3" />
+        sortDirection === 'desc' ? (
+          <ChevronDown className="h-3 w-3" />
+        ) : (
+          <ChevronUp className="h-3 w-3" />
+        )
       ) : (
         <ArrowUpDown className="h-3 w-3 opacity-40" />
       )}
@@ -1021,7 +1123,7 @@ const ReMarketingDeals = () => {
             className="border-primary text-primary hover:bg-primary/10"
           >
             <Zap className="h-4 w-4 mr-2" />
-            {isEnrichingAll ? "Queueing..." : "Enrich Deals"}
+            {isEnrichingAll ? 'Queueing...' : 'Enrich Deals'}
           </Button>
           <Button
             onClick={() => setShowCalculateDialog(true)}
@@ -1029,19 +1131,22 @@ const ReMarketingDeals = () => {
             className="bg-slate-800 hover:bg-slate-700 text-white"
           >
             <Calculator className="h-4 w-4 mr-2" />
-            {isCalculating ? "Scoring..." : "Score Deals"}
+            {isCalculating ? 'Scoring...' : 'Score Deals'}
           </Button>
           <Popover open={showCustomDatePicker} onOpenChange={setShowCustomDatePicker}>
             <PopoverTrigger asChild>
               <div>
-                <Select value={dateFilter} onValueChange={(val) => {
-                  setDateFilter(val);
-                  if (val === "custom") setShowCustomDatePicker(true);
-                }}>
+                <Select
+                  value={dateFilter}
+                  onValueChange={(val) => {
+                    setDateFilter(val);
+                    if (val === 'custom') setShowCustomDatePicker(true);
+                  }}
+                >
                   <SelectTrigger className="w-[160px]">
                     <SelectValue placeholder="All Time">
-                      {dateFilter === "custom" && customDateFrom
-                        ? `${format(customDateFrom, "MM/dd")}${customDateTo ? ` - ${format(customDateTo, "MM/dd")}` : " →"}`
+                      {dateFilter === 'custom' && customDateFrom
+                        ? `${format(customDateFrom, 'MM/dd')}${customDateTo ? ` - ${format(customDateTo, 'MM/dd')}` : ' →'}`
                         : undefined}
                     </SelectValue>
                   </SelectTrigger>
@@ -1055,7 +1160,7 @@ const ReMarketingDeals = () => {
                 </Select>
               </div>
             </PopoverTrigger>
-            {dateFilter === "custom" && (
+            {dateFilter === 'custom' && (
               <PopoverContent className="w-auto p-4" align="end">
                 <div className="space-y-3">
                   <p className="text-sm font-medium">Select Date Range</p>
@@ -1064,8 +1169,12 @@ const ReMarketingDeals = () => {
                       <label className="text-xs text-muted-foreground">From</label>
                       <Input
                         type="date"
-                        value={customDateFrom ? format(customDateFrom, "yyyy-MM-dd") : ""}
-                        onChange={(e) => setCustomDateFrom(e.target.value ? new Date(e.target.value + "T00:00:00") : undefined)}
+                        value={customDateFrom ? format(customDateFrom, 'yyyy-MM-dd') : ''}
+                        onChange={(e) =>
+                          setCustomDateFrom(
+                            e.target.value ? new Date(e.target.value + 'T00:00:00') : undefined,
+                          )
+                        }
                         className="w-[140px]"
                       />
                     </div>
@@ -1073,20 +1182,32 @@ const ReMarketingDeals = () => {
                       <label className="text-xs text-muted-foreground">To</label>
                       <Input
                         type="date"
-                        value={customDateTo ? format(customDateTo, "yyyy-MM-dd") : ""}
-                        onChange={(e) => setCustomDateTo(e.target.value ? new Date(e.target.value + "T00:00:00") : undefined)}
+                        value={customDateTo ? format(customDateTo, 'yyyy-MM-dd') : ''}
+                        onChange={(e) =>
+                          setCustomDateTo(
+                            e.target.value ? new Date(e.target.value + 'T00:00:00') : undefined,
+                          )
+                        }
                         className="w-[140px]"
                       />
                     </div>
                   </div>
                   <div className="flex justify-end gap-2">
-                    <Button variant="ghost" size="sm" onClick={() => {
-                      setCustomDateFrom(undefined);
-                      setCustomDateTo(undefined);
-                      setDateFilter("all");
-                      setShowCustomDatePicker(false);
-                    }}>Clear</Button>
-                    <Button size="sm" onClick={() => setShowCustomDatePicker(false)}>Apply</Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setCustomDateFrom(undefined);
+                        setCustomDateTo(undefined);
+                        setDateFilter('all');
+                        setShowCustomDatePicker(false);
+                      }}
+                    >
+                      Clear
+                    </Button>
+                    <Button size="sm" onClick={() => setShowCustomDatePicker(false)}>
+                      Apply
+                    </Button>
                   </div>
                 </div>
               </PopoverContent>
@@ -1106,17 +1227,17 @@ const ReMarketingDeals = () => {
       {/* Deal Tab Filters */}
       <div className="flex items-center gap-1 border-b pb-1">
         {[
-          { key: "all", label: "All Deals" },
-          { key: "marketplace", label: "Marketplace" },
-        ].map(tab => (
+          { key: 'all', label: 'All Deals' },
+          { key: 'marketplace', label: 'Marketplace' },
+        ].map((tab) => (
           <button
             key={tab.key}
             onClick={() => setDealTab(tab.key)}
             className={cn(
-              "px-3 py-1.5 text-sm font-medium rounded-md transition-colors",
+              'px-3 py-1.5 text-sm font-medium rounded-md transition-colors',
               dealTab === tab.key
-                ? "bg-primary text-primary-foreground"
-                : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                ? 'bg-primary text-primary-foreground'
+                : 'text-muted-foreground hover:text-foreground hover:bg-muted',
             )}
           >
             {tab.label}
@@ -1158,20 +1279,20 @@ const ReMarketingDeals = () => {
       >
         <Button
           size="sm"
-          variant={universeBuildFilter ? "default" : "outline"}
+          variant={universeBuildFilter ? 'default' : 'outline'}
           className={cn(
-            "gap-2 h-8 text-xs",
+            'gap-2 h-8 text-xs',
             universeBuildFilter
-              ? "bg-blue-600 hover:bg-blue-700 border-blue-600 text-white"
-              : "border-blue-300 text-blue-700 hover:bg-blue-50"
+              ? 'bg-blue-600 hover:bg-blue-700 border-blue-600 text-white'
+              : 'border-blue-300 text-blue-700 hover:bg-blue-50',
           )}
-          onClick={() => setUniverseBuildFilter(prev => !prev)}
+          onClick={() => setUniverseBuildFilter((prev) => !prev)}
         >
           <Network className="h-3.5 w-3.5" />
-          {universeBuildFilter ? "Showing: Needs Universe Build" : "Filter: Needs Universe Build"}
+          {universeBuildFilter ? 'Showing: Needs Universe Build' : 'Filter: Needs Universe Build'}
           {universeBuildFilter && (
             <span className="ml-1 bg-white/20 rounded-full px-1.5 py-0 text-[10px] font-bold">
-              {filteredListings.filter(l => l.universe_build_flagged).length}
+              {filteredListings.filter((l) => l.universe_build_flagged).length}
             </span>
           )}
         </Button>
@@ -1201,193 +1322,354 @@ const ReMarketingDeals = () => {
               measuring={{ droppable: { strategy: MeasuringStrategy.Always } }}
             >
               <div className="relative w-full overflow-auto">
-              <table className="w-full caption-bottom text-sm" style={{ tableLayout: 'fixed', width: '100%' }}>
-                <thead>
-                  <tr>
-                    <th
-                      className="h-10 px-3 text-left align-middle font-medium text-muted-foreground border-b"
-                      style={{ width: columnWidths.select, minWidth: 40 }}
-                    >
-                      <Checkbox
-                        checked={localOrder.length > 0 && selectedDeals.size === localOrder.length}
-                        onCheckedChange={handleSelectAll}
-                      />
-                    </th>
-                    <ResizableHeader width={columnWidths.rank} onResize={(w) => handleColumnResize('rank', w)} minWidth={50}>
-                      <SortableHeader column="rank" label="#" />
-                    </ResizableHeader>
-                    <ResizableHeader width={columnWidths.dealName} onResize={(w) => handleColumnResize('dealName', w)} minWidth={100}>
-                      <SortableHeader column="deal_name" label="Deal Name" />
-                    </ResizableHeader>
-                    <ResizableHeader width={columnWidths.referralSource} onResize={(w) => handleColumnResize('referralSource', w)} minWidth={60}>
-                      <span className="text-muted-foreground font-medium">Marketplace</span>
-                    </ResizableHeader>
-                    <ResizableHeader width={columnWidths.industry} onResize={(w) => handleColumnResize('industry', w)} minWidth={60}>
-                      <SortableHeader column="industry" label="Industry" />
-                    </ResizableHeader>
-                    <ResizableHeader width={columnWidths.buyerUniverse} onResize={(w) => handleColumnResize('buyerUniverse', w)} minWidth={80}>
-                      <span className="text-muted-foreground font-medium">Buyer Universe</span>
-                    </ResizableHeader>
-                    <ResizableHeader width={columnWidths.description} onResize={(w) => handleColumnResize('description', w)} minWidth={100}>
-                      <span className="text-muted-foreground font-medium">Description</span>
-                    </ResizableHeader>
-                    <ResizableHeader width={columnWidths.location} onResize={(w) => handleColumnResize('location', w)} minWidth={60}>
-                      <span className="text-muted-foreground font-medium">Location</span>
-                    </ResizableHeader>
-                    <ResizableHeader width={columnWidths.revenue} onResize={(w) => handleColumnResize('revenue', w)} minWidth={60} className="text-right">
-                      <SortableHeader column="revenue" label="Revenue" className="ml-auto" />
-                    </ResizableHeader>
-                    <ResizableHeader width={columnWidths.ebitda} onResize={(w) => handleColumnResize('ebitda', w)} minWidth={60} className="text-right">
-                      <SortableHeader column="ebitda" label="EBITDA" className="ml-auto" />
-                    </ResizableHeader>
-                    <ResizableHeader width={columnWidths.linkedinCount} onResize={(w) => handleColumnResize('linkedinCount', w)} minWidth={50} className="text-right">
-                      <SortableHeader column="linkedinCount" label="LI Count" className="ml-auto" />
-                    </ResizableHeader>
-                    <ResizableHeader width={columnWidths.linkedinRange} onResize={(w) => handleColumnResize('linkedinRange', w)} minWidth={50} className="text-right">
-                      <SortableHeader column="linkedinRange" label="LI Range" className="ml-auto" />
-                    </ResizableHeader>
-                    <ResizableHeader width={columnWidths.googleReviews} onResize={(w) => handleColumnResize('googleReviews', w)} minWidth={50} className="text-right">
-                      <SortableHeader column="googleReviews" label="Reviews" className="ml-auto" />
-                    </ResizableHeader>
-                    <ResizableHeader width={columnWidths.googleRating} onResize={(w) => handleColumnResize('googleRating', w)} minWidth={50} className="text-right">
-                      <SortableHeader column="googleRating" label="Rating" className="ml-auto" />
-                    </ResizableHeader>
-                    <ResizableHeader width={columnWidths.quality} onResize={(w) => handleColumnResize('quality', w)} minWidth={50} className="text-center">
-                      <SortableHeader column="score" label="Quality" className="mx-auto" />
-                    </ResizableHeader>
-                    <ResizableHeader width={columnWidths.engagement} onResize={(w) => handleColumnResize('engagement', w)} minWidth={80} className="text-center">
-                      <SortableHeader column="engagement" label="Engagement" className="mx-auto" />
-                    </ResizableHeader>
-                    <ResizableHeader width={columnWidths.pipeline} onResize={(w) => handleColumnResize('pipeline', w)} minWidth={70} className="text-center">
-                      <span className="text-muted-foreground font-medium">Pipeline</span>
-                    </ResizableHeader>
-                    <ResizableHeader width={columnWidths.dealOwner} onResize={(w) => handleColumnResize('dealOwner', w)} minWidth={80}>
-                      <span className="text-muted-foreground font-medium">Deal Owner</span>
-                    </ResizableHeader>
-                    <ResizableHeader width={columnWidths.added} onResize={(w) => handleColumnResize('added', w)} minWidth={60}>
-                      <SortableHeader column="added" label="Added" />
-                    </ResizableHeader>
-                    <ResizableHeader width={columnWidths.priority} onResize={(w) => handleColumnResize('priority', w)} minWidth={50} className="text-center">
-                      <SortableHeader column="priority" label="Priority" className="mx-auto" />
-                    </ResizableHeader>
-                    <th className="h-10 px-3 text-left align-middle font-medium text-muted-foreground border-b" style={{ width: columnWidths.actions, minWidth: 40 }}></th>
-                  </tr>
-                </thead>
-                <TableBody>
-                  {listingsLoading ? (
-                    Array.from({ length: 5 }).map((_, i) => (
-                      <TableRow key={i}>
-                        <TableCell><Skeleton className="h-10 w-full" /></TableCell>
-                        <TableCell><Skeleton className="h-4 w-8" /></TableCell>
-                        <TableCell><Skeleton className="h-4 w-32" /></TableCell>
-                        <TableCell><Skeleton className="h-4 w-20" /></TableCell>
-                        <TableCell><Skeleton className="h-4 w-24" /></TableCell>
-                        <TableCell><Skeleton className="h-4 w-20" /></TableCell>
-                        <TableCell><Skeleton className="h-5 w-28" /></TableCell>
-                        <TableCell><Skeleton className="h-4 w-24" /></TableCell>
-                        <TableCell><Skeleton className="h-4 w-16" /></TableCell>
-                        <TableCell><Skeleton className="h-4 w-16" /></TableCell>
-                        <TableCell><Skeleton className="h-4 w-16" /></TableCell>
-                        <TableCell><Skeleton className="h-4 w-12" /></TableCell>
-                        <TableCell><Skeleton className="h-4 w-12" /></TableCell>
-                        <TableCell><Skeleton className="h-5 w-10" /></TableCell>
-                        <TableCell><Skeleton className="h-4 w-8 mx-auto" /></TableCell>
-                        <TableCell><Skeleton className="h-8 w-8" /></TableCell>
-                      </TableRow>
-                    ))
-                  ) : listingsError ? (
-                    <TableRow>
-                      <TableCell colSpan={19} className="text-center py-8 text-red-500">
-                        <Building2 className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                        <p>Failed to load deals</p>
-                        <p className="text-sm text-muted-foreground">The query may have timed out. Try refreshing.</p>
-                        <Button variant="outline" size="sm" className="mt-3" onClick={() => refetchListings()}>
-                          Retry
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ) : localOrder.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={19} className="text-center py-8 text-muted-foreground">
-                        <Building2 className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                        <p>No deals found</p>
-                        <p className="text-sm">Try adjusting your search or filters</p>
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    <SortableContext
-                      items={localOrder.map(l => l.id)}
-                      strategy={verticalListSortingStrategy}
-                    >
-                      {localOrder.map((listing, index) => (
-                        <DealTableRow
-                          key={listing.id}
-                          listing={listing}
-                          index={index}
-                          stats={scoreStats?.[listing.id]}
-                          navigate={navigate}
-                          formatCurrency={formatCurrency}
-                          formatWebsiteDomain={formatWebsiteDomain}
-                          getEffectiveWebsite={getEffectiveWebsite}
-                          formatGeographyBadges={formatGeographyBadges}
-                          getScoreTrendIcon={getScoreTrendIcon}
-                          columnWidths={columnWidths}
-                          isSelected={selectedDeals.has(listing.id)}
-                          onToggleSelect={handleToggleSelect}
-                          onArchive={handleArchiveDeal}
-                          onDelete={handleDeleteDeal}
-                          onTogglePriority={handleTogglePriority}
-                          onToggleUniverseBuild={handleToggleUniverseBuild}
-                          adminProfiles={adminProfiles}
-                          onAssignOwner={handleAssignOwner}
-                          universesByListing={universeDealMap ?? {}}
-                          pipelineCount={pipelineCounts?.[listing.id] || 0}
-                          onUpdateRank={async (dealId, newRank) => {
-                            const rankSorted = [...localOrder].sort((a, b) =>
-                              (a.manual_rank_override ?? 9999) - (b.manual_rank_override ?? 9999)
-                            );
-                            const movedIndex = rankSorted.findIndex(l => l.id === dealId);
-                            if (movedIndex === -1) return;
-                            const targetPos = Math.max(1, Math.min(newRank, rankSorted.length));
-                            const [movedDeal] = rankSorted.splice(movedIndex, 1);
-                            rankSorted.splice(targetPos - 1, 0, movedDeal);
-                            const newRanks = new Map(rankSorted.map((l, idx) => [l.id, idx + 1]));
-                            const updatedLocal = localOrder.map(l => ({
-                              ...l,
-                              manual_rank_override: newRanks.get(l.id) ?? l.manual_rank_override,
-                            }));
-                            const changedDeals = updatedLocal.filter(deal => {
-                              const original = localOrder.find(d => d.id === deal.id);
-                              return !original || original.manual_rank_override !== deal.manual_rank_override;
-                            });
-                            setLocalOrder(updatedLocal);
-                            sortedListingsRef.current = updatedLocal;
-                            try {
-                              if (changedDeals.length > 0) {
-                                await Promise.all(
-                                  changedDeals.map((deal) =>
-                                    supabase
-                                      .from('listings')
-                                      .update({ manual_rank_override: deal.manual_rank_override })
-                                      .eq('id', deal.id)
-                                      .throwOnError()
-                                  )
-                                );
-                              }
-                              await queryClient.invalidateQueries({ queryKey: ['remarketing', 'deals'] });
-                              toast({ title: 'Position updated', description: `Deal moved to position ${targetPos}` });
-                            } catch (err: any) {
-                              void err;
-                              await queryClient.invalidateQueries({ queryKey: ['remarketing', 'deals'] });
-                              toast({ title: 'Failed to update rank', variant: 'destructive' });
-                            }
-                          }}
+                <table
+                  className="w-full caption-bottom text-sm"
+                  style={{ tableLayout: 'fixed', width: '100%' }}
+                >
+                  <thead>
+                    <tr>
+                      <th
+                        className="h-10 px-3 text-left align-middle font-medium text-muted-foreground border-b"
+                        style={{ width: columnWidths.select, minWidth: 40 }}
+                      >
+                        <Checkbox
+                          checked={
+                            localOrder.length > 0 && selectedDeals.size === localOrder.length
+                          }
+                          onCheckedChange={handleSelectAll}
                         />
-                      ))}
-                    </SortableContext>
-                  )}
-                </TableBody>
-              </table>
+                      </th>
+                      <ResizableHeader
+                        width={columnWidths.rank}
+                        onResize={(w) => handleColumnResize('rank', w)}
+                        minWidth={50}
+                      >
+                        <SortableHeader column="rank" label="#" />
+                      </ResizableHeader>
+                      <ResizableHeader
+                        width={columnWidths.dealName}
+                        onResize={(w) => handleColumnResize('dealName', w)}
+                        minWidth={100}
+                      >
+                        <SortableHeader column="deal_name" label="Deal Name" />
+                      </ResizableHeader>
+                      <ResizableHeader
+                        width={columnWidths.referralSource}
+                        onResize={(w) => handleColumnResize('referralSource', w)}
+                        minWidth={60}
+                      >
+                        <span className="text-muted-foreground font-medium">Marketplace</span>
+                      </ResizableHeader>
+                      <ResizableHeader
+                        width={columnWidths.industry}
+                        onResize={(w) => handleColumnResize('industry', w)}
+                        minWidth={60}
+                      >
+                        <SortableHeader column="industry" label="Industry" />
+                      </ResizableHeader>
+                      <ResizableHeader
+                        width={columnWidths.buyerUniverse}
+                        onResize={(w) => handleColumnResize('buyerUniverse', w)}
+                        minWidth={80}
+                      >
+                        <span className="text-muted-foreground font-medium">Buyer Universe</span>
+                      </ResizableHeader>
+                      <ResizableHeader
+                        width={columnWidths.description}
+                        onResize={(w) => handleColumnResize('description', w)}
+                        minWidth={100}
+                      >
+                        <span className="text-muted-foreground font-medium">Description</span>
+                      </ResizableHeader>
+                      <ResizableHeader
+                        width={columnWidths.location}
+                        onResize={(w) => handleColumnResize('location', w)}
+                        minWidth={60}
+                      >
+                        <span className="text-muted-foreground font-medium">Location</span>
+                      </ResizableHeader>
+                      <ResizableHeader
+                        width={columnWidths.revenue}
+                        onResize={(w) => handleColumnResize('revenue', w)}
+                        minWidth={60}
+                        className="text-right"
+                      >
+                        <SortableHeader column="revenue" label="Revenue" className="ml-auto" />
+                      </ResizableHeader>
+                      <ResizableHeader
+                        width={columnWidths.ebitda}
+                        onResize={(w) => handleColumnResize('ebitda', w)}
+                        minWidth={60}
+                        className="text-right"
+                      >
+                        <SortableHeader column="ebitda" label="EBITDA" className="ml-auto" />
+                      </ResizableHeader>
+                      <ResizableHeader
+                        width={columnWidths.linkedinCount}
+                        onResize={(w) => handleColumnResize('linkedinCount', w)}
+                        minWidth={50}
+                        className="text-right"
+                      >
+                        <SortableHeader
+                          column="linkedinCount"
+                          label="LI Count"
+                          className="ml-auto"
+                        />
+                      </ResizableHeader>
+                      <ResizableHeader
+                        width={columnWidths.linkedinRange}
+                        onResize={(w) => handleColumnResize('linkedinRange', w)}
+                        minWidth={50}
+                        className="text-right"
+                      >
+                        <SortableHeader
+                          column="linkedinRange"
+                          label="LI Range"
+                          className="ml-auto"
+                        />
+                      </ResizableHeader>
+                      <ResizableHeader
+                        width={columnWidths.googleReviews}
+                        onResize={(w) => handleColumnResize('googleReviews', w)}
+                        minWidth={50}
+                        className="text-right"
+                      >
+                        <SortableHeader
+                          column="googleReviews"
+                          label="Reviews"
+                          className="ml-auto"
+                        />
+                      </ResizableHeader>
+                      <ResizableHeader
+                        width={columnWidths.googleRating}
+                        onResize={(w) => handleColumnResize('googleRating', w)}
+                        minWidth={50}
+                        className="text-right"
+                      >
+                        <SortableHeader column="googleRating" label="Rating" className="ml-auto" />
+                      </ResizableHeader>
+                      <ResizableHeader
+                        width={columnWidths.quality}
+                        onResize={(w) => handleColumnResize('quality', w)}
+                        minWidth={50}
+                        className="text-center"
+                      >
+                        <SortableHeader column="score" label="Quality" className="mx-auto" />
+                      </ResizableHeader>
+                      <ResizableHeader
+                        width={columnWidths.engagement}
+                        onResize={(w) => handleColumnResize('engagement', w)}
+                        minWidth={80}
+                        className="text-center"
+                      >
+                        <SortableHeader
+                          column="engagement"
+                          label="Engagement"
+                          className="mx-auto"
+                        />
+                      </ResizableHeader>
+                      <ResizableHeader
+                        width={columnWidths.pipeline}
+                        onResize={(w) => handleColumnResize('pipeline', w)}
+                        minWidth={70}
+                        className="text-center"
+                      >
+                        <span className="text-muted-foreground font-medium">Pipeline</span>
+                      </ResizableHeader>
+                      <ResizableHeader
+                        width={columnWidths.dealOwner}
+                        onResize={(w) => handleColumnResize('dealOwner', w)}
+                        minWidth={80}
+                      >
+                        <span className="text-muted-foreground font-medium">Deal Owner</span>
+                      </ResizableHeader>
+                      <ResizableHeader
+                        width={columnWidths.added}
+                        onResize={(w) => handleColumnResize('added', w)}
+                        minWidth={60}
+                      >
+                        <SortableHeader column="added" label="Added" />
+                      </ResizableHeader>
+                      <ResizableHeader
+                        width={columnWidths.priority}
+                        onResize={(w) => handleColumnResize('priority', w)}
+                        minWidth={50}
+                        className="text-center"
+                      >
+                        <SortableHeader column="priority" label="Priority" className="mx-auto" />
+                      </ResizableHeader>
+                      <th
+                        className="h-10 px-3 text-left align-middle font-medium text-muted-foreground border-b"
+                        style={{ width: columnWidths.actions, minWidth: 40 }}
+                      ></th>
+                    </tr>
+                  </thead>
+                  <TableBody>
+                    {listingsLoading ? (
+                      Array.from({ length: 5 }).map((_, i) => (
+                        <TableRow key={i}>
+                          <TableCell>
+                            <Skeleton className="h-10 w-full" />
+                          </TableCell>
+                          <TableCell>
+                            <Skeleton className="h-4 w-8" />
+                          </TableCell>
+                          <TableCell>
+                            <Skeleton className="h-4 w-32" />
+                          </TableCell>
+                          <TableCell>
+                            <Skeleton className="h-4 w-20" />
+                          </TableCell>
+                          <TableCell>
+                            <Skeleton className="h-4 w-24" />
+                          </TableCell>
+                          <TableCell>
+                            <Skeleton className="h-4 w-20" />
+                          </TableCell>
+                          <TableCell>
+                            <Skeleton className="h-5 w-28" />
+                          </TableCell>
+                          <TableCell>
+                            <Skeleton className="h-4 w-24" />
+                          </TableCell>
+                          <TableCell>
+                            <Skeleton className="h-4 w-16" />
+                          </TableCell>
+                          <TableCell>
+                            <Skeleton className="h-4 w-16" />
+                          </TableCell>
+                          <TableCell>
+                            <Skeleton className="h-4 w-16" />
+                          </TableCell>
+                          <TableCell>
+                            <Skeleton className="h-4 w-12" />
+                          </TableCell>
+                          <TableCell>
+                            <Skeleton className="h-4 w-12" />
+                          </TableCell>
+                          <TableCell>
+                            <Skeleton className="h-5 w-10" />
+                          </TableCell>
+                          <TableCell>
+                            <Skeleton className="h-4 w-8 mx-auto" />
+                          </TableCell>
+                          <TableCell>
+                            <Skeleton className="h-8 w-8" />
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    ) : listingsError ? (
+                      <TableRow>
+                        <TableCell colSpan={19} className="text-center py-8 text-red-500">
+                          <Building2 className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                          <p>Failed to load deals</p>
+                          <p className="text-sm text-muted-foreground">
+                            The query may have timed out. Try refreshing.
+                          </p>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="mt-3"
+                            onClick={() => refetchListings()}
+                          >
+                            Retry
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ) : localOrder.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={19} className="text-center py-8 text-muted-foreground">
+                          <Building2 className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                          <p>No deals found</p>
+                          <p className="text-sm">Try adjusting your search or filters</p>
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      <SortableContext
+                        items={localOrder.map((l) => l.id)}
+                        strategy={verticalListSortingStrategy}
+                      >
+                        {localOrder.map((listing, index) => (
+                          <DealTableRow
+                            key={listing.id}
+                            listing={listing}
+                            index={index}
+                            stats={scoreStats?.[listing.id]}
+                            navigate={navigate}
+                            formatCurrency={formatCurrency}
+                            formatWebsiteDomain={formatWebsiteDomain}
+                            getEffectiveWebsite={getEffectiveWebsite}
+                            formatGeographyBadges={formatGeographyBadges}
+                            getScoreTrendIcon={getScoreTrendIcon}
+                            columnWidths={columnWidths}
+                            isSelected={selectedDeals.has(listing.id)}
+                            onToggleSelect={handleToggleSelect}
+                            onArchive={handleArchiveDeal}
+                            onDelete={handleDeleteDeal}
+                            onTogglePriority={handleTogglePriority}
+                            onToggleUniverseBuild={handleToggleUniverseBuild}
+                            adminProfiles={adminProfiles}
+                            onAssignOwner={handleAssignOwner}
+                            universesByListing={universeDealMap ?? {}}
+                            pipelineCount={pipelineCounts?.[listing.id] || 0}
+                            onUpdateRank={async (dealId, newRank) => {
+                              const rankSorted = [...localOrder].sort(
+                                (a, b) =>
+                                  (a.manual_rank_override ?? 9999) -
+                                  (b.manual_rank_override ?? 9999),
+                              );
+                              const movedIndex = rankSorted.findIndex((l) => l.id === dealId);
+                              if (movedIndex === -1) return;
+                              const targetPos = Math.max(1, Math.min(newRank, rankSorted.length));
+                              const [movedDeal] = rankSorted.splice(movedIndex, 1);
+                              rankSorted.splice(targetPos - 1, 0, movedDeal);
+                              const newRanks = new Map(rankSorted.map((l, idx) => [l.id, idx + 1]));
+                              const updatedLocal = localOrder.map((l) => ({
+                                ...l,
+                                manual_rank_override: newRanks.get(l.id) ?? l.manual_rank_override,
+                              }));
+                              const changedDeals = updatedLocal.filter((deal) => {
+                                const original = localOrder.find((d) => d.id === deal.id);
+                                return (
+                                  !original ||
+                                  original.manual_rank_override !== deal.manual_rank_override
+                                );
+                              });
+                              setLocalOrder(updatedLocal);
+                              sortedListingsRef.current = updatedLocal;
+                              try {
+                                if (changedDeals.length > 0) {
+                                  await Promise.all(
+                                    changedDeals.map((deal) =>
+                                      supabase
+                                        .from('listings')
+                                        .update({ manual_rank_override: deal.manual_rank_override })
+                                        .eq('id', deal.id)
+                                        .throwOnError(),
+                                    ),
+                                  );
+                                }
+                                await queryClient.invalidateQueries({
+                                  queryKey: ['remarketing', 'deals'],
+                                });
+                                toast({
+                                  title: 'Position updated',
+                                  description: `Deal moved to position ${targetPos}`,
+                                });
+                              } catch (err: any) {
+                                void err;
+                                await queryClient.invalidateQueries({
+                                  queryKey: ['remarketing', 'deals'],
+                                });
+                                toast({ title: 'Failed to update rank', variant: 'destructive' });
+                              }
+                            }}
+                          />
+                        ))}
+                      </SortableContext>
+                    )}
+                  </TableBody>
+                </table>
               </div>
             </DndContext>
           </TooltipProvider>
@@ -1398,14 +1680,15 @@ const ReMarketingDeals = () => {
       {sortedListings.length > PAGE_SIZE && (
         <div className="flex items-center justify-between py-3">
           <p className="text-sm text-muted-foreground">
-            Showing {page * PAGE_SIZE + 1}–{Math.min((page + 1) * PAGE_SIZE, sortedListings.length)} of {sortedListings.length} deals
+            Showing {page * PAGE_SIZE + 1}–{Math.min((page + 1) * PAGE_SIZE, sortedListings.length)}{' '}
+            of {sortedListings.length} deals
           </p>
           <div className="flex items-center gap-2">
             <Button
               variant="outline"
               size="sm"
               disabled={page === 0}
-              onClick={() => setPage(p => p - 1)}
+              onClick={() => setPage((p) => p - 1)}
             >
               Previous
             </Button>
@@ -1416,7 +1699,7 @@ const ReMarketingDeals = () => {
               variant="outline"
               size="sm"
               disabled={page >= totalPages - 1}
-              onClick={() => setPage(p => p + 1)}
+              onClick={() => setPage((p) => p + 1)}
             >
               Next
             </Button>
@@ -1455,7 +1738,7 @@ const ReMarketingDeals = () => {
         handleEnrichDeals={handleEnrichDeals}
         isEnrichingAll={isEnrichingAll}
         listingsCount={listings?.length || 0}
-        unenrichedCount={listings?.filter(l => !l.enriched_at).length || 0}
+        unenrichedCount={listings?.filter((l) => !l.enriched_at).length || 0}
         showAddDealDialog={showAddDealDialog}
         setShowAddDealDialog={setShowAddDealDialog}
         totalDeals={listings?.length || 0}
