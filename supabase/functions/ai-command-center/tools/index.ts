@@ -73,7 +73,7 @@ const TOOL_CATEGORIES: Record<string, string[]> = {
   MEETING_INTEL: ['search_buyer_transcripts', 'search_transcripts', 'search_fireflies', 'get_meeting_action_items', 'semantic_transcript_search'],
 
   // Analytics
-  PIPELINE_ANALYTICS: ['get_pipeline_summary', 'get_analytics', 'get_enrichment_status', 'get_industry_trackers', 'get_cross_deal_analytics'],
+  PIPELINE_ANALYTICS: ['get_pipeline_summary', 'query_deals', 'get_analytics', 'get_enrichment_status', 'get_industry_trackers', 'get_cross_deal_analytics'],
   DAILY_BRIEFING: ['get_current_user_context', 'get_follow_up_queue', 'get_cross_deal_analytics', 'get_analytics', 'get_deal_tasks', 'get_outreach_status', 'get_connection_requests'],
 
   // General / context

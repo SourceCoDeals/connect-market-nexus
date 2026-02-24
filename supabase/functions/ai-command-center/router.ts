@@ -42,6 +42,18 @@ const BYPASS_RULES: Array<{
       confidence: 0.9,
     },
   },
+  // Industry-specific deal count — "how many hvac deals", "total plumbing deals", "count of collision deals"
+  {
+    test: (q) =>
+      /\b(how many|total|count|number of)\b.*\b(deal|listing)\b/i.test(q) &&
+      /\b(hvac|plumbing|collision|auto|roofing|electrical|landscaping|pest|home service|restoration|mechanical|industrial|manufacturing|construction|fire|security|cleaning|staffing|healthcare|dental|veterinary|fitness)/i.test(q),
+    result: {
+      category: 'PIPELINE_ANALYTICS',
+      tier: 'STANDARD',
+      tools: ['get_pipeline_summary', 'query_deals'],
+      confidence: 0.95,
+    },
+  },
   // Aggregate / count questions — "how many deals", "total deals", "deal count", "number of deals"
   {
     test: (q) =>
@@ -50,8 +62,8 @@ const BYPASS_RULES: Array<{
       ) || /\b(deal|listing)\b.*\b(how many|total|count)\b/i.test(q),
     result: {
       category: 'PIPELINE_ANALYTICS',
-      tier: 'QUICK',
-      tools: ['get_pipeline_summary'],
+      tier: 'STANDARD',
+      tools: ['get_pipeline_summary', 'query_deals'],
       confidence: 0.92,
     },
   },
