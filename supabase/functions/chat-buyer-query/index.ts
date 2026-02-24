@@ -394,7 +394,7 @@ DEAL CONTEXT:
 - Region: ${dealRegions.join(', ') || 'Unknown'}
 - Revenue: ${deal.revenue ? `$${(deal.revenue/1000000).toFixed(1)}M` : 'Unknown'}
 - EBITDA: ${deal.ebitda ? `$${(deal.ebitda/1000000).toFixed(1)}M` : 'Unknown'}
-- Industry: ${deal.industry || 'Unknown'}
+- Industry: ${deal.industry || deal.category || 'Unknown'}
 - Services: ${deal.services || deal.service_offerings || 'Unknown'}
 - Business Model: ${deal.business_model || 'Unknown'}
 
