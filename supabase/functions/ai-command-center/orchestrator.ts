@@ -13,9 +13,9 @@ import {
   type ClaudeMessage,
   type ContentBlock,
   type ModelTier,
-} from "../_shared/claude-client.ts";
-import { getToolsForCategory, executeTool, requiresConfirmation } from "./tools/index.ts";
-import { buildSystemPrompt } from "./system-prompt.ts";
+} from '../_shared/claude-client.ts';
+import { getToolsForCategory, executeTool, requiresConfirmation } from './tools/index.ts';
+import { buildSystemPrompt } from './system-prompt.ts';
 
 // ---------- Types ----------
 
@@ -63,10 +63,8 @@ export async function orchestrate(
   options: OrchestratorOptions,
   writer: StreamWriter,
 ): Promise<OrchestratorResult> {
-  const {
-    supabase, userId, query, conversationHistory,
-    category, tier, toolNames, pageContext,
-  } = options;
+  const { supabase, userId, query, conversationHistory, category, tier, toolNames, pageContext } =
+    options;
 
   const model = getModelForTier(tier);
   const systemPrompt = buildSystemPrompt(category, pageContext);
@@ -126,7 +124,7 @@ export async function orchestrate(
     }
 
     // Extract tool_use blocks
-    const toolUseBlocks = response.content.filter(b => b.type === 'tool_use');
+    const toolUseBlocks = response.content.filter((b) => b.type === 'tool_use');
     if (toolUseBlocks.length === 0) break;
 
     // Add assistant message with tool calls to history
@@ -144,22 +142,31 @@ export async function orchestrate(
       if (requiresConfirmation(toolName)) {
         // Send confirmation request to frontend
         const description = describeAction(toolName, toolInput);
-        await writer.write(sseEvent('confirmation_required', {
-          tool_id: toolId,
-          tool_name: toolName,
-          args: toolInput,
-          description,
-        }));
+        await writer.write(
+          sseEvent('confirmation_required', {
+            tool_id: toolId,
+            tool_name: toolName,
+            args: toolInput,
+            description,
+          }),
+        );
 
         // Return with pending confirmation — the frontend will re-invoke
         // with the confirmation when the user approves
         const totalCost = estimateCost(model, totalInputTokens, totalOutputTokens);
-        await writer.write(sseEvent('done', {
-          usage: { input_tokens: totalInputTokens, output_tokens: totalOutputTokens },
-          cost: totalCost,
-          tool_calls: toolCallCount,
-          pending_confirmation: { tool_name: toolName, tool_id: toolId, args: toolInput, description },
-        }));
+        await writer.write(
+          sseEvent('done', {
+            usage: { input_tokens: totalInputTokens, output_tokens: totalOutputTokens },
+            cost: totalCost,
+            tool_calls: toolCallCount,
+            pending_confirmation: {
+              tool_name: toolName,
+              tool_id: toolId,
+              args: toolInput,
+              description,
+            },
+          }),
+        );
 
         return {
           totalInputTokens,
@@ -167,21 +174,33 @@ export async function orchestrate(
           totalCost,
           toolCallCount,
           model,
-          pendingConfirmation: { tool_name: toolName, tool_id: toolId, args: toolInput, description },
+          pendingConfirmation: {
+            tool_name: toolName,
+            tool_id: toolId,
+            args: toolInput,
+            description,
+          },
         };
       }
 
       // Execute the tool
       await writer.write(sseEvent('tool_start', { id: toolId, name: toolName }));
-      const result = await executeTool(supabase, toolName, toolInput as Record<string, unknown>, userId);
+      const result = await executeTool(
+        supabase,
+        toolName,
+        toolInput as Record<string, unknown>,
+        userId,
+      );
       toolCallCount++;
 
-      await writer.write(sseEvent('tool_result', {
-        id: toolId,
-        name: toolName,
-        success: !result.error,
-        has_ui_action: !!(result.data as Record<string, unknown>)?.ui_action,
-      }));
+      await writer.write(
+        sseEvent('tool_result', {
+          id: toolId,
+          name: toolName,
+          success: !result.error,
+          has_ui_action: !!(result.data as Record<string, unknown>)?.ui_action,
+        }),
+      );
 
       // If tool returned a UI action, also emit it as a separate event
       const data = result.data as Record<string, unknown> | undefined;
@@ -203,11 +222,13 @@ export async function orchestrate(
 
   // Final done event
   const totalCost = estimateCost(model, totalInputTokens, totalOutputTokens);
-  await writer.write(sseEvent('done', {
-    usage: { input_tokens: totalInputTokens, output_tokens: totalOutputTokens },
-    cost: totalCost,
-    tool_calls: toolCallCount,
-  }));
+  await writer.write(
+    sseEvent('done', {
+      usage: { input_tokens: totalInputTokens, output_tokens: totalOutputTokens },
+      cost: totalCost,
+      tool_calls: toolCallCount,
+    }),
+  );
 
   return {
     totalInputTokens,
@@ -226,6 +247,10 @@ function describeAction(toolName: string, args: Record<string, unknown>): string
       return `Update deal stage to "${args.new_stage}"${args.reason ? ` (reason: ${args.reason})` : ''}`;
     case 'grant_data_room_access':
       return `Grant ${args.access_level || 'teaser'} data room access to ${args.buyer_name} (${args.buyer_email}) for this deal`;
+    case 'send_document':
+      return `Send ${args.document_type === 'nda' ? 'NDA' : 'Fee Agreement'} to ${args.signer_name} (${args.signer_email})`;
+    case 'push_to_phoneburner':
+      return `Push ${(args.entity_ids as string[])?.length || 0} ${args.entity_type || 'contacts'} to PhoneBurner dialer`;
     default:
       return `Execute ${toolName} with provided arguments`;
   }
@@ -250,11 +275,13 @@ export async function executeConfirmedAction(
   await writer.write(sseEvent('tool_start', { id: confirmedToolId, name: confirmedToolName }));
   const result = await executeTool(supabase, confirmedToolName, confirmedArgs, userId);
 
-  await writer.write(sseEvent('tool_result', {
-    id: confirmedToolId,
-    name: confirmedToolName,
-    success: !result.error,
-  }));
+  await writer.write(
+    sseEvent('tool_result', {
+      id: confirmedToolId,
+      name: confirmedToolName,
+      success: !result.error,
+    }),
+  );
 
   // Build a message with the result and let Claude respond
   const model = getModelForTier(options.tier);
@@ -265,21 +292,25 @@ export async function executeConfirmedAction(
     { role: 'user', content: options.query },
     {
       role: 'assistant',
-      content: [{
-        type: 'tool_use',
-        id: confirmedToolId,
-        name: confirmedToolName,
-        input: confirmedArgs,
-      }],
+      content: [
+        {
+          type: 'tool_use',
+          id: confirmedToolId,
+          name: confirmedToolName,
+          input: confirmedArgs,
+        },
+      ],
     },
     {
       role: 'user',
-      content: [{
-        type: 'tool_result',
-        tool_use_id: confirmedToolId,
-        content: JSON.stringify(result.error ? { error: result.error } : result.data),
-        is_error: !!result.error,
-      }],
+      content: [
+        {
+          type: 'tool_result',
+          tool_use_id: confirmedToolId,
+          content: JSON.stringify(result.error ? { error: result.error } : result.data),
+          is_error: !!result.error,
+        },
+      ],
     },
   ];
 
@@ -289,8 +320,12 @@ export async function executeConfirmedAction(
   await streamClaude(
     { model, maxTokens: 2048, systemPrompt, messages, timeoutMs: 30000 },
     {
-      onText: async (text) => { await writer.write(sseEvent('text', { text })); },
-      onToolUse: async () => { /* Shouldn't happen for confirmation flow */ },
+      onText: async (text) => {
+        await writer.write(sseEvent('text', { text }));
+      },
+      onToolUse: async () => {
+        /* Shouldn't happen for confirmation flow */
+      },
       onComplete: async (usage) => {
         totalInputTokens += usage.input_tokens;
         totalOutputTokens += usage.output_tokens;
@@ -302,11 +337,13 @@ export async function executeConfirmedAction(
   );
 
   const totalCost = estimateCost(model, totalInputTokens, totalOutputTokens);
-  await writer.write(sseEvent('done', {
-    usage: { input_tokens: totalInputTokens, output_tokens: totalOutputTokens },
-    cost: totalCost,
-    tool_calls: 1,
-  }));
+  await writer.write(
+    sseEvent('done', {
+      usage: { input_tokens: totalInputTokens, output_tokens: totalOutputTokens },
+      cost: totalCost,
+      tool_calls: 1,
+    }),
+  );
 
   return { totalInputTokens, totalOutputTokens, totalCost, toolCallCount: 1, model };
 }

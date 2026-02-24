@@ -7,6 +7,7 @@
 type SupabaseClient = any;
 import type { ClaudeTool } from '../../_shared/claude-client.ts';
 import type { ToolResult } from './index.ts';
+import { checkCompanyExclusion } from '../../_shared/captarget-exclusion-filter.ts';
 
 // ---------- Field sets ----------
 
@@ -114,6 +115,11 @@ export const buyerTools: ClaudeTool[] = [
         include_archived: {
           type: 'boolean',
           description: 'Include archived buyers (default false)',
+        },
+        exclude_financial_buyers: {
+          type: 'boolean',
+          description:
+            'Exclude PE/VC/investment bank/family office/search fund firms using CapTarget exclusion rules. Use when searching for operating companies or strategic acquirers only.',
         },
         limit: {
           type: 'number',
@@ -391,6 +397,19 @@ async function searchBuyers(
         fieldContains(b.service_regions, term) ||
         fieldContains(b.operating_locations, term),
     );
+  }
+
+  // CapTarget exclusion filter — remove PE/VC/investment banks when requested
+  if (args.exclude_financial_buyers === true) {
+    results = results.filter((b) => {
+      const exclusion = checkCompanyExclusion({
+        companyName: b.company_name || b.pe_firm_name || '',
+        description: b.business_summary || b.thesis_summary || '',
+        contactTitle: null,
+        industry: b.industry_vertical || null,
+      });
+      return !exclusion.excluded;
+    });
   }
 
   return {

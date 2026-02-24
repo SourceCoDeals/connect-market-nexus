@@ -1976,5 +1976,173 @@ export function getChatbotTestScenarios(): TestScenario[] {
         minResponseLength: 100,
       },
     },
+
+    // ═══════════════════════════════════════
+    //  Integration Action Tools (Feb 2026)
+    // ═══════════════════════════════════════
+
+    // Contact Enrichment
+    {
+      id: 'int-enrich-contacts',
+      category: 'Integration — Contact Enrichment',
+      name: 'Find contacts at a buyer firm',
+      description: 'Tests enrich_buyer_contacts tool routing and execution.',
+      userMessage: 'Find me 8-10 senior contacts at Trivest Partners',
+      expectedBehavior: [
+        'Routes to CONTACT_ENRICHMENT category',
+        'First checks existing contacts via search_pe_contacts',
+        'Offers to enrich via Apify/Prospeo if not enough contacts exist',
+        'Returns contacts with name, title, email, LinkedIn',
+      ],
+      severity: 'critical',
+      skipAutoRun: true,
+      autoValidation: {
+        expectedRouteCategories: ['CONTACT_ENRICHMENT', 'CONTACTS'],
+        expectedTools: ['search_pe_contacts', 'enrich_buyer_contacts'],
+        mustContainAny: ['contact', 'Trivest', 'enrich', 'found'],
+      },
+    },
+    {
+      id: 'int-enrich-with-titles',
+      category: 'Integration — Contact Enrichment',
+      name: 'Find contacts with title filter',
+      description: 'Tests title filter parameter for enrichment.',
+      userMessage: 'Find VPs and directors at Alpine Investors',
+      expectedBehavior: [
+        'Routes to CONTACT_ENRICHMENT',
+        'Applies title_filter: ["vp", "director"]',
+        'Returns filtered contacts matching those roles',
+      ],
+      severity: 'high',
+      skipAutoRun: true,
+      autoValidation: {
+        expectedRouteCategories: ['CONTACT_ENRICHMENT', 'CONTACTS', 'BUYER_ANALYSIS'],
+        mustContainAny: ['contact', 'Alpine', 'VP', 'Director', 'vp', 'director'],
+      },
+    },
+
+    // PhoneBurner Push
+    {
+      id: 'int-push-phoneburner',
+      category: 'Integration — PhoneBurner',
+      name: 'Push contacts to PhoneBurner',
+      description: 'Tests push_to_phoneburner tool routing and confirmation.',
+      userMessage: 'Push the contacts from Audax Group to PhoneBurner',
+      expectedBehavior: [
+        'Routes to ACTION category',
+        'Looks up Audax Group contacts first',
+        'Asks for confirmation before pushing',
+        'Reports how many contacts were pushed',
+      ],
+      severity: 'critical',
+      skipAutoRun: true,
+      autoValidation: {
+        expectedRouteCategories: ['ACTION', 'CONTACT_ENRICHMENT'],
+        mustContainAny: ['PhoneBurner', 'push', 'dialer', 'contact'],
+      },
+    },
+
+    // DocuSeal - Send NDA
+    {
+      id: 'int-send-nda',
+      category: 'Integration — DocuSeal',
+      name: 'Send NDA to buyer contact',
+      description: 'Tests send_document tool routing and confirmation flow.',
+      userMessage: 'Send the NDA to John Smith at Trivest Partners',
+      expectedBehavior: [
+        'Routes to DOCUMENT_ACTION category',
+        'Looks up firm and contact details',
+        'Asks for confirmation before sending',
+        'Reports submission ID and delivery mode after confirmation',
+      ],
+      severity: 'critical',
+      skipAutoRun: true,
+      autoValidation: {
+        expectedRouteCategories: ['DOCUMENT_ACTION', 'ACTION'],
+        expectedTools: ['send_document'],
+        mustContainAny: ['NDA', 'send', 'sign', 'confirm'],
+      },
+    },
+    {
+      id: 'int-send-fee-agreement',
+      category: 'Integration — DocuSeal',
+      name: 'Send fee agreement',
+      description: 'Tests fee agreement variant of send_document.',
+      userMessage: 'Send the fee agreement to the primary contact at Audax Private Equity',
+      expectedBehavior: [
+        'Routes to DOCUMENT_ACTION category',
+        'Looks up firm and primary contact email',
+        'Asks for confirmation before sending',
+      ],
+      severity: 'high',
+      skipAutoRun: true,
+      autoValidation: {
+        expectedRouteCategories: ['DOCUMENT_ACTION', 'ACTION'],
+        mustContainAny: ['fee agreement', 'Fee Agreement', 'send', 'sign'],
+      },
+    },
+
+    // Document Engagement
+    {
+      id: 'int-doc-engagement',
+      category: 'Integration — Document Engagement',
+      name: 'Track document engagement',
+      description: 'Tests get_document_engagement tool.',
+      userMessage: 'Who has opened the teaser for our HVAC deal?',
+      expectedBehavior: [
+        'Routes to ENGAGEMENT category',
+        'Calls get_document_engagement with deal_id',
+        'Returns list of buyers who viewed, with last access dates',
+      ],
+      severity: 'high',
+      autoValidation: {
+        expectedRouteCategories: ['ENGAGEMENT', 'DEAL_STATUS'],
+        expectedTools: ['get_document_engagement', 'query_deals'],
+        mustContainAny: ['viewed', 'accessed', 'teaser', 'engagement', 'data room', 'No'],
+        requiresToolCalls: true,
+      },
+    },
+
+    // Stale Deals
+    {
+      id: 'int-stale-deals',
+      category: 'Integration — Stale Deals',
+      name: 'Find stale deals',
+      description: 'Tests get_stale_deals tool for inactive deal detection.',
+      userMessage: 'Which deals have gone quiet in the last 30 days?',
+      expectedBehavior: [
+        'Routes to FOLLOW_UP category',
+        'Calls get_stale_deals with days=30',
+        'Returns deals with no recent activity, sorted by inactivity',
+      ],
+      severity: 'high',
+      autoValidation: {
+        expectedRouteCategories: ['FOLLOW_UP'],
+        expectedTools: ['get_stale_deals'],
+        mustContainAny: ['stale', 'inactive', 'quiet', 'no activity', 'deal', 'No'],
+        requiresToolCalls: true,
+      },
+    },
+
+    // CapTarget Exclusion
+    {
+      id: 'int-exclude-financial-buyers',
+      category: 'Integration — CapTarget Exclusion',
+      name: 'Search buyers excluding PE/VC firms',
+      description: 'Tests exclude_financial_buyers flag on search_buyers.',
+      userMessage: 'Show me strategic acquirers in Texas — exclude PE firms and investment banks',
+      expectedBehavior: [
+        'Routes to BUYER_SEARCH',
+        'Calls search_buyers with state=TX and exclude_financial_buyers=true',
+        'Results should not include PE firms, VCs, or investment banks',
+      ],
+      severity: 'medium',
+      autoValidation: {
+        expectedRouteCategories: ['BUYER_SEARCH', 'BUYER_ANALYSIS'],
+        expectedTools: ['search_buyers'],
+        mustContainAny: ['buyer', 'Texas', 'TX', 'strategic', 'No'],
+        requiresToolCalls: true,
+      },
+    },
   ];
 }

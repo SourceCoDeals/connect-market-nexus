@@ -26,6 +26,21 @@ export const outreachTools: ClaudeTool[] = [
     },
   },
   {
+    name: 'get_document_engagement',
+    description:
+      'Track who has viewed deal documents — data room opens, teaser views, and document access patterns. Shows which buyers are actively reviewing materials. Use when the user asks "who opened the teaser?", "data room engagement?", "which buyers viewed documents?".',
+    input_schema: {
+      type: 'object',
+      properties: {
+        deal_id: { type: 'string', description: 'Filter by deal UUID' },
+        buyer_id: { type: 'string', description: 'Filter by buyer UUID' },
+        days: { type: 'number', description: 'Lookback period in days (default 30)' },
+        limit: { type: 'number', description: 'Max results (default 50)' },
+      },
+      required: [],
+    },
+  },
+  {
     name: 'get_call_history',
     description:
       'Get PhoneBurner call history from the contact_activities table. Shows call attempts, completed calls, dispositions, talk time, recordings, and callbacks. Use to answer "has this contact been called?", "how many calls to this buyer?", "what was the outcome of the last call?", or "show rep calling activity".',
@@ -72,6 +87,8 @@ export async function executeOutreachTool(
   switch (toolName) {
     case 'get_outreach_status':
       return getOutreachStatus(supabase, args);
+    case 'get_document_engagement':
+      return getDocumentEngagement(supabase, args);
     case 'get_call_history':
       return getCallHistory(supabase, args);
     default:
@@ -150,6 +167,142 @@ async function getOutreachStatus(
       buyer_status_summary: statusCounts,
       total_scored_buyers: scores.length,
       deal_id: dealId,
+    },
+  };
+}
+
+/**
+ * Track document engagement — data room opens, teaser views, access patterns.
+ * Queries data_room_access for last_access_at and engagement_signals for data room events.
+ */
+async function getDocumentEngagement(
+  supabase: SupabaseClient,
+  args: Record<string, unknown>,
+): Promise<ToolResult> {
+  const days = Number(args.days) || 30;
+  const limit = Math.min(Number(args.limit) || 50, 200);
+  const cutoff = new Date(Date.now() - days * 86400000).toISOString();
+
+  // Parallel queries: data_room_access + engagement_signals for data room events
+  const [accessResult, signalsResult] = await Promise.all([
+    (() => {
+      let q = supabase
+        .from('data_room_access')
+        .select(
+          'id, deal_id, remarketing_buyer_id, contact_id, can_view_teaser, can_view_full_memo, can_view_data_room, granted_at, last_access_at, link_sent_at, link_sent_to_email, revoked_at',
+        )
+        .is('revoked_at', null)
+        .order('last_access_at', { ascending: false, nullsFirst: false })
+        .limit(limit);
+
+      if (args.deal_id) q = q.eq('deal_id', args.deal_id as string);
+      if (args.buyer_id) q = q.eq('remarketing_buyer_id', args.buyer_id as string);
+      return q;
+    })(),
+    (() => {
+      let q = supabase
+        .from('engagement_signals')
+        .select('id, deal_id, buyer_id, signal_type, signal_value, signal_source, created_at')
+        .in('signal_type', [
+          'data_room_access',
+          'data_room_view',
+          'teaser_view',
+          'memo_view',
+          'document_download',
+        ])
+        .gte('created_at', cutoff)
+        .order('created_at', { ascending: false })
+        .limit(limit);
+
+      if (args.deal_id) q = q.eq('deal_id', args.deal_id as string);
+      if (args.buyer_id) q = q.eq('buyer_id', args.buyer_id as string);
+      return q;
+    })(),
+  ]);
+
+  const accessRecords = accessResult.data || [];
+  const signals = signalsResult.data || [];
+
+  // Compute engagement summary
+  const buyerEngagement: Record<
+    string,
+    {
+      buyer_id: string;
+      access_level: string;
+      granted_at: string | null;
+      last_access_at: string | null;
+      total_signals: number;
+      signal_types: Record<string, number>;
+    }
+  > = {};
+
+  for (const a of accessRecords) {
+    const bid = a.remarketing_buyer_id;
+    if (!bid) continue;
+    if (!buyerEngagement[bid]) {
+      buyerEngagement[bid] = {
+        buyer_id: bid,
+        access_level: a.can_view_data_room ? 'full' : a.can_view_full_memo ? 'memo' : 'teaser',
+        granted_at: a.granted_at,
+        last_access_at: a.last_access_at,
+        total_signals: 0,
+        signal_types: {},
+      };
+    }
+    // Update last_access to most recent
+    if (
+      a.last_access_at &&
+      (!buyerEngagement[bid].last_access_at ||
+        a.last_access_at > buyerEngagement[bid].last_access_at!)
+    ) {
+      buyerEngagement[bid].last_access_at = a.last_access_at;
+    }
+  }
+
+  for (const s of signals) {
+    const bid = s.buyer_id;
+    if (!bid) continue;
+    if (!buyerEngagement[bid]) {
+      buyerEngagement[bid] = {
+        buyer_id: bid,
+        access_level: 'unknown',
+        granted_at: null,
+        last_access_at: null,
+        total_signals: 0,
+        signal_types: {},
+      };
+    }
+    buyerEngagement[bid].total_signals++;
+    buyerEngagement[bid].signal_types[s.signal_type] =
+      (buyerEngagement[bid].signal_types[s.signal_type] || 0) + 1;
+  }
+
+  const engagementList = Object.values(buyerEngagement).sort(
+    (a, b) => b.total_signals - a.total_signals,
+  );
+
+  // Buyers who accessed but never viewed
+  const accessedNeverViewed = accessRecords.filter(
+    (a: { last_access_at: string | null; remarketing_buyer_id: string }) =>
+      !a.last_access_at && a.remarketing_buyer_id,
+  ).length;
+
+  return {
+    data: {
+      buyer_engagement: engagementList,
+      access_records: accessRecords,
+      recent_signals: signals,
+      summary: {
+        total_with_access: accessRecords.length,
+        total_who_viewed: engagementList.filter((e) => e.last_access_at).length,
+        total_signals: signals.length,
+        accessed_never_viewed: accessedNeverViewed,
+        most_active_buyers: engagementList.slice(0, 5).map((e) => ({
+          buyer_id: e.buyer_id,
+          signals: e.total_signals,
+        })),
+      },
+      lookback_days: days,
     },
   };
 }

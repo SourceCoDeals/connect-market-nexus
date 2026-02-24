@@ -515,7 +515,7 @@ const BYPASS_RULES: Array<{
     },
   },
   // Contact finder — find people at a company, get emails/phones
-  // Routes to search_pe_contacts which searches contacts already in the SourceCo database
+  // Routes to both internal search AND enrichment for new contacts
   {
     test: (q) =>
       /\b(find\s+(me\s+)?(contacts?|people|employees?|associates?|principals?|vps?|directors?|partners?)\s+(at|for|from))\b/i.test(
@@ -525,10 +525,80 @@ const BYPASS_RULES: Array<{
       /\b(who\s+(works?|is)\s+at)\b/i.test(q) ||
       /\b(find\s+\d+.*\b(at|from)\b)/i.test(q),
     result: {
-      category: 'CONTACTS',
+      category: 'CONTACT_ENRICHMENT',
       tier: 'STANDARD',
-      tools: ['search_pe_contacts', 'get_buyer_profile'],
+      tools: [
+        'search_pe_contacts',
+        'search_contacts',
+        'enrich_buyer_contacts',
+        'get_buyer_profile',
+      ],
       confidence: 0.92,
+    },
+  },
+  // Enrich contacts / Prospeo / LinkedIn enrichment
+  {
+    test: (q) =>
+      /\b(enrich|prospeo|linkedin scrape|find email|find phone|discover contact|import contact|scrape)\b/i.test(
+        q,
+      ),
+    result: {
+      category: 'CONTACT_ENRICHMENT',
+      tier: 'STANDARD',
+      tools: ['enrich_buyer_contacts', 'search_contacts', 'search_pe_contacts'],
+      confidence: 0.9,
+    },
+  },
+  // Send NDA / fee agreement / DocuSeal
+  {
+    test: (q) =>
+      /\b(send.*(nda|fee agreement|fee.?agree|non.?disclosure)|nda.*(send|deliver|email)|fee agreement.*(send|deliver|email))\b/i.test(
+        q,
+      ),
+    result: {
+      category: 'DOCUMENT_ACTION',
+      tier: 'STANDARD',
+      tools: ['send_document', 'get_firm_agreements', 'search_contacts', 'search_buyers'],
+      confidence: 0.92,
+    },
+  },
+  // Push to PhoneBurner / dialer
+  {
+    test: (q) =>
+      /\b(push.*(phone.?burner|dialer|pb)|phone.?burner.*(push|add|load)|add.*(dialer|phone.?burner)|load.*(dialer|phone.?burner))\b/i.test(
+        q,
+      ),
+    result: {
+      category: 'ACTION',
+      tier: 'STANDARD',
+      tools: ['push_to_phoneburner', 'search_buyers', 'search_contacts'],
+      confidence: 0.92,
+    },
+  },
+  // Stale deals / inactive deals / gone quiet
+  {
+    test: (q) =>
+      /\b(stale deal|inactive deal|gone quiet|no activity|dead deal|dormant deal|deals?.*(stale|inactive|quiet|dormant)|which deal.*(no|without).*(activity|update))\b/i.test(
+        q,
+      ),
+    result: {
+      category: 'FOLLOW_UP',
+      tier: 'STANDARD',
+      tools: ['get_stale_deals', 'get_follow_up_queue'],
+      confidence: 0.9,
+    },
+  },
+  // Document engagement / data room views / teaser opens
+  {
+    test: (q) =>
+      /\b(who (opened|viewed|accessed)|data room.*(view|open|engage)|teaser.*(view|open)|document.*(engage|view|open|track)|viewed.*(teaser|memo|data room))\b/i.test(
+        q,
+      ),
+    result: {
+      category: 'ENGAGEMENT',
+      tier: 'STANDARD',
+      tools: ['get_document_engagement', 'get_engagement_signals'],
+      confidence: 0.9,
     },
   },
   // Company/deal discovery — search deals/leads matching criteria
@@ -571,13 +641,15 @@ Categories:
 - MEETING_PREP: Meeting preparation, briefings for specific meetings
 - OUTREACH_DRAFT: Drafting emails, outreach messages, communications
 - LEAD_INTEL: Inbound leads, referral partners, referral submissions, deal referrals, lead sources
-- ENGAGEMENT: Engagement signals, buyer decisions (approve/pass), score history, interest signals, buyer learning history, PhoneBurner call history/call activity
+- ENGAGEMENT: Engagement signals, buyer decisions (approve/pass), score history, interest signals, buyer learning history, PhoneBurner call history/call activity, document engagement/views
 - CONNECTION: Buyer connection requests, deal conversation messages, buyer intake pipeline
 - CONTACTS: PE contacts, platform contacts, firm agreements, NDA logs
+- CONTACT_ENRICHMENT: Find and enrich new contacts at a company via LinkedIn/Prospeo, import contacts, discover emails
+- DOCUMENT_ACTION: Send NDA or fee agreement for signing, check agreement status
 - INDUSTRY: Industry trackers, vertical scoring configs
 - GENERAL: Other / unclear intent
 
-Available tools: query_deals, get_deal_details, get_deal_activities, get_deal_tasks, get_deal_documents, get_deal_memos, get_deal_comments, get_deal_scoring_adjustments, get_deal_referrals, get_deal_conversations, get_pipeline_summary, search_buyers, get_buyer_profile, get_score_breakdown, get_top_buyers_for_deal, get_buyer_decisions, get_score_history, get_buyer_learning_history, search_lead_sources, search_valuation_leads, search_inbound_leads, get_referral_data, search_pe_contacts, get_firm_agreements, get_nda_logs, get_connection_requests, get_connection_messages, search_buyer_universes, get_universe_details, get_outreach_records, get_remarketing_outreach, get_engagement_signals, get_interest_signals, search_transcripts, search_buyer_transcripts, search_fireflies, get_meeting_action_items, get_outreach_status, get_analytics, get_enrichment_status, get_industry_trackers, get_current_user_context, create_deal_task, complete_deal_task, add_deal_note, log_deal_activity, update_deal_stage, grant_data_room_access, select_table_rows, apply_table_filter, sort_table_column, navigate_to_page, explain_buyer_score, get_cross_deal_analytics, semantic_transcript_search, get_follow_up_queue
+Available tools: query_deals, get_deal_details, get_deal_activities, get_deal_tasks, get_deal_documents, get_deal_memos, get_deal_comments, get_deal_scoring_adjustments, get_deal_referrals, get_deal_conversations, get_pipeline_summary, search_buyers, get_buyer_profile, get_score_breakdown, get_top_buyers_for_deal, get_buyer_decisions, get_score_history, get_buyer_learning_history, search_lead_sources, search_valuation_leads, search_inbound_leads, get_referral_data, search_pe_contacts, get_firm_agreements, get_nda_logs, get_connection_requests, get_connection_messages, search_buyer_universes, get_universe_details, get_outreach_records, get_remarketing_outreach, get_engagement_signals, get_interest_signals, search_transcripts, search_buyer_transcripts, search_fireflies, get_meeting_action_items, get_outreach_status, get_analytics, get_enrichment_status, get_industry_trackers, get_current_user_context, create_deal_task, complete_deal_task, add_deal_note, log_deal_activity, update_deal_stage, grant_data_room_access, select_table_rows, apply_table_filter, sort_table_column, navigate_to_page, explain_buyer_score, get_cross_deal_analytics, semantic_transcript_search, get_follow_up_queue, get_call_history, search_contacts, get_stale_deals, get_document_engagement, enrich_buyer_contacts, push_to_phoneburner, send_document
 
 Respond with JSON only:
 {"category":"CATEGORY","tier":"QUICK|STANDARD|DEEP","tools":["tool1","tool2"],"confidence":0.0-1.0}

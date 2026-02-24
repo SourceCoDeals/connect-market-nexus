@@ -28,6 +28,10 @@ import {
   executeCrossDealAnalyticsTool,
 } from './cross-deal-analytics-tools.ts';
 import { semanticSearchTools, executeSemanticSearchTool } from './semantic-search-tools.ts';
+import {
+  integrationActionTools,
+  executeIntegrationActionTool,
+} from './integration-action-tools.ts';
 
 // ---------- Tool Result Types ----------
 
@@ -59,6 +63,7 @@ const ALL_TOOLS: ClaudeTool[] = [
   ...scoringExplainTools,
   ...crossDealAnalyticsTools,
   ...semanticSearchTools,
+  ...integrationActionTools,
 ];
 
 const TOOL_CATEGORIES: Record<string, string[]> = {
@@ -85,6 +90,7 @@ const TOOL_CATEGORIES: Record<string, string[]> = {
     'get_connection_requests',
     'get_follow_up_queue',
     'get_call_history',
+    'get_stale_deals',
   ],
 
   // Buyer intelligence
@@ -150,6 +156,7 @@ const TOOL_CATEGORIES: Record<string, string[]> = {
     'get_outreach_status',
     'get_connection_requests',
     'get_call_history',
+    'get_stale_deals',
   ],
 
   // General / context
@@ -171,6 +178,8 @@ const TOOL_CATEGORIES: Record<string, string[]> = {
     'log_deal_activity',
     'update_deal_stage',
     'grant_data_room_access',
+    'send_document',
+    'push_to_phoneburner',
   ],
   UI_ACTION: ['select_table_rows', 'apply_table_filter', 'sort_table_column', 'navigate_to_page'],
 
@@ -223,6 +232,7 @@ const TOOL_CATEGORIES: Record<string, string[]> = {
     'get_score_history',
     'get_buyer_learning_history',
     'get_call_history',
+    'get_document_engagement',
   ],
 
   // Connection requests & conversations
@@ -237,6 +247,8 @@ const TOOL_CATEGORIES: Record<string, string[]> = {
     'get_firm_agreements',
     'get_nda_logs',
     'get_call_history',
+    'enrich_buyer_contacts',
+    'send_document',
   ],
 
   // Industry trackers
@@ -247,10 +259,35 @@ const TOOL_CATEGORIES: Record<string, string[]> = {
 
   // Semantic search
   SEMANTIC_SEARCH: ['semantic_transcript_search', 'search_buyer_transcripts', 'search_transcripts'],
+
+  // Contact enrichment (external API-based)
+  CONTACT_ENRICHMENT: [
+    'enrich_buyer_contacts',
+    'search_contacts',
+    'search_pe_contacts',
+    'search_buyers',
+    'get_buyer_profile',
+    'push_to_phoneburner',
+  ],
+
+  // Document actions
+  DOCUMENT_ACTION: [
+    'send_document',
+    'get_firm_agreements',
+    'get_nda_logs',
+    'get_document_engagement',
+    'search_contacts',
+    'search_buyers',
+  ],
 };
 
 // Tools that require user confirmation before executing
-const CONFIRMATION_REQUIRED = new Set(['update_deal_stage', 'grant_data_room_access']);
+const CONFIRMATION_REQUIRED = new Set([
+  'update_deal_stage',
+  'grant_data_room_access',
+  'send_document',
+  'push_to_phoneburner',
+]);
 
 // ---------- Public API ----------
 
@@ -356,6 +393,8 @@ async function _executeToolInternal(
     return executeCrossDealAnalyticsTool(supabase, toolName, resolvedArgs);
   if (semanticSearchTools.some((t) => t.name === toolName))
     return executeSemanticSearchTool(supabase, toolName, resolvedArgs);
+  if (integrationActionTools.some((t) => t.name === toolName))
+    return executeIntegrationActionTool(supabase, toolName, resolvedArgs, userId);
 
   return { error: `Unknown tool: ${toolName}` };
 }
