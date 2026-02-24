@@ -312,7 +312,7 @@ function DealRowActions({
           {deal.need_owner_contact ? "\u2713 Need to Contact Owner" : "Flag: Need to Contact Owner"}
         </DropdownMenuItem>
         <DropdownMenuItem onClick={() => handlePushToAllDeals([deal.id])} disabled={!!deal.pushed_to_all_deals}>
-          <CheckCircle2 className="h-4 w-4 mr-2" />Approve to All Deals
+          <CheckCircle2 className="h-4 w-4 mr-2" />Approve to Active Deals
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem

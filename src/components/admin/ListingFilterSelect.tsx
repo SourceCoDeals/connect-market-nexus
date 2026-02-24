@@ -55,7 +55,7 @@ export function ListingFilterSelect({ requests, selectedListingId, onListingChan
         <SelectContent>
           <SelectItem value="all">
             <div className="flex items-center justify-between w-full">
-              <span>All Deals</span>
+              <span>Active Deals</span>
               <Badge variant="secondary" className="ml-2">
                 {requests.length}
               </Badge>

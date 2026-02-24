@@ -222,7 +222,7 @@ const ReMarketingDashboard = () => {
     return (
       <div>
         <div className="flex items-center justify-between mb-3">
-          <h3 className="text-sm font-semibold uppercase tracking-wide text-gray-700">Deals Added to All Deals</h3>
+          <h3 className="text-sm font-semibold uppercase tracking-wide text-gray-700">Deals Added to Active Deals</h3>
           <span className="text-xs text-gray-400">{total} total (8 weeks)</span>
         </div>
         <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-auto">
@@ -287,7 +287,7 @@ const ReMarketingDashboard = () => {
       ) : cards && (
         <div className="grid gap-3 md:grid-cols-5">
           <div className="rounded-xl border bg-gray-900 text-white px-4 py-3.5">
-            <p className="text-[10px] uppercase tracking-widest text-gray-400">All Deals</p>
+            <p className="text-[10px] uppercase tracking-widest text-gray-400">Active Deals</p>
             <p className="text-2xl font-bold mt-1">{cards.all_visible}</p>
             <p className="text-[11px] text-gray-400 mt-0.5">+{cards.all_new_in_period} in period</p>
           </div>
@@ -573,7 +573,7 @@ const ReMarketingDashboard = () => {
         {/* All Deals by Source */}
         <div className="bg-white rounded-xl border border-gray-200 p-5">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-sm font-semibold uppercase tracking-wide text-gray-700">All Deals by Source</h3>
+            <h3 className="text-sm font-semibold uppercase tracking-wide text-gray-700">Active Deals by Source</h3>
             <span className="text-xs text-gray-400">{cards?.all_visible || 0} total</span>
           </div>
           {loading ? <Skeleton className="h-40 w-full" /> : (() => {
@@ -634,7 +634,7 @@ const ReMarketingDashboard = () => {
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-xs text-gray-800 truncate">
-                        {ev.type === "pushed" ? "Pushed to All Deals" : "Deal created"}: <span className="font-medium">{String(ev.name)}</span>
+                        {ev.type === "pushed" ? "Pushed to Active Deals" : "Deal created"}: <span className="font-medium">{String(ev.name)}</span>
                       </p>
                       <div className="flex items-center gap-2 mt-0.5">
                         <DealSourceBadge source={String(ev.source)} />

@@ -164,7 +164,7 @@ export function usePartnerActions(partnerId: string | undefined, partner: any, d
     const results = await Promise.all(updates);
     const failed = results.filter((r) => r.error);
     if (failed.length) { toast.error("Failed to approve some deals"); return; }
-    toast.success(`${ids.length} deals approved to All Deals`);
+    toast.success(`${ids.length} deals approved to Active Deals`);
     setSelectedDealIds(new Set());
     queryClient.invalidateQueries({ queryKey: ["referral-partners", partnerId, "deals"] });
     queryClient.invalidateQueries({ queryKey: ["remarketing", "deals"] });

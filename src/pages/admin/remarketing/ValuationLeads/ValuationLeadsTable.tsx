@@ -332,7 +332,7 @@ export function ValuationLeadsTable({
                           </DropdownMenuItem>
                           <DropdownMenuItem onClick={async (e) => {
                             e.stopPropagation();
-                            if (!lead.pushed_listing_id) { sonnerToast.error("Push deal to All Deals first"); return; }
+                            if (!lead.pushed_listing_id) { sonnerToast.error("Push deal to Active Deals first"); return; }
                             const newVal = !lead.need_buyer_universe;
                             await supabase.from("listings").update({ need_buyer_universe: newVal }).eq("id", lead.pushed_listing_id);
                             sonnerToast.success(newVal ? "Flagged: Needs Buyer Universe" : "Flag removed");
@@ -342,7 +342,7 @@ export function ValuationLeadsTable({
                           </DropdownMenuItem>
                           <DropdownMenuItem onClick={async (e) => {
                             e.stopPropagation();
-                            if (!lead.pushed_listing_id) { sonnerToast.error("Push deal to All Deals first"); return; }
+                            if (!lead.pushed_listing_id) { sonnerToast.error("Push deal to Active Deals first"); return; }
                             const newVal = !lead.need_owner_contact;
                             await supabase.from("listings").update({ need_owner_contact: newVal }).eq("id", lead.pushed_listing_id);
                             sonnerToast.success(newVal ? "Flagged: Need to Contact Owner" : "Flag removed");
@@ -390,7 +390,7 @@ export function ValuationLeadsTable({
                             {lead.need_to_contact_owner ? "Remove Contact Owner Flag" : "Need to Contact Owner"}
                           </DropdownMenuItem>
                           <DropdownMenuItem onClick={() => handlePushToAllDeals([lead.id])} disabled={!!lead.pushed_to_all_deals}>
-                            <CheckCircle2 className="h-4 w-4 mr-2" />Approve to All Deals
+                            <CheckCircle2 className="h-4 w-4 mr-2" />Approve to Active Deals
                           </DropdownMenuItem>
                           <DropdownMenuSeparator />
                           <DropdownMenuItem

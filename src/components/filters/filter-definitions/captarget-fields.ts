@@ -74,7 +74,7 @@ export const CAPTARGET_FIELDS: FilterFieldDef[] = [
   },
   {
     key: "pushed_to_all_deals",
-    label: "Pushed to All Deals",
+    label: "Pushed to Active Deals",
     type: "boolean",
     group: "Status",
     icon: Activity,
