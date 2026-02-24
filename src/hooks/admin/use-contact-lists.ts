@@ -161,6 +161,64 @@ export function useCreateContactList() {
   });
 }
 
+export function useAddMembersToList() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async ({ listId, members }: { listId: string; members: CreateContactListMemberInput[] }) => {
+      if (members.length === 0) throw new Error('No contacts to add');
+
+      // Insert members
+      const memberRows = members.map((m) => ({
+        list_id: listId,
+        contact_email: m.contact_email,
+        contact_name: m.contact_name,
+        contact_phone: m.contact_phone,
+        contact_company: m.contact_company,
+        contact_role: m.contact_role,
+        entity_type: m.entity_type,
+        entity_id: m.entity_id,
+      }));
+
+      const { error: membersError } = await supabase
+        .from('contact_list_members')
+        .insert(memberRows);
+
+      if (membersError) throw membersError;
+
+      // Update contact count
+      const { data: countData } = await supabase
+        .from('contact_list_members')
+        .select('id', { count: 'exact', head: true })
+        .eq('list_id', listId)
+        .is('removed_at', null);
+
+      await supabase
+        .from('contact_lists')
+        .update({ contact_count: countData?.length ?? members.length, updated_at: new Date().toISOString() } as any)
+        .eq('id', listId);
+
+      return { listId, addedCount: members.length };
+    },
+    onSuccess: ({ listId, addedCount }) => {
+      queryClient.invalidateQueries({ queryKey: QUERY_KEY });
+      queryClient.invalidateQueries({ queryKey: [...QUERY_KEY, listId] });
+      toast({
+        title: 'Contacts added',
+        description: `${addedCount} contact${addedCount !== 1 ? 's' : ''} added to list.`,
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: 'Failed to add contacts',
+        description: error.message,
+        variant: 'destructive',
+      });
+    },
+  });
+}
+
 export function useDeleteContactList() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
