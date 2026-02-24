@@ -32,6 +32,12 @@ const SystemTestRunner = lazyWithRetry(() => import('@/pages/admin/SystemTestRun
 const DocuSealHealthCheck = lazyWithRetry(() => import('@/pages/admin/DocuSealHealthCheck'));
 const MessageCenter = lazyWithRetry(() => import('@/pages/admin/MessageCenter'));
 
+// Smartlead pages
+const SmartleadCampaignsPage = lazyWithRetry(() => import('@/pages/admin/SmartleadCampaignsPage'));
+const SmartleadSettingsPage = lazyWithRetry(
+  () => import('@/pages/admin/settings/SmartleadSettingsPage'),
+);
+
 // ReMarketing pages
 const ReMarketingLayout = lazyWithRetry(() =>
   import('@/components/remarketing').then((m) => ({ default: m.ReMarketingLayout })),
@@ -212,6 +218,24 @@ export function AdminRoutes() {
           element={<RedirectWithId to="/admin/remarketing/leads/referrals/:partnerId" />}
         />
       </Route>
+
+      {/* SMARTLEAD */}
+      <Route
+        path="smartlead/campaigns"
+        element={
+          <RoleGate min="admin">
+            <SmartleadCampaignsPage />
+          </RoleGate>
+        }
+      />
+      <Route
+        path="smartlead/settings"
+        element={
+          <RoleGate min="admin">
+            <SmartleadSettingsPage />
+          </RoleGate>
+        }
+      />
 
       {/* APPROVALS */}
       <Route
