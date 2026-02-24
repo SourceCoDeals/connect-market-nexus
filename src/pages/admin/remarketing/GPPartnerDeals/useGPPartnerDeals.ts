@@ -1,18 +1,21 @@
-import { useState, useMemo, useCallback, useEffect } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useSearchParams } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/hooks/use-toast";
-import { toast as sonnerToast } from "sonner";
-import { useTimeframe } from "@/hooks/use-timeframe";
-import { useFilterEngine } from "@/hooks/use-filter-engine";
-import { GP_PARTNER_FIELDS } from "@/components/filters";
-import { useGlobalGateCheck, useGlobalActivityMutations } from "@/hooks/remarketing/useGlobalActivityQueue";
-import { useAuth } from "@/context/AuthContext";
-import { useAdminProfiles } from "@/hooks/admin/use-admin-profiles";
-import { useEnrichmentProgress } from "@/hooks/useEnrichmentProgress";
-import type { GPPartnerDeal, SortColumn, SortDirection, NewDealForm } from "./types";
-import { EMPTY_NEW_DEAL } from "./types";
+import { useState, useMemo, useCallback, useEffect } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useSearchParams } from 'react-router-dom';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
+import { toast as sonnerToast } from 'sonner';
+import { useTimeframe } from '@/hooks/use-timeframe';
+import { useFilterEngine } from '@/hooks/use-filter-engine';
+import { GP_PARTNER_FIELDS } from '@/components/filters';
+import {
+  useGlobalGateCheck,
+  useGlobalActivityMutations,
+} from '@/hooks/remarketing/useGlobalActivityQueue';
+import { useAuth } from '@/context/AuthContext';
+import { useAdminProfiles } from '@/hooks/admin/use-admin-profiles';
+import { useEnrichmentProgress } from '@/hooks/useEnrichmentProgress';
+import type { GPPartnerDeal, SortColumn, SortDirection, NewDealForm } from './types';
+import { EMPTY_NEW_DEAL } from './types';
 
 const PAGE_SIZE = 50;
 
@@ -25,12 +28,12 @@ export function useGPPartnerDeals() {
   const { progress: enrichmentProgress, cancelEnrichment } = useEnrichmentProgress();
 
   const { data: adminProfiles } = useAdminProfiles();
-  const { timeframe, setTimeframe, isInRange } = useTimeframe("all_time");
+  const { timeframe, setTimeframe, isInRange } = useTimeframe('all_time');
 
   // Sorting from URL
   const [searchParams, setSearchParams] = useSearchParams();
-  const sortColumn = (searchParams.get("sort") as SortColumn) ?? "created_at";
-  const sortDirection = (searchParams.get("dir") as SortDirection) ?? "desc";
+  const sortColumn = (searchParams.get('sort') as SortColumn) ?? 'created_at';
+  const sortDirection = (searchParams.get('dir') as SortDirection) ?? 'desc';
 
   // Selection
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -56,8 +59,8 @@ export function useGPPartnerDeals() {
     isLoading,
     refetch,
   } = useQuery({
-    queryKey: ["remarketing", "gp-partner-deals"],
-    refetchOnMount: "always",
+    queryKey: ['remarketing', 'gp-partner-deals'],
+    refetchOnMount: 'always',
     staleTime: 30_000,
     queryFn: async () => {
       const allData: GPPartnerDeal[] = [];
@@ -67,7 +70,7 @@ export function useGPPartnerDeals() {
 
       while (hasMore) {
         const { data, error } = await supabase
-          .from("listings")
+          .from('listings')
           .select(
             `
             id, title, internal_company_name, main_contact_name, main_contact_email,
@@ -79,10 +82,10 @@ export function useGPPartnerDeals() {
             category, executive_summary, industry, revenue, ebitda, location,
             address_city, address_state, deal_owner_id,
             deal_owner:profiles!listings_deal_owner_id_fkey(id, first_name, last_name, email)
-          `
+          `,
           )
-          .eq("deal_source", "gp_partners")
-          .order("created_at", { ascending: false })
+          .eq('deal_source', 'gp_partners')
+          .order('created_at', { ascending: false })
           .range(offset, offset + batchSize - 1);
 
         if (error) throw error;
@@ -117,45 +120,63 @@ export function useGPPartnerDeals() {
     items.sort((a, b) => {
       let valA: any, valB: any;
       switch (sortColumn) {
-        case "company_name":
-          valA = (a.internal_company_name || a.title || "").toLowerCase();
-          valB = (b.internal_company_name || b.title || "").toLowerCase();
+        case 'company_name':
+          valA = (a.internal_company_name || a.title || '').toLowerCase();
+          valB = (b.internal_company_name || b.title || '').toLowerCase();
           break;
-        case "industry":
-          valA = (a.industry || a.category || "").toLowerCase();
-          valB = (b.industry || b.category || "").toLowerCase();
+        case 'industry':
+          valA = (a.industry || a.category || '').toLowerCase();
+          valB = (b.industry || b.category || '').toLowerCase();
           break;
-        case "owner":
-          valA = (a.deal_owner?.first_name || a.deal_owner?.email || "").toLowerCase();
-          valB = (b.deal_owner?.first_name || b.deal_owner?.email || "").toLowerCase();
+        case 'owner':
+          valA = (a.deal_owner?.first_name || a.deal_owner?.email || '').toLowerCase();
+          valB = (b.deal_owner?.first_name || b.deal_owner?.email || '').toLowerCase();
           break;
-        case "revenue":
-          valA = a.revenue ?? -1; valB = b.revenue ?? -1; break;
-        case "ebitda":
-          valA = a.ebitda ?? -1; valB = b.ebitda ?? -1; break;
-        case "score":
-          valA = a.deal_total_score ?? -1; valB = b.deal_total_score ?? -1; break;
-        case "linkedin_employee_count":
-          valA = a.linkedin_employee_count ?? -1; valB = b.linkedin_employee_count ?? -1; break;
-        case "linkedin_employee_range":
-          valA = (a.linkedin_employee_range || "").toLowerCase();
-          valB = (b.linkedin_employee_range || "").toLowerCase();
+        case 'revenue':
+          valA = a.revenue ?? -1;
+          valB = b.revenue ?? -1;
           break;
-        case "google_review_count":
-          valA = a.google_review_count ?? -1; valB = b.google_review_count ?? -1; break;
-        case "google_rating":
-          valA = a.google_rating ?? -1; valB = b.google_rating ?? -1; break;
-        case "created_at":
-          valA = a.created_at || ""; valB = b.created_at || ""; break;
-        case "pushed":
-          valA = a.pushed_to_all_deals ? 1 : 0; valB = b.pushed_to_all_deals ? 1 : 0; break;
-        case "priority":
-          valA = a.is_priority_target ? 1 : 0; valB = b.is_priority_target ? 1 : 0; break;
+        case 'ebitda':
+          valA = a.ebitda ?? -1;
+          valB = b.ebitda ?? -1;
+          break;
+        case 'score':
+          valA = a.deal_total_score ?? -1;
+          valB = b.deal_total_score ?? -1;
+          break;
+        case 'linkedin_employee_count':
+          valA = a.linkedin_employee_count ?? -1;
+          valB = b.linkedin_employee_count ?? -1;
+          break;
+        case 'linkedin_employee_range':
+          valA = (a.linkedin_employee_range || '').toLowerCase();
+          valB = (b.linkedin_employee_range || '').toLowerCase();
+          break;
+        case 'google_review_count':
+          valA = a.google_review_count ?? -1;
+          valB = b.google_review_count ?? -1;
+          break;
+        case 'google_rating':
+          valA = a.google_rating ?? -1;
+          valB = b.google_rating ?? -1;
+          break;
+        case 'created_at':
+          valA = a.created_at || '';
+          valB = b.created_at || '';
+          break;
+        case 'pushed':
+          valA = a.pushed_to_all_deals ? 1 : 0;
+          valB = b.pushed_to_all_deals ? 1 : 0;
+          break;
+        case 'priority':
+          valA = a.is_priority_target ? 1 : 0;
+          valB = b.is_priority_target ? 1 : 0;
+          break;
         default:
           return 0;
       }
-      if (valA < valB) return sortDirection === "asc" ? -1 : 1;
-      if (valA > valB) return sortDirection === "asc" ? 1 : -1;
+      if (valA < valB) return sortDirection === 'asc' ? -1 : 1;
+      if (valA > valB) return sortDirection === 'asc' ? 1 : -1;
       return 0;
     });
     return items;
@@ -169,23 +190,29 @@ export function useGPPartnerDeals() {
     return filteredDeals.slice(start, start + PAGE_SIZE);
   }, [filteredDeals, safePage]);
 
-  useEffect(() => { setCurrentPage(1); }, [filterState, sortColumn, sortDirection]);
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filterState, sortColumn, sortDirection]);
 
   const handleSort = (col: SortColumn) => {
-    setSearchParams((prev) => {
-      const next = new URLSearchParams(prev);
-      if (sortColumn === col) {
-        next.set("dir", sortDirection === "asc" ? "desc" : "asc");
-      } else {
-        next.set("sort", col);
-        next.set("dir", "asc");
-      }
-      return next;
-    }, { replace: true });
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        if (sortColumn === col) {
+          next.set('dir', sortDirection === 'asc' ? 'desc' : 'asc');
+        } else {
+          next.set('sort', col);
+          next.set('dir', 'asc');
+        }
+        return next;
+      },
+      { replace: true },
+    );
   };
 
   // Selection helpers
-  const allSelected = paginatedDeals.length > 0 && paginatedDeals.every((d) => selectedIds.has(d.id));
+  const allSelected =
+    paginatedDeals.length > 0 && paginatedDeals.every((d) => selectedIds.has(d.id));
 
   const toggleSelectAll = () => {
     if (allSelected) {
@@ -210,65 +237,81 @@ export function useGPPartnerDeals() {
       if (dealIds.length === 0) return;
       setIsPushing(true);
       const { error } = await supabase
-        .from("listings")
+        .from('listings')
         .update({
-          status: "active",
+          status: 'active',
           pushed_to_all_deals: true,
           pushed_to_all_deals_at: new Date().toISOString(),
         } as never)
-        .in("id", dealIds);
+        .in('id', dealIds);
       setIsPushing(false);
       setSelectedIds(new Set());
       if (error) {
-        toast({ title: "Error", description: "Failed to approve deals" });
+        toast({ title: 'Error', description: 'Failed to approve deals' });
       } else {
         toast({
-          title: "Approved",
-          description: `${dealIds.length} deal${dealIds.length !== 1 ? "s" : ""} pushed to All Deals.`,
+          title: 'Approved',
+          description: `${dealIds.length} deal${dealIds.length !== 1 ? 's' : ''} pushed to All Deals.`,
         });
       }
-      queryClient.invalidateQueries({ queryKey: ["remarketing", "gp-partner-deals"] });
-      queryClient.invalidateQueries({ queryKey: ["remarketing", "deals"] });
+      queryClient.invalidateQueries({ queryKey: ['remarketing', 'gp-partner-deals'] });
+      queryClient.invalidateQueries({ queryKey: ['remarketing', 'deals'] });
     },
-    [toast, queryClient]
+    [toast, queryClient],
   );
 
   // Bulk Enrich
   const handleBulkEnrich = useCallback(
-    async (mode: "unenriched" | "all") => {
+    async (mode: 'unenriched' | 'all') => {
       if (!filteredDeals?.length) return;
-      const targets = mode === "unenriched"
-        ? filteredDeals.filter((d) => !d.enriched_at)
-        : filteredDeals;
-      if (!targets.length) { sonnerToast.info("No deals to enrich"); return; }
+      const targets =
+        mode === 'unenriched' ? filteredDeals.filter((d) => !d.enriched_at) : filteredDeals;
+      if (!targets.length) {
+        sonnerToast.info('No deals to enrich');
+        return;
+      }
       setIsEnriching(true);
 
       let activityItem: { id: string } | null = null;
       try {
         const result = await startOrQueueMajorOp({
-          operationType: "deal_enrichment",
+          operationType: 'deal_enrichment',
           totalItems: targets.length,
           description: `Enriching ${targets.length} GP Partner deals`,
-          userId: user?.id || "",
-          contextJson: { source: "gp_partners" },
+          userId: user?.id || '',
+          contextJson: { source: 'gp_partners' },
         });
         activityItem = result.item;
-      } catch { /* Non-blocking */ }
+      } catch {
+        /* Non-blocking */
+      }
 
       const now = new Date().toISOString();
       const seen = new Set<string>();
       const rows = targets
-        .filter((d) => { if (seen.has(d.id)) return false; seen.add(d.id); return true; })
-        .map((d) => ({ listing_id: d.id, status: "pending" as const, attempts: 0, queued_at: now }));
+        .filter((d) => {
+          if (seen.has(d.id)) return false;
+          seen.add(d.id);
+          return true;
+        })
+        .map((d) => ({
+          listing_id: d.id,
+          status: 'pending' as const,
+          attempts: 0,
+          queued_at: now,
+        }));
 
       const CHUNK = 500;
       for (let i = 0; i < rows.length; i += CHUNK) {
         const chunk = rows.slice(i, i + CHUNK);
-        const { error } = await supabase.from("enrichment_queue").upsert(chunk, { onConflict: "listing_id" });
+        const { error } = await supabase
+          .from('enrichment_queue')
+          .upsert(chunk, { onConflict: 'listing_id' });
         if (error) {
           // Queue upsert error — toast shown to user
-          sonnerToast.error("Failed to queue enrichment");
-          if (activityItem) completeOperation.mutate({ id: activityItem.id, finalStatus: "failed" });
+          sonnerToast.error('Failed to queue enrichment');
+          if (activityItem)
+            completeOperation.mutate({ id: activityItem.id, finalStatus: 'failed' });
           setIsEnriching(false);
           return;
         }
@@ -277,63 +320,80 @@ export function useGPPartnerDeals() {
       sonnerToast.success(`Queued ${targets.length} deals for enrichment`);
 
       try {
-        const { data: result, error: resultError } = await supabase.functions
-          .invoke("process-enrichment-queue", { body: { source: "gp_partners_bulk" } });
+        const { data: result, error: resultError } = await supabase.functions.invoke(
+          'process-enrichment-queue',
+          { body: { source: 'gp_partners_bulk' } },
+        );
         if (resultError) throw resultError;
         if (result?.synced > 0 || result?.processed > 0) {
           const totalDone = (result?.synced || 0) + (result?.processed || 0);
-          if (activityItem) updateProgress.mutate({ id: activityItem.id, completedItems: totalDone });
+          if (activityItem)
+            updateProgress.mutate({ id: activityItem.id, completedItems: totalDone });
           if (result?.processed === 0) {
             sonnerToast.success(`All ${result.synced} deals were already enriched`);
-            if (activityItem) completeOperation.mutate({ id: activityItem.id, finalStatus: "completed" });
+            if (activityItem)
+              completeOperation.mutate({ id: activityItem.id, finalStatus: 'completed' });
           }
         }
-      } catch { /* Non-blocking */ }
+      } catch {
+        /* Non-blocking */
+      }
 
       setIsEnriching(false);
-      queryClient.invalidateQueries({ queryKey: ["remarketing", "gp-partner-deals"] });
+      queryClient.invalidateQueries({ queryKey: ['remarketing', 'gp-partner-deals'] });
     },
-    [filteredDeals, user, startOrQueueMajorOp, completeOperation, updateProgress, queryClient]
+    [filteredDeals, user, startOrQueueMajorOp, completeOperation, updateProgress, queryClient],
   );
 
   // Bulk Score
   const handleBulkScore = useCallback(
-    async (mode: "unscored" | "all") => {
+    async (mode: 'unscored' | 'all') => {
       if (!filteredDeals?.length) return;
-      const targets = mode === "unscored"
-        ? filteredDeals.filter((d) => d.deal_total_score == null)
-        : filteredDeals;
-      if (!targets.length) { sonnerToast.info("No deals to score"); return; }
+      const targets =
+        mode === 'unscored'
+          ? filteredDeals.filter((d) => d.deal_total_score == null)
+          : filteredDeals;
+      if (!targets.length) {
+        sonnerToast.info('No deals to score');
+        return;
+      }
       setIsScoring(true);
 
       let activityItem: { id: string } | null = null;
       try {
         const result = await startOrQueueMajorOp({
-          operationType: "deal_enrichment",
+          operationType: 'deal_enrichment',
           totalItems: targets.length,
           description: `Scoring ${targets.length} GP Partner deals`,
-          userId: user?.id || "",
-          contextJson: { source: "gp_partners_scoring" },
+          userId: user?.id || '',
+          contextJson: { source: 'gp_partners_scoring' },
         });
         activityItem = result.item;
-      } catch { /* Non-blocking */ }
+      } catch {
+        /* Non-blocking */
+      }
 
       sonnerToast.info(`Scoring ${targets.length} deals...`);
       let successCount = 0;
       for (const deal of targets) {
         try {
-          await supabase.functions.invoke("calculate-deal-quality", { body: { listingId: deal.id } });
+          await supabase.functions.invoke('calculate-deal-quality', {
+            body: { listingId: deal.id },
+          });
           successCount++;
-          if (activityItem) updateProgress.mutate({ id: activityItem.id, completedItems: successCount });
-        } catch { /* continue */ }
+          if (activityItem)
+            updateProgress.mutate({ id: activityItem.id, completedItems: successCount });
+        } catch {
+          /* continue */
+        }
       }
 
       sonnerToast.success(`Scored ${successCount} of ${targets.length} deals`);
-      if (activityItem) completeOperation.mutate({ id: activityItem.id, finalStatus: "completed" });
+      if (activityItem) completeOperation.mutate({ id: activityItem.id, finalStatus: 'completed' });
       setIsScoring(false);
-      queryClient.invalidateQueries({ queryKey: ["remarketing", "gp-partner-deals"] });
+      queryClient.invalidateQueries({ queryKey: ['remarketing', 'gp-partner-deals'] });
     },
-    [filteredDeals, user, startOrQueueMajorOp, completeOperation, updateProgress, queryClient]
+    [filteredDeals, user, startOrQueueMajorOp, completeOperation, updateProgress, queryClient],
   );
 
   // Enrich selected deals
@@ -345,35 +405,46 @@ export function useGPPartnerDeals() {
       let activityItem: { id: string } | null = null;
       try {
         const result = await startOrQueueMajorOp({
-          operationType: "deal_enrichment",
+          operationType: 'deal_enrichment',
           totalItems: dealIds.length,
           description: `Enriching ${dealIds.length} GP Partner deals`,
-          userId: user?.id || "",
-          contextJson: { source: "gp_partners_selected" },
+          userId: user?.id || '',
+          contextJson: { source: 'gp_partners_selected' },
         });
         activityItem = result.item;
-      } catch { /* Non-blocking */ }
+      } catch {
+        /* Non-blocking */
+      }
 
       const now = new Date().toISOString();
       try {
-        await supabase.functions.invoke("process-enrichment-queue", {
-          body: { action: "cancel_pending", before: now },
+        await supabase.functions.invoke('process-enrichment-queue', {
+          body: { action: 'cancel_pending', before: now },
         });
-      } catch { /* Non-blocking */ }
+      } catch {
+        /* Non-blocking */
+      }
 
       const seen = new Set<string>();
       const rows = dealIds
-        .filter((id) => { if (seen.has(id)) return false; seen.add(id); return true; })
-        .map((id) => ({ listing_id: id, status: "pending" as const, attempts: 0, queued_at: now }));
+        .filter((id) => {
+          if (seen.has(id)) return false;
+          seen.add(id);
+          return true;
+        })
+        .map((id) => ({ listing_id: id, status: 'pending' as const, attempts: 0, queued_at: now }));
 
       const CHUNK = 500;
       for (let i = 0; i < rows.length; i += CHUNK) {
         const chunk = rows.slice(i, i + CHUNK);
-        const { error } = await supabase.from("enrichment_queue").upsert(chunk, { onConflict: "listing_id" });
+        const { error } = await supabase
+          .from('enrichment_queue')
+          .upsert(chunk, { onConflict: 'listing_id' });
         if (error) {
           // Queue upsert error — toast shown to user
-          sonnerToast.error("Failed to queue enrichment");
-          if (activityItem) completeOperation.mutate({ id: activityItem.id, finalStatus: "failed" });
+          sonnerToast.error('Failed to queue enrichment');
+          if (activityItem)
+            completeOperation.mutate({ id: activityItem.id, finalStatus: 'failed' });
           setIsEnriching(false);
           return;
         }
@@ -383,99 +454,112 @@ export function useGPPartnerDeals() {
       setSelectedIds(new Set());
 
       try {
-        const { data: result, error: resultError } = await supabase.functions
-          .invoke("process-enrichment-queue", { body: { source: "gp_partners_selected" } });
+        const { data: result, error: resultError } = await supabase.functions.invoke(
+          'process-enrichment-queue',
+          { body: { source: 'gp_partners_selected' } },
+        );
         if (resultError) throw resultError;
         if (result?.synced > 0 || result?.processed > 0) {
           const totalDone = (result?.synced || 0) + (result?.processed || 0);
-          if (activityItem) updateProgress.mutate({ id: activityItem.id, completedItems: totalDone });
+          if (activityItem)
+            updateProgress.mutate({ id: activityItem.id, completedItems: totalDone });
         }
-      } catch { /* Non-blocking */ }
+      } catch {
+        /* Non-blocking */
+      }
 
       setIsEnriching(false);
-      queryClient.invalidateQueries({ queryKey: ["remarketing", "gp-partner-deals"] });
+      queryClient.invalidateQueries({ queryKey: ['remarketing', 'gp-partner-deals'] });
     },
-    [user, startOrQueueMajorOp, completeOperation, updateProgress, queryClient]
+    [user, startOrQueueMajorOp, completeOperation, updateProgress, queryClient],
   );
 
   // Add single deal
   const handleAddDeal = useCallback(async () => {
-    if (!newDeal.company_name.trim()) { sonnerToast.error("Company name is required"); return; }
+    if (!newDeal.company_name.trim()) {
+      sonnerToast.error('Company name is required');
+      return;
+    }
     setIsAddingDeal(true);
 
     let website = newDeal.website.trim();
-    if (website && !website.startsWith("http://") && !website.startsWith("https://")) {
+    if (website && !website.startsWith('http://') && !website.startsWith('https://')) {
       website = `https://${website}`;
     }
 
-    const { data, error } = await supabase
-      .from("listings")
-      .insert({
-        title: newDeal.company_name.trim(),
-        internal_company_name: newDeal.company_name.trim(),
-        website: website || null,
-        main_contact_name: newDeal.contact_name.trim() || null,
-        main_contact_email: newDeal.contact_email.trim() || null,
-        main_contact_phone: newDeal.contact_phone.trim() || null,
-        main_contact_title: newDeal.contact_title.trim() || null,
-        industry: newDeal.industry.trim() || null,
-        description: newDeal.description.trim() || null,
-        location: newDeal.location.trim() || null,
-        revenue: newDeal.revenue ? parseFloat(newDeal.revenue) : null,
-        ebitda: newDeal.ebitda ? parseFloat(newDeal.ebitda) : null,
-        deal_source: "gp_partners",
-        status: "active",
-        is_internal_deal: true,
-        pushed_to_all_deals: false,
-      } as never)
-      .select("id")
-      .single();
+    const { error } = await supabase.from('listings').insert({
+      title: newDeal.company_name.trim(),
+      internal_company_name: newDeal.company_name.trim(),
+      website: website || null,
+      main_contact_name: newDeal.contact_name.trim() || null,
+      main_contact_email: newDeal.contact_email.trim() || null,
+      main_contact_phone: newDeal.contact_phone.trim() || null,
+      main_contact_title: newDeal.contact_title.trim() || null,
+      industry: newDeal.industry.trim() || null,
+      description: newDeal.description.trim() || null,
+      location: newDeal.location.trim() || null,
+      revenue: newDeal.revenue ? parseFloat(newDeal.revenue) : null,
+      ebitda: newDeal.ebitda ? parseFloat(newDeal.ebitda) : null,
+      deal_source: 'gp_partners',
+      status: 'active',
+      is_internal_deal: true,
+      pushed_to_all_deals: false,
+    } as never);
 
     setIsAddingDeal(false);
     if (error) {
       sonnerToast.error(`Failed to add deal: ${error.message}`);
     } else {
-      sonnerToast.success("Deal added successfully");
+      sonnerToast.success('Deal added successfully');
       setAddDealOpen(false);
       setNewDeal(EMPTY_NEW_DEAL);
-      queryClient.invalidateQueries({ queryKey: ["remarketing", "gp-partner-deals"] });
-      if (website && data?.id) {
-        try {
-          await supabase.from("enrichment_queue").upsert({
-            listing_id: data.id, status: "pending", attempts: 0, queued_at: new Date().toISOString(),
-          }, { onConflict: "listing_id" });
-          await supabase.functions.invoke("process-enrichment-queue", { body: { source: "gp_partners_add" } });
-        } catch { /* Non-blocking */ }
-      }
+      queryClient.invalidateQueries({ queryKey: ['remarketing', 'gp-partner-deals'] });
     }
   }, [newDeal, queryClient]);
 
   const handleImportComplete = useCallback(() => {
-    queryClient.invalidateQueries({ queryKey: ["remarketing", "gp-partner-deals"] });
-    queryClient.invalidateQueries({ queryKey: ["remarketing", "deals"] });
+    queryClient.invalidateQueries({ queryKey: ['remarketing', 'gp-partner-deals'] });
+    queryClient.invalidateQueries({ queryKey: ['remarketing', 'deals'] });
     setCsvUploadOpen(false);
   }, [queryClient]);
 
   // Assign deal owner
-  const handleAssignOwner = useCallback(async (dealId: string, ownerId: string | null) => {
-    const ownerProfile = ownerId && adminProfiles ? adminProfiles[ownerId] : null;
-    queryClient.setQueryData(["remarketing", "gp-partner-deals"], (old: GPPartnerDeal[] | undefined) =>
-      old?.map(deal =>
-        deal.id === dealId ? {
-          ...deal,
-          deal_owner_id: ownerId,
-          deal_owner: ownerProfile ? { id: ownerProfile.id, first_name: ownerProfile.first_name, last_name: ownerProfile.last_name, email: ownerProfile.email } : null,
-        } : deal
-      )
-    );
-    const { error } = await supabase.from('listings').update({ deal_owner_id: ownerId }).eq('id', dealId);
-    if (error) {
-      queryClient.invalidateQueries({ queryKey: ["remarketing", "gp-partner-deals"] });
-      sonnerToast.error("Failed to update deal owner");
-      return;
-    }
-    sonnerToast.success(ownerId ? "Owner assigned" : "Owner removed");
-  }, [adminProfiles, queryClient]);
+  const handleAssignOwner = useCallback(
+    async (dealId: string, ownerId: string | null) => {
+      const ownerProfile = ownerId && adminProfiles ? adminProfiles[ownerId] : null;
+      queryClient.setQueryData(
+        ['remarketing', 'gp-partner-deals'],
+        (old: GPPartnerDeal[] | undefined) =>
+          old?.map((deal) =>
+            deal.id === dealId
+              ? {
+                  ...deal,
+                  deal_owner_id: ownerId,
+                  deal_owner: ownerProfile
+                    ? {
+                        id: ownerProfile.id,
+                        first_name: ownerProfile.first_name,
+                        last_name: ownerProfile.last_name,
+                        email: ownerProfile.email,
+                      }
+                    : null,
+                }
+              : deal,
+          ),
+      );
+      const { error } = await supabase
+        .from('listings')
+        .update({ deal_owner_id: ownerId })
+        .eq('id', dealId);
+      if (error) {
+        queryClient.invalidateQueries({ queryKey: ['remarketing', 'gp-partner-deals'] });
+        sonnerToast.error('Failed to update deal owner');
+        return;
+      }
+      sonnerToast.success(ownerId ? 'Owner assigned' : 'Owner removed');
+    },
+    [adminProfiles, queryClient],
+  );
 
   // KPI Stats
   const dateFilteredDeals = useMemo(() => {
@@ -489,7 +573,10 @@ export function useGPPartnerDeals() {
     let totalScore = 0;
     let scoredDeals = 0;
     dateFilteredDeals.forEach((d) => {
-      if (d.deal_total_score != null) { totalScore += d.deal_total_score; scoredDeals++; }
+      if (d.deal_total_score != null) {
+        totalScore += d.deal_total_score;
+        scoredDeals++;
+      }
     });
     const avgScore = scoredDeals > 0 ? Math.round(totalScore / scoredDeals) : 0;
     const needsScoring = dateFilteredDeals.filter((d) => d.deal_total_score == null).length;
@@ -503,34 +590,72 @@ export function useGPPartnerDeals() {
 
   return {
     // Data
-    deals, filteredDeals, paginatedDeals, isLoading,
+    deals,
+    filteredDeals,
+    paginatedDeals,
+    isLoading,
     // Filter state
-    filterState, setFilterState, dynamicOptions, filteredCount, engineTotal,
-    timeframe, setTimeframe,
+    filterState,
+    setFilterState,
+    dynamicOptions,
+    filteredCount,
+    engineTotal,
+    timeframe,
+    setTimeframe,
     // Sort
-    sortColumn, sortDirection, handleSort,
+    sortColumn,
+    sortDirection,
+    handleSort,
     // Pagination
-    PAGE_SIZE, safePage, totalPages, currentPage, setCurrentPage,
+    PAGE_SIZE,
+    safePage,
+    totalPages,
+    currentPage,
+    setCurrentPage,
     // Selection
-    selectedIds, setSelectedIds, allSelected, toggleSelectAll, toggleSelect,
+    selectedIds,
+    setSelectedIds,
+    allSelected,
+    toggleSelectAll,
+    toggleSelect,
     // Hide pushed
-    hidePushed, setHidePushed,
+    hidePushed,
+    setHidePushed,
     // Action states
-    isPushing, isEnriching, isScoring,
+    isPushing,
+    isEnriching,
+    isScoring,
     // Handlers
-    handlePushToAllDeals, handleBulkEnrich, handleBulkScore,
-    handleEnrichSelected, handleAddDeal, handleImportComplete, handleAssignOwner,
+    handlePushToAllDeals,
+    handleBulkEnrich,
+    handleBulkScore,
+    handleEnrichSelected,
+    handleAddDeal,
+    handleImportComplete,
+    handleAssignOwner,
     // Add deal
-    addDealOpen, setAddDealOpen, isAddingDeal, newDeal, setNewDeal,
+    addDealOpen,
+    setAddDealOpen,
+    isAddingDeal,
+    newDeal,
+    setNewDeal,
     // CSV
-    csvUploadOpen, setCsvUploadOpen,
+    csvUploadOpen,
+    setCsvUploadOpen,
     // Stats
-    kpiStats, totalDeals, unpushedCount, enrichedCount, scoredCount,
+    kpiStats,
+    totalDeals,
+    unpushedCount,
+    enrichedCount,
+    scoredCount,
     // Enrichment progress
-    enrichmentProgress, cancelEnrichment,
+    enrichmentProgress,
+    cancelEnrichment,
     // Admin profiles
     adminProfiles,
     // Refetch & query client
-    refetch, queryClient, toast,
+    refetch,
+    queryClient,
+    toast,
   };
 }

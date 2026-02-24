@@ -1,12 +1,12 @@
-import { useState, useCallback } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { ColumnMappingStep } from "./csv-import/ColumnMappingStep";
-import { Label } from "@/components/ui/label";
-import { Progress } from "@/components/ui/progress";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import { useState, useCallback } from 'react';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { ColumnMappingStep } from './csv-import/ColumnMappingStep';
+import { Label } from '@/components/ui/label';
+import { Progress } from '@/components/ui/progress';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import {
   Table,
   TableBody,
@@ -14,17 +14,11 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table";
-import {
-  Upload,
-  FileSpreadsheet,
-  Loader2,
-  Check,
-  AlertCircle,
-} from "lucide-react";
-import { toast } from "sonner";
-import Papa from "papaparse";
-import { normalizeDomain } from "@/lib/ma-intelligence/normalizeDomain";
+} from '@/components/ui/table';
+import { Upload, FileSpreadsheet, Loader2, Check, AlertCircle } from 'lucide-react';
+import { toast } from 'sonner';
+import Papa from 'papaparse';
+import { normalizeDomain } from '@/lib/ma-intelligence/normalizeDomain';
 
 // Import from unified import engine
 import {
@@ -34,7 +28,7 @@ import {
   normalizeHeader,
   mergeColumnMappings,
   sanitizeListingInsert,
-} from "@/lib/deal-csv-import";
+} from '@/lib/deal-csv-import';
 
 export interface DealCSVImportProps {
   open?: boolean;
@@ -44,7 +38,7 @@ export interface DealCSVImportProps {
   onImportComplete?: () => void;
 }
 
-type ImportStep = "upload" | "mapping" | "preview" | "importing" | "complete";
+type ImportStep = 'upload' | 'mapping' | 'preview' | 'importing' | 'complete';
 
 export const DealCSVImport = ({
   universeId,
@@ -52,7 +46,7 @@ export const DealCSVImport = ({
   onImportComplete,
 }: DealCSVImportProps) => {
   const queryClient = useQueryClient();
-  const [step, setStep] = useState<ImportStep>("upload");
+  const [step, setStep] = useState<ImportStep>('upload');
   const [, setFile] = useState<File | null>(null);
   const [csvData, setCsvData] = useState<Record<string, string>[]>([]);
   const [columnMappings, setColumnMappings] = useState<ColumnMapping[]>([]);
@@ -74,7 +68,7 @@ export const DealCSVImport = ({
       header: true,
       skipEmptyLines: true,
       // Normalize headers (strip BOM + trim) so mapping + row access works reliably
-      transformHeader: (header) => header.replace(/^\uFEFF/, "").trim(),
+      transformHeader: (header) => header.replace(/^\uFEFF/, '').trim(),
       complete: async (results) => {
         const data = results.data as Record<string, string>[];
         setCsvData(data);
@@ -83,32 +77,32 @@ export const DealCSVImport = ({
         // Prefer PapaParse meta.fields. If it comes back empty (encoding/format edge cases),
         // fall back to keys on the first parsed row.
         const metaColumns = (results.meta.fields || [])
-          .map((c) => (c ? normalizeHeader(c) : ""))
+          .map((c) => (c ? normalizeHeader(c) : ''))
           .filter((c) => c.trim());
 
         const fallbackColumns = Object.keys(data?.[0] || {})
-          .map((c) => (c ? normalizeHeader(c) : ""))
+          .map((c) => (c ? normalizeHeader(c) : ''))
           .filter((c) => c.trim());
 
         const columns = metaColumns.length > 0 ? metaColumns : fallbackColumns;
 
         if (columns.length === 0) {
           toast.error('Could not detect CSV headers', {
-            description: 'Please verify the file has a header row and is a valid CSV.'
+            description: 'Please verify the file has a header row and is a valid CSV.',
           });
           reset();
           return;
         }
-        
+
         // Try AI mapping
         setIsMapping(true);
         try {
           const { data: mappingResult, error } = await supabase.functions.invoke(
-            "map-csv-columns",
+            'map-csv-columns',
             {
               // Pass a few sample rows to improve mapping quality (disambiguates similar headers)
-              body: { columns, targetType: "deal", sampleData: data.slice(0, 3) },
-            }
+              body: { columns, targetType: 'deal', sampleData: data.slice(0, 3) },
+            },
           );
 
           if (error) throw error;
@@ -116,7 +110,7 @@ export const DealCSVImport = ({
           // CRITICAL: Merge AI mappings with full column list
           // This ensures all parsed columns are visible even if AI returns partial list
           const [merged, stats] = mergeColumnMappings(columns, mappingResult?.mappings);
-          
+
           setColumnMappings(merged);
           setMappingStats(stats);
         } catch (error) {
@@ -127,7 +121,7 @@ export const DealCSVImport = ({
           setMappingStats(stats);
         } finally {
           setIsMapping(false);
-          setStep("mapping");
+          setStep('mapping');
         }
       },
       error: (error) => {
@@ -138,17 +132,16 @@ export const DealCSVImport = ({
 
   const updateMapping = (csvColumn: string, targetField: string | null) => {
     setColumnMappings((prev) =>
-      prev.map((m) =>
-        m.csvColumn === csvColumn
-          ? { ...m, targetField, aiSuggested: false }
-          : m
-      )
+      prev.map((m) => (m.csvColumn === csvColumn ? { ...m, targetField, aiSuggested: false } : m)),
     );
   };
 
   const importMutation = useMutation({
     mutationFn: async () => {
-      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      const {
+        data: { user },
+        error: authError,
+      } = await supabase.auth.getUser();
       if (authError) throw authError;
       const results = { imported: 0, errors: [] as string[] };
 
@@ -159,45 +152,52 @@ export const DealCSVImport = ({
         try {
           // Build listing object dynamically - use Record to support all mapped fields
           const listingData: Record<string, unknown> = {
-            status: "active",
-            category: "Other",
+            status: 'active',
+            category: 'Other',
             is_internal_deal: true, // Mark as internal/research deal - not for marketplace
             // Required field defaults
-            description: "",
+            description: '',
             revenue: 0,
             ebitda: 0,
-            location: "Unknown",
+            location: 'Unknown',
           };
 
           // Numeric fields that need parsing
-          const numericFields = ["revenue", "ebitda", "full_time_employees", "number_of_locations", "google_review_count", "google_rating"];
+          const numericFields = [
+            'revenue',
+            'ebitda',
+            'full_time_employees',
+            'number_of_locations',
+            'google_review_count',
+            'google_rating',
+          ];
           // Array fields that need splitting
-          const arrayFields = ["geographic_states", "services"];
+          const arrayFields = ['geographic_states', 'services'];
 
           columnMappings.forEach((mapping) => {
             if (!mapping.targetField) return;
-            
+
             // Get the value - handle potential whitespace in column names
             const csvColumn = mapping.csvColumn;
             let value = row[csvColumn];
-            
+
             // If direct access fails, try finding by trimmed key
             if (value === undefined) {
               const rowKeys = Object.keys(row);
-              const matchingKey = rowKeys.find(k => k.trim() === csvColumn.trim());
+              const matchingKey = rowKeys.find((k) => k.trim() === csvColumn.trim());
               if (matchingKey) {
                 value = row[matchingKey];
               }
             }
-            
+
             if (!value || typeof value !== 'string') return;
-            
+
             const trimmedValue = value.trim();
             if (!trimmedValue) return;
-            
+
             if (numericFields.includes(mapping.targetField)) {
               // Parse numeric values (remove $, commas, M/K suffixes, etc.)
-              let numStr = trimmedValue.replace(/[$,]/g, "");
+              let numStr = trimmedValue.replace(/[$,]/g, '');
               let multiplier = 1;
               if (numStr.toUpperCase().endsWith('M')) {
                 multiplier = 1000000;
@@ -212,25 +212,32 @@ export const DealCSVImport = ({
               }
             } else if (arrayFields.includes(mapping.targetField)) {
               // Parse as array
-              listingData[mapping.targetField] = trimmedValue.split(/[,;]/).map((s: string) => s.trim()).filter(Boolean);
-            } else if (mapping.targetField === "address") {
+              listingData[mapping.targetField] = trimmedValue
+                .split(/[,;]/)
+                .map((s: string) => s.trim())
+                .filter(Boolean);
+            } else if (mapping.targetField === 'address') {
               // Full address field - parse out street, city, state, zip
               listingData.address = trimmedValue;
-              
+
               // Try to extract city/state from multi-line or comma-separated address
               // Format examples:
               // "23 Westbrook Industrial Park Rd., Westbrook, CT 06498"
               // "23 Main St\n1961 Foxon Rd, North Branford, CT 06471"
-              const lines = trimmedValue.split(/[\n\r]+/).map(l => l.trim()).filter(Boolean);
+              const lines = trimmedValue
+                .split(/[\n\r]+/)
+                .map((l) => l.trim())
+                .filter(Boolean);
               const lastLine = lines[lines.length - 1] || trimmedValue;
-              
+
               // Try to parse "City, ST ZIP" or "City, ST" pattern from end
               const cityStateZipMatch = lastLine.match(/([^,]+),\s*([A-Z]{2})\s*(\d{5})?/i);
               if (cityStateZipMatch) {
                 // Extract just the city (last part before state might be street)
                 const potentialCity = cityStateZipMatch[1].trim();
                 // If city contains street indicators, try to get just the city name
-                const streetIndicators = /\b(rd\.?|road|st\.?|street|ave\.?|avenue|blvd\.?|boulevard|ln\.?|lane|dr\.?|drive|ct\.?|court|pl\.?|place|way|pkwy|park)\b/i;
+                const streetIndicators =
+                  /\b(rd\.?|road|st\.?|street|ave\.?|avenue|blvd\.?|boulevard|ln\.?|lane|dr\.?|drive|ct\.?|court|pl\.?|place|way|pkwy|park)\b/i;
                 if (!streetIndicators.test(potentialCity)) {
                   if (!listingData.address_city) {
                     listingData.address_city = potentialCity;
@@ -243,7 +250,7 @@ export const DealCSVImport = ({
                   listingData.address_zip = cityStateZipMatch[3];
                 }
               }
-            } else if (mapping.targetField === "address_state") {
+            } else if (mapping.targetField === 'address_state') {
               // Validate and uppercase state code
               const stateCode = trimmedValue.toUpperCase().trim();
               if (stateCode.length === 2) {
@@ -255,11 +262,11 @@ export const DealCSVImport = ({
                   listingData.address_state = stateMatch[1].toUpperCase();
                 }
               }
-            } else if (mapping.targetField === "address_country") {
+            } else if (mapping.targetField === 'address_country') {
               // Default to US if not specified
               const country = trimmedValue.toUpperCase().trim();
-              listingData.address_country = country === "CA" || country === "CANADA" ? "CA" : "US";
-            } else if (mapping.targetField === "last_contacted_at") {
+              listingData.address_country = country === 'CA' || country === 'CANADA' ? 'CA' : 'US';
+            } else if (mapping.targetField === 'last_contacted_at') {
               // Parse date
               const date = new Date(trimmedValue);
               if (!isNaN(date.getTime())) {
@@ -272,8 +279,11 @@ export const DealCSVImport = ({
           });
 
           // Set default country if we have address fields but no country
-          if ((listingData.address_city || listingData.address_state) && !listingData.address_country) {
-            listingData.address_country = "US";
+          if (
+            (listingData.address_city || listingData.address_state) &&
+            !listingData.address_country
+          ) {
+            listingData.address_country = 'US';
           }
 
           // Must have a title
@@ -285,9 +295,12 @@ export const DealCSVImport = ({
           // listings.location is NOT NULL in schema; set a safe default.
           // Prefer structured internal city/state; fall back to other known fields.
           if (!listingData.location) {
-            const city = typeof listingData.address_city === 'string' ? listingData.address_city : '';
-            const state = typeof listingData.address_state === 'string' ? listingData.address_state : '';
-            const computedLocation = city && state ? `${city}, ${state}` : state || city || 'Unknown';
+            const city =
+              typeof listingData.address_city === 'string' ? listingData.address_city : '';
+            const state =
+              typeof listingData.address_state === 'string' ? listingData.address_state : '';
+            const computedLocation =
+              city && state ? `${city}, ${state}` : state || city || 'Unknown';
             listingData.location = computedLocation;
           }
 
@@ -303,22 +316,20 @@ export const DealCSVImport = ({
 
           // Create listing - use any to bypass strict typing
           const { data: listing, error: listingError } = await supabase
-            .from("listings")
+            .from('listings')
             .insert(sanitized as never)
-            .select("id")
+            .select('id')
             .single();
 
           if (listingError) throw listingError;
 
           // Link to universe
-          const { error: linkError } = await supabase
-            .from("remarketing_universe_deals")
-            .insert({
-              universe_id: universeId,
-              listing_id: listing.id,
-              added_by: user?.id,
-              status: "active",
-            });
+          const { error: linkError } = await supabase.from('remarketing_universe_deals').insert({
+            universe_id: universeId,
+            listing_id: listing.id,
+            added_by: user?.id,
+            status: 'active',
+          });
 
           if (linkError) throw linkError;
 
@@ -332,39 +343,26 @@ export const DealCSVImport = ({
     },
     onSuccess: async (results) => {
       setImportResults(results);
-      setStep("complete");
-      queryClient.invalidateQueries({ queryKey: ["remarketing", "universe-deals", universeId] });
-      queryClient.invalidateQueries({ queryKey: ["listings"] });
-      
-      // Trigger background enrichment for all imported deals
-      if (results.imported > 0) {
-        toast.info(`Triggering AI enrichment for ${results.imported} deals...`);
-        // The database trigger has already queued these, but we can also trigger the processor
-        supabase.functions.invoke("process-enrichment-queue", {
-          body: {},
-        }).then(({ error }) => {
-          if (error) {
-            // Enrichment queue processing error — non-blocking
-          }
-        });
-      }
-      
+      setStep('complete');
+      queryClient.invalidateQueries({ queryKey: ['remarketing', 'universe-deals', universeId] });
+      queryClient.invalidateQueries({ queryKey: ['listings'] });
+
       onImportComplete?.();
     },
     onError: (error) => {
       toast.error(`Import failed: ${(error as Error).message}`);
-      setStep("preview");
+      setStep('preview');
     },
   });
 
   const startImport = () => {
-    setStep("importing");
+    setStep('importing');
     setImportProgress(0);
     importMutation.mutate();
   };
 
   const reset = () => {
-    setStep("upload");
+    setStep('upload');
     setFile(null);
     setCsvData([]);
     setColumnMappings([]);
@@ -375,148 +373,147 @@ export const DealCSVImport = ({
 
   return (
     <div className="space-y-4">
-
-        {/* Step: Upload */}
-        {step === "upload" && (
-          <div className="flex-1 flex flex-col items-center justify-center py-12">
-            <div className="border-2 border-dashed rounded-lg p-12 text-center w-full">
-              <FileSpreadsheet className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-              <p className="text-lg font-medium mb-2">Upload CSV File</p>
-              <p className="text-sm text-muted-foreground mb-4">
-                Drag and drop or click to browse
-              </p>
-              <Label htmlFor="csv-upload" className="cursor-pointer">
-                <Input
-                  id="csv-upload"
-                  type="file"
-                  accept=".csv"
-                  onChange={handleFileUpload}
-                  className="hidden"
-                />
-                <Button asChild>
-                  <span>
-                    <Upload className="h-4 w-4 mr-2" />
-                    Select File
-                  </span>
-                </Button>
-              </Label>
-            </div>
+      {/* Step: Upload */}
+      {step === 'upload' && (
+        <div className="flex-1 flex flex-col items-center justify-center py-12">
+          <div className="border-2 border-dashed rounded-lg p-12 text-center w-full">
+            <FileSpreadsheet className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+            <p className="text-lg font-medium mb-2">Upload CSV File</p>
+            <p className="text-sm text-muted-foreground mb-4">Drag and drop or click to browse</p>
+            <Label htmlFor="csv-upload" className="cursor-pointer">
+              <Input
+                id="csv-upload"
+                type="file"
+                accept=".csv"
+                onChange={handleFileUpload}
+                className="hidden"
+              />
+              <Button asChild>
+                <span>
+                  <Upload className="h-4 w-4 mr-2" />
+                  Select File
+                </span>
+              </Button>
+            </Label>
           </div>
-        )}
+        </div>
+      )}
 
-        {/* Step: Column Mapping */}
-        {step === "mapping" && (
-          <div className="flex-1 flex flex-col min-h-0">
-            <ColumnMappingStep
-              csvData={csvData}
-              columnMappings={columnMappings}
-              mappingStats={mappingStats}
-              isMapping={isMapping}
-              onUpdateMapping={updateMapping}
-              onBack={reset}
-              onNext={() => setStep("preview")}
-            />
+      {/* Step: Column Mapping */}
+      {step === 'mapping' && (
+        <div className="flex-1 flex flex-col min-h-0">
+          <ColumnMappingStep
+            csvData={csvData}
+            columnMappings={columnMappings}
+            mappingStats={mappingStats}
+            isMapping={isMapping}
+            onUpdateMapping={updateMapping}
+            onBack={reset}
+            onNext={() => setStep('preview')}
+          />
+        </div>
+      )}
+
+      {/* Step: Preview */}
+      {step === 'preview' && (
+        <div className="flex-1 flex flex-col min-h-0">
+          <div className="mb-4">
+            <p className="font-medium">Ready to import {csvData.length} deals</p>
+            <p className="text-sm text-muted-foreground">
+              Mapped fields:{' '}
+              {columnMappings
+                .filter((m) => m.targetField)
+                .map((m) => DEAL_IMPORT_FIELDS.find((f) => f.value === m.targetField)?.label)
+                .join(', ')}
+            </p>
           </div>
-        )}
 
-        {/* Step: Preview */}
-        {step === "preview" && (
-          <div className="flex-1 flex flex-col min-h-0">
-            <div className="mb-4">
-              <p className="font-medium">Ready to import {csvData.length} deals</p>
-              <p className="text-sm text-muted-foreground">
-                Mapped fields: {columnMappings.filter((m) => m.targetField).map((m) => 
-                  DEAL_IMPORT_FIELDS.find((f) => f.value === m.targetField)?.label
-                ).join(", ")}
-              </p>
-            </div>
-
-            <ScrollArea className="flex-1 border rounded-lg">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>#</TableHead>
+          <ScrollArea className="flex-1 border rounded-lg">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>#</TableHead>
+                  {columnMappings
+                    .filter((m) => m.targetField)
+                    .map((m) => (
+                      <TableHead key={m.csvColumn}>
+                        {DEAL_IMPORT_FIELDS.find((f) => f.value === m.targetField)?.label}
+                      </TableHead>
+                    ))}
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {csvData.slice(0, 10).map((row, i) => (
+                  <TableRow key={`row-${i}`}>
+                    <TableCell className="text-muted-foreground">{i + 1}</TableCell>
                     {columnMappings
                       .filter((m) => m.targetField)
                       .map((m) => (
-                        <TableHead key={m.csvColumn}>
-                          {DEAL_IMPORT_FIELDS.find((f) => f.value === m.targetField)?.label}
-                        </TableHead>
+                        <TableCell key={m.csvColumn} className="max-w-[150px] truncate">
+                          {row[m.csvColumn] || '—'}
+                        </TableCell>
                       ))}
                   </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {csvData.slice(0, 10).map((row, i) => (
-                    <TableRow key={`row-${i}`}>
-                      <TableCell className="text-muted-foreground">{i + 1}</TableCell>
-                      {columnMappings
-                        .filter((m) => m.targetField)
-                        .map((m) => (
-                          <TableCell key={m.csvColumn} className="max-w-[150px] truncate">
-                            {row[m.csvColumn] || "—"}
-                          </TableCell>
-                        ))}
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </ScrollArea>
+                ))}
+              </TableBody>
+            </Table>
+          </ScrollArea>
 
-            {csvData.length > 10 && (
-              <p className="text-sm text-muted-foreground text-center mt-2">
-                Showing 10 of {csvData.length} rows
-              </p>
-            )}
-
-            <div className="pt-4 flex justify-between">
-              <Button variant="outline" onClick={() => setStep("mapping")}>
-                Back
-              </Button>
-              <Button onClick={startImport}>
-                <Upload className="h-4 w-4 mr-2" />
-                Import {csvData.length} Deals
-              </Button>
-            </div>
-          </div>
-        )}
-
-        {/* Step: Importing */}
-        {step === "importing" && (
-          <div className="flex-1 flex flex-col items-center justify-center py-12">
-            <Loader2 className="h-12 w-12 mb-4 text-primary animate-spin" />
-            <p className="font-medium mb-2">Importing deals...</p>
-            <Progress value={importProgress} className="w-64 mb-2" />
-            <p className="text-sm text-muted-foreground">{importProgress}% complete</p>
-          </div>
-        )}
-
-        {/* Step: Complete */}
-        {step === "complete" && importResults && (
-          <div className="flex-1 flex flex-col items-center justify-center py-12">
-            {importResults.errors.length === 0 ? (
-              <Check className="h-12 w-12 mb-4 text-primary" />
-            ) : (
-              <AlertCircle className="h-12 w-12 mb-4 text-destructive" />
-            )}
-            <p className="font-medium mb-2">
-              Imported {importResults.imported} of {csvData.length} deals
+          {csvData.length > 10 && (
+            <p className="text-sm text-muted-foreground text-center mt-2">
+              Showing 10 of {csvData.length} rows
             </p>
+          )}
 
-            {importResults.errors.length > 0 && (
-              <ScrollArea className="max-h-32 w-full border rounded-lg p-4 mt-4">
-                <div className="space-y-1 text-sm text-destructive">
-                  {importResults.errors.map((error) => (
-                    <p key={error}>{error}</p>
-                  ))}
-                </div>
-              </ScrollArea>
-            )}
-
-            <Button onClick={reset} className="mt-6">
-              Import More
+          <div className="pt-4 flex justify-between">
+            <Button variant="outline" onClick={() => setStep('mapping')}>
+              Back
+            </Button>
+            <Button onClick={startImport}>
+              <Upload className="h-4 w-4 mr-2" />
+              Import {csvData.length} Deals
             </Button>
           </div>
-        )}
+        </div>
+      )}
+
+      {/* Step: Importing */}
+      {step === 'importing' && (
+        <div className="flex-1 flex flex-col items-center justify-center py-12">
+          <Loader2 className="h-12 w-12 mb-4 text-primary animate-spin" />
+          <p className="font-medium mb-2">Importing deals...</p>
+          <Progress value={importProgress} className="w-64 mb-2" />
+          <p className="text-sm text-muted-foreground">{importProgress}% complete</p>
+        </div>
+      )}
+
+      {/* Step: Complete */}
+      {step === 'complete' && importResults && (
+        <div className="flex-1 flex flex-col items-center justify-center py-12">
+          {importResults.errors.length === 0 ? (
+            <Check className="h-12 w-12 mb-4 text-primary" />
+          ) : (
+            <AlertCircle className="h-12 w-12 mb-4 text-destructive" />
+          )}
+          <p className="font-medium mb-2">
+            Imported {importResults.imported} of {csvData.length} deals
+          </p>
+
+          {importResults.errors.length > 0 && (
+            <ScrollArea className="max-h-32 w-full border rounded-lg p-4 mt-4">
+              <div className="space-y-1 text-sm text-destructive">
+                {importResults.errors.map((error) => (
+                  <p key={error}>{error}</p>
+                ))}
+              </div>
+            </ScrollArea>
+          )}
+
+          <Button onClick={reset} className="mt-6">
+            Import More
+          </Button>
+        </div>
+      )}
     </div>
   );
 };
