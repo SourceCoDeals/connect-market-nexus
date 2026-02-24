@@ -185,20 +185,31 @@ const ReMarketingBuyerDetail = () => {
     enabled: !!buyer?.pe_firm_name,
   });
 
-  // Fetch contacts
+  // Fetch contacts from unified contacts table
   const { data: contacts = [] } = useQuery({
     queryKey: ['remarketing', 'contacts', id],
     queryFn: async () => {
       if (isNew) return [];
-      
+
       const { data, error } = await supabase
-        .from('remarketing_buyer_contacts')
-        .select('*')
-        .eq('buyer_id', id!)
-        .order('is_primary', { ascending: false });
-      
+        .from('contacts')
+        .select('id, first_name, last_name, email, phone, linkedin_url, title, is_primary_at_firm')
+        .eq('remarketing_buyer_id', id!)
+        .eq('contact_type', 'buyer')
+        .eq('archived', false)
+        .order('is_primary_at_firm', { ascending: false });
+
       if (error) throw error;
-      return (data || []) as Contact[];
+      return (data || []).map((c) => ({
+        id: c.id,
+        name: `${c.first_name || ''} ${c.last_name || ''}`.trim() || 'Unknown',
+        email: c.email,
+        phone: c.phone,
+        role: c.title,
+        linkedin_url: c.linkedin_url,
+        company_type: null,
+        is_primary: c.is_primary_at_firm,
+      })) as Contact[];
     },
     enabled: !isNew
   });
@@ -368,9 +379,25 @@ const ReMarketingBuyerDetail = () => {
 
   const addContactMutation = useMutation({
     mutationFn: async () => {
+      const nameParts = newContact.name.trim().split(/\s+/);
+      const firstName = nameParts[0] || 'Unknown';
+      const lastName = nameParts.slice(1).join(' ') || '';
+
       const { error } = await supabase
-        .from('remarketing_buyer_contacts')
-        .insert([{ ...newContact, buyer_id: id! }]);
+        .from('contacts')
+        .insert([{
+          first_name: firstName,
+          last_name: lastName,
+          email: newContact.email || null,
+          phone: newContact.phone || null,
+          title: newContact.role || null,
+          linkedin_url: newContact.linkedin_url || null,
+          is_primary_at_firm: newContact.is_primary,
+          contact_type: 'buyer' as const,
+          remarketing_buyer_id: id!,
+          firm_id: buyer?.marketplace_firm_id ?? null,
+          source: 'remarketing_manual',
+        }]);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -387,8 +414,8 @@ const ReMarketingBuyerDetail = () => {
   const deleteContactMutation = useMutation({
     mutationFn: async (contactId: string) => {
       const { error } = await supabase
-        .from('remarketing_buyer_contacts')
-        .delete()
+        .from('contacts')
+        .update({ archived: true, updated_at: new Date().toISOString() })
         .eq('id', contactId);
       if (error) throw error;
     },

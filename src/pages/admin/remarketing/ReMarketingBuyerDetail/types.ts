@@ -46,13 +46,14 @@ export interface BuyerData {
 
 export interface Contact {
   id: string;
-  name: string;
+  name: string; // derived: first_name + ' ' + last_name
+  first_name: string;
+  last_name: string;
   email: string | null;
   phone: string | null;
-  role: string | null;
+  role: string | null; // mapped from title
   linkedin_url: string | null;
-  company_type: string | null;
-  is_primary: boolean | null;
+  is_primary: boolean | null; // mapped from is_primary_at_firm
 }
 
 export interface Transcript {

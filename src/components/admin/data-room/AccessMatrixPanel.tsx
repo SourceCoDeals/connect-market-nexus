@@ -95,19 +95,21 @@ export function AccessMatrixPanel({ dealId, projectName }: AccessMatrixPanelProp
         firmsQuery = firmsQuery.or(`company_name.ilike.%${buyerSearch}%,pe_firm_name.ilike.%${buyerSearch}%`);
       }
 
-      // Fetch individual contacts from remarketing_buyer_contacts
+      // Fetch individual buyer contacts from unified contacts table
       let contactsQuery = supabase
-        .from('remarketing_buyer_contacts')
+        .from('contacts')
         .select(`
-          id, name, email, role,
-          buyer:remarketing_buyers!inner(id, company_name, pe_firm_name, buyer_type, archived)
+          id, first_name, last_name, email, title,
+          buyer:remarketing_buyers!contacts_remarketing_buyer_id_fkey(id, company_name, pe_firm_name, buyer_type, archived)
         `)
-        .eq('buyer.archived', false)
-        .order('name')
+        .eq('contact_type', 'buyer')
+        .eq('archived', false)
+        .not('remarketing_buyer_id', 'is', null)
+        .order('first_name')
         .limit(100);
 
       if (buyerSearch) {
-        contactsQuery = contactsQuery.or(`name.ilike.%${buyerSearch}%,email.ilike.%${buyerSearch}%`);
+        contactsQuery = contactsQuery.or(`first_name.ilike.%${buyerSearch}%,last_name.ilike.%${buyerSearch}%,email.ilike.%${buyerSearch}%`);
       }
 
       const [firmsResult, contactsResult] = await Promise.all([
@@ -141,8 +143,8 @@ export function AccessMatrixPanel({ dealId, projectName }: AccessMatrixPanelProp
       const contacts: UnifiedBuyer[] = (contactsResult.data || []).map((c: any) => ({
         id: `contact:${c.id}`,
         remarketing_buyer_id: c.buyer?.id,
-        display_name: c.name,
-        subtitle: c.role ? `${c.role} at ${c.buyer?.company_name || c.buyer?.pe_firm_name || ''}` : (c.buyer?.company_name || c.buyer?.pe_firm_name || null),
+        display_name: `${c.first_name || ''} ${c.last_name || ''}`.trim() || 'Unknown',
+        subtitle: c.title ? `${c.title} at ${c.buyer?.company_name || c.buyer?.pe_firm_name || ''}` : (c.buyer?.company_name || c.buyer?.pe_firm_name || null),
         buyer_type: c.buyer?.buyer_type || null,
         has_fee_agreement: false,
         entry_type: 'contact' as const,
