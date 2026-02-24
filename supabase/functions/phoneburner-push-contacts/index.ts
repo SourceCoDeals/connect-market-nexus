@@ -478,6 +478,7 @@ Deno.serve(async (req) => {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(pbContact),
+        signal: AbortSignal.timeout(10000),
       });
 
       if (pbRes.ok) {

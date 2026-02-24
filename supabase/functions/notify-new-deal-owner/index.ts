@@ -1,7 +1,7 @@
-import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import { sendViaBervo } from "../_shared/brevo-sender.ts";
+import { serve } from 'https://deno.land/std@0.190.0/http/server.ts';
+import { sendViaBervo } from '../_shared/brevo-sender.ts';
 
-import { getCorsHeaders, corsPreflightResponse } from "../_shared/cors.ts";
+import { getCorsHeaders, corsPreflightResponse } from '../_shared/cors.ts';
 
 interface NewOwnerNotificationRequest {
   dealId: string;
@@ -19,7 +19,7 @@ interface NewOwnerNotificationRequest {
 const handler = async (req: Request): Promise<Response> => {
   const corsHeaders = getCorsHeaders(req);
 
-  if (req.method === "OPTIONS") {
+  if (req.method === 'OPTIONS') {
     return corsPreflightResponse(req);
   }
 
@@ -34,7 +34,7 @@ const handler = async (req: Request): Promise<Response> => {
       buyerName,
       buyerEmail,
       buyerCompany,
-      assignedByName
+      assignedByName,
     }: NewOwnerNotificationRequest = await req.json();
 
     const subject = `✨ New Deal Assigned: ${dealTitle}`;
@@ -59,14 +59,18 @@ const handler = async (req: Request): Promise<Response> => {
         <div style="background: #f8fafc; padding: 24px; border-radius: 8px; margin-bottom: 24px; border: 1px solid #e2e8f0;">
           <h2 style="margin: 0 0 16px 0; color: #0f172a; font-size: 16px; font-weight: 700;">Deal Information</h2>
 
-          ${companyName ? `
+          ${
+            companyName
+              ? `
           <table style="width: 100%; margin-bottom: 12px;">
             <tr>
               <td style="color: #64748b; font-size: 13px; font-weight: 500; padding-right: 16px; vertical-align: top; width: 120px;">Company</td>
               <td style="color: #0f172a; font-size: 14px; font-weight: 600;">${companyName}</td>
             </tr>
           </table>
-          ` : ''}
+          `
+              : ''
+          }
 
           <table style="width: 100%; margin-bottom: 12px;">
             <tr>
@@ -75,16 +79,22 @@ const handler = async (req: Request): Promise<Response> => {
             </tr>
           </table>
 
-          ${listingTitle ? `
+          ${
+            listingTitle
+              ? `
           <table style="width: 100%; margin-bottom: 12px;">
             <tr>
               <td style="color: #64748b; font-size: 13px; font-weight: 500; padding-right: 16px; vertical-align: top; width: 120px;">Listing</td>
               <td style="color: #0f172a; font-size: 14px; font-weight: 600;">${listingTitle}</td>
             </tr>
           </table>
-          ` : ''}
+          `
+              : ''
+          }
 
-          ${buyerName ? `
+          ${
+            buyerName
+              ? `
           <table style="width: 100%; margin-bottom: 12px;">
             <tr>
               <td style="color: #64748b; font-size: 13px; font-weight: 500; padding-right: 16px; vertical-align: top; width: 120px;">Buyer</td>
@@ -94,21 +104,27 @@ const handler = async (req: Request): Promise<Response> => {
               </td>
             </tr>
           </table>
-          ` : ''}
+          `
+              : ''
+          }
 
-          ${buyerCompany ? `
+          ${
+            buyerCompany
+              ? `
           <table style="width: 100%; margin-bottom: 12px;">
             <tr>
               <td style="color: #64748b; font-size: 13px; font-weight: 500; padding-right: 16px; vertical-align: top; width: 120px;">Buyer Company</td>
               <td style="color: #0f172a; font-size: 14px; font-weight: 600;">${buyerCompany}</td>
             </tr>
           </table>
-          ` : ''}
+          `
+              : ''
+          }
         </div>
 
         <!-- CTA Button -->
         <div style="text-align: center; margin-bottom: 32px;">
-          <a href="https://marketplace.sourcecodeals.com/admin/deals/pipeline?deal=${dealId}"
+          <a href="${Deno.env.get('APP_DOMAIN') || 'https://marketplace.sourcecodeals.com'}/admin/deals/pipeline?deal=${dealId}"
              style="background-color: #d7b65c; color: #ffffff; font-size: 14px; font-weight: 600; text-decoration: none; text-align: center; display: inline-block; padding: 12px 32px; border-radius: 6px;">
             View Deal Details
           </a>
@@ -134,7 +150,7 @@ const handler = async (req: Request): Promise<Response> => {
       </div>
     `;
 
-    console.log("Sending new owner notification to:", newOwnerEmail);
+    console.log('Sending new owner notification to:', newOwnerEmail);
 
     const result = await sendViaBervo({
       to: newOwnerEmail,
@@ -144,35 +160,31 @@ const handler = async (req: Request): Promise<Response> => {
     });
 
     if (!result.success) {
-      throw new Error(result.error || "Failed to send email");
+      throw new Error(result.error || 'Failed to send email');
     }
 
-    console.log("Email sent successfully to new owner:", result.messageId);
+    console.log('Email sent successfully to new owner:', result.messageId);
 
-    return new Response(
-      JSON.stringify({ success: true, messageId: result.messageId }),
-      {
-        headers: {
-          ...corsHeaders,
-          "Content-Type": "application/json"
-        }
-      }
-    );
-
+    return new Response(JSON.stringify({ success: true, messageId: result.messageId }), {
+      headers: {
+        ...corsHeaders,
+        'Content-Type': 'application/json',
+      },
+    });
   } catch (error: any) {
-    console.error("Error sending new owner notification:", error);
+    console.error('Error sending new owner notification:', error);
     return new Response(
       JSON.stringify({
         success: false,
-        error: error.message
+        error: error.message,
       }),
       {
         status: 500,
         headers: {
           ...corsHeaders,
-          "Content-Type": "application/json"
-        }
-      }
+          'Content-Type': 'application/json',
+        },
+      },
     );
   }
 };

@@ -630,7 +630,8 @@ async function handleBulkScore(
       .from('remarketing_scores')
       .select('buyer_id')
       .eq('listing_id', listingId)
-      .eq('universe_id', universeId);
+      .eq('universe_id', universeId)
+      .limit(2000);
     const scoredIds = new Set((existingScores || []).map((s: { buyer_id: string }) => s.buyer_id));
     buyersToScore = buyersToScore.filter((b) => !scoredIds.has(b.id));
     if (buyersToScore.length === 0) {

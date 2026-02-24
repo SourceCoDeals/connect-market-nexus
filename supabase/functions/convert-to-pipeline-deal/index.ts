@@ -20,10 +20,10 @@ Deno.serve(async (req: Request) => {
     const authHeader = req.headers.get('Authorization') || '';
     const callerToken = authHeader.replace('Bearer ', '').trim();
     if (!callerToken) {
-      return new Response(
-        JSON.stringify({ error: 'Unauthorized' }),
-        { status: 401, headers: { ...headers, 'Content-Type': 'application/json' } },
-      );
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+        status: 401,
+        headers: { ...headers, 'Content-Type': 'application/json' },
+      });
     }
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
@@ -32,21 +32,24 @@ Deno.serve(async (req: Request) => {
     const callerClient = createClient(supabaseUrl, Deno.env.get('SUPABASE_ANON_KEY')!, {
       global: { headers: { Authorization: `Bearer ${callerToken}` } },
     });
-    const { data: { user: callerUser }, error: callerError } = await callerClient.auth.getUser();
+    const {
+      data: { user: callerUser },
+      error: callerError,
+    } = await callerClient.auth.getUser();
     if (callerError || !callerUser) {
-      return new Response(
-        JSON.stringify({ error: 'Unauthorized' }),
-        { status: 401, headers: { ...headers, 'Content-Type': 'application/json' } },
-      );
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+        status: 401,
+        headers: { ...headers, 'Content-Type': 'application/json' },
+      });
     }
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
     const { data: isAdmin } = await supabase.rpc('is_admin', { _user_id: callerUser.id });
     if (!isAdmin) {
-      return new Response(
-        JSON.stringify({ error: 'Forbidden: admin access required' }),
-        { status: 403, headers: { ...headers, 'Content-Type': 'application/json' } },
-      );
+      return new Response(JSON.stringify({ error: 'Forbidden: admin access required' }), {
+        status: 403,
+        headers: { ...headers, 'Content-Type': 'application/json' },
+      });
     }
     // ── End auth guard ──
 
@@ -54,10 +57,10 @@ Deno.serve(async (req: Request) => {
     const { listing_id, buyer_id, score_id, stage_name } = body;
 
     if (!listing_id || !buyer_id) {
-      return new Response(
-        JSON.stringify({ error: 'listing_id and buyer_id are required' }),
-        { status: 400, headers: { ...headers, 'Content-Type': 'application/json' } },
-      );
+      return new Response(JSON.stringify({ error: 'listing_id and buyer_id are required' }), {
+        status: 400,
+        headers: { ...headers, 'Content-Type': 'application/json' },
+      });
     }
 
     // 1. Check for existing pipeline deal (dedup)
@@ -84,7 +87,9 @@ Deno.serve(async (req: Request) => {
     // 2. Fetch remarketing buyer
     const { data: buyer, error: buyerError } = await supabase
       .from('remarketing_buyers')
-      .select('id, company_name, company_website, buyer_type, email_domain, has_fee_agreement, marketplace_firm_id')
+      .select(
+        'id, company_name, company_website, buyer_type, email_domain, has_fee_agreement, marketplace_firm_id',
+      )
       .eq('id', buyer_id)
       .single();
 
@@ -160,16 +165,16 @@ Deno.serve(async (req: Request) => {
         .eq('is_active', true)
         .order('position', { ascending: true })
         .limit(1)
-        .single();
+        .maybeSingle();
       stageId = firstStage?.id;
       probability = firstStage?.default_probability ?? 50;
     }
 
     if (!stageId) {
-      return new Response(
-        JSON.stringify({ error: 'No active pipeline stages found' }),
-        { status: 500, headers: { ...headers, 'Content-Type': 'application/json' } },
-      );
+      return new Response(JSON.stringify({ error: 'No active pipeline stages found' }), {
+        status: 500,
+        headers: { ...headers, 'Content-Type': 'application/json' },
+      });
     }
 
     // 6. Handle firm identity bridge
@@ -183,7 +188,11 @@ Deno.serve(async (req: Request) => {
           primary_company_name: buyer.company_name,
           normalized_company_name: buyer.company_name?.toLowerCase().trim() || '',
           website_domain: buyer.company_website
-            ? buyer.company_website.replace(/^https?:\/\//, '').replace(/^www\./, '').replace(/[/?#].*$/, '').toLowerCase()
+            ? buyer.company_website
+                .replace(/^https?:\/\//, '')
+                .replace(/^www\./, '')
+                .replace(/[/?#].*$/, '')
+                .toLowerCase()
             : null,
           email_domain: buyer.email_domain || null,
           fee_agreement_signed: buyer.has_fee_agreement || false,
@@ -206,16 +215,14 @@ Deno.serve(async (req: Request) => {
 
         // Create firm member from primary contact
         if (contactInfo?.email) {
-          await supabase
-            .from('firm_members')
-            .insert({
-              firm_id: firmId,
-              member_type: 'lead',
-              lead_email: contactInfo.email,
-              lead_name: contactInfo.name || buyer.company_name,
-              lead_company: buyer.company_name,
-              is_primary_contact: true,
-            });
+          await supabase.from('firm_members').insert({
+            firm_id: firmId,
+            member_type: 'lead',
+            lead_email: contactInfo.email,
+            lead_name: contactInfo.name || buyer.company_name,
+            lead_company: buyer.company_name,
+            is_primary_contact: true,
+          });
         }
       }
     }
@@ -277,7 +284,6 @@ Deno.serve(async (req: Request) => {
       }),
       { status: 200, headers: { ...headers, 'Content-Type': 'application/json' } },
     );
-
   } catch (error) {
     console.error('convert-to-pipeline-deal error:', error);
     return new Response(
