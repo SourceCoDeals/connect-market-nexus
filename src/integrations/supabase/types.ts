@@ -6269,7 +6269,6 @@ export type Database = {
           revenue_model_breakdown: Json | null
           revenue_score: number | null
           revenue_source_quote: string | null
-          scoring_confidence: string | null
           scoring_notes: string | null
           seller_interest_analyzed_at: string | null
           seller_interest_confidence: string | null
@@ -6440,7 +6439,6 @@ export type Database = {
           revenue_model_breakdown?: Json | null
           revenue_score?: number | null
           revenue_source_quote?: string | null
-          scoring_confidence?: string | null
           scoring_notes?: string | null
           seller_interest_analyzed_at?: string | null
           seller_interest_confidence?: string | null
@@ -6611,7 +6609,6 @@ export type Database = {
           revenue_model_breakdown?: Json | null
           revenue_score?: number | null
           revenue_source_quote?: string | null
-          scoring_confidence?: string | null
           scoring_notes?: string | null
           seller_interest_analyzed_at?: string | null
           seller_interest_confidence?: string | null
