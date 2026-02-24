@@ -275,8 +275,14 @@ SELECT
     WHEN EXISTS (
       SELECT 1
       FROM information_schema.table_constraints tc
-      JOIN information_schema.key_column_usage kcu ON tc.constraint_name = kcu.constraint_name
-      JOIN information_schema.constraint_column_usage ccu ON ccu.constraint_name = tc.constraint_name
+      JOIN information_schema.key_column_usage kcu
+        ON tc.constraint_name = kcu.constraint_name
+        AND tc.table_schema = kcu.table_schema
+      JOIN information_schema.referential_constraints rc
+        ON tc.constraint_name = rc.constraint_name
+      JOIN information_schema.constraint_column_usage ccu
+        ON ccu.constraint_name = rc.unique_constraint_name
+        AND ccu.table_schema = tc.table_schema
       WHERE tc.constraint_type = 'FOREIGN KEY'
         AND tc.table_schema = 'public'
         AND tc.table_name = 'docuseal_webhook_log'
@@ -361,46 +367,43 @@ ORDER BY contact_type;
 \echo ''
 \echo '--- 6b. Integrity checks ---'
 
--- Buyers with listing_id (should be 0)
-SELECT
-  '❌ FAIL: buyers with listing_id' AS check_name,
-  COUNT(*) AS count
-FROM public.contacts
-WHERE contact_type = 'buyer' AND listing_id IS NOT NULL AND archived = false
-HAVING COUNT(*) > 0
+WITH integrity_checks AS (
+  SELECT '❌ FAIL: buyers with listing_id' AS check_name,
+    COUNT(*) AS count
+  FROM public.contacts
+  WHERE contact_type = 'buyer' AND listing_id IS NOT NULL AND archived = false
 
+  UNION ALL
+
+  SELECT '❌ FAIL: sellers with remarketing_buyer_id' AS check_name,
+    COUNT(*) AS count
+  FROM public.contacts
+  WHERE contact_type = 'seller' AND remarketing_buyer_id IS NOT NULL AND archived = false
+
+  UNION ALL
+
+  SELECT '❌ FAIL: sellers without listing_id' AS check_name,
+    COUNT(*) AS count
+  FROM public.contacts
+  WHERE contact_type = 'seller' AND listing_id IS NULL AND archived = false
+
+  UNION ALL
+
+  SELECT '⚠️ WARN: solo buyers (no org, no profile)' AS check_name,
+    COUNT(*) AS count
+  FROM public.contacts
+  WHERE contact_type = 'buyer'
+    AND remarketing_buyer_id IS NULL
+    AND profile_id IS NULL
+    AND archived = false
+)
+SELECT check_name, count FROM integrity_checks WHERE count > 0
 UNION ALL
-
--- Sellers with remarketing_buyer_id (should be 0)
-SELECT
-  '❌ FAIL: sellers with remarketing_buyer_id' AS check_name,
-  COUNT(*) AS count
-FROM public.contacts
-WHERE contact_type = 'seller' AND remarketing_buyer_id IS NOT NULL AND archived = false
-HAVING COUNT(*) > 0
-
-UNION ALL
-
--- Sellers without listing_id (should be 0)
-SELECT
-  '❌ FAIL: sellers without listing_id' AS check_name,
-  COUNT(*) AS count
-FROM public.contacts
-WHERE contact_type = 'seller' AND listing_id IS NULL AND archived = false
-HAVING COUNT(*) > 0
-
-UNION ALL
-
--- Solo buyer contacts (warn only)
-SELECT
-  '⚠️ WARN: solo buyers (no org, no profile)' AS check_name,
-  COUNT(*) AS count
-FROM public.contacts
-WHERE contact_type = 'buyer'
-  AND remarketing_buyer_id IS NULL
-  AND profile_id IS NULL
-  AND archived = false
-HAVING COUNT(*) > 0;
+SELECT '✅ All contact distribution checks passed', 0
+WHERE NOT EXISTS (
+  SELECT 1 FROM integrity_checks
+  WHERE count > 0 AND check_name LIKE '❌%'
+);
 
 
 -- ============================================================================
@@ -853,7 +856,7 @@ SELECT
 FROM public.deals d
 LEFT JOIN public.contacts c ON c.id = d.buyer_contact_id
 LEFT JOIN public.remarketing_buyers rb ON rb.id = d.remarketing_buyer_id
-JOIN public.deal_stages ds ON ds.id = d.stage_id
+LEFT JOIN public.deal_stages ds ON ds.id = d.stage_id
 WHERE d.buyer_contact_id IS NOT NULL OR d.remarketing_buyer_id IS NOT NULL
 LIMIT 5;
 
