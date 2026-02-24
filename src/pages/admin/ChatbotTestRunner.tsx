@@ -515,37 +515,28 @@ function ScenariosTab() {
       <div className="flex items-center justify-between">
         <p className="text-sm text-muted-foreground">
           {total} QA scenarios · {passCount + failCount + skipCount} tested
-          {` · ${scenarios.filter((s) => s.skipAutoRun).length} manual-only`}
-          {runProgress && (
-            <span className="ml-2 font-medium text-primary">
-              Running {runProgress.current}/{runProgress.total}...
-            </span>
-          )}
         </p>
         <div className="flex gap-2">
-          <Button onClick={() => runScenarios(false)} disabled={isRunning} size="sm">
-            {isRunning ? (
+          {isRunning ? (
+            <Button size="sm" variant="destructive" onClick={stopRun}>
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            ) : (
-              <Play className="mr-2 h-4 w-4" />
-            )}
-            {isRunning && runProgress ? `${runProgress.current}/${runProgress.total}` : 'Run All'}
-          </Button>
-          {isRunning && (
-            <Button variant="destructive" onClick={stopRun} size="sm">
-              <Square className="mr-2 h-4 w-4" />
               Stop
+            </Button>
+          ) : (
+            <Button size="sm" onClick={() => runScenarios(false)}>
+              <Play className="mr-2 h-4 w-4" />
+              Run All
             </Button>
           )}
           {failCount > 0 && !isRunning && (
-            <Button variant="outline" onClick={() => runScenarios(true)} size="sm">
+            <Button variant="outline" size="sm" onClick={() => runScenarios(true)}>
               <RotateCcw className="mr-2 h-4 w-4" />
               Re-run Failed
             </Button>
           )}
           <Button variant="outline" size="sm" onClick={exportResults}>
             <Copy className="mr-2 h-4 w-4" />
-            Export
+            Export Results
           </Button>
           <Button variant="outline" size="sm" onClick={resetAll} disabled={isRunning}>
             <RotateCw className="mr-2 h-4 w-4" />

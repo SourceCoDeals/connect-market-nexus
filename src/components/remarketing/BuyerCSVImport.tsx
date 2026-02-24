@@ -1,11 +1,11 @@
-import { useState, useCallback, useMemo } from "react";
-import { useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { useState, useCallback, useMemo } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Progress } from '@/components/ui/progress';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import {
   Table,
   TableBody,
@@ -13,14 +13,14 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table";
+} from '@/components/ui/table';
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
+} from '@/components/ui/select';
 import {
   Dialog,
   DialogContent,
@@ -28,20 +28,18 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
-import { 
+} from '@/components/ui/dialog';
+import {
   Upload,
   FileSpreadsheet,
   Loader2,
-  Sparkles,
   AlertCircle,
   AlertTriangle,
   ChevronDown,
-  ChevronRight
-} from "lucide-react";
-import { toast } from "sonner";
-import Papa from "papaparse";
-import { useGlobalGateCheck } from "@/hooks/remarketing/useGlobalActivityQueue";
+  ChevronRight,
+} from 'lucide-react';
+import { toast } from 'sonner';
+import Papa from 'papaparse';
 
 interface CSVRow {
   [key: string]: string;
@@ -62,25 +60,115 @@ interface SkippedRowDetail {
 
 // Extended target fields based on the spec
 const TARGET_FIELDS = [
-  { value: 'company_name', label: 'Platform Company Name', required: true, description: 'Name of the portfolio company' },
-  { value: 'platform_website', label: 'Platform Website', required: false, description: 'Website URL of the portfolio company' },
-  { value: 'pe_firm_name', label: 'PE Firm Name', required: false, description: 'Name of the private equity firm' },
-  { value: 'pe_firm_website', label: 'PE Firm Website', required: false, description: 'Website URL of the PE firm' },
-  { value: 'company_website', label: 'Company Website (General)', required: false, description: 'General website URL' },
-  { value: 'buyer_type', label: 'Buyer Type', required: false, description: 'Type of buyer (PE firm, platform, strategic, family office)' },
-  { value: 'investment_date', label: 'Investment Date', required: false, description: 'Date PE firm invested in the platform' },
-  { value: 'hq_city_state', label: 'HQ City & State (combined)', required: false, description: 'Combined city and state (will be parsed)' },
+  {
+    value: 'company_name',
+    label: 'Platform Company Name',
+    required: true,
+    description: 'Name of the portfolio company',
+  },
+  {
+    value: 'platform_website',
+    label: 'Platform Website',
+    required: false,
+    description: 'Website URL of the portfolio company',
+  },
+  {
+    value: 'pe_firm_name',
+    label: 'PE Firm Name',
+    required: false,
+    description: 'Name of the private equity firm',
+  },
+  {
+    value: 'pe_firm_website',
+    label: 'PE Firm Website',
+    required: false,
+    description: 'Website URL of the PE firm',
+  },
+  {
+    value: 'company_website',
+    label: 'Company Website (General)',
+    required: false,
+    description: 'General website URL',
+  },
+  {
+    value: 'buyer_type',
+    label: 'Buyer Type',
+    required: false,
+    description: 'Type of buyer (PE firm, platform, strategic, family office)',
+  },
+  {
+    value: 'investment_date',
+    label: 'Investment Date',
+    required: false,
+    description: 'Date PE firm invested in the platform',
+  },
+  {
+    value: 'hq_city_state',
+    label: 'HQ City & State (combined)',
+    required: false,
+    description: 'Combined city and state (will be parsed)',
+  },
   { value: 'hq_city', label: 'HQ City', required: false, description: 'Headquarters city' },
-  { value: 'hq_state', label: 'HQ State', required: false, description: 'Headquarters state (2-letter code preferred)' },
-  { value: 'hq_country', label: 'HQ Country', required: false, description: 'Headquarters country' },
-  { value: 'thesis_summary', label: 'Investment Thesis', required: false, description: 'Investment thesis or focus areas' },
-  { value: 'target_revenue_min', label: 'Min Revenue', required: false, description: 'Minimum target revenue' },
-  { value: 'target_revenue_max', label: 'Max Revenue', required: false, description: 'Maximum target revenue' },
-  { value: 'target_ebitda_min', label: 'Min EBITDA', required: false, description: 'Minimum target EBITDA' },
-  { value: 'target_ebitda_max', label: 'Max EBITDA', required: false, description: 'Maximum target EBITDA' },
-  { value: 'target_geographies', label: 'Target Geographies', required: false, description: 'Target states or regions' },
-  { value: 'target_services', label: 'Target Services', required: false, description: 'Target services or industries' },
-  { value: 'geographic_footprint', label: 'Current Footprint', required: false, description: 'Current operating locations' },
+  {
+    value: 'hq_state',
+    label: 'HQ State',
+    required: false,
+    description: 'Headquarters state (2-letter code preferred)',
+  },
+  {
+    value: 'hq_country',
+    label: 'HQ Country',
+    required: false,
+    description: 'Headquarters country',
+  },
+  {
+    value: 'thesis_summary',
+    label: 'Investment Thesis',
+    required: false,
+    description: 'Investment thesis or focus areas',
+  },
+  {
+    value: 'target_revenue_min',
+    label: 'Min Revenue',
+    required: false,
+    description: 'Minimum target revenue',
+  },
+  {
+    value: 'target_revenue_max',
+    label: 'Max Revenue',
+    required: false,
+    description: 'Maximum target revenue',
+  },
+  {
+    value: 'target_ebitda_min',
+    label: 'Min EBITDA',
+    required: false,
+    description: 'Minimum target EBITDA',
+  },
+  {
+    value: 'target_ebitda_max',
+    label: 'Max EBITDA',
+    required: false,
+    description: 'Maximum target EBITDA',
+  },
+  {
+    value: 'target_geographies',
+    label: 'Target Geographies',
+    required: false,
+    description: 'Target states or regions',
+  },
+  {
+    value: 'target_services',
+    label: 'Target Services',
+    required: false,
+    description: 'Target services or industries',
+  },
+  {
+    value: 'geographic_footprint',
+    label: 'Current Footprint',
+    required: false,
+    description: 'Current operating locations',
+  },
   { value: 'notes', label: 'Notes', required: false, description: 'Additional notes' },
 ];
 
@@ -133,10 +221,15 @@ function normalizeDomain(url: string): string {
   return normalized;
 }
 
-export const BuyerCSVImport = ({ universeId, onComplete, open: controlledOpen, onOpenChange, hideTrigger = false }: BuyerCSVImportProps) => {
-  const { startOrQueueMajorOp } = useGlobalGateCheck();
+export const BuyerCSVImport = ({
+  universeId,
+  onComplete,
+  open: controlledOpen,
+  onOpenChange,
+  hideTrigger = false,
+}: BuyerCSVImportProps) => {
   const [internalOpen, setInternalOpen] = useState(false);
-  
+
   // Use controlled or uncontrolled mode
   const isControlled = controlledOpen !== undefined;
   const isOpen = isControlled ? controlledOpen : internalOpen;
@@ -147,19 +240,23 @@ export const BuyerCSVImport = ({ universeId, onComplete, open: controlledOpen, o
       setInternalOpen(value);
     }
   };
-  const [step, setStep] = useState<'upload' | 'mapping' | 'preview' | 'dedupe' | 'importing' | 'enriching'>('upload');
+  const [step, setStep] = useState<'upload' | 'mapping' | 'preview' | 'dedupe' | 'importing'>(
+    'upload',
+  );
   const [csvData, setCsvData] = useState<CSVRow[]>([]);
   const [_csvHeaders, setCsvHeaders] = useState<string[]>([]);
   const [mappings, setMappings] = useState<ColumnMapping[]>([]);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [importProgress, setImportProgress] = useState(0);
-  const [enrichmentProgress, setEnrichmentProgress] = useState({ current: 0, total: 0 });
-  const [importResults, setImportResults] = useState<{ success: number; errors: number; enriched: number }>({ success: 0, errors: 0, enriched: 0 });
+  const [importResults, setImportResults] = useState<{ success: number; errors: number }>({
+    success: 0,
+    errors: 0,
+  });
   const [duplicates, setDuplicates] = useState<DuplicateWarning[]>([]);
   const [skipDuplicates, setSkipDuplicates] = useState<Set<number>>(new Set());
   const [isCheckingDuplicates, setIsCheckingDuplicates] = useState(false);
   const [skippedRowsOpen, setSkippedRowsOpen] = useState(false);
-  
+
   const queryClient = useQueryClient();
 
   // Validate rows based on website requirement (at least one website)
@@ -175,7 +272,7 @@ export const BuyerCSVImport = ({ universeId, onComplete, open: controlledOpen, o
       let companyWebsite: string | null = null;
       let companyName: string | null = null;
 
-      mappings.forEach(mapping => {
+      mappings.forEach((mapping) => {
         if (mapping.targetField && row[mapping.csvColumn]) {
           const value = row[mapping.csvColumn].trim();
           if (mapping.targetField === 'platform_website') platformWebsite = value;
@@ -198,7 +295,7 @@ export const BuyerCSVImport = ({ universeId, onComplete, open: controlledOpen, o
         skippedDetails.push({
           index,
           companyName: companyName || `Row ${index + 2}`,
-          reason: !hasCompanyName ? 'Missing company name' : 'Missing website'
+          reason: !hasCompanyName ? 'Missing company name' : 'Missing website',
         });
       }
     });
@@ -214,148 +311,188 @@ export const BuyerCSVImport = ({ universeId, onComplete, open: controlledOpen, o
         body: {
           columns: headers,
           targetType: 'buyer',
-          sampleData: sampleRows
-        }
+          sampleData: sampleRows,
+        },
       });
 
       if (error) {
         // AI mapping error — falling back to heuristic mapping
-        setMappings(headers.map(col => ({
-          csvColumn: col,
-          targetField: guessMapping(col),
-          confidence: 0.5,
-          aiSuggested: false
-        })));
+        setMappings(
+          headers.map((col) => ({
+            csvColumn: col,
+            targetField: guessMapping(col),
+            confidence: 0.5,
+            aiSuggested: false,
+          })),
+        );
       } else {
-        setMappings(data.mappings || headers.map(col => ({
-          csvColumn: col,
-          targetField: guessMapping(col),
-          confidence: 0.5,
-          aiSuggested: false
-        })));
+        setMappings(
+          data.mappings ||
+            headers.map((col) => ({
+              csvColumn: col,
+              targetField: guessMapping(col),
+              confidence: 0.5,
+              aiSuggested: false,
+            })),
+        );
       }
     } catch (err) {
       // Column analysis error — falling back to heuristic mapping
-      setMappings(headers.map(col => ({
-        csvColumn: col,
-        targetField: guessMapping(col),
-        confidence: 0.5,
-        aiSuggested: false
-      })));
+      setMappings(
+        headers.map((col) => ({
+          csvColumn: col,
+          targetField: guessMapping(col),
+          confidence: 0.5,
+          aiSuggested: false,
+        })),
+      );
     } finally {
       setIsAnalyzing(false);
     }
   }, []);
 
-  const handleFileUpload = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
+  const handleFileUpload = useCallback(
+    (event: React.ChangeEvent<HTMLInputElement>) => {
+      const file = event.target.files?.[0];
+      if (!file) return;
 
-    // Check file size before processing
-    if (file.size > MAX_FILE_SIZE_BYTES) {
-      toast.error(`File too large. Maximum size is 5MB, but file is ${(file.size / (1024 * 1024)).toFixed(1)}MB.`);
-      event.target.value = '';
-      return;
-    }
-
-    Papa.parse(file, {
-      header: true,
-      skipEmptyLines: true,
-      complete: async (results) => {
-        const data = results.data as CSVRow[];
-        const headers = results.meta.fields || [];
-
-        if (data.length === 0) {
-          toast.error('CSV file is empty');
-          return;
-        }
-
-        if (data.length > MAX_ROW_COUNT) {
-          toast.error(`CSV has ${data.length.toLocaleString()} rows, which exceeds the ${MAX_ROW_COUNT.toLocaleString()} row limit. Please split the file into smaller batches.`);
-          return;
-        }
-
-        setCsvData(data);
-        setCsvHeaders(headers);
-        setStep('mapping');
-
-        // Analyze columns with AI
-        await analyzeColumnsWithAI(headers, data.slice(0, 3));
-      },
-      error: (error) => {
-        toast.error(`Failed to parse CSV: ${error.message}`);
+      // Check file size before processing
+      if (file.size > MAX_FILE_SIZE_BYTES) {
+        toast.error(
+          `File too large. Maximum size is 5MB, but file is ${(file.size / (1024 * 1024)).toFixed(1)}MB.`,
+        );
+        event.target.value = '';
+        return;
       }
-    });
-  }, [analyzeColumnsWithAI]);
+
+      Papa.parse(file, {
+        header: true,
+        skipEmptyLines: true,
+        complete: async (results) => {
+          const data = results.data as CSVRow[];
+          const headers = results.meta.fields || [];
+
+          if (data.length === 0) {
+            toast.error('CSV file is empty');
+            return;
+          }
+
+          if (data.length > MAX_ROW_COUNT) {
+            toast.error(
+              `CSV has ${data.length.toLocaleString()} rows, which exceeds the ${MAX_ROW_COUNT.toLocaleString()} row limit. Please split the file into smaller batches.`,
+            );
+            return;
+          }
+
+          setCsvData(data);
+          setCsvHeaders(headers);
+          setStep('mapping');
+
+          // Analyze columns with AI
+          await analyzeColumnsWithAI(headers, data.slice(0, 3));
+        },
+        error: (error) => {
+          toast.error(`Failed to parse CSV: ${error.message}`);
+        },
+      });
+    },
+    [analyzeColumnsWithAI],
+  );
 
   const guessMapping = (column: string): string | null => {
     const lower = column.toLowerCase();
-    
+
     // Platform/Company name
-    if (lower.includes('platform') && (lower.includes('company') || lower.includes('name'))) return 'company_name';
-    if (lower.includes('company') || lower.includes('name') || lower.includes('firm')) return 'company_name';
-    
+    if (lower.includes('platform') && (lower.includes('company') || lower.includes('name')))
+      return 'company_name';
+    if (lower.includes('company') || lower.includes('name') || lower.includes('firm'))
+      return 'company_name';
+
     // Websites - be specific about platform vs PE firm
-    if (lower.includes('platform') && (lower.includes('website') || lower.includes('url'))) return 'platform_website';
-    if ((lower.includes('pe') || lower.includes('firm')) && (lower.includes('website') || lower.includes('url'))) return 'pe_firm_website';
-    if (lower.includes('website') || lower.includes('url') || lower.includes('site')) return 'company_website';
-    
+    if (lower.includes('platform') && (lower.includes('website') || lower.includes('url')))
+      return 'platform_website';
+    if (
+      (lower.includes('pe') || lower.includes('firm')) &&
+      (lower.includes('website') || lower.includes('url'))
+    )
+      return 'pe_firm_website';
+    if (lower.includes('website') || lower.includes('url') || lower.includes('site'))
+      return 'company_website';
+
     // PE Firm name
-    if ((lower.includes('pe') || lower.includes('private equity') || lower.includes('sponsor')) && lower.includes('name')) return 'pe_firm_name';
+    if (
+      (lower.includes('pe') || lower.includes('private equity') || lower.includes('sponsor')) &&
+      lower.includes('name')
+    )
+      return 'pe_firm_name';
     if (lower.includes('pe firm') || lower.includes('sponsor')) return 'pe_firm_name';
-    
+
     // Location
-    if (lower.includes('hq') && lower.includes('city') && lower.includes('state')) return 'hq_city_state';
+    if (lower.includes('hq') && lower.includes('city') && lower.includes('state'))
+      return 'hq_city_state';
     if (lower.includes('city') && lower.includes('state')) return 'hq_city_state';
     if (lower.includes('city')) return 'hq_city';
     if (lower.includes('state') && !lower.includes('target')) return 'hq_state';
     if (lower.includes('country')) return 'hq_country';
-    
+
     // Type
     if (lower.includes('type') || lower.includes('category')) return 'buyer_type';
-    
+
     // Thesis
-    if (lower.includes('thesis') || lower.includes('focus') || lower.includes('strategy')) return 'thesis_summary';
-    
+    if (lower.includes('thesis') || lower.includes('focus') || lower.includes('strategy'))
+      return 'thesis_summary';
+
     // Financial
-    if ((lower.includes('revenue') || lower.includes('rev')) && lower.includes('min')) return 'target_revenue_min';
-    if ((lower.includes('revenue') || lower.includes('rev')) && lower.includes('max')) return 'target_revenue_max';
+    if ((lower.includes('revenue') || lower.includes('rev')) && lower.includes('min'))
+      return 'target_revenue_min';
+    if ((lower.includes('revenue') || lower.includes('rev')) && lower.includes('max'))
+      return 'target_revenue_max';
     if (lower.includes('ebitda') && lower.includes('min')) return 'target_ebitda_min';
     if (lower.includes('ebitda') && lower.includes('max')) return 'target_ebitda_max';
-    
+
     // Geography and services
-    if (lower.includes('target') && (lower.includes('geography') || lower.includes('state') || lower.includes('region'))) return 'target_geographies';
-    if (lower.includes('service') || lower.includes('industry') || lower.includes('sector')) return 'target_services';
-    if (lower.includes('footprint') || lower.includes('location') || lower.includes('presence') || lower.includes('current')) return 'geographic_footprint';
-    
+    if (
+      lower.includes('target') &&
+      (lower.includes('geography') || lower.includes('state') || lower.includes('region'))
+    )
+      return 'target_geographies';
+    if (lower.includes('service') || lower.includes('industry') || lower.includes('sector'))
+      return 'target_services';
+    if (
+      lower.includes('footprint') ||
+      lower.includes('location') ||
+      lower.includes('presence') ||
+      lower.includes('current')
+    )
+      return 'geographic_footprint';
+
     // Investment date
     if (lower.includes('investment') && lower.includes('date')) return 'investment_date';
     if (lower.includes('invested') && lower.includes('date')) return 'investment_date';
     if (lower === 'investment date') return 'investment_date';
-    
+
     // Notes
     if (lower.includes('note')) return 'notes';
-    
+
     return null;
   };
 
   const updateMapping = (csvColumn: string, targetField: string | null) => {
-    setMappings(prev => prev.map(m => 
-      m.csvColumn === csvColumn 
-        ? { ...m, targetField, aiSuggested: false }
-        : m
-    ));
+    setMappings((prev) =>
+      prev.map((m) => (m.csvColumn === csvColumn ? { ...m, targetField, aiSuggested: false } : m)),
+    );
   };
 
   const hasRequiredMapping = () => {
-    return mappings.some(m => m.targetField === 'company_name');
+    return mappings.some((m) => m.targetField === 'company_name');
   };
 
   const hasWebsiteMapping = () => {
-    return mappings.some(m => 
-      m.targetField === 'platform_website' || 
-      m.targetField === 'pe_firm_website' || 
-      m.targetField === 'company_website'
+    return mappings.some(
+      (m) =>
+        m.targetField === 'platform_website' ||
+        m.targetField === 'pe_firm_website' ||
+        m.targetField === 'company_website',
     );
   };
 
@@ -364,13 +501,13 @@ export const BuyerCSVImport = ({ universeId, onComplete, open: controlledOpen, o
       universe_id: universeId || null,
     };
 
-    mappings.forEach(mapping => {
+    mappings.forEach((mapping) => {
       if (mapping.targetField && row[mapping.csvColumn]) {
         const value = row[mapping.csvColumn].trim();
-        
+
         // Handle combined city/state
         if (mapping.targetField === 'hq_city_state') {
-          const parts = value.split(',').map(p => p.trim());
+          const parts = value.split(',').map((p) => p.trim());
           if (parts.length >= 2) {
             buyer['hq_city'] = parts[0];
             buyer['hq_state'] = parts[parts.length - 1]; // Last part is usually state
@@ -379,44 +516,61 @@ export const BuyerCSVImport = ({ universeId, onComplete, open: controlledOpen, o
           }
           return;
         }
-        
+
         // Handle website normalization
-        if (['platform_website', 'pe_firm_website', 'company_website'].includes(mapping.targetField)) {
+        if (
+          ['platform_website', 'pe_firm_website', 'company_website'].includes(mapping.targetField)
+        ) {
           buyer[mapping.targetField] = normalizeDomain(value);
           return;
         }
-        
+
         // Handle arrays
-        if (['target_geographies', 'target_services', 'geographic_footprint'].includes(mapping.targetField)) {
-          buyer[mapping.targetField] = value.split(/[,;]/).map(s => s.trim()).filter(Boolean);
+        if (
+          ['target_geographies', 'target_services', 'geographic_footprint'].includes(
+            mapping.targetField,
+          )
+        ) {
+          buyer[mapping.targetField] = value
+            .split(/[,;]/)
+            .map((s) => s.trim())
+            .filter(Boolean);
           return;
         }
-        
+
         // Handle numbers
-        if (['target_revenue_min', 'target_revenue_max', 'target_ebitda_min', 'target_ebitda_max'].includes(mapping.targetField)) {
+        if (
+          [
+            'target_revenue_min',
+            'target_revenue_max',
+            'target_ebitda_min',
+            'target_ebitda_max',
+          ].includes(mapping.targetField)
+        ) {
           const num = parseFloat(value.replace(/[^0-9.-]/g, ''));
           if (!isNaN(num)) {
             buyer[mapping.targetField] = num;
           }
           return;
         }
-        
+
         // Handle buyer type
         if (mapping.targetField === 'buyer_type') {
           const lower = value.toLowerCase();
-          if (lower.includes('pe') || lower.includes('private equity')) buyer.buyer_type = 'pe_firm';
+          if (lower.includes('pe') || lower.includes('private equity'))
+            buyer.buyer_type = 'pe_firm';
           else if (lower.includes('platform')) buyer.buyer_type = 'platform';
           else if (lower.includes('strategic')) buyer.buyer_type = 'strategic';
           else if (lower.includes('family')) buyer.buyer_type = 'family_office';
           else buyer.buyer_type = 'other';
           return;
         }
-        
+
         // Handle investment date - parse various formats
         if (mapping.targetField === 'investment_date') {
           // Try to parse the date in various formats
           let dateValue = value;
-          
+
           // Handle "2025-11" format (YYYY-MM) by adding day
           if (/^\d{4}-\d{1,2}$/.test(value)) {
             dateValue = `${value}-01`;
@@ -433,11 +587,11 @@ export const BuyerCSVImport = ({ universeId, onComplete, open: controlledOpen, o
               dateValue = parsed.toISOString().split('T')[0];
             }
           }
-          
+
           buyer[mapping.targetField] = dateValue;
           return;
         }
-        
+
         // Standard field assignment
         buyer[mapping.targetField] = value;
       }
@@ -466,19 +620,22 @@ export const BuyerCSVImport = ({ universeId, onComplete, open: controlledOpen, o
     }
 
     setIsCheckingDuplicates(true);
-    
+
     try {
-      const buyersToCheck = validRows.map(({ index, row }) => {
-        const buyer = buildBuyerFromRow(row);
-        return {
-          index,
-          companyName: buyer.company_name || '',
-          website: buyer.platform_website || buyer.pe_firm_website || buyer.company_website || null,
-        };
-      }).filter(b => b.companyName);
+      const buyersToCheck = validRows
+        .map(({ index, row }) => {
+          const buyer = buildBuyerFromRow(row);
+          return {
+            index,
+            companyName: buyer.company_name || '',
+            website:
+              buyer.platform_website || buyer.pe_firm_website || buyer.company_website || null,
+          };
+        })
+        .filter((b) => b.companyName);
 
       const { data, error } = await supabase.functions.invoke('dedupe-buyers', {
-        body: { buyers: buyersToCheck }
+        body: { buyers: buyersToCheck },
       });
 
       if (error) {
@@ -488,7 +645,7 @@ export const BuyerCSVImport = ({ universeId, onComplete, open: controlledOpen, o
       }
 
       const foundDuplicates = (data?.results || []).filter((r: any) => r.isDuplicate);
-      
+
       if (foundDuplicates.length > 0) {
         setDuplicates(foundDuplicates);
         setStep('dedupe');
@@ -504,7 +661,7 @@ export const BuyerCSVImport = ({ universeId, onComplete, open: controlledOpen, o
   };
 
   const toggleSkipDuplicate = (index: number) => {
-    setSkipDuplicates(prev => {
+    setSkipDuplicates((prev) => {
       const next = new Set(prev);
       if (next.has(index)) {
         next.delete(index);
@@ -523,98 +680,60 @@ export const BuyerCSVImport = ({ universeId, onComplete, open: controlledOpen, o
 
     setStep('importing');
     setImportProgress(0);
-    setImportResults({ success: 0, errors: 0, enriched: 0 });
+    setImportResults({ success: 0, errors: 0 });
 
     const batchSize = 10;
     let success = 0;
     let errors = 0;
-    const insertedBuyers: Array<{ id: string; platform_website?: string | null; pe_firm_website?: string | null; company_website?: string | null }> = [];
 
     // Filter out skipped duplicates
     const dataToImport = validRows.filter(({ index }) => !skipDuplicates.has(index));
 
     for (let i = 0; i < dataToImport.length; i += batchSize) {
       const batch = dataToImport.slice(i, i + batchSize);
-      
+
       const buyersToInsert = batch
         .map(({ row }) => buildBuyerFromRow(row))
         .filter((b): b is typeof b & { company_name: string } => !!b.company_name);
 
       if (buyersToInsert.length > 0) {
-        const { data, error } = await supabase
-          .from('remarketing_buyers')
-          .insert(buyersToInsert as never)
-          .select('id, platform_website, pe_firm_website, company_website');
+        const { error } = await supabase.from('remarketing_buyers').insert(buyersToInsert as never);
 
         if (error) {
-          // Insert error — counted in error total
-          errors += buyersToInsert.length;
+          // Batch insert failed (e.g. one row violates a unique constraint).
+          // Fall back to inserting one row at a time so valid rows still succeed.
+          for (const buyer of buyersToInsert) {
+            const { error: singleError } = await supabase
+              .from('remarketing_buyers')
+              .insert(buyer as never);
+
+            if (singleError) {
+              console.warn('Failed to import buyer:', buyer.company_name, singleError.message);
+              errors += 1;
+            } else {
+              success += 1;
+            }
+          }
         } else {
           success += buyersToInsert.length;
-          if (data) {
-            insertedBuyers.push(...data);
-          }
         }
       }
 
       setImportProgress(((i + batchSize) / dataToImport.length) * 100);
     }
 
-    setImportResults(prev => ({ ...prev, success, errors }));
-    
+    setImportResults((prev) => ({ ...prev, success, errors }));
+
     if (success > 0) {
       queryClient.invalidateQueries({ queryKey: ['remarketing', 'buyers'] });
       toast.success(`Imported ${success} buyers`);
-      
-      // Trigger enrichment for buyers with websites
-      const enrichableBuyers = insertedBuyers.filter(
-        b => b.platform_website || b.pe_firm_website || b.company_website
-      );
-      
-      if (enrichableBuyers.length > 0) {
-        await triggerBulkEnrichment(enrichableBuyers);
-      }
     }
-    
+
     if (errors > 0) {
       toast.error(`Failed to import ${errors} buyers`);
     }
 
     onComplete?.();
-  };
-
-  const triggerBulkEnrichment = async (
-    buyers: Array<{ id: string; platform_website?: string | null; pe_firm_website?: string | null; company_website?: string | null }>
-  ) => {
-    setStep('enriching');
-    setEnrichmentProgress({ current: 0, total: buyers.length });
-
-    // Gate check: register as major operation
-    const { data: sessionData, error: authError } = await supabase.auth.getUser();
-    if (authError) throw authError;
-    const { queued } = await startOrQueueMajorOp({
-      operationType: 'buyer_enrichment',
-      totalItems: buyers.length,
-      description: `Enrich ${buyers.length} imported buyers`,
-      userId: sessionData?.user?.id || 'unknown',
-    });
-    if (queued) {
-      // Queued for later — skip inline enrichment
-      setEnrichmentProgress({ current: buyers.length, total: buyers.length });
-      toast.info('Enrichment queued — another operation is running. It will start automatically.');
-      return;
-    }
-
-    // Queue all buyers for background enrichment
-    try {
-      const { queueBuyerEnrichment } = await import("@/lib/remarketing/queueEnrichment");
-      const queued = await queueBuyerEnrichment(buyers.map(b => b.id), universeId);
-      setEnrichmentProgress({ current: buyers.length, total: buyers.length });
-      setImportResults(prev => ({ ...prev, enriched: queued }));
-      toast.success(`Queued ${queued} buyers for background enrichment`);
-    } catch (error) {
-      toast.error('Failed to queue enrichment');
-    }
   };
 
   const resetImport = () => {
@@ -623,16 +742,13 @@ export const BuyerCSVImport = ({ universeId, onComplete, open: controlledOpen, o
     setCsvHeaders([]);
     setMappings([]);
     setImportProgress(0);
-    setEnrichmentProgress({ current: 0, total: 0 });
-    setImportResults({ success: 0, errors: 0, enriched: 0 });
+    setImportResults({ success: 0, errors: 0 });
     setDuplicates([]);
     setSkipDuplicates(new Set());
     setSkippedRowsOpen(false);
   };
 
-  const isComplete = step === 'enriching' 
-    ? enrichmentProgress.current >= enrichmentProgress.total 
-    : step === 'importing' && importProgress >= 100;
+  const isComplete = step === 'importing' && importProgress >= 100;
 
   return (
     <>
@@ -643,10 +759,13 @@ export const BuyerCSVImport = ({ universeId, onComplete, open: controlledOpen, o
         </Button>
       )}
 
-      <Dialog open={isOpen} onOpenChange={(open) => {
-        setIsOpen(open);
-        if (!open) resetImport();
-      }}>
+      <Dialog
+        open={isOpen}
+        onOpenChange={(open) => {
+          setIsOpen(open);
+          if (!open) resetImport();
+        }}
+      >
         <DialogContent className="max-w-4xl max-h-[85vh] overflow-hidden flex flex-col">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
@@ -666,7 +785,7 @@ export const BuyerCSVImport = ({ universeId, onComplete, open: controlledOpen, o
             <ChevronRight className="h-3 w-3" />
             <Badge variant={step === 'preview' ? 'default' : 'outline'}>3. Preview</Badge>
             <ChevronRight className="h-3 w-3" />
-            <Badge variant={step === 'importing' || step === 'enriching' ? 'default' : 'outline'}>4. Import</Badge>
+            <Badge variant={step === 'importing' ? 'default' : 'outline'}>4. Import</Badge>
           </div>
 
           <ScrollArea className="flex-1 min-h-0 pr-4">
@@ -680,12 +799,7 @@ export const BuyerCSVImport = ({ universeId, onComplete, open: controlledOpen, o
                     </p>
                     <p className="text-xs text-muted-foreground">CSV files only</p>
                   </div>
-                  <input
-                    type="file"
-                    accept=".csv"
-                    className="hidden"
-                    onChange={handleFileUpload}
-                  />
+                  <input type="file" accept=".csv" className="hidden" onChange={handleFileUpload} />
                 </label>
               </div>
             )}
@@ -720,7 +834,9 @@ export const BuyerCSVImport = ({ universeId, onComplete, open: controlledOpen, o
                             <TableCell>
                               <Select
                                 value={mapping.targetField || 'skip'}
-                                onValueChange={(value) => updateMapping(mapping.csvColumn, value === 'skip' ? null : value)}
+                                onValueChange={(value) =>
+                                  updateMapping(mapping.csvColumn, value === 'skip' ? null : value)
+                                }
                               >
                                 <SelectTrigger className="w-[200px]">
                                   <SelectValue />
@@ -740,11 +856,16 @@ export const BuyerCSVImport = ({ universeId, onComplete, open: controlledOpen, o
                             </TableCell>
                             <TableCell>
                               {mapping.targetField ? (
-                                <Badge variant={mapping.aiSuggested ? "secondary" : "default"} className="text-xs">
+                                <Badge
+                                  variant={mapping.aiSuggested ? 'secondary' : 'default'}
+                                  className="text-xs"
+                                >
                                   {mapping.aiSuggested ? 'AI' : 'Set'}
                                 </Badge>
                               ) : (
-                                <Badge variant="outline" className="text-xs">Skip</Badge>
+                                <Badge variant="outline" className="text-xs">
+                                  Skip
+                                </Badge>
                               )}
                             </TableCell>
                           </TableRow>
@@ -798,7 +919,11 @@ export const BuyerCSVImport = ({ universeId, onComplete, open: controlledOpen, o
                         </p>
                         <CollapsibleTrigger asChild>
                           <Button variant="ghost" size="sm" className="h-6 px-0 text-amber-600">
-                            {skippedRowsOpen ? <ChevronDown className="h-3 w-3 mr-1" /> : <ChevronRight className="h-3 w-3 mr-1" />}
+                            {skippedRowsOpen ? (
+                              <ChevronDown className="h-3 w-3 mr-1" />
+                            ) : (
+                              <ChevronRight className="h-3 w-3 mr-1" />
+                            )}
                             {skippedRowsOpen ? 'Hide details' : 'Show details'}
                           </Button>
                         </CollapsibleTrigger>
@@ -817,7 +942,9 @@ export const BuyerCSVImport = ({ universeId, onComplete, open: controlledOpen, o
                             {skippedRowDetails.map((item) => (
                               <TableRow key={item.index}>
                                 <TableCell className="text-xs">{item.companyName}</TableCell>
-                                <TableCell className="text-xs text-amber-600">{item.reason}</TableCell>
+                                <TableCell className="text-xs text-amber-600">
+                                  {item.reason}
+                                </TableCell>
                               </TableRow>
                             ))}
                           </TableBody>
@@ -833,27 +960,37 @@ export const BuyerCSVImport = ({ universeId, onComplete, open: controlledOpen, o
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          {mappings.filter(m => m.targetField).slice(0, 5).map(m => (
-                            <TableHead key={m.csvColumn} className="text-xs whitespace-nowrap">
-                              {TARGET_FIELDS.find(f => f.value === m.targetField)?.label || m.targetField}
-                            </TableHead>
-                          ))}
+                          {mappings
+                            .filter((m) => m.targetField)
+                            .slice(0, 5)
+                            .map((m) => (
+                              <TableHead key={m.csvColumn} className="text-xs whitespace-nowrap">
+                                {TARGET_FIELDS.find((f) => f.value === m.targetField)?.label ||
+                                  m.targetField}
+                              </TableHead>
+                            ))}
                         </TableRow>
                       </TableHeader>
                       <TableBody>
                         {validRows.slice(0, 5).map(({ index: rowIndex, row }) => (
                           <TableRow key={rowIndex}>
-                            {mappings.filter(m => m.targetField).slice(0, 5).map(m => (
-                              <TableCell key={m.csvColumn} className="text-xs truncate max-w-[150px]">
-                                {row[m.csvColumn] || '—'}
-                              </TableCell>
-                            ))}
+                            {mappings
+                              .filter((m) => m.targetField)
+                              .slice(0, 5)
+                              .map((m) => (
+                                <TableCell
+                                  key={m.csvColumn}
+                                  className="text-xs truncate max-w-[150px]"
+                                >
+                                  {row[m.csvColumn] || '—'}
+                                </TableCell>
+                              ))}
                           </TableRow>
                         ))}
                         {validRows.length > 5 && (
                           <TableRow>
-                            <TableCell 
-                              colSpan={Math.min(5, mappings.filter(m => m.targetField).length)} 
+                            <TableCell
+                              colSpan={Math.min(5, mappings.filter((m) => m.targetField).length)}
                               className="text-center text-xs text-muted-foreground"
                             >
                               ...and {validRows.length - 5} more
@@ -872,13 +1009,14 @@ export const BuyerCSVImport = ({ universeId, onComplete, open: controlledOpen, o
                 <div className="flex items-center gap-2 p-3 bg-amber-500/10 rounded-lg text-amber-700 dark:text-amber-400 text-sm">
                   <AlertCircle className="h-4 w-4 shrink-0" />
                   <span>
-                    Found {duplicates.length} potential duplicate(s). Review and select which to skip.
+                    Found {duplicates.length} potential duplicate(s). Review and select which to
+                    skip.
                   </span>
                 </div>
-                
+
                 <div className="max-h-[300px] overflow-y-auto space-y-2">
                   {duplicates.map((dup) => (
-                    <div 
+                    <div
                       key={dup.index}
                       className={`p-3 border rounded-lg ${skipDuplicates.has(dup.index) ? 'bg-muted/50 opacity-60' : ''}`}
                     >
@@ -886,11 +1024,11 @@ export const BuyerCSVImport = ({ universeId, onComplete, open: controlledOpen, o
                         <div>
                           <p className="font-medium">{dup.companyName}</p>
                           <p className="text-xs text-muted-foreground">
-                            Matches: {dup.potentialDuplicates.map(d => d.companyName).join(', ')}
+                            Matches: {dup.potentialDuplicates.map((d) => d.companyName).join(', ')}
                           </p>
                         </div>
-                        <Button 
-                          variant={skipDuplicates.has(dup.index) ? "secondary" : "outline"}
+                        <Button
+                          variant={skipDuplicates.has(dup.index) ? 'secondary' : 'outline'}
                           size="sm"
                           onClick={() => toggleSkipDuplicate(dup.index)}
                         >
@@ -900,42 +1038,27 @@ export const BuyerCSVImport = ({ universeId, onComplete, open: controlledOpen, o
                     </div>
                   ))}
                 </div>
-                
+
                 <p className="text-sm text-muted-foreground">
                   {validRows.length - skipDuplicates.size} buyers will be imported
                 </p>
               </div>
             )}
 
-            {(step === 'importing' || step === 'enriching') && (
+            {step === 'importing' && (
               <div className="py-8 space-y-4">
-                <Progress 
-                  value={step === 'enriching' 
-                    ? (enrichmentProgress.total > 0 ? (enrichmentProgress.current / enrichmentProgress.total) * 100 : 0)
-                    : importProgress
-                  } 
-                  className="h-2" 
-                />
+                <Progress value={importProgress} className="h-2" />
                 <p className="text-center text-sm text-muted-foreground">
-                  {step === 'importing' && importProgress < 100 && (
-                    <>Importing buyers... {Math.round(importProgress)}%</>
-                  )}
-                  {step === 'enriching' && enrichmentProgress.current < enrichmentProgress.total && (
-                    <>
-                      <Sparkles className="inline h-4 w-4 mr-1" />
-                      Enriching buyers... {enrichmentProgress.current} of {enrichmentProgress.total}
-                    </>
-                  )}
+                  {importProgress < 100 && <>Importing buyers... {Math.round(importProgress)}%</>}
                   {isComplete && (
                     <>
                       Import complete!
                       <br />
                       <span className="text-emerald-600">{importResults.success} imported</span>
-                      {importResults.enriched > 0 && (
-                        <>, <span className="text-blue-600">{importResults.enriched} enriched</span></>
-                      )}
                       {importResults.errors > 0 && (
-                        <>, <span className="text-destructive">{importResults.errors} failed</span></>
+                        <>
+                          , <span className="text-destructive">{importResults.errors} failed</span>
+                        </>
                       )}
                     </>
                   )}
@@ -950,10 +1073,7 @@ export const BuyerCSVImport = ({ universeId, onComplete, open: controlledOpen, o
                 <Button variant="outline" onClick={resetImport}>
                   Back
                 </Button>
-                <Button 
-                  onClick={proceedToPreview}
-                  disabled={!hasRequiredMapping()}
-                >
+                <Button onClick={proceedToPreview} disabled={!hasRequiredMapping()}>
                   Preview Import
                 </Button>
               </>
@@ -963,7 +1083,7 @@ export const BuyerCSVImport = ({ universeId, onComplete, open: controlledOpen, o
                 <Button variant="outline" onClick={() => setStep('mapping')}>
                   Back
                 </Button>
-                <Button 
+                <Button
                   onClick={checkForDuplicates}
                   disabled={isCheckingDuplicates || validRows.length === 0}
                 >
@@ -988,11 +1108,13 @@ export const BuyerCSVImport = ({ universeId, onComplete, open: controlledOpen, o
                 </Button>
               </>
             )}
-            {(step === 'importing' || step === 'enriching') && isComplete && (
-              <Button onClick={() => {
-                setIsOpen(false);
-                resetImport();
-              }}>
+            {step === 'importing' && isComplete && (
+              <Button
+                onClick={() => {
+                  setIsOpen(false);
+                  resetImport();
+                }}
+              >
                 Done
               </Button>
             )}
