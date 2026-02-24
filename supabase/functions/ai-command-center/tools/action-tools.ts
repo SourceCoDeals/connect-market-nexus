@@ -6,24 +6,32 @@
 
 // deno-lint-ignore no-explicit-any
 type SupabaseClient = any;
-import type { ClaudeTool } from "../../_shared/claude-client.ts";
-import type { ToolResult } from "./index.ts";
+import type { ClaudeTool } from '../../_shared/claude-client.ts';
+import type { ToolResult } from './index.ts';
 
 // ---------- Tool definitions ----------
 
 export const actionTools: ClaudeTool[] = [
   {
     name: 'create_deal_task',
-    description: 'Create a new task/to-do for a deal. Can assign to a team member with priority and due date.',
+    description:
+      'Create a new task/to-do for a deal. Can assign to a team member with priority and due date.',
     input_schema: {
       type: 'object',
       properties: {
         deal_id: { type: 'string', description: 'The deal/listing UUID' },
         title: { type: 'string', description: 'Task title' },
         description: { type: 'string', description: 'Task description/details' },
-        priority: { type: 'string', enum: ['low', 'medium', 'high', 'urgent'], description: 'Task priority (default "medium")' },
+        priority: {
+          type: 'string',
+          enum: ['low', 'medium', 'high', 'urgent'],
+          description: 'Task priority (default "medium")',
+        },
         due_date: { type: 'string', description: 'Due date in ISO format (YYYY-MM-DD)' },
-        assigned_to: { type: 'string', description: 'User ID to assign to. Use "CURRENT_USER" for self-assignment.' },
+        assigned_to: {
+          type: 'string',
+          description: 'User ID to assign to. Use "CURRENT_USER" for self-assignment.',
+        },
       },
       required: ['deal_id', 'title'],
     },
@@ -48,7 +56,11 @@ export const actionTools: ClaudeTool[] = [
         deal_id: { type: 'string', description: 'The deal/listing UUID' },
         title: { type: 'string', description: 'Note title/subject' },
         content: { type: 'string', description: 'Note content' },
-        activity_type: { type: 'string', description: 'Activity type (default "note"). Options: note, call, email, meeting, status_change' },
+        activity_type: {
+          type: 'string',
+          description:
+            'Activity type (default "note"). Options: note, call, email, meeting, status_change',
+        },
       },
       required: ['deal_id', 'title', 'content'],
     },
@@ -60,7 +72,11 @@ export const actionTools: ClaudeTool[] = [
       type: 'object',
       properties: {
         deal_id: { type: 'string', description: 'The deal/listing UUID' },
-        activity_type: { type: 'string', description: 'Type of activity: note, call, email, meeting, outreach, status_change, data_room, scoring' },
+        activity_type: {
+          type: 'string',
+          description:
+            'Type of activity: note, call, email, meeting, outreach, status_change, data_room, scoring',
+        },
         title: { type: 'string', description: 'Activity title' },
         description: { type: 'string', description: 'Activity description' },
         metadata: { type: 'object', description: 'Additional structured metadata' },
@@ -70,7 +86,8 @@ export const actionTools: ClaudeTool[] = [
   },
   {
     name: 'update_deal_stage',
-    description: 'Update the remarketing status/stage of a deal. REQUIRES CONFIRMATION. Valid stages: sourced, contacted, interested, nda_sent, nda_signed, data_room_open, loi_submitted, under_exclusivity, closed, passed.',
+    description:
+      'Update the remarketing status/stage of a deal. REQUIRES CONFIRMATION. Valid stages: sourced, contacted, interested, nda_sent, nda_signed, data_room_open, loi_submitted, under_exclusivity, closed, passed.',
     input_schema: {
       type: 'object',
       properties: {
@@ -82,8 +99,42 @@ export const actionTools: ClaudeTool[] = [
     },
   },
   {
+    name: 'reassign_deal_task',
+    description:
+      'Reassign a deal task to a different team member. REQUIRES CONFIRMATION. Use when the user says "reassign this task to [person]" or "give this task to [name]".',
+    input_schema: {
+      type: 'object',
+      properties: {
+        task_id: { type: 'string', description: 'The task UUID to reassign' },
+        new_assignee_id: { type: 'string', description: 'User ID of the new assignee' },
+        new_assignee_email: {
+          type: 'string',
+          description: 'Email of the new assignee (alternative to ID — will look up user)',
+        },
+        reason: { type: 'string', description: 'Reason for reassignment' },
+      },
+      required: ['task_id'],
+    },
+  },
+  {
+    name: 'convert_to_pipeline_deal',
+    description:
+      'Convert a remarketing buyer match into an active pipeline deal. Creates a new deal record linked to the buyer and listing with initial setup (firm agreement, stage, etc.). REQUIRES CONFIRMATION. Use when the user says "convert this to a deal", "move to pipeline", or "create a deal for this buyer".',
+    input_schema: {
+      type: 'object',
+      properties: {
+        listing_id: { type: 'string', description: 'The source listing UUID' },
+        buyer_id: { type: 'string', description: 'The remarketing buyer UUID' },
+        initial_stage: { type: 'string', description: 'Initial stage name (default "contacted")' },
+        notes: { type: 'string', description: 'Notes about the conversion' },
+      },
+      required: ['listing_id', 'buyer_id'],
+    },
+  },
+  {
     name: 'grant_data_room_access',
-    description: 'Grant a buyer access to a deal\'s data room. REQUIRES CONFIRMATION. Creates access record and can set permission levels.',
+    description:
+      "Grant a buyer access to a deal's data room. REQUIRES CONFIRMATION. Creates access record and can set permission levels.",
     input_schema: {
       type: 'object',
       properties: {
@@ -91,7 +142,11 @@ export const actionTools: ClaudeTool[] = [
         buyer_id: { type: 'string', description: 'The remarketing buyer UUID' },
         buyer_name: { type: 'string', description: 'Buyer name (for display)' },
         buyer_email: { type: 'string', description: 'Buyer contact email' },
-        access_level: { type: 'string', enum: ['teaser', 'memo', 'full'], description: 'Level of access (default "teaser")' },
+        access_level: {
+          type: 'string',
+          enum: ['teaser', 'memo', 'full'],
+          description: 'Level of access (default "teaser")',
+        },
       },
       required: ['deal_id', 'buyer_id', 'buyer_name', 'buyer_email'],
     },
@@ -107,13 +162,24 @@ export async function executeActionTool(
   userId: string,
 ): Promise<ToolResult> {
   switch (toolName) {
-    case 'create_deal_task': return createDealTask(supabase, args, userId);
-    case 'complete_deal_task': return completeDealTask(supabase, args, userId);
-    case 'add_deal_note': return addDealNote(supabase, args, userId);
-    case 'log_deal_activity': return logDealActivity(supabase, args, userId);
-    case 'update_deal_stage': return updateDealStage(supabase, args, userId);
-    case 'grant_data_room_access': return grantDataRoomAccess(supabase, args, userId);
-    default: return { error: `Unknown action tool: ${toolName}` };
+    case 'create_deal_task':
+      return createDealTask(supabase, args, userId);
+    case 'complete_deal_task':
+      return completeDealTask(supabase, args, userId);
+    case 'add_deal_note':
+      return addDealNote(supabase, args, userId);
+    case 'log_deal_activity':
+      return logDealActivity(supabase, args, userId);
+    case 'update_deal_stage':
+      return updateDealStage(supabase, args, userId);
+    case 'reassign_deal_task':
+      return reassignDealTask(supabase, args, userId);
+    case 'convert_to_pipeline_deal':
+      return convertToPipelineDeal(supabase, args, userId);
+    case 'grant_data_room_access':
+      return grantDataRoomAccess(supabase, args, userId);
+    default:
+      return { error: `Unknown action tool: ${toolName}` };
   }
 }
 
@@ -237,7 +303,10 @@ async function logDealActivity(
       title: args.title as string,
       description: (args.description as string) || null,
       admin_id: userId,
-      metadata: { ...(args.metadata as Record<string, unknown> || {}), source: 'ai_command_center' },
+      metadata: {
+        ...((args.metadata as Record<string, unknown>) || {}),
+        source: 'ai_command_center',
+      },
     })
     .select('id, title, activity_type, created_at')
     .single();
@@ -294,7 +363,7 @@ async function updateDealStage(
 
   // If deal not found in deals table, try listings for backward compat
   let dealTitle = current?.title;
-  let oldStageId = current?.stage_id;
+  const oldStageId = current?.stage_id;
   if (!current) {
     const { data: listing } = await supabase
       .from('listings')
@@ -328,9 +397,17 @@ async function updateDealStage(
     deal_id: dealId,
     activity_type: 'status_change',
     title: `Stage changed: ${oldStageName} → ${stageRecord.name}`,
-    description: args.reason ? `Reason: ${args.reason}` : `AI Command Center updated stage from ${oldStageName} to ${stageRecord.name}`,
+    description: args.reason
+      ? `Reason: ${args.reason}`
+      : `AI Command Center updated stage from ${oldStageName} to ${stageRecord.name}`,
     admin_id: userId,
-    metadata: { source: 'ai_command_center', old_stage: oldStageName, old_stage_id: oldStageId, new_stage: stageRecord.name, new_stage_id: stageRecord.id },
+    metadata: {
+      source: 'ai_command_center',
+      old_stage: oldStageName,
+      old_stage_id: oldStageId,
+      new_stage: stageRecord.name,
+      new_stage_id: stageRecord.id,
+    },
   });
 
   return {
@@ -388,17 +465,21 @@ async function grantDataRoomAccess(
   }
 
   // Write to data_room_access (the authoritative table)
-  const { data, error } = await supabase.from('data_room_access').insert({
-    deal_id: dealId,
-    remarketing_buyer_id: buyerId,
-    contact_id: contactId,
-    can_view_teaser: true,
-    can_view_full_memo: accessLevel === 'memo' || accessLevel === 'full',
-    can_view_data_room: accessLevel === 'full',
-    granted_by: userId,
-    granted_at: new Date().toISOString(),
-  })
-    .select('id, remarketing_buyer_id, contact_id, can_view_teaser, can_view_full_memo, can_view_data_room, granted_at')
+  const { data, error } = await supabase
+    .from('data_room_access')
+    .insert({
+      deal_id: dealId,
+      remarketing_buyer_id: buyerId,
+      contact_id: contactId,
+      can_view_teaser: true,
+      can_view_full_memo: accessLevel === 'memo' || accessLevel === 'full',
+      can_view_data_room: accessLevel === 'full',
+      granted_by: userId,
+      granted_at: new Date().toISOString(),
+    })
+    .select(
+      'id, remarketing_buyer_id, contact_id, can_view_teaser, can_view_full_memo, can_view_data_room, granted_at',
+    )
     .single();
 
   if (error) return { error: error.message };
@@ -410,7 +491,12 @@ async function grantDataRoomAccess(
     title: `Data room access granted to ${args.buyer_name}`,
     description: `${accessLevel} access granted to ${args.buyer_name} (${buyerEmail})`,
     admin_id: userId,
-    metadata: { source: 'ai_command_center', buyer_id: buyerId, contact_id: contactId, access_level: accessLevel },
+    metadata: {
+      source: 'ai_command_center',
+      buyer_id: buyerId,
+      contact_id: contactId,
+      access_level: accessLevel,
+    },
   });
 
   return {
@@ -419,6 +505,226 @@ async function grantDataRoomAccess(
       access_level: accessLevel,
       contact_id: contactId,
       message: `Data room access (${accessLevel}) granted to ${args.buyer_name}${contactId ? '' : ' (warning: no matching contact found in contacts table)'}`,
+    },
+  };
+}
+
+// ---------- reassign_deal_task ----------
+
+async function reassignDealTask(
+  supabase: SupabaseClient,
+  args: Record<string, unknown>,
+  userId: string,
+): Promise<ToolResult> {
+  const taskId = args.task_id as string;
+  if (!taskId) return { error: 'task_id is required' };
+
+  let newAssigneeId = args.new_assignee_id as string | undefined;
+
+  // Look up by email if ID not provided
+  if (!newAssigneeId && args.new_assignee_email) {
+    const { data: user } = await supabase
+      .from('profiles')
+      .select('id, full_name, email')
+      .eq('email', args.new_assignee_email as string)
+      .limit(1)
+      .single();
+
+    if (!user) return { error: `No user found with email: ${args.new_assignee_email}` };
+    newAssigneeId = user.id;
+  }
+
+  if (!newAssigneeId) return { error: 'Either new_assignee_id or new_assignee_email is required' };
+
+  // Get the task
+  const { data: task, error: taskError } = await supabase
+    .from('deal_tasks')
+    .select('id, title, deal_id, assigned_to')
+    .eq('id', taskId)
+    .single();
+
+  if (taskError || !task) return { error: `Task not found: ${taskId}` };
+
+  // Get old assignee name
+  let oldAssigneeName = 'unassigned';
+  if (task.assigned_to) {
+    const { data: oldUser } = await supabase
+      .from('profiles')
+      .select('full_name')
+      .eq('id', task.assigned_to)
+      .single();
+    if (oldUser) oldAssigneeName = oldUser.full_name || 'Unknown';
+  }
+
+  // Get new assignee name
+  const { data: newUser } = await supabase
+    .from('profiles')
+    .select('full_name, email')
+    .eq('id', newAssigneeId)
+    .single();
+  const newAssigneeName = newUser?.full_name || newUser?.email || 'Unknown';
+
+  // Update the task
+  const { error: updateError } = await supabase
+    .from('deal_tasks')
+    .update({
+      assigned_to: newAssigneeId,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', taskId);
+
+  if (updateError) return { error: updateError.message };
+
+  // Log activity
+  await supabase.from('deal_activities').insert({
+    deal_id: task.deal_id,
+    activity_type: 'task_reassigned',
+    title: `Task reassigned: "${task.title}"`,
+    description: `Reassigned from ${oldAssigneeName} to ${newAssigneeName}${args.reason ? `. Reason: ${args.reason}` : ''}`,
+    admin_id: userId,
+    metadata: {
+      source: 'ai_command_center',
+      task_id: taskId,
+      old_assignee: task.assigned_to,
+      new_assignee: newAssigneeId,
+    },
+  });
+
+  return {
+    data: {
+      task_id: taskId,
+      task_title: task.title,
+      old_assignee: oldAssigneeName,
+      new_assignee: newAssigneeName,
+      message: `Task "${task.title}" reassigned from ${oldAssigneeName} to ${newAssigneeName}`,
+    },
+  };
+}
+
+// ---------- convert_to_pipeline_deal ----------
+
+async function convertToPipelineDeal(
+  supabase: SupabaseClient,
+  args: Record<string, unknown>,
+  userId: string,
+): Promise<ToolResult> {
+  const listingId = args.listing_id as string;
+  const buyerId = args.buyer_id as string;
+  const initialStage = (args.initial_stage as string) || 'contacted';
+
+  if (!listingId || !buyerId) {
+    return { error: 'listing_id and buyer_id are required' };
+  }
+
+  // Verify listing exists
+  const { data: listing, error: listingError } = await supabase
+    .from('listings')
+    .select('id, title, internal_company_name, industry, revenue, ebitda')
+    .eq('id', listingId)
+    .single();
+
+  if (listingError || !listing) return { error: `Listing not found: ${listingId}` };
+
+  // Verify buyer exists
+  const { data: buyer, error: buyerError } = await supabase
+    .from('remarketing_buyers')
+    .select('id, company_name, pe_firm_name, buyer_type')
+    .eq('id', buyerId)
+    .single();
+
+  if (buyerError || !buyer) return { error: `Buyer not found: ${buyerId}` };
+
+  // Check if deal already exists for this buyer+listing combo
+  const { data: existingDeal } = await supabase
+    .from('deals')
+    .select('id')
+    .eq('listing_id', listingId)
+    .eq('buyer_id', buyerId)
+    .limit(1)
+    .maybeSingle();
+
+  if (existingDeal) {
+    return {
+      error: `A deal already exists for ${buyer.company_name || buyer.pe_firm_name} on listing "${listing.title || listing.internal_company_name}" (deal ID: ${existingDeal.id})`,
+    };
+  }
+
+  // Look up the stage
+  const { data: stageRecord } = await supabase
+    .from('deal_stages')
+    .select('id, name')
+    .ilike('name', initialStage)
+    .limit(1)
+    .single();
+
+  // Create the deal
+  const now = new Date().toISOString();
+  const { data: deal, error: dealError } = await supabase
+    .from('deals')
+    .insert({
+      listing_id: listingId,
+      buyer_id: buyerId,
+      title: `${buyer.company_name || buyer.pe_firm_name} - ${listing.title || listing.internal_company_name}`,
+      stage_id: stageRecord?.id || null,
+      created_by: userId,
+      created_at: now,
+      updated_at: now,
+    })
+    .select('id, title, stage_id')
+    .single();
+
+  if (dealError) return { error: `Failed to create deal: ${dealError.message}` };
+
+  // Create firm agreement record if one doesn't exist
+  const { data: existingAgreement } = await supabase
+    .from('firm_agreements')
+    .select('id')
+    .eq('remarketing_buyer_id', buyerId)
+    .limit(1)
+    .maybeSingle();
+
+  if (!existingAgreement) {
+    await supabase.from('firm_agreements').insert({
+      remarketing_buyer_id: buyerId,
+      primary_company_name: buyer.company_name || buyer.pe_firm_name,
+      nda_signed: false,
+      fee_agreement_signed: false,
+      created_at: now,
+    });
+  }
+
+  // Update remarketing_scores status to 'pipeline'
+  await supabase
+    .from('remarketing_scores')
+    .update({ status: 'pipeline', updated_at: now })
+    .eq('buyer_id', buyerId)
+    .eq('listing_id', listingId);
+
+  // Log activity
+  await supabase.from('deal_activities').insert({
+    deal_id: deal.id,
+    activity_type: 'deal_created',
+    title: `Pipeline deal created: ${deal.title}`,
+    description: `Converted from remarketing match. ${args.notes ? `Notes: ${args.notes}` : ''}`,
+    admin_id: userId,
+    metadata: {
+      source: 'ai_command_center',
+      listing_id: listingId,
+      buyer_id: buyerId,
+      initial_stage: stageRecord?.name || initialStage,
+    },
+  });
+
+  return {
+    data: {
+      deal_id: deal.id,
+      deal_title: deal.title,
+      listing_id: listingId,
+      buyer_id: buyerId,
+      buyer_name: buyer.company_name || buyer.pe_firm_name,
+      listing_title: listing.title || listing.internal_company_name,
+      stage: stageRecord?.name || initialStage,
+      message: `Pipeline deal created: "${deal.title}" at stage "${stageRecord?.name || initialStage}"`,
     },
   };
 }

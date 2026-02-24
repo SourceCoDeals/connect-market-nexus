@@ -251,6 +251,12 @@ function describeAction(toolName: string, args: Record<string, unknown>): string
       return `Send ${args.document_type === 'nda' ? 'NDA' : 'Fee Agreement'} to ${args.signer_name} (${args.signer_email})`;
     case 'push_to_phoneburner':
       return `Push ${(args.entity_ids as string[])?.length || 0} ${args.entity_type || 'contacts'} to PhoneBurner dialer`;
+    case 'save_contacts_to_crm':
+      return `Save ${(args.contacts as unknown[])?.length || 0} contact(s) to CRM${args.remarketing_buyer_id ? ' linked to buyer' : ''}`;
+    case 'reassign_deal_task':
+      return `Reassign task to ${args.new_assignee_email || args.new_assignee_id || 'team member'}`;
+    case 'convert_to_pipeline_deal':
+      return `Convert remarketing match to pipeline deal (listing: ${args.listing_id}, buyer: ${args.buyer_id})`;
     default:
       return `Execute ${toolName} with provided arguments`;
   }

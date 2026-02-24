@@ -2144,5 +2144,216 @@ export function getChatbotTestScenarios(): TestScenario[] {
         requiresToolCalls: true,
       },
     },
+
+    // --------- Google Search & Contact Discovery ---------
+
+    {
+      id: 'int-google-search',
+      category: 'Integration — Google Search',
+      name: 'Google search for a company',
+      description: 'Tests google_search_companies tool for finding company information.',
+      userMessage: 'Search Google for Trivest Partners LinkedIn page',
+      expectedBehavior: [
+        'Routes to GOOGLE_SEARCH or CONTACT_ENRICHMENT category',
+        'Calls google_search_companies tool',
+        'Returns Google search results with URLs',
+        'Identifies LinkedIn result',
+      ],
+      severity: 'medium',
+      autoValidation: {
+        expectedRouteCategories: ['GOOGLE_SEARCH', 'CONTACT_ENRICHMENT'],
+        expectedTools: ['google_search_companies'],
+        mustContainAny: ['result', 'found', 'LinkedIn', 'Trivest'],
+        requiresToolCalls: true,
+      },
+    },
+    {
+      id: 'int-save-contacts',
+      category: 'Integration — Contact Discovery',
+      name: 'Save contacts to CRM (approval flow)',
+      description: 'Tests save_contacts_to_crm tool — the approval step after finding contacts.',
+      userMessage: 'Add those 5 contacts we just found to our CRM',
+      expectedBehavior: [
+        'Routes to ACTION category',
+        'Calls save_contacts_to_crm tool',
+        'Requires confirmation before saving',
+        'Reports saved vs skipped contacts',
+      ],
+      severity: 'high',
+      skipAutoRun: true,
+      autoValidation: {
+        expectedRouteCategories: ['ACTION', 'CONTACT_ENRICHMENT'],
+        expectedTools: ['save_contacts_to_crm'],
+        requiresToolCalls: true,
+      },
+    },
+
+    // --------- Proactive Operations ---------
+
+    {
+      id: 'proactive-data-quality',
+      category: 'Proactive — Data Quality',
+      name: 'Data quality report',
+      description: 'Tests get_data_quality_report tool for auditing data quality.',
+      userMessage: "How's our data quality? Which buyer profiles are incomplete?",
+      expectedBehavior: [
+        'Routes to PROACTIVE category',
+        'Calls get_data_quality_report tool',
+        'Returns completeness stats for buyers, deals, contacts',
+        'Shows worst profiles and specific gaps',
+      ],
+      severity: 'medium',
+      autoValidation: {
+        expectedRouteCategories: ['PROACTIVE', 'PIPELINE_ANALYTICS'],
+        expectedTools: ['get_data_quality_report'],
+        mustContainAny: ['quality', 'completeness', 'missing', 'buyer', 'profile'],
+        requiresToolCalls: true,
+      },
+    },
+    {
+      id: 'proactive-buyer-conflicts',
+      category: 'Proactive — Buyer Conflicts',
+      name: 'Detect buyer conflicts across deals',
+      description: 'Tests detect_buyer_conflicts tool for finding overlapping buyers.',
+      userMessage: 'Show me buyer conflicts — which buyers are active on multiple deals?',
+      expectedBehavior: [
+        'Routes to PROACTIVE category',
+        'Calls detect_buyer_conflicts tool',
+        'Returns buyers on 2+ deals',
+        'Shows conflict severity and type',
+      ],
+      severity: 'medium',
+      autoValidation: {
+        expectedRouteCategories: ['PROACTIVE'],
+        expectedTools: ['detect_buyer_conflicts'],
+        mustContainAny: ['conflict', 'buyer', 'deal', 'multiple'],
+        requiresToolCalls: true,
+      },
+    },
+    {
+      id: 'proactive-deal-health',
+      category: 'Proactive — Deal Health',
+      name: 'Deal health check',
+      description: 'Tests get_deal_health tool for analyzing deal risk.',
+      userMessage: 'Which deals are at risk of going cold? Give me a health check.',
+      expectedBehavior: [
+        'Routes to PROACTIVE category',
+        'Calls get_deal_health tool',
+        'Returns risk levels: healthy/watch/at_risk/critical',
+        'Shows specific risk factors per deal',
+      ],
+      severity: 'high',
+      autoValidation: {
+        expectedRouteCategories: ['PROACTIVE', 'FOLLOW_UP'],
+        expectedTools: ['get_deal_health'],
+        mustContainAny: ['health', 'risk', 'deal', 'critical', 'watch', 'at_risk', 'healthy'],
+        requiresToolCalls: true,
+      },
+    },
+    {
+      id: 'proactive-lead-matching',
+      category: 'Proactive — Lead Matching',
+      name: 'Match new leads to active deals',
+      description: 'Tests match_leads_to_deals tool for finding lead-deal matches.',
+      userMessage: 'Are there any new leads that match our active pipeline deals?',
+      expectedBehavior: [
+        'Routes to PROACTIVE category',
+        'Calls match_leads_to_deals tool',
+        'Returns matched leads with score and reasoning',
+        'Shows industry/geography/revenue match factors',
+      ],
+      severity: 'medium',
+      autoValidation: {
+        expectedRouteCategories: ['PROACTIVE'],
+        expectedTools: ['match_leads_to_deals'],
+        mustContainAny: ['lead', 'match', 'deal', 'score', 'industry'],
+        requiresToolCalls: true,
+      },
+    },
+
+    // --------- New Actions ---------
+
+    {
+      id: 'action-reassign-task',
+      category: 'Actions — Task Management',
+      name: 'Reassign deal task',
+      description: 'Tests reassign_deal_task tool for task reassignment.',
+      userMessage: 'Reassign the follow-up call task to john@sourceco.com',
+      expectedBehavior: [
+        'Routes to ACTION category',
+        'Calls reassign_deal_task tool',
+        'Requires confirmation',
+        'Shows old and new assignee',
+      ],
+      severity: 'medium',
+      skipAutoRun: true,
+      autoValidation: {
+        expectedRouteCategories: ['ACTION'],
+        expectedTools: ['reassign_deal_task'],
+        requiresToolCalls: true,
+      },
+    },
+    {
+      id: 'action-convert-deal',
+      category: 'Actions — Pipeline Conversion',
+      name: 'Convert to pipeline deal',
+      description: 'Tests convert_to_pipeline_deal tool for creating deals from matches.',
+      userMessage: 'Convert the Trivest match on our HVAC deal to an active pipeline deal',
+      expectedBehavior: [
+        'Routes to DEAL_CONVERSION category',
+        'Calls convert_to_pipeline_deal tool',
+        'Requires confirmation',
+        'Creates deal, firm agreement, updates score status',
+      ],
+      severity: 'high',
+      skipAutoRun: true,
+      autoValidation: {
+        expectedRouteCategories: ['DEAL_CONVERSION', 'ACTION'],
+        expectedTools: ['convert_to_pipeline_deal'],
+        requiresToolCalls: true,
+      },
+    },
+
+    // --------- EOD Recap ---------
+
+    {
+      id: 'content-eod-recap',
+      category: 'Content — EOD Recap',
+      name: 'End of day recap',
+      description: 'Tests generate_eod_recap tool for daily summaries.',
+      userMessage: 'Give me a recap of what happened today',
+      expectedBehavior: [
+        'Routes to EOD_RECAP or MEETING_PREP category',
+        'Calls generate_eod_recap tool',
+        'Summarizes activities, tasks completed, outreach, calls',
+        'Lists upcoming priorities',
+      ],
+      severity: 'medium',
+      autoValidation: {
+        expectedRouteCategories: ['EOD_RECAP', 'MEETING_PREP', 'PIPELINE_REPORT'],
+        expectedTools: ['generate_eod_recap'],
+        mustContainAny: ['today', 'recap', 'task', 'activit'],
+        requiresToolCalls: true,
+      },
+    },
+    {
+      id: 'content-weekly-recap',
+      category: 'Content — EOD Recap',
+      name: 'Weekly recap',
+      description: 'Tests generate_eod_recap with this_week period.',
+      userMessage: 'What did I accomplish this week? Weekly recap please.',
+      expectedBehavior: [
+        'Routes to EOD_RECAP category',
+        'Calls generate_eod_recap with period=this_week',
+        'Shows week-long summary of activities and tasks',
+      ],
+      severity: 'low',
+      autoValidation: {
+        expectedRouteCategories: ['EOD_RECAP', 'MEETING_PREP', 'PIPELINE_REPORT'],
+        expectedTools: ['generate_eod_recap'],
+        mustContainAny: ['week', 'recap', 'accomplish'],
+        requiresToolCalls: true,
+      },
+    },
   ];
 }

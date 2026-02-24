@@ -618,6 +618,124 @@ const BYPASS_RULES: Array<{
       confidence: 0.9,
     },
   },
+  // Google search — search google, search the web, look up
+  {
+    test: (q) =>
+      /\b(google|search the web|search google|look up.*online|web search|search.*internet)\b/i.test(
+        q,
+      ),
+    result: {
+      category: 'GOOGLE_SEARCH',
+      tier: 'STANDARD',
+      tools: ['google_search_companies'],
+      confidence: 0.92,
+    },
+  },
+  // Save / add contacts — approval flow
+  {
+    test: (q) =>
+      /\b(save|add|import|approve).*(contact|person|people|them|those|these).*(crm|system|database|to our)\b/i.test(
+        q,
+      ) ||
+      /\b(add (them|those|these|the first|all)|save (them|those|these|the first|all))\b/i.test(q),
+    result: {
+      category: 'ACTION',
+      tier: 'STANDARD',
+      tools: ['save_contacts_to_crm'],
+      confidence: 0.9,
+    },
+  },
+  // Data quality — quality report, data gaps, incomplete profiles
+  {
+    test: (q) =>
+      /\b(data quality|data gap|incomplete.*profile|profile completeness|data health|missing data|data audit)\b/i.test(
+        q,
+      ),
+    result: {
+      category: 'PROACTIVE',
+      tier: 'STANDARD',
+      tools: ['get_data_quality_report'],
+      confidence: 0.9,
+    },
+  },
+  // Buyer conflicts — overlap, conflict, multiple deals
+  {
+    test: (q) =>
+      /\b(buyer conflict|buyer overlap|competing buyer|same buyer|multi.*deal buyer|cross.*deal.*buyer|buyer.*multiple deal)\b/i.test(
+        q,
+      ),
+    result: {
+      category: 'PROACTIVE',
+      tier: 'STANDARD',
+      tools: ['detect_buyer_conflicts'],
+      confidence: 0.9,
+    },
+  },
+  // Deal health — risk, health check, going cold, at risk
+  {
+    test: (q) =>
+      /\b(deal health|health check|at risk|going cold|risk.*deal|deals? at risk|which deals?.*(risk|danger|trouble))\b/i.test(
+        q,
+      ),
+    result: {
+      category: 'PROACTIVE',
+      tier: 'STANDARD',
+      tools: ['get_deal_health', 'get_stale_deals'],
+      confidence: 0.9,
+    },
+  },
+  // Lead matching — match leads, lead matches, matching leads
+  {
+    test: (q) =>
+      /\b(match.*lead|lead.*match|matching lead|lead.*fit|new lead.*deal|lead.*pipeline)\b/i.test(
+        q,
+      ),
+    result: {
+      category: 'PROACTIVE',
+      tier: 'STANDARD',
+      tools: ['match_leads_to_deals'],
+      confidence: 0.88,
+    },
+  },
+  // End of day recap / weekly recap
+  {
+    test: (q) =>
+      /\b(end of day|eod|recap|what did I do|daily recap|weekly recap|end of week|eow|wrap up|summary of.*day|summary of.*week|what.*accomplish)\b/i.test(
+        q,
+      ),
+    result: {
+      category: 'EOD_RECAP',
+      tier: 'STANDARD',
+      tools: ['generate_eod_recap'],
+      confidence: 0.9,
+    },
+  },
+  // Reassign task
+  {
+    test: (q) =>
+      /\b(reassign|re-assign|give.*task.*to|assign.*task.*to|transfer.*task|hand off.*task|delegate)\b/i.test(
+        q,
+      ),
+    result: {
+      category: 'ACTION',
+      tier: 'STANDARD',
+      tools: ['reassign_deal_task'],
+      confidence: 0.9,
+    },
+  },
+  // Convert to pipeline deal
+  {
+    test: (q) =>
+      /\b(convert to.*deal|convert.*pipeline|move.*pipeline|create.*deal.*for|pipeline.*convert|make.*pipeline deal)\b/i.test(
+        q,
+      ),
+    result: {
+      category: 'DEAL_CONVERSION',
+      tier: 'STANDARD',
+      tools: ['convert_to_pipeline_deal', 'search_buyers', 'get_deal_details'],
+      confidence: 0.9,
+    },
+  },
 ];
 
 // ---------- LLM-based routing ----------
@@ -644,12 +762,16 @@ Categories:
 - ENGAGEMENT: Engagement signals, buyer decisions (approve/pass), score history, interest signals, buyer learning history, PhoneBurner call history/call activity, document engagement/views
 - CONNECTION: Buyer connection requests, deal conversation messages, buyer intake pipeline
 - CONTACTS: PE contacts, platform contacts, firm agreements, NDA logs
-- CONTACT_ENRICHMENT: Find and enrich new contacts at a company via LinkedIn/Prospeo, import contacts, discover emails
+- CONTACT_ENRICHMENT: Find and enrich new contacts at a company via LinkedIn/Prospeo, import contacts, discover emails, Google search for companies
 - DOCUMENT_ACTION: Send NDA or fee agreement for signing, check agreement status
+- PROACTIVE: Data quality audits, buyer conflict detection, deal health analysis, lead-to-deal matching
+- EOD_RECAP: End-of-day/week recaps, daily summaries, "what did I do today"
+- GOOGLE_SEARCH: Search Google for companies, websites, LinkedIn pages, research
+- DEAL_CONVERSION: Convert remarketing match to pipeline deal
 - INDUSTRY: Industry trackers, vertical scoring configs
 - GENERAL: Other / unclear intent
 
-Available tools: query_deals, get_deal_details, get_deal_activities, get_deal_tasks, get_deal_documents, get_deal_memos, get_deal_comments, get_deal_scoring_adjustments, get_deal_referrals, get_deal_conversations, get_pipeline_summary, search_buyers, get_buyer_profile, get_score_breakdown, get_top_buyers_for_deal, get_buyer_decisions, get_score_history, get_buyer_learning_history, search_lead_sources, search_valuation_leads, search_inbound_leads, get_referral_data, search_pe_contacts, get_firm_agreements, get_nda_logs, get_connection_requests, get_connection_messages, search_buyer_universes, get_universe_details, get_outreach_records, get_remarketing_outreach, get_engagement_signals, get_interest_signals, search_transcripts, search_buyer_transcripts, search_fireflies, get_meeting_action_items, get_outreach_status, get_analytics, get_enrichment_status, get_industry_trackers, get_current_user_context, create_deal_task, complete_deal_task, add_deal_note, log_deal_activity, update_deal_stage, grant_data_room_access, select_table_rows, apply_table_filter, sort_table_column, navigate_to_page, explain_buyer_score, get_cross_deal_analytics, semantic_transcript_search, get_follow_up_queue, get_call_history, search_contacts, get_stale_deals, get_document_engagement, enrich_buyer_contacts, push_to_phoneburner, send_document
+Available tools: query_deals, get_deal_details, get_deal_activities, get_deal_tasks, get_deal_documents, get_deal_memos, get_deal_comments, get_deal_scoring_adjustments, get_deal_referrals, get_deal_conversations, get_pipeline_summary, search_buyers, get_buyer_profile, get_score_breakdown, get_top_buyers_for_deal, get_buyer_decisions, get_score_history, get_buyer_learning_history, search_lead_sources, search_valuation_leads, search_inbound_leads, get_referral_data, search_pe_contacts, get_firm_agreements, get_nda_logs, get_connection_requests, get_connection_messages, search_buyer_universes, get_universe_details, get_outreach_records, get_remarketing_outreach, get_engagement_signals, get_interest_signals, search_transcripts, search_buyer_transcripts, search_fireflies, get_meeting_action_items, get_outreach_status, get_analytics, get_enrichment_status, get_industry_trackers, get_current_user_context, create_deal_task, complete_deal_task, add_deal_note, log_deal_activity, update_deal_stage, grant_data_room_access, select_table_rows, apply_table_filter, sort_table_column, navigate_to_page, explain_buyer_score, get_cross_deal_analytics, semantic_transcript_search, get_follow_up_queue, get_call_history, search_contacts, get_stale_deals, get_document_engagement, enrich_buyer_contacts, push_to_phoneburner, send_document, google_search_companies, save_contacts_to_crm, reassign_deal_task, convert_to_pipeline_deal, get_data_quality_report, detect_buyer_conflicts, get_deal_health, match_leads_to_deals, generate_eod_recap
 
 Respond with JSON only:
 {"category":"CATEGORY","tier":"QUICK|STANDARD|DEEP","tools":["tool1","tool2"],"confidence":0.0-1.0}
