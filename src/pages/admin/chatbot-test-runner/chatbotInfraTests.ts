@@ -61,7 +61,10 @@ async function chatColumnExists(table: string, column: string) {
  * Send a query to the AI Command Center and parse SSE events.
  * Returns { text, toolCalls, routeInfo, error }.
  */
-async function sendAIQuery(query: string, timeoutMs = 30000): Promise<{
+export async function sendAIQuery(
+  query: string,
+  timeoutMs = 30000,
+): Promise<{
   text: string;
   toolCalls: Array<{ name: string; id: string; success: boolean }>;
   routeInfo: { category: string; tier: string; tools: string[] } | null;
@@ -75,23 +78,22 @@ async function sendAIQuery(query: string, timeoutMs = 30000): Promise<{
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
   try {
-    const response = await fetch(
-      `${SUPABASE_URL}/functions/v1/ai-command-center`,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${sessionData.session.access_token}`,
-          apikey: SUPABASE_PUBLISHABLE_KEY,
-        },
-        body: JSON.stringify({ query, conversation_id: crypto.randomUUID(), history: [] }),
-        signal: controller.signal,
+    const response = await fetch(`${SUPABASE_URL}/functions/v1/ai-command-center`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${sessionData.session.access_token}`,
+        apikey: SUPABASE_PUBLISHABLE_KEY,
       },
-    );
+      body: JSON.stringify({ query, conversation_id: crypto.randomUUID(), history: [] }),
+      signal: controller.signal,
+    });
 
     if (!response.ok) {
       const err = await response.json().catch(() => ({}));
-      throw new Error(`HTTP ${response.status}: ${(err as Record<string, string>).error || response.statusText}`);
+      throw new Error(
+        `HTTP ${response.status}: ${(err as Record<string, string>).error || response.statusText}`,
+      );
     }
 
     // Parse SSE stream
@@ -131,18 +133,30 @@ async function sendAIQuery(query: string, timeoutMs = 30000): Promise<{
         try {
           const data = JSON.parse(jsonStr);
           switch (eventType) {
-            case 'text': text += data.text || ''; break;
-            case 'routed': routeInfo = data; break;
-            case 'tool_start': toolCalls.push({ name: data.name, id: data.id, success: false }); break;
+            case 'text':
+              text += data.text || '';
+              break;
+            case 'routed':
+              routeInfo = data;
+              break;
+            case 'tool_start':
+              toolCalls.push({ name: data.name, id: data.id, success: false });
+              break;
             case 'tool_result': {
-              const idx = toolCalls.findIndex(t => t.id === data.id);
+              const idx = toolCalls.findIndex((t) => t.id === data.id);
               if (idx >= 0) toolCalls[idx].success = data.success;
               break;
             }
-            case 'error': error = data.message; break;
-            case 'done': cost = data.cost || 0; break;
+            case 'error':
+              error = data.message;
+              break;
+            case 'done':
+              cost = data.cost || 0;
+              break;
           }
-        } catch { /* skip malformed JSON */ }
+        } catch {
+          /* skip malformed JSON */
+        }
       }
     }
 
@@ -186,8 +200,14 @@ export function buildChatbotTests(): ChatbotTestDef[] {
 
   // Required columns on chat_analytics
   const analyticsCols = [
-    'conversation_id', 'context_type', 'query_text', 'response_text',
-    'response_time_ms', 'tokens_total', 'tools_called', 'user_continued',
+    'conversation_id',
+    'context_type',
+    'query_text',
+    'response_text',
+    'response_time_ms',
+    'tokens_total',
+    'tools_called',
+    'user_continued',
   ];
   for (const col of analyticsCols) {
     add(C1, `chat_analytics has '${col}' column`, async () => {
@@ -196,7 +216,13 @@ export function buildChatbotTests(): ChatbotTestDef[] {
   }
 
   // Required columns on chat_feedback
-  const feedbackCols = ['conversation_id', 'message_index', 'rating', 'issue_type', 'feedback_text'];
+  const feedbackCols = [
+    'conversation_id',
+    'message_index',
+    'rating',
+    'issue_type',
+    'feedback_text',
+  ];
   for (const col of feedbackCols) {
     add(C1, `chat_feedback has '${col}' column`, async () => {
       await chatColumnExists('chat_feedback', col);
@@ -210,7 +236,10 @@ export function buildChatbotTests(): ChatbotTestDef[] {
   let testConvId: string | null = null;
 
   add(C2, 'Save new conversation', async (ctx) => {
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
     if (authError) throw new Error(authError.message);
     if (!user) throw new Error('Not authenticated');
 
@@ -219,10 +248,12 @@ export function buildChatbotTests(): ChatbotTestDef[] {
       .insert({
         user_id: user.id,
         context_type: 'deals',
-        messages: JSON.parse(JSON.stringify([
-          { role: 'user', content: 'QA Test Message', timestamp: new Date().toISOString() },
-          { role: 'assistant', content: 'QA Test Response', timestamp: new Date().toISOString() },
-        ])),
+        messages: JSON.parse(
+          JSON.stringify([
+            { role: 'user', content: 'QA Test Message', timestamp: new Date().toISOString() },
+            { role: 'assistant', content: 'QA Test Response', timestamp: new Date().toISOString() },
+          ]),
+        ),
         title: 'QA Chatbot Infra Test',
       })
       .select('id')
@@ -233,7 +264,10 @@ export function buildChatbotTests(): ChatbotTestDef[] {
   });
 
   add(C2, 'Load conversations by context', async () => {
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
     if (authError) throw new Error(authError.message);
     if (!user) throw new Error('Not authenticated');
 
@@ -305,7 +339,10 @@ export function buildChatbotTests(): ChatbotTestDef[] {
   const C3 = '3. Chat Analytics';
 
   add(C3, 'Log analytics entry', async (ctx) => {
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
     if (authError) throw new Error(authError.message);
     if (!user) throw new Error('Not authenticated');
 
@@ -315,7 +352,9 @@ export function buildChatbotTests(): ChatbotTestDef[] {
       .insert({
         user_id: user.id,
         context_type: 'deals',
-        messages: [{ role: 'user', content: 'Analytics test', timestamp: new Date().toISOString() }],
+        messages: [
+          { role: 'user', content: 'Analytics test', timestamp: new Date().toISOString() },
+        ],
         title: 'QA Analytics Test',
       })
       .select('id')
@@ -395,18 +434,15 @@ export function buildChatbotTests(): ChatbotTestDef[] {
     const { data: sessionData } = await supabase.auth.getSession();
     if (!sessionData.session) throw new Error('Not authenticated');
 
-    const response = await fetch(
-      `${SUPABASE_URL}/functions/v1/ai-command-center`,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${sessionData.session.access_token}`,
-          apikey: SUPABASE_PUBLISHABLE_KEY,
-        },
-        body: JSON.stringify({ query: 'ping', conversation_id: 'test', history: [] }),
+    const response = await fetch(`${SUPABASE_URL}/functions/v1/ai-command-center`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${sessionData.session.access_token}`,
+        apikey: SUPABASE_PUBLISHABLE_KEY,
       },
-    );
+      body: JSON.stringify({ query: 'ping', conversation_id: 'test', history: [] }),
+    });
     // Any response that's not a network error is fine — even 400/500 means the function is reachable
     if (!response) throw new Error('No response from ai-command-center');
   });
@@ -417,7 +453,11 @@ export function buildChatbotTests(): ChatbotTestDef[] {
     });
     if (error) {
       const msg = typeof error === 'object' ? JSON.stringify(error) : String(error);
-      if (msg.includes('Failed to fetch') || msg.includes('NetworkError') || msg.includes('net::ERR')) {
+      if (
+        msg.includes('Failed to fetch') ||
+        msg.includes('NetworkError') ||
+        msg.includes('net::ERR')
+      ) {
         throw new Error(`Edge function 'chat-remarketing' network failure: ${msg}`);
       }
     }
@@ -429,7 +469,11 @@ export function buildChatbotTests(): ChatbotTestDef[] {
     });
     if (error) {
       const msg = typeof error === 'object' ? JSON.stringify(error) : String(error);
-      if (msg.includes('Failed to fetch') || msg.includes('NetworkError') || msg.includes('net::ERR')) {
+      if (
+        msg.includes('Failed to fetch') ||
+        msg.includes('NetworkError') ||
+        msg.includes('net::ERR')
+      ) {
         throw new Error(`Edge function 'query-buyer-universe' network failure: ${msg}`);
       }
     }
@@ -441,7 +485,11 @@ export function buildChatbotTests(): ChatbotTestDef[] {
     });
     if (error) {
       const msg = typeof error === 'object' ? JSON.stringify(error) : String(error);
-      if (msg.includes('Failed to fetch') || msg.includes('NetworkError') || msg.includes('net::ERR')) {
+      if (
+        msg.includes('Failed to fetch') ||
+        msg.includes('NetworkError') ||
+        msg.includes('net::ERR')
+      ) {
         throw new Error(`Edge function 'query-tracker-universe' network failure: ${msg}`);
       }
     }
@@ -455,10 +503,13 @@ export function buildChatbotTests(): ChatbotTestDef[] {
   add(C5, 'Pipeline count query routes correctly', async () => {
     const result = await sendAIQuery('how many deals are in the pipeline');
     if (!result.routeInfo) throw new Error('No route info returned');
-    if (result.routeInfo.category !== 'PIPELINE_ANALYTICS' && result.routeInfo.category !== 'DAILY_BRIEFING') {
+    if (
+      result.routeInfo.category !== 'PIPELINE_ANALYTICS' &&
+      result.routeInfo.category !== 'DAILY_BRIEFING'
+    ) {
       throw new Error(`Expected PIPELINE_ANALYTICS, got ${result.routeInfo.category}`);
     }
-    const toolNames = result.toolCalls.map(t => t.name);
+    const toolNames = result.toolCalls.map((t) => t.name);
     if (!toolNames.includes('get_pipeline_summary')) {
       throw new Error(`Expected get_pipeline_summary tool, got: ${toolNames.join(', ') || 'none'}`);
     }
@@ -468,14 +519,19 @@ export function buildChatbotTests(): ChatbotTestDef[] {
     const result = await sendAIQuery('how many hvac deals do we have');
     if (!result.routeInfo) throw new Error('No route info returned');
     // Should have both get_pipeline_summary and query_deals available
-    const toolNames = result.toolCalls.map(t => t.name);
-    const usedPipelineOrQuery = toolNames.includes('get_pipeline_summary') || toolNames.includes('query_deals');
+    const toolNames = result.toolCalls.map((t) => t.name);
+    const usedPipelineOrQuery =
+      toolNames.includes('get_pipeline_summary') || toolNames.includes('query_deals');
     if (!usedPipelineOrQuery) {
-      throw new Error(`Expected get_pipeline_summary or query_deals, got: ${toolNames.join(', ') || 'none'}`);
+      throw new Error(
+        `Expected get_pipeline_summary or query_deals, got: ${toolNames.join(', ') || 'none'}`,
+      );
     }
     // Check the response doesn't contain hallucinated tool calls
     if (result.text.includes('<tool_call>') || result.text.includes('<tool_response>')) {
-      throw new Error('Response contains hallucinated tool call text — AI is faking tool results instead of using real tools');
+      throw new Error(
+        'Response contains hallucinated tool call text — AI is faking tool results instead of using real tools',
+      );
     }
   });
 
@@ -485,12 +541,19 @@ export function buildChatbotTests(): ChatbotTestDef[] {
     if (!result.text) throw new Error('Empty response');
     // Check the response text doesn't include obviously hallucinated patterns
     const hallucinations = [
-      'Arctic Air Systems', 'ProTemp Solutions', 'Comfort Climate Co',
-      'BlueFlame HVAC', 'PureAir Services', 'deal_001', 'deal_002',
+      'Arctic Air Systems',
+      'ProTemp Solutions',
+      'Comfort Climate Co',
+      'BlueFlame HVAC',
+      'PureAir Services',
+      'deal_001',
+      'deal_002',
     ];
     for (const fake of hallucinations) {
       if (result.text.includes(fake)) {
-        throw new Error(`Response contains hallucinated data: "${fake}". The AI is fabricating data instead of using tool results.`);
+        throw new Error(
+          `Response contains hallucinated data: "${fake}". The AI is fabricating data instead of using tool results.`,
+        );
       }
     }
   });
@@ -510,8 +573,8 @@ export function buildChatbotTests(): ChatbotTestDef[] {
   add(C5, 'Deal detail query routes to deal tools', async () => {
     const result = await sendAIQuery('what kind of company is the first deal in the pipeline');
     if (!result.routeInfo) throw new Error('No route info returned');
-    const toolNames = result.toolCalls.map(t => t.name);
-    const hasDealTool = toolNames.some(t => ['query_deals', 'get_deal_details'].includes(t));
+    const toolNames = result.toolCalls.map((t) => t.name);
+    const hasDealTool = toolNames.some((t) => ['query_deals', 'get_deal_details'].includes(t));
     if (!hasDealTool) {
       throw new Error(`Expected deal lookup tools, got: ${toolNames.join(', ') || 'none'}`);
     }
@@ -520,9 +583,11 @@ export function buildChatbotTests(): ChatbotTestDef[] {
   add(C5, 'Tool calls succeed (no errors)', async () => {
     const result = await sendAIQuery('how many active deals are there');
     if (result.error) throw new Error(`AI returned error: ${result.error}`);
-    const failedTools = result.toolCalls.filter(t => !t.success);
+    const failedTools = result.toolCalls.filter((t) => !t.success);
     if (failedTools.length > 0) {
-      throw new Error(`${failedTools.length} tool(s) failed: ${failedTools.map(t => t.name).join(', ')}`);
+      throw new Error(
+        `${failedTools.length} tool(s) failed: ${failedTools.map((t) => t.name).join(', ')}`,
+      );
     }
   });
 
@@ -535,9 +600,11 @@ export function buildChatbotTests(): ChatbotTestDef[] {
       throw new Error('Response has no numbers — expected a deal count');
     }
     // At least one number should be > 0
-    const hasPositive = numbers.some(n => parseInt(n, 10) > 0);
+    const hasPositive = numbers.some((n) => parseInt(n, 10) > 0);
     if (!hasPositive) {
-      throw new Error('All numbers in response are 0 — pipeline appears empty or tools returned no data');
+      throw new Error(
+        'All numbers in response are 0 — pipeline appears empty or tools returned no data',
+      );
     }
   });
 
@@ -567,10 +634,7 @@ export function buildChatbotTests(): ChatbotTestDef[] {
   });
 
   add(C6, 'Multiple context types in use', async () => {
-    const { data, error } = await db
-      .from('chat_conversations')
-      .select('context_type')
-      .limit(100);
+    const { data, error } = await db.from('chat_conversations').select('context_type').limit(100);
     if (error) throw new Error(error.message);
     const types = new Set((data || []).map((d: { context_type: string }) => d.context_type));
     if (types.size < 2) {
