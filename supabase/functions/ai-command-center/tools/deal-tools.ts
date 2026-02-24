@@ -190,9 +190,8 @@ async function queryDeals(
 
   // Paginate to fetch all rows up to requestedLimit
   const PAGE_SIZE = 1000;
-  let allData: typeof data = [];
+  let allData: Record<string, unknown>[] = [];
   let offset = 0;
-  let data: Record<string, unknown>[] | null = null;
 
   while (offset < requestedLimit) {
     const batchSize = Math.min(PAGE_SIZE, requestedLimit - offset);

@@ -64,6 +64,7 @@ async function chatColumnExists(table: string, column: string) {
 export async function sendAIQuery(
   query: string,
   timeoutMs = 30000,
+  externalSignal?: AbortSignal,
 ): Promise<{
   text: string;
   toolCalls: Array<{ name: string; id: string; success: boolean }>;
@@ -76,6 +77,15 @@ export async function sendAIQuery(
 
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
+
+  // If an external signal is provided, link it to our controller
+  if (externalSignal) {
+    if (externalSignal.aborted) {
+      controller.abort();
+    } else {
+      externalSignal.addEventListener('abort', () => controller.abort(), { once: true });
+    }
+  }
 
   try {
     const response = await fetch(`${SUPABASE_URL}/functions/v1/ai-command-center`, {
