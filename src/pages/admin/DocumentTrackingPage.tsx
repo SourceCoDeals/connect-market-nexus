@@ -1,8 +1,9 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   FileSignature,
   Shield,
@@ -220,6 +221,7 @@ export default function DocumentTrackingPage() {
   const [filterType, setFilterType] = useState<"all" | "nda" | "fee_agreement">("all");
   const [sortField, setSortField] = useState<SortField>("date");
   const [sortAsc, setSortAsc] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
   const toggleSort = (field: SortField) => {
     if (sortField === field) {
@@ -284,6 +286,33 @@ export default function DocumentTrackingPage() {
   const totalPending = documents.filter((d) => d.status === "sent").length;
   const totalOther = totalSent - totalSigned - totalPending;
 
+  // Selection helpers
+  const getRowKey = (doc: DocumentRow, idx: number) => `${doc.firmId}-${doc.documentType}-${idx}`;
+  const allFilteredKeys = useMemo(() => filteredDocs.map((d, i) => getRowKey(d, i)), [filteredDocs]);
+  const allSelected = filteredDocs.length > 0 && allFilteredKeys.every((k) => selectedIds.has(k));
+  const someSelected = allFilteredKeys.some((k) => selectedIds.has(k));
+
+  const toggleSelectAll = useCallback(() => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (allSelected) {
+        allFilteredKeys.forEach((k) => next.delete(k));
+      } else {
+        allFilteredKeys.forEach((k) => next.add(k));
+      }
+      return next;
+    });
+  }, [allSelected, allFilteredKeys]);
+
+  const toggleRow = useCallback((key: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  }, []);
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -337,6 +366,19 @@ export default function DocumentTrackingPage() {
         </div>
       </div>
 
+      {/* Selection summary bar */}
+      {selectedIds.size > 0 && (
+        <div className="flex items-center gap-3 rounded-lg border border-primary/20 bg-primary/5 px-4 py-2.5 text-sm">
+          <span className="font-medium">{selectedIds.size} selected</span>
+          <button
+            onClick={() => setSelectedIds(new Set())}
+            className="text-muted-foreground hover:text-foreground underline text-xs"
+          >
+            Clear selection
+          </button>
+        </div>
+      )}
+
       {/* Table */}
       {error ? (
         <div className="border border-border rounded-xl bg-card flex flex-col items-center justify-center py-16">
@@ -364,6 +406,13 @@ export default function DocumentTrackingPage() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-border bg-muted/50">
+                  <th className="px-4 py-3 w-10">
+                    <Checkbox
+                      checked={allSelected ? true : someSelected ? "indeterminate" : false}
+                      onCheckedChange={toggleSelectAll}
+                      aria-label="Select all"
+                    />
+                  </th>
                   <th className="text-left px-4 py-3 font-medium text-muted-foreground">
                     <button
                       onClick={() => toggleSort("company")}
@@ -406,8 +455,18 @@ export default function DocumentTrackingPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
-                {filteredDocs.map((doc, idx) => (
-                  <tr key={`${doc.firmId}-${doc.documentType}-${idx}`} className="hover:bg-muted/30 transition-colors">
+                {filteredDocs.map((doc, idx) => {
+                  const rowKey = getRowKey(doc, idx);
+                  return (
+                  <tr key={rowKey} className={`hover:bg-muted/30 transition-colors ${selectedIds.has(rowKey) ? 'bg-primary/5' : ''}`}>
+                    {/* Checkbox */}
+                    <td className="px-4 py-3 w-10">
+                      <Checkbox
+                        checked={selectedIds.has(rowKey)}
+                        onCheckedChange={() => toggleRow(rowKey)}
+                        aria-label={`Select ${doc.companyName}`}
+                      />
+                    </td>
                     {/* Company */}
                     <td className="px-4 py-3">
                       <span className="font-medium text-foreground">
@@ -496,7 +555,8 @@ export default function DocumentTrackingPage() {
                       )}
                     </td>
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
           </div>
