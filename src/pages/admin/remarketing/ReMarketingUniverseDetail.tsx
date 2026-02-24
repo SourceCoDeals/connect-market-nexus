@@ -1,17 +1,17 @@
-import { useState, useEffect, useRef } from "react";
-import { useParams, useNavigate, Link } from "react-router-dom";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
-import type { RealtimeChannel } from "@supabase/supabase-js";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Badge } from "@/components/ui/badge";
-import { Slider } from "@/components/ui/slider";
+import { useState, useEffect, useRef } from 'react';
+import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+import type { RealtimeChannel } from '@supabase/supabase-js';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Badge } from '@/components/ui/badge';
+import { Slider } from '@/components/ui/slider';
 import {
   DocumentUploadSection,
   MAGuideEditor,
@@ -29,20 +29,21 @@ import {
   StructuredCriteriaPanel,
   EnrichmentProgressIndicator,
   EnrichmentSummaryDialog,
-  ReMarketingChat
-} from "@/components/remarketing";
-import { PushToDialerModal } from "@/components/remarketing/PushToDialerModal";
-import { AddBuyerToUniverseDialog } from "@/components/remarketing/AddBuyerToUniverseDialog";
-import { 
-  SizeCriteria, 
-  GeographyCriteria, 
-  ServiceCriteria, 
+  ReMarketingChat,
+} from '@/components/remarketing';
+import { PushToDialerModal } from '@/components/remarketing/PushToDialerModal';
+import { PushToSmartleadModal } from '@/components/remarketing/PushToSmartleadModal';
+import { AddBuyerToUniverseDialog } from '@/components/remarketing/AddBuyerToUniverseDialog';
+import {
+  SizeCriteria,
+  GeographyCriteria,
+  ServiceCriteria,
   BuyerTypesCriteria,
   ScoringBehavior,
   DocumentReference,
-  TargetBuyerTypeConfig
-} from "@/types/remarketing";
-import { 
+  TargetBuyerTypeConfig,
+} from '@/types/remarketing';
+import {
   ArrowLeft,
   Save,
   Target,
@@ -58,16 +59,23 @@ import {
   ChevronDown,
   ChevronUp,
   TrendingUp,
-  Upload
-} from "lucide-react";
-import { toast } from "sonner";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { useBuyerEnrichment } from "@/hooks/useBuyerEnrichment";
-import { useBuyerEnrichmentQueue } from "@/hooks/useBuyerEnrichmentQueue";
-import { useDealEnrichment } from "@/hooks/useDealEnrichment";
-import { useEnrichmentProgress } from "@/hooks/useEnrichmentProgress";
-import { useAlignmentScoring } from "@/hooks/useAlignmentScoring";
+  Upload,
+} from 'lucide-react';
+import { toast } from 'sonner';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { useBuyerEnrichment } from '@/hooks/useBuyerEnrichment';
+import { useBuyerEnrichmentQueue } from '@/hooks/useBuyerEnrichmentQueue';
+import { useDealEnrichment } from '@/hooks/useDealEnrichment';
+import { useEnrichmentProgress } from '@/hooks/useEnrichmentProgress';
+import { useAlignmentScoring } from '@/hooks/useAlignmentScoring';
 
 const ReMarketingUniverseDetail = () => {
   const { id } = useParams<{ id: string }>();
@@ -91,13 +99,13 @@ const ReMarketingUniverseDetail = () => {
     include_pe_firms: true,
     include_platforms: true,
     include_strategic: true,
-    include_family_office: true
+    include_family_office: true,
   });
   const [scoringBehavior, setScoringBehavior] = useState<ScoringBehavior>({});
   const [documents, setDocuments] = useState<DocumentReference[]>([]);
-  const [maGuideContent, setMaGuideContent] = useState("");
+  const [maGuideContent, setMaGuideContent] = useState('');
   const [targetBuyerTypes, setTargetBuyerTypes] = useState<TargetBuyerTypeConfig[]>([]);
-  const [buyerSearch, setBuyerSearch] = useState("");
+  const [buyerSearch, setBuyerSearch] = useState('');
   const [addDealDialogOpen, setAddDealDialogOpen] = useState(false);
   const [addDealDefaultTab, setAddDealDefaultTab] = useState<'existing' | 'new'>('existing');
   const [importDealsDialogOpen, setImportDealsDialogOpen] = useState(false);
@@ -108,10 +116,11 @@ const ReMarketingUniverseDetail = () => {
   const [importBuyersDialogOpen, setImportBuyersDialogOpen] = useState(false);
   const [addBuyerDialogOpen, setAddBuyerDialogOpen] = useState(false);
   const [showBuyerEnrichDialog, setShowBuyerEnrichDialog] = useState(false);
-   const [selectedBuyerIds, setSelectedBuyerIds] = useState<string[]>([]);
-    const [isRemovingSelected, setIsRemovingSelected] = useState(false);
-    const [dialerOpen, setDialerOpen] = useState(false);
-   const [editingHeader, setEditingHeader] = useState(false);
+  const [selectedBuyerIds, setSelectedBuyerIds] = useState<string[]>([]);
+  const [isRemovingSelected, setIsRemovingSelected] = useState(false);
+  const [dialerOpen, setDialerOpen] = useState(false);
+  const [smartleadOpen, setSmartleadOpen] = useState(false);
+  const [editingHeader, setEditingHeader] = useState(false);
 
   // Use the enrichment hook for proper batch processing with progress tracking (legacy - for direct enrichment)
   useBuyerEnrichment(id);
@@ -128,11 +137,11 @@ const ReMarketingUniverseDetail = () => {
   } = useBuyerEnrichmentQueue(id);
 
   // Use the deal enrichment hook for queuing deals
-  const { 
-    progress: dealEnrichmentProgress, 
-    enrichDeals, 
-    cancel: cancelDealEnrichment, 
-    reset: resetDealEnrichment 
+  const {
+    progress: dealEnrichmentProgress,
+    enrichDeals,
+    cancel: cancelDealEnrichment,
+    reset: resetDealEnrichment,
   } = useDealEnrichment(id);
 
   // Use the queue-based deal enrichment progress for real-time tracking
@@ -149,7 +158,7 @@ const ReMarketingUniverseDetail = () => {
     progress: alignmentProgress,
     scoreBuyers: scoreAlignmentBuyers,
     cancel: cancelAlignmentScoring,
-    reset: resetAlignmentScoring
+    reset: resetAlignmentScoring,
   } = useAlignmentScoring(id);
 
   // Fetch universe if editing
@@ -157,7 +166,7 @@ const ReMarketingUniverseDetail = () => {
     queryKey: ['remarketing', 'universe', id],
     queryFn: async () => {
       if (isNew) return null;
-      
+
       const { data, error } = await supabase
         .from('remarketing_buyer_universes')
         .select('*')
@@ -167,7 +176,7 @@ const ReMarketingUniverseDetail = () => {
       if (error) throw error;
       return data;
     },
-    enabled: !isNew
+    enabled: !isNew,
   });
 
   // Fetch buyers in this universe
@@ -175,14 +184,16 @@ const ReMarketingUniverseDetail = () => {
     queryKey: ['remarketing', 'buyers', 'universe', id],
     queryFn: async () => {
       if (isNew) return [];
-      
+
       const { data, error } = await supabase
         .from('remarketing_buyers')
-        .select('id, company_name, company_website, platform_website, pe_firm_website, buyer_type, pe_firm_name, hq_city, hq_state, business_summary, thesis_summary, target_geographies, geographic_footprint, service_regions, operating_locations, alignment_score, alignment_reasoning, alignment_checked_at, has_fee_agreement')
+        .select(
+          'id, company_name, company_website, platform_website, pe_firm_website, buyer_type, pe_firm_name, hq_city, hq_state, business_summary, thesis_summary, target_geographies, geographic_footprint, service_regions, operating_locations, alignment_score, alignment_reasoning, alignment_checked_at, has_fee_agreement',
+        )
         .eq('universe_id', id!)
         .eq('archived', false)
         .order('alignment_score', { ascending: false, nullsFirst: false });
-      
+
       if (error) {
         throw error;
       }
@@ -199,17 +210,17 @@ const ReMarketingUniverseDetail = () => {
     queryKey: ['remarketing', 'buyer-transcripts', id],
     queryFn: async () => {
       if (isNew || !buyers?.length) return new Set<string>();
-      
-      const buyerIds = buyers.map(b => b.id);
+
+      const buyerIds = buyers.map((b) => b.id);
       const { data, error } = await supabase
         .from('buyer_transcripts')
         .select('buyer_id')
         .in('buyer_id', buyerIds);
-      
+
       if (error) {
         return new Set<string>();
       }
-      
+
       return new Set((data || []).map((t: any) => t.buyer_id));
     },
     enabled: !isNew && !!buyers?.length,
@@ -217,35 +228,35 @@ const ReMarketingUniverseDetail = () => {
 
   // Real-time subscription for buyer updates during enrichment
   const channelRef = useRef<RealtimeChannel | null>(null);
-  
+
   useEffect(() => {
     if (isNew || !id) return;
-    
+
     // Cleanup any previous channel
     if (channelRef.current) {
       supabase.removeChannel(channelRef.current);
       channelRef.current = null;
     }
-    
+
     const channel = supabase
       .channel(`universe-buyers:${id}`)
       .on(
-        "postgres_changes",
+        'postgres_changes',
         {
-          event: "*",
-          schema: "public",
-          table: "remarketing_buyers",
+          event: '*',
+          schema: 'public',
+          table: 'remarketing_buyers',
           filter: `universe_id=eq.${id}`,
         },
         (_payload) => {
           // Refetch buyers list on any change (INSERT, UPDATE, DELETE)
           refetchBuyers();
-        }
+        },
       )
       .subscribe();
-    
+
     channelRef.current = channel;
-    
+
     return () => {
       if (channelRef.current) {
         supabase.removeChannel(channelRef.current);
@@ -259,10 +270,11 @@ const ReMarketingUniverseDetail = () => {
     queryKey: ['remarketing', 'universe-deals', id],
     queryFn: async () => {
       if (isNew) return [];
-      
+
       const result = await supabase
         .from('remarketing_universe_deals')
-        .select(`
+        .select(
+          `
           id,
           added_at,
           status,
@@ -273,15 +285,16 @@ const ReMarketingUniverseDetail = () => {
             google_rating, google_review_count,
             deal_total_score, seller_interest_score
           )
-        `)
+        `,
+        )
         .eq('universe_id', id!)
         .eq('status', 'active')
         .order('added_at', { ascending: false });
-      
+
       if (result.error) throw result.error;
       return result.data || [];
     },
-    enabled: !isNew
+    enabled: !isNew,
   });
 
   // Fetch engagement stats from remarketing_scores for deals in this universe
@@ -289,41 +302,58 @@ const ReMarketingUniverseDetail = () => {
     queryKey: ['remarketing', 'deal-engagement', id],
     queryFn: async () => {
       if (isNew || !universeDeals?.length) return {};
-      
+
       const listingIds = universeDeals.map((d: any) => d.listing?.id).filter(Boolean);
       if (listingIds.length === 0) return {};
-      
+
       const { data: scores, error } = await supabase
         .from('remarketing_scores')
         .select('listing_id, status, composite_score')
         .eq('universe_id', id!)
         .in('listing_id', listingIds);
-      
+
       if (error) throw error;
-      
-      const stats: Record<string, { approved: number; interested: number; passed: number; avgScore: number; totalScore: number; count: number }> = {};
-      
+
+      const stats: Record<
+        string,
+        {
+          approved: number;
+          interested: number;
+          passed: number;
+          avgScore: number;
+          totalScore: number;
+          count: number;
+        }
+      > = {};
+
       scores?.forEach((score) => {
         if (!stats[score.listing_id]) {
-          stats[score.listing_id] = { approved: 0, interested: 0, passed: 0, avgScore: 0, totalScore: 0, count: 0 };
+          stats[score.listing_id] = {
+            approved: 0,
+            interested: 0,
+            passed: 0,
+            avgScore: 0,
+            totalScore: 0,
+            count: 0,
+          };
         }
         const s = stats[score.listing_id];
         s.count++;
         s.totalScore += score.composite_score || 0;
-        
+
         if (score.status === 'approved') s.approved++;
         else if (score.status === 'pending') s.interested++;
         else if (score.status === 'passed') s.passed++;
       });
-      
+
       // Calculate averages
-      Object.values(stats).forEach(s => {
+      Object.values(stats).forEach((s) => {
         s.avgScore = s.count > 0 ? s.totalScore / s.count : 0;
       });
-      
+
       return stats;
     },
-    enabled: !isNew && !!universeDeals?.length
+    enabled: !isNew && !!universeDeals?.length,
   });
 
   // Update form when universe loads
@@ -341,18 +371,22 @@ const ReMarketingUniverseDetail = () => {
       setSizeCriteria((universe.size_criteria as unknown as SizeCriteria) || {});
       setGeographyCriteria((universe.geography_criteria as unknown as GeographyCriteria) || {});
       setServiceCriteria((universe.service_criteria as unknown as ServiceCriteria) || {});
-      setBuyerTypesCriteria((universe.buyer_types_criteria as unknown as BuyerTypesCriteria) || {
-        include_pe_firms: true,
-        include_platforms: true,
-        include_strategic: true,
-        include_family_office: true
-      });
+      setBuyerTypesCriteria(
+        (universe.buyer_types_criteria as unknown as BuyerTypesCriteria) || {
+          include_pe_firms: true,
+          include_platforms: true,
+          include_strategic: true,
+          include_family_office: true,
+        },
+      );
       setScoringBehavior((universe.scoring_behavior as unknown as ScoringBehavior) || {});
       setDocuments((universe.documents as unknown as DocumentReference[]) || []);
       setMaGuideContent(universe.ma_guide_content || '');
-      
+
       // Load saved target buyer types from DB, fall back to defaults if empty
-      const savedBuyerTypes = universe.target_buyer_types as unknown as TargetBuyerTypeConfig[] | null;
+      const savedBuyerTypes = universe.target_buyer_types as unknown as
+        | TargetBuyerTypeConfig[]
+        | null;
       if (savedBuyerTypes && savedBuyerTypes.length > 0) {
         setTargetBuyerTypes(savedBuyerTypes);
       }
@@ -363,30 +397,29 @@ const ReMarketingUniverseDetail = () => {
   useEffect(() => {
     const syncGuideToDocuments = async () => {
       if (!id || isNew || !universe) return;
-      
+
       const guideContent = universe.ma_guide_content;
       const existingDocs = (universe.documents as unknown as DocumentReference[]) || [];
       const hasGuideDoc = existingDocs.some((d: any) => d.type === 'ma_guide');
-      
+
       // If there's substantial guide content but no document entry, create one
       if (guideContent && guideContent.length > 1000 && !hasGuideDoc) {
-        
         try {
           // Call edge function to upload HTML to storage
           const response = await fetch(
             `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-guide-pdf`,
             {
-              method: "POST",
+              method: 'POST',
               headers: {
-                "Content-Type": "application/json",
+                'Content-Type': 'application/json',
                 Authorization: `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`,
               },
               body: JSON.stringify({
                 universeId: id,
                 industryName: universe.name || 'M&A Guide',
-                content: guideContent
+                content: guideContent,
               }),
-            }
+            },
           );
 
           if (!response.ok) {
@@ -462,25 +495,29 @@ const ReMarketingUniverseDetail = () => {
       toast.error('Please enter fit criteria text first');
       return;
     }
-    
+
     setIsParsing(true);
     try {
       const { data, error } = await supabase.functions.invoke('parse-fit-criteria', {
         body: {
           fit_criteria_text: formData.fit_criteria,
-          universe_name: formData.name
-        }
+          universe_name: formData.name,
+        },
       });
 
       if (error) throw error;
 
       if (data) {
-        if (data.size_criteria) setSizeCriteria(prev => ({ ...prev, ...data.size_criteria }));
-        if (data.geography_criteria) setGeographyCriteria(prev => ({ ...prev, ...data.geography_criteria }));
-        if (data.service_criteria) setServiceCriteria(prev => ({ ...prev, ...data.service_criteria }));
-        if (data.buyer_types_criteria) setBuyerTypesCriteria(prev => ({ ...prev, ...data.buyer_types_criteria }));
-        if (data.scoring_behavior) setScoringBehavior(prev => ({ ...prev, ...data.scoring_behavior }));
-        
+        if (data.size_criteria) setSizeCriteria((prev) => ({ ...prev, ...data.size_criteria }));
+        if (data.geography_criteria)
+          setGeographyCriteria((prev) => ({ ...prev, ...data.geography_criteria }));
+        if (data.service_criteria)
+          setServiceCriteria((prev) => ({ ...prev, ...data.service_criteria }));
+        if (data.buyer_types_criteria)
+          setBuyerTypesCriteria((prev) => ({ ...prev, ...data.buyer_types_criteria }));
+        if (data.scoring_behavior)
+          setScoringBehavior((prev) => ({ ...prev, ...data.scoring_behavior }));
+
         toast.success('Criteria parsed successfully');
       }
     } catch (error) {
@@ -492,7 +529,6 @@ const ReMarketingUniverseDetail = () => {
 
   const saveMutation = useMutation({
     mutationFn: async () => {
-       
       const saveData: any = {
         ...formData,
         size_criteria: sizeCriteria,
@@ -502,7 +538,7 @@ const ReMarketingUniverseDetail = () => {
         scoring_behavior: scoringBehavior,
         documents: documents,
         ma_guide_content: maGuideContent,
-        target_buyer_types: targetBuyerTypes
+        target_buyer_types: targetBuyerTypes,
       };
 
       if (isNew) {
@@ -511,7 +547,7 @@ const ReMarketingUniverseDetail = () => {
           .insert([saveData])
           .select()
           .single();
-        
+
         if (error) throw error;
         return data;
       } else {
@@ -519,7 +555,7 @@ const ReMarketingUniverseDetail = () => {
           .from('remarketing_buyer_universes')
           .update(saveData)
           .eq('id', id!);
-        
+
         if (error) throw error;
       }
     },
@@ -532,38 +568,42 @@ const ReMarketingUniverseDetail = () => {
     },
     onError: () => {
       toast.error('Failed to save universe');
-    }
+    },
   });
 
   // Handler for removing buyers from this universe (sets universe_id to null)
   // They remain in the all buyers list - just unlinked from this universe
   const handleRemoveBuyersFromUniverse = async (buyerIds: string[]) => {
     if (!buyerIds.length) return;
-    
+
     const { error } = await supabase
       .from('remarketing_buyers')
       .update({ universe_id: null })
       .in('id', buyerIds);
-    
+
     if (error) {
       toast.error('Failed to remove buyers from universe');
       throw error;
     }
-    
-    toast.success(`Removed ${buyerIds.length} buyer${buyerIds.length > 1 ? 's' : ''} from universe`);
+
+    toast.success(
+      `Removed ${buyerIds.length} buyer${buyerIds.length > 1 ? 's' : ''} from universe`,
+    );
     queryClient.invalidateQueries({ queryKey: ['remarketing', 'buyers', 'universe', id] });
   };
 
   // Handler for single buyer enrichment via row dropdown
   const handleEnrichSingleBuyer = async (buyerId: string) => {
-    const buyer = buyers?.find(b => b.id === buyerId);
+    const buyer = buyers?.find((b) => b.id === buyerId);
     if (!buyer) return;
-    await queueBuyers([{
-      id: buyer.id,
-      company_website: buyer.company_website ?? null,
-      platform_website: buyer.platform_website ?? null,
-      pe_firm_website: buyer.pe_firm_website ?? null,
-    }]);
+    await queueBuyers([
+      {
+        id: buyer.id,
+        company_website: buyer.company_website ?? null,
+        platform_website: buyer.platform_website ?? null,
+        pe_firm_website: buyer.pe_firm_website ?? null,
+      },
+    ]);
   };
 
   // Handler for single buyer removal from universe via row dropdown
@@ -573,12 +613,12 @@ const ReMarketingUniverseDetail = () => {
       .from('remarketing_buyers')
       .update({ universe_id: null })
       .eq('id', buyerId);
-    
+
     if (error) {
       toast.error('Failed to remove buyer');
       return;
     }
-    
+
     toast.success('Buyer removed from universe');
     queryClient.invalidateQueries({ queryKey: ['remarketing', 'buyers', 'universe', id] });
   };
@@ -609,11 +649,14 @@ const ReMarketingUniverseDetail = () => {
         const firmWebsite = buyer.pe_firm_website || buyer.company_website;
 
         if (firmName) {
-          const { data: createdFirmId, error: createdFirmIdError } = await supabase.rpc('get_or_create_firm', {
-            p_company_name: firmName,
-            p_website: firmWebsite ?? undefined,
-            p_email: undefined,
-          });
+          const { data: createdFirmId, error: createdFirmIdError } = await supabase.rpc(
+            'get_or_create_firm',
+            {
+              p_company_name: firmName,
+              p_website: firmWebsite ?? undefined,
+              p_email: undefined,
+            },
+          );
           if (createdFirmIdError) throw createdFirmIdError;
 
           if (createdFirmId) {
@@ -654,8 +697,13 @@ const ReMarketingUniverseDetail = () => {
       toast.success('Fee agreement marked — synced to marketplace');
     } else {
       // TURNING OFF: Only allow removal of manual overrides
-      if ((buyer as any).fee_agreement_source === 'marketplace_synced' || (buyer as any).fee_agreement_source === 'pe_firm_inherited') {
-        toast.error('This fee agreement comes from the marketplace. Remove it from the Firm Agreements page instead.');
+      if (
+        (buyer as any).fee_agreement_source === 'marketplace_synced' ||
+        (buyer as any).fee_agreement_source === 'pe_firm_inherited'
+      ) {
+        toast.error(
+          'This fee agreement comes from the marketplace. Remove it from the Firm Agreements page instead.',
+        );
         return;
       }
 
@@ -679,56 +727,63 @@ const ReMarketingUniverseDetail = () => {
     queryClient.invalidateQueries({ queryKey: ['firm-agreements'] });
   };
 
-   // Handler for bulk removal of selected buyers from universe
-   const handleRemoveSelectedBuyers = async () => {
-     if (!selectedBuyerIds.length) return;
-     
-     setIsRemovingSelected(true);
-     try {
-       await handleRemoveBuyersFromUniverse(selectedBuyerIds);
-       setSelectedBuyerIds([]);
-     } finally {
-       setIsRemovingSelected(false);
-     }
-   };
+  // Handler for bulk removal of selected buyers from universe
+  const handleRemoveSelectedBuyers = async () => {
+    if (!selectedBuyerIds.length) return;
 
-  const totalWeight = formData.geography_weight + formData.size_weight + 
-    formData.service_weight + formData.owner_goals_weight;
+    setIsRemovingSelected(true);
+    try {
+      await handleRemoveBuyersFromUniverse(selectedBuyerIds);
+      setSelectedBuyerIds([]);
+    } finally {
+      setIsRemovingSelected(false);
+    }
+  };
+
+  const totalWeight =
+    formData.geography_weight +
+    formData.size_weight +
+    formData.service_weight +
+    formData.owner_goals_weight;
 
   // Handler for buyer enrichment with mode selection - uses queue for background processing
   const handleBuyerEnrichment = async (_mode: 'all' | 'unenriched') => {
     setShowBuyerEnrichDialog(false);
-    
+
     if (!buyers?.length) {
       toast.error('No buyers to enrich');
       return;
     }
-    
+
     resetQueueEnrichment();
-    
+
     // Filter based on mode
     const buyersToEnrich = buyers;
-    
+
     if (buyersToEnrich.length === 0) {
       toast.info('All buyers are already enriched');
       return;
     }
-    
+
     // Queue for background processing (persists even when navigating away)
-    await queueBuyers(buyersToEnrich.map(b => ({
-      id: b.id,
-      company_website: b.company_website,
-      platform_website: b.platform_website,
-      pe_firm_website: b.pe_firm_website
-    })));
+    await queueBuyers(
+      buyersToEnrich.map((b) => ({
+        id: b.id,
+        company_website: b.company_website,
+        platform_website: b.platform_website,
+        pe_firm_website: b.pe_firm_website,
+      })),
+    );
   };
 
   // Filter buyers by search
-  const filteredBuyers = buyers?.filter(buyer => 
-    !buyerSearch || 
-    buyer.company_name.toLowerCase().includes(buyerSearch.toLowerCase()) ||
-    buyer.pe_firm_name?.toLowerCase().includes(buyerSearch.toLowerCase())
-  ) || [];
+  const filteredBuyers =
+    buyers?.filter(
+      (buyer) =>
+        !buyerSearch ||
+        buyer.company_name.toLowerCase().includes(buyerSearch.toLowerCase()) ||
+        buyer.pe_firm_name?.toLowerCase().includes(buyerSearch.toLowerCase()),
+    ) || [];
 
   if (!isNew && isLoading) {
     return (
@@ -754,28 +809,45 @@ const ReMarketingUniverseDetail = () => {
               <div className="space-y-2">
                 <Input
                   value={formData.name}
-                  onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                  onChange={(e) => setFormData((prev) => ({ ...prev, name: e.target.value }))}
                   className="text-2xl font-bold h-10 px-2"
                   placeholder="Universe name"
                   autoFocus
                 />
                 <Textarea
                   value={formData.description}
-                  onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+                  onChange={(e) =>
+                    setFormData((prev) => ({ ...prev, description: e.target.value }))
+                  }
                   className="text-sm resize-none"
                   placeholder="Add a description for this universe..."
                   rows={2}
                 />
                 <div className="flex gap-2">
-                  <Button size="sm" variant="default" onClick={() => { saveMutation.mutate(); setEditingHeader(false); }} disabled={saveMutation.isPending}>
-                    <Save className="h-3 w-3 mr-1" />Save
+                  <Button
+                    size="sm"
+                    variant="default"
+                    onClick={() => {
+                      saveMutation.mutate();
+                      setEditingHeader(false);
+                    }}
+                    disabled={saveMutation.isPending}
+                  >
+                    <Save className="h-3 w-3 mr-1" />
+                    Save
                   </Button>
-                  <Button size="sm" variant="ghost" onClick={() => setEditingHeader(false)}>Cancel</Button>
+                  <Button size="sm" variant="ghost" onClick={() => setEditingHeader(false)}>
+                    Cancel
+                  </Button>
                 </div>
               </div>
             ) : (
               <div
-                className={!isNew ? "cursor-pointer group rounded-md px-2 py-1 -mx-2 -my-1 hover:bg-muted/50 transition-colors" : ""}
+                className={
+                  !isNew
+                    ? 'cursor-pointer group rounded-md px-2 py-1 -mx-2 -my-1 hover:bg-muted/50 transition-colors'
+                    : ''
+                }
                 onClick={() => !isNew && setEditingHeader(true)}
               >
                 <div className="flex items-center gap-3">
@@ -789,7 +861,9 @@ const ReMarketingUniverseDetail = () => {
                   )}
                 </div>
                 <p className="text-muted-foreground text-sm">
-                  {isNew ? 'Create a new buyer universe' : (formData.description || 'Click to add a description...')}
+                  {isNew
+                    ? 'Create a new buyer universe'
+                    : formData.description || 'Click to add a description...'}
                 </p>
               </div>
             )}
@@ -797,8 +871,8 @@ const ReMarketingUniverseDetail = () => {
         </div>
         <div className="flex items-center gap-2">
           {!isNew && (
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               onClick={() => {
                 setAddDealDefaultTab('new');
                 setAddDealDialogOpen(true);
@@ -808,7 +882,7 @@ const ReMarketingUniverseDetail = () => {
               List New Deal
             </Button>
           )}
-          <Button 
+          <Button
             onClick={() => saveMutation.mutate()}
             disabled={!formData.name || saveMutation.isPending}
           >
@@ -819,9 +893,7 @@ const ReMarketingUniverseDetail = () => {
       </div>
 
       {/* New Universe: Templates */}
-      {isNew && (
-        <UniverseTemplates onApplyTemplate={handleApplyTemplate} />
-      )}
+      {isNew && <UniverseTemplates onApplyTemplate={handleApplyTemplate} />}
 
       {/* Main Tabs: Universe (default) vs Configuration */}
       {!isNew && (
@@ -871,18 +943,18 @@ const ReMarketingUniverseDetail = () => {
                           toast.error('No buyers to score');
                           return;
                         }
-                        
+
                         // Reset any previous alignment state
                         resetAlignmentScoring();
-                        
+
                         // Score buyers and refresh when done
                         await scoreAlignmentBuyers(
-                          buyers.map(b => ({
+                          buyers.map((b) => ({
                             id: b.id,
                             company_name: b.company_name,
-                            alignment_score: b.alignment_score ?? null
+                            alignment_score: b.alignment_score ?? null,
                           })),
-                          () => refetchBuyers()
+                          () => refetchBuyers(),
                         );
                       }}
                       onCancelAlignment={cancelAlignmentScoring}
@@ -895,24 +967,31 @@ const ReMarketingUniverseDetail = () => {
                         failed: queueProgress.failed,
                         creditsDepleted: false,
                         rateLimited: queueProgress.rateLimited > 0,
-                        resetTime: queueProgress.rateLimitResetAt
+                        resetTime: queueProgress.rateLimitResetAt,
                       }}
                       alignmentProgress={{
                         current: alignmentProgress.current,
                         total: alignmentProgress.total,
                         successful: alignmentProgress.successful,
                         failed: alignmentProgress.failed,
-                        creditsDepleted: alignmentProgress.creditsDepleted
+                        creditsDepleted: alignmentProgress.creditsDepleted,
                       }}
-                       selectedCount={selectedBuyerIds.length}
-                       onRemoveSelected={handleRemoveSelectedBuyers}
-                       isRemovingSelected={isRemovingSelected}
-                       onPushToDialer={() => setDialerOpen(true)}
+                      selectedCount={selectedBuyerIds.length}
+                      onRemoveSelected={handleRemoveSelectedBuyers}
+                      isRemovingSelected={isRemovingSelected}
+                      onPushToDialer={() => setDialerOpen(true)}
+                      onPushToSmartlead={() => setSmartleadOpen(true)}
                     />
                   </CardHeader>
                   <CardContent className="p-0">
                     <BuyerTableEnhanced
-                      buyers={filteredBuyers as unknown as { id: string; company_name: string; [key: string]: unknown }[]}
+                      buyers={
+                        filteredBuyers as unknown as {
+                          id: string;
+                          company_name: string;
+                          [key: string]: unknown;
+                        }[]
+                      }
                       showPEColumn={true}
                       buyerIdsWithTranscripts={buyerIdsWithTranscripts}
                       selectable={true}
@@ -939,12 +1018,19 @@ const ReMarketingUniverseDetail = () => {
                     ) : (
                       <Unlink className="h-4 w-4 mr-2" />
                     )}
-                    Remove Selected{selectedBuyerIds.length ? ` (${selectedBuyerIds.length})` : ""}
+                    Remove Selected{selectedBuyerIds.length ? ` (${selectedBuyerIds.length})` : ''}
                   </Button>
                 </div>
                 <PushToDialerModal
                   open={dialerOpen}
                   onOpenChange={setDialerOpen}
+                  contactIds={selectedBuyerIds}
+                  contactCount={selectedBuyerIds.length}
+                  entityType="buyers"
+                />
+                <PushToSmartleadModal
+                  open={smartleadOpen}
+                  onOpenChange={setSmartleadOpen}
                   contactIds={selectedBuyerIds}
                   contactCount={selectedBuyerIds.length}
                   entityType="buyers"
@@ -979,21 +1065,28 @@ const ReMarketingUniverseDetail = () => {
                           {universeDeals?.length || 0} deals
                         </span>
                         {(() => {
-                          const unenrichedCount = universeDeals?.filter((d: any) => !d.listing?.enriched_at).length || 0;
+                          const unenrichedCount =
+                            universeDeals?.filter((d: any) => !d.listing?.enriched_at).length || 0;
                           return unenrichedCount > 0 ? (
-                            <Badge variant="outline" className="text-orange-600 border-orange-300 bg-orange-50 dark:bg-orange-950/30">
+                            <Badge
+                              variant="outline"
+                              className="text-orange-600 border-orange-300 bg-orange-50 dark:bg-orange-950/30"
+                            >
                               {unenrichedCount} unenriched
                             </Badge>
                           ) : (
-                            <Badge variant="outline" className="text-emerald-600 border-emerald-300 bg-emerald-50 dark:bg-emerald-950/30">
+                            <Badge
+                              variant="outline"
+                              className="text-emerald-600 border-emerald-300 bg-emerald-50 dark:bg-emerald-950/30"
+                            >
                               All enriched
                             </Badge>
                           );
                         })()}
                       </div>
-                      
+
                       <div className="flex items-center gap-2">
-                        <Button 
+                        <Button
                           size="sm"
                           onClick={async () => {
                             if (!universeDeals?.length) {
@@ -1002,11 +1095,16 @@ const ReMarketingUniverseDetail = () => {
                             }
                             setIsScoringAllDeals(true);
                             try {
-                              const listingIds = universeDeals.filter((d: any) => d.listing?.id).map((d: any) => d.listing.id);
-                              const { queueDealScoring } = await import("@/lib/remarketing/queueScoring");
+                              const listingIds = universeDeals
+                                .filter((d: any) => d.listing?.id)
+                                .map((d: any) => d.listing.id);
+                              const { queueDealScoring } =
+                                await import('@/lib/remarketing/queueScoring');
                               await queueDealScoring({ universeId: id!, listingIds });
                               toast.success(`Queued ${listingIds.length} deals for scoring`);
-                              queryClient.invalidateQueries({ queryKey: ['remarketing', 'deal-engagement', id] });
+                              queryClient.invalidateQueries({
+                                queryKey: ['remarketing', 'deal-engagement', id],
+                              });
                             } catch (error) {
                               toast.error('Failed to score deals');
                             } finally {
@@ -1022,38 +1120,37 @@ const ReMarketingUniverseDetail = () => {
                           )}
                           Score All Deals
                         </Button>
-                        {(dealQueueProgress.isEnriching || dealQueueProgress.isPaused) ? (
-                          <Button 
-                            variant="destructive" 
+                        {dealQueueProgress.isEnriching || dealQueueProgress.isPaused ? (
+                          <Button
+                            variant="destructive"
                             size="sm"
                             onClick={cancelDealQueueEnrichment}
                           >
                             Cancel Enrichment
                           </Button>
                         ) : dealEnrichmentProgress.isRunning ? (
-                          <Button 
-                            variant="destructive" 
-                            size="sm"
-                            onClick={cancelDealEnrichment}
-                          >
+                          <Button variant="destructive" size="sm" onClick={cancelDealEnrichment}>
                             Cancel Enrichment
                           </Button>
                         ) : (
                           (() => {
-                            const unenrichedDeals = universeDeals?.filter((d: any) => d.listing?.id && !d.listing.enriched_at) || [];
+                            const unenrichedDeals =
+                              universeDeals?.filter(
+                                (d: any) => d.listing?.id && !d.listing.enriched_at,
+                              ) || [];
                             return unenrichedDeals.length > 0 ? (
-                              <Button 
-                                variant="outline" 
+                              <Button
+                                variant="outline"
                                 size="sm"
                                 onClick={async () => {
                                   resetDealEnrichment();
-                                  
+
                                   const dealsToEnrich = unenrichedDeals.map((d: any) => ({
                                     id: d.id,
                                     listingId: d.listing.id,
-                                    enrichedAt: d.listing.enriched_at
+                                    enrichedAt: d.listing.enriched_at,
                                   }));
-                                  
+
                                   await enrichDeals(dealsToEnrich);
                                   refetchDeals();
                                 }}
@@ -1064,15 +1161,15 @@ const ReMarketingUniverseDetail = () => {
                             ) : null;
                           })()
                         )}
-                        <Button 
-                          variant="outline" 
+                        <Button
+                          variant="outline"
                           size="sm"
                           onClick={() => setImportDealsDialogOpen(true)}
                         >
                           <Upload className="h-4 w-4 mr-1" />
                           Import Deals
                         </Button>
-                        <Button 
+                        <Button
                           size="sm"
                           onClick={() => {
                             setAddDealDefaultTab('existing');
@@ -1087,7 +1184,14 @@ const ReMarketingUniverseDetail = () => {
                   </CardHeader>
                   <CardContent className="p-0">
                     <UniverseDealsTable
-                      deals={(universeDeals || []) as unknown as { id: string; added_at: string; status: string; listing: { id: string; title: string; [key: string]: unknown }; }[]}
+                      deals={
+                        (universeDeals || []) as unknown as {
+                          id: string;
+                          added_at: string;
+                          status: string;
+                          listing: { id: string; title: string; [key: string]: unknown };
+                        }[]
+                      }
                       engagementStats={dealEngagementStats || {}}
                       universeId={id}
                       onRemoveDeal={async (dealId, _listingId) => {
@@ -1104,16 +1208,20 @@ const ReMarketingUniverseDetail = () => {
                       }}
                       onScoreDeal={async (listingId) => {
                         try {
-                          const { queueDealScoring } = await import("@/lib/remarketing/queueScoring");
+                          const { queueDealScoring } =
+                            await import('@/lib/remarketing/queueScoring');
                           await queueDealScoring({ universeId: id!, listingIds: [listingId] });
-                          queryClient.invalidateQueries({ queryKey: ['remarketing', 'deal-engagement', id] });
+                          queryClient.invalidateQueries({
+                            queryKey: ['remarketing', 'deal-engagement', id],
+                          });
                         } catch (error) {
                           toast.error('Failed to score deal');
                         }
                       }}
                       onEnrichDeal={async (listingId) => {
                         try {
-                          const { queueDealEnrichment } = await import("@/lib/remarketing/queueEnrichment");
+                          const { queueDealEnrichment } =
+                            await import('@/lib/remarketing/queueEnrichment');
                           await queueDealEnrichment([listingId]);
                           refetchDeals();
                         } catch (error) {
@@ -1137,19 +1245,32 @@ const ReMarketingUniverseDetail = () => {
                 universeId={id}
                 onDocumentAdded={(doc) => {
                   // Add the auto-generated guide document to the documents list
-                  setDocuments(prev => {
+                  setDocuments((prev) => {
                     // Remove any existing auto-generated guide to avoid duplicates
-                    const filtered = prev.filter(d => !d.type || d.type !== 'ma_guide');
+                    const filtered = prev.filter((d) => !d.type || d.type !== 'ma_guide');
                     return [...filtered, doc];
                   });
                 }}
                 onGuideGenerated={(guide, extractedCriteria, buyerProfiles) => {
                   setMaGuideContent(guide);
                   if (extractedCriteria) {
-                    if (extractedCriteria.size_criteria) setSizeCriteria(prev => ({ ...prev, ...extractedCriteria.size_criteria }));
-                    if (extractedCriteria.geography_criteria) setGeographyCriteria(prev => ({ ...prev, ...extractedCriteria.geography_criteria }));
-                    if (extractedCriteria.service_criteria) setServiceCriteria(prev => ({ ...prev, ...extractedCriteria.service_criteria }));
-                    if (extractedCriteria.buyer_types_criteria) setBuyerTypesCriteria(prev => ({ ...prev, ...extractedCriteria.buyer_types_criteria }));
+                    if (extractedCriteria.size_criteria)
+                      setSizeCriteria((prev) => ({ ...prev, ...extractedCriteria.size_criteria }));
+                    if (extractedCriteria.geography_criteria)
+                      setGeographyCriteria((prev) => ({
+                        ...prev,
+                        ...extractedCriteria.geography_criteria,
+                      }));
+                    if (extractedCriteria.service_criteria)
+                      setServiceCriteria((prev) => ({
+                        ...prev,
+                        ...extractedCriteria.service_criteria,
+                      }));
+                    if (extractedCriteria.buyer_types_criteria)
+                      setBuyerTypesCriteria((prev) => ({
+                        ...prev,
+                        ...extractedCriteria.buyer_types_criteria,
+                      }));
                   }
                   // Update target buyer types with AI-generated profiles
                   if (buyerProfiles && buyerProfiles.length > 0) {
@@ -1180,7 +1301,7 @@ const ReMarketingUniverseDetail = () => {
               universeId={id}
               universeName={formData.name}
               maGuideContent={maGuideContent}
-              maGuideDocument={documents.find(d => d.type === 'ma_guide')}
+              maGuideDocument={documents.find((d) => d.type === 'ma_guide')}
               onCriteriaExtracted={() => {
                 queryClient.invalidateQueries({ queryKey: ['remarketing', 'universe', id] });
               }}
@@ -1194,7 +1315,9 @@ const ReMarketingUniverseDetail = () => {
                     <CardHeader className="cursor-pointer hover:bg-muted/50 transition-colors py-3">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
-                          <CardTitle className="text-sm font-medium">Supporting Documents</CardTitle>
+                          <CardTitle className="text-sm font-medium">
+                            Supporting Documents
+                          </CardTitle>
                           <Badge variant="secondary" className="text-xs">
                             {documents.length} files
                           </Badge>
@@ -1251,9 +1374,7 @@ const ReMarketingUniverseDetail = () => {
             <Card>
               <CardHeader>
                 <CardTitle>Universe Details</CardTitle>
-                <CardDescription>
-                  Basic information about this buyer universe
-                </CardDescription>
+                <CardDescription>Basic information about this buyer universe</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-2">
@@ -1345,7 +1466,7 @@ const ReMarketingUniverseDetail = () => {
                 <CardTitle>Scoring Weights</CardTitle>
                 <CardDescription>
                   Adjust how much each category contributes to the overall score
-                  <Badge variant={totalWeight === 100 ? "default" : "destructive"} className="ml-2">
+                  <Badge variant={totalWeight === 100 ? 'default' : 'destructive'} className="ml-2">
                     Total: {totalWeight}%
                   </Badge>
                 </CardDescription>
@@ -1355,7 +1476,9 @@ const ReMarketingUniverseDetail = () => {
                   <Label>Geography ({formData.geography_weight}%)</Label>
                   <Slider
                     value={[formData.geography_weight]}
-                    onValueChange={([value]) => setFormData({ ...formData, geography_weight: value })}
+                    onValueChange={([value]) =>
+                      setFormData({ ...formData, geography_weight: value })
+                    }
                     max={100}
                     step={5}
                   />
@@ -1385,7 +1508,9 @@ const ReMarketingUniverseDetail = () => {
                   <Label>Owner Goals ({formData.owner_goals_weight}%)</Label>
                   <Slider
                     value={[formData.owner_goals_weight]}
-                    onValueChange={([value]) => setFormData({ ...formData, owner_goals_weight: value })}
+                    onValueChange={([value]) =>
+                      setFormData({ ...formData, owner_goals_weight: value })
+                    }
                     max={100}
                     step={5}
                   />
@@ -1451,7 +1576,7 @@ const ReMarketingUniverseDetail = () => {
           onComplete={async () => {
             queryClient.invalidateQueries({ queryKey: ['remarketing', 'buyers', 'universe', id] });
             setImportBuyersDialogOpen(false);
-            
+
             // Auto-score new buyers against all deals in universe
             if (id) {
               const { data: deals, error: dealsError } = await supabase
@@ -1460,8 +1585,11 @@ const ReMarketingUniverseDetail = () => {
                 .eq('universe_id', id);
               if (dealsError) throw dealsError;
               if (deals && deals.length > 0) {
-                const { queueDealScoring } = await import("@/lib/remarketing/queueScoring");
-                await queueDealScoring({ universeId: id!, listingIds: deals.map(d => d.listing_id) });
+                const { queueDealScoring } = await import('@/lib/remarketing/queueScoring');
+                await queueDealScoring({
+                  universeId: id!,
+                  listingIds: deals.map((d) => d.listing_id),
+                });
               }
             }
           }}
@@ -1508,7 +1636,7 @@ const ReMarketingUniverseDetail = () => {
       {/* AI Chat - only show when not creating new */}
       {!isNew && id && (
         <ReMarketingChat
-          context={{ type: "universe", universeId: id, universeName: universe?.name }}
+          context={{ type: 'universe', universeId: id, universeName: universe?.name }}
         />
       )}
 
@@ -1521,8 +1649,8 @@ const ReMarketingUniverseDetail = () => {
               Enrich Buyers
             </DialogTitle>
             <DialogDescription>
-              Enrichment scrapes websites and extracts company data, 
-              investment criteria, and M&A intelligence.
+              Enrichment scrapes websites and extracts company data, investment criteria, and M&A
+              intelligence.
             </DialogDescription>
           </DialogHeader>
           <div className="flex flex-col gap-3 py-4">
@@ -1535,9 +1663,11 @@ const ReMarketingUniverseDetail = () => {
               <div className="flex flex-col items-start gap-1">
                 <span className="font-medium">Enrich All</span>
                 <span className="text-xs text-muted-foreground font-normal">
-                  Re-enrich all {buyers?.filter(b => 
-                    b.company_website || b.platform_website || b.pe_firm_website
-                  ).length || 0} buyers (resets existing data)
+                  Re-enrich all{' '}
+                  {buyers?.filter(
+                    (b) => b.company_website || b.platform_website || b.pe_firm_website,
+                  ).length || 0}{' '}
+                  buyers (resets existing data)
                 </span>
               </div>
             </Button>
@@ -1550,9 +1680,11 @@ const ReMarketingUniverseDetail = () => {
               <div className="flex flex-col items-start gap-1">
                 <span className="font-medium">Only Unenriched</span>
                 <span className="text-xs text-muted-foreground font-normal">
-                  Only enrich {buyers?.filter(b =>
-                    (b.company_website || b.platform_website || b.pe_firm_website)
-                  ).length || 0} buyers that haven't been enriched yet
+                  Only enrich{' '}
+                  {buyers?.filter(
+                    (b) => b.company_website || b.platform_website || b.pe_firm_website,
+                  ).length || 0}{' '}
+                  buyers that haven't been enriched yet
                 </span>
               </div>
             </Button>
@@ -1573,19 +1705,21 @@ const ReMarketingUniverseDetail = () => {
         onRetryFailed={async () => {
           dismissEnrichmentSummary();
           if (!buyers?.length || !enrichmentSummary?.errors.length) return;
-          
+
           // Get failed buyer IDs from summary
-          const failedBuyerIds = new Set(enrichmentSummary.errors.map(e => e.buyerId));
-          const failedBuyers = buyers.filter(b => failedBuyerIds.has(b.id));
-          
+          const failedBuyerIds = new Set(enrichmentSummary.errors.map((e) => e.buyerId));
+          const failedBuyers = buyers.filter((b) => failedBuyerIds.has(b.id));
+
           if (failedBuyers.length > 0) {
             resetQueueEnrichment();
-            await queueBuyers(failedBuyers.map(b => ({
-              id: b.id,
-              company_website: b.company_website,
-              platform_website: b.platform_website,
-              pe_firm_website: b.pe_firm_website
-            })));
+            await queueBuyers(
+              failedBuyers.map((b) => ({
+                id: b.id,
+                company_website: b.company_website,
+                platform_website: b.platform_website,
+                pe_firm_website: b.pe_firm_website,
+              })),
+            );
           }
         }}
       />

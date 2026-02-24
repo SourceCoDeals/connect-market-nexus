@@ -190,6 +190,20 @@ export const BulkActionsToolbar = ({
           </Button>
         )}
 
+        {/* Push to Smartlead */}
+        {onPushToSmartlead && (
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={onPushToSmartlead}
+            disabled={isProcessing}
+            className="text-muted-foreground"
+          >
+            <Mail className="h-4 w-4 mr-1" />
+            Smartlead
+          </Button>
+        )}
+
         <div className="h-6 w-px bg-border" />
 
         {/* Pass All with Reason - far right */}
@@ -212,10 +226,7 @@ export const BulkActionsToolbar = ({
             </p>
             <DropdownMenuSeparator />
             {passReasons.map(({ reason, category }) => (
-              <DropdownMenuItem
-                key={category}
-                onClick={() => handleBulkPass(reason, category)}
-              >
+              <DropdownMenuItem key={category} onClick={() => handleBulkPass(reason, category)}>
                 {reason}
               </DropdownMenuItem>
             ))}

@@ -1,7 +1,7 @@
-import { useState, useMemo } from "react";
-import { Link, useLocation } from "react-router-dom";
-import { cn } from "@/lib/utils";
-import { usePermissions } from "@/hooks/permissions/usePermissions";
+import { useState, useMemo } from 'react';
+import { Link, useLocation } from 'react-router-dom';
+import { cn } from '@/lib/utils';
+import { usePermissions } from '@/hooks/permissions/usePermissions';
 import {
   LayoutDashboard,
   Building2,
@@ -39,20 +39,15 @@ import {
   Contact,
   Mail,
   Search,
-} from "lucide-react";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
-import { useUnviewedDealSourcingCount } from "@/hooks/admin/use-unviewed-deal-sourcing";
-import { useUnviewedConnectionRequests } from "@/hooks/admin/use-unviewed-connection-requests";
-import { useUnviewedUsers } from "@/hooks/admin/use-unviewed-users";
-import { useUnviewedOwnerLeads } from "@/hooks/admin/use-unviewed-owner-leads";
-import { useUnreadMessageCounts } from "@/hooks/use-connection-messages";
+} from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { useUnviewedDealSourcingCount } from '@/hooks/admin/use-unviewed-deal-sourcing';
+import { useUnviewedConnectionRequests } from '@/hooks/admin/use-unviewed-connection-requests';
+import { useUnviewedUsers } from '@/hooks/admin/use-unviewed-users';
+import { useUnviewedOwnerLeads } from '@/hooks/admin/use-unviewed-owner-leads';
+import { useUnreadMessageCounts } from '@/hooks/use-connection-messages';
 
 interface NavItem {
   label: string;
@@ -77,7 +72,11 @@ interface AdminSidebarProps {
   onSearchClick?: () => void;
 }
 
-export function UnifiedAdminSidebar({ collapsed, onCollapsedChange, onSearchClick }: AdminSidebarProps) {
+export function UnifiedAdminSidebar({
+  collapsed,
+  onCollapsedChange,
+  onSearchClick,
+}: AdminSidebarProps) {
   const location = useLocation();
   const { isAdmin: _isFullAdmin, canAccessSettings } = usePermissions();
   const { unviewedCount: unviewedDealSourcingCount } = useUnviewedDealSourcingCount();
@@ -89,18 +88,18 @@ export function UnifiedAdminSidebar({ collapsed, onCollapsedChange, onSearchClic
   const sections: NavSection[] = useMemo(
     () => [
       {
-        id: "deals",
-        label: "Deals",
+        id: 'deals',
+        label: 'Deals',
         icon: <Briefcase className="h-4 w-4" />,
         items: [
           {
-            label: "Active Deals",
-            href: "/admin/deals",
+            label: 'Active Deals',
+            href: '/admin/deals',
             icon: <Building2 className="h-4 w-4" />,
           },
           {
-            label: "Pipeline",
-            href: "/admin/deals/pipeline",
+            label: 'Pipeline',
+            href: '/admin/deals/pipeline',
             icon: <GitBranch className="h-4 w-4" />,
           },
           {
@@ -111,29 +110,29 @@ export function UnifiedAdminSidebar({ collapsed, onCollapsedChange, onSearchClic
         ],
       },
       {
-        id: "buyers",
-        label: "Buyers",
+        id: 'buyers',
+        label: 'Buyers',
         icon: <Users className="h-4 w-4" />,
         items: [
           {
-            label: "All Buyers",
-            href: "/admin/buyers",
+            label: 'All Buyers',
+            href: '/admin/buyers',
             icon: <Users className="h-4 w-4" />,
           },
           {
-            label: "Buyer Universes",
-            href: "/admin/buyers/universes",
+            label: 'Buyer Universes',
+            href: '/admin/buyers/universes',
             icon: <Globe2 className="h-4 w-4" />,
           },
           {
-            label: "Deal Sourcing",
-            href: "/admin/buyers/deal-sourcing",
+            label: 'Deal Sourcing',
+            href: '/admin/buyers/deal-sourcing',
             icon: <Sparkles className="h-4 w-4" />,
             badge: unviewedDealSourcingCount,
           },
           {
-            label: "Buyer Contacts",
-            href: "/admin/buyers/contacts",
+            label: 'Buyer Contacts',
+            href: '/admin/buyers/contacts',
             icon: <Contact className="h-4 w-4" />,
           },
           {
@@ -144,145 +143,168 @@ export function UnifiedAdminSidebar({ collapsed, onCollapsedChange, onSearchClic
         ],
       },
       {
-        id: "marketplace",
-        label: "Marketplace",
+        id: 'marketplace',
+        label: 'Marketplace',
         icon: <Store className="h-4 w-4" />,
         items: [
           {
-            label: "View Marketplace",
-            href: "/",
+            label: 'View Marketplace',
+            href: '/',
             icon: <ShoppingBag className="h-4 w-4" />,
             external: true,
           },
           {
-            label: "Connection Requests",
-            href: "/admin/marketplace/requests",
+            label: 'Connection Requests',
+            href: '/admin/marketplace/requests',
             icon: <MessageSquare className="h-4 w-4" />,
             badge: unviewedConnectionRequestsCount,
           },
           {
-            label: "Marketplace Users",
-            href: "/admin/marketplace/users",
+            label: 'Marketplace Users',
+            href: '/admin/marketplace/users',
             icon: <UserCog className="h-4 w-4" />,
             badge: unviewedUsersCount,
           },
         ],
       },
       {
-        id: "remarketing",
-        label: "Remarketing",
+        id: 'remarketing',
+        label: 'Remarketing',
         icon: <Target className="h-4 w-4" />,
         items: [
           {
-            label: "Overview",
-            href: "/admin/remarketing",
+            label: 'Overview',
+            href: '/admin/remarketing',
             icon: <LayoutDashboard className="h-4 w-4" />,
             exact: true,
           },
           {
-            label: "Activity Queue",
-            href: "/admin/remarketing/activity-queue",
+            label: 'Activity Queue',
+            href: '/admin/remarketing/activity-queue',
             icon: <Activity className="h-4 w-4" />,
           },
           {
-            label: "CapTarget Deals",
-            href: "/admin/remarketing/leads/captarget",
+            label: 'CapTarget Deals',
+            href: '/admin/remarketing/leads/captarget',
             icon: <Crosshair className="h-4 w-4" />,
-            separator: "Lead Sources",
+            separator: 'Lead Sources',
           },
           {
-            label: "GP Partner Deals",
-            href: "/admin/remarketing/leads/gp-partners",
+            label: 'GP Partner Deals',
+            href: '/admin/remarketing/leads/gp-partners',
             icon: <Briefcase className="h-4 w-4" />,
           },
           {
-            label: "Valuation Leads",
-            href: "/admin/remarketing/leads/valuation",
+            label: 'Valuation Leads',
+            href: '/admin/remarketing/leads/valuation',
             icon: <Calculator className="h-4 w-4" />,
           },
           {
-            label: "Referral Partners",
-            href: "/admin/remarketing/leads/referrals",
+            label: 'Referral Partners',
+            href: '/admin/remarketing/leads/referrals',
             icon: <Handshake className="h-4 w-4" />,
           },
           {
-            label: "Owner/Seller Leads",
-            href: "/admin/settings/owner-leads",
+            label: 'Owner/Seller Leads',
+            href: '/admin/settings/owner-leads',
             icon: <ClipboardList className="h-4 w-4" />,
             badge: unviewedOwnerLeadsCount,
           },
         ],
       },
       {
-        id: "analytics",
-        label: "Analytics",
+        id: 'analytics',
+        label: 'Analytics',
         icon: <BarChart3 className="h-4 w-4" />,
         items: [
           {
-            label: "Analytics",
-            href: "/admin/analytics",
+            label: 'Analytics',
+            href: '/admin/analytics',
             icon: <BarChart3 className="h-4 w-4" />,
           },
           {
-            label: "Transcript Analytics",
-            href: "/admin/analytics/transcripts",
+            label: 'Transcript Analytics',
+            href: '/admin/analytics/transcripts',
             icon: <ClipboardList className="h-4 w-4" />,
           },
         ],
       },
+      ...((canAccessSettings
+        ? [
+            {
+              id: 'smartlead',
+              label: 'Smartlead',
+              icon: <Mail className="h-4 w-4" />,
+              items: [
+                {
+                  label: 'Campaigns',
+                  href: '/admin/smartlead/campaigns',
+                  icon: <Mail className="h-4 w-4" />,
+                },
+                {
+                  label: 'Integration Settings',
+                  href: '/admin/smartlead/settings',
+                  icon: <Settings className="h-4 w-4" />,
+                },
+              ],
+            },
+          ]
+        : []) as NavSection[]),
       {
-        id: "admin",
-        label: "Admin",
+        id: 'admin',
+        label: 'Admin',
         icon: <Settings className="h-4 w-4" />,
         items: [
           {
-            label: "Internal Team",
-            href: "/admin/settings/team",
+            label: 'Internal Team',
+            href: '/admin/settings/team',
             icon: <UserCog className="h-4 w-4" />,
           },
           {
-            label: "Notifications",
-            href: "/admin/settings/notifications",
+            label: 'Notifications',
+            href: '/admin/settings/notifications',
             icon: <Bell className="h-4 w-4" />,
           },
           // Settings pages hidden from team members (moderator role)
-          ...(canAccessSettings ? [
-            {
-              label: "Webhook Settings",
-              href: "/admin/settings/webhooks",
-              icon: <Webhook className="h-4 w-4" />,
-            },
-            {
-              label: "Enrichment Queue",
-              href: "/admin/settings/enrichment-queue",
-              icon: <ListChecks className="h-4 w-4" />,
-            },
-            {
-              label: "ReMarketing Settings",
-              href: "/admin/settings/remarketing",
-              icon: <Wrench className="h-4 w-4" />,
-            },
-            {
-              label: "Data Recovery",
-              href: "/admin/settings/data-recovery",
-              icon: <Database className="h-4 w-4" />,
-            },
-          ] : []),
+          ...(canAccessSettings
+            ? [
+                {
+                  label: 'Webhook Settings',
+                  href: '/admin/settings/webhooks',
+                  icon: <Webhook className="h-4 w-4" />,
+                },
+                {
+                  label: 'Enrichment Queue',
+                  href: '/admin/settings/enrichment-queue',
+                  icon: <ListChecks className="h-4 w-4" />,
+                },
+                {
+                  label: 'ReMarketing Settings',
+                  href: '/admin/settings/remarketing',
+                  icon: <Wrench className="h-4 w-4" />,
+                },
+                {
+                  label: 'Data Recovery',
+                  href: '/admin/settings/data-recovery',
+                  icon: <Database className="h-4 w-4" />,
+                },
+              ]
+            : []),
           {
-            label: "Form Monitoring",
-            href: "/admin/settings/form-monitoring",
+            label: 'Form Monitoring',
+            href: '/admin/settings/form-monitoring',
             icon: <FileCheck className="h-4 w-4" />,
           },
-            {
-              label: "Security & MFA",
-              href: "/admin/settings/security",
-              icon: <ShieldCheck className="h-4 w-4" />,
-            },
-            {
-              label: "Testing & Diagnostics",
-              href: "/admin/testing",
-              icon: <FlaskConical className="h-4 w-4" />,
-            },
+          {
+            label: 'Security & MFA',
+            href: '/admin/settings/security',
+            icon: <ShieldCheck className="h-4 w-4" />,
+          },
+          {
+            label: 'Testing & Diagnostics',
+            href: '/admin/testing',
+            icon: <FlaskConical className="h-4 w-4" />,
+          },
         ],
       },
     ],
@@ -292,7 +314,7 @@ export function UnifiedAdminSidebar({ collapsed, onCollapsedChange, onSearchClic
       unviewedUsersCount,
       unviewedOwnerLeadsCount,
       canAccessSettings,
-    ]
+    ],
   );
 
   const activeSectionId = useMemo(() => {
@@ -341,7 +363,7 @@ export function UnifiedAdminSidebar({ collapsed, onCollapsedChange, onSearchClic
           <button
             onClick={() => onCollapsedChange?.(!collapsed)}
             className="flex items-center justify-center h-7 w-7 rounded-md text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
-            aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+            aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
           >
             {collapsed ? (
               <ChevronRight className="h-3.5 w-3.5" />
@@ -385,14 +407,14 @@ export function UnifiedAdminSidebar({ collapsed, onCollapsedChange, onSearchClic
             href="/admin"
             icon={<LayoutDashboard className="h-4 w-4" />}
             label="Dashboard"
-            isActive={location.pathname === "/admin" || location.pathname === "/admin/dashboard"}
+            isActive={location.pathname === '/admin' || location.pathname === '/admin/dashboard'}
             collapsed={collapsed}
           />
           <SidebarLink
             href="/admin/marketplace/messages"
             icon={<Mail className="h-4 w-4" />}
             label="Messages"
-            isActive={location.pathname === "/admin/marketplace/messages"}
+            isActive={location.pathname === '/admin/marketplace/messages'}
             collapsed={collapsed}
             badge={unreadMessages?.total || 0}
           />
@@ -411,10 +433,10 @@ export function UnifiedAdminSidebar({ collapsed, onCollapsedChange, onSearchClic
                   <TooltipTrigger asChild>
                     <button
                       className={cn(
-                        "flex items-center justify-center w-full h-9 rounded-md transition-colors relative",
+                        'flex items-center justify-center w-full h-9 rounded-md transition-colors relative',
                         isActive
-                          ? "bg-primary/10 text-primary"
-                          : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                          ? 'bg-primary/10 text-primary'
+                          : 'text-muted-foreground hover:bg-muted hover:text-foreground',
                       )}
                     >
                       {section.icon}
@@ -435,10 +457,10 @@ export function UnifiedAdminSidebar({ collapsed, onCollapsedChange, onSearchClic
                 <button
                   onClick={() => toggleSection(section.id)}
                   className={cn(
-                    "flex items-center w-full px-2 py-1.5 text-sm font-semibold uppercase tracking-wider rounded-md transition-colors",
+                    'flex items-center w-full px-2 py-1.5 text-sm font-semibold uppercase tracking-wider rounded-md transition-colors',
                     isActive
-                      ? "text-primary"
-                      : "text-muted-foreground/70 hover:text-muted-foreground"
+                      ? 'text-primary'
+                      : 'text-muted-foreground/70 hover:text-muted-foreground',
                   )}
                 >
                   <span className="mr-2">{section.icon}</span>
@@ -515,7 +537,7 @@ export function UnifiedAdminSidebar({ collapsed, onCollapsedChange, onSearchClic
               href="/admin/ma-intelligence"
               icon={<Brain className="h-4 w-4" />}
               label="MA Intelligence"
-              isActive={location.pathname.startsWith("/admin/ma-intelligence")}
+              isActive={location.pathname.startsWith('/admin/ma-intelligence')}
               collapsed={false}
               external
             />
@@ -567,10 +589,10 @@ function SidebarLink({
           <Link
             to={href}
             className={cn(
-              "flex items-center justify-center h-9 rounded-md transition-colors relative",
+              'flex items-center justify-center h-9 rounded-md transition-colors relative',
               isActive
-                ? "bg-primary text-primary-foreground"
-                : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                ? 'bg-primary text-primary-foreground'
+                : 'text-muted-foreground hover:bg-muted hover:text-foreground',
             )}
           >
             {icon}
@@ -581,7 +603,7 @@ function SidebarLink({
         </TooltipTrigger>
         <TooltipContent side="right">
           {label}
-          {badge != null && badge > 0 ? ` (${badge})` : ""}
+          {badge != null && badge > 0 ? ` (${badge})` : ''}
         </TooltipContent>
       </Tooltip>
     );
@@ -591,27 +613,25 @@ function SidebarLink({
     <Link
       to={href}
       className={cn(
-        "flex items-center gap-2.5 px-2 py-1.5 text-sm rounded-md transition-colors group",
+        'flex items-center gap-2.5 px-2 py-1.5 text-sm rounded-md transition-colors group',
         isActive
-          ? "bg-primary text-primary-foreground font-medium"
-          : "text-muted-foreground hover:bg-muted hover:text-foreground"
+          ? 'bg-primary text-primary-foreground font-medium'
+          : 'text-muted-foreground hover:bg-muted hover:text-foreground',
       )}
     >
       <span className="shrink-0">{icon}</span>
       <span className="flex-1 truncate">{label}</span>
-      {external && (
-        <ExternalLink className="h-3 w-3 opacity-50 shrink-0" />
-      )}
+      {external && <ExternalLink className="h-3 w-3 opacity-50 shrink-0" />}
       {badge != null && badge > 0 && (
         <Badge
           className={cn(
-            "h-5 min-w-[20px] px-1.5 flex items-center justify-center text-[10px] font-bold shrink-0",
+            'h-5 min-w-[20px] px-1.5 flex items-center justify-center text-[10px] font-bold shrink-0',
             isActive
-              ? "bg-primary-foreground/20 text-primary-foreground border-primary-foreground/30"
-              : "bg-notification text-notification-foreground border-notification"
+              ? 'bg-primary-foreground/20 text-primary-foreground border-primary-foreground/30'
+              : 'bg-notification text-notification-foreground border-notification',
           )}
         >
-          {badge > 9 ? "9+" : badge}
+          {badge > 9 ? '9+' : badge}
         </Badge>
       )}
     </Link>

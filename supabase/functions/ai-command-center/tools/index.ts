@@ -33,6 +33,7 @@ import {
   executeIntegrationActionTool,
 } from './integration-action-tools.ts';
 import { proactiveTools, executeProactiveTool } from './proactive-tools.ts';
+import { smartleadTools, executeSmartleadTool } from './smartlead-tools.ts';
 
 // ---------- Tool Result Types ----------
 
@@ -66,6 +67,7 @@ const ALL_TOOLS: ClaudeTool[] = [
   ...semanticSearchTools,
   ...integrationActionTools,
   ...proactiveTools,
+  ...smartleadTools,
 ];
 
 const TOOL_CATEGORIES: Record<string, string[]> = {
@@ -185,6 +187,7 @@ const TOOL_CATEGORIES: Record<string, string[]> = {
     'grant_data_room_access',
     'send_document',
     'push_to_phoneburner',
+    'push_to_smartlead',
     'reassign_deal_task',
     'convert_to_pipeline_deal',
     'save_contacts_to_crm',
@@ -242,6 +245,7 @@ const TOOL_CATEGORIES: Record<string, string[]> = {
     'get_buyer_learning_history',
     'get_call_history',
     'get_document_engagement',
+    'get_smartlead_email_history',
   ],
 
   // Connection requests & conversations
@@ -279,6 +283,8 @@ const TOOL_CATEGORIES: Record<string, string[]> = {
     'search_buyers',
     'get_buyer_profile',
     'push_to_phoneburner',
+    'push_to_smartlead',
+    'get_smartlead_campaigns',
   ],
 
   // Document actions
@@ -324,6 +330,16 @@ const TOOL_CATEGORIES: Record<string, string[]> = {
     'get_score_breakdown',
     'get_firm_agreements',
   ],
+
+  // Smartlead email outreach
+  SMARTLEAD_OUTREACH: [
+    'get_smartlead_campaigns',
+    'get_smartlead_campaign_stats',
+    'get_smartlead_email_history',
+    'push_to_smartlead',
+    'search_buyers',
+    'search_contacts',
+  ],
 };
 
 // Tools that require user confirmation before executing
@@ -332,6 +348,7 @@ const CONFIRMATION_REQUIRED = new Set([
   'grant_data_room_access',
   'send_document',
   'push_to_phoneburner',
+  'push_to_smartlead',
   'save_contacts_to_crm',
   'reassign_deal_task',
   'convert_to_pipeline_deal',
@@ -445,6 +462,8 @@ async function _executeToolInternal(
     return executeIntegrationActionTool(supabase, toolName, resolvedArgs, userId);
   if (proactiveTools.some((t) => t.name === toolName))
     return executeProactiveTool(supabase, toolName, resolvedArgs);
+  if (smartleadTools.some((t) => t.name === toolName))
+    return executeSmartleadTool(supabase, toolName, resolvedArgs, userId);
 
   return { error: `Unknown tool: ${toolName}` };
 }

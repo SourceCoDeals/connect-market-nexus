@@ -1,22 +1,23 @@
-import { useState, useMemo } from "react";
-import { BuyerDealHistoryPanel } from "@/components/admin/data-room/BuyerDealHistoryPanel";
-import { ExtractionSummaryDialog } from "@/components/remarketing/buyer-detail/ExtractionSummaryDialog";
-import { BuyerNotesSection } from "@/components/remarketing/buyer-detail/BuyerNotesSection";
-import { ContactCallTimeline } from "@/components/remarketing/buyer-detail/ContactCallTimeline";
-import { FirefliesTranscriptSearch } from "@/components/buyers/FirefliesTranscriptSearch";
-import { BuyerEngagementTab } from "@/components/remarketing/buyer-detail/BuyerEngagementTab";
-import { BuyerContactsHub } from "@/components/remarketing/buyer-detail/BuyerContactsHub";
-import { BuyerAgreementsRebuild } from "@/components/remarketing/buyer-detail/BuyerAgreementsRebuild";
-import { useParams, useNavigate, useLocation, Link } from "react-router-dom";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
-import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Label } from "@/components/ui/label";
+import { useState, useMemo } from 'react';
+import { BuyerDealHistoryPanel } from '@/components/admin/data-room/BuyerDealHistoryPanel';
+import { ExtractionSummaryDialog } from '@/components/remarketing/buyer-detail/ExtractionSummaryDialog';
+import { BuyerNotesSection } from '@/components/remarketing/buyer-detail/BuyerNotesSection';
+import { ContactCallTimeline } from '@/components/remarketing/buyer-detail/ContactCallTimeline';
+import { FirefliesTranscriptSearch } from '@/components/buyers/FirefliesTranscriptSearch';
+import { BuyerEngagementTab } from '@/components/remarketing/buyer-detail/BuyerEngagementTab';
+import { BuyerContactsHub } from '@/components/remarketing/buyer-detail/BuyerContactsHub';
+import { BuyerAgreementsRebuild } from '@/components/remarketing/buyer-detail/BuyerAgreementsRebuild';
+import { SmartleadEmailHistory } from '@/components/remarketing/SmartleadEmailHistory';
+import { useParams, useNavigate, useLocation, Link } from 'react-router-dom';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+import { invokeWithTimeout } from '@/lib/invoke-with-timeout';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Label } from '@/components/ui/label';
 import {
   Dialog,
   DialogContent,
@@ -24,17 +25,18 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
+} from '@/components/ui/dialog';
 import {
   ArrowLeft,
   Users,
   Phone,
+  Mail,
   BarChart2,
   FileSignature,
   FolderOpen,
   Activity,
-} from "lucide-react";
-import { toast } from "sonner";
+} from 'lucide-react';
+import { toast } from 'sonner';
 import {
   BuyerDetailHeader,
   CriteriaCompletenessBanner,
@@ -56,7 +58,7 @@ import {
   BuyerServicesBusinessModelCard,
   EditBuyerCompanyOverviewDialog,
   EditBuyerServicesBusinessModelDialog,
-} from "@/components/remarketing/buyer-detail";
+} from '@/components/remarketing/buyer-detail';
 
 interface BuyerData {
   id: string;
@@ -127,14 +129,23 @@ interface Transcript {
   created_at: string;
 }
 
-type EditDialogType = 'business' | 'investment' | 'dealStructure' | 'geographic' | 'customer' | 'acquisition' | 'companyOverview' | 'servicesModel' | null;
+type EditDialogType =
+  | 'business'
+  | 'investment'
+  | 'dealStructure'
+  | 'geographic'
+  | 'customer'
+  | 'acquisition'
+  | 'companyOverview'
+  | 'servicesModel'
+  | null;
 
 const ReMarketingBuyerDetail = () => {
   const { id } = useParams<{ id: string }>();
   useNavigate();
   const location = useLocation();
   const queryClient = useQueryClient();
-  const backTo = (location.state as { from?: string } | null)?.from || "/admin/buyers";
+  const backTo = (location.state as { from?: string } | null)?.from || '/admin/buyers';
   const isNew = id === 'new';
 
   const [isContactDialogOpen, setIsContactDialogOpen] = useState(false);
@@ -153,18 +164,18 @@ const ReMarketingBuyerDetail = () => {
     queryKey: ['remarketing', 'buyer', id],
     queryFn: async () => {
       if (isNew) return null;
-      
+
       const { data, error } = await supabase
         .from('remarketing_buyers')
         .select('*')
         .eq('id', id!)
         .maybeSingle();
-      
+
       if (error) throw error;
       if (!data) return null;
       return data as unknown as BuyerData;
     },
-    enabled: !isNew
+    enabled: !isNew,
   });
 
   // Look up the PE firm record by name (for clickable PE firm link)
@@ -211,7 +222,7 @@ const ReMarketingBuyerDetail = () => {
         is_primary: c.is_primary_at_firm,
       })) as Contact[];
     },
-    enabled: !isNew
+    enabled: !isNew,
   });
 
   // Fetch transcripts - using backwards-compatible view
@@ -219,7 +230,7 @@ const ReMarketingBuyerDetail = () => {
     queryKey: ['remarketing', 'transcripts', id],
     queryFn: async () => {
       if (isNew) return [];
-      
+
       // Use existing buyer_transcripts table (unified migration not executed yet)
       const { data, error } = await supabase
         .from('buyer_transcripts')
@@ -230,7 +241,7 @@ const ReMarketingBuyerDetail = () => {
       if (error) throw error;
       return (data || []) as unknown as Transcript[];
     },
-    enabled: !isNew
+    enabled: !isNew,
   });
 
   // Recent scores query removed - now handled by BuyerEngagementTab
@@ -238,7 +249,7 @@ const ReMarketingBuyerDetail = () => {
   // Calculate data completeness percentage
   const dataCompleteness = useMemo(() => {
     if (!buyer) return 0;
-    
+
     const fields = [
       buyer.company_name,
       buyer.company_website,
@@ -252,7 +263,7 @@ const ReMarketingBuyerDetail = () => {
       buyer.industry_vertical,
       buyer.acquisition_appetite,
     ];
-    
+
     const filledCount = fields.filter(Boolean).length;
     return Math.round((filledCount / fields.length) * 100);
   }, [buyer]);
@@ -261,20 +272,20 @@ const ReMarketingBuyerDetail = () => {
   const missingFields = useMemo(() => {
     if (!buyer) return [];
     const missing: string[] = [];
-    
-    if (!buyer.target_geographies?.length) missing.push("geography preferences");
-    if (!buyer.target_revenue_min && !buyer.target_revenue_max) missing.push("size criteria");
-    if (!buyer.target_services?.length) missing.push("target services");
-    if (!buyer.thesis_summary) missing.push("investment thesis");
-    if (!buyer.business_summary) missing.push("business summary");
-    
+
+    if (!buyer.target_geographies?.length) missing.push('geography preferences');
+    if (!buyer.target_revenue_min && !buyer.target_revenue_max) missing.push('size criteria');
+    if (!buyer.target_services?.length) missing.push('target services');
+    if (!buyer.thesis_summary) missing.push('investment thesis');
+    if (!buyer.business_summary) missing.push('business summary');
+
     return missing;
   }, [buyer]);
 
   // Mutations
   const enrichMutation = useMutation({
     mutationFn: async () => {
-      const { queueBuyerEnrichment } = await import("@/lib/remarketing/queueEnrichment");
+      const { queueBuyerEnrichment } = await import('@/lib/remarketing/queueEnrichment');
       await queueBuyerEnrichment([id!]);
     },
     onSuccess: () => {
@@ -283,15 +294,12 @@ const ReMarketingBuyerDetail = () => {
     },
     onError: (error: Error) => {
       toast.error(`Enrichment failed: ${error.message}`);
-    }
+    },
   });
 
   const updateBuyerMutation = useMutation({
     mutationFn: async (data: Record<string, any>) => {
-      const { error } = await supabase
-        .from('remarketing_buyers')
-        .update(data)
-        .eq('id', id!);
+      const { error } = await supabase.from('remarketing_buyers').update(data).eq('id', id!);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -301,7 +309,7 @@ const ReMarketingBuyerDetail = () => {
     },
     onError: () => {
       toast.error('Failed to update buyer');
-    }
+    },
   });
 
   const updateFeeAgreementMutation = useMutation({
@@ -317,11 +325,14 @@ const ReMarketingBuyerDetail = () => {
           const firmWebsite = buyer.pe_firm_website || buyer.company_website;
 
           if (firmName) {
-            const { data: createdFirmId, error: createdFirmIdError } = await supabase.rpc('get_or_create_firm', {
-              p_company_name: firmName,
-              p_website: firmWebsite ?? undefined,
-              p_email: undefined,
-            });
+            const { data: createdFirmId, error: createdFirmIdError } = await supabase.rpc(
+              'get_or_create_firm',
+              {
+                p_company_name: firmName,
+                p_website: firmWebsite ?? undefined,
+                p_email: undefined,
+              },
+            );
             if (createdFirmIdError) throw createdFirmIdError;
 
             if (createdFirmId) {
@@ -353,8 +364,13 @@ const ReMarketingBuyerDetail = () => {
         if (error) throw error;
       } else {
         // TURNING OFF: Only remove manual overrides
-        if (buyer.fee_agreement_source === 'marketplace_synced' || buyer.fee_agreement_source === 'pe_firm_inherited') {
-          throw new Error('This fee agreement comes from the marketplace. Remove it from Firm Agreements instead.');
+        if (
+          buyer.fee_agreement_source === 'marketplace_synced' ||
+          buyer.fee_agreement_source === 'pe_firm_inherited'
+        ) {
+          throw new Error(
+            'This fee agreement comes from the marketplace. Remove it from Firm Agreements instead.',
+          );
         }
 
         const { error } = await supabase
@@ -374,7 +390,7 @@ const ReMarketingBuyerDetail = () => {
     },
     onError: (error: Error) => {
       toast.error(error.message || 'Failed to update fee agreement');
-    }
+    },
   });
 
   const addContactMutation = useMutation({
@@ -383,9 +399,8 @@ const ReMarketingBuyerDetail = () => {
       const firstName = nameParts[0] || 'Unknown';
       const lastName = nameParts.slice(1).join(' ') || '';
 
-      const { error } = await supabase
-        .from('contacts')
-        .insert([{
+      const { error } = await supabase.from('contacts').insert([
+        {
           first_name: firstName,
           last_name: lastName,
           email: newContact.email || null,
@@ -397,18 +412,26 @@ const ReMarketingBuyerDetail = () => {
           remarketing_buyer_id: id!,
           firm_id: buyer?.marketplace_firm_id ?? null,
           source: 'remarketing_manual',
-        }]);
+        },
+      ]);
       if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['remarketing', 'contacts', id] });
       toast.success('Contact added');
       setIsContactDialogOpen(false);
-      setNewContact({ name: '', email: '', phone: '', role: '', linkedin_url: '', is_primary: false });
+      setNewContact({
+        name: '',
+        email: '',
+        phone: '',
+        role: '',
+        linkedin_url: '',
+        is_primary: false,
+      });
     },
     onError: () => {
       toast.error('Failed to add contact');
-    }
+    },
   });
 
   const deleteContactMutation = useMutation({
@@ -425,7 +448,7 @@ const ReMarketingBuyerDetail = () => {
     },
     onError: () => {
       toast.error('Failed to delete contact');
-    }
+    },
   });
 
   const addTranscriptMutation = useMutation({
@@ -458,7 +481,12 @@ const ReMarketingBuyerDetail = () => {
         .single();
       if (error) throw error;
       const result = data as unknown as { id: string };
-      return { transcriptId: result.id, transcriptText: text, source, triggerExtract: !!triggerExtract };
+      return {
+        transcriptId: result.id,
+        transcriptText: text,
+        source,
+        triggerExtract: !!triggerExtract,
+      };
     },
     onSuccess: ({ transcriptId, transcriptText, source, triggerExtract }) => {
       queryClient.invalidateQueries({ queryKey: ['remarketing', 'transcripts', id] });
@@ -469,17 +497,21 @@ const ReMarketingBuyerDetail = () => {
     },
     onError: () => {
       toast.error('Failed to add transcript');
-    }
+    },
   });
 
   const extractTranscriptMutation = useMutation({
-    mutationFn: async (params: { transcriptId: string; transcriptText?: string; source?: string }) => {
+    mutationFn: async (params: {
+      transcriptId: string;
+      transcriptText?: string;
+      source?: string;
+    }) => {
       let textToExtract = params.transcriptText;
       let sourceToUse = params.source || 'call';
 
       // If text not provided directly, fetch from local state or DB
       if (!textToExtract) {
-        const transcript = transcripts.find(t => t.id === params.transcriptId);
+        const transcript = transcripts.find((t) => t.id === params.transcriptId);
         if (transcript) {
           textToExtract = transcript.transcript_text;
           sourceToUse = transcript.source || 'call';
@@ -498,7 +530,9 @@ const ReMarketingBuyerDetail = () => {
       }
 
       if (!textToExtract?.trim()) {
-        throw new Error('No transcript text available to extract from. Please add transcript content first.');
+        throw new Error(
+          'No transcript text available to extract from. Please add transcript content first.',
+        );
       }
 
       // FIX #5: Pass transcriptId so edge function can update buyer_transcripts.processed_at
@@ -507,7 +541,7 @@ const ReMarketingBuyerDetail = () => {
           buyerId: id,
           transcriptText: textToExtract,
           source: sourceToUse,
-          transcriptId: params.transcriptId // Pass transcript ID for status tracking
+          transcriptId: params.transcriptId, // Pass transcript ID for status tracking
         },
         timeoutMs: 120_000,
       });
@@ -521,16 +555,13 @@ const ReMarketingBuyerDetail = () => {
     },
     onError: (error: Error) => {
       toast.error(`Extraction failed: ${error.message}`);
-    }
+    },
   });
 
   const deleteTranscriptMutation = useMutation({
     mutationFn: async (transcriptId: string) => {
       // Use existing buyer_transcripts table (unified migration not executed yet)
-      const { error } = await supabase
-        .from('buyer_transcripts')
-        .delete()
-        .eq('id', transcriptId);
+      const { error } = await supabase.from('buyer_transcripts').delete().eq('id', transcriptId);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -539,10 +570,14 @@ const ReMarketingBuyerDetail = () => {
     },
     onError: () => {
       toast.error('Failed to delete transcript');
-    }
+    },
   });
 
-  const [extractionProgress, setExtractionProgress] = useState<{ current: number; total: number; isRunning: boolean }>({ current: 0, total: 0, isRunning: false });
+  const [extractionProgress, setExtractionProgress] = useState<{
+    current: number;
+    total: number;
+    isRunning: boolean;
+  }>({ current: 0, total: 0, isRunning: false });
   const [extractionSummary, setExtractionSummary] = useState<{
     open: boolean;
     results: Array<{ fileName?: string; insights?: any; error?: string }>;
@@ -553,46 +588,68 @@ const ReMarketingBuyerDetail = () => {
 
   const handleExtractAll = async () => {
     if (transcripts.length === 0) return;
-    
+
     setExtractionProgress({ current: 0, total: transcripts.length, isRunning: true });
     let successCount = 0;
     let errorCount = 0;
     const results: Array<{ fileName?: string; insights?: any; error?: string }> = [];
-    
+
     for (let i = 0; i < transcripts.length; i++) {
       try {
-        const data = await extractTranscriptMutation.mutateAsync({ transcriptId: transcripts[i].id });
+        const data = await extractTranscriptMutation.mutateAsync({
+          transcriptId: transcripts[i].id,
+        });
         successCount++;
-        results.push({ fileName: transcripts[i].file_name || `Transcript ${i + 1}`, insights: data?.insights?.buyer });
+        results.push({
+          fileName: transcripts[i].file_name || `Transcript ${i + 1}`,
+          insights: data?.insights?.buyer,
+        });
       } catch (e: any) {
         // Extraction failed — tracked in results
         errorCount++;
-        results.push({ fileName: transcripts[i].file_name || `Transcript ${i + 1}`, error: e?.message || 'Failed' });
+        results.push({
+          fileName: transcripts[i].file_name || `Transcript ${i + 1}`,
+          error: e?.message || 'Failed',
+        });
       }
-      setExtractionProgress({ current: i + 1, total: transcripts.length, isRunning: i < transcripts.length - 1 });
+      setExtractionProgress({
+        current: i + 1,
+        total: transcripts.length,
+        isRunning: i < transcripts.length - 1,
+      });
     }
-    
-    setExtractionProgress(prev => ({ ...prev, isRunning: false }));
-    setExtractionSummary({ open: true, results, totalCount: transcripts.length, successCount, errorCount });
+
+    setExtractionProgress((prev) => ({ ...prev, isRunning: false }));
+    setExtractionSummary({
+      open: true,
+      results,
+      totalCount: transcripts.length,
+      successCount,
+      errorCount,
+    });
   };
 
   // Also show summary for single extraction
   const handleSingleExtractWithSummary = async (transcriptId: string) => {
     try {
-      const transcript = transcripts.find(t => t.id === transcriptId);
+      const transcript = transcripts.find((t) => t.id === transcriptId);
       const data = await extractTranscriptMutation.mutateAsync({ transcriptId });
       setExtractionSummary({
         open: true,
-        results: [{ fileName: transcript?.file_name || 'Transcript', insights: data?.insights?.buyer }],
+        results: [
+          { fileName: transcript?.file_name || 'Transcript', insights: data?.insights?.buyer },
+        ],
         totalCount: 1,
         successCount: 1,
         errorCount: 0,
       });
     } catch (e: any) {
-      const transcript = transcripts.find(t => t.id === transcriptId);
+      const transcript = transcripts.find((t) => t.id === transcriptId);
       setExtractionSummary({
         open: true,
-        results: [{ fileName: transcript?.file_name || 'Transcript', error: e?.message || 'Failed' }],
+        results: [
+          { fileName: transcript?.file_name || 'Transcript', error: e?.message || 'Failed' },
+        ],
         totalCount: 1,
         successCount: 0,
         errorCount: 1,
@@ -641,7 +698,7 @@ const ReMarketingBuyerDetail = () => {
     <div className="p-4 md:p-6 space-y-4">
       {/* Header */}
       <BuyerDetailHeader
-        companyName={buyer?.company_name || ""}
+        companyName={buyer?.company_name || ''}
         peFirmName={buyer?.pe_firm_name}
         peFirmId={peFirmRecord?.id || null}
         platformWebsite={buyer?.platform_website || buyer?.company_website}
@@ -680,7 +737,17 @@ const ReMarketingBuyerDetail = () => {
           onEdit={() => setActiveEditDialog('companyOverview')}
         />
         <MainContactCard
-          contacts={contacts as unknown as { id: string; name: string; email?: string | null; phone?: string | null; role?: string | null; linkedin_url?: string | null; is_primary?: boolean }[]}
+          contacts={
+            contacts as unknown as {
+              id: string;
+              name: string;
+              email?: string | null;
+              phone?: string | null;
+              role?: string | null;
+              linkedin_url?: string | null;
+              is_primary?: boolean;
+            }[]
+          }
           onAddContact={() => setIsContactDialogOpen(true)}
           hasFeeAgreement={buyer?.has_fee_agreement || false}
           onFeeAgreementChange={(value) => updateFeeAgreementMutation.mutate(value)}
@@ -710,6 +777,10 @@ const ReMarketingBuyerDetail = () => {
           <TabsTrigger value="call-history" className="text-sm">
             <Phone className="mr-1.5 h-3.5 w-3.5" />
             Call History
+          </TabsTrigger>
+          <TabsTrigger value="email-history" className="text-sm">
+            <Mail className="mr-1.5 h-3.5 w-3.5" />
+            Email History
           </TabsTrigger>
           <TabsTrigger value="documents" className="text-sm">
             <FolderOpen className="mr-1.5 h-3.5 w-3.5" />
@@ -744,13 +815,13 @@ const ReMarketingBuyerDetail = () => {
               onEdit={() => setActiveEditDialog('business')}
               className="bg-muted/30"
             />
-            
+
             <InvestmentCriteriaCard
               investmentThesis={buyer?.thesis_summary}
               onEdit={() => setActiveEditDialog('investment')}
               className="bg-accent/20"
             />
-            
+
             <BuyerServicesBusinessModelCard
               servicesOffered={buyer?.services_offered}
               businessModel={buyer?.business_type}
@@ -758,7 +829,7 @@ const ReMarketingBuyerDetail = () => {
               onEdit={() => setActiveEditDialog('servicesModel')}
               className="bg-accent/20"
             />
-            
+
             <GeographicFootprintCard
               targetGeographies={buyer?.target_geographies}
               operatingLocations={buyer?.operating_locations}
@@ -767,7 +838,7 @@ const ReMarketingBuyerDetail = () => {
               onEdit={() => setActiveEditDialog('geographic')}
               className="bg-muted/30"
             />
-            
+
             <CustomerEndMarketCard
               primaryCustomerSize={buyer?.primary_customer_size}
               customerGeographicReach={buyer?.customer_geographic_reach}
@@ -776,7 +847,7 @@ const ReMarketingBuyerDetail = () => {
               onEdit={() => setActiveEditDialog('customer')}
               className="bg-muted/30"
             />
-            
+
             <DealStructureCard
               minRevenue={buyer?.target_revenue_min}
               maxRevenue={buyer?.target_revenue_max}
@@ -787,7 +858,7 @@ const ReMarketingBuyerDetail = () => {
               onEdit={() => setActiveEditDialog('dealStructure')}
               className="bg-accent/20"
             />
-            
+
             <AcquisitionHistoryCard
               totalAcquisitions={buyer?.total_acquisitions}
               acquisitionFrequency={buyer?.acquisition_frequency}
@@ -865,6 +936,11 @@ const ReMarketingBuyerDetail = () => {
           />
         </TabsContent>
 
+        {/* Email History Tab */}
+        <TabsContent value="email-history">
+          <SmartleadEmailHistory buyerId={buyer!.id} />
+        </TabsContent>
+
         {/* Documents Tab */}
         <TabsContent value="documents">
           <BuyerDealHistoryPanel buyerId={id!} />
@@ -927,7 +1003,7 @@ const ReMarketingBuyerDetail = () => {
             <Button variant="outline" onClick={() => setIsContactDialogOpen(false)}>
               Cancel
             </Button>
-            <Button 
+            <Button
               onClick={() => addContactMutation.mutate()}
               disabled={!newContact.name || addContactMutation.isPending}
             >
@@ -1027,11 +1103,13 @@ const ReMarketingBuyerDetail = () => {
           if (data.hq_city !== undefined) updateData.hq_city = data.hq_city;
           if (data.hq_state !== undefined) updateData.hq_state = data.hq_state;
           if (data.hq_country !== undefined) updateData.hq_country = data.hq_country;
-          if (data.industry_vertical !== undefined) updateData.industry_vertical = data.industry_vertical;
+          if (data.industry_vertical !== undefined)
+            updateData.industry_vertical = data.industry_vertical;
           // These columns may not exist yet - only update if schema supports them
           if (data.founded_year !== undefined) updateData.founded_year = data.founded_year;
           if (data.num_employees !== undefined) updateData.num_employees = data.num_employees;
-          if (data.number_of_locations !== undefined) updateData.number_of_locations = data.number_of_locations;
+          if (data.number_of_locations !== undefined)
+            updateData.number_of_locations = data.number_of_locations;
           updateBuyerMutation.mutate(updateData);
         }}
         isSaving={updateBuyerMutation.isPending}
@@ -1051,7 +1129,7 @@ const ReMarketingBuyerDetail = () => {
 
       <ExtractionSummaryDialog
         open={extractionSummary.open}
-        onOpenChange={(open) => setExtractionSummary(prev => ({ ...prev, open }))}
+        onOpenChange={(open) => setExtractionSummary((prev) => ({ ...prev, open }))}
         results={extractionSummary.results}
         totalCount={extractionSummary.totalCount}
         successCount={extractionSummary.successCount}

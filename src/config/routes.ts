@@ -94,6 +94,11 @@ export const ROUTES = {
       transcripts: '/admin/analytics/transcripts',
     },
 
+    smartlead: {
+      campaigns: '/admin/smartlead/campaigns',
+      settings: '/admin/smartlead/settings',
+    },
+
     settings: {
       team: '/admin/settings/team',
       ownerLeads: '/admin/settings/owner-leads',
@@ -152,10 +157,14 @@ export const routeBuilders = {
   trackedDocument: (linkToken: string) => buildRoute(ROUTES.trackedDocumentViewer, { linkToken }),
   trackerDetail: (id: string) => buildRoute(ROUTES.admin.maIntelligence.trackerDetail, { id }),
   maBuyerDetail: (id: string) => buildRoute(ROUTES.admin.maIntelligence.buyerDetail, { id }),
-  captargetDetail: (dealId: string) => buildRoute(ROUTES.admin.remarketing.captargetDetail, { dealId }),
-  gpPartnerDetail: (dealId: string) => buildRoute(ROUTES.admin.remarketing.gpPartnersDetail, { dealId }),
-  referralPartnerDetail: (partnerId: string) => buildRoute(ROUTES.admin.remarketing.referralDetail, { partnerId }),
+  captargetDetail: (dealId: string) =>
+    buildRoute(ROUTES.admin.remarketing.captargetDetail, { dealId }),
+  gpPartnerDetail: (dealId: string) =>
+    buildRoute(ROUTES.admin.remarketing.gpPartnersDetail, { dealId }),
+  referralPartnerDetail: (partnerId: string) =>
+    buildRoute(ROUTES.admin.remarketing.referralDetail, { partnerId }),
   dealMatching: (listingId: string) => buildRoute(ROUTES.admin.remarketing.matching, { listingId }),
-  dealIntroductions: (listingId: string) => buildRoute(ROUTES.admin.remarketing.introductions, { listingId }),
+  dealIntroductions: (listingId: string) =>
+    buildRoute(ROUTES.admin.remarketing.introductions, { listingId }),
   contactListDetail: (id: string) => buildRoute(ROUTES.admin.lists.detail, { id }),
 } as const;

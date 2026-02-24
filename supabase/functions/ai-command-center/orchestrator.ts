@@ -71,17 +71,27 @@ function truncateToolResult(json: string): string {
   try {
     const parsed = JSON.parse(json);
     // Find the first array-valued key that holds the main dataset
-    const listKey = ['deals', 'buyers', 'requests', 'leads', 'messages', 'scores', 'results', 'records']
-      .find((k) => Array.isArray(parsed[k]));
+    const listKey = [
+      'deals',
+      'buyers',
+      'requests',
+      'leads',
+      'messages',
+      'scores',
+      'results',
+      'records',
+    ].find((k) => Array.isArray(parsed[k]));
 
     if (listKey) {
       const originalCount = parsed[listKey].length;
       // Binary-search for how many items fit within the budget
-      let lo = 0, hi = originalCount;
+      let lo = 0,
+        hi = originalCount;
       while (lo < hi) {
         const mid = Math.floor((lo + hi + 1) / 2);
         const candidate = JSON.stringify({ ...parsed, [listKey]: parsed[listKey].slice(0, mid) });
-        if (candidate.length <= MAX_TOOL_RESULT_CHARS - 200) lo = mid; else hi = mid - 1;
+        if (candidate.length <= MAX_TOOL_RESULT_CHARS - 200) lo = mid;
+        else hi = mid - 1;
       }
       const trimmed = {
         ...parsed,
@@ -97,8 +107,10 @@ function truncateToolResult(json: string): string {
   }
 
   // Hard truncation fallback
-  return json.substring(0, MAX_TOOL_RESULT_CHARS) +
-    '... [truncated — result too large for context window]';
+  return (
+    json.substring(0, MAX_TOOL_RESULT_CHARS) +
+    '... [truncated — result too large for context window]'
+  );
 }
 
 // ---------- Orchestrator ----------
@@ -257,7 +269,9 @@ export async function orchestrate(
       toolResults.push({
         type: 'tool_result',
         tool_use_id: toolId,
-        content: truncateToolResult(JSON.stringify(result.error ? { error: result.error } : result.data)),
+        content: truncateToolResult(
+          JSON.stringify(result.error ? { error: result.error } : result.data),
+        ),
         is_error: !!result.error,
       });
     }
@@ -297,6 +311,8 @@ function describeAction(toolName: string, args: Record<string, unknown>): string
       return `Send ${args.document_type === 'nda' ? 'NDA' : 'Fee Agreement'} to ${args.signer_name} (${args.signer_email})`;
     case 'push_to_phoneburner':
       return `Push ${(args.entity_ids as string[])?.length || 0} ${args.entity_type || 'contacts'} to PhoneBurner dialer`;
+    case 'push_to_smartlead':
+      return `Push ${(args.entity_ids as string[])?.length || 0} ${args.entity_type || 'contacts'} to Smartlead email campaign`;
     case 'save_contacts_to_crm':
       return `Save ${(args.contacts as unknown[])?.length || 0} contact(s) to CRM${args.remarketing_buyer_id ? ' linked to buyer' : ''}`;
     case 'reassign_deal_task':

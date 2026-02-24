@@ -56,6 +56,7 @@ import { CapTargetExclusionLog } from './components/CapTargetExclusionLog';
 import { CapTargetTableRow } from './components/CapTargetTableRow';
 import { CapTargetBulkActions } from './components/CapTargetBulkActions';
 import { PushToDialerModal } from '@/components/remarketing/PushToDialerModal';
+import { PushToSmartleadModal } from '@/components/remarketing/PushToSmartleadModal';
 
 interface CapTargetDeal {
   id: string;
