@@ -59,12 +59,12 @@ const ALL_TOOLS: ClaudeTool[] = [
 
 const TOOL_CATEGORIES: Record<string, string[]> = {
   // Deal pipeline
-  DEAL_STATUS: ['query_deals', 'get_deal_details', 'get_deal_activities', 'get_pipeline_summary', 'get_deal_memos', 'get_deal_documents', 'get_deal_comments', 'get_deal_scoring_adjustments'],
+  DEAL_STATUS: ['query_deals', 'get_deal_details', 'get_deal_activities', 'get_pipeline_summary', 'get_deal_memos', 'get_deal_documents', 'get_deal_comments', 'get_deal_scoring_adjustments', 'search_contacts'],
   FOLLOW_UP: ['get_deal_tasks', 'get_outreach_status', 'get_outreach_records', 'get_remarketing_outreach', 'get_meeting_action_items', 'get_current_user_context', 'get_connection_requests', 'get_follow_up_queue'],
 
   // Buyer intelligence
   BUYER_SEARCH: ['search_buyers', 'search_lead_sources', 'search_valuation_leads', 'query_deals', 'search_inbound_leads', 'select_table_rows', 'apply_table_filter', 'sort_table_column'],
-  BUYER_ANALYSIS: ['get_buyer_profile', 'get_score_breakdown', 'explain_buyer_score', 'get_top_buyers_for_deal', 'get_buyer_decisions', 'get_score_history', 'search_pe_contacts', 'get_buyer_learning_history', 'select_table_rows'],
+  BUYER_ANALYSIS: ['get_buyer_profile', 'get_score_breakdown', 'explain_buyer_score', 'get_top_buyers_for_deal', 'get_buyer_decisions', 'get_score_history', 'search_pe_contacts', 'search_contacts', 'get_buyer_learning_history', 'select_table_rows'],
 
   // Universe & outreach
   BUYER_UNIVERSE: ['search_buyer_universes', 'get_universe_details', 'get_outreach_records', 'get_remarketing_outreach', 'get_top_buyers_for_deal'],
@@ -88,7 +88,7 @@ const TOOL_CATEGORIES: Record<string, string[]> = {
 
   // Content generation
   MEETING_PREP: ['generate_meeting_prep', 'search_transcripts', 'search_buyer_transcripts', 'semantic_transcript_search', 'get_outreach_records', 'get_connection_messages'],
-  OUTREACH_DRAFT: ['get_deal_details', 'get_buyer_profile', 'draft_outreach_email', 'search_pe_contacts', 'get_firm_agreements'],
+  OUTREACH_DRAFT: ['get_deal_details', 'get_buyer_profile', 'draft_outreach_email', 'search_pe_contacts', 'search_contacts', 'get_firm_agreements'],
   PIPELINE_REPORT: ['generate_pipeline_report'],
 
   // Lead & referral
@@ -101,7 +101,7 @@ const TOOL_CATEGORIES: Record<string, string[]> = {
   CONNECTION: ['get_connection_requests', 'get_connection_messages', 'get_deal_conversations'],
 
   // Contacts & agreements
-  CONTACTS: ['search_pe_contacts', 'get_buyer_profile', 'get_firm_agreements', 'get_nda_logs'],
+  CONTACTS: ['search_pe_contacts', 'search_contacts', 'get_buyer_profile', 'get_firm_agreements', 'get_nda_logs'],
 
   // Industry trackers
   INDUSTRY: ['get_industry_trackers', 'search_buyer_universes'],

@@ -1,6 +1,9 @@
 /**
  * Contact & Document Tools
- * PE firm contacts, platform contacts, data room documents, deal memos.
+ * Unified contacts table (buyer + seller), data room documents, deal memos.
+ * Updated Feb 2026: All contact queries now use the unified `contacts` table.
+ * Legacy tables (pe_firm_contacts, platform_contacts) have been dropped.
+ * remarketing_buyer_contacts is frozen (read-only pre-Feb 2026 data).
  */
 
 import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -12,17 +15,35 @@ import type { ToolResult } from "./index.ts";
 export const contactTools: ClaudeTool[] = [
   {
     name: 'search_pe_contacts',
-    description: 'Search contacts at PE firms and platform companies — partners, principals, deal team members, corp dev contacts. Includes email, phone, LinkedIn, role, and priority level. Use to find the right person to contact at a buyer organization.',
+    description: 'Search buyer contacts at PE firms and platform companies — partners, principals, deal team members, corp dev contacts. Queries the unified contacts table (contact_type=buyer). Includes email, phone, LinkedIn, role, and priority level. Use to find the right person to contact at a buyer organization.',
     input_schema: {
       type: 'object',
       properties: {
-        buyer_id: { type: 'string', description: 'Filter to contacts for a specific buyer/PE firm/platform UUID' },
-        search: { type: 'string', description: 'Search across name, title, email' },
+        buyer_id: { type: 'string', description: 'Filter to contacts for a specific remarketing_buyer UUID (via remarketing_buyer_id)' },
+        firm_id: { type: 'string', description: 'Filter to contacts at a specific firm (via firm_id → firm_agreements)' },
+        search: { type: 'string', description: 'Search across first_name, last_name, title, email' },
         role_category: { type: 'string', description: 'Filter by role: partner, principal, director, vp, associate, analyst, operating_partner, ceo, cfo, coo, corp_dev, business_dev' },
-        is_primary: { type: 'boolean', description: 'Filter to primary contacts only' },
-        is_deal_team: { type: 'boolean', description: 'Filter to deal team members only' },
+        is_primary: { type: 'boolean', description: 'Filter to primary contacts at their firm only' },
         has_email: { type: 'boolean', description: 'Filter to contacts with email addresses' },
-        contact_type: { type: 'string', enum: ['pe_firm', 'platform', 'remarketing', 'all'], description: 'Which contact table to search (default "all" — searches pe_firm_contacts, platform_contacts, and remarketing_buyer_contacts)' },
+        limit: { type: 'number', description: 'Max results (default 50)' },
+      },
+      required: [],
+    },
+  },
+  {
+    name: 'search_contacts',
+    description: 'Search the unified contacts table — the source of truth for ALL buyer and seller contacts since Feb 2026. Use contact_type to filter: "buyer" for PE/platform/independent buyers, "seller" for deal owners/principals. Seller contacts are linked to deals via listing_id. Buyer contacts link to remarketing_buyers via remarketing_buyer_id.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        contact_type: { type: 'string', enum: ['buyer', 'seller', 'advisor', 'internal', 'all'], description: 'Filter by contact type (default "all")' },
+        listing_id: { type: 'string', description: 'Filter seller contacts by deal/listing UUID' },
+        remarketing_buyer_id: { type: 'string', description: 'Filter buyer contacts by remarketing buyer UUID' },
+        firm_id: { type: 'string', description: 'Filter buyer contacts by firm agreement UUID' },
+        search: { type: 'string', description: 'Search across first_name, last_name, title, email' },
+        is_primary: { type: 'boolean', description: 'Filter to primary contacts at their firm' },
+        has_email: { type: 'boolean', description: 'Filter to contacts with email addresses' },
+        nda_signed: { type: 'boolean', description: 'Filter by NDA signed status' },
         limit: { type: 'number', description: 'Max results (default 50)' },
       },
       required: [],
@@ -94,6 +115,7 @@ export async function executeContactTool(
 ): Promise<ToolResult> {
   switch (toolName) {
     case 'search_pe_contacts': return searchPeContacts(supabase, args);
+    case 'search_contacts': return searchContacts(supabase, args);
     case 'get_firm_agreements': return getFirmAgreements(supabase, args);
     case 'get_nda_logs': return getNdaLogs(supabase, args);
     case 'get_deal_documents': return getDealDocuments(supabase, args);
@@ -104,87 +126,118 @@ export async function executeContactTool(
 
 // ---------- Implementations ----------
 
+/**
+ * Search buyer contacts via the unified contacts table.
+ * Replaces legacy queries to pe_firm_contacts, platform_contacts (both dropped),
+ * and remarketing_buyer_contacts (frozen pre-Feb 2026).
+ */
 async function searchPeContacts(
+  supabase: SupabaseClient,
+  args: Record<string, unknown>,
+): Promise<ToolResult> {
+  const limit = Math.min(Number(args.limit) || 50, 500);
+
+  const contactFields = 'id, first_name, last_name, email, phone, title, contact_type, firm_id, remarketing_buyer_id, profile_id, is_primary_at_firm, nda_signed, fee_agreement_signed, linkedin_url, source, archived, created_at';
+
+  let query = supabase
+    .from('contacts')
+    .select(contactFields)
+    .eq('contact_type', 'buyer')
+    .eq('archived', false)
+    .order('created_at', { ascending: false })
+    .limit(limit);
+
+  if (args.buyer_id) query = query.eq('remarketing_buyer_id', args.buyer_id as string);
+  if (args.firm_id) query = query.eq('firm_id', args.firm_id as string);
+  if (args.role_category) query = query.eq('title', args.role_category as string);
+  if (args.is_primary === true) query = query.eq('is_primary_at_firm', true);
+  if (args.has_email === true) query = query.not('email', 'is', null);
+
+  const { data, error } = await query;
+  if (error) return { error: error.message };
+
+  let results = (data || []) as Array<Record<string, unknown>>;
+
+  // Client-side search filter
+  if (args.search) {
+    const term = (args.search as string).toLowerCase();
+    results = results.filter(c =>
+      (c.first_name as string)?.toLowerCase().includes(term) ||
+      (c.last_name as string)?.toLowerCase().includes(term) ||
+      (c.title as string)?.toLowerCase().includes(term) ||
+      (c.email as string)?.toLowerCase().includes(term) ||
+      `${(c.first_name as string) || ''} ${(c.last_name as string) || ''}`.toLowerCase().includes(term)
+    );
+  }
+
+  return {
+    data: {
+      contacts: results.slice(0, limit),
+      total: results.length,
+      with_email: results.filter(c => c.email).length,
+      source: 'unified_contacts_table',
+    },
+  };
+}
+
+/**
+ * Search the unified contacts table — source of truth for ALL contacts (buyer + seller + advisor + internal).
+ * Added Feb 2026 as part of the unified contacts migration.
+ */
+async function searchContacts(
   supabase: SupabaseClient,
   args: Record<string, unknown>,
 ): Promise<ToolResult> {
   const limit = Math.min(Number(args.limit) || 50, 500);
   const contactType = (args.contact_type as string) || 'all';
 
-  const commonFields = 'id, buyer_id, name, title, role_category, priority_level, is_primary_contact, linkedin_url, email, phone, email_confidence, source, is_deal_team, notes, created_at';
-  const results: unknown[] = [];
+  const contactFields = 'id, first_name, last_name, email, phone, title, contact_type, firm_id, remarketing_buyer_id, profile_id, listing_id, is_primary_at_firm, nda_signed, fee_agreement_signed, linkedin_url, source, archived, created_at';
 
-  // PE firm contacts
-  if (contactType === 'all' || contactType === 'pe_firm') {
-    let query = supabase
-      .from('pe_firm_contacts')
-      .select(commonFields + ', pe_firm_id')
-      .order('priority_level', { ascending: true })
-      .limit(limit);
+  let query = supabase
+    .from('contacts')
+    .select(contactFields)
+    .eq('archived', false)
+    .order('created_at', { ascending: false })
+    .limit(limit);
 
-    if (args.buyer_id) query = query.eq('buyer_id', args.buyer_id as string);
-    if (args.role_category) query = query.eq('role_category', args.role_category as string);
-    if (args.is_primary === true) query = query.eq('is_primary_contact', true);
-    if (args.is_deal_team === true) query = query.eq('is_deal_team', true);
-    if (args.has_email === true) query = query.not('email', 'is', null);
+  if (contactType !== 'all') query = query.eq('contact_type', contactType);
+  if (args.listing_id) query = query.eq('listing_id', args.listing_id as string);
+  if (args.remarketing_buyer_id) query = query.eq('remarketing_buyer_id', args.remarketing_buyer_id as string);
+  if (args.firm_id) query = query.eq('firm_id', args.firm_id as string);
+  if (args.is_primary === true) query = query.eq('is_primary_at_firm', true);
+  if (args.has_email === true) query = query.not('email', 'is', null);
+  if (args.nda_signed === true) query = query.eq('nda_signed', true);
+  if (args.nda_signed === false) query = query.eq('nda_signed', false);
 
-    const { data } = await query;
-    if (data) results.push(...data.map(c => ({ ...c, contact_source: 'pe_firm' })));
-  }
+  const { data, error } = await query;
+  if (error) return { error: error.message };
 
-  // Platform contacts
-  if (contactType === 'all' || contactType === 'platform') {
-    let query = supabase
-      .from('platform_contacts')
-      .select(commonFields + ', platform_id')
-      .order('priority_level', { ascending: true })
-      .limit(limit);
-
-    if (args.buyer_id) query = query.eq('buyer_id', args.buyer_id as string);
-    if (args.role_category) query = query.eq('role_category', args.role_category as string);
-    if (args.is_primary === true) query = query.eq('is_primary_contact', true);
-    if (args.is_deal_team === true) query = query.eq('is_deal_team', true);
-    if (args.has_email === true) query = query.not('email', 'is', null);
-
-    const { data } = await query;
-    if (data) results.push(...data.map(c => ({ ...c, contact_source: 'platform' })));
-  }
-
-  // Remarketing buyer contacts (legacy/unified contact table)
-  if (contactType === 'all' || contactType === 'remarketing') {
-    const rmcFields = 'id, buyer_id, name, role, role_category, priority_level, is_primary_contact, linkedin_url, email, phone, email_confidence, source, is_deal_team, notes, company_type, created_at';
-    let query = supabase
-      .from('remarketing_buyer_contacts')
-      .select(rmcFields)
-      .order('priority_level', { ascending: true })
-      .limit(limit);
-
-    if (args.buyer_id) query = query.eq('buyer_id', args.buyer_id as string);
-    if (args.role_category) query = query.eq('role_category', args.role_category as string);
-    if (args.is_primary === true) query = query.eq('is_primary_contact', true);
-    if (args.is_deal_team === true) query = query.eq('is_deal_team', true);
-    if (args.has_email === true) query = query.not('email', 'is', null);
-
-    const { data } = await query;
-    if (data) results.push(...data.map(c => ({ ...c, contact_source: 'remarketing' })));
-  }
+  let results = (data || []) as Array<Record<string, unknown>>;
 
   // Client-side search filter
-  let filtered = results as Array<Record<string, unknown>>;
   if (args.search) {
     const term = (args.search as string).toLowerCase();
-    filtered = filtered.filter(c =>
-      (c.name as string)?.toLowerCase().includes(term) ||
+    results = results.filter(c =>
+      (c.first_name as string)?.toLowerCase().includes(term) ||
+      (c.last_name as string)?.toLowerCase().includes(term) ||
       (c.title as string)?.toLowerCase().includes(term) ||
-      (c.email as string)?.toLowerCase().includes(term)
+      (c.email as string)?.toLowerCase().includes(term) ||
+      `${(c.first_name as string) || ''} ${(c.last_name as string) || ''}`.toLowerCase().includes(term)
     );
   }
 
   return {
     data: {
-      contacts: filtered.slice(0, limit),
-      total: filtered.length,
-      with_email: filtered.filter(c => c.email).length,
+      contacts: results.slice(0, limit),
+      total: results.length,
+      with_email: results.filter(c => c.email).length,
+      by_type: {
+        buyer: results.filter(c => c.contact_type === 'buyer').length,
+        seller: results.filter(c => c.contact_type === 'seller').length,
+        advisor: results.filter(c => c.contact_type === 'advisor').length,
+        internal: results.filter(c => c.contact_type === 'internal').length,
+      },
+      source: 'unified_contacts_table',
     },
   };
 }
