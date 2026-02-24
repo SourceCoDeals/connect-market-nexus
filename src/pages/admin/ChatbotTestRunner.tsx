@@ -24,9 +24,10 @@ import {
   ClipboardList,
   SkipForward,
   RotateCw,
-} from "lucide-react";
-import { cn } from "@/lib/utils";
-import { toast } from "sonner";
+  Square,
+} from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { toast } from 'sonner';
 import {
   type ChatbotTestStatus,
   type ChatbotTestResult,
@@ -626,13 +627,20 @@ function ScenariosTab() {
                             onClick={(e) => {
                               e.stopPropagation();
                               navigator.clipboard.writeText(scenario.userMessage);
-                              toast.success("Test message copied — paste it into the chatbot widget to run this scenario");
+                              toast.success(
+                                'Test message copied — paste it into the chatbot widget to run this scenario',
+                              );
                             }}
                           >
                             <Play className="mr-1 h-3 w-3" />
                             Launch
                           </Button>
-                          <Badge className={cn("text-[10px]", severityColor[scenario.severity])}>
+                          {scenario.skipAutoRun && (
+                            <Badge variant="outline" className="text-[10px]">
+                              Manual
+                            </Badge>
+                          )}
+                          <Badge className={cn('text-[10px]', severityColor[scenario.severity])}>
                             {scenario.severity}
                           </Badge>
                           {isExpanded ? (
