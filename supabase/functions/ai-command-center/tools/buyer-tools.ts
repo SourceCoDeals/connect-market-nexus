@@ -335,7 +335,7 @@ async function searchBuyers(
   // Client-side service filter
   if (args.services && (args.services as string[]).length > 0) {
     const svcTerms = (args.services as string[]).map((s) => s.toLowerCase());
-    results = results.filter((b) =>
+    results = results.filter((b: any) =>
       svcTerms.some(
         (term) => fieldContains(b.target_services, term) || fieldContains(b.services_offered, term),
       ),
@@ -345,29 +345,28 @@ async function searchBuyers(
   // Client-side revenue range filter
   if (args.min_revenue) {
     const min = args.min_revenue as number;
-    results = results.filter((b) => !b.target_revenue_max || b.target_revenue_max >= min);
+    results = results.filter((b: any) => !b.target_revenue_max || b.target_revenue_max >= min);
   }
   if (args.max_revenue) {
     const max = args.max_revenue as number;
-    results = results.filter((b) => !b.target_revenue_min || b.target_revenue_min <= max);
+    results = results.filter((b: any) => !b.target_revenue_min || b.target_revenue_min <= max);
   }
 
   // Client-side industry keyword filter — searches ALL relevant buyer fields
   // Uses fieldContains() for array/string columns that may have mixed types
   if (args.industry) {
     const term = (args.industry as string).toLowerCase();
-    results = results.filter(
-      (b) =>
-        fieldContains(b.target_industries, term) ||
-        fieldContains(b.target_services, term) ||
-        fieldContains(b.services_offered, term) ||
-        b.industry_vertical?.toLowerCase().includes(term) ||
-        b.company_name?.toLowerCase().includes(term) ||
-        b.pe_firm_name?.toLowerCase().includes(term) ||
-        b.thesis_summary?.toLowerCase().includes(term) ||
-        b.business_summary?.toLowerCase().includes(term) ||
-        b.notes?.toLowerCase().includes(term) ||
-        b.alignment_reasoning?.toLowerCase().includes(term),
+    results = results.filter((b: any) =>
+      b.target_industries?.some((i: string) => i.toLowerCase().includes(term)) ||
+      b.target_services?.some((s: string) => s.toLowerCase().includes(term)) ||
+      b.services_offered?.some((s: string) => s.toLowerCase().includes(term)) ||
+      b.industry_vertical?.toLowerCase().includes(term) ||
+      b.company_name?.toLowerCase().includes(term) ||
+      b.pe_firm_name?.toLowerCase().includes(term) ||
+      b.thesis_summary?.toLowerCase().includes(term) ||
+      b.business_summary?.toLowerCase().includes(term) ||
+      b.notes?.toLowerCase().includes(term) ||
+      b.alignment_reasoning?.toLowerCase().includes(term)
     );
   }
 
@@ -375,7 +374,7 @@ async function searchBuyers(
   if (args.search) {
     const term = (args.search as string).toLowerCase();
     results = results.filter(
-      (b) =>
+      (b: any) =>
         b.company_name?.toLowerCase().includes(term) ||
         b.pe_firm_name?.toLowerCase().includes(term) ||
         b.buyer_type?.toLowerCase().includes(term) ||
@@ -519,7 +518,7 @@ async function getTopBuyersForDeal(
   }
 
   // Fetch buyer details for the scored buyer IDs
-  const buyerIds = scores.map((s) => s.buyer_id);
+  const buyerIds = scores.map((s: any) => s.buyer_id);
   let buyerQuery = supabase
     .from('remarketing_buyers')
     .select(
@@ -535,15 +534,15 @@ async function getTopBuyersForDeal(
 
   const { data: buyers } = await buyerQuery;
 
-  const buyerMap = new Map((buyers || []).map((b) => [b.id, b]));
+  const buyerMap = new Map((buyers || []).map((b: any) => [b.id, b]));
 
   // When state filter is active, only include buyers that matched the state filter
   const enriched = scores
-    .map((s) => ({
+    .map((s: any) => ({
       ...s,
       buyer: buyerMap.get(s.buyer_id) || null,
     }))
-    .filter((s) => !args.state || s.buyer !== null); // filter out non-matching buyers when state is specified
+    .filter((s: any) => !args.state || s.buyer !== null); // filter out non-matching buyers when state is specified
 
   return {
     data: {

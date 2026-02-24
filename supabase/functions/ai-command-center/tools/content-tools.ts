@@ -339,12 +339,12 @@ async function generatePipelineReport(
         by_status: byStatus,
         by_source: bySource,
         total_pipeline_revenue: totalRevenue,
-        priority_count: deals.filter((d) => d.is_priority_target).length,
+        priority_count: deals.filter((d: any) => d.is_priority_target).length,
       },
       period_activity: {
         total_activities: activities.length,
         by_type: activityByType,
-        unique_deals_active: new Set(activities.map((a) => a.deal_id)).size,
+        unique_deals_active: new Set(activities.map((a: any) => a.deal_id)).size,
       },
       scoring_activity: {
         scores_updated: scores.length,
@@ -352,11 +352,11 @@ async function generatePipelineReport(
       },
       data_room: {
         new_grants: accessGrants.length,
-        unique_deals: new Set(accessGrants.map((a) => a.deal_id)).size,
+        unique_deals: new Set(accessGrants.map((a: any) => a.deal_id)).size,
       },
       tasks: {
         created: tasks.length,
-        completed: tasks.filter((t) => t.status === 'completed').length,
+        completed: tasks.filter((t: any) => t.status === 'completed').length,
       },
       deal_details: includeDetails ? deals.slice(0, 50) : undefined,
     },

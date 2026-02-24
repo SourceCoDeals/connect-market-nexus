@@ -2216,6 +2216,7 @@ export type Database = {
           callback_completed_at: string | null
           callback_outcome: string | null
           callback_scheduled_date: string | null
+          contact_email: string | null
           contact_id: string | null
           created_at: string
           disposition_code: string | null
@@ -2248,6 +2249,7 @@ export type Database = {
           callback_completed_at?: string | null
           callback_outcome?: string | null
           callback_scheduled_date?: string | null
+          contact_email?: string | null
           contact_id?: string | null
           created_at?: string
           disposition_code?: string | null
@@ -2280,6 +2282,7 @@ export type Database = {
           callback_completed_at?: string | null
           callback_outcome?: string | null
           callback_scheduled_date?: string | null
+          contact_email?: string | null
           contact_id?: string | null
           created_at?: string
           disposition_code?: string | null
@@ -2324,6 +2327,107 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      contact_list_members: {
+        Row: {
+          added_at: string
+          contact_company: string | null
+          contact_email: string
+          contact_name: string | null
+          contact_phone: string | null
+          contact_role: string | null
+          entity_id: string
+          entity_type: string
+          id: string
+          list_id: string
+          removed_at: string | null
+        }
+        Insert: {
+          added_at?: string
+          contact_company?: string | null
+          contact_email: string
+          contact_name?: string | null
+          contact_phone?: string | null
+          contact_role?: string | null
+          entity_id: string
+          entity_type: string
+          id?: string
+          list_id: string
+          removed_at?: string | null
+        }
+        Update: {
+          added_at?: string
+          contact_company?: string | null
+          contact_email?: string
+          contact_name?: string | null
+          contact_phone?: string | null
+          contact_role?: string | null
+          entity_id?: string
+          entity_type?: string
+          id?: string
+          list_id?: string
+          removed_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contact_list_members_list_id_fkey"
+            columns: ["list_id"]
+            isOneToOne: false
+            referencedRelation: "contact_lists"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      contact_lists: {
+        Row: {
+          contact_count: number
+          created_at: string
+          created_by: string | null
+          description: string | null
+          filter_snapshot: Json | null
+          id: string
+          is_archived: boolean
+          last_pushed_at: string | null
+          last_pushed_by: string | null
+          list_type: string
+          name: string
+          tags: string[] | null
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          contact_count?: number
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          filter_snapshot?: Json | null
+          id?: string
+          is_archived?: boolean
+          last_pushed_at?: string | null
+          last_pushed_by?: string | null
+          list_type?: string
+          name: string
+          tags?: string[] | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          contact_count?: number
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          filter_snapshot?: Json | null
+          id?: string
+          is_archived?: boolean
+          last_pushed_at?: string | null
+          last_pushed_by?: string | null
+          list_type?: string
+          name?: string
+          tags?: string[] | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
       }
       contact_search_cache: {
         Row: {
@@ -7674,6 +7778,7 @@ export type Database = {
           created_by_user_id: string | null
           id: string
           last_activity_at: string | null
+          list_id: string | null
           phoneburner_session_id: string | null
           qualification_rate_percentage: number | null
           session_description: string | null
@@ -7707,6 +7812,7 @@ export type Database = {
           created_by_user_id?: string | null
           id?: string
           last_activity_at?: string | null
+          list_id?: string | null
           phoneburner_session_id?: string | null
           qualification_rate_percentage?: number | null
           session_description?: string | null
@@ -7740,6 +7846,7 @@ export type Database = {
           created_by_user_id?: string | null
           id?: string
           last_activity_at?: string | null
+          list_id?: string | null
           phoneburner_session_id?: string | null
           qualification_rate_percentage?: number | null
           session_description?: string | null
@@ -7765,7 +7872,15 @@ export type Database = {
           total_voicemails_left?: number | null
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "phoneburner_sessions_list_id_fkey"
+            columns: ["list_id"]
+            isOneToOne: false
+            referencedRelation: "contact_lists"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       phoneburner_webhooks_log: {
         Row: {

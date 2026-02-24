@@ -37,6 +37,7 @@ import {
   AlertTriangle,
   ChevronDown,
   ChevronRight,
+  Sparkles,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import Papa from 'papaparse';

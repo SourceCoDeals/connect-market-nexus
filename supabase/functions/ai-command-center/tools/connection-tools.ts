@@ -88,7 +88,7 @@ async function getConnectionRequests(
   let results = data || [];
   if (args.search) {
     const term = (args.search as string).toLowerCase();
-    results = results.filter(r =>
+    results = results.filter((r: any) =>
       r.lead_name?.toLowerCase().includes(term) ||
       r.lead_email?.toLowerCase().includes(term) ||
       r.lead_company?.toLowerCase().includes(term)
@@ -131,8 +131,8 @@ async function getConnectionMessages(
       .from('connection_requests')
       .select('id')
       .eq('listing_id', args.deal_id as string);
-    connectionRequestIds = (crData || []).map(r => r.id);
-    if (connectionRequestIds.length === 0) return { data: { messages: [], total: 0 } };
+    connectionRequestIds = (crData || []).map((r: any) => r.id);
+    if (connectionRequestIds!.length === 0) return { data: { messages: [], total: 0 } };
   }
 
   let query = supabase
@@ -156,8 +156,8 @@ async function getConnectionMessages(
     data: {
       messages,
       total: messages.length,
-      unread_by_admin: messages.filter(m => !m.is_read_by_admin && m.sender_role === 'buyer').length,
-      unread_by_buyer: messages.filter(m => !m.is_read_by_buyer && m.sender_role === 'admin').length,
+      unread_by_admin: messages.filter((m: any) => !m.is_read_by_admin && m.sender_role === 'buyer').length,
+      unread_by_buyer: messages.filter((m: any) => !m.is_read_by_buyer && m.sender_role === 'admin').length,
     },
   };
 }

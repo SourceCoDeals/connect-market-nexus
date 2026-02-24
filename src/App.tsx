@@ -87,6 +87,8 @@ const AdminDashboard = lazyWithRetry(() => import("@/pages/admin/AdminDashboard"
 const MarketplaceUsersPage = lazyWithRetry(() => import("@/pages/admin/MarketplaceUsersPage"));
 const InternalTeamPage = lazyWithRetry(() => import("@/pages/admin/InternalTeamPage"));
 const BuyerContactsPage = lazyWithRetry(() => import("@/pages/admin/BuyerContactsPage"));
+const ContactListsPage = lazyWithRetry(() => import("@/pages/admin/ContactListsPage"));
+const ContactListDetailPage = lazyWithRetry(() => import("@/pages/admin/ContactListDetailPage"));
 const OwnerLeadsPage = lazyWithRetry(() => import("@/pages/admin/OwnerLeadsPage"));
 const AdminRequests = lazyWithRetry(() => import("@/pages/admin/AdminRequests"));
 const AdminDealSourcing = lazyWithRetry(() => import("@/pages/admin/AdminDealSourcing"));
@@ -99,6 +101,7 @@ const DataRecoveryPage = lazyWithRetry(() => import("@/pages/admin/DataRecoveryP
 const FormMonitoringPage = lazyWithRetry(() => import("@/pages/admin/FormMonitoringPage"));
 const SecuritySettings = lazyWithRetry(() => import("@/pages/admin/settings/SecuritySettings"));
 const GlobalApprovalsPage = lazyWithRetry(() => import("@/pages/admin/GlobalApprovalsPage"));
+const DocumentTrackingPage = lazyWithRetry(() => import("@/pages/admin/DocumentTrackingPage"));
 const TestingHub = lazyWithRetry(() => import("@/pages/admin/TestingHub"));
 const MessageCenter = lazyWithRetry(() => import("@/pages/admin/MessageCenter"));
 
@@ -228,6 +231,10 @@ function App() {
                           <Route path="buyers/deal-sourcing" element={<AdminDealSourcing />} />
                           <Route path="buyers/contacts" element={<BuyerContactsPage />} />
 
+                          {/* CONTACT LISTS */}
+                          <Route path="lists" element={<ContactListsPage />} />
+                          <Route path="lists/:id" element={<ContactListDetailPage />} />
+
                           {/* MARKETPLACE (listings absorbed into unified All Deals page) */}
                           <Route path="marketplace/listings" element={<Navigate to="/admin/deals?tab=marketplace" replace />} />
                           <Route path="marketplace/requests" element={<AdminRequests />} />
@@ -268,6 +275,9 @@ function App() {
 
                           {/* APPROVALS */}
                           <Route path="approvals" element={<RoleGate min="admin"><GlobalApprovalsPage /></RoleGate>} />
+
+                          {/* DOCUMENT TRACKING */}
+                          <Route path="documents" element={<DocumentTrackingPage />} />
 
                           {/* ANALYTICS */}
                           <Route path="analytics" element={<ReMarketingAnalytics />} />

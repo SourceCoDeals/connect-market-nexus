@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { DocuSealSigningPanel } from './DocuSealSigningPanel';
 import { supabase } from '@/integrations/supabase/client';
 import { useQueryClient } from '@tanstack/react-query';
-import { Loader2, Shield, FileSignature, Download, MessageSquare } from 'lucide-react';
+import { Loader2, Shield, FileSignature, Download, MessageSquare, ZoomIn, ZoomOut } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { APP_CONFIG } from '@/config/app';
 
@@ -33,8 +33,17 @@ export function AgreementSigningModal({
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isDownloadingDraft, setIsDownloadingDraft] = useState(false);
+  const [zoomLevel, setZoomLevel] = useState(1);
   const queryClient = useQueryClient();
   const { toast } = useToast();
+
+  const ZOOM_STEP = 0.15;
+  const MIN_ZOOM = 0.75;
+  const MAX_ZOOM = 2;
+
+  const handleZoomIn = () => setZoomLevel((z) => Math.min(z + ZOOM_STEP, MAX_ZOOM));
+  const handleZoomOut = () => setZoomLevel((z) => Math.max(z - ZOOM_STEP, MIN_ZOOM));
+  const handleZoomReset = () => setZoomLevel(1);
 
   const docLabel = documentType === 'nda' ? 'NDA' : 'Fee Agreement';
   const Icon = documentType === 'nda' ? Shield : FileSignature;
@@ -143,7 +152,7 @@ export function AgreementSigningModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-4xl w-[95vw] h-[90vh] flex flex-col overflow-hidden">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Icon className="h-5 w-5" />
@@ -168,17 +177,34 @@ export function AgreementSigningModal({
 
         {embedSrc && (
           <>
-            <DocuSealSigningPanel
-              embedSrc={embedSrc}
-              onCompleted={handleSigned}
-              successMessage={`${docLabel} signed successfully.`}
-              successDescription="Your access has been updated. You can close this dialog."
-              title=""
-              description=""
-            />
+            <div className="flex-1 overflow-auto min-h-0">
+              <div style={{ transform: `scale(${zoomLevel})`, transformOrigin: 'top center', width: `${100 / zoomLevel}%` }}>
+                <DocuSealSigningPanel
+                  embedSrc={embedSrc}
+                  onCompleted={handleSigned}
+                  successMessage={`${docLabel} signed successfully.`}
+                  successDescription="Your access has been updated. You can close this dialog."
+                  title=""
+                  description=""
+                />
+              </div>
+            </div>
+
+            {/* Zoom controls */}
+            <div className="flex items-center justify-center gap-1 border-t border-border pt-2 mt-2">
+              <Button variant="outline" size="icon" className="h-7 w-7" onClick={handleZoomOut} disabled={zoomLevel <= MIN_ZOOM}>
+                <ZoomOut className="h-3.5 w-3.5" />
+              </Button>
+              <Button variant="ghost" size="sm" className="h-7 text-xs min-w-[3.5rem] font-mono" onClick={handleZoomReset}>
+                {Math.round(zoomLevel * 100)}%
+              </Button>
+              <Button variant="outline" size="icon" className="h-7 w-7" onClick={handleZoomIn} disabled={zoomLevel >= MAX_ZOOM}>
+                <ZoomIn className="h-3.5 w-3.5" />
+              </Button>
+            </div>
 
             {/* Download draft + contact options */}
-            <div className="flex items-center justify-between border-t border-border pt-3 mt-2">
+            <div className="flex items-center justify-between border-t border-border pt-3 mt-1">
               <Button
                 variant="ghost"
                 size="sm"

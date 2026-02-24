@@ -6,7 +6,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 import { formatDistanceToNow } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { AgreementAlertModal } from './AgreementAlertModal';
 import { useMyAgreementStatus } from '@/hooks/use-agreement-status';
 
@@ -39,11 +39,17 @@ export function BuyerNotificationBell() {
   // Check if NDA/Fee are already signed — don't show popup if so
   const { data: agreementStatus } = useMyAgreementStatus();
 
+  // Track which notification IDs we've already shown the modal for
+  const shownAlertIdsRef = useRef<Set<string>>(new Set());
+
   // Show big modal popup when new agreement_pending notifications arrive
   useEffect(() => {
+    // Don't re-trigger while modal is already open
+    if (alertModalOpen) return;
+
     const dismissed = getDismissedSet();
     const agreementNotifications = notifications.filter(
-      n => n.notification_type === 'agreement_pending' && !n.is_read && !dismissed.has(n.id)
+      n => n.notification_type === 'agreement_pending' && !n.is_read && !dismissed.has(n.id) && !shownAlertIdsRef.current.has(n.id)
     );
 
     for (const n of agreementNotifications) {
@@ -52,7 +58,6 @@ export function BuyerNotificationBell() {
 
       // Skip if already signed
       if (isNda && agreementStatus?.nda_covered) {
-        // Auto-mark as read since it's signed
         markAsRead.mutate(n.id);
         continue;
       }
@@ -61,12 +66,13 @@ export function BuyerNotificationBell() {
         continue;
       }
 
+      shownAlertIdsRef.current.add(n.id);
       setAlertDocType(isNda ? 'nda' : 'fee_agreement');
       setCurrentAlertNotificationId(n.id);
       setAlertModalOpen(true);
       break; // Show one at a time
     }
-  }, [notifications, agreementStatus]);
+  }, [notifications, agreementStatus, alertModalOpen]);
 
   const handleDismissAlert = useCallback(() => {
     if (currentAlertNotificationId) {

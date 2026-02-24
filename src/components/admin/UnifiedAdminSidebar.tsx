@@ -38,6 +38,7 @@ import {
   ListChecks,
   Contact,
   Mail,
+  Search,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -73,9 +74,10 @@ interface NavSection {
 interface AdminSidebarProps {
   collapsed: boolean;
   onCollapsedChange?: (collapsed: boolean) => void;
+  onSearchClick?: () => void;
 }
 
-export function UnifiedAdminSidebar({ collapsed, onCollapsedChange }: AdminSidebarProps) {
+export function UnifiedAdminSidebar({ collapsed, onCollapsedChange, onSearchClick }: AdminSidebarProps) {
   const location = useLocation();
   const { isAdmin: _isFullAdmin, canAccessSettings } = usePermissions();
   const { unviewedCount: unviewedDealSourcingCount } = useUnviewedDealSourcingCount();
@@ -129,6 +131,11 @@ export function UnifiedAdminSidebar({ collapsed, onCollapsedChange }: AdminSideb
             href: "/admin/buyers/contacts",
             icon: <Contact className="h-4 w-4" />,
           },
+          {
+            label: "Contact Lists",
+            href: "/admin/lists",
+            icon: <ListChecks className="h-4 w-4" />,
+          },
         ],
       },
       {
@@ -153,6 +160,11 @@ export function UnifiedAdminSidebar({ collapsed, onCollapsedChange }: AdminSideb
             href: "/admin/marketplace/users",
             icon: <UserCog className="h-4 w-4" />,
             badge: unviewedUsersCount,
+          },
+          {
+            label: "Document Tracking",
+            href: "/admin/documents",
+            icon: <FileCheck className="h-4 w-4" />,
           },
         ],
       },
@@ -337,6 +349,34 @@ export function UnifiedAdminSidebar({ collapsed, onCollapsedChange }: AdminSideb
               <ChevronLeft className="h-3.5 w-3.5" />
             )}
           </button>
+        </div>
+
+        {/* Universal Search */}
+        <div className="px-3 pb-1">
+          {collapsed ? (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  onClick={onSearchClick}
+                  className="flex items-center justify-center w-full h-9 rounded-md text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+                >
+                  <Search className="h-4 w-4" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="right">Search (⌘K)</TooltipContent>
+            </Tooltip>
+          ) : (
+            <button
+              onClick={onSearchClick}
+              className="flex items-center gap-2.5 w-full px-2 py-1.5 text-sm rounded-md text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+            >
+              <Search className="h-4 w-4 shrink-0" />
+              <span className="flex-1 text-left truncate">Search</span>
+              <kbd className="hidden lg:inline-flex h-5 items-center gap-0.5 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground">
+                ⌘K
+              </kbd>
+            </button>
+          )}
         </div>
 
         {/* Dashboard + Messages - standalone top items */}

@@ -90,7 +90,7 @@ export function DocuSealSigningPanel({
         </div>
       )}
 
-      <div className="relative min-h-[400px]">
+      <div className="relative min-h-[400px] flex-1">
         {status === 'loading' && (
           <div className="absolute inset-0 flex items-center justify-center bg-background/50 z-10">
             <div className="flex flex-col items-center gap-3">

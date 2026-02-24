@@ -90,10 +90,13 @@ export function useNonMarketplaceUsers() {
         roles: Set<string>;
         phones: Set<string>;
         firms: Set<{ id: string; name: string }>;
+        sources: Set<'connection_request' | 'inbound_lead' | 'deal'>;
+        listing_names: Set<string>;
         connection_requests: NonNullable<typeof connectionRequests>;
         inbound_leads: NonNullable<typeof inboundLeads>;
         deals: NonNullable<typeof deals>;
         earliest_date: string;
+        latest_date: string;
       }>();
 
       // Process connection requests
@@ -109,10 +112,13 @@ export function useNonMarketplaceUsers() {
             roles: new Set(),
             phones: new Set(),
             firms: new Set(),
+            sources: new Set(),
+            listing_names: new Set(),
             connection_requests: [],
             inbound_leads: [],
             deals: [],
             earliest_date: cr.created_at,
+            latest_date: cr.created_at,
           });
         }
 
@@ -122,7 +128,12 @@ export function useNonMarketplaceUsers() {
         if (cr.lead_company) data.companies.add(cr.lead_company);
         if (cr.lead_role) data.roles.add(cr.lead_role);
         if (cr.lead_phone) data.phones.add(cr.lead_phone);
-        
+        data.sources.add('connection_request');
+
+        // Extract listing name
+        const crListing = cr.listing as { id: string; title: string } | null;
+        if (crListing?.title) data.listing_names.add(crListing.title);
+
         // Extract firm info from nested relation
         const crFirmData = (cr as Record<string, unknown>).firm_agreements as FirmRelation;
         if (crFirmData && cr.firm_id) {
@@ -134,6 +145,7 @@ export function useNonMarketplaceUsers() {
 
         data.connection_requests.push(cr);
         if (cr.created_at < data.earliest_date) data.earliest_date = cr.created_at;
+        if (cr.created_at > data.latest_date) data.latest_date = cr.created_at;
       });
 
       // Process inbound leads
@@ -149,10 +161,13 @@ export function useNonMarketplaceUsers() {
             roles: new Set(),
             phones: new Set(),
             firms: new Set(),
+            sources: new Set(),
+            listing_names: new Set(),
             connection_requests: [],
             inbound_leads: [],
             deals: [],
             earliest_date: il.created_at,
+            latest_date: il.created_at,
           });
         }
 
@@ -162,7 +177,8 @@ export function useNonMarketplaceUsers() {
         if (il.company_name) data.companies.add(il.company_name);
         if (il.role) data.roles.add(il.role);
         if (il.phone_number) data.phones.add(il.phone_number);
-        
+        data.sources.add('inbound_lead');
+
         // Extract firm info from nested relation
         const ilFirmData = (il as Record<string, unknown>).firm_agreements as FirmRelation;
         if (ilFirmData && il.firm_id) {
@@ -174,6 +190,7 @@ export function useNonMarketplaceUsers() {
 
         data.inbound_leads.push(il);
         if (il.created_at < data.earliest_date) data.earliest_date = il.created_at;
+        if (il.created_at > data.latest_date) data.latest_date = il.created_at;
       });
 
       // Process deals
@@ -189,10 +206,13 @@ export function useNonMarketplaceUsers() {
             roles: new Set(),
             phones: new Set(),
             firms: new Set(),
+            sources: new Set(),
+            listing_names: new Set(),
             connection_requests: [],
             inbound_leads: [],
             deals: [],
             earliest_date: deal.created_at ?? new Date().toISOString(),
+            latest_date: deal.created_at ?? new Date().toISOString(),
           });
         }
 
@@ -202,8 +222,16 @@ export function useNonMarketplaceUsers() {
         if (deal.contact_company) data.companies.add(deal.contact_company);
         if (deal.contact_role) data.roles.add(deal.contact_role);
         if (deal.contact_phone) data.phones.add(deal.contact_phone);
+        data.sources.add('deal');
+
+        // Extract listing name from deal
+        const dealListing = deal.listing as { id: string; title: string } | null;
+        if (dealListing?.title) data.listing_names.add(dealListing.title);
+        if (deal.title) data.listing_names.add(deal.title);
+
         data.deals.push(deal);
         if (deal.created_at && deal.created_at < data.earliest_date) data.earliest_date = deal.created_at;
+        if (deal.created_at && deal.created_at > data.latest_date) data.latest_date = deal.created_at;
       });
 
       // Convert to NonMarketplaceUser array
@@ -219,7 +247,7 @@ export function useNonMarketplaceUsers() {
         // Determine primary source (most recent)
         let source: 'connection_request' | 'inbound_lead' | 'deal' = 'connection_request';
         let sourceId = '';
-        
+
         if (data.deals.length > 0) {
           source = 'deal';
           sourceId = data.deals[0].id;
@@ -249,6 +277,7 @@ export function useNonMarketplaceUsers() {
         });
 
         const firms = Array.from(data.firms);
+        const totalEngagement = data.connection_requests.length + data.inbound_leads.length + data.deals.length;
 
         nonMarketplaceUsers.push({
           id: `${source}:${sourceId}`,
@@ -258,6 +287,7 @@ export function useNonMarketplaceUsers() {
           role: Array.from(data.roles)[0] || null,
           phone: Array.from(data.phones)[0] || null,
           source,
+          sources: Array.from(data.sources),
           source_id: sourceId,
           firm_id: firms[0]?.id || null,
           firm_name: firms[0]?.name || null,
@@ -265,6 +295,9 @@ export function useNonMarketplaceUsers() {
           connection_requests_count: data.connection_requests.length,
           inbound_leads_count: data.inbound_leads.length,
           deals_count: data.deals.length,
+          total_engagement_count: totalEngagement,
+          last_activity_date: data.latest_date,
+          listing_names: Array.from(data.listing_names),
           nda_status: ndaStatus,
           fee_agreement_status: feeAgreementStatus,
           potential_profile_id: null,
@@ -278,7 +311,7 @@ export function useNonMarketplaceUsers() {
       });
 
       // Sort by created_at descending
-      return nonMarketplaceUsers.sort((a, b) => 
+      return nonMarketplaceUsers.sort((a, b) =>
         new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
       );
     },
