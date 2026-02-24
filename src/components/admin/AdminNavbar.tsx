@@ -9,6 +9,7 @@ import {
   ShoppingBag,
   Menu,
   X,
+  Search,
   Sparkles,
   GitBranch,
   Target,
@@ -29,6 +30,7 @@ import { useUnviewedOwnerLeads } from "@/hooks/admin/use-unviewed-owner-leads";
 
 interface AdminNavbarProps {
   className?: string;
+  onSearchClick?: () => void;
 }
 
 interface MobileNavItem {
@@ -40,7 +42,7 @@ interface MobileNavItem {
   section?: string; // section header before this item
 }
 
-export function AdminNavbar({ className }: AdminNavbarProps) {
+export function AdminNavbar({ className, onSearchClick }: AdminNavbarProps) {
   const { user } = useAuth();
   const location = useLocation();
   const { unviewedCount: unviewedDealSourcingCount } = useUnviewedDealSourcingCount();
@@ -207,7 +209,15 @@ export function AdminNavbar({ className }: AdminNavbarProps) {
         <h1 className="text-base sm:text-lg font-semibold truncate">SourceCo Admin</h1>
       </div>
 
-      <AdminNotificationBell />
+      <div className="flex items-center gap-2">
+        {onSearchClick && (
+          <Button variant="outline" size="icon" className="h-10 w-10" onClick={onSearchClick}>
+            <Search className="h-5 w-5" />
+            <span className="sr-only">Search</span>
+          </Button>
+        )}
+        <AdminNotificationBell />
+      </div>
     </div>
   );
 }
