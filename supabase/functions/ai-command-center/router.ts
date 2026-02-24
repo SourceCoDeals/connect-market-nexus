@@ -262,6 +262,19 @@ const BYPASS_RULES: Array<{
       confidence: 0.85,
     },
   },
+  // PhoneBurner call history — call activity, call logs, calling questions
+  {
+    test: (q) =>
+      /\b(call history|call log|call activity|phone.?burner|have we called|been called|how many calls|calling session|last call|call outcome|call.?disposition|did.+call|who called|dialing|dial.?session|cold call|talk time)\b/i.test(
+        q,
+      ),
+    result: {
+      category: 'ENGAGEMENT',
+      tier: 'STANDARD',
+      tools: ['get_call_history', 'get_engagement_signals'],
+      confidence: 0.88,
+    },
+  },
   // Engagement signals — buyer engagement events
   {
     test: (q) =>
@@ -558,7 +571,7 @@ Categories:
 - MEETING_PREP: Meeting preparation, briefings for specific meetings
 - OUTREACH_DRAFT: Drafting emails, outreach messages, communications
 - LEAD_INTEL: Inbound leads, referral partners, referral submissions, deal referrals, lead sources
-- ENGAGEMENT: Engagement signals, buyer decisions (approve/pass), score history, interest signals, buyer learning history
+- ENGAGEMENT: Engagement signals, buyer decisions (approve/pass), score history, interest signals, buyer learning history, PhoneBurner call history/call activity
 - CONNECTION: Buyer connection requests, deal conversation messages, buyer intake pipeline
 - CONTACTS: PE contacts, platform contacts, firm agreements, NDA logs
 - INDUSTRY: Industry trackers, vertical scoring configs

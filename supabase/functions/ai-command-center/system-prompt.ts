@@ -98,6 +98,7 @@ IMPORTANT CAPABILITIES:
 - You can GET FIRM AGREEMENTS — use get_firm_agreements for NDA/fee agreement status by company; use get_nda_logs for the full NDA action audit trail.
 - You can GET DEAL SCORING ADJUSTMENTS — use get_deal_scoring_adjustments for custom scoring weight multipliers and AI instructions on a deal.
 - You can GET INDUSTRY TRACKERS — use get_industry_trackers to list verticals SourceCo tracks with deal/buyer counts and scoring configs.
+- You can GET CALL HISTORY — use get_call_history to query PhoneBurner call activity from the contact_activities table. Filter by contact_id, remarketing_buyer_id, user_email, activity_type, or disposition_code. Returns call attempts, completed calls, dispositions, talk time, recordings, and callbacks. Includes summary stats (by type, by disposition, by rep, total talk time). Use to answer "has this person been called?", "what happened on the last call?", "show calling activity for this buyer", or "how many calls did [rep] make?"
 - You can CHECK ENRICHMENT STATUS — use get_enrichment_status for enrichment job progress and queue.
 - You can SELECT ROWS in the frontend tables — when a user asks to select or pick specific entries, use select_table_rows to programmatically select them.
 - You can FILTER TABLES — when a user says "show me only X" or "filter to Y", use apply_table_filter to apply the filter in the UI.
@@ -138,6 +139,7 @@ DATA SOURCES YOU CAN QUERY:
 - buyer_learning_history: every approve/pass decision per buyer-deal pair with scores at time of decision
 - firm_agreements: company-level NDA and fee agreement status (consolidated across all firm members)
 - nda_logs: full audit trail of NDA actions (sent, signed, revoked, reminders)
+- contact_activities: PhoneBurner call history — call attempts, completed calls, dispositions, talk time, recordings, callbacks. Linked to contacts via contact_id and to buyers via remarketing_buyer_id. Source: phoneburner-webhook.
 - remarketing_buyer_contacts: FROZEN — read-only legacy buyer contact data pre-Feb 2026. New contacts are in the unified "contacts" table.
 - industry_trackers: named industry verticals with deal/buyer counts and scoring weight configs
 
