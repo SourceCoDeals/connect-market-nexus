@@ -5,7 +5,7 @@
  * into the right category with appropriate tools, covering:
  *
  * - All 25 Real-World Test Questions from the SourceCo testing guide
- * - Contact intelligence intents (CONTACT_FINDER, COMPANY_DISCOVERY)
+ * - Contact & company search intents (CONTACTS, BUYER_SEARCH)
  * - Edge cases: ambiguous queries, typos, multi-intent messages
  * - All existing intent categories
  *
@@ -218,13 +218,13 @@ const BYPASS_RULES: BypassRule[] = [
       /\b(who\s+(works?|is)\s+at)\b/i.test(q) ||
       /\b(find\s+\d+.*\b(at|from)\b)/i.test(q),
     result: {
-      category: 'CONTACT_FINDER',
-      tier: 'DEEP',
-      tools: ['find_contacts'],
+      category: 'CONTACTS',
+      tier: 'STANDARD',
+      tools: ['search_pe_contacts', 'get_buyer_profile'],
       confidence: 0.92,
     },
   },
-  // Company discovery
+  // Company/deal discovery
   {
     test: (q) =>
       /\b(find\s+(me\s+)?(companies|shops|businesses|firms|platforms)\s+(that|with|in|near|within))\b/i.test(
@@ -235,9 +235,9 @@ const BYPASS_RULES: BypassRule[] = [
         q,
       ),
     result: {
-      category: 'COMPANY_DISCOVERY',
-      tier: 'DEEP',
-      tools: ['discover_companies'],
+      category: 'BUYER_SEARCH',
+      tier: 'STANDARD',
+      tools: ['query_deals', 'search_lead_sources', 'search_valuation_leads'],
       confidence: 0.9,
     },
   },
@@ -262,34 +262,34 @@ describe('GROUP A: Contact Research Intent Classification', () => {
       const result = classifyQuery(
         'Find me 8-10 associates, senior associates, principals, and VPs at Trivest',
       );
-      // The "find...associates...at" or "find 8...at" pattern should trigger CONTACT_FINDER,
+      // The "find...associates...at" or "find 8...at" pattern should trigger CONTACTS,
       // but the regex may not match due to intervening text. LLM fallback is correct.
       expect(
         result === null ||
-          ['CONTACT_FINDER', 'BUYER_SEARCH', 'REMARKETING'].includes(result.category),
+          ['CONTACTS', 'BUYER_SEARCH', 'REMARKETING'].includes(result.category),
       ).toBe(true);
     });
 
     it('classifies "find contacts at Trivest Partners"', () => {
       const result = classifyQuery('Find contacts at Trivest Partners');
-      expect(result?.category).toBe('CONTACT_FINDER');
+      expect(result?.category).toBe('CONTACTS');
     });
 
     it('classifies "get me contact info for people at Blackstone"', () => {
       const result = classifyQuery('Get me contact info for people at Blackstone');
-      expect(result?.category).toBe('CONTACT_FINDER');
+      expect(result?.category).toBe('CONTACTS');
     });
   });
 
   describe('Q2: Find contacts at competitor/unknown buyer', () => {
     it('classifies "find people at New Heritage Capital"', () => {
       const result = classifyQuery('Find people at New Heritage Capital');
-      expect(result?.category).toBe('CONTACT_FINDER');
+      expect(result?.category).toBe('CONTACTS');
     });
 
     it('classifies "who works at New Heritage Capital"', () => {
       const result = classifyQuery('Who works at New Heritage Capital');
-      expect(result?.category).toBe('CONTACT_FINDER');
+      expect(result?.category).toBe('CONTACTS');
     });
   });
 
@@ -298,7 +298,7 @@ describe('GROUP A: Contact Research Intent Classification', () => {
       const result = classifyQuery(
         'Find 6-8 people at Blackstone who have associate or principal in their title',
       );
-      expect(result?.category).toBe('CONTACT_FINDER');
+      expect(result?.category).toBe('CONTACTS');
     });
   });
 
@@ -307,10 +307,10 @@ describe('GROUP A: Contact Research Intent Classification', () => {
       const result = classifyQuery(
         'Find me 10 business development people at PE firms that acquired HVAC companies',
       );
-      // Complex multi-entity query — may match BUYER_SEARCH/CONTACT_FINDER or fall to LLM
+      // Complex multi-entity query — may match BUYER_SEARCH/CONTACTS or fall to LLM
       expect(
         result === null ||
-          ['CONTACT_FINDER', 'BUYER_SEARCH', 'REMARKETING'].includes(result.category),
+          ['CONTACTS', 'BUYER_SEARCH', 'REMARKETING'].includes(result.category),
       ).toBe(true);
     });
   });
@@ -324,7 +324,7 @@ describe('GROUP A: Contact Research Intent Classification', () => {
       // LLM fallback is acceptable for this complexity level
       expect(
         result === null ||
-          ['CONTACT_FINDER', 'BUYER_SEARCH', 'REMARKETING'].includes(result.category),
+          ['CONTACTS', 'BUYER_SEARCH', 'REMARKETING'].includes(result.category),
       ).toBe(true);
     });
   });
@@ -435,10 +435,10 @@ describe('GROUP C: Fireflies Call Analysis Intent Classification', () => {
       const result = classifyQuery(
         'Pull seller motivation scores from all our collision repair shop calls in the last 60 days',
       );
-      // "calls" triggers MEETING_INTEL or "collision repair shop" may trigger COMPANY_DISCOVERY
+      // "calls" triggers MEETING_INTEL or "collision repair shop" may trigger BUYER_SEARCH
       expect(result).not.toBeNull();
       if (result) {
-        expect(['MEETING_INTEL', 'SEMANTIC_SEARCH', 'COMPANY_DISCOVERY']).toContain(
+        expect(['MEETING_INTEL', 'SEMANTIC_SEARCH', 'BUYER_SEARCH']).toContain(
           result.category,
         );
       }
@@ -541,34 +541,34 @@ describe('Company Discovery Intent Classification', () => {
     const result = classifyQuery(
       'Find collision repair shops with 5 plus locations within 200 miles of Tampa',
     );
-    // "collision repair shop...with" triggers COMPANY_DISCOVERY, but "within X miles" may trigger REMARKETING first
+    // "collision repair shop...with" triggers BUYER_SEARCH, but "within X miles" may trigger REMARKETING first
     expect(result).not.toBeNull();
     if (result) {
-      expect(['COMPANY_DISCOVERY', 'REMARKETING']).toContain(result.category);
+      expect(['BUYER_SEARCH', 'REMARKETING']).toContain(result.category);
     }
   });
 
   it('classifies "Find companies that do HVAC in Texas"', () => {
     const result = classifyQuery('Find companies that do HVAC in Texas');
-    expect(result?.category).toBe('COMPANY_DISCOVERY');
+    expect(result?.category).toBe('BUYER_SEARCH');
   });
 
   it('classifies "discover companies in the plumbing space" (falls to LLM or matches discovery)', () => {
     const result = classifyQuery('Discover companies in the plumbing space');
-    // "discover compan" pattern requires exact "discover companies" — may not match due to regex specifics
-    // If no bypass matches, LLM handles it (which is fine for complex discovery queries)
-    expect(result === null || result.category === 'COMPANY_DISCOVERY').toBe(true);
+    // "discover compan" pattern — routes to BUYER_SEARCH for deal/lead search
+    // If no bypass matches, LLM handles it (which is fine for complex queries)
+    expect(result === null || result.category === 'BUYER_SEARCH').toBe(true);
   });
 
   it('classifies "Who owns ABC Auto Body"', () => {
     const result = classifyQuery('Who owns ABC Auto Body');
-    expect(result?.category).toBe('COMPANY_DISCOVERY');
+    expect(result?.category).toBe('BUYER_SEARCH');
   });
 
-  it('classifies "search for companies doing home services in Florida" (falls to LLM or matches discovery)', () => {
+  it('classifies "search for companies doing home services in Florida" (falls to LLM or matches)', () => {
     const result = classifyQuery('Search for companies doing home services in Florida');
     // "search for compan" pattern may not match exactly — LLM fallback is acceptable
-    expect(result === null || result.category === 'COMPANY_DISCOVERY').toBe(true);
+    expect(result === null || result.category === 'BUYER_SEARCH').toBe(true);
   });
 });
 
@@ -607,7 +607,7 @@ describe('Core intent classification', () => {
     // Falls to LLM if bypass doesn't match exactly
     expect(
       result === null ||
-        ['BUYER_SEARCH', 'REMARKETING', 'CONTACT_FINDER'].includes(result.category),
+        ['BUYER_SEARCH', 'REMARKETING', 'CONTACTS'].includes(result.category),
     ).toBe(true);
   });
 
@@ -672,7 +672,7 @@ describe('Edge cases in intent classification', () => {
       'who have been involved in HVAC acquisitions in the Southeast region ' +
       'and also get me their email addresses and phone numbers please';
     const result = classifyQuery(longQuery);
-    // Should still classify (likely CONTACT_FINDER or BUYER_SEARCH)
+    // Should still classify (likely CONTACTS or BUYER_SEARCH)
     expect(result).not.toBeNull();
   });
 

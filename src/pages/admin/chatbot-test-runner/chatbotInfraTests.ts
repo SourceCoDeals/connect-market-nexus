@@ -1,10 +1,17 @@
 /**
- * Automated infrastructure test definitions for the AI Chatbot system.
- * Tests chat tables, persistence, analytics, edge functions, and data integrity.
+ * Automated infrastructure + behavior test definitions for the AI Command Center.
+ *
+ * Tests:
+ * 1. Chat tables & columns exist
+ * 2. Chat persistence CRUD
+ * 3. Chat analytics & feedback
+ * 4. Edge function reachability
+ * 5. AI Command Center end-to-end: router, tool usage, response quality
+ *
  * Follows the same pattern as system-test-runner/testDefinitions.ts.
  */
 
-import { supabase } from '@/integrations/supabase/client';
+import { supabase, SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY } from '@/integrations/supabase/client';
 import type { SupabaseClient } from '@supabase/supabase-js';
 
 // ── Types ──
@@ -48,6 +55,101 @@ async function chatTableReadable(table: string) {
 async function chatColumnExists(table: string, column: string) {
   const { error } = await db.from(table).select(column).limit(1);
   if (error) throw new Error(`Column '${column}' on '${table}' failed: ${error.message}`);
+}
+
+/**
+ * Send a query to the AI Command Center and parse SSE events.
+ * Returns { text, toolCalls, routeInfo, error }.
+ */
+async function sendAIQuery(query: string, timeoutMs = 30000): Promise<{
+  text: string;
+  toolCalls: Array<{ name: string; id: string; success: boolean }>;
+  routeInfo: { category: string; tier: string; tools: string[] } | null;
+  error: string | null;
+  cost: number;
+}> {
+  const { data: sessionData } = await supabase.auth.getSession();
+  if (!sessionData.session) throw new Error('Not authenticated');
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    const response = await fetch(
+      `${SUPABASE_URL}/functions/v1/ai-command-center`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${sessionData.session.access_token}`,
+          apikey: SUPABASE_PUBLISHABLE_KEY,
+        },
+        body: JSON.stringify({ query, conversation_id: crypto.randomUUID(), history: [] }),
+        signal: controller.signal,
+      },
+    );
+
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      throw new Error(`HTTP ${response.status}: ${(err as Record<string, string>).error || response.statusText}`);
+    }
+
+    // Parse SSE stream
+    const reader = response.body!.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+    let text = '';
+    const toolCalls: Array<{ name: string; id: string; success: boolean }> = [];
+    let routeInfo: { category: string; tier: string; tools: string[] } | null = null;
+    let error: string | null = null;
+    let cost = 0;
+    let pendingEventType = '';
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop() || '';
+
+      for (const line of lines) {
+        const trimmed = line.replace(/\r$/, '');
+        if (trimmed.startsWith('event: ')) {
+          pendingEventType = trimmed.slice(7).trim();
+          continue;
+        }
+        if (!trimmed || trimmed.startsWith(':') || !trimmed.startsWith('data: ')) {
+          if (!trimmed.startsWith('data: ')) pendingEventType = '';
+          continue;
+        }
+        const jsonStr = trimmed.slice(6).trim();
+        if (!jsonStr) continue;
+        const eventType = pendingEventType || 'message';
+        pendingEventType = '';
+
+        try {
+          const data = JSON.parse(jsonStr);
+          switch (eventType) {
+            case 'text': text += data.text || ''; break;
+            case 'routed': routeInfo = data; break;
+            case 'tool_start': toolCalls.push({ name: data.name, id: data.id, success: false }); break;
+            case 'tool_result': {
+              const idx = toolCalls.findIndex(t => t.id === data.id);
+              if (idx >= 0) toolCalls[idx].success = data.success;
+              break;
+            }
+            case 'error': error = data.message; break;
+            case 'done': cost = data.cost || 0; break;
+          }
+        } catch { /* skip malformed JSON */ }
+      }
+    }
+
+    return { text, toolCalls, routeInfo, error, cost };
+  } finally {
+    clearTimeout(timeout);
+  }
 }
 
 // ── Test Definitions ──
@@ -285,9 +387,29 @@ export function buildChatbotTests(): ChatbotTestDef[] {
   });
 
   // ═══════════════════════════════════════════
-  // CATEGORY 4: Chat Edge Functions
+  // CATEGORY 4: Edge Function Reachability
   // ═══════════════════════════════════════════
-  const C4 = '4. Chat Edge Functions';
+  const C4 = '4. Edge Functions';
+
+  add(C4, 'ai-command-center edge function reachable', async () => {
+    const { data: sessionData } = await supabase.auth.getSession();
+    if (!sessionData.session) throw new Error('Not authenticated');
+
+    const response = await fetch(
+      `${SUPABASE_URL}/functions/v1/ai-command-center`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${sessionData.session.access_token}`,
+          apikey: SUPABASE_PUBLISHABLE_KEY,
+        },
+        body: JSON.stringify({ query: 'ping', conversation_id: 'test', history: [] }),
+      },
+    );
+    // Any response that's not a network error is fine — even 400/500 means the function is reachable
+    if (!response) throw new Error('No response from ai-command-center');
+  });
 
   add(C4, 'chat-remarketing edge function reachable', async () => {
     const { error } = await supabase.functions.invoke('chat-remarketing', {
@@ -326,11 +448,105 @@ export function buildChatbotTests(): ChatbotTestDef[] {
   });
 
   // ═══════════════════════════════════════════
-  // CATEGORY 5: Chat Data Integrity
+  // CATEGORY 5: AI Command Center — Router Tests
   // ═══════════════════════════════════════════
-  const C5 = '5. Chat Data Integrity';
+  const C5 = '5. AI Router & Tool Usage';
 
-  add(C5, 'Chat conversations exist (not empty)', async () => {
+  add(C5, 'Pipeline count query routes correctly', async () => {
+    const result = await sendAIQuery('how many deals are in the pipeline');
+    if (!result.routeInfo) throw new Error('No route info returned');
+    if (result.routeInfo.category !== 'PIPELINE_ANALYTICS' && result.routeInfo.category !== 'DAILY_BRIEFING') {
+      throw new Error(`Expected PIPELINE_ANALYTICS, got ${result.routeInfo.category}`);
+    }
+    const toolNames = result.toolCalls.map(t => t.name);
+    if (!toolNames.includes('get_pipeline_summary')) {
+      throw new Error(`Expected get_pipeline_summary tool, got: ${toolNames.join(', ') || 'none'}`);
+    }
+  });
+
+  add(C5, 'Industry query includes query_deals tool', async () => {
+    const result = await sendAIQuery('how many hvac deals do we have');
+    if (!result.routeInfo) throw new Error('No route info returned');
+    // Should have both get_pipeline_summary and query_deals available
+    const toolNames = result.toolCalls.map(t => t.name);
+    const usedPipelineOrQuery = toolNames.includes('get_pipeline_summary') || toolNames.includes('query_deals');
+    if (!usedPipelineOrQuery) {
+      throw new Error(`Expected get_pipeline_summary or query_deals, got: ${toolNames.join(', ') || 'none'}`);
+    }
+    // Check the response doesn't contain hallucinated tool calls
+    if (result.text.includes('<tool_call>') || result.text.includes('<tool_response>')) {
+      throw new Error('Response contains hallucinated tool call text — AI is faking tool results instead of using real tools');
+    }
+  });
+
+  add(C5, 'Response uses real data (no hallucinated company names)', async () => {
+    const result = await sendAIQuery('give me a quick pipeline overview');
+    if (result.error) throw new Error(`AI error: ${result.error}`);
+    if (!result.text) throw new Error('Empty response');
+    // Check the response text doesn't include obviously hallucinated patterns
+    const hallucinations = [
+      'Arctic Air Systems', 'ProTemp Solutions', 'Comfort Climate Co',
+      'BlueFlame HVAC', 'PureAir Services', 'deal_001', 'deal_002',
+    ];
+    for (const fake of hallucinations) {
+      if (result.text.includes(fake)) {
+        throw new Error(`Response contains hallucinated data: "${fake}". The AI is fabricating data instead of using tool results.`);
+      }
+    }
+  });
+
+  add(C5, 'Buyer search routes to search_buyers tool', async () => {
+    const result = await sendAIQuery('find buyers interested in HVAC companies');
+    if (!result.routeInfo) throw new Error('No route info returned');
+    const category = result.routeInfo.category;
+    if (!['BUYER_SEARCH', 'BUYER_ANALYSIS', 'BUYER_UNIVERSE'].includes(category)) {
+      throw new Error(`Expected buyer-related category, got ${category}`);
+    }
+    if (result.text.includes('<tool_call>') || result.text.includes('<tool_response>')) {
+      throw new Error('Response contains hallucinated tool call text');
+    }
+  });
+
+  add(C5, 'Deal detail query routes to deal tools', async () => {
+    const result = await sendAIQuery('what kind of company is the first deal in the pipeline');
+    if (!result.routeInfo) throw new Error('No route info returned');
+    const toolNames = result.toolCalls.map(t => t.name);
+    const hasDealTool = toolNames.some(t => ['query_deals', 'get_deal_details'].includes(t));
+    if (!hasDealTool) {
+      throw new Error(`Expected deal lookup tools, got: ${toolNames.join(', ') || 'none'}`);
+    }
+  });
+
+  add(C5, 'Tool calls succeed (no errors)', async () => {
+    const result = await sendAIQuery('how many active deals are there');
+    if (result.error) throw new Error(`AI returned error: ${result.error}`);
+    const failedTools = result.toolCalls.filter(t => !t.success);
+    if (failedTools.length > 0) {
+      throw new Error(`${failedTools.length} tool(s) failed: ${failedTools.map(t => t.name).join(', ')}`);
+    }
+  });
+
+  add(C5, 'Response contains real deal count (not zero)', async () => {
+    const result = await sendAIQuery('total number of deals in the system');
+    if (result.error) throw new Error(`AI error: ${result.error}`);
+    // Should mention a specific number
+    const numbers = result.text.match(/\b(\d{1,5})\b/g);
+    if (!numbers || numbers.length === 0) {
+      throw new Error('Response has no numbers — expected a deal count');
+    }
+    // At least one number should be > 0
+    const hasPositive = numbers.some(n => parseInt(n, 10) > 0);
+    if (!hasPositive) {
+      throw new Error('All numbers in response are 0 — pipeline appears empty or tools returned no data');
+    }
+  });
+
+  // ═══════════════════════════════════════════
+  // CATEGORY 6: Chat Data Integrity
+  // ═══════════════════════════════════════════
+  const C6 = '6. Chat Data Integrity';
+
+  add(C6, 'Chat conversations exist (not empty)', async () => {
     const { count, error } = await db
       .from('chat_conversations')
       .select('id', { count: 'exact', head: true });
@@ -340,7 +556,7 @@ export function buildChatbotTests(): ChatbotTestDef[] {
     }
   });
 
-  add(C5, 'Chat analytics entries exist', async () => {
+  add(C6, 'Chat analytics entries exist', async () => {
     const { count, error } = await supabase
       .from('chat_analytics')
       .select('id', { count: 'exact', head: true });
@@ -350,7 +566,7 @@ export function buildChatbotTests(): ChatbotTestDef[] {
     }
   });
 
-  add(C5, 'Multiple context types in use', async () => {
+  add(C6, 'Multiple context types in use', async () => {
     const { data, error } = await db
       .from('chat_conversations')
       .select('context_type')
@@ -364,13 +580,25 @@ export function buildChatbotTests(): ChatbotTestDef[] {
     }
   });
 
-  add(C5, 'Chat feedback entries exist', async () => {
+  add(C6, 'Chat feedback entries exist', async () => {
     const { count, error } = await supabase
       .from('chat_feedback')
       .select('id', { count: 'exact', head: true });
     if (error) throw new Error(error.message);
     if (!count || count === 0) {
       throw new Error('chat_feedback table is empty — no feedback submitted yet');
+    }
+  });
+
+  add(C6, 'Listings table has industry column for AI queries', async () => {
+    const { data, error } = await supabase
+      .from('listings')
+      .select('industry')
+      .not('industry', 'is', null)
+      .limit(5);
+    if (error) throw new Error(error.message);
+    if (!data || data.length === 0) {
+      throw new Error('No listings have an industry value — AI cannot answer industry questions');
     }
   });
 

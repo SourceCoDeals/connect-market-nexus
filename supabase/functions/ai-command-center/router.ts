@@ -42,6 +42,18 @@ const BYPASS_RULES: Array<{
       confidence: 0.9,
     },
   },
+  // Industry-specific deal count — "how many hvac deals", "total plumbing deals", "count of collision deals"
+  {
+    test: (q) =>
+      /\b(how many|total|count|number of)\b.*\b(deal|listing)\b/i.test(q) &&
+      /\b(hvac|plumbing|collision|auto|roofing|electrical|landscaping|pest|home service|restoration|mechanical|industrial|manufacturing|construction|fire|security|cleaning|staffing|healthcare|dental|veterinary|fitness)/i.test(q),
+    result: {
+      category: 'PIPELINE_ANALYTICS',
+      tier: 'STANDARD',
+      tools: ['get_pipeline_summary', 'query_deals'],
+      confidence: 0.95,
+    },
+  },
   // Aggregate / count questions — "how many deals", "total deals", "deal count", "number of deals"
   {
     test: (q) =>
@@ -50,8 +62,8 @@ const BYPASS_RULES: Array<{
       ) || /\b(deal|listing)\b.*\b(how many|total|count)\b/i.test(q),
     result: {
       category: 'PIPELINE_ANALYTICS',
-      tier: 'QUICK',
-      tools: ['get_pipeline_summary'],
+      tier: 'STANDARD',
+      tools: ['get_pipeline_summary', 'query_deals'],
       confidence: 0.92,
     },
   },
@@ -488,6 +500,7 @@ const BYPASS_RULES: Array<{
     },
   },
   // Contact finder — find people at a company, get emails/phones
+  // Routes to search_pe_contacts which searches contacts already in the SourceCo database
   {
     test: (q) =>
       /\b(find\s+(me\s+)?(contacts?|people|employees?|associates?|principals?|vps?|directors?|partners?)\s+(at|for|from))\b/i.test(
@@ -497,13 +510,13 @@ const BYPASS_RULES: Array<{
       /\b(who\s+(works?|is)\s+at)\b/i.test(q) ||
       /\b(find\s+\d+.*\b(at|from)\b)/i.test(q),
     result: {
-      category: 'CONTACT_FINDER',
-      tier: 'DEEP',
-      tools: ['find_contacts'],
+      category: 'CONTACTS',
+      tier: 'STANDARD',
+      tools: ['search_pe_contacts', 'get_buyer_profile'],
       confidence: 0.92,
     },
   },
-  // Company discovery — find companies matching criteria
+  // Company/deal discovery — search deals/leads matching criteria
   {
     test: (q) =>
       /\b(find\s+(me\s+)?(companies|shops|businesses|firms|platforms)\s+(that|with|in|near|within))\b/i.test(
@@ -514,9 +527,9 @@ const BYPASS_RULES: Array<{
         q,
       ),
     result: {
-      category: 'COMPANY_DISCOVERY',
-      tier: 'DEEP',
-      tools: ['discover_companies'],
+      category: 'BUYER_SEARCH',
+      tier: 'STANDARD',
+      tools: ['query_deals', 'search_lead_sources', 'search_valuation_leads'],
       confidence: 0.9,
     },
   },
@@ -547,11 +560,9 @@ Categories:
 - CONNECTION: Buyer connection requests, deal conversation messages, buyer intake pipeline
 - CONTACTS: PE contacts, platform contacts, firm agreements, NDA logs
 - INDUSTRY: Industry trackers, vertical scoring configs
-- CONTACT_FINDER: Finding specific people at companies, getting email/phone/LinkedIn for contacts, enriching contact info
-- COMPANY_DISCOVERY: Discovering companies matching criteria (industry, geography, size), finding acquisition targets
 - GENERAL: Other / unclear intent
 
-Available tools: query_deals, get_deal_details, get_deal_activities, get_deal_tasks, get_deal_documents, get_deal_memos, get_deal_comments, get_deal_scoring_adjustments, get_deal_referrals, get_deal_conversations, get_pipeline_summary, search_buyers, get_buyer_profile, get_score_breakdown, get_top_buyers_for_deal, get_buyer_decisions, get_score_history, get_buyer_learning_history, search_lead_sources, search_valuation_leads, search_inbound_leads, get_referral_data, search_pe_contacts, get_firm_agreements, get_nda_logs, get_connection_requests, get_connection_messages, search_buyer_universes, get_universe_details, get_outreach_records, get_remarketing_outreach, get_engagement_signals, get_interest_signals, search_transcripts, search_buyer_transcripts, search_fireflies, get_meeting_action_items, get_outreach_status, get_analytics, get_enrichment_status, get_industry_trackers, get_current_user_context, create_deal_task, complete_deal_task, add_deal_note, log_deal_activity, update_deal_stage, grant_data_room_access, select_table_rows, apply_table_filter, sort_table_column, navigate_to_page, find_contacts, discover_companies
+Available tools: query_deals, get_deal_details, get_deal_activities, get_deal_tasks, get_deal_documents, get_deal_memos, get_deal_comments, get_deal_scoring_adjustments, get_deal_referrals, get_deal_conversations, get_pipeline_summary, search_buyers, get_buyer_profile, get_score_breakdown, get_top_buyers_for_deal, get_buyer_decisions, get_score_history, get_buyer_learning_history, search_lead_sources, search_valuation_leads, search_inbound_leads, get_referral_data, search_pe_contacts, get_firm_agreements, get_nda_logs, get_connection_requests, get_connection_messages, search_buyer_universes, get_universe_details, get_outreach_records, get_remarketing_outreach, get_engagement_signals, get_interest_signals, search_transcripts, search_buyer_transcripts, search_fireflies, get_meeting_action_items, get_outreach_status, get_analytics, get_enrichment_status, get_industry_trackers, get_current_user_context, create_deal_task, complete_deal_task, add_deal_note, log_deal_activity, update_deal_stage, grant_data_room_access, select_table_rows, apply_table_filter, sort_table_column, navigate_to_page, explain_buyer_score, get_cross_deal_analytics, semantic_transcript_search, get_follow_up_queue
 
 Respond with JSON only:
 {"category":"CATEGORY","tier":"QUICK|STANDARD|DEEP","tools":["tool1","tool2"],"confidence":0.0-1.0}
