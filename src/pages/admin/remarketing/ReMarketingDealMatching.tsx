@@ -1045,9 +1045,8 @@ const ReMarketingDealMatching = () => {
                 </div>
               </div>
             </div>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
 
       {/* Bulk Actions Toolbar */}
       <BulkActionsToolbar
@@ -1100,26 +1099,21 @@ const ReMarketingDealMatching = () => {
               {stats.interested > 0 && (
                 <div className="flex items-center gap-2 text-sm text-blue-600">
                   <Check className="h-4 w-4" />
-                  <span>{stats.approved} approved</span>
+                  <span>{stats.interested} interested</span>
                 </div>
-                {stats.interested > 0 && (
-                  <div className="flex items-center gap-2 text-sm text-blue-600">
-                    <Check className="h-4 w-4" />
-                    <span>{stats.interested} interested</span>
-                  </div>
-                )}
-                <div className="flex items-center gap-2 pt-2 border-t border-amber-200">
-                  <Switch
-                    id="hide-disqualified"
-                    checked={hideDisqualified}
-                    onCheckedChange={setHideDisqualified}
-                  />
-                  <Label htmlFor="hide-disqualified" className="text-sm">
-                    Hide disqualified
-                  </Label>
-                </div>
-              </CardContent>
-            </Card>
+              )}
+              <div className="flex items-center gap-2 pt-2 border-t border-amber-200">
+                <Switch
+                  id="hide-disqualified"
+                  checked={hideDisqualified}
+                  onCheckedChange={setHideDisqualified}
+                />
+                <Label htmlFor="hide-disqualified" className="text-sm">
+                  Hide disqualified
+                </Label>
+              </div>
+            </CardContent>
+          </Card>
 
             {/* Right: Collapsible Scoring Insights Panel */}
             {linkedUniverses && linkedUniverses.length > 0 && (
