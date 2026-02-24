@@ -358,7 +358,7 @@ export function useTranscriptActions({ dealId, transcripts, dealInfo }: UseTrans
 
       if (isCompanyDomain) {
         setFirefliesSearchInfo(`Finding all contacts at @${domain}...`);
-        const { data: domainContacts, error: domainContactsError } = await supabase.from('remarketing_buyer_contacts').select('email, name').ilike('email', `%@${domain}`);
+        const { data: domainContacts, error: domainContactsError } = await supabase.from('contacts').select('email, first_name, last_name').eq('contact_type', 'buyer').eq('archived', false).ilike('email', `%@${domain}`);
         if (domainContactsError) throw domainContactsError;
         const emailSet = new Set<string>();
         if (input.includes('@')) emailSet.add(input.toLowerCase());

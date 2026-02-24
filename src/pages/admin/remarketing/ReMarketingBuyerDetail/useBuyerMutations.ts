@@ -128,9 +128,32 @@ export function useBuyerMutations(
 
   const addContactMutation = useMutation({
     mutationFn: async () => {
+      // Split name into first_name / last_name for the unified contacts table
+      const nameParts = newContact.name.trim().split(/\s+/);
+      const firstName = nameParts[0] || 'Unknown';
+      const lastName = nameParts.slice(1).join(' ') || '';
+
+      // Look up the firm_id from the buyer's marketplace_firm_id
+      let firmId: string | null = null;
+      if (buyer?.marketplace_firm_id) {
+        firmId = buyer.marketplace_firm_id;
+      }
+
       const { error } = await supabase
-        .from('remarketing_buyer_contacts')
-        .insert([{ ...newContact, buyer_id: id! }]);
+        .from('contacts')
+        .insert([{
+          first_name: firstName,
+          last_name: lastName,
+          email: newContact.email || null,
+          phone: newContact.phone || null,
+          title: newContact.role || null,
+          linkedin_url: newContact.linkedin_url || null,
+          is_primary_at_firm: newContact.is_primary,
+          contact_type: 'buyer' as const,
+          remarketing_buyer_id: id!,
+          firm_id: firmId,
+          source: 'remarketing_manual',
+        }]);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -146,9 +169,10 @@ export function useBuyerMutations(
 
   const deleteContactMutation = useMutation({
     mutationFn: async (contactId: string) => {
+      // Soft-delete by archiving instead of hard delete
       const { error } = await supabase
-        .from('remarketing_buyer_contacts')
-        .delete()
+        .from('contacts')
+        .update({ archived: true, updated_at: new Date().toISOString() })
         .eq('id', contactId);
       if (error) throw error;
     },

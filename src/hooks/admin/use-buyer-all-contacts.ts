@@ -26,31 +26,35 @@ export function useBuyerAllContacts(buyerId: string | undefined, emailDomain: st
       const contacts: UnifiedContact[] = [];
       const seenEmails = new Set<string>();
 
-      // Source 1: remarketing_buyer_contacts
-      const { data: remarketingContacts } = await supabase
-        .from('remarketing_buyer_contacts')
-        .select('*')
-        .eq('buyer_id', buyerId)
-        .order('is_primary', { ascending: false });
+      // Primary source: unified contacts table (replaces remarketing_buyer_contacts)
+      const { data: unifiedContacts } = await supabase
+        .from('contacts')
+        .select('id, first_name, last_name, email, phone, linkedin_url, title, is_primary_at_firm, profile_id, source')
+        .eq('remarketing_buyer_id', buyerId)
+        .eq('contact_type', 'buyer')
+        .eq('archived', false)
+        .order('is_primary_at_firm', { ascending: false });
 
-      for (const c of remarketingContacts || []) {
+      for (const c of unifiedContacts || []) {
         const email = c.email?.toLowerCase() || null;
         if (email) seenEmails.add(email);
+        const isMarketplace = c.source === 'marketplace_signup' || !!c.profile_id;
         contacts.push({
-          id: `rm-${c.id}`,
-          name: c.name,
+          id: c.id,
+          name: `${c.first_name || ''} ${c.last_name || ''}`.trim() || 'Unknown',
           email: c.email,
           phone: c.phone,
-          role: c.role,
+          role: c.title,
           linkedinUrl: c.linkedin_url,
-          companyType: c.company_type,
-          isPrimary: c.is_primary || false,
-          source: 'remarketing',
-          profileId: null,
+          companyType: null,
+          isPrimary: c.is_primary_at_firm || false,
+          source: isMarketplace ? 'marketplace' : 'remarketing',
+          profileId: c.profile_id,
         });
       }
 
-      // Source 2: Marketplace profiles matched via email domain
+      // Supplementary: Marketplace profiles matched via email domain
+      // (catches profiles not yet linked to the contacts table)
       if (emailDomain) {
         const { data: marketplaceProfiles } = await supabase
           .from('profiles')
@@ -76,7 +80,7 @@ export function useBuyerAllContacts(buyerId: string | undefined, emailDomain: st
           });
         }
 
-        // Source 3: Connection request lead contacts via domain match
+        // Supplementary: Connection request lead contacts via domain match
         const { data: leadContacts } = await supabase
           .from('connection_requests')
           .select('id, lead_name, lead_email, lead_phone, lead_company, created_at')

@@ -45,13 +45,25 @@ export function useBuyerData(id: string | undefined, isNew: boolean) {
       if (isNew) return [];
 
       const { data, error } = await supabase
-        .from('remarketing_buyer_contacts')
-        .select('*')
-        .eq('buyer_id', id!)
-        .order('is_primary', { ascending: false });
+        .from('contacts')
+        .select('id, first_name, last_name, email, phone, linkedin_url, title, is_primary_at_firm')
+        .eq('remarketing_buyer_id', id!)
+        .eq('contact_type', 'buyer')
+        .eq('archived', false)
+        .order('is_primary_at_firm', { ascending: false });
 
       if (error) throw error;
-      return (data || []) as Contact[];
+      return (data || []).map((c) => ({
+        id: c.id,
+        name: `${c.first_name || ''} ${c.last_name || ''}`.trim() || 'Unknown',
+        first_name: c.first_name || '',
+        last_name: c.last_name || '',
+        email: c.email,
+        phone: c.phone,
+        role: c.title,
+        linkedin_url: c.linkedin_url,
+        is_primary: c.is_primary_at_firm,
+      })) as Contact[];
     },
     enabled: !isNew
   });

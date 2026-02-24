@@ -3879,6 +3879,7 @@ export type Database = {
       deals: {
         Row: {
           assigned_to: string | null
+          buyer_contact_id: string | null
           buyer_priority_score: number | null
           company_address: string | null
           connection_request_id: string | null
@@ -3912,6 +3913,7 @@ export type Database = {
           probability: number | null
           remarketing_buyer_id: string | null
           remarketing_score_id: string | null
+          seller_contact_id: string | null
           source: string | null
           stage_entered_at: string | null
           stage_id: string
@@ -3921,6 +3923,7 @@ export type Database = {
         }
         Insert: {
           assigned_to?: string | null
+          buyer_contact_id?: string | null
           buyer_priority_score?: number | null
           company_address?: string | null
           connection_request_id?: string | null
@@ -3954,6 +3957,7 @@ export type Database = {
           probability?: number | null
           remarketing_buyer_id?: string | null
           remarketing_score_id?: string | null
+          seller_contact_id?: string | null
           source?: string | null
           stage_entered_at?: string | null
           stage_id: string
@@ -3963,6 +3967,7 @@ export type Database = {
         }
         Update: {
           assigned_to?: string | null
+          buyer_contact_id?: string | null
           buyer_priority_score?: number | null
           company_address?: string | null
           connection_request_id?: string | null
@@ -3996,6 +4001,7 @@ export type Database = {
           probability?: number | null
           remarketing_buyer_id?: string | null
           remarketing_score_id?: string | null
+          seller_contact_id?: string | null
           source?: string | null
           stage_entered_at?: string | null
           stage_id?: string
@@ -4009,6 +4015,13 @@ export type Database = {
             columns: ["assigned_to"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "deals_buyer_contact_id_fkey"
+            columns: ["buyer_contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
             referencedColumns: ["id"]
           },
           {
@@ -4093,6 +4106,13 @@ export type Database = {
             columns: ["remarketing_score_id"]
             isOneToOne: false
             referencedRelation: "remarketing_scores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "deals_seller_contact_id_fkey"
+            columns: ["seller_contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
             referencedColumns: ["id"]
           },
           {
@@ -4469,6 +4489,7 @@ export type Database = {
       }
       docuseal_webhook_log: {
         Row: {
+          contact_id: string | null
           created_at: string | null
           document_type: string | null
           event_type: string
@@ -4476,10 +4497,12 @@ export type Database = {
           id: string
           processed_at: string | null
           raw_payload: Json
+          signer_email: string | null
           submission_id: string
           submitter_id: string | null
         }
         Insert: {
+          contact_id?: string | null
           created_at?: string | null
           document_type?: string | null
           event_type: string
@@ -4487,10 +4510,12 @@ export type Database = {
           id?: string
           processed_at?: string | null
           raw_payload: Json
+          signer_email?: string | null
           submission_id: string
           submitter_id?: string | null
         }
         Update: {
+          contact_id?: string | null
           created_at?: string | null
           document_type?: string | null
           event_type?: string
@@ -4498,10 +4523,19 @@ export type Database = {
           id?: string
           processed_at?: string | null
           raw_payload?: Json
+          signer_email?: string | null
           submission_id?: string
           submitter_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "docuseal_webhook_log_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       email_delivery_logs: {
         Row: {
@@ -7756,6 +7790,7 @@ export type Database = {
           portfolio_company_addon: string | null
           referral_source: string | null
           referral_source_detail: string | null
+          remarketing_buyer_id: string | null
           revenue_range_max: string | null
           revenue_range_min: string | null
           role: string | null
@@ -7853,6 +7888,7 @@ export type Database = {
           portfolio_company_addon?: string | null
           referral_source?: string | null
           referral_source_detail?: string | null
+          remarketing_buyer_id?: string | null
           revenue_range_max?: string | null
           revenue_range_min?: string | null
           role?: string | null
@@ -7950,6 +7986,7 @@ export type Database = {
           portfolio_company_addon?: string | null
           referral_source?: string | null
           referral_source_detail?: string | null
+          remarketing_buyer_id?: string | null
           revenue_range_max?: string | null
           revenue_range_min?: string | null
           role?: string | null
@@ -7965,7 +8002,15 @@ export type Database = {
           uses_bank_finance?: string | null
           website?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "profiles_remarketing_buyer_id_fkey"
+            columns: ["remarketing_buyer_id"]
+            isOneToOne: false
+            referencedRelation: "remarketing_buyers"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       referral_partners: {
         Row: {
