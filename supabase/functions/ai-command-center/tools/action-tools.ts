@@ -251,6 +251,11 @@ async function logDealActivity(
   };
 }
 
+/**
+ * Update deal stage via the deal_stages lookup table.
+ * Updated Feb 2026: The pipeline UI reads deals.stage_id (FK to deal_stages), NOT listings.remarketing_status.
+ * We now look up the stage by name in deal_stages and update deals.stage_id accordingly.
+ */
 async function updateDealStage(
   supabase: SupabaseClient,
   args: Record<string, unknown>,
@@ -259,94 +264,160 @@ async function updateDealStage(
   const dealId = args.deal_id as string;
   const newStage = args.new_stage as string;
 
-  // Get current stage first
+  // Look up the target stage in deal_stages
+  const { data: stageRecord, error: stageError } = await supabase
+    .from('deal_stages')
+    .select('id, name')
+    .ilike('name', newStage)
+    .limit(1)
+    .single();
+
+  if (stageError || !stageRecord) {
+    // Fetch valid stage names to return a helpful error
+    const { data: validStages } = await supabase
+      .from('deal_stages')
+      .select('name')
+      .order('display_order', { ascending: true });
+    const stageNames = (validStages || []).map((s: { name: string }) => s.name);
+    return {
+      error: `Invalid stage "${newStage}". Valid stages are: ${stageNames.join(', ')}`,
+    };
+  }
+
+  // Get current deal info including current stage
   const { data: current } = await supabase
-    .from('listings')
-    .select('remarketing_status, title')
+    .from('deals')
+    .select('stage_id, title')
     .eq('id', dealId)
     .single();
 
-  const oldStage = current?.remarketing_status || 'unknown';
+  // If deal not found in deals table, try listings for backward compat
+  let dealTitle = current?.title;
+  let oldStageId = current?.stage_id;
+  if (!current) {
+    const { data: listing } = await supabase
+      .from('listings')
+      .select('title, remarketing_status')
+      .eq('id', dealId)
+      .single();
+    dealTitle = listing?.title;
+  }
 
-  // Update the stage
-  const { error } = await supabase
-    .from('listings')
-    .update({ remarketing_status: newStage, updated_at: new Date().toISOString() })
+  // Look up old stage name for logging
+  let oldStageName = 'unknown';
+  if (oldStageId) {
+    const { data: oldStageRecord } = await supabase
+      .from('deal_stages')
+      .select('name')
+      .eq('id', oldStageId)
+      .single();
+    if (oldStageRecord) oldStageName = oldStageRecord.name;
+  }
+
+  // Update deals.stage_id
+  const { error: updateError } = await supabase
+    .from('deals')
+    .update({ stage_id: stageRecord.id, updated_at: new Date().toISOString() })
     .eq('id', dealId);
 
-  if (error) return { error: error.message };
+  if (updateError) return { error: updateError.message };
 
   // Log the activity
   await supabase.from('deal_activities').insert({
     deal_id: dealId,
     activity_type: 'status_change',
-    title: `Stage changed: ${oldStage} → ${newStage}`,
-    description: args.reason ? `Reason: ${args.reason}` : `AI Command Center updated stage from ${oldStage} to ${newStage}`,
+    title: `Stage changed: ${oldStageName} → ${stageRecord.name}`,
+    description: args.reason ? `Reason: ${args.reason}` : `AI Command Center updated stage from ${oldStageName} to ${stageRecord.name}`,
     admin_id: userId,
-    metadata: { source: 'ai_command_center', old_stage: oldStage, new_stage: newStage },
+    metadata: { source: 'ai_command_center', old_stage: oldStageName, old_stage_id: oldStageId, new_stage: stageRecord.name, new_stage_id: stageRecord.id },
   });
 
   return {
     data: {
       deal_id: dealId,
-      deal_title: current?.title,
-      old_stage: oldStage,
-      new_stage: newStage,
-      message: `Deal "${current?.title}" stage updated: ${oldStage} → ${newStage}`,
+      deal_title: dealTitle,
+      old_stage: oldStageName,
+      new_stage: stageRecord.name,
+      new_stage_id: stageRecord.id,
+      message: `Deal "${dealTitle}" stage updated: ${oldStageName} → ${stageRecord.name}`,
     },
   };
 }
 
+/**
+ * Grant data room access to a buyer.
+ * Updated Feb 2026: Writes to data_room_access only (deal_data_room_access is legacy).
+ * Populates contact_id by looking up the buyer's primary contact in the unified contacts table.
+ */
 async function grantDataRoomAccess(
   supabase: SupabaseClient,
   args: Record<string, unknown>,
   userId: string,
 ): Promise<ToolResult> {
   const dealId = args.deal_id as string;
+  const buyerId = args.buyer_id as string;
+  const buyerEmail = args.buyer_email as string;
   const accessLevel = (args.access_level as string) || 'teaser';
 
-  const { data, error } = await supabase
-    .from('deal_data_room_access')
-    .insert({
-      deal_id: dealId,
-      buyer_id: args.buyer_id as string,
-      buyer_name: args.buyer_name as string,
-      buyer_email: args.buyer_email as string,
-      buyer_firm: (args.buyer_firm as string) || null,
-      granted_by: userId,
-      is_active: true,
-    })
-    .select('id, buyer_name, buyer_email, granted_at')
+  // Look up contact_id from unified contacts table
+  // Try matching by remarketing_buyer_id + is_primary_at_firm first, fall back to email match
+  let contactId: string | null = null;
+  const { data: primaryContact } = await supabase
+    .from('contacts')
+    .select('id')
+    .eq('remarketing_buyer_id', buyerId)
+    .eq('is_primary_at_firm', true)
+    .eq('archived', false)
+    .limit(1)
     .single();
 
-  if (error) return { error: error.message };
+  if (primaryContact) {
+    contactId = primaryContact.id;
+  } else if (buyerEmail) {
+    // Fall back to email match
+    const { data: emailContact } = await supabase
+      .from('contacts')
+      .select('id')
+      .eq('email', buyerEmail)
+      .eq('contact_type', 'buyer')
+      .eq('archived', false)
+      .limit(1)
+      .single();
+    if (emailContact) contactId = emailContact.id;
+  }
 
-  // Also create the permissions record in data_room_access
-  await supabase.from('data_room_access').insert({
+  // Write to data_room_access (the authoritative table)
+  const { data, error } = await supabase.from('data_room_access').insert({
     deal_id: dealId,
-    remarketing_buyer_id: args.buyer_id as string,
+    remarketing_buyer_id: buyerId,
+    contact_id: contactId,
     can_view_teaser: true,
     can_view_full_memo: accessLevel === 'memo' || accessLevel === 'full',
     can_view_data_room: accessLevel === 'full',
     granted_by: userId,
     granted_at: new Date().toISOString(),
-  });
+  })
+    .select('id, remarketing_buyer_id, contact_id, can_view_teaser, can_view_full_memo, can_view_data_room, granted_at')
+    .single();
+
+  if (error) return { error: error.message };
 
   // Log activity
   await supabase.from('deal_activities').insert({
     deal_id: dealId,
     activity_type: 'data_room',
     title: `Data room access granted to ${args.buyer_name}`,
-    description: `${accessLevel} access granted to ${args.buyer_name} (${args.buyer_email})`,
+    description: `${accessLevel} access granted to ${args.buyer_name} (${buyerEmail})`,
     admin_id: userId,
-    metadata: { source: 'ai_command_center', buyer_id: args.buyer_id, access_level: accessLevel },
+    metadata: { source: 'ai_command_center', buyer_id: buyerId, contact_id: contactId, access_level: accessLevel },
   });
 
   return {
     data: {
       access: data,
       access_level: accessLevel,
-      message: `Data room access (${accessLevel}) granted to ${args.buyer_name}`,
+      contact_id: contactId,
+      message: `Data room access (${accessLevel}) granted to ${args.buyer_name}${contactId ? '' : ' (warning: no matching contact found in contacts table)'}`,
     },
   };
 }

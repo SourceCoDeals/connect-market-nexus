@@ -16,34 +16,140 @@ import { describe, it, expect } from 'vitest';
 // Tool definition validation
 // ============================================================================
 
-// Re-define tool definitions for testing
+/**
+ * Complete tool registry — matches the actual AI Command Center tool definitions
+ * across all 19 tool modules (as of Feb 2026 unified contacts migration).
+ */
 const TOOL_NAMES = [
-  'search_transcripts',
-  'get_buyer_details',
-  'search_buyers_by_criteria',
+  // deal-tools
+  'query_deals',
+  'get_deal_details',
+  'get_deal_activities',
+  'get_pipeline_summary',
+  // buyer-tools
+  'search_buyers',
+  'get_buyer_profile',
   'get_score_breakdown',
-  'get_contact_details',
-  'get_acquisition_history',
+  'get_top_buyers_for_deal',
+  'get_buyer_decisions',
+  'get_score_history',
+  'get_buyer_learning_history',
+  // transcript-tools
+  'search_buyer_transcripts',
+  'search_transcripts',
+  'search_fireflies',
+  'get_meeting_action_items',
+  // outreach-tools
+  'get_outreach_status',
+  'get_outreach_records',
+  'get_remarketing_outreach',
+  'draft_outreach_email',
+  // analytics-tools
+  'get_analytics',
+  'get_enrichment_status',
+  'get_industry_trackers',
+  // user-tools
+  'get_current_user_context',
+  // action-tools
+  'create_deal_task',
+  'complete_deal_task',
+  'add_deal_note',
+  'log_deal_activity',
+  'update_deal_stage',
+  'grant_data_room_access',
+  // ui-action-tools
+  'select_table_rows',
+  'apply_table_filter',
+  'sort_table_column',
+  'navigate_to_page',
+  // content-tools
+  'generate_meeting_prep',
+  'generate_pipeline_report',
+  // universe-tools
+  'search_buyer_universes',
+  'get_universe_details',
+  // signal-tools
+  'get_engagement_signals',
+  'get_interest_signals',
+  // lead-tools
+  'search_inbound_leads',
+  'get_referral_data',
+  'search_valuation_leads',
+  'search_lead_sources',
+  // contact-tools (unified contacts — Feb 2026)
+  'search_pe_contacts',
+  'search_contacts',
+  'get_deal_documents',
+  'get_firm_agreements',
+  'get_nda_logs',
+  'get_deal_memos',
+  // connection-tools
+  'get_connection_requests',
+  'get_connection_messages',
+  // deal-extra-tools
+  'get_deal_comments',
+  'get_deal_referrals',
+  'get_deal_conversations',
+  'get_deal_scoring_adjustments',
+  // followup-tools
+  'get_deal_tasks',
+  'get_follow_up_queue',
+  // scoring-explain-tools
+  'explain_buyer_score',
+  // cross-deal-analytics-tools
+  'get_cross_deal_analytics',
+  // semantic-search-tools
+  'semantic_transcript_search',
 ];
 
 describe('Chat tool definitions', () => {
-  it('has all expected tools defined', () => {
-    expect(TOOL_NAMES).toContain('search_transcripts');
-    expect(TOOL_NAMES).toContain('get_buyer_details');
-    expect(TOOL_NAMES).toContain('search_buyers_by_criteria');
-    expect(TOOL_NAMES).toContain('get_score_breakdown');
-    expect(TOOL_NAMES).toContain('get_contact_details');
-    expect(TOOL_NAMES).toContain('get_acquisition_history');
+  it('has all expected core tools defined', () => {
+    // Core tools that must exist
+    const coreDealTools = ['query_deals', 'get_deal_details', 'get_pipeline_summary'];
+    const coreBuyerTools = ['search_buyers', 'get_buyer_profile', 'get_score_breakdown'];
+    const coreTranscriptTools = ['search_transcripts', 'search_fireflies'];
+    const coreContactTools = ['search_pe_contacts', 'search_contacts'];
+    const coreActionTools = ['create_deal_task', 'update_deal_stage', 'grant_data_room_access'];
+
+    for (const tool of [
+      ...coreDealTools,
+      ...coreBuyerTools,
+      ...coreTranscriptTools,
+      ...coreContactTools,
+      ...coreActionTools,
+    ]) {
+      expect(TOOL_NAMES).toContain(tool);
+    }
   });
 
-  it('has 6 tools total', () => {
-    expect(TOOL_NAMES).toHaveLength(6);
+  it('includes unified contacts tools (post-Feb 2026 migration)', () => {
+    expect(TOOL_NAMES).toContain('search_contacts');
+    expect(TOOL_NAMES).toContain('search_pe_contacts');
+    expect(TOOL_NAMES).toContain('get_firm_agreements');
+    expect(TOOL_NAMES).toContain('get_nda_logs');
+  });
+
+  it('includes semantic search tool', () => {
+    expect(TOOL_NAMES).toContain('semantic_transcript_search');
+  });
+
+  it('includes cross-deal analytics tool', () => {
+    expect(TOOL_NAMES).toContain('get_cross_deal_analytics');
+  });
+
+  it('has 50+ tools across 19 modules', () => {
+    expect(TOOL_NAMES.length).toBeGreaterThanOrEqual(50);
   });
 
   it('all tool names are snake_case', () => {
     for (const name of TOOL_NAMES) {
-      expect(name).toMatch(/^[a-z_]+$/);
+      expect(name).toMatch(/^[a-z][a-z0-9_]*$/);
     }
+  });
+
+  it('has no duplicate tool names', () => {
+    const unique = new Set(TOOL_NAMES);
+    expect(unique.size).toBe(TOOL_NAMES.length);
   });
 });
 
@@ -61,13 +167,24 @@ describe('Tool execution routing', () => {
 
   it('routes known tools correctly', () => {
     expect(routeTool('search_transcripts')).toBe('search_transcripts');
-    expect(routeTool('get_buyer_details')).toBe('get_buyer_details');
-    expect(routeTool('get_contact_details')).toBe('get_contact_details');
+    expect(routeTool('get_buyer_profile')).toBe('get_buyer_profile');
+    expect(routeTool('search_contacts')).toBe('search_contacts');
+    expect(routeTool('search_pe_contacts')).toBe('search_pe_contacts');
+    expect(routeTool('update_deal_stage')).toBe('update_deal_stage');
+    expect(routeTool('grant_data_room_access')).toBe('grant_data_room_access');
   });
 
   it('returns "unknown" for unrecognized tools', () => {
     expect(routeTool('nonexistent_tool')).toBe('unknown');
     expect(routeTool('')).toBe('unknown');
+  });
+
+  it('returns "unknown" for legacy/dropped tools', () => {
+    // These tools no longer exist after unified contacts migration
+    expect(routeTool('get_buyer_details')).toBe('unknown');
+    expect(routeTool('get_contact_details')).toBe('unknown');
+    expect(routeTool('get_acquisition_history')).toBe('unknown');
+    expect(routeTool('search_buyers_by_criteria')).toBe('unknown');
   });
 });
 
@@ -80,7 +197,7 @@ describe('Transcript keyword filtering', () => {
     id: string;
     transcript_text: string;
     key_quotes: string[];
-    extracted_insights: Record<string, any>;
+    extracted_insights: Record<string, unknown>;
   }
 
   function filterByKeywords(

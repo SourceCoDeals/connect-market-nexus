@@ -269,14 +269,21 @@ async function queryDeals(
   };
 }
 
+/**
+ * Get comprehensive deal details.
+ * Updated Feb 2026: Also fetches linked buyer and seller contacts from the unified contacts table
+ * via buyer_contact_id and seller_contact_id FK columns on the deals table.
+ */
 async function getDealDetails(
   supabase: SupabaseClient,
   args: Record<string, unknown>,
 ): Promise<ToolResult> {
   const dealId = args.deal_id as string;
 
-  // Parallel fetch: deal + tasks + activities + scores
-  const [dealResult, tasksResult, activitiesResult, scoresResult] = await Promise.all([
+  const contactFields = 'id, first_name, last_name, email, phone, title, contact_type, firm_id, remarketing_buyer_id, is_primary_at_firm, nda_signed';
+
+  // Parallel fetch: deal + tasks + activities + scores + contacts
+  const [dealResult, tasksResult, activitiesResult, scoresResult, sellerContactsResult] = await Promise.all([
     supabase.from('listings').select(DEAL_FIELDS_FULL).eq('id', dealId).single(),
     supabase.from('deal_tasks').select('id, title, status, priority, due_date, assigned_to, completed_at')
       .eq('deal_id', dealId).order('created_at', { ascending: false }).limit(10),
@@ -284,9 +291,42 @@ async function getDealDetails(
       .eq('deal_id', dealId).order('created_at', { ascending: false }).limit(5),
     supabase.from('remarketing_scores').select('buyer_id, composite_score, status, tier')
       .eq('listing_id', dealId).order('composite_score', { ascending: false }).limit(5),
+    // Fetch seller contacts linked to this deal
+    supabase.from('contacts').select(contactFields)
+      .eq('listing_id', dealId).eq('contact_type', 'seller').eq('archived', false).limit(10),
   ]);
 
   if (dealResult.error) return { error: dealResult.error.message };
+
+  // Also try to fetch linked contacts from the deals table FK columns
+  let buyerContact = null;
+  let sellerContact = null;
+
+  // Try deals table for FK-linked contacts
+  const { data: dealsRow } = await supabase
+    .from('deals')
+    .select('buyer_contact_id, seller_contact_id, remarketing_buyer_id, stage_id')
+    .eq('id', dealId)
+    .single();
+
+  if (dealsRow) {
+    const contactFetches: Promise<unknown>[] = [];
+
+    if (dealsRow.buyer_contact_id) {
+      contactFetches.push(
+        supabase.from('contacts').select(contactFields).eq('id', dealsRow.buyer_contact_id).single()
+          .then(r => { buyerContact = r.data; })
+      );
+    }
+    if (dealsRow.seller_contact_id) {
+      contactFetches.push(
+        supabase.from('contacts').select(contactFields).eq('id', dealsRow.seller_contact_id).single()
+          .then(r => { sellerContact = r.data; })
+      );
+    }
+
+    if (contactFetches.length > 0) await Promise.all(contactFetches);
+  }
 
   return {
     data: {
@@ -294,6 +334,11 @@ async function getDealDetails(
       recent_tasks: tasksResult.data || [],
       recent_activities: activitiesResult.data || [],
       top_buyer_scores: scoresResult.data || [],
+      buyer_contact: buyerContact,
+      seller_contact: sellerContact,
+      seller_contacts: sellerContactsResult.data || [],
+      deal_stage_id: dealsRow?.stage_id || null,
+      deal_remarketing_buyer_id: dealsRow?.remarketing_buyer_id || null,
     },
   };
 }

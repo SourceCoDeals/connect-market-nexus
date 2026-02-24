@@ -141,6 +141,11 @@ async function getDealReferrals(
   };
 }
 
+/**
+ * Get deal conversations via listing_conversations + connection_messages.
+ * Updated Feb 2026: listing_messages table was dropped in the migration.
+ * Messages now come from connection_messages joined via connection_request_id.
+ */
 async function getDealConversations(
   supabase: SupabaseClient,
   args: Record<string, unknown>,
@@ -163,28 +168,40 @@ async function getDealConversations(
   const convs = conversations || [];
   if (convs.length === 0) return { data: { conversations: [], total: 0, total_messages: 0 } };
 
-  // Fetch messages for all returned conversations
-  const convIds = convs.map(c => c.id);
-  const { data: messages } = await supabase
-    .from('listing_messages')
-    .select('id, conversation_id, sender_type, message_text, is_internal_note, read_at, created_at')
-    .in('conversation_id', convIds)
-    .order('created_at', { ascending: true })
-    .limit(500);
+  // Fetch messages via connection_messages joined through connection_request_id
+  const connectionRequestIds = convs
+    .map(c => c.connection_request_id)
+    .filter(Boolean);
 
-  const msgsByConv: Record<string, unknown[]> = {};
-  for (const m of (messages || [])) {
-    if (!msgsByConv[m.conversation_id]) msgsByConv[m.conversation_id] = [];
-    msgsByConv[m.conversation_id].push(m);
+  let messages: Record<string, unknown>[] = [];
+  if (connectionRequestIds.length > 0) {
+    const { data: msgData } = await supabase
+      .from('connection_messages')
+      .select('id, connection_request_id, sender_type, message_text, is_internal_note, read_at, created_at')
+      .in('connection_request_id', connectionRequestIds)
+      .order('created_at', { ascending: true })
+      .limit(500);
+    messages = (msgData || []) as Record<string, unknown>[];
   }
 
-  const enriched = convs.map(c => ({ ...c, messages: msgsByConv[c.id] || [] }));
+  // Group messages by connection_request_id, then map back to conversations
+  const msgsByConnReq: Record<string, unknown[]> = {};
+  for (const m of messages) {
+    const key = m.connection_request_id as string;
+    if (!msgsByConnReq[key]) msgsByConnReq[key] = [];
+    msgsByConnReq[key].push(m);
+  }
+
+  const enriched = convs.map(c => ({
+    ...c,
+    messages: c.connection_request_id ? (msgsByConnReq[c.connection_request_id] || []) : [],
+  }));
 
   return {
     data: {
       conversations: enriched,
       total: enriched.length,
-      total_messages: (messages || []).length,
+      total_messages: messages.length,
     },
   };
 }
