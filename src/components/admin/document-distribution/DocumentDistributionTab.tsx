@@ -46,21 +46,26 @@ export function DocumentDistributionTab({
   const [activeTab, setActiveTab] = useState('marketing');
   const { data: pendingCount = 0 } = usePendingApprovalCount(dealId);
 
-  // Fetch buyers from remarketing_buyers + their primary contacts for the dropdown
+  // Fetch buyers from remarketing_buyers + their contacts from unified contacts table
   const { data: fetchedBuyers = [] } = useQuery({
     queryKey: ['distribution-buyers'],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('remarketing_buyers' as never)
-        .select('id, company_name, remarketing_buyer_contacts(name, email, is_primary)')
+        .from('remarketing_buyers')
+        .select(`
+          id, company_name,
+          contacts!contacts_remarketing_buyer_id_fkey(first_name, last_name, email, is_primary_at_firm)
+        `)
         .eq('archived', false)
+        .eq('contacts.contact_type', 'buyer')
+        .eq('contacts.archived', false)
         .order('company_name')
         .limit(200);
 
       if (error) throw error;
 
       return (data || []).flatMap((buyer: any) => {
-        const contacts = buyer.remarketing_buyer_contacts || [];
+        const contacts = buyer.contacts || [];
 
         if (contacts.length === 0) {
           // Firm with no contacts — still list it
@@ -75,7 +80,7 @@ export function DocumentDistributionTab({
         // Return each contact as a separate buyer option
         return contacts.map((c: any) => ({
           id: buyer.id,
-          name: c.name || buyer.company_name,
+          name: [c.first_name, c.last_name].filter(Boolean).join(' ') || buyer.company_name,
           email: c.email || '',
           firm: buyer.company_name,
         }));

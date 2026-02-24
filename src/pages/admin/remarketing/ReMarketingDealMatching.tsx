@@ -169,7 +169,7 @@ const ReMarketingDealMatching = () => {
           *,
           buyer:remarketing_buyers(
             *,
-            contacts:remarketing_buyer_contacts(id)
+            contacts:contacts!contacts_remarketing_buyer_id_fkey(id, first_name, last_name, email)
           ),
           universe:remarketing_buyer_universes(id, name)
         `)
@@ -1253,7 +1253,7 @@ const ReMarketingDealMatching = () => {
           buyerName: s.buyer?.company_name || 'Unknown',
           companyWebsite: s.buyer?.company_website ?? undefined,
           peFirmName: s.buyer?.pe_firm_name ?? undefined,
-          contacts: (s.buyer?.contacts as unknown as { name?: string; email: string | null }[] | undefined)?.map((c) => ({ name: c.name || '', email: c.email })) || [],
+          contacts: (s.buyer?.contacts as unknown as { first_name?: string; last_name?: string; email: string | null }[] | undefined)?.map((c) => ({ name: [c.first_name, c.last_name].filter(Boolean).join(' ') || '', email: c.email })) || [],
           fitReasoning: s.fit_reasoning ?? undefined,
           compositeScore: s.composite_score,
         }))}

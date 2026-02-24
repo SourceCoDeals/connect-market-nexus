@@ -112,7 +112,7 @@ export function useMatchingData(listingId: string | undefined) {
           *,
           buyer:remarketing_buyers(
             *,
-            contacts:remarketing_buyer_contacts(id)
+            contacts:contacts!contacts_remarketing_buyer_id_fkey(id, first_name, last_name, email)
           ),
           universe:remarketing_buyer_universes(id, name)
         `)
