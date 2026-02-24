@@ -103,6 +103,11 @@ export function UnifiedAdminSidebar({ collapsed, onCollapsedChange, onSearchClic
             href: "/admin/deals/pipeline",
             icon: <GitBranch className="h-4 w-4" />,
           },
+          {
+            label: "Contact Lists",
+            href: "/admin/lists",
+            icon: <ListChecks className="h-4 w-4" />,
+          },
         ],
       },
       {
@@ -130,11 +135,6 @@ export function UnifiedAdminSidebar({ collapsed, onCollapsedChange, onSearchClic
             label: "Buyer Contacts",
             href: "/admin/buyers/contacts",
             icon: <Contact className="h-4 w-4" />,
-          },
-          {
-            label: "Contact Lists",
-            href: "/admin/lists",
-            icon: <ListChecks className="h-4 w-4" />,
           },
           {
             label: "Document Tracking",

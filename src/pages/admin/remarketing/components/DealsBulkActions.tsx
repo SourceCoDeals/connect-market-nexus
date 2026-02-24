@@ -10,6 +10,7 @@ import {
   Trash2,
   Globe,
   EyeOff,
+  ListChecks,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
@@ -23,6 +24,7 @@ interface DealsBulkActionsProps {
   onShowUniverseDialog: () => void;
   onShowArchiveDialog: () => void;
   onShowDeleteDialog: () => void;
+  onAddToList?: () => void;
   setSelectedDeals: (deals: Set<string>) => void;
   refetchListings: () => void;
   toast: (opts: any) => void;
@@ -35,6 +37,7 @@ export const DealsBulkActions = ({
   onShowUniverseDialog,
   onShowArchiveDialog,
   onShowDeleteDialog,
+  onAddToList,
   setSelectedDeals,
   refetchListings,
   toast,
@@ -107,6 +110,17 @@ export const DealsBulkActions = ({
             <Download className="h-4 w-4 mr-1" />
             Export CSV
           </Button>
+
+          {onAddToList && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={onAddToList}
+            >
+              <ListChecks className="h-4 w-4 mr-1" />
+              Add to List
+            </Button>
+          )}
 
           <div className="h-5 w-px bg-border" />
 

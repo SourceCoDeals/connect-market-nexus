@@ -26,6 +26,7 @@ import {
   Trash2,
   Download,
   Phone,
+  ListChecks,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { exportDealsToCSV } from "@/lib/exportUtils";
@@ -52,6 +53,7 @@ interface CapTargetBulkActionsProps {
   setShowDeleteDialog: (v: boolean) => void;
   onBulkDelete: () => void;
   onPushToDialer?: () => void;
+  onAddToList?: () => void;
 }
 
 export function CapTargetBulkActions({
@@ -72,6 +74,7 @@ export function CapTargetBulkActions({
   setShowDeleteDialog,
   onBulkDelete,
   onPushToDialer,
+  onAddToList,
 }: CapTargetBulkActionsProps) {
   const { toast } = useToast();
 
@@ -175,6 +178,17 @@ export function CapTargetBulkActions({
           >
             <Phone className="h-4 w-4" />
             Push to Dialer
+          </Button>
+        )}
+        {onAddToList && (
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={onAddToList}
+            className="gap-2"
+          >
+            <ListChecks className="h-4 w-4" />
+            Add to List
           </Button>
         )}
         <Button
