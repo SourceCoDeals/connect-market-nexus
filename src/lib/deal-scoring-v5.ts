@@ -41,7 +41,6 @@ export interface DealScoreResult {
   linkedin_boost?: number;
   quality_calculation_version: string;
   scoring_notes?: string;
-  scoring_confidence: string;
 }
 
 // Parse linkedin_employee_range strings like "11-50 employees" → midpoint estimate
@@ -281,16 +280,6 @@ export function calculateDealScore(deal: DealInput): DealScoreResult {
   // ── Final score ──
   const totalScore = Math.min(100, Math.max(0, adjustedSizeScore + marketScore));
 
-  // ── Confidence rating ──
-  let confidence = 'very_low';
-  if (hasFinancials) {
-    confidence = 'high';
-  } else if ((employeeCount >= 10 && employeeSource === 'linkedin') || locationCount >= 3) {
-    confidence = 'medium';
-  } else if (employeeCount > 0 || (employeeCount === 0 && locationCount < 3 && (deal.google_review_count || 0) > 0)) {
-    confidence = 'low';
-  }
-
   return {
     deal_total_score: totalScore,
     deal_size_score: Math.min(90, Math.max(0, sizeScore)),
@@ -299,6 +288,5 @@ export function calculateDealScore(deal: DealInput): DealScoreResult {
     linkedin_boost: employeeCount > 0 ? linkedinBoost : undefined,
     quality_calculation_version: 'v5',
     scoring_notes: notes.length > 0 ? notes.join('; ') : undefined,
-    scoring_confidence: confidence,
   };
 }

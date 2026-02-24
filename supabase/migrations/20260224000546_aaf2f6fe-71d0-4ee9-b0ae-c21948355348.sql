@@ -1,0 +1,1 @@
+ALTER TABLE public.listings DROP COLUMN IF EXISTS scoring_confidence;
