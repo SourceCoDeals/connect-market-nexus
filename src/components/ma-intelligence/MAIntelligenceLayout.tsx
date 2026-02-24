@@ -24,7 +24,7 @@ interface MAIntelligenceLayoutProps {
 const navigation = [
   { name: "Dashboard", href: "/admin/ma-intelligence", icon: LayoutDashboard },
   { name: "Buyer Universes", href: "/admin/ma-intelligence/trackers", icon: Building2 },
-  { name: "All Deals", href: "/admin/ma-intelligence/deals", icon: FileText },
+  { name: "Active Deals", href: "/admin/ma-intelligence/deals", icon: FileText },
   { name: "All Buyers", href: "/admin/ma-intelligence/buyers", icon: Users },
 ];
 

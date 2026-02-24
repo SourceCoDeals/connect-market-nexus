@@ -412,10 +412,10 @@ export function useValuationLeadsData() {
       setSelectedIds(new Set());
       if (successCount > 0) {
         sonnerToast.success(
-          `Added ${successCount} lead${successCount !== 1 ? 's' : ''} to All Deals${errorCount > 0 ? ` (${errorCount} failed)` : ''}`,
+          `Added ${successCount} lead${successCount !== 1 ? 's' : ''} to Active Deals${errorCount > 0 ? ` (${errorCount} failed)` : ''}`,
         );
       } else {
-        sonnerToast.info('Nothing to add \u2014 selected leads are already in All Deals.');
+        sonnerToast.info('Nothing to add \u2014 selected leads are already in Active Deals.');
       }
       queryClient.invalidateQueries({ queryKey: ['remarketing', 'valuation-leads'] });
       queryClient.invalidateQueries({ queryKey: ['remarketing', 'deals'] });
@@ -477,9 +477,9 @@ export function useValuationLeadsData() {
       setIsPushEnriching(false);
       setSelectedIds(new Set());
       if (pushed > 0) {
-        sonnerToast.success(`Added ${pushed} lead${pushed !== 1 ? 's' : ''} to All Deals`);
+        sonnerToast.success(`Added ${pushed} lead${pushed !== 1 ? 's' : ''} to Active Deals`);
       } else {
-        sonnerToast.info("Select leads that haven't been added to All Deals yet.");
+        sonnerToast.info("Select leads that haven't been added to Active Deals yet.");
       }
       queryClient.invalidateQueries({ queryKey: ['remarketing', 'valuation-leads'] });
       queryClient.invalidateQueries({ queryKey: ['remarketing', 'deals'] });
@@ -555,7 +555,7 @@ export function useValuationLeadsData() {
           `Re-queued ${rows.length} lead${rows.length !== 1 ? 's' : ''} for enrichment`,
         );
       } else {
-        sonnerToast.info('No leads in All Deals found to re-enrich');
+        sonnerToast.info('No leads in Active Deals found to re-enrich');
       }
       setSelectedIds(new Set());
       setIsReEnriching(false);
@@ -708,7 +708,7 @@ export function useValuationLeadsData() {
       }
 
       sonnerToast.success(
-        `Queued ${rows.length} lead${rows.length !== 1 ? 's' : ''} in All Deals for enrichment`,
+        `Queued ${rows.length} lead${rows.length !== 1 ? 's' : ''} in Active Deals for enrichment`,
       );
       try {
         const { data: result, error: resultError } = await supabase.functions.invoke(

@@ -51,7 +51,7 @@ export function ReMarketingSidebar() {
       icon: <Globe2 className="h-5 w-5" />,
     },
     {
-      label: "All Deals",
+      label: "Active Deals",
       href: "/admin/deals",
       icon: <Building2 className="h-5 w-5" />,
     },

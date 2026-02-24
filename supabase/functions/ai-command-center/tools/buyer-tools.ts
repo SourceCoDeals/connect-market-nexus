@@ -233,7 +233,7 @@ export const buyerTools: ClaudeTool[] = [
         },
         pushed_to_deals: {
           type: 'boolean',
-          description: 'Filter by whether lead was pushed to All Deals',
+          description: 'Filter by whether lead was pushed to Active Deals',
         },
         min_revenue: { type: 'number', description: 'Minimum reported revenue' },
         limit: { type: 'number', description: 'Max results (default 5000 for counts)' },

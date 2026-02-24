@@ -251,7 +251,7 @@ export function useGPPartnerDeals() {
       } else {
         toast({
           title: 'Approved',
-          description: `${dealIds.length} deal${dealIds.length !== 1 ? 's' : ''} pushed to All Deals.`,
+          description: `${dealIds.length} deal${dealIds.length !== 1 ? 's' : ''} pushed to Active Deals.`,
         });
       }
       queryClient.invalidateQueries({ queryKey: ['remarketing', 'gp-partner-deals'] });

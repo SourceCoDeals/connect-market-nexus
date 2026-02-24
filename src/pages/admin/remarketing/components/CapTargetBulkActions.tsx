@@ -97,7 +97,7 @@ export function CapTargetBulkActions({
           ) : (
             <CheckCircle2 className="h-4 w-4" />
           )}
-          Approve to All Deals
+          Approve to Active Deals
         </Button>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>

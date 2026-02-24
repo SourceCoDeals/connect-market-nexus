@@ -175,7 +175,7 @@ export default function ReMarketingReferralPartnerDetail() {
                 <Badge variant="secondary" className="text-sm font-medium">{actions.selectedDealIds.size} selected</Badge>
                 <Button variant="ghost" size="sm" onClick={() => actions.setSelectedDealIds(new Set())}><XCircle className="h-4 w-4 mr-1" />Clear</Button>
                 <div className="h-5 w-px bg-border" />
-                <Button size="sm" variant="outline" onClick={actions.handleBulkApprove}><CheckCircle2 className="h-4 w-4 mr-1" />Approve to All Deals</Button>
+                <Button size="sm" variant="outline" onClick={actions.handleBulkApprove}><CheckCircle2 className="h-4 w-4 mr-1" />Approve to Active Deals</Button>
                 {(() => {
                   const selectedArr = Array.from(actions.selectedDealIds);
                   const allPriority = selectedArr.length > 0 && selectedArr.every(id => data.deals?.find(d => d.id === id)?.is_priority_target);

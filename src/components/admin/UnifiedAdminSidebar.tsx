@@ -94,7 +94,7 @@ export function UnifiedAdminSidebar({ collapsed, onCollapsedChange, onSearchClic
         icon: <Briefcase className="h-4 w-4" />,
         items: [
           {
-            label: "All Deals",
+            label: "Active Deals",
             href: "/admin/deals",
             icon: <Building2 className="h-4 w-4" />,
           },

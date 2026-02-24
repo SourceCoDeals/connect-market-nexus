@@ -801,7 +801,7 @@ export function buildTests(): TestDef[] {
 
   // These verify DB tables that back UI pages are accessible
   const uiSmoke = [
-    { name: 'deals table readable (All Deals page)', table: 'deals' },
+    { name: 'deals table readable (Active Deals page)', table: 'deals' },
     { name: 'listings table readable (Marketplace)', table: 'listings' },
     { name: 'lead_memos readable (Data Room memos)', table: 'lead_memos' },
     { name: 'data_room_access readable (Access tab)', table: 'data_room_access' },

@@ -112,7 +112,7 @@ const ReMarketingDeals = () => {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">All Deals</h1>
+          <h1 className="text-2xl font-bold text-foreground">Active Deals</h1>
           <p className="text-muted-foreground">
             {h.listings?.length || 0} deals across {h.universeCount} buyer universes
           </p>
@@ -180,7 +180,7 @@ const ReMarketingDeals = () => {
 
       {/* Deal Tab Filters */}
       <div className="flex items-center gap-1 border-b pb-1">
-        {[{ key: "all", label: "All Deals" }, { key: "marketplace", label: "Marketplace" }].map(tab => (
+        {[{ key: "all", label: "All" }, { key: "marketplace", label: "Marketplace" }].map(tab => (
           <button key={tab.key} onClick={() => h.setDealTab(tab.key)} className={cn("px-3 py-1.5 text-sm font-medium rounded-md transition-colors", h.dealTab === tab.key ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground hover:bg-muted")}>
             {tab.label}
           </button>

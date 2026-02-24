@@ -86,7 +86,7 @@ export default function ValuationLeads() {
         <div>
           <h1 className="text-2xl font-bold text-foreground">Valuation Calculator Leads</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            {totalLeads} total &middot; {unscoredCount} unscored &middot; {pushedTotal} in All Deals
+            {totalLeads} total &middot; {unscoredCount} unscored &middot; {pushedTotal} in Active Deals
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -140,7 +140,7 @@ export default function ValuationLeads() {
         <Card><CardContent className="p-4"><div className="flex items-center gap-3"><div className="p-2 bg-emerald-100 rounded-lg"><Calculator className="h-5 w-5 text-emerald-600" /></div><div><p className="text-sm text-muted-foreground">Total Leads</p><p className="text-2xl font-bold">{kpiStats.totalLeads}</p></div></div></CardContent></Card>
         <Card><CardContent className="p-4"><div className="flex items-center gap-3"><div className="p-2 bg-blue-100 rounded-lg"><Users className="h-5 w-5 text-blue-600" /></div><div><p className="text-sm text-muted-foreground">Open to Intros</p><p className="text-2xl font-bold text-blue-600">{kpiStats.openToIntros}</p></div></div></CardContent></Card>
         <Card><CardContent className="p-4"><div className="flex items-center gap-3"><div className="p-2 bg-red-100 rounded-lg"><Clock className="h-5 w-5 text-red-600" /></div><div><p className="text-sm text-muted-foreground">Exit Now</p><p className="text-2xl font-bold text-red-600">{kpiStats.exitNow}</p></div></div></CardContent></Card>
-        <Card><CardContent className="p-4"><div className="flex items-center gap-3"><div className="p-2 bg-green-100 rounded-lg"><CheckCircle2 className="h-5 w-5 text-green-600" /></div><div><p className="text-sm text-muted-foreground">Added to All Deals</p><p className="text-2xl font-bold text-green-600">{kpiStats.pushedCount}</p></div></div></CardContent></Card>
+        <Card><CardContent className="p-4"><div className="flex items-center gap-3"><div className="p-2 bg-green-100 rounded-lg"><CheckCircle2 className="h-5 w-5 text-green-600" /></div><div><p className="text-sm text-muted-foreground">Added to Active Deals</p><p className="text-2xl font-bold text-green-600">{kpiStats.pushedCount}</p></div></div></CardContent></Card>
       </div>
 
       {/* Filter Bar */}
@@ -176,7 +176,7 @@ export default function ValuationLeads() {
           <Button variant="ghost" size="sm" onClick={() => setSelectedIds(new Set())}><XCircle className="h-4 w-4 mr-1" />Clear</Button>
           <div className="h-5 w-px bg-border" />
           <Button size="sm" variant="outline" onClick={() => handlePushToAllDeals(Array.from(selectedIds))} disabled={isPushing || isPushEnriching} className="gap-2">
-            {isPushing ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}Push to All Deals
+            {isPushing ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}Push to Active Deals
           </Button>
           <Button size="sm" onClick={() => handlePushAndEnrich(Array.from(selectedIds))} disabled={isPushEnriching || isPushing} className="gap-2">
             {isPushEnriching ? <Loader2 className="h-4 w-4 animate-spin" /> : <Zap className="h-4 w-4" />}Push &amp; Enrich

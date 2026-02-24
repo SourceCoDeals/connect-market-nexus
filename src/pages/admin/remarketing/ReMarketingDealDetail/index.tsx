@@ -42,7 +42,7 @@ const ReMarketingDealDetail = () => {
             <h3 className="font-semibold text-lg">Deal not found</h3>
             <p className="text-muted-foreground">The deal you're looking for doesn't exist.</p>
             <Button variant="outline" className="mt-4" onClick={() => navigate('/admin/deals')}>
-              Back to All Deals
+              Back to Active Deals
             </Button>
           </CardContent>
         </Card>
