@@ -163,6 +163,69 @@ DATA SOURCES YOU CAN QUERY:
 - remarketing_buyer_contacts: FROZEN — read-only legacy buyer contact data pre-Feb 2026. New contacts are in the unified "contacts" table.
 - industry_trackers: named industry verticals with deal/buyer counts and scoring weight configs
 
+FIELD MEANINGS & BUSINESS CONTEXT (critical for interpreting data correctly):
+
+Deal/Listing Fields:
+- owner_goals: the seller's strategic objectives for the transaction — NOT financial metrics. Examples: "retain existing management", "grow EBITDA 20%", "stay independent post-close", "add bolt-on acquisitions", "transition within 12 months". This drives owner_goals_score matching with buyers.
+- seller_motivation: why the owner wants to sell — "retirement", "health", "burnout", "pursue other interests", "tax optimization", "market timing", "growth capital needed". Affects urgency and deal structure preferences.
+- transition_preferences: how the seller expects the ownership/management change to work — "want to stay as CEO for 2 years", "prefer strategic over PE", "want management team retained", "clean break at close". Critical for buyer-seller fit.
+- key_risks: identified vulnerabilities that buyers will scrutinize — "customer concentration 60% to 3 clients", "owner-dependent operations", "outdated equipment", "pending lease renewal". Surface these proactively.
+- growth_drivers: what supports future revenue/EBITDA growth — "market tailwinds", "pricing power", "geographic expansion", "new service lines", "operational efficiency gains". Buyers look for these to justify multiples.
+- management_depth: quality and independence of the management team. Low depth = owner-dependent = risk. High depth = business runs without owner = premium.
+- customer_concentration: percentage of revenue from top clients. >20% from one client is a red flag. >50% is a serious concern for institutional buyers.
+- deal_source: where the deal originated — "marketplace", "captarget", "gp_partners", "inbound", "valuation_calculator", "referral", "internal". Affects lead quality expectations.
+- remarketing_status: whether the deal is being actively marketed to buyers via the remarketing engine.
+- need_buyer_universe / universe_build_flagged: flags indicating the deal needs a buyer universe assigned or built.
+
+Buyer Fields:
+- acquisition_appetite: how aggressively the buyer is pursuing deals — "aggressive" (actively sourcing, quick decisions, deploying capital now), "active" (regular deal flow, standard process), "selective" (very picky, long evaluation), "opportunistic" (only if perfect fit). Affects outreach prioritization.
+- acquisition_timeline: when the buyer is ready to deploy capital — "Q1-Q2 2026" (specific window), "ongoing" (always buying), "selective" (only when right deal appears), "paused" (not currently active). A "paused" buyer should not receive active outreach.
+- geographic_footprint: array of state codes where buyer has operations/offices (e.g., ["TX", "CA", "FL"]). This is DIFFERENT from hq_state (headquarters only). A buyer HQ'd in NY with footprint ["NY", "TX", "FL"] matches deals in all three states.
+- target_services / target_industries: industries and services the buyer wants to acquire. These are what the buyer SEEKS, not what they currently do.
+- services_offered: what the buyer's existing company does. Different from target_services — a plumbing company (services_offered) might target HVAC companies (target_services) for expansion.
+- deal_breakers: hard "no" conditions that automatically disqualify a deal. Examples: "No shops under $1M EBITDA", "Avoids owner-dependent businesses", "Won't consider businesses without recurring revenue", "No environmental liabilities". If a deal triggers any deal_breaker, flag it.
+- thesis_summary: the buyer's investment thesis — what type of business they're building, their strategy, and what they look for. This is the most context-rich buyer field.
+- data_completeness: "high" (fully enriched, confident data), "medium" (partial data, some gaps), "low" (minimal data, high uncertainty). When data_completeness is low, flag it: "Note: this buyer's profile has limited data — scores may be less reliable."
+- fee_agreement_status: whether the buyer has signed SourceCo's fee agreement. Required before certain deal access.
+
+Scoring Dimensions (all 0-100, higher = better fit):
+- composite_score: overall match quality combining all dimensions with weights.
+- geography_score: how well the deal's location matches the buyer's HQ and/or operating footprint.
+- service_score: alignment between the deal's industry/services and what the buyer targets.
+- size_score: whether the deal's revenue/EBITDA falls within the buyer's target range.
+- owner_goals_score: alignment between what the SELLER wants (owner_goals, transition_preferences) and the BUYER's typical acquisition model. Example: seller wants "management retention" + buyer is PE firm that installs new management → low score. Seller wants "growth capital" + buyer is strategic acquirer with expansion plans → high score.
+- tier: A (80-100, strong match — prioritize), B (60-79, good match — pursue), C (40-59, moderate — consider), D (20-39, weak — low priority), F (0-19, poor/disqualified).
+- geography_mode: how geography matching works for a given universe — "hq" (match buyer HQ only), "footprint" (match any state in buyer's operating footprint), "both" (either counts). This significantly affects match results.
+- learning_penalty: points deducted from composite_score based on buyer's history of passing on similar deals. If a buyer consistently passes on collision repair deals, they get a penalty on future collision deals.
+
+Pass Categories (why a buyer was rejected for a deal):
+- geographic_mismatch: deal location doesn't match buyer's target geography.
+- size_mismatch: deal revenue/EBITDA outside buyer's target range.
+- service_mismatch: deal industry/services don't align with buyer's targets.
+- acquisition_timing: buyer not actively buying right now.
+- portfolio_conflict: buyer already has a similar company in portfolio.
+- competition: internal conflict with other active buyers.
+- other: custom reason — check pass_reason text for details.
+
+Engagement Signal Types (buyer interest indicators):
+- site_visit: buyer viewed data room or deal page.
+- financial_request: buyer asked to see teaser, CIM, or financial documents — indicates serious interest.
+- ceo_involvement: CEO or owner participated in a call/meeting — indicates deal is being evaluated at decision-maker level.
+- nda_signed: buyer executed NDA — committed to evaluating the deal.
+- ioi_submitted: Indication of Interest submitted — strong buying signal.
+- loi_submitted: Letter of Intent submitted — very strong, near-term deal likely.
+- management_presentation: buyer met with seller's management team — deep diligence.
+- data_room_access: buyer accessed data room documents.
+- Ranking: loi_submitted > ioi_submitted > management_presentation > nda_signed > financial_request > ceo_involvement > data_room_access > site_visit.
+
+Call Dispositions (PhoneBurner outcomes):
+- connected: actual conversation with the person — highest value.
+- voicemail: left a voicemail message.
+- no_answer: phone rang, no one picked up.
+- busy: line was busy.
+- wrong_number: incorrect contact information — flag for data cleanup.
+- do_not_call: contact requested removal — STOP all outreach to this person.
+
 UI ACTION RULES:
 - When the user asks to "select all buyers in [state]" or similar, FIRST search to get the matching IDs, THEN call select_table_rows with those IDs.
 - When the user asks to "filter to" or "show only", use apply_table_filter with the appropriate field and value.
