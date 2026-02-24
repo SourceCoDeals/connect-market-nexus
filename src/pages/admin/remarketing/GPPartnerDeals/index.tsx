@@ -1,30 +1,41 @@
-import { useState, useEffect } from "react";
-import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
+import { useState, useEffect } from 'react';
+import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
 import {
-  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import {
-  Sparkles, Loader2, BarChart3, ChevronDown, Plus, FileSpreadsheet, EyeOff,
-} from "lucide-react";
-import { cn } from "@/lib/utils";
-import { DealImportDialog } from "@/components/remarketing/DealImportDialog";
-import { FilterBar, TimeframeSelector, GP_PARTNER_FIELDS } from "@/components/filters";
-import { EnrichmentProgressIndicator } from "@/components/remarketing/EnrichmentProgressIndicator";
-import { useGPPartnerDeals } from "./useGPPartnerDeals";
-import { useAIUIActionHandler } from "@/hooks/useAIUIActionHandler";
-import { useAICommandCenterContext } from "@/components/ai-command-center/AICommandCenterProvider";
-import { GPPartnerKPICards } from "./GPPartnerKPICards";
-import { GPPartnerBulkActions } from "./GPPartnerBulkActions";
-import { GPPartnerTable } from "./GPPartnerTable";
-import { GPPartnerPagination } from "./GPPartnerPagination";
-import { AddDealDialog } from "./AddDealDialog";
-import { PushToDialerModal } from "@/components/remarketing/PushToDialerModal";
+  Sparkles,
+  Loader2,
+  BarChart3,
+  ChevronDown,
+  Plus,
+  FileSpreadsheet,
+  EyeOff,
+} from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { DealImportDialog } from '@/components/remarketing/DealImportDialog';
+import { FilterBar, TimeframeSelector, GP_PARTNER_FIELDS } from '@/components/filters';
+import { EnrichmentProgressIndicator } from '@/components/remarketing/EnrichmentProgressIndicator';
+import { useGPPartnerDeals } from './useGPPartnerDeals';
+import { useAIUIActionHandler } from '@/hooks/useAIUIActionHandler';
+import { useAICommandCenterContext } from '@/components/ai-command-center/AICommandCenterProvider';
+import { GPPartnerKPICards } from './GPPartnerKPICards';
+import { GPPartnerBulkActions } from './GPPartnerBulkActions';
+import { GPPartnerTable } from './GPPartnerTable';
+import { GPPartnerPagination } from './GPPartnerPagination';
+import { AddDealDialog } from './AddDealDialog';
+import { PushToDialerModal } from '@/components/remarketing/PushToDialerModal';
+import { PushToSmartleadModal } from '@/components/remarketing/PushToSmartleadModal';
 
 export default function GPPartnerDeals() {
   const hook = useGPPartnerDeals();
   const { setPageContext } = useAICommandCenterContext();
   const [dialerOpen, setDialerOpen] = useState(false);
+  const [smartleadOpen, setSmartleadOpen] = useState(false);
 
   useEffect(() => {
     setPageContext({ page: 'gp_partners', entity_type: 'leads' });
@@ -34,12 +45,27 @@ export default function GPPartnerDeals() {
     table: 'leads',
     onSelectRows: (rowIds, mode) => {
       if (mode === 'replace') hook.setSelectedIds(new Set(rowIds));
-      else if (mode === 'add') hook.setSelectedIds(prev => { const n = new Set(prev); rowIds.forEach(id => n.add(id)); return n; });
-      else hook.setSelectedIds(prev => { const n = new Set(prev); rowIds.forEach(id => n.has(id) ? n.delete(id) : n.add(id)); return n; });
+      else if (mode === 'add')
+        hook.setSelectedIds((prev) => {
+          const n = new Set(prev);
+          rowIds.forEach((id) => n.add(id));
+          return n;
+        });
+      else
+        hook.setSelectedIds((prev) => {
+          const n = new Set(prev);
+          rowIds.forEach((id) => (n.has(id) ? n.delete(id) : n.add(id)));
+          return n;
+        });
     },
     onClearSelection: () => hook.setSelectedIds(new Set()),
     onSortColumn: (field) => {
-      const fieldMap: Record<string, string> = { company_name: 'company_name', score: 'score', created_at: 'created_at', priority: 'priority' };
+      const fieldMap: Record<string, string> = {
+        company_name: 'company_name',
+        score: 'score',
+        created_at: 'created_at',
+        priority: 'priority',
+      };
       hook.handleSort((fieldMap[field] || field) as any);
     },
   });
@@ -61,42 +87,62 @@ export default function GPPartnerDeals() {
         <div>
           <h1 className="text-2xl font-bold text-foreground">GP Partner Deals</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            {hook.totalDeals} total &middot; {hook.unpushedCount} un-pushed &middot;{" "}
+            {hook.totalDeals} total &middot; {hook.unpushedCount} un-pushed &middot;{' '}
             {hook.enrichedCount} enriched &middot; {hook.scoredCount} scored
           </p>
         </div>
 
         <div className="flex items-center gap-2">
           <Button variant="outline" size="sm" onClick={() => hook.setAddDealOpen(true)}>
-            <Plus className="h-4 w-4 mr-1" />Add Deal
+            <Plus className="h-4 w-4 mr-1" />
+            Add Deal
           </Button>
           <Button variant="outline" size="sm" onClick={() => hook.setCsvUploadOpen(true)}>
-            <FileSpreadsheet className="h-4 w-4 mr-1" />Import CSV
+            <FileSpreadsheet className="h-4 w-4 mr-1" />
+            Import CSV
           </Button>
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline" size="sm" disabled={hook.isEnriching}>
-                {hook.isEnriching ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Sparkles className="h-4 w-4 mr-1" />}
-                Enrich<ChevronDown className="h-3 w-3 ml-1" />
+                {hook.isEnriching ? (
+                  <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                ) : (
+                  <Sparkles className="h-4 w-4 mr-1" />
+                )}
+                Enrich
+                <ChevronDown className="h-3 w-3 ml-1" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent>
-              <DropdownMenuItem onClick={() => hook.handleBulkEnrich("unenriched")}>Enrich Unenriched</DropdownMenuItem>
-              <DropdownMenuItem onClick={() => hook.handleBulkEnrich("all")}>Re-enrich All</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => hook.handleBulkEnrich('unenriched')}>
+                Enrich Unenriched
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => hook.handleBulkEnrich('all')}>
+                Re-enrich All
+              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline" size="sm" disabled={hook.isScoring}>
-                {hook.isScoring ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <BarChart3 className="h-4 w-4 mr-1" />}
-                Score<ChevronDown className="h-3 w-3 ml-1" />
+                {hook.isScoring ? (
+                  <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                ) : (
+                  <BarChart3 className="h-4 w-4 mr-1" />
+                )}
+                Score
+                <ChevronDown className="h-3 w-3 ml-1" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent>
-              <DropdownMenuItem onClick={() => hook.handleBulkScore("unscored")}>Score Unscored</DropdownMenuItem>
-              <DropdownMenuItem onClick={() => hook.handleBulkScore("all")}>Recalculate All</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => hook.handleBulkScore('unscored')}>
+                Score Unscored
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => hook.handleBulkScore('all')}>
+                Recalculate All
+              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
 
@@ -141,16 +187,16 @@ export default function GPPartnerDeals() {
       {/* Hide Pushed Toggle */}
       <div className="flex items-center gap-2">
         <button
-          onClick={() => hook.setHidePushed(h => !h)}
+          onClick={() => hook.setHidePushed((h) => !h)}
           className={cn(
-            "flex items-center gap-2 text-sm px-3 py-1.5 rounded-md border transition-colors",
+            'flex items-center gap-2 text-sm px-3 py-1.5 rounded-md border transition-colors',
             hook.hidePushed
-              ? "bg-primary/10 border-primary/30 text-primary font-medium"
-              : "border-border text-muted-foreground hover:text-foreground hover:bg-muted/50"
+              ? 'bg-primary/10 border-primary/30 text-primary font-medium'
+              : 'border-border text-muted-foreground hover:text-foreground hover:bg-muted/50',
           )}
         >
           <EyeOff className="h-3.5 w-3.5" />
-          {hook.hidePushed ? "Showing Un-Pushed Only" : "Hide Pushed"}
+          {hook.hidePushed ? 'Showing Un-Pushed Only' : 'Hide Pushed'}
         </button>
       </div>
 
@@ -164,10 +210,18 @@ export default function GPPartnerDeals() {
         handlePushToAllDeals={hook.handlePushToAllDeals}
         handleEnrichSelected={hook.handleEnrichSelected}
         onPushToDialer={() => setDialerOpen(true)}
+        onPushToSmartlead={() => setSmartleadOpen(true)}
       />
       <PushToDialerModal
         open={dialerOpen}
         onOpenChange={setDialerOpen}
+        contactIds={Array.from(hook.selectedIds)}
+        contactCount={hook.selectedIds.size}
+        entityType="listings"
+      />
+      <PushToSmartleadModal
+        open={smartleadOpen}
+        onOpenChange={setSmartleadOpen}
         contactIds={Array.from(hook.selectedIds)}
         contactCount={hook.selectedIds.size}
         entityType="listings"

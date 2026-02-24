@@ -8,16 +8,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import {
-  Check,
-  X,
-  Download,
-  Mail,
-  Phone,
-  ChevronDown,
-  Loader2,
-  XCircle,
-} from 'lucide-react';
+import { Check, X, Download, Mail, Phone, ChevronDown, Loader2, XCircle } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface BulkActionsToolbarProps {
@@ -28,6 +19,7 @@ interface BulkActionsToolbarProps {
   onExportCSV: () => void;
   onGenerateEmails?: () => void;
   onPushToDialer?: () => void;
+  onPushToSmartlead?: () => void;
   isProcessing?: boolean;
   activeTab?: string;
 }
@@ -48,6 +40,7 @@ export const BulkActionsToolbar = ({
   onExportCSV,
   onGenerateEmails,
   onPushToDialer,
+  onPushToSmartlead,
   isProcessing = false,
   activeTab = 'all',
 }: BulkActionsToolbarProps) => {
@@ -173,6 +166,20 @@ export const BulkActionsToolbar = ({
           </Button>
         )}
 
+        {/* Push to Smartlead */}
+        {onPushToSmartlead && (
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={onPushToSmartlead}
+            disabled={isProcessing}
+            className="text-muted-foreground"
+          >
+            <Mail className="h-4 w-4 mr-1" />
+            Smartlead
+          </Button>
+        )}
+
         <div className="h-6 w-px bg-border" />
 
         {/* Pass All with Reason - far right */}
@@ -195,10 +202,7 @@ export const BulkActionsToolbar = ({
             </p>
             <DropdownMenuSeparator />
             {passReasons.map(({ reason, category }) => (
-              <DropdownMenuItem
-                key={category}
-                onClick={() => handleBulkPass(reason, category)}
-              >
+              <DropdownMenuItem key={category} onClick={() => handleBulkPass(reason, category)}>
                 {reason}
               </DropdownMenuItem>
             ))}

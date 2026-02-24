@@ -1,11 +1,11 @@
-import { Button } from "@/components/ui/button";
-import { supabase } from "@/integrations/supabase/client";
+import { Button } from '@/components/ui/button';
+import { supabase } from '@/integrations/supabase/client';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+} from '@/components/ui/dropdown-menu';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -15,7 +15,7 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+} from '@/components/ui/alert-dialog';
 import {
   CheckCircle2,
   Sparkles,
@@ -26,11 +26,11 @@ import {
   Trash2,
   Download,
   Phone,
-} from "lucide-react";
-import { cn } from "@/lib/utils";
-import { exportDealsToCSV } from "@/lib/exportUtils";
-import { toast as sonnerToast } from "sonner";
-import { useToast } from "@/hooks/use-toast";
+} from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { exportDealsToCSV } from '@/lib/exportUtils';
+import { toast as sonnerToast } from 'sonner';
+import { useToast } from '@/hooks/use-toast';
 
 interface CapTargetBulkActionsProps {
   selectedIds: Set<string>;
@@ -40,7 +40,7 @@ interface CapTargetBulkActionsProps {
   isArchiving: boolean;
   isDeleting: boolean;
   onPushToAllDeals: (dealIds: string[]) => void;
-  onEnrichSelected: (dealIds: string[], mode: "all" | "unenriched") => void;
+  onEnrichSelected: (dealIds: string[], mode: 'all' | 'unenriched') => void;
   onClearSelection: () => void;
   onRefetch: () => void;
   // Archive dialog
@@ -52,6 +52,7 @@ interface CapTargetBulkActionsProps {
   setShowDeleteDialog: (v: boolean) => void;
   onBulkDelete: () => void;
   onPushToDialer?: () => void;
+  onPushToSmartlead?: () => void;
 }
 
 export function CapTargetBulkActions({
@@ -72,19 +73,22 @@ export function CapTargetBulkActions({
   setShowDeleteDialog,
   onBulkDelete,
   onPushToDialer,
+  onPushToSmartlead,
 }: CapTargetBulkActionsProps) {
   const { toast } = useToast();
 
   if (selectedIds.size === 0) return null;
 
   const dealIds = Array.from(selectedIds);
-  const allPriority = dealIds.length > 0 && dealIds.every(id => deals?.find(d => d.id === id)?.is_priority_target);
+  const allPriority =
+    dealIds.length > 0 &&
+    dealIds.every((id) => deals?.find((d) => d.id === id)?.is_priority_target);
 
   return (
     <>
       <div className="flex items-center gap-3 p-3 bg-primary/5 border border-primary/20 rounded-lg">
         <span className="text-sm font-medium">
-          {selectedIds.size} deal{selectedIds.size !== 1 ? "s" : ""} selected
+          {selectedIds.size} deal{selectedIds.size !== 1 ? 's' : ''} selected
         </span>
         <Button
           size="sm"
@@ -101,12 +105,7 @@ export function CapTargetBulkActions({
         </Button>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button
-              size="sm"
-              variant="outline"
-              disabled={isEnriching}
-              className="gap-2"
-            >
+            <Button size="sm" variant="outline" disabled={isEnriching} className="gap-2">
               {isEnriching ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
               ) : (
@@ -117,10 +116,10 @@ export function CapTargetBulkActions({
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent>
-            <DropdownMenuItem onClick={() => onEnrichSelected(dealIds, "unenriched")}>
+            <DropdownMenuItem onClick={() => onEnrichSelected(dealIds, 'unenriched')}>
               Enrich Unenriched
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => onEnrichSelected(dealIds, "all")}>
+            <DropdownMenuItem onClick={() => onEnrichSelected(dealIds, 'all')}>
               Re-enrich All
             </DropdownMenuItem>
           </DropdownMenuContent>
@@ -134,21 +133,29 @@ export function CapTargetBulkActions({
           onClick={async () => {
             const newValue = !allPriority;
             const { error } = await supabase
-              .from("listings")
+              .from('listings')
               .update({ is_priority_target: newValue } as never)
-              .in("id", dealIds);
+              .in('id', dealIds);
             if (error) {
-              toast({ title: "Error", description: "Failed to update priority" });
+              toast({ title: 'Error', description: 'Failed to update priority' });
             } else {
-              toast({ title: newValue ? "Priority Set" : "Priority Removed", description: `${dealIds.length} deal(s) updated` });
+              toast({
+                title: newValue ? 'Priority Set' : 'Priority Removed',
+                description: `${dealIds.length} deal(s) updated`,
+              });
               onClearSelection();
               onRefetch();
             }
           }}
-          className={cn("gap-2", allPriority ? "text-muted-foreground" : "text-amber-600 border-amber-200 hover:bg-amber-50")}
+          className={cn(
+            'gap-2',
+            allPriority
+              ? 'text-muted-foreground'
+              : 'text-amber-600 border-amber-200 hover:bg-amber-50',
+          )}
         >
-          <Star className={cn("h-4 w-4", allPriority ? "" : "fill-amber-500")} />
-          {allPriority ? "Remove Priority" : "Mark as Priority"}
+          <Star className={cn('h-4 w-4', allPriority ? '' : 'fill-amber-500')} />
+          {allPriority ? 'Remove Priority' : 'Mark as Priority'}
         </Button>
         <Button
           size="sm"
@@ -159,7 +166,7 @@ export function CapTargetBulkActions({
             if (result.success) {
               sonnerToast.success(`${result.count} deal(s) exported to CSV`);
             } else {
-              sonnerToast.error(result.error || "Export failed");
+              sonnerToast.error(result.error || 'Export failed');
             }
           }}
         >
@@ -167,14 +174,15 @@ export function CapTargetBulkActions({
           Export CSV
         </Button>
         {onPushToDialer && (
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={onPushToDialer}
-            className="gap-2"
-          >
+          <Button size="sm" variant="outline" onClick={onPushToDialer} className="gap-2">
             <Phone className="h-4 w-4" />
             Push to Dialer
+          </Button>
+        )}
+        {onPushToSmartlead && (
+          <Button size="sm" variant="outline" onClick={onPushToSmartlead} className="gap-2">
+            <Phone className="h-4 w-4" />
+            Push to Smartlead
           </Button>
         )}
         <Button
@@ -208,11 +216,7 @@ export function CapTargetBulkActions({
 
         <div className="h-5 w-px bg-border" />
 
-        <Button
-          size="sm"
-          variant="ghost"
-          onClick={onClearSelection}
-        >
+        <Button size="sm" variant="ghost" onClick={onClearSelection}>
           Clear
         </Button>
       </div>
@@ -239,9 +243,12 @@ export function CapTargetBulkActions({
       <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle className="text-destructive">Permanently Delete {selectedIds.size} Deal(s)?</AlertDialogTitle>
+            <AlertDialogTitle className="text-destructive">
+              Permanently Delete {selectedIds.size} Deal(s)?
+            </AlertDialogTitle>
             <AlertDialogDescription>
-              This will permanently delete the selected deals and all related data (scores, enrichment records). This action cannot be undone.
+              This will permanently delete the selected deals and all related data (scores,
+              enrichment records). This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
