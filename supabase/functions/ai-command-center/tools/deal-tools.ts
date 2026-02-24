@@ -42,17 +42,17 @@ function fuzzyContains(target: string, query: string): boolean {
 // ---------- Quick vs Full field sets ----------
 
 const DEAL_FIELDS_QUICK = `
-  id, title, status, status_label, deal_source, industry, revenue, ebitda,
+  id, title, status, status_label, deal_source, industry, category, categories, revenue, ebitda,
   location, address_state, geographic_states, services,
   deal_total_score, is_priority_target, remarketing_status,
   deal_owner_id, primary_owner_id, updated_at
 `.replace(/\s+/g, ' ').trim();
 
 const DEAL_FIELDS_FULL = `
-  id, title, status, status_label, status_tag, deal_source, industry, industry_tier_name,
+  id, title, status, status_label, status_tag, deal_source, industry, industry_tier_name, category, categories,
   revenue, ebitda, ebitda_margin,
   location, address_city, address_state, address_zip, geographic_states,
-  services, service_mix, business_model, categories,
+  services, service_mix, business_model,
   full_time_employees, number_of_locations,
   deal_total_score, deal_size_score, revenue_score, ebitda_score,
   is_priority_target, remarketing_status, enrichment_status,
@@ -227,20 +227,24 @@ async function queryDeals(
     results = results.filter((d: Record<string, unknown>) => {
       const title = (d.title as string)?.toLowerCase() || '';
       const industry = (d.industry as string)?.toLowerCase() || '';
+      const category = (d.category as string)?.toLowerCase() || '';
       const location = (d.location as string)?.toLowerCase() || '';
       const internalName = (d.internal_company_name as string)?.toLowerCase() || '';
       const projectName = (d.project_name as string)?.toLowerCase() || '';
       const services = (d.services as string[]) || [];
+      const categories = (d.categories as string[]) || [];
 
       // Exact substring match
       if (
-        title.includes(term) || industry.includes(term) || location.includes(term) ||
+        title.includes(term) || industry.includes(term) || category.includes(term) ||
+        location.includes(term) ||
         internalName.includes(term) || projectName.includes(term) ||
-        services.some((s: string) => s.toLowerCase().includes(term))
+        services.some((s: string) => s.toLowerCase().includes(term)) ||
+        categories.some((c: string) => c.toLowerCase().includes(term))
       ) return true;
 
       // Fuzzy match: check if all words in the search appear in the combined text
-      const combined = `${title} ${internalName} ${projectName} ${industry} ${location} ${services.join(' ')}`;
+      const combined = `${title} ${internalName} ${projectName} ${industry} ${category} ${location} ${services.join(' ')} ${categories.join(' ')}`;
       const words = term.split(/\s+/).filter(w => w.length > 2);
       if (words.length > 1 && words.every(w => fuzzyContains(combined, w))) return true;
 
@@ -252,12 +256,24 @@ async function queryDeals(
   }
 
   // Client-side industry keyword filter
+  // Checks industry, category, categories, services, and title fields
+  // because deals may store industry info in different fields
   if (args.industry) {
     const term = (args.industry as string).toLowerCase();
-    results = results.filter((d: Record<string, unknown>) =>
-      (d.industry as string)?.toLowerCase().includes(term) ||
-      (d.services as string[])?.some((s: string) => s.toLowerCase().includes(term))
-    );
+    results = results.filter((d: Record<string, unknown>) => {
+      const industry = (d.industry as string)?.toLowerCase() || '';
+      const category = (d.category as string)?.toLowerCase() || '';
+      const categories = (d.categories as string[]) || [];
+      const services = (d.services as string[]) || [];
+      const title = (d.title as string)?.toLowerCase() || '';
+      return (
+        industry.includes(term) ||
+        category.includes(term) ||
+        categories.some((c: string) => c.toLowerCase().includes(term)) ||
+        services.some((s: string) => s.toLowerCase().includes(term)) ||
+        title.includes(term)
+      );
+    });
   }
 
   return {
@@ -405,10 +421,10 @@ async function getPipelineSummary(
 ): Promise<ToolResult> {
   const groupBy = (args.group_by as string) || 'status';
 
-  // Fetch all active deals with summary fields
+  // Fetch all active deals with summary fields (include category for industry fallback)
   const { data, error } = await supabase
     .from('listings')
-    .select('id, title, status, deal_source, industry, address_state, revenue, ebitda, deal_total_score, is_priority_target, remarketing_status')
+    .select('id, title, status, deal_source, industry, category, address_state, revenue, ebitda, deal_total_score, is_priority_target, remarketing_status')
     .is('deleted_at', null);
 
   if (error) return { error: error.message };
@@ -418,7 +434,13 @@ async function getPipelineSummary(
   const groups: Record<string, { count: number; total_revenue: number; total_ebitda: number; avg_score: number; deal_ids: string[] }> = {};
 
   for (const deal of deals) {
-    const key = (deal[groupBy as keyof typeof deal] as string) || 'unknown';
+    // For industry grouping, fall back to category if industry is null/empty
+    let key: string;
+    if (groupBy === 'industry') {
+      key = (deal.industry as string) || (deal.category as string) || 'unknown';
+    } else {
+      key = (deal[groupBy as keyof typeof deal] as string) || 'unknown';
+    }
     if (!groups[key]) groups[key] = { count: 0, total_revenue: 0, total_ebitda: 0, avg_score: 0, deal_ids: [] };
     groups[key].count++;
     groups[key].total_revenue += deal.revenue || 0;

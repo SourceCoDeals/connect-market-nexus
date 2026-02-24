@@ -259,7 +259,7 @@ CURRENT DEAL:
 - States: ${deal.geographic_states?.join(', ') || 'Not specified'}
 - Revenue: ${deal.revenue ? `$${(deal.revenue/1000000).toFixed(1)}M` : 'Unknown'}
 - EBITDA: ${deal.ebitda ? `$${(deal.ebitda/1000000).toFixed(1)}M` : 'Unknown'}
-- Industry: ${deal.category || 'Unknown'}
+- Industry: ${deal.industry || deal.category || 'Unknown'}
 - Services: ${deal.services || 'Not specified'}
 - Business Model: ${deal.business_model || 'Not specified'}
 - Description: ${deal.description || 'Not available'}
@@ -324,7 +324,8 @@ async function buildDealsContext(supabase: any): Promise<string> {
     states: d.geographic_states || [],
     revenue: d.revenue ? `$${(d.revenue/1000000).toFixed(1)}M` : null,
     ebitda: d.ebitda ? `$${(d.ebitda/1000000).toFixed(1)}M` : null,
-    industry: d.category,
+    industry: d.industry || d.category,
+    category: d.category,
     services: d.services,
     businessModel: d.business_model,
     ownerGoals: d.owner_goals,

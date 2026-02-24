@@ -12,8 +12,10 @@ import type { ToolResult } from "./index.ts";
 
 const BUYER_FIELDS_QUICK = `
   id, company_name, pe_firm_name, buyer_type, hq_state, hq_city,
-  geographic_footprint, target_services, target_revenue_min, target_revenue_max,
+  geographic_footprint, target_services, target_industries, target_revenue_min, target_revenue_max,
+  target_ebitda_min, target_ebitda_max, target_geographies,
   acquisition_appetite, alignment_score, has_fee_agreement,
+  thesis_summary, business_summary,
   num_employees, number_of_locations, total_acquisitions, archived
 `.replace(/\s+/g, ' ').trim();
 
@@ -38,7 +40,7 @@ const BUYER_FIELDS_FULL = `
 
 // Fields for querying listings (deals/leads) — NOT buyer fields
 const LISTING_LEAD_FIELDS = [
-  'id', 'title', 'industry', 'services', 'revenue', 'ebitda',
+  'id', 'title', 'industry', 'category', 'categories', 'services', 'revenue', 'ebitda',
   'location', 'address_state', 'geographic_states',
   'deal_source', 'deal_total_score', 'is_priority_target', 'status',
   'captarget_sheet_tab', 'captarget_interest_type', 'updated_at', 'created_at',
@@ -57,6 +59,7 @@ export const buyerTools: ClaudeTool[] = [
         buyer_type: { type: 'string', description: 'Filter by buyer type (e.g. "pe_platform", "strategic", "independent_sponsor")' },
         state: { type: 'string', description: 'Filter by HQ state OR geographic footprint state code (e.g. "OK", "TX"). Applied at database level to find ALL matching buyers.' },
         universe_id: { type: 'string', description: 'Filter to a specific buyer universe ID — scopes results to buyers in that universe' },
+        industry: { type: 'string', description: 'Filter by industry keyword (searches target_industries, target_services, company_name, and business_summary)' },
         services: {
           type: 'array', items: { type: 'string' },
           description: 'Filter by target service keywords',
@@ -173,8 +176,9 @@ async function searchBuyers(
   const depth = (args.depth as string) || 'quick';
   const fields = depth === 'full' ? BUYER_FIELDS_FULL : BUYER_FIELDS_QUICK;
 
-  // When filtering by state or universe, we need a much higher limit to count all matches
-  const hasSelectiveFilter = !!(args.state || args.universe_id);
+  // When filtering by state, universe, search text, services, or industry, we need a much higher limit
+  // to ensure client-side filtering has enough data to find all matches
+  const hasSelectiveFilter = !!(args.state || args.universe_id || args.search || args.services || args.industry);
   const limit = hasSelectiveFilter
     ? Math.min(Number(args.limit) || 1000, 5000)
     : Math.min(Number(args.limit) || 25, 100);
@@ -227,6 +231,19 @@ async function searchBuyers(
     results = results.filter(b => !b.target_revenue_min || b.target_revenue_min <= max);
   }
 
+  // Client-side industry keyword filter — checks target_industries, target_services, company_name, business_summary
+  if (args.industry) {
+    const term = (args.industry as string).toLowerCase();
+    results = results.filter(b =>
+      b.target_industries?.some((i: string) => i.toLowerCase().includes(term)) ||
+      b.target_services?.some((s: string) => s.toLowerCase().includes(term)) ||
+      b.company_name?.toLowerCase().includes(term) ||
+      b.pe_firm_name?.toLowerCase().includes(term) ||
+      b.thesis_summary?.toLowerCase().includes(term) ||
+      b.business_summary?.toLowerCase().includes(term)
+    );
+  }
+
   // Client-side free-text search
   if (args.search) {
     const term = (args.search as string).toLowerCase();
@@ -234,6 +251,9 @@ async function searchBuyers(
       b.company_name?.toLowerCase().includes(term) ||
       b.pe_firm_name?.toLowerCase().includes(term) ||
       b.target_services?.some((s: string) => s.toLowerCase().includes(term)) ||
+      b.target_industries?.some((i: string) => i.toLowerCase().includes(term)) ||
+      b.thesis_summary?.toLowerCase().includes(term) ||
+      b.business_summary?.toLowerCase().includes(term) ||
       b.hq_state?.toLowerCase().includes(term) ||
       b.hq_city?.toLowerCase().includes(term) ||
       b.geographic_footprint?.some((g: string) => g.toLowerCase().includes(term))
@@ -403,15 +423,19 @@ async function searchLeadSources(
     offset += batch.length;
   }
 
-  // Client-side industry keyword filter
+  // Client-side industry keyword filter — checks industry, category, categories, title, and services
   if (args.industry) {
     const term = (args.industry as string).toLowerCase();
     allData = allData.filter((d: Record<string, unknown>) => {
       const industry = (d.industry as string || '').toLowerCase();
+      const category = (d.category as string || '').toLowerCase();
+      const categories = (d.categories as string[] || []);
       const title = (d.title as string || '').toLowerCase();
       const services = (d.services as string[] || []);
       return (
         industry.includes(term) ||
+        category.includes(term) ||
+        categories.some((c: string) => c.toLowerCase().includes(term)) ||
         title.includes(term) ||
         services.some((s: string) => s.toLowerCase().includes(term))
       );

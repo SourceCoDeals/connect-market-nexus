@@ -16,12 +16,13 @@ import type { ToolResult } from "./index.ts";
 export const contactTools: ClaudeTool[] = [
   {
     name: 'search_pe_contacts',
-    description: 'Search buyer contacts at PE firms and platform companies — partners, principals, deal team members, corp dev contacts. Queries the unified contacts table (contact_type=buyer). Includes email, phone, LinkedIn, role, and priority level. Use to find the right person to contact at a buyer organization.',
+    description: 'Search buyer contacts at PE firms and platform companies — partners, principals, deal team members, corp dev contacts. Queries the unified contacts table (contact_type=buyer). Includes email, phone, LinkedIn, role, and priority level. Use to find the right person to contact at a buyer organization. Supports searching by firm/company name via firm_name parameter.',
     input_schema: {
       type: 'object',
       properties: {
         buyer_id: { type: 'string', description: 'Filter to contacts for a specific remarketing_buyer UUID (via remarketing_buyer_id)' },
         firm_id: { type: 'string', description: 'Filter to contacts at a specific firm (via firm_id → firm_agreements)' },
+        firm_name: { type: 'string', description: 'Search by firm/company name (e.g. "Trivest", "Audax"). Looks up the firm in firm_agreements and remarketing_buyers tables, then filters contacts by matching IDs.' },
         search: { type: 'string', description: 'Search across first_name, last_name, title, email' },
         role_category: { type: 'string', description: 'Filter by role: partner, principal, director, vp, associate, analyst, operating_partner, ceo, cfo, coo, corp_dev, business_dev' },
         is_primary: { type: 'boolean', description: 'Filter to primary contacts at their firm only' },
@@ -140,6 +141,60 @@ async function searchPeContacts(
 
   const contactFields = 'id, first_name, last_name, email, phone, title, contact_type, firm_id, remarketing_buyer_id, profile_id, is_primary_at_firm, nda_signed, fee_agreement_signed, linkedin_url, source, archived, created_at';
 
+  // If firm_name is provided, look up matching firm_ids and buyer_ids first
+  let firmIds: string[] = [];
+  let buyerIds: string[] = [];
+  let firmNameUsed = false;
+
+  if (args.firm_name) {
+    firmNameUsed = true;
+    const firmTerm = (args.firm_name as string).toLowerCase();
+
+    // Search firm_agreements for matching company names
+    const { data: firms } = await supabase
+      .from('firm_agreements')
+      .select('id, primary_company_name')
+      .limit(100);
+
+    if (firms) {
+      firmIds = firms
+        .filter((f: Record<string, unknown>) =>
+          (f.primary_company_name as string)?.toLowerCase().includes(firmTerm)
+        )
+        .map((f: Record<string, unknown>) => f.id as string);
+    }
+
+    // Also search remarketing_buyers for matching company/PE firm names
+    const { data: buyers } = await supabase
+      .from('remarketing_buyers')
+      .select('id, company_name, pe_firm_name')
+      .eq('archived', false)
+      .limit(500);
+
+    if (buyers) {
+      buyerIds = buyers
+        .filter((b: Record<string, unknown>) =>
+          (b.company_name as string)?.toLowerCase().includes(firmTerm) ||
+          (b.pe_firm_name as string)?.toLowerCase().includes(firmTerm)
+        )
+        .map((b: Record<string, unknown>) => b.id as string);
+    }
+
+    // If no matching firms or buyers found, return early with helpful message
+    if (firmIds.length === 0 && buyerIds.length === 0) {
+      return {
+        data: {
+          contacts: [],
+          total: 0,
+          with_email: 0,
+          source: 'unified_contacts_table',
+          firm_name_searched: args.firm_name,
+          note: `No firm or buyer matching "${args.firm_name}" found in the database. The firm may need to be enriched/imported first.`,
+        },
+      };
+    }
+  }
+
   let query = supabase
     .from('contacts')
     .select(contactFields)
@@ -150,7 +205,44 @@ async function searchPeContacts(
 
   if (args.buyer_id) query = query.eq('remarketing_buyer_id', args.buyer_id as string);
   if (args.firm_id) query = query.eq('firm_id', args.firm_id as string);
-  if (args.role_category) query = query.eq('title', args.role_category as string);
+
+  // Apply firm_name filter via resolved IDs
+  if (firmNameUsed && !args.buyer_id && !args.firm_id) {
+    const orClauses: string[] = [];
+    if (firmIds.length > 0) {
+      orClauses.push(`firm_id.in.(${firmIds.join(',')})`);
+    }
+    if (buyerIds.length > 0) {
+      orClauses.push(`remarketing_buyer_id.in.(${buyerIds.join(',')})`);
+    }
+    if (orClauses.length > 0) {
+      query = query.or(orClauses.join(','));
+    }
+  }
+
+  if (args.role_category) {
+    // Match role_category against title using case-insensitive contains
+    // since titles may be "Vice President" vs filter "vp"
+    const roleMap: Record<string, string[]> = {
+      vp: ['vp', 'vice president'],
+      principal: ['principal'],
+      associate: ['associate'],
+      partner: ['partner', 'managing partner'],
+      director: ['director', 'managing director'],
+      analyst: ['analyst'],
+      operating_partner: ['operating partner'],
+      ceo: ['ceo', 'chief executive'],
+      cfo: ['cfo', 'chief financial'],
+      coo: ['coo', 'chief operating'],
+      corp_dev: ['corporate development', 'corp dev'],
+      business_dev: ['business development', 'biz dev'],
+    };
+    // We'll filter client-side for role matching since ilike doesn't support OR
+    const _roleTerms = roleMap[(args.role_category as string).toLowerCase()] || [(args.role_category as string).toLowerCase()];
+    // Store for client-side filter below
+    (args as Record<string, unknown>)._roleTerms = _roleTerms;
+  }
+
   if (args.is_primary === true) query = query.eq('is_primary_at_firm', true);
   if (args.has_email === true) query = query.not('email', 'is', null);
 
@@ -158,6 +250,15 @@ async function searchPeContacts(
   if (error) return { error: error.message };
 
   let results = (data || []) as Array<Record<string, unknown>>;
+
+  // Client-side role filter with fuzzy title matching
+  if ((args as Record<string, unknown>)._roleTerms) {
+    const roleTerms = (args as Record<string, unknown>)._roleTerms as string[];
+    results = results.filter(c => {
+      const title = (c.title as string)?.toLowerCase() || '';
+      return roleTerms.some(term => title.includes(term));
+    });
+  }
 
   // Client-side search filter
   if (args.search) {
@@ -177,6 +278,9 @@ async function searchPeContacts(
       total: results.length,
       with_email: results.filter(c => c.email).length,
       source: 'unified_contacts_table',
+      firm_name_searched: args.firm_name || null,
+      firm_ids_matched: firmNameUsed ? firmIds.length : undefined,
+      buyer_ids_matched: firmNameUsed ? buyerIds.length : undefined,
     },
   };
 }
