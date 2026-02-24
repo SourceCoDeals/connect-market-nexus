@@ -56,7 +56,7 @@ export function usePartnerData(partnerId: string | undefined) {
            linkedin_employee_count, linkedin_employee_range,
            google_review_count, google_rating, is_priority_target,
            need_buyer_universe, need_owner_contact,
-           main_contact_name, main_contact_title, main_contact_email, deal_source`
+           main_contact_name, main_contact_title, main_contact_email, main_contact_phone, deal_source`
         )
         .eq("referral_partner_id", partnerId!)
         .order("created_at", { ascending: false });
