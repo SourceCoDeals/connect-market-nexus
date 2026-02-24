@@ -462,11 +462,15 @@ export function ReMarketingChat({
         }
         return;
       }
-      // Chat error — display message to user below
+      // Chat error — display user-friendly message
+      let userMsg = error instanceof Error ? error.message : "Unknown error";
+      if (userMsg === "Failed to fetch" || userMsg.includes("NetworkError") || userMsg.includes("net::ERR")) {
+        userMsg = "Unable to reach the AI service. This usually means the chat function isn't deployed yet or there's a network issue. Please check the Supabase Edge Functions dashboard.";
+      }
       const errorMessage: Message = {
         id: `error-${Date.now()}`,
         role: "assistant",
-        content: `Sorry, I encountered an error: ${error instanceof Error ? error.message : "Unknown error"}. Please try again.`,
+        content: `Sorry, I encountered an error: ${userMsg}. Please try again.`,
         timestamp: new Date(),
       };
       setMessages((prev) => [...prev, errorMessage]);

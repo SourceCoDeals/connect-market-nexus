@@ -171,9 +171,9 @@ verify_jwt = false
 [functions.re-enrich-missing-addresses]
 verify_jwt = false
 [functions.chat-buyer-query]
-verify_jwt = true
+verify_jwt = false
 [functions.chat-remarketing]
-verify_jwt = true
+verify_jwt = false
 [functions.process-ma-guide-queue]
 verify_jwt = false
 [functions.extract-buyer-criteria]
