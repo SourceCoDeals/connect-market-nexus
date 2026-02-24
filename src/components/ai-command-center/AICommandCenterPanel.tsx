@@ -294,10 +294,10 @@ function MessageBubble({
       )}
 
       <div className={cn(
-        'max-w-[85%] rounded-lg px-3 py-2',
+        'max-w-[85%] rounded-lg px-3 py-2 border',
         isUser
-          ? 'bg-[#0E101A] text-[#FCF9F0]'
-          : 'bg-[#FCF9F0] text-[#0E101A]',
+          ? 'bg-[#F7F4DD] border-[#E5DDD0] text-[#0E101A]'
+          : 'bg-[#FCF9F0] border-[#E5DDD0] text-[#0E101A]',
       )}>
         {/* Tool call indicators */}
         {message.toolCalls && message.toolCalls.length > 0 && (
@@ -325,7 +325,7 @@ function MessageBubble({
 
         {/* Message content */}
         {message.content && (
-          <div className={cn('text-base prose prose-base max-w-none', isUser ? 'prose-invert' : '[&_*]:text-[#0E101A]')}>
+          <div className="text-base prose prose-base max-w-none [&_*]:text-[#0E101A] [&_a]:text-[#DEC76B]">
             <ReactMarkdown>{message.content}</ReactMarkdown>
           </div>
         )}
@@ -348,7 +348,7 @@ function MessageBubble({
         )}
 
         {/* Timestamp */}
-        <p className={cn('text-[10px] mt-1', isUser ? 'text-white/60' : 'text-muted-foreground')}>
+        <p className="text-[10px] mt-1 text-muted-foreground">
           {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
           {message.metadata?.cost != null && (
             <span className="ml-2">${message.metadata.cost.toFixed(4)}</span>
