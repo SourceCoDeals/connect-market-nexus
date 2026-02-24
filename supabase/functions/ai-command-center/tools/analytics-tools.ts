@@ -92,7 +92,7 @@ async function getIndustryTrackers(
   let results = data || [];
   if (args.search) {
     const term = (args.search as string).toLowerCase();
-    results = results.filter(t =>
+    results = results.filter((t: any) =>
       t.name?.toLowerCase().includes(term) ||
       t.description?.toLowerCase().includes(term)
     );
@@ -102,8 +102,8 @@ async function getIndustryTrackers(
     data: {
       trackers: results,
       total: results.length,
-      total_deals: results.reduce((s, t) => s + (t.deal_count || 0), 0),
-      total_buyers: results.reduce((s, t) => s + (t.buyer_count || 0), 0),
+      total_deals: results.reduce((s: number, t: any) => s + (t.deal_count || 0), 0),
+      total_buyers: results.reduce((s: number, t: any) => s + (t.buyer_count || 0), 0),
     },
   };
 }
@@ -209,11 +209,11 @@ async function pipelineHealth(supabase: SupabaseClient): Promise<ToolResult> {
       metric: 'pipeline_health',
       total_deals: d.length,
       by_status: byStatus,
-      priority_count: d.filter(x => x.is_priority_target).length,
+      priority_count: d.filter((x: any) => x.is_priority_target).length,
       total_revenue: totalRevenue,
       total_ebitda: totalEbitda,
       avg_deal_score: scoredCount > 0 ? Math.round(scoreSum / scoredCount) : null,
-      by_source: d.reduce((acc: Record<string, number>, x) => {
+      by_source: d.reduce((acc: Record<string, number>, x: any) => {
         const src = x.deal_source || 'unknown';
         acc[src] = (acc[src] || 0) + 1;
         return acc;
@@ -256,7 +256,7 @@ async function scoringDistribution(supabase: SupabaseClient): Promise<ToolResult
       by_status: byStatus,
       by_tier: byTier,
       score_ranges: ranges,
-      avg_score: scores.length > 0 ? Math.round(scores.reduce((s, x) => s + x.composite_score, 0) / scores.length) : null,
+      avg_score: scores.length > 0 ? Math.round(scores.reduce((s: number, x: any) => s + x.composite_score, 0) / scores.length) : null,
     },
   };
 }
@@ -313,7 +313,7 @@ async function activitySummary(supabase: SupabaseClient, cutoffDate: string): Pr
     data: {
       metric: 'activity_summary',
       total_activities: activities.length,
-      unique_deals: new Set(activities.map(a => a.deal_id)).size,
+      unique_deals: new Set(activities.map((a: any) => a.deal_id)).size,
       by_type: byType,
       by_day: byDay,
     },
@@ -344,10 +344,10 @@ async function buyerEngagement(supabase: SupabaseClient, cutoffDate: string): Pr
     data: {
       metric: 'buyer_engagement',
       data_room_grants: access.length,
-      active_access: access.filter(a => a.is_active).length,
-      nda_signed: access.filter(a => a.nda_signed_at).length,
+      active_access: access.filter((a: any) => a.is_active).length,
+      nda_signed: access.filter((a: any) => a.nda_signed_at).length,
       score_status_changes: statusChanges,
-      unique_buyers_engaged: new Set(access.map(a => a.buyer_id)).size,
+      unique_buyers_engaged: new Set(access.map((a: any) => a.buyer_id)).size,
     },
   };
 }
