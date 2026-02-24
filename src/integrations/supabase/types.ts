@@ -11362,6 +11362,7 @@ export type Database = {
       }
       is_admin: { Args: { user_id: string }; Returns: boolean }
       is_owner: { Args: { _user_id: string }; Returns: boolean }
+      is_valid_company_website: { Args: { website: string }; Returns: boolean }
       link_journey_to_user: {
         Args: { p_user_id: string; p_visitor_id: string }
         Returns: undefined
@@ -11441,8 +11442,12 @@ export type Database = {
         Returns: boolean
       }
       move_deal_stage_with_ownership: {
-        Args: { p_admin_id: string; p_deal_id: string; p_new_stage_id: string }
-        Returns: undefined
+        Args: {
+          p_current_admin_id: string
+          p_deal_id: string
+          p_new_stage_id: string
+        }
+        Returns: Json
       }
       normalize_company_name: { Args: { name: string }; Returns: string }
       normalize_domain: { Args: { url: string }; Returns: string }

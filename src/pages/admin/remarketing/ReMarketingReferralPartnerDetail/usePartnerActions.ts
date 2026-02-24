@@ -160,7 +160,7 @@ export function usePartnerActions(partnerId: string | undefined, partner: any, d
     const { data: maxRankRow, error: maxRankRowError } = await supabase.from("listings").select("manual_rank_override").eq("status", "active").not("manual_rank_override", "is", null).order("manual_rank_override", { ascending: false }).limit(1).maybeSingle();
     if (maxRankRowError) throw maxRankRowError;
     let nextRank = (maxRankRow?.manual_rank_override as number | null) ?? 0;
-    const updates = ids.map((id) => { nextRank += 1; return supabase.from("listings").update({ status: "active", pushed_to_all_deals: true, pushed_to_all_deals_at: new Date().toISOString(), manual_rank_override: nextRank } as never).eq("id", id); });
+    const updates = ids.map((id) => { nextRank += 1; return supabase.from("listings").update({ status: "active", remarketing_status: "active", pushed_to_all_deals: true, pushed_to_all_deals_at: new Date().toISOString(), manual_rank_override: nextRank } as never).eq("id", id); });
     const results = await Promise.all(updates);
     const failed = results.filter((r) => r.error);
     if (failed.length) { toast.error("Failed to approve some deals"); return; }
