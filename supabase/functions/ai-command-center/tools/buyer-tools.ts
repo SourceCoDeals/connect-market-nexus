@@ -357,9 +357,9 @@ async function searchBuyers(
   if (args.industry) {
     const term = (args.industry as string).toLowerCase();
     results = results.filter((b: any) =>
-      b.target_industries?.some((i: string) => i.toLowerCase().includes(term)) ||
-      b.target_services?.some((s: string) => s.toLowerCase().includes(term)) ||
-      b.services_offered?.some((s: string) => s.toLowerCase().includes(term)) ||
+      fieldContains(b.target_industries, term) ||
+      fieldContains(b.target_services, term) ||
+      fieldContains(b.services_offered, term) ||
       b.industry_vertical?.toLowerCase().includes(term) ||
       b.company_name?.toLowerCase().includes(term) ||
       b.pe_firm_name?.toLowerCase().includes(term) ||

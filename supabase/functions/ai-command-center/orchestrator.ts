@@ -55,6 +55,52 @@ function sseEvent(event: string, data: unknown): string {
   return `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
 }
 
+// ---------- Tool Result Truncation ----------
+
+// Max characters for a single tool result sent back to Claude (~40k chars ≈ ~10k tokens)
+const MAX_TOOL_RESULT_CHARS = 40000;
+
+/**
+ * Truncate a tool result JSON string to avoid exceeding Claude's context limit.
+ * For list payloads (deals, buyers, requests, leads) it trims the array
+ * and appends a note so Claude knows data was cut.
+ */
+function truncateToolResult(json: string): string {
+  if (json.length <= MAX_TOOL_RESULT_CHARS) return json;
+
+  try {
+    const parsed = JSON.parse(json);
+    // Find the first array-valued key that holds the main dataset
+    const listKey = ['deals', 'buyers', 'requests', 'leads', 'messages', 'scores', 'results', 'records']
+      .find((k) => Array.isArray(parsed[k]));
+
+    if (listKey) {
+      const originalCount = parsed[listKey].length;
+      // Binary-search for how many items fit within the budget
+      let lo = 0, hi = originalCount;
+      while (lo < hi) {
+        const mid = Math.floor((lo + hi + 1) / 2);
+        const candidate = JSON.stringify({ ...parsed, [listKey]: parsed[listKey].slice(0, mid) });
+        if (candidate.length <= MAX_TOOL_RESULT_CHARS - 200) lo = mid; else hi = mid - 1;
+      }
+      const trimmed = {
+        ...parsed,
+        [listKey]: parsed[listKey].slice(0, lo),
+        total: parsed.total ?? originalCount,
+        _truncated: true,
+        _note: `Result truncated: showing ${lo} of ${originalCount} items to fit context window. Use more specific filters to see all data.`,
+      };
+      return JSON.stringify(trimmed);
+    }
+  } catch {
+    // Fall through to hard truncation
+  }
+
+  // Hard truncation fallback
+  return json.substring(0, MAX_TOOL_RESULT_CHARS) +
+    '... [truncated — result too large for context window]';
+}
+
 // ---------- Orchestrator ----------
 
 const MAX_TOOL_ROUNDS = 5;
@@ -76,7 +122,7 @@ export async function orchestrate(
 
   // Build messages: history + current query
   const messages: ClaudeMessage[] = [
-    ...conversationHistory.slice(-10), // Keep last 10 messages for context
+    ...conversationHistory.slice(-6), // Keep last 6 messages for context (avoids token overflow)
     { role: 'user', content: query },
   ];
 
@@ -211,7 +257,7 @@ export async function orchestrate(
       toolResults.push({
         type: 'tool_result',
         tool_use_id: toolId,
-        content: JSON.stringify(result.error ? { error: result.error } : result.data),
+        content: truncateToolResult(JSON.stringify(result.error ? { error: result.error } : result.data)),
         is_error: !!result.error,
       });
     }
@@ -294,7 +340,7 @@ export async function executeConfirmedAction(
   const systemPrompt = buildSystemPrompt(options.category, options.pageContext);
 
   const messages: ClaudeMessage[] = [
-    ...options.conversationHistory.slice(-10),
+    ...options.conversationHistory.slice(-6),
     { role: 'user', content: options.query },
     {
       role: 'assistant',
