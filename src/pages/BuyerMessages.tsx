@@ -1,13 +1,8 @@
-import { useState, useEffect, useRef } from "react";
-import { useSearchParams, Link, useNavigate } from "react-router-dom";
-import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { useState, useEffect, useRef } from 'react';
+import { useSearchParams, Link, useNavigate } from 'react-router-dom';
+import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import {
   MessageSquare,
   Send,
@@ -19,18 +14,18 @@ import {
   Shield,
   CheckCircle,
   MessageSquarePlus,
-} from "lucide-react";
+} from 'lucide-react';
 import {
   useConnectionMessages,
   useSendMessage,
   useMarkMessagesReadByBuyer,
-} from "@/hooks/use-connection-messages";
-import { useAuth } from "@/context/AuthContext";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
-import { formatDistanceToNow } from "date-fns";
-import { AgreementSigningModal } from "@/components/docuseal/AgreementSigningModal";
-import { useToast } from "@/hooks/use-toast";
+} from '@/hooks/use-connection-messages';
+import { useAuth } from '@/context/AuthContext';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+import { formatDistanceToNow } from 'date-fns';
+import { AgreementSigningModal } from '@/components/docuseal/AgreementSigningModal';
+import { useToast } from '@/hooks/use-toast';
 
 /**
  * Hook to send a document question as a message to the admin team.
@@ -42,13 +37,20 @@ function useSendDocumentQuestion() {
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: async ({ documentType, question, userId }: { documentType: 'nda' | 'fee_agreement'; question: string; userId: string }) => {
+    mutationFn: async ({
+      documentType,
+      question,
+      userId,
+    }: {
+      documentType: 'nda' | 'fee_agreement';
+      question: string;
+      userId: string;
+    }) => {
       const docLabel = documentType === 'nda' ? 'NDA' : 'Fee Agreement';
       const messageBody = `📄 Question about ${docLabel}:\n\n${question}`;
 
       // Find an active connection request to attach the message to
-      const { data: activeRequest } = await (supabase
-        .from('connection_requests') as any)
+      const { data: activeRequest } = await (supabase.from('connection_requests') as any)
         .select('id')
         .eq('user_id', userId)
         .in('status', ['approved', 'on_hold', 'pending'])
@@ -90,7 +92,11 @@ function useSendDocumentQuestion() {
       queryClient.invalidateQueries({ queryKey: ['connection-messages'] });
     },
     onError: () => {
-      toast({ title: 'Failed to Send', description: 'Please try again or contact support.', variant: 'destructive' });
+      toast({
+        title: 'Failed to Send',
+        description: 'Please try again or contact support.',
+        variant: 'destructive',
+      });
     },
   });
 }
@@ -113,32 +119,34 @@ function useBuyerThreads() {
   const { user } = useAuth();
 
   return useQuery<BuyerThread[]>({
-    queryKey: ["buyer-message-threads", user?.id],
+    queryKey: ['buyer-message-threads', user?.id],
     queryFn: async () => {
       if (!user?.id) return [];
 
       // Step 1: Fetch all connection requests for this buyer (approved, on_hold, rejected)
       const { data: requests, error: reqError } = await supabase
-        .from("connection_requests")
-        .select(`
+        .from('connection_requests')
+        .select(
+          `
           id, status, listing_id, user_message, created_at,
           last_message_at, last_message_preview, last_message_sender_role,
           listing:listings!connection_requests_listing_id_fkey(title, category)
-        `)
-        .eq("user_id", user.id)
-        .in("status", ["pending", "approved", "on_hold", "rejected"])
-        .order("last_message_at", { ascending: false, nullsFirst: false });
+        `,
+        )
+        .eq('user_id', user.id)
+        .in('status', ['pending', 'approved', 'on_hold', 'rejected'])
+        .order('last_message_at', { ascending: false, nullsFirst: false });
 
       if (reqError || !requests) return [];
 
       // Step 2: Fetch unread counts for this buyer
       const requestIds = requests.map((r: Record<string, unknown>) => r.id as string);
       const { data: unreadMsgs } = await supabase
-        .from("connection_messages")
-        .select("connection_request_id")
-        .in("connection_request_id", requestIds.length > 0 ? requestIds : ["__none__"])
-        .eq("is_read_by_buyer", false)
-        .eq("sender_role", "admin");
+        .from('connection_messages')
+        .select('connection_request_id')
+        .in('connection_request_id', requestIds.length > 0 ? requestIds : ['__none__'])
+        .eq('is_read_by_buyer', false)
+        .eq('sender_role', 'admin');
 
       const unreadMap: Record<string, number> = {};
       (unreadMsgs || []).forEach((msg: Record<string, unknown>) => {
@@ -148,14 +156,15 @@ function useBuyerThreads() {
 
       const threads: BuyerThread[] = requests.map((req: Record<string, unknown>) => ({
         connection_request_id: req.id as string,
-        deal_title: (req.listing as Record<string, unknown>)?.title as string || "Untitled Deal",
+        deal_title: ((req.listing as Record<string, unknown>)?.title as string) || 'Untitled Deal',
         deal_category: ((req.listing as Record<string, unknown>)?.category as string) ?? undefined,
         request_status: req.status as string,
         listing_id: (req.listing_id as string) ?? '',
         messages_count: 0,
-        last_message_body: (req.last_message_preview as string) || (req.user_message as string) || "",
+        last_message_body:
+          (req.last_message_preview as string) || (req.user_message as string) || '',
         last_message_at: (req.last_message_at as string) || (req.created_at as string),
-        last_sender_role: (req.last_message_sender_role as string) || "buyer",
+        last_sender_role: (req.last_message_sender_role as string) || 'buyer',
         unread_count: unreadMap[req.id as string] || 0,
       }));
 
@@ -175,16 +184,16 @@ export default function BuyerMessages() {
   const { data: threads = [], isLoading, error } = useBuyerThreads();
   const [searchParams, setSearchParams] = useSearchParams();
   const [selectedThreadId, setSelectedThreadId] = useState<string | null>(
-    searchParams.get("deal") || null
+    searchParams.get('deal') || null,
   );
-  const [searchQuery, setSearchQuery] = useState("");
+  const [searchQuery, setSearchQuery] = useState('');
   const [showGeneralChat, setShowGeneralChat] = useState(false);
   const navigate = useNavigate();
 
   // Set selected from URL param
   useEffect(() => {
-    const dealParam = searchParams.get("deal");
-    if (dealParam === "general") {
+    const dealParam = searchParams.get('deal');
+    if (dealParam === 'general') {
       setShowGeneralChat(true);
       setSelectedThreadId(null);
     } else if (dealParam && threads.find((t) => t.connection_request_id === dealParam)) {
@@ -209,17 +218,13 @@ export default function BuyerMessages() {
   const handleSelectGeneral = () => {
     setShowGeneralChat(true);
     setSelectedThreadId(null);
-    setSearchParams({ deal: "general" });
+    setSearchParams({ deal: 'general' });
   };
 
-  const selectedThread = threads.find(
-    (t) => t.connection_request_id === selectedThreadId
-  );
+  const selectedThread = threads.find((t) => t.connection_request_id === selectedThreadId);
 
   const filteredThreads = searchQuery.trim()
-    ? threads.filter((t) =>
-        t.deal_title.toLowerCase().includes(searchQuery.toLowerCase())
-      )
+    ? threads.filter((t) => t.deal_title.toLowerCase().includes(searchQuery.toLowerCase()))
     : threads;
 
   const hasActiveView = selectedThreadId && selectedThread;
@@ -237,9 +242,7 @@ export default function BuyerMessages() {
           <ArrowLeft className="h-4 w-4 mr-1.5" />
           Back
         </Button>
-        <h1 className="text-3xl font-semibold text-foreground tracking-tight">
-          Messages
-        </h1>
+        <h1 className="text-3xl font-semibold text-foreground tracking-tight">Messages</h1>
         <p className="text-sm text-muted-foreground mt-1">
           Conversations with the SourceCo team across your deals
         </p>
@@ -262,7 +265,7 @@ export default function BuyerMessages() {
             {/* Thread List */}
             <div
               className={`md:col-span-1 border-r border-border overflow-y-auto ${
-                (selectedThreadId || showGeneralChat) ? "hidden md:block" : ""
+                selectedThreadId || showGeneralChat ? 'hidden md:block' : ''
               }`}
             >
               {/* Search */}
@@ -286,7 +289,7 @@ export default function BuyerMessages() {
                 <button
                   onClick={handleSelectGeneral}
                   className={`w-full text-left p-3.5 hover:bg-muted/50 transition-colors ${
-                    showGeneralChat ? "bg-muted/50" : ""
+                    showGeneralChat ? 'bg-muted/50' : ''
                   }`}
                 >
                   <div className="flex items-start justify-between gap-2">
@@ -307,14 +310,10 @@ export default function BuyerMessages() {
                 {filteredThreads.map((thread) => (
                   <button
                     key={thread.connection_request_id}
-                    onClick={() =>
-                      handleSelectThread(thread.connection_request_id)
-                    }
+                    onClick={() => handleSelectThread(thread.connection_request_id)}
                     className={`w-full text-left p-3.5 hover:bg-muted/50 transition-colors ${
-                      selectedThreadId === thread.connection_request_id
-                        ? "bg-muted/50"
-                        : ""
-                    } ${thread.unread_count > 0 ? "bg-primary/5" : ""}`}
+                      selectedThreadId === thread.connection_request_id ? 'bg-muted/50' : ''
+                    } ${thread.unread_count > 0 ? 'bg-primary/5' : ''}`}
                   >
                     <div className="flex items-start justify-between gap-2">
                       <div className="flex-1 min-w-0">
@@ -329,30 +328,29 @@ export default function BuyerMessages() {
                           )}
                         </div>
                         <p className="text-xs text-muted-foreground mt-0.5">
-                          {thread.deal_category || "Deal"} ·{" "}
+                          {thread.deal_category || 'Deal'} ·{' '}
                           <span className="capitalize">
-                            {thread.request_status === "on_hold"
-                              ? "On Hold"
+                            {thread.request_status === 'on_hold'
+                              ? 'On Hold'
                               : thread.request_status}
                           </span>
                         </p>
                         <p
                           className={`text-xs mt-1 truncate ${
                             thread.unread_count > 0
-                              ? "font-medium text-foreground"
-                              : "text-muted-foreground"
+                              ? 'font-medium text-foreground'
+                              : 'text-muted-foreground'
                           }`}
                         >
-                          {thread.last_sender_role === "buyer" && "You: "}
+                          {thread.last_sender_role === 'buyer' && 'You: '}
                           {thread.last_message_body}
                         </p>
                       </div>
                       <div className="flex flex-col items-end gap-1 shrink-0">
                         <span className="text-[10px] text-muted-foreground">
-                          {formatDistanceToNow(
-                            new Date(thread.last_message_at),
-                            { addSuffix: true }
-                          )}
+                          {formatDistanceToNow(new Date(thread.last_message_at), {
+                            addSuffix: true,
+                          })}
                         </span>
                         <StatusDot status={thread.request_status} />
                       </div>
@@ -365,7 +363,7 @@ export default function BuyerMessages() {
             {/* Thread View */}
             <div
               className={`md:col-span-2 flex flex-col ${
-                !hasActiveView && !showGeneralChat ? "hidden md:flex" : ""
+                !hasActiveView && !showGeneralChat ? 'hidden md:flex' : ''
               }`}
             >
               {showGeneralChat ? (
@@ -411,22 +409,24 @@ function GeneralChatView({ onBack }: { onBack: () => void }) {
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const [newMessage, setNewMessage] = useState("");
+  const [newMessage, setNewMessage] = useState('');
   const [sending, setSending] = useState(false);
-  const [sentMessages, setSentMessages] = useState<Array<{ id: string; body: string; created_at: string }>>([]);
+  const [sentMessages, setSentMessages] = useState<
+    Array<{ id: string; body: string; created_at: string }>
+  >([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Try to find any active connection request to attach messages to
   const { data: activeRequest } = useQuery({
-    queryKey: ["buyer-active-request", user?.id],
+    queryKey: ['buyer-active-request', user?.id],
     queryFn: async () => {
       if (!user?.id) return null;
       const { data } = await supabase
-        .from("connection_requests")
-        .select("id")
-        .eq("user_id", user.id)
-        .in("status", ["approved", "on_hold", "pending"])
-        .order("created_at", { ascending: false })
+        .from('connection_requests')
+        .select('id')
+        .eq('user_id', user.id)
+        .in('status', ['approved', 'on_hold', 'pending'])
+        .order('created_at', { ascending: false })
         .limit(1)
         .maybeSingle();
       return data;
@@ -435,12 +435,10 @@ function GeneralChatView({ onBack }: { onBack: () => void }) {
   });
 
   // If there's an active request, load existing messages
-  const { data: existingMessages = [] } = useConnectionMessages(
-    activeRequest?.id || ""
-  );
+  const { data: existingMessages = [] } = useConnectionMessages(activeRequest?.id || '');
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [existingMessages, sentMessages]);
 
   const handleSend = async () => {
@@ -450,21 +448,21 @@ function GeneralChatView({ onBack }: { onBack: () => void }) {
     try {
       if (activeRequest?.id) {
         // Send as a connection message on the active thread
-        const { error } = await (supabase.from("connection_messages") as any).insert({
+        const { error } = await (supabase.from('connection_messages') as any).insert({
           connection_request_id: activeRequest.id,
           sender_id: user.id,
           body: newMessage.trim(),
-          sender_role: "buyer",
+          sender_role: 'buyer',
         });
         if (error) throw error;
       } else {
         // No active thread — notify admin via edge function
-        const OZ_ADMIN_ID = "ea1f0064-52ef-43fb-bec4-22391b720328";
-        await supabase.functions.invoke("notify-admin-document-question", {
+        const OZ_ADMIN_ID = 'ea1f0064-52ef-43fb-bec4-22391b720328';
+        await supabase.functions.invoke('notify-admin-document-question', {
           body: {
             admin_id: OZ_ADMIN_ID,
             user_id: user.id,
-            document_type: "General Inquiry",
+            document_type: 'General Inquiry',
             question: newMessage.trim(),
           },
         });
@@ -474,44 +472,35 @@ function GeneralChatView({ onBack }: { onBack: () => void }) {
         ...prev,
         { id: crypto.randomUUID(), body: newMessage.trim(), created_at: new Date().toISOString() },
       ]);
-      setNewMessage("");
-      queryClient.invalidateQueries({ queryKey: ["buyer-message-threads"] });
-      queryClient.invalidateQueries({ queryKey: ["connection-messages"] });
+      setNewMessage('');
+      queryClient.invalidateQueries({ queryKey: ['buyer-message-threads'] });
+      queryClient.invalidateQueries({ queryKey: ['connection-messages'] });
 
       if (!activeRequest?.id) {
-        toast({ title: "Message Sent", description: "Our team will respond shortly." });
+        toast({ title: 'Message Sent', description: 'Our team will respond shortly.' });
       }
     } catch (error) {
-      console.error("Error sending message:", error);
-      toast({ title: "Failed to Send", description: "Please try again.", variant: "destructive" });
+      console.error('Error sending message:', error);
+      toast({ title: 'Failed to Send', description: 'Please try again.', variant: 'destructive' });
     } finally {
       setSending(false);
     }
   };
 
   // Combine existing messages with locally-sent ones (dedup)
-  const allMessages = activeRequest?.id
-    ? existingMessages
-    : sentMessages;
+  const allMessages = activeRequest?.id ? existingMessages : sentMessages;
 
   return (
     <div className="flex flex-col h-full min-h-[500px]">
       {/* Header */}
       <div className="flex items-center gap-3 px-5 py-3.5 border-b border-border bg-card">
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={onBack}
-          className="md:hidden h-8 w-8 p-0"
-        >
+        <Button variant="ghost" size="sm" onClick={onBack} className="md:hidden h-8 w-8 p-0">
           <ArrowLeft className="h-4 w-4" />
         </Button>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
             <MessageSquare className="h-4 w-4 text-primary" />
-            <h2 className="text-sm font-semibold text-foreground">
-              General Inquiry
-            </h2>
+            <h2 className="text-sm font-semibold text-foreground">General Inquiry</h2>
           </div>
           <p className="text-xs text-muted-foreground">Message the SourceCo team</p>
         </div>
@@ -533,23 +522,21 @@ function GeneralChatView({ onBack }: { onBack: () => void }) {
             <div
               key={msg.id}
               className={`flex ${
-                msg.sender_role === "buyer" || !msg.sender_role
-                  ? "justify-end"
-                  : "justify-start"
+                msg.sender_role === 'buyer' || !msg.sender_role ? 'justify-end' : 'justify-start'
               }`}
             >
               <div
                 className={`max-w-[75%] min-w-0 rounded-xl px-4 py-2.5 text-sm ${
-                  msg.sender_role === "buyer" || !msg.sender_role
-                    ? "bg-primary text-primary-foreground"
-                    : "bg-card text-card-foreground border border-border"
+                  msg.sender_role === 'buyer' || !msg.sender_role
+                    ? 'bg-primary text-primary-foreground'
+                    : 'bg-card text-card-foreground border border-border'
                 }`}
               >
                 <div className="flex items-center gap-2 mb-1">
                   <span className="font-medium text-xs opacity-80">
-                    {msg.sender_role === "buyer" || !msg.sender_role
-                      ? "You"
-                      : msg.sender?.first_name || "SourceCo"}
+                    {msg.sender_role === 'buyer' || !msg.sender_role
+                      ? 'You'
+                      : msg.sender?.first_name || 'SourceCo'}
                   </span>
                   <span className="opacity-50 text-[10px]">
                     {formatDistanceToNow(new Date(msg.created_at), {
@@ -558,7 +545,10 @@ function GeneralChatView({ onBack }: { onBack: () => void }) {
                   </span>
                 </div>
                 <div className="leading-relaxed">
-                  <MessageBody body={msg.body} variant={msg.sender_role === "buyer" || !msg.sender_role ? "buyer" : "admin"} />
+                  <MessageBody
+                    body={msg.body}
+                    variant={msg.sender_role === 'buyer' || !msg.sender_role ? 'buyer' : 'admin'}
+                  />
                 </div>
               </div>
             </div>
@@ -575,7 +565,7 @@ function GeneralChatView({ onBack }: { onBack: () => void }) {
             value={newMessage}
             onChange={(e) => setNewMessage(e.target.value)}
             onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey) {
+              if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
                 handleSend();
               }
@@ -602,27 +592,26 @@ function GeneralChatView({ onBack }: { onBack: () => void }) {
  * - Proper word wrapping to prevent overflow
  * - Distinct styling for system vs user messages
  */
-function MessageBody({ body, variant }: { body: string; variant: "buyer" | "admin" | "system" }) {
+function MessageBody({ body, variant }: { body: string; variant: 'buyer' | 'admin' | 'system' }) {
   const parts = body.split(/(https?:\/\/[^\s]+)/g);
 
   return (
-    <p className="whitespace-pre-wrap break-words" style={{ overflowWrap: "anywhere" }}>
+    <p className="whitespace-pre-wrap break-words" style={{ overflowWrap: 'anywhere' }}>
       {parts.map((part, i) => {
         if (/^https?:\/\//.test(part)) {
           let displayUrl: string;
           try {
             const url = new URL(part);
-            const path = url.pathname.length > 30
-              ? url.pathname.slice(0, 30) + "…"
-              : url.pathname;
+            const path = url.pathname.length > 30 ? url.pathname.slice(0, 30) + '…' : url.pathname;
             displayUrl = url.hostname + path;
           } catch {
-            displayUrl = part.length > 50 ? part.slice(0, 50) + "…" : part;
+            displayUrl = part.length > 50 ? part.slice(0, 50) + '…' : part;
           }
 
-          const linkColor = variant === "buyer"
-            ? "text-primary-foreground/90 underline underline-offset-2"
-            : "text-primary underline underline-offset-2";
+          const linkColor =
+            variant === 'buyer'
+              ? 'text-primary-foreground/90 underline underline-offset-2'
+              : 'text-primary underline underline-offset-2';
 
           return (
             <a
@@ -644,13 +633,13 @@ function MessageBody({ body, variant }: { body: string; variant: "buyer" | "admi
 
 function StatusDot({ status }: { status: string }) {
   const color =
-    status === "approved"
-      ? "bg-emerald-500"
-      : status === "rejected"
-        ? "bg-destructive"
-        : status === "on_hold"
-          ? "bg-amber-500"
-          : "bg-muted-foreground/30";
+    status === 'approved'
+      ? 'bg-emerald-500'
+      : status === 'rejected'
+        ? 'bg-destructive'
+        : status === 'on_hold'
+          ? 'bg-amber-500'
+          : 'bg-muted-foreground/30';
   return <div className={`w-2 h-2 rounded-full ${color}`} />;
 }
 
@@ -666,15 +655,13 @@ function BuyerThreadView({
   };
   onBack: () => void;
 }) {
-  const { data: messages = [], isLoading } = useConnectionMessages(
-    thread.connection_request_id
-  );
+  const { data: messages = [], isLoading } = useConnectionMessages(thread.connection_request_id);
   const sendMsg = useSendMessage();
   const markRead = useMarkMessagesReadByBuyer();
-  const [newMessage, setNewMessage] = useState("");
+  const [newMessage, setNewMessage] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const isRejected = thread.request_status === "rejected";
-  
+  const isRejected = thread.request_status === 'rejected';
+
   useEffect(() => {
     if (thread.connection_request_id && thread.unread_count > 0) {
       markRead.mutate(thread.connection_request_id);
@@ -683,7 +670,7 @@ function BuyerThreadView({
   }, [thread.connection_request_id, thread.unread_count]);
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
   const handleSend = () => {
@@ -691,33 +678,24 @@ function BuyerThreadView({
     sendMsg.mutate({
       connection_request_id: thread.connection_request_id,
       body: newMessage.trim(),
-      sender_role: "buyer",
+      sender_role: 'buyer',
     });
-    setNewMessage("");
+    setNewMessage('');
   };
 
   return (
     <div className="flex flex-col h-full min-h-[500px]">
       {/* Header */}
       <div className="flex items-center gap-3 px-5 py-3.5 border-b border-border bg-card">
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={onBack}
-          className="md:hidden h-8 w-8 p-0"
-        >
+        <Button variant="ghost" size="sm" onClick={onBack} className="md:hidden h-8 w-8 p-0">
           <ArrowLeft className="h-4 w-4" />
         </Button>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
-            <h2 className="text-sm font-semibold text-foreground truncate">
-              {thread.deal_title}
-            </h2>
+            <h2 className="text-sm font-semibold text-foreground truncate">{thread.deal_title}</h2>
             <StatusDot status={thread.request_status} />
             <span className="text-xs text-muted-foreground capitalize">
-              {thread.request_status === "on_hold"
-                ? "On Hold"
-                : thread.request_status}
+              {thread.request_status === 'on_hold' ? 'On Hold' : thread.request_status}
             </span>
           </div>
           <p className="text-xs text-muted-foreground">SourceCo Team</p>
@@ -744,8 +722,8 @@ function BuyerThreadView({
           </div>
         ) : (
           messages.map((msg) => {
-            const isSystem = msg.message_type === "decision" || msg.message_type === "system";
-            const isBuyer = msg.sender_role === "buyer";
+            const isSystem = msg.message_type === 'decision' || msg.message_type === 'system';
+            const isBuyer = msg.sender_role === 'buyer';
 
             // System/decision messages — compact notification style
             if (isSystem) {
@@ -764,27 +742,24 @@ function BuyerThreadView({
             }
 
             return (
-              <div
-                key={msg.id}
-                className={`flex ${isBuyer ? "justify-end" : "justify-start"}`}
-              >
+              <div key={msg.id} className={`flex ${isBuyer ? 'justify-end' : 'justify-start'}`}>
                 <div
                   className={`max-w-[75%] min-w-0 rounded-xl px-4 py-2.5 text-sm ${
                     isBuyer
-                      ? "bg-primary text-primary-foreground"
-                      : "bg-card text-card-foreground border border-border"
+                      ? 'bg-primary text-primary-foreground'
+                      : 'bg-card text-card-foreground border border-border'
                   }`}
                 >
                   <div className="flex items-center gap-2 mb-1">
                     <span className="font-medium text-xs opacity-80">
-                      {isBuyer ? "You" : msg.sender?.first_name || "SourceCo"}
+                      {isBuyer ? 'You' : msg.sender?.first_name || 'SourceCo'}
                     </span>
                     <span className="opacity-50 text-[10px]">
                       {formatDistanceToNow(new Date(msg.created_at), { addSuffix: true })}
                     </span>
                   </div>
                   <div className="leading-relaxed">
-                    <MessageBody body={msg.body} variant={isBuyer ? "buyer" : "admin"} />
+                    <MessageBody body={msg.body} variant={isBuyer ? 'buyer' : 'admin'} />
                   </div>
                 </div>
               </div>
@@ -807,7 +782,7 @@ function BuyerThreadView({
               value={newMessage}
               onChange={(e) => setNewMessage(e.target.value)}
               onKeyDown={(e) => {
-                if (e.key === "Enter" && !e.shiftKey) {
+                if (e.key === 'Enter' && !e.shiftKey) {
                   e.preventDefault();
                   handleSend();
                 }
@@ -881,29 +856,36 @@ function DownloadDocButton({
       );
 
       if (error) {
-        toast({ title: 'Download Failed', description: 'Could not retrieve document.', variant: 'destructive' });
+        toast({
+          title: 'Download Failed',
+          description: 'Could not retrieve document.',
+          variant: 'destructive',
+        });
         return;
       }
 
       if (data?.url) {
         window.open(data.url, '_blank', 'noopener,noreferrer');
       } else {
-        toast({ title: 'Not Available', description: 'Document is not yet available for download.', variant: 'destructive' });
+        toast({
+          title: 'Not Available',
+          description: 'Document is not yet available for download.',
+          variant: 'destructive',
+        });
       }
     } catch {
-      toast({ title: 'Download Failed', description: 'Something went wrong.', variant: 'destructive' });
+      toast({
+        title: 'Download Failed',
+        description: 'Something went wrong.',
+        variant: 'destructive',
+      });
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <Button
-      variant={variant}
-      size="sm"
-      onClick={handleDownload}
-      disabled={loading}
-    >
+    <Button variant={variant} size="sm" onClick={handleDownload} disabled={loading}>
       {loading ? (
         <span className="h-3.5 w-3.5 mr-1.5 animate-spin rounded-full border-2 border-current border-t-transparent" />
       ) : (
@@ -933,15 +915,19 @@ function PendingAgreementBanner() {
     queryKey: ['buyer-firm-agreement-status', user?.id],
     queryFn: async () => {
       if (!user?.id) return null;
-      const { data: membership } = await supabase.from('firm_members')
+      const { data: membership } = await supabase
+        .from('firm_members')
         .select('firm_id')
         .eq('user_id', user.id)
         .limit(1)
         .maybeSingle();
       if (!membership) return null;
 
-      const { data: firm } = await supabase.from('firm_agreements')
-        .select('nda_signed, nda_signed_at, nda_signed_document_url, nda_document_url, nda_docuseal_status, fee_agreement_signed, fee_agreement_signed_at, fee_signed_document_url, fee_agreement_document_url, fee_docuseal_status')
+      const { data: firm } = await supabase
+        .from('firm_agreements')
+        .select(
+          'nda_signed, nda_signed_at, nda_signed_document_url, nda_document_url, nda_docuseal_status, fee_agreement_signed, fee_agreement_signed_at, fee_signed_document_url, fee_agreement_document_url, fee_docuseal_status',
+        )
         .eq('id', membership.firm_id)
         .maybeSingle();
       return firm;
@@ -994,7 +980,10 @@ function PendingAgreementBanner() {
       draftUrl: firmStatus.nda_document_url,
     });
   } else {
-    const ndaNotif = pendingNotifications.find((n: Record<string, unknown>) => (n.metadata as Record<string, unknown>)?.document_type === 'nda');
+    const ndaNotif = pendingNotifications.find(
+      (n: Record<string, unknown>) =>
+        (n.metadata as Record<string, unknown>)?.document_type === 'nda',
+    );
     if (ndaNotif || firmStatus?.nda_docuseal_status) {
       items.push({
         key: 'nda-pending',
@@ -1022,7 +1011,10 @@ function PendingAgreementBanner() {
       draftUrl: firmStatus.fee_agreement_document_url,
     });
   } else {
-    const feeNotif = pendingNotifications.find((n: Record<string, unknown>) => (n.metadata as Record<string, unknown>)?.document_type === 'fee_agreement');
+    const feeNotif = pendingNotifications.find(
+      (n: Record<string, unknown>) =>
+        (n.metadata as Record<string, unknown>)?.document_type === 'fee_agreement',
+    );
     if (feeNotif || firmStatus?.fee_docuseal_status) {
       items.push({
         key: 'fee-pending',
@@ -1040,8 +1032,8 @@ function PendingAgreementBanner() {
 
   if (items.length === 0) return null;
 
-  const hasPending = items.some(i => !i.signed);
-  const allSigned = items.every(i => i.signed);
+  const hasPending = items.some((i) => !i.signed);
+  const allSigned = items.every((i) => i.signed);
 
   return (
     <>
@@ -1061,9 +1053,13 @@ function PendingAgreementBanner() {
             <div key={item.key} className="flex items-center gap-4 px-5 py-4">
               <div className={`p-2 rounded-full ${item.signed ? 'bg-primary/10' : 'bg-accent'}`}>
                 {item.type === 'nda' ? (
-                  <Shield className={`h-5 w-5 ${item.signed ? 'text-primary' : 'text-accent-foreground'}`} />
+                  <Shield
+                    className={`h-5 w-5 ${item.signed ? 'text-primary' : 'text-accent-foreground'}`}
+                  />
                 ) : (
-                  <FileSignature className={`h-5 w-5 ${item.signed ? 'text-primary' : 'text-accent-foreground'}`} />
+                  <FileSignature
+                    className={`h-5 w-5 ${item.signed ? 'text-primary' : 'text-accent-foreground'}`}
+                  />
                 )}
               </div>
               <div className="flex-1 min-w-0">
@@ -1071,16 +1067,15 @@ function PendingAgreementBanner() {
                   <p className="text-sm font-medium text-foreground">
                     {item.signed ? `${item.label} — Signed` : `${item.label} Ready to Sign`}
                   </p>
-                  {item.signed && (
-                    <CheckCircle className="h-3.5 w-3.5 text-primary shrink-0" />
-                  )}
+                  {item.signed && <CheckCircle className="h-3.5 w-3.5 text-primary shrink-0" />}
                 </div>
                 <p className="text-xs text-muted-foreground mt-0.5">
                   {item.signed
                     ? item.signedAt
                       ? `Signed ${formatDistanceToNow(new Date(item.signedAt), { addSuffix: true })}`
                       : 'Signed'
-                    : item.notificationMessage || `A ${item.label} has been prepared for your signature. Please sign it to continue accessing deal details.`}
+                    : item.notificationMessage ||
+                      `A ${item.label} has been prepared for your review. You can sign, or download and send us a redline.`}
                 </p>
               </div>
               <div className="flex items-center gap-2 shrink-0">
@@ -1124,7 +1119,7 @@ function PendingAgreementBanner() {
                       }}
                     >
                       <MessageSquarePlus className="h-3.5 w-3.5 mr-1.5" />
-                      Questions?
+                      Redlines / Questions?
                     </Button>
                     <Button
                       size="sm"
@@ -1149,7 +1144,13 @@ function PendingAgreementBanner() {
       />
 
       {/* Document Question Dialog */}
-      <Dialog open={docMessageOpen} onOpenChange={(open) => { setDocMessageOpen(open); if (!open) setDocQuestion(''); }}>
+      <Dialog
+        open={docMessageOpen}
+        onOpenChange={(open) => {
+          setDocMessageOpen(open);
+          if (!open) setDocQuestion('');
+        }}
+      >
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-base">
@@ -1159,16 +1160,24 @@ function PendingAgreementBanner() {
           </DialogHeader>
           <div className="space-y-3">
             <p className="text-sm text-muted-foreground">
-              Have questions or redline requests about this document? Send us a message and our team will respond shortly.
+              Have redlines or comments? You can describe your requested changes below, or download
+              the document and send us back a redlined version. Our team will respond quickly.
             </p>
             <textarea
               value={docQuestion}
               onChange={(e) => setDocQuestion(e.target.value)}
-              placeholder="Describe your questions, concerns, or requested changes..."
+              placeholder="Describe your redlines, questions, or requested changes..."
               className="w-full min-h-[120px] text-sm border border-border rounded-lg px-3 py-2.5 bg-background focus:outline-none focus:ring-2 focus:ring-ring/20 focus:border-ring transition-all resize-none"
             />
             <div className="flex justify-end gap-2">
-              <Button variant="outline" size="sm" onClick={() => { setDocMessageOpen(false); setDocQuestion(''); }}>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setDocMessageOpen(false);
+                  setDocQuestion('');
+                }}
+              >
                 Cancel
               </Button>
               <Button
@@ -1176,8 +1185,17 @@ function PendingAgreementBanner() {
                 disabled={!docQuestion.trim() || sendDocQuestion.isPending}
                 onClick={() => {
                   sendDocQuestion.mutate(
-                    { documentType: docMessageType, question: docQuestion.trim(), userId: user?.id || '' },
-                    { onSuccess: () => { setDocMessageOpen(false); setDocQuestion(''); } }
+                    {
+                      documentType: docMessageType,
+                      question: docQuestion.trim(),
+                      userId: user?.id || '',
+                    },
+                    {
+                      onSuccess: () => {
+                        setDocMessageOpen(false);
+                        setDocQuestion('');
+                      },
+                    },
                   );
                 }}
               >
