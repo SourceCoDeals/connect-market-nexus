@@ -16,3 +16,4 @@ export { DealActivityLog } from './DealActivityLog';
 export { DealPipelinePanel } from './DealPipelinePanel';
 export { DealMarketplacePanel } from './DealMarketplacePanel';
 export { DealBuyerHistoryTab } from './DealBuyerHistoryTab';
+export { AddBuyerToDealDialog } from './AddBuyerToDealDialog';
