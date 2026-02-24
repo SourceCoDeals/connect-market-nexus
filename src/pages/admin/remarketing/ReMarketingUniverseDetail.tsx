@@ -696,7 +696,7 @@ const ReMarketingUniverseDetail = () => {
     formData.service_weight + formData.owner_goals_weight;
 
   // Handler for buyer enrichment with mode selection - uses queue for background processing
-  const handleBuyerEnrichment = async (mode: 'all' | 'unenriched') => {
+  const handleBuyerEnrichment = async (_mode: 'all' | 'unenriched') => {
     setShowBuyerEnrichDialog(false);
     
     if (!buyers?.length) {

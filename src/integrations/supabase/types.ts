@@ -271,6 +271,87 @@ export type Database = {
           },
         ]
       }
+      ai_command_center_actions: {
+        Row: {
+          confirmed: boolean
+          conversation_id: string | null
+          created_at: string
+          id: string
+          result: Json | null
+          tool_args: Json
+          tool_name: string
+          user_id: string
+        }
+        Insert: {
+          confirmed?: boolean
+          conversation_id?: string | null
+          created_at?: string
+          id?: string
+          result?: Json | null
+          tool_args?: Json
+          tool_name: string
+          user_id: string
+        }
+        Update: {
+          confirmed?: boolean
+          conversation_id?: string | null
+          created_at?: string
+          id?: string
+          result?: Json | null
+          tool_args?: Json
+          tool_name?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      ai_command_center_usage: {
+        Row: {
+          category: string
+          conversation_id: string | null
+          created_at: string
+          duration_ms: number
+          estimated_cost: number
+          id: string
+          input_tokens: number
+          model: string
+          output_tokens: number
+          query: string
+          router_bypassed: boolean
+          tool_calls: number
+          user_id: string
+        }
+        Insert: {
+          category: string
+          conversation_id?: string | null
+          created_at?: string
+          duration_ms?: number
+          estimated_cost?: number
+          id?: string
+          input_tokens?: number
+          model: string
+          output_tokens?: number
+          query: string
+          router_bypassed?: boolean
+          tool_calls?: number
+          user_id: string
+        }
+        Update: {
+          category?: string
+          conversation_id?: string | null
+          created_at?: string
+          duration_ms?: number
+          estimated_cost?: number
+          id?: string
+          input_tokens?: number
+          model?: string
+          output_tokens?: number
+          query?: string
+          router_bypassed?: boolean
+          tool_calls?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
       alert_delivery_logs: {
         Row: {
           alert_id: string
@@ -2243,6 +2324,63 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      contact_search_cache: {
+        Row: {
+          cache_key: string
+          company_name: string
+          created_at: string
+          id: string
+          results: Json
+        }
+        Insert: {
+          cache_key: string
+          company_name: string
+          created_at?: string
+          id?: string
+          results?: Json
+        }
+        Update: {
+          cache_key?: string
+          company_name?: string
+          created_at?: string
+          id?: string
+          results?: Json
+        }
+        Relationships: []
+      }
+      contact_search_log: {
+        Row: {
+          company_name: string
+          created_at: string
+          duration_ms: number | null
+          from_cache: boolean
+          id: string
+          results_count: number
+          title_filter: string[] | null
+          user_id: string
+        }
+        Insert: {
+          company_name: string
+          created_at?: string
+          duration_ms?: number | null
+          from_cache?: boolean
+          id?: string
+          results_count?: number
+          title_filter?: string[] | null
+          user_id: string
+        }
+        Update: {
+          company_name?: string
+          created_at?: string
+          duration_ms?: number | null
+          from_cache?: boolean
+          id?: string
+          results_count?: number
+          title_filter?: string[] | null
+          user_id?: string
+        }
+        Relationships: []
       }
       contacts: {
         Row: {
@@ -4485,7 +4623,6 @@ export type Database = {
           id: string
           processed_at: string | null
           raw_payload: Json
-          signer_email: string | null
           submission_id: string
           submitter_id: string | null
         }
@@ -4498,7 +4635,6 @@ export type Database = {
           id?: string
           processed_at?: string | null
           raw_payload: Json
-          signer_email?: string | null
           submission_id: string
           submitter_id?: string | null
         }
@@ -4511,7 +4647,6 @@ export type Database = {
           id?: string
           processed_at?: string | null
           raw_payload?: Json
-          signer_email?: string | null
           submission_id?: string
           submitter_id?: string | null
         }
@@ -4640,6 +4775,74 @@ export type Database = {
             columns: ["user_id"]
             isOneToOne: true
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      enriched_contacts: {
+        Row: {
+          buyer_id: string | null
+          company_name: string
+          confidence: string
+          created_at: string
+          email: string | null
+          enriched_at: string
+          first_name: string
+          full_name: string
+          id: string
+          last_name: string
+          linkedin_url: string
+          phone: string | null
+          search_query: string | null
+          source: string
+          title: string
+          updated_at: string
+          workspace_id: string
+        }
+        Insert: {
+          buyer_id?: string | null
+          company_name: string
+          confidence?: string
+          created_at?: string
+          email?: string | null
+          enriched_at?: string
+          first_name?: string
+          full_name: string
+          id?: string
+          last_name?: string
+          linkedin_url?: string
+          phone?: string | null
+          search_query?: string | null
+          source?: string
+          title?: string
+          updated_at?: string
+          workspace_id: string
+        }
+        Update: {
+          buyer_id?: string | null
+          company_name?: string
+          confidence?: string
+          created_at?: string
+          email?: string | null
+          enriched_at?: string
+          first_name?: string
+          full_name?: string
+          id?: string
+          last_name?: string
+          linkedin_url?: string
+          phone?: string | null
+          search_query?: string | null
+          source?: string
+          title?: string
+          updated_at?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "enriched_contacts_buyer_id_fkey"
+            columns: ["buyer_id"]
+            isOneToOne: false
+            referencedRelation: "remarketing_buyers"
             referencedColumns: ["id"]
           },
         ]
@@ -10883,6 +11086,8 @@ export type Database = {
           assigned_to: string
           buyer_company: string
           buyer_connection_count: number
+          buyer_contact_id: string
+          buyer_contact_name: string
           buyer_email: string
           buyer_id: string
           buyer_name: string
@@ -10927,6 +11132,10 @@ export type Database = {
           listing_title: string
           nda_status: string
           pending_tasks: number
+          remarketing_buyer_id: string
+          remarketing_buyer_name: string
+          seller_contact_id: string
+          seller_contact_name: string
           stage_color: string
           stage_id: string
           stage_name: string
