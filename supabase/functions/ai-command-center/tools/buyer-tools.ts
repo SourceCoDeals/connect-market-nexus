@@ -174,11 +174,14 @@ async function searchBuyers(
   args: Record<string, unknown>,
 ): Promise<ToolResult> {
   const depth = (args.depth as string) || 'quick';
-  const fields = depth === 'full' ? BUYER_FIELDS_FULL : BUYER_FIELDS_QUICK;
 
   // When filtering by state, universe, search text, services, or industry, we need a much higher limit
   // to ensure client-side filtering has enough data to find all matches
   const hasSelectiveFilter = !!(args.state || args.universe_id || args.search || args.services || args.industry);
+
+  // Always use FULL fields when client-side filtering is active so we can search
+  // across ALL buyer data points (target_industries, thesis_summary, business_summary, etc.)
+  const fields = (hasSelectiveFilter || depth === 'full') ? BUYER_FIELDS_FULL : BUYER_FIELDS_QUICK;
   const limit = hasSelectiveFilter
     ? Math.min(Number(args.limit) || 1000, 5000)
     : Math.min(Number(args.limit) || 25, 100);
@@ -231,32 +234,47 @@ async function searchBuyers(
     results = results.filter(b => !b.target_revenue_min || b.target_revenue_min <= max);
   }
 
-  // Client-side industry keyword filter — checks target_industries, target_services, company_name, business_summary
+  // Client-side industry keyword filter — searches ALL relevant buyer fields
   if (args.industry) {
     const term = (args.industry as string).toLowerCase();
     results = results.filter(b =>
       b.target_industries?.some((i: string) => i.toLowerCase().includes(term)) ||
       b.target_services?.some((s: string) => s.toLowerCase().includes(term)) ||
+      b.services_offered?.some((s: string) => s.toLowerCase().includes(term)) ||
+      b.industry_vertical?.toLowerCase().includes(term) ||
       b.company_name?.toLowerCase().includes(term) ||
       b.pe_firm_name?.toLowerCase().includes(term) ||
       b.thesis_summary?.toLowerCase().includes(term) ||
-      b.business_summary?.toLowerCase().includes(term)
+      b.business_summary?.toLowerCase().includes(term) ||
+      b.notes?.toLowerCase().includes(term) ||
+      b.alignment_reasoning?.toLowerCase().includes(term)
     );
   }
 
-  // Client-side free-text search
+  // Client-side free-text search — searches ALL buyer data fields
   if (args.search) {
     const term = (args.search as string).toLowerCase();
     results = results.filter(b =>
       b.company_name?.toLowerCase().includes(term) ||
       b.pe_firm_name?.toLowerCase().includes(term) ||
+      b.buyer_type?.toLowerCase().includes(term) ||
+      b.business_type?.toLowerCase().includes(term) ||
       b.target_services?.some((s: string) => s.toLowerCase().includes(term)) ||
+      b.services_offered?.some((s: string) => s.toLowerCase().includes(term)) ||
       b.target_industries?.some((i: string) => i.toLowerCase().includes(term)) ||
+      b.industry_vertical?.toLowerCase().includes(term) ||
       b.thesis_summary?.toLowerCase().includes(term) ||
       b.business_summary?.toLowerCase().includes(term) ||
+      b.notes?.toLowerCase().includes(term) ||
+      b.alignment_reasoning?.toLowerCase().includes(term) ||
+      b.revenue_model?.toLowerCase().includes(term) ||
       b.hq_state?.toLowerCase().includes(term) ||
       b.hq_city?.toLowerCase().includes(term) ||
-      b.geographic_footprint?.some((g: string) => g.toLowerCase().includes(term))
+      b.hq_region?.toLowerCase().includes(term) ||
+      b.geographic_footprint?.some((g: string) => g.toLowerCase().includes(term)) ||
+      b.target_geographies?.some((g: string) => g.toLowerCase().includes(term)) ||
+      b.service_regions?.some((s: string) => s.toLowerCase().includes(term)) ||
+      b.operating_locations?.some((l: string) => l.toLowerCase().includes(term))
     );
   }
 

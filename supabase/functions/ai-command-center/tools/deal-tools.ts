@@ -165,7 +165,9 @@ async function queryDeals(
   const needsClientFilter = !!(args.search || args.industry || args.state);
   // When client-side filtering is needed, fetch all matching rows via pagination
   const requestedLimit = Number(args.limit) || (needsClientFilter ? 5000 : 25);
-  const fields = depth === 'full' ? DEAL_FIELDS_FULL : DEAL_FIELDS_QUICK;
+  // Always use FULL fields when client-side filtering is active so we can search
+  // across ALL data points (industry, category, internal_company_name, services, etc.)
+  const fields = (needsClientFilter || depth === 'full') ? DEAL_FIELDS_FULL : DEAL_FIELDS_QUICK;
 
   // Build base query filters
   const buildQuery = (offset: number, batchSize: number) => {
@@ -221,7 +223,7 @@ async function queryDeals(
     });
   }
 
-  // Client-side text search with fuzzy matching
+  // Client-side text search with fuzzy matching — searches ALL data fields
   if (args.search) {
     const term = (args.search as string).toLowerCase();
     results = results.filter((d: Record<string, unknown>) => {
@@ -229,27 +231,40 @@ async function queryDeals(
       const industry = (d.industry as string)?.toLowerCase() || '';
       const category = (d.category as string)?.toLowerCase() || '';
       const location = (d.location as string)?.toLowerCase() || '';
+      const addressCity = (d.address_city as string)?.toLowerCase() || '';
+      const addressState = (d.address_state as string)?.toLowerCase() || '';
       const internalName = (d.internal_company_name as string)?.toLowerCase() || '';
       const projectName = (d.project_name as string)?.toLowerCase() || '';
+      const dealIdentifier = (d.deal_identifier as string)?.toLowerCase() || '';
+      const executiveSummary = (d.executive_summary as string)?.toLowerCase() || '';
+      const investmentThesis = (d.investment_thesis as string)?.toLowerCase() || '';
+      const businessModel = (d.business_model as string)?.toLowerCase() || '';
+      const ownerGoals = (d.owner_goals as string)?.toLowerCase() || '';
       const services = (d.services as string[]) || [];
       const categories = (d.categories as string[]) || [];
+      const geographicStates = (d.geographic_states as string[]) || [];
+      const serviceMix = (d.service_mix as string[]) || [];
 
-      // Exact substring match
+      // Exact substring match across ALL text fields
       if (
         title.includes(term) || industry.includes(term) || category.includes(term) ||
-        location.includes(term) ||
-        internalName.includes(term) || projectName.includes(term) ||
+        location.includes(term) || addressCity.includes(term) || addressState.includes(term) ||
+        internalName.includes(term) || projectName.includes(term) || dealIdentifier.includes(term) ||
+        executiveSummary.includes(term) || investmentThesis.includes(term) ||
+        businessModel.includes(term) || ownerGoals.includes(term) ||
         services.some((s: string) => s.toLowerCase().includes(term)) ||
-        categories.some((c: string) => c.toLowerCase().includes(term))
+        categories.some((c: string) => c.toLowerCase().includes(term)) ||
+        geographicStates.some((s: string) => s.toLowerCase().includes(term)) ||
+        serviceMix.some((s: string) => s.toLowerCase().includes(term))
       ) return true;
 
       // Fuzzy match: check if all words in the search appear in the combined text
-      const combined = `${title} ${internalName} ${projectName} ${industry} ${category} ${location} ${services.join(' ')} ${categories.join(' ')}`;
+      const combined = `${title} ${internalName} ${projectName} ${dealIdentifier} ${industry} ${category} ${location} ${addressCity} ${addressState} ${businessModel} ${services.join(' ')} ${categories.join(' ')} ${geographicStates.join(' ')}`;
       const words = term.split(/\s+/).filter(w => w.length > 2);
       if (words.length > 1 && words.every(w => fuzzyContains(combined, w))) return true;
 
       // Single-word fuzzy (edit distance) for entity names
-      if (term.length >= 4 && (fuzzyContains(title, term) || fuzzyContains(internalName, term) || fuzzyContains(projectName, term))) return true;
+      if (term.length >= 4 && (fuzzyContains(title, term) || fuzzyContains(internalName, term) || fuzzyContains(projectName, term) || fuzzyContains(dealIdentifier, term))) return true;
 
       return false;
     });
