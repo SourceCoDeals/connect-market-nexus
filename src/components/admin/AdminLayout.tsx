@@ -1,11 +1,27 @@
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Outlet } from "react-router-dom";
 import { UnifiedAdminSidebar } from "./UnifiedAdminSidebar";
 import { AdminNavbar } from "./AdminNavbar";
 import { AICommandCenterProvider } from "@/components/ai-command-center";
+import { UniversalSearchDialog } from "./UniversalSearchDialog";
 
 const AdminLayout = () => {
   const [collapsed, setCollapsed] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
+
+  // Cmd+K / Ctrl+K keyboard shortcut
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        setSearchOpen((prev) => !prev);
+      }
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
+  const openSearch = useCallback(() => setSearchOpen(true), []);
 
   return (
     <AICommandCenterProvider>
@@ -16,12 +32,12 @@ const AdminLayout = () => {
             collapsed ? "w-16" : "w-56"
           }`}
         >
-          <UnifiedAdminSidebar collapsed={collapsed} onCollapsedChange={setCollapsed} />
+          <UnifiedAdminSidebar collapsed={collapsed} onCollapsedChange={setCollapsed} onSearchClick={openSearch} />
         </aside>
 
         <div className="flex flex-col flex-1 min-w-0">
           {/* Mobile nav */}
-          <AdminNavbar className="md:hidden" />
+          <AdminNavbar className="md:hidden" onSearchClick={openSearch} />
 
           {/* Main content */}
           <main className="flex-1 overflow-auto w-full bg-background/50">
@@ -31,6 +47,8 @@ const AdminLayout = () => {
           </main>
         </div>
       </div>
+
+      <UniversalSearchDialog open={searchOpen} onOpenChange={setSearchOpen} />
     </AICommandCenterProvider>
   );
 };
