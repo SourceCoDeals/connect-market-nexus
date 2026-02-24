@@ -39,6 +39,7 @@ import {
   ReMarketingChat,
 } from "@/components/remarketing";
 import { PushToDialerModal } from "@/components/remarketing/PushToDialerModal";
+import { AddBuyersToListDialog } from "@/components/remarketing/AddBuyersToListDialog";
 import { RemarketingErrorBoundary } from "@/components/remarketing/RemarketingErrorBoundary";
 import { AddToUniverseQuickAction } from "@/components/remarketing/AddToUniverseQuickAction";
 import { useBackgroundScoringProgress } from "@/hooks/useBackgroundScoringProgress";
@@ -68,6 +69,7 @@ const ReMarketingDealMatching = () => {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [emailDialogOpen, setEmailDialogOpen] = useState(false);
   const [dialerOpen, setDialerOpen] = useState(false);
+  const [addToListOpen, setAddToListOpen] = useState(false);
   const [highlightedBuyerIds, setHighlightedBuyerIds] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -808,6 +810,19 @@ const ReMarketingDealMatching = () => {
     return map;
   }, [pipelineDeals]);
 
+  // Memoize selected buyers for the Add to List dialog to avoid re-fetching contacts on every render
+  const selectedBuyersForList = useMemo(() => {
+    if (!scores) return [];
+    return scores
+      .filter((s) => selectedIds.has(s.id))
+      .map((s) => ({
+        buyerId: s.buyer?.id || "",
+        companyName: s.buyer?.company_name || "Unknown",
+        scoreId: s.id,
+      }))
+      .filter((b) => b.buyerId);
+  }, [scores, selectedIds]);
+
   // Handle "Move to Pipeline" button
   const handleMoveToPipeline = async (scoreId: string, buyerId: string, targetListingId: string) => {
     try {
@@ -950,6 +965,7 @@ const ReMarketingDealMatching = () => {
         onExportCSV={handleExportCSV}
         onGenerateEmails={() => setEmailDialogOpen(true)}
         onPushToDialer={() => setDialerOpen(true)}
+        onAddToList={() => setAddToListOpen(true)}
         isProcessing={bulkApproveMutation.isPending}
         activeTab={activeTab}
       />
@@ -959,6 +975,11 @@ const ReMarketingDealMatching = () => {
         contactIds={Array.from(selectedIds)}
         contactCount={selectedIds.size}
         entityType="buyers"
+      />
+      <AddBuyersToListDialog
+        open={addToListOpen}
+        onOpenChange={setAddToListOpen}
+        selectedBuyers={selectedBuyersForList}
       />
 
       {/* Two-Column Stats Row */}
