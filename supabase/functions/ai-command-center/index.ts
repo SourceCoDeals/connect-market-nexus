@@ -123,8 +123,9 @@ Deno.serve(async (req: Request) => {
 
 // ---------- Main processing ----------
 
+// deno-lint-ignore no-explicit-any
 async function processChat(
-  supabase: ReturnType<typeof createClient>,
+  supabase: any,
   userId: string,
   body: ChatRequest,
   writer: { write: (chunk: string) => Promise<void>; close: () => Promise<void> },
@@ -229,8 +230,9 @@ interface UsageData {
   routerBypassed?: boolean;
 }
 
+// deno-lint-ignore no-explicit-any
 async function trackUsage(
-  supabase: ReturnType<typeof createClient>,
+  supabase: any,
   userId: string,
   conversationId: string | undefined,
   usage: UsageData,

@@ -4,7 +4,8 @@
  * executes tool calls, feeds results back, repeats until done.
  */
 
-import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
+// deno-lint-ignore no-explicit-any
+type SupabaseClient = any;
 import {
   streamClaude,
   getModelForTier,

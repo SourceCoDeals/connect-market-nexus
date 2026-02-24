@@ -4,7 +4,8 @@
  * These tools gather data and return structured content for Claude to synthesize.
  */
 
-import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
+// deno-lint-ignore no-explicit-any
+type SupabaseClient = any;
 import type { ClaudeTool } from "../../_shared/claude-client.ts";
 import type { ToolResult } from "./index.ts";
 
