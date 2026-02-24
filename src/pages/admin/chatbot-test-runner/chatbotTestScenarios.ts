@@ -1976,5 +1976,384 @@ export function getChatbotTestScenarios(): TestScenario[] {
         minResponseLength: 100,
       },
     },
+
+    // ═══════════════════════════════════════
+    //  Integration Action Tools (Feb 2026)
+    // ═══════════════════════════════════════
+
+    // Contact Enrichment
+    {
+      id: 'int-enrich-contacts',
+      category: 'Integration — Contact Enrichment',
+      name: 'Find contacts at a buyer firm',
+      description: 'Tests enrich_buyer_contacts tool routing and execution.',
+      userMessage: 'Find me 8-10 senior contacts at Trivest Partners',
+      expectedBehavior: [
+        'Routes to CONTACT_ENRICHMENT category',
+        'First checks existing contacts via search_pe_contacts',
+        'Offers to enrich via Apify/Prospeo if not enough contacts exist',
+        'Returns contacts with name, title, email, LinkedIn',
+      ],
+      severity: 'critical',
+      skipAutoRun: true,
+      autoValidation: {
+        expectedRouteCategories: ['CONTACT_ENRICHMENT', 'CONTACTS'],
+        expectedTools: ['search_pe_contacts', 'enrich_buyer_contacts'],
+        mustContainAny: ['contact', 'Trivest', 'enrich', 'found'],
+      },
+    },
+    {
+      id: 'int-enrich-with-titles',
+      category: 'Integration — Contact Enrichment',
+      name: 'Find contacts with title filter',
+      description: 'Tests title filter parameter for enrichment.',
+      userMessage: 'Find VPs and directors at Alpine Investors',
+      expectedBehavior: [
+        'Routes to CONTACT_ENRICHMENT',
+        'Applies title_filter: ["vp", "director"]',
+        'Returns filtered contacts matching those roles',
+      ],
+      severity: 'high',
+      skipAutoRun: true,
+      autoValidation: {
+        expectedRouteCategories: ['CONTACT_ENRICHMENT', 'CONTACTS', 'BUYER_ANALYSIS'],
+        mustContainAny: ['contact', 'Alpine', 'VP', 'Director', 'vp', 'director'],
+      },
+    },
+
+    // PhoneBurner Push
+    {
+      id: 'int-push-phoneburner',
+      category: 'Integration — PhoneBurner',
+      name: 'Push contacts to PhoneBurner',
+      description: 'Tests push_to_phoneburner tool routing and confirmation.',
+      userMessage: 'Push the contacts from Audax Group to PhoneBurner',
+      expectedBehavior: [
+        'Routes to ACTION category',
+        'Looks up Audax Group contacts first',
+        'Asks for confirmation before pushing',
+        'Reports how many contacts were pushed',
+      ],
+      severity: 'critical',
+      skipAutoRun: true,
+      autoValidation: {
+        expectedRouteCategories: ['ACTION', 'CONTACT_ENRICHMENT'],
+        mustContainAny: ['PhoneBurner', 'push', 'dialer', 'contact'],
+      },
+    },
+
+    // DocuSeal - Send NDA
+    {
+      id: 'int-send-nda',
+      category: 'Integration — DocuSeal',
+      name: 'Send NDA to buyer contact',
+      description: 'Tests send_document tool routing and confirmation flow.',
+      userMessage: 'Send the NDA to John Smith at Trivest Partners',
+      expectedBehavior: [
+        'Routes to DOCUMENT_ACTION category',
+        'Looks up firm and contact details',
+        'Asks for confirmation before sending',
+        'Reports submission ID and delivery mode after confirmation',
+      ],
+      severity: 'critical',
+      skipAutoRun: true,
+      autoValidation: {
+        expectedRouteCategories: ['DOCUMENT_ACTION', 'ACTION'],
+        expectedTools: ['send_document'],
+        mustContainAny: ['NDA', 'send', 'sign', 'confirm'],
+      },
+    },
+    {
+      id: 'int-send-fee-agreement',
+      category: 'Integration — DocuSeal',
+      name: 'Send fee agreement',
+      description: 'Tests fee agreement variant of send_document.',
+      userMessage: 'Send the fee agreement to the primary contact at Audax Private Equity',
+      expectedBehavior: [
+        'Routes to DOCUMENT_ACTION category',
+        'Looks up firm and primary contact email',
+        'Asks for confirmation before sending',
+      ],
+      severity: 'high',
+      skipAutoRun: true,
+      autoValidation: {
+        expectedRouteCategories: ['DOCUMENT_ACTION', 'ACTION'],
+        mustContainAny: ['fee agreement', 'Fee Agreement', 'send', 'sign'],
+      },
+    },
+
+    // Document Engagement
+    {
+      id: 'int-doc-engagement',
+      category: 'Integration — Document Engagement',
+      name: 'Track document engagement',
+      description: 'Tests get_document_engagement tool.',
+      userMessage: 'Who has opened the teaser for our HVAC deal?',
+      expectedBehavior: [
+        'Routes to ENGAGEMENT category',
+        'Calls get_document_engagement with deal_id',
+        'Returns list of buyers who viewed, with last access dates',
+      ],
+      severity: 'high',
+      autoValidation: {
+        expectedRouteCategories: ['ENGAGEMENT', 'DEAL_STATUS'],
+        expectedTools: ['get_document_engagement', 'query_deals'],
+        mustContainAny: ['viewed', 'accessed', 'teaser', 'engagement', 'data room', 'No'],
+        requiresToolCalls: true,
+      },
+    },
+
+    // Stale Deals
+    {
+      id: 'int-stale-deals',
+      category: 'Integration — Stale Deals',
+      name: 'Find stale deals',
+      description: 'Tests get_stale_deals tool for inactive deal detection.',
+      userMessage: 'Which deals have gone quiet in the last 30 days?',
+      expectedBehavior: [
+        'Routes to FOLLOW_UP category',
+        'Calls get_stale_deals with days=30',
+        'Returns deals with no recent activity, sorted by inactivity',
+      ],
+      severity: 'high',
+      autoValidation: {
+        expectedRouteCategories: ['FOLLOW_UP'],
+        expectedTools: ['get_stale_deals'],
+        mustContainAny: ['stale', 'inactive', 'quiet', 'no activity', 'deal', 'No'],
+        requiresToolCalls: true,
+      },
+    },
+
+    // CapTarget Exclusion
+    {
+      id: 'int-exclude-financial-buyers',
+      category: 'Integration — CapTarget Exclusion',
+      name: 'Search buyers excluding PE/VC firms',
+      description: 'Tests exclude_financial_buyers flag on search_buyers.',
+      userMessage: 'Show me strategic acquirers in Texas — exclude PE firms and investment banks',
+      expectedBehavior: [
+        'Routes to BUYER_SEARCH',
+        'Calls search_buyers with state=TX and exclude_financial_buyers=true',
+        'Results should not include PE firms, VCs, or investment banks',
+      ],
+      severity: 'medium',
+      autoValidation: {
+        expectedRouteCategories: ['BUYER_SEARCH', 'BUYER_ANALYSIS'],
+        expectedTools: ['search_buyers'],
+        mustContainAny: ['buyer', 'Texas', 'TX', 'strategic', 'No'],
+        requiresToolCalls: true,
+      },
+    },
+
+    // --------- Google Search & Contact Discovery ---------
+
+    {
+      id: 'int-google-search',
+      category: 'Integration — Google Search',
+      name: 'Google search for a company',
+      description: 'Tests google_search_companies tool for finding company information.',
+      userMessage: 'Search Google for Trivest Partners LinkedIn page',
+      expectedBehavior: [
+        'Routes to GOOGLE_SEARCH or CONTACT_ENRICHMENT category',
+        'Calls google_search_companies tool',
+        'Returns Google search results with URLs',
+        'Identifies LinkedIn result',
+      ],
+      severity: 'medium',
+      autoValidation: {
+        expectedRouteCategories: ['GOOGLE_SEARCH', 'CONTACT_ENRICHMENT'],
+        expectedTools: ['google_search_companies'],
+        mustContainAny: ['result', 'found', 'LinkedIn', 'Trivest'],
+        requiresToolCalls: true,
+      },
+    },
+    {
+      id: 'int-save-contacts',
+      category: 'Integration — Contact Discovery',
+      name: 'Save contacts to CRM (approval flow)',
+      description: 'Tests save_contacts_to_crm tool — the approval step after finding contacts.',
+      userMessage: 'Add those 5 contacts we just found to our CRM',
+      expectedBehavior: [
+        'Routes to ACTION category',
+        'Calls save_contacts_to_crm tool',
+        'Requires confirmation before saving',
+        'Reports saved vs skipped contacts',
+      ],
+      severity: 'high',
+      skipAutoRun: true,
+      autoValidation: {
+        expectedRouteCategories: ['ACTION', 'CONTACT_ENRICHMENT'],
+        expectedTools: ['save_contacts_to_crm'],
+        requiresToolCalls: true,
+      },
+    },
+
+    // --------- Proactive Operations ---------
+
+    {
+      id: 'proactive-data-quality',
+      category: 'Proactive — Data Quality',
+      name: 'Data quality report',
+      description: 'Tests get_data_quality_report tool for auditing data quality.',
+      userMessage: "How's our data quality? Which buyer profiles are incomplete?",
+      expectedBehavior: [
+        'Routes to PROACTIVE category',
+        'Calls get_data_quality_report tool',
+        'Returns completeness stats for buyers, deals, contacts',
+        'Shows worst profiles and specific gaps',
+      ],
+      severity: 'medium',
+      autoValidation: {
+        expectedRouteCategories: ['PROACTIVE', 'PIPELINE_ANALYTICS'],
+        expectedTools: ['get_data_quality_report'],
+        mustContainAny: ['quality', 'completeness', 'missing', 'buyer', 'profile'],
+        requiresToolCalls: true,
+      },
+    },
+    {
+      id: 'proactive-buyer-conflicts',
+      category: 'Proactive — Buyer Conflicts',
+      name: 'Detect buyer conflicts across deals',
+      description: 'Tests detect_buyer_conflicts tool for finding overlapping buyers.',
+      userMessage: 'Show me buyer conflicts — which buyers are active on multiple deals?',
+      expectedBehavior: [
+        'Routes to PROACTIVE category',
+        'Calls detect_buyer_conflicts tool',
+        'Returns buyers on 2+ deals',
+        'Shows conflict severity and type',
+      ],
+      severity: 'medium',
+      autoValidation: {
+        expectedRouteCategories: ['PROACTIVE'],
+        expectedTools: ['detect_buyer_conflicts'],
+        mustContainAny: ['conflict', 'buyer', 'deal', 'multiple'],
+        requiresToolCalls: true,
+      },
+    },
+    {
+      id: 'proactive-deal-health',
+      category: 'Proactive — Deal Health',
+      name: 'Deal health check',
+      description: 'Tests get_deal_health tool for analyzing deal risk.',
+      userMessage: 'Which deals are at risk of going cold? Give me a health check.',
+      expectedBehavior: [
+        'Routes to PROACTIVE category',
+        'Calls get_deal_health tool',
+        'Returns risk levels: healthy/watch/at_risk/critical',
+        'Shows specific risk factors per deal',
+      ],
+      severity: 'high',
+      autoValidation: {
+        expectedRouteCategories: ['PROACTIVE', 'FOLLOW_UP'],
+        expectedTools: ['get_deal_health'],
+        mustContainAny: ['health', 'risk', 'deal', 'critical', 'watch', 'at_risk', 'healthy'],
+        requiresToolCalls: true,
+      },
+    },
+    {
+      id: 'proactive-lead-matching',
+      category: 'Proactive — Lead Matching',
+      name: 'Match new leads to active deals',
+      description: 'Tests match_leads_to_deals tool for finding lead-deal matches.',
+      userMessage: 'Are there any new leads that match our active pipeline deals?',
+      expectedBehavior: [
+        'Routes to PROACTIVE category',
+        'Calls match_leads_to_deals tool',
+        'Returns matched leads with score and reasoning',
+        'Shows industry/geography/revenue match factors',
+      ],
+      severity: 'medium',
+      autoValidation: {
+        expectedRouteCategories: ['PROACTIVE'],
+        expectedTools: ['match_leads_to_deals'],
+        mustContainAny: ['lead', 'match', 'deal', 'score', 'industry'],
+        requiresToolCalls: true,
+      },
+    },
+
+    // --------- New Actions ---------
+
+    {
+      id: 'action-reassign-task',
+      category: 'Actions — Task Management',
+      name: 'Reassign deal task',
+      description: 'Tests reassign_deal_task tool for task reassignment.',
+      userMessage: 'Reassign the follow-up call task to john@sourceco.com',
+      expectedBehavior: [
+        'Routes to ACTION category',
+        'Calls reassign_deal_task tool',
+        'Requires confirmation',
+        'Shows old and new assignee',
+      ],
+      severity: 'medium',
+      skipAutoRun: true,
+      autoValidation: {
+        expectedRouteCategories: ['ACTION'],
+        expectedTools: ['reassign_deal_task'],
+        requiresToolCalls: true,
+      },
+    },
+    {
+      id: 'action-convert-deal',
+      category: 'Actions — Pipeline Conversion',
+      name: 'Convert to pipeline deal',
+      description: 'Tests convert_to_pipeline_deal tool for creating deals from matches.',
+      userMessage: 'Convert the Trivest match on our HVAC deal to an active pipeline deal',
+      expectedBehavior: [
+        'Routes to DEAL_CONVERSION category',
+        'Calls convert_to_pipeline_deal tool',
+        'Requires confirmation',
+        'Creates deal, firm agreement, updates score status',
+      ],
+      severity: 'high',
+      skipAutoRun: true,
+      autoValidation: {
+        expectedRouteCategories: ['DEAL_CONVERSION', 'ACTION'],
+        expectedTools: ['convert_to_pipeline_deal'],
+        requiresToolCalls: true,
+      },
+    },
+
+    // --------- EOD Recap ---------
+
+    {
+      id: 'content-eod-recap',
+      category: 'Content — EOD Recap',
+      name: 'End of day recap',
+      description: 'Tests generate_eod_recap tool for daily summaries.',
+      userMessage: 'Give me a recap of what happened today',
+      expectedBehavior: [
+        'Routes to EOD_RECAP or MEETING_PREP category',
+        'Calls generate_eod_recap tool',
+        'Summarizes activities, tasks completed, outreach, calls',
+        'Lists upcoming priorities',
+      ],
+      severity: 'medium',
+      autoValidation: {
+        expectedRouteCategories: ['EOD_RECAP', 'MEETING_PREP', 'PIPELINE_REPORT'],
+        expectedTools: ['generate_eod_recap'],
+        mustContainAny: ['today', 'recap', 'task', 'activit'],
+        requiresToolCalls: true,
+      },
+    },
+    {
+      id: 'content-weekly-recap',
+      category: 'Content — EOD Recap',
+      name: 'Weekly recap',
+      description: 'Tests generate_eod_recap with this_week period.',
+      userMessage: 'What did I accomplish this week? Weekly recap please.',
+      expectedBehavior: [
+        'Routes to EOD_RECAP category',
+        'Calls generate_eod_recap with period=this_week',
+        'Shows week-long summary of activities and tasks',
+      ],
+      severity: 'low',
+      autoValidation: {
+        expectedRouteCategories: ['EOD_RECAP', 'MEETING_PREP', 'PIPELINE_REPORT'],
+        expectedTools: ['generate_eod_recap'],
+        mustContainAny: ['week', 'recap', 'accomplish'],
+        requiresToolCalls: true,
+      },
+    },
   ];
 }

@@ -6,12 +6,35 @@
 
 // deno-lint-ignore no-explicit-any
 type SupabaseClient = any;
-import type { ClaudeTool } from "../../_shared/claude-client.ts";
-import type { ToolResult } from "./index.ts";
+import type { ClaudeTool } from '../../_shared/claude-client.ts';
+import type { ToolResult } from './index.ts';
 
 // ---------- Tool definitions ----------
 
 export const followupTools: ClaudeTool[] = [
+  {
+    name: 'get_stale_deals',
+    description:
+      'Find deals that have gone quiet — no activity (tasks, outreach, notes, stage changes) within a specified number of days. Use when the user asks "which deals have gone quiet?", "stale deals?", "deals with no activity in 30 days?".',
+    input_schema: {
+      type: 'object',
+      properties: {
+        days: {
+          type: 'number',
+          description: 'Number of days of inactivity to consider stale (default 30)',
+        },
+        status_filter: {
+          type: 'string',
+          description: 'Filter by deal status: "active", "all" (default "active")',
+        },
+        limit: {
+          type: 'number',
+          description: 'Max deals to return (default 20)',
+        },
+      },
+      required: [],
+    },
+  },
   {
     name: 'get_follow_up_queue',
     description: `Get a unified follow-up queue across all systems. Returns everything the user needs to act on today:
@@ -55,8 +78,12 @@ export async function executeFollowupTool(
   userId: string,
 ): Promise<ToolResult> {
   switch (toolName) {
-    case 'get_follow_up_queue': return getFollowUpQueue(supabase, args, userId);
-    default: return { error: `Unknown followup tool: ${toolName}` };
+    case 'get_stale_deals':
+      return getStaleDealsTool(supabase, args);
+    case 'get_follow_up_queue':
+      return getFollowUpQueue(supabase, args, userId);
+    default:
+      return { error: `Unknown followup tool: ${toolName}` };
   }
 }
 
@@ -145,7 +172,8 @@ async function getFollowUpQueue(
   const pendingNdas = pendingNdasResult.data || [];
   const unreadMessages = unreadMessagesResult.data || [];
 
-  const totalItems = overdueTasks.length + staleOutreach.length + pendingNdas.length + unreadMessages.length;
+  const totalItems =
+    overdueTasks.length + staleOutreach.length + pendingNdas.length + unreadMessages.length;
 
   return {
     data: {
@@ -157,36 +185,40 @@ async function getFollowUpQueue(
         unread_messages: unreadMessages.length,
         upcoming_tasks: upcomingTasks.length,
       },
-      overdue_tasks: overdueTasks.map(t => ({
+      overdue_tasks: overdueTasks.map((t) => ({
         id: t.id,
         title: t.title,
         deal_id: t.deal_id,
         priority: t.priority,
         due_date: t.due_date,
-        days_overdue: Math.floor((now.getTime() - new Date(t.due_date).getTime()) / (1000 * 60 * 60 * 24)),
+        days_overdue: Math.floor(
+          (now.getTime() - new Date(t.due_date).getTime()) / (1000 * 60 * 60 * 24),
+        ),
       })),
-      stale_outreach: staleOutreach.map(o => ({
+      stale_outreach: staleOutreach.map((o) => ({
         id: o.id,
         buyer_name: o.buyer_name,
         deal_id: o.deal_id,
         stage: o.stage,
         last_action_date: o.last_action_date,
-        days_since_action: Math.floor((now.getTime() - new Date(o.last_action_date).getTime()) / (1000 * 60 * 60 * 24)),
+        days_since_action: Math.floor(
+          (now.getTime() - new Date(o.last_action_date).getTime()) / (1000 * 60 * 60 * 24),
+        ),
         next_action: o.next_action,
       })),
-      pending_ndas: pendingNdas.map(n => ({
+      pending_ndas: pendingNdas.map((n) => ({
         id: n.id,
         company: n.primary_company_name,
         has_fee_agreement: n.fee_agreement_signed,
         created_at: n.created_at,
       })),
-      unread_messages: unreadMessages.map(m => ({
+      unread_messages: unreadMessages.map((m) => ({
         id: m.id,
         preview: (m.body || '').substring(0, 100),
         connection_request_id: m.connection_request_id,
         created_at: m.created_at,
       })),
-      upcoming_tasks: upcomingTasks.map(t => ({
+      upcoming_tasks: upcomingTasks.map((t) => ({
         id: t.id,
         title: t.title,
         deal_id: t.deal_id,
@@ -194,6 +226,103 @@ async function getFollowUpQueue(
         due_date: t.due_date,
       })),
       source_tables: ['deal_tasks', 'outreach_records', 'firm_agreements', 'connection_messages'],
+    },
+  };
+}
+
+// ---------- Stale deals detection ----------
+
+async function getStaleDealsTool(
+  supabase: SupabaseClient,
+  args: Record<string, unknown>,
+): Promise<ToolResult> {
+  const days = (args.days as number) || 30;
+  const statusFilter = (args.status_filter as string) || 'active';
+  const limit = Math.min((args.limit as number) || 20, 50);
+
+  const cutoffDate = new Date(Date.now() - days * 86400000).toISOString();
+
+  // 1. Get deals
+  let dealsQuery = supabase
+    .from('listings')
+    .select(
+      'id, title, internal_company_name, industry, category, revenue, ebitda, address_state, remarketing_status, updated_at, created_at',
+    )
+    .order('updated_at', { ascending: true });
+
+  if (statusFilter === 'active') {
+    dealsQuery = dealsQuery.not(
+      'remarketing_status',
+      'in',
+      '("closed","passed","archived","dead")',
+    );
+  }
+
+  const { data: deals, error: dealsError } = await dealsQuery.limit(500);
+  if (dealsError) return { error: dealsError.message };
+  if (!deals?.length) return { data: { stale_deals: [], total: 0, message: 'No deals found' } };
+
+  const dealIds = deals.map((d: { id: string }) => d.id);
+
+  // 2. Get latest activity per deal
+  const { data: activities } = await supabase
+    .from('deal_activities')
+    .select('deal_id, created_at')
+    .in('deal_id', dealIds)
+    .gte('created_at', cutoffDate);
+
+  const activeDeals = new Set((activities || []).map((a: { deal_id: string }) => a.deal_id));
+
+  // 3. Also check deal_tasks for recent updates
+  const { data: tasks } = await supabase
+    .from('deal_tasks')
+    .select('deal_id, updated_at')
+    .in('deal_id', dealIds)
+    .gte('updated_at', cutoffDate);
+
+  for (const t of tasks || []) activeDeals.add(t.deal_id);
+
+  // 4. Check outreach_records for recent action
+  const { data: outreach } = await supabase
+    .from('outreach_records')
+    .select('deal_id, last_action_date')
+    .in('deal_id', dealIds)
+    .gte('last_action_date', cutoffDate);
+
+  for (const o of outreach || []) activeDeals.add(o.deal_id);
+
+  // 5. Filter to stale deals
+  const staleDealsList = deals
+    .filter((d: { id: string }) => !activeDeals.has(d.id))
+    .slice(0, limit);
+
+  return {
+    data: {
+      stale_deals: staleDealsList.map(
+        (d: {
+          id: string;
+          title: string;
+          internal_company_name: string;
+          industry: string;
+          revenue: number;
+          address_state: string;
+          remarketing_status: string;
+          updated_at: string;
+        }) => ({
+          id: d.id,
+          title: d.title || d.internal_company_name,
+          industry: d.industry,
+          revenue: d.revenue,
+          state: d.address_state,
+          status: d.remarketing_status,
+          last_updated: d.updated_at,
+          days_inactive: Math.floor((Date.now() - new Date(d.updated_at).getTime()) / 86400000),
+        }),
+      ),
+      total_stale: staleDealsList.length,
+      total_deals_checked: deals.length,
+      inactivity_threshold_days: days,
+      message: `${staleDealsList.length} deals have had no activity in the last ${days} days`,
     },
   };
 }

@@ -343,7 +343,7 @@ export function CapTargetTableRow({
               disabled={!!deal.pushed_to_all_deals}
             >
               <CheckCircle2 className="h-4 w-4 mr-2" />
-              Approve to All Deals
+              Approve to Active Deals
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem

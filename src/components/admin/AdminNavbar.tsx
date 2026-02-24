@@ -60,7 +60,7 @@ export function AdminNavbar({ className, onSearchClick }: AdminNavbarProps) {
     // Deals
     {
       to: "/admin/deals",
-      label: "All Deals",
+      label: "Active Deals",
       icon: <Building2 className="h-4 w-4 mr-2" />,
       active: location.pathname.startsWith("/admin/deals"),
       section: "Deals",

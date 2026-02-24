@@ -24,7 +24,7 @@ export type SearchCategory =
 
 const CATEGORY_CONFIG: Record<SearchCategory, { label: string; color: string }> = {
   deals: { label: 'Pipeline Deals', color: 'text-blue-600' },
-  all_deals: { label: 'All Deals', color: 'text-indigo-600' },
+  all_deals: { label: 'Active Deals', color: 'text-indigo-600' },
   captarget: { label: 'CapTarget', color: 'text-orange-600' },
   gp_partners: { label: 'GP Partners', color: 'text-emerald-600' },
   valuation_leads: { label: 'Valuation Leads', color: 'text-purple-600' },

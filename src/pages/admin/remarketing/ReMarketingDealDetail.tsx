@@ -433,7 +433,7 @@ const ReMarketingDealDetail = () => {
             <h3 className="font-semibold text-lg">Deal not found</h3>
             <p className="text-muted-foreground">The deal you're looking for doesn't exist.</p>
             <Button variant="outline" className="mt-4" onClick={() => navigate('/admin/deals')}>
-              Back to All Deals
+              Back to Active Deals
             </Button>
           </CardContent>
         </Card>
@@ -503,7 +503,7 @@ const ReMarketingDealDetail = () => {
               {deal.pushed_to_all_deals ? (
                 <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 gap-1">
                   <Check className="h-3 w-3" />
-                  Pushed to All Deals
+                  Pushed to Active Deals
                   {deal.pushed_to_all_deals_at && (
                     <span className="text-green-500 ml-1">
                       {format(new Date(deal.pushed_to_all_deals_at), 'MMM d, yyyy')}
@@ -528,14 +528,14 @@ const ReMarketingDealDetail = () => {
                     if (error) {
                       toast.error('Failed to push deal');
                     } else {
-                      toast.success('Deal pushed to All Deals');
+                      toast.success('Deal pushed to Active Deals');
                       queryClient.invalidateQueries({ queryKey: ['remarketing', 'deal', dealId] });
                       queryClient.invalidateQueries({ queryKey: ['remarketing', 'captarget-deals'] });
                       queryClient.invalidateQueries({ queryKey: ['remarketing', 'deals'] });
                     }
                   }}
                 >
-                  Push to All Deals
+                  Push to Active Deals
                 </Button>
               )}
               {deal.captarget_source_url && (

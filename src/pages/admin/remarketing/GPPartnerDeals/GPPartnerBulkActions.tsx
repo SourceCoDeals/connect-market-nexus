@@ -57,7 +57,7 @@ export function GPPartnerBulkActions({
         className="gap-2"
       >
         {isPushing ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
-        Approve to All Deals
+        Approve to Active Deals
       </Button>
       <Button
         size="sm"

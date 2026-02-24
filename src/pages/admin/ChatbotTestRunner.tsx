@@ -912,7 +912,7 @@ const CHATBOT_RULES = [
     rules: [
       'When returning data from multiple tables, ALWAYS separate and label each source',
       'Never blend data from different sources into a single count without breakdown',
-      'Example: "HVAC deals by source: All Deals: 7, CapTarget: 5, Valuation Calculator: 3"',
+      'Example: "HVAC deals by source: Active Deals: 7, CapTarget: 5, Valuation Calculator: 3"',
     ],
   },
   {

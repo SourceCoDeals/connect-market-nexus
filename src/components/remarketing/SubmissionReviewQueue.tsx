@@ -96,7 +96,7 @@ export function SubmissionReviewQueue({
       queryClient.invalidateQueries({ queryKey: ["pending-submissions-count"] });
 
       if (action === "approve") {
-        toast.success(`"${companyName}" approved and added to All Deals`);
+        toast.success(`"${companyName}" approved and added to Active Deals`);
       } else {
         toast.success(`"${companyName}" rejected`);
       }

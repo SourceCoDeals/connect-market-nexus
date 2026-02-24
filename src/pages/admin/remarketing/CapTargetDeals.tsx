@@ -409,7 +409,7 @@ export default function CapTargetDeals() {
     setIsPushing(false);
     setSelectedIds(new Set());
     if (error) { toast({ title: "Error", description: "Failed to approve deals" }); }
-    else { toast({ title: "Approved", description: `${dealIds.length} deal${dealIds.length !== 1 ? "s" : ""} pushed to All Deals.` }); }
+    else { toast({ title: "Approved", description: `${dealIds.length} deal${dealIds.length !== 1 ? "s" : ""} pushed to Active Deals.` }); }
     queryClient.invalidateQueries({ queryKey: ["remarketing", "captarget-deals"] });
     queryClient.invalidateQueries({ queryKey: ["remarketing", "deals"] });
   }, [toast, queryClient]);

@@ -7,6 +7,7 @@
 type SupabaseClient = any;
 import type { ClaudeTool } from '../../_shared/claude-client.ts';
 import type { ToolResult } from './index.ts';
+import { checkCompanyExclusion } from '../../_shared/captarget-exclusion-filter.ts';
 
 // ---------- Field sets ----------
 
@@ -44,10 +45,25 @@ const BUYER_FIELDS_FULL = `
 
 // Fields for querying listings (deals/leads) — NOT buyer fields
 const LISTING_LEAD_FIELDS = [
-  'id', 'title', 'industry', 'category', 'categories', 'services', 'revenue', 'ebitda',
-  'location', 'address_state', 'geographic_states',
-  'deal_source', 'deal_total_score', 'is_priority_target', 'status',
-  'captarget_sheet_tab', 'captarget_interest_type', 'updated_at', 'created_at',
+  'id',
+  'title',
+  'industry',
+  'category',
+  'categories',
+  'services',
+  'revenue',
+  'ebitda',
+  'location',
+  'address_state',
+  'geographic_states',
+  'deal_source',
+  'deal_total_score',
+  'is_priority_target',
+  'status',
+  'captarget_sheet_tab',
+  'captarget_interest_type',
+  'updated_at',
+  'created_at',
 ].join(', ');
 
 // ---------- Tool definitions ----------
@@ -60,11 +76,30 @@ export const buyerTools: ClaudeTool[] = [
     input_schema: {
       type: 'object',
       properties: {
-        search: { type: 'string', description: 'Free-text search across company name, PE firm, services, geography' },
-        buyer_type: { type: 'string', description: 'Filter by buyer type (e.g. "pe_platform", "strategic", "independent_sponsor")' },
-        state: { type: 'string', description: 'Filter by HQ state OR geographic footprint state code (e.g. "OK", "TX"). Applied at database level to find ALL matching buyers.' },
-        universe_id: { type: 'string', description: 'Filter to a specific buyer universe ID — scopes results to buyers in that universe' },
-        industry: { type: 'string', description: 'Filter by industry keyword (searches target_industries, target_services, company_name, and business_summary)' },
+        search: {
+          type: 'string',
+          description: 'Free-text search across company name, PE firm, services, geography',
+        },
+        buyer_type: {
+          type: 'string',
+          description:
+            'Filter by buyer type (e.g. "pe_platform", "strategic", "independent_sponsor")',
+        },
+        state: {
+          type: 'string',
+          description:
+            'Filter by HQ state OR geographic footprint state code (e.g. "OK", "TX"). Applied at database level to find ALL matching buyers.',
+        },
+        universe_id: {
+          type: 'string',
+          description:
+            'Filter to a specific buyer universe ID — scopes results to buyers in that universe',
+        },
+        industry: {
+          type: 'string',
+          description:
+            'Filter by industry keyword (searches target_industries, target_services, company_name, and business_summary)',
+        },
         services: {
           type: 'array',
           items: { type: 'string' },
@@ -80,6 +115,11 @@ export const buyerTools: ClaudeTool[] = [
         include_archived: {
           type: 'boolean',
           description: 'Include archived buyers (default false)',
+        },
+        exclude_financial_buyers: {
+          type: 'boolean',
+          description:
+            'Exclude PE/VC/investment bank/family office/search fund firms using CapTarget exclusion rules. Use when searching for operating companies or strategic acquirers only.',
         },
         limit: {
           type: 'number',
@@ -193,7 +233,7 @@ export const buyerTools: ClaudeTool[] = [
         },
         pushed_to_deals: {
           type: 'boolean',
-          description: 'Filter by whether lead was pushed to All Deals',
+          description: 'Filter by whether lead was pushed to Active Deals',
         },
         min_revenue: { type: 'number', description: 'Minimum reported revenue' },
         limit: { type: 'number', description: 'Max results (default 5000 for counts)' },
@@ -238,11 +278,17 @@ async function searchBuyers(
 
   // When filtering by state, universe, search text, services, or industry, we need a much higher limit
   // to ensure client-side filtering has enough data to find all matches
-  const hasSelectiveFilter = !!(args.state || args.universe_id || args.search || args.services || args.industry);
+  const hasSelectiveFilter = !!(
+    args.state ||
+    args.universe_id ||
+    args.search ||
+    args.services ||
+    args.industry
+  );
 
   // Always use FULL fields when client-side filtering is active so we can search
   // across ALL buyer data points (target_industries, thesis_summary, business_summary, etc.)
-  const fields = (hasSelectiveFilter || depth === 'full') ? BUYER_FIELDS_FULL : BUYER_FIELDS_QUICK;
+  const fields = hasSelectiveFilter || depth === 'full' ? BUYER_FIELDS_FULL : BUYER_FIELDS_QUICK;
   const limit = hasSelectiveFilter
     ? Math.min(Number(args.limit) || 1000, 5000)
     : Math.min(Number(args.limit) || 25, 100);
@@ -307,7 +353,7 @@ async function searchBuyers(
   }
 
   // Client-side industry keyword filter — searches ALL relevant buyer fields
-  // Uses fieldContains() to safely handle fields that may be strings OR arrays
+  // Uses fieldContains() for array/string columns that may have mixed types
   if (args.industry) {
     const term = (args.industry as string).toLowerCase();
     results = results.filter((b: any) =>
@@ -352,6 +398,19 @@ async function searchBuyers(
     );
   }
 
+  // CapTarget exclusion filter — remove PE/VC/investment banks when requested
+  if (args.exclude_financial_buyers === true) {
+    results = results.filter((b) => {
+      const exclusion = checkCompanyExclusion({
+        companyName: b.company_name || b.pe_firm_name || '',
+        description: b.business_summary || b.thesis_summary || '',
+        contactTitle: null,
+        industry: b.industry_vertical || null,
+      });
+      return !exclusion.excluded;
+    });
+  }
+
   return {
     data: {
       buyers: results,
@@ -369,13 +428,18 @@ async function getBuyerProfile(
   const buyerId = args.buyer_id as string;
 
   // Parallel fetch: buyer + contacts + scores + transcripts
+  // Updated Feb 2026: contacts now fetched from unified contacts table (buyer_contacts is legacy)
   const [buyerResult, contactsResult, scoresResult, transcriptsResult] = await Promise.all([
     supabase.from('remarketing_buyers').select(BUYER_FIELDS_FULL).eq('id', buyerId).single(),
     supabase
-      .from('buyer_contacts')
-      .select('*')
-      .eq('buyer_id', buyerId)
-      .order('is_primary_contact', { ascending: false }),
+      .from('contacts')
+      .select(
+        'id, first_name, last_name, email, phone, title, is_primary_at_firm, nda_signed, fee_agreement_signed, linkedin_url, source, created_at',
+      )
+      .eq('remarketing_buyer_id', buyerId)
+      .eq('contact_type', 'buyer')
+      .eq('archived', false)
+      .order('is_primary_at_firm', { ascending: false }),
     supabase
       .from('remarketing_scores')
       .select(
@@ -539,9 +603,9 @@ async function searchLeadSources(
     allData = allData.filter((d: Record<string, unknown>) => {
       const industry = ((d.industry as string) || '').toLowerCase();
       const category = ((d.category as string) || '').toLowerCase();
-      const categories = ((d.categories as string[]) || []);
+      const categories = (d.categories as string[]) || [];
       const title = ((d.title as string) || '').toLowerCase();
-      const services = ((d.services as string[]) || []);
+      const services = (d.services as string[]) || [];
       return (
         industry.includes(term) ||
         category.includes(term) ||

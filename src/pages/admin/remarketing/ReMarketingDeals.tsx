@@ -1102,7 +1102,7 @@ const ReMarketingDeals = () => {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">All Deals</h1>
+          <h1 className="text-2xl font-bold text-foreground">Active Deals</h1>
           <p className="text-muted-foreground">
             {listings?.length || 0} deals across {universeCount} buyer universes
           </p>
@@ -1227,7 +1227,7 @@ const ReMarketingDeals = () => {
       {/* Deal Tab Filters */}
       <div className="flex items-center gap-1 border-b pb-1">
         {[
-          { key: 'all', label: 'All Deals' },
+          { key: 'all', label: 'All' },
           { key: 'marketplace', label: 'Marketplace' },
         ].map((tab) => (
           <button

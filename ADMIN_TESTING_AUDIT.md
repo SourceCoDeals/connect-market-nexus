@@ -1,6 +1,6 @@
 # AI Command Center & Platform Integration — Full System Audit
 
-**Date:** 2026-02-24
+**Date:** 2026-02-24 (Updated: 2026-02-24)
 **Scope:** Database schema, AI tools, orchestration, external integrations, data flow
 
 ---
@@ -23,8 +23,8 @@ The SourceCo Connect Market Nexus platform is an M&A deal management system with
 | Router LLM fallback defaults to GENERAL on failure    | Risk    | Medium   |
 | GENERAL category now has useful tools                 | Fixed   | —        |
 | Tool category restrictions can block needed tools     | Risk    | High     |
-| Client-side array filtering fragile on mixed types    | Risk    | High     |
-| No AI tool for PhoneBurner call history               | Gap     | Medium   |
+| Client-side array filtering fragile on mixed types    | Fixed   | —        |
+| PhoneBurner call history tool (get_call_history)      | Fixed   | —        |
 | No AI tool for DocuSeal NDA sending                   | Gap     | Low      |
 | SmartLead has zero implementation                     | Gap     | Info     |
 | Enrichment pipeline (Apify+Prospeo) not exposed to AI | Gap     | Medium   |
@@ -238,7 +238,7 @@ User Query (from chat widget)
 | deal-tools.ts                 | query_deals, get_deal_details, get_deal_activities, get_pipeline_summary                                          | Deal queries         |
 | buyer-tools.ts                | search_buyers, get_buyer_profile, get_score_breakdown, get_top_buyers_for_deal                                    | Buyer search/scoring |
 | transcript-tools.ts           | search_transcripts, search_buyer_transcripts, search_fireflies, get_meeting_action_items                          | Transcripts          |
-| outreach-tools.ts             | get_outreach_status, get_outreach_records, get_remarketing_outreach                                               | Outreach             |
+| outreach-tools.ts             | get_outreach_status, get_outreach_records, get_remarketing_outreach, get_call_history                             | Outreach & Calls     |
 | analytics-tools.ts            | get_analytics, get_enrichment_status, get_industry_trackers                                                       | Analytics            |
 | user-tools.ts                 | get_current_user_context                                                                                          | User context         |
 | action-tools.ts               | create_deal_task, complete_deal_task, add_deal_note, log_deal_activity, update_deal_stage, grant_data_room_access | Write ops            |
@@ -440,13 +440,13 @@ Fetch ALL records then filter in JS. No server-side WHERE for text search. 50-re
 
 **Fix**: Add `.ilike()` / `.contains()` server-side filters.
 
-### 7.2 HIGH: Mixed Array/String Column Types
+### 7.2 ~~HIGH~~ FIXED: Mixed Array/String Column Types
 
 **Columns**: `geographic_footprint`, `services_offered`, `target_industries`, `target_services` on `buyers`
 
-Stored as either JSON arrays or plain strings. Code using `.some()` directly crashes on strings. `fieldContains()` helper exists but must be used consistently.
+Stored as either JSON arrays or plain strings. Code using `.some()` directly crashes on strings. `fieldContains()` helper exists and is now used consistently across all filters (search, industry, services).
 
-**Fix**: Normalize to arrays via migration. Add constraint.
+**Status**: Fixed — `fieldContains()` applied to all mixed-type column access in buyer-tools.ts industry filter. Migration to normalize data types is still recommended for long-term data quality.
 
 ### 7.3 HIGH: Tool Category Restrictions
 
@@ -458,9 +458,9 @@ Router misclassification means AI gets wrong tool subset. Example: "collision bu
 
 Apify+Prospeo `/find-contacts` is admin-only. AI cannot trigger contact enrichment.
 
-### 7.5 MEDIUM: No PhoneBurner Call History Tool
+### 7.5 ~~MEDIUM~~ FIXED: PhoneBurner Call History Tool
 
-Call data in `contact_activities` (from webhooks) but no AI tool queries it.
+`get_call_history` tool now queries `contact_activities` by contact, buyer, rep, activity type, disposition, and date range. Registered in FOLLOW_UP, ENGAGEMENT, CONTACTS, and DAILY_BRIEFING categories. Router bypass rule added for call-related queries.
 
 ### 7.6 MEDIUM: Router Fallback Fragility
 
@@ -485,9 +485,9 @@ NDA sending is UI-only. AI cannot trigger document signing.
 
 ### Priority 2 — Tool Gaps
 
-3. **Create `get_call_history` tool** — query `contact_activities` by buyer/deal/date
+3. ~~**Create `get_call_history` tool**~~ DONE — queries `contact_activities` by contact/buyer/rep/disposition/date with summary stats
 4. **Create `find_contacts_enriched` tool** — wrap `/find-contacts` with cost guardrails for AI use
-5. **Add `get_buyer_contacts` tool** — direct query to `buyer_contacts` / `remarketing_buyer_contacts`
+5. ~~**Add `get_buyer_contacts` tool**~~ DONE — `getBuyerProfile` now queries unified `contacts` table instead of legacy `buyer_contacts`
 
 ### Priority 3 — Router Resilience
 
@@ -520,4 +520,4 @@ SUPABASE_ANON_KEY=
 
 ---
 
-_Generated by automated system audit — 2026-02-24_
+_Generated by automated system audit — 2026-02-24. Updated with fixes: 2026-02-24._
