@@ -136,6 +136,11 @@ export function UnifiedAdminSidebar({ collapsed, onCollapsedChange, onSearchClic
             href: "/admin/lists",
             icon: <ListChecks className="h-4 w-4" />,
           },
+          {
+            label: "Document Tracking",
+            href: "/admin/documents",
+            icon: <FileCheck className="h-4 w-4" />,
+          },
         ],
       },
       {
@@ -160,11 +165,6 @@ export function UnifiedAdminSidebar({ collapsed, onCollapsedChange, onSearchClic
             href: "/admin/marketplace/users",
             icon: <UserCog className="h-4 w-4" />,
             badge: unviewedUsersCount,
-          },
-          {
-            label: "Document Tracking",
-            href: "/admin/documents",
-            icon: <FileCheck className="h-4 w-4" />,
           },
         ],
       },
