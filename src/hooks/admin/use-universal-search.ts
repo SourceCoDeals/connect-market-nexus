@@ -1,0 +1,304 @@
+import { useState, useMemo } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+
+export interface UniversalSearchResult {
+  id: string;
+  title: string;
+  subtitle?: string;
+  category: SearchCategory;
+  href: string;
+  meta?: string;
+}
+
+export type SearchCategory =
+  | 'deals'
+  | 'all_deals'
+  | 'captarget'
+  | 'gp_partners'
+  | 'valuation_leads'
+  | 'inbound_leads'
+  | 'owner_leads'
+  | 'referral_partners'
+  | 'remarketing_buyers';
+
+const CATEGORY_CONFIG: Record<SearchCategory, { label: string; color: string }> = {
+  deals: { label: 'Pipeline Deals', color: 'text-blue-600' },
+  all_deals: { label: 'All Deals', color: 'text-indigo-600' },
+  captarget: { label: 'CapTarget', color: 'text-orange-600' },
+  gp_partners: { label: 'GP Partners', color: 'text-emerald-600' },
+  valuation_leads: { label: 'Valuation Leads', color: 'text-purple-600' },
+  inbound_leads: { label: 'Inbound Leads', color: 'text-cyan-600' },
+  owner_leads: { label: 'Owner/Seller Leads', color: 'text-amber-600' },
+  referral_partners: { label: 'Referral Partners', color: 'text-rose-600' },
+  remarketing_buyers: { label: 'Remarketing Buyers', color: 'text-teal-600' },
+};
+
+export function getCategoryConfig(cat: SearchCategory) {
+  return CATEGORY_CONFIG[cat];
+}
+
+export function useUniversalSearch() {
+  const [query, setQuery] = useState('');
+
+  // --- Pipeline Deals (via RPC) ---
+  const dealsQuery = useQuery({
+    queryKey: ['universal-search', 'deals'],
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc('get_deals_with_buyer_profiles');
+      if (error) throw error;
+      return (data ?? []).map((d: Record<string, unknown>) => ({
+        id: d.deal_id as string,
+        title: (d.deal_title as string) || 'Untitled Deal',
+        subtitle: [
+          d.listing_title,
+          d.listing_internal_company_name,
+          d.contact_name,
+          d.contact_email,
+          d.buyer_name,
+        ].filter(Boolean).join(' · '),
+        category: 'deals' as SearchCategory,
+        href: `/admin/deals`,
+        meta: [d.stage_name, d.contact_company, d.buyer_company].filter(Boolean).join(' | '),
+      }));
+    },
+    staleTime: 60_000,
+  });
+
+  // --- All Deals (remarketing listings) ---
+  const allDealsQuery = useQuery({
+    queryKey: ['universal-search', 'all-deals'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('listings')
+        .select('id, title, internal_company_name, description, location, category, industry, website, deal_source')
+        .eq('remarketing_status', 'active')
+        .order('created_at', { ascending: false })
+        .limit(2000);
+      if (error) throw error;
+      return (data ?? []).map((l) => ({
+        id: l.id,
+        title: l.internal_company_name || l.title || 'Untitled',
+        subtitle: [l.industry, l.location, l.category].filter(Boolean).join(' · '),
+        category: 'all_deals' as SearchCategory,
+        href: `/admin/remarketing/deals/${l.id}`,
+        meta: [l.description?.slice(0, 80), l.website].filter(Boolean).join(' | '),
+      }));
+    },
+    staleTime: 60_000,
+  });
+
+  // --- CapTarget Deals ---
+  const captargetQuery = useQuery({
+    queryKey: ['universal-search', 'captarget'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('listings')
+        .select('id, title, internal_company_name, captarget_client_name, main_contact_name, main_contact_email, website, industry')
+        .eq('deal_source', 'captarget')
+        .order('created_at', { ascending: false })
+        .limit(2000);
+      if (error) throw error;
+      return (data ?? []).map((l) => ({
+        id: l.id,
+        title: l.internal_company_name || l.title || 'Untitled',
+        subtitle: [l.captarget_client_name, l.main_contact_name, l.main_contact_email].filter(Boolean).join(' · '),
+        category: 'captarget' as SearchCategory,
+        href: `/admin/remarketing/leads/captarget`,
+        meta: [l.website, l.industry].filter(Boolean).join(' | '),
+      }));
+    },
+    staleTime: 60_000,
+  });
+
+  // --- GP Partner Deals ---
+  const gpPartnersQuery = useQuery({
+    queryKey: ['universal-search', 'gp-partners'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('listings')
+        .select('id, title, internal_company_name, main_contact_name, main_contact_email, website, industry')
+        .eq('deal_source', 'gp_partners')
+        .order('created_at', { ascending: false })
+        .limit(2000);
+      if (error) throw error;
+      return (data ?? []).map((l) => ({
+        id: l.id,
+        title: l.internal_company_name || l.title || 'Untitled',
+        subtitle: [l.main_contact_name, l.main_contact_email].filter(Boolean).join(' · '),
+        category: 'gp_partners' as SearchCategory,
+        href: `/admin/remarketing/leads/gp-partners`,
+        meta: [l.website, l.industry].filter(Boolean).join(' | '),
+      }));
+    },
+    staleTime: 60_000,
+  });
+
+  // --- Valuation Leads ---
+  const valuationQuery = useQuery({
+    queryKey: ['universal-search', 'valuation-leads'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('valuation_leads')
+        .select('id, display_name, business_name, full_name, email, website, industry, location')
+        .eq('excluded', false)
+        .order('created_at', { ascending: false })
+        .limit(2000);
+      if (error) throw error;
+      return (data ?? []).map((v) => ({
+        id: v.id,
+        title: v.display_name || v.business_name || v.full_name || 'Unknown',
+        subtitle: [v.email, v.industry, v.location].filter(Boolean).join(' · '),
+        category: 'valuation_leads' as SearchCategory,
+        href: `/admin/remarketing/leads/valuation`,
+        meta: v.website || undefined,
+      }));
+    },
+    staleTime: 60_000,
+  });
+
+  // --- Inbound Leads ---
+  const inboundQuery = useQuery({
+    queryKey: ['universal-search', 'inbound-leads'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('inbound_leads')
+        .select('id, name, email, company_name, role, message, lead_type')
+        .is('lead_type', null)
+        .order('created_at', { ascending: false })
+        .limit(1000);
+      if (error) throw error;
+      return (data ?? []).map((l) => ({
+        id: l.id,
+        title: l.name || l.email || 'Unknown',
+        subtitle: [l.company_name, l.role].filter(Boolean).join(' · '),
+        category: 'inbound_leads' as SearchCategory,
+        href: `/admin/settings/inbound-leads`,
+        meta: l.message?.slice(0, 80) || undefined,
+      }));
+    },
+    staleTime: 60_000,
+  });
+
+  // --- Owner/Seller Leads ---
+  const ownerQuery = useQuery({
+    queryKey: ['universal-search', 'owner-leads'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('inbound_leads')
+        .select('id, name, email, company_name, business_website, message')
+        .eq('lead_type', 'owner')
+        .order('created_at', { ascending: false })
+        .limit(1000);
+      if (error) throw error;
+      return (data ?? []).map((l) => ({
+        id: l.id,
+        title: l.name || l.email || 'Unknown',
+        subtitle: [l.company_name, l.business_website].filter(Boolean).join(' · '),
+        category: 'owner_leads' as SearchCategory,
+        href: `/admin/settings/owner-leads`,
+        meta: l.message?.slice(0, 80) || undefined,
+      }));
+    },
+    staleTime: 60_000,
+  });
+
+  // --- Referral Partners ---
+  const referralQuery = useQuery({
+    queryKey: ['universal-search', 'referral-partners'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('referral_partners')
+        .select('id, name, company, email, phone')
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      return (data ?? []).map((p) => ({
+        id: p.id,
+        title: p.name || p.company || 'Unknown',
+        subtitle: [p.company, p.email, p.phone].filter(Boolean).join(' · '),
+        category: 'referral_partners' as SearchCategory,
+        href: `/admin/remarketing/leads/referrals/${p.id}`,
+        meta: undefined,
+      }));
+    },
+    staleTime: 60_000,
+  });
+
+  // --- Remarketing Buyers ---
+  const buyersQuery = useQuery({
+    queryKey: ['universal-search', 'remarketing-buyers'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('remarketing_buyers')
+        .select('id, company_name, company_website, buyer_type, pe_firm_name, thesis_summary, hq_city, hq_state')
+        .eq('archived', false)
+        .order('company_name')
+        .limit(2000);
+      if (error) throw error;
+      return (data ?? []).map((b) => ({
+        id: b.id,
+        title: b.company_name || 'Unknown',
+        subtitle: [b.buyer_type, b.pe_firm_name, b.hq_city && b.hq_state ? `${b.hq_city}, ${b.hq_state}` : b.hq_state].filter(Boolean).join(' · '),
+        category: 'remarketing_buyers' as SearchCategory,
+        href: `/admin/remarketing/buyers/${b.id}`,
+        meta: [b.company_website, b.thesis_summary?.slice(0, 80)].filter(Boolean).join(' | '),
+      }));
+    },
+    staleTime: 60_000,
+  });
+
+  const isLoading =
+    dealsQuery.isLoading ||
+    allDealsQuery.isLoading ||
+    captargetQuery.isLoading ||
+    gpPartnersQuery.isLoading ||
+    valuationQuery.isLoading ||
+    inboundQuery.isLoading ||
+    ownerQuery.isLoading ||
+    referralQuery.isLoading ||
+    buyersQuery.isLoading;
+
+  const allResults: UniversalSearchResult[] = useMemo(() => [
+    ...(dealsQuery.data ?? []),
+    ...(allDealsQuery.data ?? []),
+    ...(captargetQuery.data ?? []),
+    ...(gpPartnersQuery.data ?? []),
+    ...(valuationQuery.data ?? []),
+    ...(inboundQuery.data ?? []),
+    ...(ownerQuery.data ?? []),
+    ...(referralQuery.data ?? []),
+    ...(buyersQuery.data ?? []),
+  ], [
+    dealsQuery.data,
+    allDealsQuery.data,
+    captargetQuery.data,
+    gpPartnersQuery.data,
+    valuationQuery.data,
+    inboundQuery.data,
+    ownerQuery.data,
+    referralQuery.data,
+    buyersQuery.data,
+  ]);
+
+  const filtered = useMemo(() => {
+    const q = query.toLowerCase().trim();
+    if (!q) return [];
+    const tokens = q.split(/\s+/);
+    return allResults.filter((r) => {
+      const haystack = [r.title, r.subtitle, r.meta].filter(Boolean).join(' ').toLowerCase();
+      return tokens.every((t) => haystack.includes(t));
+    }).slice(0, 50);
+  }, [query, allResults]);
+
+  const grouped = useMemo(() => {
+    const map = new Map<SearchCategory, UniversalSearchResult[]>();
+    for (const r of filtered) {
+      const list = map.get(r.category) ?? [];
+      list.push(r);
+      map.set(r.category, list);
+    }
+    return map;
+  }, [filtered]);
+
+  return { query, setQuery, results: filtered, grouped, isLoading, allResults };
+}
