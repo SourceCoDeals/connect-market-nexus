@@ -2489,8 +2489,10 @@ export type Database = {
       contacts: {
         Row: {
           archived: boolean | null
+          company_name: string | null
           contact_type: string
           created_at: string | null
+          created_by: string | null
           do_not_call: boolean | null
           do_not_call_reason: string | null
           email: string | null
@@ -2530,8 +2532,10 @@ export type Database = {
         }
         Insert: {
           archived?: boolean | null
+          company_name?: string | null
           contact_type?: string
           created_at?: string | null
+          created_by?: string | null
           do_not_call?: boolean | null
           do_not_call_reason?: string | null
           email?: string | null
@@ -2571,8 +2575,10 @@ export type Database = {
         }
         Update: {
           archived?: boolean | null
+          company_name?: string | null
           contact_type?: string
           created_at?: string | null
+          created_by?: string | null
           do_not_call?: boolean | null
           do_not_call_reason?: string | null
           email?: string | null
@@ -2611,6 +2617,13 @@ export type Database = {
           updated_at?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "contacts_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "contacts_firm_id_fkey"
             columns: ["firm_id"]
