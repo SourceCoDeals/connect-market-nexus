@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { GEMINI_API_URL, getGeminiHeaders, DEFAULT_GEMINI_MODEL } from "../_shared/ai-providers.ts";
+import { callGeminiWithTool, DEFAULT_GEMINI_MODEL } from "../_shared/ai-providers.ts";
 
 import { getCorsHeaders, corsPreflightResponse } from "../_shared/cors.ts";
 
@@ -205,105 +205,100 @@ SELLER INFORMATION AND NOTES:
 ${allNotes}
 `;
 
-    // Call AI for scoring
-    const aiResponse = await fetch(GEMINI_API_URL, {
-      method: 'POST',
-      headers: getGeminiHeaders(geminiApiKey),
-      body: JSON.stringify({
-        model: DEFAULT_GEMINI_MODEL,
-        messages: [
-          { role: 'system', content: SELLER_INTEREST_PROMPT },
-          { role: 'user', content: `Analyze this deal and provide a seller interest score:\n\n${dealContext}` }
-        ],
-        tools: [{
-          type: 'function',
-          function: {
-            name: 'score_seller_interest',
-            description: 'Score the seller interest/motivation level based on available information',
-            parameters: {
+    // Call AI for scoring with built-in retry on 429/5xx
+    const sellerInterestTool = {
+      type: 'function',
+      function: {
+        name: 'score_seller_interest',
+        description: 'Score the seller interest/motivation level based on available information',
+        parameters: {
+          type: 'object',
+          properties: {
+            seller_interest_score: {
+              type: 'integer',
+              minimum: 0,
+              maximum: 100,
+              description: 'Overall seller interest/motivation score (0-100)'
+            },
+            confidence: {
+              type: 'string',
+              enum: ['high', 'medium', 'low'],
+              description: 'Confidence level in this score based on available data'
+            },
+            motivation_category: {
+              type: 'string',
+              enum: ['retirement', 'health', 'partnership_dispute', 'growth_capital', 'strategic', 'unsolicited', 'unknown'],
+              description: 'Primary motivation category'
+            },
+            timeline_urgency: {
+              type: 'string',
+              enum: ['immediate', '6_months', '12_months', '1_2_years', 'flexible', 'unknown'],
+              description: 'Estimated timeline urgency'
+            },
+            engagement_level: {
+              type: 'string',
+              enum: ['highly_engaged', 'moderately_engaged', 'limited_engagement', 'unknown'],
+              description: 'Level of seller engagement observed'
+            },
+            key_signals: {
+              type: 'array',
+              items: { type: 'string' },
+              description: 'Key positive signals observed (max 5)'
+            },
+            red_flags: {
+              type: 'array',
+              items: { type: 'string' },
+              description: 'Red flags or concerns (max 5)'
+            },
+            score_breakdown: {
               type: 'object',
               properties: {
-                seller_interest_score: {
-                  type: 'integer',
-                  minimum: 0,
-                  maximum: 100,
-                  description: 'Overall seller interest/motivation score (0-100)'
-                },
-                confidence: {
-                  type: 'string',
-                  enum: ['high', 'medium', 'low'],
-                  description: 'Confidence level in this score based on available data'
-                },
-                motivation_category: {
-                  type: 'string',
-                  enum: ['retirement', 'health', 'partnership_dispute', 'growth_capital', 'strategic', 'unsolicited', 'unknown'],
-                  description: 'Primary motivation category'
-                },
-                timeline_urgency: {
-                  type: 'string',
-                  enum: ['immediate', '6_months', '12_months', '1_2_years', 'flexible', 'unknown'],
-                  description: 'Estimated timeline urgency'
-                },
-                engagement_level: {
-                  type: 'string',
-                  enum: ['highly_engaged', 'moderately_engaged', 'limited_engagement', 'unknown'],
-                  description: 'Level of seller engagement observed'
-                },
-                key_signals: {
-                  type: 'array',
-                  items: { type: 'string' },
-                  description: 'Key positive signals observed (max 5)'
-                },
-                red_flags: {
-                  type: 'array',
-                  items: { type: 'string' },
-                  description: 'Red flags or concerns (max 5)'
-                },
-                score_breakdown: {
-                  type: 'object',
-                  properties: {
-                    motivation_points: { type: 'integer', description: 'Points from motivation (0-25)' },
-                    timeline_points: { type: 'integer', description: 'Points from timeline (0-20)' },
-                    engagement_points: { type: 'integer', description: 'Points from engagement (0-20)' },
-                    readiness_points: { type: 'integer', description: 'Points from deal readiness (0-20)' },
-                    flexibility_points: { type: 'integer', description: 'Points from flexibility (0-15)' },
-                    deductions: { type: 'integer', description: 'Negative adjustments' }
-                  },
-                  description: 'Breakdown of score components'
-                },
-                analysis_summary: {
-                  type: 'string',
-                  description: 'Brief 2-3 sentence summary of seller interest assessment'
-                }
+                motivation_points: { type: 'integer', description: 'Points from motivation (0-25)' },
+                timeline_points: { type: 'integer', description: 'Points from timeline (0-20)' },
+                engagement_points: { type: 'integer', description: 'Points from engagement (0-20)' },
+                readiness_points: { type: 'integer', description: 'Points from deal readiness (0-20)' },
+                flexibility_points: { type: 'integer', description: 'Points from flexibility (0-15)' },
+                deductions: { type: 'integer', description: 'Negative adjustments' }
               },
-              required: ['seller_interest_score', 'confidence', 'analysis_summary']
+              description: 'Breakdown of score components'
+            },
+            analysis_summary: {
+              type: 'string',
+              description: 'Brief 2-3 sentence summary of seller interest assessment'
             }
-          }
-        }],
-        tool_choice: { type: 'function', function: { name: 'score_seller_interest' } }
-      }),
-    });
+          },
+          required: ['seller_interest_score', 'confidence', 'analysis_summary']
+        }
+      }
+    };
 
-    if (!aiResponse.ok) {
-      const errorText = await aiResponse.text();
-      console.error('AI response error:', errorText);
+    const aiResult = await callGeminiWithTool(
+      SELLER_INTEREST_PROMPT,
+      `Analyze this deal and provide a seller interest score:\n\n${dealContext}`,
+      sellerInterestTool,
+      geminiApiKey,
+      DEFAULT_GEMINI_MODEL,
+      45000,
+      8192,
+      { supabase }
+    );
+
+    if (aiResult.error) {
+      console.error('AI analysis error:', aiResult.error);
       return new Response(
-        JSON.stringify({ error: 'AI analysis failed' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({ error: `AI analysis failed: ${aiResult.error.message}`, code: aiResult.error.code }),
+        { status: aiResult.error.code === 'rate_limited' ? 429 : 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    const aiData = await aiResponse.json();
-    const toolCall = aiData.choices?.[0]?.message?.tool_calls?.[0];
-
-    if (!toolCall?.function?.arguments) {
+    if (!aiResult.data) {
       return new Response(
         JSON.stringify({ error: 'Failed to parse AI response' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    const result = JSON.parse(toolCall.function.arguments);
+    const result = aiResult.data;
     console.log('Seller interest analysis result:', result);
 
     // Update the listing with the score
