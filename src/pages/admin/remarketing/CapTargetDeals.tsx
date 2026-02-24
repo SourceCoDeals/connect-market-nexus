@@ -399,12 +399,12 @@ export default function CapTargetDeals() {
     lastSelectedIndexRef.current = currentIndex;
   };
 
-  // Push to All Deals (approve)
+  // Push to Active Deals (approve)
   const handlePushToAllDeals = useCallback(async (dealIds: string[]) => {
     if (dealIds.length === 0) return;
     setIsPushing(true);
     const { error } = await supabase.from("listings")
-      .update({ status: "active", pushed_to_all_deals: true, pushed_to_all_deals_at: new Date().toISOString() } as never)
+      .update({ status: "active", remarketing_status: "active", pushed_to_all_deals: true, pushed_to_all_deals_at: new Date().toISOString() } as never)
       .in("id", dealIds);
     setIsPushing(false);
     setSelectedIds(new Set());

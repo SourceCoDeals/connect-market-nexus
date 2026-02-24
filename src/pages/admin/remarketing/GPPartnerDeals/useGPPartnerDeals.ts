@@ -231,7 +231,7 @@ export function useGPPartnerDeals() {
     });
   };
 
-  // Push to All Deals
+  // Push to Active Deals
   const handlePushToAllDeals = useCallback(
     async (dealIds: string[]) => {
       if (dealIds.length === 0) return;
@@ -240,6 +240,7 @@ export function useGPPartnerDeals() {
         .from('listings')
         .update({
           status: 'active',
+          remarketing_status: 'active',
           pushed_to_all_deals: true,
           pushed_to_all_deals_at: new Date().toISOString(),
         } as never)
