@@ -99,6 +99,7 @@ const DataRecoveryPage = lazyWithRetry(() => import("@/pages/admin/DataRecoveryP
 const FormMonitoringPage = lazyWithRetry(() => import("@/pages/admin/FormMonitoringPage"));
 const SecuritySettings = lazyWithRetry(() => import("@/pages/admin/settings/SecuritySettings"));
 const GlobalApprovalsPage = lazyWithRetry(() => import("@/pages/admin/GlobalApprovalsPage"));
+const DocumentTrackingPage = lazyWithRetry(() => import("@/pages/admin/DocumentTrackingPage"));
 const TestingHub = lazyWithRetry(() => import("@/pages/admin/TestingHub"));
 const MessageCenter = lazyWithRetry(() => import("@/pages/admin/MessageCenter"));
 
@@ -268,6 +269,9 @@ function App() {
 
                           {/* APPROVALS */}
                           <Route path="approvals" element={<RoleGate min="admin"><GlobalApprovalsPage /></RoleGate>} />
+
+                          {/* DOCUMENT TRACKING */}
+                          <Route path="documents" element={<DocumentTrackingPage />} />
 
                           {/* ANALYTICS */}
                           <Route path="analytics" element={<ReMarketingAnalytics />} />

@@ -154,6 +154,11 @@ export function UnifiedAdminSidebar({ collapsed, onCollapsedChange }: AdminSideb
             icon: <UserCog className="h-4 w-4" />,
             badge: unviewedUsersCount,
           },
+          {
+            label: "Document Tracking",
+            href: "/admin/documents",
+            icon: <FileCheck className="h-4 w-4" />,
+          },
         ],
       },
       {
