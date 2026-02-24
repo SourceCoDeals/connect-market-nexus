@@ -25,6 +25,7 @@ import {
   SkipForward,
   RotateCw,
   Square,
+  ShieldCheck,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
@@ -323,7 +324,8 @@ function ScenariosTab() {
   const [expandedScenarios, setExpandedScenarios] = useState<Set<string>>(new Set());
   const [collapsedCategories, setCollapsedCategories] = useState<Set<string>>(new Set());
   const [isRunning, setIsRunning] = useState(false);
-  const abortRef = useRef(false);
+  const [runProgress, setRunProgress] = useState<{ current: number; total: number } | null>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   const updateResult = useCallback((id: string, status: ScenarioStatus, notes?: string) => {
     setScenarioResults((prev) => {
@@ -346,15 +348,20 @@ function ScenariosTab() {
   const runScenarios = useCallback(
     async (onlyFailed = false) => {
       setIsRunning(true);
-      abortRef.current = false;
+      const controller = new AbortController();
+      abortControllerRef.current = controller;
 
       const runnable = scenarios.filter((s) => !s.skipAutoRun);
       const toRun = onlyFailed
         ? runnable.filter((s) => scenarioResults[s.id]?.status === 'fail')
         : runnable;
 
-      for (const scenario of toRun) {
-        if (abortRef.current) break;
+      setRunProgress({ current: 0, total: toRun.length });
+
+      for (let i = 0; i < toRun.length; i++) {
+        if (controller.signal.aborted) break;
+        const scenario = toRun[i];
+        setRunProgress({ current: i + 1, total: toRun.length });
 
         // Mark running
         setScenarioResults((prev) => {
@@ -374,7 +381,7 @@ function ScenariosTab() {
 
         const start = performance.now();
         try {
-          const response = await sendAIQuery(scenario.userMessage, 45000);
+          const response = await sendAIQuery(scenario.userMessage, 45000, controller.signal);
           const durationMs = Math.round(performance.now() - start);
           const autoChecks = runAutoChecks(scenario, response);
           const allPassed = autoChecks.length > 0 && autoChecks.every((c) => c.passed);
@@ -408,6 +415,7 @@ function ScenariosTab() {
             return updated;
           });
         } catch (err) {
+          if (controller.signal.aborted) break;
           const durationMs = Math.round(performance.now() - start);
           const errorMsg = err instanceof Error ? err.message : String(err);
 
@@ -431,12 +439,14 @@ function ScenariosTab() {
       }
 
       setIsRunning(false);
+      setRunProgress(null);
+      abortControllerRef.current = null;
     },
     [scenarios, scenarioResults],
   );
 
   const stopRun = useCallback(() => {
-    abortRef.current = true;
+    abortControllerRef.current?.abort();
   }, []);
 
   const updateNotes = useCallback((id: string, notes: string) => {
@@ -506,6 +516,11 @@ function ScenariosTab() {
         <p className="text-sm text-muted-foreground">
           {total} QA scenarios · {passCount + failCount + skipCount} tested
           {` · ${scenarios.filter((s) => s.skipAutoRun).length} manual-only`}
+          {runProgress && (
+            <span className="ml-2 font-medium text-primary">
+              Running {runProgress.current}/{runProgress.total}...
+            </span>
+          )}
         </p>
         <div className="flex gap-2">
           <Button onClick={() => runScenarios(false)} disabled={isRunning} size="sm">
@@ -514,7 +529,7 @@ function ScenariosTab() {
             ) : (
               <Play className="mr-2 h-4 w-4" />
             )}
-            Run All
+            {isRunning && runProgress ? `${runProgress.current}/${runProgress.total}` : 'Run All'}
           </Button>
           {isRunning && (
             <Button variant="destructive" onClick={stopRun} size="sm">
@@ -820,6 +835,197 @@ function ScenariosTab() {
 }
 
 // ═══════════════════════════════════════════
+// Rules & Guardrails Section
+// ═══════════════════════════════════════════
+
+const CHATBOT_RULES = [
+  {
+    id: 'formatting',
+    title: 'Response Formatting (Rule 14)',
+    severity: 'critical' as const,
+    rules: [
+      'NEVER use markdown tables (| col | col | syntax) — they render as unreadable text in the chat widget',
+      'NEVER use horizontal rules (---)',
+      'NEVER use emoji in section headers or labels',
+      'Use at most ONE ## header per response; use **bold text** for subsections',
+      'Keep answers under 250 words (simple) or 400 words (complex)',
+      'For comparisons: use labeled bullet groups, not tables',
+      'For data points: use inline format — "Revenue: $4.2M · EBITDA: $840K · State: TX"',
+      'For entity lists: compact bullets — "**Acme Corp** — $4.2M rev, TX, PE firm, score: 87"',
+      'Maximum 3 short paragraphs per response',
+      'Write like a Slack message to a colleague — direct, concise, scannable',
+    ],
+  },
+  {
+    id: 'hallucination',
+    title: 'Zero Hallucination Policy (Rule 1)',
+    severity: 'critical' as const,
+    rules: [
+      'NEVER generate fake tool calls as text',
+      'NEVER fabricate deal names, company names, buyer names, IDs, revenue figures, or ANY data',
+      'NEVER invent placeholder IDs like "deal_001" — all real IDs are UUIDs',
+      'When a tool returns ZERO results, say "No results found" — do NOT invent data',
+      'If uncertain, say "I don\'t have that data" — never speculate',
+    ],
+  },
+  {
+    id: 'data-format',
+    title: 'Data Format Standards (Rule 3)',
+    severity: 'high' as const,
+    rules: [
+      'State codes: Always 2-letter (TX, CA, VT, FL)',
+      'Revenue/EBITDA: "$X.XM" for millions, "$XK" for thousands',
+      'Percentages: One decimal place (e.g. "12.5%")',
+      'Deal IDs: Always show the real UUID',
+      'Dates: "Jan 15, 2025" format by default',
+    ],
+  },
+  {
+    id: 'speed',
+    title: 'Speed-First Rules',
+    severity: 'high' as const,
+    rules: [
+      'Lead with the answer — never start with "Let me look into that"',
+      'Use data from tool results only — never guess',
+      'Short answers for simple questions; expand only when needed',
+      'Use bullet points for structured data — avoid long paragraphs',
+      'When listing entities, include their IDs for reference',
+    ],
+  },
+  {
+    id: 'confirmation',
+    title: 'Confirmation & Safety (Rule 8)',
+    severity: 'critical' as const,
+    rules: [
+      'update_deal_stage and grant_data_room_access REQUIRE user confirmation before execution',
+      'Show before/after state and ask "Should I proceed?"',
+      'BULK OPERATIONS: Warn with exact count if affecting 10+ records',
+      'DUPLICATE PREVENTION: Check for similar records before creating',
+      'INPUT VALIDATION: Verify emails, state codes, numeric values before processing',
+    ],
+  },
+  {
+    id: 'data-boundary',
+    title: 'Data Boundary Rules (Rule 9)',
+    severity: 'high' as const,
+    rules: [
+      'CAN access: deals, buyers, contacts, transcripts, scores, outreach, engagement, tasks, documents',
+      'CANNOT access: real-time market data, competitor intel, stock prices, external news, LinkedIn/Google',
+      'Be explicit about boundaries — if a user asks for something outside your data, say so clearly',
+      'A buyer UNIVERSE is a subset — if empty, offer to search the full remarketing_buyers table',
+    ],
+  },
+  {
+    id: 'multi-source',
+    title: 'Multi-Source Transparency (Rule 10)',
+    severity: 'high' as const,
+    rules: [
+      'When returning data from multiple tables, ALWAYS separate and label each source',
+      'Never blend data from different sources into a single count without breakdown',
+      'Example: "HVAC deals by source: All Deals: 7, CapTarget: 5, Valuation Calculator: 3"',
+    ],
+  },
+  {
+    id: 'error-handling',
+    title: 'Error Handling (Rule 12)',
+    severity: 'medium' as const,
+    rules: [
+      'When a tool call fails, tell the user exactly what went wrong in plain language',
+      'Always offer recovery options: retry, different approach, or skip',
+      'If partial results returned, say so explicitly',
+      'If an external API is unavailable, name which service is down',
+    ],
+  },
+  {
+    id: 'contacts',
+    title: 'Unified Contacts Model (Rule 7)',
+    severity: 'high' as const,
+    rules: [
+      '"contacts" table is the single source of truth since Feb 28, 2026',
+      'Legacy tables (pe_firm_contacts, platform_contacts) have been DROPPED',
+      'remarketing_buyer_contacts is FROZEN — read-only pre-Feb 2026 data only',
+      'Buyer contacts must NEVER have listing_id set; seller contacts must NEVER have remarketing_buyer_id',
+      'Every seller contact must have a listing_id',
+    ],
+  },
+];
+
+function RulesTab() {
+  const [collapsedRules, setCollapsedRules] = useState<Set<string>>(new Set());
+
+  const toggleRule = (id: string) => {
+    setCollapsedRules((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const ruleSeverityColor: Record<string, string> = {
+    critical: 'bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300',
+    high: 'bg-orange-100 text-orange-800 dark:bg-orange-950 dark:text-orange-300',
+    medium: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-950 dark:text-yellow-300',
+  };
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <p className="text-sm text-muted-foreground">
+          {CHATBOT_RULES.length} rule groups ·{' '}
+          {CHATBOT_RULES.reduce((sum, r) => sum + r.rules.length, 0)} individual rules · These rules
+          are enforced in the AI Command Center system prompt
+        </p>
+      </div>
+
+      <div className="space-y-2">
+        {CHATBOT_RULES.map((group) => {
+          const isCollapsed = collapsedRules.has(group.id);
+
+          return (
+            <div key={group.id} className="border rounded-lg overflow-hidden">
+              <button
+                onClick={() => toggleRule(group.id)}
+                className="w-full flex items-center justify-between px-4 py-3 bg-muted/50 hover:bg-muted transition-colors"
+              >
+                <div className="flex items-center gap-2">
+                  {isCollapsed ? (
+                    <ChevronRight className="h-4 w-4" />
+                  ) : (
+                    <ChevronDown className="h-4 w-4" />
+                  )}
+                  <ShieldCheck className="h-4 w-4 text-primary" />
+                  <span className="font-semibold text-sm">{group.title}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Badge className={cn('text-[10px]', ruleSeverityColor[group.severity])}>
+                    {group.severity}
+                  </Badge>
+                  <span className="text-xs text-muted-foreground">{group.rules.length} rules</span>
+                </div>
+              </button>
+
+              {!isCollapsed && (
+                <div className="px-4 py-3 space-y-2">
+                  {group.rules.map((rule, i) => (
+                    <div key={i} className="flex items-start gap-2 text-sm">
+                      <span className="text-muted-foreground font-mono text-xs mt-0.5 shrink-0">
+                        {i + 1}.
+                      </span>
+                      <span>{rule}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════
 // Main Component
 // ═══════════════════════════════════════════
 
@@ -845,6 +1051,10 @@ export default function ChatbotTestRunner() {
             <ClipboardList className="h-4 w-4" />
             QA Scenarios
           </TabsTrigger>
+          <TabsTrigger value="rules" className="gap-2">
+            <ShieldCheck className="h-4 w-4" />
+            Rules & Guardrails
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="infra" className="mt-6">
@@ -853,6 +1063,10 @@ export default function ChatbotTestRunner() {
 
         <TabsContent value="scenarios" className="mt-6">
           <ScenariosTab />
+        </TabsContent>
+
+        <TabsContent value="rules" className="mt-6">
+          <RulesTab />
         </TabsContent>
       </Tabs>
     </div>
