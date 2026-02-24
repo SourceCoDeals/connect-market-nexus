@@ -1,4 +1,6 @@
 import { useState, useMemo, useCallback } from "react";
+import { Link } from "react-router-dom";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
@@ -10,6 +12,7 @@ import {
   Briefcase,
   Mail,
   TrendingUp,
+  ListChecks,
 } from "lucide-react";
 import { NonMarketplaceUsersTable } from "@/components/admin/NonMarketplaceUsersTable";
 import { BulkContactActions } from "@/components/admin/non-marketplace/BulkContactActions";
@@ -127,6 +130,12 @@ const BuyerContactsPage = () => {
                   <TrendingUp className="h-3 w-3" />
                   {stats.recentCount} new this month
                 </Badge>
+                <Link to="/admin/lists">
+                  <Button variant="outline" size="sm" className="gap-1.5">
+                    <ListChecks className="h-3.5 w-3.5" />
+                    View Lists
+                  </Button>
+                </Link>
               </div>
             )}
           </div>

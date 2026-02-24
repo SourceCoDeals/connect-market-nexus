@@ -148,7 +148,7 @@ export function useCreateContactList() {
       queryClient.invalidateQueries({ queryKey: QUERY_KEY });
       toast({
         title: 'List created',
-        description: `"${data.name}" with ${data.contact_count} contacts`,
+        description: `"${data.name}" saved with ${data.contact_count} contacts. You can now push them to PhoneBurner.`,
       });
     },
     onError: (error: any) => {
