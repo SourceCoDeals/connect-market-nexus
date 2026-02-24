@@ -34,7 +34,6 @@ import {
   buildChatbotTests,
 } from "./chatbot-test-runner/chatbotInfraTests";
 import {
-  type TestScenario,
   type ScenarioResult,
   type ScenarioStatus,
   SCENARIO_STORAGE_KEY,
