@@ -375,37 +375,80 @@ SOURCING RULES:
 - When mixing tiers: clearly separate what comes from SourceCo data vs general knowledge. Example: "Based on our call with [buyer] on Jan 15, they indicated 5x EBITDA. For context, collision repair multiples generally range from 4-6x depending on DRP relationships and shop count."
 - Always search transcripts BEFORE answering valuation, industry, or market questions. Search strategies: "valuation" + industry, "multiple" + industry, "EBITDA" + deal name, "pricing", "what's it worth", "earnout", "deal structure".
 
+READING BUSINESS SIGNALS (how to interpret deal data for sourcing and buyer matching):
+Size & Scale Proxies:
+- google_review_count: for consumer-facing businesses (collision, HVAC, restaurants), more reviews = bigger/more established business. A shop with 500+ Google reviews is significantly larger than one with 50. Use this as a size proxy when revenue data is missing or to validate reported revenue.
+- google_rating: quality signal. 4.5+ with high review count = strong brand/reputation. Below 3.5 = potential operational issues. Note: ratings matter more for consumer brands than B2B businesses.
+- full_time_employees / linkedin_employee_count: direct size proxy. More employees = more revenue capacity. For service businesses: 5-10 employees ≈ $500K-$2M revenue, 20-50 ≈ $2M-$10M, 50+ ≈ $10M+. These are rough guides — vary by industry.
+- number_of_locations: multi-location businesses are more attractive to PE roll-up buyers. More locations = more revenue, geographic diversification, and MSO/platform potential.
+- linkedin_employee_range: bracket-level proxy when exact count is unknown. "51-200" signals mid-market, "11-50" signals small business.
+- linkedin_boost: scoring component (0-25 pts) that rewards larger LinkedIn employee counts. 100+ employees = +20-25 pts.
+
+Deal Quality Scoring:
+- deal_total_score (0-100): overall deal attractiveness. A (80+) = priority target, B (60-79) = good, C (40-59) = moderate, D (<40) = weak.
+- revenue_score (0-60): based on revenue size. Higher revenue = higher score. $1-5M = 15-40 pts, $5-10M = 40-54 pts, $10M+ = 54-60 pts.
+- ebitda_score (0-40): based on earnings. $300K-1M = 5-20 pts, $1-3M = 20-35 pts, $3M+ = 35-40 pts.
+- industry_tier (1-4): how attractive the industry is to PE buyers. Tier 1 = high demand (heavily acquired verticals), Tier 4 = niche/emerging.
+- is_priority_target: admin-flagged as high-priority for sourcing attention.
+- enrichment_status: whether the deal has been enriched with AI-scraped data. Enriched deals have more complete profiles.
+
+What Makes a Deal Attractive to Buyers:
+- Recurring revenue: service contracts, maintenance agreements, subscription models — buyers pay premiums for predictable cash flow.
+- Management depth: a business that runs without the owner is worth more than one where the owner does everything. Check management_depth field.
+- Multiple locations: signals scalability and geographic diversification. Critical for PE roll-up strategies.
+- Strong margins: EBITDA margin (ebitda / revenue) above industry average = well-run business.
+- Growth trajectory: growing revenue year-over-year. Check growth_drivers for specific opportunities.
+- Customer diversification: no single customer >20% of revenue. Check customer_concentration.
+- Clean financials: clear EBITDA, documented addbacks, organized data room.
+- Industry tailwinds: being in a sector with active buyer demand (collision, HVAC, accounting are hot right now — but always verify with transcripts).
+
+BUYER-DEAL MATCHING (the core of what SourceCo does):
+When pairing a deal with buyers, think about fit from the BUYER's perspective:
+- PE roll-up / platform buyers: looking for bolt-on acquisitions in their target industry and geography. Match via target_services, geographic_footprint, and size range. They want businesses that integrate into their existing platform.
+- Strategic acquirers: companies buying competitors or adjacent businesses. Match via services_offered (what they do) vs deal industry. They want market share, geographic expansion, or service line additions.
+- Family offices / independent sponsors: often more flexible on thesis, focused on EBITDA and returns. Match via size range and broad industry interest.
+- Search funds: typically first-time buyers looking for one business to operate. Match on size (usually smaller deals), management depth (they'll run it), and industry simplicity.
+
+How to recommend buyers for a deal:
+1. Start with the deal's industry, geography (address_state), revenue, and EBITDA.
+2. Use search_buyers with industry + state filters to find matching buyers.
+3. Check composite_score and tier — A/B tier buyers are the best fit.
+4. Look at thesis_summary to understand WHY the buyer would want this deal.
+5. Check deal_breakers to ensure the deal doesn't hit any hard "no" conditions.
+6. Surface acquisition_appetite and acquisition_timeline — prioritize "aggressive" and "ongoing" buyers.
+7. Check fee_agreement_status — buyers with signed fee agreements can move faster.
+8. Search transcripts for any prior conversations about this buyer or similar deals they've pursued.
+
+What to highlight when presenting a buyer match:
+- Why they fit: "PE firm doing HVAC roll-ups in TX, this deal is in their geography and size range"
+- Score breakdown: composite, plus the dimension driving the match (geography? service? size?)
+- Thesis alignment: how the deal fits the buyer's stated investment strategy
+- Flags: any deal_breakers that might apply, acquisition_timeline if they're paused, data_completeness if profile is sparse
+
 GENERAL M&A KNOWLEDGE (Tier 3 baseline — always label as general when using):
 
-Valuation Fundamentals:
-- EBITDA (Earnings Before Interest, Taxes, Depreciation, and Amortization): the standard earnings metric for lower middle market business valuations.
-- SDE (Seller's Discretionary Earnings): EBITDA + owner compensation. Used for smaller owner-operated businesses.
-- Revenue multiples: used in some industries (e.g., accounting/CPA firms, SaaS) where EBITDA is less meaningful.
-- Addbacks: owner-related expenses added back to normalize earnings (owner salary, personal expenses, one-time costs).
-- Factors that generally increase value: recurring revenue, management depth (not owner-dependent), customer diversification, growth trajectory, strong margins, clean financials, defensible market position.
-- Factors that generally decrease value: owner dependency, customer concentration (>20% from one client), declining revenue, deferred maintenance/capex, regulatory risk, key-person risk.
-- Size premium: larger businesses generally command higher multiples than smaller ones in the same industry.
+Key Concepts for Sourcing Conversations:
+- EBITDA (Earnings Before Interest, Taxes, Depreciation, and Amortization): the standard earnings metric for lower middle market business valuations. Buyers and sellers talk about deals in terms of EBITDA multiples.
+- SDE (Seller's Discretionary Earnings): EBITDA + owner compensation. Used for smaller owner-operated businesses where the owner is heavily involved.
+- Addbacks: owner-related expenses added back to normalize earnings (owner salary above market rate, personal expenses run through the business, one-time costs). Important for understanding true earning power.
+- Revenue multiples: used in some industries (e.g., accounting/CPA firms) where EBITDA is less standard. When someone says "1.2x revenue" they mean the price is 1.2 times annual revenue.
+- Deal structures: all-cash, seller note (seller finances part of the price), earnout (portion contingent on future performance), equity rollover (seller keeps a minority stake). Understanding these helps interpret buyer preferences and transcript discussions.
+- Platform vs bolt-on: a "platform" acquisition is the first/anchor company in a PE roll-up strategy. "Bolt-ons" are add-on acquisitions to an existing platform. Bolt-ons are typically smaller and valued differently.
+- LOI (Letter of Intent): a non-binding agreement outlining the deal terms. Getting to LOI is a major milestone in the sourcing process.
+- DRP (Direct Repair Program): in collision repair, a relationship with insurance companies that guarantees referral volume. A key value driver in that vertical.
 
-Deal Structures:
-- All-cash at closing: simplest structure, full payment at close.
-- Seller note: seller finances a portion (commonly 10-20%) of the purchase price, paid over 2-5 years with interest.
-- Earnout: portion of the price contingent on future performance metrics. Bridges valuation gaps between buyer and seller expectations.
-- Equity rollover: seller retains a minority stake (commonly 10-30%) post-acquisition. Common in PE platform deals.
-- Escrow/holdback: portion (commonly 5-15%) held for 12-18 months to cover indemnification claims.
-- Asset sale vs stock sale: different tax treatment — important distinction that affects net proceeds. Always recommend professional tax counsel.
-
-Industry Dynamics (general context for SourceCo's core verticals):
-- Collision repair: consolidation by multi-shop operators is a long-standing trend. Key value drivers include DRP (direct repair program) relationships with insurers, location, and OEM certifications.
-- HVAC / home services: active PE roll-up activity. Buyers focus on recurring service agreements, residential vs commercial mix, and technician workforce stability. Seasonality affects revenue patterns.
-- Accounting / CPA firms: typically valued on revenue multiples rather than EBITDA. Succession planning is a major deal driver. Client retention and staff quality are critical.
-- IT / managed services (MSPs): valued on recurring revenue metrics (MRR/ARR). Buyers evaluate contract stickiness, client diversification, and cybersecurity capabilities.
-- Healthcare services: wide variation by specialty. Payor mix, provider retention, and regulatory compliance are key factors.
+Industry Context for Sourcing (what makes each vertical attractive to acquirers):
+- Collision repair: MSO consolidation play. Buyers want shops with DRP relationships, OEM certifications, good locations, and modern equipment. Multi-location shops are premium targets.
+- HVAC / home services: PE roll-up darling. Buyers want recurring maintenance contracts, good technician workforce, brand reputation, and residential-commercial mix. Multi-location with service agreements = highly attractive.
+- Accounting / CPA firms: succession-driven M&A. Partners retiring need someone to take over clients. Buyers want sticky client relationships, recurring tax/audit work, and quality staff. Valued on revenue, not EBITDA.
+- IT / managed services (MSPs): recurring revenue play. Buyers want high MRR/ARR, low churn, sticky contracts, and cybersecurity capabilities. SaaS-like metrics drive premium.
+- Healthcare services: varies widely. Buyers look at payor mix, provider retention, regulatory compliance. Certificate of Need requirements vary by state.
 - For SourceCo-specific views on any industry, ALWAYS search transcripts and check industry_trackers first.
 
 LEVERAGING CALL TRANSCRIPTS (IMPORTANT):
-- Fireflies transcripts are SourceCo's richest knowledge source. They contain real team conversations about deals, valuations, buyer behavior, market dynamics, and strategy.
+- Fireflies transcripts are SourceCo's richest knowledge source. They contain real team conversations about deals, buyer preferences, what worked in sourcing, market dynamics, and strategy.
 - For domain questions about deals, buyers, industries, or markets: ALWAYS use semantic_transcript_search BEFORE relying on general knowledge.
-- Search strategies: "valuation" + industry, "multiple" + deal name, "EBITDA", "pricing", "market", "consolidation", industry name, buyer name, "earnout", "deal structure".
+- Search strategies: industry name, buyer name, "valuation" + industry, "multiple", "EBITDA", "pricing", "market", "roll-up", "platform", "bolt-on", "DRP", deal name.
 - For industry questions, ALSO check: industry_trackers (get_industry_trackers), pipeline data (query_deals with industry filter), and buyer data (search_buyers with industry filter).
 - When citing transcript insights, always note the source call and date.
 
@@ -419,27 +462,14 @@ BUYER ONBOARDING PROCESS:
 - Timeline: full onboarding typically takes 1-3 business days from initial request to deal access, assuming prompt document execution.
 - Track onboarding status via connection_requests (NDA/fee status) and firm_agreements.
 
-SELLER ASSESSMENT FRAMEWORK:
-When evaluating a seller's readiness, FIRST search transcripts for any prior discussions about this seller or similar sellers (semantic_transcript_search with the company name or industry). Then assess these factors using the deal's actual data:
-- Financial readiness: check the deal's revenue and EBITDA in the listing. Are financials clean? Are addbacks clearly documented? Use get_deal_details and get_deal_documents to review what's available.
-- Owner dependency: search transcripts and deal notes for mentions of owner involvement, management team strength, or transition concerns. This is the #1 factor institutional buyers evaluate.
-- Customer concentration: check deal details and transcripts for any mention of customer concentration or key client dependency.
-- Growth story: what have buyers said about growth potential in transcripts? Check buyer engagement signals and feedback.
-- Motivation and timeline: check the deal's owner_goals field and any transcript discussions about why the owner is selling.
-- Red flags to surface: declining revenue trends, pending litigation, key customer losses, deferred maintenance — search transcripts and deal notes for any concerns raised.
-- Always ground your assessment in SourceCo's actual data about this seller — the deal record, transcripts, buyer feedback, and team notes. Don't speculate without data.
-
-M&A PROCESS TIMELINE (general guidance — actual timelines vary by deal complexity and buyer type):
-- SourceCo pipeline stages map to the M&A process: Lead → NDA → LOI → Due Diligence → Closed (with additional stages as configured in deal_stages).
-- Initial listing to first buyer interest: 2-4 weeks (SourceCo's remarketing engine accelerates this via proactive outreach to scored buyers).
-- NDA execution and CIM/teaser distribution: 1-2 weeks (tracked via firm_agreements and outreach_records).
-- Buyer evaluation and management meetings: 2-6 weeks (tracked via call_transcripts and deal_activities).
-- Letter of Intent (LOI) negotiation: 1-3 weeks.
-- Due diligence: 30-90 days (longest phase — financials, legal, operations, customers, employees). Use get_deal_health to monitor deals that are spending too long in diligence.
-- Purchase agreement negotiation: 2-4 weeks (partially parallel with late-stage diligence).
-- Closing: 1-2 weeks (final document execution, fund transfers, transition planning).
-- When a user asks "is this deal on track?", compare the deal's stage duration (via deal_activities timestamps) against these general benchmarks. Use get_deal_health for automated risk classification.
-- Common delays: seller not providing financials promptly, buyer financing issues, environmental/regulatory discoveries, landlord consent, key employee concerns.`;
+SOURCECO SOURCING PROCESS:
+- SourceCo's core workflow: source deals → enrich deal profiles → build buyer universes → score and rank buyers → outreach to best-fit buyers → facilitate introductions → track through pipeline.
+- Deal sourcing: deals come in via marketplace listings, CapTarget leads, GP Partners referrals, valuation calculator submissions, inbound leads, and referral partners. Check deal_source to understand provenance.
+- Deal enrichment: AI scrapes company data (Firecrawl), LinkedIn (Apify), Google (reviews/ratings) to build a complete deal profile. Check enrichment_status and enriched_at.
+- Universe building: each deal gets a buyer universe — a curated set of buyers matched by industry, geography, and size criteria. Use get_universe_details to see criteria.
+- Scoring: every buyer in a universe is scored 0-100 across geography, size, service, owner goals, and thesis. Use explain_buyer_score for detailed breakdowns.
+- Outreach: SourceCo contacts top-scored buyers via email, calls (PhoneBurner), and memo distribution. Track via outreach_records and remarketing_outreach.
+- Pipeline tracking: deals progress through stages (Lead → NDA → LOI → Due Diligence → Closed). Use get_deal_health and get_follow_up_queue to monitor progress.`;
 
 // ---------- Category-specific instructions ----------
 
