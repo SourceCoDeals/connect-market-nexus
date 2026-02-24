@@ -263,11 +263,14 @@ const AdminUsers = () => {
 
           {/* Buyers table - non-marketplace */}
           <div className={cn(!(isBuyersView && secondaryView === 'non-marketplace') && "hidden")}>
-            <NonMarketplaceUsersTable
-              users={nonMarketplaceUsers}
-              isLoading={isLoadingNonMarketplace}
-              filters={{}}
-            />
+             <NonMarketplaceUsersTable
+               users={nonMarketplaceUsers}
+               isLoading={isLoadingNonMarketplace}
+               filters={{}}
+               selectedIds={new Set()}
+               onToggleSelect={() => {}}
+               onToggleSelectAll={() => {}}
+             />
           </div>
 
           {/* Owners table */}
