@@ -61,7 +61,7 @@ async function chatColumnExists(table: string, column: string) {
  * Send a query to the AI Command Center and parse SSE events.
  * Returns { text, toolCalls, routeInfo, error }.
  */
-async function sendAIQuery(query: string, timeoutMs = 30000): Promise<{
+export async function sendAIQuery(query: string, timeoutMs = 30000): Promise<{
   text: string;
   toolCalls: Array<{ name: string; id: string; success: boolean }>;
   routeInfo: { category: string; tier: string; tools: string[] } | null;
