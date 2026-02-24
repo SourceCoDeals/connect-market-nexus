@@ -667,7 +667,7 @@ async function convertToPipelineDeal(
     .from('deals')
     .select('id')
     .eq('listing_id', listingId)
-    .eq('buyer_id', buyerId)
+    .eq('remarketing_buyer_id', buyerId)
     .limit(1)
     .maybeSingle();
 
@@ -703,18 +703,21 @@ async function convertToPipelineDeal(
 
   if (dealError) return { error: `Failed to create deal: ${dealError.message}` };
 
-  // Create firm agreement record if one doesn't exist
+  // Create firm agreement record if one doesn't exist.
+  // firm_agreements is keyed on normalized_company_name (no remarketing_buyer_id column).
+  const buyerCompanyName = (buyer.company_name || buyer.pe_firm_name || '') as string;
+  const normalizedName = buyerCompanyName.toLowerCase().trim();
   const { data: existingAgreement } = await supabase
     .from('firm_agreements')
     .select('id')
-    .eq('remarketing_buyer_id', buyerId)
+    .eq('normalized_company_name', normalizedName)
     .limit(1)
     .maybeSingle();
 
-  if (!existingAgreement) {
+  if (!existingAgreement && normalizedName) {
     await supabase.from('firm_agreements').insert({
-      remarketing_buyer_id: buyerId,
-      primary_company_name: buyer.company_name || buyer.pe_firm_name,
+      normalized_company_name: normalizedName,
+      primary_company_name: buyerCompanyName,
       nda_signed: false,
       fee_agreement_signed: false,
       created_at: now,

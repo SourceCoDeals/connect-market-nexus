@@ -1,8 +1,8 @@
-import { useState } from "react";
-import { Link } from "react-router-dom";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
+import { useState } from 'react';
+import { Link } from 'react-router-dom';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
 import {
   Table,
   TableBody,
@@ -10,30 +10,21 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table";
+} from '@/components/ui/table';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import {
-  ListChecks,
-  Search,
-  Phone,
-  Download,
-  MoreHorizontal,
-  Trash2,
-  Users,
-  Calendar,
-} from "lucide-react";
-import { format, formatDistanceToNow } from "date-fns";
-import { useContactLists, useDeleteContactList } from "@/hooks/admin/use-contact-lists";
+} from '@/components/ui/dropdown-menu';
+import { ListChecks, Search, Phone, MoreHorizontal, Trash2, Users } from 'lucide-react';
+import { format, formatDistanceToNow } from 'date-fns';
+import { useContactLists, useDeleteContactList } from '@/hooks/admin/use-contact-lists';
 
 const ContactListsPage = () => {
   const { data: lists = [], isLoading } = useContactLists();
   const deleteMutation = useDeleteContactList();
-  const [searchQuery, setSearchQuery] = useState("");
+  const [searchQuery, setSearchQuery] = useState('');
 
   const filteredLists = lists.filter((list) => {
     if (!searchQuery) return true;
@@ -58,7 +49,7 @@ const ContactListsPage = () => {
               </p>
             </div>
             <Badge variant="secondary" className="text-xs">
-              {lists.length} list{lists.length !== 1 ? "s" : ""}
+              {lists.length} list{lists.length !== 1 ? 's' : ''}
             </Badge>
           </div>
         </div>
@@ -130,10 +121,7 @@ const ContactListsPage = () => {
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      <Badge
-                        variant="secondary"
-                        className="text-xs capitalize"
-                      >
+                      <Badge variant="secondary" className="text-xs capitalize">
                         {list.list_type}
                       </Badge>
                     </TableCell>
@@ -158,7 +146,7 @@ const ContactListsPage = () => {
                     <TableCell>
                       <div className="flex flex-col">
                         <span className="text-xs text-muted-foreground">
-                          {format(new Date(list.created_at), "MMM d, yyyy")}
+                          {format(new Date(list.created_at), 'MMM d, yyyy')}
                         </span>
                         {list.created_by_name && (
                           <span className="text-[10px] text-muted-foreground/70">
