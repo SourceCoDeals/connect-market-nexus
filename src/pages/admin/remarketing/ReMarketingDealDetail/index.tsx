@@ -2,7 +2,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { AlertTriangle, Building2, Eye, FolderOpen } from "lucide-react";
+import { Building2, Eye, FolderOpen } from "lucide-react";
 import { useDealDetail } from "./useDealDetail";
 import { CapTargetInfoCard } from "./CapTargetInfoCard";
 import { DealHeader } from "./DealHeader";
