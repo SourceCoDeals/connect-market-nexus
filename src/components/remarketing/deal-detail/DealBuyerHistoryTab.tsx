@@ -1,11 +1,14 @@
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { History, Mail, Phone } from 'lucide-react';
+import { History, Mail, Phone, UserPlus } from 'lucide-react';
 import { format, formatDistanceToNow } from 'date-fns';
 import { cn } from '@/lib/utils';
+import { AddBuyerToDealDialog } from './AddBuyerToDealDialog';
 
 interface BuyerHistoryEntry {
   id: string;
@@ -31,15 +34,18 @@ interface BuyerHistoryEntry {
 
 interface DealBuyerHistoryTabProps {
   listingId: string;
+  listingTitle?: string;
 }
 
-export function DealBuyerHistoryTab({ listingId }: DealBuyerHistoryTabProps) {
+export function DealBuyerHistoryTab({ listingId, listingTitle }: DealBuyerHistoryTabProps) {
+  const [addBuyerOpen, setAddBuyerOpen] = useState(false);
   const { data: entries, isLoading } = useQuery({
     queryKey: ['deal-buyer-history', listingId],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('deals')
-        .select(`
+        .select(
+          `
           id,
           title,
           contact_name,
@@ -55,7 +61,8 @@ export function DealBuyerHistoryTab({ listingId }: DealBuyerHistoryTabProps) {
           deal_stages!deals_stage_id_fkey ( name, color ),
           profiles!deals_assigned_to_fkey ( first_name, last_name ),
           remarketing_buyers!deals_remarketing_buyer_id_fkey ( company_name, buyer_type )
-        `)
+        `,
+        )
         .eq('listing_id', listingId)
         .is('deleted_at', null)
         .order('created_at', { ascending: false });
@@ -88,25 +95,41 @@ export function DealBuyerHistoryTab({ listingId }: DealBuyerHistoryTabProps) {
   });
 
   // Group by stage for summary
-  const stageSummary = entries?.reduce((acc, e) => {
-    const stage = e.stage_name || 'Unknown';
-    acc[stage] = (acc[stage] || 0) + 1;
-    return acc;
-  }, {} as Record<string, number>);
+  const stageSummary = entries?.reduce(
+    (acc, e) => {
+      const stage = e.stage_name || 'Unknown';
+      acc[stage] = (acc[stage] || 0) + 1;
+      return acc;
+    },
+    {} as Record<string, number>,
+  );
 
-  const closedWon = entries?.filter(e => e.stage_name === 'Closed Won').length || 0;
-  const closedLost = entries?.filter(e => e.stage_name === 'Closed Lost').length || 0;
+  const closedWon = entries?.filter((e) => e.stage_name === 'Closed Won').length || 0;
+  const closedLost = entries?.filter((e) => e.stage_name === 'Closed Lost').length || 0;
   const active = (entries?.length || 0) - closedWon - closedLost;
 
   const StatusIndicator = ({ status, label }: { status: string | null; label: string }) => {
-    const color = status === 'signed' ? 'bg-emerald-500' :
-                  status === 'sent' ? 'bg-amber-500' :
-                  status === 'declined' ? 'bg-destructive' :
-                  'bg-muted-foreground/30';
+    const color =
+      status === 'signed'
+        ? 'bg-emerald-500'
+        : status === 'sent'
+          ? 'bg-amber-500'
+          : status === 'declined'
+            ? 'bg-destructive'
+            : 'bg-muted-foreground/30';
     return (
       <div className="flex items-center gap-1.5">
         <div className={cn('w-2 h-2 rounded-full', color)} />
-        <span className="text-xs text-muted-foreground">{label}: {status === 'signed' ? 'Signed' : status === 'sent' ? 'Sent' : status === 'declined' ? 'Declined' : 'Not Sent'}</span>
+        <span className="text-xs text-muted-foreground">
+          {label}:{' '}
+          {status === 'signed'
+            ? 'Signed'
+            : status === 'sent'
+              ? 'Sent'
+              : status === 'declined'
+                ? 'Declined'
+                : 'Not Sent'}
+        </span>
       </div>
     );
   };
@@ -123,12 +146,29 @@ export function DealBuyerHistoryTab({ listingId }: DealBuyerHistoryTabProps) {
 
   if (!entries || entries.length === 0) {
     return (
-      <Card>
-        <CardContent className="py-12 text-center">
-          <History className="h-10 w-10 mx-auto text-muted-foreground/30 mb-3" />
-          <p className="text-sm text-muted-foreground">No buyer history for this deal yet</p>
-        </CardContent>
-      </Card>
+      <>
+        <Card>
+          <CardContent className="py-12 text-center">
+            <History className="h-10 w-10 mx-auto text-muted-foreground/30 mb-3" />
+            <p className="text-sm text-muted-foreground">No buyer history for this deal yet</p>
+            <Button
+              variant="outline"
+              size="sm"
+              className="mt-3 gap-2"
+              onClick={() => setAddBuyerOpen(true)}
+            >
+              <UserPlus className="h-4 w-4" />
+              Add Buyer to Deal
+            </Button>
+          </CardContent>
+        </Card>
+        <AddBuyerToDealDialog
+          open={addBuyerOpen}
+          onOpenChange={setAddBuyerOpen}
+          listingId={listingId}
+          listingTitle={listingTitle || 'This Deal'}
+        />
+      </>
     );
   }
 
@@ -183,13 +223,24 @@ export function DealBuyerHistoryTab({ listingId }: DealBuyerHistoryTabProps) {
       {/* Buyer List */}
       <Card>
         <CardHeader className="py-3">
-          <CardTitle className="text-lg flex items-center gap-2">
-            <History className="h-5 w-5" />
-            Buyer History
-          </CardTitle>
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-lg flex items-center gap-2">
+              <History className="h-5 w-5" />
+              Buyer History
+            </CardTitle>
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-2"
+              onClick={() => setAddBuyerOpen(true)}
+            >
+              <UserPlus className="h-4 w-4" />
+              Add Buyer
+            </Button>
+          </div>
         </CardHeader>
         <CardContent className="space-y-3">
-          {entries.map(entry => (
+          {entries.map((entry) => (
             <div
               key={entry.id}
               className="p-4 rounded-lg border border-border/40 hover:border-border/60 transition-colors space-y-2"
@@ -199,7 +250,10 @@ export function DealBuyerHistoryTab({ listingId }: DealBuyerHistoryTabProps) {
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className="font-medium text-sm text-foreground">
-                      {entry.buyer_company_name || entry.contact_company || entry.contact_name || 'Unknown Buyer'}
+                      {entry.buyer_company_name ||
+                        entry.contact_company ||
+                        entry.contact_name ||
+                        'Unknown Buyer'}
                     </span>
                     {entry.buyer_type && (
                       <Badge variant="outline" className="text-[10px]">
@@ -227,7 +281,10 @@ export function DealBuyerHistoryTab({ listingId }: DealBuyerHistoryTabProps) {
               {/* Row 2: Contact info */}
               <div className="flex items-center gap-4 text-xs text-muted-foreground">
                 {entry.contact_email && (
-                  <a href={`mailto:${entry.contact_email}`} className="flex items-center gap-1 hover:text-foreground">
+                  <a
+                    href={`mailto:${entry.contact_email}`}
+                    className="flex items-center gap-1 hover:text-foreground"
+                  >
                     <Mail className="h-3 w-3" />
                     <span className="font-mono truncate max-w-[180px]">{entry.contact_email}</span>
                   </a>
@@ -245,7 +302,9 @@ export function DealBuyerHistoryTab({ listingId }: DealBuyerHistoryTabProps) {
                 <StatusIndicator status={entry.nda_status} label="NDA" />
                 <StatusIndicator status={entry.fee_agreement_status} label="Fee" />
                 {entry.memo_sent && (
-                  <Badge variant="secondary" className="text-[10px] h-5">Memo Sent</Badge>
+                  <Badge variant="secondary" className="text-[10px] h-5">
+                    Memo Sent
+                  </Badge>
                 )}
                 {entry.owner_first && (
                   <span className="text-xs text-muted-foreground">
@@ -255,7 +314,11 @@ export function DealBuyerHistoryTab({ listingId }: DealBuyerHistoryTabProps) {
                 <span className="text-xs text-muted-foreground ml-auto">
                   Added {format(new Date(entry.created_at), 'MMM d, yyyy')}
                   {entry.updated_at && (
-                    <> · Updated {formatDistanceToNow(new Date(entry.updated_at), { addSuffix: true })}</>
+                    <>
+                      {' '}
+                      · Updated{' '}
+                      {formatDistanceToNow(new Date(entry.updated_at), { addSuffix: true })}
+                    </>
                   )}
                 </span>
               </div>
@@ -263,6 +326,13 @@ export function DealBuyerHistoryTab({ listingId }: DealBuyerHistoryTabProps) {
           ))}
         </CardContent>
       </Card>
+
+      <AddBuyerToDealDialog
+        open={addBuyerOpen}
+        onOpenChange={setAddBuyerOpen}
+        listingId={listingId}
+        listingTitle={listingTitle || 'This Deal'}
+      />
     </div>
   );
 }

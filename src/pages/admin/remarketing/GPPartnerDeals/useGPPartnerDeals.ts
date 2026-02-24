@@ -236,29 +236,59 @@ export function useGPPartnerDeals() {
     async (dealIds: string[]) => {
       if (dealIds.length === 0) return;
       setIsPushing(true);
-      const { error } = await supabase
-        .from('listings')
-        .update({
-          status: 'active',
-          remarketing_status: 'active',
-          pushed_to_all_deals: true,
-          pushed_to_all_deals_at: new Date().toISOString(),
-        } as never)
-        .in('id', dealIds);
-      setIsPushing(false);
-      setSelectedIds(new Set());
-      if (error) {
-        toast({ title: 'Error', description: 'Failed to approve deals' });
-      } else {
+
+      // Validate: only push deals that have a real company website
+      const dealsToCheck = deals?.filter((d) => dealIds.includes(d.id)) ?? [];
+      const invalidDeals = dealsToCheck.filter((d) => {
+        const w = (d.website || '').trim().toLowerCase();
+        return (
+          !w ||
+          w.endsWith('.unknown') ||
+          w.startsWith('unknown-') ||
+          ['n/a', 'none', 'unknown', 'na', 'null', '-'].includes(w)
+        );
+      });
+      const validIds = dealIds.filter((id) => !invalidDeals.some((d) => d.id === id));
+
+      if (invalidDeals.length > 0) {
+        const names = invalidDeals
+          .slice(0, 5)
+          .map((d) => d.internal_company_name || d.title || 'Unknown')
+          .join(', ');
+        const extra = invalidDeals.length > 5 ? ` and ${invalidDeals.length - 5} more` : '';
         toast({
-          title: 'Approved',
-          description: `${dealIds.length} deal${dealIds.length !== 1 ? 's' : ''} pushed to Active Deals.`,
+          title: 'Missing Company Website',
+          description: `Cannot push deals without a valid company website: ${names}${extra}. Add a real domain first.`,
+          variant: 'destructive',
         });
       }
+
+      if (validIds.length > 0) {
+        const { error } = await supabase
+          .from('listings')
+          .update({
+            status: 'active',
+            pushed_to_all_deals: true,
+            pushed_to_all_deals_at: new Date().toISOString(),
+          } as never)
+          .in('id', validIds);
+
+        if (error) {
+          toast({ title: 'Error', description: 'Failed to approve deals' });
+        } else {
+          toast({
+            title: 'Approved',
+            description: `${validIds.length} deal${validIds.length !== 1 ? 's' : ''} pushed to Active Deals.`,
+          });
+        }
+      }
+
+      setIsPushing(false);
+      setSelectedIds(new Set());
       queryClient.invalidateQueries({ queryKey: ['remarketing', 'gp-partner-deals'] });
       queryClient.invalidateQueries({ queryKey: ['remarketing', 'deals'] });
     },
-    [toast, queryClient],
+    [toast, queryClient, deals],
   );
 
   // Bulk Enrich
