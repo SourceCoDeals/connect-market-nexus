@@ -169,7 +169,7 @@ export function useAddMembersToList() {
     mutationFn: async ({ listId, members }: { listId: string; members: CreateContactListMemberInput[] }) => {
       if (members.length === 0) throw new Error('No contacts to add');
 
-      // Insert members
+      // Upsert members to handle duplicates gracefully (unique on list_id + contact_email)
       const memberRows = members.map((m) => ({
         list_id: listId,
         contact_email: m.contact_email,
@@ -179,25 +179,16 @@ export function useAddMembersToList() {
         contact_role: m.contact_role,
         entity_type: m.entity_type,
         entity_id: m.entity_id,
+        removed_at: null,
       }));
 
       const { error: membersError } = await supabase
         .from('contact_list_members')
-        .insert(memberRows);
+        .upsert(memberRows, { onConflict: 'list_id,contact_email', ignoreDuplicates: false });
 
       if (membersError) throw membersError;
 
-      // Update contact count
-      const { data: countData } = await supabase
-        .from('contact_list_members')
-        .select('id', { count: 'exact', head: true })
-        .eq('list_id', listId)
-        .is('removed_at', null);
-
-      await supabase
-        .from('contact_lists')
-        .update({ contact_count: countData?.length ?? members.length, updated_at: new Date().toISOString() } as any)
-        .eq('id', listId);
+      // contact_count is auto-updated by DB trigger
 
       return { listId, addedCount: members.length };
     },

@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -82,9 +82,15 @@ export function AddBuyersToListDialog({
   const createList = useCreateContactList();
   const addMembers = useAddMembersToList();
 
+  // Stable key for buyer list to avoid re-fetch on every render
+  const buyerKey = selectedBuyers.map((b) => b.buyerId).sort().join(",");
+  const fetchIdRef = useRef(0);
+
   // Fetch contacts for all selected buyers when dialog opens
   useEffect(() => {
     if (!open || selectedBuyers.length === 0) return;
+
+    const fetchId = ++fetchIdRef.current;
 
     const fetchContacts = async () => {
       setIsLoadingContacts(true);
@@ -98,6 +104,9 @@ export function AddBuyersToListDialog({
         .eq("contact_type", "buyer")
         .eq("archived", false)
         .order("is_primary_at_firm", { ascending: false });
+
+      // Abort if dialog closed or buyers changed during fetch
+      if (fetchId !== fetchIdRef.current) return;
 
       for (const buyer of selectedBuyers) {
         contactMap[buyer.buyerId] = [];
@@ -125,7 +134,7 @@ export function AddBuyersToListDialog({
     };
 
     fetchContacts();
-  }, [open, selectedBuyers]);
+  }, [open, buyerKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Reset form when dialog closes
   useEffect(() => {

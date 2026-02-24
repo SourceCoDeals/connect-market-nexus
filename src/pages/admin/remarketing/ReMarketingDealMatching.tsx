@@ -810,6 +810,19 @@ const ReMarketingDealMatching = () => {
     return map;
   }, [pipelineDeals]);
 
+  // Memoize selected buyers for the Add to List dialog to avoid re-fetching contacts on every render
+  const selectedBuyersForList = useMemo(() => {
+    if (!scores) return [];
+    return scores
+      .filter((s) => selectedIds.has(s.id))
+      .map((s) => ({
+        buyerId: s.buyer?.id || "",
+        companyName: s.buyer?.company_name || "Unknown",
+        scoreId: s.id,
+      }))
+      .filter((b) => b.buyerId);
+  }, [scores, selectedIds]);
+
   // Handle "Move to Pipeline" button
   const handleMoveToPipeline = async (scoreId: string, buyerId: string, targetListingId: string) => {
     try {
@@ -966,16 +979,7 @@ const ReMarketingDealMatching = () => {
       <AddBuyersToListDialog
         open={addToListOpen}
         onOpenChange={setAddToListOpen}
-        selectedBuyers={
-          scores
-            ?.filter((s) => selectedIds.has(s.id))
-            .map((s) => ({
-              buyerId: s.buyer?.id || "",
-              companyName: s.buyer?.company_name || "Unknown",
-              scoreId: s.id,
-            }))
-            .filter((b) => b.buyerId) || []
-        }
+        selectedBuyers={selectedBuyersForList}
       />
 
       {/* Two-Column Stats Row */}
