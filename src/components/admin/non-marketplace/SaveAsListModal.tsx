@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -39,6 +40,7 @@ export function SaveAsListModal({
   filters,
   onSuccess,
 }: SaveAsListModalProps) {
+  const navigate = useNavigate();
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [listType, setListType] = useState<"buyer" | "seller" | "mixed">("buyer");
@@ -82,6 +84,7 @@ export function SaveAsListModal({
           setTags("");
           onOpenChange(false);
           onSuccess?.(data.id);
+          navigate(`/admin/lists/${data.id}`);
         },
       }
     );
