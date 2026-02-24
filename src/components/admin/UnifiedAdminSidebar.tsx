@@ -102,6 +102,11 @@ export function UnifiedAdminSidebar({
             href: '/admin/deals/pipeline',
             icon: <GitBranch className="h-4 w-4" />,
           },
+          {
+            label: "Contact Lists",
+            href: "/admin/lists",
+            icon: <ListChecks className="h-4 w-4" />,
+          },
         ],
       },
       {
@@ -131,13 +136,8 @@ export function UnifiedAdminSidebar({
             icon: <Contact className="h-4 w-4" />,
           },
           {
-            label: 'Contact Lists',
-            href: '/admin/lists',
-            icon: <ListChecks className="h-4 w-4" />,
-          },
-          {
-            label: 'Document Tracking',
-            href: '/admin/documents',
+            label: "Document Tracking",
+            href: "/admin/documents",
             icon: <FileCheck className="h-4 w-4" />,
           },
         ],

@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
-import { Button } from '@/components/ui/button';
-import { Skeleton } from '@/components/ui/skeleton';
+import { useState, useEffect, useMemo } from "react";
+import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -8,34 +8,42 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import {
-  Sparkles,
-  Loader2,
-  BarChart3,
-  ChevronDown,
-  Plus,
-  FileSpreadsheet,
-  EyeOff,
-} from 'lucide-react';
-import { cn } from '@/lib/utils';
-import { DealImportDialog } from '@/components/remarketing/DealImportDialog';
-import { FilterBar, TimeframeSelector, GP_PARTNER_FIELDS } from '@/components/filters';
-import { EnrichmentProgressIndicator } from '@/components/remarketing/EnrichmentProgressIndicator';
-import { useGPPartnerDeals } from './useGPPartnerDeals';
-import { useAIUIActionHandler } from '@/hooks/useAIUIActionHandler';
-import { useAICommandCenterContext } from '@/components/ai-command-center/AICommandCenterProvider';
-import { GPPartnerKPICards } from './GPPartnerKPICards';
-import { GPPartnerBulkActions } from './GPPartnerBulkActions';
-import { GPPartnerTable } from './GPPartnerTable';
-import { GPPartnerPagination } from './GPPartnerPagination';
-import { AddDealDialog } from './AddDealDialog';
-import { PushToDialerModal } from '@/components/remarketing/PushToDialerModal';
-import { PushToSmartleadModal } from '@/components/remarketing/PushToSmartleadModal';
+  Sparkles, Loader2, BarChart3, ChevronDown, Plus, FileSpreadsheet, EyeOff,
+} from "lucide-react";
+import { cn } from "@/lib/utils";
+import { DealImportDialog } from "@/components/remarketing/DealImportDialog";
+import { FilterBar, TimeframeSelector, GP_PARTNER_FIELDS } from "@/components/filters";
+import { EnrichmentProgressIndicator } from "@/components/remarketing/EnrichmentProgressIndicator";
+import { useGPPartnerDeals } from "./useGPPartnerDeals";
+import { useAIUIActionHandler } from "@/hooks/useAIUIActionHandler";
+import { useAICommandCenterContext } from "@/components/ai-command-center/AICommandCenterProvider";
+import { GPPartnerKPICards } from "./GPPartnerKPICards";
+import { GPPartnerBulkActions } from "./GPPartnerBulkActions";
+import { GPPartnerTable } from "./GPPartnerTable";
+import { GPPartnerPagination } from "./GPPartnerPagination";
+import { AddDealDialog } from "./AddDealDialog";
+import { PushToDialerModal } from "@/components/remarketing/PushToDialerModal";
+import { AddDealsToListDialog } from "@/components/remarketing";
+import type { DealForList } from "@/components/remarketing";
 
 export default function GPPartnerDeals() {
   const hook = useGPPartnerDeals();
   const { setPageContext } = useAICommandCenterContext();
   const [dialerOpen, setDialerOpen] = useState(false);
-  const [smartleadOpen, setSmartleadOpen] = useState(false);
+  const [addToListOpen, setAddToListOpen] = useState(false);
+
+  const selectedDealsForList = useMemo((): DealForList[] => {
+    if (!hook.filteredDeals || hook.selectedIds.size === 0) return [];
+    return hook.filteredDeals
+      .filter((d) => hook.selectedIds.has(d.id))
+      .map((d) => ({
+        dealId: d.id,
+        dealName: d.internal_company_name || d.title || "Unknown Deal",
+        contactName: d.main_contact_name,
+        contactEmail: d.main_contact_email,
+        contactPhone: d.main_contact_phone,
+      }));
+  }, [hook.filteredDeals, hook.selectedIds]);
 
   useEffect(() => {
     setPageContext({ page: 'gp_partners', entity_type: 'leads' });
@@ -210,7 +218,7 @@ export default function GPPartnerDeals() {
         handlePushToAllDeals={hook.handlePushToAllDeals}
         handleEnrichSelected={hook.handleEnrichSelected}
         onPushToDialer={() => setDialerOpen(true)}
-        onPushToSmartlead={() => setSmartleadOpen(true)}
+        onAddToList={() => setAddToListOpen(true)}
       />
       <PushToDialerModal
         open={dialerOpen}
@@ -219,12 +227,11 @@ export default function GPPartnerDeals() {
         contactCount={hook.selectedIds.size}
         entityType="listings"
       />
-      <PushToSmartleadModal
-        open={smartleadOpen}
-        onOpenChange={setSmartleadOpen}
-        contactIds={Array.from(hook.selectedIds)}
-        contactCount={hook.selectedIds.size}
-        entityType="listings"
+      <AddDealsToListDialog
+        open={addToListOpen}
+        onOpenChange={setAddToListOpen}
+        selectedDeals={selectedDealsForList}
+        entityType="gp_partner_deal"
       />
 
       {/* Deals Table */}

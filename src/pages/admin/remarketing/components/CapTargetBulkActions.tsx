@@ -26,11 +26,12 @@ import {
   Trash2,
   Download,
   Phone,
-} from 'lucide-react';
-import { cn } from '@/lib/utils';
-import { exportDealsToCSV } from '@/lib/exportUtils';
-import { toast as sonnerToast } from 'sonner';
-import { useToast } from '@/hooks/use-toast';
+  ListChecks,
+} from "lucide-react";
+import { cn } from "@/lib/utils";
+import { exportDealsToCSV } from "@/lib/exportUtils";
+import { toast as sonnerToast } from "sonner";
+import { useToast } from "@/hooks/use-toast";
 
 interface CapTargetBulkActionsProps {
   selectedIds: Set<string>;
@@ -52,7 +53,7 @@ interface CapTargetBulkActionsProps {
   setShowDeleteDialog: (v: boolean) => void;
   onBulkDelete: () => void;
   onPushToDialer?: () => void;
-  onPushToSmartlead?: () => void;
+  onAddToList?: () => void;
 }
 
 export function CapTargetBulkActions({
@@ -73,7 +74,7 @@ export function CapTargetBulkActions({
   setShowDeleteDialog,
   onBulkDelete,
   onPushToDialer,
-  onPushToSmartlead,
+  onAddToList,
 }: CapTargetBulkActionsProps) {
   const { toast } = useToast();
 
@@ -179,10 +180,15 @@ export function CapTargetBulkActions({
             Push to Dialer
           </Button>
         )}
-        {onPushToSmartlead && (
-          <Button size="sm" variant="outline" onClick={onPushToSmartlead} className="gap-2">
-            <Phone className="h-4 w-4" />
-            Push to Smartlead
+        {onAddToList && (
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={onAddToList}
+            className="gap-2"
+          >
+            <ListChecks className="h-4 w-4" />
+            Add to List
           </Button>
         )}
         <Button

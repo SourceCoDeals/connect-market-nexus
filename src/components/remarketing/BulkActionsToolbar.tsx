@@ -8,7 +8,17 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Check, X, Download, Mail, Phone, ChevronDown, Loader2, XCircle } from 'lucide-react';
+import {
+  Check,
+  X,
+  Download,
+  Mail,
+  Phone,
+  ChevronDown,
+  Loader2,
+  XCircle,
+  ListChecks,
+} from 'lucide-react';
 import { toast } from 'sonner';
 
 interface BulkActionsToolbarProps {
@@ -19,7 +29,7 @@ interface BulkActionsToolbarProps {
   onExportCSV: () => void;
   onGenerateEmails?: () => void;
   onPushToDialer?: () => void;
-  onPushToSmartlead?: () => void;
+  onAddToList?: () => void;
   isProcessing?: boolean;
   activeTab?: string;
 }
@@ -40,7 +50,7 @@ export const BulkActionsToolbar = ({
   onExportCSV,
   onGenerateEmails,
   onPushToDialer,
-  onPushToSmartlead,
+  onAddToList,
   isProcessing = false,
   activeTab = 'all',
 }: BulkActionsToolbarProps) => {
@@ -139,6 +149,20 @@ export const BulkActionsToolbar = ({
           <Download className="h-4 w-4 mr-1" />
           Export
         </Button>
+
+        {/* Add to List */}
+        {onAddToList && (
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={onAddToList}
+            disabled={isProcessing}
+            className="text-muted-foreground"
+          >
+            <ListChecks className="h-4 w-4 mr-1" />
+            Add to List
+          </Button>
+        )}
 
         {/* Generate Emails */}
         <Button

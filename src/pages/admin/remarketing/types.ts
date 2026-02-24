@@ -29,6 +29,11 @@ export interface DealListing {
   deal_total_score: number | null;
   seller_interest_score: number | null;
   manual_rank_override: number | null;
+  // Main contact
+  main_contact_name: string | null;
+  main_contact_title: string | null;
+  main_contact_email: string | null;
+  main_contact_phone: string | null;
   // Structured address fields
   address_city: string | null;
   address_state: string | null;
@@ -48,6 +53,10 @@ export interface DealListing {
   universe_build_flagged_at: string | null;
   universe_build_flagged_by: string | null;
   is_internal_deal: boolean | null;
+  // Primary contact fields
+  main_contact_name: string | null;
+  main_contact_email: string | null;
+  main_contact_phone: string | null;
 }
 
 // Column width configuration

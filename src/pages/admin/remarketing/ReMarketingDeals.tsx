@@ -68,6 +68,8 @@ import { DealTableRow } from './components/DealTableRow';
 import { DealsKPICards } from './components/DealsKPICards';
 import { DealsBulkActions } from './components/DealsBulkActions';
 import { DealsActionDialogs } from './components/DealsActionDialogs';
+import { AddDealsToListDialog } from '@/components/remarketing';
+import type { DealForList } from '@/components/remarketing';
 
 const ReMarketingDeals = () => {
   const navigate = useNavigate();
@@ -117,6 +119,7 @@ const ReMarketingDeals = () => {
   const [isDeleting, setIsDeleting] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showUniverseDialog, setShowUniverseDialog] = useState(false);
+  const [showAddToListDialog, setShowAddToListDialog] = useState(false);
 
   // Local order state for optimistic UI updates during drag-and-drop
   const [localOrder, setLocalOrder] = useState<DealListing[]>([]);
@@ -202,6 +205,10 @@ const ReMarketingDeals = () => {
             deal_total_score,
             seller_interest_score,
             manual_rank_override,
+            main_contact_name,
+            main_contact_title,
+            main_contact_email,
+            main_contact_phone,
             address_city,
             address_state,
             referral_partner_id,
@@ -214,7 +221,10 @@ const ReMarketingDeals = () => {
             universe_build_flagged,
             universe_build_flagged_at,
             universe_build_flagged_by,
-            is_internal_deal
+            is_internal_deal,
+            main_contact_name,
+            main_contact_email,
+            main_contact_phone
           `,
           )
           .eq('remarketing_status', 'active')
@@ -396,6 +406,20 @@ const ReMarketingDeals = () => {
       listings?.filter((listing) => listing.deal_total_score === null).length || 0;
     return { totalDeals, priorityDeals, avgScore, needsScoring };
   }, [listings]);
+
+  // Memoize selected deals for AddToList dialog
+  const selectedDealsForList = useMemo((): DealForList[] => {
+    if (!listings || selectedDeals.size === 0) return [];
+    return listings
+      .filter((l) => selectedDeals.has(l.id))
+      .map((l) => ({
+        dealId: l.id,
+        dealName: l.internal_company_name || l.title || 'Unknown Deal',
+        contactName: l.main_contact_name,
+        contactEmail: l.main_contact_email,
+        contactPhone: l.main_contact_phone,
+      }));
+  }, [listings, selectedDeals]);
 
   // Helper functions
   const extractWebsiteFromMemo = (memoLink: string | null): string | null => {
@@ -1306,6 +1330,7 @@ const ReMarketingDeals = () => {
         onShowUniverseDialog={() => setShowUniverseDialog(true)}
         onShowArchiveDialog={() => setShowArchiveDialog(true)}
         onShowDeleteDialog={() => setShowDeleteDialog(true)}
+        onAddToList={() => setShowAddToListDialog(true)}
         setSelectedDeals={(deals) => setSelectedDeals(deals)}
         refetchListings={refetchListings}
         toast={toast}
@@ -1706,6 +1731,14 @@ const ReMarketingDeals = () => {
           </div>
         </div>
       )}
+
+      {/* Add to List Dialog */}
+      <AddDealsToListDialog
+        open={showAddToListDialog}
+        onOpenChange={setShowAddToListDialog}
+        selectedDeals={selectedDealsForList}
+        entityType="deal"
+      />
 
       {/* All Dialogs */}
       <DealsActionDialogs

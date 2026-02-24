@@ -36,12 +36,12 @@ import {
   EmailPreviewDialog,
   type OutreachStatus,
   ReMarketingChat,
-} from '@/components/remarketing';
-import { PushToDialerModal } from '@/components/remarketing/PushToDialerModal';
-import { PushToSmartleadModal } from '@/components/remarketing/PushToSmartleadModal';
-import { RemarketingErrorBoundary } from '@/components/remarketing/RemarketingErrorBoundary';
-import { AddToUniverseQuickAction } from '@/components/remarketing/AddToUniverseQuickAction';
-import { useBackgroundScoringProgress } from '@/hooks/useBackgroundScoringProgress';
+} from "@/components/remarketing";
+import { PushToDialerModal } from "@/components/remarketing/PushToDialerModal";
+import { AddBuyersToListDialog } from "@/components/remarketing/AddBuyersToListDialog";
+import { RemarketingErrorBoundary } from "@/components/remarketing/RemarketingErrorBoundary";
+import { AddToUniverseQuickAction } from "@/components/remarketing/AddToUniverseQuickAction";
+import { useBackgroundScoringProgress } from "@/hooks/useBackgroundScoringProgress";
 
 type SortOption = 'score' | 'geography' | 'score_geo';
 type FilterTab = 'all' | 'approved' | 'interested' | 'passed' | 'outreach';
@@ -68,7 +68,7 @@ const ReMarketingDealMatching = () => {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [emailDialogOpen, setEmailDialogOpen] = useState(false);
   const [dialerOpen, setDialerOpen] = useState(false);
-  const [smartleadOpen, setSmartleadOpen] = useState(false);
+  const [addToListOpen, setAddToListOpen] = useState(false);
   const [highlightedBuyerIds, setHighlightedBuyerIds] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -893,6 +893,19 @@ const ReMarketingDealMatching = () => {
     return map;
   }, [pipelineDeals]);
 
+  // Memoize selected buyers for the Add to List dialog to avoid re-fetching contacts on every render
+  const selectedBuyersForList = useMemo(() => {
+    if (!scores) return [];
+    return scores
+      .filter((s) => selectedIds.has(s.id))
+      .map((s) => ({
+        buyerId: s.buyer?.id || "",
+        companyName: s.buyer?.company_name || "Unknown",
+        scoreId: s.id,
+      }))
+      .filter((b) => b.buyerId);
+  }, [scores, selectedIds]);
+
   // Handle "Move to Pipeline" button
   const handleMoveToPipeline = async (
     scoreId: string,
@@ -1032,59 +1045,60 @@ const ReMarketingDealMatching = () => {
                 </div>
               </div>
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </CardContent>
+      </Card>
 
-        {/* Bulk Actions Toolbar */}
-        <BulkActionsToolbar
-          selectedCount={selectedIds.size}
-          onClearSelection={() => setSelectedIds(new Set())}
-          onBulkApprove={handleBulkApprove}
-          onBulkPass={handleBulkPass}
-          onExportCSV={handleExportCSV}
-          onGenerateEmails={() => setEmailDialogOpen(true)}
-          onPushToDialer={() => setDialerOpen(true)}
-          onPushToSmartlead={() => setSmartleadOpen(true)}
-          isProcessing={bulkApproveMutation.isPending}
-          activeTab={activeTab}
-        />
-        <PushToDialerModal
-          open={dialerOpen}
-          onOpenChange={setDialerOpen}
-          contactIds={Array.from(selectedIds)}
-          contactCount={selectedIds.size}
-          entityType="buyers"
-        />
-        <PushToSmartleadModal
-          open={smartleadOpen}
-          onOpenChange={setSmartleadOpen}
-          contactIds={Array.from(selectedIds)}
-          contactCount={selectedIds.size}
-          entityType="buyers"
-        />
+      {/* Bulk Actions Toolbar */}
+      <BulkActionsToolbar
+        selectedCount={selectedIds.size}
+        onClearSelection={() => setSelectedIds(new Set())}
+        onBulkApprove={handleBulkApprove}
+        onBulkPass={handleBulkPass}
+        onExportCSV={handleExportCSV}
+        onGenerateEmails={() => setEmailDialogOpen(true)}
+        onPushToDialer={() => setDialerOpen(true)}
+        onAddToList={() => setAddToListOpen(true)}
+        isProcessing={bulkApproveMutation.isPending}
+        activeTab={activeTab}
+      />
+      <PushToDialerModal
+        open={dialerOpen}
+        onOpenChange={setDialerOpen}
+        contactIds={Array.from(selectedIds)}
+        contactCount={selectedIds.size}
+        entityType="buyers"
+      />
+      <AddBuyersToListDialog
+        open={addToListOpen}
+        onOpenChange={setAddToListOpen}
+        selectedBuyers={selectedBuyersForList}
+      />
 
-        {/* Two-Column Stats Row */}
-        {scores && scores.length > 0 && (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-            {/* Left: Stats Summary Card */}
-            <Card className="lg:col-span-1 bg-amber-50/50 border-amber-100">
-              <CardContent className="p-4 space-y-3">
-                <div className="flex items-center gap-2 text-sm">
-                  <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-                  <span className="font-medium">{stats.qualified} qualified buyers</span>
-                </div>
-                <div className="flex items-center gap-2 text-sm text-red-600">
-                  <AlertCircle className="h-4 w-4" />
-                  <span>
-                    {stats.disqualified} disqualified
-                    {stats.disqualificationReason && ` (${stats.disqualificationReason})`}
-                  </span>
-                </div>
-                <div className="flex items-center gap-2 text-sm">
-                  <Target className="h-4 w-4 text-blue-500" />
-                  <span className="font-medium">{stats.strong} strong matches (&gt;80%)</span>
-                </div>
-                <div className="flex items-center gap-2 text-sm text-emerald-600">
+      {/* Two-Column Stats Row */}
+      {scores && scores.length > 0 && (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          {/* Left: Stats Summary Card */}
+          <Card className="lg:col-span-1 bg-amber-50/50 border-amber-100">
+            <CardContent className="p-4 space-y-3">
+              <div className="flex items-center gap-2 text-sm">
+                <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                <span className="font-medium">{stats.qualified} qualified buyers</span>
+              </div>
+              <div className="flex items-center gap-2 text-sm text-red-600">
+                <AlertCircle className="h-4 w-4" />
+                <span>{stats.disqualified} disqualified{stats.disqualificationReason && ` (${stats.disqualificationReason})`}</span>
+              </div>
+              <div className="flex items-center gap-2 text-sm">
+                <Target className="h-4 w-4 text-blue-500" />
+                <span className="font-medium">{stats.strong} strong matches (&gt;80%)</span>
+              </div>
+              <div className="flex items-center gap-2 text-sm text-emerald-600">
+                <Check className="h-4 w-4" />
+                <span>{stats.approved} approved</span>
+              </div>
+              {stats.interested > 0 && (
+                <div className="flex items-center gap-2 text-sm text-blue-600">
                   <Check className="h-4 w-4" />
                   <span>{stats.approved} approved</span>
                 </div>
