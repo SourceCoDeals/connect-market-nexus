@@ -34,14 +34,7 @@ ALTER TABLE buyers
   DROP COLUMN IF EXISTS scoring_confidence,
   DROP COLUMN IF EXISTS data_completeness;
 
--- Migration 5: buyer_company_scores table
-ALTER TABLE buyer_company_scores
-  DROP COLUMN IF EXISTS confidence_level,
-  DROP COLUMN IF EXISTS scoring_confidence,
-  DROP COLUMN IF EXISTS data_completeness,
-  DROP COLUMN IF EXISTS missing_fields;
-
--- Migration 6: remarketing_scores table
+-- Migration 5: remarketing_scores table
 ALTER TABLE remarketing_scores
   DROP COLUMN IF EXISTS confidence_level,
   DROP COLUMN IF EXISTS scoring_confidence,
