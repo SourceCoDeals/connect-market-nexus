@@ -482,28 +482,33 @@ WHERE fm.firm_id = NEW.id
 
 ### P0 — Critical (This Sprint)
 
-| #   | Issue                                                | File                               | Fix                                  |
-| --- | ---------------------------------------------------- | ---------------------------------- | ------------------------------------ |
-| 1   | `track-engagement-signal` no auth guard              | `track-engagement-signal/index.ts` | Add admin JWT guard                  |
-| 2   | `track-engagement-signal` cumulative score inflation | `track-engagement-signal/index.ts` | Store/diff previous engagement total |
+| #   | Issue                                                                    | File                                        | Fix                                                |
+| --- | ------------------------------------------------------------------------ | ------------------------------------------- | -------------------------------------------------- |
+| 1   | `track-engagement-signal` no auth guard                                  | `track-engagement-signal/index.ts`          | Add admin JWT guard                                |
+| 2   | `track-engagement-signal` cumulative score inflation                     | `track-engagement-signal/index.ts`          | Store/diff previous engagement total               |
+| 3   | `bulk-import-remarketing` delete guard uses null UUID — deletes ALL rows | `bulk-import-remarketing/index.ts` L189-223 | Replace `.neq('id', null_uuid)` with proper filter |
 
 ### P1 — High (Next Sprint)
 
-| #   | Issue                                                       | File                             | Fix                                              |
-| --- | ----------------------------------------------------------- | -------------------------------- | ------------------------------------------------ |
-| 3   | `query-buyer-universe` uses OpenAI, no retry, no pagination | `query-buyer-universe/index.ts`  | Migrate to Gemini via ai-providers.ts; add limit |
-| 4   | `process-scoring-queue` stale detection on wrong column     | `process-scoring-queue/index.ts` | Use `updated_at` or add `started_processing_at`  |
-| 5   | `firecrawl-scrape` no retry/rate-limit                      | `firecrawl-scrape/index.ts`      | Wrap with `fetchWithAutoRetry`                   |
+| #   | Issue                                                                                      | File                                        | Fix                                              |
+| --- | ------------------------------------------------------------------------------------------ | ------------------------------------------- | ------------------------------------------------ |
+| 4   | `query-buyer-universe` uses OpenAI, no retry, no pagination                                | `query-buyer-universe/index.ts`             | Migrate to Gemini via ai-providers.ts; add limit |
+| 5   | `process-scoring-queue` stale detection on wrong column                                    | `process-scoring-queue/index.ts`            | Use `updated_at` or add `started_processing_at`  |
+| 6   | `process-scoring-queue` self-invoke via `setTimeout` may not fire before Deno process exit | `process-scoring-queue/index.ts` L226-248   | Use awaitable scheduled task                     |
+| 7   | `score-buyer-deal` existing-scores fetch unbounded — OOM risk on large universes           | `score-buyer-deal/index.ts` L629-635        | Add `.limit()` or paginate                       |
+| 8   | `firecrawl-scrape` no retry/rate-limit                                                     | `firecrawl-scrape/index.ts`                 | Wrap with `fetchWithAutoRetry`                   |
+| 9   | `bulk-import-remarketing` `size_score` and `owner_goals_score` hardcoded to 0 on import    | `bulk-import-remarketing/index.ts` L603,605 | Preserve original values from import data        |
 
 ### P2 — Medium (Backlog)
 
-| #   | Issue                                              | File                                | Fix                                     |
-| --- | -------------------------------------------------- | ----------------------------------- | --------------------------------------- |
-| 6   | `notify-remarketing-match` duplicate notifications | `notify-remarketing-match/index.ts` | Upsert on (score_id, notification_type) |
-| 7   | `publish-listing` null is_internal_deal edge case  | `publish-listing/index.ts`          | Add status check                        |
-| 8   | 7,541 listings with NULL enrichment                | DB                                  | Schedule bulk enrichment run            |
-| 9   | 8 tables missing FK constraints                    | DB                                  | Add constraints migration               |
-| 10  | `independent_sponsor` excluded from CapTarget      | `captarget-exclusion-filter.ts`     | Verify business intent                  |
+| #   | Issue                                                                                          | File                                     | Fix                                                                               |
+| --- | ---------------------------------------------------------------------------------------------- | ---------------------------------------- | --------------------------------------------------------------------------------- |
+| 10  | `notify-remarketing-match` duplicate notifications + uses `profiles.is_admin` not `user_roles` | `notify-remarketing-match/index.ts`      | Upsert on (score_id, notification_type); query `user_roles` table for consistency |
+| 11  | `convert-to-pipeline-deal` uses `.single()` on stage fallback — throws if no stages            | `convert-to-pipeline-deal/index.ts` L163 | Change to `.maybeSingle()`                                                        |
+| 12  | `publish-listing` null is_internal_deal edge case                                              | `publish-listing/index.ts`               | Add status check                                                                  |
+| 13  | 7,541 listings with NULL enrichment                                                            | DB                                       | Schedule bulk enrichment run                                                      |
+| 14  | 8 tables missing FK constraints                                                                | DB                                       | Add constraints migration                                                         |
+| 15  | `independent_sponsor` excluded from CapTarget                                                  | `captarget-exclusion-filter.ts`          | Verify business intent                                                            |
 
 ---
 
