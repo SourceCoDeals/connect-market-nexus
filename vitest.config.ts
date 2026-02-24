@@ -7,10 +7,7 @@ export default defineConfig({
     globals: true,
     environment: 'jsdom',
     setupFiles: ['./src/test/setup.ts'],
-    include: [
-      'src/**/*.test.{ts,tsx}',
-      'supabase/functions/**/*.test.ts',
-    ],
+    include: ['src/**/*.test.{ts,tsx}', 'supabase/functions/**/*.test.ts'],
     exclude: ['node_modules', 'dist'],
     coverage: {
       provider: 'v8',
@@ -21,6 +18,7 @@ export default defineConfig({
         'src/hooks/**/*.{ts,tsx}',
         'src/components/**/*.{ts,tsx}',
         'supabase/functions/_shared/**/*.ts',
+        'supabase/functions/ai-command-center/**/*.ts',
       ],
       exclude: ['**/*.test.ts', '**/*.test.tsx', '**/*.d.ts'],
     },
