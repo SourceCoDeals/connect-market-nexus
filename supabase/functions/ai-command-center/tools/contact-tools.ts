@@ -432,7 +432,7 @@ async function getFirmAgreements(
   let results = data || [];
   if (args.search) {
     const term = (args.search as string).toLowerCase();
-    results = results.filter(f =>
+    results = results.filter((f: any) =>
       f.primary_company_name?.toLowerCase().includes(term) ||
       f.normalized_company_name?.toLowerCase().includes(term) ||
       f.website_domain?.toLowerCase().includes(term)
@@ -443,8 +443,8 @@ async function getFirmAgreements(
     data: {
       firms: results,
       total: results.length,
-      nda_signed: results.filter(f => f.nda_signed).length,
-      fee_agreement_signed: results.filter(f => f.fee_agreement_signed).length,
+      nda_signed: results.filter((f: any) => f.nda_signed).length,
+      fee_agreement_signed: results.filter((f: any) => f.fee_agreement_signed).length,
     },
   };
 }
