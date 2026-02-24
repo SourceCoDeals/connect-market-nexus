@@ -232,3 +232,5 @@ verify_jwt = false
 verify_jwt = false
 [functions.phoneburner-push-contacts]
 verify_jwt = false
+[functions.ai-command-center]
+verify_jwt = false
