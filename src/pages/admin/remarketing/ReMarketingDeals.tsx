@@ -220,7 +220,7 @@ const ReMarketingDeals = () => {
           .eq('remarketing_status', 'active')
           .or(
             'deal_source.in.(marketplace,manual,referral,remarketing),' +
-              'and(deal_source.in.(captarget,valuation_calculator,valuation_lead),pushed_to_all_deals.eq.true)',
+              'and(deal_source.in.(captarget,valuation_calculator,valuation_lead,gp_partners),pushed_to_all_deals.eq.true)',
           )
           .order('manual_rank_override', { ascending: true, nullsFirst: false })
           .order('deal_total_score', { ascending: false, nullsFirst: true })
