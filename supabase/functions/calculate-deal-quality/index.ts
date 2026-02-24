@@ -1,7 +1,7 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
-import { getCorsHeaders, corsPreflightResponse } from "../_shared/cors.ts";
+import { getCorsHeaders, corsPreflightResponse } from '../_shared/cors.ts';
 
 interface DealQualityScores {
   deal_total_score: number;
@@ -20,7 +20,8 @@ function estimateEmployeesFromRange(range: string | null): number {
   const plusMatch = cleaned.match(/(\d+)\+/);
   if (plusMatch) return parseInt(plusMatch[1], 10) * 1.2; // conservative estimate above floor
   const rangeMatch = cleaned.match(/(\d+)\s*[-–]\s*(\d+)/);
-  if (rangeMatch) return Math.round((parseInt(rangeMatch[1], 10) + parseInt(rangeMatch[2], 10)) / 2);
+  if (rangeMatch)
+    return Math.round((parseInt(rangeMatch[1], 10) + parseInt(rangeMatch[2], 10)) / 2);
   const singleMatch = cleaned.match(/^(\d+)/);
   if (singleMatch) return parseInt(singleMatch[1], 10);
   return 0;
@@ -40,16 +41,26 @@ function calculateScoresFromData(deal: any): DealQualityScores {
   const ebitda = normalizeFinancial(deal.ebitda || 0);
   const hasFinancials = revenue > 0 || ebitda > 0;
 
-  // Employee count: prefer linkedin_employee_count, then full_time_employees, then parse range string
-  let employeeCount = deal.linkedin_employee_count || deal.full_time_employees || 0;
-  let employeeSource = 'LinkedIn';
+  // Employee waterfall: LinkedIn count → LinkedIn range → website (FT+PT) → team page
+  const totalWebsiteEmployees = (deal.full_time_employees || 0) + (deal.part_time_employees || 0);
+  let employeeCount = deal.linkedin_employee_count || 0;
+  let employeeSource = 'linkedin';
+
   if (!employeeCount && deal.linkedin_employee_range) {
     employeeCount = estimateEmployeesFromRange(deal.linkedin_employee_range);
-    employeeSource = 'LinkedIn range';
+    employeeSource = 'linkedin_range';
   }
-
-  const reviewCount = deal.google_review_count || 0;
-  const googleRating = deal.google_rating || 0;
+  if (!employeeCount && totalWebsiteEmployees > 0) {
+    employeeCount = totalWebsiteEmployees;
+    employeeSource = 'website';
+  }
+  if (!employeeCount && deal.team_page_employee_count) {
+    employeeCount = deal.team_page_employee_count;
+    employeeSource = 'team_page';
+  }
+  if (!employeeCount) {
+    employeeSource = 'none';
+  }
   const locationCount = deal.number_of_locations || 0;
 
   let revenueScore = 0;
@@ -60,99 +71,183 @@ function calculateScoresFromData(deal: any): DealQualityScores {
 
   // ── Path A: Has financials ──
   if (hasFinancials) {
-    if (revenue >= 100_000_000)     revenueScore = 75;
+    if (revenue >= 100_000_000) revenueScore = 75;
     else if (revenue >= 50_000_000) revenueScore = 70;
     else if (revenue >= 25_000_000) revenueScore = 64;
     else if (revenue >= 10_000_000) revenueScore = 58;
-    else if (revenue >= 7_000_000)  revenueScore = 50;
-    else if (revenue >= 5_000_000)  revenueScore = 44;
-    else if (revenue >= 3_000_000)  revenueScore = 37;
-    else if (revenue >= 2_000_000)  revenueScore = 28;
-    else if (revenue >= 1_000_000)  revenueScore = 20;
-    else if (revenue >= 500_000)    revenueScore = 10;
-    else if (revenue > 0)           revenueScore = 5;
+    else if (revenue >= 7_000_000) revenueScore = 50;
+    else if (revenue >= 5_000_000) revenueScore = 44;
+    else if (revenue >= 3_000_000) revenueScore = 37;
+    else if (revenue >= 2_000_000) revenueScore = 28;
+    else if (revenue >= 1_000_000) revenueScore = 20;
+    else if (revenue >= 500_000) revenueScore = 10;
+    else if (revenue > 0) revenueScore = 5;
 
-    if (ebitda >= 5_000_000)        ebitdaScore = 15;
-    else if (ebitda >= 3_000_000)   ebitdaScore = 13;
-    else if (ebitda >= 2_000_000)   ebitdaScore = 11;
-    else if (ebitda >= 1_000_000)   ebitdaScore = 9;
-    else if (ebitda >= 500_000)     ebitdaScore = 7;
-    else if (ebitda >= 300_000)     ebitdaScore = 5;
-    else if (ebitda >= 150_000)     ebitdaScore = 3;
+    if (ebitda >= 5_000_000) ebitdaScore = 15;
+    else if (ebitda >= 3_000_000) ebitdaScore = 13;
+    else if (ebitda >= 2_000_000) ebitdaScore = 11;
+    else if (ebitda >= 1_000_000) ebitdaScore = 9;
+    else if (ebitda >= 500_000) ebitdaScore = 7;
+    else if (ebitda >= 300_000) ebitdaScore = 5;
+    else if (ebitda >= 150_000) ebitdaScore = 3;
 
     sizeScore = Math.min(90, revenueScore + ebitdaScore);
 
     // Size floors for large financials
-    if (revenue >= 50_000_000)      { sizeFloor = 90; }
-    else if (revenue >= 25_000_000) { sizeFloor = 85; }
-    else if (revenue >= 10_000_000) { sizeFloor = 80; }
-    else if (revenue >= 7_000_000)  { sizeFloor = 75; }
-    else if (revenue >= 5_000_000)  { sizeFloor = 70; }
+    if (revenue >= 50_000_000) {
+      sizeFloor = 90;
+    } else if (revenue >= 25_000_000) {
+      sizeFloor = 85;
+    } else if (revenue >= 10_000_000) {
+      sizeFloor = 80;
+    } else if (revenue >= 7_000_000) {
+      sizeFloor = 75;
+    } else if (revenue >= 5_000_000) {
+      sizeFloor = 70;
+    }
 
-    if (ebitda >= 5_000_000 && sizeFloor < 90)      { sizeFloor = 90; }
-    else if (ebitda >= 3_000_000 && sizeFloor < 85)  { sizeFloor = 85; }
+    if (ebitda >= 5_000_000 && sizeFloor < 90) {
+      sizeFloor = 90;
+    } else if (ebitda >= 3_000_000 && sizeFloor < 85) {
+      sizeFloor = 85;
+    }
 
     // Apply financial size floor before industry multiplier
     sizeScore = Math.max(sizeScore, sizeFloor);
 
-    const revLabel = revenue >= 100_000_000 ? '$100M+' : revenue >= 50_000_000 ? '$50M+' : revenue >= 25_000_000 ? '$25M+'
-      : revenue >= 10_000_000 ? '$10M+' : revenue >= 7_000_000 ? '$7M+' : revenue >= 5_000_000 ? '$5M+'
-      : revenue >= 3_000_000 ? '$3M+' : revenue >= 2_000_000 ? '$2M+' : revenue >= 1_000_000 ? '$1M+'
-      : revenue >= 500_000 ? '$500K+' : '$0+';
+    // ── Revenue quality cross-validation ──
+    // When both financials and employee data exist, check if revenue is plausible
+    if (employeeCount > 0 && revenue > 0) {
+      const revenuePerEmployee = revenue / employeeCount;
+
+      // > $10M per employee with very few staff → likely bad data
+      if (revenuePerEmployee > 10_000_000 && employeeCount < 25) {
+        const penalty = Math.min(20, Math.round(sizeScore * 0.25));
+        sizeScore = Math.max(sizeScore - penalty, 10);
+        notes.push(
+          `rev/emp suspicious ($${Math.round(revenuePerEmployee / 1_000_000)}M/emp, ${employeeCount} emp → -${penalty})`,
+        );
+      }
+      // > $5M per employee with very few staff → flag
+      else if (revenuePerEmployee > 5_000_000 && employeeCount < 10) {
+        const penalty = Math.min(15, Math.round(sizeScore * 0.2));
+        sizeScore = Math.max(sizeScore - penalty, 10);
+        notes.push(
+          `rev/emp high ($${Math.round(revenuePerEmployee / 1_000_000)}M/emp, ${employeeCount} emp → -${penalty})`,
+        );
+      }
+    }
+
+    // EBITDA margin sanity — margins above 80% are extremely rare outside pure IP/software
+    if (revenue > 0 && ebitda > 0) {
+      const margin = ebitda / revenue;
+      if (margin > 0.8) {
+        const ebitdaPenalty = Math.round(ebitdaScore * 0.5);
+        ebitdaScore = ebitdaScore - ebitdaPenalty;
+        sizeScore = Math.max(Math.min(90, revenueScore + ebitdaScore), sizeFloor);
+        notes.push(
+          `high EBITDA margin (${Math.round(margin * 100)}% → EBITDA score -${ebitdaPenalty})`,
+        );
+      }
+    }
+
+    const revLabel =
+      revenue >= 100_000_000
+        ? '$100M+'
+        : revenue >= 50_000_000
+          ? '$50M+'
+          : revenue >= 25_000_000
+            ? '$25M+'
+            : revenue >= 10_000_000
+              ? '$10M+'
+              : revenue >= 7_000_000
+                ? '$7M+'
+                : revenue >= 5_000_000
+                  ? '$5M+'
+                  : revenue >= 3_000_000
+                    ? '$3M+'
+                    : revenue >= 2_000_000
+                      ? '$2M+'
+                      : revenue >= 1_000_000
+                        ? '$1M+'
+                        : revenue >= 500_000
+                          ? '$500K+'
+                          : '$0+';
     notes.push(`${revLabel} revenue`);
     if (ebitda > 0) {
-      const ebitdaLabel = ebitda >= 5_000_000 ? '$5M+' : ebitda >= 3_000_000 ? '$3M+' : ebitda >= 2_000_000 ? '$2M+'
-        : ebitda >= 1_000_000 ? '$1M+' : ebitda >= 500_000 ? '$500K+' : ebitda >= 300_000 ? '$300K+'
-        : ebitda >= 150_000 ? '$150K+' : '<$150K';
+      const ebitdaLabel =
+        ebitda >= 5_000_000
+          ? '$5M+'
+          : ebitda >= 3_000_000
+            ? '$3M+'
+            : ebitda >= 2_000_000
+              ? '$2M+'
+              : ebitda >= 1_000_000
+                ? '$1M+'
+                : ebitda >= 500_000
+                  ? '$500K+'
+                  : ebitda >= 300_000
+                    ? '$300K+'
+                    : ebitda >= 150_000
+                      ? '$150K+'
+                      : '<$150K';
       notes.push(`${ebitdaLabel} EBITDA`);
     }
 
-  // ── Path B: No financials ──
+    // ── Path B: No financials ──
   } else {
     // No financials — use proxy signals for size estimation
     let empPts = 0;
-    if (employeeCount >= 200)     empPts = 60;
+    if (employeeCount >= 200) empPts = 60;
     else if (employeeCount >= 100) empPts = 54;
     else if (employeeCount >= 50) empPts = 48;
     else if (employeeCount >= 25) empPts = 42;
     else if (employeeCount >= 15) empPts = 36;
     else if (employeeCount >= 10) empPts = 30;
-    else if (employeeCount >= 5)  empPts = 21;
-    else if (employeeCount >= 3)  empPts = 12;
-    else if (employeeCount > 0)   empPts = 6;
+    else if (employeeCount >= 5) empPts = 21;
+    else if (employeeCount >= 3) empPts = 12;
+    else if (employeeCount > 0) empPts = 6;
 
-    // Step 1-2: Employee scoring
-    const empScore = 0;
     if (employeeCount > 0) {
       linkedinBoost = empPts;
-      notes.push(`${employeeSource}: ~${Math.round(employeeCount)} employees (size proxy)`);
+      const sourceLabel =
+        employeeSource === 'linkedin'
+          ? 'LinkedIn'
+          : employeeSource === 'linkedin_range'
+            ? 'LinkedIn range'
+            : employeeSource === 'website'
+              ? 'Website'
+              : 'Team page';
+      notes.push(`${sourceLabel}: ~${Math.round(employeeCount)} employees (size proxy)`);
     }
 
-    // Step 3: Google review fallback — ONLY if zero employees AND <3 locations
+    // Google review fallback — ONLY if zero employees AND <3 locations
     let reviewScore = 0;
     if (employeeCount === 0 && locationCount < 3) {
-      const reviewCount = deal.google_review_count || 0;
-      if (reviewCount >= 500)       reviewScore = 20;
-      else if (reviewCount >= 200)  reviewScore = 15;
-      else if (reviewCount >= 100)  reviewScore = 10;
-      else if (reviewCount >= 50)   reviewScore = 7;
-      else if (reviewCount >= 20)   reviewScore = 4;
-      else if (reviewCount > 0)     reviewScore = 2;
+      const rc = deal.google_review_count || 0;
+      if (rc >= 500) reviewScore = 20;
+      else if (rc >= 200) reviewScore = 15;
+      else if (rc >= 100) reviewScore = 10;
+      else if (rc >= 50) reviewScore = 7;
+      else if (rc >= 20) reviewScore = 4;
+      else if (rc > 0) reviewScore = 2;
 
-      if (reviewCount > 0) {
-        notes.push(`Google: ${reviewCount} reviews (fallback)`);
+      if (rc > 0) {
+        notes.push(`Google: ${rc} reviews (fallback)`);
       }
     }
 
-    // Step 4: Combine and apply location floor
-    sizeScore = empScore > 0 ? empScore : reviewScore;
+    // Combine and apply location floor
+    sizeScore = empPts > 0 ? empPts : reviewScore;
 
-    if (locationCount >= 10)     sizeScore = Math.max(sizeScore, 60);
+    if (locationCount >= 10) sizeScore = Math.max(sizeScore, 60);
     else if (locationCount >= 5) sizeScore = Math.max(sizeScore, 50);
     else if (locationCount >= 3) sizeScore = Math.max(sizeScore, 40);
 
     if (locationCount >= 3) {
-      notes.push(`${locationCount} locations (floor ${locationCount >= 10 ? 60 : locationCount >= 5 ? 50 : 40})`);
+      notes.push(
+        `${locationCount} locations (floor ${locationCount >= 10 ? 60 : locationCount >= 5 ? 50 : 40})`,
+      );
     }
 
     // Baseline floor: enriched deals with some data shouldn't score 0
@@ -160,7 +255,7 @@ function calculateScoresFromData(deal: any): DealQualityScores {
     if (sizeScore === 0) {
       const hasIndustry = !!(deal.industry || deal.category);
       const hasDescription = !!(deal.description || deal.executive_summary);
-      const hasWebsite = !!(deal.website);
+      const hasWebsite = !!deal.website;
       const hasEnrichment = !!deal.enriched_at;
 
       let baseline = 0;
@@ -171,7 +266,9 @@ function calculateScoresFromData(deal: any): DealQualityScores {
 
       if (baseline > 0) {
         sizeScore = baseline;
-        notes.push(`Baseline score (no size data yet): enriched=${hasEnrichment}, industry=${hasIndustry}`);
+        notes.push(
+          `Baseline score (no size data yet): enriched=${hasEnrichment}, industry=${hasIndustry}`,
+        );
       } else {
         notes.push('No data available for scoring');
       }
@@ -201,24 +298,74 @@ function calculateScoresFromData(deal: any): DealQualityScores {
   const locationText = `${city} ${location}`;
 
   const majorMetros = [
-    'new york', 'los angeles', 'chicago', 'houston', 'phoenix', 'philadelphia',
-    'san antonio', 'san diego', 'dallas', 'austin', 'san jose', 'san francisco',
-    'seattle', 'denver', 'boston', 'atlanta', 'miami', 'washington', 'dc',
-    'minneapolis', 'tampa', 'orlando', 'detroit', 'portland', 'charlotte',
-    'nashville', 'las vegas', 'baltimore', 'indianapolis', 'columbus', 'jacksonville'
+    'new york',
+    'los angeles',
+    'chicago',
+    'houston',
+    'phoenix',
+    'philadelphia',
+    'san antonio',
+    'san diego',
+    'dallas',
+    'austin',
+    'san jose',
+    'san francisco',
+    'seattle',
+    'denver',
+    'boston',
+    'atlanta',
+    'miami',
+    'washington',
+    'dc',
+    'minneapolis',
+    'tampa',
+    'orlando',
+    'detroit',
+    'portland',
+    'charlotte',
+    'nashville',
+    'las vegas',
+    'baltimore',
+    'indianapolis',
+    'columbus',
+    'jacksonville',
   ];
   const secondaryCities = [
-    'raleigh', 'richmond', 'sacramento', 'kansas city', 'st louis', 'pittsburgh',
-    'cincinnati', 'milwaukee', 'oklahoma city', 'memphis', 'louisville', 'tucson',
-    'albuquerque', 'fresno', 'mesa', 'omaha', 'colorado springs', 'tulsa',
-    'arlington', 'bakersfield', 'wichita', 'boise', 'salt lake', 'madison',
-    'green bay', 'des moines', 'knoxville', 'chattanooga', 'birmingham'
+    'raleigh',
+    'richmond',
+    'sacramento',
+    'kansas city',
+    'st louis',
+    'pittsburgh',
+    'cincinnati',
+    'milwaukee',
+    'oklahoma city',
+    'memphis',
+    'louisville',
+    'tucson',
+    'albuquerque',
+    'fresno',
+    'mesa',
+    'omaha',
+    'colorado springs',
+    'tulsa',
+    'arlington',
+    'bakersfield',
+    'wichita',
+    'boise',
+    'salt lake',
+    'madison',
+    'green bay',
+    'des moines',
+    'knoxville',
+    'chattanooga',
+    'birmingham',
   ];
 
-  if (majorMetros.some(metro => locationText.includes(metro))) {
+  if (majorMetros.some((metro) => locationText.includes(metro))) {
     marketScore += 5;
     notes.push('major metro');
-  } else if (secondaryCities.some(c => locationText.includes(c))) {
+  } else if (secondaryCities.some((c) => locationText.includes(c))) {
     marketScore += 3;
     notes.push('secondary city');
   } else if (city || state) {
@@ -230,8 +377,17 @@ function calculateScoresFromData(deal: any): DealQualityScores {
 
   const description = (deal.description || deal.executive_summary || '').toLowerCase();
   const businessModel = (deal.business_model || '').toLowerCase();
-  const allText = `${(deal.category || '')} ${(deal.service_mix || '')} ${businessModel} ${description}`.toLowerCase();
-  if (/recurring|subscription|contract|maintenance|managed/.test(allText)) {
+  const customerTypes = (deal.customer_types || '').toLowerCase();
+  const financialNotes = (deal.financial_notes || '').toLowerCase();
+  const ownerGoals = (deal.owner_goals || '').toLowerCase();
+  const allText =
+    `${deal.category || ''} ${deal.service_mix || ''} ${businessModel} ${description} ${customerTypes} ${financialNotes} ${ownerGoals} ${(deal.services || []).join(' ').toLowerCase()} ${(deal.industry || '').toLowerCase()}`.toLowerCase();
+
+  // Expanded recurring revenue detection — catches contracts, SaaS, insurance DRPs,
+  // maintenance agreements, managed services, retainers, and recurring billing patterns
+  const recurringPatterns =
+    /recurring|subscription|contract|maintenance|managed service|retainer|monthly service|annual service|saas|mrr|arr|drp|insurance referr|preferred vendor|repeat customer|membership|license fee|service agreement|service contract|preventive maintenance|pm contract|ongoing|long.?term agreement|renewal|auto.?renew|recurring revenue/;
+  if (recurringPatterns.test(allText)) {
     marketScore += 2;
     notes.push('recurring revenue model');
   }
@@ -255,18 +411,27 @@ function calculateScoresFromData(deal: any): DealQualityScores {
 serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
 
-  if (req.method === "OPTIONS") {
+  if (req.method === 'OPTIONS') {
     return corsPreflightResponse(req);
   }
 
   try {
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
     const body = await req.json();
-    const { listingId, calculateAll, forceRecalculate, triggerEnrichment,
-            batchSource, unscoredOnly, globalQueueId, offset = 0, scoredSoFar = 0 } = body;
+    const {
+      listingId,
+      calculateAll,
+      forceRecalculate,
+      triggerEnrichment,
+      batchSource,
+      unscoredOnly,
+      globalQueueId,
+      offset = 0,
+      scoredSoFar = 0,
+    } = body;
 
     let listingsToScore: any[] = [];
     let enrichmentQueued = 0;
@@ -277,20 +442,21 @@ serve(async (req) => {
       let queuedCount = 0;
       for (const dealId of dealIds) {
         const { data: existing } = await supabase
-          .from("enrichment_queue")
-          .select("id")
-          .eq("listing_id", dealId)
-          .in("status", ["pending", "processing"])
+          .from('enrichment_queue')
+          .select('id')
+          .eq('listing_id', dealId)
+          .in('status', ['pending', 'processing'])
           .maybeSingle();
         if (!existing) {
-          const { error: queueError } = await supabase
-            .from("enrichment_queue")
-            .upsert({
+          const { error: queueError } = await supabase.from('enrichment_queue').upsert(
+            {
               listing_id: dealId,
-              status: "pending",
+              status: 'pending',
               attempts: 0,
               queued_at: new Date().toISOString(),
-            }, { onConflict: 'listing_id' });
+            },
+            { onConflict: 'listing_id' },
+          );
           if (!queueError) queuedCount++;
         }
       }
@@ -301,12 +467,23 @@ serve(async (req) => {
     // New batch mode: score all deals from a specific source with self-continuation
     if (batchSource) {
       // Use captarget_status to identify CapTarget deals (no "source" column exists)
-      let query = batchSource === "captarget"
-        ? supabase.from("listings").select("*").not("captarget_status", "is", null).is("deleted_at", null).order("created_at", { ascending: true })
-        : supabase.from("listings").select("*").eq("deal_source", batchSource).is("deleted_at", null).order("created_at", { ascending: true });
+      let query =
+        batchSource === 'captarget'
+          ? supabase
+              .from('listings')
+              .select('*')
+              .not('captarget_status', 'is', null)
+              .is('deleted_at', null)
+              .order('created_at', { ascending: true })
+          : supabase
+              .from('listings')
+              .select('*')
+              .eq('deal_source', batchSource)
+              .is('deleted_at', null)
+              .order('created_at', { ascending: true });
 
       if (unscoredOnly) {
-        query = query.is("deal_total_score", null);
+        query = query.is('deal_total_score', null);
         // When filtering unscored only, always start from 0 since scored deals
         // drop out of the result set after each batch
         query = query.range(0, BATCH_SIZE - 1);
@@ -315,57 +492,74 @@ serve(async (req) => {
       }
 
       const { data: listings, error: listingsError } = await query;
-      if (listingsError) throw new Error("Failed to fetch listings: " + listingsError.message);
+      if (listingsError) throw new Error('Failed to fetch listings: ' + listingsError.message);
       listingsToScore = listings || [];
 
-      console.log(`[batch] Source=${batchSource}, offset=${offset}, fetched=${listingsToScore.length}`);
+      console.log(
+        `[batch] Source=${batchSource}, offset=${offset}, fetched=${listingsToScore.length}`,
+      );
 
       if (listingsToScore.length === 0) {
         // Done — mark global queue as completed
         if (globalQueueId) {
-          await supabase.from("global_activity_queue").update({
-            status: "completed",
-            completed_at: new Date().toISOString(),
-          }).eq("id", globalQueueId);
+          await supabase
+            .from('global_activity_queue')
+            .update({
+              status: 'completed',
+              completed_at: new Date().toISOString(),
+            })
+            .eq('id', globalQueueId);
         }
         return new Response(
-          JSON.stringify({ success: true, message: "All deals scored", scored: 0, done: true }),
-          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          JSON.stringify({ success: true, message: 'All deals scored', scored: 0, done: true }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
         );
       }
     } else if (listingId) {
       const { data: listing, error: listingError } = await supabase
-        .from("listings").select("*").eq("id", listingId).single();
-      if (listingError || !listing) throw new Error("Listing not found");
+        .from('listings')
+        .select('*')
+        .eq('id', listingId)
+        .single();
+      if (listingError || !listing) throw new Error('Listing not found');
       listingsToScore = [listing];
     } else if (forceRecalculate) {
       const { data: listings, error: listingsError } = await supabase
-        .from("listings").select("*").eq("status", "active").is("deleted_at", null).limit(100);
-      if (listingsError) throw new Error("Failed to fetch listings");
+        .from('listings')
+        .select('*')
+        .eq('status', 'active')
+        .is('deleted_at', null)
+        .limit(100);
+      if (listingsError) throw new Error('Failed to fetch listings');
       listingsToScore = listings || [];
       console.log(`Force recalculating scores for ${listingsToScore.length} listings`);
       if (triggerEnrichment && listingsToScore.length > 0) {
-        const dealIds = listingsToScore.map(l => l.id);
+        const dealIds = listingsToScore.map((l) => l.id);
         console.log(`Resetting enriched_at for ${dealIds.length} deals to force re-enrichment`);
-        await supabase.from("listings").update({ enriched_at: null }).in("id", dealIds);
+        await supabase.from('listings').update({ enriched_at: null }).in('id', dealIds);
         enrichmentQueued = await queueDealsForEnrichment(dealIds, 'force recalculate all');
       }
     } else if (calculateAll) {
       const { data: listings, error: listingsError } = await supabase
-        .from("listings").select("*").is("deal_total_score", null).limit(50);
-      if (listingsError) throw new Error("Failed to fetch listings");
+        .from('listings')
+        .select('*')
+        .is('deal_total_score', null)
+        .limit(50);
+      if (listingsError) throw new Error('Failed to fetch listings');
       listingsToScore = listings || [];
     } else {
       return new Response(
-        JSON.stringify({ error: "Must provide listingId, calculateAll, forceRecalculate, or batchSource" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        JSON.stringify({
+          error: 'Must provide listingId, calculateAll, forceRecalculate, or batchSource',
+        }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
       );
     }
 
     if (listingsToScore.length === 0) {
       return new Response(
-        JSON.stringify({ success: true, message: "No listings to score", scored: 0 }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        JSON.stringify({ success: true, message: 'No listings to score', scored: 0 }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
       );
     }
 
@@ -378,7 +572,7 @@ serve(async (req) => {
       try {
         const scores = calculateScoresFromData(listing);
         const { error: updateError } = await supabase
-          .from("listings")
+          .from('listings')
           .update({
             deal_total_score: scores.deal_total_score,
             deal_size_score: scores.deal_size_score,
@@ -388,21 +582,34 @@ serve(async (req) => {
             quality_calculation_version: scores.quality_calculation_version,
             scoring_notes: scores.scoring_notes,
           })
-          .eq("id", listing.id);
-        if (updateError) { console.error(`Failed to update listing ${listing.id}:`, updateError); errors++; }
-        else { scored++; results.push({ id: listing.id, title: listing.title, scores }); }
-      } catch (e) { console.error(`Error scoring listing ${listing.id}:`, e); errors++; }
+          .eq('id', listing.id);
+        if (updateError) {
+          console.error(`Failed to update listing ${listing.id}:`, updateError);
+          errors++;
+        } else {
+          scored++;
+          results.push({ id: listing.id, title: listing.title, scores });
+        }
+      } catch (e) {
+        console.error(`Error scoring listing ${listing.id}:`, e);
+        errors++;
+      }
     }
 
-    console.log(`Scored ${scored} listings, ${errors} errors, ${enrichmentQueued} queued for enrichment`);
+    console.log(
+      `Scored ${scored} listings, ${errors} errors, ${enrichmentQueued} queued for enrichment`,
+    );
 
     // Update global activity queue progress
     if (globalQueueId) {
       const totalScoredSoFar = scoredSoFar + scored;
-      await supabase.from("global_activity_queue").update({
-        completed_items: totalScoredSoFar,
-        failed_items: errors,
-      }).eq("id", globalQueueId);
+      await supabase
+        .from('global_activity_queue')
+        .update({
+          completed_items: totalScoredSoFar,
+          failed_items: errors,
+        })
+        .eq('id', globalQueueId);
     }
 
     // Self-continuation for batch mode
@@ -411,26 +618,37 @@ serve(async (req) => {
       // For unscoredOnly, keep offset at 0 since scored deals drop out of results
       const nextOffset = unscoredOnly ? 0 : offset + BATCH_SIZE;
       const selfUrl = `${supabaseUrl}/functions/v1/calculate-deal-quality`;
-      const anonKey = Deno.env.get("SUPABASE_ANON_KEY") || supabaseKey;
-      console.log(`[batch] Continuing at offset ${nextOffset}, scored so far: ${nextScoredSoFar}...`);
+      const anonKey = Deno.env.get('SUPABASE_ANON_KEY') || supabaseKey;
+      console.log(
+        `[batch] Continuing at offset ${nextOffset}, scored so far: ${nextScoredSoFar}...`,
+      );
       fetch(selfUrl, {
-        method: "POST",
+        method: 'POST',
         headers: {
-          "Authorization": `Bearer ${supabaseKey}`,
-          "apikey": anonKey,
-          "Content-Type": "application/json",
+          Authorization: `Bearer ${supabaseKey}`,
+          apikey: anonKey,
+          'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ batchSource, unscoredOnly, globalQueueId, offset: nextOffset, scoredSoFar: nextScoredSoFar }),
+        body: JSON.stringify({
+          batchSource,
+          unscoredOnly,
+          globalQueueId,
+          offset: nextOffset,
+          scoredSoFar: nextScoredSoFar,
+        }),
       }).catch(() => {}); // fire-and-forget
     } else if (batchSource && listingsToScore.length < BATCH_SIZE && globalQueueId) {
       // Last batch — mark complete
       const totalScoredSoFar = scoredSoFar + scored;
-      await supabase.from("global_activity_queue").update({
-        status: "completed",
-        completed_items: totalScoredSoFar,
-        failed_items: errors,
-        completed_at: new Date().toISOString(),
-      }).eq("id", globalQueueId);
+      await supabase
+        .from('global_activity_queue')
+        .update({
+          status: 'completed',
+          completed_items: totalScoredSoFar,
+          failed_items: errors,
+          completed_at: new Date().toISOString(),
+        })
+        .eq('id', globalQueueId);
       console.log(`[batch] Complete! Total scored: ${totalScoredSoFar}`);
     }
 
@@ -438,17 +656,22 @@ serve(async (req) => {
       JSON.stringify({
         success: true,
         message: `Scored ${scored} deals${errors > 0 ? `, ${errors} errors` : ''}`,
-        scored, errors, enrichmentQueued,
+        scored,
+        errors,
+        enrichmentQueued,
         results: results.slice(0, 10),
-        remaining: batchSource && listingsToScore.length === BATCH_SIZE ? "Continuing in background..." : undefined,
+        remaining:
+          batchSource && listingsToScore.length === BATCH_SIZE
+            ? 'Continuing in background...'
+            : undefined,
       }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
     );
   } catch (error) {
-    console.error("Calculate deal quality error:", error);
+    console.error('Calculate deal quality error:', error);
     return new Response(
-      JSON.stringify({ error: error instanceof Error ? error.message : "Unknown error" }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      JSON.stringify({ error: error instanceof Error ? error.message : 'Unknown error' }),
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
     );
   }
 });
