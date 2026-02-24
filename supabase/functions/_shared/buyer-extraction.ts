@@ -72,7 +72,7 @@ export const REGION_MAP: Record<string, string> = {
 // employee_range, detected_email_pattern, contact_discovery_status, last_contact_discovery_at, scores_stale_since
 export const VALID_BUYER_COLUMNS = new Set([
   'company_name', 'company_website', 'platform_website', 'pe_firm_name', 'pe_firm_website',
-  'business_summary', 'thesis_summary', 'thesis_confidence', 'buyer_type',
+  'business_summary', 'thesis_summary', 'buyer_type',
   'hq_city', 'hq_state', 'hq_country', 'hq_region',
   'geographic_footprint', 'service_regions', 'operating_locations',
   'primary_customer_size', 'customer_geographic_reach', 'customer_industries', 'target_customer_profile',
@@ -82,7 +82,7 @@ export const VALID_BUYER_COLUMNS = new Set([
   'acquisition_timeline', 'acquisition_appetite', 'acquisition_frequency',
   'recent_acquisitions', 'portfolio_companies', 'total_acquisitions', 'num_platforms',
   'industry_vertical',
-  'data_completeness', 'data_last_updated', 'extraction_sources',
+  'data_last_updated', 'extraction_sources',
   'notes', 'has_fee_agreement',
   'services_offered', 'business_type', 'revenue_model',
   'marketplace_firm_id',
@@ -684,18 +684,6 @@ export function buildBuyerUpdateObject(
   );
   baseEntries.push({ type: 'field_sources', fields: fieldSources });
   updateData.extraction_sources = baseEntries;
-
-  // Calculate data completeness
-  const keyFields = ['thesis_summary', 'target_services', 'target_geographies', 'geographic_footprint', 'hq_state', 'pe_firm_name', 'business_summary'];
-  const extractedKeyFields = keyFields.filter(f => extractedData[f] || buyer[f]);
-
-  if (extractedKeyFields.length >= 5) {
-    updateData.data_completeness = 'high';
-  } else if (extractedKeyFields.length >= 3) {
-    updateData.data_completeness = 'medium';
-  } else {
-    updateData.data_completeness = buyer.data_completeness || 'low';
-  }
 
   console.log(`Built update with ${fieldsUpdated} field changes`);
   return updateData;

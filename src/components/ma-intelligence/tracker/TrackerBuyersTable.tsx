@@ -75,7 +75,7 @@ export function TrackerBuyersTable({
             <TableHead className="w-[180px]">PE Firm</TableHead>
             <TableHead className="w-[120px]">Industry</TableHead>
             <TableHead className="w-[140px]">Intelligence</TableHead>
-            <TableHead className="w-[120px]">Confidence</TableHead>
+
             <TableHead className="w-[100px]">Contacts</TableHead>
             <TableHead className="w-[140px]">Last Updated</TableHead>
             <TableHead className="w-[80px]"></TableHead>
@@ -126,24 +126,6 @@ export function TrackerBuyersTable({
                     <IntelligenceBadge coverage={coverage} />
                     <span className="text-sm text-muted-foreground">{percentage}%</span>
                   </div>
-                </TableCell>
-                <TableCell>
-                  {buyer.thesis_confidence ? (
-                    <Badge
-                      variant={
-                        buyer.thesis_confidence === "High"
-                          ? "default"
-                          : buyer.thesis_confidence === "Medium"
-                          ? "secondary"
-                          : "outline"
-                      }
-                      className="text-xs"
-                    >
-                      {buyer.thesis_confidence}
-                    </Badge>
-                  ) : (
-                    <span className="text-muted-foreground text-sm">—</span>
-                  )}
                 </TableCell>
                 <TableCell>
                   <div className="flex items-center gap-1 text-sm text-muted-foreground">

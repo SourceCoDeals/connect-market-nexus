@@ -453,16 +453,6 @@ const ReMarketingDealDetail = () => {
   return (
     <div className="p-6 space-y-6">
 
-      {/* Financial Data Warning Banner per spec */}
-      {deal && (deal.revenue_confidence === 'low' || deal.ebitda_confidence === 'low') && (
-        <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-3 flex items-center gap-3">
-          <AlertTriangle className="h-4 w-4 text-destructive" />
-          <span className="text-sm text-destructive">
-            Financial Data Needs Clarification — Some financial figures have low confidence. Review source quotes and consider follow-up.
-          </span>
-        </div>
-      )}
-
       {/* CapTarget Info Section — shown only for captarget-sourced deals */}
       {deal.deal_source === 'captarget' && (
         <Card className="border-blue-200 bg-blue-50/30">
@@ -939,16 +929,6 @@ const ReMarketingDealDetail = () => {
           </div>
         </CardHeader>
         <CardContent>
-          {/* Low Confidence Warning Banner */}
-          {((deal.revenue_confidence === 'low') || (deal.ebitda_confidence === 'low')) && (
-            <div className="flex items-start gap-2 p-2 mb-4 bg-amber-50 border border-amber-200 rounded-lg text-amber-800">
-              <AlertTriangle className="h-4 w-4 mt-0.5 flex-shrink-0" />
-              <div>
-                <p className="text-xs font-medium">Needs Clarification</p>
-              </div>
-            </div>
-          )}
-          
           {/* 3-column grid for financial metrics */}
           <div className="grid grid-cols-3 gap-6">
             {/* Revenue */}
@@ -957,21 +937,6 @@ const ReMarketingDealDetail = () => {
                 <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
                   REVENUE
                 </p>
-                {deal.revenue && (
-                  <Badge 
-                    variant="outline" 
-                    className={
-                      deal.revenue_confidence === 'high' 
-                        ? "bg-emerald-50 text-emerald-700 border-emerald-200 text-xs" 
-                        : deal.revenue_confidence === 'low'
-                        ? "bg-red-50 text-red-600 border-red-200 text-xs"
-                        : "bg-amber-50 text-amber-700 border-amber-200 text-xs"
-                    }
-                  >
-                    {deal.revenue_confidence === 'high' ? '✓' : 
-                     deal.revenue_confidence === 'low' ? '△' : '○'}
-                  </Badge>
-                )}
               </div>
               <span className="text-2xl font-bold">{formatCurrency(deal.revenue)}</span>
               {(() => {
@@ -1037,21 +1002,6 @@ const ReMarketingDealDetail = () => {
                 <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
                   EBITDA
                 </p>
-                {deal.ebitda && (
-                  <Badge 
-                    variant="outline" 
-                    className={
-                      deal.ebitda_confidence === 'high' 
-                        ? "bg-emerald-50 text-emerald-700 border-emerald-200 text-xs" 
-                        : deal.ebitda_confidence === 'low'
-                        ? "bg-red-50 text-red-600 border-red-200 text-xs"
-                        : "bg-amber-50 text-amber-700 border-amber-200 text-xs"
-                    }
-                  >
-                    {deal.ebitda_confidence === 'high' ? '✓' : 
-                     deal.ebitda_confidence === 'low' ? '△' : '○'}
-                  </Badge>
-                )}
               </div>
               <span className="text-2xl font-bold">{formatCurrency(deal.ebitda)}</span>
               {(() => {
@@ -1140,8 +1090,6 @@ const ReMarketingDealDetail = () => {
         data={{
           revenue: deal.revenue,
           ebitda: deal.ebitda,
-          revenue_confidence: deal.revenue_confidence,
-          ebitda_confidence: deal.ebitda_confidence,
         }}
         onSave={async (data) => {
           const { _manualEdit, ...financialData } = data;
@@ -1154,12 +1102,10 @@ const ReMarketingDealDetail = () => {
             const sourceUpdates: Record<string, any> = { ...existingSources };
             if (data.revenue !== undefined) {
               sourceUpdates.revenue = manualSource;
-              sourceUpdates.revenue_confidence = manualSource;
               sourceUpdates.revenue_source_quote = manualSource;
             }
             if (data.ebitda !== undefined) {
               sourceUpdates.ebitda = manualSource;
-              sourceUpdates.ebitda_confidence = manualSource;
               sourceUpdates.ebitda_source_quote = manualSource;
             }
             updates.extraction_sources = sourceUpdates;

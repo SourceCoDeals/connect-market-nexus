@@ -79,11 +79,9 @@ export const VALID_LISTING_UPDATE_KEYS = new Set([
   // Financial tracking fields per spec
   'revenue',
   'ebitda',
-  'revenue_confidence',
   'revenue_is_inferred',
   'revenue_source_quote',
   'ebitda_margin',
-  'ebitda_confidence',
   'ebitda_is_inferred',
   'ebitda_source_quote',
   'financial_notes',
@@ -92,9 +90,9 @@ export const VALID_LISTING_UPDATE_KEYS = new Set([
 
 // Financial data must NEVER come from website scraping — only from transcripts or manual entry
 export const FINANCIAL_FIELDS_BLOCKED_FROM_WEBSITES = [
-  'revenue', 'revenue_value', 'revenue_confidence', 'revenue_is_inferred', 'revenue_source_quote',
+  'revenue', 'revenue_value', 'revenue_is_inferred', 'revenue_source_quote',
   'ebitda', 'ebitda_amount', 'ebitda_margin', 'ebitda_margin_percentage',
-  'ebitda_confidence', 'ebitda_is_inferred', 'ebitda_source_quote',
+  'ebitda_is_inferred', 'ebitda_source_quote',
   'financial_notes', 'financial_followup_questions',
 ];
 
@@ -595,7 +593,6 @@ export function mapTranscriptToListing(extracted: any, listingKeys: Set<string>)
     const revenueValue = toFiniteNumber(extracted?.revenue?.value);
     if (revenueValue != null) {
       out.revenue = revenueValue;
-      if (extracted?.revenue?.confidence) out.revenue_confidence = extracted.revenue.confidence;
       out.revenue_is_inferred = !!extracted?.revenue?.is_inferred;
       if (extracted?.revenue?.source_quote) out.revenue_source_quote = extracted.revenue.source_quote;
     }
@@ -609,7 +606,6 @@ export function mapTranscriptToListing(extracted: any, listingKeys: Set<string>)
     const marginPct = toFiniteNumber(extracted?.ebitda?.margin_percentage);
     if (marginPct != null) out.ebitda_margin = marginPct / 100;
 
-    if (extracted?.ebitda?.confidence) out.ebitda_confidence = extracted.ebitda.confidence;
     if (extracted?.ebitda) out.ebitda_is_inferred = !!extracted.ebitda.is_inferred;
     if (extracted?.ebitda?.source_quote) out.ebitda_source_quote = extracted.ebitda.source_quote;
   }

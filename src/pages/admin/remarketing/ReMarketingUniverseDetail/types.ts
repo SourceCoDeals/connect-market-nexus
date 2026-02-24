@@ -83,7 +83,6 @@ export interface BuyerRecord {
   hq_state: string | null;
   business_summary: string | null;
   thesis_summary: string | null;
-  data_completeness: string | null;
   target_geographies: unknown;
   geographic_footprint: unknown;
   service_regions: unknown;

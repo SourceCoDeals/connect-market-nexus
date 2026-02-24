@@ -533,26 +533,6 @@ export const StructuredCriteriaPanel = ({
               })}
             />
           </div>
-          <div className="space-y-2">
-            <Label className="text-sm">Minimum Data Completeness</Label>
-            <div className="flex gap-2">
-              {(['low', 'medium', 'high'] as const).map((level) => (
-                <Button
-                  key={level}
-                  type="button"
-                  variant={scoringBehavior.minimum_data_completeness === level ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => onScoringBehaviorChange({
-                    ...scoringBehavior,
-                    minimum_data_completeness: level
-                  })}
-                  className="capitalize"
-                >
-                  {level}
-                </Button>
-              ))}
-            </div>
-          </div>
         </CardContent>
       </Card>
     </div>

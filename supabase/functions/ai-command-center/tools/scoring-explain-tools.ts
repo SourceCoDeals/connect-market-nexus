@@ -80,7 +80,7 @@ async function explainBuyerScore(
         geographic_footprint, target_services, target_industries,
         target_revenue_min, target_revenue_max, target_ebitda_min, target_ebitda_max,
         acquisition_appetite, total_acquisitions, num_employees, number_of_locations,
-        thesis_summary, data_completeness, confidence_level
+        thesis_summary
       `)
       .eq('id', buyerId)
       .single(),
@@ -158,7 +158,6 @@ async function explainBuyerScore(
         composite_score: score.composite_score,
         tier: score.tier || score.score_tier,
         status: score.status,
-        confidence: score.confidence_level || buyer.confidence_level,
         buyer_name: buyer.company_name || buyer.pe_firm_name,
         deal_name: deal?.title || dealId,
         fit_reasoning: score.fit_reasoning,
@@ -186,7 +185,6 @@ async function explainBuyerScore(
         geography_mode_factor: score.geography_mode_factor || 1,
       },
       missing_data: missingFields,
-      data_completeness: buyer.data_completeness || score.data_completeness,
       source_tables: ['remarketing_scores', 'remarketing_buyers', 'listings', 'deal_scoring_adjustments'],
     },
   };

@@ -12,7 +12,6 @@ interface PlatformsTabProps {
     company_name: string | null;
     company_website: string | null;
     buyer_type: string | null;
-    data_completeness: string | null;
     business_summary: string | null;
     thesis_summary: string | null;
     hq_city: string | null;
@@ -89,11 +88,6 @@ export const PlatformsTab = ({
                       <span className="font-medium text-foreground truncate">
                         {platform.company_name}
                       </span>
-                      {platform.data_completeness === "high" && (
-                        <Badge className="bg-emerald-500 hover:bg-emerald-600 text-xs px-1.5 py-0">
-                          Enriched
-                        </Badge>
-                      )}
                     </div>
                     {(platform.universe as { name?: string } | null)?.name && (
                       <Badge variant="secondary" className="text-xs">

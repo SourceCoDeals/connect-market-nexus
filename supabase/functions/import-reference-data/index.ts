@@ -141,7 +141,7 @@ async function importBuyers(supabase: any, data: any[], options: any) {
         company_website: row.platform_website || null,
         buyer_type: determineBuyerType(row),
         thesis_summary: row.thesis_summary || null,
-        thesis_confidence: mapThesisConfidence(row.thesis_confidence),
+
         target_revenue_min: parseNumber(row.min_revenue),
         target_revenue_max: parseNumber(row.max_revenue),
         target_ebitda_min: parseNumber(row.min_ebitda),
@@ -153,7 +153,6 @@ async function importBuyers(supabase: any, data: any[], options: any) {
         recent_acquisitions: parseJsonField(row.recent_acquisitions) || [],
         portfolio_companies: parseJsonField(row.portfolio_companies) || [],
         extraction_sources: parseJsonField(row.extraction_sources) || [],
-        data_completeness: mapDataCompleteness(row),
         notes: row.key_quotes || null,
         archived: row.archived === 'true' || row.archived === true,
         // New columns from Phase 1
@@ -178,7 +177,7 @@ async function importBuyers(supabase: any, data: any[], options: any) {
         total_acquisitions: parseInt(row.total_acquisitions) || null,
         acquisition_frequency: row.acquisition_frequency || null,
         fee_agreement_status: row.fee_agreement_status || null,
-        confidence_level: row.thesis_confidence || null,
+
         created_at: row.created_at || new Date().toISOString(),
       };
 
@@ -299,7 +298,6 @@ async function importScores(supabase: any, data: any[], options: any) {
         owner_goals_score: 0,
         tier: calculateTier(parseFloat(row.composite_score) || 0),
         fit_reasoning: row.fit_reasoning || null,
-        data_completeness: row.data_completeness?.toLowerCase() || 'medium',
         status: row.passed_on_deal ? 'passed' : (row.interested ? 'approved' : 'pending'),
         pass_reason: row.pass_reason || null,
         pass_category: row.pass_category || null,
@@ -462,31 +460,6 @@ function determineBuyerType(row: any): string {
   if (row.pe_firm_name) return 'pe_firm';
   if (row.platform_company_name) return 'strategic';
   return 'other';
-}
-
-function mapThesisConfidence(value: string | null): string | null {
-  if (!value) return null;
-  const lower = value.toLowerCase();
-  if (lower.includes('high')) return 'high';
-  if (lower.includes('medium')) return 'medium';
-  if (lower.includes('low')) return 'low';
-  return 'medium';
-}
-
-function mapDataCompleteness(row: any): string {
-  // Count filled important fields
-  let score = 0;
-  if (row.thesis_summary) score += 2;
-  if (row.min_revenue || row.max_revenue) score += 1;
-  if (row.geographic_footprint || row.geo_preferences) score += 1;
-  if (row.services_offered) score += 1;
-  if (row.recent_acquisitions) score += 1;
-  if (row.portfolio_companies) score += 1;
-  if (row.hq_city || row.hq_state) score += 1;
-  
-  if (score >= 6) return 'high';
-  if (score >= 3) return 'medium';
-  return 'low';
 }
 
 function calculateTier(score: number): string {

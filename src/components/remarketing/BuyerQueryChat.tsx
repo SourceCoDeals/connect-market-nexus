@@ -20,7 +20,7 @@ import {
 import { cn } from "@/lib/utils";
 import { Link } from "react-router-dom";
 import { IntelligenceBadge } from "./IntelligenceBadge";
-import type { DataCompleteness, BuyerType } from "@/types/remarketing";
+import type { BuyerType } from "@/types/remarketing";
 
 interface BuyerQueryChatProps {
   universeId?: string;
@@ -46,7 +46,6 @@ interface MatchedBuyer {
   thesis_summary: string | null;
   target_geographies: string[];
   target_services: string[];
-  data_completeness: DataCompleteness | null;
 }
 
 const EXAMPLE_QUERIES = [
@@ -263,9 +262,8 @@ export const BuyerQueryChat = ({ universeId, className, defaultOpen = false }: B
                               <Badge variant="outline" className="text-xs capitalize">
                                 {buyer.buyer_type?.replace('_', ' ') || 'Unknown'}
                               </Badge>
-                              <IntelligenceBadge 
-                                completeness={buyer.data_completeness} 
-                                size="sm" 
+                              <IntelligenceBadge
+                                size="sm"
                               />
                             </div>
                           </div>

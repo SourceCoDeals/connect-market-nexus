@@ -23,7 +23,6 @@ import {
   Loader2, 
   Users,
   RefreshCw,
-  Filter,
   Clock,
   AlertCircle,
   CheckCircle2
@@ -70,7 +69,6 @@ export const BulkScoringPanel = ({
   
   // Scoring options
   const [rescoreExisting, setRescoreExisting] = useState(false);
-  const [minDataCompleteness, setMinDataCompleteness] = useState<string>("all");
 
   const handleBulkScore = async () => {
     if (!selectedUniverse) {
@@ -174,23 +172,6 @@ export const BulkScoringPanel = ({
             />
           </div>
 
-          <div className="space-y-1.5">
-            <Label className="text-sm font-medium flex items-center gap-1.5">
-              <Filter className="h-3.5 w-3.5" />
-              Minimum Data Quality
-            </Label>
-            <Select value={minDataCompleteness} onValueChange={setMinDataCompleteness}>
-              <SelectTrigger className="h-9">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All buyers</SelectItem>
-                <SelectItem value="low">Low+ completeness</SelectItem>
-                <SelectItem value="medium">Medium+ completeness</SelectItem>
-                <SelectItem value="high">High completeness only</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
         </div>
 
         {/* Score Button */}

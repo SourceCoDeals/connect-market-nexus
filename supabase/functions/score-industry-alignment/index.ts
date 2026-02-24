@@ -236,13 +236,8 @@ Use the score_alignment tool to return your evaluation.`;
               items: { type: "string" },
               description: "3-5 specific factors that influenced the score (positive or negative)"
             },
-            confidence: {
-              type: "string",
-              enum: ["high", "medium", "low"],
-              description: "Confidence level in this score based on available data"
-            }
           },
-          required: ["score", "reasoning", "key_factors", "confidence"],
+          required: ["score", "reasoning", "key_factors"],
           additionalProperties: false
         }
       }
@@ -336,8 +331,7 @@ Use the score_alignment tool to return your evaluation.`;
         company_name: buyer.company_name,
         score: scoringResult.score,
         reasoning: scoringResult.reasoning,
-        key_factors: scoringResult.key_factors,
-        confidence: scoringResult.confidence
+        key_factors: scoringResult.key_factors
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );

@@ -53,15 +53,6 @@ const ReMarketingDealDetail = () => {
   return (
     <div className="p-6 space-y-6">
 
-      {deal && (deal.revenue_confidence === 'low' || deal.ebitda_confidence === 'low') && (
-        <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-3 flex items-center gap-3">
-          <AlertTriangle className="h-4 w-4 text-destructive" />
-          <span className="text-sm text-destructive">
-            Financial Data Needs Clarification — Some financial figures have low confidence. Review source quotes and consider follow-up.
-          </span>
-        </div>
-      )}
-
       <CapTargetInfoCard deal={deal} dealId={dealId!} />
 
       <DealHeader

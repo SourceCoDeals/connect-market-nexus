@@ -55,7 +55,6 @@ export function BuyerOverviewTab({
         {editingSection === "thesis" ? (
           <div className="space-y-4">
             <div className="space-y-2"><Label>Thesis Summary</Label><Textarea value={formData.thesis_summary || ""} onChange={(e) => setFormData({ ...formData, thesis_summary: e.target.value })} rows={4} /></div>
-            <div className="space-y-2"><Label>Thesis Confidence</Label><Select value={formData.thesis_confidence || ""} onValueChange={(v: any) => setFormData({ ...formData, thesis_confidence: v })}><SelectTrigger><SelectValue placeholder="Select confidence" /></SelectTrigger><SelectContent><SelectItem value="High">High</SelectItem><SelectItem value="Medium">Medium</SelectItem><SelectItem value="Low">Low</SelectItem></SelectContent></Select></div>
             <div className="space-y-2"><Label>Service Mix Preferences</Label><Textarea value={formData.service_mix_prefs || ""} onChange={(e) => setFormData({ ...formData, service_mix_prefs: e.target.value })} rows={3} /></div>
             <div className="space-y-2"><Label>Target Services</Label><ChipInput value={formData.target_services || []} onChange={(v) => setFormData({ ...formData, target_services: v })} placeholder="Add service and press Enter" /></div>
             <div className="space-y-2"><Label>Required Capabilities</Label><ChipInput value={formData.required_capabilities || []} onChange={(v) => setFormData({ ...formData, required_capabilities: v })} placeholder="Add capability and press Enter" /></div>
@@ -66,7 +65,7 @@ export function BuyerOverviewTab({
           </div>
         ) : (
           <div className="space-y-4">
-            <div className="flex items-center justify-between"><div><div className="text-sm font-medium mb-1">Thesis Summary</div><div className="text-sm text-muted-foreground whitespace-pre-wrap">{buyer.thesis_summary || "No thesis summary available"}</div></div>{buyer.thesis_confidence && <Badge variant={buyer.thesis_confidence === "High" ? "default" : buyer.thesis_confidence === "Medium" ? "secondary" : "outline"}>{buyer.thesis_confidence} Confidence</Badge>}</div>
+            <div className="flex items-center justify-between"><div><div className="text-sm font-medium mb-1">Thesis Summary</div><div className="text-sm text-muted-foreground whitespace-pre-wrap">{buyer.thesis_summary || "No thesis summary available"}</div></div></div>
             <div><div className="text-sm font-medium mb-1">Service Mix Preferences</div><div className="text-sm text-muted-foreground">{buyer.service_mix_prefs || "\u2014"}</div></div>
             <div><div className="text-sm font-medium mb-1">Target Services</div><div className="flex flex-wrap gap-1">{buyer.target_services?.length ? buyer.target_services.map(s => <Badge key={s} variant="secondary">{s}</Badge>) : <span className="text-sm text-muted-foreground">{"\u2014"}</span>}</div></div>
             <div><div className="text-sm font-medium mb-1">Required Capabilities</div><div className="flex flex-wrap gap-1">{buyer.required_capabilities?.length ? buyer.required_capabilities.map(c => <Badge key={c} variant="secondary">{c}</Badge>) : <span className="text-sm text-muted-foreground">{"\u2014"}</span>}</div></div>

@@ -224,7 +224,7 @@ async function pipelineHealth(supabase: SupabaseClient): Promise<ToolResult> {
 async function scoringDistribution(supabase: SupabaseClient): Promise<ToolResult> {
   const { data, error } = await supabase
     .from('remarketing_scores')
-    .select('composite_score, status, tier, confidence_level')
+    .select('composite_score, status, tier')
     .order('composite_score', { ascending: false })
     .limit(500);
 

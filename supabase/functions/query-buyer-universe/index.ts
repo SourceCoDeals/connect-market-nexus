@@ -44,7 +44,6 @@ serve(async (req) => {
         target_ebitda_min,
         target_ebitda_max,
         geographic_footprint,
-        data_completeness,
         universe_id,
         archived
       `)

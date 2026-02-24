@@ -282,7 +282,7 @@ export async function searchBuyersByCriteria(
   try {
     let query = supabase
       .from('remarketing_buyers')
-      .select('id, company_name, pe_firm_name, buyer_type, geographic_footprint, target_services, target_revenue_min, target_revenue_max, acquisition_appetite, data_completeness')
+      .select('id, company_name, pe_firm_name, buyer_type, geographic_footprint, target_services, target_revenue_min, target_revenue_max, acquisition_appetite')
       .eq('archived', false);
 
     // Apply filters

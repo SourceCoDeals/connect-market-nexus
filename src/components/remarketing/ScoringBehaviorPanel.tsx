@@ -8,13 +8,6 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { ChevronDown, Settings, Gauge, MapPin, Target, Award } from "lucide-react";
 import type { ScoringBehavior } from "@/types/remarketing";
 
@@ -163,26 +156,6 @@ export const ScoringBehaviorPanel = ({
                     onCheckedChange={(checked) => handleChange('require_thesis_match', checked)}
                     disabled={readOnly}
                   />
-                </div>
-                <div className="flex items-center justify-between p-3 rounded-lg border bg-muted/30">
-                  <div>
-                    <Label htmlFor="data_completeness" className="text-sm font-medium">Min. Data Completeness</Label>
-                    <p className="text-xs text-muted-foreground">Required intelligence level</p>
-                  </div>
-                  <Select
-                    value={scoringBehavior.minimum_data_completeness ?? 'low'}
-                    onValueChange={(value) => handleChange('minimum_data_completeness', value)}
-                    disabled={readOnly}
-                  >
-                    <SelectTrigger className="w-24">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="low">Low</SelectItem>
-                      <SelectItem value="medium">Medium</SelectItem>
-                      <SelectItem value="high">High</SelectItem>
-                    </SelectContent>
-                  </Select>
                 </div>
               </div>
             </div>

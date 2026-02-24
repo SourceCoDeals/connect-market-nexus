@@ -133,17 +133,14 @@ const ReMarketingUniverses = () => {
   });
 
   // Fetch buyer counts per universe
-  // Intelligence coverage is a two-tier system:
-  // - Website enrichment (data_completeness = 'high') contributes up to 50%
-  // - Call transcripts contribute the remaining 50%
-  // 100% intel requires ALL buyers to have transcripts
+  // Intelligence coverage is based on transcripts
   const { data: buyerStats } = useQuery({
     queryKey: ['remarketing', 'universe-buyer-stats'],
     queryFn: async () => {
-      // Get all buyers with data_completeness (capped to prevent unbounded fetch)
+      // Get all buyers (capped to prevent unbounded fetch)
       const { data: buyers, error: buyersError } = await supabase
         .from('remarketing_buyers')
-        .select('id, universe_id, data_completeness')
+        .select('id, universe_id')
         .eq('archived', false)
         .limit(10000);
 
@@ -159,7 +156,7 @@ const ReMarketingUniverses = () => {
 
       const buyersWithTranscripts = new Set(transcripts?.map(t => t.buyer_id) || []);
 
-      // Aggregate by universe with both enriched and transcript counts
+      // Aggregate by universe with transcript counts
       const stats: Record<string, { total: number; enriched: number; withTranscripts: number }> = {};
       buyers?.forEach(buyer => {
         if (!buyer.universe_id) return;
@@ -167,13 +164,8 @@ const ReMarketingUniverses = () => {
           stats[buyer.universe_id] = { total: 0, enriched: 0, withTranscripts: 0 };
         }
         stats[buyer.universe_id].total++;
-        
-        // Count enriched buyers (website data provides up to 50% intel)
-        if (buyer.data_completeness === 'high' || buyer.data_completeness === 'medium') {
-          stats[buyer.universe_id].enriched++;
-        }
-        
-        // Count buyers with transcripts (provides remaining 50% intel)
+
+        // Count buyers with transcripts
         if (buyersWithTranscripts.has(buyer.id)) {
           stats[buyer.universe_id].withTranscripts++;
         }

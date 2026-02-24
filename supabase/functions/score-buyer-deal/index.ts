@@ -38,7 +38,7 @@ import { calculateServiceScore } from "./phases/service.ts";
 import { calculateOwnerGoalsScore } from "./phases/owner-goals.ts";
 import { calculateThesisAlignmentBonus, calculateDataQualityBonus } from "./phases/thesis.ts";
 import { fetchLearningPatterns, calculateLearningPenalty } from "./phases/learning.ts";
-import { assessDataCompleteness, fetchScoringAdjustments, applyCustomInstructionBonus } from "./phases/data-completeness.ts";
+import { assessProvenanceWarnings, fetchScoringAdjustments, applyCustomInstructionBonus } from "./phases/data-completeness.ts";
 import { saveScoreSnapshot } from "./phases/utils.ts";
 
 // ============================================================================
@@ -277,27 +277,12 @@ async function scoreSingleBuyer(
   else if (finalScore >= SCORING_CONFIG.TIER_D_MIN) tier = "D";
   else tier = "F";
 
-  // === Data completeness + provenance ===
-  const { level: dataCompleteness, missingFields, provenanceWarnings } = assessDataCompleteness(buyer);
+  // === Provenance warnings ===
+  const { provenanceWarnings } = assessProvenanceWarnings(buyer);
 
-  // === Confidence level based on dimensions actually scored ===
-  const dimensionsScored = [
-    buyerHasSizeData && dealHasFinancials,
-    buyerHasGeoData && dealHasLocation,
-    buyerHasServiceData && dealHasServices,
-    true // owner goals always has signal from buyer type
-  ].filter(Boolean).length;
-
-  let confidenceLevel = 'medium';
-  if (dimensionsScored >= 4 && dataCompleteness === 'high' && provenanceWarnings.length === 0) confidenceLevel = 'high';
-  else if (dimensionsScored >= 3) confidenceLevel = 'medium';
-  else if (dimensionsScored >= 2) confidenceLevel = 'low';
-  else confidenceLevel = 'very_low';
-
-  // === Needs review flag (only in ambiguous score zone with low-quality data) ===
+  // === Needs review flag (only in ambiguous score zone) ===
   const needsReview = (
-    finalScore >= SCORING_CONFIG.REVIEW_SCORE_LOW && finalScore <= SCORING_CONFIG.REVIEW_SCORE_HIGH &&
-    (confidenceLevel === 'low' || dataCompleteness === 'low')
+    finalScore >= SCORING_CONFIG.REVIEW_SCORE_LOW && finalScore <= SCORING_CONFIG.REVIEW_SCORE_HIGH
   );
 
   // === Build reasoning (aligned with frontend tier bands) ===
@@ -368,10 +353,7 @@ async function scoreSingleBuyer(
     is_disqualified: isDisqualified,
     disqualification_reason: disqualificationReason,
     needs_review: needsReview,
-    missing_fields: missingFields,
-    confidence_level: confidenceLevel,
     fit_reasoning: fitReasoning,
-    data_completeness: dataCompleteness,
     status: "pending",
     scored_at: new Date().toISOString(),
     deal_snapshot: dealSnapshot,
@@ -485,7 +467,6 @@ async function handleBulkScore(
 ) {
   const { listingId, universeId, buyerIds, customInstructions, geographyMode, options } = request;
   const rescoreExisting = options?.rescoreExisting ?? false;
-  const minDataCompleteness = options?.minDataCompleteness;
   const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
   const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
@@ -499,7 +480,6 @@ async function handleBulkScore(
 
   // ========== DEAL SCORING READINESS VALIDATION ==========
   const dealDiagnostics = {
-    missing_fields: [] as string[],
     warnings: [] as string[],
     data_quality: 'high' as 'high' | 'medium' | 'low',
   };
@@ -514,12 +494,13 @@ async function handleBulkScore(
   );
   const hasDescription = !!(listing.hero_description?.trim() || listing.description?.trim());
 
-  if (!hasRevenue) dealDiagnostics.missing_fields.push('revenue');
-  if (!hasEbitda) dealDiagnostics.missing_fields.push('ebitda');
-  if (!hasLocation) dealDiagnostics.missing_fields.push('location');
-  if (!hasServices) dealDiagnostics.missing_fields.push('services/category');
-  if (!hasDescription) dealDiagnostics.missing_fields.push('description');
-  if (!listing.seller_motivation) dealDiagnostics.missing_fields.push('seller_motivation');
+  const missingDealFields: string[] = [];
+  if (!hasRevenue) missingDealFields.push('revenue');
+  if (!hasEbitda) missingDealFields.push('ebitda');
+  if (!hasLocation) missingDealFields.push('location');
+  if (!hasServices) missingDealFields.push('services/category');
+  if (!hasDescription) missingDealFields.push('description');
+  if (!listing.seller_motivation) missingDealFields.push('seller_motivation');
 
   if (!hasRevenue && !hasEbitda) {
     dealDiagnostics.warnings.push('No financial data — size scoring will use proxy values');
@@ -531,14 +512,14 @@ async function handleBulkScore(
     dealDiagnostics.warnings.push('No location — geography scoring will use weight redistribution');
   }
 
-  const missingCount = dealDiagnostics.missing_fields.length;
+  const missingCount = missingDealFields.length;
   if (missingCount >= 3) {
     dealDiagnostics.data_quality = 'low';
   } else if (missingCount >= 1) {
     dealDiagnostics.data_quality = 'medium';
   }
 
-  console.log(`[DealDiagnostics] Deal ${listingId}: quality=${dealDiagnostics.data_quality}, missing=[${dealDiagnostics.missing_fields.join(', ')}]`);
+  console.log(`[DealDiagnostics] Deal ${listingId}: quality=${dealDiagnostics.data_quality}, missing=[${missingDealFields.join(', ')}]`);
 
   // Fetch universe with structured criteria
   const { data: universeData, error: universeError } = await supabase
@@ -551,8 +532,6 @@ async function handleBulkScore(
     .from("remarketing_buyers").select("*")
     .eq("universe_id", universeId).eq("archived", false);
   if (buyerIds && buyerIds.length > 0) buyerQuery = buyerQuery.in("id", buyerIds);
-  if (minDataCompleteness === 'high') buyerQuery = buyerQuery.eq('data_completeness', 'high');
-  else if (minDataCompleteness === 'medium') buyerQuery = buyerQuery.in('data_completeness', ['high', 'medium']);
 
   const { data: buyers, error: buyersError } = await buyerQuery;
   if (buyersError) throw new Error("Failed to fetch buyers");
@@ -717,7 +696,7 @@ async function handleBulkScore(
     : 0;
 
   if (qualifiedCount === 0 && scores.length > 0) {
-    console.warn(`[ScoringGuardrail] ALL ${scores.length} buyers disqualified for deal ${listingId}. Avg score: ${avgScore}. Deal data quality: ${dealDiagnostics.data_quality}. Missing: [${dealDiagnostics.missing_fields.join(', ')}]`);
+    console.warn(`[ScoringGuardrail] ALL ${scores.length} buyers disqualified for deal ${listingId}. Avg score: ${avgScore}. Deal data quality: ${dealDiagnostics.data_quality}. Missing: [${missingDealFields.join(', ')}]`);
   }
 
   if (scores.length > 5) {

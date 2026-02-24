@@ -13,8 +13,6 @@ import type {
   ScoringBehavior as BaseScoringBehavior,
   AcquisitionRecord as _BaseAcquisitionRecord,
   ExtractionSource as BaseExtractionSource,
-  DataCompleteness,
-  ThesisConfidence,
   ScoreTier,
   ScoreStatus,
 } from '@/types/remarketing';
@@ -26,7 +24,7 @@ export type GeographyCriteria = BaseGeographyCriteria;
 export type BuyerTypesCriteria = BaseBuyerTypesCriteria;
 export type ScoringBehavior = BaseScoringBehavior;
 export type ExtractionSource = BaseExtractionSource;
-export type { DataCompleteness, ThesisConfidence, ScoreTier, ScoreStatus };
+export type { ScoreTier, ScoreStatus };
 
 // Tracker document type (specific to M&A Intelligence)
 export interface TrackerDocument {
@@ -102,7 +100,6 @@ export interface MABuyer {
   target_customer_industries: string[] | null;
   target_customer_geography: string | null;
   thesis_summary: string | null;
-  thesis_confidence: 'High' | 'Medium' | 'Low' | null;
   service_mix_prefs: string | null;
   business_model_prefs: string | null;
   geo_preferences: GeoPreferences | null;
@@ -148,7 +145,6 @@ export interface OperatingLocation {
 export interface FieldSource {
   source: 'transcript' | 'notes' | 'website' | 'csv' | 'manual';
   updated_at: string;
-  confidence?: 'high' | 'medium' | 'low';
 }
 
 export interface CallRecord {
@@ -178,12 +174,10 @@ export interface MADeal {
   location_count: number | null;
   ownership_structure: string | null;
   revenue: number | null;
-  revenue_confidence: string | null;
   revenue_is_inferred: boolean | null;
   revenue_source_quote: string | null;
   ebitda_amount: number | null;
   ebitda_percentage: number | null;
-  ebitda_confidence: string | null;
   ebitda_is_inferred: boolean | null;
   ebitda_source_quote: string | null;
   financial_notes: string | null;
@@ -232,7 +226,6 @@ export interface BuyerDealScore {
   thesis_bonus: number | null;
   composite_score: number | null;
   fit_reasoning: string | null;
-  data_completeness: 'High' | 'Medium' | 'Low' | null;
   selected_for_outreach: boolean | null;
   human_override_score: number | null;
   passed_on_deal: boolean | null;

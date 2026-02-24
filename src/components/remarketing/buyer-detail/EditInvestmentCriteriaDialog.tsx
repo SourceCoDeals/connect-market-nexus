@@ -10,24 +10,16 @@ import {
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+
 
 interface EditInvestmentCriteriaDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   data: {
     investmentThesis?: string | null;
-    thesisConfidence?: string | null;
   };
   onSave: (data: {
     thesis_summary?: string;
-    thesis_confidence?: string;
   }) => void;
   isSaving?: boolean;
 }
@@ -41,20 +33,17 @@ export const EditInvestmentCriteriaDialog = ({
 }: EditInvestmentCriteriaDialogProps) => {
   const [formData, setFormData] = useState({
     investmentThesis: data.investmentThesis || "",
-    thesisConfidence: data.thesisConfidence || "medium",
   });
 
   useEffect(() => {
     setFormData({
       investmentThesis: data.investmentThesis || "",
-      thesisConfidence: data.thesisConfidence || "medium",
     });
   }, [data]);
 
   const handleSave = () => {
     onSave({
       thesis_summary: formData.investmentThesis || undefined,
-      thesis_confidence: formData.thesisConfidence || undefined,
     });
   };
 
@@ -78,23 +67,8 @@ export const EditInvestmentCriteriaDialog = ({
             />
           </div>
           
-          <div className="space-y-2">
-            <Label>Thesis Confidence</Label>
-            <Select
-              value={formData.thesisConfidence}
-              onValueChange={(value) => setFormData({ ...formData, thesisConfidence: value })}
-            >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="high">High</SelectItem>
-                <SelectItem value="medium">Medium</SelectItem>
-                <SelectItem value="low">Low</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          
+
+
         </div>
         
         <DialogFooter>

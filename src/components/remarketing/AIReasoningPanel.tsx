@@ -1,12 +1,10 @@
 import { useState } from "react";
-import { ChevronDown, ChevronUp, Sparkles, AlertCircle, CheckCircle2, Info } from "lucide-react";
+import { ChevronDown, ChevronUp, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import type { DataCompleteness } from "@/types/remarketing";
 
 interface AIReasoningPanelProps {
   reasoning: string | null;
-  dataCompleteness?: DataCompleteness | null;
   thesisSummary?: string | null;
   targetGeographies?: string[];
   targetServices?: string[];
@@ -14,35 +12,8 @@ interface AIReasoningPanelProps {
   className?: string;
 }
 
-const completenessConfig: Record<DataCompleteness, { 
-  label: string; 
-  icon: typeof CheckCircle2; 
-  color: string;
-  description: string;
-}> = {
-  'high': { 
-    label: 'High', 
-    icon: CheckCircle2, 
-    color: 'text-emerald-600',
-    description: 'Comprehensive buyer data available'
-  },
-  'medium': { 
-    label: 'Medium', 
-    icon: Info, 
-    color: 'text-amber-600',
-    description: 'Some buyer data may be incomplete'
-  },
-  'low': { 
-    label: 'Low', 
-    icon: AlertCircle, 
-    color: 'text-red-600',
-    description: 'Limited buyer data - scoring may be less accurate'
-  },
-};
-
 export const AIReasoningPanel = ({
   reasoning,
-  dataCompleteness,
   thesisSummary,
   targetGeographies,
   targetServices,
@@ -50,9 +21,6 @@ export const AIReasoningPanel = ({
   className,
 }: AIReasoningPanelProps) => {
   const [isExpanded, setIsExpanded] = useState(defaultExpanded);
-  
-  const completeness = dataCompleteness ? completenessConfig[dataCompleteness] : null;
-  const CompletenessIcon = completeness?.icon || Info;
 
   return (
     <div className={cn("border rounded-lg", className)}>
@@ -64,12 +32,6 @@ export const AIReasoningPanel = ({
         <div className="flex items-center gap-2">
           <Sparkles className="h-4 w-4 text-primary" />
           <span className="font-medium">AI Analysis</span>
-          {completeness && (
-            <span className={cn("flex items-center gap-1 text-xs", completeness.color)}>
-              <CompletenessIcon className="h-3 w-3" />
-              {completeness.label} data
-            </span>
-          )}
         </div>
         {isExpanded ? (
           <ChevronUp className="h-4 w-4 text-muted-foreground" />
@@ -80,17 +42,6 @@ export const AIReasoningPanel = ({
 
       {isExpanded && (
         <div className="px-4 pb-4 space-y-4">
-          {/* Data Completeness Warning */}
-          {completeness && dataCompleteness !== 'high' && (
-            <div className={cn(
-              "flex items-start gap-2 p-3 rounded-lg text-sm",
-              dataCompleteness === 'low' ? "bg-red-50" : "bg-amber-50"
-            )}>
-              <CompletenessIcon className={cn("h-4 w-4 mt-0.5 flex-shrink-0", completeness.color)} />
-              <p className={completeness.color}>{completeness.description}</p>
-            </div>
-          )}
-
           {/* AI Reasoning */}
           <div>
             <h4 className="text-sm font-medium text-muted-foreground mb-2">Fit Reasoning</h4>

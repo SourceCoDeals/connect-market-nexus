@@ -225,7 +225,6 @@ const ReMarketingBuyerDetail = () => {
 
             <InvestmentCriteriaCard
               investmentThesis={buyer?.thesis_summary}
-              thesisConfidence={buyer?.thesis_confidence}
               onEdit={() => setActiveEditDialog('investment')}
               className="bg-accent/20"
             />

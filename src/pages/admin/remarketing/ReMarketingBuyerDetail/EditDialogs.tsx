@@ -44,7 +44,6 @@ export const EditDialogs = ({
         onOpenChange={(open) => !open && setActiveEditDialog(null)}
         data={{
           investmentThesis: buyer?.thesis_summary,
-          thesisConfidence: buyer?.thesis_confidence,
         }}
         onSave={(data) => onSave(data)}
         isSaving={isSaving}

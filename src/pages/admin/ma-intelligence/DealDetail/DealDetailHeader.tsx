@@ -113,7 +113,7 @@ export function DealDetailHeader({
                 ? `${(deal.revenue / 1000000).toFixed(1)}M`
                 : `${(deal.revenue / 1000).toFixed(0)}K`}`
             : "\u2014"}
-          subtitle={deal.revenue_confidence ? `${deal.revenue_confidence} confidence` : undefined}
+          subtitle={undefined}
         />
         <QuickInfoCard
           icon="trending"
@@ -125,7 +125,7 @@ export function DealDetailHeader({
             : deal.ebitda_percentage
             ? `${deal.ebitda_percentage}%`
             : "\u2014"}
-          subtitle={deal.ebitda_confidence ? `${deal.ebitda_confidence} confidence` : undefined}
+          subtitle={undefined}
         />
         <QuickInfoCard
           icon="location"

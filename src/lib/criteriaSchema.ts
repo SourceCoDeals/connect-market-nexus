@@ -136,7 +136,6 @@ export interface ScoringBehaviorSchema {
   boost_adjacency?: boolean;
   penalize_distance?: boolean;
   require_thesis_match?: boolean;
-  minimum_data_completeness?: 'high' | 'medium' | 'low';
 }
 
 // ============= Complete Criteria Set =============

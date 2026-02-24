@@ -16,7 +16,7 @@ export const SPONSOR_TYPES: BuyerType[] = ['pe_firm', 'independent_sponsor', 'se
 export const isSponsorType = (buyerType: string | null | undefined): boolean =>
   SPONSOR_TYPES.includes(buyerType as BuyerType);
 
-export type BuyerTab = 'all' | 'pe_firm' | 'platform' | 'needs_agreements' | 'needs_enrichment';
+export type BuyerTab = 'all' | 'pe_firm' | 'platform' | 'needs_agreements';
 
 // Helper to find a PE firm record by name in the buyers list
 export const findPeFirmByName = (buyers: any[], firmName: string): any | null => {

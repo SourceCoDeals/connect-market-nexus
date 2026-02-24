@@ -6,7 +6,7 @@ export interface RevenueOptimization {
   current_avg_commission: number;
   optimal_commission: number;
   potential_revenue_increase: number;
-  confidence_level: number;
+  forecast_level: number;
   market_demand: 'high' | 'medium' | 'low';
   supply_level: 'oversupplied' | 'balanced' | 'undersupplied';
   pricing_recommendation: string;
@@ -18,7 +18,7 @@ export interface DealVelocityMetrics {
   days_on_market: number;
   velocity_score: number;
   predicted_sale_date: string;
-  confidence_level: number;
+  forecast_level: number;
   acceleration_opportunities: string[];
   bottlenecks: string[];
 }
@@ -144,7 +144,7 @@ export function useRevenueOptimization(daysBack: number = 90) {
             current_avg_commission: Math.round(currentCommission),
             optimal_commission: Math.round(optimalCommission),
             potential_revenue_increase: Math.round(potentialIncrease),
-            confidence_level: Math.min(80 + (data.listings.length * 2), 95),
+            forecast_level: Math.min(80 + (data.listings.length * 2), 95),
             market_demand: marketDemand,
             supply_level: supplyLevel,
             pricing_recommendation: pricingRecommendation
@@ -190,7 +190,7 @@ export function useRevenueOptimization(daysBack: number = 90) {
           days_on_market: daysOnMarket,
           velocity_score: Math.round(velocityScore),
           predicted_sale_date: predictedSaleDate,
-          confidence_level: Math.min(60 + velocityScore / 2, 90),
+          forecast_level: Math.min(60 + velocityScore / 2, 90),
           acceleration_opportunities: accelerationOpportunities,
           bottlenecks: bottlenecks
         };

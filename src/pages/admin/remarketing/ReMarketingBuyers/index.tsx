@@ -74,7 +74,7 @@ const ReMarketingBuyers = () => {
         <div>
           <h1 className="text-2xl font-bold text-foreground">All Buyers</h1>
           <p className="text-muted-foreground">
-            {tabCounts.all} buyers · {tabCounts.needs_agreements} need agreements · {tabCounts.needs_enrichment} need enrichment
+            {tabCounts.all} buyers · {tabCounts.needs_agreements} need agreements
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -136,7 +136,6 @@ const ReMarketingBuyers = () => {
           <TabsTrigger value="pe_firm">Sponsors & Firms ({tabCounts.pe_firm})</TabsTrigger>
           <TabsTrigger value="platform">Platforms ({tabCounts.platform})</TabsTrigger>
           <TabsTrigger value="needs_agreements">Needs Agreements ({tabCounts.needs_agreements})</TabsTrigger>
-          <TabsTrigger value="needs_enrichment">Needs Enrichment ({tabCounts.needs_enrichment})</TabsTrigger>
         </TabsList>
       </Tabs>
 

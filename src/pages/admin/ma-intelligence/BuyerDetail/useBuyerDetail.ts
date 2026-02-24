@@ -105,7 +105,7 @@ export function useBuyerDetail() {
         'acquisition_timeline', 'min_revenue', 'max_revenue', 'min_ebitda', 'max_ebitda',
         'preferred_ebitda', 'target_geographies', 'geographic_footprint', 'geographic_exclusions',
         'acquisition_geography', 'service_regions', 'target_services', 'target_industries',
-        'industry_exclusions', 'thesis_summary', 'thesis_confidence',
+        'industry_exclusions', 'thesis_summary',
         'service_mix_prefs', 'business_model_prefs', 'addon_only', 'platform_only',
         'has_fee_agreement', 'fee_agreement_status'
       ];

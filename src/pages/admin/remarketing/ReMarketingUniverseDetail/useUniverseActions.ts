@@ -264,9 +264,7 @@ export function useUniverseActions(data: UseUniverseDataReturn) {
     resetQueueEnrichment();
 
     // Filter based on mode
-    const buyersToEnrich = mode === 'all'
-      ? buyers
-      : buyers.filter(b => b.data_completeness !== 'high');
+    const buyersToEnrich = buyers;
 
     if (buyersToEnrich.length === 0) {
       toast.info('All buyers are already enriched');

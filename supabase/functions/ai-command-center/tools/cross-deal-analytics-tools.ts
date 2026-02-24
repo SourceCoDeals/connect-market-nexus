@@ -265,7 +265,7 @@ async function buyerTypeAnalysis(
 ): Promise<ToolResult> {
   const { data: buyers, error } = await supabase
     .from('remarketing_buyers')
-    .select('id, buyer_type, alignment_score, has_fee_agreement, total_acquisitions, data_completeness, acquisition_appetite')
+    .select('id, buyer_type, alignment_score, has_fee_agreement, total_acquisitions, acquisition_appetite')
     .eq('archived', false);
 
   if (error) return { error: error.message };

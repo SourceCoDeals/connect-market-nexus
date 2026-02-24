@@ -7,7 +7,7 @@ import { Separator } from "@/components/ui/separator";
 
 interface ExtractionResult {
   thesis_summary?: string;
-  thesis_confidence?: string;
+
   target_industries?: string[];
   target_geography?: { regions?: string[]; states?: string[]; notes?: string };
   deal_size_range?: { revenue_min?: number; revenue_max?: number; ebitda_min?: number; ebitda_max?: number; notes?: string };
@@ -32,20 +32,6 @@ interface ExtractionSummaryDialogProps {
   errorCount: number;
 }
 
-const confidenceBadge = (confidence?: string) => {
-  if (!confidence) return null;
-  const variants: Record<string, string> = {
-    high: "bg-emerald-500/15 text-emerald-700 border-emerald-500/30",
-    medium: "bg-amber-500/15 text-amber-700 border-amber-500/30",
-    low: "bg-orange-500/15 text-orange-700 border-orange-500/30",
-    insufficient: "bg-destructive/15 text-destructive border-destructive/30",
-  };
-  return (
-    <Badge variant="outline" className={variants[confidence] || ""}>
-      {confidence}
-    </Badge>
-  );
-};
 
 const formatCurrency = (val?: number) => {
   if (!val) return null;
@@ -78,10 +64,7 @@ export function ExtractionSummaryDialog({
     if (!r.insights) continue;
     const ins = r.insights;
     if (ins.thesis_summary && !merged.thesis_summary) merged.thesis_summary = ins.thesis_summary;
-    if (ins.thesis_confidence && (!merged.thesis_confidence || ins.thesis_confidence !== 'insufficient')) {
-      merged.thesis_confidence = ins.thesis_confidence;
-    }
-    if (ins.business_summary && !merged.business_summary) merged.business_summary = ins.business_summary;
+if (ins.business_summary && !merged.business_summary) merged.business_summary = ins.business_summary;
     if (ins.acquisition_timeline && ins.acquisition_timeline !== 'insufficient') {
       merged.acquisition_timeline = ins.acquisition_timeline;
     }
@@ -132,10 +115,6 @@ export function ExtractionSummaryDialog({
                 {merged.thesis_summary && (
                   <Section icon={FileText} label="Acquisition Thesis">
                     <p>{merged.thesis_summary}</p>
-                    <div className="mt-1 flex items-center gap-2">
-                      <span className="text-xs text-muted-foreground">Confidence:</span>
-                      {confidenceBadge(merged.thesis_confidence)}
-                    </div>
                   </Section>
                 )}
 
@@ -240,9 +219,6 @@ export function ExtractionSummaryDialog({
                         <CheckCircle2 className="h-3 w-3 text-emerald-500 shrink-0" />
                       )}
                       <span className="truncate">{r.fileName || `Transcript ${i + 1}`}</span>
-                      {r.insights?.thesis_confidence && (
-                        <span className="ml-auto">{confidenceBadge(r.insights.thesis_confidence)}</span>
-                      )}
                     </div>
                   ))}
                 </div>

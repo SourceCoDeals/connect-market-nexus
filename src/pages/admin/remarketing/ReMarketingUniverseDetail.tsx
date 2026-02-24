@@ -178,7 +178,7 @@ const ReMarketingUniverseDetail = () => {
       
       const { data, error } = await supabase
         .from('remarketing_buyers')
-        .select('id, company_name, company_website, platform_website, pe_firm_website, buyer_type, pe_firm_name, hq_city, hq_state, business_summary, thesis_summary, data_completeness, target_geographies, geographic_footprint, service_regions, operating_locations, alignment_score, alignment_reasoning, alignment_checked_at, has_fee_agreement')
+        .select('id, company_name, company_website, platform_website, pe_firm_website, buyer_type, pe_firm_name, hq_city, hq_state, business_summary, thesis_summary, target_geographies, geographic_footprint, service_regions, operating_locations, alignment_score, alignment_reasoning, alignment_checked_at, has_fee_agreement')
         .eq('universe_id', id!)
         .eq('archived', false)
         .order('alignment_score', { ascending: false, nullsFirst: false });
@@ -481,7 +481,7 @@ const ReMarketingUniverseDetail = () => {
         if (data.buyer_types_criteria) setBuyerTypesCriteria(prev => ({ ...prev, ...data.buyer_types_criteria }));
         if (data.scoring_behavior) setScoringBehavior(prev => ({ ...prev, ...data.scoring_behavior }));
         
-        toast.success(`Parsed criteria with ${Math.round((data.confidence || 0.5) * 100)}% confidence`);
+        toast.success('Criteria parsed successfully');
       }
     } catch (error) {
       toast.error('Failed to parse criteria');
@@ -707,9 +707,7 @@ const ReMarketingUniverseDetail = () => {
     resetQueueEnrichment();
     
     // Filter based on mode
-    const buyersToEnrich = mode === 'all' 
-      ? buyers 
-      : buyers.filter(b => b.data_completeness !== 'high');
+    const buyersToEnrich = buyers;
     
     if (buyersToEnrich.length === 0) {
       toast.info('All buyers are already enriched');
@@ -1552,8 +1550,7 @@ const ReMarketingUniverseDetail = () => {
               <div className="flex flex-col items-start gap-1">
                 <span className="font-medium">Only Unenriched</span>
                 <span className="text-xs text-muted-foreground font-normal">
-                  Only enrich {buyers?.filter(b => 
-                    b.data_completeness !== 'high' && 
+                  Only enrich {buyers?.filter(b =>
                     (b.company_website || b.platform_website || b.pe_firm_website)
                   ).length || 0} buyers that haven't been enriched yet
                 </span>

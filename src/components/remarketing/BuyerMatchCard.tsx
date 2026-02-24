@@ -35,7 +35,7 @@ import {
 } from "lucide-react";
 import { IntelligenceBadge } from "./IntelligenceBadge";
 import { OutreachStatusDialog, type OutreachStatus } from "./OutreachStatusDialog";
-import type { ScoreTier, DataCompleteness, ReMarketingBuyer } from "@/types/remarketing";
+import type { ScoreTier, ReMarketingBuyer } from "@/types/remarketing";
 
 interface OutreachData {
   status: OutreachStatus;
@@ -57,11 +57,8 @@ interface BuyerMatchCardProps {
     is_disqualified?: boolean | null;
     disqualification_reason?: string | null;
     needs_review?: boolean | null;
-    missing_fields?: string[] | null;
-    confidence_level?: string | null;
     tier: ScoreTier | null;
     fit_reasoning: string | null;
-    data_completeness: DataCompleteness | null;
     status: string;
     pass_reason?: string | null;
     pass_category?: string | null;
@@ -294,10 +291,7 @@ export const BuyerMatchCard = ({
   
   const buyer = score.buyer;
   const disqualified = isDisqualified(score);
-  // Prefer backend missing_fields, fallback to client-side calculation
-  const missingData = score.missing_fields && score.missing_fields.length > 0
-    ? score.missing_fields
-    : getMissingDataFields(buyer);
+  const missingData = getMissingDataFields(buyer);
   
   // Format financial range
   const financialRange = buyer?.target_revenue_min || buyer?.target_revenue_max
@@ -541,7 +535,6 @@ export const BuyerMatchCard = ({
           <div className="flex items-center gap-2 flex-shrink-0">
             {/* Intelligence Badge with missing fields */}
             <IntelligenceBadge
-              completeness={score.data_completeness}
               hasTranscript={!!buyer?.extraction_sources?.some((s: any) => s.type === 'transcript')}
               missingFields={missingData}
               size="sm"
@@ -717,7 +710,7 @@ export const BuyerMatchCard = ({
         {score.needs_review && (
           <div className="flex items-center gap-2 text-xs text-amber-600 mb-2">
             <AlertTriangle className="h-3.5 w-3.5" />
-            <span>Needs review — {score.confidence_level === 'low' ? 'low confidence' : 'borderline score'}</span>
+            <span>Needs review — borderline score</span>
           </div>
         )}
         

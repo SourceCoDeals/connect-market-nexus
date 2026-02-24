@@ -47,9 +47,9 @@ BUYER:
 If buyer data is sparse, score based on buyer TYPE norms vs seller goals.
 Conflicts (exit timing, structure mismatch) pull score down 25-35.
 Alignment (growth partner+PE platform, stay on+platform wants operators) push score up 75-90.
-If cannot evaluate, score 50 with confidence low.
+If cannot evaluate, score 50.
 
-Return JSON: {"score": number, "confidence": "high"|"medium"|"low", "reasoning": "one sentence"}`;
+Return JSON: {"score": number, "reasoning": "one sentence"}`;
 
   const response = await fetchWithRetry(GEMINI_API_URL, {
     method: "POST",
@@ -74,7 +74,6 @@ Return JSON: {"score": number, "confidence": "high"|"medium"|"low", "reasoning":
   const parsed = JSON.parse(content);
   return {
     score: Math.max(0, Math.min(100, parsed.score || 50)),
-    confidence: parsed.confidence || 'low',
     reasoning: parsed.reasoning || ''
   };
 }
@@ -100,7 +99,7 @@ export function ownerGoalsFallback(listing: Listing, buyer: Buyer): OwnerGoalsRe
     let score = typeNorms.base;
     // Buyers with explicit thesis get a slight edge (more data = more signal)
     if (thesis.length > 50) score += 5;
-    return { score: Math.max(30, Math.min(85, score)), confidence: 'low', reasoning: `No owner goals — ${buyerType || 'unknown'} type base score` };
+    return { score: Math.max(30, Math.min(85, score)), reasoning: `No owner goals — ${buyerType || 'unknown'} type base score` };
   }
 
   // Match owner goals to categories using word-boundary-safe checks
@@ -128,12 +127,8 @@ export function ownerGoalsFallback(listing: Listing, buyer: Buyer): OwnerGoalsRe
     if (thesisAligns) score = Math.min(100, score + 8);
   }
 
-  // Confidence is 'medium' when we matched a specific keyword category, 'low' when using base only
-  const confidence = matchedCategory ? 'medium' : 'low';
-
   return {
     score: Math.max(0, Math.min(100, score)),
-    confidence,
     reasoning: matchedCategory
       ? `Fallback: ${buyerType || 'unknown'} norms for "${matchedCategory}" goals`
       : `Fallback: ${buyerType || 'unknown'} buyer type base score`

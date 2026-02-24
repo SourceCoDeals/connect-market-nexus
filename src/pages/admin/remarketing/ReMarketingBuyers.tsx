@@ -63,7 +63,7 @@ import { toast } from "sonner";
 import { useBuyerEnrichmentProgress } from "@/hooks/useBuyerEnrichmentProgress";
 import { EnrichmentProgressIndicator } from "@/components/remarketing/EnrichmentProgressIndicator";
 import { BuyerCSVImport, IntelligenceBadge, ReMarketingChat } from "@/components/remarketing";
-import type { BuyerType, DataCompleteness } from "@/types/remarketing";
+import type { BuyerType } from "@/types/remarketing";
 import { normalizeDomain } from "@/lib/ma-intelligence/normalizeDomain";
 
 const BUYER_TYPES: { value: BuyerType; label: string }[] = [
@@ -82,7 +82,7 @@ const SPONSOR_TYPES: BuyerType[] = ['pe_firm', 'independent_sponsor', 'search_fu
 const isSponsorType = (buyerType: string | null | undefined): boolean =>
   SPONSOR_TYPES.includes(buyerType as BuyerType);
 
-type BuyerTab = 'all' | 'pe_firm' | 'platform' | 'needs_agreements' | 'needs_enrichment';
+type BuyerTab = 'all' | 'pe_firm' | 'platform' | 'needs_agreements';
 
 // Helper to find a PE firm record by name in the buyers list
 const findPeFirmByName = (buyers: any[], firmName: string): any | null => {
@@ -232,15 +232,14 @@ const ReMarketingBuyers = () => {
 
   // Compute tab counts from loaded buyers
   const tabCounts = useMemo(() => {
-    if (!buyers) return { all: 0, pe_firm: 0, platform: 0, needs_agreements: 0, needs_enrichment: 0 };
-    let pe_firm = 0, platform = 0, needs_agreements = 0, needs_enrichment = 0;
+    if (!buyers) return { all: 0, pe_firm: 0, platform: 0, needs_agreements: 0 };
+    let pe_firm = 0, platform = 0, needs_agreements = 0;
     buyers.forEach((b: any) => {
       if (isSponsorType(b.buyer_type)) pe_firm++;
       if (b.buyer_type === 'platform' || !b.buyer_type) platform++;
       if (!b.has_fee_agreement) needs_agreements++;
-      if (b.data_completeness !== 'high') needs_enrichment++;
     });
-    return { all: buyers.length, pe_firm, platform, needs_agreements, needs_enrichment };
+    return { all: buyers.length, pe_firm, platform, needs_agreements };
   }, [buyers]);
 
   // Calculate platform counts per PE firm (for the PE Firms tab)
@@ -345,9 +344,6 @@ const ReMarketingBuyers = () => {
         break;
       case 'needs_agreements':
         result = result.filter(b => !b.has_fee_agreement);
-        break;
-      case 'needs_enrichment':
-        result = result.filter(b => b.data_completeness !== 'high');
         break;
     }
 
@@ -509,7 +505,7 @@ const ReMarketingBuyers = () => {
         <div>
           <h1 className="text-2xl font-bold text-foreground">All Buyers</h1>
           <p className="text-muted-foreground">
-            {tabCounts.all} buyers · {tabCounts.needs_agreements} need agreements · {tabCounts.needs_enrichment} need enrichment
+            {tabCounts.all} buyers · {tabCounts.needs_agreements} need agreements
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -529,9 +525,8 @@ const ReMarketingBuyers = () => {
             <DropdownMenuContent align="end">
               <DropdownMenuItem onClick={async () => {
                 const base = selectedIds.size > 0 ? filteredBuyers.filter((b: any) => selectedIds.has(b.id)) : filteredBuyers;
-                const unenriched = base.filter((b: any) => b.data_completeness !== 'high');
-                const ids = unenriched.filter((b: any) => b.company_website || b.platform_website || b.pe_firm_website).map((b: any) => b.id);
-                if (ids.length === 0) { toast.info('No unenriched buyers with websites'); return; }
+                const ids = base.filter((b: any) => b.company_website || b.platform_website || b.pe_firm_website).map((b: any) => b.id);
+                if (ids.length === 0) { toast.info('No buyers with websites to enrich'); return; }
                 setEnrichingIds(new Set(ids));
                 try {
                   const { queueBuyerEnrichment } = await import("@/lib/remarketing/queueEnrichment");
@@ -540,7 +535,7 @@ const ReMarketingBuyers = () => {
                 } catch (err) { void err; toast.error('Failed to queue enrichment'); } finally { setEnrichingIds(new Set()); }
               }}>
                 <Sparkles className="h-4 w-4 mr-2" />
-                Enrich Unenriched ({(() => { const base = selectedIds.size > 0 ? filteredBuyers.filter((b: any) => selectedIds.has(b.id)) : filteredBuyers; return base.filter((b: any) => b.data_completeness !== 'high').filter((b: any) => b.company_website || b.platform_website || b.pe_firm_website).length; })()})
+                Enrich ({(() => { const base = selectedIds.size > 0 ? filteredBuyers.filter((b: any) => selectedIds.has(b.id)) : filteredBuyers; return base.filter((b: any) => b.company_website || b.platform_website || b.pe_firm_website).length; })()})
               </DropdownMenuItem>
               <DropdownMenuItem onClick={async () => {
                 const base = selectedIds.size > 0 ? filteredBuyers.filter((b: any) => selectedIds.has(b.id)) : filteredBuyers;
@@ -687,7 +682,6 @@ const ReMarketingBuyers = () => {
           <TabsTrigger value="pe_firm">Sponsors & Firms ({tabCounts.pe_firm})</TabsTrigger>
           <TabsTrigger value="platform">Platforms ({tabCounts.platform})</TabsTrigger>
           <TabsTrigger value="needs_agreements">Needs Agreements ({tabCounts.needs_agreements})</TabsTrigger>
-          <TabsTrigger value="needs_enrichment">Needs Enrichment ({tabCounts.needs_enrichment})</TabsTrigger>
         </TabsList>
       </Tabs>
 
@@ -865,11 +859,6 @@ const ReMarketingBuyers = () => {
                               <span className="font-medium text-foreground truncate">
                                 {buyer.company_name}
                               </span>
-                              {buyer.data_completeness === 'high' && (
-                                <Badge className="bg-emerald-500 hover:bg-emerald-600 text-xs px-1.5 py-0">
-                                  Enriched
-                                </Badge>
-                              )}
                             </div>
                             {buyer.company_website && (
                               <a
@@ -927,7 +916,6 @@ const ReMarketingBuyers = () => {
                           {/* Intel Column */}
                           <TableCell>
                             <IntelligenceBadge
-                              completeness={buyer.data_completeness as DataCompleteness | null}
                               hasTranscript={buyerIdsWithTranscripts?.has(buyer.id) || false}
                               size="sm"
                             />
@@ -1023,7 +1011,6 @@ const ReMarketingBuyers = () => {
                           {/* Intel Column */}
                           <TableCell>
                             <IntelligenceBadge
-                              completeness={buyer.data_completeness as DataCompleteness | null}
                               hasTranscript={buyerIdsWithTranscripts?.has(buyer.id) || false}
                               size="sm"
                             />

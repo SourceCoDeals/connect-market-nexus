@@ -427,8 +427,8 @@ Deno.serve(async (req) => {
             // Special handling for PE Intelligence: filter out thesis fields
             let dataToMerge = result.data;
             if (name === 'pe_intelligence') {
-              const { thesis_summary, strategic_priorities, thesis_confidence, ...safeData } = result.data;
-              if (thesis_summary || strategic_priorities || thesis_confidence) {
+              const { thesis_summary, strategic_priorities, ...safeData } = result.data;
+              if (thesis_summary || strategic_priorities) {
                 console.warn('WARNING: PE Intelligence returned thesis fields - discarding (transcript-only)');
               }
               dataToMerge = safeData;
