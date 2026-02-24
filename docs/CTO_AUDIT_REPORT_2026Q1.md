@@ -364,14 +364,65 @@ Items are frequently created before processing starts. An item created 10 minute
 
 **Recommendation:** Add an `updated_at` or `started_processing_at` timestamp to `remarketing_scoring_queue` and use that for stale detection.
 
-### `notify-remarketing-match` — No Deduplication
+### `notify-remarketing-match` — No Deduplication + RBAC + Mislabeled Type
 
-**File:** `supabase/functions/notify-remarketing-match/index.ts`
-**Severity:** Low
+**File:** `supabase/functions/notify-remarketing-match/index.ts` (line 98)
+**Severity:** Medium
 
-No check for existing notifications before inserting. If called multiple times for the same `score_id` (e.g., on re-score), each admin receives a duplicate notification.
+Three related issues:
 
-**Recommendation:** Add upsert or existence check on `(score_id, notification_type)`.
+1. **No dedup:** If called multiple times for the same `score_id`, admins receive duplicate notifications.
+2. **RBAC inconsistency:** Queries `profiles.is_admin` instead of `user_roles` table — can notify revoked admins or miss newly promoted ones.
+3. **Notification type mislabeled:** `notification_type` is hardcoded to `"remarketing_a_tier_match"` even when `tier` parameter is B, C, or D:
+
+```typescript
+notification_type: "remarketing_a_tier_match", // always "A" regardless of actual tier
+```
+
+**Fix:** `notification_type: \`remarketing\_${tier || 'A'}\_tier_match\``
+
+### `notify-deal-owner-change` — Missing Null Check on Admin Email
+
+**File:** `supabase/functions/notify-deal-owner-change/index.ts` (line 70)
+**Severity:** High
+
+```typescript
+const { data: modifyingAdmin } = await supabase
+  .from('profiles')
+  .select('email')
+  .eq('id', modifyingAdminId)
+  .single(); // error not checked — modifyingAdmin could be null
+// modifyingAdmin.email then passed to Brevo template → crash
+```
+
+If `modifyingAdminId` doesn't exist in profiles (deleted user, etc.), this crashes the notification send. Same pattern in `notify-new-deal-owner`. **Fix:** Use `.maybeSingle()` and null-check before using the result.
+
+### Hardcoded Domain URLs in Notification Functions
+
+**Files:** `notify-deal-owner-change/index.ts` line 91, `notify-new-deal-owner/index.ts` line 111
+**Severity:** Medium
+
+Multiple notification functions hardcode `https://marketplace.sourcecodeals.com` in email link templates. These links will be wrong in staging/dev environments. **Fix:** Use `Deno.env.get('APP_DOMAIN') || 'https://marketplace.sourcecodeals.com'`.
+
+### `sync-fireflies-transcripts` — Timestamp Unit Ambiguity
+
+**File:** `supabase/functions/sync-fireflies-transcripts/index.ts` (lines 365-373)
+**Severity:** High — data corruption
+
+The Fireflies API inconsistently returns timestamps in either seconds or milliseconds. The handler always calls `new Date(dateNum)` assuming milliseconds:
+
+```typescript
+callDate = new Date(dateNum).toISOString(); // if dateNum is seconds → year 1970!
+```
+
+A Unix timestamp in seconds (e.g. `1740000000`) parsed as milliseconds gives a date in 1990, not 2025. **Fix:** Detect the unit by magnitude: values between `1e9` and `1e10` are seconds; values > `1e12` are milliseconds.
+
+### `phoneburner-push-contacts` — Missing Timeout on API Calls
+
+**File:** `supabase/functions/phoneburner-push-contacts/index.ts` (line 474)
+**Severity:** Medium
+
+API calls to PhoneBurner have no `AbortSignal.timeout()`, so a slow PhoneBurner API can hold the edge function open until Supabase's 60s hard limit. **Fix:** Add `signal: AbortSignal.timeout(10000)` to all `fetch()` calls to the PhoneBurner API.
 
 ---
 
@@ -499,16 +550,25 @@ WHERE fm.firm_id = NEW.id
 | 8   | `firecrawl-scrape` no retry/rate-limit                                                     | `firecrawl-scrape/index.ts`                 | Wrap with `fetchWithAutoRetry`                   |
 | 9   | `bulk-import-remarketing` `size_score` and `owner_goals_score` hardcoded to 0 on import    | `bulk-import-remarketing/index.ts` L603,605 | Preserve original values from import data        |
 
+### P1 (continued) — Additional High-Priority Findings
+
+| #   | Issue                                                                                               | File                                       | Fix                                                      |
+| --- | --------------------------------------------------------------------------------------------------- | ------------------------------------------ | -------------------------------------------------------- |
+| 10  | `notify-deal-owner-change` / `notify-new-deal-owner` — no null check on modifying admin email fetch | `notify-deal-owner-change/index.ts` L70    | Change `.single()` to `.maybeSingle()`, null-guard email |
+| 11  | `sync-fireflies-transcripts` — Fireflies timestamps in seconds treated as milliseconds → 1970 dates | `sync-fireflies-transcripts/index.ts` L365 | Detect unit by magnitude (`< 1e10` → ×1000)              |
+| 12  | `phoneburner-push-contacts` — no timeout on PhoneBurner API calls → edge function holds until 60s   | `phoneburner-push-contacts/index.ts` L474  | Add `signal: AbortSignal.timeout(10000)`                 |
+
 ### P2 — Medium (Backlog)
 
-| #   | Issue                                                                                          | File                                     | Fix                                                                               |
-| --- | ---------------------------------------------------------------------------------------------- | ---------------------------------------- | --------------------------------------------------------------------------------- |
-| 10  | `notify-remarketing-match` duplicate notifications + uses `profiles.is_admin` not `user_roles` | `notify-remarketing-match/index.ts`      | Upsert on (score_id, notification_type); query `user_roles` table for consistency |
-| 11  | `convert-to-pipeline-deal` uses `.single()` on stage fallback — throws if no stages            | `convert-to-pipeline-deal/index.ts` L163 | Change to `.maybeSingle()`                                                        |
-| 12  | `publish-listing` null is_internal_deal edge case                                              | `publish-listing/index.ts`               | Add status check                                                                  |
-| 13  | 7,541 listings with NULL enrichment                                                            | DB                                       | Schedule bulk enrichment run                                                      |
-| 14  | 8 tables missing FK constraints                                                                | DB                                       | Add constraints migration                                                         |
-| 15  | `independent_sponsor` excluded from CapTarget                                                  | `captarget-exclusion-filter.ts`          | Verify business intent                                                            |
+| #   | Issue                                                                                            | File                                     | Fix                                              |
+| --- | ------------------------------------------------------------------------------------------------ | ---------------------------------------- | ------------------------------------------------ |
+| 13  | `notify-remarketing-match` type hardcoded `"a_tier"` even for B/C/D + dedup + RBAC inconsistency | `notify-remarketing-match/index.ts` L98  | Dynamic tier in type; upsert; query `user_roles` |
+| 14  | Hardcoded `marketplace.sourcecodeals.com` in email templates across 2+ notification functions    | `notify-deal-owner-change/index.ts` L91  | Use `Deno.env.get('APP_DOMAIN')`                 |
+| 15  | `convert-to-pipeline-deal` uses `.single()` on stage fallback — throws if no stages              | `convert-to-pipeline-deal/index.ts` L163 | Change to `.maybeSingle()`                       |
+| 16  | `publish-listing` null is_internal_deal edge case                                                | `publish-listing/index.ts`               | Add status check                                 |
+| 17  | 7,541 listings with NULL enrichment                                                              | DB                                       | Schedule bulk enrichment run                     |
+| 18  | 8 tables missing FK constraints                                                                  | DB                                       | Add constraints migration                        |
+| 19  | `independent_sponsor` excluded from CapTarget                                                    | `captarget-exclusion-filter.ts`          | Verify business intent                           |
 
 ---
 
