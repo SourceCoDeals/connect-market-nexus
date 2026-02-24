@@ -377,7 +377,7 @@ export function useValuationLeadsData() {
         if (listingId) {
           const { error } = await supabase
             .from('listings')
-            .update({ pushed_to_all_deals: true, pushed_to_all_deals_at: new Date().toISOString() })
+            .update({ remarketing_status: 'active', pushed_to_all_deals: true, pushed_to_all_deals_at: new Date().toISOString() })
             .eq('id', listingId);
           if (error) {
             errorCount++;
@@ -445,7 +445,7 @@ export function useValuationLeadsData() {
         if (listingId) {
           const { error } = await supabase
             .from('listings')
-            .update({ pushed_to_all_deals: true, pushed_to_all_deals_at: new Date().toISOString() })
+            .update({ remarketing_status: 'active', pushed_to_all_deals: true, pushed_to_all_deals_at: new Date().toISOString() })
             .eq('id', listingId);
           if (error) {
             continue;

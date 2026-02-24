@@ -113,7 +113,7 @@ export const uiActionTools: ClaudeTool[] = [
       properties: {
         page: {
           type: 'string',
-          enum: ['deal_detail', 'buyer_profile', 'pipeline', 'buyers_list', 'remarketing', 'data_room', 'transcripts', 'analytics', 'all_deals', 'captarget', 'gp_partners', 'valuation_leads', 'owner_leads', 'referral_partners'],
+          enum: ['deal_detail', 'buyer_profile', 'pipeline', 'buyers_list', 'remarketing', 'data_room', 'transcripts', 'analytics', 'active_deals', 'captarget', 'gp_partners', 'valuation_leads', 'owner_leads', 'referral_partners'],
           description: 'Target page/view',
         },
         entity_id: { type: 'string', description: 'ID of the entity to navigate to (deal_id or buyer_id)' },
@@ -236,7 +236,7 @@ function navigateToPage(args: Record<string, unknown>): ToolResult {
     pipeline: '/pipeline',
     buyers_list: '/buyers',
     remarketing: '/remarketing',
-    all_deals: '/admin/remarketing/deals',
+    active_deals: '/admin/remarketing/deals',
     captarget: '/admin/remarketing/captarget',
     gp_partners: '/admin/remarketing/gp-partners',
     valuation_leads: '/admin/remarketing/valuation-leads',

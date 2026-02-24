@@ -231,7 +231,7 @@ export function useGPPartnerDeals() {
     });
   };
 
-  // Push to All Deals
+  // Push to Active Deals
   const handlePushToAllDeals = useCallback(
     async (dealIds: string[]) => {
       if (dealIds.length === 0) return;
