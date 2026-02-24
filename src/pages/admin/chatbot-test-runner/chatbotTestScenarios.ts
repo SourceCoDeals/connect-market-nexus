@@ -1154,5 +1154,827 @@ export function getChatbotTestScenarios(): TestScenario[] {
         mustContainAny: ['deal', 'win', 'loss', 'pattern', 'analysis'],
       },
     },
+
+    // ════════════════════════════════════════════════
+    // DEEP AUDIT — Data Reading (all 51 read tools)
+    // ════════════════════════════════════════════════
+
+    // ── Deals & Pipeline ──
+    {
+      id: 'audit-read-query-deals',
+      category: 'Audit — Data Reading',
+      name: 'Query deals with filters',
+      description: 'Verify query_deals works with status, industry, and geography filters.',
+      userMessage: 'Show me all active HVAC deals in Texas.',
+      expectedBehavior: [
+        'Uses query_deals with industry and state filters',
+        'Returns deal names with revenue, EBITDA, state',
+        'Includes deal IDs (UUIDs)',
+      ],
+      severity: 'critical',
+      autoValidation: {
+        requiresToolCalls: true,
+        expectedTools: ['query_deals'],
+        mustContainAny: ['deal', 'hvac', 'texas', 'TX'],
+      },
+    },
+    {
+      id: 'audit-read-deal-details',
+      category: 'Audit — Data Reading',
+      name: 'Get detailed deal info',
+      description: 'Verify get_deal_details returns comprehensive deal data.',
+      userMessage: 'Give me full details on our highest-scored deal.',
+      expectedBehavior: [
+        'First queries deals to find highest scored',
+        'Then calls get_deal_details for full info',
+        'Returns financials, stage, tasks, contacts',
+      ],
+      severity: 'critical',
+      autoValidation: {
+        requiresToolCalls: true,
+        expectedTools: ['query_deals', 'get_deal_details', 'get_pipeline_summary'],
+      },
+    },
+    {
+      id: 'audit-read-pipeline-summary',
+      category: 'Audit — Data Reading',
+      name: 'Pipeline summary by industry',
+      description: 'Verify get_pipeline_summary with group_by parameter.',
+      userMessage: 'Break down our pipeline by industry — how many deals in each vertical?',
+      expectedBehavior: [
+        'Uses get_pipeline_summary with group_by=industry',
+        'Returns counts per industry',
+        'Includes totals',
+      ],
+      severity: 'critical',
+      autoValidation: {
+        requiresToolCalls: true,
+        expectedTools: ['get_pipeline_summary'],
+      },
+    },
+    {
+      id: 'audit-read-deal-tasks',
+      category: 'Audit — Data Reading',
+      name: 'Deal tasks and activities',
+      description: 'Verify get_deal_tasks and get_deal_activities return data.',
+      userMessage: 'What tasks are overdue across all our deals? Also show recent activity.',
+      expectedBehavior: [
+        'Uses get_deal_tasks or get_follow_up_queue',
+        'Lists overdue tasks with deal names and due dates',
+        'Shows recent activity if requested',
+      ],
+      severity: 'high',
+      autoValidation: {
+        requiresToolCalls: true,
+        expectedTools: ['get_deal_tasks', 'get_follow_up_queue', 'get_deal_activities'],
+      },
+    },
+
+    // ── Buyers & Scoring ──
+    {
+      id: 'audit-read-search-buyers',
+      category: 'Audit — Data Reading',
+      name: 'Search buyers by geography and type',
+      description: 'Verify search_buyers with multi-filter queries.',
+      userMessage: 'Find all PE firms in Florida with revenue over $50M that do HVAC acquisitions.',
+      expectedBehavior: [
+        'Uses search_buyers with state, type, revenue, and service filters',
+        'Returns buyer list with names, types, HQ, scores',
+        'Results are filtered correctly',
+      ],
+      severity: 'critical',
+      autoValidation: {
+        requiresToolCalls: true,
+        expectedTools: ['search_buyers'],
+        mustContainAny: ['buyer', 'PE', 'florida', 'FL', 'hvac'],
+      },
+    },
+    {
+      id: 'audit-read-buyer-profile',
+      category: 'Audit — Data Reading',
+      name: 'Full buyer profile',
+      description: 'Verify get_buyer_profile returns comprehensive buyer data.',
+      userMessage:
+        'Give me the full profile for Trivest Capital Partners — scores, contacts, deal history.',
+      expectedBehavior: [
+        'Searches for Trivest first',
+        'Returns company details, acquisition criteria',
+        'Shows contacts, deal scores, transcript history if available',
+      ],
+      severity: 'high',
+      autoValidation: {
+        requiresToolCalls: true,
+        expectedTools: ['search_buyers', 'get_buyer_profile'],
+        mustContainAny: ['trivest'],
+      },
+    },
+    {
+      id: 'audit-read-score-breakdown',
+      category: 'Audit — Data Reading',
+      name: 'Buyer-deal score breakdown',
+      description: 'Verify get_score_breakdown shows all scoring dimensions.',
+      userMessage: 'Explain the scoring breakdown between our top buyer and our top HVAC deal.',
+      expectedBehavior: [
+        'Finds the relevant buyer and deal',
+        'Calls get_score_breakdown or explain_buyer_score',
+        'Shows composite, geography, service, size, owner goals dimensions',
+      ],
+      severity: 'high',
+      autoValidation: {
+        requiresToolCalls: true,
+        expectedTools: ['get_score_breakdown', 'explain_buyer_score', 'get_top_buyers_for_deal'],
+      },
+    },
+    {
+      id: 'audit-read-top-buyers',
+      category: 'Audit — Data Reading',
+      name: 'Top buyers for a deal',
+      description: 'Verify get_top_buyers_for_deal with geographic filtering.',
+      userMessage:
+        'Who are the top 5 scored buyers for our collision repair deals in the Southeast?',
+      expectedBehavior: [
+        'Finds collision repair deals first',
+        'Gets top buyers sorted by composite score',
+        'May filter by Southeast geography',
+      ],
+      severity: 'high',
+      autoValidation: {
+        requiresToolCalls: true,
+        expectedTools: ['query_deals', 'get_top_buyers_for_deal'],
+        mustContainAny: ['buyer', 'score', 'collision'],
+      },
+    },
+
+    // ── Contacts ──
+    {
+      id: 'audit-read-search-contacts',
+      category: 'Audit — Data Reading',
+      name: 'Search unified contacts table',
+      description: 'Verify search_contacts queries the unified contacts table.',
+      userMessage: 'Show me all buyer contacts we have for PE firms in the HVAC space.',
+      expectedBehavior: [
+        'Uses search_contacts or search_pe_contacts',
+        'Returns contact names, titles, firms, emails if available',
+        'Contacts are from the unified contacts table',
+      ],
+      severity: 'critical',
+      autoValidation: {
+        requiresToolCalls: true,
+        expectedTools: ['search_contacts', 'search_pe_contacts'],
+      },
+    },
+    {
+      id: 'audit-read-pe-contacts',
+      category: 'Audit — Data Reading',
+      name: 'PE firm contact lookup',
+      description: 'Verify search_pe_contacts finds contacts at specific firms.',
+      userMessage: 'Find all contacts we have on file for New Heritage Capital.',
+      expectedBehavior: [
+        'Searches contacts by firm name',
+        'Returns names, titles, email, phone if available',
+        'Shows contact_type and any linked deals',
+      ],
+      severity: 'high',
+      autoValidation: {
+        requiresToolCalls: true,
+        expectedTools: ['search_pe_contacts', 'search_contacts'],
+        mustContainAny: ['new heritage', 'contact'],
+      },
+    },
+    {
+      id: 'audit-read-firm-agreements',
+      category: 'Audit — Data Reading',
+      name: 'NDA and fee agreement status',
+      description: 'Verify get_firm_agreements and get_nda_logs work.',
+      userMessage: 'Which firms have signed NDAs? Show me the NDA status for our top buyers.',
+      expectedBehavior: [
+        'Uses get_firm_agreements for NDA/fee status',
+        'Returns firm names with agreement status',
+        'May use get_nda_logs for detailed audit trail',
+      ],
+      severity: 'high',
+      autoValidation: {
+        requiresToolCalls: true,
+        expectedTools: ['get_firm_agreements', 'get_nda_logs'],
+        mustContainAny: ['nda', 'agreement', 'signed'],
+      },
+    },
+
+    // ── Transcripts & Meetings ──
+    {
+      id: 'audit-read-transcripts',
+      category: 'Audit — Data Reading',
+      name: 'Search call transcripts',
+      description: 'Verify search_transcripts and search_fireflies work.',
+      userMessage: 'Search our call transcripts for any discussion about valuation multiples.',
+      expectedBehavior: [
+        'Uses search_transcripts or search_fireflies',
+        'Returns transcript titles, snippets, dates',
+        'Quotes relevant passages',
+      ],
+      severity: 'high',
+      autoValidation: {
+        requiresToolCalls: true,
+        expectedTools: ['search_transcripts', 'search_fireflies', 'semantic_transcript_search'],
+        mustContainAny: ['valuation', 'multiple', 'transcript', 'call'],
+      },
+    },
+    {
+      id: 'audit-read-semantic-search',
+      category: 'Audit — Data Reading',
+      name: 'Semantic transcript search',
+      description: 'Verify semantic_transcript_search catches meaning beyond keywords.',
+      userMessage: 'What have buyers said about geographic expansion plans in recent calls?',
+      expectedBehavior: [
+        'Uses semantic_transcript_search for intent-based search',
+        'Returns contextually relevant results even without exact keyword match',
+        'Groups by buyer if multiple transcripts match',
+      ],
+      severity: 'high',
+      autoValidation: {
+        requiresToolCalls: true,
+        expectedTools: ['semantic_transcript_search'],
+      },
+    },
+    {
+      id: 'audit-read-meeting-actions',
+      category: 'Audit — Data Reading',
+      name: 'Meeting action items',
+      description: 'Verify get_meeting_action_items extracts follow-ups.',
+      userMessage: 'What action items came out of our most recent deal meetings?',
+      expectedBehavior: [
+        'Uses get_meeting_action_items',
+        'Returns action items with assigned owners and deadlines',
+        'Groups by meeting/deal',
+      ],
+      severity: 'medium',
+      autoValidation: {
+        requiresToolCalls: true,
+        expectedTools: ['get_meeting_action_items', 'search_transcripts'],
+      },
+    },
+
+    // ── Outreach & Engagement ──
+    {
+      id: 'audit-read-outreach-records',
+      category: 'Audit — Data Reading',
+      name: 'Outreach pipeline tracking',
+      description: 'Verify get_outreach_records shows NDA pipeline and meeting status.',
+      userMessage:
+        'Show me the full outreach pipeline — who has been contacted, NDA status, meetings scheduled.',
+      expectedBehavior: [
+        'Uses get_outreach_records or get_outreach_status',
+        'Returns outreach stages: contacted, responded, NDA sent/signed, meeting scheduled',
+        'Includes next action dates and overdue flags',
+      ],
+      severity: 'critical',
+      autoValidation: {
+        requiresToolCalls: true,
+        expectedTools: ['get_outreach_records', 'get_outreach_status', 'get_remarketing_outreach'],
+      },
+    },
+    {
+      id: 'audit-read-engagement-signals',
+      category: 'Audit — Data Reading',
+      name: 'Buyer engagement signals',
+      description: 'Verify get_engagement_signals tracks buyer activity.',
+      userMessage:
+        'Which buyers have shown the most engagement in the last 30 days — site visits, financial requests, CEO involvement?',
+      expectedBehavior: [
+        'Uses get_engagement_signals',
+        'Returns signal types with counts per buyer',
+        'Highlights high-value signals (CEO, IOI, LOI)',
+      ],
+      severity: 'high',
+      autoValidation: {
+        requiresToolCalls: true,
+        expectedTools: ['get_engagement_signals'],
+        mustContainAny: ['engagement', 'signal', 'visit', 'buyer'],
+      },
+    },
+    {
+      id: 'audit-read-buyer-decisions',
+      category: 'Audit — Data Reading',
+      name: 'Approve/pass decision history',
+      description: 'Verify get_buyer_decisions shows decision patterns.',
+      userMessage:
+        'Show me the approve/pass decision history — why are buyers passing on our deals?',
+      expectedBehavior: [
+        'Uses get_buyer_decisions',
+        'Shows pass reasons with categories (size_mismatch, geographic_mismatch, etc.)',
+        'Includes counts and breakdown',
+      ],
+      severity: 'medium',
+      autoValidation: {
+        requiresToolCalls: true,
+        expectedTools: ['get_buyer_decisions'],
+        mustContainAny: ['pass', 'approve', 'decision', 'reason'],
+      },
+    },
+    {
+      id: 'audit-read-connection-requests',
+      category: 'Audit — Data Reading',
+      name: 'Marketplace connection requests',
+      description: 'Verify get_connection_requests shows buyer intake pipeline.',
+      userMessage: 'Show me all pending connection requests — who is trying to access our deals?',
+      expectedBehavior: [
+        'Uses get_connection_requests',
+        'Returns buyer names, deal names, request status',
+        'Shows NDA/fee agreement status per request',
+      ],
+      severity: 'high',
+      autoValidation: {
+        requiresToolCalls: true,
+        expectedTools: ['get_connection_requests'],
+        mustContainAny: ['connection', 'request', 'access', 'buyer'],
+      },
+    },
+
+    // ── Leads & Referrals ──
+    {
+      id: 'audit-read-valuation-leads',
+      category: 'Audit — Data Reading',
+      name: 'Valuation calculator leads',
+      description: 'Verify search_valuation_leads finds calculator submissions.',
+      userMessage:
+        'How many HVAC leads came through the valuation calculator? Show their self-reported financials.',
+      expectedBehavior: [
+        'Uses search_valuation_leads with calculator_type filter',
+        'Returns lead count with revenue, EBITDA, location',
+        'Distinguishes calculator types (HVAC, collision, auto shop, general)',
+      ],
+      severity: 'high',
+      autoValidation: {
+        requiresToolCalls: true,
+        expectedTools: ['search_valuation_leads'],
+        mustContainAny: ['valuation', 'calculator', 'hvac', 'lead'],
+      },
+    },
+    {
+      id: 'audit-read-inbound-leads',
+      category: 'Audit — Data Reading',
+      name: 'Inbound lead search',
+      description: 'Verify search_inbound_leads finds website/form leads.',
+      userMessage: 'Show me all inbound leads from the last 30 days — how many are qualified?',
+      expectedBehavior: [
+        'Uses search_inbound_leads',
+        'Returns lead count, status breakdown, source',
+        'Shows qualified vs unqualified',
+      ],
+      severity: 'medium',
+      autoValidation: {
+        requiresToolCalls: true,
+        expectedTools: ['search_inbound_leads'],
+        mustContainAny: ['inbound', 'lead'],
+      },
+    },
+    {
+      id: 'audit-read-referral-data',
+      category: 'Audit — Data Reading',
+      name: 'Referral partner data',
+      description: 'Verify get_referral_data shows broker/advisor submissions.',
+      userMessage: 'Show me our referral partners and their deal submissions.',
+      expectedBehavior: [
+        'Uses get_referral_data',
+        'Returns partner names, submission counts, deal details',
+        'Shows financial data from submissions',
+      ],
+      severity: 'medium',
+      autoValidation: {
+        requiresToolCalls: true,
+        expectedTools: ['get_referral_data'],
+        mustContainAny: ['referral', 'partner', 'submission'],
+      },
+    },
+
+    // ── Universes & Cross-Deal ──
+    {
+      id: 'audit-read-universes',
+      category: 'Audit — Data Reading',
+      name: 'Buyer universe details',
+      description: 'Verify search_buyer_universes and get_universe_details work.',
+      userMessage: 'List all our buyer universes and show me which one has the most buyers.',
+      expectedBehavior: [
+        'Uses search_buyer_universes',
+        'Returns universe names with buyer counts',
+        'May use get_universe_details for the largest one',
+      ],
+      severity: 'high',
+      autoValidation: {
+        requiresToolCalls: true,
+        expectedTools: ['search_buyer_universes', 'get_universe_details'],
+        mustContainAny: ['universe', 'buyer'],
+      },
+    },
+    {
+      id: 'audit-read-cross-deal',
+      category: 'Audit — Data Reading',
+      name: 'Cross-deal analytics',
+      description: 'Verify get_cross_deal_analytics runs aggregate comparisons.',
+      userMessage:
+        'Compare conversion rates across all our buyer universes — which has the best funnel?',
+      expectedBehavior: [
+        'Uses get_cross_deal_analytics with universe_comparison type',
+        'Returns conversion rates per universe',
+        'Highlights best and worst performers',
+      ],
+      severity: 'medium',
+      autoValidation: {
+        requiresToolCalls: true,
+        expectedTools: ['get_cross_deal_analytics'],
+        mustContainAny: ['conversion', 'universe', 'funnel', 'rate'],
+      },
+    },
+
+    // ── Documents & Memos ──
+    {
+      id: 'audit-read-documents',
+      category: 'Audit — Data Reading',
+      name: 'Deal documents and memos',
+      description: 'Verify get_deal_documents and get_deal_memos work.',
+      userMessage:
+        'What documents are in the data room for our top HVAC deal? Any AI-generated memos?',
+      expectedBehavior: [
+        'Finds HVAC deal first',
+        'Uses get_deal_documents for data room files',
+        'Uses get_deal_memos for AI-generated content',
+      ],
+      severity: 'medium',
+      autoValidation: {
+        requiresToolCalls: true,
+        expectedTools: ['query_deals', 'get_deal_documents', 'get_deal_memos'],
+      },
+    },
+
+    // ── Follow-up Queue ──
+    {
+      id: 'audit-read-followup-queue',
+      category: 'Audit — Data Reading',
+      name: 'Unified follow-up queue',
+      description: 'Verify get_follow_up_queue surfaces all pending action items.',
+      userMessage:
+        'What needs my attention right now? Show me overdue tasks, stale outreach, unsigned NDAs, unread messages.',
+      expectedBehavior: [
+        'Uses get_follow_up_queue',
+        'Returns prioritized list: overdue > due today > stale > unread > upcoming',
+        'Includes counts per category',
+      ],
+      severity: 'critical',
+      autoValidation: {
+        requiresToolCalls: true,
+        expectedTools: ['get_follow_up_queue'],
+        mustContainAny: ['overdue', 'task', 'follow', 'pending', 'attention'],
+      },
+    },
+
+    // ════════════════════════════════════════════════
+    // DEEP AUDIT — Write Actions (6 write tools)
+    // ════════════════════════════════════════════════
+    {
+      id: 'audit-write-create-task',
+      category: 'Audit — Write Actions',
+      name: 'Create a deal task',
+      description: 'Verify create_deal_task creates tasks with priority and due date.',
+      userMessage:
+        'Create a high-priority task on our top HVAC deal: "Follow up with seller on financials" due next Friday.',
+      expectedBehavior: [
+        'Finds the HVAC deal first',
+        'Calls create_deal_task with title, priority, due date',
+        'Confirms with task ID and details',
+        'Mentions it was logged to audit trail',
+      ],
+      severity: 'critical',
+      autoValidation: {
+        requiresToolCalls: true,
+        expectedTools: ['query_deals', 'create_deal_task'],
+        mustContainAny: ['task', 'created', 'follow up', 'financials'],
+      },
+    },
+    {
+      id: 'audit-write-add-note',
+      category: 'Audit — Write Actions',
+      name: 'Add a deal note',
+      description: 'Verify add_deal_note adds notes to the activity log.',
+      userMessage:
+        'Add a note to our top collision repair deal: "Seller is motivated to close by Q2. Valuation expectations are $4-5M."',
+      expectedBehavior: [
+        'Finds the collision repair deal',
+        'Calls add_deal_note with the note content',
+        'Confirms note was added with deal name and ID',
+      ],
+      severity: 'critical',
+      autoValidation: {
+        requiresToolCalls: true,
+        expectedTools: ['query_deals', 'add_deal_note'],
+        mustContainAny: ['note', 'added', 'collision', 'seller'],
+      },
+    },
+    {
+      id: 'audit-write-log-activity',
+      category: 'Audit — Write Actions',
+      name: 'Log a deal activity',
+      description: 'Verify log_deal_activity records events correctly.',
+      userMessage:
+        'Log a meeting activity on the first HVAC deal — we had a call with the seller today to discuss timeline.',
+      expectedBehavior: [
+        'Finds the HVAC deal',
+        'Calls log_deal_activity with type=meeting and description',
+        'Confirms the activity was logged',
+      ],
+      severity: 'high',
+      autoValidation: {
+        requiresToolCalls: true,
+        expectedTools: ['query_deals', 'log_deal_activity'],
+        mustContainAny: ['logged', 'activity', 'meeting', 'call'],
+      },
+    },
+    {
+      id: 'audit-write-update-stage',
+      category: 'Audit — Write Actions',
+      name: 'Update deal stage (requires confirmation)',
+      description: 'Verify update_deal_stage asks for confirmation before executing.',
+      userMessage: 'Move our top-scored deal to the "NDA Sent" stage.',
+      expectedBehavior: [
+        'Finds the deal first',
+        'Describes what will change (current stage → NDA Sent)',
+        'Asks "Should I proceed?" BEFORE executing',
+        'Does NOT execute without explicit confirmation',
+      ],
+      severity: 'critical',
+      autoValidation: {
+        minResponseLength: 50,
+        mustContainAny: ['confirm', 'proceed', 'should I', 'stage', 'nda'],
+      },
+    },
+    {
+      id: 'audit-write-grant-data-room',
+      category: 'Audit — Write Actions',
+      name: 'Grant data room access (requires confirmation)',
+      description: 'Verify grant_data_room_access requires confirmation.',
+      userMessage: 'Grant data room access to the top-scored buyer for our HVAC deal.',
+      expectedBehavior: [
+        'Identifies the buyer and deal',
+        'Describes what access will be granted',
+        'Asks for confirmation BEFORE executing',
+        'Does NOT grant access without explicit confirmation',
+      ],
+      severity: 'critical',
+      autoValidation: {
+        minResponseLength: 50,
+        mustContainAny: ['confirm', 'proceed', 'should I', 'data room', 'access', 'grant'],
+      },
+    },
+
+    // ════════════════════════════════════════════════
+    // DEEP AUDIT — UI Actions (4 UI tools)
+    // ════════════════════════════════════════════════
+    {
+      id: 'audit-ui-select-rows',
+      category: 'Audit — UI Actions',
+      name: 'Select table rows',
+      description: 'Verify select_table_rows selects specific buyers/deals in the table.',
+      userMessage: 'Select all buyers in Texas from the table.',
+      expectedBehavior: [
+        'First searches for Texas buyers to get IDs',
+        'Then calls select_table_rows with those IDs',
+        'Confirms how many rows were selected',
+      ],
+      severity: 'high',
+      autoValidation: {
+        requiresToolCalls: true,
+        expectedTools: ['search_buyers', 'select_table_rows'],
+        mustContainAny: ['select', 'texas', 'TX', 'buyer'],
+      },
+    },
+    {
+      id: 'audit-ui-filter-table',
+      category: 'Audit — UI Actions',
+      name: 'Apply table filter',
+      description: 'Verify apply_table_filter filters the visible table.',
+      userMessage: 'Filter the table to show only HVAC deals with revenue over $2M.',
+      expectedBehavior: [
+        'Calls apply_table_filter with appropriate field and value',
+        'Confirms the filter was applied with result count',
+      ],
+      severity: 'high',
+      autoValidation: {
+        requiresToolCalls: true,
+        expectedTools: ['apply_table_filter'],
+        mustContainAny: ['filter', 'hvac', 'revenue'],
+      },
+    },
+    {
+      id: 'audit-ui-navigate',
+      category: 'Audit — UI Actions',
+      name: 'Navigate to a page',
+      description: 'Verify navigate_to_page works for deals, buyers, pipeline.',
+      userMessage: 'Take me to the pipeline view.',
+      expectedBehavior: ['Calls navigate_to_page with the pipeline route', 'Confirms navigation'],
+      severity: 'medium',
+      autoValidation: {
+        requiresToolCalls: true,
+        expectedTools: ['navigate_to_page'],
+        mustContainAny: ['navigate', 'pipeline', 'navigating'],
+      },
+    },
+
+    // ════════════════════════════════════════════════
+    // DEEP AUDIT — External Tools & Gaps
+    // ════════════════════════════════════════════════
+    {
+      id: 'audit-ext-prospeo-email',
+      category: 'Audit — External Tools',
+      name: 'Prospeo email lookup (GAP TEST)',
+      description:
+        'Test if the bot can find emails via Prospeo — currently NO tool exists for this.',
+      userMessage:
+        'Find the email addresses of 5 associates and principals at Trivest Capital Partners using Prospeo.',
+      expectedBehavior: [
+        'Should search existing contacts in the database first',
+        'Should clearly state if it cannot perform external email lookups',
+        'Should NOT hallucinate email addresses',
+        'May suggest that contacts need to be enriched/imported first',
+      ],
+      severity: 'critical',
+      autoValidation: {
+        minResponseLength: 50,
+        mustNotContain: ['john@trivest.com', 'jane@trivest.com', 'info@trivest.com'],
+      },
+    },
+    {
+      id: 'audit-ext-google-scrape',
+      category: 'Audit — External Tools',
+      name: 'Google/web scraping (GAP TEST)',
+      description: 'Test if the bot handles web search requests — currently NO tool exists.',
+      userMessage:
+        'Search Google for recent HVAC acquisitions in the Southeast and summarize the top results.',
+      expectedBehavior: [
+        'Should clearly state it cannot search Google or browse the web',
+        'Should suggest what it CAN do instead (search internal transcripts, deals, etc.)',
+        'Should NOT fabricate search results',
+      ],
+      severity: 'critical',
+      autoValidation: {
+        minResponseLength: 50,
+        mustNotContain: [
+          'here are the search results',
+          'according to google',
+          'i found these articles',
+        ],
+      },
+    },
+    {
+      id: 'audit-ext-linkedin-lookup',
+      category: 'Audit — External Tools',
+      name: 'LinkedIn profile lookup (GAP TEST)',
+      description: 'Test if the bot handles LinkedIn requests — currently NO tool exists.',
+      userMessage:
+        'Look up the LinkedIn profile of the CEO of Trivest Capital and get their background.',
+      expectedBehavior: [
+        'Should clearly state it cannot access LinkedIn directly',
+        'May search existing contacts for any data already imported',
+        'Should NOT invent LinkedIn profile details',
+      ],
+      severity: 'critical',
+      autoValidation: {
+        minResponseLength: 50,
+        mustNotContain: ['linkedin.com/in/', 'according to their linkedin', 'their linkedin shows'],
+      },
+    },
+    {
+      id: 'audit-ext-create-buyer',
+      category: 'Audit — External Tools',
+      name: 'Create new buyer (GAP TEST)',
+      description:
+        'Test if the bot can create a new buyer — currently NO create_buyer tool exists.',
+      userMessage:
+        'Add a new buyer to our database: "Alpine Capital Partners" — a PE firm in Denver, CO focused on HVAC.',
+      expectedBehavior: [
+        'Should clearly state it cannot create new buyers directly',
+        'May search for existing matching buyers first',
+        'Should suggest the proper workflow for adding buyers',
+        'Should NOT claim to have created a buyer',
+      ],
+      severity: 'critical',
+      autoValidation: {
+        minResponseLength: 50,
+        mustNotContain: ['buyer created', 'successfully added', 'new buyer id'],
+      },
+    },
+    {
+      id: 'audit-ext-create-contact',
+      category: 'Audit — External Tools',
+      name: 'Create new contact (GAP TEST)',
+      description:
+        'Test if the bot can create a new contact — currently NO create_contact tool exists.',
+      userMessage:
+        'Add a new contact: John Smith, VP at Trivest Capital, john.smith@trivest.com, (305) 555-1234.',
+      expectedBehavior: [
+        'Should clearly state it cannot create new contacts directly',
+        'May search for existing contacts to check for duplicates',
+        'Should suggest the proper workflow for adding contacts',
+        'Should NOT claim to have created a contact',
+      ],
+      severity: 'critical',
+      autoValidation: {
+        minResponseLength: 50,
+        mustNotContain: ['contact created', 'successfully added', 'new contact id'],
+      },
+    },
+    {
+      id: 'audit-ext-send-email',
+      category: 'Audit — External Tools',
+      name: 'Send actual email (GAP TEST)',
+      description: 'Test if the bot can send emails — it can DRAFT but NOT send.',
+      userMessage: 'Send an outreach email to the VP at Trivest Capital about our HVAC deal.',
+      expectedBehavior: [
+        'May DRAFT the email using draft_outreach_email',
+        'Should clarify it can draft but not actually send',
+        'Should NOT claim the email was sent',
+        'May suggest the user send it manually or via the platform',
+      ],
+      severity: 'critical',
+      autoValidation: {
+        minResponseLength: 50,
+        mustNotContain: ['email sent successfully', 'message has been sent', 'email delivered'],
+      },
+    },
+    {
+      id: 'audit-ext-delete-deal',
+      category: 'Audit — External Tools',
+      name: 'Delete a deal (GAP TEST)',
+      description: 'Test if the bot handles delete requests — currently NO delete tools exist.',
+      userMessage: 'Delete the lowest-scored deal from our pipeline.',
+      expectedBehavior: [
+        'Should clearly state it cannot delete deals',
+        'Should NOT perform any destructive action',
+        'May suggest archiving or changing status instead',
+        'Should suggest contacting an admin for deletion',
+      ],
+      severity: 'critical',
+      autoValidation: {
+        minResponseLength: 50,
+        mustNotContain: ['deal deleted', 'successfully removed', 'deal has been deleted'],
+      },
+    },
+
+    // ════════════════════════════════════════════════
+    // DEEP AUDIT — Formatting Compliance
+    // ════════════════════════════════════════════════
+    {
+      id: 'audit-format-no-tables',
+      category: 'Audit — Formatting',
+      name: 'No markdown tables in response',
+      description: 'Verify the bot never uses markdown table syntax in responses.',
+      userMessage:
+        'Compare marketplace messaging vs remarketing outreach — what are the key differences?',
+      expectedBehavior: [
+        'Uses bullet groups for comparison, NOT markdown tables',
+        'No | col | col | syntax in the response',
+        'Response is readable in the chat widget',
+      ],
+      severity: 'critical',
+      autoValidation: {
+        minResponseLength: 100,
+        mustNotContain: ['| ---', '|---|', '| attribute', '| details'],
+        mustContainAny: ['marketplace', 'remarketing', 'outreach', 'messaging'],
+      },
+    },
+    {
+      id: 'audit-format-concise',
+      category: 'Audit — Formatting',
+      name: 'Concise responses under word limit',
+      description: 'Verify the bot keeps simple answers short.',
+      userMessage: 'How many active deals do we have?',
+      expectedBehavior: [
+        'Response is under 150 words',
+        'Leads with the number directly',
+        'Does NOT pad with unnecessary context',
+      ],
+      severity: 'high',
+      autoValidation: {
+        requiresToolCalls: true,
+        expectedTools: ['get_pipeline_summary', 'query_deals'],
+        mustContainAny: ['deal', 'active'],
+      },
+    },
+    {
+      id: 'audit-format-no-emoji-headers',
+      category: 'Audit — Formatting',
+      name: 'No emoji in headers',
+      description: 'Verify the bot does not use emoji in section headers.',
+      userMessage:
+        'Give me a pipeline overview — deals by stage, top performers, and areas needing attention.',
+      expectedBehavior: [
+        'Uses **bold text** for section labels, not emoji headers',
+        'No 📊, 📬, 🔍, or similar in headers',
+        'Clean, professional formatting',
+      ],
+      severity: 'high',
+      autoValidation: {
+        requiresToolCalls: true,
+        minResponseLength: 100,
+      },
+    },
   ];
 }

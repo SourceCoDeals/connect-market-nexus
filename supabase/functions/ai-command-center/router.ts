@@ -46,7 +46,9 @@ const BYPASS_RULES: Array<{
   {
     test: (q) =>
       /\b(how many|total|count|number of)\b.*\b(deal|listing)\b/i.test(q) &&
-      /\b(hvac|plumbing|collision|auto|roofing|electrical|landscaping|pest|home service|restoration|mechanical|industrial|manufacturing|construction|fire|security|cleaning|staffing|healthcare|dental|veterinary|fitness)/i.test(q),
+      /\b(hvac|plumbing|collision|auto|roofing|electrical|landscaping|pest|home service|restoration|mechanical|industrial|manufacturing|construction|fire|security|cleaning|staffing|healthcare|dental|veterinary|fitness)/i.test(
+        q,
+      ),
     result: {
       category: 'PIPELINE_ANALYTICS',
       tier: 'STANDARD',
@@ -402,7 +404,7 @@ const BYPASS_RULES: Array<{
   // Connection requests — buyer intake pipeline
   {
     test: (q) =>
-      /\b(connection request|buyer request|connect request|who requested|requested access|request.*deal|buyer.*connect|intake)\b/i.test(
+      /\b(connection requests?|buyer requests?|connect requests?|who requested|requested access|request.*deal|buyer.*connect|intake)\b/i.test(
         q,
       ),
     result: {
