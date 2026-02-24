@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { useSearchParams, Link } from "react-router-dom";
+import { useSearchParams, Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -179,6 +179,7 @@ export default function BuyerMessages() {
   );
   const [searchQuery, setSearchQuery] = useState("");
   const [showGeneralChat, setShowGeneralChat] = useState(false);
+  const navigate = useNavigate();
 
   // Set selected from URL param
   useEffect(() => {
@@ -227,6 +228,15 @@ export default function BuyerMessages() {
     <div className="w-full bg-background min-h-screen">
       {/* Header */}
       <div className="px-4 sm:px-8 pt-8 pb-6 max-w-7xl mx-auto">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => navigate(-1)}
+          className="mb-3 -ml-1 text-muted-foreground hover:text-foreground"
+        >
+          <ArrowLeft className="h-4 w-4 mr-1.5" />
+          Back
+        </Button>
         <h1 className="text-3xl font-semibold text-foreground tracking-tight">
           Messages
         </h1>
