@@ -338,7 +338,7 @@ function MemberRow({
       </TableCell>
       <TableCell>
         <Badge variant="outline" className="text-[11px] font-normal capitalize">
-          {member.entity_type.replaceAll("_", " ")}
+          {member.entity_type.split("_").join(" ")}
         </Badge>
       </TableCell>
       <TableCell>

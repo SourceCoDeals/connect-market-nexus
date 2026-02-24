@@ -29,6 +29,7 @@ interface BulkActionsToolbarProps {
   onExportCSV: () => void;
   onGenerateEmails?: () => void;
   onPushToDialer?: () => void;
+  onPushToSmartlead?: () => void;
   onAddToList?: () => void;
   isProcessing?: boolean;
   activeTab?: string;
@@ -50,6 +51,7 @@ export const BulkActionsToolbar = ({
   onExportCSV,
   onGenerateEmails,
   onPushToDialer,
+  onPushToSmartlead,
   onAddToList,
   isProcessing = false,
   activeTab = 'all',

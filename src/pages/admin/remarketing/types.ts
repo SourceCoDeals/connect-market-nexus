@@ -53,10 +53,6 @@ export interface DealListing {
   universe_build_flagged_at: string | null;
   universe_build_flagged_by: string | null;
   is_internal_deal: boolean | null;
-  // Primary contact fields
-  main_contact_name: string | null;
-  main_contact_email: string | null;
-  main_contact_phone: string | null;
 }
 
 // Column width configuration

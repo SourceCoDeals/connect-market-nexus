@@ -72,7 +72,7 @@ export function useCreateSmartleadCampaign() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (request: CreateCampaignRequest) => invokeSmartleadCampaigns('create', request),
+    mutationFn: (request: CreateCampaignRequest) => invokeSmartleadCampaigns('create', request as unknown as Record<string, unknown>),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: CAMPAIGNS_KEY });
       toast.success('Campaign created in Smartlead');
