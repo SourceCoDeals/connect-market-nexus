@@ -1,11 +1,12 @@
 import { lazy, Suspense } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Loader2, FlaskConical, Activity, Beaker } from "lucide-react";
+import { Loader2, FlaskConical, Activity, Beaker, Bot } from "lucide-react";
 import { useSearchParams } from "react-router-dom";
 
 const EnrichmentTest = lazy(() => import("@/pages/admin/EnrichmentTest"));
 const SystemTestRunner = lazy(() => import("@/pages/admin/SystemTestRunner"));
 const DocuSealHealthCheck = lazy(() => import("@/pages/admin/DocuSealHealthCheck"));
+const ChatbotTestRunner = lazy(() => import("@/pages/admin/ChatbotTestRunner"));
 
 const Loading = () => (
   <div className="flex items-center justify-center py-20">
@@ -28,7 +29,7 @@ export default function TestingHub() {
           <div className="space-y-1">
             <h1 className="text-2xl font-semibold tracking-tight">Testing & Diagnostics</h1>
             <p className="text-sm text-muted-foreground">
-              Enrichment tests, system integration tests, and DocuSeal health checks.
+              Enrichment tests, system integration tests, DocuSeal health checks, and AI chatbot QA.
             </p>
           </div>
         </div>
@@ -48,6 +49,10 @@ export default function TestingHub() {
               <Activity className="h-4 w-4" />
               DocuSeal Health
             </TabsTrigger>
+            <TabsTrigger value="chatbot" className="gap-2">
+              <Bot className="h-4 w-4" />
+              AI Chatbot
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="enrichment">
@@ -65,6 +70,12 @@ export default function TestingHub() {
           <TabsContent value="docuseal">
             <Suspense fallback={<Loading />}>
               <DocuSealHealthCheck />
+            </Suspense>
+          </TabsContent>
+
+          <TabsContent value="chatbot">
+            <Suspense fallback={<Loading />}>
+              <ChatbotTestRunner />
             </Suspense>
           </TabsContent>
         </Tabs>
