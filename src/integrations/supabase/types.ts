@@ -602,7 +602,9 @@ export type Database = {
           business_model_score: number | null
           buyer_id: string
           composite_score: number | null
+          confidence_level: string | null
           custom_bonus: number | null
+          data_completeness: string | null
           data_quality_bonus: number | null
           deal_id: string
           disqualification_reason: string | null
@@ -617,6 +619,7 @@ export type Database = {
           is_disqualified: boolean | null
           kpi_bonus: number | null
           learning_penalty: number | null
+          missing_fields: string[] | null
           needs_review: boolean | null
           owner_goals_score: number | null
           pass_category: string | null
@@ -644,7 +647,9 @@ export type Database = {
           business_model_score?: number | null
           buyer_id: string
           composite_score?: number | null
+          confidence_level?: string | null
           custom_bonus?: number | null
+          data_completeness?: string | null
           data_quality_bonus?: number | null
           deal_id: string
           disqualification_reason?: string | null
@@ -659,6 +664,7 @@ export type Database = {
           is_disqualified?: boolean | null
           kpi_bonus?: number | null
           learning_penalty?: number | null
+          missing_fields?: string[] | null
           needs_review?: boolean | null
           owner_goals_score?: number | null
           pass_category?: string | null
@@ -686,7 +692,9 @@ export type Database = {
           business_model_score?: number | null
           buyer_id?: string
           composite_score?: number | null
+          confidence_level?: string | null
           custom_bonus?: number | null
+          data_completeness?: string | null
           data_quality_bonus?: number | null
           deal_id?: string
           disqualification_reason?: string | null
@@ -701,6 +709,7 @@ export type Database = {
           is_disqualified?: boolean | null
           kpi_bonus?: number | null
           learning_penalty?: number | null
+          missing_fields?: string[] | null
           needs_review?: boolean | null
           owner_goals_score?: number | null
           pass_category?: string | null
@@ -1130,6 +1139,7 @@ export type Database = {
           target_geographies: string[] | null
           target_industries: string[] | null
           target_services: string[] | null
+          thesis_confidence: string | null
           thesis_summary: string | null
           total_acquisitions: number | null
           tracker_id: string
@@ -1191,6 +1201,7 @@ export type Database = {
           target_geographies?: string[] | null
           target_industries?: string[] | null
           target_services?: string[] | null
+          thesis_confidence?: string | null
           thesis_summary?: string | null
           total_acquisitions?: number | null
           tracker_id: string
@@ -1252,6 +1263,7 @@ export type Database = {
           target_geographies?: string[] | null
           target_industries?: string[] | null
           target_services?: string[] | null
+          thesis_confidence?: string | null
           thesis_summary?: string | null
           total_acquisitions?: number | null
           tracker_id?: string
@@ -6154,6 +6166,7 @@ export type Database = {
           description_html: string | null
           description_json: Json | null
           ebitda: number | null
+          ebitda_confidence: string | null
           ebitda_is_inferred: boolean | null
           ebitda_margin: number | null
           ebitda_metric_subtitle: string | null
@@ -6249,6 +6262,7 @@ export type Database = {
           referral_partner_id: string | null
           remarketing_status: string | null
           revenue: number | null
+          revenue_confidence: string | null
           revenue_is_inferred: boolean | null
           revenue_metric_subtitle: string | null
           revenue_model: string | null
@@ -6257,6 +6271,7 @@ export type Database = {
           revenue_source_quote: string | null
           scoring_notes: string | null
           seller_interest_analyzed_at: string | null
+          seller_interest_confidence: string | null
           seller_interest_notes: Json | null
           seller_interest_score: number | null
           seller_involvement_preference: string | null
@@ -6321,6 +6336,7 @@ export type Database = {
           description_html?: string | null
           description_json?: Json | null
           ebitda?: number | null
+          ebitda_confidence?: string | null
           ebitda_is_inferred?: boolean | null
           ebitda_margin?: number | null
           ebitda_metric_subtitle?: string | null
@@ -6416,6 +6432,7 @@ export type Database = {
           referral_partner_id?: string | null
           remarketing_status?: string | null
           revenue?: number | null
+          revenue_confidence?: string | null
           revenue_is_inferred?: boolean | null
           revenue_metric_subtitle?: string | null
           revenue_model?: string | null
@@ -6424,6 +6441,7 @@ export type Database = {
           revenue_source_quote?: string | null
           scoring_notes?: string | null
           seller_interest_analyzed_at?: string | null
+          seller_interest_confidence?: string | null
           seller_interest_notes?: Json | null
           seller_interest_score?: number | null
           seller_involvement_preference?: string | null
@@ -6488,6 +6506,7 @@ export type Database = {
           description_html?: string | null
           description_json?: Json | null
           ebitda?: number | null
+          ebitda_confidence?: string | null
           ebitda_is_inferred?: boolean | null
           ebitda_margin?: number | null
           ebitda_metric_subtitle?: string | null
@@ -6583,6 +6602,7 @@ export type Database = {
           referral_partner_id?: string | null
           remarketing_status?: string | null
           revenue?: number | null
+          revenue_confidence?: string | null
           revenue_is_inferred?: boolean | null
           revenue_metric_subtitle?: string | null
           revenue_model?: string | null
@@ -6591,6 +6611,7 @@ export type Database = {
           revenue_source_quote?: string | null
           scoring_notes?: string | null
           seller_interest_analyzed_at?: string | null
+          seller_interest_confidence?: string | null
           seller_interest_notes?: Json | null
           seller_interest_score?: number | null
           seller_involvement_preference?: string | null
@@ -8348,9 +8369,11 @@ export type Database = {
           buyer_type: string | null
           company_name: string
           company_website: string | null
+          confidence_level: string | null
           created_at: string
           customer_geographic_reach: string | null
           customer_industries: string[] | null
+          data_completeness: string | null
           data_last_updated: string | null
           email_domain: string | null
           extraction_sources: Json | null
@@ -8395,6 +8418,7 @@ export type Database = {
           target_revenue_max: number | null
           target_revenue_min: number | null
           target_services: string[] | null
+          thesis_confidence: string | null
           thesis_summary: string | null
           total_acquisitions: number | null
           universe_id: string | null
@@ -8414,9 +8438,11 @@ export type Database = {
           buyer_type?: string | null
           company_name: string
           company_website?: string | null
+          confidence_level?: string | null
           created_at?: string
           customer_geographic_reach?: string | null
           customer_industries?: string[] | null
+          data_completeness?: string | null
           data_last_updated?: string | null
           email_domain?: string | null
           extraction_sources?: Json | null
@@ -8461,6 +8487,7 @@ export type Database = {
           target_revenue_max?: number | null
           target_revenue_min?: number | null
           target_services?: string[] | null
+          thesis_confidence?: string | null
           thesis_summary?: string | null
           total_acquisitions?: number | null
           universe_id?: string | null
@@ -8480,9 +8507,11 @@ export type Database = {
           buyer_type?: string | null
           company_name?: string
           company_website?: string | null
+          confidence_level?: string | null
           created_at?: string
           customer_geographic_reach?: string | null
           customer_industries?: string[] | null
+          data_completeness?: string | null
           data_last_updated?: string | null
           email_domain?: string | null
           extraction_sources?: Json | null
@@ -8527,6 +8556,7 @@ export type Database = {
           target_revenue_max?: number | null
           target_revenue_min?: number | null
           target_services?: string[] | null
+          thesis_confidence?: string | null
           thesis_summary?: string | null
           total_acquisitions?: number | null
           universe_id?: string | null
@@ -8734,8 +8764,10 @@ export type Database = {
           business_model_score: number | null
           buyer_id: string
           composite_score: number
+          confidence_level: string | null
           created_at: string
           custom_bonus: number | null
+          data_completeness: string | null
           data_quality_bonus: number | null
           deal_snapshot: Json | null
           disqualification_reason: string | null
@@ -8750,6 +8782,7 @@ export type Database = {
           last_viewed_at: string | null
           learning_penalty: number | null
           listing_id: string
+          missing_fields: string[] | null
           needs_review: boolean | null
           owner_goals_score: number | null
           pass_category: string | null
@@ -8777,8 +8810,10 @@ export type Database = {
           business_model_score?: number | null
           buyer_id: string
           composite_score?: number
+          confidence_level?: string | null
           created_at?: string
           custom_bonus?: number | null
+          data_completeness?: string | null
           data_quality_bonus?: number | null
           deal_snapshot?: Json | null
           disqualification_reason?: string | null
@@ -8793,6 +8828,7 @@ export type Database = {
           last_viewed_at?: string | null
           learning_penalty?: number | null
           listing_id: string
+          missing_fields?: string[] | null
           needs_review?: boolean | null
           owner_goals_score?: number | null
           pass_category?: string | null
@@ -8820,8 +8856,10 @@ export type Database = {
           business_model_score?: number | null
           buyer_id?: string
           composite_score?: number
+          confidence_level?: string | null
           created_at?: string
           custom_bonus?: number | null
+          data_completeness?: string | null
           data_quality_bonus?: number | null
           deal_snapshot?: Json | null
           disqualification_reason?: string | null
@@ -8836,6 +8874,7 @@ export type Database = {
           last_viewed_at?: string | null
           learning_penalty?: number | null
           listing_id?: string
+          missing_fields?: string[] | null
           needs_review?: boolean | null
           owner_goals_score?: number | null
           pass_category?: string | null
@@ -9172,11 +9211,13 @@ export type Database = {
           bonuses_applied: Json | null
           buyer_id: string
           composite_score: number | null
+          data_completeness: string | null
           deal_quality_score: number | null
           engagement_score: number | null
           geography_score: number | null
           id: string
           listing_id: string
+          missing_fields: Json | null
           multipliers_applied: Json | null
           owner_goals_score: number | null
           scored_at: string
@@ -9192,11 +9233,13 @@ export type Database = {
           bonuses_applied?: Json | null
           buyer_id: string
           composite_score?: number | null
+          data_completeness?: string | null
           deal_quality_score?: number | null
           engagement_score?: number | null
           geography_score?: number | null
           id?: string
           listing_id: string
+          missing_fields?: Json | null
           multipliers_applied?: Json | null
           owner_goals_score?: number | null
           scored_at?: string
@@ -9212,11 +9255,13 @@ export type Database = {
           bonuses_applied?: Json | null
           buyer_id?: string
           composite_score?: number | null
+          data_completeness?: string | null
           deal_quality_score?: number | null
           engagement_score?: number | null
           geography_score?: number | null
           id?: string
           listing_id?: string
+          missing_fields?: Json | null
           multipliers_applied?: Json | null
           owner_goals_score?: number | null
           scored_at?: string
