@@ -594,10 +594,30 @@ describe('Action Tools', () => {
   });
 
   describe('addDealNote', () => {
-    it('defaults activity_type to note', () => {
+    it('defaults activity_type to note_added (DB-valid verbose form)', () => {
       const args: Record<string, unknown> = {};
-      const activityType = (args.activity_type as string) || 'note';
-      expect(activityType).toBe('note');
+      const activityType = (args.activity_type as string) || 'note_added';
+      expect(activityType).toBe('note_added');
+    });
+
+    it('normalizes short-form activity_type values to DB constraint equivalents', () => {
+      const ACTIVITY_TYPE_MAP: Record<string, string> = {
+        note: 'note_added',
+        call: 'call_logged',
+        email: 'email_sent',
+        meeting: 'meeting_scheduled',
+      };
+      const normalize = (raw: string) => ACTIVITY_TYPE_MAP[raw] ?? raw;
+
+      expect(normalize('note')).toBe('note_added');
+      expect(normalize('call')).toBe('call_logged');
+      expect(normalize('email')).toBe('email_sent');
+      expect(normalize('meeting')).toBe('meeting_scheduled');
+      // Values already valid pass through unchanged
+      expect(normalize('outreach')).toBe('outreach');
+      expect(normalize('scoring')).toBe('scoring');
+      expect(normalize('status_change')).toBe('status_change');
+      expect(normalize('data_room')).toBe('data_room');
     });
 
     it('uses content field as description', () => {

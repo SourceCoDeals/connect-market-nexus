@@ -9,6 +9,24 @@ type SupabaseClient = any;
 import type { ClaudeTool } from '../../_shared/claude-client.ts';
 import type { ToolResult } from './index.ts';
 
+/**
+ * Normalize legacy short-form activity_type values to the verbose forms
+ * required by the deal_activities CHECK constraint.
+ *
+ * Short-form values were documented in the original tool schemas but were
+ * never valid against the DB constraint — inserts would fail silently.
+ */
+const ACTIVITY_TYPE_MAP: Record<string, string> = {
+  note: 'note_added',
+  call: 'call_logged',
+  email: 'email_sent',
+  meeting: 'meeting_scheduled',
+};
+
+function normalizeActivityType(raw: string): string {
+  return ACTIVITY_TYPE_MAP[raw] ?? raw;
+}
+
 // ---------- Tool definitions ----------
 
 export const actionTools: ClaudeTool[] = [
@@ -59,7 +77,7 @@ export const actionTools: ClaudeTool[] = [
         activity_type: {
           type: 'string',
           description:
-            'Activity type (default "note"). Options: note, call, email, meeting, status_change',
+            'Activity type (default "note_added"). Options: note_added, call_logged, email_sent, meeting_scheduled, status_change',
         },
       },
       required: ['deal_id', 'title', 'content'],
@@ -75,7 +93,7 @@ export const actionTools: ClaudeTool[] = [
         activity_type: {
           type: 'string',
           description:
-            'Type of activity: note, call, email, meeting, outreach, status_change, data_room, scoring',
+            'Type of activity: note_added, call_logged, email_sent, meeting_scheduled, outreach, status_change, data_room, scoring',
         },
         title: { type: 'string', description: 'Activity title' },
         description: { type: 'string', description: 'Activity description' },
@@ -265,7 +283,7 @@ async function addDealNote(
   args: Record<string, unknown>,
   userId: string,
 ): Promise<ToolResult> {
-  const activityType = (args.activity_type as string) || 'note';
+  const activityType = normalizeActivityType((args.activity_type as string) || 'note_added');
 
   const { data, error } = await supabase
     .from('deal_activities')
@@ -299,7 +317,7 @@ async function logDealActivity(
     .from('deal_activities')
     .insert({
       deal_id: args.deal_id as string,
-      activity_type: args.activity_type as string,
+      activity_type: normalizeActivityType(args.activity_type as string),
       title: args.title as string,
       description: (args.description as string) || null,
       admin_id: userId,
