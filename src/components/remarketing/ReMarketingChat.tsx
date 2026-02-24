@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from "react";
+import type React from "react";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,6 +14,7 @@ import {
   Minimize2,
   Trash2,
   ChevronUp,
+  GripVertical,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase, SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY } from "@/integrations/supabase/client";
@@ -123,6 +125,34 @@ export function ReMarketingChat({
 }: ReMarketingChatProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
+
+  // Drag state
+  const [position, setPosition] = useState<{ x: number; y: number } | null>(null);
+  const dragRef = useRef<{ startX: number; startY: number; origX: number; origY: number } | null>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (isOpen) setPosition(null);
+  }, [isOpen]);
+
+  const onDragStart = useCallback((e: React.PointerEvent) => {
+    e.preventDefault();
+    const panel = panelRef.current;
+    if (!panel) return;
+    const rect = panel.getBoundingClientRect();
+    dragRef.current = { startX: e.clientX, startY: e.clientY, origX: rect.left, origY: rect.top };
+    const onMove = (ev: PointerEvent) => {
+      if (!dragRef.current) return;
+      setPosition({ x: dragRef.current.origX + (ev.clientX - dragRef.current.startX), y: dragRef.current.origY + (ev.clientY - dragRef.current.startY) });
+    };
+    const onUp = () => {
+      dragRef.current = null;
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+    };
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+  }, []);
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -468,12 +498,9 @@ export function ReMarketingChat({
         <Button
           onClick={() => setIsOpen(true)}
           size="lg"
-          className="rounded-full h-20 w-20 shadow-2xl hover:scale-110 transition-transform border-4 border-background bg-[#DEC76B] hover:bg-[#d4bc5f]"
+          className="rounded-full h-14 w-14 shadow-2xl hover:scale-110 transition-transform bg-primary hover:bg-primary/90"
         >
-          <svg viewBox="0 0 24 24" fill="none" className="h-9 w-9" xmlns="http://www.w3.org/2000/svg">
-            <rect x="2" y="4" width="20" height="13" rx="2" stroke="#0E101A" strokeWidth="1.8" fill="none" />
-            <path d="M2 6l10 6 10-6" stroke="#0E101A" strokeWidth="1.8" fill="none" />
-          </svg>
+          <MessageSquare className="h-6 w-6" />
         </Button>
       </div>
     );
@@ -501,12 +528,31 @@ export function ReMarketingChat({
   }
 
   // Full chat panel
+  const panelStyle: React.CSSProperties = position
+    ? { position: 'fixed', left: position.x, top: position.y, bottom: 'auto', right: 'auto', zIndex: 50 }
+    : {};
+
   return (
-    <div className={cn("fixed bottom-8 right-8 z-50 w-[624px] max-w-[calc(100vw-64px)]", className)}>
+    <div
+      ref={panelRef}
+      className={cn(
+        position ? "w-[624px] max-w-[calc(100vw-64px)]" : "fixed bottom-8 right-8 z-50 w-[624px] max-w-[calc(100vw-64px)]",
+        className
+      )}
+      style={panelStyle}
+    >
       <Card className="flex flex-col h-[845px] max-h-[85vh] shadow-2xl border-2 border-primary/30" style={{ backgroundColor: 'hsl(48, 70%, 95%)' }}>
         <CardHeader className="py-3 px-4 border-b border-primary/20 flex-shrink-0 bg-primary/10">
           <div className="flex items-center justify-between">
-            <CardTitle className="text-lg flex items-center gap-2">
+            <div className="flex items-center gap-1 flex-1 min-w-0">
+              <div
+                onPointerDown={onDragStart}
+                className="cursor-grab active:cursor-grabbing p-1 -ml-1 rounded hover:bg-primary/10 touch-none select-none"
+                title="Drag to move"
+              >
+                <GripVertical className="h-4 w-4 text-muted-foreground" />
+              </div>
+              <CardTitle className="text-lg flex items-center gap-2 truncate">
               <Sparkles className="h-4 w-4 text-primary" />
               {getChatTitle(context)}
               {getSubtitle(context) && (
@@ -520,6 +566,7 @@ export function ReMarketingChat({
                 </span>
               )}
             </CardTitle>
+            </div>
             <div className="flex items-center gap-1">
               {messages.length > 0 && (
                 <Button
