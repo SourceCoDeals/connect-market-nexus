@@ -9743,6 +9743,256 @@ export type Database = {
           },
         ]
       }
+      smartlead_campaign_leads: {
+        Row: {
+          buyer_contact_id: string | null
+          campaign_id: string
+          company_name: string | null
+          created_at: string | null
+          email: string
+          first_name: string | null
+          id: string
+          last_activity_at: string | null
+          last_name: string | null
+          lead_category: string | null
+          lead_status: string | null
+          metadata: Json | null
+          remarketing_buyer_id: string | null
+          smartlead_lead_id: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          buyer_contact_id?: string | null
+          campaign_id: string
+          company_name?: string | null
+          created_at?: string | null
+          email: string
+          first_name?: string | null
+          id?: string
+          last_activity_at?: string | null
+          last_name?: string | null
+          lead_category?: string | null
+          lead_status?: string | null
+          metadata?: Json | null
+          remarketing_buyer_id?: string | null
+          smartlead_lead_id?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          buyer_contact_id?: string | null
+          campaign_id?: string
+          company_name?: string | null
+          created_at?: string | null
+          email?: string
+          first_name?: string | null
+          id?: string
+          last_activity_at?: string | null
+          last_name?: string | null
+          lead_category?: string | null
+          lead_status?: string | null
+          metadata?: Json | null
+          remarketing_buyer_id?: string | null
+          smartlead_lead_id?: number | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "smartlead_campaign_leads_buyer_contact_id_fkey"
+            columns: ["buyer_contact_id"]
+            isOneToOne: false
+            referencedRelation: "buyer_contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "smartlead_campaign_leads_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "smartlead_campaigns"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      smartlead_campaign_stats: {
+        Row: {
+          bounced: number | null
+          campaign_id: string
+          clicked: number | null
+          id: string
+          interested: number | null
+          not_interested: number | null
+          opened: number | null
+          replied: number | null
+          sent: number | null
+          snapshot_at: string | null
+          total_leads: number | null
+          unsubscribed: number | null
+        }
+        Insert: {
+          bounced?: number | null
+          campaign_id: string
+          clicked?: number | null
+          id?: string
+          interested?: number | null
+          not_interested?: number | null
+          opened?: number | null
+          replied?: number | null
+          sent?: number | null
+          snapshot_at?: string | null
+          total_leads?: number | null
+          unsubscribed?: number | null
+        }
+        Update: {
+          bounced?: number | null
+          campaign_id?: string
+          clicked?: number | null
+          id?: string
+          interested?: number | null
+          not_interested?: number | null
+          opened?: number | null
+          replied?: number | null
+          sent?: number | null
+          snapshot_at?: string | null
+          total_leads?: number | null
+          unsubscribed?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "smartlead_campaign_stats_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "smartlead_campaigns"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      smartlead_campaigns: {
+        Row: {
+          created_at: string | null
+          created_by: string | null
+          deal_id: string | null
+          id: string
+          last_synced_at: string | null
+          lead_count: number | null
+          name: string
+          settings: Json | null
+          smartlead_campaign_id: number
+          status: string | null
+          universe_id: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          created_by?: string | null
+          deal_id?: string | null
+          id?: string
+          last_synced_at?: string | null
+          lead_count?: number | null
+          name: string
+          settings?: Json | null
+          smartlead_campaign_id: number
+          status?: string | null
+          universe_id?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          created_by?: string | null
+          deal_id?: string | null
+          id?: string
+          last_synced_at?: string | null
+          lead_count?: number | null
+          name?: string
+          settings?: Json | null
+          smartlead_campaign_id?: number
+          status?: string | null
+          universe_id?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "smartlead_campaigns_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "linkedin_manual_review_queue"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "smartlead_campaigns_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "listings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "smartlead_campaigns_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "listings_needing_enrichment"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "smartlead_campaigns_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "marketplace_listings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "smartlead_campaigns_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "ranked_deals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "smartlead_campaigns_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "unmapped_primary_owners"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "smartlead_campaigns_universe_id_fkey"
+            columns: ["universe_id"]
+            isOneToOne: false
+            referencedRelation: "remarketing_buyer_universes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      smartlead_webhook_events: {
+        Row: {
+          created_at: string | null
+          event_type: string
+          id: string
+          lead_email: string | null
+          payload: Json
+          processed: boolean | null
+          processed_at: string | null
+          smartlead_campaign_id: number | null
+        }
+        Insert: {
+          created_at?: string | null
+          event_type: string
+          id?: string
+          lead_email?: string | null
+          payload?: Json
+          processed?: boolean | null
+          processed_at?: string | null
+          smartlead_campaign_id?: number | null
+        }
+        Update: {
+          created_at?: string | null
+          event_type?: string
+          id?: string
+          lead_email?: string | null
+          payload?: Json
+          processed?: boolean | null
+          processed_at?: string | null
+          smartlead_campaign_id?: number | null
+        }
+        Relationships: []
+      }
       trigger_logs: {
         Row: {
           created_at: string | null
