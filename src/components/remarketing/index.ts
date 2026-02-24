@@ -92,6 +92,8 @@ export { ScoringInsightsSidebar } from './ScoringInsightsSidebar';
 // Bulk Actions & Progress
 export { BulkActionsToolbar } from './BulkActionsToolbar';
 export { AddBuyersToListDialog } from './AddBuyersToListDialog';
+export { AddDealsToListDialog } from './AddDealsToListDialog';
+export type { DealForList } from './AddDealsToListDialog';
 export { ScoringProgressIndicator } from './ScoringProgressIndicator';
 export { EnrichmentProgressIndicator } from './EnrichmentProgressIndicator';
 export { EnrichmentSummaryDialog } from './EnrichmentSummaryDialog';
