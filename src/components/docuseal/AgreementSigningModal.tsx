@@ -143,7 +143,7 @@ export function AgreementSigningModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-4xl w-[95vw] h-[90vh] flex flex-col overflow-hidden">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Icon className="h-5 w-5" />
@@ -168,14 +168,16 @@ export function AgreementSigningModal({
 
         {embedSrc && (
           <>
-            <DocuSealSigningPanel
-              embedSrc={embedSrc}
-              onCompleted={handleSigned}
-              successMessage={`${docLabel} signed successfully.`}
-              successDescription="Your access has been updated. You can close this dialog."
-              title=""
-              description=""
-            />
+            <div className="flex-1 overflow-y-auto min-h-0">
+              <DocuSealSigningPanel
+                embedSrc={embedSrc}
+                onCompleted={handleSigned}
+                successMessage={`${docLabel} signed successfully.`}
+                successDescription="Your access has been updated. You can close this dialog."
+                title=""
+                description=""
+              />
+            </div>
 
             {/* Download draft + contact options */}
             <div className="flex items-center justify-between border-t border-border pt-3 mt-2">
