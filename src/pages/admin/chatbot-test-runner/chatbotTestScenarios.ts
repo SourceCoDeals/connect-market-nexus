@@ -2355,5 +2355,128 @@ export function getChatbotTestScenarios(): TestScenario[] {
         requiresToolCalls: true,
       },
     },
+
+    // ════════════════════════════════════════════════
+    // SMARTLEAD EMAIL OUTREACH
+    // ════════════════════════════════════════════════
+
+    {
+      id: 'smartlead-list-campaigns',
+      category: 'Smartlead — Email Outreach',
+      name: 'List Smartlead campaigns',
+      description: 'Tests get_smartlead_campaigns tool for listing email campaigns.',
+      userMessage: 'Show me our Smartlead email campaigns',
+      expectedBehavior: [
+        'Routes to SMARTLEAD_OUTREACH category',
+        'Calls get_smartlead_campaigns tool',
+        'Returns campaign names, statuses, lead counts, and stats',
+        'Does not hallucinate campaign data',
+      ],
+      severity: 'high',
+      autoValidation: {
+        expectedRouteCategories: ['SMARTLEAD_OUTREACH', 'GENERAL'],
+        expectedTools: ['get_smartlead_campaigns'],
+        mustContainAny: ['campaign', 'smartlead', 'email'],
+        requiresToolCalls: true,
+      },
+    },
+    {
+      id: 'smartlead-campaign-stats',
+      category: 'Smartlead — Email Outreach',
+      name: 'Campaign performance stats',
+      description: 'Tests get_smartlead_campaign_stats for detailed campaign metrics.',
+      userMessage: 'How is our cold email campaign performing? Show me open and reply rates.',
+      expectedBehavior: [
+        'Routes to SMARTLEAD_OUTREACH category',
+        'Calls get_smartlead_campaigns or get_smartlead_campaign_stats',
+        'Shows stats: sent, opened, replied, bounce rate',
+        'Presents metrics in compact format with percentages',
+      ],
+      severity: 'high',
+      autoValidation: {
+        expectedRouteCategories: ['SMARTLEAD_OUTREACH', 'ENGAGEMENT'],
+        expectedTools: ['get_smartlead_campaigns', 'get_smartlead_campaign_stats'],
+        mustContainAny: ['campaign', 'sent', 'open', 'reply', 'rate', 'email'],
+        requiresToolCalls: true,
+      },
+    },
+    {
+      id: 'smartlead-email-history',
+      category: 'Smartlead — Email Outreach',
+      name: 'Email history for a buyer',
+      description: 'Tests get_smartlead_email_history for viewing email outreach per buyer.',
+      userMessage:
+        'What emails have we sent to this buyer? Show me the Smartlead outreach history.',
+      expectedBehavior: [
+        'Routes to SMARTLEAD_OUTREACH or ENGAGEMENT category',
+        'Calls get_smartlead_email_history tool',
+        'Shows which campaigns the buyer is in',
+        'Shows email events (sent, opened, replied, etc.)',
+      ],
+      severity: 'high',
+      autoValidation: {
+        expectedRouteCategories: ['SMARTLEAD_OUTREACH', 'ENGAGEMENT'],
+        expectedTools: ['get_smartlead_email_history'],
+        mustContainAny: ['campaign', 'email', 'sent', 'history', 'outreach'],
+        requiresToolCalls: true,
+      },
+    },
+    {
+      id: 'smartlead-push-contacts',
+      category: 'Smartlead — Email Outreach',
+      name: 'Push contacts to Smartlead (confirmation)',
+      description: 'Tests push_to_smartlead requires confirmation before executing.',
+      userMessage: 'Push these 5 buyers to our active Smartlead campaign',
+      expectedBehavior: [
+        'Routes to SMARTLEAD_OUTREACH or ACTION category',
+        'Calls push_to_smartlead tool',
+        'REQUIRES CONFIRMATION before executing',
+        'Shows what will be pushed (count, campaign name)',
+      ],
+      severity: 'critical',
+      skipAutoRun: true,
+      autoValidation: {
+        expectedRouteCategories: ['SMARTLEAD_OUTREACH', 'ACTION'],
+        expectedTools: ['push_to_smartlead', 'get_smartlead_campaigns'],
+        requiresToolCalls: true,
+      },
+    },
+    {
+      id: 'smartlead-active-campaigns-filter',
+      category: 'Smartlead — Email Outreach',
+      name: 'Filter campaigns by status',
+      description: 'Tests filtering campaigns to only active ones.',
+      userMessage: 'Show me only the active Smartlead campaigns',
+      expectedBehavior: [
+        'Calls get_smartlead_campaigns with status filter',
+        'Returns only ACTIVE campaigns',
+        'Does not include PAUSED or DRAFTED campaigns',
+      ],
+      severity: 'medium',
+      autoValidation: {
+        expectedRouteCategories: ['SMARTLEAD_OUTREACH'],
+        expectedTools: ['get_smartlead_campaigns'],
+        mustContainAny: ['active', 'campaign'],
+        requiresToolCalls: true,
+      },
+    },
+    {
+      id: 'smartlead-cold-email-synonym',
+      category: 'Smartlead — Email Outreach',
+      name: 'Cold email synonym routing',
+      description: 'Tests that "cold email" routes to Smartlead tools.',
+      userMessage: 'How are our cold email outreach campaigns doing?',
+      expectedBehavior: [
+        'Routes to SMARTLEAD_OUTREACH category (not GENERAL)',
+        'Uses Smartlead tools, not generic outreach tools',
+        'Returns campaign stats from Smartlead data',
+      ],
+      severity: 'medium',
+      autoValidation: {
+        expectedRouteCategories: ['SMARTLEAD_OUTREACH'],
+        expectedTools: ['get_smartlead_campaigns', 'get_smartlead_campaign_stats'],
+        requiresToolCalls: true,
+      },
+    },
   ];
 }

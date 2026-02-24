@@ -1,12 +1,13 @@
-import { lazy, Suspense } from "react";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Loader2, FlaskConical, Activity, Beaker, Bot } from "lucide-react";
-import { useSearchParams } from "react-router-dom";
+import { lazy, Suspense } from 'react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Loader2, FlaskConical, Activity, Beaker, Bot, Mail } from 'lucide-react';
+import { useSearchParams } from 'react-router-dom';
 
-const EnrichmentTest = lazy(() => import("@/pages/admin/EnrichmentTest"));
-const SystemTestRunner = lazy(() => import("@/pages/admin/SystemTestRunner"));
-const DocuSealHealthCheck = lazy(() => import("@/pages/admin/DocuSealHealthCheck"));
-const ChatbotTestRunner = lazy(() => import("@/pages/admin/ChatbotTestRunner"));
+const EnrichmentTest = lazy(() => import('@/pages/admin/EnrichmentTest'));
+const SystemTestRunner = lazy(() => import('@/pages/admin/SystemTestRunner'));
+const DocuSealHealthCheck = lazy(() => import('@/pages/admin/DocuSealHealthCheck'));
+const ChatbotTestRunner = lazy(() => import('@/pages/admin/ChatbotTestRunner'));
+const SmartleadTestPage = lazy(() => import('@/pages/admin/SmartleadTestPage'));
 
 const Loading = () => (
   <div className="flex items-center justify-center py-20">
@@ -16,7 +17,7 @@ const Loading = () => (
 
 export default function TestingHub() {
   const [searchParams, setSearchParams] = useSearchParams();
-  const tab = searchParams.get("tab") || "enrichment";
+  const tab = searchParams.get('tab') || 'enrichment';
 
   const setTab = (value: string) => {
     setSearchParams({ tab: value }, { replace: true });
@@ -29,7 +30,8 @@ export default function TestingHub() {
           <div className="space-y-1">
             <h1 className="text-2xl font-semibold tracking-tight">Testing & Diagnostics</h1>
             <p className="text-sm text-muted-foreground">
-              Enrichment tests, system integration tests, DocuSeal health checks, and AI chatbot QA.
+              Enrichment tests, system integration tests, DocuSeal health checks, Smartlead
+              integration, and AI chatbot QA.
             </p>
           </div>
         </div>
@@ -48,6 +50,10 @@ export default function TestingHub() {
             <TabsTrigger value="docuseal" className="gap-2">
               <Activity className="h-4 w-4" />
               DocuSeal Health
+            </TabsTrigger>
+            <TabsTrigger value="smartlead" className="gap-2">
+              <Mail className="h-4 w-4" />
+              Smartlead
             </TabsTrigger>
             <TabsTrigger value="chatbot" className="gap-2">
               <Bot className="h-4 w-4" />
@@ -70,6 +76,12 @@ export default function TestingHub() {
           <TabsContent value="docuseal">
             <Suspense fallback={<Loading />}>
               <DocuSealHealthCheck />
+            </Suspense>
+          </TabsContent>
+
+          <TabsContent value="smartlead">
+            <Suspense fallback={<Loading />}>
+              <SmartleadTestPage />
             </Suspense>
           </TabsContent>
 

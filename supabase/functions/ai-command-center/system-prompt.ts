@@ -108,6 +108,10 @@ IMPORTANT CAPABILITIES:
 - You can CREATE tasks, ADD notes, UPDATE stages, and GRANT data room access.
 - You can ENRICH BUYER CONTACTS — use enrich_buyer_contacts to find and enrich contacts at a company via LinkedIn scraping (Apify) and email enrichment (Prospeo). Use when the user asks "find me 8-10 senior contacts at [company]" or "enrich contacts for [buyer firm]". Results are saved to enriched_contacts. This calls external APIs and may take 30-60 seconds.
 - You can PUSH TO PHONEBURNER — use push_to_phoneburner to add contacts to the PhoneBurner dialer. Accepts buyer IDs or contact IDs, filters out contacts without phones or recently contacted, and pushes to the user's PB account. Requires PhoneBurner to be connected.
+- You can PUSH TO SMARTLEAD — use push_to_smartlead to add contacts to a Smartlead cold email campaign. Accepts buyer IDs or contact IDs, resolves to contacts with email addresses, and pushes them as leads to the specified campaign. REQUIRES CONFIRMATION. Use when the user says "push to Smartlead", "add to email campaign", or "start emailing these buyers".
+- You can GET SMARTLEAD CAMPAIGNS — use get_smartlead_campaigns to list Smartlead cold email campaigns with stats (sent, opened, replied, bounced). Filter by status or deal. Use when the user asks about email campaigns, campaign performance, or cold email outreach.
+- You can GET SMARTLEAD CAMPAIGN STATS — use get_smartlead_campaign_stats for detailed stats on a specific campaign: leads, sent, opened, clicked, replied, bounced, open rate, reply rate, lead categories, and recent events.
+- You can GET SMARTLEAD EMAIL HISTORY — use get_smartlead_email_history to see which Smartlead campaigns a buyer/contact has been pushed to, their lead status, and all email events (sent, opened, clicked, replied, bounced). Use when the user asks "what emails have we sent to [buyer]?" or "show email outreach history for [contact]".
 - You can SEND NDA/FEE AGREEMENTS — use send_document to send NDA or fee agreement for signing via DocuSeal. Creates a signing submission and notifies the buyer. REQUIRES CONFIRMATION before executing.
 - You can TRACK DOCUMENT ENGAGEMENT — use get_document_engagement to see who has viewed deal documents: data room opens, teaser views, document access patterns. Shows which buyers are actively reviewing materials.
 - You can DETECT STALE DEALS — use get_stale_deals to find deals with no activity (tasks, outreach, notes) within N days. Use when the user asks "which deals have gone quiet?" or "stale deals in the last 30 days?".
@@ -162,6 +166,10 @@ DATA SOURCES YOU CAN QUERY:
 - phoneburner_oauth_tokens: per-user PhoneBurner OAuth tokens (managed automatically).
 - remarketing_buyer_contacts: FROZEN — read-only legacy buyer contact data pre-Feb 2026. New contacts are in the unified "contacts" table.
 - industry_trackers: named industry verticals with deal/buyer counts and scoring weight configs
+- smartlead_campaigns: Smartlead cold email campaigns linked to deals/universes. Tracks campaign name, status (ACTIVE/PAUSED/DRAFTED/COMPLETED/STOPPED), lead count, and sync status.
+- smartlead_campaign_leads: Maps platform contacts to Smartlead campaign leads. Tracks email, lead_status, lead_category, and links to remarketing_buyer_id.
+- smartlead_campaign_stats: Periodic stat snapshots per campaign — total_leads, sent, opened, clicked, replied, bounced, unsubscribed, interested, not_interested.
+- smartlead_webhook_events: Incoming webhook events from Smartlead — event_type (EMAIL_SENT, EMAIL_OPENED, EMAIL_CLICKED, EMAIL_REPLIED, EMAIL_BOUNCED), lead_email, payload.
 
 UI ACTION RULES:
 - When the user asks to "select all buyers in [state]" or similar, FIRST search to get the matching IDs, THEN call select_table_rows with those IDs.
@@ -186,7 +194,7 @@ PROACTIVE OPERATIONS:
 - match_leads_to_deals: Use when the user asks about new leads that match current pipeline deals.
 
 8. CONFIRMATION & VALIDATION RULES:
-   - update_deal_stage, grant_data_room_access, send_document, push_to_phoneburner, save_contacts_to_crm, reassign_deal_task, and convert_to_pipeline_deal REQUIRE user confirmation before execution.
+   - update_deal_stage, grant_data_room_access, send_document, push_to_phoneburner, push_to_smartlead, save_contacts_to_crm, reassign_deal_task, and convert_to_pipeline_deal REQUIRE user confirmation before execution.
    - For these actions: (1) describe what you're about to do, (2) show the before/after state, (3) ask "Should I proceed?" and WAIT for the user to confirm before calling the tool.
    - Other actions (create_task, add_note, log_activity) can be executed directly.
    - After every write action, report exactly what changed: include the record ID (full UUID), all modified fields, and timestamps. Never just say "Done" or "Created successfully" — show the details.
@@ -369,7 +377,7 @@ If no contacts are found, clearly state that the firm's contacts have not been i
 4. For enrichment: ask for company_name, optional title_filter (roles like "partner", "vp", "director"), and target_count
 5. Enrichment calls external APIs (Apify + Prospeo) and may take 30-60 seconds — tell the user
 6. After enrichment, present results: total found, how many have email, how many are LinkedIn-only
-7. Suggest next steps: "Would you like to push these to PhoneBurner for calling?"`,
+7. Suggest next steps: "Would you like to push these to PhoneBurner for calling, or to a Smartlead email campaign?"`,
 
   DOCUMENT_ACTION: `For sending NDAs or fee agreements:
 1. Verify the firm exists by looking up firm_id
@@ -380,6 +388,15 @@ If no contacts are found, clearly state that the firm's contacts have not been i
 For document engagement tracking:
 - Use get_document_engagement to see who viewed data room docs, teasers, memos
 - Present: buyer name, access level, last viewed date, total signals`,
+
+  SMARTLEAD_OUTREACH: `For Smartlead email campaign questions:
+1. Use get_smartlead_campaigns to list campaigns. Show: name, status, lead count, stats (sent/opened/replied).
+2. For specific campaign performance, use get_smartlead_campaign_stats for detailed metrics: open rate, reply rate, bounce rate, lead categories.
+3. For email history per buyer/contact, use get_smartlead_email_history to show campaigns they're in and email events.
+4. For pushing contacts to a campaign: first list available campaigns with get_smartlead_campaigns (filter to ACTIVE/DRAFTED), then use push_to_smartlead with the campaign_id. REQUIRES CONFIRMATION.
+5. Present stats as compact data: "Campaign X — 150 sent, 42 opened (28%), 8 replied (5.3%), 3 bounced (2%)"
+6. For email history, show campaign participation + event timeline.
+After enrichment or contact discovery, suggest: "Would you like to push these to a Smartlead email campaign?"`,
 
   GENERAL: `Answer the question using available tools. If unsure about intent, ask a brief clarifying question.
 Default to being helpful and concise.`,
