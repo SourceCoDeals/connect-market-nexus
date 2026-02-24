@@ -1,10 +1,10 @@
-import { useState, useRef, useEffect, useCallback } from "react";
-import type React from "react";
-import { Card, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import { useState, useRef, useEffect, useCallback } from 'react';
+import type React from 'react';
+import { Card, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import {
   MessageSquare,
   Send,
@@ -15,24 +15,25 @@ import {
   Trash2,
   ChevronUp,
   GripVertical,
-} from "lucide-react";
-import { cn } from "@/lib/utils";
-import { supabase, SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY } from "@/integrations/supabase/client";
-import ReactMarkdown from "react-markdown";
-import { useChatPersistence } from "@/hooks/use-chat-persistence";
-import type { ConversationContext } from "@/integrations/supabase/chat-persistence";
-import { ChatFeedbackButtons } from "./ChatFeedbackButtons";
-import { SmartSuggestions, type Suggestion } from "./SmartSuggestions";
-import { ProactiveRecommendation, type Recommendation } from "./ProactiveRecommendation";
-import { generateSmartSuggestions } from "@/utils/smart-suggestions-client";
-import { generateProactiveRecommendations } from "@/utils/proactive-recommendations-client";
-import { logChatAnalytics, markUserContinued } from "@/integrations/supabase/chat-analytics";
+} from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { supabase, SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY } from '@/integrations/supabase/client';
+import ReactMarkdown from 'react-markdown';
+import { useChatPersistence } from '@/hooks/use-chat-persistence';
+import type { ConversationContext } from '@/integrations/supabase/chat-persistence';
+import { ChatFeedbackButtons } from './ChatFeedbackButtons';
+import { SmartSuggestions, type Suggestion } from './SmartSuggestions';
+import { ProactiveRecommendation, type Recommendation } from './ProactiveRecommendation';
+import { generateSmartSuggestions } from '@/utils/smart-suggestions-client';
+import { generateProactiveRecommendations } from '@/utils/proactive-recommendations-client';
+import { logChatAnalytics, markUserContinued } from '@/integrations/supabase/chat-analytics';
+import { processSSEChunk, flushSSEBuffer, type SSEParserState } from '@/utils/sse-stream-parser';
 
-export type ChatContext = 
-  | { type: "deal"; dealId: string; dealName?: string }
-  | { type: "deals"; totalDeals?: number }
-  | { type: "buyers"; totalBuyers?: number }
-  | { type: "universe"; universeId: string; universeName?: string };
+export type ChatContext =
+  | { type: 'deal'; dealId: string; dealName?: string }
+  | { type: 'deals'; totalDeals?: number }
+  | { type: 'buyers'; totalBuyers?: number }
+  | { type: 'universe'; universeId: string; universeName?: string };
 
 interface ReMarketingChatProps {
   context: ChatContext;
@@ -42,7 +43,7 @@ interface ReMarketingChatProps {
 
 interface Message {
   id: string;
-  role: "user" | "assistant";
+  role: 'user' | 'assistant';
   content: string;
   timestamp: Date;
 }
@@ -52,83 +53,81 @@ const STREAM_TIMEOUT_MS = 60_000;
 
 const getExampleQueries = (context: ChatContext): string[] => {
   switch (context.type) {
-    case "deal":
+    case 'deal':
       return [
-        "Who are the top 5 buyers for this deal?",
-        "Which buyers have presence in this state?",
-        "Show me the most active acquirers",
+        'Who are the top 5 buyers for this deal?',
+        'Which buyers have presence in this state?',
+        'Show me the most active acquirers',
       ];
-    case "deals":
+    case 'deals':
       return [
-        "Which deals have the highest quality scores?",
-        "Show me deals that need enrichment",
-        "What industries have the most deals?",
+        'Which deals have the highest quality scores?',
+        'Show me deals that need enrichment',
+        'What industries have the most deals?',
       ];
-    case "buyers":
+    case 'buyers':
       return [
-        "Which buyers are most active acquirers?",
-        "Show me PE firms focused on the Southeast",
-        "Find buyers with fee agreements",
+        'Which buyers are most active acquirers?',
+        'Show me PE firms focused on the Southeast',
+        'Find buyers with fee agreements',
       ];
-    case "universe":
+    case 'universe':
       return [
-        "Who are the best matched buyers?",
-        "Which deals need more buyer matches?",
-        "Show buyers with high alignment scores",
+        'Who are the best matched buyers?',
+        'Which deals need more buyer matches?',
+        'Show buyers with high alignment scores',
       ];
   }
 };
 
 const getChatTitle = (context: ChatContext): string => {
   switch (context.type) {
-    case "deal":
-      return "AI Buyer Assistant";
-    case "deals":
-      return "AI Deals Assistant";
-    case "buyers":
-      return "AI Buyers Assistant";
-    case "universe":
-      return "AI Universe Assistant";
+    case 'deal':
+      return 'AI Buyer Assistant';
+    case 'deals':
+      return 'AI Deals Assistant';
+    case 'buyers':
+      return 'AI Buyers Assistant';
+    case 'universe':
+      return 'AI Universe Assistant';
   }
 };
 
 const getSubtitle = (context: ChatContext): string | null => {
   switch (context.type) {
-    case "deal":
+    case 'deal':
       return context.dealName || null;
-    case "deals":
+    case 'deals':
       return context.totalDeals ? `${context.totalDeals} deals` : null;
-    case "buyers":
+    case 'buyers':
       return context.totalBuyers ? `${context.totalBuyers} buyers` : null;
-    case "universe":
+    case 'universe':
       return context.universeName || null;
   }
 };
 
 const getPlaceholder = (context: ChatContext): string => {
   switch (context.type) {
-    case "deal":
-      return "Ask about buyers for this deal...";
-    case "deals":
-      return "Ask about your deals...";
-    case "buyers":
-      return "Ask about your buyers...";
-    case "universe":
-      return "Ask about this universe...";
+    case 'deal':
+      return 'Ask about buyers for this deal...';
+    case 'deals':
+      return 'Ask about your deals...';
+    case 'buyers':
+      return 'Ask about your buyers...';
+    case 'universe':
+      return 'Ask about this universe...';
   }
 };
 
-export function ReMarketingChat({
-  context,
-  onHighlightItems,
-  className,
-}: ReMarketingChatProps) {
+export function ReMarketingChat({ context, onHighlightItems, className }: ReMarketingChatProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
 
   // Drag state
   const [position, setPosition] = useState<{ x: number; y: number } | null>(null);
-  const dragRef = useRef<{ startX: number; startY: number; origX: number; origY: number } | null>(null);
+  const dragRef = useRef<{ startX: number; startY: number; origX: number; origY: number } | null>(
+    null,
+  );
   const panelRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -143,7 +142,10 @@ export function ReMarketingChat({
     dragRef.current = { startX: e.clientX, startY: e.clientY, origX: rect.left, origY: rect.top };
     const onMove = (ev: PointerEvent) => {
       if (!dragRef.current) return;
-      setPosition({ x: dragRef.current.origX + (ev.clientX - dragRef.current.startX), y: dragRef.current.origY + (ev.clientY - dragRef.current.startY) });
+      setPosition({
+        x: dragRef.current.origX + (ev.clientX - dragRef.current.startX),
+        y: dragRef.current.origY + (ev.clientY - dragRef.current.startY),
+      });
     };
     const onUp = () => {
       dragRef.current = null;
@@ -154,9 +156,9 @@ export function ReMarketingChat({
     window.addEventListener('pointerup', onUp);
   }, []);
   const [messages, setMessages] = useState<Message[]>([]);
-  const [input, setInput] = useState("");
+  const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [streamingContent, setStreamingContent] = useState("");
+  const [streamingContent, setStreamingContent] = useState('');
   const [smartSuggestions, setSmartSuggestions] = useState<Suggestion[]>([]);
   const [activeRecommendation, setActiveRecommendation] = useState<Recommendation | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -230,8 +232,8 @@ export function ReMarketingChat({
   // Clean content of hidden markers
   const cleanContent = useCallback((content: string): string => {
     return content
-      .replace(/<!-- HIGHLIGHT:.*?-->/g, "")
-      .replace(/<!-- BUYER_HIGHLIGHT:.*?-->/g, "")
+      .replace(/<!-- HIGHLIGHT:.*?-->/g, '')
+      .replace(/<!-- BUYER_HIGHLIGHT:.*?-->/g, '')
       .trim();
   }, []);
 
@@ -241,7 +243,7 @@ export function ReMarketingChat({
 
     const userMessage: Message = {
       id: `user-${Date.now()}`,
-      role: "user",
+      role: 'user',
       content: input.trim(),
       timestamp: new Date(),
     };
@@ -252,9 +254,9 @@ export function ReMarketingChat({
     }
 
     setMessages((prev) => [...prev, userMessage]);
-    setInput("");
+    setInput('');
     setIsLoading(true);
-    setStreamingContent("");
+    setStreamingContent('');
 
     const startTime = Date.now();
 
@@ -277,7 +279,7 @@ export function ReMarketingChat({
       const { data: sessionData, error: authError } = await supabase.auth.getSession();
       if (authError) throw authError;
       if (!sessionData.session) {
-        throw new Error("You must be logged in to use chat");
+        throw new Error('You must be logged in to use chat');
       }
 
       // Build request body based on context
@@ -291,100 +293,68 @@ export function ReMarketingChat({
       };
 
       // Add context-specific params
-      if (context.type === "deal") {
+      if (context.type === 'deal') {
         requestBody.listingId = context.dealId;
-      } else if (context.type === "universe") {
+      } else if (context.type === 'universe') {
         requestBody.universeId = context.universeId;
       }
 
       resetStreamTimeout(); // Start the timeout clock
 
-      const response = await fetch(
-        `${SUPABASE_URL}/functions/v1/chat-remarketing`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${sessionData.session.access_token}`,
-            apikey: SUPABASE_PUBLISHABLE_KEY,
-          },
-          body: JSON.stringify(requestBody),
-          signal: abortControllerRef.current.signal,
-        }
-      );
+      const response = await fetch(`${SUPABASE_URL}/functions/v1/chat-remarketing`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${sessionData.session.access_token}`,
+          apikey: SUPABASE_PUBLISHABLE_KEY,
+        },
+        body: JSON.stringify(requestBody),
+        signal: abortControllerRef.current.signal,
+      });
 
       if (response.status === 429) {
-        throw new Error("Rate limits exceeded. Please wait a moment and try again.");
+        throw new Error('Rate limits exceeded. Please wait a moment and try again.');
       }
       if (response.status === 402) {
-        throw new Error("AI credits depleted. Please add credits in Settings → Workspace → Usage.");
+        throw new Error('AI credits depleted. Please add credits in Settings → Workspace → Usage.');
       }
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || "Failed to get response");
+        throw new Error(errorData.error || 'Failed to get response');
       }
 
       if (!response.body) {
-        throw new Error("No response body");
+        throw new Error('No response body');
       }
 
       // Stream the response
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
-      let fullContent = "";
-      let textBuffer = "";
+      let fullContent = '';
+      let parserState: SSEParserState = { buffer: '', done: false };
 
-      while (true) {
+      const sseCallbacks = {
+        onContent: (content: string) => {
+          fullContent += content;
+          setStreamingContent(cleanContent(fullContent));
+        },
+        onDone: () => {},
+      };
+
+      while (!parserState.done) {
         const { done, value } = await reader.read();
         if (done) break;
 
         resetStreamTimeout(); // Reset timeout on each chunk
-        textBuffer += decoder.decode(value, { stream: true });
-
-        // Process line by line
-        let newlineIndex: number;
-        while ((newlineIndex = textBuffer.indexOf("\n")) !== -1) {
-          let line = textBuffer.slice(0, newlineIndex);
-          textBuffer = textBuffer.slice(newlineIndex + 1);
-
-          if (line.endsWith("\r")) line = line.slice(0, -1);
-          if (line.startsWith(":") || line.trim() === "") continue;
-          if (!line.startsWith("data: ")) continue;
-
-          const jsonStr = line.slice(6).trim();
-          if (jsonStr === "[DONE]") break;
-
-          try {
-            const parsed = JSON.parse(jsonStr);
-            const content = parsed.choices?.[0]?.delta?.content as string | undefined;
-            if (content) {
-              fullContent += content;
-              setStreamingContent(cleanContent(fullContent));
-            }
-          } catch {
-            // Incomplete JSON, continue
-          }
-        }
+        const chunk = decoder.decode(value, { stream: true });
+        parserState = processSSEChunk(chunk, parserState, sseCallbacks);
       }
 
-      // Final flush
-      if (textBuffer.trim()) {
-        for (let raw of textBuffer.split("\n")) {
-          if (!raw) continue;
-          if (raw.endsWith("\r")) raw = raw.slice(0, -1);
-          if (raw.startsWith(":") || raw.trim() === "") continue;
-          if (!raw.startsWith("data: ")) continue;
-          const jsonStr = raw.slice(6).trim();
-          if (jsonStr === "[DONE]") continue;
-          try {
-            const parsed = JSON.parse(jsonStr);
-            const content = parsed.choices?.[0]?.delta?.content as string | undefined;
-            if (content) fullContent += content;
-          } catch {
-            /* ignore */
-          }
-        }
-      }
+      // Release the reader to avoid hanging connections
+      reader.cancel().catch(() => {});
+
+      // Final flush — process any remaining buffered content
+      flushSSEBuffer(parserState.buffer, sseCallbacks);
 
       // Extract item IDs and notify parent
       const itemIds = extractItemIds(fullContent);
@@ -398,7 +368,7 @@ export function ReMarketingChat({
       // Add assistant message
       const assistantMessage: Message = {
         id: `assistant-${Date.now()}`,
-        role: "assistant",
+        role: 'assistant',
         content: cleanedContent,
         timestamp: new Date(),
       };
@@ -411,66 +381,73 @@ export function ReMarketingChat({
             role: m.role,
             content: m.content,
             timestamp: m.timestamp.toISOString(),
-          }))
-        ).then((result) => {
-          // Log analytics after save so we have a conversationId
-          const cId = result?.conversationId || conversationId;
-          if (cId) {
-            logChatAnalytics({
-              conversationId: cId,
-              queryText: userMessage.content,
-              responseText: cleanedContent,
-              responseTimeMs,
-              contextType: context.type,
-              dealId: context.type === 'deal' ? context.dealId : undefined,
-              universeId: context.type === 'universe' ? context.universeId : undefined,
-            }).catch((err) => console.error('[ReMarketingChat] Analytics error:', err));
-          }
-        }).catch((err) => console.error('[ReMarketingChat] Save error:', err));
+          })),
+        )
+          .then((result) => {
+            // Log analytics after save so we have a conversationId
+            const cId = result?.conversationId || conversationId;
+            if (cId) {
+              logChatAnalytics({
+                conversationId: cId,
+                queryText: userMessage.content,
+                responseText: cleanedContent,
+                responseTimeMs,
+                contextType: context.type,
+                dealId: context.type === 'deal' ? context.dealId : undefined,
+                universeId: context.type === 'universe' ? context.universeId : undefined,
+              }).catch((err) => console.error('[ReMarketingChat] Analytics error:', err));
+            }
+          })
+          .catch((err) => console.error('[ReMarketingChat] Save error:', err));
 
         // Generate smart suggestions
         const suggestions = generateSmartSuggestions(
-          updatedMessages.map(m => ({ role: m.role, content: m.content })),
-          { type: context.type, dealId: context.type === 'deal' ? context.dealId : undefined, universeId: context.type === 'universe' ? context.universeId : undefined }
+          updatedMessages.map((m) => ({ role: m.role, content: m.content })),
+          {
+            type: context.type,
+            dealId: context.type === 'deal' ? context.dealId : undefined,
+            universeId: context.type === 'universe' ? context.universeId : undefined,
+          },
         );
         setSmartSuggestions(suggestions);
 
         // Proactive recommendations every 3 exchanges
         if (updatedMessages.length % 6 === 0) {
           const recs = generateProactiveRecommendations(
-            updatedMessages.map(m => ({ role: m.role, content: m.content })),
-            { type: context.type }
+            updatedMessages.map((m) => ({ role: m.role, content: m.content })),
+            { type: context.type },
           );
           if (recs.length > 0) setActiveRecommendation(recs[0]);
         }
 
         return updatedMessages;
       });
-      setStreamingContent("");
+      setStreamingContent('');
     } catch (error) {
-      if (error instanceof Error && error.name === "AbortError") {
+      if (error instanceof Error && error.name === 'AbortError') {
         // Check if this was a timeout-triggered abort
         if (streamTimeoutId) {
           const timeoutMessage: Message = {
             id: `error-${Date.now()}`,
-            role: "assistant",
-            content: "The response timed out after 60 seconds. Please try a simpler question or try again.",
+            role: 'assistant',
+            content:
+              'The response timed out after 60 seconds. Please try a simpler question or try again.',
             timestamp: new Date(),
           };
           setMessages((prev) => [...prev, timeoutMessage]);
-          setStreamingContent("");
+          setStreamingContent('');
         }
         return;
       }
       // Chat error — display message to user below
       const errorMessage: Message = {
         id: `error-${Date.now()}`,
-        role: "assistant",
-        content: `Sorry, I encountered an error: ${error instanceof Error ? error.message : "Unknown error"}. Please try again.`,
+        role: 'assistant',
+        content: `Sorry, I encountered an error: ${error instanceof Error ? error.message : 'Unknown error'}. Please try again.`,
         timestamp: new Date(),
       };
       setMessages((prev) => [...prev, errorMessage]);
-      setStreamingContent("");
+      setStreamingContent('');
     } finally {
       if (streamTimeoutId) clearTimeout(streamTimeoutId);
       setIsLoading(false);
@@ -484,14 +461,14 @@ export function ReMarketingChat({
 
   const clearConversation = () => {
     setMessages([]);
-    setStreamingContent("");
+    setStreamingContent('');
     startNewConversation();
   };
 
   // Floating chat bubble (closed state)
   if (!isOpen) {
     return (
-      <div className={cn("fixed bottom-6 right-6 z-50 flex flex-col items-end gap-2", className)}>
+      <div className={cn('fixed bottom-6 right-6 z-50 flex flex-col items-end gap-2', className)}>
         <div className="bg-foreground text-background rounded-xl px-4 py-2 text-sm font-medium shadow-lg animate-fade-in max-w-[200px] text-center">
           Ask me anything
         </div>
@@ -509,11 +486,8 @@ export function ReMarketingChat({
   // Minimized state
   if (isMinimized) {
     return (
-      <div className={cn("fixed bottom-8 right-8 z-50", className)}>
-        <Button
-          onClick={() => setIsMinimized(false)}
-          className="gap-2 shadow-lg rounded-full px-4"
-        >
+      <div className={cn('fixed bottom-8 right-8 z-50', className)}>
+        <Button onClick={() => setIsMinimized(false)} className="gap-2 shadow-lg rounded-full px-4">
           <MessageSquare className="h-4 w-4" />
           {getChatTitle(context)}
           {messages.length > 0 && (
@@ -529,19 +503,31 @@ export function ReMarketingChat({
 
   // Full chat panel
   const panelStyle: React.CSSProperties = position
-    ? { position: 'fixed', left: position.x, top: position.y, bottom: 'auto', right: 'auto', zIndex: 50 }
+    ? {
+        position: 'fixed',
+        left: position.x,
+        top: position.y,
+        bottom: 'auto',
+        right: 'auto',
+        zIndex: 50,
+      }
     : {};
 
   return (
     <div
       ref={panelRef}
       className={cn(
-        position ? "w-[624px] max-w-[calc(100vw-64px)]" : "fixed bottom-8 right-8 z-50 w-[624px] max-w-[calc(100vw-64px)]",
-        className
+        position
+          ? 'w-[624px] max-w-[calc(100vw-64px)]'
+          : 'fixed bottom-8 right-8 z-50 w-[624px] max-w-[calc(100vw-64px)]',
+        className,
       )}
       style={panelStyle}
     >
-      <Card className="flex flex-col h-[845px] max-h-[85vh] shadow-2xl border-2 border-primary/30" style={{ backgroundColor: 'hsl(48, 70%, 95%)' }}>
+      <Card
+        className="flex flex-col h-[845px] max-h-[85vh] shadow-2xl border-2 border-primary/30"
+        style={{ backgroundColor: 'hsl(48, 70%, 95%)' }}
+      >
         <CardHeader className="py-3 px-4 border-b border-primary/20 flex-shrink-0 bg-primary/10">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-1 flex-1 min-w-0">
@@ -553,19 +539,15 @@ export function ReMarketingChat({
                 <GripVertical className="h-4 w-4 text-muted-foreground" />
               </div>
               <CardTitle className="text-lg flex items-center gap-2 truncate">
-              <Sparkles className="h-4 w-4 text-primary" />
-              {getChatTitle(context)}
-              {getSubtitle(context) && (
-                <span className="text-sm text-muted-foreground font-normal truncate max-w-[200px]">
-                  · {getSubtitle(context)}
-                </span>
-              )}
-              {isSaving && (
-                <span className="text-xs text-muted-foreground">
-                  (saving...)
-                </span>
-              )}
-            </CardTitle>
+                <Sparkles className="h-4 w-4 text-primary" />
+                {getChatTitle(context)}
+                {getSubtitle(context) && (
+                  <span className="text-sm text-muted-foreground font-normal truncate max-w-[200px]">
+                    · {getSubtitle(context)}
+                  </span>
+                )}
+                {isSaving && <span className="text-xs text-muted-foreground">(saving...)</span>}
+              </CardTitle>
             </div>
             <div className="flex items-center gap-1">
               {messages.length > 0 && (
@@ -599,7 +581,11 @@ export function ReMarketingChat({
           </div>
         </CardHeader>
 
-        <ScrollArea ref={scrollRef} className="flex-1 p-4" style={{ backgroundColor: 'hsl(48, 70%, 95%)' }}>
+        <ScrollArea
+          ref={scrollRef}
+          className="flex-1 p-4"
+          style={{ backgroundColor: 'hsl(48, 70%, 95%)' }}
+        >
           {/* Proactive recommendation */}
           {activeRecommendation && (
             <ProactiveRecommendation
@@ -622,7 +608,7 @@ export function ReMarketingChat({
                 <Sparkles className="h-10 w-10 mx-auto text-primary/50 mb-3" />
                 <p className="text-base font-medium">How can I help?</p>
                 <p className="text-sm text-muted-foreground mt-1">
-                  Ask me anything about your {context.type === "deal" ? "buyers" : context.type}
+                  Ask me anything about your {context.type === 'deal' ? 'buyers' : context.type}
                 </p>
               </div>
               <div className="space-y-2">
@@ -646,19 +632,19 @@ export function ReMarketingChat({
                 <div
                   key={message.id}
                   className={cn(
-                    "flex flex-col",
-                    message.role === "user" ? "items-end" : "items-start"
+                    'flex flex-col',
+                    message.role === 'user' ? 'items-end' : 'items-start',
                   )}
                 >
                   <div
                     className={cn(
-                      "max-w-[90%] rounded-lg px-3 py-2",
-                      message.role === "user"
-                        ? "bg-foreground text-background"
-                        : "bg-background border border-primary/20"
+                      'max-w-[90%] rounded-lg px-3 py-2',
+                      message.role === 'user'
+                        ? 'bg-foreground text-background'
+                        : 'bg-background border border-primary/20',
                     )}
                   >
-                    {message.role === "assistant" ? (
+                    {message.role === 'assistant' ? (
                       <div className="text-base prose prose-base dark:prose-invert max-w-none prose-a:text-foreground prose-a:underline prose-strong:text-foreground">
                         <ReactMarkdown>{message.content}</ReactMarkdown>
                       </div>
@@ -669,8 +655,8 @@ export function ReMarketingChat({
                   <div className="flex items-center gap-1">
                     <span className="text-[10px] text-muted-foreground mt-1 px-1">
                       {message.timestamp.toLocaleTimeString([], {
-                        hour: "2-digit",
-                        minute: "2-digit",
+                        hour: '2-digit',
+                        minute: '2-digit',
                       })}
                     </span>
                     {message.role === 'assistant' && conversationId && (
@@ -720,7 +706,10 @@ export function ReMarketingChat({
           )}
         </ScrollArea>
 
-        <div className="p-3 border-t border-primary/20 flex-shrink-0" style={{ backgroundColor: 'hsl(48, 70%, 95%)' }}>
+        <div
+          className="p-3 border-t border-primary/20 flex-shrink-0"
+          style={{ backgroundColor: 'hsl(48, 70%, 95%)' }}
+        >
           <form onSubmit={handleSubmit} className="flex gap-2">
             <Input
               ref={inputRef}
@@ -730,11 +719,7 @@ export function ReMarketingChat({
               className="text-base"
               disabled={isLoading}
             />
-            <Button
-              type="submit"
-              size="icon"
-              disabled={!input.trim() || isLoading}
-            >
+            <Button type="submit" size="icon" disabled={!input.trim() || isLoading}>
               {isLoading ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
               ) : (
