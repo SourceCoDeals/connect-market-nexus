@@ -76,7 +76,12 @@ export const dealTools: ClaudeTool[] = [
       properties: {
         status: { type: 'string', description: 'Filter by deal status (e.g. "active", "closed", "pipeline")' },
         deal_source: { type: 'string', description: 'Filter by source (e.g. "captarget", "go_partners", "marketplace", "internal")' },
-        state: { type: 'string', description: 'Filter by US state code (e.g. "TX", "CA")' },
+        state: { type: 'string', description: 'Filter by a single US state code (e.g. "TX"). Use states[] instead when filtering by multiple states.' },
+        states: {
+          type: 'array',
+          items: { type: 'string' },
+          description: 'Filter by multiple US state codes in one call (e.g. ["TX", "FL", "CA"]). Prefer this over making separate calls per state.',
+        },
         industry: { type: 'string', description: 'Filter by industry keyword' },
         min_revenue: { type: 'number', description: 'Minimum revenue filter' },
         max_revenue: { type: 'number', description: 'Maximum revenue filter' },
@@ -162,7 +167,13 @@ async function queryDeals(
   args: Record<string, unknown>,
 ): Promise<ToolResult> {
   const depth = (args.depth as string) || 'quick';
-  const needsClientFilter = !!(args.search || args.industry || args.state);
+  // Normalise: support both state (single) and states (array)
+  const stateFilter: string[] = [];
+  if (args.state) stateFilter.push((args.state as string).toUpperCase());
+  if (Array.isArray(args.states)) {
+    for (const s of args.states as string[]) stateFilter.push(s.toUpperCase());
+  }
+  const needsClientFilter = !!(args.search || args.industry || stateFilter.length > 0);
   // When client-side filtering is needed, fetch all matching rows via pagination
   const requestedLimit = Number(args.limit) || (needsClientFilter ? 5000 : 25);
   // Always use FULL fields when client-side filtering is active so we can search
@@ -205,19 +216,21 @@ async function queryDeals(
 
   let results = allData;
 
-  // Client-side state filter — checks both address_state (full names like "Ohio") and geographic_states (codes like "OH")
-  if (args.state) {
-    const stateCode = (args.state as string).toUpperCase();
-    const stateName = STATE_CODE_TO_NAME[stateCode] || stateCode;
-    const stateCodeLower = stateCode.toLowerCase();
-    const stateNameLower = stateName.toLowerCase();
+  // Client-side state filter — supports both single state and multiple states
+  // Checks address_state (full names like "Texas") and geographic_states (codes like "TX")
+  if (stateFilter.length > 0) {
+    // Build lookup sets for fast O(1) membership checks
+    const codeSet = new Set(stateFilter); // e.g. {"TX","FL","CA"}
+    const nameSet = new Set(stateFilter.map((c) => (STATE_CODE_TO_NAME[c] || c).toLowerCase()));
+    const codeLowerSet = new Set(stateFilter.map((c) => c.toLowerCase()));
+
     results = results.filter((d: Record<string, unknown>) => {
       const addrState = ((d.address_state as string) || '').toLowerCase();
       const geoStates = (d.geographic_states as string[]) || [];
       return (
-        addrState === stateCodeLower ||
-        addrState === stateNameLower ||
-        geoStates.some((s: string) => s.toUpperCase() === stateCode)
+        codeLowerSet.has(addrState) ||
+        nameSet.has(addrState) ||
+        geoStates.some((s: string) => codeSet.has(s.toUpperCase()))
       );
     });
   }
@@ -295,7 +308,7 @@ async function queryDeals(
       deals: results,
       total: results.length,
       depth,
-      state_filter: args.state || null,
+      state_filter: stateFilter.length > 0 ? stateFilter : null,
     },
   };
 }

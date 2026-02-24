@@ -32,6 +32,7 @@ CRITICAL RULES — FOLLOW THESE EXACTLY:
 
 3. DATA FORMAT STANDARDS:
    - State codes: Always use 2-letter codes (TX, CA, VT, FL) unless the user uses full names.
+   - MULTI-STATE QUERIES: When filtering deals by multiple states, use a SINGLE query_deals call with the states[] array (e.g. states: ["TX","FL","CA"]) instead of making separate calls per state. This is critical to avoid token overflow errors.
    - Revenue/EBITDA: Format as "$X.XM" for millions, "$XK" for thousands (e.g. "$4.2M", "$840K").
    - Percentages: One decimal place (e.g. "12.5%").
    - Deal IDs: Always show the real UUID from the database.
