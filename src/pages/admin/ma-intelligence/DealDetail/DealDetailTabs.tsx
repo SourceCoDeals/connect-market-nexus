@@ -195,14 +195,12 @@ export function DealDetailTabs({
                   <div className="text-sm font-medium mb-1">Revenue</div>
                   <div className="text-sm text-muted-foreground">
                     {deal.revenue ? `$${deal.revenue >= 1000000 ? `${(deal.revenue / 1000000).toFixed(1)}M` : `${(deal.revenue / 1000).toFixed(0)}K`}` : "\u2014"}
-                    {deal.revenue_confidence && ` (${deal.revenue_confidence})`}
                   </div>
                 </div>
                 <div>
                   <div className="text-sm font-medium mb-1">EBITDA</div>
                   <div className="text-sm text-muted-foreground">
                     {deal.ebitda_amount ? `$${deal.ebitda_amount >= 1000000 ? `${(deal.ebitda_amount / 1000000).toFixed(1)}M` : `${(deal.ebitda_amount / 1000).toFixed(0)}K`}` : deal.ebitda_percentage ? `${deal.ebitda_percentage}%` : "\u2014"}
-                    {deal.ebitda_confidence && ` (${deal.ebitda_confidence})`}
                   </div>
                 </div>
               </div>

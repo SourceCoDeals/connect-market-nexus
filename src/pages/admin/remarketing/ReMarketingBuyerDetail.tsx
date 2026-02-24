@@ -65,7 +65,6 @@ interface BuyerData {
   buyer_type: string | null;
   universe_id: string | null;
   thesis_summary: string | null;
-  thesis_confidence: string | null;
   target_revenue_min: number | null;
   target_revenue_max: number | null;
   target_ebitda_min: number | null;
@@ -74,7 +73,6 @@ interface BuyerData {
   target_services: string[] | null;
   geographic_footprint: string[] | null;
   notes: string | null;
-  data_completeness: string | null;
   data_last_updated: string | null;
   pe_firm_name: string | null;
   pe_firm_website: string | null;
@@ -722,7 +720,6 @@ const ReMarketingBuyerDetail = () => {
             
             <InvestmentCriteriaCard
               investmentThesis={buyer?.thesis_summary}
-              thesisConfidence={buyer?.thesis_confidence}
               onEdit={() => setActiveEditDialog('investment')}
               className="bg-accent/20"
             />
@@ -931,7 +928,6 @@ const ReMarketingBuyerDetail = () => {
         onOpenChange={(open) => !open && setActiveEditDialog(null)}
         data={{
           investmentThesis: buyer?.thesis_summary,
-          thesisConfidence: buyer?.thesis_confidence,
         }}
         onSave={(data) => updateBuyerMutation.mutate(data)}
         isSaving={updateBuyerMutation.isPending}

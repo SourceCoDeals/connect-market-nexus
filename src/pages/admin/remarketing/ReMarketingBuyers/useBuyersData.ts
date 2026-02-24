@@ -109,15 +109,14 @@ export const useBuyersData = () => {
 
   // Compute tab counts from loaded buyers
   const tabCounts = useMemo(() => {
-    if (!buyers) return { all: 0, pe_firm: 0, platform: 0, needs_agreements: 0, needs_enrichment: 0 };
-    let pe_firm = 0, platform = 0, needs_agreements = 0, needs_enrichment = 0;
+    if (!buyers) return { all: 0, pe_firm: 0, platform: 0, needs_agreements: 0 };
+    let pe_firm = 0, platform = 0, needs_agreements = 0;
     buyers.forEach((b: any) => {
       if (isSponsorType(b.buyer_type)) pe_firm++;
       if (b.buyer_type === 'platform' || !b.buyer_type) platform++;
       if (!b.has_fee_agreement) needs_agreements++;
-      if (b.data_completeness !== 'high') needs_enrichment++;
     });
-    return { all: buyers.length, pe_firm, platform, needs_agreements, needs_enrichment };
+    return { all: buyers.length, pe_firm, platform, needs_agreements };
   }, [buyers]);
 
   // Calculate platform counts per PE firm (for the PE Firms tab)
@@ -222,9 +221,6 @@ export const useBuyersData = () => {
         break;
       case 'needs_agreements':
         result = result.filter(b => !b.has_fee_agreement);
-        break;
-      case 'needs_enrichment':
-        result = result.filter(b => b.data_completeness !== 'high');
         break;
     }
 

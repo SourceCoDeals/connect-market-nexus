@@ -250,7 +250,7 @@ ${buyerTypesText}
           setGeoText(formatGeographyCriteria(newGeo));
         }
         
-        toast.success(`AI updated criteria with ${Math.round((data.confidence || 0.5) * 100)}% confidence`);
+        toast.success('AI updated criteria successfully');
       }
       
       setAiPrompt("");

@@ -27,7 +27,6 @@ export interface BulkScoreRequest {
   geographyMode?: 'critical' | 'preferred' | 'minimal';
   options?: {
     rescoreExisting?: boolean;
-    minDataCompleteness?: 'high' | 'medium' | 'low';
   };
 }
 
@@ -71,7 +70,6 @@ export interface Buyer {
   platform_website?: string | null;
   buyer_type?: string | null;
   thesis_summary?: string | null;
-  thesis_confidence?: string | null;
   industry_vertical?: string | null;
   industry_tracker_id?: string | null;
   target_services?: string[] | null;
@@ -98,7 +96,6 @@ export interface Buyer {
   acquisition_timeline?: string | null;
   acquisition_frequency?: string | null;
   extraction_sources?: unknown[] | null;
-  data_completeness?: string | null;
   data_last_updated?: string | null;
   archived?: boolean;
   [key: string]: unknown;
@@ -150,7 +147,6 @@ export interface ScoringBehavior {
   boost_adjacency?: boolean;
   penalize_distance?: boolean;
   require_thesis_match?: boolean;
-  minimum_data_completeness?: string;
 }
 
 export interface SizeCriteria {
@@ -213,10 +209,7 @@ export interface ScoredResult {
   is_disqualified: boolean;
   disqualification_reason: string | null;
   needs_review: boolean;
-  missing_fields: string[];
-  confidence_level: string;
   fit_reasoning: string;
-  data_completeness: string;
   status: string;
   scored_at: string;
   deal_snapshot: object;
@@ -244,7 +237,6 @@ export interface ServiceResult {
 
 export interface OwnerGoalsResult {
   score: number;
-  confidence: string;
   reasoning: string;
 }
 
@@ -270,8 +262,6 @@ export interface CustomInstructionResult {
 }
 
 export interface DataCompletenessResult {
-  level: string;
-  missingFields: string[];
   provenanceWarnings: string[];
 }
 

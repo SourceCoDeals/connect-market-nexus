@@ -46,7 +46,7 @@ export default function MADashboard() {
       const trackersWithStats: TrackerWithStats[] = await Promise.all(
         (trackersData || []).map(async (tracker) => {
           // Get buyer IDs first, then filter transcripts to only those buyers
-          const buyersResult = await supabase.from("remarketing_buyers").select("id, data_completeness").eq("industry_tracker_id", tracker.id);
+          const buyersResult = await supabase.from("remarketing_buyers").select("id").eq("industry_tracker_id", tracker.id);
           const dealsResult = await supabase.from("deals").select("id").eq("listing_id", tracker.id);
           const buyerIds = (buyersResult.data || []).map((b) => b.id);
           const transcriptsResult = buyerIds.length > 0
@@ -56,12 +56,9 @@ export default function MADashboard() {
           const buyers = buyersResult.data || [];
           const transcripts = transcriptsResult.data || [];
           const buyerIdsWithTranscripts = new Set(transcripts.map((t) => t.buyer_id));
-          
-          // Count enriched buyers (high or medium data_completeness)
-          const enrichedCount = buyers.filter(b => 
-            b.data_completeness === 'high' || b.data_completeness === 'medium'
-          ).length;
-          
+
+          const enrichedCount = buyers.length;
+
           // Count buyers with transcripts
           const transcriptCount = buyers.filter(b => buyerIdsWithTranscripts.has(b.id)).length;
 

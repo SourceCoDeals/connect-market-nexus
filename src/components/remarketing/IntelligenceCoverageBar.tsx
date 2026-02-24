@@ -10,7 +10,7 @@ import { HelpCircle } from "lucide-react";
 /**
  * Intelligence Coverage Scoring System:
  * 
- * - Website data (data_completeness) can contribute up to 50% intel
+ * - Website data can contribute up to 50% intel
  * - Transcript data is required to go above 50%
  * - 100% intel requires all buyers to have transcripts
  * 

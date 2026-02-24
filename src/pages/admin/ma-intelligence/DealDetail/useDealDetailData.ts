@@ -144,7 +144,7 @@ export function useDealDetailData(id: string | undefined) {
         'industry_type', 'service_mix', 'business_model', 'end_market_customers',
         'customer_concentration', 'customer_geography', 'headquarters', 'location_count',
         'employee_count', 'founded_year', 'ownership_structure', 'revenue',
-        'revenue_confidence', 'ebitda_amount', 'ebitda_percentage', 'ebitda_confidence',
+        'ebitda_amount', 'ebitda_percentage',
         'financial_notes', 'owner_goals', 'special_requirements', 'contact_name',
         'contact_title', 'contact_email', 'contact_phone', 'contact_linkedin',
         'additional_info', 'transcript_link', 'geography'

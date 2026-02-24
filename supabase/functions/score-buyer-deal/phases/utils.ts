@@ -54,8 +54,6 @@ export function saveScoreSnapshot(
       custom: score.custom_bonus,
       learning_penalty: -score.learning_penalty,
     },
-    data_completeness: score.data_completeness,
-    missing_fields: score.missing_fields,
     trigger_type: triggerType,
     scoring_version: 'v5',
   }) as unknown as Promise<{ error: { message: string } | null }>).then(({ error }) => {

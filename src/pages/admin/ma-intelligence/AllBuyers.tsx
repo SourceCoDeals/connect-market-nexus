@@ -8,7 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Loader2, Users, Search, FileCheck, ArrowUp, ArrowDown, ArrowUpDown, ChevronLeft, ChevronRight } from "lucide-react";
 
-type SortColumn = "name" | "pe_firm" | "industry" | "confidence";
+type SortColumn = "name" | "pe_firm" | "industry";
 type SortDirection = "asc" | "desc";
 
 interface BuyerRow {
@@ -17,7 +17,6 @@ interface BuyerRow {
   platform_company_name: string | null;
   platform_website: string | null;
   thesis_summary: string | null;
-  thesis_confidence: string | null;
   industry_vertical: string | null;
   tracker_id: string;
   has_fee_agreement: boolean | null;
@@ -64,7 +63,6 @@ export default function MAAllBuyers() {
         platform_company_name: (b.platform_company_name as string) ?? null,
         platform_website: (b.platform_website as string) ?? null,
         thesis_summary: (b.thesis_summary as string) ?? null,
-        thesis_confidence: (b.thesis_confidence as string) ?? null,
         industry_vertical: (b.industry_vertical as string) ?? null,
         tracker_id: (b.industry_tracker_id as string) || (b.tracker_id as string) || '',
         has_fee_agreement: (b.has_fee_agreement as boolean) ?? null,
@@ -112,12 +110,6 @@ export default function MAAllBuyers() {
           aVal = (a.industry_vertical || "").toLowerCase();
           bVal = (b.industry_vertical || "").toLowerCase();
           break;
-        case "confidence": {
-          const order = { high: 3, medium: 2, low: 1 };
-          const aOrder = order[(a.thesis_confidence?.toLowerCase() as keyof typeof order)] || 0;
-          const bOrder = order[(b.thesis_confidence?.toLowerCase() as keyof typeof order)] || 0;
-          return sortDirection === "asc" ? aOrder - bOrder : bOrder - aOrder;
-        }
         default:
           return 0;
       }
@@ -216,7 +208,7 @@ export default function MAAllBuyers() {
                   <SortableHeader column="industry">Industry</SortableHeader>
                   <TableHead>Thesis</TableHead>
                   <TableHead className="text-center">Fee Agreement</TableHead>
-                  <SortableHeader column="confidence">Confidence</SortableHeader>
+                  <TableHead>Confidence</TableHead>
                   <TableHead>Buyer Universe</TableHead>
                 </TableRow>
               </TableHeader>
@@ -268,16 +260,7 @@ export default function MAAllBuyers() {
                         )}
                       </TableCell>
                       <TableCell className="text-center">
-                        {buyer.thesis_confidence ? (
-                          <Badge
-                            variant={buyer.thesis_confidence.toLowerCase() === "high" ? "default" : "secondary"}
-                            className="text-xs capitalize"
-                          >
-                            {buyer.thesis_confidence}
-                          </Badge>
-                        ) : (
-                          <span className="text-muted-foreground">—</span>
-                        )}
+                        <span className="text-muted-foreground">—</span>
                       </TableCell>
                       <TableCell>
                         {trackerName ? (

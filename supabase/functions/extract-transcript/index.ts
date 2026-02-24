@@ -14,8 +14,8 @@ interface ExtractTranscriptRequest {
 
 interface DealInsights {
   financial_metrics?: {
-    revenue?: { value?: number; period?: string; confidence?: string; source_quote?: string };
-    ebitda?: { value?: number; margin?: number; confidence?: string; source_quote?: string };
+    revenue?: { value?: number; period?: string; source_quote?: string };
+    ebitda?: { value?: number; margin?: number; source_quote?: string };
     growth_rate?: { value?: number; period?: string; source_quote?: string };
     other_metrics?: Array<{ metric_name: string; value: number | string; source_quote: string }>;
   };
@@ -49,7 +49,7 @@ interface DealInsights {
 
 interface BuyerInsights {
   thesis_summary?: string;
-  thesis_confidence?: 'high' | 'medium' | 'low' | 'insufficient';
+  is_evaluation_call?: boolean;
   strategic_priorities?: string[];
   target_industries?: string[];
   target_geography?: { regions?: string[]; states?: string[]; notes?: string };
@@ -252,7 +252,7 @@ RULES:
 1. Be precise with numbers: "two million" = 2000000, "about seven and a half million" = 7500000, "six fifty" in context of thousands = 650000, "six fifty" in context of millions = 6500000. Use context to determine scale.
 2. Always convert to raw numbers — no dollar signs, commas, or abbreviations.
 3. Percentages as decimals: 18% = 0.18.
-4. If unsure about a figure, include it with a confidence flag rather than omitting it.
+4. If unsure about a figure, include it rather than omitting it.
 5. Extract financial data even when embedded in casual conversation: "yeah, we cleared about two million after expenses last year" = EBITDA/profit ~2000000.
 6. Distinguish between: revenue, gross profit, EBITDA, SDE, net income, cash flow. Owners use these terms loosely — categorize based on context, not the word they used.`;
 
@@ -272,7 +272,6 @@ RULES:
                 properties: {
                   value: { type: "number", description: "Annual revenue in raw dollars (e.g., 5000000 for $5M)" },
                   period: { type: "string", description: "Time period: TTM, FY2025, etc." },
-                  confidence: { type: "string", enum: ["high", "medium", "low"], description: "high=explicit, medium=approximate, low=inferred" },
                   source_quote: { type: "string", description: "Exact verbatim quote where revenue was mentioned" }
                 }
               },
@@ -281,7 +280,6 @@ RULES:
                 properties: {
                   value: { type: "number", description: "EBITDA/SDE in raw dollars" },
                   margin: { type: "number", description: "EBITDA margin as decimal (0.18 for 18%)" },
-                  confidence: { type: "string", enum: ["high", "medium", "low"] },
                   source_quote: { type: "string", description: "Exact verbatim quote" }
                 }
               },
@@ -394,7 +392,7 @@ Some transcripts are calls where the BUYER is EVALUATING a potential acquisition
 - The BUYER asks questions to evaluate fit
 - DO NOT extract the target company's data as if it belongs to the buyer
 - ONLY extract what you learn about the BUYER's acquisition criteria, strategy, and preferences
-- If the call is primarily about evaluating a target, set thesis_confidence to "insufficient" and leave services_offered, business_summary, operating_locations, and geographic_footprint EMPTY
+- If the call is primarily about evaluating a target, set is_evaluation_call to true and leave services_offered, business_summary, operating_locations, and geographic_footprint EMPTY
 
 DISTINGUISHING PLATFORM vs PE FIRM — USE THESE CONTEXTUAL SIGNALS:
 
@@ -423,7 +421,7 @@ GEOGRAPHIC FOOTPRINT — Only include states where the PLATFORM COMPANY physical
 - States mentioned only as potential expansion targets
 
 If the transcript is primarily an evaluation of a target company (not a discussion of the platform's own thesis), return:
-- thesis_confidence: "insufficient"
+- is_evaluation_call: true
 - business_summary: "" (empty)
 - services_offered: [] (empty)
 - operating_locations: [] (empty)
@@ -442,10 +440,9 @@ If the transcript is primarily an evaluation of a target company (not a discussi
             type: "string",
             description: "The platform company's OWN acquisition thesis — what they're looking to buy and why. NOT the target company's description. Leave empty if this is a target evaluation call."
           },
-          thesis_confidence: {
-            type: "string",
-            enum: ["high", "medium", "low", "insufficient"],
-            description: "How clearly the thesis was articulated. Set to 'insufficient' if this is primarily a target evaluation call rather than a thesis discussion."
+          is_evaluation_call: {
+            type: "boolean",
+            description: "Set to true if this is primarily a target evaluation call rather than a thesis discussion. When true, operational fields should be empty."
           },
           strategic_priorities: {
             type: "array",
@@ -512,7 +509,7 @@ If the transcript is primarily an evaluation of a target company (not a discussi
 
   const result = await callGeminiWithTool(
     systemPrompt,
-    `Analyze the following transcript and extract the platform company's acquisition thesis and profile. Remember: every statement must be traceable to what was said in the call. If the call is primarily about evaluating a target company for acquisition (not about the buyer's own thesis), set thesis_confidence to "insufficient" and leave operational fields empty.\n\nTRANSCRIPT:\n${transcriptText}`,
+    `Analyze the following transcript and extract the platform company's acquisition thesis and profile. Remember: every statement must be traceable to what was said in the call. If the call is primarily about evaluating a target company for acquisition (not about the buyer's own thesis), set is_evaluation_call to true and leave operational fields empty.\n\nTRANSCRIPT:\n${transcriptText}`,
     tool,
     apiKey,
     DEFAULT_GEMINI_MODEL,
@@ -522,7 +519,7 @@ If the transcript is primarily an evaluation of a target company (not a discussi
 
   const insights = (result.data as BuyerInsights) || {};
 
-  if (insights.thesis_confidence === 'insufficient' && (!insights.missing_information || insights.missing_information.length === 0)) {
+  if (insights.is_evaluation_call && (!insights.missing_information || insights.missing_information.length === 0)) {
     insights.missing_information = [
       "What specific services/verticals are you targeting for add-ons?",
       "What geographic markets are you prioritizing?",
@@ -532,7 +529,7 @@ If the transcript is primarily an evaluation of a target company (not a discussi
     ];
   }
 
-  if (insights.thesis_confidence === 'insufficient') {
+  if (insights.is_evaluation_call) {
     insights.business_summary = '';
     insights.services_offered = [];
     insights.operating_locations = [];
@@ -549,13 +546,11 @@ async function updateListingFromTranscript(supabase: any, listingId: string, ins
 
   if (insights.financial_metrics?.revenue?.value) {
     updates.revenue = insights.financial_metrics.revenue.value;
-    if (insights.financial_metrics.revenue.confidence) updates.revenue_confidence = insights.financial_metrics.revenue.confidence;
     if (insights.financial_metrics.revenue.source_quote) updates.revenue_source_quote = insights.financial_metrics.revenue.source_quote;
   }
   if (insights.financial_metrics?.ebitda?.value) {
     updates.ebitda = insights.financial_metrics.ebitda.value;
     if (insights.financial_metrics.ebitda.margin) updates.ebitda_margin = insights.financial_metrics.ebitda.margin;
-    if (insights.financial_metrics.ebitda.confidence) updates.ebitda_confidence = insights.financial_metrics.ebitda.confidence;
   }
   if (insights.owner_details?.motivation) updates.owner_goals = insights.owner_details.motivation;
   if (insights.owner_details?.timeline) updates.transition_preferences = insights.owner_details.timeline;
@@ -581,7 +576,7 @@ async function updateListingFromTranscript(supabase: any, listingId: string, ins
 async function updateBuyerFromTranscript(supabase: any, buyerId: string, insights: BuyerInsights, transcriptId: string) {
   const { data: existingBuyer } = await supabase
     .from('remarketing_buyers')
-    .select('extraction_sources, thesis_summary, thesis_confidence, strategic_priorities, target_industries, services_offered, business_summary, operating_locations, geographic_footprint, key_quotes, target_geographies, acquisition_timeline')
+    .select('extraction_sources, thesis_summary, strategic_priorities, target_industries, services_offered, business_summary, operating_locations, geographic_footprint, key_quotes, target_geographies, acquisition_timeline')
     .eq('id', buyerId)
     .single();
 
@@ -601,14 +596,10 @@ async function updateBuyerFromTranscript(supabase: any, buyerId: string, insight
     return Array.from(merged);
   };
 
-  if (shouldUpdate('thesis_summary', insights.thesis_summary) && insights.thesis_confidence !== 'insufficient') {
-    const existingConfidence = existing.thesis_confidence || '';
-    const confidenceRank: Record<string, number> = { 'high': 4, 'medium': 3, 'low': 2, 'insufficient': 1, '': 0 };
-    const existingRank = confidenceRank[existingConfidence] || 0;
-    const newRank = confidenceRank[insights.thesis_confidence || ''] || 0;
-    if (!existing.thesis_summary || newRank >= existingRank) {
+  if (shouldUpdate('thesis_summary', insights.thesis_summary) && !insights.is_evaluation_call) {
+    // Always update thesis if we have new data and existing is empty, or new is longer
+    if (!existing.thesis_summary || insights.thesis_summary!.length > (existing.thesis_summary || '').length) {
       updates.thesis_summary = insights.thesis_summary;
-      updates.thesis_confidence = insights.thesis_confidence;
     }
   }
 
@@ -684,7 +675,7 @@ async function updateBuyerFromTranscript(supabase: any, buyerId: string, insight
     } else {
       console.log(`[TranscriptExtraction] Updated buyer ${buyerId} with ${Object.keys(updates).length} fields (thesis_summary: ${!!updates.thesis_summary}). Total extraction sources: ${(updates.extraction_sources as any[]).length}`);
     }
-  } else if (insights.thesis_confidence === 'insufficient') {
+  } else if (insights.is_evaluation_call) {
     const existingSources = (existing.extraction_sources || []) as any[];
     const insufficientUpdate: Record<string, unknown> = {
       extraction_sources: [

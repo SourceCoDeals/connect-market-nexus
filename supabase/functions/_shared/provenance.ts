@@ -61,8 +61,8 @@ export const SHARED_FIELDS = new Set([
   'acquisition_timeline',
   'acquisition_appetite', 'acquisition_frequency',
   'recent_acquisitions', 'portfolio_companies', 'total_acquisitions',
-  'thesis_summary', 'thesis_confidence',
-  'data_completeness', 'data_last_updated', 'extraction_sources',
+  'thesis_summary',
+  'data_last_updated', 'extraction_sources',
   'notes', 'has_fee_agreement',
 ]);
 
@@ -70,8 +70,6 @@ export const SHARED_FIELDS = new Set([
 export const TRANSCRIPT_PROTECTED_FIELDS = [
   // Investment Thesis
   'thesis_summary',
-  'thesis_confidence',
-
   // Size Criteria (using actual column names)
   'target_revenue_min', 'target_revenue_max',
   'target_ebitda_min', 'target_ebitda_max',

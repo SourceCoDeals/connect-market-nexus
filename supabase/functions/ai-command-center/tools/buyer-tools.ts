@@ -12,7 +12,7 @@ import type { ToolResult } from "./index.ts";
 const BUYER_FIELDS_QUICK = `
   id, company_name, pe_firm_name, buyer_type, hq_state, hq_city,
   geographic_footprint, target_services, target_revenue_min, target_revenue_max,
-  acquisition_appetite, alignment_score, has_fee_agreement, data_completeness,
+  acquisition_appetite, alignment_score, has_fee_agreement,
   num_employees, number_of_locations, total_acquisitions, archived
 `.replace(/\s+/g, ' ').trim();
 
@@ -25,9 +25,8 @@ const BUYER_FIELDS_FULL = `
   target_geographies, target_customer_profile,
   acquisition_appetite, acquisition_frequency, acquisition_timeline,
   alignment_score, alignment_reasoning, alignment_checked_at,
-  thesis_summary, thesis_confidence,
+  thesis_summary,
   has_fee_agreement, fee_agreement_status, fee_agreement_source,
-  data_completeness, confidence_level,
   num_employees, num_platforms, number_of_locations,
   total_acquisitions, recent_acquisitions, platform_acquisitions, pe_firm_acquisitions,
   business_summary, notes, revenue_model, customer_geographic_reach,
@@ -309,7 +308,7 @@ async function getTopBuyersForDeal(
       buyer_id, composite_score, status, tier,
       geography_score, service_score, size_score, owner_goals_score,
       acquisition_score, business_model_score, portfolio_score,
-      fit_reasoning, pass_reason, confidence_level
+      fit_reasoning, pass_reason
     `)
     .eq('listing_id', dealId)
     .order('composite_score', { ascending: false })

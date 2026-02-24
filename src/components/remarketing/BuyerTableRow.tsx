@@ -29,8 +29,6 @@ import {
 } from "lucide-react";
 import { IntelligenceBadge } from "./IntelligenceBadge";
 import { AlignmentScoreBadge } from "./AlignmentScoreBadge";
-import type { DataCompleteness } from "@/types/remarketing";
-
 interface BuyerRow {
   id: string;
   company_name: string;
@@ -42,7 +40,6 @@ interface BuyerRow {
   hq_state?: string | null;
   thesis_summary?: string | null;
   business_summary?: string | null;
-  data_completeness?: string | null;
   target_geographies?: string[];
   geographic_footprint?: string[];
   has_fee_agreement?: boolean | null;
@@ -134,11 +131,6 @@ export const BuyerTableRow = memo(function BuyerTableRow({
               <span className="font-medium text-foreground truncate">
                 {buyer.company_name}
               </span>
-              {buyer.data_completeness === 'high' && (buyer.business_summary || buyer.thesis_summary || buyer.pe_firm_name) && (
-                <Badge variant="default" className="bg-emerald-500 hover:bg-emerald-600 text-xs px-1.5 py-0">
-                  Enriched
-                </Badge>
-              )}
               {buyer.has_fee_agreement && (
                 <Badge
                   variant="default"
@@ -252,7 +244,6 @@ export const BuyerTableRow = memo(function BuyerTableRow({
       {/* Intel Column */}
       <TableCell>
         <IntelligenceBadge
-          completeness={buyer.data_completeness as DataCompleteness | null}
           hasTranscript={hasTranscript}
           size="sm"
         />

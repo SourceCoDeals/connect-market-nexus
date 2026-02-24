@@ -220,11 +220,6 @@ ${allNotes}
               maximum: 100,
               description: 'Overall seller interest/motivation score (0-100)'
             },
-            confidence: {
-              type: 'string',
-              enum: ['high', 'medium', 'low'],
-              description: 'Confidence level in this score based on available data'
-            },
             motivation_category: {
               type: 'string',
               enum: ['retirement', 'health', 'partnership_dispute', 'growth_capital', 'strategic', 'unsolicited', 'unknown'],
@@ -267,7 +262,7 @@ ${allNotes}
               description: 'Brief 2-3 sentence summary of seller interest assessment'
             }
           },
-          required: ['seller_interest_score', 'confidence', 'analysis_summary']
+          required: ['seller_interest_score', 'analysis_summary']
         }
       }
     };
@@ -306,7 +301,6 @@ ${allNotes}
       .from('listings')
       .update({
         seller_interest_score: result.seller_interest_score,
-        seller_interest_confidence: result.confidence,
         seller_interest_notes: {
           motivation_category: result.motivation_category,
           timeline_urgency: result.timeline_urgency,
@@ -330,7 +324,6 @@ ${allNotes}
         success: true,
         dealId,
         score: result.seller_interest_score,
-        confidence: result.confidence,
         motivation_category: result.motivation_category,
         timeline_urgency: result.timeline_urgency,
         engagement_level: result.engagement_level,

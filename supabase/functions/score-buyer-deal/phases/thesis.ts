@@ -116,6 +116,5 @@ export function calculateThesisBonusFallback(listing: Listing, buyer: Buyer): Th
 
 export function calculateDataQualityBonus(_buyer: Buyer): DataQualityResult {
   // REMOVED: Data quality bonus was rewarding information richness over match quality.
-  // Data completeness is now tracked via confidence_level and dimensions_scored instead.
   return { bonus: 0, details: [] };
 }

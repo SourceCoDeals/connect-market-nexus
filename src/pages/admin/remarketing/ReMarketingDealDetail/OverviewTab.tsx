@@ -168,8 +168,6 @@ export function OverviewTab({
         data={{
           revenue: deal.revenue,
           ebitda: deal.ebitda,
-          revenue_confidence: deal.revenue_confidence,
-          ebitda_confidence: deal.ebitda_confidence,
         }}
         onSave={async (data) => {
           const { _manualEdit, ...financialData } = data;
@@ -181,12 +179,10 @@ export function OverviewTab({
             const sourceUpdates: Record<string, any> = { ...existingSources };
             if (data.revenue !== undefined) {
               sourceUpdates.revenue = manualSource;
-              sourceUpdates.revenue_confidence = manualSource;
               sourceUpdates.revenue_source_quote = manualSource;
             }
             if (data.ebitda !== undefined) {
               sourceUpdates.ebitda = manualSource;
-              sourceUpdates.ebitda_confidence = manualSource;
               sourceUpdates.ebitda_source_quote = manualSource;
             }
             updates.extraction_sources = sourceUpdates;

@@ -219,7 +219,7 @@ async function getScoreHistory(
 
   let query = supabase
     .from('score_snapshots')
-    .select('id, listing_id, buyer_id, universe_id, composite_score, geography_score, size_score, service_score, owner_goals_score, deal_quality_score, engagement_score, tier, data_completeness, trigger_type, scoring_version, scored_at')
+    .select('id, listing_id, buyer_id, universe_id, composite_score, geography_score, size_score, service_score, owner_goals_score, deal_quality_score, engagement_score, tier, trigger_type, scoring_version, scored_at')
     .order('scored_at', { ascending: false })
     .limit(limit);
 

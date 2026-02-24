@@ -1,36 +1,20 @@
 import { Target, Pencil } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
 interface InvestmentCriteriaCardProps {
   investmentThesis?: string | null;
-  thesisConfidence?: string | null;
   onEdit: () => void;
   className?: string;
 }
 
 export const InvestmentCriteriaCard = ({
   investmentThesis,
-  thesisConfidence,
   onEdit,
   className,
 }: InvestmentCriteriaCardProps) => {
   const hasContent = !!investmentThesis;
-
-  const getConfidenceBadgeClass = (confidence: string | null | undefined) => {
-    switch (confidence) {
-      case 'high':
-        return 'bg-green-100 text-green-800 border-green-200';
-      case 'medium':
-        return 'bg-yellow-100 text-yellow-800 border-yellow-200';
-      case 'low':
-        return 'bg-red-100 text-red-800 border-red-200';
-      default:
-        return 'bg-muted text-muted-foreground';
-    }
-  };
 
   return (
     <Card className={cn(className)}>
@@ -56,14 +40,6 @@ export const InvestmentCriteriaCard = ({
                   Investment Thesis
                 </p>
                 <p className="text-sm text-amber-900">{investmentThesis}</p>
-                {thesisConfidence && (
-                  <Badge
-                    variant="outline"
-                    className={`text-xs ${getConfidenceBadgeClass(thesisConfidence)}`}
-                  >
-                    {thesisConfidence.charAt(0).toUpperCase() + thesisConfidence.slice(1)} confidence
-                  </Badge>
-                )}
               </div>
             )}
           </>

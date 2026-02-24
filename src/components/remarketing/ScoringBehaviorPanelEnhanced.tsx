@@ -103,7 +103,6 @@ const DEFAULT_BEHAVIOR: ScoringBehavior = {
   boost_adjacency: true,
   penalize_distance: true,
   require_thesis_match: false,
-  minimum_data_completeness: 'low',
   industry_preset: 'custom',
   geography_strictness: 'moderate',
   single_location_matching: 'adjacent_states',

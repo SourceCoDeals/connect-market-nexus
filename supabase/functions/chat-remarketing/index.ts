@@ -208,7 +208,6 @@ async function buildDealContext(supabase: any, listingId: string): Promise<strin
       dealBreakers: buyer.deal_breakers || [],
       strategicPriorities: buyer.strategic_priorities,
       feeAgreement: buyer.has_fee_agreement,
-      dataQuality: buyer.data_completeness,
       score: score?.composite_score,
       geoScore: score?.geography_score,
       sizeScore: score?.size_score,
@@ -292,7 +291,6 @@ INSTRUCTIONS:
 - If a buyer's deal structure (revenue/EBITDA ranges) has NO transcript backing, explicitly say: "Note: Size criteria may be from PE firm website and may represent new-platform criteria, not add-on criteria."
 - If a buyer's HQ/location data has no platform website source, say: "Note: HQ location may be the PE firm's headquarters, not the platform's operating base."
 - When data is missing, say "This information is not available from transcripts" — NEVER infer or guess.
-- If buyer has dataQuality = 'low', flag this: "⚠️ Limited data — scoring confidence is low."
 
 ## DATA QUALITY GUARDRAILS:
 - Transcript availability: ${transcripts.length > 0 ? `✅ ${transcripts.length} transcript(s) loaded` : '⚠️ No transcripts available'}
@@ -413,7 +411,6 @@ async function buildBuyersContext(supabase: any): Promise<string> {
     dealBreakers: b.deal_breakers || [],
     strategicPriorities: b.strategic_priorities,
     feeAgreement: b.has_fee_agreement,
-    dataQuality: b.data_completeness,
     alignmentScore: b.alignment_score,
   }));
 
@@ -501,7 +498,6 @@ async function buildUniverseContext(supabase: any, universeId: string): Promise<
     appetite: b.acquisition_appetite,
     dealBreakers: b.deal_breakers || [],
     alignmentScore: b.alignment_score,
-    dataQuality: b.data_completeness,
   }));
 
   const dealSummaries = deals.map((d: any) => ({

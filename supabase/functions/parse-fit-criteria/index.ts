@@ -205,18 +205,13 @@ CRITICAL REQUIREMENTS:
                     penalize_distance: { type: "boolean" },
                     require_thesis_match: { type: "boolean" },
                     geography_strictness: { type: "string", enum: ["strict", "moderate", "flexible"] },
-                    size_strictness: { type: "string", enum: ["strict", "moderate", "flexible"] },
-                    minimum_data_completeness: { type: "string", enum: ["high", "medium", "low"] }
+                    size_strictness: { type: "string", enum: ["strict", "moderate", "flexible"] }
                   }
                 },
                 extracted_keywords: {
                   type: "array",
                   items: { type: "string" },
                   description: "Key terms extracted from the text"
-                },
-                confidence: {
-                  type: "number",
-                  description: "Confidence score 0-1"
                 }
               },
               required: ["size_criteria", "geography_criteria", "service_criteria", "buyer_types_criteria"]
@@ -298,11 +293,6 @@ CRITICAL REQUIREMENTS:
         .filter(Boolean);
     }
 
-    // Normalize confidence from 0-1 to 0-100 if AI returned fractional
-    if (parsed.confidence !== undefined && parsed.confidence > 0 && parsed.confidence <= 1) {
-      parsed.confidence = Math.round(parsed.confidence * 100);
-    }
-
     // Ensure primary_focus exists
     if (!parsed.service_criteria?.primary_focus || parsed.service_criteria.primary_focus.length === 0) {
       // Try to infer from required_services
@@ -349,7 +339,6 @@ function parseLocally(text: string) {
     },
     scoring_behavior: {} as Record<string, any>,
     extracted_keywords: [] as string[],
-    confidence: 0.5
   };
 
   // Parse revenue ranges

@@ -49,7 +49,7 @@ const DEAL_FIELDS_QUICK = `
 
 const DEAL_FIELDS_FULL = `
   id, title, status, status_label, status_tag, deal_source, industry, industry_tier_name,
-  revenue, revenue_confidence, ebitda, ebitda_margin, ebitda_confidence,
+  revenue, ebitda, ebitda_margin,
   location, address_city, address_state, address_zip, geographic_states,
   services, service_mix, business_model, categories,
   full_time_employees, number_of_locations,

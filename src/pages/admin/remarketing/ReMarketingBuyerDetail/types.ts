@@ -5,7 +5,6 @@ export interface BuyerData {
   buyer_type: string | null;
   universe_id: string | null;
   thesis_summary: string | null;
-  thesis_confidence: string | null;
   target_revenue_min: number | null;
   target_revenue_max: number | null;
   target_ebitda_min: number | null;
@@ -14,7 +13,6 @@ export interface BuyerData {
   target_services: string[] | null;
   geographic_footprint: string[] | null;
   notes: string | null;
-  data_completeness: string | null;
   data_last_updated: string | null;
   pe_firm_name: string | null;
   pe_firm_website: string | null;

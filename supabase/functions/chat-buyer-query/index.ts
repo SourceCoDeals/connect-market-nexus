@@ -183,7 +183,7 @@ serve(async (req) => {
           id, company_name, company_website, buyer_type, thesis_summary,
           target_geographies, target_services, target_revenue_min, target_revenue_max,
           target_ebitda_min, target_ebitda_max, geographic_footprint,
-          data_completeness, pe_firm_name, hq_city, hq_state,
+          pe_firm_name, hq_city, hq_state,
           total_acquisitions, last_acquisition_date, acquisition_appetite,
           universe_id, deal_breakers, strategic_priorities, target_industries,
           recent_acquisitions, services_offered, business_summary, operating_locations,
@@ -267,7 +267,6 @@ serve(async (req) => {
         deal_transcripts: dealTranscripts.length,
       },
       data_quality: {
-        buyers_with_low_completeness: buyers.filter((b: any) => (b.data_completeness || 0) < 50).length,
         buyers_missing_footprint: buyers.filter((b: any) => !b.geographic_footprint || b.geographic_footprint.length === 0).length,
         buyers_with_deal_breakers: buyers.filter((b: any) => b.deal_breakers && b.deal_breakers.length > 0).length,
       },
@@ -497,7 +496,6 @@ When answering questions:
    - NEVER guess or hallucinate what was said in calls
 
 2. **Data Completeness Warnings:**
-   - If discussing a buyer with data_completeness < 50%, mention: "Note: This buyer's profile is partially complete (XX% complete)"
    - If a buyer's geographic_footprint is empty, say: "This buyer's geographic footprint has not been fully mapped yet"
    - If target criteria fields are null/empty, acknowledge the limitation
 

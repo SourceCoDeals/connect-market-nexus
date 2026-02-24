@@ -365,7 +365,7 @@ serve(async (req) => {
             company_website: normalizeDomainUrl(row.platform_website) || null,
             buyer_type: row.pe_firm_name ? 'platform' : 'strategic',
             thesis_summary: row.thesis_summary || null,
-            thesis_confidence: mapConfidence(row.thesis_confidence),
+
             target_revenue_min: parseFloat(row.min_revenue) || null,
             target_revenue_max: parseFloat(row.max_revenue) || null,
             target_ebitda_min: parseFloat(row.min_ebitda) || null,
@@ -377,7 +377,6 @@ serve(async (req) => {
             recent_acquisitions: parseJson(row.recent_acquisitions) || [],
             portfolio_companies: parseJson(row.portfolio_companies) || [],
             extraction_sources: parseJson(row.extraction_sources) || [],
-            data_completeness: mapCompleteness(row),
             notes: null,
             archived: false,
             pe_firm_name: row.pe_firm_name || null,
@@ -606,7 +605,6 @@ serve(async (req) => {
             owner_goals_score: 0,
             tier: calculateTier(parseFloat(row.composite_score) || 0),
             fit_reasoning: row.fit_reasoning || null,
-            data_completeness: row.data_completeness?.toLowerCase() || 'medium',
             status: row.selected_for_outreach === 'true' ? 'approved' : 'pending',
             human_override_score: parseFloat(row.human_override_score) || null,
             scored_at: row.scored_at || new Date().toISOString(),
@@ -748,24 +746,6 @@ function parseArray(value: any): string[] {
     }
     return [];
   }
-}
-
-function mapConfidence(value: string | null): string | null {
-  if (!value) return null;
-  const lower = value.toLowerCase();
-  if (lower.includes('high')) return 'high';
-  if (lower.includes('med')) return 'medium';
-  if (lower.includes('low')) return 'low';
-  return 'medium';
-}
-
-function mapCompleteness(row: any): string {
-  if (row.data_completeness) return row.data_completeness.toLowerCase();
-  const fields = ['thesis_summary', 'target_geographies', 'min_revenue'];
-  const filled = fields.filter(f => row[f]).length;
-  if (filled >= 2) return 'high';
-  if (filled >= 1) return 'medium';
-  return 'low';
 }
 
 function calculateTier(score: number): string {

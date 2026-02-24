@@ -9,7 +9,6 @@ import { getCorsHeaders, corsPreflightResponse } from "../_shared/cors.ts";
 
 interface FinancialExtraction {
   value?: number;
-  confidence: 'high' | 'medium' | 'low';
   is_inferred?: boolean;
   source_quote?: string;
   inference_method?: string;
@@ -21,7 +20,6 @@ interface ExtractionResult {
   ebitda?: {
     amount?: number;
     margin_percentage?: number;
-    confidence: 'high' | 'medium' | 'low';
     is_inferred?: boolean;
     source_quote?: string;
   };
@@ -188,12 +186,12 @@ ${transcriptText}
 
 Search the entire transcript for any mention of revenue, sales, top-line, gross revenue, annual revenue, run rate, or total sales. Apply these rules in order:
 
-1. **Exact number stated:** "we do $8 million a year" → value=8000000, confidence="high", is_inferred=false.
-2. **Range given:** "somewhere between 5 and 7 million" → use MIDPOINT (6000000), confidence="medium". Include exact range in source_quote.
-3. **Approximate/hedged language:** "about", "roughly", "around", "ballpark" with a single number → use that number, confidence="medium".
+1. **Exact number stated:** "we do $8 million a year" → value=8000000, is_inferred=false.
+2. **Range given:** "somewhere between 5 and 7 million" → use MIDPOINT (6000000). Include exact range in source_quote.
+3. **Approximate/hedged language:** "about", "roughly", "around", "ballpark" with a single number → use that number.
 4. **Inferred from other data:** "20% EBITDA margins on $1.2M EBITDA" → revenue ≈ $6M. OR "500 jobs/year at $15K average" → $7.5M. Set is_inferred=true, explain math in inference_method.
 5. **Multiple revenue figures at different times:** "we did $5M last year but tracking to $7M this year" → use MOST CURRENT figure. Note historical in inference_method.
-6. **Not mentioned:** value=null, confidence="low", source_quote=null.
+6. **Not mentioned:** value=null, source_quote=null.
 
 **Common mistakes to avoid:**
 - Do NOT confuse revenue with EBITDA, profit, or cash flow.
@@ -206,12 +204,12 @@ Search the entire transcript for any mention of revenue, sales, top-line, gross 
 
 Search for EBITDA, earnings, cash flow, profit, margin, SDE, owner's benefit, adjusted earnings, or net income.
 
-1. **EBITDA stated directly:** "our EBITDA is $1.5 million" → amount=1500000, confidence="high".
+1. **EBITDA stated directly:** "our EBITDA is $1.5 million" → amount=1500000.
 2. **Margin stated directly:** "we run at about 18% margins" → margin_percentage=18. If revenue known, calculate amount = revenue × (margin/100), set is_inferred=true.
 3. **Margin calculable:** If both revenue and EBITDA stated, calculate margin_percentage = (EBITDA / revenue) × 100.
 4. **SDE vs EBITDA:** If speaker says SDE/"seller's discretionary earnings"/"owner's benefit", use that number but note in financial_notes: "Figure represents SDE, not adjusted EBITDA. SDE includes owner compensation."
 5. **Adjusted vs unadjusted:** Always prefer ADJUSTED figure. Note which was used in inference_method.
-6. **Ranges/approximations:** Same as revenue — midpoint for ranges, confidence="medium" for hedged.
+6. **Ranges/approximations:** Same as revenue — midpoint for ranges.
 
 **Common mistakes to avoid:**
 - Do NOT confuse gross margin with EBITDA margin.
@@ -460,8 +458,8 @@ DEPTH REQUIREMENTS — Every text field should be DETAILED with MAXIMUM CONTEXT:
 Return a JSON object with these fields (use null for unknown, empty array [] when no items):
 
 {
-  "revenue": { "value": number|null, "confidence": "high"|"medium"|"low", "is_inferred": boolean, "source_quote": string|null, "inference_method": string|null },
-  "ebitda": { "amount": number|null, "margin_percentage": number|null, "confidence": "high"|"medium"|"low", "is_inferred": boolean, "source_quote": string|null },
+  "revenue": { "value": number|null, "is_inferred": boolean, "source_quote": string|null, "inference_method": string|null },
+  "ebitda": { "amount": number|null, "margin_percentage": number|null, "is_inferred": boolean, "source_quote": string|null },
   "financial_notes": string|null,
   "executive_summary": string|null,
   "services": string[],
@@ -608,7 +606,6 @@ Return ONLY the JSON object. No markdown fences, no explanation.`;
           const revenueValue = toFiniteNumber(extracted.revenue?.value);
           if (revenueValue != null) {
             flatExtracted.revenue = revenueValue;
-            flatExtracted.revenue_confidence = extracted.revenue?.confidence;
             flatExtracted.revenue_is_inferred = extracted.revenue?.is_inferred || false;
             flatExtracted.revenue_source_quote = extracted.revenue?.source_quote;
           }
@@ -623,7 +620,6 @@ Return ONLY the JSON object. No markdown fences, no explanation.`;
           if (marginPct != null) flatExtracted.ebitda_margin = marginPct / 100; // Store as decimal
 
           if (extracted.ebitda) {
-            flatExtracted.ebitda_confidence = extracted.ebitda.confidence;
             flatExtracted.ebitda_is_inferred = extracted.ebitda.is_inferred || false;
             flatExtracted.ebitda_source_quote = extracted.ebitda.source_quote;
           }

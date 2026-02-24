@@ -68,7 +68,6 @@ export const usePEFirmData = () => {
           company_name,
           company_website,
           buyer_type,
-          data_completeness,
           business_summary,
           thesis_summary,
           hq_city,

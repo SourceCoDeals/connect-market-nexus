@@ -20,7 +20,6 @@ import {
   Sparkles,
 } from "lucide-react";
 import { IntelligenceBadge } from "@/components/remarketing";
-import type { DataCompleteness } from "@/types/remarketing";
 import { isSponsorType, findPeFirmByName, getBuyerTypeLabel } from "./constants";
 import type { BuyerTab } from "./constants";
 
@@ -89,11 +88,6 @@ const BuyerTableRow = ({
               <span className="font-medium text-foreground truncate">
                 {buyer.company_name}
               </span>
-              {buyer.data_completeness === 'high' && (
-                <Badge className="bg-emerald-500 hover:bg-emerald-600 text-xs px-1.5 py-0">
-                  Enriched
-                </Badge>
-              )}
             </div>
             {buyer.company_website && (
               <a
@@ -151,7 +145,6 @@ const BuyerTableRow = ({
           {/* Intel Column */}
           <TableCell>
             <IntelligenceBadge
-              completeness={buyer.data_completeness as DataCompleteness | null}
               hasTranscript={buyerIdsWithTranscripts?.has(buyer.id) || false}
               size="sm"
             />
@@ -247,7 +240,6 @@ const BuyerTableRow = ({
           {/* Intel Column */}
           <TableCell>
             <IntelligenceBadge
-              completeness={buyer.data_completeness as DataCompleteness | null}
               hasTranscript={buyerIdsWithTranscripts?.has(buyer.id) || false}
               size="sm"
             />

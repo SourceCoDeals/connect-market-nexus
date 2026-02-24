@@ -3,7 +3,6 @@ import {
   MapPin,
   Globe,
   Briefcase,
-  Activity,
   TrendingUp,
   Shield,
 } from "lucide-react";
@@ -53,14 +52,6 @@ export const BUYER_UNIVERSE_FIELDS: FilterFieldDef[] = [
     type: "multi_select",
     group: "Location",
     icon: Globe,
-    dynamicOptions: true,
-  },
-  {
-    key: "data_completeness",
-    label: "Data Completeness",
-    type: "select",
-    group: "Enrichment",
-    icon: Activity,
     dynamicOptions: true,
   },
   {

@@ -115,8 +115,6 @@ export interface ScoringBehavior {
   boost_adjacency?: boolean;
   penalize_distance?: boolean;
   require_thesis_match?: boolean;
-  minimum_data_completeness?: 'high' | 'medium' | 'low';
-  
   // Industry preset
   industry_preset?: 'collision_repair' | 'software' | 'hvac' | 'pest_control' | 'custom';
   
@@ -183,8 +181,6 @@ export interface DocumentReference {
 }
 
 export type BuyerType = 'pe_firm' | 'platform' | 'strategic' | 'family_office' | 'independent_sponsor' | 'search_fund' | 'other';
-export type DataCompleteness = 'high' | 'medium' | 'low';
-export type ThesisConfidence = 'high' | 'medium' | 'low';
 export type ScoreTier = 'A' | 'B' | 'C' | 'D' | 'F';
 export type ScoreStatus = 'pending' | 'approved' | 'passed' | 'hidden';
 
@@ -195,7 +191,6 @@ export interface ReMarketingBuyer {
   company_website: string | null;
   buyer_type: BuyerType | null;
   thesis_summary: string | null;
-  thesis_confidence: ThesisConfidence | null;
   target_revenue_min: number | null;
   target_revenue_max: number | null;
   target_ebitda_min: number | null;
@@ -207,7 +202,6 @@ export interface ReMarketingBuyer {
   recent_acquisitions: AcquisitionRecord[];
   portfolio_companies: PortfolioCompany[];
   extraction_sources: ExtractionSource[];
-  data_completeness: DataCompleteness;
   data_last_updated: string | null;
   notes: string | null;
   archived: boolean;
@@ -284,11 +278,8 @@ export interface ReMarketingScore {
   is_disqualified: boolean | null;
   disqualification_reason: string | null;
   needs_review: boolean | null;
-  missing_fields: string[] | null;
-  confidence_level: string | null;
   tier: ScoreTier | null;
   fit_reasoning: string | null;
-  data_completeness: DataCompleteness | null;
   status: ScoreStatus;
   pass_reason: string | null;
   pass_category: string | null;
@@ -331,7 +322,7 @@ export interface BulkScoringResult {
 export interface CSVColumnMapping {
   sourceColumn: string;
   targetField: keyof ReMarketingBuyer | null;
-  confidence: number;
+  matchScore: number;
 }
 
 // Dashboard stats

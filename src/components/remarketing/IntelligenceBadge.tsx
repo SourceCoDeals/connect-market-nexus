@@ -7,10 +7,9 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import type { DataCompleteness } from "@/types/remarketing";
+type IntelLevel = 'high' | 'medium' | 'low';
 
 interface IntelligenceBadgeProps {
-  completeness: DataCompleteness | null;
   /** Whether the buyer has at least one transcript. Without a transcript, max intel is "Some Intel" (medium). */
   hasTranscript?: boolean;
   missingFields?: string[];
@@ -19,7 +18,7 @@ interface IntelligenceBadgeProps {
   className?: string;
 }
 
-const config: Record<DataCompleteness, {
+const config: Record<IntelLevel, {
   label: string;
   shortLabel: string;
   description: string;
@@ -67,19 +66,25 @@ const sizeConfig = {
 };
 
 export const IntelligenceBadge = ({
-  completeness,
   hasTranscript = false,
   missingFields = [],
   showTooltip = true,
   size = "sm",
   className,
 }: IntelligenceBadgeProps) => {
-  // Strong Intel requires transcript data — websites alone don't provide enough depth
-  // (thesis, investment preferences, deal terms). BuyerMatchCard now passes hasTranscript
-  // from extraction_sources.
-  let effectiveCompleteness = completeness;
-  if (effectiveCompleteness === 'high' && !hasTranscript) {
+  // Determine intel level from available signals:
+  // - Transcript data → "high" (Strong Intel)
+  // - Some missing fields but not all → "medium" (Some Intel)
+  // - Otherwise → "low" (Needs Research)
+  let effectiveCompleteness: IntelLevel | null = null;
+  if (hasTranscript) {
+    effectiveCompleteness = 'high';
+  } else if (missingFields.length === 0) {
     effectiveCompleteness = 'medium';
+  } else if (missingFields.length > 0 && missingFields[0] !== 'All buyer data') {
+    effectiveCompleteness = 'medium';
+  } else {
+    effectiveCompleteness = 'low';
   }
 
   if (!effectiveCompleteness) {

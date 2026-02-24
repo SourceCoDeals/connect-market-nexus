@@ -87,7 +87,6 @@ const UNIVERSE_TEMPLATES: UniverseTemplate[] = [
         boost_adjacency: true,
         penalize_distance: true,
         require_thesis_match: true,
-        minimum_data_completeness: 'medium'
       },
       geography_weight: 25,
       size_weight: 25,
@@ -126,7 +125,6 @@ const UNIVERSE_TEMPLATES: UniverseTemplate[] = [
         boost_adjacency: false,
         penalize_distance: false,
         require_thesis_match: false,
-        minimum_data_completeness: 'low'
       },
       geography_weight: 15,
       size_weight: 35,
@@ -165,7 +163,6 @@ const UNIVERSE_TEMPLATES: UniverseTemplate[] = [
         boost_adjacency: false,
         penalize_distance: false,
         require_thesis_match: true,
-        minimum_data_completeness: 'medium'
       },
       geography_weight: 15,
       size_weight: 35,
@@ -204,7 +201,6 @@ const UNIVERSE_TEMPLATES: UniverseTemplate[] = [
         boost_adjacency: false,
         penalize_distance: false,
         require_thesis_match: false,
-        minimum_data_completeness: 'low'
       },
       geography_weight: 10,
       size_weight: 35,
@@ -243,7 +239,6 @@ const UNIVERSE_TEMPLATES: UniverseTemplate[] = [
         boost_adjacency: false,
         penalize_distance: false,
         require_thesis_match: true,
-        minimum_data_completeness: 'high'
       },
       geography_weight: 15,
       size_weight: 35,
@@ -282,7 +277,6 @@ const UNIVERSE_TEMPLATES: UniverseTemplate[] = [
         boost_adjacency: true,
         penalize_distance: true,
         require_thesis_match: true,
-        minimum_data_completeness: 'high'
       },
       geography_weight: 20,
       size_weight: 30,
@@ -321,7 +315,6 @@ const UNIVERSE_TEMPLATES: UniverseTemplate[] = [
         boost_adjacency: false,
         penalize_distance: false,
         require_thesis_match: false,
-        minimum_data_completeness: 'medium'
       },
       geography_weight: 15,
       size_weight: 35,
@@ -361,7 +354,6 @@ const UNIVERSE_TEMPLATES: UniverseTemplate[] = [
         boost_adjacency: true,
         penalize_distance: true,
         require_thesis_match: false,
-        minimum_data_completeness: 'low'
       },
       geography_weight: 30,
       size_weight: 25,

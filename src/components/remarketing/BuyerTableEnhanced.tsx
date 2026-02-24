@@ -37,7 +37,6 @@ interface BuyerRow {
   hq_state?: string | null;
   thesis_summary?: string | null;
   business_summary?: string | null;
-  data_completeness?: string | null;
   target_geographies?: string[];
   geographic_footprint?: string[];
   has_fee_agreement?: boolean | null;
@@ -47,7 +46,7 @@ interface BuyerRow {
   alignment_checked_at?: string | null;
 }
 
-type SortKey = 'company_name' | 'pe_firm_name' | 'data_completeness' | 'alignment_score';
+type SortKey = 'company_name' | 'pe_firm_name' | 'alignment_score';
 type SortDirection = 'asc' | 'desc';
 
 interface SortConfig {
@@ -131,13 +130,6 @@ export const BuyerTableEnhanced = ({
           if (!peA) return 1;
           if (!peB) return -1;
           return multiplier * peA.localeCompare(peB);
-        }
-
-        case 'data_completeness': {
-          const orderMap: Record<string, number> = { high: 3, medium: 2, low: 1 };
-          const compA = orderMap[a.data_completeness || 'low'] || 0;
-          const compB = orderMap[b.data_completeness || 'low'] || 0;
-          return multiplier * (compA - compB);
         }
 
         case 'alignment_score':
@@ -406,7 +398,7 @@ export const BuyerTableEnhanced = ({
                 <ResizeHandle column="description" />
               </TableHead>
               <TableHead className="relative" style={{ width: columnWidths.intel }}>
-                <SortButton label="Intel" sortKey="data_completeness" />
+                Intel
                 <ResizeHandle column="intel" />
               </TableHead>
               <TableHead className="w-[50px]"></TableHead>

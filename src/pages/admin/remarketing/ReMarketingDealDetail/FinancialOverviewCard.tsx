@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { DollarSign, Pencil, AlertTriangle } from "lucide-react";
+import { DollarSign, Pencil } from "lucide-react";
 import { formatCurrency } from "./helpers";
 
 interface FinancialOverviewCardProps {
@@ -26,20 +26,10 @@ export function FinancialOverviewCard({ deal, onEditClick }: FinancialOverviewCa
         </div>
       </CardHeader>
       <CardContent>
-        {((deal.revenue_confidence === 'low') || (deal.ebitda_confidence === 'low')) && (
-          <div className="flex items-start gap-2 p-2 mb-4 bg-amber-50 border border-amber-200 rounded-lg text-amber-800">
-            <AlertTriangle className="h-4 w-4 mt-0.5 flex-shrink-0" />
-            <div>
-              <p className="text-xs font-medium">Needs Clarification</p>
-            </div>
-          </div>
-        )}
-
         <div className="grid grid-cols-3 gap-6">
           <FinancialMetric
             label="REVENUE"
             value={deal.revenue}
-            confidence={deal.revenue_confidence}
             sourceQuote={deal.revenue_source_quote}
             isInferred={deal.revenue_is_inferred}
             extractionSources={deal.extraction_sources}
@@ -48,7 +38,6 @@ export function FinancialOverviewCard({ deal, onEditClick }: FinancialOverviewCa
           <FinancialMetric
             label="EBITDA"
             value={deal.ebitda}
-            confidence={deal.ebitda_confidence}
             sourceQuote={deal.ebitda_source_quote}
             isInferred={deal.ebitda_is_inferred}
             extractionSources={deal.extraction_sources}
@@ -79,11 +68,10 @@ export function FinancialOverviewCard({ deal, onEditClick }: FinancialOverviewCa
 }
 
 function FinancialMetric({
-  label, value, confidence, sourceQuote, isInferred, extractionSources, sourceKey,
+  label, value, sourceQuote, isInferred, extractionSources, sourceKey,
 }: {
   label: string;
   value: number | null;
-  confidence: string | null;
   sourceQuote: string | null;
   isInferred: boolean | null;
   extractionSources: Record<string, any> | null;
@@ -102,20 +90,6 @@ function FinancialMetric({
     <div>
       <div className="flex items-center gap-2 mb-1">
         <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{label}</p>
-        {value && (
-          <Badge
-            variant="outline"
-            className={
-              confidence === 'high'
-                ? "bg-emerald-50 text-emerald-700 border-emerald-200 text-xs"
-                : confidence === 'low'
-                ? "bg-red-50 text-red-600 border-red-200 text-xs"
-                : "bg-amber-50 text-amber-700 border-amber-200 text-xs"
-            }
-          >
-            {confidence === 'high' ? '\u2713' : confidence === 'low' ? '\u25B3' : '\u25CB'}
-          </Badge>
-        )}
       </div>
       <span className="text-2xl font-bold">{formatCurrency(value)}</span>
       {showPopover && (
