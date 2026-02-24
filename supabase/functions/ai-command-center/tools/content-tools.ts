@@ -6,28 +6,37 @@
 
 // deno-lint-ignore no-explicit-any
 type SupabaseClient = any;
-import type { ClaudeTool } from "../../_shared/claude-client.ts";
-import type { ToolResult } from "./index.ts";
+import type { ClaudeTool } from '../../_shared/claude-client.ts';
+import type { ToolResult } from './index.ts';
 
 // ---------- Tool definitions ----------
 
 export const contentTools: ClaudeTool[] = [
   {
     name: 'generate_meeting_prep',
-    description: 'Gather all data needed for a meeting prep brief — deal details, buyer/counterparty profile, past meeting transcripts, open tasks, and scoring. Returns structured data that Claude synthesizes into a briefing.',
+    description:
+      'Gather all data needed for a meeting prep brief — deal details, buyer/counterparty profile, past meeting transcripts, open tasks, and scoring. Returns structured data that Claude synthesizes into a briefing.',
     input_schema: {
       type: 'object',
       properties: {
         deal_id: { type: 'string', description: 'The deal/listing UUID' },
-        buyer_id: { type: 'string', description: 'The buyer UUID (if meeting is with a specific buyer)' },
-        meeting_context: { type: 'string', description: 'Brief context about the meeting (e.g. "First call with CEO", "NDA follow-up")' },
+        buyer_id: {
+          type: 'string',
+          description: 'The buyer UUID (if meeting is with a specific buyer)',
+        },
+        meeting_context: {
+          type: 'string',
+          description:
+            'Brief context about the meeting (e.g. "First call with CEO", "NDA follow-up")',
+        },
       },
       required: ['deal_id'],
     },
   },
   {
     name: 'draft_outreach_email',
-    description: 'Gather buyer and deal context needed to draft a personalized outreach email. Returns structured data that Claude uses to compose the email.',
+    description:
+      'Gather buyer and deal context needed to draft a personalized outreach email. Returns structured data that Claude uses to compose the email.',
     input_schema: {
       type: 'object',
       properties: {
@@ -35,22 +44,59 @@ export const contentTools: ClaudeTool[] = [
         buyer_id: { type: 'string', description: 'The target buyer UUID' },
         email_type: {
           type: 'string',
-          enum: ['initial_outreach', 'follow_up', 'teaser_intro', 'data_room_invite', 'meeting_request'],
+          enum: [
+            'initial_outreach',
+            'follow_up',
+            'teaser_intro',
+            'data_room_invite',
+            'meeting_request',
+          ],
           description: 'Type of email to draft',
         },
-        tone: { type: 'string', enum: ['formal', 'warm', 'brief'], description: 'Email tone (default "warm")' },
+        tone: {
+          type: 'string',
+          enum: ['formal', 'warm', 'brief'],
+          description: 'Email tone (default "warm")',
+        },
       },
       required: ['deal_id', 'buyer_id'],
     },
   },
   {
-    name: 'generate_pipeline_report',
-    description: 'Gather comprehensive pipeline data for a weekly/monthly report. Returns aggregated metrics, deal status changes, and highlights.',
+    name: 'generate_eod_recap',
+    description:
+      'Gather data for an end-of-day or end-of-week recap — activities logged today/this week, tasks completed vs remaining, outreach sent and responses, deals that moved stages, and tomorrow\'s priorities. Returns structured data that Claude synthesizes into a summary. Use when the user asks "give me a recap", "what did I do today?", "end of day summary", or "weekly recap".',
     input_schema: {
       type: 'object',
       properties: {
-        period_days: { type: 'number', description: 'Report period in days (default 7 for weekly)' },
-        include_details: { type: 'boolean', description: 'Include per-deal details (default false for summary)' },
+        period: {
+          type: 'string',
+          enum: ['today', 'this_week', 'yesterday', 'last_week'],
+          description: 'Recap period (default "today")',
+        },
+        user_id: {
+          type: 'string',
+          description: 'User UUID. Use "CURRENT_USER" for the logged-in user.',
+        },
+      },
+      required: [],
+    },
+  },
+  {
+    name: 'generate_pipeline_report',
+    description:
+      'Gather comprehensive pipeline data for a weekly/monthly report. Returns aggregated metrics, deal status changes, and highlights.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        period_days: {
+          type: 'number',
+          description: 'Report period in days (default 7 for weekly)',
+        },
+        include_details: {
+          type: 'boolean',
+          description: 'Include per-deal details (default false for summary)',
+        },
       },
       required: [],
     },
@@ -65,10 +111,16 @@ export async function executeContentTool(
   args: Record<string, unknown>,
 ): Promise<ToolResult> {
   switch (toolName) {
-    case 'generate_meeting_prep': return generateMeetingPrep(supabase, args);
-    case 'draft_outreach_email': return draftOutreachEmail(supabase, args);
-    case 'generate_pipeline_report': return generatePipelineReport(supabase, args);
-    default: return { error: `Unknown content tool: ${toolName}` };
+    case 'generate_meeting_prep':
+      return generateMeetingPrep(supabase, args);
+    case 'draft_outreach_email':
+      return draftOutreachEmail(supabase, args);
+    case 'generate_eod_recap':
+      return generateEodRecap(supabase, args);
+    case 'generate_pipeline_report':
+      return generatePipelineReport(supabase, args);
+    default:
+      return { error: `Unknown content tool: ${toolName}` };
   }
 }
 
@@ -84,29 +136,58 @@ async function generateMeetingPrep(
   // Parallel fetch: deal + tasks + transcripts + (optional) buyer + score
   const queries: Promise<unknown>[] = [
     supabase.from('listings').select('*').eq('id', dealId).single(),
-    supabase.from('deal_tasks').select('id, title, status, priority, due_date, assigned_to')
-      .eq('deal_id', dealId).in('status', ['pending', 'in_progress'])
-      .order('due_date', { ascending: true, nullsFirst: false }).limit(10),
-    supabase.from('deal_transcripts').select('id, title, call_date, extracted_data, meeting_attendees, duration_minutes')
-      .eq('listing_id', dealId).order('call_date', { ascending: false, nullsFirst: false }).limit(5),
-    supabase.from('call_transcripts').select('id, created_at, call_type, ceo_detected, key_quotes, extracted_insights')
-      .eq('listing_id', dealId).order('created_at', { ascending: false }).limit(5),
-    supabase.from('deal_activities').select('id, title, activity_type, description, created_at')
-      .eq('deal_id', dealId).order('created_at', { ascending: false }).limit(10),
+    supabase
+      .from('deal_tasks')
+      .select('id, title, status, priority, due_date, assigned_to')
+      .eq('deal_id', dealId)
+      .in('status', ['pending', 'in_progress'])
+      .order('due_date', { ascending: true, nullsFirst: false })
+      .limit(10),
+    supabase
+      .from('deal_transcripts')
+      .select('id, title, call_date, extracted_data, meeting_attendees, duration_minutes')
+      .eq('listing_id', dealId)
+      .order('call_date', { ascending: false, nullsFirst: false })
+      .limit(5),
+    supabase
+      .from('call_transcripts')
+      .select('id, created_at, call_type, ceo_detected, key_quotes, extracted_insights')
+      .eq('listing_id', dealId)
+      .order('created_at', { ascending: false })
+      .limit(5),
+    supabase
+      .from('deal_activities')
+      .select('id, title, activity_type, description, created_at')
+      .eq('deal_id', dealId)
+      .order('created_at', { ascending: false })
+      .limit(10),
   ];
 
   // Add buyer-specific queries if buyer is specified
   if (buyerId) {
     queries.push(
       supabase.from('remarketing_buyers').select('*').eq('id', buyerId).single(),
-      supabase.from('remarketing_scores').select('*').eq('buyer_id', buyerId).eq('listing_id', dealId).single(),
-      supabase.from('buyer_contacts').select('*').eq('buyer_id', buyerId).order('is_primary_contact', { ascending: false }),
+      supabase
+        .from('remarketing_scores')
+        .select('*')
+        .eq('buyer_id', buyerId)
+        .eq('listing_id', dealId)
+        .single(),
+      supabase
+        .from('buyer_contacts')
+        .select('*')
+        .eq('buyer_id', buyerId)
+        .order('is_primary_contact', { ascending: false }),
     );
   }
 
-  const results = await Promise.all(queries) as Array<{ data: unknown; error: { message: string } | null }>;
+  const results = (await Promise.all(queries)) as Array<{
+    data: unknown;
+    error: { message: string } | null;
+  }>;
 
-  const [dealResult, tasksResult, transcriptsResult, callTranscriptsResult, activitiesResult] = results;
+  const [dealResult, tasksResult, transcriptsResult, callTranscriptsResult, activitiesResult] =
+    results;
   const buyerResult = buyerId ? results[5] : null;
   const scoreResult = buyerId ? results[6] : null;
   const contactsResult = buyerId ? results[7] : null;
@@ -137,17 +218,37 @@ async function draftOutreachEmail(
 
   // Parallel fetch: deal + buyer + score + contacts + past outreach
   const [dealResult, buyerResult, scoreResult, contactsResult, accessResult] = await Promise.all([
-    supabase.from('listings').select(
-      'id, title, industry, services, revenue, ebitda, location, address_state, geographic_states, executive_summary, investment_thesis, business_model, number_of_locations, full_time_employees'
-    ).eq('id', dealId).single(),
-    supabase.from('remarketing_buyers').select(
-      'id, company_name, pe_firm_name, buyer_type, target_services, target_geographies, target_revenue_min, target_revenue_max, thesis_summary, acquisition_appetite, business_summary'
-    ).eq('id', buyerId).single(),
-    supabase.from('remarketing_scores').select('composite_score, geography_score, service_score, size_score, fit_reasoning')
-      .eq('buyer_id', buyerId).eq('listing_id', dealId).single(),
-    supabase.from('buyer_contacts').select('*').eq('buyer_id', buyerId).order('is_primary_contact', { ascending: false }).limit(3),
-    supabase.from('deal_data_room_access').select('buyer_name, buyer_email, granted_at, is_active')
-      .eq('deal_id', dealId).eq('buyer_id', buyerId),
+    supabase
+      .from('listings')
+      .select(
+        'id, title, industry, services, revenue, ebitda, location, address_state, geographic_states, executive_summary, investment_thesis, business_model, number_of_locations, full_time_employees',
+      )
+      .eq('id', dealId)
+      .single(),
+    supabase
+      .from('remarketing_buyers')
+      .select(
+        'id, company_name, pe_firm_name, buyer_type, target_services, target_geographies, target_revenue_min, target_revenue_max, thesis_summary, acquisition_appetite, business_summary',
+      )
+      .eq('id', buyerId)
+      .single(),
+    supabase
+      .from('remarketing_scores')
+      .select('composite_score, geography_score, service_score, size_score, fit_reasoning')
+      .eq('buyer_id', buyerId)
+      .eq('listing_id', dealId)
+      .single(),
+    supabase
+      .from('buyer_contacts')
+      .select('*')
+      .eq('buyer_id', buyerId)
+      .order('is_primary_contact', { ascending: false })
+      .limit(3),
+    supabase
+      .from('deal_data_room_access')
+      .select('buyer_name, buyer_email, granted_at, is_active')
+      .eq('deal_id', dealId)
+      .eq('buyer_id', buyerId),
   ]);
 
   if (dealResult.error) return { error: dealResult.error.message };
@@ -175,19 +276,32 @@ async function generatePipelineReport(
   const cutoffDate = new Date(Date.now() - periodDays * 24 * 60 * 60 * 1000).toISOString();
 
   // Parallel fetch: current pipeline + recent activities + recent scoring + data room grants
-  const [dealsResult, activitiesResult, scoresResult, accessResult, tasksResult] = await Promise.all([
-    supabase.from('listings').select(
-      'id, title, status, deal_source, industry, revenue, ebitda, deal_total_score, is_priority_target, remarketing_status, updated_at'
-    ).is('deleted_at', null),
-    supabase.from('deal_activities').select('deal_id, activity_type, title, created_at')
-      .gte('created_at', cutoffDate).order('created_at', { ascending: false }),
-    supabase.from('remarketing_scores').select('buyer_id, listing_id, status, composite_score, updated_at')
-      .gte('updated_at', cutoffDate),
-    supabase.from('deal_data_room_access').select('deal_id, buyer_name, granted_at, is_active')
-      .gte('granted_at', cutoffDate),
-    supabase.from('deal_tasks').select('deal_id, title, status, completed_at')
-      .gte('created_at', cutoffDate),
-  ]);
+  const [dealsResult, activitiesResult, scoresResult, accessResult, tasksResult] =
+    await Promise.all([
+      supabase
+        .from('listings')
+        .select(
+          'id, title, status, deal_source, industry, revenue, ebitda, deal_total_score, is_priority_target, remarketing_status, updated_at',
+        )
+        .is('deleted_at', null),
+      supabase
+        .from('deal_activities')
+        .select('deal_id, activity_type, title, created_at')
+        .gte('created_at', cutoffDate)
+        .order('created_at', { ascending: false }),
+      supabase
+        .from('remarketing_scores')
+        .select('buyer_id, listing_id, status, composite_score, updated_at')
+        .gte('updated_at', cutoffDate),
+      supabase
+        .from('deal_data_room_access')
+        .select('deal_id, buyer_name, granted_at, is_active')
+        .gte('granted_at', cutoffDate),
+      supabase
+        .from('deal_tasks')
+        .select('deal_id, title, status, completed_at')
+        .gte('created_at', cutoffDate),
+    ]);
 
   const deals = dealsResult.data || [];
   const activities = activitiesResult.data || [];
@@ -245,6 +359,254 @@ async function generatePipelineReport(
         completed: tasks.filter((t: any) => t.status === 'completed').length,
       },
       deal_details: includeDetails ? deals.slice(0, 50) : undefined,
+    },
+  };
+}
+
+async function generateEodRecap(
+  supabase: SupabaseClient,
+  args: Record<string, unknown>,
+): Promise<ToolResult> {
+  const period = (args.period as string) || 'today';
+  const userId = args.user_id as string | undefined;
+
+  const now = new Date();
+  let startDate: Date;
+  let endDate: Date = now;
+  let periodLabel: string;
+
+  switch (period) {
+    case 'today':
+      startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      periodLabel = 'Today';
+      break;
+    case 'yesterday': {
+      const yesterday = new Date(now);
+      yesterday.setDate(yesterday.getDate() - 1);
+      startDate = new Date(yesterday.getFullYear(), yesterday.getMonth(), yesterday.getDate());
+      endDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      periodLabel = 'Yesterday';
+      break;
+    }
+    case 'this_week': {
+      const dayOfWeek = now.getDay();
+      const monday = new Date(now);
+      monday.setDate(monday.getDate() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1));
+      startDate = new Date(monday.getFullYear(), monday.getMonth(), monday.getDate());
+      periodLabel = 'This Week';
+      break;
+    }
+    case 'last_week': {
+      const dayOfWeek = now.getDay();
+      const thisMonday = new Date(now);
+      thisMonday.setDate(thisMonday.getDate() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1));
+      endDate = new Date(thisMonday.getFullYear(), thisMonday.getMonth(), thisMonday.getDate());
+      startDate = new Date(endDate);
+      startDate.setDate(startDate.getDate() - 7);
+      periodLabel = 'Last Week';
+      break;
+    }
+    default:
+      startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      periodLabel = 'Today';
+  }
+
+  const startStr = startDate.toISOString();
+  const endStr = endDate.toISOString();
+
+  // Parallel: activities, tasks completed, tasks created, outreach, data room grants
+  const queries: Promise<unknown>[] = [
+    // Activities logged in period
+    (() => {
+      let q = supabase
+        .from('deal_activities')
+        .select('deal_id, activity_type, title, description, created_at')
+        .gte('created_at', startStr)
+        .lt('created_at', endStr)
+        .order('created_at', { ascending: false })
+        .limit(100);
+      if (userId) q = q.eq('admin_id', userId);
+      return q;
+    })(),
+    // Tasks completed in period
+    (() => {
+      let q = supabase
+        .from('deal_tasks')
+        .select('id, title, deal_id, priority, completed_at')
+        .eq('status', 'completed')
+        .gte('completed_at', startStr)
+        .lt('completed_at', endStr)
+        .order('completed_at', { ascending: false })
+        .limit(50);
+      if (userId) q = q.eq('completed_by', userId);
+      return q;
+    })(),
+    // Tasks still open (assigned to user)
+    (() => {
+      let q = supabase
+        .from('deal_tasks')
+        .select('id, title, deal_id, priority, due_date, status')
+        .in('status', ['pending', 'in_progress'])
+        .order('due_date', { ascending: true, nullsFirst: false })
+        .limit(20);
+      if (userId) q = q.eq('assigned_to', userId);
+      return q;
+    })(),
+    // Outreach records updated in period
+    supabase
+      .from('outreach_records')
+      .select('id, buyer_name, deal_id, stage, last_action_date')
+      .gte('last_action_date', startStr)
+      .lt('last_action_date', endStr)
+      .order('last_action_date', { ascending: false })
+      .limit(50),
+    // Data room grants in period
+    supabase
+      .from('data_room_access')
+      .select('deal_id, remarketing_buyer_id, granted_at')
+      .gte('granted_at', startStr)
+      .lt('granted_at', endStr)
+      .limit(50),
+    // Call activities in period
+    (() => {
+      const q = supabase
+        .from('contact_activities')
+        .select('activity_type, call_outcome, talk_time_seconds, user_email')
+        .gte('created_at', startStr)
+        .lt('created_at', endStr)
+        .limit(200);
+      if (userId) {
+        // Can't easily filter by user_id in contact_activities — skip user filter
+      }
+      return q;
+    })(),
+  ];
+
+  const [
+    activitiesResult,
+    completedTasksResult,
+    openTasksResult,
+    outreachResult,
+    accessResult,
+    callsResult,
+  ] = (await Promise.all(queries)) as Array<{
+    data: unknown[] | null;
+    error: { message: string } | null;
+  }>;
+
+  const activities = activitiesResult.data || [];
+  const completedTasks = completedTasksResult.data || [];
+  const openTasks = openTasksResult.data || [];
+  const outreachUpdates = outreachResult.data || [];
+  const accessGrants = accessResult.data || [];
+  const calls = callsResult.data || [];
+
+  // Activity breakdown
+  const actByType: Record<string, number> = {};
+  for (const a of activities as Array<{ activity_type: string }>) {
+    actByType[a.activity_type] = (actByType[a.activity_type] || 0) + 1;
+  }
+
+  // Call summary
+  let totalCalls = 0;
+  let connectedCalls = 0;
+  let totalTalkTime = 0;
+  for (const c of calls as Array<{
+    activity_type: string;
+    call_outcome: string;
+    talk_time_seconds: number;
+  }>) {
+    if (c.activity_type === 'call_attempt' || c.activity_type === 'call_completed') totalCalls++;
+    if (c.talk_time_seconds > 0) {
+      connectedCalls++;
+      totalTalkTime += c.talk_time_seconds;
+    }
+  }
+
+  // Upcoming priorities (next 3 days)
+  const threeDaysOut = new Date(now);
+  threeDaysOut.setDate(threeDaysOut.getDate() + 3);
+  const upcomingPriorities = (
+    openTasks as Array<{ due_date: string | null; priority: string }>
+  ).filter((t) => t.due_date && new Date(t.due_date) <= threeDaysOut);
+
+  const overdueTasks = (openTasks as Array<{ due_date: string | null }>).filter(
+    (t) => t.due_date && new Date(t.due_date) < now,
+  );
+
+  return {
+    data: {
+      period: periodLabel,
+      period_start: startStr,
+      period_end: endStr,
+      activities: {
+        total: activities.length,
+        by_type: actByType,
+        recent: (
+          activities as Array<{
+            deal_id: string;
+            title: string;
+            activity_type: string;
+            created_at: string;
+          }>
+        )
+          .slice(0, 10)
+          .map((a) => ({
+            deal_id: a.deal_id,
+            title: a.title,
+            type: a.activity_type,
+            created_at: a.created_at,
+          })),
+      },
+      tasks: {
+        completed: completedTasks.length,
+        completed_list: (
+          completedTasks as Array<{ title: string; deal_id: string; priority: string }>
+        )
+          .slice(0, 10)
+          .map((t) => ({
+            title: t.title,
+            deal_id: t.deal_id,
+            priority: t.priority,
+          })),
+        still_open: openTasks.length,
+        overdue: overdueTasks.length,
+      },
+      outreach: {
+        updates: outreachUpdates.length,
+        by_stage: (() => {
+          const stages: Record<string, number> = {};
+          for (const o of outreachUpdates as Array<{ stage: string }>) {
+            stages[o.stage] = (stages[o.stage] || 0) + 1;
+          }
+          return stages;
+        })(),
+      },
+      calls: {
+        total: totalCalls,
+        connected: connectedCalls,
+        total_talk_time_seconds: totalTalkTime,
+      },
+      data_room_grants: accessGrants.length,
+      priorities: {
+        overdue_tasks: overdueTasks.length,
+        upcoming_3_days: upcomingPriorities.length,
+        upcoming_tasks: (
+          upcomingPriorities as Array<{
+            title: string;
+            deal_id: string;
+            due_date: string;
+            priority: string;
+          }>
+        )
+          .slice(0, 5)
+          .map((t) => ({
+            title: t.title,
+            deal_id: t.deal_id,
+            due_date: t.due_date,
+            priority: t.priority,
+          })),
+      },
     },
   };
 }

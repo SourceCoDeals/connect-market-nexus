@@ -28,6 +28,11 @@ import {
   executeCrossDealAnalyticsTool,
 } from './cross-deal-analytics-tools.ts';
 import { semanticSearchTools, executeSemanticSearchTool } from './semantic-search-tools.ts';
+import {
+  integrationActionTools,
+  executeIntegrationActionTool,
+} from './integration-action-tools.ts';
+import { proactiveTools, executeProactiveTool } from './proactive-tools.ts';
 
 // ---------- Tool Result Types ----------
 
@@ -59,6 +64,8 @@ const ALL_TOOLS: ClaudeTool[] = [
   ...scoringExplainTools,
   ...crossDealAnalyticsTools,
   ...semanticSearchTools,
+  ...integrationActionTools,
+  ...proactiveTools,
 ];
 
 const TOOL_CATEGORIES: Record<string, string[]> = {
@@ -84,11 +91,36 @@ const TOOL_CATEGORIES: Record<string, string[]> = {
     'get_current_user_context',
     'get_connection_requests',
     'get_follow_up_queue',
+    'get_call_history',
+    'get_stale_deals',
+    'get_deal_health',
   ],
 
   // Buyer intelligence
-  BUYER_SEARCH: ['search_buyers', 'search_lead_sources', 'search_valuation_leads', 'query_deals', 'search_inbound_leads', 'select_table_rows', 'apply_table_filter', 'sort_table_column'],
-  BUYER_ANALYSIS: ['search_buyers', 'query_deals', 'get_buyer_profile', 'get_score_breakdown', 'explain_buyer_score', 'get_top_buyers_for_deal', 'get_buyer_decisions', 'get_score_history', 'search_pe_contacts', 'search_contacts', 'get_buyer_learning_history', 'select_table_rows'],
+  BUYER_SEARCH: [
+    'search_buyers',
+    'search_lead_sources',
+    'search_valuation_leads',
+    'query_deals',
+    'search_inbound_leads',
+    'select_table_rows',
+    'apply_table_filter',
+    'sort_table_column',
+  ],
+  BUYER_ANALYSIS: [
+    'search_buyers',
+    'query_deals',
+    'get_buyer_profile',
+    'get_score_breakdown',
+    'explain_buyer_score',
+    'get_top_buyers_for_deal',
+    'get_buyer_decisions',
+    'get_score_history',
+    'search_pe_contacts',
+    'search_contacts',
+    'get_buyer_learning_history',
+    'select_table_rows',
+  ],
 
   // Universe & outreach
   BUYER_UNIVERSE: [
@@ -126,6 +158,9 @@ const TOOL_CATEGORIES: Record<string, string[]> = {
     'get_deal_tasks',
     'get_outreach_status',
     'get_connection_requests',
+    'get_call_history',
+    'get_stale_deals',
+    'get_deal_health',
   ],
 
   // General / context
@@ -137,6 +172,7 @@ const TOOL_CATEGORIES: Record<string, string[]> = {
     'get_pipeline_summary',
     'get_follow_up_queue',
     'get_connection_requests',
+    'google_search_companies',
   ],
 
   // Actions
@@ -147,6 +183,11 @@ const TOOL_CATEGORIES: Record<string, string[]> = {
     'log_deal_activity',
     'update_deal_stage',
     'grant_data_room_access',
+    'send_document',
+    'push_to_phoneburner',
+    'reassign_deal_task',
+    'convert_to_pipeline_deal',
+    'save_contacts_to_crm',
   ],
   UI_ACTION: ['select_table_rows', 'apply_table_filter', 'sort_table_column', 'navigate_to_page'],
 
@@ -171,6 +212,7 @@ const TOOL_CATEGORIES: Record<string, string[]> = {
     'semantic_transcript_search',
     'get_outreach_records',
     'get_connection_messages',
+    'generate_eod_recap',
   ],
   OUTREACH_DRAFT: [
     'get_deal_details',
@@ -180,7 +222,7 @@ const TOOL_CATEGORIES: Record<string, string[]> = {
     'search_contacts',
     'get_firm_agreements',
   ],
-  PIPELINE_REPORT: ['generate_pipeline_report'],
+  PIPELINE_REPORT: ['generate_pipeline_report', 'generate_eod_recap'],
 
   // Lead & referral
   LEAD_INTEL: [
@@ -198,13 +240,25 @@ const TOOL_CATEGORIES: Record<string, string[]> = {
     'get_buyer_decisions',
     'get_score_history',
     'get_buyer_learning_history',
+    'get_call_history',
+    'get_document_engagement',
   ],
 
   // Connection requests & conversations
   CONNECTION: ['get_connection_requests', 'get_connection_messages', 'get_deal_conversations'],
 
   // Contacts & agreements
-  CONTACTS: ['search_pe_contacts', 'search_contacts', 'search_buyers', 'get_buyer_profile', 'get_firm_agreements', 'get_nda_logs'],
+  CONTACTS: [
+    'search_pe_contacts',
+    'search_contacts',
+    'search_buyers',
+    'get_buyer_profile',
+    'get_firm_agreements',
+    'get_nda_logs',
+    'get_call_history',
+    'enrich_buyer_contacts',
+    'send_document',
+  ],
 
   // Industry trackers
   INDUSTRY: ['get_industry_trackers', 'search_buyer_universes'],
@@ -214,10 +268,74 @@ const TOOL_CATEGORIES: Record<string, string[]> = {
 
   // Semantic search
   SEMANTIC_SEARCH: ['semantic_transcript_search', 'search_buyer_transcripts', 'search_transcripts'],
+
+  // Contact enrichment (external API-based)
+  CONTACT_ENRICHMENT: [
+    'google_search_companies',
+    'enrich_buyer_contacts',
+    'save_contacts_to_crm',
+    'search_contacts',
+    'search_pe_contacts',
+    'search_buyers',
+    'get_buyer_profile',
+    'push_to_phoneburner',
+  ],
+
+  // Document actions
+  DOCUMENT_ACTION: [
+    'send_document',
+    'get_firm_agreements',
+    'get_nda_logs',
+    'get_document_engagement',
+    'search_contacts',
+    'search_buyers',
+  ],
+
+  // Proactive operations — data quality, health, conflicts, lead matching
+  PROACTIVE: [
+    'get_data_quality_report',
+    'detect_buyer_conflicts',
+    'get_deal_health',
+    'match_leads_to_deals',
+    'get_stale_deals',
+  ],
+
+  // EOD / recap
+  EOD_RECAP: [
+    'generate_eod_recap',
+    'get_follow_up_queue',
+    'get_deal_health',
+    'get_cross_deal_analytics',
+  ],
+
+  // Google search / company discovery
+  GOOGLE_SEARCH: [
+    'google_search_companies',
+    'enrich_buyer_contacts',
+    'search_buyers',
+    'search_lead_sources',
+  ],
+
+  // Pipeline conversion
+  DEAL_CONVERSION: [
+    'convert_to_pipeline_deal',
+    'get_deal_details',
+    'search_buyers',
+    'get_score_breakdown',
+    'get_firm_agreements',
+  ],
 };
 
 // Tools that require user confirmation before executing
-const CONFIRMATION_REQUIRED = new Set(['update_deal_stage', 'grant_data_room_access']);
+const CONFIRMATION_REQUIRED = new Set([
+  'update_deal_stage',
+  'grant_data_room_access',
+  'send_document',
+  'push_to_phoneburner',
+  'save_contacts_to_crm',
+  'reassign_deal_task',
+  'convert_to_pipeline_deal',
+]);
 
 // ---------- Public API ----------
 
@@ -323,6 +441,10 @@ async function _executeToolInternal(
     return executeCrossDealAnalyticsTool(supabase, toolName, resolvedArgs);
   if (semanticSearchTools.some((t) => t.name === toolName))
     return executeSemanticSearchTool(supabase, toolName, resolvedArgs);
+  if (integrationActionTools.some((t) => t.name === toolName))
+    return executeIntegrationActionTool(supabase, toolName, resolvedArgs, userId);
+  if (proactiveTools.some((t) => t.name === toolName))
+    return executeProactiveTool(supabase, toolName, resolvedArgs);
 
   return { error: `Unknown tool: ${toolName}` };
 }
