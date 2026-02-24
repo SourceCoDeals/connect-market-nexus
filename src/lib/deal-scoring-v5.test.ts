@@ -38,77 +38,88 @@ function makeDeal(overrides: Record<string, any> = {}) {
 // ============================================================================
 
 describe('Deal Scoring v5 — Spec Test Cases', () => {
-
   it('1. Big HVAC, full data → ~85, HIGH', () => {
-    const result = calculateDealScore(makeDeal({
-      revenue: 5,
-      linkedin_employee_count: 30,
-      number_of_locations: 4,
-      google_review_count: 120,
-      industry_tier: 1,
-      address_city: 'Houston',
-    }));
+    const result = calculateDealScore(
+      makeDeal({
+        revenue: 5,
+        linkedin_employee_count: 30,
+        number_of_locations: 4,
+        google_review_count: 120,
+        industry_tier: 1,
+        address_city: 'Houston',
+      }),
+    );
     expect(result.deal_total_score).toBeGreaterThanOrEqual(80);
     expect(result.deal_total_score).toBeLessThanOrEqual(95);
     expect(result.quality_calculation_version).toBe('v5');
   });
 
   it('2. Collision repair, multi-loc, no financials → ~60', () => {
-    const result = calculateDealScore(makeDeal({
-      linkedin_employee_count: 25,
-      number_of_locations: 8,
-      google_review_count: 50,
-      industry_tier: 1,
-      address_city: 'Charlotte',
-    }));
+    const result = calculateDealScore(
+      makeDeal({
+        linkedin_employee_count: 25,
+        number_of_locations: 8,
+        google_review_count: 50,
+        industry_tier: 1,
+        address_city: 'Charlotte',
+      }),
+    );
     expect(result.deal_total_score).toBeGreaterThanOrEqual(55);
     expect(result.deal_total_score).toBeLessThanOrEqual(70);
   });
 
   it('3. B2B IT firm, good LI, no financials → ~53', () => {
-    const result = calculateDealScore(makeDeal({
-      linkedin_employee_count: 50,
-      number_of_locations: 1,
-      google_review_count: 0,
-      industry_tier: 2,
-      address_city: 'Denver',
-    }));
+    const result = calculateDealScore(
+      makeDeal({
+        linkedin_employee_count: 50,
+        number_of_locations: 1,
+        google_review_count: 0,
+        industry_tier: 2,
+        address_city: 'Denver',
+      }),
+    );
     expect(result.deal_total_score).toBeGreaterThanOrEqual(48);
     expect(result.deal_total_score).toBeLessThanOrEqual(58);
   });
 
   it('4. Small plumber, few employees → ~29', () => {
-    const result = calculateDealScore(makeDeal({
-      linkedin_employee_count: 5,
-      number_of_locations: 1,
-      google_review_count: 80,
-      industry_tier: 1,
-      address_city: 'Nashville',
-    }));
+    const result = calculateDealScore(
+      makeDeal({
+        linkedin_employee_count: 5,
+        number_of_locations: 1,
+        google_review_count: 80,
+        industry_tier: 1,
+        address_city: 'Nashville',
+      }),
+    );
     expect(result.deal_total_score).toBeGreaterThanOrEqual(24);
     expect(result.deal_total_score).toBeLessThanOrEqual(34);
   });
 
   it('5. No LI, 6 locations, no financials → ~63', () => {
-    const result = calculateDealScore(makeDeal({
-      linkedin_employee_count: 0,
-      number_of_locations: 6,
-      google_review_count: 200,
-      industry_tier: 1,
-      address_city: 'Phoenix',
-    }));
+    const result = calculateDealScore(
+      makeDeal({
+        linkedin_employee_count: 0,
+        number_of_locations: 6,
+        google_review_count: 200,
+        industry_tier: 1,
+        address_city: 'Phoenix',
+      }),
+    );
     expect(result.deal_total_score).toBeGreaterThanOrEqual(58);
     expect(result.deal_total_score).toBeLessThanOrEqual(70);
   });
 
   it('6. No LI, no locs, 500 Google reviews → ~25', () => {
-    const result = calculateDealScore(makeDeal({
-      linkedin_employee_count: 0,
-      number_of_locations: 1,
-      google_review_count: 500,
-      industry_tier: 2,
-      address_city: 'Atlanta',
-    }));
+    const result = calculateDealScore(
+      makeDeal({
+        linkedin_employee_count: 0,
+        number_of_locations: 1,
+        google_review_count: 500,
+        industry_tier: 2,
+        address_city: 'Atlanta',
+      }),
+    );
     expect(result.deal_total_score).toBeGreaterThanOrEqual(20);
     expect(result.deal_total_score).toBeLessThanOrEqual(30);
   });
@@ -120,40 +131,46 @@ describe('Deal Scoring v5 — Spec Test Cases', () => {
   });
 
   it('8. $10M rev, boring industry → ~78', () => {
-    const result = calculateDealScore(makeDeal({
-      revenue: 10,
-      linkedin_employee_count: 80,
-      number_of_locations: 2,
-      google_review_count: 30,
-      industry_tier: 3,
-      address_city: 'Chicago',
-    }));
+    const result = calculateDealScore(
+      makeDeal({
+        revenue: 10,
+        linkedin_employee_count: 80,
+        number_of_locations: 2,
+        google_review_count: 30,
+        industry_tier: 3,
+        address_city: 'Chicago',
+      }),
+    );
     expect(result.deal_total_score).toBeGreaterThanOrEqual(73);
     expect(result.deal_total_score).toBeLessThanOrEqual(83);
   });
 
   it('9. $3M rev, hot industry → ~50', () => {
-    const result = calculateDealScore(makeDeal({
-      revenue: 3,
-      linkedin_employee_count: 15,
-      number_of_locations: 1,
-      google_review_count: 0,
-      industry_tier: 1,
-      address_city: 'Dallas',
-    }));
+    const result = calculateDealScore(
+      makeDeal({
+        revenue: 3,
+        linkedin_employee_count: 15,
+        number_of_locations: 1,
+        google_review_count: 0,
+        industry_tier: 1,
+        address_city: 'Dallas',
+      }),
+    );
     expect(result.deal_total_score).toBeGreaterThanOrEqual(43);
     expect(result.deal_total_score).toBeLessThanOrEqual(55);
   });
 
   it('10. Website says 45 emp (not LI), 3 locs → ~51', () => {
-    const result = calculateDealScore(makeDeal({
-      linkedin_employee_count: 0,
-      full_time_employees: 45,
-      number_of_locations: 3,
-      google_review_count: 10,
-      industry_tier: 1,
-      address_city: 'Raleigh',
-    }));
+    const result = calculateDealScore(
+      makeDeal({
+        linkedin_employee_count: 0,
+        full_time_employees: 45,
+        number_of_locations: 3,
+        google_review_count: 10,
+        industry_tier: 1,
+        address_city: 'Raleigh',
+      }),
+    );
     expect(result.deal_total_score).toBeGreaterThanOrEqual(46);
     expect(result.deal_total_score).toBeLessThanOrEqual(58);
   });
@@ -164,12 +181,16 @@ describe('Deal Scoring v5 — Spec Test Cases', () => {
 // ============================================================================
 
 describe('Deal Scoring v5 — Invariants', () => {
-
   it('score is always 0–100', () => {
     const extremes = [
       makeDeal({ revenue: 999, ebitda: 999, industry_tier: 1, address_city: 'New York' }),
       makeDeal({}),
-      makeDeal({ linkedin_employee_count: 10000, number_of_locations: 500, industry_tier: 1, address_city: 'Chicago' }),
+      makeDeal({
+        linkedin_employee_count: 10000,
+        number_of_locations: 500,
+        industry_tier: 1,
+        address_city: 'Chicago',
+      }),
     ];
     for (const deal of extremes) {
       const r = calculateDealScore(deal);
@@ -194,42 +215,49 @@ describe('Deal Scoring v5 — Invariants', () => {
 // ============================================================================
 
 describe('Deal Scoring v5 — Employee Waterfall', () => {
-
   it('uses LinkedIn count first', () => {
-    const r = calculateDealScore(makeDeal({
-      linkedin_employee_count: 50,
-      full_time_employees: 10,
-      team_page_employee_count: 5,
-    }));
+    const r = calculateDealScore(
+      makeDeal({
+        linkedin_employee_count: 50,
+        full_time_employees: 10,
+        team_page_employee_count: 5,
+      }),
+    );
     expect(r.linkedin_boost).toBe(48);
     expect(r.scoring_notes).toContain('LinkedIn');
   });
 
   it('falls back to LinkedIn range when count is 0', () => {
-    const r = calculateDealScore(makeDeal({
-      linkedin_employee_count: 0,
-      linkedin_employee_range: '11-50',
-    }));
+    const r = calculateDealScore(
+      makeDeal({
+        linkedin_employee_count: 0,
+        linkedin_employee_range: '11-50',
+      }),
+    );
     expect(r.linkedin_boost).toBeGreaterThanOrEqual(30);
     expect(r.scoring_notes).toContain('LinkedIn range');
   });
 
   it('falls back to website employees when LinkedIn is 0', () => {
-    const r = calculateDealScore(makeDeal({
-      linkedin_employee_count: 0,
-      full_time_employees: 20,
-      part_time_employees: 5,
-    }));
+    const r = calculateDealScore(
+      makeDeal({
+        linkedin_employee_count: 0,
+        full_time_employees: 20,
+        part_time_employees: 5,
+      }),
+    );
     expect(r.linkedin_boost).toBe(42);
     expect(r.scoring_notes).toContain('Website');
   });
 
   it('falls back to team page count as last resort', () => {
-    const r = calculateDealScore(makeDeal({
-      linkedin_employee_count: 0,
-      full_time_employees: 0,
-      team_page_employee_count: 8,
-    }));
+    const r = calculateDealScore(
+      makeDeal({
+        linkedin_employee_count: 0,
+        full_time_employees: 0,
+        team_page_employee_count: 8,
+      }),
+    );
     expect(r.linkedin_boost).toBe(21);
     expect(r.scoring_notes).toContain('Team page');
   });
@@ -240,42 +268,49 @@ describe('Deal Scoring v5 — Employee Waterfall', () => {
 // ============================================================================
 
 describe('Deal Scoring v5 — Google Review Fallback', () => {
-
   it('uses reviews when 0 employees AND <3 locations', () => {
-    const r = calculateDealScore(makeDeal({
-      linkedin_employee_count: 0,
-      number_of_locations: 1,
-      google_review_count: 200,
-    }));
+    const r = calculateDealScore(
+      makeDeal({
+        linkedin_employee_count: 0,
+        number_of_locations: 1,
+        google_review_count: 200,
+      }),
+    );
     expect(r.deal_size_score).toBe(15);
     expect(r.scoring_notes).toContain('Google');
   });
 
   it('ignores reviews when employees > 0', () => {
-    const r = calculateDealScore(makeDeal({
-      linkedin_employee_count: 5,
-      google_review_count: 500,
-    }));
+    const r = calculateDealScore(
+      makeDeal({
+        linkedin_employee_count: 5,
+        google_review_count: 500,
+      }),
+    );
     expect(r.deal_size_score).toBe(21);
     expect(r.scoring_notes).not.toContain('Google');
   });
 
   it('ignores reviews when locations >= 3 (even with 0 employees)', () => {
-    const r = calculateDealScore(makeDeal({
-      linkedin_employee_count: 0,
-      number_of_locations: 5,
-      google_review_count: 500,
-    }));
+    const r = calculateDealScore(
+      makeDeal({
+        linkedin_employee_count: 0,
+        number_of_locations: 5,
+        google_review_count: 500,
+      }),
+    );
     expect(r.deal_size_score).toBe(50);
     expect(r.scoring_notes).not.toContain('Google');
   });
 
   it('caps review score at 20', () => {
-    const r = calculateDealScore(makeDeal({
-      linkedin_employee_count: 0,
-      number_of_locations: 1,
-      google_review_count: 9999,
-    }));
+    const r = calculateDealScore(
+      makeDeal({
+        linkedin_employee_count: 0,
+        number_of_locations: 1,
+        google_review_count: 9999,
+      }),
+    );
     expect(r.deal_size_score).toBe(20);
   });
 });
@@ -285,7 +320,6 @@ describe('Deal Scoring v5 — Google Review Fallback', () => {
 // ============================================================================
 
 describe('Deal Scoring v5 — Location Floors', () => {
-
   it('3-4 locations → floor 40', () => {
     const r = calculateDealScore(makeDeal({ number_of_locations: 3 }));
     expect(r.deal_size_score).toBeGreaterThanOrEqual(40);
@@ -302,18 +336,22 @@ describe('Deal Scoring v5 — Location Floors', () => {
   });
 
   it('location floor does not lower employee score', () => {
-    const r = calculateDealScore(makeDeal({
-      linkedin_employee_count: 100,
-      number_of_locations: 3,
-    }));
+    const r = calculateDealScore(
+      makeDeal({
+        linkedin_employee_count: 100,
+        number_of_locations: 3,
+      }),
+    );
     expect(r.deal_size_score).toBe(54);
   });
 
   it('location floor raises low employee score', () => {
-    const r = calculateDealScore(makeDeal({
-      linkedin_employee_count: 5,
-      number_of_locations: 6,
-    }));
+    const r = calculateDealScore(
+      makeDeal({
+        linkedin_employee_count: 5,
+        number_of_locations: 6,
+      }),
+    );
     expect(r.deal_size_score).toBe(50);
   });
 });
@@ -323,7 +361,6 @@ describe('Deal Scoring v5 — Location Floors', () => {
 // ============================================================================
 
 describe('Deal Scoring v5 — Industry Multiplier', () => {
-
   it('Tier 1 applies 1.15x to size score', () => {
     const base = calculateDealScore(makeDeal({ linkedin_employee_count: 50, industry_tier: 2 }));
     const t1 = calculateDealScore(makeDeal({ linkedin_employee_count: 50, industry_tier: 1 }));
@@ -337,11 +374,13 @@ describe('Deal Scoring v5 — Industry Multiplier', () => {
   });
 
   it('multiplier does NOT apply to market score', () => {
-    const r = calculateDealScore(makeDeal({
-      linkedin_employee_count: 50,
-      industry_tier: 1,
-      address_city: 'Chicago',
-    }));
+    const r = calculateDealScore(
+      makeDeal({
+        linkedin_employee_count: 50,
+        industry_tier: 1,
+        address_city: 'Chicago',
+      }),
+    );
     expect(r.deal_total_score).toBe(60);
   });
 });
@@ -351,7 +390,6 @@ describe('Deal Scoring v5 — Industry Multiplier', () => {
 // ============================================================================
 
 describe('Deal Scoring v5 — Financial Size Floors', () => {
-
   it('$5M revenue gets floor 70', () => {
     const r = calculateDealScore(makeDeal({ revenue: 5 }));
     expect(r.deal_size_score).toBeGreaterThanOrEqual(70);
@@ -379,11 +417,67 @@ describe('Deal Scoring v5 — Financial Size Floors', () => {
 });
 
 // ============================================================================
+// Revenue quality cross-validation
+// ============================================================================
+
+describe('Deal Scoring v5 — Revenue Quality Detection', () => {
+  it('penalizes $100M revenue with only 5 employees', () => {
+    const noEmp = calculateDealScore(makeDeal({ revenue: 100 }));
+    const withEmp = calculateDealScore(makeDeal({ revenue: 100, linkedin_employee_count: 5 }));
+    // Score should be reduced when suspicious ratio detected
+    expect(withEmp.deal_total_score).toBeLessThan(noEmp.deal_total_score);
+    expect(withEmp.scoring_notes).toContain('rev/emp');
+  });
+
+  it('penalizes $50M revenue with 3 employees', () => {
+    const r = calculateDealScore(makeDeal({ revenue: 50, linkedin_employee_count: 3 }));
+    expect(r.scoring_notes).toContain('rev/emp suspicious');
+    // Should still be positive (minimum 10)
+    expect(r.deal_size_score).toBeGreaterThanOrEqual(10);
+  });
+
+  it('does NOT penalize $10M revenue with 50 employees (reasonable ratio)', () => {
+    const r = calculateDealScore(makeDeal({ revenue: 10, linkedin_employee_count: 50 }));
+    expect(r.scoring_notes).not.toContain('rev/emp');
+    expect(r.deal_size_score).toBeGreaterThanOrEqual(80);
+  });
+
+  it('does NOT penalize $50M revenue with 100 employees', () => {
+    const r = calculateDealScore(makeDeal({ revenue: 50, linkedin_employee_count: 100 }));
+    expect(r.scoring_notes).not.toContain('rev/emp');
+    expect(r.deal_size_score).toBe(90);
+  });
+
+  it('does NOT penalize when no employee data (Path A without employees)', () => {
+    const r = calculateDealScore(makeDeal({ revenue: 100 }));
+    expect(r.scoring_notes).not.toContain('rev/emp');
+    // $100M+ floor 90 still applies
+    expect(r.deal_size_score).toBe(90);
+  });
+
+  it('flags high EBITDA margin (>80%)', () => {
+    // revenue: 5 → $5M, ebitda: 4.5 → $4.5M → 90% margin
+    const r = calculateDealScore(makeDeal({ revenue: 5_000_000, ebitda: 4_500_000 }));
+    expect(r.scoring_notes).toContain('high EBITDA margin');
+  });
+
+  it('does NOT flag normal EBITDA margin (30%)', () => {
+    const r = calculateDealScore(makeDeal({ revenue: 10_000_000, ebitda: 3_000_000 }));
+    expect(r.scoring_notes).not.toContain('high EBITDA margin');
+  });
+
+  it('$50M rev / 3 employees penalized more than $50M rev / 100 employees', () => {
+    const suspicious = calculateDealScore(makeDeal({ revenue: 50, linkedin_employee_count: 3 }));
+    const normal = calculateDealScore(makeDeal({ revenue: 50, linkedin_employee_count: 100 }));
+    expect(suspicious.deal_total_score).toBeLessThan(normal.deal_total_score);
+  });
+});
+
+// ============================================================================
 // estimateEmployeesFromRange
 // ============================================================================
 
 describe('estimateEmployeesFromRange', () => {
-
   it('parses "11-50" → 30', () => {
     expect(estimateEmployeesFromRange('11-50')).toBe(31);
   });
