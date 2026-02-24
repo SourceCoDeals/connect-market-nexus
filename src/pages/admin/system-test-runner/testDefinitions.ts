@@ -847,5 +847,139 @@ export function buildTests(): TestDef[] {
     // Success: all passed (warnings are acceptable if passes also exist)
   });
 
+  // ═══════════════════════════════════════════════════
+  // 15. External API & Edge Function Health Checks
+  // ═══════════════════════════════════════════════════
+  const C15 = '15. External API Health';
+
+  // --- Apify (LinkedIn scraping, Google reviews, company discovery) ---
+  add(C15, 'apify-linkedin-scrape edge function reachable', async () => {
+    await invokeEdgeFunction('apify-linkedin-scrape', {
+      listingId: '00000000-0000-0000-0000-000000000000',
+    });
+  });
+
+  add(C15, 'apify-google-reviews edge function reachable', async () => {
+    await invokeEdgeFunction('apify-google-reviews', {
+      listingId: '00000000-0000-0000-0000-000000000000',
+    });
+  });
+
+  add(C15, 'discover-companies edge function reachable', async () => {
+    await invokeEdgeFunction('discover-companies', {
+      query: 'test',
+    });
+  });
+
+  // --- Prospeo (email/phone enrichment) ---
+  add(C15, 'find-contacts edge function reachable (Prospeo)', async () => {
+    await invokeEdgeFunction('find-contacts', {
+      buyerId: '00000000-0000-0000-0000-000000000000',
+    });
+  });
+
+  // --- Firecrawl (web scraping) ---
+  add(C15, 'firecrawl-scrape edge function reachable', async () => {
+    await invokeEdgeFunction('firecrawl-scrape', {
+      url: 'https://example.com',
+      listingId: '00000000-0000-0000-0000-000000000000',
+    });
+  });
+
+  // --- Brevo (email sending) ---
+  add(C15, 'send-memo-email edge function reachable (Brevo)', async () => {
+    await invokeEdgeFunction('send-memo-email', {
+      memo_id: '00000000-0000-0000-0000-000000000000',
+      buyer_id: '00000000-0000-0000-0000-000000000000',
+      email_address: 'qa-no-send@test.local',
+      email_subject: 'QA Test',
+      email_body: 'QA Test — do not send',
+    });
+  });
+
+  // --- PhoneBurner (webhook + push + OAuth) ---
+  add(C15, 'phoneburner-webhook edge function reachable', async () => {
+    await invokeEdgeFunction('phoneburner-webhook', {});
+  });
+
+  add(C15, 'phoneburner-push-contacts edge function reachable', async () => {
+    await invokeEdgeFunction('phoneburner-push-contacts', {
+      entity_type: 'buyers',
+      entity_ids: [],
+    });
+  });
+
+  add(C15, 'phoneburner-oauth-callback edge function reachable', async () => {
+    await invokeEdgeFunction('phoneburner-oauth-callback', {});
+  });
+
+  add(C15, 'contact_activities table accessible', async () => {
+    await tableReadable('contact_activities');
+  });
+
+  add(C15, 'phoneburner_oauth_tokens table accessible', async () => {
+    await tableReadable('phoneburner_oauth_tokens');
+  });
+
+  add(C15, 'phoneburner_webhooks_log table accessible', async () => {
+    await tableReadable('phoneburner_webhooks_log');
+  });
+
+  add(C15, 'phoneburner_sessions table accessible', async () => {
+    await tableReadable('phoneburner_sessions');
+  });
+
+  add(C15, 'disposition_mappings table accessible', async () => {
+    await tableReadable('disposition_mappings');
+  });
+
+  // --- Chat AI functions ---
+  add(C15, 'chat-remarketing edge function reachable', async () => {
+    await invokeEdgeFunction('chat-remarketing', {
+      message: 'ping',
+      context_type: 'deals',
+    });
+  });
+
+  add(C15, 'query-buyer-universe edge function reachable', async () => {
+    await invokeEdgeFunction('query-buyer-universe', {
+      query: 'test',
+      universe_id: '00000000-0000-0000-0000-000000000000',
+    });
+  });
+
+  add(C15, 'query-tracker-universe edge function reachable', async () => {
+    await invokeEdgeFunction('query-tracker-universe', {
+      query: 'test',
+      tracker_id: '00000000-0000-0000-0000-000000000000',
+    });
+  });
+
+  // --- AI providers (Gemini, Claude) ---
+  add(C15, 'enrichment_rate_limits table accessible (rate limiter)', async () => {
+    await tableReadable('enrichment_rate_limits');
+  });
+
+  add(C15, 'enrich-external-only edge function reachable (Gemini orchestrator)', async () => {
+    await invokeEdgeFunction('enrich-external-only', {
+      listing_id: '00000000-0000-0000-0000-000000000000',
+    });
+  });
+
+  // --- Enrichment pipeline functions ---
+  add(C15, 'process-scoring-queue edge function reachable', async () => {
+    await invokeEdgeFunction('process-scoring-queue', {});
+  });
+
+  add(C15, 'process-buyer-enrichment-queue edge function reachable', async () => {
+    await invokeEdgeFunction('process-buyer-enrichment-queue', {});
+  });
+
+  add(C15, 'extract-buyer-criteria edge function reachable', async () => {
+    await invokeEdgeFunction('extract-buyer-criteria', {
+      buyer_id: '00000000-0000-0000-0000-000000000000',
+    });
+  });
+
   return tests;
 }

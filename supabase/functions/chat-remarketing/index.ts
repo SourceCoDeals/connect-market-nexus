@@ -14,6 +14,13 @@ serve(async (req) => {
     return corsPreflightResponse(req);
   }
 
+  // Health check — lightweight probe for deployment verification
+  if (req.method === 'GET') {
+    return new Response(JSON.stringify({ status: 'ok', function: 'chat-remarketing' }), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+  }
+
   // Require a valid caller token — this function exposes all buyer PII
   const authHeader = req.headers.get('Authorization') || '';
   const callerToken = authHeader.replace('Bearer ', '').trim();
