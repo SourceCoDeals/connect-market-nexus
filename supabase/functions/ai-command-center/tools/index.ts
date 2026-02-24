@@ -101,7 +101,7 @@ const TOOL_CATEGORIES: Record<string, string[]> = {
   CONNECTION: ['get_connection_requests', 'get_connection_messages', 'get_deal_conversations'],
 
   // Contacts & agreements
-  CONTACTS: ['search_pe_contacts', 'get_firm_agreements', 'get_nda_logs'],
+  CONTACTS: ['search_pe_contacts', 'get_buyer_profile', 'get_firm_agreements', 'get_nda_logs'],
 
   // Industry trackers
   INDUSTRY: ['get_industry_trackers', 'search_buyer_universes'],
