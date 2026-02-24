@@ -118,13 +118,13 @@ const BYPASS_RULES: Array<{
       confidence: 0.85,
     },
   },
-  // Score questions
+  // Score questions and "best buyer for X" — includes search_buyers for hypothetical deals without a deal_id
   {
     test: (q) => /\b(score|scoring|rank|top buyer|best buyer|fit)\b/i.test(q),
     result: {
       category: 'BUYER_ANALYSIS',
       tier: 'STANDARD',
-      tools: ['get_top_buyers_for_deal', 'explain_buyer_score'],
+      tools: ['search_buyers', 'get_top_buyers_for_deal', 'explain_buyer_score', 'query_deals'],
       confidence: 0.85,
     },
   },

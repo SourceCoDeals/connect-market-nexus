@@ -237,16 +237,20 @@ Use get_follow_up_queue FIRST to get a unified view, then drill into specifics i
 Prioritize by urgency: overdue > due today > stale outreach > unread messages > upcoming.
 Suggest next actions if appropriate.`,
 
-  BUYER_SEARCH: `Return buyer matches as a compact bullet list with: name, type, HQ, revenue range, key services, alignment score.
-For geographic searches, check both hq_state and geographic_footprint.
+  BUYER_SEARCH: `Return buyer matches as a structured list with: name, type, HQ, revenue range, key services, alignment score.
+For geographic searches, use search_buyers with state filter — it checks both hq_state and geographic_footprint.
+For industry-specific buyer searches (e.g. "collision buyers", "HVAC buyers"), use search_buyers with the industry parameter — it searches target_industries, target_services, company_name, and business_summary.
 For lead source questions (e.g. "captarget leads that are HVAC"), use search_lead_sources with industry filter.
 For valuation calculator lead questions (e.g. "how many HVAC calculator leads"), use search_valuation_leads with calculator_type.
 For buyer universe + geography questions (e.g. "how many buyers in the Threffold Collision universe are in Oklahoma"), use query_deals to find the deal, then get_top_buyers_for_deal with state filter.
+For "best buyer for X" questions where X describes a hypothetical deal (not in the system), use search_buyers with industry, state, and services filters to find matching buyers.
 If the user wants to select/filter the results in the table, also call the appropriate UI action tool.`,
 
   BUYER_ANALYSIS: `Present scores with context: composite, geography, service, size, owner goals.
 Explain what drives the score and any flags (disqualified, needs review, pass reason).
-Compare multiple buyers when asked.`,
+Compare multiple buyers when asked.
+For "best buyer for X" questions about hypothetical deals (not in the system), use search_buyers with industry/state/services filters to find matching buyers and explain why they fit.
+Always pair search_buyers with get_buyer_profile when doing a deep-dive on specific buyers.`,
 
   MEETING_INTEL: `Extract the most relevant quotes and insights from transcripts.
 Note if CEO/owner was present. Highlight action items and commitments.
@@ -256,11 +260,12 @@ Cross-reference with deal tasks if mentioned.`,
 Use comparisons when useful: "12 active deals (up from 8 last month)".
 
 TOOL USAGE FOR PIPELINE QUESTIONS:
-- For industry-specific counts ("how many HVAC deals"): Use get_pipeline_summary with group_by='industry' to get counts by industry, OR use query_deals with industry='hvac' to get the actual matching deals.
+- For industry-specific counts ("how many HVAC deals"): Use get_pipeline_summary with group_by='industry' to get counts by industry (this checks both industry and category fields), OR use query_deals with industry='hvac' to get the actual matching deals.
 - For state-specific counts ("deals in Texas"): Use get_pipeline_summary with group_by='address_state'.
 - For source-specific counts: Use get_pipeline_summary with group_by='deal_source'.
 - For general pipeline overview: Use get_pipeline_summary with group_by='status' (default).
 - When the user asks about a specific industry, ALWAYS use the group_by or industry filter — don't just return the default status breakdown.
+- The industry filter checks multiple fields: industry, category, categories, services, and title. So "HVAC" will match deals tagged as industry="HVAC", category="HVAC Services", or services containing "HVAC".
 - If a follow-up question asks to "look at" or "show" the actual deals, use query_deals with the appropriate filter.`,
 
   DAILY_BRIEFING: `Structure the briefing as:
@@ -314,6 +319,11 @@ For score trends, use get_score_history to show composite score changes over tim
 Present engagement data as a timeline or summary:
 - "Buyer X has 4 signals in the last 30 days: 2 site visits, 1 financial request, 1 NDA signed."
 - "7 buyers passed; top reasons: size_mismatch (3), geographic_mismatch (2), other (2)."`,
+
+  CONTACTS: `For contact searches by firm/company name (e.g. "find VPs at Trivest"), use search_pe_contacts with the firm_name parameter. This will look up the firm in both firm_agreements and remarketing_buyers tables, then find matching contacts.
+For role-specific searches (e.g. "find associates at Audax"), use search_pe_contacts with both firm_name and role_category parameters.
+If no contacts are found, clearly state that the firm's contacts have not been imported into SourceCo yet and suggest enrichment.
+You CANNOT browse Google, LinkedIn, or external websites. Only contacts already in the SourceCo database can be searched.`,
 
   GENERAL: `Answer the question using available tools. If unsure about intent, ask a brief clarifying question.
 Default to being helpful and concise.`,

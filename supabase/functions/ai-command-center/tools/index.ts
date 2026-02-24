@@ -87,28 +87,8 @@ const TOOL_CATEGORIES: Record<string, string[]> = {
   ],
 
   // Buyer intelligence
-  BUYER_SEARCH: [
-    'search_buyers',
-    'search_lead_sources',
-    'search_valuation_leads',
-    'query_deals',
-    'search_inbound_leads',
-    'select_table_rows',
-    'apply_table_filter',
-    'sort_table_column',
-  ],
-  BUYER_ANALYSIS: [
-    'get_buyer_profile',
-    'get_score_breakdown',
-    'explain_buyer_score',
-    'get_top_buyers_for_deal',
-    'get_buyer_decisions',
-    'get_score_history',
-    'search_pe_contacts',
-    'search_contacts',
-    'get_buyer_learning_history',
-    'select_table_rows',
-  ],
+  BUYER_SEARCH: ['search_buyers', 'search_lead_sources', 'search_valuation_leads', 'query_deals', 'search_inbound_leads', 'select_table_rows', 'apply_table_filter', 'sort_table_column'],
+  BUYER_ANALYSIS: ['search_buyers', 'query_deals', 'get_buyer_profile', 'get_score_breakdown', 'explain_buyer_score', 'get_top_buyers_for_deal', 'get_buyer_decisions', 'get_score_history', 'search_pe_contacts', 'search_contacts', 'get_buyer_learning_history', 'select_table_rows'],
 
   // Universe & outreach
   BUYER_UNIVERSE: [
@@ -224,13 +204,7 @@ const TOOL_CATEGORIES: Record<string, string[]> = {
   CONNECTION: ['get_connection_requests', 'get_connection_messages', 'get_deal_conversations'],
 
   // Contacts & agreements
-  CONTACTS: [
-    'search_pe_contacts',
-    'search_contacts',
-    'get_buyer_profile',
-    'get_firm_agreements',
-    'get_nda_logs',
-  ],
+  CONTACTS: ['search_pe_contacts', 'search_contacts', 'search_buyers', 'get_buyer_profile', 'get_firm_agreements', 'get_nda_logs'],
 
   // Industry trackers
   INDUSTRY: ['get_industry_trackers', 'search_buyer_universes'],
