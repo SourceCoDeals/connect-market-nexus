@@ -28,7 +28,9 @@ function timingSafeEqual(a: string, b: string): boolean {
 // in DocuSeal's dashboard. Default header name: "onboarding-secret".
 // Override via DOCUSEAL_WEBHOOK_SECRET_HEADER env var if needed.
 function verifyDocuSealWebhook(req: Request, secret: string): boolean {
-  const headerName = (Deno.env.get("DOCUSEAL_WEBHOOK_SECRET_HEADER") || "onboarding-secret").toLowerCase();
+  const headerName = (
+    Deno.env.get('DOCUSEAL_WEBHOOK_SECRET_HEADER') || 'onboarding-secret'
+  ).toLowerCase();
   const headerValue = req.headers.get(headerName);
   if (!headerValue) return false;
   return timingSafeEqual(headerValue, secret);
@@ -71,16 +73,16 @@ serve(async (req: Request) => {
   try {
     const rawBody = await req.text();
 
-    const webhookSecret = Deno.env.get("DOCUSEAL_WEBHOOK_SECRET");
-    
+    const webhookSecret = Deno.env.get('DOCUSEAL_WEBHOOK_SECRET');
+
     // If secret is configured, verify the webhook and reject unauthorized requests
     if (webhookSecret) {
       const valid = verifyDocuSealWebhook(req, webhookSecret);
       if (!valid) {
-        console.warn("⚠️ Webhook secret verification failed — rejecting request");
-        return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401 });
+        console.warn('⚠️ Webhook secret verification failed — rejecting request');
+        return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 });
       }
-      console.log("✅ Webhook secret verified");
+      console.log('✅ Webhook secret verified');
     }
 
     // Parse and validate payload structure
@@ -194,10 +196,20 @@ serve(async (req: Request) => {
       }
     }
 
-    // Lifecycle events (submission.created, submission.archived) are logged but should
-    // NOT update firm signing status — they'd overwrite meaningful statuses like "viewed"
-    // or "completed" due to race conditions with DocuSeal's real-time webhooks.
-    const lifecycleEvents = new Set(['submission.created', 'submission.archived']);
+    // Lifecycle events are logged but should NOT update firm signing status —
+    // they'd overwrite meaningful statuses like "viewed" or "completed" due to
+    // race conditions with DocuSeal's real-time webhooks.
+    //
+    // DocuSeal sends two naming conventions for the same event:
+    //   dot-separated:        submission.created, submission.archived
+    //   underscore-separated: submission_created, submission_archived
+    // Both variants must be treated as lifecycle-only to prevent junk status writes.
+    const lifecycleEvents = new Set([
+      'submission.created',
+      'submission_created',
+      'submission.archived',
+      'submission_archived',
+    ]);
     if (lifecycleEvents.has(eventType)) {
       console.log(
         `ℹ️ Lifecycle event ${eventType} logged for submission ${submissionId} — skipping status update`,
@@ -271,17 +283,23 @@ async function processEvent(
   console.log(`📝 Processing ${eventType} for ${documentType} on firm ${firmId}`);
 
   // Prevent backward state transitions (e.g., "viewed" overwriting "completed")
-  const TERMINAL_STATUSES = new Set(["completed", "declined", "expired"]);
-  const statusCol = isNda ? "nda_docuseal_status" : "fee_docuseal_status";
+  const TERMINAL_STATUSES = new Set(['completed', 'declined', 'expired']);
+  const statusCol = isNda ? 'nda_docuseal_status' : 'fee_docuseal_status';
   const { data: currentFirm } = await supabase
-    .from("firm_agreements")
+    .from('firm_agreements')
     .select(statusCol)
-    .eq("id", firmId)
+    .eq('id', firmId)
     .single();
 
   const currentStatus = currentFirm?.[statusCol];
-  if (currentStatus && TERMINAL_STATUSES.has(currentStatus) && !TERMINAL_STATUSES.has(docusealStatus)) {
-    console.log(`⏩ Skipping non-terminal update: current=${currentStatus}, incoming=${docusealStatus}`);
+  if (
+    currentStatus &&
+    TERMINAL_STATUSES.has(currentStatus) &&
+    !TERMINAL_STATUSES.has(docusealStatus)
+  ) {
+    console.log(
+      `⏩ Skipping non-terminal update: current=${currentStatus}, incoming=${docusealStatus}`,
+    );
     return;
   }
 
