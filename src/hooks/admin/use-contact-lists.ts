@@ -105,9 +105,7 @@ export function useCreateContactList() {
       if (!user) throw new Error('Authentication required');
 
       // Create the list
-      const { data: list, error: listError } = await supabase
-        .from('contact_lists')
-        .insert({
+      const insertData: Record<string, unknown> = {
           name: input.name,
           description: input.description || null,
           list_type: input.list_type,
@@ -115,7 +113,10 @@ export function useCreateContactList() {
           filter_snapshot: input.filter_snapshot || null,
           created_by: user.id,
           contact_count: input.members.length,
-        })
+        };
+      const { data: list, error: listError } = await supabase
+        .from('contact_lists')
+        .insert(insertData as any)
         .select()
         .single();
 
