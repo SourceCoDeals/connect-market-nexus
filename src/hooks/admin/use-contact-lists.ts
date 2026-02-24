@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import type { ContactList, CreateContactListInput, ContactListMember } from '@/types/contact-list';
+import type { ContactList, CreateContactListInput, ContactListMember, CreateContactListMemberInput } from '@/types/contact-list';
 import { useToast } from '@/hooks/use-toast';
 
 const QUERY_KEY = ['admin', 'contact-lists'];

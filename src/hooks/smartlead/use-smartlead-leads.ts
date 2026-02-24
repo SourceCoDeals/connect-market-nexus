@@ -20,7 +20,7 @@ export function usePushToSmartlead() {
 
   return useMutation({
     mutationFn: (request: PushLeadsRequest) =>
-      invokeSmartleadLeads<PushLeadsResponse>('push', request),
+      invokeSmartleadLeads<PushLeadsResponse>('push', request as unknown as Record<string, unknown>),
     onSuccess: (data, variables) => {
       queryClient.invalidateQueries({
         queryKey: [...LEADS_KEY, variables.campaign_id],

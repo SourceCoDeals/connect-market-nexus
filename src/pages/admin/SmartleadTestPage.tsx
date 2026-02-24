@@ -124,7 +124,7 @@ function CampaignListTest() {
         Run Test
       </Button>
       <LogConsole logs={logs} />
-      {result && <JsonBlock data={result} />}
+      {result != null && <JsonBlock data={result} />}
     </SectionCard>
   );
 }
@@ -191,7 +191,7 @@ function WebhookEventsTest() {
         Run Test
       </Button>
       <LogConsole logs={logs} />
-      {result && <JsonBlock data={result} />}
+      {result != null && <JsonBlock data={result} />}
     </SectionCard>
   );
 }
@@ -276,7 +276,7 @@ function EmailHistoryTest() {
         </Button>
       </div>
       <LogConsole logs={logs} />
-      {result && <JsonBlock data={result} />}
+      {result != null && <JsonBlock data={result} />}
     </SectionCard>
   );
 }
@@ -296,8 +296,9 @@ function PushToSmartleadTest() {
     [],
   );
 
-  const activeCampaigns = (campaigns || []).filter(
-    (c) => c.status === 'ACTIVE' || c.status === 'DRAFTED',
+  const campaignsList = (campaigns as any)?.campaigns || campaigns || [];
+  const activeCampaigns = campaignsList.filter(
+    (c: any) => c.status === 'ACTIVE' || c.status === 'DRAFTED',
   );
 
   const runTest = async () => {
@@ -392,7 +393,7 @@ function PushToSmartleadTest() {
               <SelectValue placeholder="Select campaign..." />
             </SelectTrigger>
             <SelectContent>
-              {activeCampaigns.map((c) => (
+              {activeCampaigns.map((c: any) => (
                 <SelectItem key={c.id} value={c.id}>
                   {c.name} ({c.status})
                 </SelectItem>
@@ -426,7 +427,7 @@ function PushToSmartleadTest() {
         </Button>
       </div>
       <LogConsole logs={logs} />
-      {result && <JsonBlock data={result} />}
+      {result != null && <JsonBlock data={result} />}
     </SectionCard>
   );
 }
@@ -500,7 +501,7 @@ function CampaignLeadsTest() {
               <SelectValue placeholder="Select campaign..." />
             </SelectTrigger>
             <SelectContent>
-              {(campaigns || []).map((c) => (
+              {((campaigns as any)?.campaigns || campaigns || []).map((c: any) => (
                 <SelectItem key={c.id} value={c.id}>
                   {c.name} ({c.lead_count || 0} leads)
                 </SelectItem>
@@ -514,7 +515,7 @@ function CampaignLeadsTest() {
         </Button>
       </div>
       <LogConsole logs={logs} />
-      {result && <JsonBlock data={result} />}
+      {result != null && <JsonBlock data={result} />}
     </SectionCard>
   );
 }

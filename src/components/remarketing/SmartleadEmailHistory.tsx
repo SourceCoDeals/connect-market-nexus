@@ -101,14 +101,14 @@ function CampaignCard({ campaign }: { campaign: SmartleadContactActivity }) {
         </div>
       </div>
       <div className="flex items-center gap-2">
-        <Badge variant={statusBadgeVariant(campaign.lead_status)}>{campaign.lead_status}</Badge>
+        <Badge variant={statusBadgeVariant(campaign.lead_status || 'unknown')}>{campaign.lead_status || 'unknown'}</Badge>
         {campaign.lead_category && (
           <Badge variant="outline" className="text-xs">
             {campaign.lead_category}
           </Badge>
         )}
         <span className="text-xs text-muted-foreground">
-          {new Date(campaign.created_at).toLocaleDateString()}
+          {campaign.created_at ? new Date(campaign.created_at).toLocaleDateString() : '—'}
         </span>
       </div>
     </div>
@@ -136,11 +136,11 @@ function EventRow({ event }: { event: SmartleadContactEvent }) {
         {event.lead_email && <p className="text-xs text-muted-foreground">{event.lead_email}</p>}
       </div>
       <span className="text-xs text-muted-foreground whitespace-nowrap">
-        {new Date(event.created_at).toLocaleDateString()}{' '}
-        {new Date(event.created_at).toLocaleTimeString([], {
+        {event.created_at ? new Date(event.created_at).toLocaleDateString() : '—'}{' '}
+        {event.created_at ? new Date(event.created_at).toLocaleTimeString([], {
           hour: '2-digit',
           minute: '2-digit',
-        })}
+        }) : ''}
       </span>
     </div>
   );

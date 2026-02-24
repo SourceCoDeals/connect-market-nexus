@@ -7,10 +7,10 @@ export interface SmartleadContactActivity {
   campaign_name: string | null;
   smartlead_lead_id: number | null;
   email: string;
-  lead_status: string;
+  lead_status: string | null;
   lead_category: string | null;
   last_activity_at: string | null;
-  created_at: string;
+  created_at: string | null;
 }
 
 export interface SmartleadContactEvent {
@@ -19,8 +19,8 @@ export interface SmartleadContactEvent {
   lead_email: string | null;
   smartlead_campaign_id: number | null;
   campaign_name: string | null;
-  payload: Record<string, unknown>;
-  created_at: string;
+  payload: unknown;
+  created_at: string | null;
 }
 
 export interface ContactSmartleadHistory {
