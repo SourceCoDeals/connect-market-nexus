@@ -189,7 +189,7 @@ const BuyerContactsPage = () => {
         </div>
 
         {/* Bulk Actions */}
-        <BulkContactActions selectedUsers={selectedUsers} onClearSelection={clearSelection} />
+        <BulkContactActions selectedUsers={selectedUsers} onClearSelection={clearSelection} filters={filters} />
 
         {/* Table */}
         <div className="bg-card rounded-lg border overflow-hidden">

@@ -129,6 +129,11 @@ export function UnifiedAdminSidebar({ collapsed, onCollapsedChange }: AdminSideb
             href: "/admin/buyers/contacts",
             icon: <Contact className="h-4 w-4" />,
           },
+          {
+            label: "Contact Lists",
+            href: "/admin/lists",
+            icon: <ListChecks className="h-4 w-4" />,
+          },
         ],
       },
       {

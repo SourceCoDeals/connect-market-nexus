@@ -1,20 +1,24 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Phone, Download, X } from "lucide-react";
-import type { NonMarketplaceUser } from "@/types/non-marketplace-user";
+import { Phone, Download, X, ListChecks } from "lucide-react";
+import type { NonMarketplaceUser, NonMarketplaceUserFilters } from "@/types/non-marketplace-user";
 import { PushToDialerModal } from "@/components/remarketing/PushToDialerModal";
+import { SaveAsListModal } from "./SaveAsListModal";
 
 interface BulkContactActionsProps {
   selectedUsers: NonMarketplaceUser[];
   onClearSelection: () => void;
+  filters?: NonMarketplaceUserFilters;
 }
 
 export const BulkContactActions = ({
   selectedUsers,
   onClearSelection,
+  filters,
 }: BulkContactActionsProps) => {
   const [isDialerOpen, setIsDialerOpen] = useState(false);
+  const [isSaveListOpen, setIsSaveListOpen] = useState(false);
 
   if (selectedUsers.length === 0) return null;
 
@@ -82,9 +86,19 @@ export const BulkContactActions = ({
             </Badge>
 
             <div className="flex items-center gap-2">
+              <Button
+                size="sm"
+                onClick={() => setIsSaveListOpen(true)}
+                className="flex items-center gap-1.5"
+              >
+                <ListChecks className="h-3.5 w-3.5" />
+                Save as List
+              </Button>
+
               {withPhone > 0 && (
                 <Button
                   size="sm"
+                  variant="outline"
                   onClick={() => setIsDialerOpen(true)}
                   className="flex items-center gap-1.5"
                 >
@@ -117,6 +131,13 @@ export const BulkContactActions = ({
           <span>{withPhone} with phone</span>
         </div>
       </div>
+
+      <SaveAsListModal
+        open={isSaveListOpen}
+        onOpenChange={setIsSaveListOpen}
+        selectedUsers={selectedUsers}
+        filters={filters}
+      />
 
       <PushToDialerModal
         open={isDialerOpen}

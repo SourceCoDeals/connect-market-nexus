@@ -62,6 +62,11 @@ export const ROUTES = {
       contacts: '/admin/buyers/contacts',
     },
 
+    lists: {
+      root: '/admin/lists',
+      detail: '/admin/lists/:id',
+    },
+
     marketplace: {
       requests: '/admin/marketplace/requests',
       messages: '/admin/marketplace/messages',
@@ -152,4 +157,5 @@ export const routeBuilders = {
   referralPartnerDetail: (partnerId: string) => buildRoute(ROUTES.admin.remarketing.referralDetail, { partnerId }),
   dealMatching: (listingId: string) => buildRoute(ROUTES.admin.remarketing.matching, { listingId }),
   dealIntroductions: (listingId: string) => buildRoute(ROUTES.admin.remarketing.introductions, { listingId }),
+  contactListDetail: (id: string) => buildRoute(ROUTES.admin.lists.detail, { id }),
 } as const;
