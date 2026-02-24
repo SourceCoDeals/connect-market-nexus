@@ -492,15 +492,56 @@ export function ReMarketingChat({
     startNewConversation();
   };
 
-  // Floating chat bubble (closed state)
+  // Floating chat bubble (closed state) — draggable so users can move it away from content
+  const fabDragRef = useRef<{ startX: number; startY: number; origX: number; origY: number } | null>(null);
+  const [fabPosition, setFabPosition] = useState<{ x: number; y: number } | null>(null);
+  const fabRef = useRef<HTMLDivElement>(null);
+  const fabDragged = useRef(false);
+
+  const onFabDragStart = useCallback((e: React.PointerEvent) => {
+    e.preventDefault();
+    const el = fabRef.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    fabDragRef.current = { startX: e.clientX, startY: e.clientY, origX: rect.left, origY: rect.top };
+    fabDragged.current = false;
+    const onMove = (ev: PointerEvent) => {
+      if (!fabDragRef.current) return;
+      const dx = ev.clientX - fabDragRef.current.startX;
+      const dy = ev.clientY - fabDragRef.current.startY;
+      if (Math.abs(dx) > 3 || Math.abs(dy) > 3) fabDragged.current = true;
+      setFabPosition({ x: fabDragRef.current.origX + dx, y: fabDragRef.current.origY + dy });
+    };
+    const onUp = () => {
+      fabDragRef.current = null;
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+    };
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+  }, []);
+
   if (!isOpen) {
+    const fabStyle: React.CSSProperties = fabPosition
+      ? { position: 'fixed', left: fabPosition.x, top: fabPosition.y, bottom: 'auto', right: 'auto', zIndex: 50 }
+      : {};
+
     return (
-      <div className={cn("fixed bottom-6 right-6 z-50 flex flex-col items-end gap-2", className)}>
-        <div className="bg-foreground text-background rounded-xl px-4 py-2 text-sm font-medium shadow-lg animate-fade-in max-w-[200px] text-center">
+      <div
+        ref={fabRef}
+        className={cn(
+          fabPosition ? "flex flex-col items-end gap-2" : "fixed bottom-6 right-6 z-50 flex flex-col items-end gap-2",
+          "touch-none select-none cursor-grab active:cursor-grabbing",
+          className
+        )}
+        style={fabStyle}
+        onPointerDown={onFabDragStart}
+      >
+        <div className="bg-foreground text-background rounded-xl px-4 py-2 text-sm font-medium shadow-lg animate-fade-in max-w-[200px] text-center pointer-events-none">
           Ask me anything
         </div>
         <Button
-          onClick={() => setIsOpen(true)}
+          onClick={() => { if (!fabDragged.current) setIsOpen(true); }}
           size="lg"
           className="rounded-full h-14 w-14 shadow-2xl hover:scale-110 transition-transform bg-primary hover:bg-primary/90"
         >
