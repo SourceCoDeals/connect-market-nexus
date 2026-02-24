@@ -2,14 +2,14 @@
  * ChatbotTestRunner: Comprehensive in-app test runner for AI Chatbot QA.
  * Two sections:
  *  1. Infrastructure Tests — automated pass/fail checks for chat tables, persistence, analytics, edge functions
- *  2. QA Scenarios — interactive test scenarios for manual verification with pass/fail/skip tracking
+ *  2. QA Scenarios — automated + manual test scenarios with inline AI response display
  */
 
-import { useState, useCallback, useRef } from "react";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Textarea } from "@/components/ui/textarea";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useState, useCallback, useRef } from 'react';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Textarea } from '@/components/ui/textarea';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   CheckCircle2,
   XCircle,
@@ -24,22 +24,24 @@ import {
   ClipboardList,
   SkipForward,
   RotateCw,
-} from "lucide-react";
-import { cn } from "@/lib/utils";
+  Square,
+} from 'lucide-react';
+import { cn } from '@/lib/utils';
 import {
   type ChatbotTestStatus,
   type ChatbotTestResult,
   type ChatbotTestContext,
   CHATBOT_INFRA_STORAGE_KEY,
   buildChatbotTests,
-} from "./chatbot-test-runner/chatbotInfraTests";
+  sendAIQuery,
+} from './chatbot-test-runner/chatbotInfraTests';
 import {
-  type TestScenario,
   type ScenarioResult,
   type ScenarioStatus,
   SCENARIO_STORAGE_KEY,
   getChatbotTestScenarios,
-} from "./chatbot-test-runner/chatbotTestScenarios";
+  runAutoChecks,
+} from './chatbot-test-runner/chatbotTestScenarios';
 
 // ═══════════════════════════════════════════
 // Helpers
@@ -64,23 +66,23 @@ function saveToStorage(key: string, value: unknown) {
 }
 
 const severityColor: Record<string, string> = {
-  critical: "bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300",
-  high: "bg-orange-100 text-orange-800 dark:bg-orange-950 dark:text-orange-300",
-  medium: "bg-yellow-100 text-yellow-800 dark:bg-yellow-950 dark:text-yellow-300",
-  low: "bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300",
+  critical: 'bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300',
+  high: 'bg-orange-100 text-orange-800 dark:bg-orange-950 dark:text-orange-300',
+  medium: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-950 dark:text-yellow-300',
+  low: 'bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300',
 };
 
 const statusIcon = (status: ChatbotTestStatus | ScenarioStatus) => {
   switch (status) {
-    case "pass":
+    case 'pass':
       return <CheckCircle2 className="h-4 w-4 text-green-500" />;
-    case "fail":
+    case 'fail':
       return <XCircle className="h-4 w-4 text-destructive" />;
-    case "warn":
+    case 'warn':
       return <AlertTriangle className="h-4 w-4 text-yellow-500" />;
-    case "running":
+    case 'running':
       return <Loader2 className="h-4 w-4 animate-spin text-primary" />;
-    case "skip":
+    case 'skip':
       return <SkipForward className="h-4 w-4 text-muted-foreground" />;
     default:
       return <div className="h-4 w-4 rounded-full border border-muted-foreground/30" />;
@@ -98,7 +100,7 @@ function InfraTestsTab() {
   const [isRunning, setIsRunning] = useState(false);
   const [collapsedCategories, setCollapsedCategories] = useState<Set<string>>(new Set());
   const [lastRunAt, setLastRunAt] = useState<string | null>(() =>
-    loadStoredResults(CHATBOT_INFRA_STORAGE_KEY + "-ts", null),
+    loadStoredResults(CHATBOT_INFRA_STORAGE_KEY + '-ts', null),
   );
   const abortRef = useRef(false);
 
@@ -109,7 +111,7 @@ function InfraTestsTab() {
 
       const allTests = buildChatbotTests();
       const testsToRun = onlyFailed
-        ? allTests.filter((t) => results.find((r) => r.id === t.id && r.status === "fail"))
+        ? allTests.filter((t) => results.find((r) => r.id === t.id && r.status === 'fail'))
         : allTests;
 
       const initialResults: ChatbotTestResult[] = allTests.map((t) => {
@@ -119,7 +121,7 @@ function InfraTestsTab() {
           id: t.id,
           name: t.name,
           category: t.category,
-          status: shouldRun ? "pending" : existing?.status || "pending",
+          status: shouldRun ? 'pending' : existing?.status || 'pending',
           error: shouldRun ? undefined : existing?.error,
           durationMs: shouldRun ? undefined : existing?.durationMs,
         };
@@ -137,7 +139,7 @@ function InfraTestsTab() {
       for (const test of testsToRun) {
         if (abortRef.current) break;
         const idx = updated.findIndex((r) => r.id === test.id);
-        updated[idx] = { ...updated[idx], status: "running" };
+        updated[idx] = { ...updated[idx], status: 'running' };
         setResults([...updated]);
 
         const start = performance.now();
@@ -145,19 +147,19 @@ function InfraTestsTab() {
           await test.fn(ctx);
           updated[idx] = {
             ...updated[idx],
-            status: "pass",
+            status: 'pass',
             durationMs: Math.round(performance.now() - start),
             error: undefined,
           };
         } catch (err: unknown) {
           const msg = err instanceof Error ? err.message : String(err);
           const isWarning =
-            (msg.includes("does not exist") && !msg.includes("table")) ||
-            msg.includes("empty") ||
-            msg.includes("Expected multiple");
+            (msg.includes('does not exist') && !msg.includes('table')) ||
+            msg.includes('empty') ||
+            msg.includes('Expected multiple');
           updated[idx] = {
             ...updated[idx],
-            status: isWarning ? "warn" : "fail",
+            status: isWarning ? 'warn' : 'fail',
             error: msg,
             durationMs: Math.round(performance.now() - start),
           };
@@ -168,7 +170,7 @@ function InfraTestsTab() {
       const ts = new Date().toISOString();
       setLastRunAt(ts);
       saveToStorage(CHATBOT_INFRA_STORAGE_KEY, updated);
-      saveToStorage(CHATBOT_INFRA_STORAGE_KEY + "-ts", ts);
+      saveToStorage(CHATBOT_INFRA_STORAGE_KEY + '-ts', ts);
       setIsRunning(false);
     },
     [results],
@@ -184,17 +186,15 @@ function InfraTestsTab() {
   };
 
   const copyFailed = () => {
-    const failed = results.filter((r) => r.status === "fail");
-    const text = failed
-      .map((r) => `[${r.category}] ${r.name}\n   ${r.error}`)
-      .join("\n\n");
-    navigator.clipboard.writeText(text || "No failures!");
+    const failed = results.filter((r) => r.status === 'fail');
+    const text = failed.map((r) => `[${r.category}] ${r.name}\n   ${r.error}`).join('\n\n');
+    navigator.clipboard.writeText(text || 'No failures!');
   };
 
   const categories = Array.from(new Set(results.map((r) => r.category)));
-  const passCount = results.filter((r) => r.status === "pass").length;
-  const failCount = results.filter((r) => r.status === "fail").length;
-  const warnCount = results.filter((r) => r.status === "warn").length;
+  const passCount = results.filter((r) => r.status === 'pass').length;
+  const failCount = results.filter((r) => r.status === 'fail').length;
+  const warnCount = results.filter((r) => r.status === 'warn').length;
   const totalCount = results.length;
 
   return (
@@ -249,8 +249,8 @@ function InfraTestsTab() {
       <div className="space-y-2">
         {categories.map((cat) => {
           const catResults = results.filter((r) => r.category === cat);
-          const catPassed = catResults.filter((r) => r.status === "pass").length;
-          const catFailed = catResults.filter((r) => r.status === "fail").length;
+          const catPassed = catResults.filter((r) => r.status === 'pass').length;
+          const catFailed = catResults.filter((r) => r.status === 'fail').length;
           const isCollapsed = collapsedCategories.has(cat);
 
           return (
@@ -280,8 +280,8 @@ function InfraTestsTab() {
                     <div
                       key={r.id}
                       className={cn(
-                        "flex items-start gap-3 px-4 py-2 text-sm",
-                        r.status === "fail" && "bg-destructive/5",
+                        'flex items-start gap-3 px-4 py-2 text-sm',
+                        r.status === 'fail' && 'bg-destructive/5',
                       )}
                     >
                       <div className="mt-0.5">{statusIcon(r.status)}</div>
@@ -321,31 +321,134 @@ function ScenariosTab() {
   );
   const [expandedScenarios, setExpandedScenarios] = useState<Set<string>>(new Set());
   const [collapsedCategories, setCollapsedCategories] = useState<Set<string>>(new Set());
+  const [isRunning, setIsRunning] = useState(false);
+  const abortRef = useRef(false);
 
-  const updateResult = useCallback(
-    (id: string, status: ScenarioStatus, notes?: string) => {
-      setScenarioResults((prev) => {
-        const updated = {
-          ...prev,
-          [id]: {
-            id,
-            status,
-            notes: notes ?? prev[id]?.notes ?? "",
-            testedAt: status !== "pending" ? new Date().toISOString() : null,
-          },
-        };
-        saveToStorage(SCENARIO_STORAGE_KEY, updated);
-        return updated;
-      });
+  const updateResult = useCallback((id: string, status: ScenarioStatus, notes?: string) => {
+    setScenarioResults((prev) => {
+      const updated = {
+        ...prev,
+        [id]: {
+          ...prev[id],
+          id,
+          status,
+          notes: notes ?? prev[id]?.notes ?? '',
+          testedAt: status !== 'pending' ? new Date().toISOString() : null,
+        },
+      };
+      saveToStorage(SCENARIO_STORAGE_KEY, updated);
+      return updated;
+    });
+  }, []);
+
+  // ── Auto-run scenarios ──
+  const runScenarios = useCallback(
+    async (onlyFailed = false) => {
+      setIsRunning(true);
+      abortRef.current = false;
+
+      const runnable = scenarios.filter((s) => !s.skipAutoRun);
+      const toRun = onlyFailed
+        ? runnable.filter((s) => scenarioResults[s.id]?.status === 'fail')
+        : runnable;
+
+      for (const scenario of toRun) {
+        if (abortRef.current) break;
+
+        // Mark running
+        setScenarioResults((prev) => {
+          const updated = {
+            ...prev,
+            [scenario.id]: {
+              ...prev[scenario.id],
+              id: scenario.id,
+              status: 'running' as ScenarioStatus,
+              notes: prev[scenario.id]?.notes ?? '',
+              testedAt: prev[scenario.id]?.testedAt ?? null,
+            },
+          };
+          saveToStorage(SCENARIO_STORAGE_KEY, updated);
+          return updated;
+        });
+
+        const start = performance.now();
+        try {
+          const response = await sendAIQuery(scenario.userMessage, 45000);
+          const durationMs = Math.round(performance.now() - start);
+          const autoChecks = runAutoChecks(scenario, response);
+          const allPassed = autoChecks.length > 0 && autoChecks.every((c) => c.passed);
+          const anyFailed = autoChecks.some((c) => !c.passed);
+
+          const status: ScenarioStatus = response.error
+            ? 'fail'
+            : allPassed
+              ? 'pass'
+              : anyFailed
+                ? 'fail'
+                : 'pending';
+
+          setScenarioResults((prev) => {
+            const updated = {
+              ...prev,
+              [scenario.id]: {
+                id: scenario.id,
+                status,
+                notes: prev[scenario.id]?.notes ?? '',
+                testedAt: new Date().toISOString(),
+                aiResponse: response.text,
+                toolsCalled: response.toolCalls.map((t) => t.name),
+                routeCategory: response.routeInfo?.category ?? undefined,
+                durationMs,
+                autoChecks,
+                error: response.error ?? undefined,
+              },
+            };
+            saveToStorage(SCENARIO_STORAGE_KEY, updated);
+            return updated;
+          });
+        } catch (err) {
+          const durationMs = Math.round(performance.now() - start);
+          const errorMsg = err instanceof Error ? err.message : String(err);
+
+          setScenarioResults((prev) => {
+            const updated = {
+              ...prev,
+              [scenario.id]: {
+                id: scenario.id,
+                status: 'fail' as ScenarioStatus,
+                notes: prev[scenario.id]?.notes ?? '',
+                testedAt: new Date().toISOString(),
+                error: errorMsg,
+                durationMs,
+                autoChecks: [],
+              },
+            };
+            saveToStorage(SCENARIO_STORAGE_KEY, updated);
+            return updated;
+          });
+        }
+      }
+
+      setIsRunning(false);
     },
-    [],
+    [scenarios, scenarioResults],
   );
+
+  const stopRun = useCallback(() => {
+    abortRef.current = true;
+  }, []);
 
   const updateNotes = useCallback((id: string, notes: string) => {
     setScenarioResults((prev) => {
       const updated = {
         ...prev,
-        [id]: { ...prev[id], id, notes, status: prev[id]?.status ?? "pending", testedAt: prev[id]?.testedAt ?? null },
+        [id]: {
+          ...prev[id],
+          id,
+          notes,
+          status: prev[id]?.status ?? 'pending',
+          testedAt: prev[id]?.testedAt ?? null,
+        },
       };
       saveToStorage(SCENARIO_STORAGE_KEY, updated);
       return updated;
@@ -378,19 +481,19 @@ function ScenariosTab() {
   const exportResults = () => {
     const lines = scenarios.map((s) => {
       const r = scenarioResults[s.id];
-      const status = r?.status ?? "pending";
-      const notes = r?.notes ? ` | Notes: ${r.notes}` : "";
-      const tested = r?.testedAt ? ` | Tested: ${new Date(r.testedAt).toLocaleString()}` : "";
+      const status = r?.status ?? 'pending';
+      const notes = r?.notes ? ` | Notes: ${r.notes}` : '';
+      const tested = r?.testedAt ? ` | Tested: ${new Date(r.testedAt).toLocaleString()}` : '';
       return `[${status.toUpperCase()}] [${s.severity}] ${s.category} > ${s.name}${notes}${tested}`;
     });
-    navigator.clipboard.writeText(lines.join("\n"));
+    navigator.clipboard.writeText(lines.join('\n'));
   };
 
   // Stats
   const total = scenarios.length;
-  const passCount = scenarios.filter((s) => scenarioResults[s.id]?.status === "pass").length;
-  const failCount = scenarios.filter((s) => scenarioResults[s.id]?.status === "fail").length;
-  const skipCount = scenarios.filter((s) => scenarioResults[s.id]?.status === "skip").length;
+  const passCount = scenarios.filter((s) => scenarioResults[s.id]?.status === 'pass').length;
+  const failCount = scenarios.filter((s) => scenarioResults[s.id]?.status === 'fail').length;
+  const skipCount = scenarios.filter((s) => scenarioResults[s.id]?.status === 'skip').length;
   const pendingCount = total - passCount - failCount - skipCount;
 
   // Group by category
@@ -401,13 +504,34 @@ function ScenariosTab() {
       <div className="flex items-center justify-between">
         <p className="text-sm text-muted-foreground">
           {total} QA scenarios · {passCount + failCount + skipCount} tested
+          {` · ${scenarios.filter((s) => s.skipAutoRun).length} manual-only`}
         </p>
         <div className="flex gap-2">
+          <Button onClick={() => runScenarios(false)} disabled={isRunning} size="sm">
+            {isRunning ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <Play className="mr-2 h-4 w-4" />
+            )}
+            Run All
+          </Button>
+          {isRunning && (
+            <Button variant="destructive" onClick={stopRun} size="sm">
+              <Square className="mr-2 h-4 w-4" />
+              Stop
+            </Button>
+          )}
+          {failCount > 0 && !isRunning && (
+            <Button variant="outline" onClick={() => runScenarios(true)} size="sm">
+              <RotateCcw className="mr-2 h-4 w-4" />
+              Re-run Failed
+            </Button>
+          )}
           <Button variant="outline" size="sm" onClick={exportResults}>
             <Copy className="mr-2 h-4 w-4" />
-            Export Results
+            Export
           </Button>
-          <Button variant="outline" size="sm" onClick={resetAll}>
+          <Button variant="outline" size="sm" onClick={resetAll} disabled={isRunning}>
             <RotateCw className="mr-2 h-4 w-4" />
             Reset All
           </Button>
@@ -434,7 +558,9 @@ function ScenariosTab() {
           <div className="w-full h-2 rounded-full bg-muted overflow-hidden">
             <div
               className="h-full bg-green-500 transition-all"
-              style={{ width: `${total > 0 ? ((passCount + failCount + skipCount) / total) * 100 : 0}%` }}
+              style={{
+                width: `${total > 0 ? ((passCount + failCount + skipCount) / total) * 100 : 0}%`,
+              }}
             />
           </div>
         </div>
@@ -444,8 +570,12 @@ function ScenariosTab() {
       <div className="space-y-2">
         {categories.map((cat) => {
           const catScenarios = scenarios.filter((s) => s.category === cat);
-          const catPassed = catScenarios.filter((s) => scenarioResults[s.id]?.status === "pass").length;
-          const catFailed = catScenarios.filter((s) => scenarioResults[s.id]?.status === "fail").length;
+          const catPassed = catScenarios.filter(
+            (s) => scenarioResults[s.id]?.status === 'pass',
+          ).length;
+          const catFailed = catScenarios.filter(
+            (s) => scenarioResults[s.id]?.status === 'fail',
+          ).length;
           const isCollapsed = collapsedCategories.has(cat);
 
           return (
@@ -473,7 +603,7 @@ function ScenariosTab() {
                 <div className="divide-y divide-border/50">
                   {catScenarios.map((scenario) => {
                     const result = scenarioResults[scenario.id];
-                    const currentStatus = result?.status ?? "pending";
+                    const currentStatus = result?.status ?? 'pending';
                     const isExpanded = expandedScenarios.has(scenario.id);
 
                     return (
@@ -481,15 +611,20 @@ function ScenariosTab() {
                         <button
                           onClick={() => toggleScenario(scenario.id)}
                           className={cn(
-                            "w-full flex items-center gap-3 px-4 py-2.5 text-sm text-left hover:bg-accent/50 transition-colors",
-                            currentStatus === "fail" && "bg-destructive/5",
+                            'w-full flex items-center gap-3 px-4 py-2.5 text-sm text-left hover:bg-accent/50 transition-colors',
+                            currentStatus === 'fail' && 'bg-destructive/5',
                           )}
                         >
                           <div className="mt-0.5">{statusIcon(currentStatus)}</div>
                           <div className="flex-1 min-w-0">
                             <span className="font-medium">{scenario.name}</span>
                           </div>
-                          <Badge className={cn("text-[10px]", severityColor[scenario.severity])}>
+                          {scenario.skipAutoRun && (
+                            <Badge variant="outline" className="text-[10px]">
+                              Manual
+                            </Badge>
+                          )}
+                          <Badge className={cn('text-[10px]', severityColor[scenario.severity])}>
                             {scenario.severity}
                           </Badge>
                           {isExpanded ? (
@@ -541,6 +676,60 @@ function ScenariosTab() {
                               </div>
                             )}
 
+                            {/* AI Response (auto-run result) */}
+                            {result?.aiResponse && (
+                              <div>
+                                <p className="text-xs font-semibold text-muted-foreground mb-1">
+                                  AI Response:
+                                </p>
+                                <div className="rounded-md bg-muted/50 border p-3 max-h-48 overflow-y-auto">
+                                  <p className="text-sm whitespace-pre-wrap">{result.aiResponse}</p>
+                                </div>
+                                <p className="text-xs text-muted-foreground mt-1">
+                                  {result.durationMs && `${(result.durationMs / 1000).toFixed(1)}s`}
+                                  {result.routeCategory && ` · Route: ${result.routeCategory}`}
+                                  {result.toolsCalled &&
+                                    result.toolsCalled.length > 0 &&
+                                    ` · Tools: ${result.toolsCalled.join(', ')}`}
+                                </p>
+                              </div>
+                            )}
+
+                            {/* Error */}
+                            {result?.error && (
+                              <div className="rounded-md bg-destructive/10 border border-destructive/20 p-3">
+                                <p className="text-sm text-destructive font-mono">{result.error}</p>
+                              </div>
+                            )}
+
+                            {/* Auto-Check Results */}
+                            {result?.autoChecks && result.autoChecks.length > 0 && (
+                              <div>
+                                <p className="text-xs font-semibold text-muted-foreground mb-1">
+                                  Auto-Checks:
+                                </p>
+                                <div className="space-y-1">
+                                  {result.autoChecks.map((check, i) => (
+                                    <div key={i} className="flex items-start gap-2 text-sm">
+                                      {check.passed ? (
+                                        <CheckCircle2 className="h-3.5 w-3.5 text-green-500 flex-shrink-0 mt-0.5" />
+                                      ) : (
+                                        <XCircle className="h-3.5 w-3.5 text-destructive flex-shrink-0 mt-0.5" />
+                                      )}
+                                      <span className={check.passed ? '' : 'text-destructive'}>
+                                        {check.name}
+                                      </span>
+                                      {check.detail && (
+                                        <span className="text-xs text-muted-foreground truncate">
+                                          — {check.detail}
+                                        </span>
+                                      )}
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+
                             {/* Notes */}
                             <div>
                               <p className="text-xs font-semibold text-muted-foreground mb-1">
@@ -548,7 +737,7 @@ function ScenariosTab() {
                               </p>
                               <Textarea
                                 placeholder="Add testing notes, observed behavior, or bug details..."
-                                value={result?.notes ?? ""}
+                                value={result?.notes ?? ''}
                                 onChange={(e) => updateNotes(scenario.id, e.target.value)}
                                 className="text-sm h-20 resize-none"
                               />
@@ -558,17 +747,19 @@ function ScenariosTab() {
                             <div className="flex gap-2 pt-1">
                               <Button
                                 size="sm"
-                                variant={currentStatus === "pass" ? "default" : "outline"}
-                                className={currentStatus === "pass" ? "bg-green-600 hover:bg-green-700" : ""}
-                                onClick={() => updateResult(scenario.id, "pass")}
+                                variant={currentStatus === 'pass' ? 'default' : 'outline'}
+                                className={
+                                  currentStatus === 'pass' ? 'bg-green-600 hover:bg-green-700' : ''
+                                }
+                                onClick={() => updateResult(scenario.id, 'pass')}
                               >
                                 <CheckCircle2 className="mr-1.5 h-3.5 w-3.5" />
                                 Pass
                               </Button>
                               <Button
                                 size="sm"
-                                variant={currentStatus === "fail" ? "destructive" : "outline"}
-                                onClick={() => updateResult(scenario.id, "fail")}
+                                variant={currentStatus === 'fail' ? 'destructive' : 'outline'}
+                                onClick={() => updateResult(scenario.id, 'fail')}
                               >
                                 <XCircle className="mr-1.5 h-3.5 w-3.5" />
                                 Fail
@@ -576,17 +767,17 @@ function ScenariosTab() {
                               <Button
                                 size="sm"
                                 variant="outline"
-                                className={currentStatus === "skip" ? "bg-muted" : ""}
-                                onClick={() => updateResult(scenario.id, "skip")}
+                                className={currentStatus === 'skip' ? 'bg-muted' : ''}
+                                onClick={() => updateResult(scenario.id, 'skip')}
                               >
                                 <SkipForward className="mr-1.5 h-3.5 w-3.5" />
                                 Skip
                               </Button>
-                              {currentStatus !== "pending" && (
+                              {currentStatus !== 'pending' && (
                                 <Button
                                   size="sm"
                                   variant="ghost"
-                                  onClick={() => updateResult(scenario.id, "pending")}
+                                  onClick={() => updateResult(scenario.id, 'pending')}
                                 >
                                   Reset
                                 </Button>
@@ -617,7 +808,7 @@ function ScenariosTab() {
 // ═══════════════════════════════════════════
 
 export default function ChatbotTestRunner() {
-  const [tab, setTab] = useState("infra");
+  const [tab, setTab] = useState('infra');
 
   return (
     <div className="p-6 max-w-4xl mx-auto space-y-6">

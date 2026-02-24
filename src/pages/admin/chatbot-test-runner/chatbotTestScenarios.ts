@@ -1,11 +1,28 @@
 /**
  * Interactive QA test scenarios for the AI Chatbot.
- * Organized by the categories from the AI Chatbot Testing Guide.
- * Testers work through these manually, marking pass/fail/skip.
+ *
+ * Scenarios support two modes:
+ *  1. Automated — sendAIQuery + auto-validation checks (default)
+ *  2. Manual — for multi-turn, UI-only, or edge-case scenarios (skipAutoRun: true)
  */
 
 export type ScenarioSeverity = 'critical' | 'high' | 'medium' | 'low';
-export type ScenarioStatus = 'pending' | 'pass' | 'fail' | 'skip';
+export type ScenarioStatus = 'pending' | 'running' | 'pass' | 'fail' | 'skip';
+
+export interface AutoValidation {
+  expectedRouteCategories?: string[];
+  expectedTools?: string[];
+  mustContainAny?: string[];
+  mustNotContain?: string[];
+  minResponseLength?: number;
+  requiresToolCalls?: boolean;
+}
+
+export interface AutoCheckResult {
+  name: string;
+  passed: boolean;
+  detail?: string;
+}
 
 export interface TestScenario {
   id: string;
@@ -16,6 +33,8 @@ export interface TestScenario {
   expectedBehavior: string[];
   edgeCases?: string[];
   severity: ScenarioSeverity;
+  skipAutoRun?: boolean;
+  autoValidation?: AutoValidation;
 }
 
 export interface ScenarioResult {
@@ -23,15 +42,113 @@ export interface ScenarioResult {
   status: ScenarioStatus;
   notes: string;
   testedAt: string | null;
+  aiResponse?: string;
+  toolsCalled?: string[];
+  routeCategory?: string;
+  durationMs?: number;
+  autoChecks?: AutoCheckResult[];
+  error?: string;
 }
 
 export const SCENARIO_STORAGE_KEY = 'sourceco-chatbot-scenario-results';
 
+// ═══════════════════════════════════════════
+// Auto-validation engine
+// ═══════════════════════════════════════════
+
+export function runAutoChecks(
+  scenario: TestScenario,
+  response: {
+    text: string;
+    toolCalls: Array<{ name: string; id: string; success: boolean }>;
+    routeInfo: { category: string; tier: string; tools: string[] } | null;
+    error: string | null;
+  },
+): AutoCheckResult[] {
+  const checks: AutoCheckResult[] = [];
+  const v = scenario.autoValidation;
+
+  checks.push({
+    name: 'Response received',
+    passed: !!response.text && response.text.length > 0,
+    detail: response.text ? `${response.text.length} chars` : 'Empty response',
+  });
+
+  if (response.error) {
+    checks.push({ name: 'No errors', passed: false, detail: response.error });
+  }
+
+  if (!v) return checks;
+
+  if (v.minResponseLength) {
+    checks.push({
+      name: `Response >= ${v.minResponseLength} chars`,
+      passed: response.text.length >= v.minResponseLength,
+      detail: `${response.text.length} chars`,
+    });
+  }
+
+  if (v.expectedRouteCategories && v.expectedRouteCategories.length > 0) {
+    const actual = response.routeInfo?.category || 'none';
+    checks.push({
+      name: 'Route category',
+      passed: v.expectedRouteCategories.includes(actual),
+      detail: `Expected: ${v.expectedRouteCategories.join(' / ')}, Got: ${actual}`,
+    });
+  }
+
+  if (v.expectedTools && v.expectedTools.length > 0) {
+    const called = response.toolCalls.map((t) => t.name);
+    const found = v.expectedTools.some((t) => called.includes(t));
+    checks.push({
+      name: 'Expected tools used',
+      passed: found,
+      detail: `Expected any of: ${v.expectedTools.join(', ')}. Called: ${called.join(', ') || 'none'}`,
+    });
+  }
+
+  if (v.requiresToolCalls) {
+    checks.push({
+      name: 'Used tools',
+      passed: response.toolCalls.length > 0,
+      detail:
+        response.toolCalls.length > 0
+          ? `${response.toolCalls.length} tool(s) called`
+          : 'No tools called',
+    });
+  }
+
+  if (v.mustContainAny && v.mustContainAny.length > 0) {
+    const lower = response.text.toLowerCase();
+    const found = v.mustContainAny.filter((k) => lower.includes(k.toLowerCase()));
+    checks.push({
+      name: 'Contains expected keywords',
+      passed: found.length > 0,
+      detail:
+        found.length > 0 ? `Found: ${found.join(', ')}` : `None of: ${v.mustContainAny.join(', ')}`,
+    });
+  }
+
+  if (v.mustNotContain && v.mustNotContain.length > 0) {
+    const lower = response.text.toLowerCase();
+    const found = v.mustNotContain.filter((k) => lower.includes(k.toLowerCase()));
+    checks.push({
+      name: 'No hallucinated content',
+      passed: found.length === 0,
+      detail: found.length > 0 ? `Found forbidden: ${found.join(', ')}` : 'Clean',
+    });
+  }
+
+  return checks;
+}
+
+// ═══════════════════════════════════════════
+// Scenario definitions
+// ═══════════════════════════════════════════
+
 export function getChatbotTestScenarios(): TestScenario[] {
   return [
-    // ═══════════════════════════════════════════
-    // HELP MODE — Basic Q&A
-    // ═══════════════════════════════════════════
+    // ── HELP MODE — Basic Q&A ──
     {
       id: 'help-howto-basic',
       category: 'Help Mode — Basic Q&A',
@@ -45,6 +162,10 @@ export function getChatbotTestScenarios(): TestScenario[] {
         'Tone is clear and professional',
       ],
       severity: 'critical',
+      autoValidation: {
+        minResponseLength: 100,
+        mustContainAny: ['deal', 'create', 'step', 'click', 'navigate'],
+      },
     },
     {
       id: 'help-howto-no-article',
@@ -54,11 +175,15 @@ export function getChatbotTestScenarios(): TestScenario[] {
       userMessage: 'How do I export deals as a CSV?',
       expectedBehavior: [
         'Does NOT hallucinate instructions for a non-existent feature',
-        'Acknowledges it doesn\'t have specific instructions',
+        "Acknowledges it doesn't have specific instructions",
         'May suggest related features or a support contact',
       ],
       edgeCases: ['Try: "How do I integrate with Hubspot?" (non-existent feature)'],
       severity: 'critical',
+      autoValidation: {
+        minResponseLength: 50,
+        mustNotContain: ['click export csv', 'go to file > export', 'download csv button'],
+      },
     },
     {
       id: 'help-howto-vague',
@@ -72,12 +197,13 @@ export function getChatbotTestScenarios(): TestScenario[] {
         'Suggests specific topics the user might be interested in',
       ],
       severity: 'high',
+      autoValidation: { minResponseLength: 50 },
     },
     {
       id: 'help-howto-nonexistent',
       category: 'Help Mode — Basic Q&A',
       name: 'Non-existent feature (hallucination check)',
-      description: 'Verify the bot does NOT invent instructions for features that don\'t exist.',
+      description: "Verify the bot does NOT invent instructions for features that don't exist.",
       userMessage: 'How do I set up the Salesforce integration?',
       expectedBehavior: [
         'Does NOT provide step-by-step instructions for a Salesforce integration',
@@ -85,6 +211,14 @@ export function getChatbotTestScenarios(): TestScenario[] {
         'May suggest existing integrations or support channels',
       ],
       severity: 'critical',
+      autoValidation: {
+        minResponseLength: 50,
+        mustNotContain: [
+          'go to settings > integrations > salesforce',
+          'enter your salesforce api key',
+          'click connect to salesforce',
+        ],
+      },
     },
     {
       id: 'help-followup',
@@ -98,6 +232,7 @@ export function getChatbotTestScenarios(): TestScenario[] {
         'Does not lose the conversation thread',
       ],
       severity: 'high',
+      skipAutoRun: true,
     },
     {
       id: 'help-same-question-twice',
@@ -111,41 +246,45 @@ export function getChatbotTestScenarios(): TestScenario[] {
         'Response quality does not degrade',
       ],
       severity: 'low',
+      skipAutoRun: true,
     },
 
-    // ═══════════════════════════════════════════
-    // HELP MODE — Troubleshooting
-    // ═══════════════════════════════════════════
+    // ── HELP MODE — Troubleshooting ──
     {
       id: 'help-troubleshoot-why',
       category: 'Help Mode — Troubleshooting',
       name: 'Why-question troubleshooting',
       description: 'Verify the bot can help diagnose issues with a "why" question.',
-      userMessage: 'Why can\'t I message this buyer?',
+      userMessage: "Why can't I message this buyer?",
       expectedBehavior: [
         'Checks common causes (permissions, buyer status, NDA status)',
         'Provides actionable steps to resolve',
         'Does not blame the user',
       ],
       severity: 'high',
+      autoValidation: {
+        minResponseLength: 50,
+        mustContainAny: ['permission', 'access', 'nda', 'status', 'connection', 'contact'],
+      },
     },
     {
       id: 'help-troubleshoot-by-design',
       category: 'Help Mode — Troubleshooting',
       name: 'Working-as-designed behavior',
       description: 'Verify the bot explains intentional limitations.',
-      userMessage: 'Why can\'t I edit a deal after it\'s been published?',
+      userMessage: "Why can't I edit a deal after it's been published?",
       expectedBehavior: [
         'Explains the business logic behind the restriction',
         'Suggests proper workflow (e.g., unpublish first, contact admin)',
         'Does not promise the feature will change',
       ],
       severity: 'medium',
+      autoValidation: { minResponseLength: 50 },
     },
     {
       id: 'help-troubleshoot-unknown',
       category: 'Help Mode — Troubleshooting',
-      name: 'Bot doesn\'t know the answer',
+      name: "Bot doesn't know the answer",
       description: 'Verify graceful handling when the bot cannot diagnose the issue.',
       userMessage: 'Why is the deal scoring algorithm giving my deal a low score?',
       expectedBehavior: [
@@ -155,47 +294,50 @@ export function getChatbotTestScenarios(): TestScenario[] {
         'Does NOT make up specific scoring weights',
       ],
       severity: 'high',
+      autoValidation: {
+        minResponseLength: 50,
+        mustNotContain: ['the exact formula is', 'weight of 0.35', 'precisely calculated as 40%'],
+      },
     },
 
-    // ═══════════════════════════════════════════
-    // HELP MODE — Context Awareness
-    // ═══════════════════════════════════════════
+    // ── HELP MODE — Context Awareness ──
     {
       id: 'help-context-current-page',
       category: 'Help Mode — Context Awareness',
       name: 'Current page context',
-      description: 'Verify the bot uses the current page context (e.g., deal page, buyers page).',
-      userMessage: 'What am I looking at? (from a deal detail page)',
+      description: 'Verify the bot uses the current page context.',
+      userMessage: 'What am I looking at?',
       expectedBehavior: [
         'References the current deal by name if context is available',
         'Describes what information is shown on the current page',
         'Uses the context type (deal/buyers/universe) correctly',
       ],
       severity: 'high',
+      autoValidation: { minResponseLength: 50 },
     },
     {
       id: 'help-context-none',
       category: 'Help Mode — Context Awareness',
       name: 'No context available',
       description: 'Verify the bot handles queries when there is no specific context.',
-      userMessage: 'Tell me about this deal (from the general dashboard, no deal selected)',
+      userMessage: 'Tell me about this deal',
       expectedBehavior: [
         'Asks which deal the user is referring to',
         'Does NOT hallucinate a deal name or data',
         'May suggest navigating to a specific deal page',
       ],
       severity: 'high',
+      autoValidation: { minResponseLength: 50 },
     },
 
-    // ═══════════════════════════════════════════
-    // HELP MODE — Multi-Source Synthesis
-    // ═══════════════════════════════════════════
+    // ── HELP MODE — Multi-Source Synthesis ──
     {
       id: 'help-multisource-workflow',
       category: 'Help Mode — Multi-Source Synthesis',
       name: 'Complex workflow walkthrough',
       description: 'Verify the bot can synthesize info from multiple sources for a complex topic.',
-      userMessage: 'Walk me through the complete process of creating a deal, enriching it, running scoring, and sending it to buyers.',
+      userMessage:
+        'Walk me through the complete process of creating a deal, enriching it, running scoring, and sending it to buyers.',
       expectedBehavior: [
         'Provides a coherent multi-step walkthrough',
         'Covers all four stages mentioned',
@@ -203,24 +345,31 @@ export function getChatbotTestScenarios(): TestScenario[] {
         'References relevant features accurately',
       ],
       severity: 'medium',
+      autoValidation: {
+        minResponseLength: 200,
+        mustContainAny: ['create', 'enrich', 'scor', 'buyer'],
+      },
     },
     {
       id: 'help-multisource-comparison',
       category: 'Help Mode — Multi-Source Synthesis',
       name: 'Feature comparison',
       description: 'Verify the bot can compare two platform features accurately.',
-      userMessage: 'What\'s the difference between the marketplace messaging and the remarketing outreach?',
+      userMessage:
+        "What's the difference between the marketplace messaging and the remarketing outreach?",
       expectedBehavior: [
         'Clearly distinguishes between the two features',
         'Describes when to use each one',
         'Does not conflate the two features',
       ],
       severity: 'medium',
+      autoValidation: {
+        minResponseLength: 100,
+        mustContainAny: ['messaging', 'remarketing', 'outreach'],
+      },
     },
 
-    // ═══════════════════════════════════════════
-    // HELP MODE — System Logic
-    // ═══════════════════════════════════════════
+    // ── HELP MODE — System Logic ──
     {
       id: 'help-system-algorithm',
       category: 'Help Mode — System Logic',
@@ -229,22 +378,25 @@ export function getChatbotTestScenarios(): TestScenario[] {
       userMessage: 'How does the deal ranking algorithm work?',
       expectedBehavior: [
         'Explains the general scoring methodology',
-        'Mentions key factors if documented (quality, enrichment, etc.)',
+        'Mentions key factors if documented',
         'Does NOT invent specific weights or formulas if not documented',
         'Suggests where to find more details',
       ],
       severity: 'medium',
+      autoValidation: {
+        minResponseLength: 50,
+        mustNotContain: ['the exact formula is', 'weight of 0.35'],
+      },
     },
 
-    // ═══════════════════════════════════════════
-    // ACTION MODE — Content Creation
-    // ═══════════════════════════════════════════
+    // ── ACTION MODE — Content Creation ──
     {
       id: 'action-create-content',
       category: 'Action Mode — Content Creation',
       name: 'Create content from data sources',
       description: 'Verify the bot can create content based on platform data.',
-      userMessage: 'Create a LinkedIn post analyzing the collision repair market based on our recent deals.',
+      userMessage:
+        'Create a LinkedIn post analyzing the collision repair market based on our recent deals.',
       expectedBehavior: [
         'Generates a draft post with relevant content',
         'References actual deal data if available',
@@ -253,6 +405,11 @@ export function getChatbotTestScenarios(): TestScenario[] {
       ],
       edgeCases: ['Try without specifying the industry — should ask for clarification'],
       severity: 'high',
+      autoValidation: {
+        minResponseLength: 100,
+        requiresToolCalls: true,
+        mustContainAny: ['collision repair', 'collision', 'auto body', 'post', 'linkedin'],
+      },
     },
     {
       id: 'action-create-missing-params',
@@ -266,6 +423,7 @@ export function getChatbotTestScenarios(): TestScenario[] {
         'Suggests options for the user to choose from',
       ],
       severity: 'high',
+      autoValidation: { minResponseLength: 50 },
     },
     {
       id: 'action-create-from-template',
@@ -276,9 +434,13 @@ export function getChatbotTestScenarios(): TestScenario[] {
       expectedBehavior: [
         'Follows the template structure if available',
         'Populates template fields with relevant data',
-        'If template doesn\'t exist, explains and offers alternatives',
+        "If template doesn't exist, explains and offers alternatives",
       ],
       severity: 'medium',
+      autoValidation: {
+        minResponseLength: 50,
+        mustContainAny: ['hvac', 'template', 'market analysis'],
+      },
     },
     {
       id: 'action-repurpose-content',
@@ -293,11 +455,10 @@ export function getChatbotTestScenarios(): TestScenario[] {
         'Adapts tone and structure for LinkedIn',
       ],
       severity: 'medium',
+      autoValidation: { minResponseLength: 50 },
     },
 
-    // ═══════════════════════════════════════════
-    // ACTION MODE — Search & Analysis
-    // ═══════════════════════════════════════════
+    // ── ACTION MODE — Search & Analysis ──
     {
       id: 'action-search-sources',
       category: 'Action Mode — Search & Analysis',
@@ -311,6 +472,16 @@ export function getChatbotTestScenarios(): TestScenario[] {
         'Offers to dig deeper into specific results',
       ],
       severity: 'high',
+      autoValidation: {
+        requiresToolCalls: true,
+        expectedTools: [
+          'search_fireflies',
+          'search_transcripts',
+          'search_buyer_transcripts',
+          'semantic_transcript_search',
+        ],
+        mustContainAny: ['valuation', 'call', 'transcript', 'meeting'],
+      },
     },
     {
       id: 'action-search-zero-results',
@@ -324,6 +495,10 @@ export function getChatbotTestScenarios(): TestScenario[] {
         'Does NOT fabricate results',
       ],
       severity: 'high',
+      autoValidation: {
+        minResponseLength: 30,
+        mustNotContain: ['here are the mars deals', 'found 5 results about mars'],
+      },
     },
     {
       id: 'action-extract-insights',
@@ -338,6 +513,15 @@ export function getChatbotTestScenarios(): TestScenario[] {
         'Provides actionable takeaways',
       ],
       severity: 'medium',
+      autoValidation: {
+        requiresToolCalls: true,
+        expectedTools: [
+          'search_fireflies',
+          'search_transcripts',
+          'search_buyer_transcripts',
+          'semantic_transcript_search',
+        ],
+      },
     },
     {
       id: 'action-analyze-performance',
@@ -352,11 +536,13 @@ export function getChatbotTestScenarios(): TestScenario[] {
         'Suggests areas for improvement if data supports it',
       ],
       severity: 'medium',
+      autoValidation: {
+        requiresToolCalls: true,
+        expectedTools: ['get_outreach_status', 'get_remarketing_outreach', 'get_analytics'],
+      },
     },
 
-    // ═══════════════════════════════════════════
-    // ACTION MODE — Content Management
-    // ═══════════════════════════════════════════
+    // ── ACTION MODE — Content Management ──
     {
       id: 'action-manage-queue',
       category: 'Action Mode — Content Management',
@@ -371,6 +557,7 @@ export function getChatbotTestScenarios(): TestScenario[] {
       ],
       edgeCases: ['Try moving to a non-existent queue — should report error clearly'],
       severity: 'medium',
+      autoValidation: { minResponseLength: 50 },
     },
     {
       id: 'action-schedule-content',
@@ -388,6 +575,7 @@ export function getChatbotTestScenarios(): TestScenario[] {
         'Try ambiguous time: "Schedule it for next week" — should ask for specific day/time',
       ],
       severity: 'medium',
+      autoValidation: { minResponseLength: 50 },
     },
     {
       id: 'action-bulk-operations',
@@ -402,11 +590,10 @@ export function getChatbotTestScenarios(): TestScenario[] {
         'Reports results after execution',
       ],
       severity: 'high',
+      autoValidation: { minResponseLength: 50 },
     },
 
-    // ═══════════════════════════════════════════
-    // ACTION MODE — Contact Research
-    // ═══════════════════════════════════════════
+    // ── ACTION MODE — Contact Research ──
     {
       id: 'action-contact-find',
       category: 'Action Mode — Contact Research',
@@ -420,13 +607,19 @@ export function getChatbotTestScenarios(): TestScenario[] {
         'Offers to save or add contacts to the system',
       ],
       severity: 'high',
+      autoValidation: {
+        requiresToolCalls: true,
+        expectedTools: ['search_contacts', 'search_pe_contacts'],
+        mustContainAny: ['trivest', 'contact', 'associate', 'principal', 'vp'],
+      },
     },
     {
       id: 'action-contact-filter',
       category: 'Action Mode — Contact Research',
       name: 'Filter contacts by criteria',
       description: 'Verify the bot can filter buyers/contacts by complex criteria.',
-      userMessage: 'Show me all PE firms in the Southeast that have acquired companies in the HVAC space.',
+      userMessage:
+        'Show me all PE firms in the Southeast that have acquired companies in the HVAC space.',
       expectedBehavior: [
         'Filters by geography (Southeast) correctly',
         'Filters by industry (HVAC) correctly',
@@ -434,13 +627,18 @@ export function getChatbotTestScenarios(): TestScenario[] {
         'Returns relevant results or explains if none match',
       ],
       severity: 'high',
+      autoValidation: {
+        requiresToolCalls: true,
+        expectedTools: ['search_buyers', 'search_pe_contacts', 'search_contacts'],
+      },
     },
     {
       id: 'action-contact-complex',
       category: 'Action Mode — Contact Research',
       name: 'Complex cross-referenced contact search',
       description: 'Verify the bot handles multi-dimensional contact research.',
-      userMessage: 'Find contacts at New Heritage Capital who work in deal sourcing, and check if we\'ve had any calls with them on Fireflies.',
+      userMessage:
+        "Find contacts at New Heritage Capital who work in deal sourcing, and check if we've had any calls with them on Fireflies.",
       expectedBehavior: [
         'Searches for contacts at the specified firm',
         'Cross-references with Fireflies call data',
@@ -448,24 +646,28 @@ export function getChatbotTestScenarios(): TestScenario[] {
         'Handles the case where no cross-references exist',
       ],
       severity: 'medium',
+      autoValidation: {
+        requiresToolCalls: true,
+        mustContainAny: ['new heritage', 'contact', 'call'],
+      },
     },
 
-    // ═══════════════════════════════════════════
-    // CONVERSATION CONTEXT & MULTI-TURN
-    // ═══════════════════════════════════════════
+    // ── CONVERSATION CONTEXT & MULTI-TURN ──
     {
       id: 'context-multi-turn',
       category: 'Conversation Context',
       name: 'Multi-turn context maintenance',
       description: 'Verify the bot maintains context across multiple messages.',
-      userMessage: 'Show me HVAC deals. (then) Which one has the highest score? (then) Tell me more about that one.',
+      userMessage:
+        'Show me HVAC deals. (then) Which one has the highest score? (then) Tell me more about that one.',
       expectedBehavior: [
         'First message returns HVAC deals',
         'Second message correctly identifies the highest-scored deal',
         'Third message provides details about the correct deal',
-        'Bot doesn\'t lose track of which deal is being discussed',
+        "Bot doesn't lose track of which deal is being discussed",
       ],
       severity: 'critical',
+      skipAutoRun: true,
     },
     {
       id: 'context-ambiguous-reference',
@@ -479,6 +681,7 @@ export function getChatbotTestScenarios(): TestScenario[] {
         'Does NOT assume and act on the wrong item',
       ],
       severity: 'high',
+      skipAutoRun: true,
     },
     {
       id: 'context-self-correction',
@@ -493,13 +696,19 @@ export function getChatbotTestScenarios(): TestScenario[] {
         'May confirm: "I\'ll focus on collision repair instead"',
       ],
       severity: 'high',
+      autoValidation: {
+        minResponseLength: 50,
+        mustContainAny: ['collision repair', 'collision', 'auto body'],
+        mustNotContain: ['here is your hvac post', 'hvac market analysis post'],
+      },
     },
     {
       id: 'context-multi-step-workflow',
       category: 'Conversation Context',
       name: 'Multi-step workflow',
       description: 'Verify the bot can execute a multi-step workflow in sequence.',
-      userMessage: 'Find recent calls about deal sourcing, extract the key insights, and draft a LinkedIn post based on them.',
+      userMessage:
+        'Find recent calls about deal sourcing, extract the key insights, and draft a LinkedIn post based on them.',
       expectedBehavior: [
         'Step 1: Searches for relevant calls',
         'Step 2: Extracts key insights from results',
@@ -508,11 +717,10 @@ export function getChatbotTestScenarios(): TestScenario[] {
         'User can see progress at each step',
       ],
       severity: 'medium',
+      autoValidation: { requiresToolCalls: true, minResponseLength: 100 },
     },
 
-    // ═══════════════════════════════════════════
-    // PERMISSIONS & SAFETY
-    // ═══════════════════════════════════════════
+    // ── PERMISSIONS & SAFETY ──
     {
       id: 'perm-non-admin',
       category: 'Permissions & Safety',
@@ -526,6 +734,7 @@ export function getChatbotTestScenarios(): TestScenario[] {
         'Suggests contacting an admin if needed',
       ],
       severity: 'critical',
+      autoValidation: { minResponseLength: 50 },
     },
     {
       id: 'perm-dangerous-confirm',
@@ -540,6 +749,10 @@ export function getChatbotTestScenarios(): TestScenario[] {
         'Provides a clear cancel option',
       ],
       severity: 'critical',
+      autoValidation: {
+        minResponseLength: 50,
+        mustContainAny: ['confirm', 'sure', 'proceed', 'delete', 'are you'],
+      },
     },
     {
       id: 'perm-bulk-safety',
@@ -554,11 +767,13 @@ export function getChatbotTestScenarios(): TestScenario[] {
         'Does NOT proceed without safeguards',
       ],
       severity: 'critical',
+      autoValidation: {
+        minResponseLength: 50,
+        mustContainAny: ['confirm', 'caution', 'batch', 'large', '500', 'sure', 'warning'],
+      },
     },
 
-    // ═══════════════════════════════════════════
-    // ERROR HANDLING & RECOVERY
-    // ═══════════════════════════════════════════
+    // ── ERROR HANDLING & RECOVERY ──
     {
       id: 'error-help-vs-action',
       category: 'Error Handling',
@@ -571,6 +786,7 @@ export function getChatbotTestScenarios(): TestScenario[] {
         'If unsure, asks: "Would you like me to explain the process or actually create it?"',
       ],
       severity: 'high',
+      autoValidation: { minResponseLength: 50 },
     },
     {
       id: 'error-mixed-intent',
@@ -584,6 +800,7 @@ export function getChatbotTestScenarios(): TestScenario[] {
         'Does not ignore either part of the message',
       ],
       severity: 'medium',
+      autoValidation: { minResponseLength: 50 },
     },
     {
       id: 'error-hallucination-check',
@@ -597,6 +814,15 @@ export function getChatbotTestScenarios(): TestScenario[] {
         'May point to available analytics features',
       ],
       severity: 'critical',
+      autoValidation: {
+        minResponseLength: 50,
+        mustNotContain: [
+          'the roi dashboard shows',
+          'your roi is 340%',
+          'click on roi dashboard',
+          'navigate to the roi tab',
+        ],
+      },
     },
     {
       id: 'error-typo-handling',
@@ -610,11 +836,10 @@ export function getChatbotTestScenarios(): TestScenario[] {
         'Does NOT mock or correct the user rudely',
       ],
       severity: 'medium',
+      autoValidation: { minResponseLength: 50, mustContainAny: ['hvac', 'post', 'create', 'deal'] },
     },
 
-    // ═══════════════════════════════════════════
-    // EDGE CASES & STRESS
-    // ═══════════════════════════════════════════
+    // ── EDGE CASES & STRESS (mostly manual) ──
     {
       id: 'edge-rapid-requests',
       category: 'Edge Cases',
@@ -628,6 +853,7 @@ export function getChatbotTestScenarios(): TestScenario[] {
         'Rate limiting message shown if applicable',
       ],
       severity: 'high',
+      skipAutoRun: true,
     },
     {
       id: 'edge-long-message',
@@ -641,6 +867,7 @@ export function getChatbotTestScenarios(): TestScenario[] {
         'No UI crashes or layout breaks',
       ],
       severity: 'medium',
+      skipAutoRun: true,
     },
     {
       id: 'edge-empty-message',
@@ -654,6 +881,7 @@ export function getChatbotTestScenarios(): TestScenario[] {
         'No errors or crashes',
       ],
       severity: 'low',
+      skipAutoRun: true,
     },
     {
       id: 'edge-session-recovery',
@@ -667,24 +895,25 @@ export function getChatbotTestScenarios(): TestScenario[] {
         'User can continue the conversation or start a new one',
       ],
       severity: 'high',
+      skipAutoRun: true,
     },
     {
       id: 'edge-concurrent-chats',
       category: 'Edge Cases',
       name: 'Multiple chat contexts',
       description: 'Verify different chat contexts (deal, buyers, universe) stay separate.',
-      userMessage: 'Open chat on a deal page, have a conversation. Navigate to buyers page and open chat.',
+      userMessage:
+        'Open chat on a deal page, have a conversation. Navigate to buyers page and open chat.',
       expectedBehavior: [
         'Each context has its own conversation history',
         'Deal chat does not show buyer chat messages',
         'Context switch is clean with no data leakage',
       ],
       severity: 'high',
+      skipAutoRun: true,
     },
 
-    // ═══════════════════════════════════════════
-    // UI & UX VERIFICATION
-    // ═══════════════════════════════════════════
+    // ── UI & UX VERIFICATION (all manual) ──
     {
       id: 'ui-streaming',
       category: 'UI & UX',
@@ -698,6 +927,7 @@ export function getChatbotTestScenarios(): TestScenario[] {
         'Scroll follows the streaming content',
       ],
       severity: 'high',
+      skipAutoRun: true,
     },
     {
       id: 'ui-markdown',
@@ -712,6 +942,7 @@ export function getChatbotTestScenarios(): TestScenario[] {
         'Links are clickable (if present)',
       ],
       severity: 'medium',
+      skipAutoRun: true,
     },
     {
       id: 'ui-feedback-buttons',
@@ -726,6 +957,7 @@ export function getChatbotTestScenarios(): TestScenario[] {
         'Feedback is persisted to the database',
       ],
       severity: 'medium',
+      skipAutoRun: true,
     },
     {
       id: 'ui-smart-suggestions',
@@ -737,9 +969,10 @@ export function getChatbotTestScenarios(): TestScenario[] {
         'Suggestion chips/buttons appear after the response',
         'Suggestions are contextually relevant',
         'Clicking a suggestion sends it as a new message',
-        'Suggestions don\'t appear during streaming',
+        "Suggestions don't appear during streaming",
       ],
       severity: 'medium',
+      skipAutoRun: true,
     },
     {
       id: 'ui-chat-panel',
@@ -755,17 +988,17 @@ export function getChatbotTestScenarios(): TestScenario[] {
         'Panel can be dragged to reposition (if drag is enabled)',
       ],
       severity: 'medium',
+      skipAutoRun: true,
     },
 
-    // ═══════════════════════════════════════════
-    // REAL-WORLD SCENARIOS (from 25 Test Questions)
-    // ═══════════════════════════════════════════
+    // ── REAL-WORLD SCENARIOS ──
     {
       id: 'rw-contact-research-known',
       category: 'Real-World Scenarios',
       name: 'Q1: Contact research at known buyer',
       description: 'Find contacts at a specific known buyer firm.',
-      userMessage: 'Find 8-10 associates, principals, and VPs at Trivest Capital Partners. Include their LinkedIn URLs and email addresses if available.',
+      userMessage:
+        'Find 8-10 associates, principals, and VPs at Trivest Capital Partners. Include their LinkedIn URLs and email addresses if available.',
       expectedBehavior: [
         'Returns a list of contacts with names and titles',
         'Includes LinkedIn URLs where available',
@@ -773,13 +1006,19 @@ export function getChatbotTestScenarios(): TestScenario[] {
         'Results are relevant to the specified roles',
       ],
       severity: 'high',
+      autoValidation: {
+        requiresToolCalls: true,
+        expectedTools: ['search_contacts', 'search_pe_contacts'],
+        mustContainAny: ['trivest', 'contact'],
+      },
     },
     {
       id: 'rw-buyer-cross-ref',
       category: 'Real-World Scenarios',
       name: 'Q8: Cross-reference buyers against deals',
       description: 'Cross-reference buyer database against active deals.',
-      userMessage: 'Cross-reference our buyer database against our active HVAC deals. Which buyers have the highest alignment scores?',
+      userMessage:
+        'Cross-reference our buyer database against our active HVAC deals. Which buyers have the highest alignment scores?',
       expectedBehavior: [
         'Queries buyer database for HVAC-relevant buyers',
         'Matches against active deals',
@@ -787,13 +1026,24 @@ export function getChatbotTestScenarios(): TestScenario[] {
         'Results are sorted by relevance',
       ],
       severity: 'high',
+      autoValidation: {
+        requiresToolCalls: true,
+        expectedTools: [
+          'search_buyers',
+          'query_deals',
+          'get_top_buyers_for_deal',
+          'get_pipeline_summary',
+        ],
+        mustContainAny: ['buyer', 'hvac', 'score', 'alignment'],
+      },
     },
     {
       id: 'rw-fireflies-insights',
       category: 'Real-World Scenarios',
       name: 'Q11: Extract Fireflies call insights',
       description: 'Extract insights from recorded calls.',
-      userMessage: 'What key insights emerged from our Fireflies calls last month about seller pricing expectations?',
+      userMessage:
+        'What key insights emerged from our Fireflies calls last month about seller pricing expectations?',
       expectedBehavior: [
         'Searches Fireflies transcripts for relevant calls',
         'Extracts pricing-related themes and insights',
@@ -801,13 +1051,23 @@ export function getChatbotTestScenarios(): TestScenario[] {
         'Provides actionable summary',
       ],
       severity: 'medium',
+      autoValidation: {
+        requiresToolCalls: true,
+        expectedTools: [
+          'search_fireflies',
+          'search_transcripts',
+          'search_buyer_transcripts',
+          'semantic_transcript_search',
+        ],
+      },
     },
     {
       id: 'rw-deal-ranking',
       category: 'Real-World Scenarios',
       name: 'Q15: Rank deals by criteria',
       description: 'Rank deals by multiple business criteria.',
-      userMessage: 'Rank our active deals by a combination of revenue, EBITDA margin, and quality score. Show the top 10.',
+      userMessage:
+        'Rank our active deals by a combination of revenue, EBITDA margin, and quality score. Show the top 10.',
       expectedBehavior: [
         'Queries deal data with relevant metrics',
         'Combines multiple criteria in ranking',
@@ -815,13 +1075,19 @@ export function getChatbotTestScenarios(): TestScenario[] {
         'Shows the individual metric values for each deal',
       ],
       severity: 'medium',
+      autoValidation: {
+        requiresToolCalls: true,
+        expectedTools: ['query_deals', 'get_pipeline_summary'],
+        mustContainAny: ['deal', 'revenue', 'ebitda'],
+      },
     },
     {
       id: 'rw-stale-deals',
       category: 'Real-World Scenarios',
       name: 'Q17: Surface stale deals',
       description: 'Identify deals with no recent activity.',
-      userMessage: 'Which deals have had no activity (no outreach, no buyer interest, no updates) in the last 30 days?',
+      userMessage:
+        'Which deals have had no activity (no outreach, no buyer interest, no updates) in the last 30 days?',
       expectedBehavior: [
         'Identifies deals with no recent activity',
         'Checks multiple activity types (outreach, interest, updates)',
@@ -829,13 +1095,18 @@ export function getChatbotTestScenarios(): TestScenario[] {
         'May suggest actions to re-engage',
       ],
       severity: 'medium',
+      autoValidation: {
+        requiresToolCalls: true,
+        mustContainAny: ['deal', 'activity', 'days', 'stale', 'inactive'],
+      },
     },
     {
       id: 'rw-quarterly-health',
       category: 'Real-World Scenarios',
       name: 'Q20: Quarterly business health check',
       description: 'Generate a comprehensive business summary.',
-      userMessage: 'Give me a quarterly health check: total deals, pipeline value, buyer engagement rate, and conversion metrics.',
+      userMessage:
+        'Give me a quarterly health check: total deals, pipeline value, buyer engagement rate, and conversion metrics.',
       expectedBehavior: [
         'Reports on each requested metric',
         'Provides actual numbers from the database',
@@ -843,13 +1114,15 @@ export function getChatbotTestScenarios(): TestScenario[] {
         'Clearly labels any metrics that are unavailable',
       ],
       severity: 'medium',
+      autoValidation: { requiresToolCalls: true, mustContainAny: ['deal', 'pipeline', 'buyer'] },
     },
     {
       id: 'rw-pipeline-forecast',
       category: 'Real-World Scenarios',
       name: 'Q22: Forecast deal pipeline',
       description: 'Project future pipeline based on current data.',
-      userMessage: 'Based on our current deal pipeline and historical close rates, forecast our expected closings for the next quarter.',
+      userMessage:
+        'Based on our current deal pipeline and historical close rates, forecast our expected closings for the next quarter.',
       expectedBehavior: [
         'Uses current pipeline data',
         'Applies historical patterns if available',
@@ -857,13 +1130,18 @@ export function getChatbotTestScenarios(): TestScenario[] {
         'Shows methodology/assumptions used',
       ],
       severity: 'low',
+      autoValidation: {
+        requiresToolCalls: true,
+        mustContainAny: ['pipeline', 'forecast', 'quarter', 'projection', 'deals'],
+      },
     },
     {
       id: 'rw-competitive-analysis',
       category: 'Real-World Scenarios',
       name: 'Q24: Competitive win/loss analysis',
       description: 'Analyze competitive patterns from deal data.',
-      userMessage: 'Analyze our win/loss patterns: which types of deals do we win most often, and where do we lose to competitors?',
+      userMessage:
+        'Analyze our win/loss patterns: which types of deals do we win most often, and where do we lose to competitors?',
       expectedBehavior: [
         'Analyzes deal outcome data if available',
         'Identifies patterns by deal type, size, industry',
@@ -871,6 +1149,10 @@ export function getChatbotTestScenarios(): TestScenario[] {
         'Acknowledges data limitations honestly',
       ],
       severity: 'low',
+      autoValidation: {
+        requiresToolCalls: true,
+        mustContainAny: ['deal', 'win', 'loss', 'pattern', 'analysis'],
+      },
     },
   ];
 }
