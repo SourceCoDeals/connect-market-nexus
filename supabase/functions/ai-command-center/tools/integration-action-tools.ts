@@ -366,20 +366,30 @@ async function saveContactsToCrm(
     });
   }
 
-  // Log activity
-  if (saved.length > 0) {
-    await supabase.from('deal_activities').insert({
-      deal_id: listingId || null,
-      activity_type: 'contacts_added',
-      title: `${saved.length} contact(s) added via AI Command Center`,
-      description: `Contacts: ${saved.map((s) => s.name).join(', ')}`,
-      admin_id: userId,
-      metadata: {
-        source: 'ai_command_center',
-        contact_ids: saved.map((s) => s.id),
-        buyer_id: buyerId,
-      },
-    });
+  // Log activity — only if we can resolve a deal for this listing+buyer
+  if (saved.length > 0 && listingId && buyerId) {
+    const { data: linkedDeal } = await supabase
+      .from('deals')
+      .select('id')
+      .eq('listing_id', listingId)
+      .eq('remarketing_buyer_id', buyerId)
+      .limit(1)
+      .maybeSingle();
+
+    if (linkedDeal) {
+      await supabase.from('deal_activities').insert({
+        deal_id: linkedDeal.id,
+        activity_type: 'contacts_added',
+        title: `${saved.length} contact(s) added via AI Command Center`,
+        description: `Contacts: ${saved.map((s) => s.name).join(', ')}`,
+        admin_id: userId,
+        metadata: {
+          source: 'ai_command_center',
+          contact_ids: saved.map((s) => s.id),
+          buyer_id: buyerId,
+        },
+      });
+    }
   }
 
   return {

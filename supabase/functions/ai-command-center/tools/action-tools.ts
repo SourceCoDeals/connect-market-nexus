@@ -484,20 +484,30 @@ async function grantDataRoomAccess(
 
   if (error) return { error: error.message };
 
-  // Log activity
-  await supabase.from('deal_activities').insert({
-    deal_id: dealId,
-    activity_type: 'data_room',
-    title: `Data room access granted to ${args.buyer_name}`,
-    description: `${accessLevel} access granted to ${args.buyer_name} (${buyerEmail})`,
-    admin_id: userId,
-    metadata: {
-      source: 'ai_command_center',
-      buyer_id: buyerId,
-      contact_id: contactId,
-      access_level: accessLevel,
-    },
-  });
+  // Log activity — resolve actual deal from listing+buyer
+  const { data: linkedDeal } = await supabase
+    .from('deals')
+    .select('id')
+    .eq('listing_id', dealId)
+    .eq('remarketing_buyer_id', buyerId)
+    .limit(1)
+    .maybeSingle();
+
+  if (linkedDeal) {
+    await supabase.from('deal_activities').insert({
+      deal_id: linkedDeal.id,
+      activity_type: 'data_room',
+      title: `Data room access granted to ${args.buyer_name}`,
+      description: `${accessLevel} access granted to ${args.buyer_name} (${buyerEmail})`,
+      admin_id: userId,
+      metadata: {
+        source: 'ai_command_center',
+        buyer_id: buyerId,
+        contact_id: contactId,
+        access_level: accessLevel,
+      },
+    });
+  }
 
   return {
     data: {
@@ -663,10 +673,10 @@ async function convertToPipelineDeal(
     .from('deals')
     .insert({
       listing_id: listingId,
-      buyer_id: buyerId,
+      remarketing_buyer_id: buyerId,
       title: `${buyer.company_name || buyer.pe_firm_name} - ${listing.title || listing.internal_company_name}`,
       stage_id: stageRecord?.id || null,
-      created_by: userId,
+      source: 'remarketing',
       created_at: now,
       updated_at: now,
     })
