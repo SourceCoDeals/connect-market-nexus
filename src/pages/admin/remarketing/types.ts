@@ -29,6 +29,11 @@ export interface DealListing {
   deal_total_score: number | null;
   seller_interest_score: number | null;
   manual_rank_override: number | null;
+  // Main contact
+  main_contact_name: string | null;
+  main_contact_title: string | null;
+  main_contact_email: string | null;
+  main_contact_phone: string | null;
   // Structured address fields
   address_city: string | null;
   address_state: string | null;
