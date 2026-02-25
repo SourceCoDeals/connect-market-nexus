@@ -386,9 +386,11 @@ const BYPASS_RULES: Array<{
       category: 'CONTACTS',
       tier: 'STANDARD',
       tools: [
+        'find_and_enrich_person',
         'search_contacts',
         'search_pe_contacts',
         'enrich_buyer_contacts',
+        'enrich_linkedin_contact',
         'get_buyer_profile',
       ],
       confidence: 0.87,
@@ -605,6 +607,24 @@ const BYPASS_RULES: Array<{
       confidence: 0.92,
     },
   },
+  // Find LinkedIn profiles for contacts
+  {
+    test: (q) =>
+      /\b(find.*(linkedin|linked in)|search.*(linkedin|linked in)|linkedin.*(url|profile|search)|missing.*(linkedin|linked in))\b/i.test(
+        q,
+      ) && !/linkedin\.com\/in\//i.test(q),
+    result: {
+      category: 'CONTACT_ENRICHMENT',
+      tier: 'STANDARD',
+      tools: [
+        'find_contact_linkedin',
+        'search_contacts',
+        'enrich_linkedin_contact',
+        'save_contacts_to_crm',
+      ],
+      confidence: 0.92,
+    },
+  },
   // Enrich contacts / Prospeo / LinkedIn enrichment
   {
     test: (q) =>
@@ -614,7 +634,12 @@ const BYPASS_RULES: Array<{
     result: {
       category: 'CONTACT_ENRICHMENT',
       tier: 'STANDARD',
-      tools: ['enrich_buyer_contacts', 'search_contacts', 'search_pe_contacts'],
+      tools: [
+        'enrich_buyer_contacts',
+        'search_contacts',
+        'search_pe_contacts',
+        'find_contact_linkedin',
+      ],
       confidence: 0.9,
     },
   },
