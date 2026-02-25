@@ -15,6 +15,9 @@ import {
   Users,
   Upload,
   Link2,
+  AlertTriangle,
+  FileText,
+  Info,
 } from "lucide-react";
 
 interface FirefliesManualLinkProps {
@@ -50,7 +53,13 @@ export const FirefliesManualLink = ({
 
   // File upload state
   const [uploading, setUploading] = useState(false);
+  const [uploadedFileNames, setUploadedFileNames] = useState<string[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // URL validation
+  const isValidFirefliesUrl = firefliesUrl.trim() && /fireflies\.ai\/view\/[^/?#]+/.test(firefliesUrl.trim());
+  const hasUrlInput = firefliesUrl.trim().length > 0;
+  const showUrlWarning = hasUrlInput && !isValidFirefliesUrl && firefliesUrl.trim().length > 10;
 
   const handleSearch = async () => {
     const trimmedQuery = query.trim();
@@ -117,8 +126,23 @@ export const FirefliesManualLink = ({
 
   const handleLinkByUrl = async () => {
     const url = firefliesUrl.trim();
-    if (!url) {
-      toast.error("Please enter a Fireflies URL");
+    if (!url) return;
+
+    // Validate URL
+    try {
+      const parsed = new URL(url);
+      if (!parsed.hostname.includes('fireflies.ai')) {
+        toast.error('Please enter a valid Fireflies URL (app.fireflies.ai/view/...)');
+        return;
+      }
+    } catch {
+      toast.error('Please enter a valid URL');
+      return;
+    }
+
+    const match = url.match(/fireflies\.ai\/view\/([^/?#]+)/);
+    if (!match || !match[1]) {
+      toast.error('URL should contain a transcript ID (app.fireflies.ai/view/your-transcript-id)');
       return;
     }
 
@@ -126,16 +150,14 @@ export const FirefliesManualLink = ({
     const toastId = toast.loading("Linking Fireflies transcript...");
 
     try {
-      // Extract transcript ID from URL if possible
-      const match = url.match(/fireflies\.ai\/view\/([^/?#]+)/);
-      const transcriptId = match ? match[1] : `url-${Date.now()}`;
+      const transcriptId = match[1];
 
       const { error } = await supabase.from('deal_transcripts').insert({
         listing_id: listingId,
         fireflies_transcript_id: transcriptId,
         transcript_url: url,
-        title: match ? `Fireflies: ${transcriptId}` : 'Fireflies Transcript',
-        transcript_text: 'Linked via URL - pending fetch',
+        title: `Fireflies: ${transcriptId}`,
+        transcript_text: 'Linked via URL - content will be fetched automatically',
         source: 'fireflies',
         auto_linked: false,
       });
@@ -145,7 +167,7 @@ export const FirefliesManualLink = ({
           toast.info("This transcript is already linked", { id: toastId });
         } else throw error;
       } else {
-        toast.success("Fireflies transcript linked", { id: toastId });
+        toast.success("Transcript linked — content will be fetched when you open it", { id: toastId });
         setFirefliesUrl("");
         onTranscriptLinked?.();
       }
@@ -161,13 +183,13 @@ export const FirefliesManualLink = ({
     if (!files || files.length === 0) return;
 
     setUploading(true);
+    setUploadedFileNames(Array.from(files).map(f => f.name));
     let successCount = 0;
 
     for (const file of Array.from(files)) {
       const toastId = toast.loading(`Uploading ${file.name}...`);
 
       try {
-        // Read file as text for supported formats
         const textTypes = ['.txt', '.vtt', '.srt', '.md'];
         const isTextFile = textTypes.some(ext => file.name.toLowerCase().endsWith(ext));
 
@@ -176,11 +198,9 @@ export const FirefliesManualLink = ({
         if (isTextFile) {
           transcriptText = await file.text();
         } else {
-          // For PDF/DOC, use parse function or store as-is
           transcriptText = `Uploaded file: ${file.name} (${(file.size / 1024).toFixed(1)} KB)`;
         }
 
-        // If it's a parseable document, invoke the parser
         const docTypes = ['.pdf', '.doc', '.docx'];
         const isDocFile = docTypes.some(ext => file.name.toLowerCase().endsWith(ext));
 
@@ -226,6 +246,7 @@ export const FirefliesManualLink = ({
 
     if (successCount > 0) onTranscriptLinked?.();
     setUploading(false);
+    setUploadedFileNames([]);
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
@@ -238,8 +259,12 @@ export const FirefliesManualLink = ({
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <Tabs defaultValue="link" className="space-y-4">
+        <Tabs defaultValue="search" className="space-y-4">
           <TabsList className="grid w-full grid-cols-3">
+            <TabsTrigger value="search" className="text-xs">
+              <Search className="h-3.5 w-3.5 mr-1.5" />
+              Search Fireflies
+            </TabsTrigger>
             <TabsTrigger value="link" className="text-xs">
               <Link2 className="h-3.5 w-3.5 mr-1.5" />
               Paste Link
@@ -248,82 +273,13 @@ export const FirefliesManualLink = ({
               <Upload className="h-3.5 w-3.5 mr-1.5" />
               Upload File
             </TabsTrigger>
-            <TabsTrigger value="search" className="text-xs">
-              <Search className="h-3.5 w-3.5 mr-1.5" />
-              Search
-            </TabsTrigger>
           </TabsList>
 
-          {/* Paste Link Tab */}
-          <TabsContent value="link" className="space-y-3">
-            <div className="flex gap-2">
-              <Input
-                placeholder="https://app.fireflies.ai/view/..."
-                value={firefliesUrl}
-                onChange={(e) => setFirefliesUrl(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && !linkingUrl && handleLinkByUrl()}
-                className="flex-1"
-              />
-              <Button
-                onClick={handleLinkByUrl}
-                disabled={linkingUrl || !firefliesUrl.trim()}
-                size="sm"
-              >
-                {linkingUrl ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <>
-                    <Link className="h-4 w-4 mr-1.5" />
-                    Link
-                  </>
-                )}
-              </Button>
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Paste a Fireflies transcript URL to link it to this deal
-            </p>
-          </TabsContent>
-
-          {/* Upload File Tab */}
-          <TabsContent value="upload" className="space-y-3">
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept=".pdf,.doc,.docx,.txt,.vtt,.srt,.md"
-              multiple
-              onChange={handleFileUpload}
-              className="hidden"
-            />
-            <Button
-              variant="outline"
-              className="w-full h-24 border-dashed"
-              onClick={() => fileInputRef.current?.click()}
-              disabled={uploading}
-            >
-              {uploading ? (
-                <div className="flex items-center gap-2">
-                  <Loader2 className="h-5 w-5 animate-spin" />
-                  <span>Uploading...</span>
-                </div>
-              ) : (
-                <div className="flex flex-col items-center gap-1.5">
-                  <Upload className="h-6 w-6 text-muted-foreground" />
-                  <span className="text-sm text-muted-foreground">
-                    Click to upload transcript files
-                  </span>
-                  <span className="text-xs text-muted-foreground">
-                    PDF, DOC, DOCX, TXT, VTT, SRT
-                  </span>
-                </div>
-              )}
-            </Button>
-          </TabsContent>
-
-          {/* Search Tab */}
+          {/* Search Tab — Now default */}
           <TabsContent value="search" className="space-y-4">
             <div className="flex gap-2">
               <Input
-                placeholder="Search by company name, keywords..."
+                placeholder="Search by company name, person, or keywords..."
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && !loading && handleSearch()}
@@ -347,17 +303,29 @@ export const FirefliesManualLink = ({
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
                   <p className="text-sm text-muted-foreground">
-                    {results.length} result{results.length !== 1 ? 's' : ''}
+                    {results.length} result{results.length !== 1 ? 's' : ''} — click title to view in Fireflies
                   </p>
                   <Button variant="ghost" size="sm" onClick={() => setResults([])}>Clear</Button>
                 </div>
 
                 {results.map((result) => (
-                  <Card key={result.id} className="p-3">
+                  <Card key={result.id} className="p-3 hover:bg-muted/30 transition-colors">
                     <div className="space-y-2">
                       <div className="flex items-start justify-between gap-3">
                         <div className="flex-1 min-w-0">
-                          <h4 className="font-medium text-sm truncate">{result.title}</h4>
+                          {result.meeting_url ? (
+                            <a
+                              href={result.meeting_url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="font-medium text-sm text-primary hover:underline flex items-center gap-1.5 truncate"
+                            >
+                              {result.title}
+                              <ExternalLink className="h-3 w-3 shrink-0" />
+                            </a>
+                          ) : (
+                            <h4 className="font-medium text-sm truncate">{result.title}</h4>
+                          )}
                           <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1 text-xs text-muted-foreground">
                             <span className="flex items-center gap-1">
                               <Clock className="h-3 w-3" />
@@ -367,23 +335,16 @@ export const FirefliesManualLink = ({
                             {result.participants.length > 0 && (
                               <span className="flex items-center gap-1">
                                 <Users className="h-3 w-3" />
-                                {result.participants.length}
+                                {result.participants.length} participant{result.participants.length !== 1 ? 's' : ''}
                               </span>
                             )}
                           </div>
                         </div>
-                        <div className="flex items-center gap-1 shrink-0">
-                          {result.meeting_url && (
-                            <Button size="sm" variant="ghost" onClick={() => window.open(result.meeting_url, '_blank')} title="Open in Fireflies">
-                              <ExternalLink className="h-4 w-4" />
-                            </Button>
-                          )}
-                          <Button size="sm" onClick={() => handleLinkResult(result)} disabled={linking === result.id}>
-                            {linking === result.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <><Link className="h-4 w-4 mr-1" />Link</>}
-                          </Button>
-                        </div>
+                        <Button size="sm" onClick={() => handleLinkResult(result)} disabled={linking === result.id}>
+                          {linking === result.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <><Link className="h-4 w-4 mr-1" />Link</>}
+                        </Button>
                       </div>
-                      {result.summary && <p className="text-xs text-muted-foreground line-clamp-2">{result.summary}</p>}
+                      {result.summary && <p className="text-xs text-muted-foreground line-clamp-2 italic">{result.summary}</p>}
                       {result.keywords.length > 0 && (
                         <div className="flex flex-wrap gap-1">
                           {result.keywords.slice(0, 4).map((keyword) => (
@@ -398,11 +359,93 @@ export const FirefliesManualLink = ({
             )}
 
             {!loading && results.length === 0 && (
-              <div className="text-center py-4">
-                <Search className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
+              <div className="text-center py-4 bg-muted/30 rounded-lg">
+                <Search className="h-6 w-6 mx-auto text-muted-foreground mb-2" />
                 <p className="text-xs text-muted-foreground">Search Fireflies to find and link call transcripts</p>
               </div>
             )}
+          </TabsContent>
+
+          {/* Paste Link Tab */}
+          <TabsContent value="link" className="space-y-3">
+            <div className="flex gap-2">
+              <Input
+                placeholder="https://app.fireflies.ai/view/your-transcript"
+                value={firefliesUrl}
+                onChange={(e) => setFirefliesUrl(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && !linkingUrl && handleLinkByUrl()}
+                className={`flex-1 ${showUrlWarning ? 'border-amber-400 focus-visible:ring-amber-400' : ''}`}
+              />
+              <Button
+                onClick={handleLinkByUrl}
+                disabled={linkingUrl || !isValidFirefliesUrl}
+                size="sm"
+              >
+                {linkingUrl ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <>
+                    <Link className="h-4 w-4 mr-1.5" />
+                    Link
+                  </>
+                )}
+              </Button>
+            </div>
+            {showUrlWarning ? (
+              <p className="text-xs text-amber-600 flex items-center gap-1">
+                <AlertTriangle className="h-3 w-3" />
+                URL should be from app.fireflies.ai/view/...
+              </p>
+            ) : (
+              <p className="text-xs text-muted-foreground flex items-center gap-1">
+                <Info className="h-3 w-3" />
+                Paste a Fireflies transcript URL — the transcript content will be fetched automatically when you open it
+              </p>
+            )}
+          </TabsContent>
+
+          {/* Upload File Tab */}
+          <TabsContent value="upload" className="space-y-3">
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".pdf,.doc,.docx,.txt,.vtt,.srt,.md"
+              multiple
+              onChange={handleFileUpload}
+              className="hidden"
+            />
+            <Button
+              variant="outline"
+              className="w-full h-24 border-dashed"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={uploading}
+            >
+              {uploading ? (
+                <div className="flex items-center gap-2">
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                  <div className="text-left">
+                    <span>Uploading...</span>
+                    {uploadedFileNames.length > 0 && (
+                      <p className="text-xs text-muted-foreground">{uploadedFileNames[0]}{uploadedFileNames.length > 1 ? ` +${uploadedFileNames.length - 1} more` : ''}</p>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <div className="flex flex-col items-center gap-1.5">
+                  <Upload className="h-6 w-6 text-muted-foreground" />
+                  <span className="text-sm font-medium text-muted-foreground">
+                    Click to upload transcript files
+                  </span>
+                  <span className="text-xs text-muted-foreground">
+                    PDF, DOC, DOCX, TXT, VTT, SRT
+                  </span>
+                </div>
+              )}
+            </Button>
+            <p className="text-xs text-muted-foreground flex items-center gap-1">
+              <FileText className="h-3 w-3" />
+              Text will be extracted from uploaded files. AI can then extract deal intelligence.
+            </p>
           </TabsContent>
         </Tabs>
       </CardContent>

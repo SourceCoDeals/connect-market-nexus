@@ -259,7 +259,7 @@ export function DealTranscriptSection({ dealId, transcripts, isLoading, dealInfo
                       <div className="flex items-center gap-3 py-2">
                         <div className="flex-1 border-t border-blue-200 dark:border-blue-800" />
                         <span className="text-xs text-blue-600 dark:text-blue-400 font-medium whitespace-nowrap">
-                          Possible related calls matched by company name
+                          Possibly related calls (matched by company name)
                         </span>
                         <div className="flex-1 border-t border-blue-200 dark:border-blue-800" />
                       </div>

@@ -218,7 +218,7 @@ export const FirefliesTranscriptSearch = ({
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <p className="text-sm text-muted-foreground">
-              {results.length} result{results.length !== 1 ? 's' : ''}
+              {results.length} result{results.length !== 1 ? 's' : ''} — click title to view in Fireflies
             </p>
             <Button
               variant="ghost"
@@ -235,9 +235,21 @@ export const FirefliesTranscriptSearch = ({
                 {/* Header */}
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex-1 min-w-0">
-                    <h4 className="font-medium text-sm break-words">
-                      {result.title}
-                    </h4>
+                    {result.meeting_url ? (
+                      <a
+                        href={result.meeting_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="font-medium text-sm text-primary hover:underline flex items-center gap-1.5 break-words"
+                      >
+                        {result.title}
+                        <ExternalLink className="h-3 w-3 shrink-0" />
+                      </a>
+                    ) : (
+                      <h4 className="font-medium text-sm break-words">
+                        {result.title}
+                      </h4>
+                    )}
                     <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1.5 text-xs text-muted-foreground">
                       <span className="flex items-center gap-1">
                         <Clock className="h-3 w-3" />
@@ -253,23 +265,10 @@ export const FirefliesTranscriptSearch = ({
                       {result.participants.length > 0 && (
                         <span className="flex items-center gap-1">
                           <Users className="h-3 w-3" />
-                          {result.participants.length}
+                          {result.participants.length} participant{result.participants.length !== 1 ? 's' : ''}
                         </span>
                       )}
                     </div>
-                  </div>
-
-                  <div className="flex items-center gap-2 shrink-0">
-                    {result.meeting_url && (
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => window.open(result.meeting_url, '_blank')}
-                        title="Open in Fireflies"
-                      >
-                        <ExternalLink className="h-4 w-4" />
-                      </Button>
-                    )}
                   </div>
                 </div>
 
@@ -351,11 +350,14 @@ export const FirefliesTranscriptSearch = ({
       )}
 
       {/* Empty State */}
-      {!loading && results.length === 0 && query.trim() && (
-        <Card className="p-8 text-center">
-          <Search className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+      {!loading && results.length === 0 && (
+        <Card className="p-6 text-center bg-muted/30">
+          <Search className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
           <p className="text-sm text-muted-foreground">
-            Search Fireflies to find relevant call transcripts for this buyer
+            Search Fireflies to find and link call transcripts for this buyer
+          </p>
+          <p className="text-xs text-muted-foreground mt-1">
+            Click a result title to view in Fireflies, then link it to this buyer
           </p>
         </Card>
       )}
