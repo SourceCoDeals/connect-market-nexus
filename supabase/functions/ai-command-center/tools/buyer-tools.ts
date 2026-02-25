@@ -9,6 +9,24 @@ import type { ClaudeTool } from '../../_shared/claude-client.ts';
 import type { ToolResult } from './index.ts';
 import { checkCompanyExclusion } from '../../_shared/captarget-exclusion-filter.ts';
 
+// ---------- Fuzzy matching ----------
+
+// Simple fuzzy match: checks if target contains a close match to query (1 edit distance tolerance)
+function fuzzyContainsWord(target: string, query: string): boolean {
+  if (target.includes(query)) return true;
+  if (query.length < 4) return false;
+  for (let i = 0; i <= target.length - query.length + 1; i++) {
+    const sub = target.substring(i, i + query.length);
+    let dist = 0;
+    for (let j = 0; j < query.length; j++) {
+      if (sub[j] !== query[j]) dist++;
+      if (dist > 1) break;
+    }
+    if (dist <= 1) return true;
+  }
+  return false;
+}
+
 // ---------- Field sets ----------
 
 const BUYER_FIELDS_QUICK = `
@@ -356,27 +374,33 @@ async function searchBuyers(
   // Uses fieldContains() for array/string columns that may have mixed types
   if (args.industry) {
     const term = (args.industry as string).toLowerCase();
-    results = results.filter((b: any) =>
-      fieldContains(b.target_industries, term) ||
-      fieldContains(b.target_services, term) ||
-      fieldContains(b.services_offered, term) ||
-      b.industry_vertical?.toLowerCase().includes(term) ||
-      b.company_name?.toLowerCase().includes(term) ||
-      b.pe_firm_name?.toLowerCase().includes(term) ||
-      b.thesis_summary?.toLowerCase().includes(term) ||
-      b.business_summary?.toLowerCase().includes(term) ||
-      b.notes?.toLowerCase().includes(term) ||
-      b.alignment_reasoning?.toLowerCase().includes(term)
+    results = results.filter(
+      (b: any) =>
+        fieldContains(b.target_industries, term) ||
+        fieldContains(b.target_services, term) ||
+        fieldContains(b.services_offered, term) ||
+        b.industry_vertical?.toLowerCase().includes(term) ||
+        b.company_name?.toLowerCase().includes(term) ||
+        b.pe_firm_name?.toLowerCase().includes(term) ||
+        b.thesis_summary?.toLowerCase().includes(term) ||
+        b.business_summary?.toLowerCase().includes(term) ||
+        b.notes?.toLowerCase().includes(term) ||
+        b.alignment_reasoning?.toLowerCase().includes(term),
     );
   }
 
-  // Client-side free-text search — searches ALL buyer data fields
+  // Client-side free-text search — searches ALL buyer data fields with fuzzy matching
   if (args.search) {
     const term = (args.search as string).toLowerCase();
-    results = results.filter(
-      (b: any) =>
-        b.company_name?.toLowerCase().includes(term) ||
-        b.pe_firm_name?.toLowerCase().includes(term) ||
+    const searchWords = term.split(/\s+/).filter((w) => w.length > 2);
+    results = results.filter((b: any) => {
+      const compName = (b.company_name || '').toLowerCase();
+      const peName = (b.pe_firm_name || '').toLowerCase();
+
+      // Exact substring matches across all fields
+      if (
+        compName.includes(term) ||
+        peName.includes(term) ||
         b.buyer_type?.toLowerCase().includes(term) ||
         b.business_type?.toLowerCase().includes(term) ||
         fieldContains(b.target_services, term) ||
@@ -394,8 +418,22 @@ async function searchBuyers(
         fieldContains(b.geographic_footprint, term) ||
         fieldContains(b.target_geographies, term) ||
         fieldContains(b.service_regions, term) ||
-        fieldContains(b.operating_locations, term),
-    );
+        fieldContains(b.operating_locations, term)
+      )
+        return true;
+
+      // Fuzzy matching for company/entity names (1 edit distance tolerance)
+      const combined = `${compName} ${peName}`;
+      if (searchWords.length > 1 && searchWords.every((w) => fuzzyContainsWord(combined, w)))
+        return true;
+      if (
+        term.length >= 4 &&
+        (fuzzyContainsWord(compName, term) || fuzzyContainsWord(peName, term))
+      )
+        return true;
+
+      return false;
+    });
   }
 
   // CapTarget exclusion filter — remove PE/VC/investment banks when requested

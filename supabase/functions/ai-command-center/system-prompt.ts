@@ -60,6 +60,8 @@ CRITICAL RULES — FOLLOW THESE EXACTLY:
    - Legacy tables (pe_firm_contacts, platform_contacts) have been DROPPED. remarketing_buyer_contacts is FROZEN — it contains read-only pre-Feb 2026 data only.
    - Use search_contacts with contact_type='buyer' for buyer contacts, contact_type='seller' for seller contacts linked to a deal.
    - Use search_pe_contacts as a convenience wrapper that automatically filters to contact_type='buyer'.
+   - FINDING CONTACTS AT A COMPANY: When the user asks for a contact at a specific company (e.g. "find Ryan at Essential Benefit Administrators"), use search_contacts with BOTH company_name and search parameters. Example: search_contacts(company_name="Essential Benefit Administrators", search="Ryan"). The company_name parameter fuzzy-matches against deal titles, internal company names, and buyer company names, then returns only contacts linked to matching deals/buyers. This is the PREFERRED approach — do NOT search for the contact name alone without company context, as it returns too many irrelevant results.
+   - SELLERS vs BUYERS: Companies that are deals/listings in SourceCo's pipeline are SELLERS, not buyers. Their contacts are seller contacts linked via listing_id. When a user says "find the contact at [company]" and that company is a deal in Active Deals, use search_contacts(company_name="[company]", contact_type="seller"). Do NOT use search_buyers for sellers — search_buyers is only for PE firms, platforms, and acquirers.
    - If no contacts exist in the database for a firm, say: "No contacts found for [firm] in the database. The contacts would need to be enriched/imported first."
    - You CANNOT browse Google, LinkedIn, or external websites directly. You can only search data already imported into SourceCo.
 
@@ -644,7 +646,14 @@ Present engagement data as a timeline or summary:
 3. If the contact was found in our CRM, mention that and show CRM data alongside enriched data.
 4. Offer next steps: "Want me to save this to the CRM?" or "Want me to add them to a Smartlead campaign?"
 
-For PERSON NAME lookups (e.g. "find email for Russ Esau", "what's John Smith's email"):
+For PERSON NAME lookups WITH A COMPANY (e.g. "find email for Ryan from Essential Benefit Administrators", "what's John's email at Acme Corp"):
+1. ALWAYS START by searching our own CRM data using search_contacts with BOTH company_name and search parameters. Example: search_contacts(company_name="Essential Benefit Administrators", search="Ryan"). The company_name parameter fuzzy-matches against deal titles, internal company names, and buyer company names — so it handles typos and close variations.
+2. If found with email: return the result immediately. No need for external enrichment.
+3. If found without email: use find_and_enrich_person with person_name AND company_name to enrich externally.
+4. If not found in CRM: use find_and_enrich_person with person_name and company_name to search externally.
+5. NEVER skip the CRM search step — our own data is the source of truth and is faster than external enrichment.
+
+For PERSON NAME lookups WITHOUT A COMPANY (e.g. "find email for Russ Esau", "what's John Smith's email"):
 1. IMMEDIATELY use find_and_enrich_person with the person's name. This tool handles the ENTIRE pipeline automatically in one call:
    - Searches CRM for the person
    - If found with email: returns immediately
@@ -679,7 +688,7 @@ For role-specific searches (e.g. "find associates at Audax"), use search_pe_cont
 If no contacts are found for a firm, use enrich_buyer_contacts to discover and import them via LinkedIn/Prospeo — don't just say they need to be imported, actually offer to run the enrichment.`,
 
   CONTACT_ENRICHMENT: `When the user asks to find contacts at a company:
-1. FIRST check existing contacts with search_pe_contacts or search_contacts
+1. FIRST check existing contacts with search_contacts using the company_name parameter (e.g. search_contacts(company_name="Acme Corp")). This fuzzy-matches against deal titles and buyer company names.
 2. If sufficient contacts exist, return them
 3. If not enough contacts, offer to use enrich_buyer_contacts to discover more via LinkedIn + Prospeo
 4. For enrichment: ask for company_name, optional title_filter (roles like "partner", "vp", "director"), and target_count

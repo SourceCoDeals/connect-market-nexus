@@ -61,7 +61,7 @@ export const contactTools: ClaudeTool[] = [
   {
     name: 'search_contacts',
     description:
-      'Search the unified contacts table — the source of truth for ALL buyer and seller contacts since Feb 2026. Use contact_type to filter: "buyer" for PE/platform/independent buyers, "seller" for deal owners/principals. Seller contacts are linked to deals via listing_id. Buyer contacts link to remarketing_buyers via remarketing_buyer_id. Use has_email=false to find contacts missing email addresses.',
+      'Search the unified contacts table — the source of truth for ALL buyer and seller contacts since Feb 2026. Use contact_type to filter: "buyer" for PE/platform/independent buyers, "seller" for deal owners/principals. Seller contacts are linked to deals via listing_id. Buyer contacts link to remarketing_buyers via remarketing_buyer_id. Use has_email=false to find contacts missing email addresses. IMPORTANT: Use company_name to find contacts at a specific company — this searches both deal titles (for sellers) and buyer company names (for buyers) with fuzzy matching. For example, to find "Ryan at Essential Benefit Administrators", use search="Ryan" and company_name="Essential Benefit Administrators".',
     input_schema: {
       type: 'object',
       properties: {
@@ -76,6 +76,11 @@ export const contactTools: ClaudeTool[] = [
           description: 'Filter buyer contacts by remarketing buyer UUID',
         },
         firm_id: { type: 'string', description: 'Filter buyer contacts by firm agreement UUID' },
+        company_name: {
+          type: 'string',
+          description:
+            'Search by company/deal name (e.g. "Essential Benefit Administrators", "Acme Corp"). Fuzzy-matches against deal titles, internal company names, and buyer company names, then filters contacts linked to those deals/buyers. Use this when the user asks for a contact "at" a specific company.',
+        },
         search: {
           type: 'string',
           description: 'Search across first_name, last_name, title, email',
@@ -215,22 +220,28 @@ async function searchPeContacts(
   if (args.firm_name) {
     firmNameUsed = true;
     const firmTerm = (args.firm_name as string).toLowerCase();
+    const firmWords = firmTerm.split(/\s+/).filter((w) => w.length > 2);
 
-    // Search firm_agreements for matching company names
+    // Search firm_agreements for matching company names (with fuzzy matching)
     const { data: firms } = await supabase
       .from('firm_agreements')
       .select('id, primary_company_name')
-      .limit(100);
+      .limit(500);
 
     if (firms) {
       firmIds = firms
-        .filter((f: Record<string, unknown>) =>
-          (f.primary_company_name as string)?.toLowerCase().includes(firmTerm),
-        )
+        .filter((f: Record<string, unknown>) => {
+          const name = ((f.primary_company_name as string) || '').toLowerCase();
+          if (name.includes(firmTerm)) return true;
+          // Fuzzy: all words must match within the company name
+          if (firmWords.length > 1 && firmWords.every((w) => fuzzyContains(name, w))) return true;
+          if (firmTerm.length >= 4 && fuzzyContains(name, firmTerm)) return true;
+          return false;
+        })
         .map((f: Record<string, unknown>) => f.id as string);
     }
 
-    // Also search remarketing_buyers for matching company/PE firm names
+    // Also search remarketing_buyers for matching company/PE firm names (with fuzzy matching)
     const { data: buyers } = await supabase
       .from('remarketing_buyers')
       .select('id, company_name, pe_firm_name')
@@ -239,11 +250,20 @@ async function searchPeContacts(
 
     if (buyers) {
       buyerIds = buyers
-        .filter(
-          (b: Record<string, unknown>) =>
-            (b.company_name as string)?.toLowerCase().includes(firmTerm) ||
-            (b.pe_firm_name as string)?.toLowerCase().includes(firmTerm),
-        )
+        .filter((b: Record<string, unknown>) => {
+          const compName = ((b.company_name as string) || '').toLowerCase();
+          const peName = ((b.pe_firm_name as string) || '').toLowerCase();
+          const combined = `${compName} ${peName}`;
+          if (combined.includes(firmTerm)) return true;
+          if (firmWords.length > 1 && firmWords.every((w) => fuzzyContains(combined, w)))
+            return true;
+          if (
+            firmTerm.length >= 4 &&
+            (fuzzyContains(compName, firmTerm) || fuzzyContains(peName, firmTerm))
+          )
+            return true;
+          return false;
+        })
         .map((b: Record<string, unknown>) => b.id as string);
     }
 
@@ -447,8 +467,116 @@ async function searchEnrichedContacts(
 }
 
 /**
+ * Simple fuzzy match: checks if target contains a close match to query (1 edit distance tolerance).
+ * Used for company name matching to handle typos like "Advisors" vs "Administrators".
+ */
+function fuzzyContains(target: string, query: string): boolean {
+  if (target.includes(query)) return true;
+  if (query.length < 4) return false;
+  for (let i = 0; i <= target.length - query.length + 1; i++) {
+    const sub = target.substring(i, i + query.length);
+    let dist = 0;
+    for (let j = 0; j < query.length; j++) {
+      if (sub[j] !== query[j]) dist++;
+      if (dist > 1) break;
+    }
+    if (dist <= 1) return true;
+  }
+  return false;
+}
+
+/**
+ * Resolve company_name to matching listing_ids and remarketing_buyer_ids.
+ * Uses fuzzy matching against deal titles, internal company names, project names,
+ * and buyer company/PE firm names.
+ */
+async function resolveCompanyName(
+  supabase: SupabaseClient,
+  companyName: string,
+): Promise<{ listingIds: string[]; buyerIds: string[]; matchedNames: string[] }> {
+  const term = companyName.toLowerCase().trim();
+  const words = term.split(/\s+/).filter((w) => w.length > 2);
+
+  const listingIds: string[] = [];
+  const buyerIds: string[] = [];
+  const matchedNames: string[] = [];
+
+  // Search listings (deals) by title, internal_company_name, project_name, deal_identifier
+  const { data: listings } = await supabase
+    .from('listings')
+    .select('id, title, internal_company_name, project_name, deal_identifier')
+    .is('deleted_at', null)
+    .limit(2000);
+
+  if (listings) {
+    for (const l of listings as Array<Record<string, unknown>>) {
+      const title = ((l.title as string) || '').toLowerCase();
+      const internalName = ((l.internal_company_name as string) || '').toLowerCase();
+      const projectName = ((l.project_name as string) || '').toLowerCase();
+      const dealIdentifier = ((l.deal_identifier as string) || '').toLowerCase();
+      const combined = `${title} ${internalName} ${projectName} ${dealIdentifier}`;
+
+      // Exact substring match
+      if (combined.includes(term)) {
+        listingIds.push(l.id as string);
+        matchedNames.push((l.title || l.internal_company_name || l.project_name) as string);
+        continue;
+      }
+
+      // Multi-word fuzzy: all words must fuzzy-match somewhere
+      if (words.length > 1 && words.every((w) => fuzzyContains(combined, w))) {
+        listingIds.push(l.id as string);
+        matchedNames.push((l.title || l.internal_company_name || l.project_name) as string);
+        continue;
+      }
+
+      // Single-term fuzzy for entity names
+      if (term.length >= 4 && (fuzzyContains(title, term) || fuzzyContains(internalName, term))) {
+        listingIds.push(l.id as string);
+        matchedNames.push((l.title || l.internal_company_name || l.project_name) as string);
+      }
+    }
+  }
+
+  // Search remarketing_buyers by company_name and pe_firm_name
+  const { data: buyers } = await supabase
+    .from('remarketing_buyers')
+    .select('id, company_name, pe_firm_name')
+    .eq('archived', false)
+    .limit(2000);
+
+  if (buyers) {
+    for (const b of buyers as Array<Record<string, unknown>>) {
+      const compName = ((b.company_name as string) || '').toLowerCase();
+      const peName = ((b.pe_firm_name as string) || '').toLowerCase();
+      const combined = `${compName} ${peName}`;
+
+      if (combined.includes(term)) {
+        buyerIds.push(b.id as string);
+        matchedNames.push((b.company_name || b.pe_firm_name) as string);
+        continue;
+      }
+
+      if (words.length > 1 && words.every((w) => fuzzyContains(combined, w))) {
+        buyerIds.push(b.id as string);
+        matchedNames.push((b.company_name || b.pe_firm_name) as string);
+        continue;
+      }
+
+      if (term.length >= 4 && (fuzzyContains(compName, term) || fuzzyContains(peName, term))) {
+        buyerIds.push(b.id as string);
+        matchedNames.push((b.company_name || b.pe_firm_name) as string);
+      }
+    }
+  }
+
+  return { listingIds, buyerIds, matchedNames };
+}
+
+/**
  * Search the unified contacts table — source of truth for ALL contacts (buyer + seller + advisor + internal).
  * Added Feb 2026 as part of the unified contacts migration.
+ * Updated Feb 2026: Added company_name parameter for fuzzy company/deal name resolution.
  */
 async function searchContacts(
   supabase: SupabaseClient,
@@ -459,6 +587,35 @@ async function searchContacts(
 
   const contactFields =
     'id, first_name, last_name, email, phone, title, contact_type, firm_id, remarketing_buyer_id, profile_id, listing_id, is_primary_at_firm, nda_signed, fee_agreement_signed, linkedin_url, source, archived, created_at';
+
+  // If company_name is provided, resolve to listing_ids and buyer_ids first
+  let companyListingIds: string[] = [];
+  let companyBuyerIds: string[] = [];
+  let companyNameUsed = false;
+  let companyMatchedNames: string[] = [];
+
+  if (args.company_name) {
+    companyNameUsed = true;
+    const resolved = await resolveCompanyName(supabase, args.company_name as string);
+    companyListingIds = resolved.listingIds;
+    companyBuyerIds = resolved.buyerIds;
+    companyMatchedNames = resolved.matchedNames;
+
+    // If no matching companies/deals found, return early with helpful message
+    if (companyListingIds.length === 0 && companyBuyerIds.length === 0) {
+      return {
+        data: {
+          contacts: [],
+          total: 0,
+          with_email: 0,
+          with_linkedin: 0,
+          source: 'unified_contacts_table',
+          company_name_searched: args.company_name,
+          note: `No deal or company matching "${args.company_name}" found in the database. Try query_deals with a broader search term, or check the exact company name in Active Deals.`,
+        },
+      };
+    }
+  }
 
   let query = supabase
     .from('contacts')
@@ -472,6 +629,21 @@ async function searchContacts(
   if (args.remarketing_buyer_id)
     query = query.eq('remarketing_buyer_id', args.remarketing_buyer_id as string);
   if (args.firm_id) query = query.eq('firm_id', args.firm_id as string);
+
+  // Apply company_name filter via resolved listing/buyer IDs
+  if (companyNameUsed && !args.listing_id && !args.remarketing_buyer_id) {
+    const orClauses: string[] = [];
+    if (companyListingIds.length > 0) {
+      orClauses.push(`listing_id.in.(${companyListingIds.join(',')})`);
+    }
+    if (companyBuyerIds.length > 0) {
+      orClauses.push(`remarketing_buyer_id.in.(${companyBuyerIds.join(',')})`);
+    }
+    if (orClauses.length > 0) {
+      query = query.or(orClauses.join(','));
+    }
+  }
+
   if (args.is_primary === true) query = query.eq('is_primary_at_firm', true);
   if (args.has_email === true) query = query.not('email', 'is', null);
   if (args.has_email === false) query = query.is('email', null);
@@ -585,6 +757,9 @@ async function searchContacts(
         internal: results.filter((c) => c.contact_type === 'internal').length,
       },
       source: 'unified_contacts_table',
+      company_name_searched: companyNameUsed ? args.company_name : undefined,
+      company_matches:
+        companyMatchedNames.length > 0 ? Array.from(new Set(companyMatchedNames)) : undefined,
       enriched_contacts: enrichedResults.length > 0 ? enrichedResults : undefined,
       enriched_note:
         enrichedResults.length > 0
