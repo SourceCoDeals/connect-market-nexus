@@ -233,23 +233,6 @@ export function UnifiedAdminSidebar({
       ...((canAccessSettings
         ? [
             {
-              id: 'smartlead',
-              label: 'Smartlead',
-              icon: <Mail className="h-4 w-4" />,
-              items: [
-                {
-                  label: 'Campaigns',
-                  href: '/admin/smartlead/campaigns',
-                  icon: <Mail className="h-4 w-4" />,
-                },
-                {
-                  label: 'Integration Settings',
-                  href: '/admin/smartlead/settings',
-                  icon: <Settings className="h-4 w-4" />,
-                },
-              ],
-            },
-            {
               id: 'phoneburner',
               label: 'PhoneBurner',
               icon: <Phone className="h-4 w-4" />,
@@ -305,6 +288,17 @@ export function UnifiedAdminSidebar({
                   label: 'Data Recovery',
                   href: '/admin/settings/data-recovery',
                   icon: <Database className="h-4 w-4" />,
+                },
+                {
+                  label: 'Smartlead Campaigns',
+                  href: '/admin/smartlead/campaigns',
+                  icon: <Mail className="h-4 w-4" />,
+                  separator: 'Smartlead',
+                },
+                {
+                  label: 'Smartlead Settings',
+                  href: '/admin/smartlead/settings',
+                  icon: <Settings className="h-4 w-4" />,
                 },
               ]
             : []),
