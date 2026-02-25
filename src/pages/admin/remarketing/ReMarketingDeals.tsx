@@ -66,10 +66,15 @@ import { DEFAULT_COLUMN_WIDTHS } from './types';
 import { ResizableHeader } from './components/ResizableHeader';
 import { DealTableRow } from './components/DealTableRow';
 import { DealsKPICards } from './components/DealsKPICards';
-import { DealsBulkActions } from './components/DealsBulkActions';
 import { DealsActionDialogs } from './components/DealsActionDialogs';
-import { AddDealsToListDialog } from '@/components/remarketing';
+import {
+  DealBulkActionBar,
+  AddDealsToListDialog,
+  PushToHeyreachModal,
+} from '@/components/remarketing';
 import type { DealForList } from '@/components/remarketing';
+import { PushToDialerModal } from '@/components/remarketing/PushToDialerModal';
+import { PushToSmartleadModal } from '@/components/remarketing/PushToSmartleadModal';
 
 const ReMarketingDeals = () => {
   const navigate = useNavigate();
@@ -120,6 +125,9 @@ const ReMarketingDeals = () => {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showUniverseDialog, setShowUniverseDialog] = useState(false);
   const [showAddToListDialog, setShowAddToListDialog] = useState(false);
+  const [dialerOpen, setDialerOpen] = useState(false);
+  const [smartleadOpen, setSmartleadOpen] = useState(false);
+  const [heyreachOpen, setHeyreachOpen] = useState(false);
 
   // Local order state for optimistic UI updates during drag-and-drop
   const [localOrder, setLocalOrder] = useState<DealListing[]>([]);
@@ -1323,17 +1331,41 @@ const ReMarketingDeals = () => {
       </FilterBar>
 
       {/* Bulk Actions Toolbar */}
-      <DealsBulkActions
-        selectedDeals={selectedDeals}
-        localOrder={localOrder}
+      <DealBulkActionBar
+        selectedIds={selectedDeals}
+        deals={localOrder}
         onClearSelection={handleClearSelection}
-        onShowUniverseDialog={() => setShowUniverseDialog(true)}
-        onShowArchiveDialog={() => setShowArchiveDialog(true)}
-        onShowDeleteDialog={() => setShowDeleteDialog(true)}
+        onRefetch={refetchListings}
+        onSendToUniverse={() => setShowUniverseDialog(true)}
+        onPushToDialer={() => setDialerOpen(true)}
+        onPushToSmartlead={() => setSmartleadOpen(true)}
+        onPushToHeyreach={() => setHeyreachOpen(true)}
         onAddToList={() => setShowAddToListDialog(true)}
-        setSelectedDeals={(deals) => setSelectedDeals(deals)}
-        refetchListings={refetchListings}
-        toast={toast}
+        onArchive={handleBulkArchive}
+        isArchiving={isArchiving}
+        onDelete={handleBulkDelete}
+        isDeleting={isDeleting}
+      />
+      <PushToDialerModal
+        open={dialerOpen}
+        onOpenChange={setDialerOpen}
+        contactIds={Array.from(selectedDeals)}
+        contactCount={selectedDeals.size}
+        entityType="listings"
+      />
+      <PushToSmartleadModal
+        open={smartleadOpen}
+        onOpenChange={setSmartleadOpen}
+        contactIds={Array.from(selectedDeals)}
+        contactCount={selectedDeals.size}
+        entityType="listings"
+      />
+      <PushToHeyreachModal
+        open={heyreachOpen}
+        onOpenChange={setHeyreachOpen}
+        contactIds={Array.from(selectedDeals)}
+        contactCount={selectedDeals.size}
+        entityType="listings"
       />
 
       {/* Data Table */}

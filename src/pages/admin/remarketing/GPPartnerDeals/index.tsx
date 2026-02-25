@@ -1,6 +1,6 @@
-import { useState, useEffect, useMemo } from "react";
-import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
+import { useState, useEffect, useMemo, useCallback } from 'react';
+import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -8,29 +8,95 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import {
-  Sparkles, Loader2, BarChart3, ChevronDown, Plus, FileSpreadsheet, EyeOff,
-} from "lucide-react";
-import { cn } from "@/lib/utils";
-import { DealImportDialog } from "@/components/remarketing/DealImportDialog";
-import { FilterBar, TimeframeSelector, GP_PARTNER_FIELDS } from "@/components/filters";
-import { EnrichmentProgressIndicator } from "@/components/remarketing/EnrichmentProgressIndicator";
-import { useGPPartnerDeals } from "./useGPPartnerDeals";
-import { useAIUIActionHandler } from "@/hooks/useAIUIActionHandler";
-import { useAICommandCenterContext } from "@/components/ai-command-center/AICommandCenterProvider";
-import { GPPartnerKPICards } from "./GPPartnerKPICards";
-import { GPPartnerBulkActions } from "./GPPartnerBulkActions";
-import { GPPartnerTable } from "./GPPartnerTable";
-import { GPPartnerPagination } from "./GPPartnerPagination";
-import { AddDealDialog } from "./AddDealDialog";
-import { PushToDialerModal } from "@/components/remarketing/PushToDialerModal";
-import { AddDealsToListDialog } from "@/components/remarketing";
-import type { DealForList } from "@/components/remarketing";
+  Sparkles,
+  Loader2,
+  BarChart3,
+  ChevronDown,
+  Plus,
+  FileSpreadsheet,
+  EyeOff,
+} from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { supabase } from '@/integrations/supabase/client';
+import { DealImportDialog } from '@/components/remarketing/DealImportDialog';
+import { FilterBar, TimeframeSelector, GP_PARTNER_FIELDS } from '@/components/filters';
+import { EnrichmentProgressIndicator } from '@/components/remarketing/EnrichmentProgressIndicator';
+import {
+  DealBulkActionBar,
+  AddDealsToListDialog,
+  PushToHeyreachModal,
+} from '@/components/remarketing';
+import type { DealForList } from '@/components/remarketing';
+import { PushToDialerModal } from '@/components/remarketing/PushToDialerModal';
+import { PushToSmartleadModal } from '@/components/remarketing/PushToSmartleadModal';
+import { useGPPartnerDeals } from './useGPPartnerDeals';
+import { useAIUIActionHandler } from '@/hooks/useAIUIActionHandler';
+import { useAICommandCenterContext } from '@/components/ai-command-center/AICommandCenterProvider';
+import { GPPartnerKPICards } from './GPPartnerKPICards';
+import { GPPartnerTable } from './GPPartnerTable';
+import { GPPartnerPagination } from './GPPartnerPagination';
+import { AddDealDialog } from './AddDealDialog';
 
 export default function GPPartnerDeals() {
   const hook = useGPPartnerDeals();
   const { setPageContext } = useAICommandCenterContext();
   const [dialerOpen, setDialerOpen] = useState(false);
+  const [smartleadOpen, setSmartleadOpen] = useState(false);
+  const [heyreachOpen, setHeyreachOpen] = useState(false);
   const [addToListOpen, setAddToListOpen] = useState(false);
+  const [isArchiving, setIsArchiving] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const handleBulkArchive = useCallback(async () => {
+    setIsArchiving(true);
+    try {
+      const dealIds = Array.from(hook.selectedIds);
+      const { error } = await supabase
+        .from('listings')
+        .update({ status: 'inactive' })
+        .in('id', dealIds);
+      if (error) throw error;
+      hook.toast({ title: 'Deals Archived', description: `${dealIds.length} deal(s) archived` });
+      hook.setSelectedIds(new Set());
+      hook.queryClient.invalidateQueries({ queryKey: ['remarketing', 'gp-partner-deals'] });
+    } catch (err: unknown) {
+      hook.toast({
+        variant: 'destructive',
+        title: 'Archive Failed',
+        description: err instanceof Error ? err.message : 'Unknown error',
+      });
+    } finally {
+      setIsArchiving(false);
+    }
+  }, [hook.selectedIds, hook.toast, hook.queryClient, hook.setSelectedIds]);
+
+  const handleBulkDelete = useCallback(async () => {
+    setIsDeleting(true);
+    try {
+      const dealIds = Array.from(hook.selectedIds);
+      for (const dealId of dealIds) {
+        await supabase.from('enrichment_queue').delete().eq('listing_id', dealId);
+        await supabase.from('remarketing_scores').delete().eq('listing_id', dealId);
+        await supabase.from('buyer_deal_scores').delete().eq('deal_id', dealId);
+      }
+      const { error } = await supabase.from('listings').delete().in('id', dealIds);
+      if (error) throw error;
+      hook.toast({
+        title: 'Deals Deleted',
+        description: `${dealIds.length} deal(s) permanently deleted`,
+      });
+      hook.setSelectedIds(new Set());
+      hook.queryClient.invalidateQueries({ queryKey: ['remarketing', 'gp-partner-deals'] });
+    } catch (err: unknown) {
+      hook.toast({
+        variant: 'destructive',
+        title: 'Delete Failed',
+        description: err instanceof Error ? err.message : 'Unknown error',
+      });
+    } finally {
+      setIsDeleting(false);
+    }
+  }, [hook.selectedIds, hook.toast, hook.queryClient, hook.setSelectedIds]);
 
   const selectedDealsForList = useMemo((): DealForList[] => {
     if (!hook.filteredDeals || hook.selectedIds.size === 0) return [];
@@ -38,7 +104,7 @@ export default function GPPartnerDeals() {
       .filter((d) => hook.selectedIds.has(d.id))
       .map((d) => ({
         dealId: d.id,
-        dealName: d.internal_company_name || d.title || "Unknown Deal",
+        dealName: d.internal_company_name || d.title || 'Unknown Deal',
         contactName: d.main_contact_name,
         contactEmail: d.main_contact_email,
         contactPhone: d.main_contact_phone,
@@ -209,20 +275,41 @@ export default function GPPartnerDeals() {
       </div>
 
       {/* Bulk Actions */}
-      <GPPartnerBulkActions
+      <DealBulkActionBar
         selectedIds={hook.selectedIds}
-        setSelectedIds={hook.setSelectedIds}
-        filteredDeals={hook.filteredDeals}
+        deals={hook.filteredDeals}
+        onClearSelection={() => hook.setSelectedIds(new Set())}
+        onRefetch={hook.refetch}
+        onApproveToActiveDeals={hook.handlePushToAllDeals}
         isPushing={hook.isPushing}
+        onEnrichSelected={(dealIds) => hook.handleEnrichSelected(dealIds)}
         isEnriching={hook.isEnriching}
-        handlePushToAllDeals={hook.handlePushToAllDeals}
-        handleEnrichSelected={hook.handleEnrichSelected}
         onPushToDialer={() => setDialerOpen(true)}
+        onPushToSmartlead={() => setSmartleadOpen(true)}
+        onPushToHeyreach={() => setHeyreachOpen(true)}
         onAddToList={() => setAddToListOpen(true)}
+        onArchive={handleBulkArchive}
+        isArchiving={isArchiving}
+        onDelete={handleBulkDelete}
+        isDeleting={isDeleting}
       />
       <PushToDialerModal
         open={dialerOpen}
         onOpenChange={setDialerOpen}
+        contactIds={Array.from(hook.selectedIds)}
+        contactCount={hook.selectedIds.size}
+        entityType="listings"
+      />
+      <PushToSmartleadModal
+        open={smartleadOpen}
+        onOpenChange={setSmartleadOpen}
+        contactIds={Array.from(hook.selectedIds)}
+        contactCount={hook.selectedIds.size}
+        entityType="listings"
+      />
+      <PushToHeyreachModal
+        open={heyreachOpen}
+        onOpenChange={setHeyreachOpen}
         contactIds={Array.from(hook.selectedIds)}
         contactCount={hook.selectedIds.size}
         entityType="listings"

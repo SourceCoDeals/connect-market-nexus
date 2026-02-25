@@ -54,10 +54,14 @@ import { DealsKPICards } from './components/DealsKPICards';
 import { CapTargetSyncBar } from './components/CapTargetSyncBar';
 import { CapTargetExclusionLog } from './components/CapTargetExclusionLog';
 import { CapTargetTableRow } from './components/CapTargetTableRow';
-import { CapTargetBulkActions } from './components/CapTargetBulkActions';
-import { PushToDialerModal } from '@/components/remarketing/PushToDialerModal';
-import { AddDealsToListDialog } from '@/components/remarketing';
+import {
+  DealBulkActionBar,
+  AddDealsToListDialog,
+  PushToHeyreachModal,
+} from '@/components/remarketing';
 import type { DealForList } from '@/components/remarketing';
+import { PushToDialerModal } from '@/components/remarketing/PushToDialerModal';
+import { PushToSmartleadModal } from '@/components/remarketing/PushToSmartleadModal';
 
 interface CapTargetDeal {
   id: string;
@@ -189,6 +193,8 @@ export default function CapTargetDeals() {
   // Selection
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [dialerOpen, setDialerOpen] = useState(false);
+  const [smartleadOpen, setSmartleadOpen] = useState(false);
+  const [heyreachOpen, setHeyreachOpen] = useState(false);
   const [addToListOpen, setAddToListOpen] = useState(false);
 
   // Wire AI UI actions to this page's state
@@ -275,8 +281,6 @@ export default function CapTargetDeals() {
   const [showExclusionLog, setShowExclusionLog] = useState(false);
 
   // Archive & Delete state
-  const [showArchiveDialog, setShowArchiveDialog] = useState(false);
-  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [isArchiving, setIsArchiving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
@@ -860,7 +864,6 @@ export default function CapTargetDeals() {
         description: `${dealIds.length} deal(s) have been moved to Inactive`,
       });
       setSelectedIds(new Set());
-      setShowArchiveDialog(false);
       await queryClient.invalidateQueries({ queryKey: ['remarketing', 'captarget-deals'] });
     } catch (err: unknown) {
       toast({
@@ -890,7 +893,6 @@ export default function CapTargetDeals() {
         description: `${dealIds.length} deal(s) have been permanently deleted`,
       });
       setSelectedIds(new Set());
-      setShowDeleteDialog(false);
       await queryClient.invalidateQueries({ queryKey: ['remarketing', 'captarget-deals'] });
     } catch (err: unknown) {
       toast({
@@ -933,7 +935,7 @@ export default function CapTargetDeals() {
       .filter((d) => selectedIds.has(d.id))
       .map((d) => ({
         dealId: d.id,
-        dealName: d.internal_company_name || d.title || "Unknown Deal",
+        dealName: d.internal_company_name || d.title || 'Unknown Deal',
         contactName: d.main_contact_name,
         contactEmail: d.main_contact_email,
         contactPhone: d.main_contact_phone,
@@ -1225,29 +1227,42 @@ export default function CapTargetDeals() {
       </div>
 
       {/* Bulk Actions */}
-      <CapTargetBulkActions
+      <DealBulkActionBar
         selectedIds={selectedIds}
-        deals={deals}
-        isPushing={isPushing}
-        isEnriching={isEnriching}
-        isArchiving={isArchiving}
-        isDeleting={isDeleting}
-        onPushToAllDeals={handlePushToAllDeals}
-        onEnrichSelected={handleEnrichSelected}
+        deals={deals || []}
         onClearSelection={() => setSelectedIds(new Set())}
         onRefetch={refetch}
-        showArchiveDialog={showArchiveDialog}
-        setShowArchiveDialog={setShowArchiveDialog}
-        onBulkArchive={handleBulkArchive}
-        showDeleteDialog={showDeleteDialog}
-        setShowDeleteDialog={setShowDeleteDialog}
-        onBulkDelete={handleBulkDelete}
+        onApproveToActiveDeals={handlePushToAllDeals}
+        isPushing={isPushing}
+        onEnrichSelected={handleEnrichSelected}
+        enrichDropdown
+        isEnriching={isEnriching}
         onPushToDialer={() => setDialerOpen(true)}
+        onPushToSmartlead={() => setSmartleadOpen(true)}
+        onPushToHeyreach={() => setHeyreachOpen(true)}
         onAddToList={() => setAddToListOpen(true)}
+        onArchive={handleBulkArchive}
+        isArchiving={isArchiving}
+        onDelete={handleBulkDelete}
+        isDeleting={isDeleting}
       />
       <PushToDialerModal
         open={dialerOpen}
         onOpenChange={setDialerOpen}
+        contactIds={Array.from(selectedIds)}
+        contactCount={selectedIds.size}
+        entityType="listings"
+      />
+      <PushToSmartleadModal
+        open={smartleadOpen}
+        onOpenChange={setSmartleadOpen}
+        contactIds={Array.from(selectedIds)}
+        contactCount={selectedIds.size}
+        entityType="listings"
+      />
+      <PushToHeyreachModal
+        open={heyreachOpen}
+        onOpenChange={setHeyreachOpen}
         contactIds={Array.from(selectedIds)}
         contactCount={selectedIds.size}
         entityType="listings"
@@ -1385,9 +1400,25 @@ export default function CapTargetDeals() {
                           onToggleSelect={toggleSelect}
                           onPushToAllDeals={handlePushToAllDeals}
                           onEnrichSelected={handleEnrichSelected}
-                          onDeleteDeal={(id) => {
-                            setSelectedIds(new Set([id]));
-                            setShowDeleteDialog(true);
+                          onDeleteDeal={async (id) => {
+                            if (!confirm('Permanently delete this deal?')) return;
+                            await supabase.from('enrichment_queue').delete().eq('listing_id', id);
+                            await supabase.from('remarketing_scores').delete().eq('listing_id', id);
+                            await supabase.from('buyer_deal_scores').delete().eq('deal_id', id);
+                            const { error } = await supabase.from('listings').delete().eq('id', id);
+                            if (error) {
+                              toast({
+                                title: 'Delete Failed',
+                                description: error.message,
+                                variant: 'destructive',
+                              });
+                            } else {
+                              toast({
+                                title: 'Deal Deleted',
+                                description: 'Deal permanently deleted',
+                              });
+                              refetch();
+                            }
                           }}
                           onArchiveDeal={async (id) => {
                             const { error } = await supabase
