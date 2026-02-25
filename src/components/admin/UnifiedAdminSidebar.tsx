@@ -39,6 +39,7 @@ import {
   Contact,
   Mail,
   Search,
+  Phone,
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -103,8 +104,8 @@ export function UnifiedAdminSidebar({
             icon: <GitBranch className="h-4 w-4" />,
           },
           {
-            label: "Contact Lists",
-            href: "/admin/lists",
+            label: 'Contact Lists',
+            href: '/admin/lists',
             icon: <ListChecks className="h-4 w-4" />,
           },
         ],
@@ -136,8 +137,8 @@ export function UnifiedAdminSidebar({
             icon: <Contact className="h-4 w-4" />,
           },
           {
-            label: "Document Tracking",
-            href: "/admin/documents",
+            label: 'Document Tracking',
+            href: '/admin/documents',
             icon: <FileCheck className="h-4 w-4" />,
           },
         ],
@@ -244,6 +245,23 @@ export function UnifiedAdminSidebar({
                 {
                   label: 'Integration Settings',
                   href: '/admin/smartlead/settings',
+                  icon: <Settings className="h-4 w-4" />,
+                },
+              ],
+            },
+            {
+              id: 'phoneburner',
+              label: 'PhoneBurner',
+              icon: <Phone className="h-4 w-4" />,
+              items: [
+                {
+                  label: 'Dial Sessions',
+                  href: '/admin/phoneburner/sessions',
+                  icon: <Phone className="h-4 w-4" />,
+                },
+                {
+                  label: 'Integration Settings',
+                  href: '/admin/phoneburner/settings',
                   icon: <Settings className="h-4 w-4" />,
                 },
               ],
