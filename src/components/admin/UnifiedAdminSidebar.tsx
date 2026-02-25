@@ -34,7 +34,9 @@ import {
   FlaskConical,
   ExternalLink,
   Plus,
+  List,
   ListChecks,
+  Bookmark,
   Contact,
   Mail,
   Search,
@@ -102,10 +104,22 @@ export function UnifiedAdminSidebar({
             href: '/admin/deals/pipeline',
             icon: <GitBranch className="h-4 w-4" />,
           },
+        ],
+      },
+      {
+        id: 'lists',
+        label: 'Lists',
+        icon: <List className="h-4 w-4" />,
+        items: [
           {
             label: 'Contact Lists',
             href: '/admin/lists',
             icon: <ListChecks className="h-4 w-4" />,
+          },
+          {
+            label: 'Saved Listings',
+            href: '/saved-listings',
+            icon: <Bookmark className="h-4 w-4" />,
           },
         ],
       },
