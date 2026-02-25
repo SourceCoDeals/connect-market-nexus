@@ -153,20 +153,30 @@ export const DealCSVImport = ({
       let existingListing: Record<string, unknown> | null = null;
 
       if (website) {
-        const { data } = await supabase
-          .from('listings')
-          .select('*')
-          .eq('website', website)
+        // Use the DB's normalize_domain() function via RPC for reliable matching
+        const { data: rpcData } = await supabase
+          .rpc('find_listing_by_normalized_domain', { target_domain: website })
           .limit(1)
           .maybeSingle();
-        existingListing = data as Record<string, unknown> | null;
+        existingListing = rpcData as Record<string, unknown> | null;
+
+        // Fallback: exact match (in case RPC is not yet deployed)
+        if (!existingListing) {
+          const { data } = await supabase
+            .from('listings')
+            .select('*')
+            .eq('website', website)
+            .limit(1)
+            .maybeSingle();
+          existingListing = data as Record<string, unknown> | null;
+        }
       }
 
       if (!existingListing && title) {
         const { data } = await supabase
           .from('listings')
           .select('*')
-          .eq('title', title)
+          .ilike('title', title)
           .limit(1)
           .maybeSingle();
         existingListing = data as Record<string, unknown> | null;
