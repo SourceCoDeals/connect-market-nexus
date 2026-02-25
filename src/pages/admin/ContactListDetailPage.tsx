@@ -16,6 +16,8 @@ import {
   ArrowLeft,
   Search,
   Phone,
+  Mail,
+  Send,
   Download,
   Users,
   Calendar,
@@ -23,11 +25,13 @@ import {
   UserMinus,
   ListChecks,
   PhoneCall,
+  X,
 } from 'lucide-react';
 import { format, formatDistanceToNow } from 'date-fns';
 import { useContactList, useRemoveListMember } from '@/hooks/admin/use-contact-lists';
 import { PushToDialerModal } from '@/components/remarketing/PushToDialerModal';
 import { PushToSmartleadModal } from '@/components/remarketing/PushToSmartleadModal';
+import { PushToHeyreachModal } from '@/components/remarketing/PushToHeyreachModal';
 import type { ContactListMember } from '@/types/contact-list';
 
 const ContactListDetailPage = () => {
@@ -39,6 +43,7 @@ const ContactListDetailPage = () => {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [isDialerOpen, setIsDialerOpen] = useState(false);
   const [isSmartleadOpen, setIsSmartleadOpen] = useState(false);
+  const [isHeyreachOpen, setIsHeyreachOpen] = useState(false);
 
   const activeMembers = useMemo(
     () => (list?.members ?? []).filter((m) => !m.removed_at),
@@ -116,10 +121,18 @@ const ContactListDetailPage = () => {
     URL.revokeObjectURL(url);
   };
 
-  // For dialer push, use entity_ids
+  // For dialer push, use entity_ids from selected (or all if none selected)
   const dialerContactIds = (
     selectedWithPhone.length > 0 ? selectedWithPhone : activeMembers.filter((m) => m.contact_phone)
   ).map((m) => m.entity_id);
+
+  const handleBulkRemove = () => {
+    if (!list) return;
+    selectedMembers.forEach((m) => {
+      removeMember.mutate({ memberId: m.id, listId: list.id });
+    });
+    setSelectedIds(new Set());
+  };
 
   if (isLoading) {
     return (
@@ -185,23 +198,6 @@ const ContactListDetailPage = () => {
                 <Download className="h-3.5 w-3.5" />
                 Export CSV
               </Button>
-              {dialerContactIds.length > 0 && (
-                <>
-                  <Button size="sm" onClick={() => setIsDialerOpen(true)} className="gap-1.5">
-                    <Phone className="h-3.5 w-3.5" />
-                    Push to Dialer
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => setIsSmartleadOpen(true)}
-                    className="gap-1.5"
-                  >
-                    <Phone className="h-3.5 w-3.5" />
-                    Push to Smartlead
-                  </Button>
-                </>
-              )}
             </div>
           </div>
           {list.tags.length > 0 && (
@@ -228,15 +224,72 @@ const ContactListDetailPage = () => {
               className="pl-10"
             />
           </div>
-          {selectedIds.size > 0 && (
-            <div className="flex items-center gap-2">
-              <Badge variant="secondary">{selectedIds.size} selected</Badge>
-              <Button size="sm" variant="ghost" onClick={() => setSelectedIds(new Set())}>
+        </div>
+
+        {/* Bulk Action Bar */}
+        {selectedIds.size > 0 && (
+          <div className="sticky top-0 z-10 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border border-border rounded-lg p-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <Badge variant="secondary" className="text-sm">
+                  {selectedIds.size} contact{selectedIds.size !== 1 ? 's' : ''} selected
+                </Badge>
+
+                <div className="flex items-center gap-2">
+                  {selectedWithPhone.length > 0 && (
+                    <>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setIsDialerOpen(true)}
+                        className="flex items-center gap-1.5"
+                      >
+                        <Phone className="h-3.5 w-3.5" />
+                        Push {selectedWithPhone.length} to Dialer
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setIsSmartleadOpen(true)}
+                        className="flex items-center gap-1.5"
+                      >
+                        <Mail className="h-3.5 w-3.5" />
+                        Push {selectedWithPhone.length} to Smartlead
+                      </Button>
+                    </>
+                  )}
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setIsHeyreachOpen(true)}
+                    className="flex items-center gap-1.5"
+                  >
+                    <Send className="h-3.5 w-3.5" />
+                    Push {selectedIds.size} to HeyReach
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={handleBulkRemove}
+                    className="flex items-center gap-1.5 text-destructive hover:text-destructive"
+                  >
+                    <UserMinus className="h-3.5 w-3.5" />
+                    Remove from List
+                  </Button>
+                </div>
+              </div>
+
+              <Button variant="ghost" size="sm" onClick={() => setSelectedIds(new Set())}>
+                <X className="h-3.5 w-3.5 mr-1" />
                 Clear
               </Button>
             </div>
-          )}
-        </div>
+            <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
+              <span>{selectedWithPhone.length} with phone</span>
+              <span>{selectedMembers.filter((m) => m.contact_email).length} with email</span>
+            </div>
+          </div>
+        )}
 
         {/* Members Table */}
         <div className="bg-card rounded-lg border overflow-hidden">
@@ -297,6 +350,13 @@ const ContactListDetailPage = () => {
         onOpenChange={setIsSmartleadOpen}
         contactIds={dialerContactIds}
         contactCount={dialerContactIds.length}
+        entityType="buyer_contacts"
+      />
+      <PushToHeyreachModal
+        open={isHeyreachOpen}
+        onOpenChange={setIsHeyreachOpen}
+        contactIds={selectedMembers.map((m) => m.entity_id)}
+        contactCount={selectedMembers.length}
         entityType="buyer_contacts"
       />
     </div>
