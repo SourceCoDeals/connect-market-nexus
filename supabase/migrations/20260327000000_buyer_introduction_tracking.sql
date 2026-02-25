@@ -146,6 +146,6 @@ SELECT
   COUNT(*) as total_tracked_buyers
 FROM listings l
 LEFT JOIN buyer_introductions bi ON l.id = bi.listing_id
-WHERE l.archived_at IS NULL
+WHERE l.deleted_at IS NULL
 GROUP BY l.id, l.title
 ORDER BY l.title;
