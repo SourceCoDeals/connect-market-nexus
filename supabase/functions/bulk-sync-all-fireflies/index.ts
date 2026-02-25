@@ -6,14 +6,15 @@ import { getCorsHeaders, corsPreflightResponse } from "../_shared/cors.ts";
 /**
  * Bulk Sync ALL Fireflies Transcripts
  *
- * Pulls every transcript from the Fireflies account, pairs them to
- * deals and buyers, and fetches full transcript content — all in one go.
+ * Phase 1 (this call): Pulls all metadata, pairs to deals + buyers.
+ * Phase 2 (separate calls): Content fetching handled via
+ *   fetch-fireflies-content on demand, or by re-calling this function
+ *   with { phase: "content" } to backfill missing content in batches.
  *
- * Differences from auto-pair-all-fireflies:
- * - No upper limit on transcripts (pages until exhausted)
- * - Fetches full transcript content (sentences) inline
- * - Progressive backoff on rate limits
- * - Returns detailed progress stats
+ * Designed to survive the Supabase edge function timeout (~150s):
+ * - Graceful timeout: bails out before hard kill with partial results
+ * - Processes transcripts in streaming fashion (no full array in memory)
+ * - Caps transcript text at 500K chars to prevent DB bloat
  */
 
 const INTERNAL_DOMAINS = (
@@ -23,16 +24,22 @@ const INTERNAL_DOMAINS = (
   .map((d: string) => d.trim().toLowerCase())
   .filter(Boolean);
 
-const FIREFLIES_API_TIMEOUT_MS = 30_000; // 30s for bulk ops
+const FIREFLIES_API_TIMEOUT_MS = 15_000;
 const BATCH_SIZE = 50;
 
-// Progressive backoff state
-let currentBackoffMs = 3_000;
-const MAX_BACKOFF_MS = 60_000;
+// Graceful timeout: return results before Supabase kills us
+// Supabase Pro = ~150s hard limit, we bail at 120s to be safe
+const FUNCTION_TIMEOUT_MS = 120_000;
+
+// Max characters for stored transcript text (500K ≈ a 3-hour call)
+const MAX_TRANSCRIPT_TEXT_CHARS = 500_000;
 
 // ---------------------------------------------------------------------------
 // Fireflies API helper with progressive backoff
 // ---------------------------------------------------------------------------
+
+let currentBackoffMs = 3_000;
+const MAX_BACKOFF_MS = 30_000;
 
 async function firefliesGraphQL(
   query: string,
@@ -199,7 +206,7 @@ function convertFirefliesDate(date: any): string | null {
 
 /**
  * Fetch full transcript text from Fireflies for a single transcript.
- * Returns speaker-labeled text or null if unavailable.
+ * Caps at MAX_TRANSCRIPT_TEXT_CHARS to prevent DB bloat.
  */
 async function fetchTranscriptContent(
   firefliesId: string,
@@ -212,23 +219,30 @@ async function fetchTranscriptContent(
     const transcript = data.transcript;
     if (!transcript) return null;
 
-    // Build speaker-labeled text from sentences
+    let text = "";
+
     if (
       transcript.sentences &&
       Array.isArray(transcript.sentences) &&
       transcript.sentences.length > 0
     ) {
-      return transcript.sentences
+      text = transcript.sentences
         .map((s: any) => `${s.speaker_name || "Unknown"}: ${s.text}`)
         .join("\n");
     }
 
-    // Fallback to summary
-    if (transcript.summary?.short_summary) {
-      return `[Summary only]\n${transcript.summary.short_summary}`;
+    if (!text && transcript.summary?.short_summary) {
+      text = `[Summary only]\n${transcript.summary.short_summary}`;
     }
 
-    return null;
+    // Cap transcript text to prevent DB bloat
+    if (text.length > MAX_TRANSCRIPT_TEXT_CHARS) {
+      text =
+        text.substring(0, MAX_TRANSCRIPT_TEXT_CHARS) +
+        "\n\n[Transcript truncated at 500K characters]";
+    }
+
+    return text || null;
   } catch (err) {
     console.error(
       `Failed to fetch content for ${firefliesId}:`,
@@ -249,18 +263,35 @@ serve(async (req) => {
     return corsPreflightResponse(req);
   }
 
+  const startTime = Date.now();
+
+  /** Check if we're running out of time */
+  function isTimedOut(): boolean {
+    return Date.now() - startTime > FUNCTION_TIMEOUT_MS;
+  }
+
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
     const body = await req.json().catch(() => ({}));
-    const fetchContent = body.fetchContent !== false; // default: true
-    const contentBatchSize = Math.min(body.contentBatchSize || 10, 25);
+    const phase = body.phase || "all"; // "all", "pair", or "content"
+    const fetchContent = phase !== "pair" && body.fetchContent !== false;
+    const contentBatchSize = Math.min(body.contentBatchSize || 5, 15);
+    // Allow resuming from a specific page offset
+    const startPage = body.startPage || 0;
 
     console.log(
-      `Starting bulk Fireflies sync (fetchContent=${fetchContent}, contentBatchSize=${contentBatchSize})`,
+      `Starting bulk Fireflies sync phase="${phase}" fetchContent=${fetchContent} startPage=${startPage}`,
     );
+
+    // ------------------------------------------------------------------
+    // Phase: Content-only backfill
+    // ------------------------------------------------------------------
+    if (phase === "content") {
+      return await handleContentPhase(supabase, corsHeaders, contentBatchSize, isTimedOut);
+    }
 
     // ------------------------------------------------------------------
     // 1. Load database records for matching
@@ -366,56 +397,15 @@ serve(async (req) => {
       }
     }
 
-    // Also track which fireflies IDs already have content fetched
-    const existingContentIds = new Set<string>();
-    {
-      const { data } = await supabase
-        .from("deal_transcripts")
-        .select("fireflies_transcript_id")
-        .not("fireflies_transcript_id", "is", null)
-        .neq("transcript_text", "")
-        .gt("transcript_text", "");  // has content
-      for (const row of data || []) {
-        if (row.fireflies_transcript_id) {
-          existingContentIds.add(row.fireflies_transcript_id);
-        }
-      }
-    }
-
     console.log(
-      `Pre-loaded ${existingBuyerLinks.size} buyer links, ${existingDealLinks.size} deal links, ${existingContentIds.size} with content`,
+      `Pre-loaded ${existingBuyerLinks.size} buyer links, ${existingDealLinks.size} deal links`,
     );
 
     // ------------------------------------------------------------------
-    // 2. Fetch ALL Fireflies transcripts (no upper limit)
+    // 2. Fetch + process Fireflies transcripts page by page
+    //    (streaming: process each page then discard to save memory)
     // ------------------------------------------------------------------
-    const allTranscripts: any[] = [];
-    let page = 0;
-
-    while (true) {
-      console.log(`Fetching Fireflies page ${page + 1} (skip=${page * BATCH_SIZE})...`);
-      const data = await firefliesGraphQL(ALL_TRANSCRIPTS_QUERY, {
-        limit: BATCH_SIZE,
-        skip: page * BATCH_SIZE,
-      });
-      const batch = data.transcripts || [];
-      allTranscripts.push(...batch);
-      console.log(
-        `Page ${page + 1}: ${batch.length} transcripts (total: ${allTranscripts.length})`,
-      );
-
-      if (batch.length < BATCH_SIZE) break; // Last page
-      page++;
-
-      // Small delay between pages to be gentle on the API
-      await new Promise((r) => setTimeout(r, 500));
-    }
-
-    console.log(`Total Fireflies transcripts fetched: ${allTranscripts.length}`);
-
-    // ------------------------------------------------------------------
-    // 3. Match each transcript to buyers and deals, fetch content
-    // ------------------------------------------------------------------
+    let totalFetched = 0;
     let buyersPaired = 0;
     let dealsPaired = 0;
     let buyersSkipped = 0;
@@ -424,300 +414,297 @@ serve(async (req) => {
     let contentSkipped = 0;
     let contentFailed = 0;
     let unmatched = 0;
+    let timedOut = false;
+    let lastPage = startPage;
     const errors: string[] = [];
 
     // Track new deal_transcript IDs that need content fetching
     const needsContent: { dbId: string; firefliesId: string }[] = [];
 
-    for (const transcript of allTranscripts) {
-      if (!transcript.id) continue;
+    let page = startPage;
+    while (true) {
+      if (isTimedOut()) {
+        console.warn(`Approaching timeout at page ${page}, bailing out with partial results`);
+        timedOut = true;
+        break;
+      }
 
-      const externalParticipants = extractExternalParticipants(
-        transcript.meeting_attendees || [],
+      console.log(`Fetching Fireflies page ${page + 1} (skip=${page * BATCH_SIZE})...`);
+      const data = await firefliesGraphQL(ALL_TRANSCRIPTS_QUERY, {
+        limit: BATCH_SIZE,
+        skip: page * BATCH_SIZE,
+      });
+      const batch = data.transcripts || [];
+      totalFetched += batch.length;
+      console.log(
+        `Page ${page + 1}: ${batch.length} transcripts (running total: ${totalFetched})`,
       );
-      const participantEmails = externalParticipants
-        .map((p) => p.email.toLowerCase())
-        .filter(Boolean);
 
-      const hasContent = transcriptHasContent(transcript);
-      const title = transcript.title || "";
-      const normalizedTitle = normalizeCompanyName(title);
-      const callDate = convertFirefliesDate(transcript.date);
-      const attendeeEmails = (transcript.meeting_attendees || [])
-        .map((a: any) => a.email)
-        .filter(Boolean);
+      // Process this batch immediately, then discard
+      for (const transcript of batch) {
+        if (!transcript.id) continue;
 
-      let matchedAnything = false;
+        const externalParticipants = extractExternalParticipants(
+          transcript.meeting_attendees || [],
+        );
+        const participantEmails = externalParticipants
+          .map((p) => p.email.toLowerCase())
+          .filter(Boolean);
 
-      // --- Match to buyers ---
-      const matchedBuyerIds = new Set<string>();
-      const buyerMatchTypes = new Map<string, "email" | "keyword">();
+        const hasContent = transcriptHasContent(transcript);
+        const title = transcript.title || "";
+        const normalizedTitle = normalizeCompanyName(title);
+        const callDate = convertFirefliesDate(transcript.date);
+        const attendeeEmails = (transcript.meeting_attendees || [])
+          .map((a: any) => a.email)
+          .filter(Boolean);
 
-      for (const email of participantEmails) {
-        const buyerIds = emailToBuyerIds.get(email);
-        if (buyerIds) {
-          for (const bid of buyerIds) {
-            matchedBuyerIds.add(bid);
-            buyerMatchTypes.set(bid, "email");
-          }
-        }
-      }
+        let matchedAnything = false;
 
-      if (normalizedTitle.length >= 3) {
-        for (const [companyNorm, buyerIds] of nameToBuyerIds) {
-          if (
-            normalizedTitle.includes(companyNorm) ||
-            companyNorm.includes(normalizedTitle)
-          ) {
+        // --- Match to buyers ---
+        const matchedBuyerIds = new Set<string>();
+        const buyerMatchTypes = new Map<string, "email" | "keyword">();
+
+        for (const email of participantEmails) {
+          const buyerIds = emailToBuyerIds.get(email);
+          if (buyerIds) {
             for (const bid of buyerIds) {
-              if (!matchedBuyerIds.has(bid)) {
-                matchedBuyerIds.add(bid);
-                buyerMatchTypes.set(bid, "keyword");
+              matchedBuyerIds.add(bid);
+              buyerMatchTypes.set(bid, "email");
+            }
+          }
+        }
+
+        if (normalizedTitle.length >= 3) {
+          for (const [companyNorm, buyerIds] of nameToBuyerIds) {
+            if (
+              normalizedTitle.includes(companyNorm) ||
+              companyNorm.includes(normalizedTitle)
+            ) {
+              for (const bid of buyerIds) {
+                if (!matchedBuyerIds.has(bid)) {
+                  matchedBuyerIds.add(bid);
+                  buyerMatchTypes.set(bid, "keyword");
+                }
               }
             }
           }
         }
-      }
 
-      // Insert buyer links
-      for (const buyerId of matchedBuyerIds) {
-        const linkKey = `${buyerId}:${transcript.id}`;
-        if (existingBuyerLinks.has(linkKey)) {
-          buyersSkipped++;
-          matchedAnything = true;
-          continue;
-        }
-
-        try {
-          const { error: insertErr } = await supabase
-            .from("buyer_transcripts")
-            .insert({
-              buyer_id: buyerId,
-              fireflies_transcript_id: transcript.id,
-              transcript_url: transcript.transcript_url || null,
-              title: title || "Call",
-              call_date: callDate,
-              participants: transcript.meeting_attendees || [],
-              duration_minutes: transcript.duration
-                ? Math.round(transcript.duration)
-                : null,
-              summary: transcript.summary?.short_summary || null,
-              key_points: transcript.summary?.keywords || [],
-            });
-
-          if (insertErr) {
-            if (insertErr.code === "23505") {
-              buyersSkipped++;
-            } else {
-              errors.push(`buyer ${buyerId}: ${insertErr.message}`);
-            }
-          } else {
-            buyersPaired++;
-            existingBuyerLinks.add(linkKey);
+        // Insert buyer links
+        for (const buyerId of matchedBuyerIds) {
+          const linkKey = `${buyerId}:${transcript.id}`;
+          if (existingBuyerLinks.has(linkKey)) {
+            buyersSkipped++;
+            matchedAnything = true;
+            continue;
           }
-          matchedAnything = true;
-        } catch (e) {
-          errors.push(
-            `buyer ${buyerId}: ${e instanceof Error ? e.message : "Unknown"}`,
-          );
-        }
-      }
 
-      // --- Match to deals ---
-      const matchedListingIds = new Set<string>();
-      const dealMatchTypes = new Map<string, "email" | "keyword">();
-
-      for (const email of participantEmails) {
-        const listingIds = emailToListingIds.get(email);
-        if (listingIds) {
-          for (const lid of listingIds) {
-            matchedListingIds.add(lid);
-            dealMatchTypes.set(lid, "email");
-          }
-        }
-      }
-
-      if (normalizedTitle.length >= 3) {
-        for (const [companyNorm, listingIds] of nameToListingIds) {
-          if (
-            normalizedTitle.includes(companyNorm) ||
-            companyNorm.includes(normalizedTitle)
-          ) {
-            for (const lid of listingIds) {
-              if (!matchedListingIds.has(lid)) {
-                matchedListingIds.add(lid);
-                dealMatchTypes.set(lid, "keyword");
-              }
-            }
-          }
-        }
-      }
-
-      // Insert deal links
-      for (const listingId of matchedListingIds) {
-        const linkKey = `${listingId}:${transcript.id}`;
-        if (existingDealLinks.has(linkKey)) {
-          dealsSkipped++;
-          matchedAnything = true;
-          continue;
-        }
-
-        try {
-          const { data: inserted, error: insertErr } = await supabase
-            .from("deal_transcripts")
-            .insert({
-              listing_id: listingId,
-              fireflies_transcript_id: transcript.id,
-              fireflies_meeting_id: transcript.id,
-              transcript_url: transcript.transcript_url || null,
-              title: title || "Call",
-              call_date: callDate,
-              participants: transcript.meeting_attendees || [],
-              meeting_attendees: attendeeEmails,
-              duration_minutes: transcript.duration
-                ? Math.round(transcript.duration)
-                : null,
-              source: "fireflies",
-              auto_linked: true,
-              transcript_text: "",
-              has_content: hasContent,
-              match_type: dealMatchTypes.get(listingId) || "email",
-              external_participants: externalParticipants,
-            })
-            .select("id")
-            .single();
-
-          if (insertErr) {
-            if (insertErr.code === "23505") {
-              dealsSkipped++;
-            } else {
-              errors.push(`deal ${listingId}: ${insertErr.message}`);
-            }
-          } else {
-            dealsPaired++;
-            existingDealLinks.add(linkKey);
-            // Queue for content fetching if it has content
-            if (hasContent && inserted?.id && !existingContentIds.has(transcript.id)) {
-              needsContent.push({
-                dbId: inserted.id,
-                firefliesId: transcript.id,
+          try {
+            const { error: insertErr } = await supabase
+              .from("buyer_transcripts")
+              .insert({
+                buyer_id: buyerId,
+                fireflies_transcript_id: transcript.id,
+                transcript_url: transcript.transcript_url || null,
+                title: title || "Call",
+                call_date: callDate,
+                participants: transcript.meeting_attendees || [],
+                duration_minutes: transcript.duration
+                  ? Math.round(transcript.duration)
+                  : null,
+                summary: transcript.summary?.short_summary || null,
+                key_points: transcript.summary?.keywords || [],
               });
+
+            if (insertErr) {
+              if (insertErr.code === "23505") {
+                buyersSkipped++;
+              } else if (errors.length < 50) {
+                errors.push(`buyer ${buyerId}: ${insertErr.message}`);
+              }
+            } else {
+              buyersPaired++;
+              existingBuyerLinks.add(linkKey);
+            }
+            matchedAnything = true;
+          } catch (e) {
+            if (errors.length < 50) {
+              errors.push(
+                `buyer ${buyerId}: ${e instanceof Error ? e.message : "Unknown"}`,
+              );
             }
           }
-          matchedAnything = true;
-        } catch (e) {
-          errors.push(
-            `deal ${listingId}: ${e instanceof Error ? e.message : "Unknown"}`,
-          );
+        }
+
+        // --- Match to deals ---
+        const matchedListingIds = new Set<string>();
+        const dealMatchTypes = new Map<string, "email" | "keyword">();
+
+        for (const email of participantEmails) {
+          const listingIds = emailToListingIds.get(email);
+          if (listingIds) {
+            for (const lid of listingIds) {
+              matchedListingIds.add(lid);
+              dealMatchTypes.set(lid, "email");
+            }
+          }
+        }
+
+        if (normalizedTitle.length >= 3) {
+          for (const [companyNorm, listingIds] of nameToListingIds) {
+            if (
+              normalizedTitle.includes(companyNorm) ||
+              companyNorm.includes(normalizedTitle)
+            ) {
+              for (const lid of listingIds) {
+                if (!matchedListingIds.has(lid)) {
+                  matchedListingIds.add(lid);
+                  dealMatchTypes.set(lid, "keyword");
+                }
+              }
+            }
+          }
+        }
+
+        // Insert deal links
+        for (const listingId of matchedListingIds) {
+          const linkKey = `${listingId}:${transcript.id}`;
+          if (existingDealLinks.has(linkKey)) {
+            dealsSkipped++;
+            matchedAnything = true;
+            continue;
+          }
+
+          try {
+            const { data: inserted, error: insertErr } = await supabase
+              .from("deal_transcripts")
+              .insert({
+                listing_id: listingId,
+                fireflies_transcript_id: transcript.id,
+                fireflies_meeting_id: transcript.id,
+                transcript_url: transcript.transcript_url || null,
+                title: title || "Call",
+                call_date: callDate,
+                participants: transcript.meeting_attendees || [],
+                meeting_attendees: attendeeEmails,
+                duration_minutes: transcript.duration
+                  ? Math.round(transcript.duration)
+                  : null,
+                source: "fireflies",
+                auto_linked: true,
+                transcript_text: "",
+                has_content: hasContent,
+                match_type: dealMatchTypes.get(listingId) || "email",
+                external_participants: externalParticipants,
+              })
+              .select("id")
+              .single();
+
+            if (insertErr) {
+              if (insertErr.code === "23505") {
+                dealsSkipped++;
+              } else if (errors.length < 50) {
+                errors.push(`deal ${listingId}: ${insertErr.message}`);
+              }
+            } else {
+              dealsPaired++;
+              existingDealLinks.add(linkKey);
+              if (hasContent && inserted?.id) {
+                needsContent.push({
+                  dbId: inserted.id,
+                  firefliesId: transcript.id,
+                });
+              }
+            }
+            matchedAnything = true;
+          } catch (e) {
+            if (errors.length < 50) {
+              errors.push(
+                `deal ${listingId}: ${e instanceof Error ? e.message : "Unknown"}`,
+              );
+            }
+          }
+        }
+
+        if (!matchedAnything) {
+          unmatched++;
         }
       }
 
-      if (!matchedAnything) {
-        unmatched++;
-      }
+      lastPage = page;
+      if (batch.length < BATCH_SIZE) break; // Last page
+      page++;
+
+      // Small delay between pages to be gentle on the API
+      await new Promise((r) => setTimeout(r, 300));
     }
 
     console.log(
-      `Pairing complete: ${buyersPaired} buyers, ${dealsPaired} deals, ${unmatched} unmatched`,
+      `Pairing complete: ${buyersPaired} buyers, ${dealsPaired} deals, ${unmatched} unmatched, ${totalFetched} total`,
     );
 
     // ------------------------------------------------------------------
-    // 4. Fetch full transcript content for newly linked deals
+    // 3. Fetch content for newly linked deals (if time allows)
     // ------------------------------------------------------------------
-    if (fetchContent && needsContent.length > 0) {
+    if (fetchContent && needsContent.length > 0 && !isTimedOut()) {
       console.log(
-        `Fetching content for ${needsContent.length} transcripts in batches of ${contentBatchSize}...`,
+        `Fetching content for ${needsContent.length} new transcripts...`,
       );
 
-      // Also find existing deal_transcripts that are missing content
-      const { data: missingContent } = await supabase
-        .from("deal_transcripts")
-        .select("id, fireflies_transcript_id")
-        .not("fireflies_transcript_id", "is", null)
-        .eq("transcript_text", "")
-        .eq("has_content", true);
+      for (const item of needsContent) {
+        if (isTimedOut()) {
+          console.warn("Timeout approaching during content fetch, stopping");
+          timedOut = true;
+          break;
+        }
 
-      const existingNeedsContent = (missingContent || [])
-        .filter(
-          (row) =>
-            row.fireflies_transcript_id &&
-            !needsContent.some((n) => n.firefliesId === row.fireflies_transcript_id),
-        )
-        .map((row) => ({
-          dbId: row.id,
-          firefliesId: row.fireflies_transcript_id!,
-        }));
+        const text = await fetchTranscriptContent(item.firefliesId);
 
-      const allNeedsContent = [...needsContent, ...existingNeedsContent];
-      console.log(
-        `Total transcripts needing content: ${allNeedsContent.length} (${needsContent.length} new + ${existingNeedsContent.length} existing)`,
-      );
+        if (text && text.length >= 50) {
+          const { error: updateErr } = await supabase
+            .from("deal_transcripts")
+            .update({
+              transcript_text: text,
+              processed_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+            })
+            .eq("id", item.dbId);
 
-      // Process in batches
-      for (let i = 0; i < allNeedsContent.length; i += contentBatchSize) {
-        const batch = allNeedsContent.slice(i, i + contentBatchSize);
-        console.log(
-          `Content batch ${Math.floor(i / contentBatchSize) + 1}: fetching ${batch.length} transcripts...`,
-        );
-
-        // Fetch content sequentially within batch to avoid rate limits
-        for (const item of batch) {
-          const text = await fetchTranscriptContent(item.firefliesId);
-
-          if (text && text.length >= 50) {
-            const { error: updateErr } = await supabase
-              .from("deal_transcripts")
-              .update({
-                transcript_text: text,
-                processed_at: new Date().toISOString(),
-                updated_at: new Date().toISOString(),
-              })
-              .eq("id", item.dbId);
-
-            if (updateErr) {
-              console.error(
-                `Failed to save content for ${item.dbId}:`,
-                updateErr.message,
-              );
-              contentFailed++;
-            } else {
-              contentFetched++;
-            }
-          } else if (text !== null && text.length < 50) {
-            // Mark as no content
-            await supabase
-              .from("deal_transcripts")
-              .update({
-                has_content: false,
-                updated_at: new Date().toISOString(),
-              })
-              .eq("id", item.dbId);
-            contentSkipped++;
-          } else {
+          if (updateErr) {
             contentFailed++;
+          } else {
+            contentFetched++;
           }
-
-          // Small delay between individual fetches
-          await new Promise((r) => setTimeout(r, 300));
+        } else if (text !== null && text.length < 50) {
+          await supabase
+            .from("deal_transcripts")
+            .update({
+              has_content: false,
+              updated_at: new Date().toISOString(),
+            })
+            .eq("id", item.dbId);
+          contentSkipped++;
+        } else {
+          contentFailed++;
         }
 
-        // Longer delay between batches
-        if (i + contentBatchSize < allNeedsContent.length) {
-          await new Promise((r) => setTimeout(r, 1000));
-        }
+        // Small delay between fetches
+        await new Promise((r) => setTimeout(r, 300));
       }
 
       console.log(
-        `Content fetching complete: ${contentFetched} fetched, ${contentSkipped} empty, ${contentFailed} failed`,
+        `Content: ${contentFetched} fetched, ${contentSkipped} empty, ${contentFailed} failed`,
       );
     }
 
     // ------------------------------------------------------------------
-    // 5. Return results
+    // 4. Return results
     // ------------------------------------------------------------------
+    const elapsed = Math.round((Date.now() - startTime) / 1000);
     const result = {
       success: true,
-      fireflies_total: allTranscripts.length,
+      fireflies_total: totalFetched,
       pairing: {
         buyers_paired: buyersPaired,
         buyers_skipped: buyersSkipped,
@@ -732,7 +719,11 @@ serve(async (req) => {
             failed: contentFailed,
             total_queued: needsContent.length,
           }
-        : "skipped (fetchContent=false)",
+        : "skipped (phase=pair)",
+      elapsed_seconds: elapsed,
+      timed_out: timedOut,
+      resume_from_page: timedOut ? lastPage + 1 : undefined,
+      content_still_needed: needsContent.length - contentFetched - contentSkipped - contentFailed,
       errors: errors.length > 0 ? errors.slice(0, 50) : undefined,
     };
 
@@ -747,6 +738,7 @@ serve(async (req) => {
       JSON.stringify({
         success: false,
         error: error instanceof Error ? error.message : "Unknown error",
+        elapsed_seconds: Math.round((Date.now() - startTime) / 1000),
       }),
       {
         status: 500,
@@ -755,3 +747,93 @@ serve(async (req) => {
     );
   }
 });
+
+// ---------------------------------------------------------------------------
+// Content-only phase: backfill missing transcript text
+// ---------------------------------------------------------------------------
+async function handleContentPhase(
+  supabase: any,
+  corsHeaders: Record<string, string>,
+  batchSize: number,
+  isTimedOut: () => boolean,
+): Promise<Response> {
+  const startTime = Date.now();
+
+  // Find deal_transcripts that are missing content
+  const { data: missing, error: queryErr } = await supabase
+    .from("deal_transcripts")
+    .select("id, fireflies_transcript_id")
+    .not("fireflies_transcript_id", "is", null)
+    .eq("transcript_text", "")
+    .eq("has_content", true)
+    .limit(200); // Cap per run
+
+  if (queryErr) {
+    return new Response(
+      JSON.stringify({ success: false, error: queryErr.message }),
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+    );
+  }
+
+  const items = (missing || []).filter((r: any) => r.fireflies_transcript_id);
+  console.log(`Content phase: ${items.length} transcripts need content`);
+
+  let fetched = 0;
+  let skipped = 0;
+  let failed = 0;
+
+  for (const item of items) {
+    if (isTimedOut()) {
+      console.warn("Timeout approaching, stopping content phase");
+      break;
+    }
+
+    const text = await fetchTranscriptContent(item.fireflies_transcript_id);
+
+    if (text && text.length >= 50) {
+      const { error: updateErr } = await supabase
+        .from("deal_transcripts")
+        .update({
+          transcript_text: text,
+          processed_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", item.id);
+
+      if (updateErr) {
+        failed++;
+      } else {
+        fetched++;
+      }
+    } else if (text !== null && text.length < 50) {
+      await supabase
+        .from("deal_transcripts")
+        .update({ has_content: false, updated_at: new Date().toISOString() })
+        .eq("id", item.id);
+      skipped++;
+    } else {
+      failed++;
+    }
+
+    await new Promise((r) => setTimeout(r, 300));
+  }
+
+  const elapsed = Math.round((Date.now() - startTime) / 1000);
+  const remaining = items.length - fetched - skipped - failed;
+
+  return new Response(
+    JSON.stringify({
+      success: true,
+      phase: "content",
+      fetched,
+      skipped_empty: skipped,
+      failed,
+      remaining,
+      elapsed_seconds: elapsed,
+      note: remaining > 0
+        ? `${remaining} transcripts still need content. Call again with { phase: "content" } to continue.`
+        : "All transcript content is up to date.",
+    }),
+    { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+  );
+}

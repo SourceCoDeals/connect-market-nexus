@@ -401,12 +401,19 @@ export async function executeTool(
 ): Promise<ToolResult> {
   const startTime = Date.now();
 
+  // External API tools get a longer timeout (30s) since they call Prospeo/Apify/Fireflies
+  const EXTERNAL_API_TOOLS = new Set([
+    'enrich_buyer_contacts', 'enrich_linkedin_contact', 'find_and_enrich_person',
+    'google_search_companies', 'push_to_phoneburner', 'push_to_smartlead',
+    'search_fireflies', 'semantic_transcript_search',
+  ]);
+  const timeoutMs = EXTERNAL_API_TOOLS.has(toolName) ? 30000 : 15000;
+
   try {
-    // 15-second hard timeout per tool
     const result = await Promise.race([
       _executeToolInternal(supabase, toolName, args, userId),
       new Promise<ToolResult>((_, reject) =>
-        setTimeout(() => reject(new Error('Tool timeout (15s)')), 15000),
+        setTimeout(() => reject(new Error(`Tool timeout (${timeoutMs / 1000}s)`)), timeoutMs),
       ),
     ]);
 

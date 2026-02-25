@@ -272,6 +272,11 @@ export default function FirefliesIntegrationPage() {
               <div className="flex items-center gap-2 text-sm font-medium">
                 <CheckCircle2 className="h-4 w-4 text-green-600" />
                 Bulk Sync Complete
+                {bulkSyncResult.elapsed_seconds && (
+                  <span className="text-muted-foreground font-normal">
+                    ({bulkSyncResult.elapsed_seconds}s)
+                  </span>
+                )}
               </div>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
                 <div>
