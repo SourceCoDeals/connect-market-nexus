@@ -651,6 +651,12 @@ For PERSON NAME lookups (e.g. "find email for Russ Esau", "what's John Smith's e
 4. If NOT found at all: ask the user what company they're at, then use enrich_buyer_contacts to discover them. Prospeo finds emails via LinkedIn scraping + email enrichment.
 5. After enrichment finds the contact, present the email and offer to save to CRM with save_contacts_to_crm.
 
+For BULK MISSING-EMAIL queries (e.g. "find contacts without email", "find 5 contacts missing email"):
+1. Use search_contacts with has_email=false to find contacts that are missing email addresses. Set limit to the number requested (e.g. 5).
+2. Present the list of contacts without email (name, title, company if available).
+3. For each one, offer to enrich via Prospeo: use enrich_buyer_contacts if you know their company, or enrich_linkedin_contact if they have a LinkedIn URL.
+4. After enrichment, present results and offer to save updated contacts to CRM.
+
 For FIRM/COMPANY searches (e.g. "find VPs at Trivest"), use search_pe_contacts with the firm_name parameter. This will look up the firm in both firm_agreements and remarketing_buyers tables, then find matching contacts.
 For role-specific searches (e.g. "find associates at Audax"), use search_pe_contacts with both firm_name and role_category parameters.
 If no contacts are found for a firm, use enrich_buyer_contacts to discover and import them via LinkedIn/Prospeo — don't just say they need to be imported, actually offer to run the enrichment.`,
