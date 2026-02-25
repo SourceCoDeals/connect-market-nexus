@@ -1,4 +1,6 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
 import { useBuyerIntroductions } from '@/hooks/use-buyer-introductions';
 import {
   Dialog,
@@ -11,9 +13,18 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Loader2, UserPlus } from 'lucide-react';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Combobox } from '@/components/ui/combobox';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Loader2, UserPlus, Search, Building2, Globe } from 'lucide-react';
 import { toast } from 'sonner';
-import type { CreateBuyerIntroductionInput } from '@/types/buyer-introductions';
+import { Badge } from '@/components/ui/badge';
 
 interface AddBuyerIntroductionDialogProps {
   open: boolean;
@@ -22,18 +33,16 @@ interface AddBuyerIntroductionDialogProps {
   listingTitle: string;
 }
 
-const initialForm: Omit<CreateBuyerIntroductionInput, 'listing_id' | 'company_name'> = {
-  buyer_name: '',
-  buyer_firm_name: '',
-  buyer_email: '',
-  buyer_phone: '',
-  buyer_linkedin_url: '',
-  targeting_reason: '',
-  expected_deal_size_low: undefined,
-  expected_deal_size_high: undefined,
-  internal_champion: '',
-  internal_champion_email: '',
-};
+const BUYER_TYPES = [
+  { value: 'pe_firm', label: 'PE Firm' },
+  { value: 'platform', label: 'Platform' },
+  { value: 'strategic', label: 'Strategic' },
+  { value: 'family_office', label: 'Family Office' },
+  { value: 'independent_sponsor', label: 'Independent Sponsor' },
+  { value: 'search_fund', label: 'Search Fund' },
+  { value: 'individual', label: 'Individual' },
+  { value: 'other', label: 'Other' },
+];
 
 export function AddBuyerIntroductionDialog({
   open,
@@ -42,48 +51,127 @@ export function AddBuyerIntroductionDialog({
   listingTitle,
 }: AddBuyerIntroductionDialogProps) {
   const { createIntroduction, isCreating } = useBuyerIntroductions(listingId);
-  const [form, setForm] = useState(initialForm);
+  const [tab, setTab] = useState<string>('existing');
+  const [selectedBuyerId, setSelectedBuyerId] = useState<string>('');
 
-  const update = (field: string, value: string | number | undefined) => {
-    setForm((prev) => ({ ...prev, [field]: value }));
-  };
+  // New buyer form
+  const [newCompanyName, setNewCompanyName] = useState('');
+  const [newCompanyWebsite, setNewCompanyWebsite] = useState('');
+  const [newBuyerType, setNewBuyerType] = useState('');
+
+  // Contact info (shared between existing and new buyer flows)
+  const [contactFirstName, setContactFirstName] = useState('');
+  const [contactLastName, setContactLastName] = useState('');
+  const [contactEmail, setContactEmail] = useState('');
+
+  // Deal details
+  const [targetingReason, setTargetingReason] = useState('');
+
+  // Fetch existing remarketing buyers for the combobox
+  const { data: buyers } = useQuery({
+    queryKey: ['remarketing-buyers-intro-search'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('remarketing_buyers')
+        .select('id, company_name, company_website, buyer_type, pe_firm_name, hq_state, hq_city')
+        .eq('archived', false)
+        .order('company_name');
+
+      if (error) throw error;
+      return data;
+    },
+    enabled: open,
+  });
+
+  const buyerOptions = useMemo(() => {
+    if (!buyers) return [];
+    return buyers.map((b) => {
+      const parts = [b.company_name];
+      if (b.buyer_type) parts.push(`(${b.buyer_type.replace(/_/g, ' ')})`);
+      if (b.pe_firm_name) parts.push(`— ${b.pe_firm_name}`);
+      if (b.hq_city && b.hq_state) parts.push(`[${b.hq_city}, ${b.hq_state}]`);
+      else if (b.hq_state) parts.push(`[${b.hq_state}]`);
+      return {
+        value: b.id,
+        label: parts.join(' '),
+        searchTerms: [b.company_name, b.buyer_type, b.pe_firm_name, b.hq_state, b.company_website]
+          .filter(Boolean)
+          .join(' ')
+          .toLowerCase(),
+      };
+    });
+  }, [buyers]);
+
+  // Get selected buyer details for preview
+  const selectedBuyer = useMemo(() => {
+    if (!selectedBuyerId || !buyers) return null;
+    return buyers.find((b) => b.id === selectedBuyerId) || null;
+  }, [selectedBuyerId, buyers]);
 
   const handleSubmit = () => {
-    if (!form.buyer_name.trim()) {
-      toast.error('Buyer name is required');
-      return;
+    const isExisting = tab === 'existing';
+
+    const buyerName =
+      contactFirstName.trim() && contactLastName.trim()
+        ? `${contactFirstName.trim()} ${contactLastName.trim()}`
+        : contactFirstName.trim() || contactLastName.trim() || '';
+
+    let firmName = '';
+    if (isExisting) {
+      if (!selectedBuyerId || !selectedBuyer) {
+        toast.error('Please select a buyer');
+        return;
+      }
+      firmName = selectedBuyer.company_name;
+    } else {
+      if (!newCompanyName.trim()) {
+        toast.error('Company name is required');
+        return;
+      }
+      firmName = newCompanyName.trim();
     }
-    if (!form.buyer_firm_name.trim()) {
-      toast.error('Buyer firm name is required');
+
+    if (!buyerName) {
+      toast.error('Contact first name is required');
       return;
     }
 
     createIntroduction(
       {
-        ...form,
-        buyer_name: form.buyer_name.trim(),
-        buyer_firm_name: form.buyer_firm_name.trim(),
-        buyer_email: form.buyer_email?.trim() || undefined,
-        buyer_phone: form.buyer_phone?.trim() || undefined,
-        buyer_linkedin_url: form.buyer_linkedin_url?.trim() || undefined,
-        targeting_reason: form.targeting_reason?.trim() || undefined,
-        internal_champion: form.internal_champion?.trim() || undefined,
-        internal_champion_email: form.internal_champion_email?.trim() || undefined,
+        buyer_name: buyerName,
+        buyer_firm_name: firmName,
+        buyer_email: contactEmail.trim() || undefined,
+        buyer_linkedin_url: isExisting
+          ? selectedBuyer?.company_website || undefined
+          : newCompanyWebsite.trim() || undefined,
+        targeting_reason: targetingReason.trim() || undefined,
         listing_id: listingId,
         company_name: listingTitle,
       },
       {
         onSuccess: () => {
-          setForm(initialForm);
+          resetForm();
           onOpenChange(false);
         },
       },
     );
   };
 
+  const resetForm = () => {
+    setTab('existing');
+    setSelectedBuyerId('');
+    setNewCompanyName('');
+    setNewCompanyWebsite('');
+    setNewBuyerType('');
+    setContactFirstName('');
+    setContactLastName('');
+    setContactEmail('');
+    setTargetingReason('');
+  };
+
   const handleClose = () => {
     if (!isCreating) {
-      setForm(initialForm);
+      resetForm();
       onOpenChange(false);
     }
   };
@@ -99,137 +187,148 @@ export function AddBuyerIntroductionDialog({
           <p className="text-sm text-muted-foreground mt-1">{listingTitle}</p>
         </DialogHeader>
 
-        <div className="space-y-4 mt-2">
-          {/* Buyer Info */}
-          <div className="grid grid-cols-2 gap-4">
+        <Tabs value={tab} onValueChange={setTab}>
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="existing" className="text-sm">
+              <Search className="mr-1.5 h-3.5 w-3.5" />
+              Existing Buyer
+            </TabsTrigger>
+            <TabsTrigger value="new" className="text-sm">
+              <UserPlus className="mr-1.5 h-3.5 w-3.5" />
+              New Buyer
+            </TabsTrigger>
+          </TabsList>
+
+          {/* ─── Existing Buyer Tab ─── */}
+          <TabsContent value="existing" className="space-y-4 mt-4">
             <div className="space-y-2">
               <Label>
-                Buyer Name <span className="text-destructive">*</span>
+                Search Buyers <span className="text-destructive">*</span>
               </Label>
-              <Input
-                value={form.buyer_name}
-                onChange={(e) => update('buyer_name', e.target.value)}
-                placeholder="e.g. James Chen"
+              <Combobox
+                options={buyerOptions}
+                value={selectedBuyerId}
+                onValueChange={setSelectedBuyerId}
+                placeholder="Search by company name..."
+                searchPlaceholder="Type to search buyers..."
+                emptyText="No buyers found. Try the 'New Buyer' tab."
               />
             </div>
+
+            {/* Selected Buyer Preview */}
+            {selectedBuyer && (
+              <div className="rounded-lg border bg-muted/30 p-3 space-y-1.5">
+                <div className="flex items-center gap-2">
+                  <Building2 className="h-4 w-4 text-muted-foreground" />
+                  <span className="font-medium text-sm">{selectedBuyer.company_name}</span>
+                  {selectedBuyer.buyer_type && (
+                    <Badge variant="outline" className="text-xs">
+                      {selectedBuyer.buyer_type.replace(/_/g, ' ')}
+                    </Badge>
+                  )}
+                </div>
+                {selectedBuyer.company_website && (
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <Globe className="h-3 w-3" />
+                    {selectedBuyer.company_website}
+                  </div>
+                )}
+                {(selectedBuyer.hq_city || selectedBuyer.hq_state) && (
+                  <p className="text-xs text-muted-foreground">
+                    {[selectedBuyer.hq_city, selectedBuyer.hq_state].filter(Boolean).join(', ')}
+                  </p>
+                )}
+              </div>
+            )}
+          </TabsContent>
+
+          {/* ─── New Buyer Tab ─── */}
+          <TabsContent value="new" className="space-y-4 mt-4">
             <div className="space-y-2">
               <Label>
-                Buyer Firm <span className="text-destructive">*</span>
+                Company Name <span className="text-destructive">*</span>
               </Label>
               <Input
-                value={form.buyer_firm_name}
-                onChange={(e) => update('buyer_firm_name', e.target.value)}
+                value={newCompanyName}
+                onChange={(e) => setNewCompanyName(e.target.value)}
                 placeholder="e.g. O2 Investment Partners"
               />
             </div>
-          </div>
 
-          {/* Contact Info */}
-          <div className="border-t pt-4">
-            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-3">
-              Contact Information
-            </p>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>Email</Label>
+                <Label>Company Website</Label>
                 <Input
-                  type="email"
-                  value={form.buyer_email || ''}
-                  onChange={(e) => update('buyer_email', e.target.value)}
-                  placeholder="james@o2partners.com"
+                  value={newCompanyWebsite}
+                  onChange={(e) => setNewCompanyWebsite(e.target.value)}
+                  placeholder="https://o2partners.com"
                 />
               </div>
               <div className="space-y-2">
-                <Label>Phone</Label>
-                <Input
-                  value={form.buyer_phone || ''}
-                  onChange={(e) => update('buyer_phone', e.target.value)}
-                  placeholder="(650) 555-0123"
-                />
+                <Label>Buyer Type</Label>
+                <Select value={newBuyerType} onValueChange={setNewBuyerType}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {BUYER_TYPES.map((t) => (
+                      <SelectItem key={t.value} value={t.value}>
+                        {t.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
-            <div className="space-y-2 mt-4">
-              <Label>LinkedIn URL</Label>
+          </TabsContent>
+        </Tabs>
+
+        {/* ─── Contact Info (shared) ─── */}
+        <div className="border-t pt-4 mt-2">
+          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-3">
+            Contact Person
+          </p>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>
+                First Name <span className="text-destructive">*</span>
+              </Label>
               <Input
-                value={form.buyer_linkedin_url || ''}
-                onChange={(e) => update('buyer_linkedin_url', e.target.value)}
-                placeholder="linkedin.com/in/james-chen"
+                value={contactFirstName}
+                onChange={(e) => setContactFirstName(e.target.value)}
+                placeholder="James"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Last Name</Label>
+              <Input
+                value={contactLastName}
+                onChange={(e) => setContactLastName(e.target.value)}
+                placeholder="Chen"
               />
             </div>
           </div>
-
-          {/* Deal Info */}
-          <div className="border-t pt-4">
-            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-3">
-              Deal Details
-            </p>
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label>Targeting Reason</Label>
-                <Textarea
-                  value={form.targeting_reason || ''}
-                  onChange={(e) => update('targeting_reason', e.target.value)}
-                  placeholder="e.g. Strategic fit - PE firm with tech focus"
-                  rows={2}
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Expected Deal Size (Low)</Label>
-                  <Input
-                    type="number"
-                    value={form.expected_deal_size_low || ''}
-                    onChange={(e) =>
-                      update(
-                        'expected_deal_size_low',
-                        e.target.value ? Number(e.target.value) : undefined,
-                      )
-                    }
-                    placeholder="35000000"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Expected Deal Size (High)</Label>
-                  <Input
-                    type="number"
-                    value={form.expected_deal_size_high || ''}
-                    onChange={(e) =>
-                      update(
-                        'expected_deal_size_high',
-                        e.target.value ? Number(e.target.value) : undefined,
-                      )
-                    }
-                    placeholder="50000000"
-                  />
-                </div>
-              </div>
-            </div>
+          <div className="space-y-2 mt-4">
+            <Label>Email</Label>
+            <Input
+              type="email"
+              value={contactEmail}
+              onChange={(e) => setContactEmail(e.target.value)}
+              placeholder="james@o2partners.com"
+            />
           </div>
+        </div>
 
-          {/* Internal Champion */}
-          <div className="border-t pt-4">
-            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-3">
-              Internal Champion
-            </p>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Name</Label>
-                <Input
-                  value={form.internal_champion || ''}
-                  onChange={(e) => update('internal_champion', e.target.value)}
-                  placeholder="Sarah Mitchell"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Email</Label>
-                <Input
-                  type="email"
-                  value={form.internal_champion_email || ''}
-                  onChange={(e) => update('internal_champion_email', e.target.value)}
-                  placeholder="sarah@sourceco.com"
-                />
-              </div>
-            </div>
+        {/* ─── Targeting Reason ─── */}
+        <div className="border-t pt-4 mt-2">
+          <div className="space-y-2">
+            <Label>Targeting Reason</Label>
+            <Textarea
+              value={targetingReason}
+              onChange={(e) => setTargetingReason(e.target.value)}
+              placeholder="e.g. Strategic fit - PE firm with tech focus"
+              rows={2}
+            />
           </div>
         </div>
 
@@ -239,7 +338,12 @@ export function AddBuyerIntroductionDialog({
           </Button>
           <Button
             onClick={handleSubmit}
-            disabled={isCreating || !form.buyer_name.trim() || !form.buyer_firm_name.trim()}
+            disabled={
+              isCreating ||
+              (tab === 'existing' && !selectedBuyerId) ||
+              (tab === 'new' && !newCompanyName.trim()) ||
+              !contactFirstName.trim()
+            }
           >
             {isCreating && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
             Add to Pipeline
