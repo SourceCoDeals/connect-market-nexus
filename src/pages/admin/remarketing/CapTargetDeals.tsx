@@ -54,8 +54,9 @@ import { DealsKPICards } from './components/DealsKPICards';
 import { CapTargetSyncBar } from './components/CapTargetSyncBar';
 import { CapTargetExclusionLog } from './components/CapTargetExclusionLog';
 import { CapTargetTableRow } from './components/CapTargetTableRow';
-import { CapTargetBulkActions } from './components/CapTargetBulkActions';
+import { DealBulkActionBar } from '@/components/remarketing/DealBulkActionBar';
 import { PushToDialerModal } from '@/components/remarketing/PushToDialerModal';
+import { PushToSmartleadModal } from '@/components/remarketing/PushToSmartleadModal';
 import { AddDealsToListDialog } from '@/components/remarketing';
 import type { DealForList } from '@/components/remarketing';
 
@@ -189,6 +190,7 @@ export default function CapTargetDeals() {
   // Selection
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [dialerOpen, setDialerOpen] = useState(false);
+  const [smartleadOpen, setSmartleadOpen] = useState(false);
   const [addToListOpen, setAddToListOpen] = useState(false);
 
   // Wire AI UI actions to this page's state
@@ -933,7 +935,7 @@ export default function CapTargetDeals() {
       .filter((d) => selectedIds.has(d.id))
       .map((d) => ({
         dealId: d.id,
-        dealName: d.internal_company_name || d.title || "Unknown Deal",
+        dealName: d.internal_company_name || d.title || 'Unknown Deal',
         contactName: d.main_contact_name,
         contactEmail: d.main_contact_email,
         contactPhone: d.main_contact_phone,
@@ -1225,29 +1227,46 @@ export default function CapTargetDeals() {
       </div>
 
       {/* Bulk Actions */}
-      <CapTargetBulkActions
+      <DealBulkActionBar
         selectedIds={selectedIds}
-        deals={deals}
-        isPushing={isPushing}
-        isEnriching={isEnriching}
-        isArchiving={isArchiving}
-        isDeleting={isDeleting}
-        onPushToAllDeals={handlePushToAllDeals}
-        onEnrichSelected={handleEnrichSelected}
+        deals={deals || []}
         onClearSelection={() => setSelectedIds(new Set())}
         onRefetch={refetch}
-        showArchiveDialog={showArchiveDialog}
-        setShowArchiveDialog={setShowArchiveDialog}
-        onBulkArchive={handleBulkArchive}
-        showDeleteDialog={showDeleteDialog}
-        setShowDeleteDialog={setShowDeleteDialog}
-        onBulkDelete={handleBulkDelete}
+        showApprove
+        onApprove={handlePushToAllDeals}
+        isApproving={isPushing}
+        showEnrich
+        onEnrichSelected={handleEnrichSelected}
+        isEnriching={isEnriching}
+        showPushToDialer
         onPushToDialer={() => setDialerOpen(true)}
+        showPushToSmartlead
+        onPushToSmartlead={() => setSmartleadOpen(true)}
+        showAddToList
         onAddToList={() => setAddToListOpen(true)}
+        showArchive
+        onArchive={() => setShowArchiveDialog(true)}
+        isArchiving={isArchiving}
+        archiveDialogOpen={showArchiveDialog}
+        onArchiveDialogChange={setShowArchiveDialog}
+        onConfirmArchive={handleBulkArchive}
+        showDelete
+        onDelete={() => setShowDeleteDialog(true)}
+        isDeleting={isDeleting}
+        deleteDialogOpen={showDeleteDialog}
+        onDeleteDialogChange={setShowDeleteDialog}
+        onConfirmDelete={handleBulkDelete}
       />
       <PushToDialerModal
         open={dialerOpen}
         onOpenChange={setDialerOpen}
+        contactIds={Array.from(selectedIds)}
+        contactCount={selectedIds.size}
+        entityType="listings"
+      />
+      <PushToSmartleadModal
+        open={smartleadOpen}
+        onOpenChange={setSmartleadOpen}
         contactIds={Array.from(selectedIds)}
         contactCount={selectedIds.size}
         entityType="listings"
