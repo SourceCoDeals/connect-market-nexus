@@ -1,18 +1,18 @@
-import { useState, useMemo, useEffect } from "react";
-import { useNavigate, useSearchParams, Link } from "react-router-dom";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
-import { Card, CardContent } from "@/components/ui/card";
-import { useAIUIActionHandler } from "@/hooks/useAIUIActionHandler";
-import { useAICommandCenterContext } from "@/components/ai-command-center/AICommandCenterProvider";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Label } from "@/components/ui/label";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Textarea } from "@/components/ui/textarea";
+import { useState, useMemo, useEffect, useCallback } from 'react';
+import { useNavigate, useSearchParams, Link } from 'react-router-dom';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+import { Card, CardContent } from '@/components/ui/card';
+import { useAIUIActionHandler } from '@/hooks/useAIUIActionHandler';
+import { useAICommandCenterContext } from '@/components/ai-command-center/AICommandCenterProvider';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Label } from '@/components/ui/label';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Textarea } from '@/components/ui/textarea';
 import {
   Table,
   TableBody,
@@ -20,7 +20,7 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table";
+} from '@/components/ui/table';
 import {
   Dialog,
   DialogContent,
@@ -29,21 +29,21 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from "@/components/ui/dialog";
+} from '@/components/ui/dialog';
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
+} from '@/components/ui/select';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { Checkbox } from "@/components/ui/checkbox";
+} from '@/components/ui/dropdown-menu';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   Search,
   Plus,
@@ -58,13 +58,13 @@ import {
   ArrowUp,
   ArrowDown,
   Download,
-} from "lucide-react";
-import { toast } from "sonner";
-import { useBuyerEnrichmentProgress } from "@/hooks/useBuyerEnrichmentProgress";
-import { EnrichmentProgressIndicator } from "@/components/remarketing/EnrichmentProgressIndicator";
-import { BuyerCSVImport, IntelligenceBadge, ReMarketingChat } from "@/components/remarketing";
-import type { BuyerType } from "@/types/remarketing";
-import { normalizeDomain } from "@/lib/ma-intelligence/normalizeDomain";
+} from 'lucide-react';
+import { toast } from 'sonner';
+import { useBuyerEnrichmentProgress } from '@/hooks/useBuyerEnrichmentProgress';
+import { EnrichmentProgressIndicator } from '@/components/remarketing/EnrichmentProgressIndicator';
+import { BuyerCSVImport, IntelligenceBadge, ReMarketingChat } from '@/components/remarketing';
+import type { BuyerType } from '@/types/remarketing';
+import { normalizeDomain } from '@/lib/ma-intelligence/normalizeDomain';
 
 const BUYER_TYPES: { value: BuyerType; label: string }[] = [
   { value: 'pe_firm', label: 'PE Firm' },
@@ -77,7 +77,12 @@ const BUYER_TYPES: { value: BuyerType; label: string }[] = [
 ];
 
 // Sponsor-type buyer types that get the PE firm page treatment
-const SPONSOR_TYPES: BuyerType[] = ['pe_firm', 'independent_sponsor', 'search_fund', 'family_office'];
+const SPONSOR_TYPES: BuyerType[] = [
+  'pe_firm',
+  'independent_sponsor',
+  'search_fund',
+  'family_office',
+];
 
 const isSponsorType = (buyerType: string | null | undefined): boolean =>
   SPONSOR_TYPES.includes(buyerType as BuyerType);
@@ -86,9 +91,9 @@ type BuyerTab = 'all' | 'pe_firm' | 'platform' | 'needs_agreements';
 
 // Helper to find a PE firm record by name in the buyers list
 const findPeFirmByName = (buyers: any[], firmName: string): any | null => {
-  return buyers?.find(
-    (b: any) => b.buyer_type === 'pe_firm' && b.company_name === firmName
-  ) || null;
+  return (
+    buyers?.find((b: any) => b.buyer_type === 'pe_firm' && b.company_name === firmName) || null
+  );
 };
 
 const PAGE_SIZE = 50;
@@ -97,27 +102,74 @@ const ReMarketingBuyers = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { setPageContext } = useAICommandCenterContext();
-  
+
   const [searchParams, setSearchParams] = useSearchParams();
-  const [search, setSearch] = useState("");
-  const initialTab = (searchParams.get("tab") as BuyerTab) || 'all';
-  const [activeTab, setActiveTab] = useState<BuyerTab>(initialTab);
-  const universeFilter = searchParams.get("universe") ?? "all";
+  // URL-persisted filter state (survives browser Back navigation)
+  const search = searchParams.get('q') ?? '';
+  const setSearch = useCallback(
+    (v: string) => {
+      setSearchParams(
+        (p) => {
+          const n = new URLSearchParams(p);
+          if (v) n.set('q', v);
+          else n.delete('q');
+          n.delete('page');
+          return n;
+        },
+        { replace: true },
+      );
+    },
+    [setSearchParams],
+  );
+  const activeTab = (searchParams.get('tab') as BuyerTab) || 'all';
+  const setActiveTab = useCallback(
+    (v: BuyerTab) => {
+      setSearchParams(
+        (p) => {
+          const n = new URLSearchParams(p);
+          if (v !== 'all') n.set('tab', v);
+          else n.delete('tab');
+          n.delete('page');
+          return n;
+        },
+        { replace: true },
+      );
+    },
+    [setSearchParams],
+  );
+  const universeFilter = searchParams.get('universe') ?? 'all';
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [currentPage, setCurrentPage] = useState(1);
+  const currentPage = Number(searchParams.get('page')) || 1;
+  const setCurrentPage = useCallback(
+    (v: number | ((prev: number) => number)) => {
+      setSearchParams(
+        (p) => {
+          const cur = Number(p.get('page')) || 1;
+          const resolved = typeof v === 'function' ? v(cur) : v;
+          const n = new URLSearchParams(p);
+          if (resolved > 1) n.set('page', String(resolved));
+          else n.delete('page');
+          return n;
+        },
+        { replace: true },
+      );
+    },
+    [setSearchParams],
+  );
   const [enrichingIds, setEnrichingIds] = useState<Set<string>>(new Set());
-  const { progress: buyerEnrichmentProgress, cancel: cancelBuyerEnrichment } = useBuyerEnrichmentProgress();
-  const sortColumn = searchParams.get("sort") ?? "company_name";
-  const sortDirection = (searchParams.get("dir") as "asc" | "desc") ?? "asc";
+  const { progress: buyerEnrichmentProgress, cancel: cancelBuyerEnrichment } =
+    useBuyerEnrichmentProgress();
+  const sortColumn = searchParams.get('sort') ?? 'company_name';
+  const sortDirection = (searchParams.get('dir') as 'asc' | 'desc') ?? 'asc';
   // New buyer form state
   const [newBuyer, setNewBuyer] = useState({
-    company_name: "",
-    company_website: "",
-    buyer_type: "" as BuyerType | "",
-    universe_id: "",
-    thesis_summary: "",
-    notes: "",
+    company_name: '',
+    company_website: '',
+    buyer_type: '' as BuyerType | '',
+    universe_id: '',
+    thesis_summary: '',
+    notes: '',
   });
 
   // Register page context for AI Command Center
@@ -132,15 +184,15 @@ const ReMarketingBuyers = () => {
       if (mode === 'replace') {
         setSelectedIds(new Set(rowIds));
       } else if (mode === 'add') {
-        setSelectedIds(prev => {
+        setSelectedIds((prev) => {
           const next = new Set(prev);
-          rowIds.forEach(id => next.add(id));
+          rowIds.forEach((id) => next.add(id));
           return next;
         });
       } else {
-        setSelectedIds(prev => {
+        setSelectedIds((prev) => {
           const next = new Set(prev);
-          rowIds.forEach(id => next.has(id) ? next.delete(id) : next.add(id));
+          rowIds.forEach((id) => (next.has(id) ? next.delete(id) : next.add(id)));
           return next;
         });
       }
@@ -148,8 +200,10 @@ const ReMarketingBuyers = () => {
     onClearSelection: () => setSelectedIds(new Set()),
     onSortColumn: (field) => {
       const fieldMap: Record<string, string> = {
-        company_name: 'company_name', pe_firm_name: 'pe_firm_name',
-        universe: 'universe', buyer_type: 'company_name',
+        company_name: 'company_name',
+        pe_firm_name: 'pe_firm_name',
+        universe: 'universe',
+        buyer_type: 'company_name',
       };
       handleSort(fieldMap[field] || field);
     },
@@ -161,7 +215,8 @@ const ReMarketingBuyers = () => {
     queryFn: async () => {
       let query = supabase
         .from('remarketing_buyers')
-        .select(`
+        .select(
+          `
           *,
           universe:remarketing_buyer_universes(id, name),
           firm_agreement:firm_agreements!remarketing_buyers_marketplace_firm_id_fkey(
@@ -172,19 +227,20 @@ const ReMarketingBuyers = () => {
             fee_agreement_signed_at,
             primary_company_name
           )
-        `)
+        `,
+        )
         .eq('archived', false)
         .order('company_name');
 
       // Filter by universe
-      if (universeFilter !== "all") {
+      if (universeFilter !== 'all') {
         query = query.eq('universe_id', universeFilter);
       }
 
       const { data, error } = await query;
       if (error) throw error;
       return data;
-    }
+    },
   });
 
   // Fetch buyer IDs that have transcripts - needed to determine "Strong" vs "Some Intel"
@@ -194,7 +250,7 @@ const ReMarketingBuyers = () => {
     queryKey: ['remarketing', 'buyer-transcript-ids', buyerIds.slice(0, 5)],
     queryFn: async () => {
       if (buyerIds.length === 0) return new Set<string>();
-      
+
       // Batch in chunks of 100 to stay within Supabase limits
       const allIds: string[] = [];
       for (let i = 0; i < buyerIds.length; i += 100) {
@@ -209,7 +265,7 @@ const ReMarketingBuyers = () => {
         }
         allIds.push(...(data || []).map((t: any) => t.buyer_id));
       }
-      
+
       return new Set(allIds);
     },
     enabled: buyerIds.length > 0,
@@ -227,13 +283,15 @@ const ReMarketingBuyers = () => {
 
       if (error) throw error;
       return data;
-    }
+    },
   });
 
   // Compute tab counts from loaded buyers
   const tabCounts = useMemo(() => {
     if (!buyers) return { all: 0, pe_firm: 0, platform: 0, needs_agreements: 0 };
-    let pe_firm = 0, platform = 0, needs_agreements = 0;
+    let pe_firm = 0,
+      platform = 0,
+      needs_agreements = 0;
     buyers.forEach((b: any) => {
       if (isSponsorType(b.buyer_type)) pe_firm++;
       if (b.buyer_type === 'platform' || !b.buyer_type) platform++;
@@ -258,7 +316,8 @@ const ReMarketingBuyers = () => {
   const createMutation = useMutation({
     mutationFn: async () => {
       // Normalize website for dedup
-      const normalizedWebsite = normalizeDomain(newBuyer.company_website) || newBuyer.company_website?.trim() || null;
+      const normalizedWebsite =
+        normalizeDomain(newBuyer.company_website) || newBuyer.company_website?.trim() || null;
       const universeId = newBuyer.universe_id || null;
 
       // Check for duplicate buyer by domain
@@ -276,28 +335,26 @@ const ReMarketingBuyers = () => {
         }
 
         const { data: existingBuyers } = await query;
-        const duplicate = existingBuyers?.find(b =>
-          normalizeDomain(b.company_website) === normalizedWebsite
+        const duplicate = existingBuyers?.find(
+          (b) => normalizeDomain(b.company_website) === normalizedWebsite,
         );
         if (duplicate) {
           throw new Error(`A buyer with this website already exists: "${duplicate.company_name}"`);
         }
       }
 
-      const { error } = await supabase
-        .from('remarketing_buyers')
-        .insert({
-          company_name: newBuyer.company_name,
-          company_website: normalizedWebsite,
-          buyer_type: newBuyer.buyer_type || null,
-          universe_id: universeId,
-          thesis_summary: newBuyer.thesis_summary || null,
-          notes: newBuyer.notes || null,
-        });
+      const { error } = await supabase.from('remarketing_buyers').insert({
+        company_name: newBuyer.company_name,
+        company_website: normalizedWebsite,
+        buyer_type: newBuyer.buyer_type || null,
+        universe_id: universeId,
+        thesis_summary: newBuyer.thesis_summary || null,
+        notes: newBuyer.notes || null,
+      });
 
       if (error) {
         if (error.message?.includes('unique') || error.message?.includes('duplicate')) {
-          throw new Error("A buyer with this website already exists.");
+          throw new Error('A buyer with this website already exists.');
         }
         throw error;
       }
@@ -305,28 +362,32 @@ const ReMarketingBuyers = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['remarketing'] });
       toast.success(`${newBuyer.company_name} has been added.`);
-      setNewBuyer({ company_name: "", company_website: "", buyer_type: "", universe_id: "", thesis_summary: "", notes: "" });
+      setNewBuyer({
+        company_name: '',
+        company_website: '',
+        buyer_type: '',
+        universe_id: '',
+        thesis_summary: '',
+        notes: '',
+      });
       setIsAddDialogOpen(false);
     },
     onError: (error: Error) => {
       toast.error(error.message);
-    }
+    },
   });
 
   // Delete buyer mutation
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase
-        .from('remarketing_buyers')
-        .delete()
-        .eq('id', id);
+      const { error } = await supabase.from('remarketing_buyers').delete().eq('id', id);
 
       if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['remarketing'] });
-      toast.success("Buyer deleted");
-    }
+      toast.success('Buyer deleted');
+    },
   });
 
   // Filter buyers by tab + search
@@ -337,23 +398,24 @@ const ReMarketingBuyers = () => {
     // Tab filter
     switch (activeTab) {
       case 'pe_firm':
-        result = result.filter(b => isSponsorType(b.buyer_type));
+        result = result.filter((b) => isSponsorType(b.buyer_type));
         break;
       case 'platform':
-        result = result.filter(b => b.buyer_type === 'platform' || !b.buyer_type);
+        result = result.filter((b) => b.buyer_type === 'platform' || !b.buyer_type);
         break;
       case 'needs_agreements':
-        result = result.filter(b => !b.has_fee_agreement);
+        result = result.filter((b) => !b.has_fee_agreement);
         break;
     }
 
     if (search) {
       const searchLower = search.toLowerCase();
-      result = result.filter(b =>
-        b.company_name?.toLowerCase().includes(searchLower) ||
-        b.company_website?.toLowerCase().includes(searchLower) ||
-        b.thesis_summary?.toLowerCase().includes(searchLower) ||
-        b.pe_firm_name?.toLowerCase().includes(searchLower)
+      result = result.filter(
+        (b) =>
+          b.company_name?.toLowerCase().includes(searchLower) ||
+          b.company_website?.toLowerCase().includes(searchLower) ||
+          b.thesis_summary?.toLowerCase().includes(searchLower) ||
+          b.pe_firm_name?.toLowerCase().includes(searchLower),
       );
     }
 
@@ -402,7 +464,7 @@ const ReMarketingBuyers = () => {
   // Enrich single buyer
   const handleEnrichBuyer = async (e: React.MouseEvent, buyerId: string) => {
     e.stopPropagation();
-    setEnrichingIds(prev => new Set(prev).add(buyerId));
+    setEnrichingIds((prev) => new Set(prev).add(buyerId));
     try {
       const { error } = await supabase.functions.invoke('enrich-buyer', {
         body: { buyerId, force: false },
@@ -413,7 +475,7 @@ const ReMarketingBuyers = () => {
     } catch (err: any) {
       toast.error(err.message || 'Enrichment failed');
     } finally {
-      setEnrichingIds(prev => {
+      setEnrichingIds((prev) => {
         const next = new Set(prev);
         next.delete(buyerId);
         return next;
@@ -422,46 +484,55 @@ const ReMarketingBuyers = () => {
   };
 
   const handleSort = (column: string) => {
-    setSearchParams((prev) => {
-      const next = new URLSearchParams(prev);
-      if (next.get("sort") === column) {
-        next.set("dir", next.get("dir") === "asc" ? "desc" : "asc");
-      } else {
-        next.set("sort", column);
-        next.set("dir", "asc");
-      }
-      return next;
-    }, { replace: true });
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        if (next.get('sort') === column) {
+          next.set('dir', next.get('dir') === 'asc' ? 'desc' : 'asc');
+        } else {
+          next.set('sort', column);
+          next.set('dir', 'asc');
+        }
+        return next;
+      },
+      { replace: true },
+    );
   };
 
   const setUniverseFilter = (value: string) => {
-    setSearchParams((prev) => {
-      const next = new URLSearchParams(prev);
-      if (value === "all") next.delete("universe");
-      else next.set("universe", value);
-      return next;
-    }, { replace: true });
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        if (value === 'all') next.delete('universe');
+        else next.set('universe', value);
+        return next;
+      },
+      { replace: true },
+    );
   };
 
   const SortIcon = ({ column }: { column: string }) => {
     if (sortColumn !== column) return <ArrowUpDown className="h-3.5 w-3.5 ml-1 opacity-40" />;
-    return sortDirection === 'asc' 
-      ? <ArrowUp className="h-3.5 w-3.5 ml-1" /> 
-      : <ArrowDown className="h-3.5 w-3.5 ml-1" />;
+    return sortDirection === 'asc' ? (
+      <ArrowUp className="h-3.5 w-3.5 ml-1" />
+    ) : (
+      <ArrowDown className="h-3.5 w-3.5 ml-1" />
+    );
   };
 
   // Using IntelligenceBadge component instead of icons
 
   const getBuyerTypeLabel = (type: string | null) => {
-    const found = BUYER_TYPES.find(t => t.value === type);
+    const found = BUYER_TYPES.find((t) => t.value === type);
     return found?.label || type || '-';
   };
 
   // Selection helpers
   const toggleSelect = (id: string) => {
-    setSelectedIds(prev => {
+    setSelectedIds((prev) => {
       const next = new Set(prev);
-      if (next.has(id)) next.delete(id); else next.add(id);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
       return next;
     });
   };
@@ -476,24 +547,37 @@ const ReMarketingBuyers = () => {
   // Export CSV
   const handleExportCSV = () => {
     const rows = filteredBuyers.filter((b: any) => selectedIds.size === 0 || selectedIds.has(b.id));
-    const headers = ['Company Name', 'Buyer Type', 'PE Firm', 'Website', 'Location', 'Thesis', 'Fee Agreement', 'NDA'];
+    const headers = [
+      'Company Name',
+      'Buyer Type',
+      'PE Firm',
+      'Website',
+      'Location',
+      'Thesis',
+      'Fee Agreement',
+      'NDA',
+    ];
     const csv = [
       headers.join(','),
-      ...rows.map((b: any) => [
-        `"${(b.company_name || '').replace(/"/g, '""')}"`,
-        b.buyer_type || '',
-        `"${(b.pe_firm_name || '').replace(/"/g, '""')}"`,
-        b.company_website || '',
-        [b.hq_city, b.hq_state].filter(Boolean).join(' '),
-        `"${(b.thesis_summary || '').replace(/"/g, '""').substring(0, 200)}"`,
-        b.has_fee_agreement ? 'Yes' : 'No',
-        b.nda_signed ? 'Yes' : 'No',
-      ].join(','))
+      ...rows.map((b: any) =>
+        [
+          `"${(b.company_name || '').replace(/"/g, '""')}"`,
+          b.buyer_type || '',
+          `"${(b.pe_firm_name || '').replace(/"/g, '""')}"`,
+          b.company_website || '',
+          [b.hq_city, b.hq_state].filter(Boolean).join(' '),
+          `"${(b.thesis_summary || '').replace(/"/g, '""').substring(0, 200)}"`,
+          b.has_fee_agreement ? 'Yes' : 'No',
+          b.nda_signed ? 'Yes' : 'No',
+        ].join(','),
+      ),
     ].join('\n');
     const blob = new Blob([csv], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
-    a.href = url; a.download = 'buyers.csv'; a.click();
+    a.href = url;
+    a.download = 'buyers.csv';
+    a.click();
     URL.revokeObjectURL(url);
     toast.success(`Exported ${rows.length} buyers`);
   };
@@ -519,41 +603,101 @@ const ReMarketingBuyers = () => {
                 disabled={enrichingIds.size > 0 || filteredBuyers.length === 0}
               >
                 <Sparkles className="h-3.5 w-3.5" />
-                {enrichingIds.size > 0 ? `Enriching…` : selectedIds.size > 0 ? `Enrich Selected (${selectedIds.size})` : 'Enrich All'}
+                {enrichingIds.size > 0
+                  ? `Enriching…`
+                  : selectedIds.size > 0
+                    ? `Enrich Selected (${selectedIds.size})`
+                    : 'Enrich All'}
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={async () => {
-                const base = selectedIds.size > 0 ? filteredBuyers.filter((b: any) => selectedIds.has(b.id)) : filteredBuyers;
-                const ids = base.filter((b: any) => b.company_website || b.platform_website || b.pe_firm_website).map((b: any) => b.id);
-                if (ids.length === 0) { toast.info('No buyers with websites to enrich'); return; }
-                setEnrichingIds(new Set(ids));
-                try {
-                  const { queueBuyerEnrichment } = await import("@/lib/remarketing/queueEnrichment");
-                  await queueBuyerEnrichment(ids);
-                  queryClient.invalidateQueries({ queryKey: ['remarketing', 'buyers'] });
-                } catch (err) { void err; toast.error('Failed to queue enrichment'); } finally { setEnrichingIds(new Set()); }
-              }}>
+              <DropdownMenuItem
+                onClick={async () => {
+                  const base =
+                    selectedIds.size > 0
+                      ? filteredBuyers.filter((b: any) => selectedIds.has(b.id))
+                      : filteredBuyers;
+                  const ids = base
+                    .filter(
+                      (b: any) => b.company_website || b.platform_website || b.pe_firm_website,
+                    )
+                    .map((b: any) => b.id);
+                  if (ids.length === 0) {
+                    toast.info('No buyers with websites to enrich');
+                    return;
+                  }
+                  setEnrichingIds(new Set(ids));
+                  try {
+                    const { queueBuyerEnrichment } =
+                      await import('@/lib/remarketing/queueEnrichment');
+                    await queueBuyerEnrichment(ids);
+                    queryClient.invalidateQueries({ queryKey: ['remarketing', 'buyers'] });
+                  } catch (err) {
+                    void err;
+                    toast.error('Failed to queue enrichment');
+                  } finally {
+                    setEnrichingIds(new Set());
+                  }
+                }}
+              >
                 <Sparkles className="h-4 w-4 mr-2" />
-                Enrich ({(() => { const base = selectedIds.size > 0 ? filteredBuyers.filter((b: any) => selectedIds.has(b.id)) : filteredBuyers; return base.filter((b: any) => b.company_website || b.platform_website || b.pe_firm_website).length; })()})
+                Enrich (
+                {(() => {
+                  const base =
+                    selectedIds.size > 0
+                      ? filteredBuyers.filter((b: any) => selectedIds.has(b.id))
+                      : filteredBuyers;
+                  return base.filter(
+                    (b: any) => b.company_website || b.platform_website || b.pe_firm_website,
+                  ).length;
+                })()}
+                )
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={async () => {
-                const base = selectedIds.size > 0 ? filteredBuyers.filter((b: any) => selectedIds.has(b.id)) : filteredBuyers;
-                const ids = base.filter((b: any) => b.company_website || b.platform_website || b.pe_firm_website).map((b: any) => b.id);
-                if (ids.length === 0) { toast.info('No buyers with websites to enrich'); return; }
-                setEnrichingIds(new Set(ids));
-                try {
-                  const { queueBuyerEnrichment } = await import("@/lib/remarketing/queueEnrichment");
-                  await queueBuyerEnrichment(ids);
-                  queryClient.invalidateQueries({ queryKey: ['remarketing', 'buyers'] });
-                } catch (err) { void err; toast.error('Failed to queue enrichment'); } finally { setEnrichingIds(new Set()); }
-              }}>
+              <DropdownMenuItem
+                onClick={async () => {
+                  const base =
+                    selectedIds.size > 0
+                      ? filteredBuyers.filter((b: any) => selectedIds.has(b.id))
+                      : filteredBuyers;
+                  const ids = base
+                    .filter(
+                      (b: any) => b.company_website || b.platform_website || b.pe_firm_website,
+                    )
+                    .map((b: any) => b.id);
+                  if (ids.length === 0) {
+                    toast.info('No buyers with websites to enrich');
+                    return;
+                  }
+                  setEnrichingIds(new Set(ids));
+                  try {
+                    const { queueBuyerEnrichment } =
+                      await import('@/lib/remarketing/queueEnrichment');
+                    await queueBuyerEnrichment(ids);
+                    queryClient.invalidateQueries({ queryKey: ['remarketing', 'buyers'] });
+                  } catch (err) {
+                    void err;
+                    toast.error('Failed to queue enrichment');
+                  } finally {
+                    setEnrichingIds(new Set());
+                  }
+                }}
+              >
                 <Sparkles className="h-4 w-4 mr-2" />
-                Re-enrich All ({(() => { const base = selectedIds.size > 0 ? filteredBuyers.filter((b: any) => selectedIds.has(b.id)) : filteredBuyers; return base.filter((b: any) => b.company_website || b.platform_website || b.pe_firm_website).length; })()})
+                Re-enrich All (
+                {(() => {
+                  const base =
+                    selectedIds.size > 0
+                      ? filteredBuyers.filter((b: any) => selectedIds.has(b.id))
+                      : filteredBuyers;
+                  return base.filter(
+                    (b: any) => b.company_website || b.platform_website || b.pe_firm_website,
+                  ).length;
+                })()}
+                )
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
-          
+
           <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
             <DialogTrigger asChild>
               <Button className="gap-2">
@@ -592,13 +736,15 @@ const ReMarketingBuyers = () => {
                     <Label htmlFor="buyer_type">Buyer Type</Label>
                     <Select
                       value={newBuyer.buyer_type}
-                      onValueChange={(value) => setNewBuyer({ ...newBuyer, buyer_type: value as BuyerType })}
+                      onValueChange={(value) =>
+                        setNewBuyer({ ...newBuyer, buyer_type: value as BuyerType })
+                      }
                     >
                       <SelectTrigger>
                         <SelectValue placeholder="Select type" />
                       </SelectTrigger>
                       <SelectContent>
-                        {BUYER_TYPES.map(type => (
+                        {BUYER_TYPES.map((type) => (
                           <SelectItem key={type.value} value={type.value}>
                             {type.label}
                           </SelectItem>
@@ -616,8 +762,10 @@ const ReMarketingBuyers = () => {
                         <SelectValue placeholder="Select universe" />
                       </SelectTrigger>
                       <SelectContent>
-                        {universes?.map(u => (
-                          <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>
+                        {universes?.map((u) => (
+                          <SelectItem key={u.id} value={u.id}>
+                            {u.name}
+                          </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
@@ -648,11 +796,11 @@ const ReMarketingBuyers = () => {
                 <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>
                   Cancel
                 </Button>
-                <Button 
+                <Button
                   onClick={() => createMutation.mutate()}
                   disabled={!newBuyer.company_name.trim() || createMutation.isPending}
                 >
-                  {createMutation.isPending ? "Adding..." : "Add Buyer"}
+                  {createMutation.isPending ? 'Adding...' : 'Add Buyer'}
                 </Button>
               </DialogFooter>
             </DialogContent>
@@ -669,7 +817,9 @@ const ReMarketingBuyers = () => {
           estimatedTimeRemaining={buyerEnrichmentProgress.estimatedTimeRemaining}
           processingRate={buyerEnrichmentProgress.processingRate}
           itemLabel="buyers"
-          successfulCount={buyerEnrichmentProgress.completedCount - buyerEnrichmentProgress.failedCount}
+          successfulCount={
+            buyerEnrichmentProgress.completedCount - buyerEnrichmentProgress.failedCount
+          }
           failedCount={buyerEnrichmentProgress.failedCount}
           onCancel={cancelBuyerEnrichment}
         />
@@ -681,7 +831,9 @@ const ReMarketingBuyers = () => {
           <TabsTrigger value="all">All Buyers ({tabCounts.all})</TabsTrigger>
           <TabsTrigger value="pe_firm">Sponsors & Firms ({tabCounts.pe_firm})</TabsTrigger>
           <TabsTrigger value="platform">Platforms ({tabCounts.platform})</TabsTrigger>
-          <TabsTrigger value="needs_agreements">Needs Agreements ({tabCounts.needs_agreements})</TabsTrigger>
+          <TabsTrigger value="needs_agreements">
+            Needs Agreements ({tabCounts.needs_agreements})
+          </TabsTrigger>
         </TabsList>
       </Tabs>
 
@@ -690,22 +842,29 @@ const ReMarketingBuyers = () => {
         <Card>
           <CardContent className="p-3 flex items-center gap-3">
             <span className="text-sm font-medium">{selectedIds.size} selected</span>
-            <Button size="sm" variant="outline" disabled={enrichingIds.size > 0} onClick={async () => {
-              const ids = Array.from(selectedIds);
-              if (ids.length === 0) return;
-              setEnrichingIds(new Set(ids));
-              try {
-                const { queueBuyerEnrichment } = await import("@/lib/remarketing/queueEnrichment");
-                await queueBuyerEnrichment(ids);
-                queryClient.invalidateQueries({ queryKey: ['remarketing', 'buyers'] });
-              } catch (err) {
-                // Bulk enrich failed — toast shown to user
-                toast.error('Failed to queue enrichment');
-              } finally {
-                setEnrichingIds(new Set());
-              }
-            }}>
-              <Sparkles className="h-3.5 w-3.5 mr-1.5" /> {enrichingIds.size > 0 ? 'Enriching…' : 'Enrich Selected'}
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={enrichingIds.size > 0}
+              onClick={async () => {
+                const ids = Array.from(selectedIds);
+                if (ids.length === 0) return;
+                setEnrichingIds(new Set(ids));
+                try {
+                  const { queueBuyerEnrichment } =
+                    await import('@/lib/remarketing/queueEnrichment');
+                  await queueBuyerEnrichment(ids);
+                  queryClient.invalidateQueries({ queryKey: ['remarketing', 'buyers'] });
+                } catch (err) {
+                  // Bulk enrich failed — toast shown to user
+                  toast.error('Failed to queue enrichment');
+                } finally {
+                  setEnrichingIds(new Set());
+                }
+              }}
+            >
+              <Sparkles className="h-3.5 w-3.5 mr-1.5" />{' '}
+              {enrichingIds.size > 0 ? 'Enriching…' : 'Enrich Selected'}
             </Button>
             <Button size="sm" variant="outline" onClick={handleExportCSV}>
               <Download className="h-3.5 w-3.5 mr-1.5" /> Export CSV
@@ -730,15 +889,17 @@ const ReMarketingBuyers = () => {
                 className="pl-10"
               />
             </div>
-            
+
             <Select value={universeFilter} onValueChange={setUniverseFilter}>
               <SelectTrigger className="w-[200px]">
                 <SelectValue placeholder="All Universes" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Universes</SelectItem>
-                {universes?.map(u => (
-                  <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>
+                {universes?.map((u) => (
+                  <SelectItem key={u.id} value={u.id}>
+                    {u.name}
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -754,12 +915,19 @@ const ReMarketingBuyers = () => {
               <TableRow>
                 <TableHead className="w-[40px]">
                   <Checkbox
-                    checked={filteredBuyers.length > 0 && selectedIds.size === filteredBuyers.length}
+                    checked={
+                      filteredBuyers.length > 0 && selectedIds.size === filteredBuyers.length
+                    }
                     onCheckedChange={toggleSelectAll}
                   />
                 </TableHead>
-                <TableHead className="w-[48px] text-muted-foreground text-xs font-normal">#</TableHead>
-                <TableHead className="w-[260px] cursor-pointer select-none hover:bg-muted/50" onClick={() => handleSort('company_name')}>
+                <TableHead className="w-[48px] text-muted-foreground text-xs font-normal">
+                  #
+                </TableHead>
+                <TableHead
+                  className="w-[260px] cursor-pointer select-none hover:bg-muted/50"
+                  onClick={() => handleSort('company_name')}
+                >
                   <span className="flex items-center">
                     {activeTab === 'pe_firm' ? 'Firm Name' : 'Platform / Buyer'}
                     <SortIcon column="company_name" />
@@ -776,11 +944,21 @@ const ReMarketingBuyers = () => {
                   </>
                 ) : (
                   <>
-                    <TableHead className="w-[180px] cursor-pointer select-none hover:bg-muted/50" onClick={() => handleSort('pe_firm_name')}>
-                      <span className="flex items-center">PE Firm <SortIcon column="pe_firm_name" /></span>
+                    <TableHead
+                      className="w-[180px] cursor-pointer select-none hover:bg-muted/50"
+                      onClick={() => handleSort('pe_firm_name')}
+                    >
+                      <span className="flex items-center">
+                        PE Firm <SortIcon column="pe_firm_name" />
+                      </span>
                     </TableHead>
-                    <TableHead className="cursor-pointer select-none hover:bg-muted/50" onClick={() => handleSort('universe')}>
-                      <span className="flex items-center">Universe <SortIcon column="universe" /></span>
+                    <TableHead
+                      className="cursor-pointer select-none hover:bg-muted/50"
+                      onClick={() => handleSort('universe')}
+                    >
+                      <span className="flex items-center">
+                        Universe <SortIcon column="universe" />
+                      </span>
                     </TableHead>
                     <TableHead>Description</TableHead>
                     <TableHead className="w-[70px] text-center">Mktpl.</TableHead>
@@ -796,17 +974,39 @@ const ReMarketingBuyers = () => {
               {buyersLoading ? (
                 Array.from({ length: 5 }).map((_, i) => (
                   <TableRow key={i}>
-                    <TableCell><Skeleton className="h-4 w-4" /></TableCell>
-                    <TableCell><Skeleton className="h-4 w-6" /></TableCell>
-                    <TableCell><Skeleton className="h-10 w-48" /></TableCell>
-                    <TableCell><Skeleton className="h-5 w-24" /></TableCell>
-                    <TableCell><Skeleton className="h-5 w-24" /></TableCell>
-                    <TableCell><Skeleton className="h-4 w-48" /></TableCell>
-                    <TableCell><Skeleton className="h-4 w-8" /></TableCell>
-                    <TableCell><Skeleton className="h-4 w-8" /></TableCell>
-                    <TableCell><Skeleton className="h-4 w-8" /></TableCell>
-                    <TableCell><Skeleton className="h-5 w-20" /></TableCell>
-                    <TableCell><Skeleton className="h-8 w-8" /></TableCell>
+                    <TableCell>
+                      <Skeleton className="h-4 w-4" />
+                    </TableCell>
+                    <TableCell>
+                      <Skeleton className="h-4 w-6" />
+                    </TableCell>
+                    <TableCell>
+                      <Skeleton className="h-10 w-48" />
+                    </TableCell>
+                    <TableCell>
+                      <Skeleton className="h-5 w-24" />
+                    </TableCell>
+                    <TableCell>
+                      <Skeleton className="h-5 w-24" />
+                    </TableCell>
+                    <TableCell>
+                      <Skeleton className="h-4 w-48" />
+                    </TableCell>
+                    <TableCell>
+                      <Skeleton className="h-4 w-8" />
+                    </TableCell>
+                    <TableCell>
+                      <Skeleton className="h-4 w-8" />
+                    </TableCell>
+                    <TableCell>
+                      <Skeleton className="h-4 w-8" />
+                    </TableCell>
+                    <TableCell>
+                      <Skeleton className="h-5 w-20" />
+                    </TableCell>
+                    <TableCell>
+                      <Skeleton className="h-8 w-8" />
+                    </TableCell>
                   </TableRow>
                 ))
               ) : filteredBuyers.length === 0 ? (
@@ -868,7 +1068,9 @@ const ReMarketingBuyers = () => {
                                 className="text-xs text-primary hover:underline flex items-center gap-1 mt-0.5"
                                 onClick={(e) => e.stopPropagation()}
                               >
-                                {buyer.company_website.replace(/^https?:\/\//, '').replace(/\/$/, '')}
+                                {buyer.company_website
+                                  .replace(/^https?:\/\//, '')
+                                  .replace(/\/$/, '')}
                                 <ExternalLink className="h-3 w-3" />
                               </a>
                             )}
@@ -894,23 +1096,29 @@ const ReMarketingBuyers = () => {
 
                           {/* Fee Agreement Column */}
                           <TableCell className="text-center">
-                            {buyer.has_fee_agreement
-                              ? <span className="text-xs font-medium text-green-600">Yes</span>
-                              : <span className="text-xs text-muted-foreground">No</span>}
+                            {buyer.has_fee_agreement ? (
+                              <span className="text-xs font-medium text-green-600">Yes</span>
+                            ) : (
+                              <span className="text-xs text-muted-foreground">No</span>
+                            )}
                           </TableCell>
 
                           {/* NDA Column */}
                           <TableCell className="text-center">
-                            {buyer.firm_agreement?.nda_signed
-                              ? <span className="text-xs font-medium text-green-600">Yes</span>
-                              : <span className="text-xs text-muted-foreground">No</span>}
+                            {buyer.firm_agreement?.nda_signed ? (
+                              <span className="text-xs font-medium text-green-600">Yes</span>
+                            ) : (
+                              <span className="text-xs text-muted-foreground">No</span>
+                            )}
                           </TableCell>
 
                           {/* Marketplace Column */}
                           <TableCell className="text-center">
-                            {buyer.marketplace_firm_id
-                              ? <span className="text-xs font-medium text-green-600">Yes</span>
-                              : <span className="text-xs text-muted-foreground">No</span>}
+                            {buyer.marketplace_firm_id ? (
+                              <span className="text-xs font-medium text-green-600">Yes</span>
+                            ) : (
+                              <span className="text-xs text-muted-foreground">No</span>
+                            )}
                           </TableCell>
 
                           {/* Intel Column */}
@@ -936,14 +1144,18 @@ const ReMarketingBuyers = () => {
                                     <div className="h-6 w-6 rounded bg-muted flex items-center justify-center">
                                       <Building className="h-3 w-3 text-muted-foreground" />
                                     </div>
-                                    <span className="text-sm hover:underline">{buyer.pe_firm_name}</span>
+                                    <span className="text-sm hover:underline">
+                                      {buyer.pe_firm_name}
+                                    </span>
                                   </Link>
                                 ) : (
                                   <div className="flex items-center gap-2">
                                     <div className="h-6 w-6 rounded bg-muted flex items-center justify-center">
                                       <Building className="h-3 w-3 text-muted-foreground" />
                                     </div>
-                                    <span className="text-sm text-muted-foreground">{buyer.pe_firm_name}</span>
+                                    <span className="text-sm text-muted-foreground">
+                                      {buyer.pe_firm_name}
+                                    </span>
                                   </div>
                                 );
                               })()
@@ -969,7 +1181,7 @@ const ReMarketingBuyers = () => {
 
                           {/* Description Column */}
                           <TableCell>
-                            {(buyer.business_summary || buyer.thesis_summary) ? (
+                            {buyer.business_summary || buyer.thesis_summary ? (
                               <TooltipProvider>
                                 <Tooltip>
                                   <TooltipTrigger asChild>
@@ -977,7 +1189,10 @@ const ReMarketingBuyers = () => {
                                       {buyer.business_summary || buyer.thesis_summary}
                                     </p>
                                   </TooltipTrigger>
-                                  <TooltipContent side="bottom" className="max-w-md whitespace-normal text-sm p-3">
+                                  <TooltipContent
+                                    side="bottom"
+                                    className="max-w-md whitespace-normal text-sm p-3"
+                                  >
                                     {buyer.business_summary || buyer.thesis_summary}
                                   </TooltipContent>
                                 </Tooltip>
@@ -989,23 +1204,29 @@ const ReMarketingBuyers = () => {
 
                           {/* Marketplace Column */}
                           <TableCell className="text-center">
-                            {buyer.marketplace_firm_id
-                              ? <span className="text-xs font-medium text-green-600">Yes</span>
-                              : <span className="text-xs text-muted-foreground">No</span>}
+                            {buyer.marketplace_firm_id ? (
+                              <span className="text-xs font-medium text-green-600">Yes</span>
+                            ) : (
+                              <span className="text-xs text-muted-foreground">No</span>
+                            )}
                           </TableCell>
 
                           {/* Fee Agreement Column */}
                           <TableCell className="text-center">
-                            {buyer.has_fee_agreement
-                              ? <span className="text-xs font-medium text-green-600">Yes</span>
-                              : <span className="text-xs text-muted-foreground">No</span>}
+                            {buyer.has_fee_agreement ? (
+                              <span className="text-xs font-medium text-green-600">Yes</span>
+                            ) : (
+                              <span className="text-xs text-muted-foreground">No</span>
+                            )}
                           </TableCell>
 
                           {/* NDA Column */}
                           <TableCell className="text-center">
-                            {buyer.firm_agreement?.nda_signed
-                              ? <span className="text-xs font-medium text-green-600">Yes</span>
-                              : <span className="text-xs text-muted-foreground">No</span>}
+                            {buyer.firm_agreement?.nda_signed ? (
+                              <span className="text-xs font-medium text-green-600">Yes</span>
+                            ) : (
+                              <span className="text-xs text-muted-foreground">No</span>
+                            )}
                           </TableCell>
 
                           {/* Intel Column */}
@@ -1031,17 +1252,21 @@ const ReMarketingBuyers = () => {
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={(e) => {
-                              e.stopPropagation();
-                              navigate(detailPath);
-                            }}>
+                            <DropdownMenuItem
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                navigate(detailPath);
+                              }}
+                            >
                               <Pencil className="h-4 w-4 mr-2" />
                               {isSponsor ? 'View Firm' : 'Edit'}
                             </DropdownMenuItem>
-                            <DropdownMenuItem onClick={(e) => {
-                              e.stopPropagation();
-                              handleEnrichBuyer(e, buyer.id);
-                            }}>
+                            <DropdownMenuItem
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleEnrichBuyer(e, buyer.id);
+                              }}
+                            >
                               <Sparkles className="h-4 w-4 mr-2" />
                               Enrich
                             </DropdownMenuItem>
@@ -1071,7 +1296,9 @@ const ReMarketingBuyers = () => {
           {!buyersLoading && filteredBuyers.length > PAGE_SIZE && (
             <div className="flex items-center justify-between px-4 py-3 border-t text-sm text-muted-foreground">
               <span>
-                Showing {(currentPage - 1) * PAGE_SIZE + 1}–{Math.min(currentPage * PAGE_SIZE, filteredBuyers.length)} of {filteredBuyers.length}
+                Showing {(currentPage - 1) * PAGE_SIZE + 1}–
+                {Math.min(currentPage * PAGE_SIZE, filteredBuyers.length)} of{' '}
+                {filteredBuyers.length}
               </span>
               <div className="flex items-center gap-1">
                 <Button
@@ -1080,14 +1307,18 @@ const ReMarketingBuyers = () => {
                   className="h-8 px-3"
                   disabled={currentPage === 1}
                   onClick={() => setCurrentPage(1)}
-                >«</Button>
+                >
+                  «
+                </Button>
                 <Button
                   variant="outline"
                   size="sm"
                   className="h-8 px-3"
                   disabled={currentPage === 1}
-                  onClick={() => setCurrentPage(p => p - 1)}
-                >‹ Prev</Button>
+                  onClick={() => setCurrentPage((p) => p - 1)}
+                >
+                  ‹ Prev
+                </Button>
                 <span className="px-3 font-medium text-foreground">
                   Page {currentPage} of {totalPages}
                 </span>
@@ -1096,15 +1327,19 @@ const ReMarketingBuyers = () => {
                   size="sm"
                   className="h-8 px-3"
                   disabled={currentPage === totalPages}
-                  onClick={() => setCurrentPage(p => p + 1)}
-                >Next ›</Button>
+                  onClick={() => setCurrentPage((p) => p + 1)}
+                >
+                  Next ›
+                </Button>
                 <Button
                   variant="outline"
                   size="sm"
                   className="h-8 px-3"
                   disabled={currentPage === totalPages}
                   onClick={() => setCurrentPage(totalPages)}
-                >»</Button>
+                >
+                  »
+                </Button>
               </div>
             </div>
           )}
@@ -1112,12 +1347,9 @@ const ReMarketingBuyers = () => {
       </Card>
 
       {/* AI Chat */}
-      <ReMarketingChat
-        context={{ type: "buyers", totalBuyers: filteredBuyers.length }}
-      />
+      <ReMarketingChat context={{ type: 'buyers', totalBuyers: filteredBuyers.length }} />
     </div>
   );
 };
 
 export default ReMarketingBuyers;
-

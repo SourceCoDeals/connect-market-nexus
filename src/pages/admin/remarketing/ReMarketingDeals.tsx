@@ -79,15 +79,11 @@ const ReMarketingDeals = () => {
   const { startOrQueueMajorOp } = useGlobalGateCheck();
   const [universeFilter] = useState<string>('all');
   const [scoreFilter] = useState<string>('all');
-  const [dateFilter, setDateFilter] = useState<string>('all');
-  const [customDateFrom, setCustomDateFrom] = useState<Date | undefined>(undefined);
-  const [customDateTo, setCustomDateTo] = useState<Date | undefined>(undefined);
   const [showCustomDatePicker, setShowCustomDatePicker] = useState(false);
   const [industryFilter] = useState<string>('all');
   const [stateFilter] = useState<string>('all');
   const [employeeFilter] = useState<string>('all');
   const [referralPartnerFilter] = useState<string>('all');
-  const [universeBuildFilter, setUniverseBuildFilter] = useState<boolean>(false);
 
   // Admin profiles for deal owner assignment
   const { data: adminProfiles } = useAdminProfiles();
@@ -98,6 +94,76 @@ const ReMarketingDeals = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const sortColumn = searchParams.get('sort') ?? 'rank';
   const sortDirection = (searchParams.get('dir') as 'asc' | 'desc') ?? 'asc';
+
+  // URL-persisted filter state (survives browser Back navigation)
+  const dateFilter = searchParams.get('date') ?? 'all';
+  const setDateFilter = useCallback(
+    (v: string) => {
+      setSearchParams(
+        (p) => {
+          const n = new URLSearchParams(p);
+          if (v === 'all') n.delete('date');
+          else n.set('date', v);
+          return n;
+        },
+        { replace: true },
+      );
+    },
+    [setSearchParams],
+  );
+  const customDateFromRaw = searchParams.get('dateFrom');
+  const customDateFrom = useMemo(
+    () => (customDateFromRaw ? new Date(customDateFromRaw) : undefined),
+    [customDateFromRaw],
+  );
+  const customDateToRaw = searchParams.get('dateTo');
+  const customDateTo = useMemo(
+    () => (customDateToRaw ? new Date(customDateToRaw) : undefined),
+    [customDateToRaw],
+  );
+  const setCustomDateFrom = useCallback(
+    (v: Date | undefined) => {
+      setSearchParams(
+        (p) => {
+          const n = new URLSearchParams(p);
+          if (v) n.set('dateFrom', v.toISOString());
+          else n.delete('dateFrom');
+          return n;
+        },
+        { replace: true },
+      );
+    },
+    [setSearchParams],
+  );
+  const setCustomDateTo = useCallback(
+    (v: Date | undefined) => {
+      setSearchParams(
+        (p) => {
+          const n = new URLSearchParams(p);
+          if (v) n.set('dateTo', v.toISOString());
+          else n.delete('dateTo');
+          return n;
+        },
+        { replace: true },
+      );
+    },
+    [setSearchParams],
+  );
+  const universeBuildFilter = searchParams.get('ubf') === '1';
+  const setUniverseBuildFilter = useCallback(
+    (v: boolean) => {
+      setSearchParams(
+        (p) => {
+          const n = new URLSearchParams(p);
+          if (v) n.set('ubf', '1');
+          else n.delete('ubf');
+          return n;
+        },
+        { replace: true },
+      );
+    },
+    [setSearchParams],
+  );
   const [isCalculating, setIsCalculating] = useState(false);
   const [isEnrichingAll, setIsEnrichingAll] = useState(false);
 
@@ -153,8 +219,22 @@ const ReMarketingDeals = () => {
     }),
   );
 
-  // Pagination state
-  const [page, setPage] = useState(0);
+  // Pagination state (URL-persisted)
+  const page = Number(searchParams.get('p')) || 0;
+  const setPage = useCallback(
+    (v: number) => {
+      setSearchParams(
+        (p) => {
+          const n = new URLSearchParams(p);
+          if (v > 0) n.set('p', String(v));
+          else n.delete('p');
+          return n;
+        },
+        { replace: true },
+      );
+    },
+    [setSearchParams],
+  );
   const PAGE_SIZE = 50;
 
   // Fetch all listings (deals) — slim select, no heavy text columns
@@ -664,7 +744,7 @@ const ReMarketingDeals = () => {
   // Reset page when filters change
   useEffect(() => {
     setPage(0);
-  }, [filteredListings.length, sortColumn, sortDirection]);
+  }, [filteredListings.length, sortColumn, sortDirection, setPage]);
 
   // Paginate sortedListings
   const totalPages = Math.max(1, Math.ceil(sortedListings.length / PAGE_SIZE));

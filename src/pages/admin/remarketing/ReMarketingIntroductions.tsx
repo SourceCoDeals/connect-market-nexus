@@ -1,19 +1,19 @@
-import { useState } from "react";
-import { useParams, Link } from "react-router-dom";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/context/AuthContext";
-import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Checkbox } from "@/components/ui/checkbox";
+import { useCallback } from 'react';
+import { useParams, Link, useSearchParams } from 'react-router-dom';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/context/AuthContext';
+import { Card, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
+} from '@/components/ui/select';
 import {
   Table,
   TableBody,
@@ -21,8 +21,8 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table";
-import { 
+} from '@/components/ui/table';
+import {
   ArrowLeft,
   Phone,
   FileText,
@@ -31,27 +31,43 @@ import {
   CheckCircle2,
   XCircle,
   Clock,
-  Filter
-} from "lucide-react";
-import { toast } from "sonner";
-import { ScoreBadge, ScoreTierBadge, OutreachTimeline } from "@/components/remarketing";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import type { ScoreTier } from "@/types/remarketing";
-import { format } from "date-fns";
+  Filter,
+} from 'lucide-react';
+import { toast } from 'sonner';
+import { ScoreBadge, ScoreTierBadge, OutreachTimeline } from '@/components/remarketing';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import type { ScoreTier } from '@/types/remarketing';
+import { format } from 'date-fns';
 
 const outcomeConfig: Record<string, { label: string; color: string; icon: typeof CheckCircle2 }> = {
-  'in_progress': { label: 'In Progress', color: 'text-blue-600 bg-blue-50', icon: Clock },
-  'won': { label: 'Won', color: 'text-emerald-600 bg-emerald-50', icon: CheckCircle2 },
-  'lost': { label: 'Lost', color: 'text-red-600 bg-red-50', icon: XCircle },
-  'withdrawn': { label: 'Withdrawn', color: 'text-amber-600 bg-amber-50', icon: XCircle },
-  'no_response': { label: 'No Response', color: 'text-muted-foreground bg-muted', icon: Clock },
+  in_progress: { label: 'In Progress', color: 'text-blue-600 bg-blue-50', icon: Clock },
+  won: { label: 'Won', color: 'text-emerald-600 bg-emerald-50', icon: CheckCircle2 },
+  lost: { label: 'Lost', color: 'text-red-600 bg-red-50', icon: XCircle },
+  withdrawn: { label: 'Withdrawn', color: 'text-amber-600 bg-amber-50', icon: XCircle },
+  no_response: { label: 'No Response', color: 'text-muted-foreground bg-muted', icon: Clock },
 };
 
 const ReMarketingIntroductions = () => {
   const { listingId } = useParams<{ listingId: string }>();
   const { user } = useAuth();
   const queryClient = useQueryClient();
-  const [filterOutcome, setFilterOutcome] = useState<string>("all");
+  // URL-persisted filter state (survives browser Back navigation)
+  const [searchParams, setSearchParams] = useSearchParams();
+  const filterOutcome = searchParams.get('outcome') ?? 'all';
+  const setFilterOutcome = useCallback(
+    (v: string) => {
+      setSearchParams(
+        (p) => {
+          const n = new URLSearchParams(p);
+          if (v !== 'all') n.set('outcome', v);
+          else n.delete('outcome');
+          return n;
+        },
+        { replace: true },
+      );
+    },
+    [setSearchParams],
+  );
 
   // Fetch listing
   const { data: listing, isLoading: listingLoading } = useQuery({
@@ -65,7 +81,7 @@ const ReMarketingIntroductions = () => {
       if (error) throw error;
       return data;
     },
-    enabled: !!listingId
+    enabled: !!listingId,
   });
 
   // Fetch approved scores with outreach records
@@ -75,10 +91,12 @@ const ReMarketingIntroductions = () => {
       // First get approved scores
       const { data: scores, error: scoresError } = await supabase
         .from('remarketing_scores')
-        .select(`
+        .select(
+          `
           *,
           buyer:remarketing_buyers(*)
-        `)
+        `,
+        )
         .eq('listing_id', listingId!)
         .eq('status', 'approved')
         .order('composite_score', { ascending: false });
@@ -94,23 +112,25 @@ const ReMarketingIntroductions = () => {
       if (outreachError) throw outreachError;
 
       // Merge the data
-      return scores?.map(score => ({
-        ...score,
-        outreach: outreachRecords?.find(o => o.buyer_id === score.buyer_id) || null
-      })) || [];
+      return (
+        scores?.map((score) => ({
+          ...score,
+          outreach: outreachRecords?.find((o) => o.buyer_id === score.buyer_id) || null,
+        })) || []
+      );
     },
-    enabled: !!listingId
+    enabled: !!listingId,
   });
 
   // Create or update outreach record
   const upsertOutreachMutation = useMutation({
-    mutationFn: async ({ 
-      buyerId, 
-      field, 
-      value 
-    }: { 
-      buyerId: string; 
-      field: string; 
+    mutationFn: async ({
+      buyerId,
+      field,
+      value,
+    }: {
+      buyerId: string;
+      field: string;
       value: any;
     }) => {
       // Check if record exists
@@ -124,7 +144,7 @@ const ReMarketingIntroductions = () => {
 
       const updates: Record<string, any> = {
         [field]: value,
-        updated_at: new Date().toISOString()
+        updated_at: new Date().toISOString(),
       };
 
       // Add user reference for certain fields
@@ -143,14 +163,12 @@ const ReMarketingIntroductions = () => {
           .eq('id', existing.id);
         if (error) throw error;
       } else {
-        const { error } = await supabase
-          .from('outreach_records')
-          .insert({
-            listing_id: listingId!,
-            buyer_id: buyerId,
-            created_by: user?.id,
-            ...updates
-          });
+        const { error } = await supabase.from('outreach_records').insert({
+          listing_id: listingId!,
+          buyer_id: buyerId,
+          created_by: user?.id,
+          ...updates,
+        });
         if (error) throw error;
       }
     },
@@ -160,14 +178,14 @@ const ReMarketingIntroductions = () => {
     },
     onError: () => {
       toast.error('Failed to update status');
-    }
+    },
   });
 
   const handleCheckboxChange = (buyerId: string, field: string, checked: boolean) => {
     upsertOutreachMutation.mutate({
       buyerId,
       field,
-      value: checked ? new Date().toISOString() : null
+      value: checked ? new Date().toISOString() : null,
     });
   };
 
@@ -175,12 +193,12 @@ const ReMarketingIntroductions = () => {
     upsertOutreachMutation.mutate({
       buyerId,
       field: 'outcome',
-      value: outcome === 'none' ? null : outcome
+      value: outcome === 'none' ? null : outcome,
     });
   };
 
   // Filter introductions
-  const filteredIntroductions = introductions?.filter(intro => {
+  const filteredIntroductions = introductions?.filter((intro) => {
     if (filterOutcome === 'all') return true;
     if (filterOutcome === 'none') return !intro.outreach?.outcome;
     return intro.outreach?.outcome === filterOutcome;
@@ -189,10 +207,10 @@ const ReMarketingIntroductions = () => {
   // Stats
   const stats = {
     total: introductions?.length || 0,
-    contacted: introductions?.filter(i => i.outreach?.contacted_at).length || 0,
-    ndaSigned: introductions?.filter(i => i.outreach?.nda_signed_at).length || 0,
-    meetings: introductions?.filter(i => i.outreach?.meeting_scheduled_at).length || 0,
-    won: introductions?.filter(i => i.outreach?.outcome === 'won').length || 0,
+    contacted: introductions?.filter((i) => i.outreach?.contacted_at).length || 0,
+    ndaSigned: introductions?.filter((i) => i.outreach?.nda_signed_at).length || 0,
+    meetings: introductions?.filter((i) => i.outreach?.meeting_scheduled_at).length || 0,
+    won: introductions?.filter((i) => i.outreach?.outcome === 'won').length || 0,
   };
 
   if (listingLoading) {
@@ -286,15 +304,15 @@ const ReMarketingIntroductions = () => {
         <CardContent className="p-0">
           {isLoading ? (
             <div className="p-6 space-y-4">
-              {[1, 2, 3].map(i => <Skeleton key={i} className="h-16" />)}
+              {[1, 2, 3].map((i) => (
+                <Skeleton key={i} className="h-16" />
+              ))}
             </div>
           ) : filteredIntroductions?.length === 0 ? (
             <div className="p-12 text-center">
               <p className="text-muted-foreground">No approved buyers to track</p>
               <Button variant="link" asChild>
-                <Link to={`/admin/remarketing/matching/${listingId}`}>
-                  Go to Deal Matching
-                </Link>
+                <Link to={`/admin/remarketing/matching/${listingId}`}>Go to Deal Matching</Link>
               </Button>
             </div>
           ) : (
@@ -349,7 +367,7 @@ const ReMarketingIntroductions = () => {
                           <CollapsibleTrigger asChild>
                             <div className="flex items-center gap-3 cursor-pointer hover:bg-muted/50 p-1 -m-1 rounded">
                               <div>
-                                <Link 
+                                <Link
                                   to={`/admin/buyers/${intro.buyer?.id}`}
                                   className="font-medium hover:underline"
                                   onClick={(e) => e.stopPropagation()}
@@ -377,7 +395,7 @@ const ReMarketingIntroductions = () => {
                         <div className="flex flex-col items-center gap-1">
                           <Checkbox
                             checked={!!outreach?.contacted_at}
-                            onCheckedChange={(checked) => 
+                            onCheckedChange={(checked) =>
                               handleCheckboxChange(intro.buyer_id, 'contacted_at', !!checked)
                             }
                           />
@@ -392,7 +410,7 @@ const ReMarketingIntroductions = () => {
                         <div className="flex flex-col items-center gap-1">
                           <Checkbox
                             checked={!!outreach?.nda_sent_at}
-                            onCheckedChange={(checked) => 
+                            onCheckedChange={(checked) =>
                               handleCheckboxChange(intro.buyer_id, 'nda_sent_at', !!checked)
                             }
                           />
@@ -407,7 +425,7 @@ const ReMarketingIntroductions = () => {
                         <div className="flex flex-col items-center gap-1">
                           <Checkbox
                             checked={!!outreach?.nda_signed_at}
-                            onCheckedChange={(checked) => 
+                            onCheckedChange={(checked) =>
                               handleCheckboxChange(intro.buyer_id, 'nda_signed_at', !!checked)
                             }
                           />
@@ -422,7 +440,7 @@ const ReMarketingIntroductions = () => {
                         <div className="flex flex-col items-center gap-1">
                           <Checkbox
                             checked={!!outreach?.cim_sent_at}
-                            onCheckedChange={(checked) => 
+                            onCheckedChange={(checked) =>
                               handleCheckboxChange(intro.buyer_id, 'cim_sent_at', !!checked)
                             }
                           />
@@ -437,8 +455,12 @@ const ReMarketingIntroductions = () => {
                         <div className="flex flex-col items-center gap-1">
                           <Checkbox
                             checked={!!outreach?.meeting_scheduled_at}
-                            onCheckedChange={(checked) => 
-                              handleCheckboxChange(intro.buyer_id, 'meeting_scheduled_at', !!checked)
+                            onCheckedChange={(checked) =>
+                              handleCheckboxChange(
+                                intro.buyer_id,
+                                'meeting_scheduled_at',
+                                !!checked,
+                              )
                             }
                           />
                           {outreach?.meeting_scheduled_at && (
@@ -449,8 +471,8 @@ const ReMarketingIntroductions = () => {
                         </div>
                       </TableCell>
                       <TableCell>
-                        <Select 
-                          value={outreach?.outcome || 'none'} 
+                        <Select
+                          value={outreach?.outcome || 'none'}
                           onValueChange={(value) => handleOutcomeChange(intro.buyer_id, value)}
                         >
                           <SelectTrigger className="h-8 text-xs">

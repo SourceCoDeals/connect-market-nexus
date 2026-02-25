@@ -1,59 +1,130 @@
-import { useState, useEffect } from "react";
-import { useQueryClient } from "@tanstack/react-query";
-import { useAdmin } from "@/hooks/use-admin";
-import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Users, Inbox } from "lucide-react";
-import { AdminConnectionRequest } from "@/types/admin";
-import ConnectionRequestsTable from "@/components/admin/ConnectionRequestsTable";
-import { ConnectionRequestDialog } from "@/components/admin/ConnectionRequestDialog";
-import { ApprovalEmailDialog } from "@/components/admin/ApprovalEmailDialog";
-import { PipelineMetricsCard } from "@/components/admin/PipelineMetricsCard";
-import { PipelineFilters } from "@/components/admin/PipelineFilters";
-import { usePipelineFilters } from "@/hooks/admin/use-pipeline-filters";
-import { toast } from "@/hooks/use-toast";
-import { useIsMobile } from "@/hooks/use-mobile";
-import { MobileConnectionRequests } from "@/components/admin/MobileConnectionRequests";
-import { AdminRequestsWrapper } from "@/components/admin/AdminRequestsWrapper";
-import { invalidateConnectionRequests } from "@/lib/query-client-helpers";
-import { EmailTestButton } from "@/components/admin/EmailTestButton";
-import { ListingFilterSelect } from "@/components/admin/ListingFilterSelect";
-import { RequestsGridView } from "@/components/admin/RequestsGridView";
-import { ViewSwitcher } from "@/components/admin/ViewSwitcher";
-import { InboundLeadsTable } from "@/components/admin/InboundLeadsTable";
-import { useInboundLeadsQuery, useMapLeadToListing, useConvertLeadToRequest, useArchiveInboundLead } from "@/hooks/admin/use-inbound-leads";
-import { supabase } from "@/integrations/supabase/client";
-import { useMarkConnectionRequestsViewed } from "@/hooks/admin/use-mark-connection-requests-viewed";
-
+import { useState, useEffect, useCallback } from 'react';
+import { useSearchParams } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
+import { useAdmin } from '@/hooks/use-admin';
+import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Users, Inbox } from 'lucide-react';
+import { AdminConnectionRequest } from '@/types/admin';
+import ConnectionRequestsTable from '@/components/admin/ConnectionRequestsTable';
+import { ConnectionRequestDialog } from '@/components/admin/ConnectionRequestDialog';
+import { ApprovalEmailDialog } from '@/components/admin/ApprovalEmailDialog';
+import { PipelineMetricsCard } from '@/components/admin/PipelineMetricsCard';
+import { PipelineFilters } from '@/components/admin/PipelineFilters';
+import { usePipelineFilters } from '@/hooks/admin/use-pipeline-filters';
+import { toast } from '@/hooks/use-toast';
+import { useIsMobile } from '@/hooks/use-mobile';
+import { MobileConnectionRequests } from '@/components/admin/MobileConnectionRequests';
+import { AdminRequestsWrapper } from '@/components/admin/AdminRequestsWrapper';
+import { invalidateConnectionRequests } from '@/lib/query-client-helpers';
+import { EmailTestButton } from '@/components/admin/EmailTestButton';
+import { ListingFilterSelect } from '@/components/admin/ListingFilterSelect';
+import { RequestsGridView } from '@/components/admin/RequestsGridView';
+import { ViewSwitcher } from '@/components/admin/ViewSwitcher';
+import { InboundLeadsTable } from '@/components/admin/InboundLeadsTable';
+import {
+  useInboundLeadsQuery,
+  useMapLeadToListing,
+  useConvertLeadToRequest,
+  useArchiveInboundLead,
+} from '@/hooks/admin/use-inbound-leads';
+import { supabase } from '@/integrations/supabase/client';
+import { useMarkConnectionRequestsViewed } from '@/hooks/admin/use-mark-connection-requests-viewed';
 
 const AdminRequests = () => {
   const queryClient = useQueryClient();
-  const { useConnectionRequests, useConnectionRequestsMutation, sendConnectionApprovalEmail, sendConnectionRejectionEmail, sendCustomApprovalEmail } = useAdmin();
+  const {
+    useConnectionRequests,
+    useConnectionRequestsMutation,
+    sendConnectionApprovalEmail,
+    sendConnectionRejectionEmail,
+    sendCustomApprovalEmail,
+  } = useAdmin();
   const { markAsViewed } = useMarkConnectionRequestsViewed();
-  
+
   const { data: requests = [], isLoading, error, refetch } = useConnectionRequests();
   const { data: inboundLeads = [], isLoading: isLeadsLoading } = useInboundLeadsQuery();
   const { mutateAsync: updateRequest, isPending: isUpdating } = useConnectionRequestsMutation();
-  
+
   // Inbound leads mutations
   useMapLeadToListing();
   const { mutate: convertLeadToRequest } = useConvertLeadToRequest();
   const { mutate: archiveLead } = useArchiveInboundLead();
   const isMobile = useIsMobile();
-  
-  const [activeTab, setActiveTab] = useState("connection-requests");
-  const [searchQuery, setSearchQuery] = useState("");
-  const [selectedListingId, setSelectedListingId] = useState<string | null>(null);
-  const [viewMode, setViewMode] = useState<'table' | 'grid'>('table');
+
+  // URL-persisted filter state (survives browser Back navigation)
+  const [searchParams, setSearchParams] = useSearchParams();
+  const activeTab = searchParams.get('tab') ?? 'connection-requests';
+  const setActiveTab = useCallback(
+    (v: string) => {
+      setSearchParams(
+        (p) => {
+          const n = new URLSearchParams(p);
+          if (v !== 'connection-requests') n.set('tab', v);
+          else n.delete('tab');
+          return n;
+        },
+        { replace: true },
+      );
+    },
+    [setSearchParams],
+  );
+  const searchQuery = searchParams.get('q') ?? '';
+  const setSearchQuery = useCallback(
+    (v: string) => {
+      setSearchParams(
+        (p) => {
+          const n = new URLSearchParams(p);
+          if (v) n.set('q', v);
+          else n.delete('q');
+          return n;
+        },
+        { replace: true },
+      );
+    },
+    [setSearchParams],
+  );
+  const selectedListingId = searchParams.get('listing') ?? null;
+  const setSelectedListingId = useCallback(
+    (v: string | null) => {
+      setSearchParams(
+        (p) => {
+          const n = new URLSearchParams(p);
+          if (v) n.set('listing', v);
+          else n.delete('listing');
+          return n;
+        },
+        { replace: true },
+      );
+    },
+    [setSearchParams],
+  );
+  const viewMode = (searchParams.get('view') as 'table' | 'grid') ?? 'table';
+  const setViewMode = useCallback(
+    (v: 'table' | 'grid') => {
+      setSearchParams(
+        (p) => {
+          const n = new URLSearchParams(p);
+          if (v !== 'table') n.set('view', v);
+          else n.delete('view');
+          return n;
+        },
+        { replace: true },
+      );
+    },
+    [setSearchParams],
+  );
   const [selectedRequest, setSelectedRequest] = useState<AdminConnectionRequest | null>(null);
-  const [actionType, setActionType] = useState<"approve" | "reject" | null>(null);
+  const [actionType, setActionType] = useState<'approve' | 'reject' | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [selectedUserForApprovalEmail, setSelectedUserForApprovalEmail] = useState<any>(null);
   const [isApprovalEmailDialogOpen, setIsApprovalEmailDialogOpen] = useState(false);
 
   // Mark connection requests as viewed when component mounts
   useEffect(() => {
     markAsViewed();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Realtime subscriptions for instant updates
@@ -65,11 +136,11 @@ const AdminRequests = () => {
         {
           event: '*',
           schema: 'public',
-          table: 'connection_requests'
+          table: 'connection_requests',
         },
         () => {
           queryClient.invalidateQueries({ queryKey: ['connection-requests'] });
-        }
+        },
       )
       .subscribe();
 
@@ -80,11 +151,11 @@ const AdminRequests = () => {
         {
           event: '*',
           schema: 'public',
-          table: 'inbound_leads'
+          table: 'inbound_leads',
         },
         () => {
           queryClient.invalidateQueries({ queryKey: ['inbound-leads'] });
-        }
+        },
       )
       .subscribe();
 
@@ -108,66 +179,68 @@ const AdminRequests = () => {
     setFeeAgreementFilter,
     setSortOption,
   } = usePipelineFilters(requests);
-  
+
   if (error) {
-    console.error("Connection requests error:", error);
+    console.error('Connection requests error:', error);
   }
-  
+
   // Apply search and listing filters to pipeline-filtered requests
   const filteredRequests = pipelineFilteredRequests.filter((request) => {
     const searchLower = searchQuery.toLowerCase();
-    const matchesSearch = (
+    const matchesSearch =
       request.user?.first_name?.toLowerCase().includes(searchLower) ||
       request.user?.last_name?.toLowerCase().includes(searchLower) ||
       request.user?.company?.toLowerCase().includes(searchLower) ||
       request.user?.email?.toLowerCase().includes(searchLower) ||
       request.listing?.title?.toLowerCase().includes(searchLower) ||
-      request.listing?.category?.toLowerCase().includes(searchLower)
-    );
-    
+      request.listing?.category?.toLowerCase().includes(searchLower);
+
     const matchesListing = !selectedListingId || request.listing?.id === selectedListingId;
-    
+
     return matchesSearch && matchesListing;
   });
 
   // Get selected listing details for grid view
-  const selectedListing = selectedListingId 
-    ? requests.find(r => r.listing?.id === selectedListingId)?.listing 
+  const selectedListing = selectedListingId
+    ? requests.find((r) => r.listing?.id === selectedListingId)?.listing
     : null;
-  
-  const handleAction = async (request: AdminConnectionRequest, action: "approve" | "reject") => {
+
+  const handleAction = async (request: AdminConnectionRequest, action: 'approve' | 'reject') => {
     try {
+      // eslint-disable-next-line no-console
       console.log(`[AdminRequests] handleAction called: ${action} for request ${request.id}`);
       const result = await updateRequest({
         requestId: request.id,
-        status: action === "approve" ? "approved" : "rejected",
+        status: action === 'approve' ? 'approved' : 'rejected',
         adminComment: `Request ${action}d by admin`,
       });
+      // eslint-disable-next-line no-console
       console.log(`[AdminRequests] mutation succeeded:`, result?.status);
-      
+
       // Force refetch to ensure UI updates immediately
       await refetch();
-      
+
       // Send email notification based on action type (non-blocking)
-      if (action === "approve") {
-        sendConnectionApprovalEmail(request).catch(e => console.error("Email send failed:", e));
+      if (action === 'approve') {
+        sendConnectionApprovalEmail(request).catch((e) => console.error('Email send failed:', e));
         toast({
-          title: "Request approved",
-          description: "Connection request has been approved",
+          title: 'Request approved',
+          description: 'Connection request has been approved',
         });
       } else {
-        sendConnectionRejectionEmail(request).catch(e => console.error("Email send failed:", e));
+        sendConnectionRejectionEmail(request).catch((e) => console.error('Email send failed:', e));
         toast({
-          title: "Request rejected",
-          description: "Connection request has been rejected",
+          title: 'Request rejected',
+          description: 'Connection request has been rejected',
         });
       }
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
       console.error(`[AdminRequests] handleAction failed:`, error);
       toast({
-        variant: "destructive",
-        title: "Update failed",
-        description: error?.message || "Could not update connection request status",
+        variant: 'destructive',
+        title: 'Update failed',
+        description: error?.message || 'Could not update connection request status',
       });
     }
   };
@@ -175,40 +248,48 @@ const AdminRequests = () => {
   const confirmAction = async (comment: string) => {
     if (selectedRequest && actionType) {
       try {
-        console.log(`[AdminRequests] confirmAction called: ${actionType} for request ${selectedRequest.id}`);
+        // eslint-disable-next-line no-console
+        console.log(
+          `[AdminRequests] confirmAction called: ${actionType} for request ${selectedRequest.id}`,
+        );
         await updateRequest({
           requestId: selectedRequest.id,
-          status: actionType === "approve" ? "approved" : "rejected",
+          status: actionType === 'approve' ? 'approved' : 'rejected',
           adminComment: comment,
         });
-        
+
         // Force refetch
         await refetch();
-        
+
         // Send email notification (non-blocking)
-        if (actionType === "approve") {
-          sendConnectionApprovalEmail(selectedRequest).catch(e => console.error("Email send failed:", e));
+        if (actionType === 'approve') {
+          sendConnectionApprovalEmail(selectedRequest).catch((e) =>
+            console.error('Email send failed:', e),
+          );
           toast({
-            title: "Request approved",
-            description: "Connection request has been approved",
+            title: 'Request approved',
+            description: 'Connection request has been approved',
           });
         } else {
-          sendConnectionRejectionEmail(selectedRequest).catch(e => console.error("Email send failed:", e));
+          sendConnectionRejectionEmail(selectedRequest).catch((e) =>
+            console.error('Email send failed:', e),
+          );
           toast({
-            title: "Request rejected",
-            description: "Connection request has been rejected",
+            title: 'Request rejected',
+            description: 'Connection request has been rejected',
           });
         }
-        
+
         setIsDialogOpen(false);
         setSelectedRequest(null);
         setActionType(null);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } catch (error: any) {
         console.error(`[AdminRequests] confirmAction failed:`, error);
         toast({
-          variant: "destructive",
-          title: "Update failed",
-          description: error?.message || "Could not update connection request status",
+          variant: 'destructive',
+          title: 'Update failed',
+          description: error?.message || 'Could not update connection request status',
         });
       }
     }
@@ -220,8 +301,8 @@ const AdminRequests = () => {
       <AdminRequestsWrapper>
         <MobileConnectionRequests
           requests={filteredRequests}
-          onApprove={(request) => handleAction(request, "approve")}
-          onReject={(request) => handleAction(request, "reject")}
+          onApprove={(request) => handleAction(request, 'approve')}
+          onReject={(request) => handleAction(request, 'reject')}
           isLoading={isLoading}
         />
       </AdminRequestsWrapper>
@@ -266,9 +347,9 @@ const AdminRequests = () => {
           <TabsContent value="connection-requests" className="space-y-6">
             {/* Pipeline Metrics */}
             <PipelineMetricsCard requests={requests} />
-            
+
             {/* Pipeline Filters (includes search and sort) */}
-            <PipelineFilters 
+            <PipelineFilters
               requests={requests}
               statusFilter={statusFilter}
               buyerTypeFilter={buyerTypeFilter}
@@ -283,7 +364,7 @@ const AdminRequests = () => {
               onSortChange={(sort) => setSortOption(sort)}
               onSearchChange={setSearchQuery}
             />
-            
+
             {/* Listing Filter and View Switcher */}
             <div className="flex flex-col sm:flex-row gap-4">
               <ListingFilterSelect
@@ -291,12 +372,7 @@ const AdminRequests = () => {
                 selectedListingId={selectedListingId}
                 onListingChange={setSelectedListingId}
               />
-              {selectedListingId && (
-                <ViewSwitcher 
-                  viewMode={viewMode} 
-                  onViewChange={setViewMode} 
-                />
-              )}
+              {selectedListingId && <ViewSwitcher viewMode={viewMode} onViewChange={setViewMode} />}
             </div>
 
             {/* Result Summary */}
@@ -304,28 +380,45 @@ const AdminRequests = () => {
               <Badge variant="secondary" className="text-xs font-medium px-3 py-1.5">
                 Showing: <span className="font-semibold ml-1">{filteredRequests.length}</span>
               </Badge>
-              {(statusFilter !== 'all' || buyerTypeFilter !== 'all' || ndaFilter !== 'all' || feeAgreementFilter !== 'all' || searchQuery || selectedListingId) && (
+              {(statusFilter !== 'all' ||
+                buyerTypeFilter !== 'all' ||
+                ndaFilter !== 'all' ||
+                feeAgreementFilter !== 'all' ||
+                searchQuery ||
+                selectedListingId) && (
                 <Badge variant="outline" className="text-xs font-medium px-3 py-1.5">
                   of {requests.length} total
                 </Badge>
               )}
               {statusFilter !== 'all' && (
-                <Badge variant="outline" className="text-xs font-medium px-3 py-1.5 bg-primary/10 text-primary border-primary/20">
+                <Badge
+                  variant="outline"
+                  className="text-xs font-medium px-3 py-1.5 bg-primary/10 text-primary border-primary/20"
+                >
                   Status: {statusFilter}
                 </Badge>
               )}
               {buyerTypeFilter !== 'all' && (
-                <Badge variant="outline" className="text-xs font-medium px-3 py-1.5 bg-secondary/10 text-secondary-foreground border-secondary/20">
+                <Badge
+                  variant="outline"
+                  className="text-xs font-medium px-3 py-1.5 bg-secondary/10 text-secondary-foreground border-secondary/20"
+                >
                   Type: {buyerTypeFilter === 'privateEquity' ? 'PE' : buyerTypeFilter}
                 </Badge>
               )}
               {ndaFilter !== 'all' && (
-                <Badge variant="outline" className="text-xs font-medium px-3 py-1.5 bg-secondary/10 text-secondary-foreground border-secondary/20">
+                <Badge
+                  variant="outline"
+                  className="text-xs font-medium px-3 py-1.5 bg-secondary/10 text-secondary-foreground border-secondary/20"
+                >
                   NDA: {ndaFilter.replace('_', ' ')}
                 </Badge>
               )}
               {feeAgreementFilter !== 'all' && (
-                <Badge variant="outline" className="text-xs font-medium px-3 py-1.5 bg-secondary/10 text-secondary-foreground border-secondary/20">
+                <Badge
+                  variant="outline"
+                  className="text-xs font-medium px-3 py-1.5 bg-secondary/10 text-secondary-foreground border-secondary/20"
+                >
                   Fee: {feeAgreementFilter.replace('_', ' ')}
                 </Badge>
               )}
@@ -345,15 +438,19 @@ const AdminRequests = () => {
             {selectedListingId && viewMode === 'grid' ? (
               <RequestsGridView
                 requests={filteredRequests}
-                selectedListing={selectedListing ? { 
-                  id: selectedListing.id, 
-                  title: selectedListing.title, 
-                  internal_company_name: selectedListing.internal_company_name 
-                } : null}
+                selectedListing={
+                  selectedListing
+                    ? {
+                        id: selectedListing.id,
+                        title: selectedListing.title,
+                        internal_company_name: selectedListing.internal_company_name,
+                      }
+                    : null
+                }
               />
             ) : (
               <div className="bg-card/30 backdrop-blur-sm rounded-xl border border-border/50 overflow-hidden shadow-sm">
-                <ConnectionRequestsTable 
+                <ConnectionRequestsTable
                   requests={filteredRequests}
                   isLoading={isLoading}
                   onRefresh={() => refetch()}
@@ -364,7 +461,7 @@ const AdminRequests = () => {
 
           <TabsContent value="inbound-leads" className="space-y-6">
             <div className="bg-card/30 backdrop-blur-sm rounded-xl border border-border/50 overflow-hidden shadow-sm">
-              <InboundLeadsTable 
+              <InboundLeadsTable
                 leads={inboundLeads}
                 isLoading={isLeadsLoading}
                 onMapToListing={(_lead) => {
@@ -395,12 +492,12 @@ const AdminRequests = () => {
               // Immediately close dialog and update cache for instant UI response
               setIsApprovalEmailDialogOpen(false);
               setSelectedUserForApprovalEmail(null);
-              
+
               // Immediate cache invalidation without waiting
               invalidateConnectionRequests(queryClient);
-              
+
               // Send email in background
-              sendCustomApprovalEmail(user, options).catch(error => {
+              sendCustomApprovalEmail(user, options).catch((error) => {
                 console.error('Error sending approval email:', error);
               });
             } catch (error) {

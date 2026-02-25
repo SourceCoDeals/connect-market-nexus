@@ -1,114 +1,158 @@
-import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
-import { useMarketplace } from "@/hooks/use-marketplace";
-import { FilterOptions, PaginationState } from "@/types";
-import ListingCard from "@/components/ListingCard";
-import { Button } from "@/components/ui/button";
-import { LayoutGrid, LayoutList, ChevronLeft, ChevronRight } from "lucide-react";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useMarketplace } from '@/hooks/use-marketplace';
+import { FilterOptions, PaginationState } from '@/types';
+import ListingCard from '@/components/ListingCard';
+import { Button } from '@/components/ui/button';
+import { LayoutGrid, LayoutList, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
-import { toast } from "@/hooks/use-toast";
-import { useAllSavedListingIds } from "@/hooks/marketplace/use-saved-listings";
-import { useAllConnectionStatuses } from "@/hooks/marketplace/use-connections";
+} from '@/components/ui/select';
+import { toast } from '@/hooks/use-toast';
+import { useAllSavedListingIds } from '@/hooks/marketplace/use-saved-listings';
+import { useAllConnectionStatuses } from '@/hooks/marketplace/use-connections';
 
 const SavedListings = () => {
-  const [filters, setFilters] = useState<FilterOptions>({
-    page: 1,
-    perPage: 20
-  });
-  const [viewType, setViewType] = useState<"grid" | "list">("grid");
+  // URL-persisted filter state (survives browser Back navigation)
+  const [searchParams, setSearchParams] = useSearchParams();
+  const filters: FilterOptions = useMemo(
+    () => ({
+      page: Number(searchParams.get('page')) || 1,
+      perPage: Number(searchParams.get('perPage')) || 20,
+    }),
+    [searchParams],
+  );
+  const setFilters = useCallback(
+    (updater: FilterOptions | ((prev: FilterOptions) => FilterOptions)) => {
+      setSearchParams(
+        (p) => {
+          const cur: FilterOptions = {
+            page: Number(p.get('page')) || 1,
+            perPage: Number(p.get('perPage')) || 20,
+          };
+          const next = typeof updater === 'function' ? updater(cur) : updater;
+          const n = new URLSearchParams(p);
+          if (next.page && next.page > 1) n.set('page', String(next.page));
+          else n.delete('page');
+          if (next.perPage && next.perPage !== 20) n.set('perPage', String(next.perPage));
+          else n.delete('perPage');
+          return n;
+        },
+        { replace: true },
+      );
+    },
+    [setSearchParams],
+  );
+  const viewType = (searchParams.get('view') as 'grid' | 'list') ?? 'grid';
+  const setViewType = useCallback(
+    (v: 'grid' | 'list') => {
+      setSearchParams(
+        (p) => {
+          const n = new URLSearchParams(p);
+          if (v !== 'grid') n.set('view', v);
+          else n.delete('view');
+          return n;
+        },
+        { replace: true },
+      );
+    },
+    [setSearchParams],
+  );
   const [pagination, setPagination] = useState<PaginationState>({
-    currentPage: 1,
+    currentPage: filters.page || 1,
     totalPages: 1,
     totalItems: 0,
-    perPage: 20
+    perPage: filters.perPage || 20,
   });
-  
+
   const navigate = useNavigate();
   const { useSavedListings } = useMarketplace();
   const { data: listingsData, isLoading, error } = useSavedListings(filters);
-  
+
   // Batch fetch (2 queries instead of N+1)
   const { data: savedIds } = useAllSavedListingIds();
   const { data: connectionMap } = useAllConnectionStatuses();
-  
+
   const listings = listingsData?.listings || [];
   const totalItems = listingsData?.totalCount || 0;
-  
+
   // Update pagination whenever total count or filters change
   useEffect(() => {
     if (listingsData) {
       const perPage = filters.perPage || 20;
       const totalPages = Math.ceil(totalItems / perPage);
-      
+
       setPagination({
         currentPage: filters.page || 1,
         totalPages,
         totalItems,
-        perPage
+        perPage,
       });
     }
   }, [listingsData, totalItems, filters.page, filters.perPage]);
-  
+
   // Error handling
   useEffect(() => {
     if (error) {
-      console.error("Error loading saved listings:", error);
+      console.error('Error loading saved listings:', error);
       toast({
-        variant: "destructive",
-        title: "Error loading saved listings",
-        description: "There was a problem loading your saved listings. Please try again later.",
+        variant: 'destructive',
+        title: 'Error loading saved listings',
+        description: 'There was a problem loading your saved listings. Please try again later.',
       });
     }
   }, [error]);
-  
+
   const handlePageChange = (newPage: number) => {
     if (newPage < 1 || newPage > pagination.totalPages) return;
-    
-    setFilters(prev => ({
+
+    setFilters((prev) => ({
       ...prev,
-      page: newPage
+      page: newPage,
     }));
   };
-  
+
   const handlePerPageChange = (value: string) => {
     const perPage = Number(value);
-    setFilters(prev => ({
+    setFilters((prev) => ({
       ...prev,
       perPage,
-      page: 1 // Reset to first page when changing items per page
+      page: 1, // Reset to first page when changing items per page
     }));
   };
-  
+
   // Generate page numbers for pagination
   const getPageNumbers = () => {
     const { currentPage, totalPages } = pagination;
     const delta = 1; // Number of pages to show before and after current page
-    
+
     const range = [];
     const rangeWithDots = [];
-    
+
     if (totalPages <= 1) return [];
-    
+
     // Always include first page
     range.push(1);
-    
+
     // Calculate the range of pages to show
-    for (let i = Math.max(2, currentPage - delta); i <= Math.min(totalPages - 1, currentPage + delta); i++) {
+    for (
+      let i = Math.max(2, currentPage - delta);
+      i <= Math.min(totalPages - 1, currentPage + delta);
+      i++
+    ) {
       range.push(i);
     }
-    
+
     // Always include last page if more than 1 page
     if (totalPages > 1) {
       range.push(totalPages);
     }
-    
+
     // Add dots where needed
     let prev = 0;
     for (const i of range) {
@@ -120,7 +164,7 @@ const SavedListings = () => {
       rangeWithDots.push(i);
       prev = i;
     }
-    
+
     return rangeWithDots;
   };
 
@@ -160,21 +204,20 @@ const SavedListings = () => {
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
             <h1 className="text-3xl font-bold">Saved Listings</h1>
           </div>
-          
+
           <div className="flex flex-col gap-4">
             {/* View type and sorting */}
             <div className="flex flex-wrap justify-between items-center gap-4">
               <div className="text-sm text-muted-foreground">
-                {isLoading ? "Loading saved listings..." : `${totalItems} saved listings found, showing ${listings.length}`}
+                {isLoading
+                  ? 'Loading saved listings...'
+                  : `${totalItems} saved listings found, showing ${listings.length}`}
               </div>
-              
+
               <div className="flex flex-wrap items-center gap-4">
                 <div className="flex items-center gap-2">
                   <span className="text-sm">Results per page:</span>
-                  <Select 
-                    value={String(filters.perPage || 20)} 
-                    onValueChange={handlePerPageChange}
-                  >
+                  <Select value={String(filters.perPage || 20)} onValueChange={handlePerPageChange}>
                     <SelectTrigger className="w-[80px]">
                       <SelectValue placeholder="20" />
                     </SelectTrigger>
@@ -185,10 +228,10 @@ const SavedListings = () => {
                     </SelectContent>
                   </Select>
                 </div>
-                
+
                 <div className="flex items-center gap-2">
                   <span className="text-sm">View:</span>
-                  <Tabs value={viewType} onValueChange={(v) => setViewType(v as "grid" | "list")}>
+                  <Tabs value={viewType} onValueChange={(v) => setViewType(v as 'grid' | 'list')}>
                     <TabsList>
                       <TabsTrigger value="grid">
                         <LayoutGrid className="h-4 w-4" />
@@ -201,10 +244,16 @@ const SavedListings = () => {
                 </div>
               </div>
             </div>
-            
+
             {/* Listings grid/list */}
             {isLoading ? (
-              <div className={viewType === "grid" ? "grid grid-cols-1 md:grid-cols-2 gap-4" : "flex flex-col gap-4"}>
+              <div
+                className={
+                  viewType === 'grid'
+                    ? 'grid grid-cols-1 md:grid-cols-2 gap-4'
+                    : 'flex flex-col gap-4'
+                }
+              >
                 {renderSkeletons()}
               </div>
             ) : error ? (
@@ -213,10 +262,7 @@ const SavedListings = () => {
                 <p className="text-muted-foreground mb-4">
                   There was a problem loading your saved listings. Please try again later.
                 </p>
-                <Button
-                  variant="outline"
-                  onClick={() => window.location.reload()}
-                >
+                <Button variant="outline" onClick={() => window.location.reload()}>
                   Retry
                 </Button>
               </div>
@@ -224,20 +270,22 @@ const SavedListings = () => {
               <div className="bg-muted/30 border border-border rounded-lg p-8 text-center">
                 <h3 className="text-lg font-medium mb-2">No saved listings found</h3>
                 <p className="text-muted-foreground mb-4">
-                  You haven't saved any listings yet. Browse the marketplace to save listings you're interested in.
+                  You haven't saved any listings yet. Browse the marketplace to save listings you're
+                  interested in.
                 </p>
-                <Button
-                  variant="outline"
-                  onClick={() => navigate('/marketplace')}
-                >
+                <Button variant="outline" onClick={() => navigate('/marketplace')}>
                   Browse Marketplace
                 </Button>
               </div>
             ) : (
               <>
-                <div className={viewType === "grid" 
-                  ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-6" 
-                  : "flex flex-col gap-4"}>
+                <div
+                  className={
+                    viewType === 'grid'
+                      ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-6'
+                      : 'flex flex-col gap-4'
+                  }
+                >
                   {listings.map((listing) => (
                     <ListingCard
                       key={listing.id}
@@ -248,7 +296,7 @@ const SavedListings = () => {
                     />
                   ))}
                 </div>
-                
+
                 {/* Pagination controls */}
                 {pagination.totalPages > 1 && (
                   <div className="flex items-center justify-center mt-8">
@@ -262,22 +310,24 @@ const SavedListings = () => {
                         <ChevronLeft className="h-4 w-4 mr-1" />
                         Previous
                       </Button>
-                      
-                      {getPageNumbers().map((pageNum, idx) => (
+
+                      {getPageNumbers().map((pageNum, idx) =>
                         pageNum === '...' ? (
-                          <span key={`ellipsis-${idx}`} className="px-2">...</span>
+                          <span key={`ellipsis-${idx}`} className="px-2">
+                            ...
+                          </span>
                         ) : (
                           <Button
                             key={`page-${pageNum}`}
-                            variant={pagination.currentPage === pageNum ? "default" : "outline"}
+                            variant={pagination.currentPage === pageNum ? 'default' : 'outline'}
                             size="sm"
                             onClick={() => handlePageChange(pageNum as number)}
                           >
                             {pageNum}
                           </Button>
-                        )
-                      ))}
-                      
+                        ),
+                      )}
+
                       <Button
                         variant="outline"
                         size="sm"

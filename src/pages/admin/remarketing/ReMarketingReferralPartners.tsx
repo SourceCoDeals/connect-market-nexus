@@ -1,12 +1,12 @@
-import { useState, useMemo } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
-import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useState, useMemo, useCallback } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { supabase } from '@/integrations/supabase/client';
+import { Card, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Table,
   TableBody,
@@ -14,14 +14,14 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table";
+} from '@/components/ui/table';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+} from '@/components/ui/dropdown-menu';
 import {
   Search,
   Plus,
@@ -34,11 +34,11 @@ import {
   Loader2,
   Archive,
   Trash2,
-} from "lucide-react";
-import { format } from "date-fns";
-import { toast } from "sonner";
-import { AddPartnerDialog } from "@/components/remarketing/AddPartnerDialog";
-import { SubmissionReviewQueue } from "@/components/remarketing/SubmissionReviewQueue";
+} from 'lucide-react';
+import { format } from 'date-fns';
+import { toast } from 'sonner';
+import { AddPartnerDialog } from '@/components/remarketing/AddPartnerDialog';
+import { SubmissionReviewQueue } from '@/components/remarketing/SubmissionReviewQueue';
 
 interface ReferralPartner {
   id: string;
@@ -56,54 +56,84 @@ interface ReferralPartner {
 export default function ReMarketingReferralPartners() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const [searchQuery, setSearchQuery] = useState("");
+  // URL-persisted filter state (survives browser Back navigation)
+  const [searchParams, setSearchParams] = useSearchParams();
+  const searchQuery = searchParams.get('q') ?? '';
+  const setSearchQuery = useCallback(
+    (v: string) => {
+      setSearchParams(
+        (p) => {
+          const n = new URLSearchParams(p);
+          if (v) n.set('q', v);
+          else n.delete('q');
+          return n;
+        },
+        { replace: true },
+      );
+    },
+    [setSearchParams],
+  );
+  const activeTab = searchParams.get('tab') ?? 'partners';
+  const setActiveTab = useCallback(
+    (v: string) => {
+      setSearchParams(
+        (p) => {
+          const n = new URLSearchParams(p);
+          if (v !== 'partners') n.set('tab', v);
+          else n.delete('tab');
+          return n;
+        },
+        { replace: true },
+      );
+    },
+    [setSearchParams],
+  );
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [editingPartner, setEditingPartner] = useState<ReferralPartner | null>(null);
-  const [activeTab, setActiveTab] = useState("partners");
 
   // Fetch partners
   const { data: partners, isLoading: partnersLoading } = useQuery({
-    queryKey: ["referral-partners"],
+    queryKey: ['referral-partners'],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("referral_partners")
-        .select("*")
-        .order("created_at", { ascending: false });
+        .from('referral_partners')
+        .select('*')
+        .order('created_at', { ascending: false });
 
       if (error) throw error;
-      
+
       // Fetch actual deal counts from listings table
       const partnerIds = (data || []).map((p: any) => p.id);
       if (partnerIds.length > 0) {
         const { data: listings, error: listingsError } = await supabase
-          .from("listings")
-          .select("referral_partner_id")
-          .in("referral_partner_id", partnerIds);
+          .from('listings')
+          .select('referral_partner_id')
+          .in('referral_partner_id', partnerIds);
         if (listingsError) throw listingsError;
-        
+
         const countMap: Record<string, number> = {};
         listings?.forEach((l: any) => {
           countMap[l.referral_partner_id] = (countMap[l.referral_partner_id] || 0) + 1;
         });
-        
-        return (data as ReferralPartner[]).map(p => ({
+
+        return (data as ReferralPartner[]).map((p) => ({
           ...p,
           deal_count: countMap[p.id] || 0,
         }));
       }
-      
+
       return data as ReferralPartner[];
     },
   });
 
   // Fetch pending submissions count per partner
   const { data: submissionCounts } = useQuery({
-    queryKey: ["referral-submissions", "counts"],
+    queryKey: ['referral-submissions', 'counts'],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("referral_submissions")
-        .select("referral_partner_id, status")
-        .eq("status", "pending");
+        .from('referral_submissions')
+        .select('referral_partner_id, status')
+        .eq('status', 'pending');
 
       if (error) throw error;
 
@@ -117,13 +147,13 @@ export default function ReMarketingReferralPartners() {
 
   // Fetch all pending submissions for review queue
   const { data: pendingSubmissions, isLoading: submissionsLoading } = useQuery({
-    queryKey: ["referral-submissions", "pending"],
+    queryKey: ['referral-submissions', 'pending'],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("referral_submissions")
-        .select("*, referral_partners(name)")
-        .eq("status", "pending")
-        .order("created_at", { ascending: false });
+        .from('referral_submissions')
+        .select('*, referral_partners(name)')
+        .eq('status', 'pending')
+        .order('created_at', { ascending: false });
 
       if (error) throw error;
       return data || [];
@@ -135,41 +165,41 @@ export default function ReMarketingReferralPartners() {
   // Copy share link
   const handleCopyShareLink = (partner: ReferralPartner) => {
     if (!partner.share_token) {
-      toast.error("No share token available");
+      toast.error('No share token available');
       return;
     }
     const url = `${window.location.origin}/referrals/${partner.share_token}`;
     navigator.clipboard.writeText(url);
-    toast.success("Share link copied to clipboard");
+    toast.success('Share link copied to clipboard');
   };
 
   // Reset password
   const resetPasswordMutation = useMutation({
     mutationFn: async (partnerId: string) => {
-      const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789";
+      const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
       const array = new Uint8Array(12);
       crypto.getRandomValues(array);
-      const password = Array.from(array, (b) => chars[b % chars.length]).join("");
+      const password = Array.from(array, (b) => chars[b % chars.length]).join('');
 
       const { data: hashResult, error: hashResultError } = await supabase.functions.invoke(
-        "validate-referral-access",
-        { body: { action: "hash-password", password } }
+        'validate-referral-access',
+        { body: { action: 'hash-password', password } },
       );
       if (hashResultError) throw hashResultError;
 
       const hash = hashResult?.hash || password;
 
       const { error } = await supabase
-        .from("referral_partners")
+        .from('referral_partners')
         .update({ share_password_hash: hash } as never)
-        .eq("id", partnerId);
+        .eq('id', partnerId);
 
       if (error) throw error;
       return password;
     },
     onSuccess: (password) => {
       toast.success(`New password: ${password}`, { duration: 15000 });
-      queryClient.invalidateQueries({ queryKey: ["referral-partners"] });
+      queryClient.invalidateQueries({ queryKey: ['referral-partners'] });
     },
     onError: (error) => {
       toast.error(`Failed to reset password: ${error.message}`);
@@ -180,14 +210,14 @@ export default function ReMarketingReferralPartners() {
   const deactivateMutation = useMutation({
     mutationFn: async ({ id, active }: { id: string; active: boolean }) => {
       const { error } = await supabase
-        .from("referral_partners")
+        .from('referral_partners')
         .update({ is_active: active } as never)
-        .eq("id", id);
+        .eq('id', id);
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["referral-partners"] });
-      toast.success("Partner status updated");
+      queryClient.invalidateQueries({ queryKey: ['referral-partners'] });
+      toast.success('Partner status updated');
     },
     onError: (error) => {
       toast.error(`Failed to update: ${error.message}`);
@@ -198,14 +228,14 @@ export default function ReMarketingReferralPartners() {
   const archiveMutation = useMutation({
     mutationFn: async (id: string) => {
       const { error } = await supabase
-        .from("referral_partners")
+        .from('referral_partners')
         .update({ is_active: false, notes: '[ARCHIVED]' } as never)
-        .eq("id", id);
+        .eq('id', id);
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["referral-partners"] });
-      toast.success("Partner archived");
+      queryClient.invalidateQueries({ queryKey: ['referral-partners'] });
+      toast.success('Partner archived');
     },
     onError: (error) => {
       toast.error(`Failed to archive: ${error.message}`);
@@ -215,15 +245,12 @@ export default function ReMarketingReferralPartners() {
   // Delete partner
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase
-        .from("referral_partners")
-        .delete()
-        .eq("id", id);
+      const { error } = await supabase.from('referral_partners').delete().eq('id', id);
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["referral-partners"] });
-      toast.success("Partner deleted");
+      queryClient.invalidateQueries({ queryKey: ['referral-partners'] });
+      toast.success('Partner deleted');
     },
     onError: (error) => {
       toast.error(`Failed to delete: ${error.message}`);
@@ -239,7 +266,7 @@ export default function ReMarketingReferralPartners() {
       (p) =>
         p.name.toLowerCase().includes(q) ||
         p.company?.toLowerCase().includes(q) ||
-        p.email?.toLowerCase().includes(q)
+        p.email?.toLowerCase().includes(q),
     );
   }, [partners, searchQuery]);
 
@@ -258,7 +285,12 @@ export default function ReMarketingReferralPartners() {
             </p>
           </div>
         </div>
-        <Button onClick={() => { setEditingPartner(null); setAddDialogOpen(true); }}>
+        <Button
+          onClick={() => {
+            setEditingPartner(null);
+            setAddDialogOpen(true);
+          }}
+        >
           <Plus className="h-4 w-4 mr-2" />
           Add Partner
         </Button>
@@ -302,7 +334,7 @@ export default function ReMarketingReferralPartners() {
                 <div className="text-center py-12 text-muted-foreground">
                   <Handshake className="h-8 w-8 mx-auto mb-2 opacity-50" />
                   <p className="text-sm">
-                    {searchQuery ? "No partners match your search" : "No referral partners yet"}
+                    {searchQuery ? 'No partners match your search' : 'No referral partners yet'}
                   </p>
                 </div>
               ) : (
@@ -331,21 +363,17 @@ export default function ReMarketingReferralPartners() {
                             navigate(`/admin/remarketing/leads/referrals/${partner.id}`)
                           }
                         >
-                          <TableCell className="font-medium">
-                            {partner.name}
-                          </TableCell>
+                          <TableCell className="font-medium">{partner.name}</TableCell>
                           <TableCell className="text-muted-foreground">
-                            {partner.company || "-"}
+                            {partner.company || '-'}
                           </TableCell>
                           <TableCell className="text-sm text-muted-foreground">
-                            {partner.email || "-"}
+                            {partner.email || '-'}
                           </TableCell>
                           <TableCell className="text-sm text-muted-foreground">
-                            {partner.phone || "-"}
+                            {partner.phone || '-'}
                           </TableCell>
-                          <TableCell className="text-center">
-                            {partner.deal_count || 0}
-                          </TableCell>
+                          <TableCell className="text-center">{partner.deal_count || 0}</TableCell>
                           <TableCell className="text-center">
                             {pending > 0 ? (
                               <Badge variant="secondary" className="bg-amber-100 text-amber-800">
@@ -356,14 +384,14 @@ export default function ReMarketingReferralPartners() {
                             )}
                           </TableCell>
                           <TableCell>
-                            <Badge variant={partner.is_active ? "default" : "secondary"}>
-                              {partner.is_active ? "Active" : "Inactive"}
+                            <Badge variant={partner.is_active ? 'default' : 'secondary'}>
+                              {partner.is_active ? 'Active' : 'Inactive'}
                             </Badge>
                           </TableCell>
                           <TableCell className="text-sm text-muted-foreground">
                             {partner.created_at
-                              ? format(new Date(partner.created_at), "MMM d, yyyy")
-                              : "-"}
+                              ? format(new Date(partner.created_at), 'MMM d, yyyy')
+                              : '-'}
                           </TableCell>
                           <TableCell onClick={(e) => e.stopPropagation()}>
                             <DropdownMenu>
@@ -402,11 +430,15 @@ export default function ReMarketingReferralPartners() {
                                   }
                                 >
                                   <XCircle className="h-4 w-4 mr-2" />
-                                  {partner.is_active ? "Deactivate" : "Activate"}
+                                  {partner.is_active ? 'Deactivate' : 'Activate'}
                                 </DropdownMenuItem>
                                 <DropdownMenuItem
                                   onClick={() => {
-                                    if (confirm(`Archive "${partner.name}"? This will deactivate them.`)) {
+                                    if (
+                                      confirm(
+                                        `Archive "${partner.name}"? This will deactivate them.`,
+                                      )
+                                    ) {
                                       archiveMutation.mutate(partner.id);
                                     }
                                   }}
@@ -417,7 +449,11 @@ export default function ReMarketingReferralPartners() {
                                 <DropdownMenuItem
                                   className="text-destructive focus:text-destructive"
                                   onClick={() => {
-                                    if (confirm(`Permanently delete "${partner.name}"? This cannot be undone.`)) {
+                                    if (
+                                      confirm(
+                                        `Permanently delete "${partner.name}"? This cannot be undone.`,
+                                      )
+                                    ) {
                                       deleteMutation.mutate(partner.id);
                                     }
                                   }}

@@ -43,16 +43,63 @@ export function useValuationLeadsData() {
     cancelEnrichment,
   } = useEnrichmentProgress();
 
-  const [activeTab, setActiveTab] = useState<string>('all');
   const { timeframe, setTimeframe, isInRange } = useTimeframe('all_time');
 
+  // URL-persisted filter state (survives browser Back navigation)
   const [searchParams, setSearchParams] = useSearchParams();
   const sortColumn = (searchParams.get('sort') as SortColumn) ?? 'created_at';
   const sortDirection = (searchParams.get('dir') as SortDirection) ?? 'desc';
+  const activeTab = searchParams.get('tab') ?? 'all';
+  const setActiveTab = useCallback(
+    (v: string) => {
+      setSearchParams(
+        (p) => {
+          const n = new URLSearchParams(p);
+          if (v !== 'all') n.set('tab', v);
+          else n.delete('tab');
+          n.delete('cp');
+          return n;
+        },
+        { replace: true },
+      );
+    },
+    [setSearchParams],
+  );
+  const hidePushed = searchParams.get('hidePushed') === '1';
+  const setHidePushed = useCallback(
+    (v: boolean) => {
+      setSearchParams(
+        (p) => {
+          const n = new URLSearchParams(p);
+          if (v) n.set('hidePushed', '1');
+          else n.delete('hidePushed');
+          n.delete('cp');
+          return n;
+        },
+        { replace: true },
+      );
+    },
+    [setSearchParams],
+  );
+  const currentPage = Number(searchParams.get('cp')) || 1;
+  const setCurrentPage = useCallback(
+    (v: number | ((prev: number) => number)) => {
+      setSearchParams(
+        (p) => {
+          const cur = Number(p.get('cp')) || 1;
+          const resolved = typeof v === 'function' ? v(cur) : v;
+          const n = new URLSearchParams(p);
+          if (resolved > 1) n.set('cp', String(resolved));
+          else n.delete('cp');
+          return n;
+        },
+        { replace: true },
+      );
+    },
+    [setSearchParams],
+  );
 
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [hidePushed, setHidePushed] = useState(false);
-  const [currentPage, setCurrentPage] = useState(1);
 
   // Action states
   const [isPushing, setIsPushing] = useState(false);
@@ -270,7 +317,7 @@ export function useValuationLeadsData() {
   useEffect(() => {
     setCurrentPage(1);
     setSelectedIds(new Set());
-  }, [activeTab, timeframe, sortColumn, sortDirection, filterState]);
+  }, [activeTab, timeframe, sortColumn, sortDirection, filterState, setCurrentPage]);
 
   const handleSort = (col: SortColumn) => {
     setSearchParams(
@@ -377,7 +424,11 @@ export function useValuationLeadsData() {
         if (listingId) {
           const { error } = await supabase
             .from('listings')
-            .update({ remarketing_status: 'active', pushed_to_all_deals: true, pushed_to_all_deals_at: new Date().toISOString() })
+            .update({
+              remarketing_status: 'active',
+              pushed_to_all_deals: true,
+              pushed_to_all_deals_at: new Date().toISOString(),
+            })
             .eq('id', listingId);
           if (error) {
             errorCount++;
@@ -445,7 +496,11 @@ export function useValuationLeadsData() {
         if (listingId) {
           const { error } = await supabase
             .from('listings')
-            .update({ remarketing_status: 'active', pushed_to_all_deals: true, pushed_to_all_deals_at: new Date().toISOString() })
+            .update({
+              remarketing_status: 'active',
+              pushed_to_all_deals: true,
+              pushed_to_all_deals_at: new Date().toISOString(),
+            })
             .eq('id', listingId);
           if (error) {
             continue;
@@ -484,7 +539,7 @@ export function useValuationLeadsData() {
       queryClient.invalidateQueries({ queryKey: ['remarketing', 'valuation-leads'] });
       queryClient.invalidateQueries({ queryKey: ['remarketing', 'deals'] });
     },
-    [leads, user, queryClient],
+    [leads, queryClient],
   );
 
   const handleReEnrich = useCallback(
@@ -561,7 +616,8 @@ export function useValuationLeadsData() {
       setIsReEnriching(false);
       queryClient.invalidateQueries({ queryKey: ['remarketing', 'valuation-leads'] });
     },
-    [leads, user, startOrQueueMajorOp, completeOperation, updateProgress, queryClient],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [leads, startOrQueueMajorOp, completeOperation, updateProgress, queryClient],
   );
 
   const handleArchive = useCallback(
@@ -733,7 +789,8 @@ export function useValuationLeadsData() {
       setIsEnriching(false);
       queryClient.invalidateQueries({ queryKey: ['remarketing', 'valuation-leads'] });
     },
-    [leads, user, startOrQueueMajorOp, completeOperation, updateProgress, queryClient],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [leads, user?.id, startOrQueueMajorOp, completeOperation, queryClient],
   );
 
   const handleRetryFailedEnrichment = useCallback(async () => {
