@@ -13,12 +13,9 @@ import {
   Search,
   Sparkles,
   Download,
-  Phone,
-  Loader2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useBuyerEnrichmentProgress } from "@/hooks/useBuyerEnrichmentProgress";
-import { useFirefliesAutoPair } from "@/hooks/useFirefliesAutoPair";
 import { EnrichmentProgressIndicator } from "@/components/remarketing/EnrichmentProgressIndicator";
 import { BuyerCSVImport, ReMarketingChat } from "@/components/remarketing";
 import { useBuyersData } from "./useBuyersData";
@@ -27,7 +24,6 @@ import BuyersTable from "./BuyersTable";
 
 const ReMarketingBuyers = () => {
   const { progress: buyerEnrichmentProgress, cancel: cancelBuyerEnrichment } = useBuyerEnrichmentProgress();
-  const { loading: autoPairLoading, runAutoPair } = useFirefliesAutoPair();
 
   const {
     search,
@@ -83,16 +79,6 @@ const ReMarketingBuyers = () => {
         </div>
         <div className="flex items-center gap-2">
           <BuyerCSVImport />
-          <Button
-            size="sm"
-            variant="outline"
-            className="gap-1.5"
-            disabled={autoPairLoading}
-            onClick={runAutoPair}
-          >
-            {autoPairLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Phone className="h-3.5 w-3.5" />}
-            {autoPairLoading ? "Syncing Fireflies…" : "Sync Fireflies"}
-          </Button>
           <Button
             size="sm"
             variant="outline"

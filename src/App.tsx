@@ -121,6 +121,11 @@ const PhoneBurnerSettingsPage = lazyWithRetry(
   () => import('@/pages/admin/PhoneBurnerSettingsPage'),
 );
 
+// Fireflies pages
+const FirefliesIntegrationPage = lazyWithRetry(
+  () => import('@/pages/admin/FirefliesIntegrationPage'),
+);
+
 // ReMarketing pages (now rendered inside AdminLayout via shared sidebar)
 const ReMarketingLayout = lazyWithRetry(() =>
   import('@/components/remarketing').then((m) => ({ default: m.ReMarketingLayout })),
@@ -448,6 +453,16 @@ function App() {
                 element={
                   <RoleGate min="admin">
                     <PhoneBurnerSettingsPage />
+                  </RoleGate>
+                }
+              />
+
+              {/* FIREFLIES */}
+              <Route
+                path="fireflies"
+                element={
+                  <RoleGate min="admin">
+                    <FirefliesIntegrationPage />
                   </RoleGate>
                 }
               />
