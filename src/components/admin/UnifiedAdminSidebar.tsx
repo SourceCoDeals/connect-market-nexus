@@ -273,6 +273,12 @@ export function UnifiedAdminSidebar({
                   icon: <Settings className="h-4 w-4" />,
                 },
                 {
+                  label: 'Fireflies',
+                  href: '/admin/fireflies',
+                  icon: <Phone className="h-4 w-4" />,
+                  separator: 'Fireflies',
+                },
+                {
                   label: 'Webhook Settings',
                   href: '/admin/settings/webhooks',
                   icon: <Webhook className="h-4 w-4" />,
