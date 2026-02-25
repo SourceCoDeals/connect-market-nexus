@@ -261,6 +261,7 @@ const TOOL_CATEGORIES: Record<string, string[]> = {
     'get_nda_logs',
     'get_call_history',
     'enrich_buyer_contacts',
+    'enrich_linkedin_contact',
     'send_document',
   ],
 
@@ -277,6 +278,7 @@ const TOOL_CATEGORIES: Record<string, string[]> = {
   CONTACT_ENRICHMENT: [
     'google_search_companies',
     'enrich_buyer_contacts',
+    'enrich_linkedin_contact',
     'save_contacts_to_crm',
     'search_contacts',
     'search_pe_contacts',

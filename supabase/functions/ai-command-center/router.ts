@@ -361,6 +361,16 @@ const BYPASS_RULES: Array<{
       confidence: 0.87,
     },
   },
+  // LinkedIn URL pasted — enrich that person's contact info via Prospeo
+  {
+    test: (q) => /linkedin\.com\/in\//i.test(q),
+    result: {
+      category: 'CONTACTS',
+      tier: 'STANDARD',
+      tools: ['enrich_linkedin_contact', 'search_contacts', 'save_contacts_to_crm'],
+      confidence: 0.95,
+    },
+  },
   // PE / platform contacts — find who to call, email at a firm, person email lookups
   {
     test: (q) =>

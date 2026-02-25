@@ -211,6 +211,16 @@ const BYPASS_RULES: BypassRule[] = [
       confidence: 0.85,
     },
   },
+  // LinkedIn URL pasted — enrich that person's contact info via Prospeo
+  {
+    test: (q) => /linkedin\.com\/in\//i.test(q),
+    result: {
+      category: 'CONTACTS',
+      tier: 'STANDARD',
+      tools: ['enrich_linkedin_contact', 'search_contacts', 'save_contacts_to_crm'],
+      confidence: 0.95,
+    },
+  },
   // PE / platform contacts — find who to call, email at a firm, person email lookups
   {
     test: (q) =>
@@ -716,6 +726,37 @@ describe('Person-name email lookup intent classification', () => {
   it('classifies "phone for the partner at Audax" as CONTACTS', () => {
     const result = classifyQuery('Phone for the partner at Audax');
     expect(result?.category).toBe('CONTACTS');
+  });
+});
+
+// ============================================================================
+// LinkedIn URL Lookup
+// ============================================================================
+
+describe('LinkedIn URL pasted in chat', () => {
+  it('classifies a bare LinkedIn URL as CONTACTS with enrich_linkedin_contact', () => {
+    const result = classifyQuery('https://www.linkedin.com/in/john-smith-123');
+    expect(result?.category).toBe('CONTACTS');
+    expect(result?.tools).toContain('enrich_linkedin_contact');
+    expect(result?.confidence).toBe(0.95);
+  });
+
+  it('classifies LinkedIn URL with surrounding text', () => {
+    const result = classifyQuery('Can you look up this person? https://linkedin.com/in/jane-doe');
+    expect(result?.category).toBe('CONTACTS');
+    expect(result?.tools).toContain('enrich_linkedin_contact');
+  });
+
+  it('classifies "find the email for linkedin.com/in/..." as CONTACTS', () => {
+    const result = classifyQuery('find the email for https://www.linkedin.com/in/russ-esau');
+    expect(result?.category).toBe('CONTACTS');
+    expect(result?.tools).toContain('enrich_linkedin_contact');
+  });
+
+  it('classifies LinkedIn URL without https prefix', () => {
+    const result = classifyQuery('linkedin.com/in/mike-johnson');
+    expect(result?.category).toBe('CONTACTS');
+    expect(result?.tools).toContain('enrich_linkedin_contact');
   });
 });
 

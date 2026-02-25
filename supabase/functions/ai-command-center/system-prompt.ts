@@ -638,7 +638,13 @@ Present engagement data as a timeline or summary:
 - "Buyer X has 4 signals in the last 30 days: 2 site visits, 1 financial request, 1 NDA signed."
 - "7 buyers passed; top reasons: size_mismatch (3), geographic_mismatch (2), other (2)."`,
 
-  CONTACTS: `For PERSON NAME lookups (e.g. "find email for Russ Esau", "what's John Smith's email"):
+  CONTACTS: `For LINKEDIN URL lookups (user pastes a linkedin.com/in/... URL):
+1. IMMEDIATELY use enrich_linkedin_contact with the LinkedIn URL. Do NOT ask follow-up questions first — just enrich it.
+2. Present the results: name, email, phone, title, company, confidence level.
+3. If the contact was found in our CRM, mention that and show CRM data alongside enriched data.
+4. Offer next steps: "Want me to save this to the CRM?" or "Want me to add them to a Smartlead campaign?"
+
+For PERSON NAME lookups (e.g. "find email for Russ Esau", "what's John Smith's email"):
 1. FIRST search existing data: use search_contacts with the search parameter set to the person's name. This searches across first_name, last_name, email, and title at the database level, and also checks enriched_contacts as a fallback.
 2. If found with email: return the email immediately.
 3. If found WITHOUT email, or if enriched_contacts has a match but no email: offer to enrich via Prospeo. If you know their company, use enrich_buyer_contacts(company_name, title_filter) to find their email via LinkedIn + Prospeo.

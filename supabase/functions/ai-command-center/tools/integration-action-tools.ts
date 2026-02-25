@@ -16,7 +16,7 @@ import {
   resolveCompanyUrl,
   inferDomain,
 } from '../../_shared/apify-client.ts';
-import { batchEnrich, domainSearchEnrich } from '../../_shared/prospeo-client.ts';
+import { batchEnrich, domainSearchEnrich, enrichContact } from '../../_shared/prospeo-client.ts';
 import { findCompanyLinkedIn, googleSearch } from '../../_shared/apify-google-client.ts';
 
 // ---------- Tool definitions ----------
@@ -179,6 +179,34 @@ export const integrationActionTools: ClaudeTool[] = [
       required: ['firm_id', 'document_type', 'signer_email', 'signer_name'],
     },
   },
+  {
+    name: 'enrich_linkedin_contact',
+    description:
+      'Enrich a single contact from their LinkedIn profile URL. Calls Prospeo to find their email and phone. Use when a user pastes a LinkedIn URL like "linkedin.com/in/john-smith" into the chat, or says "look up this person" with a LinkedIn link. Returns email, phone, name, title, and company. Results are saved to enriched_contacts.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        linkedin_url: {
+          type: 'string',
+          description: 'LinkedIn profile URL (e.g. "https://www.linkedin.com/in/john-smith")',
+        },
+        first_name: {
+          type: 'string',
+          description: 'First name if known (helps with name+domain fallback)',
+        },
+        last_name: {
+          type: 'string',
+          description: 'Last name if known (helps with name+domain fallback)',
+        },
+        company_domain: {
+          type: 'string',
+          description:
+            'Company email domain if known (e.g. "trivest.com") — used as fallback for name+domain lookup',
+        },
+      },
+      required: ['linkedin_url'],
+    },
+  },
 ];
 
 // ---------- Executor ----------
@@ -200,6 +228,8 @@ export async function executeIntegrationActionTool(
       return pushToPhoneBurner(supabase, args, userId);
     case 'send_document':
       return sendDocument(supabase, args, userId);
+    case 'enrich_linkedin_contact':
+      return enrichLinkedInContact(supabase, args, userId);
     default:
       return { error: `Unknown integration action tool: ${toolName}` };
   }
@@ -600,6 +630,116 @@ async function enrichBuyerContacts(
       message: `Found ${allContacts.length} contacts for "${companyName}" (${contacts.length} with email)`,
     },
   };
+}
+
+// ---------- enrich_linkedin_contact ----------
+
+async function enrichLinkedInContact(
+  supabase: SupabaseClient,
+  args: Record<string, unknown>,
+  userId: string,
+): Promise<ToolResult> {
+  const linkedinUrl = (args.linkedin_url as string)?.trim();
+  if (!linkedinUrl) return { error: 'linkedin_url is required' };
+
+  // Validate it looks like a LinkedIn URL
+  if (!linkedinUrl.includes('linkedin.com/in/')) {
+    return {
+      error: 'Invalid LinkedIn URL — expected a profile URL like linkedin.com/in/john-smith',
+    };
+  }
+
+  const firstName = (args.first_name as string)?.trim() || '';
+  const lastName = (args.last_name as string)?.trim() || '';
+  const domain = (args.company_domain as string)?.trim() || undefined;
+
+  console.log(`[enrich-linkedin] Enriching: ${linkedinUrl}`);
+
+  try {
+    const result = await enrichContact({
+      firstName,
+      lastName,
+      linkedinUrl,
+      domain,
+    });
+
+    if (!result) {
+      return {
+        data: {
+          linkedin_url: linkedinUrl,
+          found: false,
+          message: `Could not find email for this LinkedIn profile. Prospeo returned no results. Try providing the person's company domain (e.g. company_domain: "acme.com") for a name+domain fallback.`,
+        },
+      };
+    }
+
+    // Save to enriched_contacts for audit trail
+    const contactData = {
+      workspace_id: userId,
+      company_name: result.company || 'Unknown',
+      full_name: `${result.first_name} ${result.last_name}`.trim(),
+      first_name: result.first_name,
+      last_name: result.last_name,
+      title: result.title || '',
+      email: result.email,
+      phone: result.phone,
+      linkedin_url: result.linkedin_url || linkedinUrl,
+      confidence: result.confidence,
+      source: `linkedin_enrichment:${result.source}`,
+      enriched_at: new Date().toISOString(),
+      search_query: `linkedin:${linkedinUrl}`,
+    };
+
+    await supabase
+      .from('enriched_contacts')
+      .upsert(contactData, { onConflict: 'workspace_id,linkedin_url', ignoreDuplicates: false });
+
+    // Also check if this person exists in our CRM contacts and update them
+    if (result.email) {
+      const { data: existingContacts } = await supabase
+        .from('contacts')
+        .select('id, email, phone, linkedin_url')
+        .or(
+          `linkedin_url.ilike.%${linkedinUrl.replace('https://www.', '').replace('https://', '')}%`,
+        )
+        .eq('archived', false)
+        .limit(1);
+
+      if (existingContacts && existingContacts.length > 0) {
+        const existing = existingContacts[0] as Record<string, unknown>;
+        const updates: Record<string, unknown> = {};
+        if (!existing.email && result.email) updates.email = result.email;
+        if (!existing.phone && result.phone) updates.phone = result.phone;
+
+        if (Object.keys(updates).length > 0) {
+          await supabase.from('contacts').update(updates).eq('id', existing.id);
+          console.log(`[enrich-linkedin] Updated CRM contact ${existing.id} with enriched data`);
+        }
+      }
+    }
+
+    return {
+      data: {
+        found: true,
+        name: `${result.first_name} ${result.last_name}`.trim(),
+        email: result.email,
+        phone: result.phone,
+        title: result.title,
+        company: result.company,
+        linkedin_url: result.linkedin_url || linkedinUrl,
+        confidence: result.confidence,
+        source: result.source,
+        saved_to_enriched: true,
+        message: result.email
+          ? `Found email for ${result.first_name} ${result.last_name}: ${result.email} (confidence: ${result.confidence})`
+          : `Found contact info but no email. Phone: ${result.phone || 'none'}. Try providing company_domain for a name+domain fallback.`,
+      },
+    };
+  } catch (err) {
+    return {
+      error: `LinkedIn enrichment failed: ${err instanceof Error ? err.message : String(err)}`,
+    };
+  }
 }
 
 // ---------- push_to_phoneburner ----------
