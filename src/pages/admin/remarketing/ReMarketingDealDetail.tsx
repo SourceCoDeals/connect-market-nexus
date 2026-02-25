@@ -72,6 +72,7 @@ import {
   DealBuyerHistoryTab,
   DealContactHistoryTab,
   BuyerIntroductionTracker,
+  ContactHistoryTracker,
 } from '@/components/remarketing/deal-detail';
 import { ListingNotesLog } from '@/components/remarketing/deal-detail/ListingNotesLog';
 
@@ -1452,7 +1453,7 @@ const ReMarketingDealDetail = () => {
         {/* ════════════════ HISTORY TAB ════════════════ */}
         <TabsContent value="history" className="space-y-6">
           <Tabs defaultValue="buyer-introductions" className="space-y-4">
-            <TabsList className="grid w-full grid-cols-2">
+            <TabsList className="grid w-full grid-cols-3">
               <TabsTrigger value="buyer-introductions" className="text-sm">
                 <Handshake className="mr-1.5 h-3.5 w-3.5" />
                 Buyer Introductions
@@ -1460,6 +1461,10 @@ const ReMarketingDealDetail = () => {
               <TabsTrigger value="contact-history" className="text-sm">
                 <Activity className="mr-1.5 h-3.5 w-3.5" />
                 Contact History
+              </TabsTrigger>
+              <TabsTrigger value="activity-log" className="text-sm">
+                <History className="mr-1.5 h-3.5 w-3.5" />
+                Activity Log
               </TabsTrigger>
             </TabsList>
 
@@ -1478,8 +1483,17 @@ const ReMarketingDealDetail = () => {
               />
             </TabsContent>
 
-            {/* ─── Contact History Sub-Tab ─── */}
+            {/* ─── Contact History Sub-Tab (NEW — Rich dark-themed tracker) ─── */}
             <TabsContent value="contact-history" className="space-y-6">
+              <ContactHistoryTracker
+                listingId={dealId!}
+                primaryContactEmail={deal.main_contact_email}
+                primaryContactName={deal.main_contact_name}
+              />
+            </TabsContent>
+
+            {/* ─── Activity Log Sub-Tab (previous Contact History — per-contact timeline) ─── */}
+            <TabsContent value="activity-log" className="space-y-6">
               {/* Contact Communication History — emails (SmartLead) + calls (PhoneBurner) for all associated contacts */}
               <DealContactHistoryTab
                 listingId={dealId!}
