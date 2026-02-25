@@ -64,7 +64,7 @@ export function AddBuyersToListDialog({
   selectedBuyers,
 }: AddBuyersToListDialogProps) {
   const navigate = useNavigate();
-  const [listMode, setListMode] = useState<ListMode>("new");
+  const [listMode, setListMode] = useState<ListMode>("existing");
   const [selectedListId, setSelectedListId] = useState<string>("");
   const [name, setName] = useState("");
 
@@ -82,6 +82,13 @@ export function AddBuyersToListDialog({
   // Stable key for buyer list to avoid re-fetch on every render
   const buyerKey = selectedBuyers.map((b) => b.buyerId).sort().join(",");
   const fetchIdRef = useRef(0);
+
+  // Default to "existing" when lists are available, fall back to "new" if none
+  useEffect(() => {
+    if (open && existingLists) {
+      setListMode(existingLists.length > 0 ? "existing" : "new");
+    }
+  }, [open, existingLists]);
 
   // Fetch contacts for all selected buyers when dialog opens
   useEffect(() => {
@@ -137,7 +144,6 @@ export function AddBuyersToListDialog({
   useEffect(() => {
     if (!open) {
       setName("");
-      setListMode("new");
       setSelectedListId("");
       setContactsByBuyer({});
       setSelectedContactIds(new Set());
@@ -416,7 +422,6 @@ export function AddBuyersToListDialog({
                 variant={listMode === "existing" ? "secondary" : "ghost"}
                 size="sm"
                 onClick={() => setListMode("existing")}
-                disabled={!existingLists?.length}
               >
                 <ListChecks className="h-3.5 w-3.5 mr-1" />
                 Existing List {existingLists?.length ? `(${existingLists.length})` : ""}
@@ -433,7 +438,7 @@ export function AddBuyersToListDialog({
                   placeholder="e.g., HVAC Buyers - Colorado Deal"
                 />
               </div>
-            ) : (
+            ) : existingLists?.length ? (
               <div className="space-y-1.5">
                 <Label>Select List</Label>
                 <Select value={selectedListId} onValueChange={setSelectedListId}>
@@ -441,7 +446,7 @@ export function AddBuyersToListDialog({
                     <SelectValue placeholder="Choose a list..." />
                   </SelectTrigger>
                   <SelectContent>
-                    {existingLists?.map((list) => (
+                    {existingLists.map((list) => (
                       <SelectItem key={list.id} value={list.id}>
                         {list.name} ({list.contact_count} contacts)
                       </SelectItem>
@@ -449,6 +454,8 @@ export function AddBuyersToListDialog({
                   </SelectContent>
                 </Select>
               </div>
+            ) : (
+              <p className="text-sm text-muted-foreground py-2">No lists yet. Switch to "New List" to create one.</p>
             )}
           </div>
         </div>
