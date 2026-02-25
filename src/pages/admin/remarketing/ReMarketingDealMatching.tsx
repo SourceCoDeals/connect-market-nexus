@@ -1,14 +1,14 @@
-import { useState, useEffect, useMemo } from "react";
-import { useParams, Link, useNavigate } from "react-router-dom";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/context/AuthContext";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Switch } from "@/components/ui/switch";
-import { Label } from "@/components/ui/label";
+import { useState, useEffect, useMemo } from 'react';
+import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/context/AuthContext';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
 import {
   ArrowLeft,
   Sparkles,
@@ -17,17 +17,16 @@ import {
   DollarSign,
   Briefcase,
   ExternalLink,
-  
   Target,
   AlertCircle,
   CheckCircle2,
   ArrowUpDown,
   Mail,
   Search,
-} from "lucide-react";
-import { Input } from "@/components/ui/input";
-import { toast } from "sonner";
-import { cn } from "@/lib/utils";
+} from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { toast } from 'sonner';
+import { cn } from '@/lib/utils';
 import {
   PassReasonDialog,
   BuyerMatchCard,
@@ -39,6 +38,7 @@ import {
   ReMarketingChat,
 } from "@/components/remarketing";
 import { PushToDialerModal } from "@/components/remarketing/PushToDialerModal";
+import { AddBuyersToListDialog } from "@/components/remarketing/AddBuyersToListDialog";
 import { RemarketingErrorBoundary } from "@/components/remarketing/RemarketingErrorBoundary";
 import { AddToUniverseQuickAction } from "@/components/remarketing/AddToUniverseQuickAction";
 import { useBackgroundScoringProgress } from "@/hooks/useBackgroundScoringProgress";
@@ -50,16 +50,16 @@ const ReMarketingDealMatching = () => {
   const { listingId } = useParams<{ listingId: string }>();
   const navigate = useNavigate();
   const { user } = useAuth();
-  const [selectedUniverse, setSelectedUniverse] = useState<string>("");
+  const [selectedUniverse, setSelectedUniverse] = useState<string>('');
   const [isScoring, setIsScoring] = useState(false);
   const [scoringProgress, setScoringProgress] = useState(0);
   const [passDialogOpen, setPassDialogOpen] = useState(false);
-  const [selectedBuyerForPass, setSelectedBuyerForPass] = useState<{ 
-    id: string; 
+  const [selectedBuyerForPass, setSelectedBuyerForPass] = useState<{
+    id: string;
     name: string;
     scoreData?: any;
   } | null>(null);
-  
+
   // New state for enhanced features
   const [activeTab, setActiveTab] = useState<FilterTab>('all');
   const [sortBy, setSortBy] = useState<SortOption>('score');
@@ -68,21 +68,24 @@ const ReMarketingDealMatching = () => {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [emailDialogOpen, setEmailDialogOpen] = useState(false);
   const [dialerOpen, setDialerOpen] = useState(false);
+  const [addToListOpen, setAddToListOpen] = useState(false);
   const [highlightedBuyerIds, setHighlightedBuyerIds] = useState<string[]>([]);
-  const [searchQuery, setSearchQuery] = useState("");
+  const [searchQuery, setSearchQuery] = useState('');
 
   // Custom scoring instructions state
-  const [customInstructions, setCustomInstructions] = useState("");
+  const [customInstructions, setCustomInstructions] = useState('');
 
   // Geography mode state (critical/preferred/minimal)
-  const [geographyMode, setGeographyMode] = useState<'critical' | 'preferred' | 'minimal'>('critical');
-  
+  const [geographyMode, setGeographyMode] = useState<'critical' | 'preferred' | 'minimal'>(
+    'critical',
+  );
+
   // Background scoring progress hook
   const backgroundScoring = useBackgroundScoringProgress(
     listingId!,
-    selectedUniverse !== 'all' ? selectedUniverse : undefined
+    selectedUniverse !== 'all' ? selectedUniverse : undefined,
   );
-  
+
   const queryClient = useQueryClient();
 
   // Fetch the listing
@@ -98,7 +101,7 @@ const ReMarketingDealMatching = () => {
       if (error) throw error;
       return data;
     },
-    enabled: !!listingId
+    enabled: !!listingId,
   });
 
   // Fetch universes linked to this deal
@@ -107,15 +110,17 @@ const ReMarketingDealMatching = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('remarketing_universe_deals')
-        .select(`
+        .select(
+          `
           universe_id,
           universe:remarketing_buyer_universes(id, name, geography_weight, size_weight, service_weight, owner_goals_weight)
-        `)
+        `,
+        )
         .eq('listing_id', listingId!)
         .eq('status', 'active');
 
       if (error) throw error;
-      return (data || []).map(d => d.universe).filter(Boolean) as Array<{
+      return (data || []).map((d) => d.universe).filter(Boolean) as Array<{
         id: string;
         name: string;
         geography_weight: number;
@@ -124,9 +129,8 @@ const ReMarketingDealMatching = () => {
         owner_goals_weight: number;
       }>;
     },
-    enabled: !!listingId
+    enabled: !!listingId,
   });
-
 
   // Load saved custom instructions for this listing
   const { data: savedAdjustments } = useQuery({
@@ -142,7 +146,7 @@ const ReMarketingDealMatching = () => {
       if (error && error.code !== 'PGRST116') throw error;
       return data;
     },
-    enabled: !!listingId
+    enabled: !!listingId,
   });
 
   // Initialize custom instructions from saved data
@@ -165,21 +169,23 @@ const ReMarketingDealMatching = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('remarketing_scores')
-        .select(`
+        .select(
+          `
           *,
           buyer:remarketing_buyers(
             *,
             contacts:contacts!contacts_remarketing_buyer_id_fkey(id, first_name, last_name, email)
           ),
           universe:remarketing_buyer_universes(id, name)
-        `)
+        `,
+        )
         .eq('listing_id', listingId!)
         .order('composite_score', { ascending: false });
 
       if (error) throw error;
       return data || [];
     },
-    enabled: !!listingId
+    enabled: !!listingId,
   });
 
   // Fetch marketplace fee agreements to cross-reference with buyers
@@ -188,7 +194,9 @@ const ReMarketingDealMatching = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('firm_agreements')
-        .select('id, primary_company_name, normalized_company_name, website_domain, email_domain, fee_agreement_signed, fee_agreement_signed_at')
+        .select(
+          'id, primary_company_name, normalized_company_name, website_domain, email_domain, fee_agreement_signed, fee_agreement_signed_at',
+        )
         .eq('fee_agreement_signed', true);
 
       if (error) throw error;
@@ -202,8 +210,8 @@ const ReMarketingDealMatching = () => {
     const lookup = new Map<string, { signed: boolean; signedAt: string | null }>();
 
     // Index by normalized name and domain
-    const byName = new Map<string, typeof feeAgreements[0]>();
-    const byDomain = new Map<string, typeof feeAgreements[0]>();
+    const byName = new Map<string, (typeof feeAgreements)[0]>();
+    const byDomain = new Map<string, (typeof feeAgreements)[0]>();
     for (const fa of feeAgreements) {
       if (fa.normalized_company_name) byName.set(fa.normalized_company_name.toLowerCase(), fa);
       if (fa.website_domain) byDomain.set(fa.website_domain.toLowerCase(), fa);
@@ -216,11 +224,14 @@ const ReMarketingDealMatching = () => {
         const buyer = score.buyer;
         if (!buyer) continue;
 
-        let match: typeof feeAgreements[0] | undefined;
+        let match: (typeof feeAgreements)[0] | undefined;
 
         // Match by website domain
         if (buyer.company_website) {
-          const domain = buyer.company_website.replace(/^https?:\/\/(www\.)?/, '').split('/')[0].toLowerCase();
+          const domain = buyer.company_website
+            .replace(/^https?:\/\/(www\.)?/, '')
+            .split('/')[0]
+            .toLowerCase();
           match = byDomain.get(domain);
         }
         // Match by email domain
@@ -261,7 +272,7 @@ const ReMarketingDealMatching = () => {
       if (error) throw error;
       return data || [];
     },
-    enabled: !!listingId
+    enabled: !!listingId,
   });
 
   // Filter scores based on selected universe
@@ -270,24 +281,35 @@ const ReMarketingDealMatching = () => {
     if (selectedUniverse === 'all' || !selectedUniverse) {
       return allScores;
     }
-    return allScores.filter(s => s.universe_id === selectedUniverse);
+    return allScores.filter((s) => s.universe_id === selectedUniverse);
   }, [allScores, selectedUniverse]);
-
 
   // Compute stats including primary disqualification reason (aligned with spec v2 tiers)
   const stats = useMemo(() => {
-    if (!scores) return { qualified: 0, disqualified: 0, strong: 0, approved: 0, interested: 0, passed: 0, total: 0, disqualificationReason: '' };
+    if (!scores)
+      return {
+        qualified: 0,
+        disqualified: 0,
+        strong: 0,
+        approved: 0,
+        interested: 0,
+        passed: 0,
+        total: 0,
+        disqualificationReason: '',
+      };
 
-    const qualified = scores.filter(s => !s.is_disqualified && s.composite_score >= 50 && s.status !== 'passed').length;
-    const disqualifiedScores = scores.filter(s => s.is_disqualified || s.composite_score < 35);
+    const qualified = scores.filter(
+      (s) => !s.is_disqualified && s.composite_score >= 50 && s.status !== 'passed',
+    ).length;
+    const disqualifiedScores = scores.filter((s) => s.is_disqualified || s.composite_score < 35);
     const disqualified = disqualifiedScores.length;
-    const strong = scores.filter(s => s.composite_score >= 80).length;
-    const approved = scores.filter(s => s.status === 'approved').length;
-    const interested = scores.filter(s => s.status === 'interested').length;
-    const passed = scores.filter(s => s.status === 'passed').length;
-    
+    const strong = scores.filter((s) => s.composite_score >= 80).length;
+    const approved = scores.filter((s) => s.status === 'approved').length;
+    const interested = scores.filter((s) => s.status === 'interested').length;
+    const passed = scores.filter((s) => s.status === 'passed').length;
+
     // Compute most common disqualification reason using score-based detection
-    const reasons = disqualifiedScores.map(s => {
+    const reasons = disqualifiedScores.map((s) => {
       if (s.disqualification_reason) return s.disqualification_reason;
       const r = s.fit_reasoning?.toLowerCase() || '';
 
@@ -295,7 +317,8 @@ const ReMarketingDealMatching = () => {
       if (r.includes('[missing_data:')) return 'insufficient data';
 
       // Check for explicit enforcement patterns
-      if (r.includes('disqualified: deal revenue') || r.includes('below buyer minimum')) return 'size mismatch';
+      if (r.includes('disqualified: deal revenue') || r.includes('below buyer minimum'))
+        return 'size mismatch';
       if (r.includes('dealbreaker: deal includes excluded')) return 'excluded criteria';
       if (r.includes('geography strict:')) return 'geography mismatch';
 
@@ -306,55 +329,68 @@ const ReMarketingDealMatching = () => {
         { name: 'service mismatch', score: s.service_score ?? 100 },
         { name: 'owner goals mismatch', score: s.owner_goals_score ?? 100 },
       ];
-      const weakest = dimensions.reduce((min, d) => d.score < min.score ? d : min, dimensions[0]);
+      const weakest = dimensions.reduce((min, d) => (d.score < min.score ? d : min), dimensions[0]);
       if (weakest.score < 40) return weakest.name;
 
       return 'criteria mismatch';
     });
 
-    const reasonCounts = reasons.reduce((acc, r) => ({ ...acc, [r]: (acc[r] || 0) + 1 }), {} as Record<string, number>);
+    const reasonCounts = reasons.reduce(
+      (acc, r) => ({ ...acc, [r]: (acc[r] || 0) + 1 }),
+      {} as Record<string, number>,
+    );
     const topReason = Object.entries(reasonCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || '';
 
-    return { qualified, disqualified, strong, approved, interested, passed, total: scores.length, disqualificationReason: topReason };
+    return {
+      qualified,
+      disqualified,
+      strong,
+      approved,
+      interested,
+      passed,
+      total: scores.length,
+      disqualificationReason: topReason,
+    };
   }, [scores]);
 
   // Get active outreach score IDs
   const activeOutreachScoreIds = useMemo(() => {
-    return outreachRecords
-      ?.filter(o => !['pending', 'closed_won', 'closed_lost'].includes(o.status ?? ''))
-      .map(o => o.score_id) || [];
+    return (
+      outreachRecords
+        ?.filter((o) => !['pending', 'closed_won', 'closed_lost'].includes(o.status ?? ''))
+        .map((o) => o.score_id) || []
+    );
   }, [outreachRecords]);
 
   // Count outreach
   const outreachCount = activeOutreachScoreIds.length;
 
-
   // Filter and sort scores
   const filteredScores = useMemo(() => {
     if (!scores) return [];
-    
+
     let filtered = [...scores];
-    
+
     // Apply tab filter
     if (activeTab === 'approved') {
-      filtered = filtered.filter(s => s.status === 'approved');
+      filtered = filtered.filter((s) => s.status === 'approved');
     } else if (activeTab === 'interested') {
-      filtered = filtered.filter(s => s.status === 'interested');
+      filtered = filtered.filter((s) => s.status === 'interested');
     } else if (activeTab === 'passed') {
-      filtered = filtered.filter(s => s.status === 'passed');
+      filtered = filtered.filter((s) => s.status === 'passed');
     } else if (activeTab === 'outreach') {
-      filtered = filtered.filter(s => activeOutreachScoreIds.includes(s.id));
+      filtered = filtered.filter((s) => activeOutreachScoreIds.includes(s.id));
     }
-    
+
     // Hide disqualified (only explicitly disqualified buyers, not just low scores)
     if (hideDisqualified) {
-      filtered = filtered.filter(s => !s.is_disqualified);
+      filtered = filtered.filter((s) => !s.is_disqualified);
     }
 
     // Search filter
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
-      filtered = filtered.filter(s => {
+      filtered = filtered.filter((s) => {
         const buyer = s.buyer;
         if (!buyer) return false;
         const companyName = (buyer.company_name || '').toLowerCase();
@@ -362,14 +398,20 @@ const ReMarketingDealMatching = () => {
         const thesis = (buyer.thesis_summary || '').toLowerCase();
         const location = (buyer.hq_state || '').toLowerCase();
         const city = (buyer.hq_city || '').toLowerCase();
-        return companyName.includes(q) || peFirm.includes(q) || thesis.includes(q) || location.includes(q) || city.includes(q);
+        return (
+          companyName.includes(q) ||
+          peFirm.includes(q) ||
+          thesis.includes(q) ||
+          location.includes(q) ||
+          city.includes(q)
+        );
       });
     }
-    
+
     // Sort
     filtered.sort((a, b) => {
       let comparison = 0;
-      
+
       switch (sortBy) {
         case 'score':
           comparison = (a.composite_score || 0) - (b.composite_score || 0);
@@ -379,26 +421,44 @@ const ReMarketingDealMatching = () => {
           break;
         case 'score_geo': {
           // Use actual geography weight ratio instead of hardcoded 60/40
-          const activeUniverse = selectedUniverse !== 'all'
-            ? linkedUniverses?.find(u => u.id === selectedUniverse)
-            : linkedUniverses?.[0];
+          const activeUniverse =
+            selectedUniverse !== 'all'
+              ? linkedUniverses?.find((u) => u.id === selectedUniverse)
+              : linkedUniverses?.[0];
           const geoRatio = Math.min(0.5, (activeUniverse?.geography_weight || 20) / 100);
           const scoreRatio = 1 - geoRatio;
-          const aWeighted = (a.composite_score || 0) * scoreRatio + (a.geography_score || 0) * geoRatio;
-          const bWeighted = (b.composite_score || 0) * scoreRatio + (b.geography_score || 0) * geoRatio;
+          const aWeighted =
+            (a.composite_score || 0) * scoreRatio + (a.geography_score || 0) * geoRatio;
+          const bWeighted =
+            (b.composite_score || 0) * scoreRatio + (b.geography_score || 0) * geoRatio;
           comparison = aWeighted - bWeighted;
           break;
         }
       }
-      
+
       return sortDesc ? -comparison : comparison;
     });
-    
+
     return filtered;
-  }, [scores, activeTab, hideDisqualified, sortBy, sortDesc, activeOutreachScoreIds, selectedUniverse, linkedUniverses, searchQuery]);
+  }, [
+    scores,
+    activeTab,
+    hideDisqualified,
+    sortBy,
+    sortDesc,
+    activeOutreachScoreIds,
+    selectedUniverse,
+    linkedUniverses,
+    searchQuery,
+  ]);
 
   // Log learning history helper
-  const logLearningHistory = async (scoreData: any, action: 'approved' | 'passed', passReason?: string, passCategory?: string) => {
+  const logLearningHistory = async (
+    scoreData: any,
+    action: 'approved' | 'passed',
+    passReason?: string,
+    passCategory?: string,
+  ) => {
     try {
       await supabase.from('buyer_learning_history').insert({
         buyer_id: scoreData.buyer_id,
@@ -422,15 +482,15 @@ const ReMarketingDealMatching = () => {
 
   // Update score status mutation
   const updateScoreMutation = useMutation({
-    mutationFn: async ({ 
-      id, 
-      status, 
+    mutationFn: async ({
+      id,
+      status,
       pass_reason,
       pass_category,
-      scoreData
-    }: { 
-      id: string; 
-      status: string; 
+      scoreData,
+    }: {
+      id: string;
+      status: string;
       pass_reason?: string;
       pass_category?: string;
       scoreData?: any;
@@ -439,15 +499,15 @@ const ReMarketingDealMatching = () => {
         .from('remarketing_scores')
         .update({ status, pass_reason, pass_category })
         .eq('id', id);
-      
+
       if (error) throw error;
 
       if (scoreData) {
         await logLearningHistory(
-          scoreData, 
-          status as 'approved' | 'passed', 
-          pass_reason, 
-          pass_category
+          scoreData,
+          status as 'approved' | 'passed',
+          pass_reason,
+          pass_category,
         );
       }
     },
@@ -458,7 +518,7 @@ const ReMarketingDealMatching = () => {
     },
     onError: () => {
       toast.error('Failed to update match');
-    }
+    },
   });
 
   // Bulk approve mutation
@@ -468,33 +528,40 @@ const ReMarketingDealMatching = () => {
         .from('remarketing_scores')
         .update({ status: 'approved' })
         .in('id', ids);
-      
+
       if (error) throw error;
-      
+
       // Log learning history + create outreach + discover contacts for each
       for (const id of ids) {
-        const scoreData = scores?.find(s => s.id === id);
+        const scoreData = scores?.find((s) => s.id === id);
         if (scoreData) {
           await logLearningHistory(scoreData, 'approved');
-          
+
           // Auto-create outreach record
           try {
-            await supabase.from('remarketing_outreach').upsert({
-              score_id: id,
-              listing_id: listingId!,
-              buyer_id: scoreData.buyer_id,
-              status: 'pending',
-              created_by: user?.id,
-            }, { onConflict: 'score_id' });
+            await supabase.from('remarketing_outreach').upsert(
+              {
+                score_id: id,
+                listing_id: listingId!,
+                buyer_id: scoreData.buyer_id,
+                status: 'pending',
+                created_by: user?.id,
+              },
+              { onConflict: 'score_id' },
+            );
           } catch (err) {
             // Failed to create outreach record — non-blocking
           }
-          
+
           // Fire-and-forget: discover contacts
           if (scoreData.buyer_id) {
-            supabase.functions.invoke('find-buyer-contacts', {
-              body: { buyerId: scoreData.buyer_id }
-            }).catch(() => { /* contact discovery failure is non-blocking */ });
+            supabase.functions
+              .invoke('find-buyer-contacts', {
+                body: { buyerId: scoreData.buyer_id },
+              })
+              .catch(() => {
+                /* contact discovery failure is non-blocking */
+              });
           }
         }
       }
@@ -507,7 +574,7 @@ const ReMarketingDealMatching = () => {
     },
     onError: () => {
       toast.error('Failed to bulk approve');
-    }
+    },
   });
 
   // Bulk score using edge function
@@ -521,7 +588,7 @@ const ReMarketingDealMatching = () => {
     setScoringProgress(10);
 
     try {
-      const { queueDealScoring } = await import("@/lib/remarketing/queueScoring");
+      const { queueDealScoring } = await import('@/lib/remarketing/queueScoring');
       await queueDealScoring({ universeId: selectedUniverse, listingIds: [listingId!] });
 
       setScoringProgress(100);
@@ -538,30 +605,31 @@ const ReMarketingDealMatching = () => {
   // Apply custom instructions and rescore
   const handleApplyAndRescore = async (instructions: string) => {
     if (!listingId) return;
-    
+
     // Save custom instructions to database
     try {
-      await supabase
-        .from('deal_scoring_adjustments')
-        .upsert({
+      await supabase.from('deal_scoring_adjustments').upsert(
+        {
           listing_id: listingId!,
           adjustment_type: 'custom_instructions',
           adjustment_value: 0,
           reason: instructions,
           created_by: user?.id,
-        }, { onConflict: 'listing_id,adjustment_type' });
+        },
+        { onConflict: 'listing_id,adjustment_type' },
+      );
     } catch (error) {
       // Failed to save custom instructions — non-critical
     }
-    
+
     // Trigger rescore with custom instructions
     await handleBulkScore(instructions);
   };
 
   // Reset scoring (clear custom instructions)
   const handleReset = async () => {
-    setCustomInstructions("");
-    
+    setCustomInstructions('');
+
     // Clear saved instructions
     try {
       await supabase
@@ -572,7 +640,7 @@ const ReMarketingDealMatching = () => {
     } catch (error) {
       // Failed to clear custom instructions — non-critical
     }
-    
+
     queryClient.invalidateQueries({ queryKey: ['remarketing', 'scores', listingId] });
     queryClient.invalidateQueries({ queryKey: ['deal-scoring-adjustments', listingId] });
     toast.success('Scoring reset');
@@ -586,12 +654,12 @@ const ReMarketingDealMatching = () => {
 
   const handleConfirmPass = (reason: string, category: string) => {
     if (selectedBuyerForPass) {
-      updateScoreMutation.mutate({ 
-        id: selectedBuyerForPass.id, 
+      updateScoreMutation.mutate({
+        id: selectedBuyerForPass.id,
         status: 'passed',
         pass_reason: reason,
         pass_category: category,
-        scoreData: selectedBuyerForPass.scoreData
+        scoreData: selectedBuyerForPass.scoreData,
       });
       setPassDialogOpen(false);
       setSelectedBuyerForPass(null);
@@ -611,18 +679,22 @@ const ReMarketingDealMatching = () => {
   };
 
   // Handle "Mark Interested" — updates status to 'interested' and auto-creates pipeline deal
-  const handleMarkInterested = async (scoreId: string, buyerId: string, targetListingId: string) => {
+  const handleMarkInterested = async (
+    scoreId: string,
+    buyerId: string,
+    targetListingId: string,
+  ) => {
     try {
       // 1. Update score status to interested
       const { error: updateError } = await supabase
         .from('remarketing_scores')
-        .update({ 
-          status: 'interested', 
-          interested: true, 
-          interested_at: new Date().toISOString() 
+        .update({
+          status: 'interested',
+          interested: true,
+          interested_at: new Date().toISOString(),
         })
         .eq('id', scoreId);
-      
+
       if (updateError) throw updateError;
 
       // 2. Auto-create pipeline deal
@@ -643,13 +715,16 @@ const ReMarketingDealMatching = () => {
 
     // Auto-create outreach record for approved buyer
     try {
-      const { error } = await supabase.from('remarketing_outreach').upsert({
-        score_id: scoreId,
-        listing_id: listingId!,
-        buyer_id: scoreData?.buyer_id,
-        status: 'pending',
-        created_by: user?.id,
-      }, { onConflict: 'score_id' });
+      const { error } = await supabase.from('remarketing_outreach').upsert(
+        {
+          score_id: scoreId,
+          listing_id: listingId!,
+          buyer_id: scoreData?.buyer_id,
+          status: 'pending',
+          created_by: user?.id,
+        },
+        { onConflict: 'score_id' },
+      );
 
       if (error) {
         // Outreach creation failed — non-blocking
@@ -661,9 +736,13 @@ const ReMarketingDealMatching = () => {
 
     // Fire-and-forget: auto-discover buyer contacts for approved buyer
     if (scoreData?.buyer_id) {
-      supabase.functions.invoke('find-buyer-contacts', {
-        body: { buyerId: scoreData.buyer_id }
-      }).catch(() => { /* contact discovery failure is non-blocking */ });
+      supabase.functions
+        .invoke('find-buyer-contacts', {
+          body: { buyerId: scoreData.buyer_id },
+        })
+        .catch(() => {
+          /* contact discovery failure is non-blocking */
+        });
     }
   };
 
@@ -681,30 +760,31 @@ const ReMarketingDealMatching = () => {
       .from('remarketing_scores')
       .update({ status: 'passed', pass_reason: reason, pass_category: category })
       .in('id', ids);
-    
+
     if (error) throw error;
-    
+
     // Log learning history for each
     for (const id of ids) {
-      const scoreData = scores?.find(s => s.id === id);
+      const scoreData = scores?.find((s) => s.id === id);
       if (scoreData) {
         await logLearningHistory(scoreData, 'passed', reason, category);
       }
     }
-    
+
     queryClient.invalidateQueries({ queryKey: ['remarketing', 'scores', listingId] });
     setSelectedIds(new Set());
   };
 
   // Handle export CSV
   const handleExportCSV = () => {
-    const selectedScores = scores?.filter(s => selectedIds.has(s.id)) || [];
+    const selectedScores = scores?.filter((s) => selectedIds.has(s.id)) || [];
     if (selectedScores.length === 0) return;
-    
-    const csvData = selectedScores.map(s => ({
+
+    const csvData = selectedScores.map((s) => ({
       buyer_name: s.buyer?.company_name || '',
       website: s.buyer?.company_website || '',
-      hq_location: s.buyer?.hq_city && s.buyer?.hq_state ? `${s.buyer.hq_city}, ${s.buyer.hq_state}` : '',
+      hq_location:
+        s.buyer?.hq_city && s.buyer?.hq_state ? `${s.buyer.hq_city}, ${s.buyer.hq_state}` : '',
       pe_firm: s.buyer?.pe_firm_name || '',
       score: s.composite_score,
       tier: s.tier,
@@ -717,13 +797,15 @@ const ReMarketingDealMatching = () => {
       status: s.status,
       fit_reasoning: s.fit_reasoning || '',
     }));
-    
+
     const headers = Object.keys(csvData[0]);
     const csv = [
       headers.join(','),
-      ...csvData.map(row => headers.map(h => `"${(row as Record<string, unknown>)[h] || ''}"`).join(','))
+      ...csvData.map((row) =>
+        headers.map((h) => `"${(row as Record<string, unknown>)[h] || ''}"`).join(','),
+      ),
     ].join('\n');
-    
+
     const blob = new Blob([csv], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -747,25 +829,28 @@ const ReMarketingDealMatching = () => {
 
   // Handle outreach update
   const handleOutreachUpdate = async (scoreId: string, status: OutreachStatus, notes: string) => {
-    const score = scores?.find(s => s.id === scoreId);
+    const score = scores?.find((s) => s.id === scoreId);
     if (!score) return;
-    
-    const { error } = await supabase.from('remarketing_outreach').upsert({
-      score_id: scoreId,
-      listing_id: listingId!,
-      buyer_id: score.buyer_id,
-      status,
-      notes,
-      contacted_at: status !== 'pending' ? new Date().toISOString() : null,
-      created_by: user?.id,
-    }, { onConflict: 'score_id' });
-    
+
+    const { error } = await supabase.from('remarketing_outreach').upsert(
+      {
+        score_id: scoreId,
+        listing_id: listingId!,
+        buyer_id: score.buyer_id,
+        status,
+        notes,
+        contacted_at: status !== 'pending' ? new Date().toISOString() : null,
+        created_by: user?.id,
+      },
+      { onConflict: 'score_id' },
+    );
+
     if (error) {
       // Outreach update failed — toast shown to user
       toast.error('Failed to update outreach status');
       return;
     }
-    
+
     toast.success('Outreach status updated');
     refetchOutreach();
   };
@@ -802,14 +887,31 @@ const ReMarketingDealMatching = () => {
   // Map buyer_id → pipeline deal_id for quick lookup
   const pipelineDealByBuyer = useMemo(() => {
     const map = new Map<string, string>();
-    pipelineDeals?.forEach(d => {
+    pipelineDeals?.forEach((d) => {
       if (d.remarketing_buyer_id) map.set(d.remarketing_buyer_id, d.id);
     });
     return map;
   }, [pipelineDeals]);
 
+  // Memoize selected buyers for the Add to List dialog to avoid re-fetching contacts on every render
+  const selectedBuyersForList = useMemo(() => {
+    if (!scores) return [];
+    return scores
+      .filter((s) => selectedIds.has(s.id))
+      .map((s) => ({
+        buyerId: s.buyer?.id || "",
+        companyName: s.buyer?.company_name || "Unknown",
+        scoreId: s.id,
+      }))
+      .filter((b) => b.buyerId);
+  }, [scores, selectedIds]);
+
   // Handle "Move to Pipeline" button
-  const handleMoveToPipeline = async (scoreId: string, buyerId: string, targetListingId: string) => {
+  const handleMoveToPipeline = async (
+    scoreId: string,
+    buyerId: string,
+    targetListingId: string,
+  ) => {
     try {
       const { data, error } = await supabase.functions.invoke('convert-to-pipeline-deal', {
         body: { listing_id: targetListingId, buyer_id: buyerId, score_id: scoreId },
@@ -874,72 +976,77 @@ const ReMarketingDealMatching = () => {
 
   return (
     <RemarketingErrorBoundary fallbackMessage="Failed to load buyer matches">
-    <div className="p-6 space-y-6">
-      {/* Header */}
-      <div className="flex items-center gap-4">
-        <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
-          <ArrowLeft className="h-4 w-4" />
-        </Button>
-        <div className="flex-1">
-          <h1 className="text-2xl font-bold tracking-tight">Buyer Matches</h1>
-          <p className="text-muted-foreground">
-            {listing.title} · {stats.total} buyers scored
-          </p>
-        </div>
-        
-      </div>
-
-      {/* Listing Summary Card — Top of page */}
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="flex items-center justify-between text-lg">
-            <span>{listing.title}</span>
-            <Button variant="ghost" size="sm" asChild>
-              <Link to={`/admin/marketplace/listings/${listing.id}`}>
-                <ExternalLink className="h-4 w-4 mr-1" />
-                View Listing
-              </Link>
-            </Button>
-          </CardTitle>
-          <CardDescription>{listing.hero_description || 'No description'}</CardDescription>
-        </CardHeader>
-        <CardContent className="pt-0">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-            <div className="flex items-center gap-2">
-              <DollarSign className="h-4 w-4 text-muted-foreground" />
-              <div>
-                <p className="text-muted-foreground">Revenue</p>
-                <p className="font-medium">{formatCurrency(listing.revenue)}</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <DollarSign className="h-4 w-4 text-muted-foreground" />
-              <div>
-                <p className="text-muted-foreground">EBITDA</p>
-                <p className="font-medium">{formatCurrency(listing.ebitda)}</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <MapPin className="h-4 w-4 text-muted-foreground" />
-              <div>
-                <p className="text-muted-foreground">Location</p>
-                <p className="font-medium">{listing.location || (listing.address_city && listing.address_state ? `${listing.address_city}, ${listing.address_state}` : listing.address_state || listing.address_city || '—')}</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <Briefcase className="h-4 w-4 text-muted-foreground" />
-              <div>
-                <p className="text-muted-foreground">Services</p>
-                <p className="font-medium">
-                  {(listing.services?.length ?? 0) > 0
-                    ? listing.services!.slice(0, 3).join(', ') + (listing.services!.length > 3 ? ` +${listing.services!.length - 3}` : '')
-                    : listing.category || '—'}
-                </p>
-              </div>
-            </div>
+      <div className="p-6 space-y-6">
+        {/* Header */}
+        <div className="flex items-center gap-4">
+          <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
+            <ArrowLeft className="h-4 w-4" />
+          </Button>
+          <div className="flex-1">
+            <h1 className="text-2xl font-bold tracking-tight">Buyer Matches</h1>
+            <p className="text-muted-foreground">
+              {listing.title} · {stats.total} buyers scored
+            </p>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+
+        {/* Listing Summary Card — Top of page */}
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center justify-between text-lg">
+              <span>{listing.title}</span>
+              <Button variant="ghost" size="sm" asChild>
+                <Link to={`/admin/marketplace/listings/${listing.id}`}>
+                  <ExternalLink className="h-4 w-4 mr-1" />
+                  View Listing
+                </Link>
+              </Button>
+            </CardTitle>
+            <CardDescription>{listing.hero_description || 'No description'}</CardDescription>
+          </CardHeader>
+          <CardContent className="pt-0">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+              <div className="flex items-center gap-2">
+                <DollarSign className="h-4 w-4 text-muted-foreground" />
+                <div>
+                  <p className="text-muted-foreground">Revenue</p>
+                  <p className="font-medium">{formatCurrency(listing.revenue)}</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <DollarSign className="h-4 w-4 text-muted-foreground" />
+                <div>
+                  <p className="text-muted-foreground">EBITDA</p>
+                  <p className="font-medium">{formatCurrency(listing.ebitda)}</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <MapPin className="h-4 w-4 text-muted-foreground" />
+                <div>
+                  <p className="text-muted-foreground">Location</p>
+                  <p className="font-medium">
+                    {listing.location ||
+                      (listing.address_city && listing.address_state
+                        ? `${listing.address_city}, ${listing.address_state}`
+                        : listing.address_state || listing.address_city || '—')}
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <Briefcase className="h-4 w-4 text-muted-foreground" />
+                <div>
+                  <p className="text-muted-foreground">Services</p>
+                  <p className="font-medium">
+                    {(listing.services?.length ?? 0) > 0
+                      ? listing.services!.slice(0, 3).join(', ') +
+                        (listing.services!.length > 3 ? ` +${listing.services!.length - 3}` : '')
+                      : listing.category || '—'}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
       {/* Bulk Actions Toolbar */}
       <BulkActionsToolbar
@@ -950,6 +1057,7 @@ const ReMarketingDealMatching = () => {
         onExportCSV={handleExportCSV}
         onGenerateEmails={() => setEmailDialogOpen(true)}
         onPushToDialer={() => setDialerOpen(true)}
+        onAddToList={() => setAddToListOpen(true)}
         isProcessing={bulkApproveMutation.isPending}
         activeTab={activeTab}
       />
@@ -959,6 +1067,11 @@ const ReMarketingDealMatching = () => {
         contactIds={Array.from(selectedIds)}
         contactCount={selectedIds.size}
         entityType="buyers"
+      />
+      <AddBuyersToListDialog
+        open={addToListOpen}
+        onOpenChange={setAddToListOpen}
+        selectedBuyers={selectedBuyersForList}
       />
 
       {/* Two-Column Stats Row */}
@@ -1001,288 +1114,341 @@ const ReMarketingDealMatching = () => {
               </div>
             </CardContent>
           </Card>
-          
-          {/* Right: Collapsible Scoring Insights Panel */}
-          {linkedUniverses && linkedUniverses.length > 0 && (
-            <div className="lg:col-span-2">
-              <ScoringInsightsPanel
-                universeId={selectedUniverse !== 'all' ? selectedUniverse : linkedUniverses[0]?.id}
-                universeName={
-                  selectedUniverse === 'all' 
-                    ? `${linkedUniverses.length} universes` 
-                    : linkedUniverses?.find(u => u.id === selectedUniverse)?.name
-                }
-                weights={{
-                  geography: (selectedUniverse !== 'all'
-                    ? linkedUniverses?.find(u => u.id === selectedUniverse)?.geography_weight
-                    : linkedUniverses[0]?.geography_weight) || 20,
-                  size: (selectedUniverse !== 'all'
-                    ? linkedUniverses?.find(u => u.id === selectedUniverse)?.size_weight
-                    : linkedUniverses[0]?.size_weight) || 30,
-                  service: (selectedUniverse !== 'all'
-                    ? linkedUniverses?.find(u => u.id === selectedUniverse)?.service_weight
-                    : linkedUniverses[0]?.service_weight) || 45,
-                  ownerGoals: (selectedUniverse !== 'all'
-                    ? linkedUniverses?.find(u => u.id === selectedUniverse)?.owner_goals_weight
-                    : linkedUniverses[0]?.owner_goals_weight) || 5,
-                }}
-                outcomeStats={{
-                  approved: stats.approved,
-                  passed: stats.passed,
-                  removed: 0,
-                }}
-                decisionCount={stats.approved + stats.passed}
-                isWeightsAdjusted={!!customInstructions}
-                customInstructions={customInstructions}
-                onInstructionsChange={setCustomInstructions}
-                onApplyAndRescore={handleApplyAndRescore}
-                onRecalculate={() => handleBulkScore()}
-                onReset={handleReset}
-                isRecalculating={isScoring}
-                geographyMode={geographyMode}
-                onGeographyModeChange={setGeographyMode}
+
+            {/* Right: Collapsible Scoring Insights Panel */}
+            {linkedUniverses && linkedUniverses.length > 0 && (
+              <div className="lg:col-span-2">
+                <ScoringInsightsPanel
+                  universeId={
+                    selectedUniverse !== 'all' ? selectedUniverse : linkedUniverses[0]?.id
+                  }
+                  universeName={
+                    selectedUniverse === 'all'
+                      ? `${linkedUniverses.length} universes`
+                      : linkedUniverses?.find((u) => u.id === selectedUniverse)?.name
+                  }
+                  weights={{
+                    geography:
+                      (selectedUniverse !== 'all'
+                        ? linkedUniverses?.find((u) => u.id === selectedUniverse)?.geography_weight
+                        : linkedUniverses[0]?.geography_weight) || 20,
+                    size:
+                      (selectedUniverse !== 'all'
+                        ? linkedUniverses?.find((u) => u.id === selectedUniverse)?.size_weight
+                        : linkedUniverses[0]?.size_weight) || 30,
+                    service:
+                      (selectedUniverse !== 'all'
+                        ? linkedUniverses?.find((u) => u.id === selectedUniverse)?.service_weight
+                        : linkedUniverses[0]?.service_weight) || 45,
+                    ownerGoals:
+                      (selectedUniverse !== 'all'
+                        ? linkedUniverses?.find((u) => u.id === selectedUniverse)
+                            ?.owner_goals_weight
+                        : linkedUniverses[0]?.owner_goals_weight) || 5,
+                  }}
+                  outcomeStats={{
+                    approved: stats.approved,
+                    passed: stats.passed,
+                    removed: 0,
+                  }}
+                  decisionCount={stats.approved + stats.passed}
+                  isWeightsAdjusted={!!customInstructions}
+                  customInstructions={customInstructions}
+                  onInstructionsChange={setCustomInstructions}
+                  onApplyAndRescore={handleApplyAndRescore}
+                  onRecalculate={() => handleBulkScore()}
+                  onReset={handleReset}
+                  isRecalculating={isScoring}
+                  geographyMode={geographyMode}
+                  onGeographyModeChange={setGeographyMode}
+                />
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Deal Data Quality Warning */}
+        {listing &&
+          (() => {
+            const missingFields: string[] = [];
+            if (!listing.revenue) missingFields.push('Revenue');
+            if (!listing.ebitda) missingFields.push('EBITDA');
+            if (
+              !listing.location?.trim() &&
+              !listing.address_city?.trim() &&
+              !listing.address_state?.trim() &&
+              !((listing.geographic_states?.length ?? 0) > 0)
+            )
+              missingFields.push('Location');
+            if (
+              !(
+                (listing.services?.length ?? 0) > 0 ||
+                (listing.categories?.length ?? 0) > 0 ||
+                listing.category?.trim()
+              )
+            )
+              missingFields.push('Services/Category');
+            if (
+              !(
+                listing.hero_description?.trim() ||
+                listing.description?.trim() ||
+                listing.executive_summary?.trim()
+              )
+            )
+              missingFields.push('Description');
+
+            if (missingFields.length === 0) return null;
+
+            return (
+              <div
+                className={`rounded-lg border p-4 ${missingFields.length >= 3 ? 'bg-red-50 border-red-200' : 'bg-amber-50 border-amber-200'}`}
+              >
+                <div className="flex items-start gap-3">
+                  <AlertCircle
+                    className={`h-5 w-5 mt-0.5 flex-shrink-0 ${missingFields.length >= 3 ? 'text-red-600' : 'text-amber-600'}`}
+                  />
+                  <div className="flex-1">
+                    <p
+                      className={`font-medium text-sm ${missingFields.length >= 3 ? 'text-red-800' : 'text-amber-800'}`}
+                    >
+                      {missingFields.length >= 3 ? 'Low Data Quality' : 'Missing Scoring Data'} —{' '}
+                      {missingFields.length} field{missingFields.length > 1 ? 's' : ''} missing
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Missing: <strong>{missingFields.join(', ')}</strong>. Scores will use weight
+                      redistribution for missing dimensions — consider enriching the deal first for
+                      more accurate matching.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
+
+        {/* Scoring Controls (no card wrapper) */}
+        {(isScoring || backgroundScoring.isScoring) && (
+          <div>
+            <ScoringProgressIndicator
+              currentCount={backgroundScoring.currentCount || Math.round(scoringProgress / 10)}
+              expectedCount={backgroundScoring.expectedCount || 10}
+              progress={backgroundScoring.progress || scoringProgress}
+              universeName={linkedUniverses?.find((u) => u.id === selectedUniverse)?.name}
+            />
+          </div>
+        )}
+
+        {/* Search, Tabs & Sort Controls */}
+        {scores && scores.length > 0 && (
+          <div className="space-y-3">
+            {/* Search Bar */}
+            <div className="relative max-w-md">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search buyers by name, firm, location..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-9"
               />
+            </div>
+
+            <div className="flex items-center justify-between flex-wrap gap-4">
+              {/* Tabs */}
+              <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as FilterTab)}>
+                <TabsList>
+                  <TabsTrigger value="all">
+                    All Buyers (
+                    {filteredScores.length !== stats.total ? `${filteredScores.length}/` : ''}
+                    {stats.total})
+                  </TabsTrigger>
+                  <TabsTrigger value="approved">Approved ({stats.approved})</TabsTrigger>
+                  <TabsTrigger value="interested">Interested ({stats.interested})</TabsTrigger>
+                  <TabsTrigger value="passed">Not Interested ({stats.passed})</TabsTrigger>
+                  <TabsTrigger value="outreach">
+                    <Mail className="h-3.5 w-3.5 mr-1" />
+                    In Outreach ({outreachCount})
+                  </TabsTrigger>
+                </TabsList>
+              </Tabs>
+
+              {/* Sort Controls */}
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-muted-foreground">Sort by:</span>
+                <div className="flex gap-1">
+                  <Button
+                    variant={sortBy === 'score' ? 'secondary' : 'ghost'}
+                    size="sm"
+                    onClick={() => setSortBy('score')}
+                  >
+                    <Sparkles className="h-3.5 w-3.5 mr-1" />
+                    Score
+                  </Button>
+                  <Button
+                    variant={sortBy === 'geography' ? 'secondary' : 'ghost'}
+                    size="sm"
+                    onClick={() => setSortBy('geography')}
+                  >
+                    <MapPin className="h-3.5 w-3.5 mr-1" />
+                    Geography
+                  </Button>
+                  <Button
+                    variant={sortBy === 'score_geo' ? 'secondary' : 'ghost'}
+                    size="sm"
+                    onClick={() => setSortBy('score_geo')}
+                  >
+                    <Sparkles className="h-3.5 w-3.5 mr-1" />
+                    Score + Geo
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8"
+                    onClick={() => setSortDesc(!sortDesc)}
+                  >
+                    <ArrowUpDown className={cn('h-4 w-4', !sortDesc && 'rotate-180')} />
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Match Cards - Full Width */}
+        <div className="space-y-3">
+          {scoresLoading ? (
+            <div className="space-y-3">
+              {[1, 2, 3].map((i) => (
+                <Skeleton key={i} className="h-48" />
+              ))}
+            </div>
+          ) : (!linkedUniverses || linkedUniverses.length === 0) &&
+            (!allScores || allScores.length === 0) ? (
+            // No universes linked - show quick action to add
+            <AddToUniverseQuickAction
+              listingId={listingId!}
+              listingCategory={listing.category}
+              onUniverseAdded={() => {
+                refetchLinkedUniverses();
+                queryClient.invalidateQueries({ queryKey: ['remarketing', 'scores', listingId] });
+              }}
+            />
+          ) : filteredScores.length === 0 && allScores && allScores.length === 0 ? (
+            <Card>
+              <CardContent className="py-12 text-center">
+                <Sparkles className="mx-auto h-12 w-12 text-muted-foreground/50 mb-4" />
+                <h3 className="font-semibold text-lg mb-1">No matches yet</h3>
+                <p className="text-muted-foreground">
+                  Select a universe and click "Score Buyers" to find matches
+                </p>
+              </CardContent>
+            </Card>
+          ) : filteredScores.length === 0 ? (
+            <Card>
+              <CardContent className="py-12 text-center">
+                <p className="text-muted-foreground">No buyers match the current filters</p>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="space-y-3">
+              {filteredScores.map((score: any) => {
+                const outreach = outreachRecords?.find((o) => o.score_id === score.id);
+                return (
+                  <BuyerMatchCard
+                    key={score.id}
+                    score={score}
+                    dealLocation={
+                      listing.location ||
+                      (listing.address_city && listing.address_state
+                        ? `${listing.address_city}, ${listing.address_state}`
+                        : listing.address_state || listing.address_city) ||
+                      undefined
+                    }
+                    isSelected={selectedIds.has(score.id)}
+                    isHighlighted={highlightedBuyerIds.includes(score.buyer?.id || '')}
+                    onSelect={handleSelect}
+                    onApprove={handleApprove}
+                    onPass={handleOpenPassDialog}
+                    onToggleInterested={handleToggleApproved}
+                    onMarkInterested={handleMarkInterested}
+                    onOutreachUpdate={handleOutreachUpdate}
+                    onViewed={handleScoreViewed}
+                    onMoveToPipeline={handleMoveToPipeline}
+                    outreach={
+                      outreach
+                        ? {
+                            status: outreach.status as OutreachStatus,
+                            contacted_at: outreach.contacted_at ?? undefined,
+                            notes: outreach.notes ?? undefined,
+                          }
+                        : undefined
+                    }
+                    isPending={updateScoreMutation.isPending}
+                    universeName={selectedUniverse === 'all' ? score.universe?.name : undefined}
+                    firmFeeAgreement={feeAgreementLookup.get(score.id)}
+                    pipelineDealId={pipelineDealByBuyer.get(score.buyer?.id || '') || null}
+                    listingId={listingId}
+                  />
+                );
+              })}
             </div>
           )}
         </div>
-      )}
 
-      {/* Deal Data Quality Warning */}
-      {listing && (() => {
-        const missingFields: string[] = [];
-        if (!listing.revenue) missingFields.push('Revenue');
-        if (!listing.ebitda) missingFields.push('EBITDA');
-        if (!listing.location?.trim() && !listing.address_city?.trim() && !listing.address_state?.trim() && !((listing.geographic_states?.length ?? 0) > 0)) missingFields.push('Location');
-        if (!((listing.services?.length ?? 0) > 0 || (listing.categories?.length ?? 0) > 0 || listing.category?.trim())) missingFields.push('Services/Category');
-        if (!(listing.hero_description?.trim() || listing.description?.trim() || listing.executive_summary?.trim())) missingFields.push('Description');
+        {/* Pass Reason Dialog */}
+        <PassReasonDialog
+          open={passDialogOpen}
+          onOpenChange={setPassDialogOpen}
+          buyerName={selectedBuyerForPass?.name || ''}
+          onConfirm={handleConfirmPass}
+          isLoading={updateScoreMutation.isPending}
+        />
 
-        if (missingFields.length === 0) return null;
+        {/* Email Preview Dialog */}
+        <EmailPreviewDialog
+          open={emailDialogOpen}
+          onOpenChange={setEmailDialogOpen}
+          buyers={(scores?.filter((s) => selectedIds.has(s.id)) || []).map((s) => ({
+            buyerId: s.buyer?.id || '',
+            buyerName: s.buyer?.company_name || 'Unknown',
+            companyWebsite: s.buyer?.company_website ?? undefined,
+            peFirmName: s.buyer?.pe_firm_name ?? undefined,
+            contacts:
+              (
+                s.buyer?.contacts as unknown as
+                  | { first_name?: string; last_name?: string; email: string | null }[]
+                  | undefined
+              )?.map((c) => ({
+                name: [c.first_name, c.last_name].filter(Boolean).join(' ') || '',
+                email: c.email,
+              })) || [],
+            fitReasoning: s.fit_reasoning ?? undefined,
+            compositeScore: s.composite_score,
+          }))}
+          deal={{
+            id: listing?.id || '',
+            title: listing?.title || '',
+            location: listing?.location ?? undefined,
+            revenue: listing?.revenue ?? undefined,
+            ebitda: listing?.ebitda ?? undefined,
+            category: listing?.category ?? undefined,
+            description: listing?.hero_description ?? undefined,
+          }}
+        />
 
-        return (
-          <div className={`rounded-lg border p-4 ${missingFields.length >= 3 ? 'bg-red-50 border-red-200' : 'bg-amber-50 border-amber-200'}`}>
-            <div className="flex items-start gap-3">
-              <AlertCircle className={`h-5 w-5 mt-0.5 flex-shrink-0 ${missingFields.length >= 3 ? 'text-red-600' : 'text-amber-600'}`} />
-              <div className="flex-1">
-                <p className={`font-medium text-sm ${missingFields.length >= 3 ? 'text-red-800' : 'text-amber-800'}`}>
-                  {missingFields.length >= 3 ? 'Low Data Quality' : 'Missing Scoring Data'} — {missingFields.length} field{missingFields.length > 1 ? 's' : ''} missing
-                </p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  Missing: <strong>{missingFields.join(', ')}</strong>.
-                  {' '}Scores will use weight redistribution for missing dimensions — consider enriching the deal first for more accurate matching.
-                </p>
-              </div>
-            </div>
-          </div>
-        );
-      })()}
-
-      {/* Scoring Controls (no card wrapper) */}
-      {(isScoring || backgroundScoring.isScoring) && (
-        <div>
-          <ScoringProgressIndicator
-            currentCount={backgroundScoring.currentCount || Math.round(scoringProgress / 10)}
-            expectedCount={backgroundScoring.expectedCount || 10}
-            progress={backgroundScoring.progress || scoringProgress}
-            universeName={linkedUniverses?.find(u => u.id === selectedUniverse)?.name}
-          />
-        </div>
-      )}
-
-      {/* Search, Tabs & Sort Controls */}
-      {scores && scores.length > 0 && (
-        <div className="space-y-3">
-          {/* Search Bar */}
-          <div className="relative max-w-md">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search buyers by name, firm, location..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-9"
-            />
-          </div>
-
-          <div className="flex items-center justify-between flex-wrap gap-4">
-            {/* Tabs */}
-            <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as FilterTab)}>
-              <TabsList>
-                <TabsTrigger value="all">
-                  All Buyers ({filteredScores.length !== stats.total ? `${filteredScores.length}/` : ''}{stats.total})
-                </TabsTrigger>
-                <TabsTrigger value="approved">
-                  Approved ({stats.approved})
-                </TabsTrigger>
-                <TabsTrigger value="interested">
-                  Interested ({stats.interested})
-                </TabsTrigger>
-                <TabsTrigger value="passed">
-                  Not Interested ({stats.passed})
-                </TabsTrigger>
-                <TabsTrigger value="outreach">
-                  <Mail className="h-3.5 w-3.5 mr-1" />
-                  In Outreach ({outreachCount})
-                </TabsTrigger>
-              </TabsList>
-            </Tabs>
-            
-            {/* Sort Controls */}
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-muted-foreground">Sort by:</span>
-              <div className="flex gap-1">
-                <Button
-                  variant={sortBy === 'score' ? 'secondary' : 'ghost'}
-                  size="sm"
-                  onClick={() => setSortBy('score')}
-                >
-                  <Sparkles className="h-3.5 w-3.5 mr-1" />
-                  Score
-                </Button>
-                <Button
-                  variant={sortBy === 'geography' ? 'secondary' : 'ghost'}
-                  size="sm"
-                  onClick={() => setSortBy('geography')}
-                >
-                  <MapPin className="h-3.5 w-3.5 mr-1" />
-                  Geography
-                </Button>
-                <Button
-                  variant={sortBy === 'score_geo' ? 'secondary' : 'ghost'}
-                  size="sm"
-                  onClick={() => setSortBy('score_geo')}
-                >
-                  <Sparkles className="h-3.5 w-3.5 mr-1" />
-                  Score + Geo
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8"
-                  onClick={() => setSortDesc(!sortDesc)}
-                >
-                  <ArrowUpDown className={cn("h-4 w-4", !sortDesc && "rotate-180")} />
-                </Button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Match Cards - Full Width */}
-      <div className="space-y-3">
-        {scoresLoading ? (
-          <div className="space-y-3">
-            {[1, 2, 3].map((i) => (
-              <Skeleton key={i} className="h-48" />
-            ))}
-          </div>
-        ) : (!linkedUniverses || linkedUniverses.length === 0) && (!allScores || allScores.length === 0) ? (
-          // No universes linked - show quick action to add
-          <AddToUniverseQuickAction
-            listingId={listingId!}
-            listingCategory={listing.category}
-            onUniverseAdded={() => {
-              refetchLinkedUniverses();
-              queryClient.invalidateQueries({ queryKey: ['remarketing', 'scores', listingId] });
-            }}
-          />
-        ) : filteredScores.length === 0 && allScores && allScores.length === 0 ? (
-          <Card>
-            <CardContent className="py-12 text-center">
-              <Sparkles className="mx-auto h-12 w-12 text-muted-foreground/50 mb-4" />
-              <h3 className="font-semibold text-lg mb-1">No matches yet</h3>
-              <p className="text-muted-foreground">
-                Select a universe and click "Score Buyers" to find matches
-              </p>
-            </CardContent>
-          </Card>
-        ) : filteredScores.length === 0 ? (
-          <Card>
-            <CardContent className="py-12 text-center">
-              <p className="text-muted-foreground">
-                No buyers match the current filters
-              </p>
-            </CardContent>
-          </Card>
-        ) : (
-          <div className="space-y-3">
-            {filteredScores.map((score: any) => {
-              const outreach = outreachRecords?.find(o => o.score_id === score.id);
-              return (
-                <BuyerMatchCard
-                  key={score.id}
-                  score={score}
-                  dealLocation={listing.location || (listing.address_city && listing.address_state ? `${listing.address_city}, ${listing.address_state}` : listing.address_state || listing.address_city) || undefined}
-                  isSelected={selectedIds.has(score.id)}
-                  isHighlighted={highlightedBuyerIds.includes(score.buyer?.id || '')}
-                  onSelect={handleSelect}
-                  onApprove={handleApprove}
-                  onPass={handleOpenPassDialog}
-                  onToggleInterested={handleToggleApproved}
-                  onMarkInterested={handleMarkInterested}
-                  onOutreachUpdate={handleOutreachUpdate}
-                  onViewed={handleScoreViewed}
-                  onMoveToPipeline={handleMoveToPipeline}
-                  outreach={outreach ? { status: outreach.status as OutreachStatus, contacted_at: outreach.contacted_at ?? undefined, notes: outreach.notes ?? undefined } : undefined}
-                  isPending={updateScoreMutation.isPending}
-                  universeName={selectedUniverse === 'all' ? score.universe?.name : undefined}
-                  firmFeeAgreement={feeAgreementLookup.get(score.id)}
-                  pipelineDealId={pipelineDealByBuyer.get(score.buyer?.id || '') || null}
-                  listingId={listingId}
-                />
-              );
-            })}
-          </div>
-        )}
+        {/* AI Chat */}
+        <ReMarketingChat
+          context={{ type: 'deal', dealId: listingId || '', dealName: listing?.title }}
+          onHighlightItems={(ids) => {
+            setHighlightedBuyerIds(ids);
+            // Scroll to first highlighted buyer
+            if (ids.length > 0) {
+              setTimeout(() => {
+                const el = document.getElementById(`buyer-card-${ids[0]}`);
+                el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+              }, 100);
+            }
+          }}
+        />
       </div>
-
-      {/* Pass Reason Dialog */}
-      <PassReasonDialog
-        open={passDialogOpen}
-        onOpenChange={setPassDialogOpen}
-        buyerName={selectedBuyerForPass?.name || ''}
-        onConfirm={handleConfirmPass}
-        isLoading={updateScoreMutation.isPending}
-      />
-
-      {/* Email Preview Dialog */}
-      <EmailPreviewDialog
-        open={emailDialogOpen}
-        onOpenChange={setEmailDialogOpen}
-        buyers={(scores?.filter(s => selectedIds.has(s.id)) || []).map(s => ({
-          buyerId: s.buyer?.id || '',
-          buyerName: s.buyer?.company_name || 'Unknown',
-          companyWebsite: s.buyer?.company_website ?? undefined,
-          peFirmName: s.buyer?.pe_firm_name ?? undefined,
-          contacts: (s.buyer?.contacts as unknown as { first_name?: string; last_name?: string; email: string | null }[] | undefined)?.map((c) => ({ name: [c.first_name, c.last_name].filter(Boolean).join(' ') || '', email: c.email })) || [],
-          fitReasoning: s.fit_reasoning ?? undefined,
-          compositeScore: s.composite_score,
-        }))}
-        deal={{
-          id: listing?.id || '',
-          title: listing?.title || '',
-          location: listing?.location ?? undefined,
-          revenue: listing?.revenue ?? undefined,
-          ebitda: listing?.ebitda ?? undefined,
-          category: listing?.category ?? undefined,
-          description: listing?.hero_description ?? undefined,
-        }}
-      />
-
-      {/* AI Chat */}
-      <ReMarketingChat
-        context={{ type: "deal", dealId: listingId || '', dealName: listing?.title }}
-        onHighlightItems={(ids) => {
-          setHighlightedBuyerIds(ids);
-          // Scroll to first highlighted buyer
-          if (ids.length > 0) {
-            setTimeout(() => {
-              const el = document.getElementById(`buyer-card-${ids[0]}`);
-              el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            }, 100);
-          }
-        }}
-      />
-    </div>
     </RemarketingErrorBoundary>
   );
 };

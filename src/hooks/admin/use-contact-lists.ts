@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import type { ContactList, CreateContactListInput, ContactListMember } from '@/types/contact-list';
+import type { ContactList, CreateContactListInput, ContactListMember, CreateContactListMemberInput } from '@/types/contact-list';
 import { useToast } from '@/hooks/use-toast';
 
 const QUERY_KEY = ['admin', 'contact-lists'];
@@ -154,6 +154,55 @@ export function useCreateContactList() {
     onError: (error: any) => {
       toast({
         title: 'Failed to create list',
+        description: error.message,
+        variant: 'destructive',
+      });
+    },
+  });
+}
+
+export function useAddMembersToList() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async ({ listId, members }: { listId: string; members: CreateContactListMemberInput[] }) => {
+      if (members.length === 0) throw new Error('No contacts to add');
+
+      // Upsert members to handle duplicates gracefully (unique on list_id + contact_email)
+      const memberRows = members.map((m) => ({
+        list_id: listId,
+        contact_email: m.contact_email,
+        contact_name: m.contact_name,
+        contact_phone: m.contact_phone,
+        contact_company: m.contact_company,
+        contact_role: m.contact_role,
+        entity_type: m.entity_type,
+        entity_id: m.entity_id,
+        removed_at: null,
+      }));
+
+      const { error: membersError } = await supabase
+        .from('contact_list_members')
+        .upsert(memberRows, { onConflict: 'list_id,contact_email', ignoreDuplicates: false });
+
+      if (membersError) throw membersError;
+
+      // contact_count is auto-updated by DB trigger
+
+      return { listId, addedCount: members.length };
+    },
+    onSuccess: ({ listId, addedCount }) => {
+      queryClient.invalidateQueries({ queryKey: QUERY_KEY });
+      queryClient.invalidateQueries({ queryKey: [...QUERY_KEY, listId] });
+      toast({
+        title: 'Contacts added',
+        description: `${addedCount} contact${addedCount !== 1 ? 's' : ''} added to list.`,
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: 'Failed to add contacts',
         description: error.message,
         variant: 'destructive',
       });

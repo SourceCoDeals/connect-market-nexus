@@ -262,6 +262,36 @@ const BYPASS_RULES: Array<{
       confidence: 0.85,
     },
   },
+  // Smartlead email campaigns — campaign status, email outreach, cold email
+  {
+    test: (q) =>
+      /\b(smartlead|smart.?lead|email campaign|cold email|email outreach|email sequence|campaign stats|campaign performance|how.?s the email|email history|outreach email|drip campaign|email cadence)\b/i.test(
+        q,
+      ),
+    result: {
+      category: 'SMARTLEAD_OUTREACH',
+      tier: 'STANDARD',
+      tools: [
+        'get_smartlead_campaigns',
+        'get_smartlead_campaign_stats',
+        'get_smartlead_email_history',
+      ],
+      confidence: 0.9,
+    },
+  },
+  // Push to Smartlead — add to email campaign
+  {
+    test: (q) =>
+      /\b(push.*(smartlead|smart.?lead|email campaign)|add.*(email campaign|smartlead)|email.*(these|them|buyer)|start emailing|cold email.*(these|them|push))\b/i.test(
+        q,
+      ),
+    result: {
+      category: 'SMARTLEAD_OUTREACH',
+      tier: 'STANDARD',
+      tools: ['push_to_smartlead', 'get_smartlead_campaigns', 'search_buyers', 'search_contacts'],
+      confidence: 0.92,
+    },
+  },
   // PhoneBurner call history — call activity, call logs, calling questions
   {
     test: (q) =>
@@ -768,10 +798,11 @@ Categories:
 - EOD_RECAP: End-of-day/week recaps, daily summaries, "what did I do today"
 - GOOGLE_SEARCH: Search Google for companies, websites, LinkedIn pages, research
 - DEAL_CONVERSION: Convert remarketing match to pipeline deal
+- SMARTLEAD_OUTREACH: Smartlead cold email campaigns, email outreach history, push contacts to email campaigns, campaign stats
 - INDUSTRY: Industry trackers, vertical scoring configs
 - GENERAL: Other / unclear intent
 
-Available tools: query_deals, get_deal_details, get_deal_activities, get_deal_tasks, get_deal_documents, get_deal_memos, get_deal_comments, get_deal_scoring_adjustments, get_deal_referrals, get_deal_conversations, get_pipeline_summary, search_buyers, get_buyer_profile, get_score_breakdown, get_top_buyers_for_deal, get_buyer_decisions, get_score_history, get_buyer_learning_history, search_lead_sources, search_valuation_leads, search_inbound_leads, get_referral_data, search_pe_contacts, get_firm_agreements, get_nda_logs, get_connection_requests, get_connection_messages, search_buyer_universes, get_universe_details, get_outreach_records, get_remarketing_outreach, get_engagement_signals, get_interest_signals, search_transcripts, search_buyer_transcripts, search_fireflies, get_meeting_action_items, get_outreach_status, get_analytics, get_enrichment_status, get_industry_trackers, get_current_user_context, create_deal_task, complete_deal_task, add_deal_note, log_deal_activity, update_deal_stage, grant_data_room_access, select_table_rows, apply_table_filter, sort_table_column, navigate_to_page, explain_buyer_score, get_cross_deal_analytics, semantic_transcript_search, get_follow_up_queue, get_call_history, search_contacts, get_stale_deals, get_document_engagement, enrich_buyer_contacts, push_to_phoneburner, send_document, google_search_companies, save_contacts_to_crm, reassign_deal_task, convert_to_pipeline_deal, get_data_quality_report, detect_buyer_conflicts, get_deal_health, match_leads_to_deals, generate_eod_recap
+Available tools: query_deals, get_deal_details, get_deal_activities, get_deal_tasks, get_deal_documents, get_deal_memos, get_deal_comments, get_deal_scoring_adjustments, get_deal_referrals, get_deal_conversations, get_pipeline_summary, search_buyers, get_buyer_profile, get_score_breakdown, get_top_buyers_for_deal, get_buyer_decisions, get_score_history, get_buyer_learning_history, search_lead_sources, search_valuation_leads, search_inbound_leads, get_referral_data, search_pe_contacts, get_firm_agreements, get_nda_logs, get_connection_requests, get_connection_messages, search_buyer_universes, get_universe_details, get_outreach_records, get_remarketing_outreach, get_engagement_signals, get_interest_signals, search_transcripts, search_buyer_transcripts, search_fireflies, get_meeting_action_items, get_outreach_status, get_analytics, get_enrichment_status, get_industry_trackers, get_current_user_context, create_deal_task, complete_deal_task, add_deal_note, log_deal_activity, update_deal_stage, grant_data_room_access, select_table_rows, apply_table_filter, sort_table_column, navigate_to_page, explain_buyer_score, get_cross_deal_analytics, semantic_transcript_search, get_follow_up_queue, get_call_history, search_contacts, get_stale_deals, get_document_engagement, enrich_buyer_contacts, push_to_phoneburner, push_to_smartlead, send_document, google_search_companies, save_contacts_to_crm, reassign_deal_task, convert_to_pipeline_deal, get_data_quality_report, detect_buyer_conflicts, get_deal_health, match_leads_to_deals, generate_eod_recap, get_smartlead_campaigns, get_smartlead_campaign_stats, get_smartlead_email_history
 
 Respond with JSON only:
 {"category":"CATEGORY","tier":"QUICK|STANDARD|DEEP","tools":["tool1","tool2"],"confidence":0.0-1.0}

@@ -1,8 +1,8 @@
-import { useState, useMemo } from "react";
-import { useParams, Link } from "react-router-dom";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
+import { useState, useMemo } from 'react';
+import { useParams, Link } from 'react-router-dom';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
 import {
   Table,
   TableBody,
@@ -10,8 +10,8 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table";
-import { Checkbox } from "@/components/ui/checkbox";
+} from '@/components/ui/table';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   ArrowLeft,
   Search,
@@ -23,24 +23,26 @@ import {
   UserMinus,
   ListChecks,
   PhoneCall,
-} from "lucide-react";
-import { format, formatDistanceToNow } from "date-fns";
-import { useContactList, useRemoveListMember } from "@/hooks/admin/use-contact-lists";
-import { PushToDialerModal } from "@/components/remarketing/PushToDialerModal";
-import type { ContactListMember } from "@/types/contact-list";
+} from 'lucide-react';
+import { format, formatDistanceToNow } from 'date-fns';
+import { useContactList, useRemoveListMember } from '@/hooks/admin/use-contact-lists';
+import { PushToDialerModal } from '@/components/remarketing/PushToDialerModal';
+import { PushToSmartleadModal } from '@/components/remarketing/PushToSmartleadModal';
+import type { ContactListMember } from '@/types/contact-list';
 
 const ContactListDetailPage = () => {
   const { id } = useParams<{ id: string }>();
   const { data: list, isLoading } = useContactList(id);
   const removeMember = useRemoveListMember();
 
-  const [searchQuery, setSearchQuery] = useState("");
+  const [searchQuery, setSearchQuery] = useState('');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [isDialerOpen, setIsDialerOpen] = useState(false);
+  const [isSmartleadOpen, setIsSmartleadOpen] = useState(false);
 
   const activeMembers = useMemo(
     () => (list?.members ?? []).filter((m) => !m.removed_at),
-    [list?.members]
+    [list?.members],
   );
 
   const filteredMembers = useMemo(() => {
@@ -50,7 +52,7 @@ const ContactListDetailPage = () => {
       (m) =>
         m.contact_name?.toLowerCase().includes(q) ||
         m.contact_email.toLowerCase().includes(q) ||
-        m.contact_company?.toLowerCase().includes(q)
+        m.contact_company?.toLowerCase().includes(q),
     );
   }, [activeMembers, searchQuery]);
 
@@ -76,39 +78,48 @@ const ContactListDetailPage = () => {
 
   const handleExportCsv = () => {
     const members = selectedMembers.length > 0 ? selectedMembers : activeMembers;
-    const headers = ["Name", "Email", "Phone", "Company", "Role", "Source", "Added", "Last Call", "Total Calls", "Last Disposition"];
+    const headers = [
+      'Name',
+      'Email',
+      'Phone',
+      'Company',
+      'Role',
+      'Source',
+      'Added',
+      'Last Call',
+      'Total Calls',
+      'Last Disposition',
+    ];
     const rows = members.map((m) => [
-      m.contact_name || "",
+      m.contact_name || '',
       m.contact_email,
-      m.contact_phone || "",
-      m.contact_company || "",
-      m.contact_role || "",
+      m.contact_phone || '',
+      m.contact_company || '',
+      m.contact_role || '',
       m.entity_type,
-      m.added_at ? new Date(m.added_at).toLocaleDateString() : "",
-      m.last_call_date ? new Date(m.last_call_date).toLocaleDateString() : "",
+      m.added_at ? new Date(m.added_at).toLocaleDateString() : '',
+      m.last_call_date ? new Date(m.last_call_date).toLocaleDateString() : '',
       m.total_calls ?? 0,
-      m.last_disposition || "",
+      m.last_disposition || '',
     ]);
 
     const csvContent = [headers, ...rows]
-      .map((row) =>
-        row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(",")
-      )
-      .join("\n");
+      .map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(','))
+      .join('\n');
 
-    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
+    const link = document.createElement('a');
     link.href = url;
-    link.download = `${list?.name || "list"}-${new Date().toISOString().split("T")[0]}.csv`;
+    link.download = `${list?.name || 'list'}-${new Date().toISOString().split('T')[0]}.csv`;
     link.click();
     URL.revokeObjectURL(url);
   };
 
   // For dialer push, use entity_ids
-  const dialerContactIds = (selectedWithPhone.length > 0 ? selectedWithPhone : activeMembers.filter((m) => m.contact_phone)).map(
-    (m) => m.entity_id
-  );
+  const dialerContactIds = (
+    selectedWithPhone.length > 0 ? selectedWithPhone : activeMembers.filter((m) => m.contact_phone)
+  ).map((m) => m.entity_id);
 
   if (isLoading) {
     return (
@@ -143,7 +154,9 @@ const ContactListDetailPage = () => {
             <div className="space-y-1">
               <div className="flex items-center gap-3">
                 <h1 className="text-2xl font-semibold tracking-tight">{list.name}</h1>
-                <Badge variant="secondary" className="capitalize">{list.list_type}</Badge>
+                <Badge variant="secondary" className="capitalize">
+                  {list.list_type}
+                </Badge>
               </div>
               {list.description && (
                 <p className="text-sm text-muted-foreground">{list.description}</p>
@@ -155,36 +168,39 @@ const ContactListDetailPage = () => {
                 </span>
                 <span className="flex items-center gap-1">
                   <Calendar className="h-3 w-3" />
-                  Created {format(new Date(list.created_at), "MMM d, yyyy")}
+                  Created {format(new Date(list.created_at), 'MMM d, yyyy')}
                   {list.created_by_name && ` by ${list.created_by_name}`}
                 </span>
                 {list.last_pushed_at && (
                   <span className="flex items-center gap-1">
                     <Phone className="h-3 w-3" />
-                    Last pushed {formatDistanceToNow(new Date(list.last_pushed_at), { addSuffix: true })}
+                    Last pushed{' '}
+                    {formatDistanceToNow(new Date(list.last_pushed_at), { addSuffix: true })}
                   </span>
                 )}
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleExportCsv}
-                className="gap-1.5"
-              >
+              <Button variant="outline" size="sm" onClick={handleExportCsv} className="gap-1.5">
                 <Download className="h-3.5 w-3.5" />
                 Export CSV
               </Button>
               {dialerContactIds.length > 0 && (
-                <Button
-                  size="sm"
-                  onClick={() => setIsDialerOpen(true)}
-                  className="gap-1.5"
-                >
-                  <Phone className="h-3.5 w-3.5" />
-                  Push to Dialer
-                </Button>
+                <>
+                  <Button size="sm" onClick={() => setIsDialerOpen(true)} className="gap-1.5">
+                    <Phone className="h-3.5 w-3.5" />
+                    Push to Dialer
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setIsSmartleadOpen(true)}
+                    className="gap-1.5"
+                  >
+                    <Phone className="h-3.5 w-3.5" />
+                    Push to Smartlead
+                  </Button>
+                </>
               )}
             </div>
           </div>
@@ -215,11 +231,7 @@ const ContactListDetailPage = () => {
           {selectedIds.size > 0 && (
             <div className="flex items-center gap-2">
               <Badge variant="secondary">{selectedIds.size} selected</Badge>
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={() => setSelectedIds(new Set())}
-              >
+              <Button size="sm" variant="ghost" onClick={() => setSelectedIds(new Set())}>
                 Clear
               </Button>
             </div>
@@ -233,7 +245,9 @@ const ContactListDetailPage = () => {
               <TableRow className="bg-muted/40 hover:bg-muted/40">
                 <TableHead className="w-10">
                   <Checkbox
-                    checked={filteredMembers.length > 0 && selectedIds.size === filteredMembers.length}
+                    checked={
+                      filteredMembers.length > 0 && selectedIds.size === filteredMembers.length
+                    }
                     onCheckedChange={toggleSelectAll}
                   />
                 </TableHead>
@@ -278,6 +292,13 @@ const ContactListDetailPage = () => {
         contactCount={dialerContactIds.length}
         entityType="buyer_contacts"
       />
+      <PushToSmartleadModal
+        open={isSmartleadOpen}
+        onOpenChange={setIsSmartleadOpen}
+        contactIds={dialerContactIds}
+        contactCount={dialerContactIds.length}
+        entityType="buyer_contacts"
+      />
     </div>
   );
 };
@@ -294,13 +315,13 @@ function MemberRow({
   onRemove: () => void;
 }) {
   return (
-    <TableRow className={isSelected ? "bg-primary/5" : ""}>
+    <TableRow className={isSelected ? 'bg-primary/5' : ''}>
       <TableCell>
         <Checkbox checked={isSelected} onCheckedChange={onToggle} />
       </TableCell>
       <TableCell>
         <div className="flex flex-col">
-          <span className="font-medium text-sm">{member.contact_name || "Unknown"}</span>
+          <span className="font-medium text-sm">{member.contact_name || 'Unknown'}</span>
           {member.contact_role && (
             <span className="text-xs text-muted-foreground">{member.contact_role}</span>
           )}
@@ -310,14 +331,14 @@ function MemberRow({
         <span className="text-sm text-muted-foreground">{member.contact_email}</span>
       </TableCell>
       <TableCell>
-        <span className="text-sm text-muted-foreground">{member.contact_phone || "--"}</span>
+        <span className="text-sm text-muted-foreground">{member.contact_phone || '--'}</span>
       </TableCell>
       <TableCell>
-        <span className="text-sm">{member.contact_company || "--"}</span>
+        <span className="text-sm">{member.contact_company || '--'}</span>
       </TableCell>
       <TableCell>
         <Badge variant="outline" className="text-[11px] font-normal capitalize">
-          {member.entity_type.replace("_", " ")}
+          {member.entity_type.split("_").join(" ")}
         </Badge>
       </TableCell>
       <TableCell>
@@ -325,7 +346,7 @@ function MemberRow({
           <div className="flex flex-col">
             <span className="text-xs flex items-center gap-1">
               <PhoneCall className="h-3 w-3 text-muted-foreground" />
-              {member.total_calls} call{member.total_calls !== 1 ? "s" : ""}
+              {member.total_calls} call{member.total_calls !== 1 ? 's' : ''}
             </span>
             {member.last_disposition && (
               <span className="text-[10px] text-muted-foreground">{member.last_disposition}</span>
@@ -342,7 +363,7 @@ function MemberRow({
       </TableCell>
       <TableCell>
         <span className="text-xs text-muted-foreground">
-          {format(new Date(member.added_at), "MMM d, yyyy")}
+          {format(new Date(member.added_at), 'MMM d, yyyy')}
         </span>
       </TableCell>
       <TableCell>

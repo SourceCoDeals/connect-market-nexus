@@ -39,7 +39,7 @@ export function ListingIntelligenceTab() {
     }
   });
 
-  const categories = [...new Set(listings.map(l => l.category))];
+  const categories = [...new Set(listings.map(l => l.category))].filter(Boolean);
 
   const getPerformanceBadge = (score: number) => {
     if (score >= 70) return { variant: 'default' as const, label: 'High', color: 'text-green-600' };

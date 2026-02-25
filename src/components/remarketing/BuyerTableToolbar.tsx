@@ -1,22 +1,23 @@
-import { useState, useEffect, useRef } from "react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Progress } from "@/components/ui/progress";
-import { Badge } from "@/components/ui/badge";
-import { 
-  Search, 
-  Plus, 
-  Upload, 
+import { useState, useEffect, useRef } from 'react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Progress } from '@/components/ui/progress';
+import { Badge } from '@/components/ui/badge';
+import {
+  Search,
+  Plus,
+  Upload,
   Sparkles,
   Loader2,
   X,
   AlertCircle,
   Target,
   RotateCcw,
-   Clock,
-   Unlink,
-   Phone,
-} from "lucide-react";
+  Clock,
+  Unlink,
+  Phone,
+  Mail,
+} from 'lucide-react';
 
 interface EnrichmentProgress {
   current: number;
@@ -52,9 +53,10 @@ interface BuyerTableToolbarProps {
   isEnriching?: boolean;
   isScoringAlignment?: boolean;
   selectedCount?: number;
-   onRemoveSelected?: () => void;
-   isRemovingSelected?: boolean;
+  onRemoveSelected?: () => void;
+  isRemovingSelected?: boolean;
   onPushToDialer?: () => void;
+  onPushToSmartlead?: () => void;
   enrichmentProgress?: EnrichmentProgress;
   alignmentProgress?: AlignmentProgress;
   hideSearch?: boolean;
@@ -75,22 +77,24 @@ export const BuyerTableToolbar = ({
   isEnriching = false,
   isScoringAlignment = false,
   selectedCount = 0,
-   onRemoveSelected,
-   isRemovingSelected = false,
+  onRemoveSelected,
+  isRemovingSelected = false,
   onPushToDialer,
+  onPushToSmartlead,
   enrichmentProgress,
   alignmentProgress,
   hideSearch = false,
-  className = ""
+  className = '',
 }: BuyerTableToolbarProps) => {
   const showEnrichProgress = isEnriching && enrichmentProgress && enrichmentProgress.total > 0;
-  const enrichProgressPercent = showEnrichProgress 
-    ? (enrichmentProgress.current / enrichmentProgress.total) * 100 
+  const enrichProgressPercent = showEnrichProgress
+    ? (enrichmentProgress.current / enrichmentProgress.total) * 100
     : 0;
 
-  const showAlignmentProgress = isScoringAlignment && alignmentProgress && alignmentProgress.total > 0;
-  const alignmentProgressPercent = showAlignmentProgress 
-    ? (alignmentProgress.current / alignmentProgress.total) * 100 
+  const showAlignmentProgress =
+    isScoringAlignment && alignmentProgress && alignmentProgress.total > 0;
+  const alignmentProgressPercent = showAlignmentProgress
+    ? (alignmentProgress.current / alignmentProgress.total) * 100
     : 0;
 
   // ETA calculation for enrichment
@@ -156,11 +160,11 @@ export const BuyerTableToolbar = ({
     if (!alignmentProgress || alignmentProgress.current === 0 || elapsedSeconds === 0) {
       return null;
     }
-    
+
     const avgSecondsPerItem = elapsedSeconds / alignmentProgress.current;
     const remaining = alignmentProgress.total - alignmentProgress.current;
     const etaSeconds = Math.ceil(avgSecondsPerItem * remaining);
-    
+
     if (etaSeconds < 60) {
       return `~${etaSeconds}s remaining`;
     } else if (etaSeconds < 3600) {
@@ -200,39 +204,48 @@ export const BuyerTableToolbar = ({
           <span className="text-sm text-muted-foreground">
             {buyerCount} buyer{buyerCount !== 1 ? 's' : ''}
             {selectedCount > 0 && (
-              <span className="ml-1 text-primary font-medium">
-                · {selectedCount} selected
-              </span>
+              <span className="ml-1 text-primary font-medium">· {selectedCount} selected</span>
             )}
           </span>
         </div>
 
         <div className="flex items-center gap-2">
-           {onRemoveSelected && (
-             <Button 
-               variant="outline" 
-               size="sm" 
-               onClick={onRemoveSelected}
-               disabled={selectedCount === 0 || isRemovingSelected}
-               className="text-destructive border-destructive/30 hover:bg-destructive/10"
-             >
-               {isRemovingSelected ? (
-                 <Loader2 className="h-4 w-4 mr-1 animate-spin" />
-               ) : (
-                 <Unlink className="h-4 w-4 mr-1" />
-               )}
-               Remove Selected{selectedCount > 0 ? ` (${selectedCount})` : ''}
-             </Button>
-           )}
+          {onRemoveSelected && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onRemoveSelected}
+              disabled={selectedCount === 0 || isRemovingSelected}
+              className="text-destructive border-destructive/30 hover:bg-destructive/10"
+            >
+              {isRemovingSelected ? (
+                <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+              ) : (
+                <Unlink className="h-4 w-4 mr-1" />
+              )}
+              Remove Selected{selectedCount > 0 ? ` (${selectedCount})` : ''}
+            </Button>
+          )}
           {onPushToDialer && (
-            <Button 
-              variant="outline" 
-              size="sm" 
+            <Button
+              variant="outline"
+              size="sm"
               onClick={onPushToDialer}
               disabled={selectedCount === 0}
             >
               <Phone className="h-4 w-4 mr-1" />
               Push to Dialer{selectedCount > 0 ? ` (${selectedCount})` : ''}
+            </Button>
+          )}
+          {onPushToSmartlead && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onPushToSmartlead}
+              disabled={selectedCount === 0}
+            >
+              <Mail className="h-4 w-4 mr-1" />
+              Push to Smartlead{selectedCount > 0 ? ` (${selectedCount})` : ''}
             </Button>
           )}
           {onAddBuyer && (
@@ -248,9 +261,9 @@ export const BuyerTableToolbar = ({
             </Button>
           )}
           {onEnrichAll && (
-            <Button 
-              variant="outline" 
-              size="sm" 
+            <Button
+              variant="outline"
+              size="sm"
               onClick={onEnrichAll}
               disabled={isEnriching || isScoringAlignment}
             >
@@ -263,9 +276,9 @@ export const BuyerTableToolbar = ({
             </Button>
           )}
           {isEnriching && onCancelEnrichment && (
-            <Button 
-              variant="ghost" 
-              size="sm" 
+            <Button
+              variant="ghost"
+              size="sm"
               onClick={onCancelEnrichment}
               className="text-destructive"
             >
@@ -274,9 +287,9 @@ export const BuyerTableToolbar = ({
             </Button>
           )}
           {isEnriching && onResetQueue && (
-            <Button 
-              variant="ghost" 
-              size="sm" 
+            <Button
+              variant="ghost"
+              size="sm"
               onClick={onResetQueue}
               className="text-muted-foreground hover:text-foreground"
             >
@@ -285,9 +298,9 @@ export const BuyerTableToolbar = ({
             </Button>
           )}
           {onScoreAlignment && (
-            <Button 
-              variant="outline" 
-              size="sm" 
+            <Button
+              variant="outline"
+              size="sm"
               onClick={onScoreAlignment}
               disabled={isScoringAlignment || isEnriching}
             >
@@ -296,16 +309,15 @@ export const BuyerTableToolbar = ({
               ) : (
                 <Target className="h-4 w-4 mr-1" />
               )}
-              {isScoringAlignment && alignmentProgress 
+              {isScoringAlignment && alignmentProgress
                 ? `Scoring... ${alignmentProgress.current}/${alignmentProgress.total}`
-                : "Score Alignment"
-              }
+                : 'Score Alignment'}
             </Button>
           )}
           {isScoringAlignment && onCancelAlignment && (
-            <Button 
-              variant="ghost" 
-              size="sm" 
+            <Button
+              variant="ghost"
+              size="sm"
               onClick={onCancelAlignment}
               className="text-destructive"
             >
@@ -333,9 +345,7 @@ export const BuyerTableToolbar = ({
                   </span>
                 )}
                 {getEnrichETA() && (
-                  <span className="text-xs font-medium text-primary">
-                    {getEnrichETA()}
-                  </span>
+                  <span className="text-xs font-medium text-primary">{getEnrichETA()}</span>
                 )}
                 {enrichmentProgress.successful !== undefined && (
                   <span>
@@ -354,7 +364,10 @@ export const BuyerTableToolbar = ({
             </Badge>
           )}
           {enrichmentProgress.rateLimited && (
-            <Badge variant="outline" className="gap-1 shrink-0 border-amber-500 text-amber-600 bg-amber-50 dark:bg-amber-950/30">
+            <Badge
+              variant="outline"
+              className="gap-1 shrink-0 border-amber-500 text-amber-600 bg-amber-50 dark:bg-amber-950/30"
+            >
               <AlertCircle className="h-3 w-3" />
               Rate Limited
               {enrichmentProgress.resetTime && (
@@ -374,7 +387,8 @@ export const BuyerTableToolbar = ({
           <div className="flex-1 space-y-1">
             <div className="flex items-center justify-between text-sm">
               <span>
-                Scoring industry alignment... {alignmentProgress.current} of {alignmentProgress.total}
+                Scoring industry alignment... {alignmentProgress.current} of{' '}
+                {alignmentProgress.total}
               </span>
               <div className="flex items-center gap-3 text-muted-foreground">
                 {elapsedSeconds > 0 && (
@@ -394,12 +408,11 @@ export const BuyerTableToolbar = ({
             {alignmentProgress.successful !== undefined && (
               <div className="flex justify-between text-xs text-muted-foreground">
                 <span>
-                  {alignmentProgress.successful} scored{alignmentProgress.failed ? `, ${alignmentProgress.failed} failed` : ''}
+                  {alignmentProgress.successful} scored
+                  {alignmentProgress.failed ? `, ${alignmentProgress.failed} failed` : ''}
                 </span>
                 {alignmentProgress.current > 0 && elapsedSeconds > 0 && (
-                  <span>
-                    ~{(elapsedSeconds / alignmentProgress.current).toFixed(1)}s per buyer
-                  </span>
+                  <span>~{(elapsedSeconds / alignmentProgress.current).toFixed(1)}s per buyer</span>
                 )}
               </div>
             )}

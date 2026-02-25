@@ -173,13 +173,13 @@ export function AddBuyerToDealDialog({
 
       // 2. Create a contact for the buyer if we have contact info
       if (newBuyer.contact_name.trim() || newBuyer.contact_email.trim()) {
-        await supabase.from('remarketing_buyer_contacts').insert({
+        await supabase.from('remarketing_buyer_contacts').insert([{
           buyer_id: createdBuyer.id,
-          name: newBuyer.contact_name.trim() || null,
+          name: newBuyer.contact_name.trim() || 'Unknown',
           email: newBuyer.contact_email.trim() || null,
           phone: newBuyer.contact_phone.trim() || null,
           is_primary_contact: true,
-        });
+        }]);
       }
 
       // 3. Create the pipeline deal via edge function

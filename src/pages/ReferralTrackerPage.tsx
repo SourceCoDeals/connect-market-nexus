@@ -160,6 +160,9 @@ export default function ReferralTrackerPage() {
             location: s.location,
             source: "submission",
             status: s.status,
+            website: s.website || null,
+            main_contact_name: s.contact_name || null,
+            main_contact_email: s.contact_email || null,
           });
         }
       }

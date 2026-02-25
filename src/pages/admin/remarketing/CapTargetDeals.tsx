@@ -56,6 +56,8 @@ import { CapTargetExclusionLog } from './components/CapTargetExclusionLog';
 import { CapTargetTableRow } from './components/CapTargetTableRow';
 import { CapTargetBulkActions } from './components/CapTargetBulkActions';
 import { PushToDialerModal } from '@/components/remarketing/PushToDialerModal';
+import { AddDealsToListDialog } from '@/components/remarketing';
+import type { DealForList } from '@/components/remarketing';
 
 interface CapTargetDeal {
   id: string;
@@ -187,6 +189,7 @@ export default function CapTargetDeals() {
   // Selection
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [dialerOpen, setDialerOpen] = useState(false);
+  const [addToListOpen, setAddToListOpen] = useState(false);
 
   // Wire AI UI actions to this page's state
   useAIUIActionHandler({
@@ -923,6 +926,20 @@ export default function CapTargetDeals() {
     return { totalDeals, priorityDeals, avgScore, needsScoring };
   }, [dateFilteredDeals]);
 
+  // Memoize selected deals for AddToList dialog
+  const selectedDealsForList = useMemo((): DealForList[] => {
+    if (!deals || selectedIds.size === 0) return [];
+    return deals
+      .filter((d) => selectedIds.has(d.id))
+      .map((d) => ({
+        dealId: d.id,
+        dealName: d.internal_company_name || d.title || "Unknown Deal",
+        contactName: d.main_contact_name,
+        contactEmail: d.main_contact_email,
+        contactPhone: d.main_contact_phone,
+      }));
+  }, [deals, selectedIds]);
+
   // Exclusion log query
   const { data: exclusionLog } = useQuery({
     queryKey: ['captarget-exclusion-log'],
@@ -1226,6 +1243,7 @@ export default function CapTargetDeals() {
         setShowDeleteDialog={setShowDeleteDialog}
         onBulkDelete={handleBulkDelete}
         onPushToDialer={() => setDialerOpen(true)}
+        onAddToList={() => setAddToListOpen(true)}
       />
       <PushToDialerModal
         open={dialerOpen}
@@ -1233,6 +1251,12 @@ export default function CapTargetDeals() {
         contactIds={Array.from(selectedIds)}
         contactCount={selectedIds.size}
         entityType="listings"
+      />
+      <AddDealsToListDialog
+        open={addToListOpen}
+        onOpenChange={setAddToListOpen}
+        selectedDeals={selectedDealsForList}
+        entityType="captarget_deal"
       />
 
       {/* Active / Inactive Tabs */}

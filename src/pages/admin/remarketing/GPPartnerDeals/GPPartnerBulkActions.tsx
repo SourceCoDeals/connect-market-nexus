@@ -5,7 +5,7 @@ import { toast as sonnerToast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 import { exportDealsToCSV } from "@/lib/exportUtils";
 import {
-  CheckCircle2, Sparkles, Loader2, Star, XCircle, Download, Phone,
+  CheckCircle2, Sparkles, Loader2, Star, XCircle, Download, Phone, ListChecks,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { GPPartnerDeal } from "./types";
@@ -19,6 +19,7 @@ interface GPPartnerBulkActionsProps {
   handlePushToAllDeals: (dealIds: string[]) => Promise<void>;
   handleEnrichSelected: (dealIds: string[]) => Promise<void>;
   onPushToDialer?: () => void;
+  onAddToList?: () => void;
 }
 
 export function GPPartnerBulkActions({
@@ -30,13 +31,16 @@ export function GPPartnerBulkActions({
   handlePushToAllDeals,
   handleEnrichSelected,
   onPushToDialer,
+  onAddToList,
 }: GPPartnerBulkActionsProps) {
   const queryClient = useQueryClient();
 
   if (selectedIds.size === 0) return null;
 
   const dealIds = Array.from(selectedIds);
-  const allPriority = dealIds.length > 0 && dealIds.every(id => filteredDeals?.find(d => d.id === id)?.is_priority_target);
+  const allPriority =
+    dealIds.length > 0 &&
+    dealIds.every((id) => filteredDeals?.find((d) => d.id === id)?.is_priority_target);
 
   return (
     <div className="flex items-center gap-3 p-3 bg-primary/5 border border-primary/20 rounded-lg">
@@ -56,7 +60,11 @@ export function GPPartnerBulkActions({
         disabled={isPushing}
         className="gap-2"
       >
-        {isPushing ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
+        {isPushing ? (
+          <Loader2 className="h-4 w-4 animate-spin" />
+        ) : (
+          <CheckCircle2 className="h-4 w-4" />
+        )}
         Approve to Active Deals
       </Button>
       <Button
@@ -66,30 +74,43 @@ export function GPPartnerBulkActions({
         disabled={isEnriching}
         className="gap-2"
       >
-        {isEnriching ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+        {isEnriching ? (
+          <Loader2 className="h-4 w-4 animate-spin" />
+        ) : (
+          <Sparkles className="h-4 w-4" />
+        )}
         Enrich Selected
       </Button>
       <Button
         size="sm"
         variant="outline"
-        className={cn("gap-2", allPriority ? "text-muted-foreground" : "text-amber-600 border-amber-200 hover:bg-amber-50")}
+        className={cn(
+          'gap-2',
+          allPriority
+            ? 'text-muted-foreground'
+            : 'text-amber-600 border-amber-200 hover:bg-amber-50',
+        )}
         onClick={async () => {
           const newValue = !allPriority;
           const { error } = await supabase
-            .from("listings")
+            .from('listings')
             .update({ is_priority_target: newValue } as never)
-            .in("id", dealIds);
+            .in('id', dealIds);
           if (error) {
-            sonnerToast.error("Failed to update priority");
+            sonnerToast.error('Failed to update priority');
           } else {
-            sonnerToast.success(newValue ? `${dealIds.length} deal(s) marked as priority` : `${dealIds.length} deal(s) priority removed`);
+            sonnerToast.success(
+              newValue
+                ? `${dealIds.length} deal(s) marked as priority`
+                : `${dealIds.length} deal(s) priority removed`,
+            );
             setSelectedIds(new Set());
-            queryClient.invalidateQueries({ queryKey: ["remarketing", "gp-partner-deals"] });
+            queryClient.invalidateQueries({ queryKey: ['remarketing', 'gp-partner-deals'] });
           }
         }}
       >
-        <Star className={cn("h-4 w-4", allPriority ? "" : "fill-amber-500")} />
-        {allPriority ? "Remove Priority" : "Mark as Priority"}
+        <Star className={cn('h-4 w-4', allPriority ? '' : 'fill-amber-500')} />
+        {allPriority ? 'Remove Priority' : 'Mark as Priority'}
       </Button>
       <Button
         size="sm"
@@ -101,7 +122,7 @@ export function GPPartnerBulkActions({
           if (result.success) {
             sonnerToast.success(`${result.count} deal(s) exported to CSV`);
           } else {
-            sonnerToast.error(result.error || "Export failed");
+            sonnerToast.error(result.error || 'Export failed');
           }
         }}
       >
@@ -112,6 +133,12 @@ export function GPPartnerBulkActions({
         <Button size="sm" variant="outline" onClick={onPushToDialer} className="gap-2">
           <Phone className="h-4 w-4" />
           Push to Dialer
+        </Button>
+      )}
+      {onAddToList && (
+        <Button size="sm" variant="outline" onClick={onAddToList} className="gap-2">
+          <ListChecks className="h-4 w-4" />
+          Add to List
         </Button>
       )}
     </div>
