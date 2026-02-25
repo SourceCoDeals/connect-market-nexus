@@ -202,7 +202,7 @@ export function TranscriptAddDialog({
                           )}
                           {result.match_type === 'keyword' && (
                             <Badge variant="outline" className="text-[10px] h-4 text-blue-600 border-blue-300 shrink-0">
-                              Company Match
+                              Matched by Name
                             </Badge>
                           )}
                         </div>

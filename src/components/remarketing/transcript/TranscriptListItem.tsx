@@ -15,9 +15,11 @@ import {
   Trash2,
   Loader2,
   Link as LinkIcon,
+  ExternalLink,
   RefreshCw,
   AlertTriangle,
   Users,
+  Clock,
 } from "lucide-react";
 import { format } from "date-fns";
 import { ExtractedIntelligenceView } from "./ExtractedIntelligenceView";
@@ -88,6 +90,10 @@ export function TranscriptListItem({
   const isApplied = transcript.applied_to_deal;
   const hasContent = transcript.has_content !== false; // treat null/undefined as true
   const isKeywordMatch = transcript.match_type === 'keyword';
+  const isPendingFetch = hasContent && transcript.transcript_text &&
+    (transcript.transcript_text.includes('pending fetch') ||
+     transcript.transcript_text === 'Fireflies transcript' ||
+     transcript.transcript_text.includes('Linked via URL'));
 
   const displayTitle = transcript.title ||
     `Transcript from ${format(new Date(transcript.created_at), 'MMM d, yyyy')}`;
@@ -144,15 +150,19 @@ export function TranscriptListItem({
             </div>
             <div className="flex items-center gap-2">
               {transcript.transcript_url && (
-                <a
-                  href={transcript.transcript_url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  onClick={(e) => e.stopPropagation()}
-                  className="text-primary hover:underline"
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 text-xs text-primary gap-1 px-2"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    window.open(transcript.transcript_url!, '_blank');
+                  }}
+                  title="Open in Fireflies"
                 >
-                  <LinkIcon className="h-4 w-4" />
-                </a>
+                  <ExternalLink className="h-3.5 w-3.5" />
+                  View
+                </Button>
               )}
               {!hasContent && (
                 <Badge variant="outline" className="gap-1 text-xs text-amber-600 border-amber-300">
@@ -162,7 +172,7 @@ export function TranscriptListItem({
               )}
               {isKeywordMatch && (
                 <Badge variant="outline" className="gap-1 text-xs text-blue-600 border-blue-300">
-                  Company Match
+                  Matched by Name
                 </Badge>
               )}
               {hasExtracted && (
@@ -209,12 +219,59 @@ export function TranscriptListItem({
                 <p className="text-xs text-amber-600 dark:text-amber-500 mt-1">
                   This call was recorded but the audio was not captured — may be a Teams audio routing issue.
                 </p>
+                {transcript.transcript_url && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="mt-3 gap-1.5"
+                    onClick={() => window.open(transcript.transcript_url!, '_blank')}
+                  >
+                    <ExternalLink className="h-3.5 w-3.5" />
+                    Open in Fireflies
+                  </Button>
+                )}
+              </div>
+            ) : isPendingFetch ? (
+              <div className="bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg p-4 text-center">
+                <Clock className="h-6 w-6 text-blue-500 mx-auto mb-2" />
+                <p className="text-sm text-blue-700 dark:text-blue-400 font-medium">
+                  Transcript content not yet loaded
+                </p>
+                <p className="text-xs text-blue-600 dark:text-blue-500 mt-1">
+                  The full transcript will be fetched from Fireflies when you extract intelligence.
+                </p>
+                {transcript.transcript_url && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="mt-3 gap-1.5"
+                    onClick={() => window.open(transcript.transcript_url!, '_blank')}
+                  >
+                    <ExternalLink className="h-3.5 w-3.5" />
+                    View in Fireflies
+                  </Button>
+                )}
               </div>
             ) : (
-              <div className="bg-muted/50 rounded-lg p-3 max-h-48 overflow-auto">
-                <pre className="text-xs whitespace-pre-wrap font-mono">
-                  {transcript.transcript_text}
-                </pre>
+              <div className="space-y-2">
+                {transcript.transcript_url && (
+                  <div className="flex justify-end">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 text-xs gap-1 text-primary"
+                      onClick={() => window.open(transcript.transcript_url!, '_blank')}
+                    >
+                      <ExternalLink className="h-3 w-3" />
+                      Open in Fireflies
+                    </Button>
+                  </div>
+                )}
+                <div className="bg-muted/50 rounded-lg p-3 max-h-48 overflow-auto">
+                  <pre className="text-xs whitespace-pre-wrap font-mono">
+                    {transcript.transcript_text}
+                  </pre>
+                </div>
               </div>
             )}
 

@@ -3,8 +3,18 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 import { getCorsHeaders, corsPreflightResponse } from "../_shared/cors.ts";
 
-/** Internal email domains to filter out when extracting external participants */
-const INTERNAL_DOMAINS = ['sourcecodeals.com', 'captarget.com'];
+/** Internal email domains to filter out when extracting external participants.
+ * Configure via INTERNAL_EMAIL_DOMAINS env var (comma-separated) for flexibility.
+ */
+const INTERNAL_DOMAINS = (
+  Deno.env.get('INTERNAL_EMAIL_DOMAINS') || 'sourcecodeals.com,captarget.com'
+)
+  .split(',')
+  .map((d: string) => d.trim().toLowerCase())
+  .filter(Boolean);
+
+const FIREFLIES_API_TIMEOUT_MS = 15_000;
+const FIREFLIES_RATE_LIMIT_BACKOFF_MS = 3_000;
 
 interface SyncRequest {
   listingId: string;
@@ -17,6 +27,7 @@ interface SyncRequest {
 /**
  * Call the Fireflies GraphQL API directly.
  * Requires FIREFLIES_API_KEY set as a Supabase secret.
+ * Includes timeout enforcement and 429 rate-limit retry.
  */
 async function firefliesGraphQL(query: string, variables?: Record<string, unknown>) {
   const apiKey = Deno.env.get("FIREFLIES_API_KEY");
@@ -27,15 +38,40 @@ async function firefliesGraphQL(query: string, variables?: Record<string, unknow
     );
   }
 
-  const response = await fetch("https://api.fireflies.ai/graphql", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify({ query, variables }),
-    signal: AbortSignal.timeout(30000),
-  });
+  const doFetch = async () => {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), FIREFLIES_API_TIMEOUT_MS);
+
+    try {
+      const response = await fetch("https://api.fireflies.ai/graphql", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({ query, variables }),
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeoutId);
+      return response;
+    } catch (err) {
+      clearTimeout(timeoutId);
+      if (err instanceof DOMException && err.name === 'AbortError') {
+        throw new Error(`Fireflies API timeout after ${FIREFLIES_API_TIMEOUT_MS}ms`);
+      }
+      throw err;
+    }
+  };
+
+  let response = await doFetch();
+
+  // Handle rate limiting: back off and retry once
+  if (response.status === 429) {
+    console.warn(`Fireflies rate limit hit (429), backing off ${FIREFLIES_RATE_LIMIT_BACKOFF_MS}ms...`);
+    await new Promise(r => setTimeout(r, FIREFLIES_RATE_LIMIT_BACKOFF_MS));
+    response = await doFetch();
+  }
 
   if (!response.ok) {
     const text = await response.text();
@@ -198,7 +234,13 @@ serve(async (req) => {
     if (body.contactEmail && !allEmails.includes(body.contactEmail)) {
       allEmails.push(body.contactEmail);
     }
-    const validEmails = allEmails.filter(Boolean).map(e => e.toLowerCase());
+    const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const validEmails = [...new Set(
+      allEmails
+        .filter(Boolean)
+        .map(e => e.toLowerCase().trim())
+        .filter(e => EMAIL_RE.test(e))
+    )];
 
     if (!listingId) {
       return new Response(

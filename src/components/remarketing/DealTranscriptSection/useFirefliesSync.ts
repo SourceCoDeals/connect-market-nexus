@@ -131,33 +131,58 @@ export function useFirefliesSync({
     }
   };
 
+  // Validate Fireflies URL
+  const validateFirefliesUrl = (url: string): { valid: boolean; error?: string } => {
+    if (!url.trim()) return { valid: false, error: 'Please enter a URL' };
+    try {
+      const parsed = new URL(url.trim());
+      if (!parsed.hostname.includes('fireflies.ai')) {
+        return { valid: false, error: 'Please enter a valid Fireflies URL (app.fireflies.ai/view/...)' };
+      }
+      const match = url.match(/fireflies\.ai\/view\/([^/?#]+)/);
+      if (!match || !match[1]) {
+        return { valid: false, error: 'URL should contain a transcript ID (app.fireflies.ai/view/your-transcript-id)' };
+      }
+      return { valid: true };
+    } catch {
+      return { valid: false, error: 'Please enter a valid URL' };
+    }
+  };
+
   // Link by URL
   const handleLinkByUrl = async () => {
     const url = firefliesUrl.trim();
     if (!url) return;
+
+    const validation = validateFirefliesUrl(url);
+    if (!validation.valid) {
+      toast.error(validation.error);
+      return;
+    }
+
     setLinkingUrl(true);
     try {
       const match = url.match(/fireflies\.ai\/view\/([^/?#]+)/);
-      const transcriptId = match ? match[1] : `url-${Date.now()}`;
+      const transcriptId = match![1];
       const { error } = await supabase.from('deal_transcripts').insert({
         listing_id: dealId,
         fireflies_transcript_id: transcriptId,
         transcript_url: url,
-        title: match ? `Fireflies: ${transcriptId}` : 'Fireflies Transcript',
-        transcript_text: 'Linked via URL - pending fetch',
+        title: `Fireflies: ${transcriptId}`,
+        transcript_text: 'Linked via URL - content will be fetched automatically',
         source: 'fireflies',
         auto_linked: false,
       });
       if (error) {
-        if (error.code === '23505') toast.info("Already linked");
+        if (error.code === '23505') toast.info("This transcript is already linked to this deal");
         else throw error;
       } else {
-        toast.success("Transcript linked");
+        toast.success("Transcript linked — content will be fetched when you open it");
         setFirefliesUrl("");
         onTranscriptLinked?.();
       }
     } catch (error) {
-      toast.error("Failed to link");
+      toast.error("Failed to link transcript");
     } finally {
       setLinkingUrl(false);
     }
@@ -228,6 +253,7 @@ export function useFirefliesSync({
     linkingUrl,
     ffUploading,
     ffFileInputRef,
+    validateFirefliesUrl,
     handleFirefliesSync,
     handleFfQuickSearch,
     handleLinkSearchResult,
