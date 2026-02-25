@@ -15,6 +15,7 @@ import {
   Clock,
   FileSignature,
   FolderOpen,
+  Loader2,
   Phone,
   Users,
 } from "lucide-react";
@@ -34,6 +35,8 @@ import {
   BuyerServicesBusinessModelCard,
 } from "@/components/remarketing/buyer-detail";
 
+import { useFirefliesAutoPair } from "@/hooks/useFirefliesAutoPair";
+
 import { EditDialogType } from "./types";
 import { useBuyerData } from "./useBuyerData";
 import { useBuyerMutations } from "./useBuyerMutations";
@@ -52,6 +55,9 @@ const ReMarketingBuyerDetail = () => {
   const isNew = id === 'new';
 
   const [activeEditDialog, setActiveEditDialog] = useState<EditDialogType>(null);
+  const { loading: autoPairLoading, runAutoPair } = useFirefliesAutoPair(
+    id ? { buyerIds: [id] } : undefined,
+  );
 
   const {
     buyer,
@@ -298,10 +304,27 @@ const ReMarketingBuyerDetail = () => {
         <TabsContent value="call-history" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>Find Call Transcripts</CardTitle>
-              <CardDescription>
-                Search your Fireflies call history to link relevant conversations with this buyer
-              </CardDescription>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle>Find Call Transcripts</CardTitle>
+                  <CardDescription>
+                    Search your Fireflies call history to link relevant conversations with this buyer
+                  </CardDescription>
+                </div>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="gap-1.5"
+                  disabled={autoPairLoading}
+                  onClick={async () => {
+                    await runAutoPair();
+                    queryClient.invalidateQueries({ queryKey: ['remarketing', 'transcripts', id] });
+                  }}
+                >
+                  {autoPairLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Phone className="h-3.5 w-3.5" />}
+                  {autoPairLoading ? "Syncing…" : "Auto-Pair Fireflies"}
+                </Button>
+              </div>
             </CardHeader>
             <CardContent>
               <FirefliesTranscriptSearch
