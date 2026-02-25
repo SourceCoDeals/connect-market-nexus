@@ -16,6 +16,12 @@ import {
   PhoneOff,
   Mic,
   Activity,
+  Linkedin,
+  UserPlus,
+  MessageSquare,
+  Eye,
+  Heart,
+  Send,
 } from 'lucide-react';
 import { format, formatDistanceToNow } from 'date-fns';
 import {
@@ -42,6 +48,23 @@ const EMAIL_ICON_MAP: Record<string, { icon: typeof Mail; color: string }> = {
   MANUAL_STEP_REACHED: { icon: Clock, color: 'text-amber-600 bg-amber-50' },
 };
 
+// ── Icon + color config for LinkedIn/HeyReach events ──
+
+const LINKEDIN_ICON_MAP: Record<string, { icon: typeof Mail; color: string }> = {
+  CONNECTION_REQUEST_SENT: { icon: UserPlus, color: 'text-blue-700 bg-blue-50' },
+  CONNECTION_REQUEST_ACCEPTED: { icon: UserPlus, color: 'text-emerald-600 bg-emerald-50' },
+  MESSAGE_SENT: { icon: Send, color: 'text-blue-600 bg-blue-50' },
+  MESSAGE_RECEIVED: { icon: MessageSquare, color: 'text-primary bg-primary/10' },
+  INMAIL_SENT: { icon: Send, color: 'text-violet-600 bg-violet-50' },
+  INMAIL_RECEIVED: { icon: MessageSquare, color: 'text-violet-600 bg-violet-50' },
+  PROFILE_VIEWED: { icon: Eye, color: 'text-amber-600 bg-amber-50' },
+  FOLLOW_SENT: { icon: UserPlus, color: 'text-blue-500 bg-blue-50' },
+  LIKE_SENT: { icon: Heart, color: 'text-rose-500 bg-rose-50' },
+  LEAD_REPLIED: { icon: Reply, color: 'text-primary bg-primary/10' },
+  LEAD_INTERESTED: { icon: ThumbsUp, color: 'text-emerald-600 bg-emerald-50' },
+  LEAD_NOT_INTERESTED: { icon: ThumbsDown, color: 'text-muted-foreground bg-muted' },
+};
+
 function getCallIcon(eventType: string, outcome: string | null) {
   if (eventType === 'call_completed' && outcome === 'dispositioned') {
     return { icon: PhoneCall, color: 'text-primary bg-primary/10' };
@@ -64,24 +87,34 @@ function formatDuration(seconds: number | null) {
 interface ActivityStats {
   totalEmails: number;
   totalCalls: number;
+  totalLinkedIn: number;
   emailsOpened: number;
   emailsReplied: number;
   callsConnected: number;
+  linkedInConnected: number;
+  linkedInReplied: number;
   lastTouch: string | null;
 }
 
 function computeStats(entries: UnifiedActivityEntry[]): ActivityStats {
   let totalEmails = 0;
   let totalCalls = 0;
+  let totalLinkedIn = 0;
   let emailsOpened = 0;
   let emailsReplied = 0;
   let callsConnected = 0;
+  let linkedInConnected = 0;
+  let linkedInReplied = 0;
 
   for (const e of entries) {
     if (e.channel === 'email') {
       totalEmails++;
       if (['EMAIL_OPENED', 'OPENED'].includes(e.event_type)) emailsOpened++;
       if (['EMAIL_REPLIED', 'REPLIED'].includes(e.event_type)) emailsReplied++;
+    } else if (e.channel === 'linkedin') {
+      totalLinkedIn++;
+      if (e.event_type === 'CONNECTION_REQUEST_ACCEPTED') linkedInConnected++;
+      if (['MESSAGE_RECEIVED', 'INMAIL_RECEIVED', 'LEAD_REPLIED'].includes(e.event_type)) linkedInReplied++;
     } else {
       totalCalls++;
       if (e.event_type === 'call_completed') callsConnected++;
@@ -91,9 +124,12 @@ function computeStats(entries: UnifiedActivityEntry[]): ActivityStats {
   return {
     totalEmails,
     totalCalls,
+    totalLinkedIn,
     emailsOpened,
     emailsReplied,
     callsConnected,
+    linkedInConnected,
+    linkedInReplied,
     lastTouch: entries.length > 0 ? entries[0].timestamp : null,
   };
 }
@@ -102,10 +138,13 @@ function computeStats(entries: UnifiedActivityEntry[]): ActivityStats {
 
 function TimelineEntry({ entry }: { entry: UnifiedActivityEntry }) {
   const isEmail = entry.channel === 'email';
+  const isLinkedIn = entry.channel === 'linkedin';
 
-  const iconConfig = isEmail
-    ? EMAIL_ICON_MAP[entry.event_type] || { icon: Mail, color: 'text-muted-foreground bg-muted' }
-    : getCallIcon(entry.event_type, entry.details.call_outcome || null);
+  const iconConfig = isLinkedIn
+    ? LINKEDIN_ICON_MAP[entry.event_type] || { icon: Linkedin, color: 'text-blue-700 bg-blue-50' }
+    : isEmail
+      ? EMAIL_ICON_MAP[entry.event_type] || { icon: Mail, color: 'text-muted-foreground bg-muted' }
+      : getCallIcon(entry.event_type, entry.details.call_outcome || null);
 
   const Icon = iconConfig.icon;
 
@@ -120,8 +159,8 @@ function TimelineEntry({ entry }: { entry: UnifiedActivityEntry }) {
       <div className="flex-1 min-w-0 space-y-0.5">
         <div className="flex items-center gap-2 flex-wrap">
           <span className="text-sm font-medium">{entry.label}</span>
-          <Badge variant="outline" className={`text-[10px] ${isEmail ? 'border-blue-200 text-blue-700' : 'border-green-200 text-green-700'}`}>
-            {isEmail ? 'Email' : 'Call'}
+          <Badge variant="outline" className={`text-[10px] ${isLinkedIn ? 'border-blue-300 text-blue-800' : isEmail ? 'border-blue-200 text-blue-700' : 'border-green-200 text-green-700'}`}>
+            {isLinkedIn ? 'LinkedIn' : isEmail ? 'Email' : 'Call'}
           </Badge>
           {/* Call disposition */}
           {!isEmail && entry.details.disposition_label && (
@@ -284,7 +323,7 @@ function TimelineCard({
             <Activity className="h-8 w-8 mx-auto mb-2 opacity-40" />
             <p className="text-sm">No communication activity recorded yet</p>
             <p className="text-xs mt-1">
-              Email and call history from SmartLead and PhoneBurner will appear here
+              Email, call, and LinkedIn history from SmartLead, PhoneBurner, and HeyReach will appear here
             </p>
           </div>
         </CardContent>
@@ -313,6 +352,12 @@ function TimelineCard({
                 {stats.totalCalls} call{stats.totalCalls !== 1 ? 's' : ''}
               </Badge>
             )}
+            {stats.totalLinkedIn > 0 && (
+              <Badge variant="outline" className="text-xs border-blue-300 text-blue-800">
+                <Linkedin className="h-3 w-3 mr-1" />
+                {stats.totalLinkedIn} LinkedIn
+              </Badge>
+            )}
           </div>
         </div>
         {/* Summary stats row (HubSpot-style) */}
@@ -334,6 +379,18 @@ function TimelineCard({
               <span className="flex items-center gap-1">
                 <PhoneCall className="h-3 w-3 text-primary" />
                 {stats.callsConnected} connected
+              </span>
+            )}
+            {stats.linkedInConnected > 0 && (
+              <span className="flex items-center gap-1">
+                <UserPlus className="h-3 w-3 text-blue-700" />
+                {stats.linkedInConnected} LI connected
+              </span>
+            )}
+            {stats.linkedInReplied > 0 && (
+              <span className="flex items-center gap-1">
+                <MessageSquare className="h-3 w-3 text-blue-700" />
+                {stats.linkedInReplied} LI replied
               </span>
             )}
             {stats.lastTouch && (

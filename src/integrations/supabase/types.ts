@@ -9743,6 +9743,224 @@ export type Database = {
           },
         ]
       }
+      heyreach_campaign_leads: {
+        Row: {
+          buyer_contact_id: string | null
+          campaign_id: string
+          company_name: string | null
+          created_at: string | null
+          email: string | null
+          first_name: string | null
+          heyreach_lead_id: string | null
+          id: string
+          last_activity_at: string | null
+          last_name: string | null
+          lead_category: string | null
+          lead_status: string | null
+          linkedin_url: string
+          metadata: Json | null
+          remarketing_buyer_id: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          buyer_contact_id?: string | null
+          campaign_id: string
+          company_name?: string | null
+          created_at?: string | null
+          email?: string | null
+          first_name?: string | null
+          heyreach_lead_id?: string | null
+          id?: string
+          last_activity_at?: string | null
+          last_name?: string | null
+          lead_category?: string | null
+          lead_status?: string | null
+          linkedin_url: string
+          metadata?: Json | null
+          remarketing_buyer_id?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          buyer_contact_id?: string | null
+          campaign_id?: string
+          company_name?: string | null
+          created_at?: string | null
+          email?: string | null
+          first_name?: string | null
+          heyreach_lead_id?: string | null
+          id?: string
+          last_activity_at?: string | null
+          last_name?: string | null
+          lead_category?: string | null
+          lead_status?: string | null
+          linkedin_url?: string
+          metadata?: Json | null
+          remarketing_buyer_id?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "heyreach_campaign_leads_buyer_contact_id_fkey"
+            columns: ["buyer_contact_id"]
+            isOneToOne: false
+            referencedRelation: "buyer_contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "heyreach_campaign_leads_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "heyreach_campaigns"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      heyreach_campaign_stats: {
+        Row: {
+          campaign_id: string
+          connected: number | null
+          connection_rate: number | null
+          contacted: number | null
+          id: string
+          interested: number | null
+          not_interested: number | null
+          replied: number | null
+          response_rate: number | null
+          snapshot_at: string | null
+          total_leads: number | null
+        }
+        Insert: {
+          campaign_id: string
+          connected?: number | null
+          connection_rate?: number | null
+          contacted?: number | null
+          id?: string
+          interested?: number | null
+          not_interested?: number | null
+          replied?: number | null
+          response_rate?: number | null
+          snapshot_at?: string | null
+          total_leads?: number | null
+        }
+        Update: {
+          campaign_id?: string
+          connected?: number | null
+          connection_rate?: number | null
+          contacted?: number | null
+          id?: string
+          interested?: number | null
+          not_interested?: number | null
+          replied?: number | null
+          response_rate?: number | null
+          snapshot_at?: string | null
+          total_leads?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "heyreach_campaign_stats_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "heyreach_campaigns"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      heyreach_campaigns: {
+        Row: {
+          created_at: string | null
+          created_by: string | null
+          deal_id: string | null
+          heyreach_campaign_id: number
+          id: string
+          last_synced_at: string | null
+          lead_count: number | null
+          name: string
+          settings: Json | null
+          status: string | null
+          universe_id: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          created_by?: string | null
+          deal_id?: string | null
+          heyreach_campaign_id: number
+          id?: string
+          last_synced_at?: string | null
+          lead_count?: number | null
+          name: string
+          settings?: Json | null
+          status?: string | null
+          universe_id?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          created_by?: string | null
+          deal_id?: string | null
+          heyreach_campaign_id?: number
+          id?: string
+          last_synced_at?: string | null
+          lead_count?: number | null
+          name?: string
+          settings?: Json | null
+          status?: string | null
+          universe_id?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "heyreach_campaigns_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "listings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "heyreach_campaigns_universe_id_fkey"
+            columns: ["universe_id"]
+            isOneToOne: false
+            referencedRelation: "remarketing_buyer_universes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      heyreach_webhook_events: {
+        Row: {
+          created_at: string | null
+          event_type: string
+          heyreach_campaign_id: number | null
+          id: string
+          lead_email: string | null
+          lead_linkedin_url: string | null
+          payload: Json
+          processed: boolean | null
+          processed_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          event_type: string
+          heyreach_campaign_id?: number | null
+          id?: string
+          lead_email?: string | null
+          lead_linkedin_url?: string | null
+          payload?: Json
+          processed?: boolean | null
+          processed_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          event_type?: string
+          heyreach_campaign_id?: number | null
+          id?: string
+          lead_email?: string | null
+          lead_linkedin_url?: string | null
+          payload?: Json
+          processed?: boolean | null
+          processed_at?: string | null
+        }
+        Relationships: []
+      }
       smartlead_campaign_leads: {
         Row: {
           buyer_contact_id: string | null

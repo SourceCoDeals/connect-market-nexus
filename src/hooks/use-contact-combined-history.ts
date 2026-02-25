@@ -2,14 +2,14 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 
 /**
- * Unified activity entry combining SmartLead emails and PhoneBurner calls
- * into a single chronological timeline for a contact.
+ * Unified activity entry combining SmartLead emails, PhoneBurner calls,
+ * and HeyReach LinkedIn outreach into a single chronological timeline.
  */
 export interface UnifiedActivityEntry {
   id: string;
   timestamp: string;
-  channel: 'email' | 'call';
-  /** e.g. EMAIL_SENT, EMAIL_OPENED, call_completed, call_attempt */
+  channel: 'email' | 'call' | 'linkedin';
+  /** e.g. EMAIL_SENT, EMAIL_OPENED, call_completed, CONNECTION_REQUEST_SENT */
   event_type: string;
   /** Human-readable label */
   label: string;
@@ -19,6 +19,7 @@ export interface UnifiedActivityEntry {
   details: {
     campaign_name?: string | null;
     lead_email?: string | null;
+    lead_linkedin_url?: string | null;
     lead_status?: string | null;
     call_outcome?: string | null;
     disposition_code?: string | null;
@@ -44,6 +45,21 @@ const EMAIL_EVENT_LABELS: Record<string, string> = {
   INTERESTED: 'Marked Interested',
   NOT_INTERESTED: 'Not Interested',
   MANUAL_STEP_REACHED: 'Manual Step',
+};
+
+const LINKEDIN_EVENT_LABELS: Record<string, string> = {
+  CONNECTION_REQUEST_SENT: 'Connection Request Sent',
+  CONNECTION_REQUEST_ACCEPTED: 'Connection Accepted',
+  MESSAGE_SENT: 'LinkedIn Message Sent',
+  MESSAGE_RECEIVED: 'LinkedIn Message Received',
+  INMAIL_SENT: 'InMail Sent',
+  INMAIL_RECEIVED: 'InMail Received',
+  PROFILE_VIEWED: 'Profile Viewed',
+  FOLLOW_SENT: 'Followed',
+  LIKE_SENT: 'Liked Post',
+  LEAD_REPLIED: 'Lead Replied',
+  LEAD_INTERESTED: 'Marked Interested',
+  LEAD_NOT_INTERESTED: 'Not Interested',
 };
 
 /**
@@ -183,6 +199,80 @@ export function useContactCombinedHistory(buyerId: string | null) {
         }
       }
 
+      // ── 3. HeyReach LinkedIn Events ──
+      const { data: hrCampaignLeads } = await supabase
+        .from('heyreach_campaign_leads')
+        .select('id, campaign_id, linkedin_url, email, lead_status, lead_category, last_activity_at, created_at')
+        .eq('remarketing_buyer_id', buyerId)
+        .order('created_at', { ascending: false });
+
+      const hrLinkedInUrls = [...new Set((hrCampaignLeads || []).map((c) => c.linkedin_url).filter(Boolean))];
+      const hrEmails = [...new Set((hrCampaignLeads || []).map((c) => c.email).filter(Boolean))] as string[];
+
+      if (hrLinkedInUrls.length > 0 || hrEmails.length > 0) {
+        let hrWebhookEvents: Array<Record<string, unknown>> = [];
+
+        if (hrLinkedInUrls.length > 0) {
+          const { data: urlEvents } = await supabase
+            .from('heyreach_webhook_events')
+            .select('id, event_type, lead_linkedin_url, lead_email, heyreach_campaign_id, payload, created_at')
+            .in('lead_linkedin_url', hrLinkedInUrls)
+            .order('created_at', { ascending: false })
+            .limit(100);
+          hrWebhookEvents = (urlEvents || []) as Array<Record<string, unknown>>;
+        }
+
+        if (hrEmails.length > 0) {
+          const existingHrIds = new Set(hrWebhookEvents.map((e) => e.id));
+          const { data: emailEvents } = await supabase
+            .from('heyreach_webhook_events')
+            .select('id, event_type, lead_linkedin_url, lead_email, heyreach_campaign_id, payload, created_at')
+            .in('lead_email', hrEmails)
+            .order('created_at', { ascending: false })
+            .limit(100);
+          for (const e of emailEvents || []) {
+            if (!existingHrIds.has(e.id)) {
+              hrWebhookEvents.push(e as Record<string, unknown>);
+            }
+          }
+        }
+
+        const hrCampaignIds = [
+          ...new Set(hrWebhookEvents.map((e) => e.heyreach_campaign_id).filter(Boolean)),
+        ] as number[];
+
+        let hrCampaignNameMap = new Map<number, string>();
+        if (hrCampaignIds.length > 0) {
+          const { data: hrCampaigns } = await supabase
+            .from('heyreach_campaigns')
+            .select('id, name, heyreach_campaign_id')
+            .in('heyreach_campaign_id', hrCampaignIds);
+          if (hrCampaigns) {
+            hrCampaignNameMap = new Map(hrCampaigns.map((c) => [c.heyreach_campaign_id, c.name]));
+          }
+        }
+
+        for (const e of hrWebhookEvents) {
+          const campaignName = e.heyreach_campaign_id
+            ? hrCampaignNameMap.get(e.heyreach_campaign_id as number) || null
+            : null;
+
+          entries.push({
+            id: `linkedin-${e.id}`,
+            timestamp: (e.created_at as string) || new Date().toISOString(),
+            channel: 'linkedin',
+            event_type: e.event_type as string,
+            label: LINKEDIN_EVENT_LABELS[e.event_type as string] || (e.event_type as string).replace(/_/g, ' '),
+            context: campaignName ? `Campaign: ${campaignName}` : null,
+            details: {
+              campaign_name: campaignName,
+              lead_linkedin_url: e.lead_linkedin_url as string | null,
+              lead_email: e.lead_email as string | null,
+            },
+          });
+        }
+      }
+
       // Sort by timestamp descending (newest first)
       entries.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
 
@@ -270,6 +360,73 @@ export function useContactCombinedHistoryByEmail(email: string | null) {
           context: campaignName ? `Campaign: ${campaignName}` : null,
           details: {
             campaign_name: campaignName,
+            lead_email: e.lead_email,
+          },
+        });
+      }
+
+      // ── 3. HeyReach LinkedIn Events by email ──
+      const { data: hrWebhookEvents } = await supabase
+        .from('heyreach_webhook_events')
+        .select('id, event_type, lead_linkedin_url, lead_email, heyreach_campaign_id, payload, created_at')
+        .eq('lead_email', email)
+        .order('created_at', { ascending: false })
+        .limit(100);
+
+      // Also check by LinkedIn URLs from heyreach_campaign_leads with matching email
+      const { data: hrCampaignLeadsByEmail } = await supabase
+        .from('heyreach_campaign_leads')
+        .select('linkedin_url')
+        .eq('email', email);
+
+      const hrLinkedInUrls = [...new Set((hrCampaignLeadsByEmail || []).map((l) => l.linkedin_url).filter(Boolean))];
+      const hrExistingIds = new Set((hrWebhookEvents || []).map((e) => e.id));
+
+      if (hrLinkedInUrls.length > 0) {
+        const { data: urlEvents } = await supabase
+          .from('heyreach_webhook_events')
+          .select('id, event_type, lead_linkedin_url, lead_email, heyreach_campaign_id, payload, created_at')
+          .in('lead_linkedin_url', hrLinkedInUrls)
+          .order('created_at', { ascending: false })
+          .limit(100);
+
+        for (const e of urlEvents || []) {
+          if (!hrExistingIds.has(e.id)) {
+            (hrWebhookEvents || []).push(e);
+          }
+        }
+      }
+
+      const hrCampaignIds = [
+        ...new Set((hrWebhookEvents || []).map((e) => e.heyreach_campaign_id).filter(Boolean)),
+      ] as number[];
+
+      let hrCampaignNameMap = new Map<number, string>();
+      if (hrCampaignIds.length > 0) {
+        const { data: hrCampaigns } = await supabase
+          .from('heyreach_campaigns')
+          .select('id, name, heyreach_campaign_id')
+          .in('heyreach_campaign_id', hrCampaignIds);
+        if (hrCampaigns) {
+          hrCampaignNameMap = new Map(hrCampaigns.map((c) => [c.heyreach_campaign_id, c.name]));
+        }
+      }
+
+      for (const e of hrWebhookEvents || []) {
+        const campaignName = e.heyreach_campaign_id
+          ? hrCampaignNameMap.get(e.heyreach_campaign_id) || null
+          : null;
+
+        entries.push({
+          id: `linkedin-${e.id}`,
+          timestamp: e.created_at || new Date().toISOString(),
+          channel: 'linkedin',
+          event_type: e.event_type,
+          label: LINKEDIN_EVENT_LABELS[e.event_type] || e.event_type.replace(/_/g, ' '),
+          context: campaignName ? `Campaign: ${campaignName}` : null,
+          details: {
+            campaign_name: campaignName,
+            lead_linkedin_url: e.lead_linkedin_url,
             lead_email: e.lead_email,
           },
         });

@@ -40,6 +40,14 @@ const BUYER_FIELDS = [
   { field: 'target_services', description: 'Target services or industries' },
   { field: 'geographic_footprint', description: 'Current operating locations' },
   { field: 'notes', description: 'Additional notes' },
+  // Primary contact fields (creates a contact linked to the buyer)
+  { field: 'contact_name', description: 'Full name of primary contact person' },
+  { field: 'contact_first_name', description: 'First name of primary contact person' },
+  { field: 'contact_last_name', description: 'Last name of primary contact person' },
+  { field: 'contact_email', description: 'Email of primary contact person' },
+  { field: 'contact_phone', description: 'Phone number of primary contact person' },
+  { field: 'contact_title', description: 'Job title of primary contact person' },
+  { field: 'contact_linkedin_url', description: 'LinkedIn profile URL of primary contact person' },
 ];
 
 // Deal/listing fields for import
@@ -165,9 +173,17 @@ Be intelligent about variations:
 - "HQ", "Headquarters", "City, State" → hq_city_state
 - Columns with URL-like sample data should map to website fields
 - Columns with 2-letter codes (TX, CA) likely map to hq_state
+- "Contact Name", "Primary Contact", "Contact Person" → contact_name
+- "Contact First Name", "First Name" (if about a person) → contact_first_name
+- "Contact Last Name", "Last Name" (if about a person) → contact_last_name
+- "Contact Email", "Email" (if about a person, not a company) → contact_email
+- "Contact Phone", "Phone" (if about a person) → contact_phone
+- "Contact Title", "Title", "Role", "Job Title" (if about a person) → contact_title
+- "Contact LinkedIn", "LinkedIn Profile", "LinkedIn URL" (if about a person, not a company) → contact_linkedin_url
 
 Return null for columns that don't match any field.
-Prioritize platform_website and pe_firm_website over generic company_website when you can distinguish them.`;
+Prioritize platform_website and pe_firm_website over generic company_website when you can distinguish them.
+For LinkedIn URLs: if it contains "/in/" it's a person profile → contact_linkedin_url. If it contains "/company/" it's a company → map to notes or null.`;
     } else {
       systemPrompt = `You are a data mapping expert for M&A deal/company listings imports.
 Given CSV column names and sample data, map them to target database fields.
@@ -536,6 +552,41 @@ function heuristicMapping(columns: string[], targetType: 'buyer' | 'deal' = 'buy
       } else if (lower.includes('note')) {
         targetField = 'notes';
         confidence = 0.8;
+      }
+      // Contact fields for buyer import
+      else if ((lower.includes('contact') || lower.includes('primary')) && lower.includes('name') && !lower.includes('first') && !lower.includes('last')) {
+        targetField = 'contact_name';
+        confidence = 0.85;
+      } else if ((lower.includes('contact') && lower.includes('first')) || lower === 'first name') {
+        targetField = 'contact_first_name';
+        confidence = 0.85;
+      } else if ((lower.includes('contact') && lower.includes('last')) || lower === 'last name') {
+        targetField = 'contact_last_name';
+        confidence = 0.85;
+      } else if ((lower.includes('contact') || lower.includes('primary')) && lower.includes('email')) {
+        targetField = 'contact_email';
+        confidence = 0.85;
+      } else if (lower === 'email' || lower === 'e-mail') {
+        targetField = 'contact_email';
+        confidence = 0.7;
+      } else if ((lower.includes('contact') || lower.includes('primary')) && lower.includes('phone')) {
+        targetField = 'contact_phone';
+        confidence = 0.85;
+      } else if (lower === 'phone' || lower === 'phone number') {
+        targetField = 'contact_phone';
+        confidence = 0.7;
+      } else if ((lower.includes('contact') || lower.includes('primary')) && (lower.includes('title') || lower.includes('role'))) {
+        targetField = 'contact_title';
+        confidence = 0.85;
+      } else if (lower === 'title' || lower === 'job title' || lower === 'role') {
+        targetField = 'contact_title';
+        confidence = 0.7;
+      } else if (lower.includes('linkedin') && (lower.includes('profile') || lower.includes('contact') || lower.includes('person'))) {
+        targetField = 'contact_linkedin_url';
+        confidence = 0.85;
+      } else if (lower.includes('linkedin')) {
+        targetField = 'contact_linkedin_url';
+        confidence = 0.7;
       }
     }
 

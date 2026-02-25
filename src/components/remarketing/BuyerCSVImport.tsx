@@ -171,6 +171,14 @@ const TARGET_FIELDS = [
     description: 'Current operating locations',
   },
   { value: 'notes', label: 'Notes', required: false, description: 'Additional notes' },
+  // Primary contact fields
+  { value: 'contact_name', label: 'Contact Name', required: false, description: 'Full name of primary contact' },
+  { value: 'contact_first_name', label: 'Contact First Name', required: false, description: 'First name of primary contact' },
+  { value: 'contact_last_name', label: 'Contact Last Name', required: false, description: 'Last name of primary contact' },
+  { value: 'contact_email', label: 'Contact Email', required: false, description: 'Email of primary contact' },
+  { value: 'contact_phone', label: 'Contact Phone', required: false, description: 'Phone of primary contact' },
+  { value: 'contact_title', label: 'Contact Title', required: false, description: 'Job title of primary contact' },
+  { value: 'contact_linkedin_url', label: 'Contact LinkedIn URL', required: false, description: 'LinkedIn profile of primary contact' },
 ];
 
 interface DuplicateWarning {
@@ -475,6 +483,24 @@ export const BuyerCSVImport = ({
     // Notes
     if (lower.includes('note')) return 'notes';
 
+    // Contact fields
+    if ((lower.includes('contact') || lower.includes('primary')) && lower.includes('name') && !lower.includes('first') && !lower.includes('last'))
+      return 'contact_name';
+    if ((lower.includes('contact') && lower.includes('first')) || lower === 'first name')
+      return 'contact_first_name';
+    if ((lower.includes('contact') && lower.includes('last')) || lower === 'last name')
+      return 'contact_last_name';
+    if ((lower.includes('contact') || lower.includes('primary')) && lower.includes('email'))
+      return 'contact_email';
+    if (lower === 'email' || lower === 'e-mail') return 'contact_email';
+    if ((lower.includes('contact') || lower.includes('primary')) && lower.includes('phone'))
+      return 'contact_phone';
+    if (lower === 'phone' || lower === 'phone number') return 'contact_phone';
+    if ((lower.includes('contact') || lower.includes('primary')) && (lower.includes('title') || lower.includes('role')))
+      return 'contact_title';
+    if (lower === 'title' || lower === 'job title' || lower === 'role') return 'contact_title';
+    if (lower.includes('linkedin')) return 'contact_linkedin_url';
+
     return null;
   };
 
@@ -495,6 +521,37 @@ export const BuyerCSVImport = ({
         m.targetField === 'pe_firm_website' ||
         m.targetField === 'company_website',
     );
+  };
+
+  // Extract contact fields from a CSV row based on mappings
+  const extractContactFromRow = (row: CSVRow): Record<string, string> | null => {
+    const contact: Record<string, string> = {};
+
+    mappings.forEach((mapping) => {
+      if (mapping.targetField && row[mapping.csvColumn]) {
+        const value = row[mapping.csvColumn].trim();
+        if (mapping.targetField === 'contact_name') contact.name = value;
+        if (mapping.targetField === 'contact_first_name') contact.first_name = value;
+        if (mapping.targetField === 'contact_last_name') contact.last_name = value;
+        if (mapping.targetField === 'contact_email') contact.email = value;
+        if (mapping.targetField === 'contact_phone') contact.phone = value;
+        if (mapping.targetField === 'contact_title') contact.title = value;
+        if (mapping.targetField === 'contact_linkedin_url') contact.linkedin_url = value;
+      }
+    });
+
+    // Need at least a name or email to create a contact
+    const hasName = contact.name || contact.first_name || contact.last_name;
+    if (!hasName && !contact.email) return null;
+
+    // Build first/last name from full name if needed
+    if (contact.name && !contact.first_name && !contact.last_name) {
+      const parts = contact.name.split(/\s+/);
+      contact.first_name = parts[0] || '';
+      contact.last_name = parts.slice(1).join(' ') || '';
+    }
+
+    return contact;
   };
 
   const buildBuyerFromRow = (row: CSVRow) => {
@@ -673,6 +730,16 @@ export const BuyerCSVImport = ({
     });
   };
 
+  const hasContactMapping = () => {
+    return mappings.some(
+      (m) =>
+        m.targetField === 'contact_name' ||
+        m.targetField === 'contact_first_name' ||
+        m.targetField === 'contact_email' ||
+        m.targetField === 'contact_linkedin_url',
+    );
+  };
+
   const handleImport = async () => {
     if (!hasRequiredMapping()) {
       toast.error('Company Name mapping is required');
@@ -683,51 +750,94 @@ export const BuyerCSVImport = ({
     setImportProgress(0);
     setImportResults({ success: 0, errors: 0 });
 
-    const batchSize = 10;
     let success = 0;
     let errors = 0;
+    let contactsCreated = 0;
 
     // Filter out skipped duplicates
     const dataToImport = validRows.filter(({ index }) => !skipDuplicates.has(index));
+    const wantContacts = hasContactMapping();
 
-    for (let i = 0; i < dataToImport.length; i += batchSize) {
-      const batch = dataToImport.slice(i, i + batchSize);
+    if (wantContacts) {
+      // Single-insert mode: need buyer IDs to create linked contacts
+      for (let i = 0; i < dataToImport.length; i++) {
+        const { row } = dataToImport[i];
+        const buyer = buildBuyerFromRow(row);
+        if (!buyer.company_name) { errors += 1; continue; }
 
-      const buyersToInsert = batch
-        .map(({ row }) => buildBuyerFromRow(row))
-        .filter((b): b is typeof b & { company_name: string } => !!b.company_name);
+        const { data: inserted, error: buyerError } = await supabase
+          .from('remarketing_buyers')
+          .insert(buyer as never)
+          .select('id')
+          .single();
 
-      if (buyersToInsert.length > 0) {
-        const { error } = await supabase.from('remarketing_buyers').insert(buyersToInsert as never);
-
-        if (error) {
-          // Batch insert failed (e.g. one row violates a unique constraint).
-          // Fall back to inserting one row at a time so valid rows still succeed.
-          for (const buyer of buyersToInsert) {
-            const { error: singleError } = await supabase
-              .from('remarketing_buyers')
-              .insert(buyer as never);
-
-            if (singleError) {
-              console.warn('Failed to import buyer:', buyer.company_name, singleError.message);
-              errors += 1;
-            } else {
-              success += 1;
-            }
-          }
+        if (buyerError || !inserted) {
+          console.warn('Failed to import buyer:', buyer.company_name, buyerError?.message);
+          errors += 1;
         } else {
-          success += buyersToInsert.length;
-        }
-      }
+          success += 1;
 
-      setImportProgress(((i + batchSize) / dataToImport.length) * 100);
+          // Create contact if we have contact data
+          const contact = extractContactFromRow(row);
+          if (contact && inserted.id) {
+            const { error: contactError } = await supabase
+              .from('remarketing_buyer_contacts')
+              .insert({
+                buyer_id: inserted.id,
+                name: contact.name || `${contact.first_name || ''} ${contact.last_name || ''}`.trim() || 'Unknown',
+                email: contact.email || null,
+                phone: contact.phone || null,
+                role: contact.title || null,
+                linkedin_url: contact.linkedin_url || null,
+                is_primary: true,
+              } as never);
+
+            if (!contactError) contactsCreated++;
+          }
+        }
+
+        setImportProgress(((i + 1) / dataToImport.length) * 100);
+      }
+    } else {
+      // Batch mode: faster when no contact fields are mapped
+      const batchSize = 10;
+      for (let i = 0; i < dataToImport.length; i += batchSize) {
+        const batch = dataToImport.slice(i, i + batchSize);
+        const buyersToInsert = batch
+          .map(({ row }) => buildBuyerFromRow(row))
+          .filter((b): b is typeof b & { company_name: string } => !!b.company_name);
+
+        if (buyersToInsert.length > 0) {
+          const { error } = await supabase.from('remarketing_buyers').insert(buyersToInsert as never);
+
+          if (error) {
+            for (const buyer of buyersToInsert) {
+              const { error: singleError } = await supabase
+                .from('remarketing_buyers')
+                .insert(buyer as never);
+
+              if (singleError) {
+                console.warn('Failed to import buyer:', buyer.company_name, singleError.message);
+                errors += 1;
+              } else {
+                success += 1;
+              }
+            }
+          } else {
+            success += buyersToInsert.length;
+          }
+        }
+
+        setImportProgress(((i + batchSize) / dataToImport.length) * 100);
+      }
     }
 
     setImportResults((prev) => ({ ...prev, success, errors }));
 
     if (success > 0) {
       queryClient.invalidateQueries({ queryKey: ['remarketing', 'buyers'] });
-      toast.success(`Imported ${success} buyers`);
+      const contactMsg = contactsCreated > 0 ? ` with ${contactsCreated} contacts` : '';
+      toast.success(`Imported ${success} buyers${contactMsg}`);
     }
 
     if (errors > 0) {

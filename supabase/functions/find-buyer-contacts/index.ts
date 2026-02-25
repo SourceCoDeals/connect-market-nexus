@@ -145,6 +145,32 @@ serve(async (req) => {
     // Dedupe contacts by name
     const uniqueContacts = dedupeContacts(allContacts);
 
+    // Enrich contacts missing linkedin_url with LinkedIn search
+    if (FIRECRAWL_API_KEY && uniqueContacts.length > 0) {
+      const companyName = buyer?.company_name || '';
+      const contactsNeedingLinkedIn = uniqueContacts.filter(c => !c.linkedin_url && c.name);
+
+      if (contactsNeedingLinkedIn.length > 0) {
+        console.log(`[find-buyer-contacts] Looking up LinkedIn profiles for ${contactsNeedingLinkedIn.length} contacts`);
+
+        // Limit to 5 lookups to avoid excessive API usage
+        const lookupBatch = contactsNeedingLinkedIn.slice(0, 5);
+        await Promise.allSettled(
+          lookupBatch.map(async (contact) => {
+            try {
+              const linkedinUrl = await searchLinkedInProfile(FIRECRAWL_API_KEY, contact.name, companyName);
+              if (linkedinUrl) {
+                contact.linkedin_url = linkedinUrl;
+                console.log(`[find-buyer-contacts] Found LinkedIn for ${contact.name}: ${linkedinUrl}`);
+              }
+            } catch (err) {
+              console.warn(`[find-buyer-contacts] LinkedIn lookup failed for ${contact.name}:`, err);
+            }
+          })
+        );
+      }
+    }
+
     // Save contacts if buyerId provided
     if (buyerId && uniqueContacts.length > 0) {
       for (const contact of uniqueContacts) {
@@ -241,6 +267,50 @@ Only include people with clear names and titles. Return empty array if no contac
   } catch (error) {
     console.error('AI extraction error:', error);
     return [];
+  }
+}
+
+/**
+ * Search for a person's LinkedIn profile URL using Firecrawl search.
+ * Returns the first matching linkedin.com/in/ URL or null.
+ */
+async function searchLinkedInProfile(
+  firecrawlApiKey: string,
+  personName: string,
+  companyName: string,
+): Promise<string | null> {
+  const searchQuery = `site:linkedin.com/in "${personName}" "${companyName}"`;
+
+  try {
+    const response = await fetch('https://api.firecrawl.dev/v1/search', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${firecrawlApiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ query: searchQuery, limit: 3 }),
+      signal: AbortSignal.timeout(10000),
+    });
+
+    if (!response.ok) return null;
+
+    const data = await response.json();
+    const results = data.data || data || [];
+
+    for (const result of results) {
+      const url = result.url || '';
+      if (url.includes('linkedin.com/in/') && !url.includes('/posts') && !url.includes('/activity')) {
+        // Normalize: https://www.linkedin.com/in/slug
+        const match = url.match(/linkedin\.com\/in\/([^/?#]+)/);
+        if (match) {
+          return `https://www.linkedin.com/in/${match[1]}`;
+        }
+      }
+    }
+
+    return null;
+  } catch {
+    return null;
   }
 }
 
