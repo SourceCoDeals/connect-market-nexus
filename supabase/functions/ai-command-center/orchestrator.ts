@@ -115,7 +115,7 @@ function truncateToolResult(json: string): string {
 
 // ---------- Orchestrator ----------
 
-const MAX_TOOL_ROUNDS = 5;
+const MAX_TOOL_ROUNDS = 8;
 
 export async function orchestrate(
   options: OrchestratorOptions,

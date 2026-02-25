@@ -363,7 +363,33 @@ async function googleSearchCompanies(args: Record<string, unknown>): Promise<Too
       },
     };
   } catch (err) {
-    return { error: `Google search failed: ${err instanceof Error ? err.message : String(err)}` };
+    const errMsg = err instanceof Error ? err.message : String(err);
+    const is404 = errMsg.includes('404');
+    const isAuth = errMsg.includes('401') || errMsg.includes('403') || errMsg.includes('Unauthorized');
+    const isRateLimit = errMsg.includes('429');
+
+    let diagnosis = '';
+    if (is404) {
+      diagnosis = 'The Apify Google search actor may have been renamed or removed. The APIFY_API_KEY or actor ID may need updating in Supabase Edge Function secrets.';
+    } else if (isAuth) {
+      diagnosis = 'The APIFY_API_KEY appears to be invalid or expired. It needs to be updated in Supabase Edge Function secrets.';
+    } else if (isRateLimit) {
+      diagnosis = 'Apify rate limit hit. Try again in a few minutes.';
+    } else {
+      diagnosis = 'This may be a temporary network issue. Try again shortly.';
+    }
+
+    return {
+      error: `Google search failed: ${errMsg}`,
+      data: {
+        diagnosis,
+        alternatives: [
+          'Search the internal database using search_contacts, search_pe_contacts, or query_deals instead',
+          'The user can search Google manually and paste a LinkedIn URL for enrichment via enrich_linkedin_contact',
+          'Check APIFY_API_KEY in Supabase Edge Function secrets if this persists',
+        ],
+      },
+    };
   }
 }
 
@@ -550,7 +576,16 @@ async function enrichBuyerContacts(
   try {
     employees = await scrapeCompanyEmployees(linkedInUrl!, Math.max(targetCount * 3, 50));
   } catch (err) {
-    errors.push(`LinkedIn scrape failed: ${err instanceof Error ? err.message : String(err)}`);
+    const errMsg = err instanceof Error ? err.message : String(err);
+    const is404 = errMsg.includes('404');
+    const isAuth = errMsg.includes('401') || errMsg.includes('403');
+    if (is404) {
+      errors.push(`LinkedIn scrape failed (404): The Apify actor may have been renamed or removed. Check APIFY_API_KEY and actor ID in Supabase secrets.`);
+    } else if (isAuth) {
+      errors.push(`LinkedIn scrape failed (auth): APIFY_API_KEY may be invalid or expired. Update it in Supabase Edge Function secrets.`);
+    } else {
+      errors.push(`LinkedIn scrape failed: ${errMsg}`);
+    }
   }
 
   // 4. Filter by title
@@ -678,7 +713,16 @@ async function enrichBuyerContacts(
       3,
     );
   } catch (err) {
-    errors.push(`Enrichment failed: ${err instanceof Error ? err.message : String(err)}`);
+    const errMsg = err instanceof Error ? err.message : String(err);
+    const is404 = errMsg.includes('404');
+    const isAuth = errMsg.includes('401') || errMsg.includes('403');
+    if (is404) {
+      errors.push(`Email enrichment failed (404): Prospeo API endpoint may have changed. Check PROSPEO_API_KEY in Supabase secrets.`);
+    } else if (isAuth) {
+      errors.push(`Email enrichment failed (auth): PROSPEO_API_KEY may be invalid or expired.`);
+    } else {
+      errors.push(`Email enrichment failed: ${errMsg}`);
+    }
   }
 
   // 7. Domain fallback
@@ -768,6 +812,26 @@ async function enrichBuyerContacts(
     from_cache: false,
     duration_ms: 0,
   });
+
+  // If all external APIs failed and we got nothing, provide actionable guidance
+  if (allContacts.length === 0 && errors.length > 0) {
+    return {
+      data: {
+        contacts: [],
+        total_found: 0,
+        total_enriched: 0,
+        from_cache: false,
+        errors,
+        message: `Could not find contacts for "${companyName}" — external enrichment APIs failed.`,
+        alternatives: [
+          'Search internal contacts using search_contacts or search_pe_contacts',
+          'If the user has a LinkedIn URL for someone at this company, use enrich_linkedin_contact instead',
+          'The user can paste a LinkedIn company URL and try again with the company_linkedin_url parameter',
+          'Check APIFY_API_KEY and PROSPEO_API_KEY in Supabase Edge Function secrets',
+        ],
+      },
+    };
+  }
 
   return {
     data: {

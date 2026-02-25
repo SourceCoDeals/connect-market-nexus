@@ -830,6 +830,41 @@ const BYPASS_RULES: Array<{
       confidence: 0.9,
     },
   },
+  // Platform help / "how do I" / "what is" questions about SourceCo features
+  {
+    test: (q) =>
+      (/\b(how (do|can|should) I|how to|what is|what are|explain|help me|teach me|show me how|guide|tutorial|walkthrough|what can you do|what tools|capabilities)\b/i.test(q) &&
+        /\b(platform|sourceco|captarget|cap target|gp partner|go partner|marketplace|remarketing|universe|scoring|enrichment|data room|nda|fee agreement|phoneburner|phone burner|smartlead|smart lead|pipeline|outreach|chatbot|ai command|command center|this tool|this app|lead source|tracker|valuation|calling list|prospeo|apify|linkedin|memo|teaser)\b/i.test(q)) ||
+      /\b(what can (you|the (bot|chatbot|ai|assistant)) do)\b/i.test(q) ||
+      /\b(help|how does (this|it|the (platform|system|tool|chatbot|ai)) work)\b/i.test(q),
+    result: {
+      category: 'PLATFORM_GUIDE',
+      tier: 'STANDARD',
+      tools: ['get_current_user_context'],
+      confidence: 0.95,
+    },
+  },
+  // Building lists / compiling contacts — multi-step workflow
+  {
+    test: (q) =>
+      /\b(build|compile|create|make|generate|put together|assemble)\b.*\b(list|roster|spreadsheet|report|directory)\b.*\b(owner|contact|phone|email|call)\b/i.test(q) ||
+      /\b(calling list|contact list|outreach list|prospect list|call list)\b/i.test(q),
+    result: {
+      category: 'CONTACT_ENRICHMENT',
+      tier: 'STANDARD',
+      tools: [
+        'search_lead_sources',
+        'search_valuation_leads',
+        'query_deals',
+        'search_contacts',
+        'enrich_buyer_contacts',
+        'google_search_companies',
+        'save_contacts_to_crm',
+        'push_to_phoneburner',
+      ],
+      confidence: 0.92,
+    },
+  },
 ];
 
 // ---------- LLM-based routing ----------
@@ -864,6 +899,7 @@ Categories:
 - DEAL_CONVERSION: Convert remarketing match to pipeline deal
 - SMARTLEAD_OUTREACH: Smartlead cold email campaigns, email outreach history, push contacts to email campaigns, campaign stats
 - INDUSTRY: Industry trackers, vertical scoring configs
+- PLATFORM_GUIDE: Questions about how to use the platform, what features do, how workflows work, what the chatbot can do
 - GENERAL: Other / unclear intent
 
 Available tools: query_deals, get_deal_details, get_deal_activities, get_deal_tasks, get_deal_documents, get_deal_memos, get_deal_comments, get_deal_scoring_adjustments, get_deal_referrals, get_deal_conversations, get_pipeline_summary, search_buyers, get_buyer_profile, get_score_breakdown, get_top_buyers_for_deal, get_buyer_decisions, get_score_history, get_buyer_learning_history, search_lead_sources, search_valuation_leads, search_inbound_leads, get_referral_data, search_pe_contacts, get_firm_agreements, get_nda_logs, get_connection_requests, get_connection_messages, search_buyer_universes, get_universe_details, get_outreach_records, get_remarketing_outreach, get_engagement_signals, get_interest_signals, search_transcripts, search_buyer_transcripts, search_fireflies, get_meeting_action_items, get_outreach_status, get_analytics, get_enrichment_status, get_industry_trackers, get_current_user_context, create_deal_task, complete_deal_task, add_deal_note, log_deal_activity, update_deal_stage, grant_data_room_access, select_table_rows, apply_table_filter, sort_table_column, navigate_to_page, explain_buyer_score, get_cross_deal_analytics, semantic_transcript_search, get_follow_up_queue, get_call_history, search_contacts, get_stale_deals, get_document_engagement, enrich_buyer_contacts, push_to_phoneburner, push_to_smartlead, send_document, google_search_companies, save_contacts_to_crm, reassign_deal_task, convert_to_pipeline_deal, get_data_quality_report, detect_buyer_conflicts, get_deal_health, match_leads_to_deals, generate_eod_recap, get_smartlead_campaigns, get_smartlead_campaign_stats, get_smartlead_email_history

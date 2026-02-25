@@ -267,6 +267,9 @@ const TOOL_CATEGORIES: Record<string, string[]> = {
     'send_document',
   ],
 
+  // Platform guide / help — minimal tools, mostly knowledge-based response
+  PLATFORM_GUIDE: ['get_current_user_context'],
+
   // Industry trackers
   INDUSTRY: ['get_industry_trackers', 'search_buyer_universes'],
 
