@@ -139,24 +139,47 @@ export function useAICommandCenter(pageContext?: PageContext) {
         content: m.content,
       }));
 
-      const response = await fetch(
-        `${SUPABASE_URL}/functions/v1/ai-command-center`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${sessionData.session.access_token}`,
-            apikey: SUPABASE_PUBLISHABLE_KEY,
-          },
-          body: JSON.stringify({
-            query: query.trim(),
-            conversation_id: conversationIdRef.current,
-            history,
-            page_context: pageContext,
-          }),
-          signal: abortControllerRef.current.signal,
+      const fetchOptions = {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${sessionData.session.access_token}`,
+          apikey: SUPABASE_PUBLISHABLE_KEY,
         },
-      );
+        body: JSON.stringify({
+          query: query.trim(),
+          conversation_id: conversationIdRef.current,
+          history,
+          page_context: pageContext,
+        }),
+        signal: abortControllerRef.current.signal,
+      };
+
+      // Retry up to 2 times on network errors (Failed to fetch / TypeError)
+      let response: Response | undefined;
+      let lastNetworkError: Error | undefined;
+      for (let attempt = 0; attempt < 3; attempt++) {
+        try {
+          response = await fetch(
+            `${SUPABASE_URL}/functions/v1/ai-command-center`,
+            fetchOptions,
+          );
+          lastNetworkError = undefined;
+          break;
+        } catch (fetchErr) {
+          if (fetchErr instanceof Error && fetchErr.name === 'AbortError') throw fetchErr;
+          lastNetworkError = fetchErr instanceof Error ? fetchErr : new Error(String(fetchErr));
+          if (attempt < 2) {
+            await new Promise(r => setTimeout(r, 1000 * (attempt + 1)));
+          }
+        }
+      }
+
+      if (!response) {
+        throw new Error(
+          'Unable to reach the AI service. Please check your internet connection and try again.',
+        );
+      }
 
       if (response.status === 429) {
         throw new Error('Rate limit exceeded. Please wait a moment and try again.');

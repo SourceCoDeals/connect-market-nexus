@@ -46,79 +46,92 @@ Deno.serve(async (req: Request) => {
     return corsPreflightResponse(req);
   }
 
+  // Compute CORS headers early so every response path includes them.
+  // Without this, an unhandled error would cause Supabase to return a 500
+  // without CORS headers, which the browser surfaces as "Failed to fetch".
   const corsHeaders = getCorsHeaders(req);
 
-  // Auth check — admin only
-  const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-  const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-  const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
-
-  const auth = await requireAdmin(req, supabaseAdmin);
-  if (!auth.authenticated || !auth.isAdmin) {
-    return new Response(
-      JSON.stringify({ error: auth.error || 'Unauthorized' }),
-      { status: auth.authenticated ? 403 : 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
-    );
-  }
-
-  const userId = auth.userId!;
-
-  // Parse request body
-  let body: ChatRequest;
   try {
-    body = await req.json();
-  } catch {
-    return new Response(
-      JSON.stringify({ error: 'Invalid request body' }),
-      { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
-    );
-  }
+    // Auth check — admin only
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
 
-  if (!body.query?.trim()) {
-    return new Response(
-      JSON.stringify({ error: 'Query is required' }),
-      { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
-    );
-  }
+    const auth = await requireAdmin(req, supabaseAdmin);
+    if (!auth.authenticated || !auth.isAdmin) {
+      return new Response(
+        JSON.stringify({ error: auth.error || 'Unauthorized' }),
+        { status: auth.authenticated ? 403 : 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      );
+    }
 
-  // Set up SSE streaming response
-  const encoder = new TextEncoder();
-  const stream = new TransformStream();
-  const writable = stream.writable.getWriter();
+    const userId = auth.userId!;
 
-  const writer = {
-    write: async (chunk: string) => {
-      await writable.write(encoder.encode(chunk));
-    },
-    close: async () => {
-      await writable.close();
-    },
-  };
+    // Parse request body
+    let body: ChatRequest;
+    try {
+      body = await req.json();
+    } catch {
+      return new Response(
+        JSON.stringify({ error: 'Invalid request body' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      );
+    }
 
-  // Start processing in the background
-  const processPromise = processChat(supabaseAdmin, userId, body, writer);
+    if (!body.query?.trim()) {
+      return new Response(
+        JSON.stringify({ error: 'Query is required' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      );
+    }
 
-  // Return the streaming response immediately
-  const response = new Response(stream.readable, {
-    headers: {
-      ...corsHeaders,
-      'Content-Type': 'text/event-stream',
-      'Cache-Control': 'no-cache',
-      'Connection': 'keep-alive',
-    },
-  });
+    // Set up SSE streaming response
+    const encoder = new TextEncoder();
+    const stream = new TransformStream();
+    const writable = stream.writable.getWriter();
 
-  // Ensure processing completes and stream closes
-  processPromise
-    .catch((err) => {
-      console.error('[ai-cc] Processing error:', err);
-      writer.write(`event: error\ndata: ${JSON.stringify({ message: err instanceof Error ? err.message : 'Internal error' })}\n\n`).catch(() => {});
-    })
-    .finally(() => {
-      writer.close().catch(() => {});
+    const writer = {
+      write: async (chunk: string) => {
+        await writable.write(encoder.encode(chunk));
+      },
+      close: async () => {
+        await writable.close();
+      },
+    };
+
+    // Start processing in the background
+    const processPromise = processChat(supabaseAdmin, userId, body, writer);
+
+    // Return the streaming response immediately
+    const response = new Response(stream.readable, {
+      headers: {
+        ...corsHeaders,
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache',
+        'Connection': 'keep-alive',
+      },
     });
 
-  return response;
+    // Ensure processing completes and stream closes
+    processPromise
+      .catch((err) => {
+        console.error('[ai-cc] Processing error:', err);
+        writer.write(`event: error\ndata: ${JSON.stringify({ message: err instanceof Error ? err.message : 'Internal error' })}\n\n`).catch(() => {});
+      })
+      .finally(() => {
+        writer.close().catch(() => {});
+      });
+
+    return response;
+  } catch (err) {
+    // Top-level catch: ensures CORS headers are always returned so the
+    // browser doesn't mask the real error behind "Failed to fetch".
+    console.error('[ai-cc] Unhandled error in request handler:', err);
+    return new Response(
+      JSON.stringify({ error: err instanceof Error ? err.message : 'Internal server error' }),
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+    );
+  }
 });
 
 // ---------- Main processing ----------
