@@ -210,9 +210,13 @@ FINANCIALS:
 - ebitda: annual EBITDA as a raw number. Format for display.
 - ebitda_margin: EBITDA as a percentage of revenue (decimal, e.g. 0.20 = 20%).
 - cash_flow: optional cash flow metric when available.
+- revenue_is_inferred: boolean — true if revenue was estimated/inferred rather than reported by the seller. When true, caveat the number as estimated.
+- ebitda_is_inferred: boolean — true if EBITDA was estimated/inferred rather than reported. When true, caveat the number as estimated.
 - revenue_model_breakdown: JSONB breakdown of revenue types with percentages (e.g. recurring vs project).
 - financial_notes: detailed financial analysis notes from the deal team.
-- seller_interest_score: numeric score indicating the seller's engagement/interest level.
+- financial_followup_questions: array of open financial questions that still need answers.
+- seller_interest_score: numeric score (0-100) indicating the seller's engagement/interest level, AI-analyzed from transcripts and notes.
+- seller_interest_notes: JSONB with detailed AI analysis of seller interest signals.
 
 LOCATION & GEOGRAPHY:
 - location: free-text geographic location string.
@@ -232,10 +236,14 @@ INDUSTRY & SERVICES:
 - categories: array of categories.
 - services / service_mix: array of service types the business provides.
 - business_model: description of the business model (recurring, project-based, B2B, B2C, etc.).
+- end_market_description: description of the business's end markets and customer segments.
 - industry_tier: integer (1/2/3) tier classification for scoring multipliers. Tier 1 = highest priority industries.
+- industry_tier_name: human-readable name for the industry tier.
+- tags: searchable keyword tags on the deal.
 
 COMPANY SIZE & OPERATIONS:
-- full_time_employees: FTE count.
+- full_time_employees: full-time employee count.
+- part_time_employees: part-time employee count. Use both to calculate total headcount when asked about "employees".
 - number_of_locations: how many physical locations the business has.
 - founded_year: year the company was founded.
 - technology_systems: technology and software used by the company.
@@ -245,7 +253,9 @@ SELLER INFORMATION & MOTIVATION:
 - owner_goals: the seller's strategic objectives for the transaction — NOT financial metrics. Examples: "retain existing management", "grow EBITDA 20%". Drives owner_goals_score matching.
 - seller_motivation: why the owner wants to sell — "retirement", "health", "burnout", "growth capital needed". Affects urgency.
 - timeline_preference: preferred transaction timeline.
+- timeline_notes: additional notes and context about the transaction timeline.
 - seller_involvement_preference: post-transaction involvement preference (e.g. "stay 2 years", "clean break").
+- transition_preferences: how the seller expects the ownership/management change to work — "want to stay as CEO for 2 years", "prefer strategic over PE", "want management team retained", "clean break at close". Critical for buyer-seller fit scoring.
 - ownership_structure: current ownership type — "individual", "family", "corporate", "private_equity".
 - owner_response: the owner's response to initial outreach/interest.
 
@@ -282,9 +292,14 @@ ENRICHMENT & WEB DATA:
 - fireflies_url: Fireflies.ai transcript URL if available.
 
 SCORING & RANKING:
-- deal_total_score: overall deal quality score (integer).
+- deal_total_score: overall deal quality score (integer, 0-100).
+- deal_size_score: sub-score for deal size/revenue attractiveness.
+- revenue_score: sub-score for revenue quality.
+- ebitda_score: sub-score for EBITDA quality.
+- scoring_notes: human-readable notes about how the deal was scored and any manual adjustments.
 - manual_rank_override: drag-and-drop manual ranking override (integer). Lower = higher priority.
 - is_priority_target: boolean — whether this is a priority deal target.
+- enrichment_status: current enrichment pipeline status (e.g. "pending", "enriched", "failed").
 
 FLAGS & ACTION ITEMS:
 - needs_owner_contact: CRITICAL FLAG — boolean indicating the seller/owner needs to be contacted. When true, the deal appears RED in the Active Deals table with a pulsing phone icon. This is the "contact flag". Use query_deals(needs_owner_contact=true) to find these. Also has needs_owner_contact_at (when flagged) and needs_owner_contact_by (who flagged it).
@@ -297,12 +312,14 @@ CAPTARGET INTEGRATION:
 - captarget_outreach_channel: outreach method used by CapTarget.
 - captarget_contact_date: when CapTarget contact was made.
 - captarget_sheet_tab: which sheet tab in the CapTarget tracker.
+- captarget_call_notes: notes from the CapTarget call/outreach.
 - pushed_to_all_deals: boolean — whether this CapTarget/lead deal has been promoted to Active Deals.
 
 OWNERSHIP & ASSIGNMENT:
-- deal_owner_id: UUID of the admin user who owns this deal. Use query_deals(deal_owner_id="CURRENT_USER") to find the current user's deals.
+- deal_owner_id: UUID of the admin user who owns this deal. Use query_deals(deal_owner_id=user_id) to find a specific user's deals.
 - primary_owner_id: UUID of the SourceCo/CapTarget employee owning the seller relationship.
 - presented_by_admin_id: UUID of the admin who presented/sourced the deal.
+- published_by_admin_id: UUID of the admin who published the deal to the marketplace.
 - referral_partner_id: UUID of the referral partner who referred this deal. Join with referral_partners table.
 
 INTERNAL LINKS:
