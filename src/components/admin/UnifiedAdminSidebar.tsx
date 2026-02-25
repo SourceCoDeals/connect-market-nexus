@@ -36,7 +36,6 @@ import {
   Plus,
   List,
   ListChecks,
-  Bookmark,
   Contact,
   Mail,
   Search,
@@ -210,14 +209,9 @@ export function UnifiedAdminSidebar({
         icon: <List className="h-4 w-4" />,
         items: [
           {
-            label: 'Contact Lists',
+            label: 'Lists',
             href: '/admin/lists',
             icon: <ListChecks className="h-4 w-4" />,
-          },
-          {
-            label: 'Saved Listings',
-            href: '/saved-listings',
-            icon: <Bookmark className="h-4 w-4" />,
           },
         ],
       },

@@ -1,8 +1,9 @@
-import { useCallback } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { useState, useCallback } from 'react';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import {
   Table,
   TableBody,
@@ -17,13 +18,26 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { ListChecks, Search, Phone, MoreHorizontal, Trash2, Users } from 'lucide-react';
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { ListChecks, Search, Phone, MoreHorizontal, Trash2, Users, Plus, Loader2 } from 'lucide-react';
 import { format, formatDistanceToNow } from 'date-fns';
-import { useContactLists, useDeleteContactList } from '@/hooks/admin/use-contact-lists';
+import { useContactLists, useDeleteContactList, useCreateContactList } from '@/hooks/admin/use-contact-lists';
 
 const ContactListsPage = () => {
+  const navigate = useNavigate();
   const { data: lists = [], isLoading } = useContactLists();
   const deleteMutation = useDeleteContactList();
+  const createList = useCreateContactList();
+
+  const [createOpen, setCreateOpen] = useState(false);
+  const [newListName, setNewListName] = useState('');
+
   // URL-persisted search (survives browser Back navigation)
   const [searchParams, setSearchParams] = useSearchParams();
   const searchQuery = searchParams.get('q') ?? '';
@@ -52,6 +66,20 @@ const ContactListsPage = () => {
     );
   });
 
+  const handleCreateList = () => {
+    if (!newListName.trim()) return;
+    createList.mutate(
+      { name: newListName.trim(), list_type: 'mixed', members: [] },
+      {
+        onSuccess: (data) => {
+          setCreateOpen(false);
+          setNewListName('');
+          navigate(`/admin/lists/${data.id}`);
+        },
+      },
+    );
+  };
+
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
@@ -59,14 +87,20 @@ const ContactListsPage = () => {
         <div className="px-8 py-6">
           <div className="flex items-center justify-between">
             <div className="space-y-1">
-              <h1 className="text-2xl font-semibold tracking-tight">Contact Lists</h1>
+              <h1 className="text-2xl font-semibold tracking-tight">Lists</h1>
               <p className="text-sm text-muted-foreground">
-                Saved contact lists for outreach campaigns and PhoneBurner export.
+                Saved lists for outreach campaigns and PhoneBurner export.
               </p>
             </div>
-            <Badge variant="secondary" className="text-xs">
-              {lists.length} list{lists.length !== 1 ? 's' : ''}
-            </Badge>
+            <div className="flex items-center gap-3">
+              <Badge variant="secondary" className="text-xs">
+                {lists.length} list{lists.length !== 1 ? 's' : ''}
+              </Badge>
+              <Button size="sm" onClick={() => setCreateOpen(true)}>
+                <Plus className="h-4 w-4 mr-1" />
+                New List
+              </Button>
+            </div>
           </div>
         </div>
       </div>
@@ -96,10 +130,14 @@ const ContactListsPage = () => {
           ) : filteredLists.length === 0 ? (
             <div className="text-center py-16 text-muted-foreground">
               <ListChecks className="h-12 w-12 mx-auto mb-4 opacity-50" />
-              <p className="text-sm font-medium">No contact lists yet</p>
+              <p className="text-sm font-medium">No lists yet</p>
               <p className="text-xs mt-1">
-                Select contacts from the Buyer Contacts page and click "Save as List"
+                Create a new list to get started.
               </p>
+              <Button size="sm" variant="outline" className="mt-4" onClick={() => setCreateOpen(true)}>
+                <Plus className="h-4 w-4 mr-1" />
+                New List
+              </Button>
             </div>
           ) : (
             <Table>
@@ -212,6 +250,44 @@ const ContactListsPage = () => {
           )}
         </div>
       </div>
+
+      {/* Create List Dialog */}
+      <Dialog open={createOpen} onOpenChange={(v) => { setCreateOpen(v); if (!v) setNewListName(''); }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Create New List</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-1.5 py-2">
+            <Label htmlFor="new-list-name">List Name *</Label>
+            <Input
+              id="new-list-name"
+              value={newListName}
+              onChange={(e) => setNewListName(e.target.value)}
+              placeholder="e.g., Q1 Seller Outreach"
+              onKeyDown={(e) => { if (e.key === 'Enter') handleCreateList(); }}
+              autoFocus
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCreateOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleCreateList} disabled={!newListName.trim() || createList.isPending}>
+              {createList.isPending ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Creating...
+                </>
+              ) : (
+                <>
+                  <Plus className="mr-2 h-4 w-4" />
+                  Create List
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
