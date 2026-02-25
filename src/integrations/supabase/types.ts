@@ -409,6 +409,13 @@ export type Database = {
             foreignKeyName: "alert_delivery_logs_listing_id_fkey"
             columns: ["listing_id"]
             isOneToOne: false
+            referencedRelation: "listing_contact_history_summary"
+            referencedColumns: ["listing_id"]
+          },
+          {
+            foreignKeyName: "alert_delivery_logs_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
             referencedRelation: "listings"
             referencedColumns: ["id"]
           },
@@ -524,6 +531,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "linkedin_manual_review_queue"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "buyer_approve_decisions_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
+            referencedRelation: "listing_contact_history_summary"
+            referencedColumns: ["listing_id"]
           },
           {
             foreignKeyName: "buyer_approve_decisions_listing_id_fkey"
@@ -991,6 +1005,13 @@ export type Database = {
             foreignKeyName: "buyer_introductions_contact_id_fkey"
             columns: ["contact_id"]
             isOneToOne: false
+            referencedRelation: "contact_history_summary"
+            referencedColumns: ["contact_id"]
+          },
+          {
+            foreignKeyName: "buyer_introductions_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
             referencedRelation: "contacts"
             referencedColumns: ["id"]
           },
@@ -1007,6 +1028,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "linkedin_manual_review_queue"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "buyer_introductions_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
+            referencedRelation: "listing_contact_history_summary"
+            referencedColumns: ["listing_id"]
           },
           {
             foreignKeyName: "buyer_introductions_listing_id_fkey"
@@ -1126,6 +1154,13 @@ export type Database = {
             foreignKeyName: "buyer_learning_history_listing_id_fkey"
             columns: ["listing_id"]
             isOneToOne: false
+            referencedRelation: "listing_contact_history_summary"
+            referencedColumns: ["listing_id"]
+          },
+          {
+            foreignKeyName: "buyer_learning_history_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
             referencedRelation: "listings"
             referencedColumns: ["id"]
           },
@@ -1222,6 +1257,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "linkedin_manual_review_queue"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "buyer_pass_decisions_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
+            referencedRelation: "listing_contact_history_summary"
+            referencedColumns: ["listing_id"]
           },
           {
             foreignKeyName: "buyer_pass_decisions_listing_id_fkey"
@@ -1837,6 +1879,13 @@ export type Database = {
             foreignKeyName: "chat_conversations_listing_id_fkey"
             columns: ["listing_id"]
             isOneToOne: false
+            referencedRelation: "listing_contact_history_summary"
+            referencedColumns: ["listing_id"]
+          },
+          {
+            foreignKeyName: "chat_conversations_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
             referencedRelation: "listings"
             referencedColumns: ["id"]
           },
@@ -1953,6 +2002,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "linkedin_manual_review_queue"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "collection_items_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
+            referencedRelation: "listing_contact_history_summary"
+            referencedColumns: ["listing_id"]
           },
           {
             foreignKeyName: "collection_items_listing_id_fkey"
@@ -2361,6 +2417,13 @@ export type Database = {
             foreignKeyName: "connection_requests_listing_id_fkey"
             columns: ["listing_id"]
             isOneToOne: false
+            referencedRelation: "listing_contact_history_summary"
+            referencedColumns: ["listing_id"]
+          },
+          {
+            foreignKeyName: "connection_requests_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
             referencedRelation: "listings"
             referencedColumns: ["id"]
           },
@@ -2520,6 +2583,13 @@ export type Database = {
             foreignKeyName: "contact_activities_contact_id_fkey"
             columns: ["contact_id"]
             isOneToOne: false
+            referencedRelation: "contact_history_summary"
+            referencedColumns: ["contact_id"]
+          },
+          {
+            foreignKeyName: "contact_activities_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
             referencedRelation: "contacts"
             referencedColumns: ["id"]
           },
@@ -2535,6 +2605,369 @@ export type Database = {
             columns: ["remarketing_buyer_id"]
             isOneToOne: false
             referencedRelation: "remarketing_buyers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      contact_call_history: {
+        Row: {
+          archived_at: string | null
+          call_notes: string | null
+          called_at: string
+          called_by: string
+          contact_id: string
+          created_at: string
+          disposition: string
+          duration_seconds: number | null
+          id: string
+          listing_id: string | null
+          phone_number: string
+          phoneburner_call_id: string | null
+          recording_url: string | null
+        }
+        Insert: {
+          archived_at?: string | null
+          call_notes?: string | null
+          called_at: string
+          called_by: string
+          contact_id: string
+          created_at?: string
+          disposition: string
+          duration_seconds?: number | null
+          id?: string
+          listing_id?: string | null
+          phone_number: string
+          phoneburner_call_id?: string | null
+          recording_url?: string | null
+        }
+        Update: {
+          archived_at?: string | null
+          call_notes?: string | null
+          called_at?: string
+          called_by?: string
+          contact_id?: string
+          created_at?: string
+          disposition?: string
+          duration_seconds?: number | null
+          id?: string
+          listing_id?: string | null
+          phone_number?: string
+          phoneburner_call_id?: string | null
+          recording_url?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contact_call_history_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contact_history_summary"
+            referencedColumns: ["contact_id"]
+          },
+          {
+            foreignKeyName: "contact_call_history_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contact_call_history_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
+            referencedRelation: "buyer_introduction_summary"
+            referencedColumns: ["listing_id"]
+          },
+          {
+            foreignKeyName: "contact_call_history_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
+            referencedRelation: "linkedin_manual_review_queue"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contact_call_history_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
+            referencedRelation: "listing_contact_history_summary"
+            referencedColumns: ["listing_id"]
+          },
+          {
+            foreignKeyName: "contact_call_history_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
+            referencedRelation: "listings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contact_call_history_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
+            referencedRelation: "listings_needing_enrichment"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contact_call_history_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
+            referencedRelation: "marketplace_listings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contact_call_history_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
+            referencedRelation: "ranked_deals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contact_call_history_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
+            referencedRelation: "unmapped_primary_owners"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      contact_email_history: {
+        Row: {
+          archived_at: string | null
+          clicked_at: string | null
+          clicked_count: number | null
+          contact_id: string
+          created_at: string
+          id: string
+          listing_id: string | null
+          opened_at: string | null
+          opened_count: number | null
+          recipient_email: string
+          replied_at: string | null
+          reply_sentiment: string | null
+          reply_text: string | null
+          sent_at: string
+          sent_by: string
+          smartlead_campaign_id: string | null
+          subject: string
+        }
+        Insert: {
+          archived_at?: string | null
+          clicked_at?: string | null
+          clicked_count?: number | null
+          contact_id: string
+          created_at?: string
+          id?: string
+          listing_id?: string | null
+          opened_at?: string | null
+          opened_count?: number | null
+          recipient_email: string
+          replied_at?: string | null
+          reply_sentiment?: string | null
+          reply_text?: string | null
+          sent_at: string
+          sent_by: string
+          smartlead_campaign_id?: string | null
+          subject: string
+        }
+        Update: {
+          archived_at?: string | null
+          clicked_at?: string | null
+          clicked_count?: number | null
+          contact_id?: string
+          created_at?: string
+          id?: string
+          listing_id?: string | null
+          opened_at?: string | null
+          opened_count?: number | null
+          recipient_email?: string
+          replied_at?: string | null
+          reply_sentiment?: string | null
+          reply_text?: string | null
+          sent_at?: string
+          sent_by?: string
+          smartlead_campaign_id?: string | null
+          subject?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contact_email_history_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contact_history_summary"
+            referencedColumns: ["contact_id"]
+          },
+          {
+            foreignKeyName: "contact_email_history_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contact_email_history_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
+            referencedRelation: "buyer_introduction_summary"
+            referencedColumns: ["listing_id"]
+          },
+          {
+            foreignKeyName: "contact_email_history_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
+            referencedRelation: "linkedin_manual_review_queue"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contact_email_history_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
+            referencedRelation: "listing_contact_history_summary"
+            referencedColumns: ["listing_id"]
+          },
+          {
+            foreignKeyName: "contact_email_history_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
+            referencedRelation: "listings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contact_email_history_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
+            referencedRelation: "listings_needing_enrichment"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contact_email_history_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
+            referencedRelation: "marketplace_listings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contact_email_history_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
+            referencedRelation: "ranked_deals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contact_email_history_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
+            referencedRelation: "unmapped_primary_owners"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      contact_linkedin_history: {
+        Row: {
+          activity_timestamp: string
+          activity_type: string
+          archived_at: string | null
+          contact_id: string
+          created_at: string
+          id: string
+          linkedin_url: string | null
+          listing_id: string | null
+          message_text: string | null
+          response_sentiment: string | null
+          response_text: string | null
+        }
+        Insert: {
+          activity_timestamp: string
+          activity_type: string
+          archived_at?: string | null
+          contact_id: string
+          created_at?: string
+          id?: string
+          linkedin_url?: string | null
+          listing_id?: string | null
+          message_text?: string | null
+          response_sentiment?: string | null
+          response_text?: string | null
+        }
+        Update: {
+          activity_timestamp?: string
+          activity_type?: string
+          archived_at?: string | null
+          contact_id?: string
+          created_at?: string
+          id?: string
+          linkedin_url?: string | null
+          listing_id?: string | null
+          message_text?: string | null
+          response_sentiment?: string | null
+          response_text?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contact_linkedin_history_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contact_history_summary"
+            referencedColumns: ["contact_id"]
+          },
+          {
+            foreignKeyName: "contact_linkedin_history_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contact_linkedin_history_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
+            referencedRelation: "buyer_introduction_summary"
+            referencedColumns: ["listing_id"]
+          },
+          {
+            foreignKeyName: "contact_linkedin_history_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
+            referencedRelation: "linkedin_manual_review_queue"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contact_linkedin_history_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
+            referencedRelation: "listing_contact_history_summary"
+            referencedColumns: ["listing_id"]
+          },
+          {
+            foreignKeyName: "contact_linkedin_history_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
+            referencedRelation: "listings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contact_linkedin_history_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
+            referencedRelation: "listings_needing_enrichment"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contact_linkedin_history_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
+            referencedRelation: "marketplace_listings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contact_linkedin_history_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
+            referencedRelation: "ranked_deals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contact_linkedin_history_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
+            referencedRelation: "unmapped_primary_owners"
             referencedColumns: ["id"]
           },
         ]
@@ -2860,6 +3293,13 @@ export type Database = {
             foreignKeyName: "contacts_listing_id_fkey"
             columns: ["listing_id"]
             isOneToOne: false
+            referencedRelation: "listing_contact_history_summary"
+            referencedColumns: ["listing_id"]
+          },
+          {
+            foreignKeyName: "contacts_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
             referencedRelation: "listings"
             referencedColumns: ["id"]
           },
@@ -3134,6 +3574,13 @@ export type Database = {
             foreignKeyName: "data_room_access_contact_id_fkey"
             columns: ["contact_id"]
             isOneToOne: false
+            referencedRelation: "contact_history_summary"
+            referencedColumns: ["contact_id"]
+          },
+          {
+            foreignKeyName: "data_room_access_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
             referencedRelation: "contacts"
             referencedColumns: ["id"]
           },
@@ -3150,6 +3597,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "linkedin_manual_review_queue"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "data_room_access_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "listing_contact_history_summary"
+            referencedColumns: ["listing_id"]
           },
           {
             foreignKeyName: "data_room_access_deal_id_fkey"
@@ -3297,6 +3751,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "linkedin_manual_review_queue"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "data_room_documents_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "listing_contact_history_summary"
+            referencedColumns: ["listing_id"]
           },
           {
             foreignKeyName: "data_room_documents_deal_id_fkey"
@@ -3583,6 +4044,13 @@ export type Database = {
             foreignKeyName: "deal_data_room_access_deal_id_fkey"
             columns: ["deal_id"]
             isOneToOne: false
+            referencedRelation: "listing_contact_history_summary"
+            referencedColumns: ["listing_id"]
+          },
+          {
+            foreignKeyName: "deal_data_room_access_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
             referencedRelation: "listings"
             referencedColumns: ["id"]
           },
@@ -3756,6 +4224,13 @@ export type Database = {
             foreignKeyName: "deal_ranking_history_listing_id_fkey"
             columns: ["listing_id"]
             isOneToOne: false
+            referencedRelation: "listing_contact_history_summary"
+            referencedColumns: ["listing_id"]
+          },
+          {
+            foreignKeyName: "deal_ranking_history_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
             referencedRelation: "listings"
             referencedColumns: ["id"]
           },
@@ -3852,6 +4327,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "linkedin_manual_review_queue"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "deal_referrals_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
+            referencedRelation: "listing_contact_history_summary"
+            referencedColumns: ["listing_id"]
           },
           {
             foreignKeyName: "deal_referrals_listing_id_fkey"
@@ -3978,6 +4460,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "linkedin_manual_review_queue"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "deal_scoring_adjustments_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
+            referencedRelation: "listing_contact_history_summary"
+            referencedColumns: ["listing_id"]
           },
           {
             foreignKeyName: "deal_scoring_adjustments_listing_id_fkey"
@@ -4353,6 +4842,13 @@ export type Database = {
             foreignKeyName: "deal_transcripts_listing_id_fkey"
             columns: ["listing_id"]
             isOneToOne: false
+            referencedRelation: "listing_contact_history_summary"
+            referencedColumns: ["listing_id"]
+          },
+          {
+            foreignKeyName: "deal_transcripts_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
             referencedRelation: "listings"
             referencedColumns: ["id"]
           },
@@ -4531,6 +5027,13 @@ export type Database = {
             foreignKeyName: "deals_buyer_contact_id_fkey"
             columns: ["buyer_contact_id"]
             isOneToOne: false
+            referencedRelation: "contact_history_summary"
+            referencedColumns: ["contact_id"]
+          },
+          {
+            foreignKeyName: "deals_buyer_contact_id_fkey"
+            columns: ["buyer_contact_id"]
+            isOneToOne: false
             referencedRelation: "contacts"
             referencedColumns: ["id"]
           },
@@ -4568,6 +5071,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "linkedin_manual_review_queue"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "deals_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
+            referencedRelation: "listing_contact_history_summary"
+            referencedColumns: ["listing_id"]
           },
           {
             foreignKeyName: "deals_listing_id_fkey"
@@ -4624,6 +5134,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "remarketing_scores"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "deals_seller_contact_id_fkey"
+            columns: ["seller_contact_id"]
+            isOneToOne: false
+            referencedRelation: "contact_history_summary"
+            referencedColumns: ["contact_id"]
           },
           {
             foreignKeyName: "deals_seller_contact_id_fkey"
@@ -4792,6 +5309,13 @@ export type Database = {
             foreignKeyName: "document_release_log_contact_id_fkey"
             columns: ["contact_id"]
             isOneToOne: false
+            referencedRelation: "contact_history_summary"
+            referencedColumns: ["contact_id"]
+          },
+          {
+            foreignKeyName: "document_release_log_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
             referencedRelation: "contacts"
             referencedColumns: ["id"]
           },
@@ -4808,6 +5332,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "linkedin_manual_review_queue"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "document_release_log_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "listing_contact_history_summary"
+            referencedColumns: ["listing_id"]
           },
           {
             foreignKeyName: "document_release_log_deal_id_fkey"
@@ -4943,6 +5474,13 @@ export type Database = {
             foreignKeyName: "document_tracked_links_contact_id_fkey"
             columns: ["contact_id"]
             isOneToOne: false
+            referencedRelation: "contact_history_summary"
+            referencedColumns: ["contact_id"]
+          },
+          {
+            foreignKeyName: "document_tracked_links_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
             referencedRelation: "contacts"
             referencedColumns: ["id"]
           },
@@ -4966,6 +5504,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "linkedin_manual_review_queue"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "document_tracked_links_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "listing_contact_history_summary"
+            referencedColumns: ["listing_id"]
           },
           {
             foreignKeyName: "document_tracked_links_deal_id_fkey"
@@ -5056,6 +5601,13 @@ export type Database = {
           submitter_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "docuseal_webhook_log_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contact_history_summary"
+            referencedColumns: ["contact_id"]
+          },
           {
             foreignKeyName: "docuseal_webhook_log_contact_id_fkey"
             columns: ["contact_id"]
@@ -5470,6 +6022,13 @@ export type Database = {
             isOneToOne: true
             referencedRelation: "linkedin_manual_review_queue"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "enrichment_queue_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: true
+            referencedRelation: "listing_contact_history_summary"
+            referencedColumns: ["listing_id"]
           },
           {
             foreignKeyName: "enrichment_queue_listing_id_fkey"
@@ -5961,6 +6520,13 @@ export type Database = {
             foreignKeyName: "firm_agreements_fee_agreement_deal_id_fkey"
             columns: ["fee_agreement_deal_id"]
             isOneToOne: false
+            referencedRelation: "listing_contact_history_summary"
+            referencedColumns: ["listing_id"]
+          },
+          {
+            foreignKeyName: "firm_agreements_fee_agreement_deal_id_fkey"
+            columns: ["fee_agreement_deal_id"]
+            isOneToOne: false
             referencedRelation: "listings"
             referencedColumns: ["id"]
           },
@@ -6376,6 +6942,13 @@ export type Database = {
             foreignKeyName: "heyreach_campaigns_deal_id_fkey"
             columns: ["deal_id"]
             isOneToOne: false
+            referencedRelation: "listing_contact_history_summary"
+            referencedColumns: ["listing_id"]
+          },
+          {
+            foreignKeyName: "heyreach_campaigns_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
             referencedRelation: "listings"
             referencedColumns: ["id"]
           },
@@ -6588,6 +7161,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "linkedin_manual_review_queue"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inbound_leads_mapped_to_listing_id_fkey"
+            columns: ["mapped_to_listing_id"]
+            isOneToOne: false
+            referencedRelation: "listing_contact_history_summary"
+            referencedColumns: ["listing_id"]
           },
           {
             foreignKeyName: "inbound_leads_mapped_to_listing_id_fkey"
@@ -6976,6 +7556,13 @@ export type Database = {
             foreignKeyName: "lead_memos_deal_id_fkey"
             columns: ["deal_id"]
             isOneToOne: false
+            referencedRelation: "listing_contact_history_summary"
+            referencedColumns: ["listing_id"]
+          },
+          {
+            foreignKeyName: "lead_memos_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
             referencedRelation: "listings"
             referencedColumns: ["id"]
           },
@@ -7083,6 +7670,13 @@ export type Database = {
             foreignKeyName: "listing_analytics_listing_id_fkey"
             columns: ["listing_id"]
             isOneToOne: false
+            referencedRelation: "listing_contact_history_summary"
+            referencedColumns: ["listing_id"]
+          },
+          {
+            foreignKeyName: "listing_analytics_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
             referencedRelation: "listings"
             referencedColumns: ["id"]
           },
@@ -7180,6 +7774,13 @@ export type Database = {
             foreignKeyName: "listing_conversations_listing_id_fkey"
             columns: ["listing_id"]
             isOneToOne: false
+            referencedRelation: "listing_contact_history_summary"
+            referencedColumns: ["listing_id"]
+          },
+          {
+            foreignKeyName: "listing_conversations_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
             referencedRelation: "listings"
             referencedColumns: ["id"]
           },
@@ -7263,6 +7864,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "linkedin_manual_review_queue"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "listing_notes_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
+            referencedRelation: "listing_contact_history_summary"
+            referencedColumns: ["listing_id"]
           },
           {
             foreignKeyName: "listing_notes_listing_id_fkey"
@@ -7984,6 +8592,13 @@ export type Database = {
             foreignKeyName: "marketplace_approval_queue_deal_id_fkey"
             columns: ["deal_id"]
             isOneToOne: false
+            referencedRelation: "listing_contact_history_summary"
+            referencedColumns: ["listing_id"]
+          },
+          {
+            foreignKeyName: "marketplace_approval_queue_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
             referencedRelation: "listings"
             referencedColumns: ["id"]
           },
@@ -8095,6 +8710,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "linkedin_manual_review_queue"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "memo_distribution_log_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "listing_contact_history_summary"
+            referencedColumns: ["listing_id"]
           },
           {
             foreignKeyName: "memo_distribution_log_deal_id_fkey"
@@ -8335,6 +8957,13 @@ export type Database = {
             foreignKeyName: "outreach_records_listing_id_fkey"
             columns: ["listing_id"]
             isOneToOne: false
+            referencedRelation: "listing_contact_history_summary"
+            referencedColumns: ["listing_id"]
+          },
+          {
+            foreignKeyName: "outreach_records_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
             referencedRelation: "listings"
             referencedColumns: ["id"]
           },
@@ -8440,6 +9069,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "linkedin_manual_review_queue"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "owner_intro_notifications_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
+            referencedRelation: "listing_contact_history_summary"
+            referencedColumns: ["listing_id"]
           },
           {
             foreignKeyName: "owner_intro_notifications_listing_id_fkey"
@@ -9310,6 +9946,13 @@ export type Database = {
             foreignKeyName: "referral_submissions_listing_id_fkey"
             columns: ["listing_id"]
             isOneToOne: false
+            referencedRelation: "listing_contact_history_summary"
+            referencedColumns: ["listing_id"]
+          },
+          {
+            foreignKeyName: "referral_submissions_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
             referencedRelation: "listings"
             referencedColumns: ["id"]
           },
@@ -9917,6 +10560,13 @@ export type Database = {
             foreignKeyName: "remarketing_outreach_contact_id_fkey"
             columns: ["contact_id"]
             isOneToOne: false
+            referencedRelation: "contact_history_summary"
+            referencedColumns: ["contact_id"]
+          },
+          {
+            foreignKeyName: "remarketing_outreach_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
             referencedRelation: "contacts"
             referencedColumns: ["id"]
           },
@@ -9933,6 +10583,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "linkedin_manual_review_queue"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "remarketing_outreach_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
+            referencedRelation: "listing_contact_history_summary"
+            referencedColumns: ["listing_id"]
           },
           {
             foreignKeyName: "remarketing_outreach_listing_id_fkey"
@@ -10134,6 +10791,13 @@ export type Database = {
             foreignKeyName: "remarketing_scores_listing_id_fkey"
             columns: ["listing_id"]
             isOneToOne: false
+            referencedRelation: "listing_contact_history_summary"
+            referencedColumns: ["listing_id"]
+          },
+          {
+            foreignKeyName: "remarketing_scores_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
             referencedRelation: "listings"
             referencedColumns: ["id"]
           },
@@ -10240,6 +10904,13 @@ export type Database = {
             foreignKeyName: "remarketing_scoring_queue_listing_id_fkey"
             columns: ["listing_id"]
             isOneToOne: false
+            referencedRelation: "listing_contact_history_summary"
+            referencedColumns: ["listing_id"]
+          },
+          {
+            foreignKeyName: "remarketing_scoring_queue_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
             referencedRelation: "listings"
             referencedColumns: ["id"]
           },
@@ -10327,6 +10998,13 @@ export type Database = {
             foreignKeyName: "remarketing_universe_deals_listing_id_fkey"
             columns: ["listing_id"]
             isOneToOne: false
+            referencedRelation: "listing_contact_history_summary"
+            referencedColumns: ["listing_id"]
+          },
+          {
+            foreignKeyName: "remarketing_universe_deals_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
             referencedRelation: "listings"
             referencedColumns: ["id"]
           },
@@ -10400,6 +11078,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "linkedin_manual_review_queue"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "saved_listings_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
+            referencedRelation: "listing_contact_history_summary"
+            referencedColumns: ["listing_id"]
           },
           {
             foreignKeyName: "saved_listings_listing_id_fkey"
@@ -10607,6 +11292,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "linkedin_manual_review_queue"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "similar_deal_alerts_source_listing_id_fkey"
+            columns: ["source_listing_id"]
+            isOneToOne: false
+            referencedRelation: "listing_contact_history_summary"
+            referencedColumns: ["listing_id"]
           },
           {
             foreignKeyName: "similar_deal_alerts_source_listing_id_fkey"
@@ -10831,6 +11523,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "linkedin_manual_review_queue"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "smartlead_campaigns_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "listing_contact_history_summary"
+            referencedColumns: ["listing_id"]
           },
           {
             foreignKeyName: "smartlead_campaigns_deal_id_fkey"
@@ -11656,6 +12355,13 @@ export type Database = {
             foreignKeyName: "valuation_leads_pushed_listing_id_fkey"
             columns: ["pushed_listing_id"]
             isOneToOne: false
+            referencedRelation: "listing_contact_history_summary"
+            referencedColumns: ["listing_id"]
+          },
+          {
+            foreignKeyName: "valuation_leads_pushed_listing_id_fkey"
+            columns: ["pushed_listing_id"]
+            isOneToOne: false
             referencedRelation: "listings"
             referencedColumns: ["id"]
           },
@@ -11702,6 +12408,84 @@ export type Database = {
           total_tracked_buyers: number | null
         }
         Relationships: []
+      }
+      contact_history_summary: {
+        Row: {
+          calls_connected: number | null
+          contact_email: string | null
+          contact_id: string | null
+          contact_name: string | null
+          days_since_last_contact: number | null
+          emails_opened: number | null
+          emails_replied: number | null
+          last_call_at: string | null
+          last_contact_channel: string | null
+          last_email_at: string | null
+          last_linkedin_at: string | null
+          linkedin_replies: number | null
+          listing_id: string | null
+          total_calls: number | null
+          total_emails: number | null
+          total_linkedin: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contacts_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
+            referencedRelation: "buyer_introduction_summary"
+            referencedColumns: ["listing_id"]
+          },
+          {
+            foreignKeyName: "contacts_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
+            referencedRelation: "linkedin_manual_review_queue"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contacts_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
+            referencedRelation: "listing_contact_history_summary"
+            referencedColumns: ["listing_id"]
+          },
+          {
+            foreignKeyName: "contacts_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
+            referencedRelation: "listings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contacts_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
+            referencedRelation: "listings_needing_enrichment"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contacts_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
+            referencedRelation: "marketplace_listings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contacts_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
+            referencedRelation: "ranked_deals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contacts_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
+            referencedRelation: "unmapped_primary_owners"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       data_room_access_status: {
         Row: {
@@ -11784,6 +12568,13 @@ export type Database = {
             foreignKeyName: "data_room_access_contact_id_fkey"
             columns: ["contact_id"]
             isOneToOne: false
+            referencedRelation: "contact_history_summary"
+            referencedColumns: ["contact_id"]
+          },
+          {
+            foreignKeyName: "data_room_access_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
             referencedRelation: "contacts"
             referencedColumns: ["id"]
           },
@@ -11800,6 +12591,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "linkedin_manual_review_queue"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "data_room_access_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "listing_contact_history_summary"
+            referencedColumns: ["listing_id"]
           },
           {
             foreignKeyName: "data_room_access_deal_id_fkey"
@@ -11925,6 +12723,13 @@ export type Database = {
             foreignKeyName: "buyer_introductions_listing_id_fkey"
             columns: ["listing_id"]
             isOneToOne: false
+            referencedRelation: "listing_contact_history_summary"
+            referencedColumns: ["listing_id"]
+          },
+          {
+            foreignKeyName: "buyer_introductions_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
             referencedRelation: "listings"
             referencedColumns: ["id"]
           },
@@ -11994,6 +12799,18 @@ export type Database = {
           linkedin_url?: string | null
           linkedin_verified_at?: string | null
           title?: string | null
+        }
+        Relationships: []
+      }
+      listing_contact_history_summary: {
+        Row: {
+          company_name: string | null
+          contacts_with_activity: number | null
+          days_since_last_contact: number | null
+          listing_id: string | null
+          total_calls: number | null
+          total_emails: number | null
+          total_linkedin: number | null
         }
         Relationships: []
       }
@@ -12199,6 +13016,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "linkedin_manual_review_queue"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "buyer_introductions_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
+            referencedRelation: "listing_contact_history_summary"
+            referencedColumns: ["listing_id"]
           },
           {
             foreignKeyName: "buyer_introductions_listing_id_fkey"
