@@ -45,6 +45,7 @@ const DEAL_FIELDS_QUICK = `
   id, title, status, status_label, deal_source, industry, category, categories, revenue, ebitda,
   location, address_state, geographic_states, services,
   deal_total_score, is_priority_target, remarketing_status,
+  needs_owner_contact, needs_owner_contact_at,
   deal_owner_id, primary_owner_id, updated_at
 `.replace(/\s+/g, ' ').trim();
 
@@ -62,6 +63,7 @@ const DEAL_FIELDS_FULL = `
   internal_company_name, project_name, deal_identifier,
   deal_owner_id, primary_owner_id, presented_by_admin_id,
   need_buyer_universe, universe_build_flagged,
+  needs_owner_contact, needs_owner_contact_at,
   created_at, updated_at, enriched_at, published_at
 `.replace(/\s+/g, ' ').trim();
 
@@ -70,7 +72,7 @@ const DEAL_FIELDS_FULL = `
 export const dealTools: ClaudeTool[] = [
   {
     name: 'query_deals',
-    description: 'Search and filter deals in the pipeline. Supports filtering by status, source, geography, industry, revenue range, and text search. Returns a list of matching deals sorted by relevance.',
+    description: 'Search and filter deals in the pipeline. Supports filtering by status, source, geography, industry, revenue range, text search, and contact flags (needs_owner_contact). Returns a list of matching deals sorted by relevance. Use needs_owner_contact=true to find deals flagged for seller/owner contact (shown as red in the Active Deals UI).',
     input_schema: {
       type: 'object',
       properties: {
@@ -88,6 +90,7 @@ export const dealTools: ClaudeTool[] = [
         min_ebitda: { type: 'number', description: 'Minimum EBITDA filter' },
         search: { type: 'string', description: 'Free-text search across title, description, services, location' },
         is_priority: { type: 'boolean', description: 'Filter to priority targets only' },
+        needs_owner_contact: { type: 'boolean', description: 'Filter to deals flagged as needing owner contact. When true, returns only deals where the "contact owner" flag is set (these appear red/flagged in the Active Deals UI). Use this when the user asks about flagged deals, deals that need to contact owners/sellers, or red-flagged deals.' },
         limit: { type: 'number', description: 'Max results (default 25 for simple queries, auto-expands for search/industry filters to scan all matching deals)' },
         depth: { type: 'string', enum: ['quick', 'full'], description: 'quick = summary fields, full = all details' },
       },
@@ -193,6 +196,8 @@ async function queryDeals(
     if (args.deal_source) query = query.eq('deal_source', args.deal_source as string);
     // State filter is now client-side to check both address_state (full names) and geographic_states (codes)
     if (args.is_priority === true) query = query.eq('is_priority_target', true);
+    if (args.needs_owner_contact === true) query = query.eq('needs_owner_contact', true);
+    if (args.needs_owner_contact === false) query = query.or('needs_owner_contact.is.null,needs_owner_contact.eq.false');
     if (args.min_revenue) query = query.gte('revenue', args.min_revenue as number);
     if (args.max_revenue) query = query.lte('revenue', args.max_revenue as number);
     if (args.min_ebitda) query = query.gte('ebitda', args.min_ebitda as number);
@@ -451,7 +456,7 @@ async function getPipelineSummary(
   // Fetch all active deals with summary fields (include category for industry fallback)
   const { data, error } = await supabase
     .from('listings')
-    .select('id, title, status, deal_source, industry, category, address_state, revenue, ebitda, deal_total_score, is_priority_target, remarketing_status')
+    .select('id, title, status, deal_source, industry, category, address_state, revenue, ebitda, deal_total_score, is_priority_target, remarketing_status, needs_owner_contact')
     .is('deleted_at', null);
 
   if (error) return { error: error.message };
@@ -485,6 +490,7 @@ async function getPipelineSummary(
     data: {
       total_deals: deals.length,
       priority_deals: deals.filter((d: any) => d.is_priority_target).length,
+      needs_owner_contact: deals.filter((d: any) => d.needs_owner_contact).length,
       grouped_by: groupBy,
       groups,
     },

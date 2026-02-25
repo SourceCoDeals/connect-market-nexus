@@ -29,6 +29,19 @@ const BYPASS_RULES: Array<{
   test: (query: string, ctx: PageContext) => boolean;
   result: Omit<RouterResult, 'bypassed'>;
 }> = [
+  // Contact owner flag — deals flagged for seller/owner outreach (red-flagged in Active Deals)
+  {
+    test: (q) =>
+      /\b(contact.?flag|flagged.*(seller|owner|deal|red)|red.?flag|need.?to.?contact.?(owner|seller)|contact.?(owner|seller)|flagged.?deal|owner.?contact|seller.?contact.?flag|marked.?red|colored.?red)\b/i.test(
+        q,
+      ),
+    result: {
+      category: 'DEAL_STATUS',
+      tier: 'STANDARD',
+      tools: ['query_deals', 'search_contacts'],
+      confidence: 0.95,
+    },
+  },
   // Pipeline overview questions
   {
     test: (q) =>
