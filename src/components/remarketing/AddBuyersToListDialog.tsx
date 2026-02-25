@@ -3,7 +3,6 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -68,8 +67,6 @@ export function AddBuyersToListDialog({
   const [listMode, setListMode] = useState<ListMode>("new");
   const [selectedListId, setSelectedListId] = useState<string>("");
   const [name, setName] = useState("");
-  const [description, setDescription] = useState("");
-  const [listType, setListType] = useState<"buyer" | "seller" | "mixed">("buyer");
 
   // Contact data
   const [contactsByBuyer, setContactsByBuyer] = useState<Record<string, BuyerContactInfo[]>>({});
@@ -140,7 +137,6 @@ export function AddBuyersToListDialog({
   useEffect(() => {
     if (!open) {
       setName("");
-      setDescription("");
       setListMode("new");
       setSelectedListId("");
       setContactsByBuyer({});
@@ -228,7 +224,7 @@ export function AddBuyersToListDialog({
 
     if (listMode === "new") {
       createList.mutate(
-        { name, description: description || undefined, list_type: listType, members },
+        { name, list_type: "buyer", members },
         {
           onSuccess: (data) => {
             onOpenChange(false);
@@ -428,39 +424,14 @@ export function AddBuyersToListDialog({
             </div>
 
             {listMode === "new" ? (
-              <div className="space-y-3">
-                <div className="space-y-1.5">
-                  <Label htmlFor="list-name-new">List Name *</Label>
-                  <Input
-                    id="list-name-new"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    placeholder="e.g., HVAC Buyers - Colorado Deal"
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="list-desc-new">Description</Label>
-                  <Textarea
-                    id="list-desc-new"
-                    value={description}
-                    onChange={(e) => setDescription(e.target.value)}
-                    placeholder="Optional notes..."
-                    rows={2}
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label>List Type</Label>
-                  <Select value={listType} onValueChange={(v) => setListType(v as any)}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="buyer">Buyer</SelectItem>
-                      <SelectItem value="seller">Seller</SelectItem>
-                      <SelectItem value="mixed">Mixed</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="list-name-new">List Name *</Label>
+                <Input
+                  id="list-name-new"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="e.g., HVAC Buyers - Colorado Deal"
+                />
               </div>
             ) : (
               <div className="space-y-1.5">
