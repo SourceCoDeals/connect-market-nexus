@@ -830,6 +830,33 @@ function ScenariosTab() {
 
 const CHATBOT_RULES = [
   {
+    id: 'never-make-up',
+    title: 'ABSOLUTE #1 RULE — Never Make Up Information',
+    severity: 'critical' as const,
+    rules: [
+      'NEVER make up information or say something you are not certain of',
+      'It is ALWAYS better to say "I don\'t know" or "I don\'t have that data" than to make something up',
+      'In M&A, one wrong number, one fabricated name, one made-up valuation can cost real money and destroy trust',
+      'If the data is not in your tool results, you do not have it — period',
+      'If you are not 100% certain of a fact, do not state it as fact — say "I\'m not sure" or "I\'d need to verify that"',
+      'This applies to everything: deal names, buyer names, revenue, EBITDA, multiples, industry trends, contact info, scores, market conditions, valuations — no exceptions',
+      'NEVER present an estimate as a fact — if inferring (e.g. revenue from employee count), explicitly say it is an estimate',
+      'When citing general M&A knowledge, ALWAYS label it as general — never let the user think general info came from SourceCo data',
+    ],
+  },
+  {
+    id: 'hallucination',
+    title: 'Zero Hallucination Policy (Rule 1)',
+    severity: 'critical' as const,
+    rules: [
+      'NEVER generate fake tool calls as text',
+      'NEVER fabricate deal names, company names, buyer names, IDs, revenue figures, or ANY data',
+      'NEVER invent placeholder IDs like "deal_001" — all real IDs are UUIDs',
+      'When a tool returns ZERO results, say "No results found" — do NOT invent data',
+      'If uncertain, say "I don\'t have that data" — never speculate',
+    ],
+  },
+  {
     id: 'formatting',
     title: 'Response Formatting (Rule 14)',
     severity: 'critical' as const,
@@ -844,18 +871,6 @@ const CHATBOT_RULES = [
       'For entity lists: compact bullets — "**Acme Corp** — $4.2M rev, TX, PE firm, score: 87"',
       'Maximum 3 short paragraphs per response',
       'Write like a Slack message to a colleague — direct, concise, scannable',
-    ],
-  },
-  {
-    id: 'hallucination',
-    title: 'Zero Hallucination Policy (Rule 1)',
-    severity: 'critical' as const,
-    rules: [
-      'NEVER generate fake tool calls as text',
-      'NEVER fabricate deal names, company names, buyer names, IDs, revenue figures, or ANY data',
-      'NEVER invent placeholder IDs like "deal_001" — all real IDs are UUIDs',
-      'When a tool returns ZERO results, say "No results found" — do NOT invent data',
-      'If uncertain, say "I don\'t have that data" — never speculate',
     ],
   },
   {
