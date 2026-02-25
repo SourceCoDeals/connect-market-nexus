@@ -90,7 +90,7 @@ async function searchInboundLeads(
 
   if (args.search) {
     const term = (args.search as string).toLowerCase();
-    results = results.filter(l =>
+    results = results.filter((l: any) =>
       l.name?.toLowerCase().includes(term) ||
       l.email?.toLowerCase().includes(term) ||
       l.company_name?.toLowerCase().includes(term)
@@ -110,7 +110,7 @@ async function searchInboundLeads(
       total: results.length,
       by_status: byStatus,
       by_source: bySource,
-      converted: results.filter(l => l.converted_to_request_id).length,
+      converted: results.filter((l: any) => l.converted_to_request_id).length,
     },
   };
 }
@@ -137,7 +137,7 @@ async function getReferralData(
   let filteredPartners = partners || [];
   if (args.search) {
     const term = (args.search as string).toLowerCase();
-    filteredPartners = filteredPartners.filter(p =>
+    filteredPartners = filteredPartners.filter((p: any) =>
       p.name?.toLowerCase().includes(term) ||
       p.company?.toLowerCase().includes(term) ||
       p.email?.toLowerCase().includes(term)
@@ -146,7 +146,7 @@ async function getReferralData(
 
   let submissions: unknown[] = [];
   if (includeSubmissions && filteredPartners.length > 0) {
-    const partnerIds = filteredPartners.map(p => p.id);
+    const partnerIds = filteredPartners.map((p: any) => p.id);
     let subQuery = supabase
       .from('referral_submissions')
       .select('id, referral_partner_id, company_name, website, industry, revenue, ebitda, location, contact_name, contact_email, notes, status, listing_id, reviewed_at, created_at')

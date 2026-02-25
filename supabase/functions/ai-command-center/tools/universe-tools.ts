@@ -108,7 +108,7 @@ async function searchBuyerUniverses(
 
   if (args.search) {
     const term = (args.search as string).toLowerCase();
-    results = results.filter(u =>
+    results = results.filter((u: any) =>
       u.name?.toLowerCase().includes(term) ||
       u.description?.toLowerCase().includes(term) ||
       u.fit_criteria?.toLowerCase().includes(term)

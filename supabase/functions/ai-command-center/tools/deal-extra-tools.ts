@@ -136,8 +136,8 @@ async function getDealReferrals(
     data: {
       referrals,
       total: referrals.length,
-      opened: referrals.filter(r => r.opened).length,
-      converted: referrals.filter(r => r.converted).length,
+      opened: referrals.filter((r: any) => r.opened).length,
+      converted: referrals.filter((r: any) => r.converted).length,
     },
   };
 }
@@ -171,7 +171,7 @@ async function getDealConversations(
 
   // Fetch messages via connection_messages joined through connection_request_id
   const connectionRequestIds = convs
-    .map(c => c.connection_request_id)
+    .map((c: any) => c.connection_request_id)
     .filter(Boolean);
 
   let messages: Record<string, unknown>[] = [];
@@ -193,7 +193,7 @@ async function getDealConversations(
     msgsByConnReq[key].push(m);
   }
 
-  const enriched = convs.map(c => ({
+  const enriched = convs.map((c: any) => ({
     ...c,
     messages: c.connection_request_id ? (msgsByConnReq[c.connection_request_id] || []) : [],
   }));
