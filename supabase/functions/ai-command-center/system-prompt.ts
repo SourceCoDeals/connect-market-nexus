@@ -649,9 +649,10 @@ Present engagement data as a timeline or summary:
 For PERSON NAME lookups WITH A COMPANY (e.g. "find email for Ryan from Essential Benefit Administrators", "what's John's email at Acme Corp"):
 1. ALWAYS START by searching our own CRM data using search_contacts with BOTH company_name and search parameters. Example: search_contacts(company_name="Essential Benefit Administrators", search="Ryan"). The company_name parameter fuzzy-matches against deal titles, internal company names, and buyer company names — so it handles typos and close variations.
 2. If found with email: return the result immediately. No need for external enrichment.
-3. If found without email: use find_and_enrich_person with person_name AND company_name to enrich externally.
+3. If found without email: check the response for enrichment_hints — these contain the EXACT company_name and company_domain resolved from our database. Use find_and_enrich_person with person_name, company_name, AND company_domain from the enrichment hints. CRITICAL: Use the company_name from the contact's company_name field in the response (e.g. "Essential Benefit Administrators"), NOT the user's original query (which may be misspelled like "Essential Benefits Advisors"). The enrichment_hints give you the exact parameters to use.
 4. If not found in CRM: use find_and_enrich_person with person_name and company_name to search externally.
 5. NEVER skip the CRM search step — our own data is the source of truth and is faster than external enrichment.
+6. When presenting results, ALWAYS use the company_name from the search_contacts response, not the user's original text.
 
 For PERSON NAME lookups WITHOUT A COMPANY (e.g. "find email for Russ Esau", "what's John Smith's email"):
 1. IMMEDIATELY use find_and_enrich_person with the person's name. This tool handles the ENTIRE pipeline automatically in one call:
@@ -689,12 +690,13 @@ If no contacts are found for a firm, use enrich_buyer_contacts to discover and i
 
   CONTACT_ENRICHMENT: `When the user asks to find contacts at a company:
 1. FIRST check existing contacts with search_contacts using the company_name parameter (e.g. search_contacts(company_name="Acme Corp")). This fuzzy-matches against deal titles and buyer company names.
-2. If sufficient contacts exist, return them
-3. If not enough contacts, offer to use enrich_buyer_contacts to discover more via LinkedIn + Prospeo
-4. For enrichment: ask for company_name, optional title_filter (roles like "partner", "vp", "director"), and target_count
-5. Enrichment calls external APIs (Apify + Prospeo) and may take 30-60 seconds — tell the user
-6. After enrichment, present results: total found, how many have email, how many are LinkedIn-only
-7. Suggest next steps: "Would you like to push these to PhoneBurner for calling, or to a Smartlead email campaign?"
+2. If sufficient contacts exist WITH email, return them.
+3. If contacts are found WITHOUT email, the response includes enrichment_hints with exact parameters for find_and_enrich_person. Use these hints — they contain the correct company_name (from our database) and company_domain (from the deal's website). ALWAYS pass company_domain when available, as it's far more reliable than the auto-generated domain guess.
+4. If not enough contacts, offer to use enrich_buyer_contacts to discover more via LinkedIn + Prospeo.
+5. For enrichment: ask for company_name, optional title_filter (roles like "partner", "vp", "director"), and target_count.
+6. Enrichment calls external APIs (Apify + Prospeo) and may take 30-60 seconds — tell the user.
+7. After enrichment, present results: total found, how many have email, how many are LinkedIn-only.
+8. Suggest next steps: "Would you like to push these to PhoneBurner for calling, or to a Smartlead email campaign?"
 
 When the user asks to find LinkedIn URLs/profiles for existing contacts:
 1. Use find_contact_linkedin — it searches Google (via Apify) for LinkedIn profiles using each contact's name, title, and company context (resolved from their linked listing/deal).

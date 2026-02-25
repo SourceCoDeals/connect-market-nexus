@@ -701,17 +701,21 @@ async function searchContacts(
       ...new Set(results.map((c) => c.remarketing_buyer_id as string).filter(Boolean)),
     ];
 
-    const listingMap: Record<string, string> = {};
+    const listingMap: Record<string, { name: string; website?: string }> = {};
     const buyerMap: Record<string, string> = {};
 
     if (listingIds.length > 0) {
       const { data: listings } = await supabase
         .from('listings')
-        .select('id, title')
+        .select('id, title, website')
         .in('id', listingIds);
       if (listings) {
         for (const l of listings as Array<Record<string, unknown>>) {
-          if (l.title) listingMap[l.id as string] = l.title as string;
+          if (l.title)
+            listingMap[l.id as string] = {
+              name: l.title as string,
+              website: (l.website as string) || undefined,
+            };
         }
       }
     }
@@ -728,10 +732,13 @@ async function searchContacts(
       }
     }
 
-    // Attach company_name to each contact
+    // Attach company_name and company_website to each contact
     for (const c of results) {
       if (c.listing_id && listingMap[c.listing_id as string]) {
-        c.company_name = listingMap[c.listing_id as string];
+        c.company_name = listingMap[c.listing_id as string].name;
+        if (listingMap[c.listing_id as string].website) {
+          c.company_website = listingMap[c.listing_id as string].website;
+        }
       } else if (c.remarketing_buyer_id && buyerMap[c.remarketing_buyer_id as string]) {
         c.company_name = buyerMap[c.remarketing_buyer_id as string];
       }
@@ -742,6 +749,31 @@ async function searchContacts(
   let enrichedResults: Array<Record<string, unknown>> = [];
   if (args.search && results.length === 0) {
     enrichedResults = await searchEnrichedContacts(supabase, args.search as string, limit);
+  }
+
+  // Build enrichment hints for contacts missing email
+  // This tells the AI exactly what parameters to use for find_and_enrich_person
+  const contactsWithoutEmail = results.filter((c) => !c.email);
+  let enrichmentHints: Array<Record<string, unknown>> | undefined;
+  if (contactsWithoutEmail.length > 0 && contactsWithoutEmail.length <= 5) {
+    enrichmentHints = contactsWithoutEmail.map((c) => {
+      const fullName = `${(c.first_name as string) || ''} ${(c.last_name as string) || ''}`.trim();
+      const hint: Record<string, unknown> = {
+        person_name: fullName,
+        contact_id: c.id,
+      };
+      // Use the resolved company_name from the linked listing/buyer (NOT the user's query)
+      if (c.company_name) hint.company_name = c.company_name;
+      // Include the actual website domain if available (much more reliable than inferDomain)
+      if (c.company_website) {
+        const domain = (c.company_website as string)
+          .replace(/^https?:\/\//, '')
+          .replace(/^www\./, '')
+          .replace(/\/.*$/, '');
+        if (domain) hint.company_domain = domain;
+      }
+      return hint;
+    });
   }
 
   return {
@@ -760,6 +792,10 @@ async function searchContacts(
       company_name_searched: companyNameUsed ? args.company_name : undefined,
       company_matches:
         companyMatchedNames.length > 0 ? Array.from(new Set(companyMatchedNames)) : undefined,
+      enrichment_hints: enrichmentHints,
+      enrichment_note: enrichmentHints
+        ? `IMPORTANT: ${contactsWithoutEmail.length} contact(s) found WITHOUT email. To enrich, call find_and_enrich_person with the EXACT company_name shown above (from our CRM data), NOT the user's original query. The company_name and company_domain fields in the hints are resolved from our database and are more accurate than the user's text.`
+        : undefined,
       enriched_contacts: enrichedResults.length > 0 ? enrichedResults : undefined,
       enriched_note:
         enrichedResults.length > 0

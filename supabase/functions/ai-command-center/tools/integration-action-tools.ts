@@ -253,7 +253,12 @@ export const integrationActionTools: ClaudeTool[] = [
         company_name: {
           type: 'string',
           description:
-            'Company name if known. If omitted, the tool resolves company from linked listings/deals automatically.',
+            "Company name if known. IMPORTANT: Use the EXACT company name from search_contacts results (company_name field), NOT the user's original query. This enables fuzzy matching against deal titles and buyer company names to find the right contacts. If omitted, the tool resolves company from linked listings/deals automatically.",
+        },
+        company_domain: {
+          type: 'string',
+          description:
+            'Company website domain (e.g. "acme.com"). If provided, used directly for email lookups instead of guessing from company name. Use the company_domain from search_contacts enrichment_hints when available.',
         },
         contact_type: {
           type: 'string',
@@ -925,6 +930,25 @@ async function enrichLinkedInContact(
 
 // ---------- find_and_enrich_person ----------
 
+/**
+ * Simple fuzzy match: checks if target contains a close match to query (1 edit distance tolerance).
+ * Used for company name matching in find_and_enrich_person.
+ */
+function fuzzyContainsWord(target: string, query: string): boolean {
+  if (target.includes(query)) return true;
+  if (query.length < 4) return false;
+  for (let i = 0; i <= target.length - query.length + 1; i++) {
+    const sub = target.substring(i, i + query.length);
+    let dist = 0;
+    for (let j = 0; j < query.length; j++) {
+      if (sub[j] !== query[j]) dist++;
+      if (dist > 1) break;
+    }
+    if (dist <= 1) return true;
+  }
+  return false;
+}
+
 async function findAndEnrichPerson(
   supabase: SupabaseClient,
   args: Record<string, unknown>,
@@ -934,10 +958,74 @@ async function findAndEnrichPerson(
   if (!personName) return { error: 'person_name is required' };
 
   const providedCompany = (args.company_name as string)?.trim() || '';
+  const providedDomain = (args.company_domain as string)?.trim() || '';
   const contactType = (args.contact_type as string) || 'all';
   const steps: string[] = [];
 
   // --- Step 1: Search CRM for existing contact ---
+  // If company_name is provided, resolve it to listing_ids/buyer_ids first (like search_contacts)
+  // This ensures we find contacts at the right company, even with fuzzy company names
+  const companyListingIds: string[] = [];
+  const companyBuyerIds: string[] = [];
+  let resolvedCompanyName = '';
+
+  if (providedCompany) {
+    const compTerm = providedCompany.toLowerCase();
+    const compWords = compTerm.split(/\s+/).filter((w) => w.length > 2);
+
+    // Search listings for matching company
+    const { data: listings } = await supabase
+      .from('listings')
+      .select('id, title, internal_company_name, website')
+      .is('deleted_at', null)
+      .limit(2000);
+
+    if (listings) {
+      for (const l of listings as Array<Record<string, unknown>>) {
+        const title = ((l.title as string) || '').toLowerCase();
+        const internalName = ((l.internal_company_name as string) || '').toLowerCase();
+        const combined = `${title} ${internalName}`;
+
+        if (
+          combined.includes(compTerm) ||
+          (compWords.length > 1 && compWords.every((w) => fuzzyContainsWord(combined, w))) ||
+          (compTerm.length >= 4 &&
+            (fuzzyContainsWord(title, compTerm) || fuzzyContainsWord(internalName, compTerm)))
+        ) {
+          companyListingIds.push(l.id as string);
+          if (!resolvedCompanyName)
+            resolvedCompanyName = (l.title || l.internal_company_name) as string;
+        }
+      }
+    }
+
+    // Search remarketing_buyers for matching company
+    const { data: buyers } = await supabase
+      .from('remarketing_buyers')
+      .select('id, company_name, pe_firm_name')
+      .eq('archived', false)
+      .limit(2000);
+
+    if (buyers) {
+      for (const b of buyers as Array<Record<string, unknown>>) {
+        const compName = ((b.company_name as string) || '').toLowerCase();
+        const peName = ((b.pe_firm_name as string) || '').toLowerCase();
+        const combined = `${compName} ${peName}`;
+
+        if (
+          combined.includes(compTerm) ||
+          (compWords.length > 1 && compWords.every((w) => fuzzyContainsWord(combined, w))) ||
+          (compTerm.length >= 4 &&
+            (fuzzyContainsWord(compName, compTerm) || fuzzyContainsWord(peName, compTerm)))
+        ) {
+          companyBuyerIds.push(b.id as string);
+          if (!resolvedCompanyName)
+            resolvedCompanyName = (b.company_name || b.pe_firm_name) as string;
+        }
+      }
+    }
+  }
+
   const words = personName.split(/\s+/).filter((w) => w.length > 0);
   const orConditions: string[] = [];
   for (const word of words) {
@@ -953,21 +1041,44 @@ async function findAndEnrichPerson(
     )
     .eq('archived', false)
     .or(orConditions.join(','))
-    .limit(10);
+    .limit(50);
 
   if (contactType !== 'all') crmQuery = crmQuery.eq('contact_type', contactType);
+
+  // If we resolved company to IDs, add a filter to prefer those contacts
+  if (companyListingIds.length > 0 || companyBuyerIds.length > 0) {
+    const compOrClauses: string[] = [];
+    if (companyListingIds.length > 0) {
+      compOrClauses.push(`listing_id.in.(${companyListingIds.join(',')})`);
+    }
+    if (companyBuyerIds.length > 0) {
+      compOrClauses.push(`remarketing_buyer_id.in.(${companyBuyerIds.join(',')})`);
+    }
+    crmQuery = crmQuery.or(compOrClauses.join(','));
+  }
 
   const { data: crmContacts } = await crmQuery;
 
   // Client-side refine: all words must match name
-  const matched = (crmContacts || []).filter((c: Record<string, unknown>) => {
+  let matched = (crmContacts || []).filter((c: Record<string, unknown>) => {
     const fullName =
       `${(c.first_name as string) || ''} ${(c.last_name as string) || ''}`.toLowerCase();
     return words.every((w) => fullName.includes(w.toLowerCase()));
   }) as Array<Record<string, unknown>>;
 
+  // If company was provided and we resolved IDs, prefer contacts at that company
+  if ((companyListingIds.length > 0 || companyBuyerIds.length > 0) && matched.length > 1) {
+    const companyMatched = matched.filter((c) => {
+      if (c.listing_id && companyListingIds.includes(c.listing_id as string)) return true;
+      if (c.remarketing_buyer_id && companyBuyerIds.includes(c.remarketing_buyer_id as string))
+        return true;
+      return false;
+    });
+    if (companyMatched.length > 0) matched = companyMatched;
+  }
+
   steps.push(
-    `1. CRM search for "${personName}": ${matched.length > 0 ? `found ${matched.length} match(es)` : 'no match'}`,
+    `1. CRM search for "${personName}"${providedCompany ? ` at "${providedCompany}"` : ''}: ${matched.length > 0 ? `found ${matched.length} match(es)` : 'no match'}`,
   );
 
   // If found with email — return immediately
@@ -991,19 +1102,30 @@ async function findAndEnrichPerson(
     };
   }
 
-  // --- Step 2: Resolve company context ---
+  // --- Step 2: Resolve company context + domain ---
   const contact = matched[0]; // Best CRM match (if any)
-  let companyName = providedCompany;
+  let companyName = resolvedCompanyName || providedCompany;
+  let companyDomain = providedDomain;
 
-  if (!companyName && contact) {
-    // Try to resolve from linked listing or buyer record
+  if (contact) {
+    // Try to resolve company name AND website domain from linked listing or buyer
     if (contact.listing_id) {
       const { data: listing } = await supabase
         .from('listings')
-        .select('title, category')
+        .select('title, category, website')
         .eq('id', contact.listing_id as string)
         .single();
-      if (listing?.title) companyName = listing.title as string;
+      if (listing?.title && !companyName) companyName = listing.title as string;
+      // Use the listing's actual website for domain (much more reliable than inferDomain)
+      if (listing?.website && !companyDomain) {
+        const domain = (listing.website as string)
+          .replace(/^https?:\/\//, '')
+          .replace(/^www\./, '')
+          .replace(/\/.*$/, '');
+        if (domain && !domain.includes('placeholder') && !domain.includes('unknown')) {
+          companyDomain = domain;
+        }
+      }
     }
     if (!companyName && contact.remarketing_buyer_id) {
       const { data: buyer } = await supabase
@@ -1015,8 +1137,28 @@ async function findAndEnrichPerson(
     }
   }
 
+  // Also try firm_agreements for email_domain (most reliable source for email domains)
+  if (!companyDomain && companyName) {
+    const { data: firms } = await supabase
+      .from('firm_agreements')
+      .select('email_domain, website_domain')
+      .ilike('primary_company_name', `%${companyName.split(' ')[0]}%`)
+      .limit(5);
+    if (firms) {
+      for (const f of firms as Array<Record<string, unknown>>) {
+        if (f.email_domain) {
+          companyDomain = f.email_domain as string;
+          break;
+        }
+        if (f.website_domain && !companyDomain) {
+          companyDomain = f.website_domain as string;
+        }
+      }
+    }
+  }
+
   steps.push(
-    `2. Company resolution: ${companyName ? `"${companyName}"` : 'unknown (will use name-only search)'}`,
+    `2. Company: ${companyName ? `"${companyName}"` : 'unknown'}${companyDomain ? `, domain: ${companyDomain}` : ' (no verified domain)'}`,
   );
 
   // --- Step 3: If we already have a LinkedIn URL, go straight to Prospeo ---
@@ -1027,7 +1169,7 @@ async function findAndEnrichPerson(
     try {
       const firstName = (contact?.first_name as string) || words[0] || '';
       const lastName = (contact?.last_name as string) || words.slice(1).join(' ') || '';
-      const domain = companyName ? inferDomain(companyName) : undefined;
+      const domain = companyDomain || (companyName ? inferDomain(companyName) : undefined);
 
       const result = await enrichContact({
         firstName,
@@ -1181,7 +1323,7 @@ async function findAndEnrichPerson(
   // --- Step 5: Enrich email from discovered LinkedIn ---
   if (discoveredLinkedIn) {
     try {
-      const domain = companyName ? inferDomain(companyName) : undefined;
+      const domain = companyDomain || (companyName ? inferDomain(companyName) : undefined);
       const result = await enrichContact({
         firstName,
         lastName,
@@ -1248,8 +1390,8 @@ async function findAndEnrichPerson(
   }
 
   // --- Step 6: Domain fallback if we have a company name ---
-  if (companyName) {
-    const domain = inferDomain(companyName);
+  if (companyName || companyDomain) {
+    const domain = companyDomain || inferDomain(companyName);
     steps.push(
       `${steps.length + 1}. Trying name+domain fallback: ${firstName} ${lastName} @ ${domain}`,
     );
