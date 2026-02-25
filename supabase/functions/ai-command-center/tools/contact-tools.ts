@@ -220,6 +220,25 @@ async function searchPeContacts(
     }
   }
 
+  // Database-level search filter using ilike for name/email/title matching
+  if (args.search) {
+    const searchTerm = (args.search as string).trim();
+    const words = searchTerm.split(/\s+/).filter(w => w.length > 0);
+    const orConditions: string[] = [];
+
+    for (const word of words) {
+      const escaped = word.replace(/[%_]/g, '\\$&');
+      orConditions.push(`first_name.ilike.%${escaped}%`);
+      orConditions.push(`last_name.ilike.%${escaped}%`);
+      orConditions.push(`email.ilike.%${escaped}%`);
+      orConditions.push(`title.ilike.%${escaped}%`);
+    }
+
+    if (orConditions.length > 0) {
+      query = query.or(orConditions.join(','));
+    }
+  }
+
   if (args.role_category) {
     // Match role_category against title using case-insensitive contains
     // since titles may be "Vice President" vs filter "vp"
@@ -260,16 +279,18 @@ async function searchPeContacts(
     });
   }
 
-  // Client-side search filter
+  // Client-side post-filter for multi-word search precision
+  // DB search is broad (OR across words), so refine to ensure all words match
   if (args.search) {
-    const term = (args.search as string).toLowerCase();
-    results = results.filter(c =>
-      (c.first_name as string)?.toLowerCase().includes(term) ||
-      (c.last_name as string)?.toLowerCase().includes(term) ||
-      (c.title as string)?.toLowerCase().includes(term) ||
-      (c.email as string)?.toLowerCase().includes(term) ||
-      `${(c.first_name as string) || ''} ${(c.last_name as string) || ''}`.toLowerCase().includes(term)
-    );
+    const words = (args.search as string).trim().toLowerCase().split(/\s+/).filter(w => w.length > 0);
+    if (words.length > 1) {
+      results = results.filter(c => {
+        const fullName = `${(c.first_name as string) || ''} ${(c.last_name as string) || ''}`.toLowerCase();
+        const email = (c.email as string)?.toLowerCase() || '';
+        const title = (c.title as string)?.toLowerCase() || '';
+        return words.every(w => fullName.includes(w) || email.includes(w) || title.includes(w));
+      });
+    }
   }
 
   return {
@@ -314,21 +335,42 @@ async function searchContacts(
   if (args.nda_signed === true) query = query.eq('nda_signed', true);
   if (args.nda_signed === false) query = query.eq('nda_signed', false);
 
+  // Database-level search filter using ilike for name/email/title matching
+  if (args.search) {
+    const searchTerm = (args.search as string).trim();
+    const words = searchTerm.split(/\s+/).filter(w => w.length > 0);
+    const orConditions: string[] = [];
+
+    for (const word of words) {
+      const escaped = word.replace(/[%_]/g, '\\$&');
+      orConditions.push(`first_name.ilike.%${escaped}%`);
+      orConditions.push(`last_name.ilike.%${escaped}%`);
+      orConditions.push(`email.ilike.%${escaped}%`);
+      orConditions.push(`title.ilike.%${escaped}%`);
+    }
+
+    if (orConditions.length > 0) {
+      query = query.or(orConditions.join(','));
+    }
+  }
+
   const { data, error } = await query;
   if (error) return { error: error.message };
 
   let results = (data || []) as Array<Record<string, unknown>>;
 
-  // Client-side search filter
+  // Client-side post-filter for multi-word search precision
+  // DB search is broad (OR across words), so refine to ensure all words match
   if (args.search) {
-    const term = (args.search as string).toLowerCase();
-    results = results.filter(c =>
-      (c.first_name as string)?.toLowerCase().includes(term) ||
-      (c.last_name as string)?.toLowerCase().includes(term) ||
-      (c.title as string)?.toLowerCase().includes(term) ||
-      (c.email as string)?.toLowerCase().includes(term) ||
-      `${(c.first_name as string) || ''} ${(c.last_name as string) || ''}`.toLowerCase().includes(term)
-    );
+    const words = (args.search as string).trim().toLowerCase().split(/\s+/).filter(w => w.length > 0);
+    if (words.length > 1) {
+      results = results.filter(c => {
+        const fullName = `${(c.first_name as string) || ''} ${(c.last_name as string) || ''}`.toLowerCase();
+        const email = (c.email as string)?.toLowerCase() || '';
+        const title = (c.title as string)?.toLowerCase() || '';
+        return words.every(w => fullName.includes(w) || email.includes(w) || title.includes(w));
+      });
+    }
   }
 
   return {
