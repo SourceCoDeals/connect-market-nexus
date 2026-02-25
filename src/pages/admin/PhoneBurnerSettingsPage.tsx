@@ -316,9 +316,9 @@ export default function PhoneBurnerSettingsPage() {
                     <Badge variant="outline" className="text-xs">
                       {event.event_type as string}
                     </Badge>
-                    {event.event_id && (
+                    {!!event.event_id && (
                       <span className="text-xs text-muted-foreground truncate max-w-[200px]">
-                        {event.event_id as string}
+                        {String(event.event_id)}
                       </span>
                     )}
                   </div>

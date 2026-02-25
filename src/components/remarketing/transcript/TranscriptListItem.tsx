@@ -14,7 +14,7 @@ import {
   Check,
   Trash2,
   Loader2,
-  Link as LinkIcon,
+  Link as _LinkIcon,
   ExternalLink,
   RefreshCw,
   AlertTriangle,

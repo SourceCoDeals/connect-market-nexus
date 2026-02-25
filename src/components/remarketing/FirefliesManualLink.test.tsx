@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@/test/test-utils';
+import { render, screen, waitFor } from '@/test/test-utils';
 import userEvent from '@testing-library/user-event';
 import { FirefliesManualLink } from './FirefliesManualLink';
 
@@ -133,7 +133,7 @@ describe('FirefliesManualLink', () => {
 
   it('rejects non-Fireflies URLs with validation error', async () => {
     const user = userEvent.setup();
-    const { toast } = await import('sonner');
+    await import('sonner');
 
     render(<FirefliesManualLink {...defaultProps} />);
     await user.click(screen.getByRole('tab', { name: /paste link/i }));
