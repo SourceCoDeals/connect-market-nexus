@@ -13,8 +13,10 @@ import {
   CheckCircle2,
   FileText,
   Clock,
+  Download,
 } from "lucide-react";
 import { useFirefliesAutoPair } from "@/hooks/useFirefliesAutoPair";
+import { useFirefliesBulkSync } from "@/hooks/useFirefliesBulkSync";
 
 // ---------------------------------------------------------------------------
 // Stats hooks
@@ -127,9 +129,15 @@ export default function FirefliesIntegrationPage() {
   const { data: stats, isLoading: statsLoading, refetch: refetchStats } = useFirefliesStats();
   const { data: recent, isLoading: recentLoading } = useRecentPairings();
   const { loading: autoPairLoading, result: autoPairResult, runAutoPair } = useFirefliesAutoPair();
+  const { loading: bulkSyncLoading, result: bulkSyncResult, runBulkSync } = useFirefliesBulkSync();
 
   const handleAutoPair = async () => {
     await runAutoPair();
+    refetchStats();
+  };
+
+  const handleBulkSync = async () => {
+    await runBulkSync();
     refetchStats();
   };
 
@@ -214,6 +222,107 @@ export default function FirefliesIntegrationPage() {
               {autoPairResult.errors && autoPairResult.errors.length > 0 && (
                 <p className="text-xs text-amber-600">
                   {autoPairResult.errors.length} error{autoPairResult.errors.length !== 1 ? "s" : ""} occurred
+                </p>
+              )}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Bulk Sync — Pull ALL Fireflies Ever */}
+      <Card className="border-orange-500/20 bg-orange-500/5">
+        <CardHeader>
+          <CardTitle className="text-lg flex items-center gap-2">
+            <Download className="h-5 w-5" />
+            Pull All Fireflies Calls Ever
+          </CardTitle>
+          <CardDescription>
+            Fetches <strong>every</strong> transcript from your Fireflies account (no limit),
+            pairs them to buyers and deals, and downloads the full transcript content.
+            This may take several minutes depending on how many calls you have.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-center gap-3">
+            <Button
+              size="lg"
+              variant="outline"
+              disabled={bulkSyncLoading || autoPairLoading}
+              onClick={handleBulkSync}
+              className="gap-2 border-orange-500/30 hover:bg-orange-500/10"
+            >
+              {bulkSyncLoading ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Download className="h-4 w-4" />
+              )}
+              {bulkSyncLoading
+                ? "Pulling all Fireflies..."
+                : "Sync ALL Transcripts + Content"}
+            </Button>
+            {bulkSyncLoading && (
+              <p className="text-sm text-muted-foreground">
+                This can take a few minutes — hang tight
+              </p>
+            )}
+          </div>
+
+          {bulkSyncResult && (
+            <div className="rounded-lg border bg-background p-4 space-y-2">
+              <div className="flex items-center gap-2 text-sm font-medium">
+                <CheckCircle2 className="h-4 w-4 text-green-600" />
+                Bulk Sync Complete
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
+                <div>
+                  <span className="text-muted-foreground">Total in Fireflies</span>
+                  <p className="font-medium">{bulkSyncResult.fireflies_total}</p>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Buyer links created</span>
+                  <p className="font-medium text-green-600">
+                    +{bulkSyncResult.pairing.buyers_paired}
+                  </p>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Deal links created</span>
+                  <p className="font-medium text-green-600">
+                    +{bulkSyncResult.pairing.deals_paired}
+                  </p>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Unmatched</span>
+                  <p className="font-medium text-muted-foreground">
+                    {bulkSyncResult.pairing.unmatched}
+                  </p>
+                </div>
+              </div>
+              {typeof bulkSyncResult.content === "object" && (
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-sm pt-2 border-t">
+                  <div>
+                    <span className="text-muted-foreground">Content downloaded</span>
+                    <p className="font-medium text-green-600">
+                      {bulkSyncResult.content.fetched}
+                    </p>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">Empty/silent</span>
+                    <p className="font-medium text-muted-foreground">
+                      {bulkSyncResult.content.skipped_empty}
+                    </p>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">Failed</span>
+                    <p className="font-medium text-red-600">
+                      {bulkSyncResult.content.failed}
+                    </p>
+                  </div>
+                </div>
+              )}
+              {bulkSyncResult.errors && bulkSyncResult.errors.length > 0 && (
+                <p className="text-xs text-amber-600">
+                  {bulkSyncResult.errors.length} error
+                  {bulkSyncResult.errors.length !== 1 ? "s" : ""} occurred
                 </p>
               )}
             </div>
@@ -357,7 +466,8 @@ export default function FirefliesIntegrationPage() {
         <CardContent>
           <ol className="text-sm text-muted-foreground space-y-2 list-decimal list-inside">
             <li>
-              Fetches up to 500 recent transcripts from the Fireflies API
+              <strong>Quick Sync</strong> fetches up to 500 recent transcripts.
+              <strong> Bulk Sync</strong> fetches every transcript in the account (no limit) and also downloads the full call content.
             </li>
             <li>
               For each transcript, extracts external participant emails (filters out internal @sourcecodeals.com / @captarget.com)
@@ -370,6 +480,9 @@ export default function FirefliesIntegrationPage() {
             </li>
             <li>
               Links matches into the buyer_transcripts and deal_transcripts tables, skipping any already linked
+            </li>
+            <li>
+              <strong>Bulk Sync only:</strong> Downloads full transcript text (speaker-labeled sentences) for all matched deal transcripts and caches it in the database for chatbot search
             </li>
           </ol>
         </CardContent>
