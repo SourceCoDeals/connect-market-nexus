@@ -207,6 +207,38 @@ export const integrationActionTools: ClaudeTool[] = [
       required: ['linkedin_url'],
     },
   },
+  {
+    name: 'find_contact_linkedin',
+    description:
+      'Find LinkedIn profile URLs for contacts who are missing them. Searches Google for each contact using their name, title, and associated company (from their linked deal/listing). Cross-references results to verify matches by checking name, title, and company overlap. Use when asked to "find LinkedIn URLs" or "find LinkedIn profiles" for contacts. Returns matched profiles with confidence scores and verification details. Can optionally update the contact record in the CRM.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        contact_ids: {
+          type: 'array',
+          items: { type: 'string' },
+          description:
+            'Specific contact UUIDs to find LinkedIn URLs for. If omitted, searches for seller contacts missing LinkedIn URLs.',
+        },
+        contact_type: {
+          type: 'string',
+          enum: ['buyer', 'seller', 'advisor', 'all'],
+          description:
+            'Filter contacts by type when auto-discovering contacts without LinkedIn (default "seller")',
+        },
+        limit: {
+          type: 'number',
+          description: 'Max contacts to search for (default 5, max 10)',
+        },
+        auto_update: {
+          type: 'boolean',
+          description:
+            'If true, automatically update high-confidence matches in the contacts table. Default false — returns results for review first.',
+        },
+      },
+      required: [],
+    },
+  },
 ];
 
 // ---------- Executor ----------
@@ -230,6 +262,8 @@ export async function executeIntegrationActionTool(
       return sendDocument(supabase, args, userId);
     case 'enrich_linkedin_contact':
       return enrichLinkedInContact(supabase, args, userId);
+    case 'find_contact_linkedin':
+      return findContactLinkedIn(supabase, args, userId);
     default:
       return { error: `Unknown integration action tool: ${toolName}` };
   }
@@ -860,6 +894,286 @@ async function enrichLinkedInContact(
       error: `LinkedIn enrichment failed: ${err instanceof Error ? err.message : String(err)}`,
     };
   }
+}
+
+// ---------- find_contact_linkedin ----------
+
+interface LinkedInMatch {
+  contact_id: string;
+  contact_name: string;
+  contact_title: string;
+  company_name: string;
+  linkedin_url: string | null;
+  confidence: 'high' | 'medium' | 'low';
+  verification: string[];
+  search_query: string;
+  updated: boolean;
+}
+
+async function findContactLinkedIn(
+  supabase: SupabaseClient,
+  args: Record<string, unknown>,
+  _userId: string,
+): Promise<ToolResult> {
+  const contactIds = args.contact_ids as string[] | undefined;
+  const contactType = (args.contact_type as string) || 'seller';
+  const limit = Math.min((args.limit as number) || 5, 10);
+  const autoUpdate = (args.auto_update as boolean) || false;
+
+  // 1. Fetch contacts that need LinkedIn URLs
+  let contactQuery = supabase
+    .from('contacts')
+    .select('id, first_name, last_name, title, listing_id, remarketing_buyer_id, contact_type')
+    .eq('archived', false)
+    .is('linkedin_url', null)
+    .limit(limit);
+
+  if (contactIds?.length) {
+    contactQuery = contactQuery.in('id', contactIds);
+  } else {
+    if (contactType !== 'all') contactQuery = contactQuery.eq('contact_type', contactType);
+  }
+
+  const { data: contacts, error: contactError } = await contactQuery;
+  if (contactError) return { error: `Failed to fetch contacts: ${contactError.message}` };
+  if (!contacts?.length) {
+    return {
+      data: {
+        matches: [],
+        total_searched: 0,
+        message: 'No contacts found missing LinkedIn URLs matching the criteria.',
+      },
+    };
+  }
+
+  // 2. Resolve company names from linked listings or buyer records
+  const listingIds = [
+    ...new Set(
+      contacts.map((c: Record<string, unknown>) => c.listing_id as string).filter(Boolean),
+    ),
+  ];
+  const buyerIds = [
+    ...new Set(
+      contacts
+        .map((c: Record<string, unknown>) => c.remarketing_buyer_id as string)
+        .filter(Boolean),
+    ),
+  ];
+
+  const listingMap: Record<string, { title: string; category: string }> = {};
+  const buyerMap: Record<string, { company_name: string }> = {};
+
+  if (listingIds.length > 0) {
+    const { data: listings } = await supabase
+      .from('listings')
+      .select('id, title, category')
+      .in('id', listingIds);
+    if (listings) {
+      for (const l of listings) {
+        listingMap[l.id] = { title: l.title || '', category: l.category || '' };
+      }
+    }
+  }
+
+  if (buyerIds.length > 0) {
+    const { data: buyers } = await supabase
+      .from('remarketing_buyers')
+      .select('id, company_name, pe_firm_name')
+      .in('id', buyerIds);
+    if (buyers) {
+      for (const b of buyers) {
+        buyerMap[b.id] = { company_name: b.company_name || b.pe_firm_name || '' };
+      }
+    }
+  }
+
+  // 3. Search Google for each contact's LinkedIn profile
+  const matches: LinkedInMatch[] = [];
+  const errors: string[] = [];
+
+  for (const contact of contacts as Array<Record<string, unknown>>) {
+    const firstName = (contact.first_name as string) || '';
+    const lastName = (contact.last_name as string) || '';
+    const title = (contact.title as string) || '';
+    const fullName = `${firstName} ${lastName}`.trim();
+
+    if (!fullName) {
+      errors.push(`Contact ${contact.id}: skipped — no name`);
+      continue;
+    }
+
+    // Resolve company context
+    let companyName = '';
+    if (contact.listing_id && listingMap[contact.listing_id as string]) {
+      companyName = listingMap[contact.listing_id as string].title;
+    } else if (contact.remarketing_buyer_id && buyerMap[contact.remarketing_buyer_id as string]) {
+      companyName = buyerMap[contact.remarketing_buyer_id as string].company_name;
+    }
+
+    // Build search query — name + title + company context for best results
+    const queryParts = [`"${fullName}"`];
+    if (title) queryParts.push(title);
+    if (companyName) queryParts.push(companyName);
+    queryParts.push('site:linkedin.com/in');
+    const searchQuery = queryParts.join(' ');
+
+    try {
+      const results = await googleSearch(searchQuery, 5);
+
+      // Filter to only LinkedIn profile URLs
+      const linkedInResults = results.filter(
+        (r) => r.url.includes('linkedin.com/in/') && !r.url.includes('linkedin.com/in/ACo'),
+      );
+
+      if (linkedInResults.length === 0) {
+        // Fallback: broader search without site restriction
+        const fallbackQuery = `${fullName} ${title || ''} LinkedIn`.trim();
+        const fallbackResults = await googleSearch(fallbackQuery, 5);
+        const fallbackLinkedIn = fallbackResults.filter(
+          (r) => r.url.includes('linkedin.com/in/') && !r.url.includes('linkedin.com/in/ACo'),
+        );
+
+        if (fallbackLinkedIn.length === 0) {
+          matches.push({
+            contact_id: contact.id as string,
+            contact_name: fullName,
+            contact_title: title,
+            company_name: companyName,
+            linkedin_url: null,
+            confidence: 'low',
+            verification: ['No LinkedIn profile found in Google search results'],
+            search_query: searchQuery,
+            updated: false,
+          });
+          continue;
+        }
+
+        linkedInResults.push(...fallbackLinkedIn);
+      }
+
+      // Score and verify the best match
+      const best = linkedInResults[0];
+      const verification: string[] = [];
+      let score = 0;
+
+      // Check name match in result title
+      const resultTitle = best.title.toLowerCase();
+      const nameLower = fullName.toLowerCase();
+      const firstLower = firstName.toLowerCase();
+      const lastLower = lastName.toLowerCase();
+
+      if (resultTitle.includes(nameLower)) {
+        score += 3;
+        verification.push(`Full name "${fullName}" found in result title`);
+      } else if (resultTitle.includes(firstLower) && resultTitle.includes(lastLower)) {
+        score += 2;
+        verification.push(`First and last name found in result title`);
+      } else if (resultTitle.includes(lastLower)) {
+        score += 1;
+        verification.push(`Last name "${lastName}" found in result title`);
+      }
+
+      // Check title/role match
+      if (title) {
+        const titleWords = title
+          .toLowerCase()
+          .split(/[\s,/]+/)
+          .filter((w) => w.length > 2);
+        const matchedTitleWords = titleWords.filter(
+          (w) => resultTitle.includes(w) || best.description.toLowerCase().includes(w),
+        );
+        if (matchedTitleWords.length > 0) {
+          score += matchedTitleWords.length;
+          verification.push(`Title keywords matched: ${matchedTitleWords.join(', ')}`);
+        }
+      }
+
+      // Check company match
+      if (companyName) {
+        const companyWords = companyName
+          .toLowerCase()
+          .split(/\s+/)
+          .filter((w) => w.length > 2);
+        const matchedCompanyWords = companyWords.filter(
+          (w) => resultTitle.includes(w) || best.description.toLowerCase().includes(w),
+        );
+        if (matchedCompanyWords.length > 0) {
+          score += 2;
+          verification.push(`Company keywords matched: ${matchedCompanyWords.join(', ')}`);
+        }
+      }
+
+      // Determine confidence
+      const confidence: 'high' | 'medium' | 'low' =
+        score >= 4 ? 'high' : score >= 2 ? 'medium' : 'low';
+
+      // Clean up LinkedIn URL (remove query params, ensure https)
+      let cleanUrl = best.url.split('?')[0];
+      if (!cleanUrl.startsWith('https://')) {
+        cleanUrl = cleanUrl.replace('http://', 'https://');
+      }
+
+      const match: LinkedInMatch = {
+        contact_id: contact.id as string,
+        contact_name: fullName,
+        contact_title: title,
+        company_name: companyName,
+        linkedin_url: cleanUrl,
+        confidence,
+        verification,
+        search_query: searchQuery,
+        updated: false,
+      };
+
+      // Auto-update if requested and confidence is high
+      if (autoUpdate && confidence === 'high') {
+        const { error: updateError } = await supabase
+          .from('contacts')
+          .update({ linkedin_url: cleanUrl })
+          .eq('id', contact.id);
+
+        if (!updateError) {
+          match.updated = true;
+          console.log(
+            `[find-contact-linkedin] Updated contact ${contact.id} with LinkedIn URL: ${cleanUrl}`,
+          );
+        } else {
+          errors.push(`Failed to update contact ${contact.id}: ${updateError.message}`);
+        }
+      }
+
+      matches.push(match);
+
+      // Rate limit: 500ms between Google searches to avoid 429s
+      await new Promise((r) => setTimeout(r, 500));
+    } catch (err) {
+      errors.push(
+        `Contact ${contact.id} (${fullName}): search failed — ${err instanceof Error ? err.message : String(err)}`,
+      );
+    }
+  }
+
+  const highConfidence = matches.filter((m) => m.confidence === 'high' && m.linkedin_url);
+  const mediumConfidence = matches.filter((m) => m.confidence === 'medium' && m.linkedin_url);
+  const notFound = matches.filter((m) => !m.linkedin_url);
+  const updated = matches.filter((m) => m.updated);
+
+  return {
+    data: {
+      matches,
+      total_searched: contacts.length,
+      found: matches.filter((m) => m.linkedin_url).length,
+      high_confidence: highConfidence.length,
+      medium_confidence: mediumConfidence.length,
+      not_found: notFound.length,
+      auto_updated: updated.length,
+      errors: errors.length > 0 ? errors : undefined,
+      message: `Searched ${contacts.length} contacts: found ${matches.filter((m) => m.linkedin_url).length} LinkedIn profiles (${highConfidence.length} high confidence, ${mediumConfidence.length} medium)${updated.length > 0 ? ` — ${updated.length} auto-updated in CRM` : ''}`,
+      next_steps: autoUpdate
+        ? 'High-confidence matches have been saved. Review medium/low confidence matches and use enrich_linkedin_contact to get their emails.'
+        : 'Review the matches above. To save them, call find_contact_linkedin again with auto_update=true, or manually update individual contacts. Then use enrich_linkedin_contact on each LinkedIn URL to find their emails.',
+    },
+  };
 }
 
 // ---------- push_to_phoneburner ----------

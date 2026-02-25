@@ -262,6 +262,7 @@ const TOOL_CATEGORIES: Record<string, string[]> = {
     'get_call_history',
     'enrich_buyer_contacts',
     'enrich_linkedin_contact',
+    'find_contact_linkedin',
     'send_document',
   ],
 
@@ -279,6 +280,7 @@ const TOOL_CATEGORIES: Record<string, string[]> = {
     'google_search_companies',
     'enrich_buyer_contacts',
     'enrich_linkedin_contact',
+    'find_contact_linkedin',
     'save_contacts_to_crm',
     'search_contacts',
     'search_pe_contacts',

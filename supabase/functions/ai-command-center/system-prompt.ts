@@ -657,6 +657,18 @@ For BULK MISSING-EMAIL queries (e.g. "find contacts without email", "find 5 cont
 3. For each one, offer to enrich via Prospeo: use enrich_buyer_contacts if you know their company, or enrich_linkedin_contact if they have a LinkedIn URL.
 4. After enrichment, present results and offer to save updated contacts to CRM.
 
+For FINDING LINKEDIN PROFILES (e.g. "find LinkedIn URLs", "find their LinkedIn profiles", "search LinkedIn for contacts"):
+1. Use find_contact_linkedin to search Google for LinkedIn profiles of contacts missing LinkedIn URLs.
+   - Pass specific contact_ids if known, or use contact_type filter (default "seller").
+   - The tool automatically resolves company names from linked listings/deals to build targeted searches.
+   - Each match includes a confidence score (high/medium/low) and verification details explaining how it was verified (name match, title match, company match).
+2. Present results as a table: contact name, company, LinkedIn URL found, confidence, verification notes.
+3. For high-confidence matches, offer to auto-update: "Want me to save the high-confidence LinkedIn URLs to the CRM?"
+   - If yes, call find_contact_linkedin again with the same contact_ids and auto_update=true.
+4. For contacts with LinkedIn URLs found, offer to enrich emails: "Want me to look up their emails via Prospeo?"
+   - If yes, use enrich_linkedin_contact for each LinkedIn URL found.
+5. The full workflow is: find_contact_linkedin → review matches → auto_update → enrich_linkedin_contact → save to CRM.
+
 For FIRM/COMPANY searches (e.g. "find VPs at Trivest"), use search_pe_contacts with the firm_name parameter. This will look up the firm in both firm_agreements and remarketing_buyers tables, then find matching contacts.
 For role-specific searches (e.g. "find associates at Audax"), use search_pe_contacts with both firm_name and role_category parameters.
 If no contacts are found for a firm, use enrich_buyer_contacts to discover and import them via LinkedIn/Prospeo — don't just say they need to be imported, actually offer to run the enrichment.`,
@@ -668,7 +680,14 @@ If no contacts are found for a firm, use enrich_buyer_contacts to discover and i
 4. For enrichment: ask for company_name, optional title_filter (roles like "partner", "vp", "director"), and target_count
 5. Enrichment calls external APIs (Apify + Prospeo) and may take 30-60 seconds — tell the user
 6. After enrichment, present results: total found, how many have email, how many are LinkedIn-only
-7. Suggest next steps: "Would you like to push these to PhoneBurner for calling, or to a Smartlead email campaign?"`,
+7. Suggest next steps: "Would you like to push these to PhoneBurner for calling, or to a Smartlead email campaign?"
+
+When the user asks to find LinkedIn URLs/profiles for existing contacts:
+1. Use find_contact_linkedin — it searches Google (via Apify) for LinkedIn profiles using each contact's name, title, and company context (resolved from their linked listing/deal).
+2. Results include confidence scores based on name, title, and company keyword matching in search results.
+3. Present the matches in a clear table with verification details so the user can review.
+4. Offer to auto-update high-confidence matches and then enrich emails via enrich_linkedin_contact.
+5. This is the recommended workflow for contacts missing both LinkedIn URLs AND emails: find LinkedIn first, then enrich email from LinkedIn.`,
 
   DOCUMENT_ACTION: `For sending NDAs or fee agreements:
 1. Verify the firm exists by looking up firm_id
