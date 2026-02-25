@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -26,8 +26,9 @@ import {
   Building2,
   AlertTriangle,
   Plus,
+  Sparkles,
 } from "lucide-react";
-import { useContactLists, useCreateContactList, useAddMembersToList } from "@/hooks/admin/use-contact-lists";
+import { useContactLists, useCreateContactList, useAddMembersToList, useEnrichListContacts } from "@/hooks/admin/use-contact-lists";
 import type { CreateContactListMemberInput } from "@/types/contact-list";
 
 export interface DealForList {
@@ -58,9 +59,13 @@ export function AddDealsToListDialog({
   const [selectedListId, setSelectedListId] = useState<string>("");
   const [name, setName] = useState("");
 
+  // Track enriched data locally so the UI updates without re-fetching
+  const [enrichedDeals, setEnrichedDeals] = useState<Record<string, { email: string | null; phone: string | null }>>({});
+
   const { data: existingLists } = useContactLists();
   const createList = useCreateContactList();
   const addMembers = useAddMembersToList();
+  const enrichContacts = useEnrichListContacts();
 
   // Default to "existing" when lists are available, fall back to "new" if none
   useEffect(() => {
@@ -74,11 +79,67 @@ export function AddDealsToListDialog({
     if (!open) {
       setName("");
       setSelectedListId("");
+      setEnrichedDeals({});
     }
   }, [open]);
 
-  const dealsWithContact = selectedDeals.filter((d) => d.contactEmail);
-  const dealsWithoutContact = selectedDeals.filter((d) => !d.contactEmail);
+  // Merge original deals with enriched data
+  const mergedDeals = useMemo(
+    () =>
+      selectedDeals.map((d) => {
+        const enriched = enrichedDeals[d.dealId];
+        return {
+          ...d,
+          contactEmail: d.contactEmail || enriched?.email || null,
+          contactPhone: d.contactPhone || enriched?.phone || null,
+        };
+      }),
+    [selectedDeals, enrichedDeals],
+  );
+
+  const dealsWithContact = mergedDeals.filter((d) => d.contactEmail);
+  const dealsWithoutContact = mergedDeals.filter((d) => !d.contactEmail);
+
+  // Deals eligible for enrichment: missing email AND have a contact name we can search with
+  const enrichableDealIds = useMemo(
+    () =>
+      mergedDeals
+        .filter((d) => !d.contactEmail && d.contactName)
+        .map((d) => d.dealId),
+    [mergedDeals],
+  );
+
+  const handleEnrich = () => {
+    if (enrichableDealIds.length === 0) return;
+
+    const rawContacts = mergedDeals
+      .filter((d) => enrichableDealIds.includes(d.dealId) && d.contactName)
+      .map((d) => {
+        const parts = (d.contactName || "").trim().split(/\s+/);
+        const firstName = parts[0] || "";
+        const lastName = parts.slice(1).join(" ") || "";
+        return {
+          key: d.dealId,
+          first_name: firstName,
+          last_name: lastName,
+          company: d.dealName,
+        };
+      });
+
+    enrichContacts.mutate({ raw_contacts: rawContacts }, {
+      onSuccess: (results) => {
+        setEnrichedDeals((prev) => {
+          const next = { ...prev };
+          for (const r of results) {
+            if (r.email || r.phone) {
+              next[r.contact_id] = { email: r.email, phone: r.phone };
+            }
+          }
+          return next;
+        });
+      },
+    });
+  };
 
   const buildMembers = (): CreateContactListMemberInput[] =>
     dealsWithContact.map((d) => ({
@@ -118,7 +179,7 @@ export function AddDealsToListDialog({
     }
   };
 
-  const isPending = createList.isPending || addMembers.isPending;
+  const isPending = createList.isPending || addMembers.isPending || enrichContacts.isPending;
   const canSubmit =
     dealsWithContact.length > 0 &&
     !isPending &&
@@ -144,10 +205,28 @@ export function AddDealsToListDialog({
               {dealsWithContact.length} with contact info
             </Badge>
             {dealsWithoutContact.length > 0 && (
-              <Badge variant="outline" className="text-xs text-amber-600 border-amber-300">
-                <AlertTriangle className="h-3 w-3 mr-1" />
-                {dealsWithoutContact.length} missing contact email
-              </Badge>
+              <>
+                <Badge variant="outline" className="text-xs text-amber-600 border-amber-300">
+                  <AlertTriangle className="h-3 w-3 mr-1" />
+                  {dealsWithoutContact.length} missing contact email
+                </Badge>
+                {enrichableDealIds.length > 0 && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-6 text-xs gap-1"
+                    onClick={handleEnrich}
+                    disabled={enrichContacts.isPending}
+                  >
+                    {enrichContacts.isPending ? (
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                    ) : (
+                      <Sparkles className="h-3 w-3" />
+                    )}
+                    {enrichContacts.isPending ? "Enriching..." : "Find via Prospeo"}
+                  </Button>
+                )}
+              </>
             )}
           </div>
 
@@ -156,7 +235,7 @@ export function AddDealsToListDialog({
             <Label className="text-sm font-medium">Deals</Label>
             <ScrollArea className="h-[160px] border rounded-md">
               <div className="p-2 space-y-0.5">
-                {selectedDeals.map((deal) => (
+                {mergedDeals.map((deal) => (
                   <div
                     key={deal.dealId}
                     className={`flex items-center gap-2 px-3 py-1.5 rounded text-sm ${!deal.contactEmail ? "text-muted-foreground" : ""}`}

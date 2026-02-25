@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { invokeWithTimeout } from '@/lib/invoke-with-timeout';
 import type { ContactList, CreateContactListInput, ContactListMember, CreateContactListMemberInput } from '@/types/contact-list';
 import { useToast } from '@/hooks/use-toast';
 
@@ -253,6 +254,75 @@ export function useRemoveListMember() {
     onSuccess: (listId) => {
       queryClient.invalidateQueries({ queryKey: QUERY_KEY });
       queryClient.invalidateQueries({ queryKey: [...QUERY_KEY, listId] });
+    },
+  });
+}
+
+export interface EnrichResult {
+  contact_id: string;
+  email: string | null;
+  phone: string | null;
+  source: string | null;
+  confidence: string | null;
+  error: string | null;
+}
+
+export interface RawContactForEnrich {
+  key: string;
+  first_name: string;
+  last_name: string;
+  company: string;
+}
+
+interface EnrichInput {
+  contact_ids?: string[];
+  raw_contacts?: RawContactForEnrich[];
+}
+
+/**
+ * Enrich contacts missing email/phone via Prospeo before adding to a list.
+ * Supports two modes:
+ *   - contact_ids: enriches existing contacts from the contacts table.
+ *   - raw_contacts: enriches by name + company (for deals without a DB contact).
+ */
+export function useEnrichListContacts() {
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async (input: EnrichInput) => {
+      const hasIds = (input.contact_ids?.length ?? 0) > 0;
+      const hasRaw = (input.raw_contacts?.length ?? 0) > 0;
+      if (!hasIds && !hasRaw) return [] as EnrichResult[];
+
+      const { data, error } = await invokeWithTimeout<{ results: EnrichResult[] }>(
+        'enrich-list-contacts',
+        {
+          body: {
+            ...(hasIds ? { contact_ids: input.contact_ids } : {}),
+            ...(hasRaw ? { raw_contacts: input.raw_contacts } : {}),
+          },
+          timeoutMs: 120_000,
+        },
+      );
+
+      if (error) throw error;
+      return (data?.results ?? []) as EnrichResult[];
+    },
+    onSuccess: (results) => {
+      const found = results.filter((r) => r.source && r.source !== 'existing' && (r.email || r.phone));
+      if (found.length > 0) {
+        toast({
+          title: 'Contacts enriched',
+          description: `Found contact info for ${found.length} contact${found.length !== 1 ? 's' : ''} via Prospeo.`,
+        });
+      }
+    },
+    onError: (error: any) => {
+      toast({
+        title: 'Enrichment failed',
+        description: error.message,
+        variant: 'destructive',
+      });
     },
   });
 }
