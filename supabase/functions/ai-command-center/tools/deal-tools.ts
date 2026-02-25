@@ -46,24 +46,40 @@ const DEAL_FIELDS_QUICK = `
   location, address_state, geographic_states, services,
   deal_total_score, is_priority_target, remarketing_status,
   needs_owner_contact, needs_owner_contact_at,
+  internal_company_name, website, acquisition_type,
+  main_contact_name, main_contact_email, main_contact_phone,
+  linkedin_employee_count, google_rating, google_review_count,
+  referral_partner_id, is_internal_deal,
   deal_owner_id, primary_owner_id, updated_at
 `.replace(/\s+/g, ' ').trim();
 
 const DEAL_FIELDS_FULL = `
-  id, title, status, status_label, status_tag, deal_source, industry, industry_tier_name, category, categories,
-  revenue, ebitda, ebitda_margin,
-  location, address_city, address_state, address_zip, geographic_states,
+  id, title, status, status_label, status_tag, deal_source, industry, industry_tier, category, categories,
+  revenue, ebitda, ebitda_margin, cash_flow,
+  location, address_city, address_state, address_zip, address_country, geographic_states,
+  website, description, hero_description, executive_summary, investment_thesis,
   services, service_mix, business_model,
-  full_time_employees, number_of_locations,
-  deal_total_score, deal_size_score, revenue_score, ebitda_score,
-  is_priority_target, remarketing_status, enrichment_status,
-  executive_summary, investment_thesis, key_risks, growth_drivers,
-  owner_goals, seller_motivation, timeline_preference, transition_preferences,
-  competitive_position, management_depth, customer_concentration,
-  internal_company_name, project_name, deal_identifier,
+  full_time_employees, number_of_locations, founded_year,
+  deal_total_score, seller_interest_score, manual_rank_override,
+  is_priority_target, remarketing_status, acquisition_type,
+  key_risks, growth_drivers, growth_trajectory,
+  owner_goals, seller_motivation, timeline_preference, seller_involvement_preference,
+  competitive_position, management_depth, customer_concentration, customer_types, customer_geography,
+  ownership_structure, technology_systems, real_estate_info,
+  revenue_model_breakdown, financial_notes,
+  market_position, transaction_preferences,
+  owner_response, key_quotes, general_notes, special_requirements,
+  internal_company_name, project_name, deal_identifier, internal_deal_memo_link,
+  main_contact_name, main_contact_title, main_contact_email, main_contact_phone,
+  linkedin_url, linkedin_employee_count, linkedin_employee_range, linkedin_match_confidence,
+  google_review_count, google_rating, google_maps_url,
   deal_owner_id, primary_owner_id, presented_by_admin_id,
-  need_buyer_universe, universe_build_flagged,
-  needs_owner_contact, needs_owner_contact_at,
+  referral_partner_id, is_internal_deal,
+  need_buyer_universe, universe_build_flagged, universe_build_flagged_at, universe_build_flagged_by,
+  needs_owner_contact, needs_owner_contact_at, needs_owner_contact_by,
+  captarget_status, captarget_client_name, captarget_interest_type, captarget_outreach_channel,
+  captarget_contact_date, pushed_to_all_deals, captarget_sheet_tab,
+  fireflies_url,
   created_at, updated_at, enriched_at, published_at
 `.replace(/\s+/g, ' ').trim();
 
@@ -91,8 +107,12 @@ export const dealTools: ClaudeTool[] = [
         search: { type: 'string', description: 'Free-text search across title, description, services, location' },
         is_priority: { type: 'boolean', description: 'Filter to priority targets only' },
         needs_owner_contact: { type: 'boolean', description: 'Filter to deals flagged as needing owner contact. When true, returns only deals where the "contact owner" flag is set (these appear red/flagged in the Active Deals UI). Use this when the user asks about flagged deals, deals that need to contact owners/sellers, or red-flagged deals.' },
+        deal_owner_id: { type: 'string', description: 'Filter by deal owner user ID. Use "CURRENT_USER" for the logged-in user\'s deals.' },
+        is_internal_deal: { type: 'boolean', description: 'Filter to internal-only deals (true) or external/marketplace deals (false).' },
+        acquisition_type: { type: 'string', enum: ['add_on', 'platform'], description: 'Filter by acquisition type: "add_on" (bolt-on) or "platform" (platform investment).' },
+        has_website: { type: 'boolean', description: 'Filter to deals that have (true) or lack (false) a website URL. Useful for checking enrichment readiness.' },
         limit: { type: 'number', description: 'Max results (default 25 for simple queries, auto-expands for search/industry filters to scan all matching deals)' },
-        depth: { type: 'string', enum: ['quick', 'full'], description: 'quick = summary fields, full = all details' },
+        depth: { type: 'string', enum: ['quick', 'full'], description: 'quick = summary fields, full = all details including contact info, financials, enrichment data, and CapTarget fields' },
       },
       required: [],
     },
@@ -198,6 +218,12 @@ async function queryDeals(
     if (args.is_priority === true) query = query.eq('is_priority_target', true);
     if (args.needs_owner_contact === true) query = query.eq('needs_owner_contact', true);
     if (args.needs_owner_contact === false) query = query.or('needs_owner_contact.is.null,needs_owner_contact.eq.false');
+    if (args.deal_owner_id) query = query.eq('deal_owner_id', args.deal_owner_id as string);
+    if (args.is_internal_deal === true) query = query.eq('is_internal_deal', true);
+    if (args.is_internal_deal === false) query = query.or('is_internal_deal.is.null,is_internal_deal.eq.false');
+    if (args.acquisition_type) query = query.eq('acquisition_type', args.acquisition_type as string);
+    if (args.has_website === true) query = query.not('website', 'is', null);
+    if (args.has_website === false) query = query.is('website', null);
     if (args.min_revenue) query = query.gte('revenue', args.min_revenue as number);
     if (args.max_revenue) query = query.lte('revenue', args.max_revenue as number);
     if (args.min_ebitda) query = query.gte('ebitda', args.min_ebitda as number);

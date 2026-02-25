@@ -191,18 +191,129 @@ DATA SOURCES YOU CAN QUERY:
 
 FIELD MEANINGS & BUSINESS CONTEXT (critical for interpreting data correctly):
 
-Deal/Listing Fields:
-- owner_goals: the seller's strategic objectives for the transaction — NOT financial metrics. Examples: "retain existing management", "grow EBITDA 20%", "stay independent post-close", "add bolt-on acquisitions", "transition within 12 months". This drives owner_goals_score matching with buyers.
-- seller_motivation: why the owner wants to sell — "retirement", "health", "burnout", "pursue other interests", "tax optimization", "market timing", "growth capital needed". Affects urgency and deal structure preferences.
-- transition_preferences: how the seller expects the ownership/management change to work — "want to stay as CEO for 2 years", "prefer strategic over PE", "want management team retained", "clean break at close". Critical for buyer-seller fit.
-- key_risks: identified vulnerabilities that buyers will scrutinize — "customer concentration 60% to 3 clients", "owner-dependent operations", "outdated equipment", "pending lease renewal". Surface these proactively.
-- growth_drivers: what supports future revenue/EBITDA growth — "market tailwinds", "pricing power", "geographic expansion", "new service lines", "operational efficiency gains". Buyers look for these to justify multiples.
-- management_depth: quality and independence of the management team. Low depth = owner-dependent = risk. High depth = business runs without owner = premium.
-- customer_concentration: percentage of revenue from top clients. >20% from one client is a red flag. >50% is a serious concern for institutional buyers.
-- needs_owner_contact: CRITICAL FLAG — boolean indicating the deal's seller/owner needs to be contacted. When true, the deal appears with a RED background and a pulsing red phone icon in the Active Deals table. This is the "contact flag" or "contact owner flag" that users refer to. To find all flagged deals, use query_deals with needs_owner_contact=true. When the user says "flagged deals", "red deals", "deals we need to contact", "contact flag", or "sellers to contact", they mean deals where needs_owner_contact is true. Also has needs_owner_contact_at (timestamp when flagged).
-- deal_source: where the deal originated — "marketplace", "captarget", "gp_partners", "inbound", "valuation_calculator", "referral", "internal". Affects lead quality expectations.
-- remarketing_status: whether the deal is being actively marketed to buyers via the remarketing engine.
-- need_buyer_universe / universe_build_flagged: flags indicating the deal needs a buyer universe assigned or built.
+Deal/Listing Fields (ALL fields available via query_deals and get_deal_details):
+
+IDENTITY & STATUS:
+- id: UUID primary key for the deal/listing.
+- title: the business name shown publicly (may be anonymized). Use internal_company_name for the real company name.
+- internal_company_name: the actual confidential company name (admin-only). This is what the team refers to internally.
+- deal_identifier: auto-generated deal code (format: SCO-YYYY-###). Used for quick reference.
+- status: marketplace visibility status — "active" or "inactive".
+- status_tag: deal progress indicator — "just_added", "reviewing_buyers", "in_diligence", "under_loi", "accepted_offer".
+- remarketing_status: remarketing engine status — "active", "archived", "excluded", "completed".
+- deal_source: where the deal originated — "marketplace", "captarget", "gp_partners", "inbound", "valuation_calculator", "referral", "internal", "manual". Affects lead quality expectations.
+- acquisition_type: deal structure — "add_on" (bolt-on acquisition) or "platform" (platform investment). NULL if unclassified.
+- is_internal_deal: boolean — true for internal-only deals not shown on the marketplace.
+
+FINANCIALS:
+- revenue: annual revenue as a raw number (e.g. 4200000 = $4.2M). Format for display.
+- ebitda: annual EBITDA as a raw number. Format for display.
+- ebitda_margin: EBITDA as a percentage of revenue (decimal, e.g. 0.20 = 20%).
+- cash_flow: optional cash flow metric when available.
+- revenue_model_breakdown: JSONB breakdown of revenue types with percentages (e.g. recurring vs project).
+- financial_notes: detailed financial analysis notes from the deal team.
+- seller_interest_score: numeric score indicating the seller's engagement/interest level.
+
+LOCATION & GEOGRAPHY:
+- location: free-text geographic location string.
+- address_city, address_state, address_zip, address_country: structured address components. address_state may be full name ("Texas") or code ("TX").
+- geographic_states: array of US state codes where the business operates (e.g. ["TX", "OK", "LA"]).
+
+BUSINESS DESCRIPTION & CONTENT:
+- description: full business description text.
+- hero_description: short preview description for listing cards.
+- executive_summary: concise executive overview of the deal.
+- investment_thesis: dedicated investment thesis separate from the description.
+- website: the business's website URL — primary anchor for enrichment.
+
+INDUSTRY & SERVICES:
+- industry: industry classification string.
+- category: single category (backward-compatible).
+- categories: array of categories.
+- services / service_mix: array of service types the business provides.
+- business_model: description of the business model (recurring, project-based, B2B, B2C, etc.).
+- industry_tier: integer (1/2/3) tier classification for scoring multipliers. Tier 1 = highest priority industries.
+
+COMPANY SIZE & OPERATIONS:
+- full_time_employees: FTE count.
+- number_of_locations: how many physical locations the business has.
+- founded_year: year the company was founded.
+- technology_systems: technology and software used by the company.
+- real_estate_info: real estate details — owned vs leased, property characteristics.
+
+SELLER INFORMATION & MOTIVATION:
+- owner_goals: the seller's strategic objectives for the transaction — NOT financial metrics. Examples: "retain existing management", "grow EBITDA 20%". Drives owner_goals_score matching.
+- seller_motivation: why the owner wants to sell — "retirement", "health", "burnout", "growth capital needed". Affects urgency.
+- timeline_preference: preferred transaction timeline.
+- seller_involvement_preference: post-transaction involvement preference (e.g. "stay 2 years", "clean break").
+- ownership_structure: current ownership type — "individual", "family", "corporate", "private_equity".
+- owner_response: the owner's response to initial outreach/interest.
+
+SELLER CONTACT (direct on listings — NOT the unified contacts table):
+- main_contact_name: primary seller contact name.
+- main_contact_email: primary seller contact email (also used for Fireflies transcript matching).
+- main_contact_phone: primary seller contact phone.
+- main_contact_title: primary seller contact job title.
+
+COMPETITIVE & MARKET ANALYSIS:
+- competitive_position: market positioning and competitive landscape description.
+- market_position: JSONB — market ranking and geographic coverage data.
+- management_depth: quality and independence of the management team. Low = owner-dependent = risk. High = business runs without owner = premium.
+- customer_concentration: percentage of revenue from top clients. >20% from one client = flag. >50% = serious concern.
+- customer_types: types of customers served.
+- customer_geography: geographic distribution of customers.
+- growth_drivers: what supports future revenue/EBITDA growth — market tailwinds, pricing power, expansion.
+- growth_trajectory: historical and projected growth trajectory.
+- key_risks: identified vulnerabilities — customer concentration, owner-dependency, equipment, leases.
+- transaction_preferences: JSONB — seller preferences for deal structure.
+- special_requirements: any special requirements or restrictions on the transaction.
+- key_quotes: important seller quotes from calls/meetings.
+- general_notes: general notes about the deal.
+
+ENRICHMENT & WEB DATA:
+- enriched_at: timestamp when the deal was last enriched via AI scraping.
+- linkedin_url: company LinkedIn page URL.
+- linkedin_employee_count: employee count from LinkedIn (estimated).
+- linkedin_employee_range: employee range from LinkedIn (e.g. "11-50").
+- linkedin_match_confidence: how confident the LinkedIn match is.
+- google_review_count: number of Google reviews.
+- google_rating: Google rating (1.0-5.0).
+- google_maps_url: direct link to Google Maps listing.
+- fireflies_url: Fireflies.ai transcript URL if available.
+
+SCORING & RANKING:
+- deal_total_score: overall deal quality score (integer).
+- manual_rank_override: drag-and-drop manual ranking override (integer). Lower = higher priority.
+- is_priority_target: boolean — whether this is a priority deal target.
+
+FLAGS & ACTION ITEMS:
+- needs_owner_contact: CRITICAL FLAG — boolean indicating the seller/owner needs to be contacted. When true, the deal appears RED in the Active Deals table with a pulsing phone icon. This is the "contact flag". Use query_deals(needs_owner_contact=true) to find these. Also has needs_owner_contact_at (when flagged) and needs_owner_contact_by (who flagged it).
+- need_buyer_universe / universe_build_flagged: flags indicating the deal needs a buyer universe assigned or built. universe_build_flagged_at and universe_build_flagged_by track when/who.
+
+CAPTARGET INTEGRATION:
+- captarget_status: CapTarget-specific deal status.
+- captarget_client_name: the CapTarget client name associated with this deal.
+- captarget_interest_type: type of interest expressed via CapTarget.
+- captarget_outreach_channel: outreach method used by CapTarget.
+- captarget_contact_date: when CapTarget contact was made.
+- captarget_sheet_tab: which sheet tab in the CapTarget tracker.
+- pushed_to_all_deals: boolean — whether this CapTarget/lead deal has been promoted to Active Deals.
+
+OWNERSHIP & ASSIGNMENT:
+- deal_owner_id: UUID of the admin user who owns this deal. Use query_deals(deal_owner_id="CURRENT_USER") to find the current user's deals.
+- primary_owner_id: UUID of the SourceCo/CapTarget employee owning the seller relationship.
+- presented_by_admin_id: UUID of the admin who presented/sourced the deal.
+- referral_partner_id: UUID of the referral partner who referred this deal. Join with referral_partners table.
+
+INTERNAL LINKS:
+- internal_deal_memo_link: URL to the deal memo document.
+- project_name: internal project name.
+
+TIMESTAMPS:
+- created_at: when the deal was first created.
+- updated_at: when the deal was last modified.
+- enriched_at: when the deal was last enriched via AI.
+- published_at: when the deal was published to the marketplace.
 
 Buyer Fields:
 - acquisition_appetite: how aggressively the buyer is pursuing deals — "aggressive" (actively sourcing, quick decisions, deploying capital now), "active" (regular deal flow, standard process), "selective" (very picky, long evaluation), "opportunistic" (only if perfect fit). Affects outreach prioritization.
