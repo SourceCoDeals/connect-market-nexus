@@ -12,18 +12,29 @@ export function useContactLists() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('contact_lists')
-        .select('*, profiles:created_by(first_name, last_name)')
+        .select('*')
         .eq('is_archived', false)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
 
+      // Fetch creator names separately (FK points to auth.users, not profiles)
+      const creatorIds = [...new Set((data ?? []).map((r: any) => r.created_by).filter(Boolean))];
+      let profileMap: Record<string, string> = {};
+      if (creatorIds.length > 0) {
+        const { data: profiles } = await supabase
+          .from('profiles')
+          .select('id, first_name, last_name')
+          .in('id', creatorIds);
+        for (const p of (profiles ?? []) as any[]) {
+          profileMap[p.id] = `${p.first_name ?? ''} ${p.last_name ?? ''}`.trim();
+        }
+      }
+
       return (data ?? []).map((row: any) => ({
         ...row,
         tags: row.tags ?? [],
-        created_by_name: row.profiles
-          ? `${row.profiles.first_name ?? ''} ${row.profiles.last_name ?? ''}`.trim()
-          : null,
+        created_by_name: profileMap[row.created_by] || null,
       })) as ContactList[];
     },
     staleTime: 30000,
@@ -37,11 +48,24 @@ export function useContactList(listId: string | undefined) {
     queryFn: async () => {
       const { data: list, error: listError } = await supabase
         .from('contact_lists')
-        .select('*, profiles:created_by(first_name, last_name)')
+        .select('*')
         .eq('id', listId!)
         .single();
 
       if (listError) throw listError;
+
+      // Fetch creator name separately
+      let creatorName: string | null = null;
+      if (list.created_by) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('first_name, last_name')
+          .eq('id', list.created_by)
+          .single();
+        if (profile) {
+          creatorName = `${(profile as any).first_name ?? ''} ${(profile as any).last_name ?? ''}`.trim();
+        }
+      }
 
       const { data: members, error: membersError } = await supabase
         .from('contact_list_members')
@@ -85,9 +109,7 @@ export function useContactList(listId: string | undefined) {
       return {
         ...list,
         tags: list.tags ?? [],
-        created_by_name: list.profiles
-          ? `${(list.profiles as any).first_name ?? ''} ${(list.profiles as any).last_name ?? ''}`.trim()
-          : null,
+        created_by_name: creatorName,
         members: enrichedMembers,
       } as ContactList;
     },
