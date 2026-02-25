@@ -232,7 +232,8 @@ function extractContactInfo(payload: Record<string, unknown>) {
 }
 
 async function processEvent(
-  supabase: ReturnType<typeof createClient>,
+  // deno-lint-ignore no-explicit-any
+  supabase: any,
   eventType: string,
   payload: Record<string, unknown>,
 ): Promise<string | null> {
