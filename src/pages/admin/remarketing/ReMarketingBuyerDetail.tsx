@@ -8,6 +8,7 @@ import { BuyerEngagementTab } from '@/components/remarketing/buyer-detail/BuyerE
 import { BuyerContactsHub } from '@/components/remarketing/buyer-detail/BuyerContactsHub';
 import { BuyerAgreementsRebuild } from '@/components/remarketing/buyer-detail/BuyerAgreementsRebuild';
 import { SmartleadEmailHistory } from '@/components/remarketing/SmartleadEmailHistory';
+import { ContactActivityTimeline } from '@/components/remarketing/ContactActivityTimeline';
 import { useParams, useNavigate, useLocation, Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -789,7 +790,13 @@ const ReMarketingBuyerDetail = () => {
         </TabsList>
 
         {/* Engagement Tab (NEW DEFAULT) */}
-        <TabsContent value="engagement">
+        <TabsContent value="engagement" className="space-y-4">
+          {/* Unified Contact Activity Timeline — combined SmartLead emails + PhoneBurner calls */}
+          <ContactActivityTimeline
+            buyerId={buyer!.id}
+            title="All Outreach Activity"
+            maxHeight={400}
+          />
           <BuyerEngagementTab
             buyerId={buyer!.id}
             emailDomain={buyer?.email_domain}
