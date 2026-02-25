@@ -55,6 +55,7 @@ export const DealCSVImport = ({
   const [importProgress, setImportProgress] = useState(0);
   const [importResults, setImportResults] = useState<{
     imported: number;
+    merged: number;
     errors: string[];
   } | null>(null);
 
@@ -136,6 +137,106 @@ export const DealCSVImport = ({
     );
   };
 
+  /**
+   * When a deal already exists (duplicate website), find the existing listing
+   * and fill in any null/empty fields with new CSV data.
+   * Returns the listing ID if fields were updated, null otherwise.
+   */
+  const tryMergeExistingListing = async (
+    newData: Record<string, unknown>,
+    mergeableFields: string[],
+  ): Promise<string | null> => {
+    try {
+      const website = newData.website as string | undefined;
+      const title = newData.title as string | undefined;
+
+      let existingListing: Record<string, unknown> | null = null;
+
+      if (website) {
+        const { data } = await supabase
+          .from('listings')
+          .select('*')
+          .eq('website', website)
+          .limit(1)
+          .maybeSingle();
+        existingListing = data as Record<string, unknown> | null;
+      }
+
+      if (!existingListing && title) {
+        const { data } = await supabase
+          .from('listings')
+          .select('*')
+          .eq('title', title)
+          .limit(1)
+          .maybeSingle();
+        existingListing = data as Record<string, unknown> | null;
+      }
+
+      if (!existingListing) return null;
+
+      const updates: Record<string, unknown> = {};
+
+      for (const field of mergeableFields) {
+        const newValue = newData[field];
+        const existingValue = existingListing[field];
+
+        if (newValue === undefined || newValue === null || newValue === '') continue;
+        if (field === 'category' && newValue === 'Other') continue;
+
+        const isEmpty =
+          existingValue === null
+          || existingValue === undefined
+          || existingValue === ''
+          || (field === 'description' && existingValue === (existingListing.title || ''))
+          || (field === 'category' && existingValue === 'Other')
+          || (field === 'location' && existingValue === 'Unknown');
+
+        if (isEmpty) {
+          updates[field] = newValue;
+        }
+      }
+
+      if (
+        (updates.address_city || updates.address_state) &&
+        (existingListing.location === 'Unknown' || !existingListing.location)
+      ) {
+        const newCity = (updates.address_city || existingListing.address_city || '') as string;
+        const newState = (updates.address_state || existingListing.address_state || '') as string;
+        if (newCity && newState) {
+          updates.location = `${newCity}, ${newState}`;
+        } else if (newState || newCity) {
+          updates.location = newState || newCity;
+        }
+      }
+
+      if (typeof newData.revenue === 'number' && newData.revenue > 0
+          && (existingListing.revenue === 0 || existingListing.revenue === null)) {
+        updates.revenue = newData.revenue;
+      }
+      if (typeof newData.ebitda === 'number' && newData.ebitda > 0
+          && (existingListing.ebitda === 0 || existingListing.ebitda === null)) {
+        updates.ebitda = newData.ebitda;
+      }
+
+      if (Object.keys(updates).length === 0) return null;
+
+      const { error: updateError } = await supabase
+        .from('listings')
+        .update(updates as never)
+        .eq('id', existingListing.id as string);
+
+      if (updateError) {
+        console.warn('Merge update failed:', updateError.message);
+        return null;
+      }
+
+      return existingListing.id as string;
+    } catch (err) {
+      console.warn('Merge lookup failed:', (err as Error).message);
+      return null;
+    }
+  };
+
   const importMutation = useMutation({
     mutationFn: async () => {
       const {
@@ -143,7 +244,17 @@ export const DealCSVImport = ({
         error: authError,
       } = await supabase.auth.getUser();
       if (authError) throw authError;
-      const results = { imported: 0, errors: [] as string[] };
+      const results = { imported: 0, merged: 0, errors: [] as string[] };
+
+      // Fields eligible for merge-fill on existing deals
+      const MERGEABLE_FIELDS = [
+        'main_contact_name', 'main_contact_email', 'main_contact_phone', 'main_contact_title',
+        'description', 'executive_summary', 'general_notes', 'internal_notes', 'owner_goals',
+        'category', 'industry', 'address', 'address_city', 'address_state', 'address_zip',
+        'address_country', 'geographic_states', 'services', 'linkedin_url', 'fireflies_url',
+        'internal_company_name', 'full_time_employees', 'number_of_locations',
+        'google_review_count', 'google_rating',
+      ];
 
       for (let i = 0; i < csvData.length; i++) {
         const row = csvData[i];
@@ -321,19 +432,44 @@ export const DealCSVImport = ({
             .select('id')
             .single();
 
-          if (listingError) throw listingError;
+          if (listingError) {
+            // If duplicate, try to merge empty fields on the existing listing
+            const isDuplicate = listingError.message?.includes('duplicate key')
+              || listingError.message?.includes('unique constraint')
+              || listingError.code === '23505';
 
-          // Link to universe
-          const { error: linkError } = await supabase.from('remarketing_universe_deals').insert({
-            universe_id: universeId,
-            listing_id: listing.id,
-            added_by: user?.id,
-            status: 'active',
-          });
+            if (isDuplicate) {
+              const mergedId = await tryMergeExistingListing(
+                listingData, MERGEABLE_FIELDS,
+              );
+              if (mergedId) {
+                results.merged++;
+                // Also ensure universe link exists
+                await supabase.from('remarketing_universe_deals').upsert({
+                  universe_id: universeId,
+                  listing_id: mergedId,
+                  added_by: user?.id,
+                  status: 'active',
+                } as never, { onConflict: 'universe_id,listing_id' }).select();
+              } else {
+                results.errors.push(`Row ${i + 1}: duplicate key value violates unique constraint`);
+              }
+            } else {
+              throw listingError;
+            }
+          } else {
+            // Link to universe
+            const { error: linkError } = await supabase.from('remarketing_universe_deals').insert({
+              universe_id: universeId,
+              listing_id: listing.id,
+              added_by: user?.id,
+              status: 'active',
+            });
 
-          if (linkError) throw linkError;
+            if (linkError) throw linkError;
 
-          results.imported++;
+            results.imported++;
+          }
         } catch (error) {
           results.errors.push(`Row ${i + 1}: ${(error as Error).message}`);
         }
@@ -496,8 +632,20 @@ export const DealCSVImport = ({
             <AlertCircle className="h-12 w-12 mb-4 text-destructive" />
           )}
           <p className="font-medium mb-2">
-            Imported {importResults.imported} of {csvData.length} deals
+            {(() => {
+              const parts: string[] = [];
+              if (importResults.imported > 0) parts.push(`${importResults.imported} imported`);
+              if (importResults.merged > 0) parts.push(`${importResults.merged} updated`);
+              return parts.length > 0
+                ? `${parts.join(', ')} of ${csvData.length} deals`
+                : `0 of ${csvData.length} deals imported`;
+            })()}
           </p>
+          {importResults.merged > 0 && (
+            <p className="text-sm text-muted-foreground mb-2">
+              Empty fields on existing deals were filled with new data from the CSV
+            </p>
+          )}
 
           {importResults.errors.length > 0 && (
             <ScrollArea className="max-h-32 w-full border rounded-lg p-4 mt-4">
