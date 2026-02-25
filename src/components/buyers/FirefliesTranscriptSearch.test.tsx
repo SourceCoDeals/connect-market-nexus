@@ -56,9 +56,10 @@ describe('FirefliesTranscriptSearch', () => {
     expect(screen.getByRole('button', { name: /search/i })).toBeDisabled();
   });
 
-  it('shows empty state text when no results', () => {
+  it('shows empty state with guidance text', () => {
     render(<FirefliesTranscriptSearch {...defaultProps} />);
-    expect(screen.getByText(/Search Fireflies to find relevant/i)).toBeInTheDocument();
+    expect(screen.getByText(/Search Fireflies to find and link call transcripts/i)).toBeInTheDocument();
+    expect(screen.getByText(/Click a result title to view in Fireflies/i)).toBeInTheDocument();
   });
 
   it('calls search-fireflies-for-buyer edge function on search', async () => {
@@ -286,7 +287,61 @@ describe('FirefliesTranscriptSearch', () => {
     render(<FirefliesTranscriptSearch {...defaultProps} />);
     fireEvent.click(screen.getByRole('button', { name: /search/i }));
 
-    expect(await screen.findByText('2 results')).toBeInTheDocument();
+    expect(await screen.findByText(/2 results/i)).toBeInTheDocument();
+    expect(screen.getByText(/click title to view in Fireflies/i)).toBeInTheDocument();
+  });
+
+  it('search result title is a clickable link to Fireflies', async () => {
+    mockInvoke.mockResolvedValueOnce({
+      data: {
+        results: [
+          {
+            id: 'ff-link',
+            title: 'Clickable Title Call',
+            date: '2026-02-01T10:00:00Z',
+            duration_minutes: 25,
+            participants: ['Alice'],
+            summary: 'Some summary',
+            meeting_url: 'https://app.fireflies.ai/view/ff-link',
+            keywords: [],
+          },
+        ],
+      },
+      error: null,
+    });
+
+    render(<FirefliesTranscriptSearch {...defaultProps} />);
+    fireEvent.click(screen.getByRole('button', { name: /search/i }));
+
+    const link = await screen.findByText('Clickable Title Call');
+    const anchor = link.closest('a');
+    expect(anchor).toHaveAttribute('href', 'https://app.fireflies.ai/view/ff-link');
+    expect(anchor).toHaveAttribute('target', '_blank');
+  });
+
+  it('shows participant count in results', async () => {
+    mockInvoke.mockResolvedValueOnce({
+      data: {
+        results: [
+          {
+            id: 'ff-parts',
+            title: 'Multi-Participant Call',
+            date: '2026-02-01T10:00:00Z',
+            duration_minutes: 30,
+            participants: ['Alice', 'Bob', 'Charlie'],
+            summary: '',
+            meeting_url: '',
+            keywords: [],
+          },
+        ],
+      },
+      error: null,
+    });
+
+    render(<FirefliesTranscriptSearch {...defaultProps} />);
+    fireEvent.click(screen.getByRole('button', { name: /search/i }));
+
+    expect(await screen.findByText('3 participants')).toBeInTheDocument();
   });
 
   it('shows +N more badge when keywords exceed 5', async () => {

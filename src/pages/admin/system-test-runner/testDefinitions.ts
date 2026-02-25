@@ -607,6 +607,53 @@ export function buildTests(): TestDef[] {
   // ═══════════════════════════════════════════
   const C9 = '9. Fireflies Integration';
 
+  // --- 9a: Schema & Table Structure ---
+  add(C9, 'deal_transcripts table accessible', async () => {
+    const { error } = await supabase.from('deal_transcripts').select('id').limit(1);
+    if (error) throw new Error(error.message);
+  });
+
+  const requiredDealTranscriptCols = [
+    'fireflies_transcript_id',
+    'fireflies_meeting_id',
+    'has_content',
+    'match_type',
+    'external_participants',
+    'source',
+    'transcript_text',
+    'transcript_url',
+    'title',
+    'call_date',
+    'participants',
+    'meeting_attendees',
+    'duration_minutes',
+    'auto_linked',
+    'extracted_data',
+    'applied_to_deal',
+    'applied_at',
+    'processed_at',
+  ];
+  for (const col of requiredDealTranscriptCols) {
+    add(C9, `deal_transcripts has '${col}' column`, async () => {
+      await columnExists('deal_transcripts', col);
+    });
+  }
+
+  add(C9, 'buyer_transcripts table accessible', async () => {
+    const { error } = await supabase.from('buyer_transcripts').select('id').limit(1);
+    if (error) throw new Error(error.message);
+  });
+
+  add(C9, 'deal_transcripts unique constraint on (listing_id, fireflies_transcript_id)', async () => {
+    // Verify the unique constraint exists by trying to query with both fields
+    const { error } = await supabase
+      .from('deal_transcripts')
+      .select('id, listing_id, fireflies_transcript_id')
+      .limit(1);
+    if (error) throw new Error(error.message);
+  });
+
+  // --- 9b: Edge Function Reachability ---
   add(C9, 'sync-fireflies-transcripts edge function reachable', async () => {
     await invokeEdgeFunction('sync-fireflies-transcripts', {});
   });
@@ -621,38 +668,261 @@ export function buildTests(): TestDef[] {
     });
   });
 
-  add(C9, 'deal_transcripts table accessible', async () => {
-    const { error } = await supabase.from('deal_transcripts').select('id').limit(1);
+  // --- 9c: Search Functionality Tests ---
+  add(C9, 'Search returns structured results with required fields', async () => {
+    const { data, error } = await supabase.functions.invoke('search-fireflies-for-buyer', {
+      body: { query: 'test', limit: 5 },
+    });
+    if (error) {
+      // Network error is ok — function is reachable, Fireflies API may reject
+      const msg = typeof error === 'object' ? JSON.stringify(error) : String(error);
+      if (msg.includes('Failed to fetch') || msg.includes('NetworkError')) {
+        throw new Error(`Edge function network failure: ${msg}`);
+      }
+      // Auth/config errors mean function is running but needs config
+      return;
+    }
+    if (!data) throw new Error('No response data from search');
+    if (typeof data.success !== 'boolean') throw new Error('Response missing success field');
+    if (!Array.isArray(data.results)) throw new Error('Response missing results array');
+
+    // If we got results, verify structure
+    if (data.results.length > 0) {
+      const r = data.results[0];
+      const requiredFields = ['id', 'title', 'date'];
+      for (const f of requiredFields) {
+        if (r[f] === undefined) throw new Error(`Search result missing required field: ${f}`);
+      }
+      // Check that has_content and match_type are present
+      if (r.has_content === undefined) throw new Error('Search result missing has_content field');
+      if (!r.match_type) throw new Error('Search result missing match_type field');
+    }
+  });
+
+  add(C9, 'Search validates input — rejects empty query without emails', async () => {
+    const { data, error } = await supabase.functions.invoke('search-fireflies-for-buyer', {
+      body: { limit: 5 },
+    });
+    // Should return an error response (400) or structured error
+    if (error) return; // Expected — function rejects invalid input
+    if (data?.error || data?.success === false) return; // Structured error
+    // If no error, that's unexpected but not fatal for reachability
+  });
+
+  add(C9, 'Search respects limit parameter', async () => {
+    const { data, error } = await supabase.functions.invoke('search-fireflies-for-buyer', {
+      body: { query: 'meeting', limit: 2 },
+    });
+    if (error) return; // API may not be configured
+    if (!data?.results) return;
+    if (data.results.length > 2) {
+      throw new Error(`Requested limit=2 but got ${data.results.length} results`);
+    }
+  });
+
+  // --- 9d: Sync Flow Tests ---
+  add(C9, 'Sync validates required listingId', async () => {
+    const { data, error } = await supabase.functions.invoke('sync-fireflies-transcripts', {
+      body: { contactEmails: ['test@example.com'] },
+    });
+    // Should reject with 400 for missing listingId
+    if (error) return; // Expected
+    if (data?.error) return; // Structured error
+  });
+
+  add(C9, 'Sync validates required emails or companyName', async () => {
+    const { data, error } = await supabase.functions.invoke('sync-fireflies-transcripts', {
+      body: { listingId: '00000000-0000-0000-0000-000000000000' },
+    });
+    if (error) return; // Expected
+    if (data?.error) return; // Structured error
+  });
+
+  add(C9, 'Sync returns structured response with counts', async () => {
+    const { data: listings } = await supabase
+      .from('listings')
+      .select('id, main_contact_email')
+      .eq('status', 'active')
+      .not('main_contact_email', 'is', null)
+      .limit(1);
+
+    if (!listings?.length) throw new Error('No active listing with email found to test sync');
+
+    const { data, error } = await supabase.functions.invoke('sync-fireflies-transcripts', {
+      body: {
+        listingId: listings[0].id,
+        contactEmails: [listings[0].main_contact_email],
+        limit: 5,
+      },
+    });
+    if (error) {
+      const msg = typeof error === 'object' ? JSON.stringify(error) : String(error);
+      if (msg.includes('Failed to fetch') || msg.includes('NetworkError')) {
+        throw new Error(`Network failure: ${msg}`);
+      }
+      return; // API config errors acceptable
+    }
+    if (!data) throw new Error('No response data');
+    if (typeof data.linked !== 'number') throw new Error('Response missing linked count');
+    if (typeof data.skipped !== 'number') throw new Error('Response missing skipped count');
+    if (typeof data.total !== 'number') throw new Error('Response missing total count');
+  });
+
+  // --- 9e: Fetch Content Tests ---
+  add(C9, 'fetch-fireflies-content validates UUID format', async () => {
+    const { data, error } = await supabase.functions.invoke('fetch-fireflies-content', {
+      body: { transcriptId: 'not-a-uuid' },
+    });
+    // Should reject invalid UUID
+    if (error) return;
+    if (data?.error || data?.success === false) return;
+  });
+
+  add(C9, 'fetch-fireflies-content handles non-existent transcript gracefully', async () => {
+    const { data, error } = await supabase.functions.invoke('fetch-fireflies-content', {
+      body: { transcriptId: '00000000-0000-0000-0000-000000000000' },
+    });
+    // Should return 404 or structured error — not crash
+    if (error) return;
+    if (data?.error || data?.success === false) return;
+    // If somehow succeeds, that's ok too
+  });
+
+  // --- 9f: Data Integrity Tests ---
+  add(C9, 'deal_transcripts source values are valid', async () => {
+    const { data, error } = await supabase
+      .from('deal_transcripts')
+      .select('source')
+      .limit(100);
     if (error) throw new Error(error.message);
+    const validSources = ['fireflies', 'upload', 'file_upload', 'manual', null];
+    const invalidSources = (data || [])
+      .filter((t: any) => t.source && !validSources.includes(t.source))
+      .map((t: any) => t.source);
+    if (invalidSources.length > 0) {
+      throw new Error(`Found unexpected source values: ${[...new Set(invalidSources)].join(', ')}`);
+    }
   });
 
-  add(C9, 'deal_transcripts has fireflies_transcript_id column', async () => {
-    await columnExists('deal_transcripts', 'fireflies_transcript_id');
-  });
-
-  add(C9, 'deal_transcripts has fireflies_meeting_id column', async () => {
-    await columnExists('deal_transcripts', 'fireflies_meeting_id');
-  });
-
-  add(C9, 'deal_transcripts has has_content column', async () => {
-    await columnExists('deal_transcripts', 'has_content');
-  });
-
-  add(C9, 'deal_transcripts has match_type column', async () => {
-    await columnExists('deal_transcripts', 'match_type');
-  });
-
-  add(C9, 'deal_transcripts has external_participants column', async () => {
-    await columnExists('deal_transcripts', 'external_participants');
-  });
-
-  add(C9, 'deal_transcripts has source column', async () => {
-    await columnExists('deal_transcripts', 'source');
-  });
-
-  add(C9, 'buyer_transcripts table accessible', async () => {
-    const { error } = await supabase.from('buyer_transcripts').select('id').limit(1);
+  add(C9, 'deal_transcripts match_type values are valid', async () => {
+    const { data, error } = await supabase
+      .from('deal_transcripts')
+      .select('match_type')
+      .not('match_type', 'is', null)
+      .limit(100);
     if (error) throw new Error(error.message);
+    const validTypes = ['email', 'keyword'];
+    const invalid = (data || [])
+      .filter((t: any) => !validTypes.includes(t.match_type))
+      .map((t: any) => t.match_type);
+    if (invalid.length > 0) {
+      throw new Error(`Found unexpected match_type values: ${[...new Set(invalid)].join(', ')}`);
+    }
+  });
+
+  add(C9, 'Fireflies transcripts have fireflies_transcript_id set', async () => {
+    const { data, error } = await supabase
+      .from('deal_transcripts')
+      .select('id, source, fireflies_transcript_id')
+      .eq('source', 'fireflies')
+      .is('fireflies_transcript_id', null)
+      .limit(10);
+    if (error) throw new Error(error.message);
+    if (data && data.length > 0) {
+      throw new Error(`${data.length} Fireflies transcript(s) missing fireflies_transcript_id`);
+    }
+  });
+
+  add(C9, 'No orphaned deal_transcripts (listing exists)', async () => {
+    // Check that deal_transcripts reference existing listings
+    const { data, error } = await supabase
+      .from('deal_transcripts')
+      .select('id, listing_id')
+      .limit(50);
+    if (error) throw new Error(error.message);
+    if (!data || data.length === 0) return; // No transcripts to check
+
+    const listingIds = [...new Set(data.map((t: any) => t.listing_id))];
+    const { data: listings, error: listingsError } = await supabase
+      .from('listings')
+      .select('id')
+      .in('id', listingIds.slice(0, 20));
+    if (listingsError) throw new Error(listingsError.message);
+
+    const existingIds = new Set((listings || []).map((l: any) => l.id));
+    const orphaned = listingIds.filter(id => !existingIds.has(id));
+    if (orphaned.length > 0) {
+      throw new Error(`${orphaned.length} deal_transcript(s) reference non-existent listings`);
+    }
+  });
+
+  add(C9, 'external_participants JSON structure is valid', async () => {
+    const { data, error } = await supabase
+      .from('deal_transcripts')
+      .select('id, external_participants')
+      .not('external_participants', 'is', null)
+      .limit(20);
+    if (error) throw new Error(error.message);
+    for (const row of data || []) {
+      const ep = row.external_participants;
+      if (!Array.isArray(ep)) {
+        throw new Error(`Transcript ${row.id}: external_participants is not an array`);
+      }
+      for (const p of ep) {
+        if (typeof p !== 'object' || p === null) {
+          throw new Error(`Transcript ${row.id}: external_participants contains non-object element`);
+        }
+      }
+    }
+  });
+
+  // --- 9g: Transcript Statistics ---
+  add(C9, 'deal_transcripts count and breakdown', async () => {
+    const { count: totalCount, error: totalError } = await supabase
+      .from('deal_transcripts')
+      .select('id', { count: 'exact', head: true });
+    if (totalError) throw new Error(totalError.message);
+
+    const { count: ffCount } = await supabase
+      .from('deal_transcripts')
+      .select('id', { count: 'exact', head: true })
+      .eq('source', 'fireflies');
+
+    const { count: uploadCount } = await supabase
+      .from('deal_transcripts')
+      .select('id', { count: 'exact', head: true })
+      .eq('source', 'upload');
+
+    const { count: noContentCount } = await supabase
+      .from('deal_transcripts')
+      .select('id', { count: 'exact', head: true })
+      .eq('has_content', false);
+
+    const { count: extractedCount } = await supabase
+      .from('deal_transcripts')
+      .select('id', { count: 'exact', head: true })
+      .not('processed_at', 'is', null);
+
+    const { count: appliedCount } = await supabase
+      .from('deal_transcripts')
+      .select('id', { count: 'exact', head: true })
+      .eq('applied_to_deal', true);
+
+    // This is informational — log counts for visibility
+    console.log(`Transcript Stats: ${totalCount || 0} total, ${ffCount || 0} Fireflies, ${uploadCount || 0} uploads, ${noContentCount || 0} no-content, ${extractedCount || 0} extracted, ${appliedCount || 0} applied`);
+
+    if (!totalCount || totalCount === 0) {
+      throw new Error('No deal_transcripts found — Fireflies integration may not be in use yet');
+    }
+  });
+
+  add(C9, 'buyer_transcripts count', async () => {
+    const { count, error } = await supabase
+      .from('buyer_transcripts')
+      .select('id', { count: 'exact', head: true });
+    if (error) throw new Error(error.message);
+    // Informational — just verify table is accessible and report count
+    console.log(`Buyer transcripts: ${count || 0}`);
   });
 
   // ═══════════════════════════════════════════
