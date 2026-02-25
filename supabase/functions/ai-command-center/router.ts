@@ -374,14 +374,14 @@ const BYPASS_RULES: Array<{
   // PE / platform contacts — find who to call, email at a firm, person email lookups
   {
     test: (q) =>
-      /\b(contact at|contact for|who.?s the|find contact|email for|phone for|partner at|principal at|deal team|pe contact|platform contact)\b/i.test(
+      /\b(contact at|contact for|who.?s the|find contact|emails? for|phones? for|partner at|principal at|deal team|pe contact|platform contact)\b/i.test(
         q,
       ) ||
-      /\b(what.?s|what is|do we have|get me|look up|find).{0,20}\b(email|phone|contact info)\b/i.test(
+      /\b(what.?s|what is|do we have|get me|look up|find).{0,20}\b(emails?|phones?|contact info)\b/i.test(
         q,
       ) ||
-      /\b(email|phone)\s+(address\s+)?(for|of)\b/i.test(q) ||
-      /\bemail\b.*\b(address)\b/i.test(q),
+      /\b(emails?|phones?)\s+(address(es)?\s+)?(for|of)\b/i.test(q) ||
+      /\bemails?\b.*\b(address)\b/i.test(q),
     result: {
       category: 'CONTACTS',
       tier: 'STANDARD',
@@ -568,6 +568,21 @@ const BYPASS_RULES: Array<{
       confidence: 0.85,
     },
   },
+  // Contacts missing email/phone — "find contacts without email", "contacts missing email"
+  {
+    test: (q) =>
+      /\b(contacts?\s+(missing|without|no|lacking)\s+(emails?|phones?))\b/i.test(q) ||
+      /\b(missing\s+emails?|no\s+emails?|without\s+emails?)\b.*\bcontacts?\b/i.test(q) ||
+      /\b(find|get|show|list)\s+.{0,20}\bcontacts?\b.{0,20}\b(missing|without|no)\s+(emails?|phones?)\b/i.test(
+        q,
+      ),
+    result: {
+      category: 'CONTACTS',
+      tier: 'STANDARD',
+      tools: ['search_contacts', 'enrich_buyer_contacts'],
+      confidence: 0.92,
+    },
+  },
   // Contact finder — find people at a company, get emails/phones
   // Routes to both internal search AND enrichment for new contacts
   {
@@ -593,7 +608,7 @@ const BYPASS_RULES: Array<{
   // Enrich contacts / Prospeo / LinkedIn enrichment
   {
     test: (q) =>
-      /\b(enrich|prospeo|linkedin scrape|find email|find phone|discover contact|import contact|scrape)\b/i.test(
+      /\b(enrich|prospeo|linkedin scrape|find emails?|find phones?|discover contact|import contact|scrape)\b/i.test(
         q,
       ),
     result: {
