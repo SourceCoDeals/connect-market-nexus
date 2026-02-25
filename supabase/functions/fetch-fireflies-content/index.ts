@@ -1,47 +1,87 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+/* eslint-disable no-console */
+import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
-import { getCorsHeaders, corsPreflightResponse } from "../_shared/cors.ts";
+import { getCorsHeaders, corsPreflightResponse } from '../_shared/cors.ts';
 
 interface FetchRequest {
   transcriptId: string; // deal_transcripts.id (our DB record ID)
 }
 
+const FIREFLIES_API_TIMEOUT_MS = 15_000; // 15 second timeout
+const FIREFLIES_RATE_LIMIT_BACKOFF_MS = 3_000; // 3 second backoff on 429
+
 /**
  * Call the Fireflies GraphQL API directly.
  * Requires FIREFLIES_API_KEY set as a Supabase secret.
+ * Includes timeout enforcement and rate limit handling.
  */
 async function firefliesGraphQL(query: string, variables?: Record<string, unknown>) {
-  const apiKey = Deno.env.get("FIREFLIES_API_KEY");
+  const apiKey = Deno.env.get('FIREFLIES_API_KEY');
   if (!apiKey) {
-    throw new Error(
-      "FIREFLIES_API_KEY is not configured. Add it as a Supabase secret: " +
-      "supabase secrets set FIREFLIES_API_KEY=your_key"
-    );
+    throw new Error('Fireflies API key is not configured. Please contact an administrator.');
   }
 
-  const response = await fetch("https://api.fireflies.ai/graphql", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify({ query, variables }),
-  });
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), FIREFLIES_API_TIMEOUT_MS);
 
-  if (!response.ok) {
-    const text = await response.text();
-    throw new Error(`Fireflies API error (${response.status}): ${text}`);
+  try {
+    const response = await fetch('https://api.fireflies.ai/graphql', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({ query, variables }),
+      signal: controller.signal,
+    });
+
+    // Handle rate limiting
+    if (response.status === 429) {
+      console.warn(
+        `[fireflies] Rate limited (429), backing off ${FIREFLIES_RATE_LIMIT_BACKOFF_MS}ms`,
+      );
+      await new Promise((r) => setTimeout(r, FIREFLIES_RATE_LIMIT_BACKOFF_MS));
+      // Retry once
+      const retryRes = await fetch('https://api.fireflies.ai/graphql', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({ query, variables }),
+        signal: AbortSignal.timeout(FIREFLIES_API_TIMEOUT_MS),
+      });
+      if (!retryRes.ok) {
+        throw new Error(`Fireflies API error (${retryRes.status})`);
+      }
+      const retryResult = await retryRes.json();
+      if (retryResult.errors) {
+        throw new Error(
+          `Fireflies GraphQL error: ${retryResult.errors[0]?.message || 'Unknown error'}`,
+        );
+      }
+      return retryResult.data;
+    }
+
+    if (!response.ok) {
+      throw new Error(`Fireflies API error (${response.status})`);
+    }
+
+    const result = await response.json();
+    if (result.errors) {
+      throw new Error(`Fireflies GraphQL error: ${result.errors[0]?.message || 'Unknown error'}`);
+    }
+
+    return result.data;
+  } catch (err: unknown) {
+    if (err instanceof Error && err.name === 'AbortError') {
+      throw new Error(`Fireflies API timed out after ${FIREFLIES_API_TIMEOUT_MS}ms`);
+    }
+    throw err;
+  } finally {
+    clearTimeout(timeout);
   }
-
-  const result = await response.json();
-  if (result.errors) {
-    throw new Error(
-      `Fireflies GraphQL error: ${result.errors[0]?.message || JSON.stringify(result.errors)}`
-    );
-  }
-
-  return result.data;
 }
 
 const GET_TRANSCRIPT_QUERY = `
@@ -126,23 +166,32 @@ async function findFirefliesIdByUrl(url: string): Promise<string | null> {
 serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
 
-  if (req.method === "OPTIONS") {
+  if (req.method === 'OPTIONS') {
     return corsPreflightResponse(req);
   }
 
   try {
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    const body = await req.json() as FetchRequest;
+    const body = (await req.json()) as FetchRequest;
     const { transcriptId } = body;
 
     if (!transcriptId) {
-      return new Response(
-        JSON.stringify({ error: "transcriptId is required" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      return new Response(JSON.stringify({ error: 'transcriptId is required' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // Validate transcriptId format (UUID for our DB record IDs)
+    const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!UUID_REGEX.test(transcriptId)) {
+      return new Response(JSON.stringify({ error: 'Invalid transcriptId format' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
 
     // Get the deal_transcript record (include transcript_url and has_content for handling)
@@ -153,22 +202,23 @@ serve(async (req) => {
       .single();
 
     if (fetchError || !dealTranscript) {
-      return new Response(
-        JSON.stringify({ error: "Transcript not found" }),
-        { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      return new Response(JSON.stringify({ error: 'Transcript not found' }), {
+        status: 404,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
 
     // Check if this is a Fireflies transcript (either by source or by URL)
-    const hasFirefliesUrl = dealTranscript.transcript_url &&
+    const hasFirefliesUrl =
+      dealTranscript.transcript_url &&
       /app\.fireflies\.ai\/view\//i.test(dealTranscript.transcript_url);
     const isFireflies = dealTranscript.source === 'fireflies' || hasFirefliesUrl;
 
     if (!isFireflies) {
-      return new Response(
-        JSON.stringify({ error: "Not a Fireflies transcript" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      return new Response(JSON.stringify({ error: 'Not a Fireflies transcript' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
 
     // Handle transcripts flagged as having no content (silent/skipped meetings)
@@ -177,12 +227,13 @@ serve(async (req) => {
       return new Response(
         JSON.stringify({
           success: true,
-          content: "[No transcript available — this call was recorded but audio was not captured. This is typically caused by a Teams audio routing issue.]",
+          content:
+            '[No transcript available — this call was recorded but audio was not captured. This is typically caused by a Teams audio routing issue.]',
           cached: true,
           transcript_id: transcriptId,
           has_content: false,
         }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
       );
     }
 
@@ -196,7 +247,7 @@ serve(async (req) => {
           cached: true,
           transcript_id: transcriptId,
         }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
       );
     }
 
@@ -205,7 +256,9 @@ serve(async (req) => {
 
     // If no Fireflies ID stored but we have a Fireflies URL, search for it
     if (!firefliesId && hasFirefliesUrl) {
-      console.log(`No fireflies_transcript_id stored, searching by URL: ${dealTranscript.transcript_url}`);
+      console.log(
+        `No fireflies_transcript_id stored, searching by URL: ${dealTranscript.transcript_url}`,
+      );
       firefliesId = await findFirefliesIdByUrl(dealTranscript.transcript_url!);
 
       if (firefliesId) {
@@ -223,7 +276,7 @@ serve(async (req) => {
 
     if (!firefliesId) {
       throw new Error(
-        "Could not resolve Fireflies transcript ID. The transcript may not exist in your Fireflies account."
+        'Could not resolve Fireflies transcript ID. The transcript may not exist in your Fireflies account.',
       );
     }
 
@@ -236,13 +289,17 @@ serve(async (req) => {
 
     const transcript = data.transcript;
     if (!transcript) {
-      throw new Error("Transcript not found in Fireflies");
+      throw new Error('Transcript not found in Fireflies');
     }
 
     // Build transcript text from sentences with speaker labels
     let transcriptText = '';
 
-    if (transcript.sentences && Array.isArray(transcript.sentences) && transcript.sentences.length > 0) {
+    if (
+      transcript.sentences &&
+      Array.isArray(transcript.sentences) &&
+      transcript.sentences.length > 0
+    ) {
       transcriptText = transcript.sentences
         .map((s: any) => {
           const speaker = s.speaker_name || 'Unknown';
@@ -257,7 +314,7 @@ serve(async (req) => {
     }
 
     if (!transcriptText || transcriptText.length < 50) {
-      console.warn("Fetched content is too short or empty:", transcriptText?.substring(0, 100));
+      console.warn('Fetched content is too short or empty:', transcriptText?.substring(0, 100));
 
       // Mark as no-content rather than throwing — the recording exists but has no usable transcript
       await supabase
@@ -271,12 +328,13 @@ serve(async (req) => {
       return new Response(
         JSON.stringify({
           success: true,
-          content: "[No transcript available — this call was recorded but audio was not captured. This is typically caused by a Teams audio routing issue.]",
+          content:
+            '[No transcript available — this call was recorded but audio was not captured. This is typically caused by a Teams audio routing issue.]',
           cached: false,
           transcript_id: transcriptId,
           has_content: false,
         }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
       );
     }
 
@@ -293,7 +351,7 @@ serve(async (req) => {
       .eq('id', transcriptId);
 
     if (updateError) {
-      console.error("Failed to cache transcript content:", updateError);
+      console.error('Failed to cache transcript content:', updateError);
       // Don't fail the request - still return the content
     } else {
       console.log(`Cached transcript content for ${transcriptId}`);
@@ -307,17 +365,21 @@ serve(async (req) => {
         transcript_id: transcriptId,
         length: transcriptText.length,
       }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
     );
-
   } catch (error) {
-    console.error("Fetch content error:", error);
+    console.error('Fetch content error:', error);
+    // Don't leak internal details (API keys, raw responses) to client
+    const safeMessage =
+      error instanceof Error && !error.message.includes('API key')
+        ? error.message
+        : 'Failed to fetch transcript content. Please try again.';
     return new Response(
       JSON.stringify({
         success: false,
-        error: error instanceof Error ? error.message : "Unknown error"
+        error: safeMessage,
       }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
     );
   }
 });

@@ -100,6 +100,19 @@ const ConnectionButton = ({
     );
   }
 
+  // Block business owners (sellers) from requesting connections
+  if (user?.buyer_type === 'businessOwner') {
+    return (
+      <div className="w-full px-4 py-3 bg-amber-50 border border-amber-200 rounded-lg text-center">
+        <p className="text-sm font-medium text-amber-900">Seller Account</p>
+        <p className="text-xs text-amber-700 mt-0.5">
+          Business owner accounts cannot request deal connections. Visit the Sell page to list your
+          business.
+        </p>
+      </div>
+    );
+  }
+
   // Special layout for approved connections
   if (connectionExists && connectionStatus === 'approved') {
     return (

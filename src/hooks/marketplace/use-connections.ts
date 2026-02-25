@@ -18,6 +18,19 @@ export const useRequestConnection = () => {
       } = await supabase.auth.getUser();
       if (!authUser) throw new Error('You must be logged in to request a connection');
 
+      // Block business owners (sellers) from creating deal connections
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('buyer_type')
+        .eq('id', authUser.id)
+        .single();
+
+      if (profile?.buyer_type === 'businessOwner') {
+        throw new Error(
+          'Business owners cannot request deal connections. If you are looking to sell your business, please visit our Sell page.',
+        );
+      }
+
       // Enforce message requirement
       if (!message || message.trim().length < 20) {
         throw new Error(
@@ -154,7 +167,8 @@ export const useRequestConnection = () => {
       } else {
         toast({
           title: 'Request sent.',
-          description: 'We\'ll review it and be in touch. Specific fit explanations get selected — generic ones don\'t.',
+          description:
+            "We'll review it and be in touch. Specific fit explanations get selected — generic ones don't.",
         });
       }
 

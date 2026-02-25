@@ -7,9 +7,12 @@
  *   3. Domain search fallback (lower confidence)
  *
  * Includes batch processing with concurrency control.
+ * Security: timeouts, rate limit handling, domain validation, response validation.
  */
 
 const PROSPEO_API_BASE = 'https://api.prospeo.io/v1';
+const API_TIMEOUT_MS = 10_000; // 10 second timeout per API call
+const RATE_LIMIT_BACKOFF_MS = 5_000; // 5 second backoff on 429
 
 interface ProspeoLinkedInResult {
   email: string | null;
@@ -53,11 +56,84 @@ function getApiKey(): string {
 }
 
 /**
+ * Validate that a domain string is a plausible domain (no path injection, no protocol).
+ */
+function isValidDomain(domain: string): boolean {
+  if (!domain || domain.length > 253) return false;
+  // Must look like a domain: alphanumeric, hyphens, dots, no spaces or special chars
+  return /^[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?)*\.[a-zA-Z]{2,}$/.test(
+    domain,
+  );
+}
+
+/**
+ * Validate that a Prospeo API response has the expected structure.
+ */
+function isValidLinkedInResponse(data: unknown): data is { response: ProspeoLinkedInResult } {
+  if (!data || typeof data !== 'object') return false;
+  const d = data as Record<string, unknown>;
+  if (!d.response || typeof d.response !== 'object') return false;
+  return true;
+}
+
+function isValidNameResponse(data: unknown): data is { response: ProspeoNameResult } {
+  if (!data || typeof data !== 'object') return false;
+  const d = data as Record<string, unknown>;
+  if (!d.response || typeof d.response !== 'object') return false;
+  return true;
+}
+
+function isValidSearchResponse(data: unknown): data is { response: ProspeoSearchResult[] } {
+  if (!data || typeof data !== 'object') return false;
+  const d = data as Record<string, unknown>;
+  if (!d.response) return false;
+  // response can be an array or null
+  if (d.response !== null && !Array.isArray(d.response)) return false;
+  return true;
+}
+
+/**
+ * Fetch wrapper with timeout and rate limit handling.
+ */
+async function prospeoFetch(url: string, options: RequestInit): Promise<Response> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), API_TIMEOUT_MS);
+
+  try {
+    const res = await fetch(url, {
+      ...options,
+      signal: controller.signal,
+    });
+
+    // Handle rate limiting (429) with backoff
+    if (res.status === 429) {
+      console.warn(`[prospeo] Rate limited (429), backing off ${RATE_LIMIT_BACKOFF_MS}ms`);
+      await new Promise((r) => setTimeout(r, RATE_LIMIT_BACKOFF_MS));
+      // Retry once after backoff
+      const retryRes = await fetch(url, {
+        ...options,
+        signal: AbortSignal.timeout(API_TIMEOUT_MS),
+      });
+      return retryRes;
+    }
+
+    return res;
+  } catch (err: unknown) {
+    if (err instanceof Error && err.name === 'AbortError') {
+      console.error(`[prospeo] API call timed out after ${API_TIMEOUT_MS}ms`);
+    }
+    throw err;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+/**
  * Step 1: LinkedIn profile lookup — highest confidence.
  */
 async function lookupByLinkedIn(linkedinUrl: string): Promise<EnrichmentResult | null> {
   try {
-    const res = await fetch(`${PROSPEO_API_BASE}/linkedin-email-finder`, {
+    const res = await prospeoFetch(`${PROSPEO_API_BASE}/linkedin-email-finder`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -66,11 +142,18 @@ async function lookupByLinkedIn(linkedinUrl: string): Promise<EnrichmentResult |
       body: JSON.stringify({ url: linkedinUrl }),
     });
 
-    if (!res.ok) return null;
+    if (!res.ok) {
+      console.warn(`[prospeo] LinkedIn lookup failed: ${res.status}`);
+      return null;
+    }
 
-    const data: { response: ProspeoLinkedInResult } = await res.json();
+    const data: unknown = await res.json();
+    if (!isValidLinkedInResponse(data)) {
+      console.warn('[prospeo] Invalid LinkedIn lookup response shape');
+      return null;
+    }
+
     const r = data.response;
-
     if (!r?.email) return null;
 
     return {
@@ -84,7 +167,10 @@ async function lookupByLinkedIn(linkedinUrl: string): Promise<EnrichmentResult |
       confidence: 'high',
       source: 'linkedin_lookup',
     };
-  } catch {
+  } catch (err) {
+    console.warn(
+      `[prospeo] LinkedIn lookup error: ${err instanceof Error ? err.message : 'unknown'}`,
+    );
     return null;
   }
 }
@@ -97,8 +183,14 @@ async function lookupByNameDomain(
   lastName: string,
   domain: string,
 ): Promise<EnrichmentResult | null> {
+  // Validate domain before sending to API
+  if (!isValidDomain(domain)) {
+    console.warn(`[prospeo] Invalid domain skipped: ${domain}`);
+    return null;
+  }
+
   try {
-    const res = await fetch(`${PROSPEO_API_BASE}/email-finder`, {
+    const res = await prospeoFetch(`${PROSPEO_API_BASE}/email-finder`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -111,11 +203,18 @@ async function lookupByNameDomain(
       }),
     });
 
-    if (!res.ok) return null;
+    if (!res.ok) {
+      console.warn(`[prospeo] Name+domain lookup failed: ${res.status}`);
+      return null;
+    }
 
-    const data: { response: ProspeoNameResult } = await res.json();
+    const data: unknown = await res.json();
+    if (!isValidNameResponse(data)) {
+      console.warn('[prospeo] Invalid name+domain response shape');
+      return null;
+    }
+
     const r = data.response;
-
     if (!r?.email) return null;
 
     return {
@@ -129,7 +228,10 @@ async function lookupByNameDomain(
       confidence: r.confidence > 80 ? 'medium' : 'low',
       source: 'name_domain',
     };
-  } catch {
+  } catch (err) {
+    console.warn(
+      `[prospeo] Name+domain lookup error: ${err instanceof Error ? err.message : 'unknown'}`,
+    );
     return null;
   }
 }
@@ -138,8 +240,14 @@ async function lookupByNameDomain(
  * Step 3: Domain search fallback — lower confidence, discovers contacts.
  */
 async function searchByDomain(domain: string, limit: number = 10): Promise<EnrichmentResult[]> {
+  // Validate domain before sending to API
+  if (!isValidDomain(domain)) {
+    console.warn(`[prospeo] Invalid domain skipped for search: ${domain}`);
+    return [];
+  }
+
   try {
-    const res = await fetch(`${PROSPEO_API_BASE}/domain-search`, {
+    const res = await prospeoFetch(`${PROSPEO_API_BASE}/domain-search`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -148,9 +256,16 @@ async function searchByDomain(domain: string, limit: number = 10): Promise<Enric
       body: JSON.stringify({ company: domain, limit }),
     });
 
-    if (!res.ok) return [];
+    if (!res.ok) {
+      console.warn(`[prospeo] Domain search failed: ${res.status}`);
+      return [];
+    }
 
-    const data: { response: ProspeoSearchResult[] } = await res.json();
+    const data: unknown = await res.json();
+    if (!isValidSearchResponse(data)) {
+      console.warn('[prospeo] Invalid domain search response shape');
+      return [];
+    }
 
     return (data.response || []).map((r) => ({
       email: r.email,
@@ -163,7 +278,10 @@ async function searchByDomain(domain: string, limit: number = 10): Promise<Enric
       confidence: 'low' as const,
       source: 'domain_search' as const,
     }));
-  } catch {
+  } catch (err) {
+    console.warn(
+      `[prospeo] Domain search error: ${err instanceof Error ? err.message : 'unknown'}`,
+    );
     return [];
   }
 }
