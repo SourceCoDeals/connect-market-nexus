@@ -128,6 +128,10 @@ export async function orchestrate(
   const systemPrompt = buildSystemPrompt(category, pageContext);
   const tools = getToolsForCategory(category, toolNames);
 
+  // Creative categories get higher temperature; factual queries stay low
+  const CREATIVE_CATEGORIES = new Set(['OUTREACH_DRAFT', 'MEETING_PREP', 'ACTION']);
+  const temperature = CREATIVE_CATEGORIES.has(category) ? 0.5 : 0.3;
+
   let totalInputTokens = 0;
   let totalOutputTokens = 0;
   let toolCallCount = 0;
@@ -154,6 +158,7 @@ export async function orchestrate(
       {
         model,
         maxTokens: tier === 'DEEP' ? 4096 : 2048,
+        temperature,
         systemPrompt,
         messages,
         tools: tools.length > 0 ? tools : undefined,
