@@ -39,17 +39,18 @@ interface DealContactHistoryTabProps {
 /**
  * DealContactHistoryTab
  *
- * Shows the full communication history (SmartLead emails + PhoneBurner calls) for
- * every contact associated with this deal. Following CRM best practices (HubSpot/Salesforce),
+ * Shows the full communication history (SmartLead emails + PhoneBurner calls + HeyReach LinkedIn)
+ * for every contact associated with this deal. Following CRM best practices (HubSpot/Salesforce),
  * when a contact is associated with a deal, their entire outreach history is visible
  * on the deal page — so you can see at a glance that a business owner has been
- * emailed 5 times and called 3 times without leaving the deal context.
+ * emailed 5 times, called 3 times, and received 2 LinkedIn messages without leaving the deal context.
  *
  * Data sources:
  * - `deals` table: buyers associated with this listing (via listing_id)
  * - `contacts` table: contacts associated with this listing (via listing_id)
  * - SmartLead webhook events: email activity (via contact email)
  * - PhoneBurner contact_activities: call activity (via buyer_contacts / remarketing_buyer_id)
+ * - HeyReach webhook events: LinkedIn outreach activity (via LinkedIn URL / email)
  */
 export function DealContactHistoryTab({
   listingId,
@@ -239,7 +240,7 @@ export function DealContactHistoryTab({
           </Badge>
         </div>
         <p className="text-xs text-muted-foreground mt-1">
-          Unified email (SmartLead) and call (PhoneBurner) history for all contacts associated with this deal
+          Unified email (SmartLead), call (PhoneBurner), and LinkedIn (HeyReach) history for all contacts associated with this deal
         </p>
       </CardHeader>
       <CardContent>
