@@ -18,3 +18,6 @@ export { DealMarketplacePanel } from './DealMarketplacePanel';
 export { DealBuyerHistoryTab } from './DealBuyerHistoryTab';
 export { AddBuyerToDealDialog } from './AddBuyerToDealDialog';
 export { DealContactHistoryTab } from './DealContactHistoryTab';
+export { BuyerIntroductionTracker } from './BuyerIntroductionTracker';
+export { AddBuyerIntroductionDialog } from './AddBuyerIntroductionDialog';
+export { UpdateIntroductionStatusDialog } from './UpdateIntroductionStatusDialog';
