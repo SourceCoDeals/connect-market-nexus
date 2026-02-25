@@ -1,6 +1,6 @@
 import { lazy, Suspense } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Loader2, FlaskConical, Activity, Beaker, Bot, Mail } from 'lucide-react';
+import { Loader2, FlaskConical, Activity, Beaker, Bot, Mail, ListChecks } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
 
 const EnrichmentTest = lazy(() => import('@/pages/admin/EnrichmentTest'));
@@ -8,6 +8,7 @@ const SystemTestRunner = lazy(() => import('@/pages/admin/SystemTestRunner'));
 const DocuSealHealthCheck = lazy(() => import('@/pages/admin/DocuSealHealthCheck'));
 const ChatbotTestRunner = lazy(() => import('@/pages/admin/ChatbotTestRunner'));
 const SmartleadTestPage = lazy(() => import('@/pages/admin/SmartleadTestPage'));
+const ThirtyQuestionTest = lazy(() => import('@/pages/admin/ThirtyQuestionTest'));
 
 const Loading = () => (
   <div className="flex items-center justify-center py-20">
@@ -59,6 +60,10 @@ export default function TestingHub() {
               <Bot className="h-4 w-4" />
               AI Chatbot
             </TabsTrigger>
+            <TabsTrigger value="30q" className="gap-2">
+              <ListChecks className="h-4 w-4" />
+              30-Question QA
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="enrichment">
@@ -88,6 +93,12 @@ export default function TestingHub() {
           <TabsContent value="chatbot">
             <Suspense fallback={<Loading />}>
               <ChatbotTestRunner />
+            </Suspense>
+          </TabsContent>
+
+          <TabsContent value="30q">
+            <Suspense fallback={<Loading />}>
+              <ThirtyQuestionTest />
             </Suspense>
           </TabsContent>
         </Tabs>
