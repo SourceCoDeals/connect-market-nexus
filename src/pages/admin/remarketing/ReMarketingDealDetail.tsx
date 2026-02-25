@@ -36,6 +36,8 @@ import {
   ClipboardList,
   Send,
   FolderOpen,
+  Handshake,
+  Activity,
 } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -69,6 +71,8 @@ import {
   DealMarketplacePanel,
   DealBuyerHistoryTab,
   DealContactHistoryTab,
+  BuyerIntroductionTracker,
+  ContactHistoryTracker,
 } from '@/components/remarketing/deal-detail';
 import { ListingNotesLog } from '@/components/remarketing/deal-detail/ListingNotesLog';
 
@@ -1448,21 +1452,59 @@ const ReMarketingDealDetail = () => {
 
         {/* ════════════════ HISTORY TAB ════════════════ */}
         <TabsContent value="history" className="space-y-6">
-          {/* Contact Communication History — emails (SmartLead) + calls (PhoneBurner) for all associated contacts */}
-          <DealContactHistoryTab
-            listingId={dealId!}
-            primaryContactEmail={deal.main_contact_email}
-            primaryContactName={deal.main_contact_name}
-          />
+          <Tabs defaultValue="buyer-introductions" className="space-y-4">
+            <TabsList className="grid w-full grid-cols-3">
+              <TabsTrigger value="buyer-introductions" className="text-sm">
+                <Handshake className="mr-1.5 h-3.5 w-3.5" />
+                Buyer Introductions
+              </TabsTrigger>
+              <TabsTrigger value="contact-history" className="text-sm">
+                <Activity className="mr-1.5 h-3.5 w-3.5" />
+                Contact History
+              </TabsTrigger>
+              <TabsTrigger value="activity-log" className="text-sm">
+                <History className="mr-1.5 h-3.5 w-3.5" />
+                Activity Log
+              </TabsTrigger>
+            </TabsList>
 
-          {/* Notes Section */}
-          <ListingNotesLog listingId={dealId!} />
+            {/* ─── Buyer Introductions Sub-Tab ─── */}
+            <TabsContent value="buyer-introductions" className="space-y-6">
+              {/* Introduction Tracker — tracks buyers who want to meet owner or have passed */}
+              <BuyerIntroductionTracker
+                listingId={dealId!}
+                listingTitle={deal.internal_company_name || deal.title}
+              />
 
-          {/* Buyer History */}
-          <DealBuyerHistoryTab
-            listingId={dealId!}
-            listingTitle={deal.internal_company_name || deal.title}
-          />
+              {/* Buyer Deal History — existing pipeline deals for this listing */}
+              <DealBuyerHistoryTab
+                listingId={dealId!}
+                listingTitle={deal.internal_company_name || deal.title}
+              />
+            </TabsContent>
+
+            {/* ─── Contact History Sub-Tab (NEW — Rich dark-themed tracker) ─── */}
+            <TabsContent value="contact-history" className="space-y-6">
+              <ContactHistoryTracker
+                listingId={dealId!}
+                primaryContactEmail={deal.main_contact_email}
+                primaryContactName={deal.main_contact_name}
+              />
+            </TabsContent>
+
+            {/* ─── Activity Log Sub-Tab (previous Contact History — per-contact timeline) ─── */}
+            <TabsContent value="activity-log" className="space-y-6">
+              {/* Contact Communication History — emails (SmartLead) + calls (PhoneBurner) for all associated contacts */}
+              <DealContactHistoryTab
+                listingId={dealId!}
+                primaryContactEmail={deal.main_contact_email}
+                primaryContactName={deal.main_contact_name}
+              />
+
+              {/* Notes Section */}
+              <ListingNotesLog listingId={dealId!} />
+            </TabsContent>
+          </Tabs>
         </TabsContent>
 
         {/* ════════════════ DATA ROOM TAB ════════════════ */}
