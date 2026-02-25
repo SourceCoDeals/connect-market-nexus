@@ -40,6 +40,7 @@ interface ResolvedContact {
 async function getValidToken(
 // deno-lint-ignore no-explicit-any
   supabase: any,
+  userId: string,
 ): Promise<string | null> {
   const { data: tokenRow } = await supabase
     .from('phoneburner_oauth_tokens')
@@ -127,7 +128,8 @@ async function getValidToken(
 // ─── Contact resolvers ───
 
 async function resolveFromBuyerContacts(
-  supabase: ReturnType<typeof createClient>,
+  // deno-lint-ignore no-explicit-any
+  supabase: any,
   ids: string[],
 ): Promise<ResolvedContact[]> {
   const { data: contacts } = await supabase
@@ -170,7 +172,8 @@ async function resolveFromBuyerContacts(
 }
 
 async function resolveFromBuyers(
-  supabase: ReturnType<typeof createClient>,
+  // deno-lint-ignore no-explicit-any
+  supabase: any,
   buyerIds: string[],
 ): Promise<ResolvedContact[]> {
   // Get contacts from remarketing_buyer_contacts first
@@ -263,7 +266,8 @@ async function resolveFromBuyers(
 }
 
 async function resolveFromListings(
-  supabase: ReturnType<typeof createClient>,
+  // deno-lint-ignore no-explicit-any
+  supabase: any,
   listingIds: string[],
 ): Promise<ResolvedContact[]> {
   const { data: listings } = await supabase
@@ -290,7 +294,8 @@ async function resolveFromListings(
 }
 
 async function resolveFromLeads(
-  supabase: ReturnType<typeof createClient>,
+  // deno-lint-ignore no-explicit-any
+  supabase: any,
   leadIds: string[],
 ): Promise<ResolvedContact[]> {
   const { data: leads } = await supabase
