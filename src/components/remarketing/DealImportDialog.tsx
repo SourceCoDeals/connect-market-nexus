@@ -87,6 +87,7 @@ export function DealImportDialog({
   const [importProgress, setImportProgress] = useState(0);
   const [importResults, setImportResults] = useState<{
     imported: number;
+    merged: number;
     errors: string[];
     importedIds: string[];
   } | null>(null);
@@ -185,12 +186,131 @@ export function DealImportDialog({
     );
   };
 
+  /**
+   * When a deal already exists (duplicate website), find the existing listing
+   * and fill in any null/empty fields with new CSV data.
+   * Returns the listing ID if fields were updated, null otherwise.
+   */
+  const tryMergeExistingListing = async (
+    newData: Record<string, unknown>,
+    mergeableFields: string[],
+  ): Promise<string | null> => {
+    try {
+      // Find existing listing by website domain or by title
+      const website = newData.website as string | undefined;
+      const title = newData.title as string | undefined;
+
+      let existingListing: Record<string, unknown> | null = null;
+
+      if (website) {
+        const { data } = await supabase
+          .from('listings')
+          .select('*')
+          .eq('website', website)
+          .limit(1)
+          .maybeSingle();
+        existingListing = data as Record<string, unknown> | null;
+      }
+
+      // Fallback: try matching by title if website didn't match
+      if (!existingListing && title) {
+        const { data } = await supabase
+          .from('listings')
+          .select('*')
+          .eq('title', title)
+          .limit(1)
+          .maybeSingle();
+        existingListing = data as Record<string, unknown> | null;
+      }
+
+      if (!existingListing) return null;
+
+      // Build update object: only fill in fields that are currently empty
+      const updates: Record<string, unknown> = {};
+
+      for (const field of mergeableFields) {
+        const newValue = newData[field];
+        const existingValue = existingListing[field];
+
+        // Skip if CSV doesn't have data for this field
+        if (newValue === undefined || newValue === null || newValue === '') continue;
+        // Skip default values that shouldn't overwrite
+        if (field === 'category' && newValue === 'Other') continue;
+
+        // Only fill if existing value is empty/null/default
+        const isEmpty =
+          existingValue === null
+          || existingValue === undefined
+          || existingValue === ''
+          || (field === 'description' && existingValue === (existingListing.title || ''))
+          || (field === 'category' && existingValue === 'Other')
+          || (field === 'location' && existingValue === 'Unknown');
+
+        if (isEmpty) {
+          updates[field] = newValue;
+        }
+      }
+
+      // Also update location if we have new address components and location was defaulted
+      if (
+        (updates.address_city || updates.address_state) &&
+        (existingListing.location === 'Unknown' || !existingListing.location)
+      ) {
+        const newCity = (updates.address_city || existingListing.address_city || '') as string;
+        const newState = (updates.address_state || existingListing.address_state || '') as string;
+        if (newCity && newState) {
+          updates.location = `${newCity}, ${newState}`;
+        } else if (newState || newCity) {
+          updates.location = newState || newCity;
+        }
+      }
+
+      // Also merge revenue/ebitda if existing is 0 (default) and CSV has real values
+      if (typeof newData.revenue === 'number' && newData.revenue > 0
+          && (existingListing.revenue === 0 || existingListing.revenue === null)) {
+        updates.revenue = newData.revenue;
+      }
+      if (typeof newData.ebitda === 'number' && newData.ebitda > 0
+          && (existingListing.ebitda === 0 || existingListing.ebitda === null)) {
+        updates.ebitda = newData.ebitda;
+      }
+
+      if (Object.keys(updates).length === 0) return null;
+
+      const { error: updateError } = await supabase
+        .from('listings')
+        .update(updates as never)
+        .eq('id', existingListing.id as string);
+
+      if (updateError) {
+        console.warn('Merge update failed:', updateError.message);
+        return null;
+      }
+
+      return existingListing.id as string;
+    } catch (err) {
+      console.warn('Merge lookup failed:', (err as Error).message);
+      return null;
+    }
+  };
+
   const handleImport = async () => {
     setStep("importing");
     setIsImporting(true);
     setImportProgress(0);
 
-    const results = { imported: 0, errors: [] as string[], importedIds: [] as string[] };
+    const results = { imported: 0, merged: 0, errors: [] as string[], importedIds: [] as string[] };
+
+    // Fields that should be considered "empty" and eligible for merge-fill.
+    // Excludes system-managed fields and NOT NULL defaults (revenue=0, ebitda=0, etc.)
+    const MERGEABLE_FIELDS = [
+      'main_contact_name', 'main_contact_email', 'main_contact_phone', 'main_contact_title',
+      'description', 'executive_summary', 'general_notes', 'internal_notes', 'owner_goals',
+      'category', 'industry', 'address', 'address_city', 'address_state', 'address_zip',
+      'address_country', 'geographic_states', 'services', 'linkedin_url', 'fireflies_url',
+      'internal_company_name', 'full_time_employees', 'number_of_locations',
+      'google_review_count', 'google_rating',
+    ];
 
     try {
       for (let i = 0; i < csvData.length; i++) {
@@ -200,14 +320,14 @@ export function DealImportDialog({
         try {
           // Use unified row processor
           const { data: parsedData, errors: rowErrors } = processRow(row, columnMappings, i + 2);
-          
+
           // Collect validation errors
           if (rowErrors.length > 0) {
             rowErrors.forEach(err => {
               results.errors.push(`Row ${err.row}: ${err.message}`);
             });
           }
-          
+
           // Skip if no valid data
           if (!parsedData) {
             continue;
@@ -262,11 +382,33 @@ export function DealImportDialog({
             .select('id')
             .single();
 
-          if (insertError) throw insertError;
+          if (insertError) {
+            // Check if this is a duplicate key error — if so, try to merge empty fields
+            const isDuplicate = insertError.message?.includes('duplicate key')
+              || insertError.message?.includes('unique constraint')
+              || insertError.code === '23505';
 
-          results.imported++;
-          if (insertedData?.id) {
-            results.importedIds.push(insertedData.id);
+            if (isDuplicate) {
+              // Try to find the existing listing and fill in empty fields
+              const merged = await tryMergeExistingListing(
+                listingData as Record<string, unknown>,
+                MERGEABLE_FIELDS,
+              );
+              if (merged) {
+                results.merged++;
+                results.importedIds.push(merged);
+              } else {
+                // Merge didn't find anything to update — record as already existing
+                results.errors.push(`Row ${i + 2}: duplicate key value violates unique constraint`);
+              }
+            } else {
+              throw insertError;
+            }
+          } else {
+            results.imported++;
+            if (insertedData?.id) {
+              results.importedIds.push(insertedData.id);
+            }
           }
         } catch (error) {
           results.errors.push(`Row ${i + 2}: ${(error as Error).message}`);
@@ -275,10 +417,13 @@ export function DealImportDialog({
 
       setImportResults(results);
       setStep("complete");
-      
-      if (results.imported > 0) {
+
+      if (results.imported > 0 || results.merged > 0) {
+        const parts: string[] = [];
+        if (results.imported > 0) parts.push(`${results.imported} new`);
+        if (results.merged > 0) parts.push(`${results.merged} updated`);
         const pendingMsg = referralPartnerId ? ' (pending review)' : '';
-        toast.success(`Successfully imported ${results.imported} deals${pendingMsg}`);
+        toast.success(`Successfully processed ${parts.join(', ')} deals${pendingMsg}`);
         onImportComplete();
         // Call the new callback with imported IDs if provided
         if (onImportCompleteWithIds && results.importedIds.length > 0) {
@@ -593,17 +738,27 @@ export function DealImportDialog({
             <div className="flex-1 flex flex-col items-center justify-center">
               <div className="text-center">
                 <div className="mb-4">
-                  {importResults.imported > 0 ? (
+                  {(importResults.imported > 0 || importResults.merged > 0) ? (
                     <Check className="h-12 w-12 mx-auto text-primary" />
                   ) : (
                     <AlertCircle className="h-12 w-12 mx-auto text-muted-foreground" />
                   )}
                 </div>
                 <p className="font-medium text-lg">
-                  {importResults.imported > 0
-                    ? `Successfully imported ${importResults.imported} deals`
+                  {importResults.imported > 0 || importResults.merged > 0
+                    ? (() => {
+                        const parts: string[] = [];
+                        if (importResults.imported > 0) parts.push(`${importResults.imported} new deal${importResults.imported !== 1 ? 's' : ''} imported`);
+                        if (importResults.merged > 0) parts.push(`${importResults.merged} existing deal${importResults.merged !== 1 ? 's' : ''} updated`);
+                        return parts.join(', ');
+                      })()
                     : "No deals were imported"}
                 </p>
+                {importResults.merged > 0 && (
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Empty fields on existing deals were filled with new data from the CSV
+                  </p>
+                )}
                 {importResults.errors.length > 0 && (() => {
                   const duplicateErrors = importResults.errors.filter(e => 
                     e.includes('duplicate key') || e.includes('unique constraint') || e.includes('idx_listings_unique')
