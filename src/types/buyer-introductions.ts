@@ -7,7 +7,6 @@ export type IntroductionStatus =
 
 export interface BuyerIntroduction {
   id: string;
-  workspace_id: string;
   contact_id: string | null;
   buyer_name: string;
   buyer_firm_name: string;
