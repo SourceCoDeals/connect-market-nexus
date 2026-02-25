@@ -208,7 +208,21 @@ const BYPASS_RULES: BypassRule[] = [
       confidence: 0.85,
     },
   },
-  // Contact finder
+  // PE / platform contacts — find who to call, email at a firm, person email lookups
+  {
+    test: (q) =>
+      /\b(contact at|contact for|who.?s the|find contact|email for|phone for|partner at|principal at|deal team|pe contact|platform contact)\b/i.test(q) ||
+      /\b(what.?s|what is|do we have|get me|look up|find).{0,20}\b(email|phone|contact info)\b/i.test(q) ||
+      /\b(email|phone)\s+(address\s+)?(for|of)\b/i.test(q) ||
+      /\bemail\b.*\b(address)\b/i.test(q),
+    result: {
+      category: 'CONTACTS',
+      tier: 'STANDARD',
+      tools: ['search_contacts', 'search_pe_contacts', 'enrich_buyer_contacts', 'get_buyer_profile'],
+      confidence: 0.87,
+    },
+  },
+  // Contact finder — find people at a company, get emails/phones
   {
     test: (q) =>
       /\b(find\s+(me\s+)?(contacts?|people|employees?|associates?|principals?|vps?|directors?|partners?)\s+(at|for|from))\b/i.test(
@@ -220,7 +234,7 @@ const BYPASS_RULES: BypassRule[] = [
     result: {
       category: 'CONTACTS',
       tier: 'STANDARD',
-      tools: ['search_pe_contacts', 'get_buyer_profile'],
+      tools: ['search_contacts', 'search_pe_contacts', 'enrich_buyer_contacts', 'get_buyer_profile'],
       confidence: 0.92,
     },
   },
@@ -648,6 +662,49 @@ describe('Core intent classification', () => {
     if (result) {
       expect(['BUYER_SEARCH', 'BUYER_ANALYSIS']).toContain(result.category);
     }
+  });
+});
+
+// ============================================================================
+// Person-Name Email Lookup
+// ============================================================================
+
+describe('Person-name email lookup intent classification', () => {
+  it('classifies "find the email for Russ Esau" as CONTACTS with enrichment tool', () => {
+    const result = classifyQuery('Find the email for Russ Esau');
+    expect(result?.category).toBe('CONTACTS');
+    expect(result?.tools).toContain('search_contacts');
+    expect(result?.tools).toContain('enrich_buyer_contacts');
+  });
+
+  it('classifies "what\'s John Smith\'s email" as CONTACTS', () => {
+    const result = classifyQuery("What's John Smith's email");
+    expect(result?.category).toBe('CONTACTS');
+  });
+
+  it('classifies "do we have an email for Sarah Jones" as CONTACTS', () => {
+    const result = classifyQuery('Do we have an email for Sarah Jones');
+    expect(result?.category).toBe('CONTACTS');
+  });
+
+  it('classifies "email address for Mike Brown" as CONTACTS', () => {
+    const result = classifyQuery('Email address for Mike Brown');
+    expect(result?.category).toBe('CONTACTS');
+  });
+
+  it('classifies "look up email for the VP at Trivest" as CONTACTS', () => {
+    const result = classifyQuery('Look up email for the VP at Trivest');
+    expect(result?.category).toBe('CONTACTS');
+  });
+
+  it('classifies "get me the phone for David Lee" as CONTACTS', () => {
+    const result = classifyQuery('Get me the phone for David Lee');
+    expect(result?.category).toBe('CONTACTS');
+  });
+
+  it('classifies "phone for the partner at Audax" as CONTACTS', () => {
+    const result = classifyQuery('Phone for the partner at Audax');
+    expect(result?.category).toBe('CONTACTS');
   });
 });
 
