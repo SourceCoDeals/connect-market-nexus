@@ -261,7 +261,7 @@ export default function GPPartnerDeals() {
       {/* Hide Pushed Toggle */}
       <div className="flex items-center gap-2">
         <button
-          onClick={() => hook.setHidePushed((h) => !h)}
+          onClick={() => hook.setHidePushed(!hook.hidePushed)}
           className={cn(
             'flex items-center gap-2 text-sm px-3 py-1.5 rounded-md border transition-colors',
             hook.hidePushed

@@ -1398,7 +1398,7 @@ const ReMarketingDeals = () => {
               ? 'bg-blue-600 hover:bg-blue-700 border-blue-600 text-white'
               : 'border-blue-300 text-blue-700 hover:bg-blue-50',
           )}
-          onClick={() => setUniverseBuildFilter((prev) => !prev)}
+          onClick={() => setUniverseBuildFilter(!universeBuildFilter)}
         >
           <Network className="h-3.5 w-3.5" />
           {universeBuildFilter ? 'Showing: Needs Universe Build' : 'Filter: Needs Universe Build'}
@@ -1825,7 +1825,7 @@ const ReMarketingDeals = () => {
               variant="outline"
               size="sm"
               disabled={page === 0}
-              onClick={() => setPage((p) => p - 1)}
+              onClick={() => setPage(page - 1)}
             >
               Previous
             </Button>
@@ -1836,7 +1836,7 @@ const ReMarketingDeals = () => {
               variant="outline"
               size="sm"
               disabled={page >= totalPages - 1}
-              onClick={() => setPage((p) => p + 1)}
+              onClick={() => setPage(page + 1)}
             >
               Next
             </Button>

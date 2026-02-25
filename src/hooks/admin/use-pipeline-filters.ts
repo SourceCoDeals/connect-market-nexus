@@ -220,17 +220,17 @@ export function usePipelineFilters(requests: AdminConnectionRequest[]) {
           return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
 
         case 'score_highest': {
-          const scoreA = ((a.user as Record<string, unknown>)?.buyer_quality_score as number) ?? -1;
-          const scoreB = ((b.user as Record<string, unknown>)?.buyer_quality_score as number) ?? -1;
+          const scoreA = ((a.user as unknown as Record<string, unknown>)?.buyer_quality_score as number) ?? -1;
+          const scoreB = ((b.user as unknown as Record<string, unknown>)?.buyer_quality_score as number) ?? -1;
           if (scoreB !== scoreA) return scoreB - scoreA;
           return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
         }
 
         case 'score_lowest': {
           const scoreA =
-            ((a.user as Record<string, unknown>)?.buyer_quality_score as number) ?? Infinity;
+            ((a.user as unknown as Record<string, unknown>)?.buyer_quality_score as number) ?? Infinity;
           const scoreB =
-            ((b.user as Record<string, unknown>)?.buyer_quality_score as number) ?? Infinity;
+            ((b.user as unknown as Record<string, unknown>)?.buyer_quality_score as number) ?? Infinity;
           if (scoreA !== scoreB) return scoreA - scoreB;
           return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
         }

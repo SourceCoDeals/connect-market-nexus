@@ -118,9 +118,9 @@ function computeOverview(entries: UnifiedActivityEntry[]) {
     : null;
 
   // Determine next best action
-  let nextBestAction = {
+  let nextBestAction: { action: string; icon: 'mail' | 'phone' | 'linkedin'; reason: string; timing: string } = {
     action: 'Send Email',
-    icon: 'mail' as const,
+    icon: 'mail',
     reason: 'No contact history found. Start with an introductory email.',
     timing: 'as soon as possible',
   };
@@ -129,35 +129,35 @@ function computeOverview(entries: UnifiedActivityEntry[]) {
     if (emailsOpened > 0 && emailsReplied === 0 && callsConnected === 0) {
       nextBestAction = {
         action: 'Schedule Call',
-        icon: 'phone' as const,
+        icon: 'phone',
         reason: `Email opened ${emailsOpened}x with no reply. Engagement is high—time to connect directly.`,
         timing: 'within 2 days',
       };
     } else if (totalEmails > 3 && emailsOpened === 0) {
       nextBestAction = {
         action: 'Try LinkedIn',
-        icon: 'linkedin' as const,
+        icon: 'linkedin',
         reason: 'Multiple emails sent with no opens. Try a different channel to break through.',
         timing: 'within 3 days',
       };
     } else if (callsConnected > 0 && emailsReplied === 0) {
       nextBestAction = {
         action: 'Send Follow-up Email',
-        icon: 'mail' as const,
+        icon: 'mail',
         reason: 'Had a call but no email reply yet. Send a follow-up to keep momentum.',
         timing: 'within 1 day',
       };
     } else if (linkedInReplied > 0) {
       nextBestAction = {
         action: 'Schedule Call',
-        icon: 'phone' as const,
+        icon: 'phone',
         reason: 'Positive LinkedIn engagement. Convert to a phone conversation.',
         timing: 'within 2 days',
       };
     } else if (daysSinceLastContact !== null && daysSinceLastContact > 14) {
       nextBestAction = {
         action: 'Re-engage',
-        icon: 'mail' as const,
+        icon: 'mail',
         reason: `No contact in ${daysSinceLastContact} days. Time to re-engage before they go cold.`,
         timing: 'today',
       };

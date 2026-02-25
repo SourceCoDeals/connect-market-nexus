@@ -1253,7 +1253,7 @@ export default function CapTargetDeals() {
       {/* Hide Pushed Toggle */}
       <div className="flex items-center gap-2">
         <button
-          onClick={() => setHidePushed((h) => !h)}
+          onClick={() => setHidePushed(!hidePushed)}
           className={cn(
             'flex items-center gap-2 text-sm px-3 py-1.5 rounded-md border transition-colors',
             hidePushed
