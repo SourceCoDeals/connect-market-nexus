@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   DropdownMenu,
@@ -10,7 +9,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { FilterBar, TimeframeSelector, VALUATION_LEAD_FIELDS } from '@/components/filters';
-import { EnrichmentProgressIndicator, DealEnrichmentSummaryDialog } from '@/components/remarketing';
+import { EnrichmentProgressIndicator, DealEnrichmentSummaryDialog, DealBulkActionBar } from '@/components/remarketing';
 import { PushToDialerModal } from '@/components/remarketing/PushToDialerModal';
 import { PushToSmartleadModal } from '@/components/remarketing/PushToSmartleadModal';
 import {
@@ -22,16 +21,11 @@ import {
   ChevronsLeft,
   ChevronsRight,
   Calculator,
-  XCircle,
   Users,
   Clock,
-  Zap,
   Sparkles,
   CheckCircle2,
-  Download,
   EyeOff,
-  Archive,
-  Phone,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useValuationLeadsData } from './useValuationLeadsData';
@@ -352,95 +346,26 @@ export default function ValuationLeads() {
       />
 
       {/* Bulk Actions */}
-      {selectedIds.size > 0 && (
-        <div className="flex items-center gap-3 p-3 bg-primary/5 border border-primary/20 rounded-lg">
-          <Badge variant="secondary" className="text-sm font-medium">
-            {selectedIds.size} selected
-          </Badge>
-          <Button variant="ghost" size="sm" onClick={() => setSelectedIds(new Set())}>
-            <XCircle className="h-4 w-4 mr-1" />
-            Clear
-          </Button>
-          <div className="h-5 w-px bg-border" />
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => handlePushToAllDeals(Array.from(selectedIds))}
-            disabled={isPushing || isPushEnriching}
-            className="gap-2"
-          >
-            {isPushing ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <CheckCircle2 className="h-4 w-4" />
-            )}
-            Push to Active Deals
-          </Button>
-          <Button
-            size="sm"
-            onClick={() => handlePushAndEnrich(Array.from(selectedIds))}
-            disabled={isPushEnriching || isPushing}
-            className="gap-2"
-          >
-            {isPushEnriching ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Zap className="h-4 w-4" />
-            )}
-            Push &amp; Enrich
-          </Button>
-          <Button
-            size="sm"
-            variant="secondary"
-            onClick={() => handleReEnrich(Array.from(selectedIds))}
-            disabled={isReEnriching}
-            className="gap-2"
-          >
-            {isReEnriching ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Sparkles className="h-4 w-4" />
-            )}
-            Re-Enrich Pushed
-          </Button>
-          <div className="h-5 w-px bg-border" />
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => {
-              const selected = filteredLeads.filter((l) => selectedIds.has(l.id));
-              exportLeadsToCSV(selected);
-            }}
-            className="gap-2"
-          >
-            <Download className="h-4 w-4" />
-            Export CSV
-          </Button>
-          <div className="h-5 w-px bg-border" />
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => handleArchive(Array.from(selectedIds))}
-            className="gap-2 text-destructive hover:text-destructive"
-          >
-            <Archive className="h-4 w-4" />
-            Archive
-          </Button>
-          <Button size="sm" variant="outline" onClick={() => setDialerOpen(true)} className="gap-2">
-            <Phone className="h-4 w-4" />
-            Push to Dialer
-          </Button>
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => setSmartleadOpen(true)}
-            className="gap-2"
-          >
-            <Phone className="h-4 w-4" />
-            Push to Smartlead
-          </Button>
-        </div>
-      )}
+      <DealBulkActionBar
+        selectedIds={selectedIds}
+        deals={filteredLeads as any}
+        onClearSelection={() => setSelectedIds(new Set())}
+        onRefetch={refetch}
+        onApproveToActiveDeals={(ids) => handlePushToAllDeals(ids)}
+        isPushing={isPushing}
+        onPushAndEnrich={(ids) => handlePushAndEnrich(ids)}
+        isPushAndEnriching={isPushEnriching}
+        onReEnrichPushed={(ids) => handleReEnrich(ids)}
+        isReEnrichingPushed={isReEnriching}
+        onExportCSV={() => {
+          const selected = filteredLeads.filter((l) => selectedIds.has(l.id));
+          exportLeadsToCSV(selected);
+        }}
+        showPriorityToggle={false}
+        onArchive={() => handleArchive(Array.from(selectedIds))}
+        onPushToDialer={() => setDialerOpen(true)}
+        onPushToSmartlead={() => setSmartleadOpen(true)}
+      />
       <PushToDialerModal
         open={dialerOpen}
         onOpenChange={setDialerOpen}
