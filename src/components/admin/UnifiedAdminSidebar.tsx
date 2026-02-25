@@ -287,9 +287,21 @@ export function UnifiedAdminSidebar({
           ...(canAccessSettings
             ? [
                 {
+                  label: 'Smartlead Campaigns',
+                  href: '/admin/smartlead/campaigns',
+                  icon: <Mail className="h-4 w-4" />,
+                  separator: 'Smartlead',
+                },
+                {
+                  label: 'Smartlead Settings',
+                  href: '/admin/smartlead/settings',
+                  icon: <Settings className="h-4 w-4" />,
+                },
+                {
                   label: 'Webhook Settings',
                   href: '/admin/settings/webhooks',
                   icon: <Webhook className="h-4 w-4" />,
+                  separator: 'Settings',
                 },
                 {
                   label: 'Enrichment Queue',
