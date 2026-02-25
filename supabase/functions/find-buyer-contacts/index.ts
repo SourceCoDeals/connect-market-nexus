@@ -1,7 +1,8 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
 
-import { getCorsHeaders, corsPreflightResponse } from "../_shared/cors.ts";
+import { getCorsHeaders, corsPreflightResponse } from '../_shared/cors.ts';
+import { requireAdmin } from '../_shared/auth.ts';
 
 serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
@@ -11,23 +12,36 @@ serve(async (req) => {
   }
 
   try {
+    // Authorization check - require admin role
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
+
+    const auth = await requireAdmin(req, supabaseAdmin);
+    if (!auth.authenticated || !auth.isAdmin) {
+      return new Response(JSON.stringify({ error: auth.error || 'Unauthorized' }), {
+        status: auth.authenticated ? 403 : 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
     const { buyerId, peFirmWebsite, platformWebsite } = await req.json();
 
     const FIRECRAWL_API_KEY = Deno.env.get('FIRECRAWL_API_KEY');
     const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY');
 
     if (!FIRECRAWL_API_KEY) {
-      return new Response(
-        JSON.stringify({ error: 'FIRECRAWL_API_KEY is not configured' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      return new Response(JSON.stringify({ error: 'FIRECRAWL_API_KEY is not configured' }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
 
     if (!GEMINI_API_KEY) {
-      return new Response(
-        JSON.stringify({ error: 'GEMINI_API_KEY is not configured' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      return new Response(JSON.stringify({ error: 'GEMINI_API_KEY is not configured' }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
@@ -60,10 +74,10 @@ serve(async (req) => {
     websites = [...new Set(websites)].filter(Boolean);
 
     if (websites.length === 0) {
-      return new Response(
-        JSON.stringify({ error: 'No websites provided for contact discovery' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      return new Response(JSON.stringify({ error: 'No websites provided for contact discovery' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
 
     const allContacts: any[] = [];
@@ -76,13 +90,13 @@ serve(async (req) => {
         const mapResponse = await fetch('https://api.firecrawl.dev/v1/map', {
           method: 'POST',
           headers: {
-            'Authorization': `Bearer ${FIRECRAWL_API_KEY}`,
+            Authorization: `Bearer ${FIRECRAWL_API_KEY}`,
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
             url: website,
             search: 'team leadership about people contact',
-            limit: 10
+            limit: 10,
           }),
           signal: AbortSignal.timeout(15000),
         });
@@ -95,9 +109,11 @@ serve(async (req) => {
         }
 
         // Filter to likely team/about pages
-        const relevantPages = teamPages.filter(url => 
-          /team|leadership|about|people|staff|management|executives|partners/i.test(url)
-        ).slice(0, 3);
+        const relevantPages = teamPages
+          .filter((url) =>
+            /team|leadership|about|people|staff|management|executives|partners/i.test(url),
+          )
+          .slice(0, 3);
 
         // Add homepage if no team pages found
         if (relevantPages.length === 0) {
@@ -110,7 +126,7 @@ serve(async (req) => {
             const scrapeResponse = await fetch('https://api.firecrawl.dev/v1/scrape', {
               method: 'POST',
               headers: {
-                'Authorization': `Bearer ${FIRECRAWL_API_KEY}`,
+                Authorization: `Bearer ${FIRECRAWL_API_KEY}`,
                 'Content-Type': 'application/json',
               },
               body: JSON.stringify({
@@ -131,12 +147,10 @@ serve(async (req) => {
             // Step 3: Extract contacts using AI
             const contacts = await extractContactsWithAI(pageContent, pageUrl, GEMINI_API_KEY);
             allContacts.push(...contacts);
-
           } catch (pageError) {
             console.error(`[find-buyer-contacts] Error scraping ${pageUrl}:`, pageError);
           }
         }
-
       } catch (websiteError) {
         console.error(`[find-buyer-contacts] Error processing ${website}:`, websiteError);
       }
@@ -148,25 +162,36 @@ serve(async (req) => {
     // Enrich contacts missing linkedin_url with LinkedIn search
     if (FIRECRAWL_API_KEY && uniqueContacts.length > 0) {
       const companyName = buyer?.company_name || '';
-      const contactsNeedingLinkedIn = uniqueContacts.filter(c => !c.linkedin_url && c.name);
+      const contactsNeedingLinkedIn = uniqueContacts.filter((c) => !c.linkedin_url && c.name);
 
       if (contactsNeedingLinkedIn.length > 0) {
-        console.log(`[find-buyer-contacts] Looking up LinkedIn profiles for ${contactsNeedingLinkedIn.length} contacts`);
+        console.log(
+          `[find-buyer-contacts] Looking up LinkedIn profiles for ${contactsNeedingLinkedIn.length} contacts`,
+        );
 
         // Limit to 5 lookups to avoid excessive API usage
         const lookupBatch = contactsNeedingLinkedIn.slice(0, 5);
         await Promise.allSettled(
           lookupBatch.map(async (contact) => {
             try {
-              const linkedinUrl = await searchLinkedInProfile(FIRECRAWL_API_KEY, contact.name, companyName);
+              const linkedinUrl = await searchLinkedInProfile(
+                FIRECRAWL_API_KEY,
+                contact.name,
+                companyName,
+              );
               if (linkedinUrl) {
                 contact.linkedin_url = linkedinUrl;
-                console.log(`[find-buyer-contacts] Found LinkedIn for ${contact.name}: ${linkedinUrl}`);
+                console.log(
+                  `[find-buyer-contacts] Found LinkedIn for ${contact.name}: ${linkedinUrl}`,
+                );
               }
             } catch (err) {
-              console.warn(`[find-buyer-contacts] LinkedIn lookup failed for ${contact.name}:`, err);
+              console.warn(
+                `[find-buyer-contacts] LinkedIn lookup failed for ${contact.name}:`,
+                err,
+              );
             }
-          })
+          }),
         );
       }
     }
@@ -174,20 +199,23 @@ serve(async (req) => {
     // Save contacts if buyerId provided
     if (buyerId && uniqueContacts.length > 0) {
       for (const contact of uniqueContacts) {
-        await supabase.from('remarketing_buyer_contacts').upsert({
-          buyer_id: buyerId,
-          name: contact.name,
-          title: contact.title,
-          email: contact.email,
-          linkedin_url: contact.linkedin_url,
-          role_category: contact.role_category,
-          source: 'ai_discovery',
-          source_url: contact.source_url,
-          email_confidence: contact.email ? 'Guessed' : null,
-        }, {
-          onConflict: 'buyer_id,name',
-          ignoreDuplicates: true
-        });
+        await supabase.from('remarketing_buyer_contacts').upsert(
+          {
+            buyer_id: buyerId,
+            name: contact.name,
+            title: contact.title,
+            email: contact.email,
+            linkedin_url: contact.linkedin_url,
+            role_category: contact.role_category,
+            source: 'ai_discovery',
+            source_url: contact.source_url,
+            email_confidence: contact.email ? 'Guessed' : null,
+          },
+          {
+            onConflict: 'buyer_id,name',
+            ignoreDuplicates: true,
+          },
+        );
       }
     }
 
@@ -196,21 +224,24 @@ serve(async (req) => {
         success: true,
         contacts: uniqueContacts,
         totalFound: uniqueContacts.length,
-        websitesProcessed: websites.length
+        websitesProcessed: websites.length,
       }),
-      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
     );
-
   } catch (error: any) {
     console.error('[find-buyer-contacts] Error:', error);
-    return new Response(
-      JSON.stringify({ error: error.message || 'Internal server error' }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+    return new Response(JSON.stringify({ error: error.message || 'Internal server error' }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
   }
 });
 
-async function extractContactsWithAI(content: string, sourceUrl: string, apiKey: string): Promise<any[]> {
+async function extractContactsWithAI(
+  content: string,
+  sourceUrl: string,
+  apiKey: string,
+): Promise<any[]> {
   const systemPrompt = `You are an expert at extracting contact information from web pages. Extract all people mentioned with their roles.
 
 Return JSON array only:
@@ -231,22 +262,28 @@ Role categories:
 Only include people with clear names and titles. Return empty array if no contacts found.`;
 
   try {
-    const response = await fetch('https://generativelanguage.googleapis.com/v1beta/openai/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
+    const response = await fetch(
+      'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions',
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: 'gemini-2.0-flash',
+          messages: [
+            { role: 'system', content: systemPrompt },
+            {
+              role: 'user',
+              content: `Extract contacts from this page:\n\n${content.substring(0, 8000)}`,
+            },
+          ],
+          temperature: 0,
+        }),
+        signal: AbortSignal.timeout(20000),
       },
-      body: JSON.stringify({
-        model: 'gemini-2.0-flash',
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: `Extract contacts from this page:\n\n${content.substring(0, 8000)}` }
-        ],
-        temperature: 0,
-      }),
-      signal: AbortSignal.timeout(20000),
-    });
+    );
 
     if (!response.ok) {
       console.error('AI extraction failed:', response.status);
@@ -285,7 +322,7 @@ async function searchLinkedInProfile(
     const response = await fetch('https://api.firecrawl.dev/v1/search', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${firecrawlApiKey}`,
+        Authorization: `Bearer ${firecrawlApiKey}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({ query: searchQuery, limit: 3 }),
@@ -299,7 +336,11 @@ async function searchLinkedInProfile(
 
     for (const result of results) {
       const url = result.url || '';
-      if (url.includes('linkedin.com/in/') && !url.includes('/posts') && !url.includes('/activity')) {
+      if (
+        url.includes('linkedin.com/in/') &&
+        !url.includes('/posts') &&
+        !url.includes('/activity')
+      ) {
         // Normalize: https://www.linkedin.com/in/slug
         const match = url.match(/linkedin\.com\/in\/([^/?#]+)/);
         if (match) {
@@ -316,7 +357,7 @@ async function searchLinkedInProfile(
 
 function dedupeContacts(contacts: any[]): any[] {
   const seen = new Map<string, any>();
-  
+
   for (const contact of contacts) {
     const key = contact.name.toLowerCase().trim();
     if (!seen.has(key)) {
@@ -325,7 +366,8 @@ function dedupeContacts(contacts: any[]): any[] {
       // Merge additional data
       const existing = seen.get(key);
       if (!existing.email && contact.email) existing.email = contact.email;
-      if (!existing.linkedin_url && contact.linkedin_url) existing.linkedin_url = contact.linkedin_url;
+      if (!existing.linkedin_url && contact.linkedin_url)
+        existing.linkedin_url = contact.linkedin_url;
       if (!existing.title && contact.title) existing.title = contact.title;
     }
   }
