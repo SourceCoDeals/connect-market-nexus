@@ -1,6 +1,7 @@
 /**
  * AI Command Center Panel
- * Floating chat panel with streaming, tool status, UI actions, and confirmations.
+ * Floating chat panel with streaming, tool status, UI actions, confirmations,
+ * and thread list for managing multiple conversations.
  */
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
@@ -10,18 +11,35 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import {
-  Sparkles, Send, Loader2, X, Minimize2, Trash2,
-  ChevronUp, Bot, User, Wrench,
-  CheckCircle, XCircle, MousePointerClick, Square,
+  Sparkles,
+  Send,
+  Loader2,
+  X,
+  Minimize2,
+  ChevronUp,
+  Bot,
+  User,
+  Wrench,
+  CheckCircle,
+  XCircle,
+  MousePointerClick,
+  Square,
+  MessageSquarePlus,
+  List,
+  ArrowLeft,
+  Trash2,
+  Clock,
 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { cn } from '@/lib/utils';
+import { formatDistanceToNow } from 'date-fns';
 import {
   useAICommandCenter,
   type PageContext,
   type AIMessage,
   type ToolCallInfo,
   type UIActionPayload,
+  type ThreadSummary,
 } from '@/hooks/useAICommandCenter';
 
 // ---------- Props ----------
@@ -70,7 +88,11 @@ function getSuggestions(page?: string): string[] {
 
 // ---------- Component ----------
 
-export function AICommandCenterPanel({ pageContext, onUIAction, className }: AICommandCenterPanelProps) {
+export function AICommandCenterPanel({
+  pageContext,
+  onUIAction,
+  className,
+}: AICommandCenterPanelProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
   const [input, setInput] = useState('');
@@ -79,10 +101,28 @@ export function AICommandCenterPanel({ pageContext, onUIAction, className }: AIC
   const inputRef = useRef<HTMLInputElement>(null);
 
   const {
-    messages, isLoading, streamingContent, currentPhase,
-    routeInfo, activeTools, error,
-    sendMessage, confirmAction, denyAction, clearMessages, stopStreaming,
+    messages,
+    isLoading,
+    streamingContent,
+    currentPhase,
+    routeInfo,
+    activeTools,
+    error,
+    sendMessage,
+    confirmAction,
+    denyAction,
+    stopStreaming,
     onUIAction: registerUIAction,
+    // Thread state & actions
+    threads,
+    activeThreadId,
+    threadsLoading,
+    showThreadList,
+    setShowThreadList,
+    newThread,
+    selectThread,
+    archiveThread,
+    refreshThreads,
   } = useAICommandCenter(pageContext);
 
   // Register UI action handler
@@ -101,22 +141,39 @@ export function AICommandCenterPanel({ pageContext, onUIAction, className }: AIC
 
   // Focus input when opened
   useEffect(() => {
-    if (isOpen && !isMinimized && inputRef.current) {
+    if (isOpen && !isMinimized && !showThreadList && inputRef.current) {
       setTimeout(() => inputRef.current?.focus(), 100);
+    }
+  }, [isOpen, isMinimized, showThreadList]);
+
+  // Refresh threads when panel opens
+  useEffect(() => {
+    if (isOpen && !isMinimized) {
+      refreshThreads();
     }
   }, [isOpen, isMinimized]);
 
-  const handleSubmit = useCallback((e: React.FormEvent) => {
-    e.preventDefault();
-    if (!input.trim() || isLoading) return;
-    sendMessage(input);
-    setInput('');
-  }, [input, isLoading, sendMessage]);
+  const handleSubmit = useCallback(
+    (e: React.FormEvent) => {
+      e.preventDefault();
+      if (!input.trim() || isLoading) return;
+      sendMessage(input);
+      setInput('');
+    },
+    [input, isLoading, sendMessage],
+  );
 
-  const handleSuggestion = useCallback((text: string) => {
-    setInput('');
-    sendMessage(text);
-  }, [sendMessage]);
+  const handleSuggestion = useCallback(
+    (text: string) => {
+      setInput('');
+      sendMessage(text);
+    },
+    [sendMessage],
+  );
+
+  const handleNewThread = useCallback(() => {
+    newThread();
+  }, [newThread]);
 
   // ---------- Floating bubble (closed) ----------
   if (!isOpen) {
@@ -157,99 +214,296 @@ export function AICommandCenterPanel({ pageContext, onUIAction, className }: AIC
   // ---------- Full panel ----------
   return (
     <div className={cn('fixed bottom-8 right-8 z-50', className)}>
-      <Card className="w-[640px] max-w-[calc(100vw-64px)] h-[800px] max-h-[85vh] flex flex-col shadow-2xl border-[#DEC76B]/30" style={{ backgroundColor: '#FCF9F0' }}>
+      <Card
+        className="w-[640px] max-w-[calc(100vw-64px)] h-[800px] max-h-[85vh] flex flex-col shadow-2xl border-[#DEC76B]/30"
+        style={{ backgroundColor: '#FCF9F0' }}
+      >
         {/* Header */}
         <CardHeader className="pb-3 bg-[#0E101A] text-[#FCF9F0] rounded-t-lg">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <Sparkles className="h-5 w-5" />
-              <CardTitle className="text-base font-semibold">AI Command Center</CardTitle>
-              {routeInfo && (
+              {showThreadList ? (
+                <button
+                  onClick={() => setShowThreadList(false)}
+                  className="text-white/80 hover:text-white transition-colors"
+                >
+                  <ArrowLeft className="h-5 w-5" />
+                </button>
+              ) : (
+                <Sparkles className="h-5 w-5" />
+              )}
+              <CardTitle className="text-base font-semibold">
+                {showThreadList ? 'Conversations' : 'AI Command Center'}
+              </CardTitle>
+              {!showThreadList && routeInfo && (
                 <Badge variant="outline" className="text-xs border-white/30 text-white/80">
                   {routeInfo.tier}
                 </Badge>
               )}
             </div>
             <div className="flex items-center gap-1">
-              <Button variant="ghost" size="icon" className="h-7 w-7 text-white/80 hover:text-white hover:bg-white/10" onClick={clearMessages}>
-                <Trash2 className="h-4 w-4" />
-              </Button>
-              <Button variant="ghost" size="icon" className="h-7 w-7 text-white/80 hover:text-white hover:bg-white/10" onClick={() => setIsMinimized(true)}>
+              {!showThreadList && (
+                <>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7 text-white/80 hover:text-white hover:bg-white/10"
+                    onClick={() => setShowThreadList(true)}
+                    title="View conversations"
+                  >
+                    <List className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7 text-white/80 hover:text-white hover:bg-white/10"
+                    onClick={handleNewThread}
+                    title="New conversation"
+                  >
+                    <MessageSquarePlus className="h-4 w-4" />
+                  </Button>
+                </>
+              )}
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7 text-white/80 hover:text-white hover:bg-white/10"
+                onClick={() => setIsMinimized(true)}
+              >
                 <Minimize2 className="h-4 w-4" />
               </Button>
-              <Button variant="ghost" size="icon" className="h-7 w-7 text-white/80 hover:text-white hover:bg-white/10" onClick={() => setIsOpen(false)}>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7 text-white/80 hover:text-white hover:bg-white/10"
+                onClick={() => setIsOpen(false)}
+              >
                 <X className="h-4 w-4" />
               </Button>
             </div>
           </div>
-          {pageContext?.page && (
+          {!showThreadList && pageContext?.page && (
             <p className="text-xs text-white/60 mt-1">
-              Context: {pageContext.page}{pageContext.entity_id ? ` (${pageContext.entity_type} ${pageContext.entity_id.substring(0, 8)}...)` : ''}
+              Context: {pageContext.page}
+              {pageContext.entity_id
+                ? ` (${pageContext.entity_type} ${pageContext.entity_id.substring(0, 8)}...)`
+                : ''}
             </p>
           )}
         </CardHeader>
 
-        {/* Messages */}
-        <ScrollArea className="flex-1 p-4" ref={scrollRef} style={{ backgroundColor: '#FCF9F0' }}>
-          <div className="space-y-4">
-            {/* Empty state */}
-            {messages.length === 0 && !isLoading && (
-              <EmptyState suggestions={getSuggestions(pageContext?.page)} onSuggestion={handleSuggestion} />
-            )}
+        {/* Thread List View */}
+        {showThreadList ? (
+          <ThreadListView
+            threads={threads}
+            activeThreadId={activeThreadId}
+            isLoading={threadsLoading}
+            onSelect={selectThread}
+            onArchive={archiveThread}
+            onNewThread={() => {
+              handleNewThread();
+            }}
+          />
+        ) : (
+          <>
+            {/* Messages */}
+            <ScrollArea
+              className="flex-1 p-4"
+              ref={scrollRef}
+              style={{ backgroundColor: '#FCF9F0' }}
+            >
+              <div className="space-y-4">
+                {/* Empty state */}
+                {messages.length === 0 && !isLoading && (
+                  <EmptyState
+                    suggestions={getSuggestions(pageContext?.page)}
+                    onSuggestion={handleSuggestion}
+                    threadCount={threads.length}
+                    onShowThreads={() => setShowThreadList(true)}
+                  />
+                )}
 
-            {/* Message list */}
-            {messages.map(msg => (
-              <MessageBubble key={msg.id} message={msg} onConfirm={confirmAction} onDeny={denyAction} />
-            ))}
+                {/* Message list */}
+                {messages.map((msg) => (
+                  <MessageBubble
+                    key={msg.id}
+                    message={msg}
+                    onConfirm={confirmAction}
+                    onDeny={denyAction}
+                  />
+                ))}
 
-            {/* Streaming content */}
-            {isLoading && (
-              <StreamingIndicator
-                content={streamingContent}
-                phase={currentPhase}
-                tools={activeTools}
-              />
-            )}
+                {/* Streaming content */}
+                {isLoading && (
+                  <StreamingIndicator
+                    content={streamingContent}
+                    phase={currentPhase}
+                    tools={activeTools}
+                  />
+                )}
 
-            {/* Error */}
-            {error && (
-              <div className="text-sm text-destructive bg-destructive/10 rounded-lg p-3">
-                {error}
+                {/* Error */}
+                {error && (
+                  <div className="text-sm text-destructive bg-destructive/10 rounded-lg p-3">
+                    {error}
+                  </div>
+                )}
               </div>
-            )}
-          </div>
-        </ScrollArea>
+            </ScrollArea>
 
-        {/* Input */}
-        <div className="p-3 border-t border-[#DEC76B]/20" style={{ backgroundColor: '#FCF9F0' }}>
-          <form onSubmit={handleSubmit} className="flex gap-2">
-            <Input
-              ref={inputRef}
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              placeholder="Ask anything about deals, buyers, pipeline..."
-              disabled={isLoading}
-              className="flex-1"
-            />
-            {isLoading ? (
-              <Button type="button" variant="outline" size="icon" onClick={stopStreaming}>
-                <Square className="h-4 w-4" />
-              </Button>
-            ) : (
-              <Button type="submit" disabled={!input.trim()} size="icon" className="bg-[#0E101A] hover:bg-[#000000] text-[#DEC76B]">
-                <Send className="h-4 w-4" />
-              </Button>
-            )}
-          </form>
-        </div>
+            {/* Input */}
+            <div
+              className="p-3 border-t border-[#DEC76B]/20"
+              style={{ backgroundColor: '#FCF9F0' }}
+            >
+              <form onSubmit={handleSubmit} className="flex gap-2">
+                <Input
+                  ref={inputRef}
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  placeholder="Ask anything about deals, buyers, pipeline..."
+                  disabled={isLoading}
+                  className="flex-1"
+                />
+                {isLoading ? (
+                  <Button type="button" variant="outline" size="icon" onClick={stopStreaming}>
+                    <Square className="h-4 w-4" />
+                  </Button>
+                ) : (
+                  <Button
+                    type="submit"
+                    disabled={!input.trim()}
+                    size="icon"
+                    className="bg-[#0E101A] hover:bg-[#000000] text-[#DEC76B]"
+                  >
+                    <Send className="h-4 w-4" />
+                  </Button>
+                )}
+              </form>
+            </div>
+          </>
+        )}
       </Card>
+    </div>
+  );
+}
+
+// ---------- Thread List ----------
+
+function ThreadListView({
+  threads,
+  activeThreadId,
+  isLoading,
+  onSelect,
+  onArchive,
+  onNewThread,
+}: {
+  threads: ThreadSummary[];
+  activeThreadId: string | null;
+  isLoading: boolean;
+  onSelect: (id: string) => void;
+  onArchive: (id: string) => void;
+  onNewThread: () => void;
+}) {
+  return (
+    <div className="flex-1 flex flex-col min-h-0" style={{ backgroundColor: '#FCF9F0' }}>
+      {/* New Thread button */}
+      <div className="p-3 border-b border-[#DEC76B]/20">
+        <Button
+          onClick={onNewThread}
+          className="w-full gap-2 bg-[#0E101A] hover:bg-[#000000] text-[#DEC76B]"
+          size="sm"
+        >
+          <MessageSquarePlus className="h-4 w-4" />
+          New Conversation
+        </Button>
+      </div>
+
+      <ScrollArea className="flex-1">
+        {isLoading ? (
+          <div className="p-6 flex items-center justify-center">
+            <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+          </div>
+        ) : threads.length === 0 ? (
+          <div className="p-8 text-center">
+            <Sparkles className="h-10 w-10 mx-auto mb-3 text-[#DEC76B]/40" />
+            <p className="text-sm text-muted-foreground">No conversations yet</p>
+            <p className="text-xs text-muted-foreground/60 mt-1">
+              Start a new conversation to get going
+            </p>
+          </div>
+        ) : (
+          <div className="divide-y divide-[#E5DDD0]">
+            {threads.map((thread) => (
+              <div
+                key={thread.id}
+                className={cn(
+                  'group flex items-start gap-3 px-4 py-3 cursor-pointer hover:bg-[#F7F4DD] transition-colors',
+                  activeThreadId === thread.id && 'bg-[#F7F4DD]',
+                )}
+                onClick={() => onSelect(thread.id)}
+              >
+                <div className="w-8 h-8 rounded-full bg-[#F7F4DD] flex items-center justify-center flex-shrink-0 mt-0.5">
+                  <Bot className="h-4 w-4 text-[#DEC76B]" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <p className="text-sm font-medium text-[#0E101A] truncate">{thread.title}</p>
+                    {thread.message_count > 0 && (
+                      <Badge
+                        variant="secondary"
+                        className="text-[10px] px-1.5 py-0 h-4 bg-[#E5DDD0] text-[#5A5A5A]"
+                      >
+                        {thread.message_count}
+                      </Badge>
+                    )}
+                  </div>
+                  {thread.preview && (
+                    <p className="text-xs text-muted-foreground truncate mt-0.5">
+                      {thread.preview}
+                    </p>
+                  )}
+                  <div className="flex items-center gap-1 mt-1">
+                    <Clock className="h-3 w-3 text-muted-foreground/50" />
+                    <span className="text-[10px] text-muted-foreground/60">
+                      {thread.last_message_at
+                        ? formatDistanceToNow(new Date(thread.last_message_at), { addSuffix: true })
+                        : formatDistanceToNow(new Date(thread.created_at), { addSuffix: true })}
+                    </span>
+                  </div>
+                </div>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onArchive(thread.id);
+                  }}
+                  className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-destructive/10 transition-all"
+                  title="Archive conversation"
+                >
+                  <Trash2 className="h-3.5 w-3.5 text-muted-foreground hover:text-destructive" />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </ScrollArea>
     </div>
   );
 }
 
 // ---------- Sub-components ----------
 
-function EmptyState({ suggestions, onSuggestion }: { suggestions: string[]; onSuggestion: (text: string) => void }) {
+function EmptyState({
+  suggestions,
+  onSuggestion,
+  threadCount,
+  onShowThreads,
+}: {
+  suggestions: string[];
+  onSuggestion: (text: string) => void;
+  threadCount: number;
+  onShowThreads: () => void;
+}) {
   return (
     <div className="text-center py-8">
       <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-[#F7F4DD] mb-4">
@@ -270,6 +524,14 @@ function EmptyState({ suggestions, onSuggestion }: { suggestions: string[]; onSu
           </button>
         ))}
       </div>
+      {threadCount > 0 && (
+        <button
+          onClick={onShowThreads}
+          className="mt-4 text-xs text-muted-foreground hover:text-foreground transition-colors underline underline-offset-2"
+        >
+          View {threadCount} past conversation{threadCount !== 1 ? 's' : ''}
+        </button>
+      )}
     </div>
   );
 }
@@ -293,16 +555,18 @@ function MessageBubble({
         </div>
       )}
 
-      <div className={cn(
-        'max-w-[85%] rounded-lg px-3 py-2 border',
-        isUser
-          ? 'bg-[#F7F4DD] border-[#E5DDD0] text-[#0E101A]'
-          : 'bg-[#FCF9F0] border-[#E5DDD0] text-[#0E101A]',
-      )}>
+      <div
+        className={cn(
+          'max-w-[85%] rounded-lg px-3 py-2 border',
+          isUser
+            ? 'bg-[#F7F4DD] border-[#E5DDD0] text-[#0E101A]'
+            : 'bg-[#FCF9F0] border-[#E5DDD0] text-[#0E101A]',
+        )}
+      >
         {/* Tool call indicators */}
         {message.toolCalls && message.toolCalls.length > 0 && (
           <div className="flex flex-wrap gap-1 mb-2">
-            {message.toolCalls.map(tool => (
+            {message.toolCalls.map((tool) => (
               <ToolBadge key={tool.id} tool={tool} />
             ))}
           </div>
@@ -312,12 +576,21 @@ function MessageBubble({
         {message.uiActions && message.uiActions.length > 0 && (
           <div className="flex flex-wrap gap-1 mb-2">
             {message.uiActions.map((action, i) => (
-              <Badge key={i} variant="outline" className="text-xs gap-1 border-[#DEC76B]/50 text-[#0E101A]">
+              <Badge
+                key={i}
+                variant="outline"
+                className="text-xs gap-1 border-[#DEC76B]/50 text-[#0E101A]"
+              >
                 <MousePointerClick className="h-3 w-3" />
-                {action.type === 'select_rows' ? 'Selected rows' :
-                 action.type === 'apply_filter' ? 'Applied filter' :
-                 action.type === 'sort_column' ? 'Sorted column' :
-                 action.type === 'navigate' ? 'Navigated' : action.type}
+                {action.type === 'select_rows'
+                  ? 'Selected rows'
+                  : action.type === 'apply_filter'
+                    ? 'Applied filter'
+                    : action.type === 'sort_column'
+                      ? 'Sorted column'
+                      : action.type === 'navigate'
+                        ? 'Navigated'
+                        : action.type}
               </Badge>
             ))}
           </div>
@@ -366,17 +639,21 @@ function MessageBubble({
 }
 
 function ToolBadge({ tool }: { tool: ToolCallInfo }) {
-  const statusIcon = tool.status === 'running'
-    ? <Loader2 className="h-3 w-3 animate-spin" />
-    : tool.status === 'success'
-    ? <CheckCircle className="h-3 w-3" />
-    : <XCircle className="h-3 w-3" />;
+  const statusIcon =
+    tool.status === 'running' ? (
+      <Loader2 className="h-3 w-3 animate-spin" />
+    ) : tool.status === 'success' ? (
+      <CheckCircle className="h-3 w-3" />
+    ) : (
+      <XCircle className="h-3 w-3" />
+    );
 
-  const statusClass = tool.status === 'running'
-    ? 'border-[#DEC76B]/50 text-[#0E101A]'
-    : tool.status === 'success'
-    ? 'border-green-400 text-green-800'
-    : 'border-red-400 text-red-800';
+  const statusClass =
+    tool.status === 'running'
+      ? 'border-[#DEC76B]/50 text-[#0E101A]'
+      : tool.status === 'success'
+        ? 'border-green-400 text-green-800'
+        : 'border-red-400 text-red-800';
 
   return (
     <Badge variant="outline" className={cn('text-xs gap-1', statusClass)}>
@@ -396,10 +673,14 @@ function StreamingIndicator({
   phase: string;
   tools: ToolCallInfo[];
 }) {
-  const phaseLabel = phase === 'routing' ? 'Classifying intent...'
-    : phase === 'processing' ? 'Thinking...'
-    : phase === 'executing_confirmed_action' ? 'Executing action...'
-    : 'Processing...';
+  const phaseLabel =
+    phase === 'routing'
+      ? 'Classifying intent...'
+      : phase === 'processing'
+        ? 'Thinking...'
+        : phase === 'executing_confirmed_action'
+          ? 'Executing action...'
+          : 'Processing...';
 
   return (
     <div className="flex gap-2">
@@ -410,7 +691,7 @@ function StreamingIndicator({
         {/* Active tools */}
         {tools.length > 0 && (
           <div className="flex flex-wrap gap-1 mb-2">
-            {tools.map(tool => (
+            {tools.map((tool) => (
               <ToolBadge key={tool.id} tool={tool} />
             ))}
           </div>
