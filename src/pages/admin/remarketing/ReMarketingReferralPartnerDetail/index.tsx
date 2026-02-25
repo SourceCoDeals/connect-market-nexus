@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -38,12 +38,8 @@ import {
   Handshake,
   Sparkles,
   BarChart3,
-  Trash2,
-  Archive,
-  CheckCircle2,
   ChevronDown,
   EyeOff,
-  Star,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
@@ -53,6 +49,9 @@ import { AddDealDialog } from '@/components/remarketing/AddDealDialog';
 import { DealImportDialog } from '@/components/remarketing/DealImportDialog';
 import { PushToDialerModal } from '@/components/remarketing/PushToDialerModal';
 import { PushToSmartleadModal } from '@/components/remarketing/PushToSmartleadModal';
+import { DealBulkActionBar } from '@/components/remarketing/DealBulkActionBar';
+import { AddDealsToListDialog } from '@/components/remarketing/AddDealsToListDialog';
+import type { DealForList } from '@/components/remarketing/AddDealsToListDialog';
 import { SubmissionReviewQueue } from '@/components/remarketing/SubmissionReviewQueue';
 import { EnrichmentProgressIndicator } from '@/components/remarketing/EnrichmentProgressIndicator';
 import { SingleDealEnrichmentDialog } from '@/components/remarketing/SingleDealEnrichmentDialog';
@@ -67,9 +66,56 @@ export default function ReMarketingReferralPartnerDetail() {
   const queryClient = useQueryClient();
   const [dialerOpen, setDialerOpen] = useState(false);
   const [smartleadOpen, setSmartleadOpen] = useState(false);
+  const [addToListOpen, setAddToListOpen] = useState(false);
 
   const data = usePartnerData(partnerId);
   const actions = usePartnerActions(partnerId, data.partner, data.deals);
+
+  const handleEnrichSelected = async (dealIds: string[], mode: 'all' | 'unenriched') => {
+    const selectedDeals = data.deals?.filter((d) => dealIds.includes(d.id)) || [];
+    const targets =
+      mode === 'unenriched' ? selectedDeals.filter((d) => !d.enriched_at) : selectedDeals;
+    if (!targets.length) {
+      toast.info('No deals to enrich');
+      return;
+    }
+    const now = new Date().toISOString();
+    const rows = targets.map((d) => ({
+      listing_id: d.id,
+      status: 'pending' as const,
+      attempts: 0,
+      queued_at: now,
+    }));
+    const { error } = await supabase
+      .from('enrichment_queue')
+      .upsert(rows, { onConflict: 'listing_id' });
+    if (error) {
+      toast.error('Failed to queue enrichment');
+      return;
+    }
+    toast.success(`Queued ${targets.length} deal(s) for enrichment`);
+    try {
+      await supabase.functions.invoke('process-enrichment-queue', {
+        body: { source: 'referral_partner_selected' },
+      });
+    } catch {
+      /* Non-blocking */
+    }
+    queryClient.invalidateQueries({ queryKey: ['referral-partners', partnerId, 'deals'] });
+  };
+
+  const selectedDealsForList: DealForList[] = useMemo(() => {
+    if (!data.deals || actions.selectedDealIds.size === 0) return [];
+    return data.deals
+      .filter((d) => actions.selectedDealIds.has(d.id))
+      .map((d) => ({
+        dealId: d.id,
+        dealName: d.title || d.internal_company_name || 'Unknown Deal',
+        contactName: d.main_contact_name,
+        contactEmail: d.main_contact_email,
+        contactPhone: d.main_contact_phone,
+      }));
+  }, [data.deals, actions.selectedDealIds]);
 
   if (data.partnerLoading) {
     return (
@@ -364,113 +410,33 @@ export default function ReMarketingReferralPartnerDetail() {
           {/* Bulk Actions */}
           {actions.someSelected && (
             <div className="px-6 pb-3">
-              <div className="flex items-center gap-3 p-3 bg-primary/5 border border-primary/20 rounded-lg">
-                <Badge variant="secondary" className="text-sm font-medium">
-                  {actions.selectedDealIds.size} selected
-                </Badge>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => actions.setSelectedDealIds(new Set())}
-                >
-                  <XCircle className="h-4 w-4 mr-1" />
-                  Clear
-                </Button>
-                <div className="h-5 w-px bg-border" />
-                <Button size="sm" variant="outline" onClick={actions.handleBulkApprove}>
-                  <CheckCircle2 className="h-4 w-4 mr-1" />
-                  Approve to Active Deals
-                </Button>
-                {(() => {
-                  const selectedArr = Array.from(actions.selectedDealIds);
-                  const allPriority =
-                    selectedArr.length > 0 &&
-                    selectedArr.every(
-                      (id) => data.deals?.find((d) => d.id === id)?.is_priority_target,
-                    );
-                  return (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className={cn(
-                        'gap-2',
-                        allPriority
-                          ? 'text-muted-foreground'
-                          : 'text-amber-600 border-amber-200 hover:bg-amber-50',
-                      )}
-                      onClick={async () => {
-                        const newValue = !allPriority;
-                        const { error } = await supabase
-                          .from('listings')
-                          .update({ is_priority_target: newValue })
-                          .in('id', selectedArr);
-                        if (error) toast.error('Failed to update priority');
-                        else {
-                          toast.success(
-                            newValue
-                              ? `${selectedArr.length} deal(s) marked as priority`
-                              : `${selectedArr.length} deal(s) priority removed`,
-                          );
-                          actions.setSelectedDealIds(new Set());
-                          queryClient.invalidateQueries({
-                            queryKey: ['referral-partners', partnerId, 'deals'],
-                          });
-                        }
-                      }}
-                    >
-                      <Star className={cn('h-4 w-4', allPriority ? '' : 'fill-amber-500')} />
-                      {allPriority ? 'Remove Priority' : 'Mark as Priority'}
-                    </Button>
-                  );
-                })()}
-                <div className="h-5 w-px bg-border" />
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() =>
-                    actions.setConfirmAction({
-                      type: 'archive',
-                      ids: Array.from(actions.selectedDealIds),
-                    })
-                  }
-                >
-                  <Archive className="h-4 w-4 mr-1" />
-                  Archive
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="text-destructive border-destructive/30 hover:bg-destructive/10"
-                  onClick={() =>
-                    actions.setConfirmAction({
-                      type: 'delete',
-                      ids: Array.from(actions.selectedDealIds),
-                    })
-                  }
-                >
-                  <Trash2 className="h-4 w-4 mr-1" />
-                  Delete
-                </Button>
-                <div className="h-5 w-px bg-border" />
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => setDialerOpen(true)}
-                  className="gap-2"
-                >
-                  <Phone className="h-4 w-4" />
-                  Push to Dialer
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => setSmartleadOpen(true)}
-                  className="gap-2"
-                >
-                  <Phone className="h-4 w-4" />
-                  Push to Smartlead
-                </Button>
-              </div>
+              <DealBulkActionBar
+                selectedIds={actions.selectedDealIds}
+                deals={data.deals || []}
+                onClearSelection={() => actions.setSelectedDealIds(new Set())}
+                onRefetch={() =>
+                  queryClient.invalidateQueries({
+                    queryKey: ['referral-partners', partnerId, 'deals'],
+                  })
+                }
+                onApproveToActiveDeals={() => actions.handleBulkApprove()}
+                onEnrichSelected={handleEnrichSelected}
+                onArchive={() =>
+                  actions.setConfirmAction({
+                    type: 'archive',
+                    ids: Array.from(actions.selectedDealIds),
+                  })
+                }
+                onDelete={() =>
+                  actions.setConfirmAction({
+                    type: 'delete',
+                    ids: Array.from(actions.selectedDealIds),
+                  })
+                }
+                onPushToDialer={() => setDialerOpen(true)}
+                onPushToSmartlead={() => setSmartleadOpen(true)}
+                onAddToList={() => setAddToListOpen(true)}
+              />
             </div>
           )}
 
@@ -574,6 +540,12 @@ export default function ReMarketingReferralPartnerDetail() {
           contactIds={Array.from(actions.selectedDealIds)}
           contactCount={actions.selectedDealIds.size}
           entityType="listings"
+        />
+        <AddDealsToListDialog
+          open={addToListOpen}
+          onOpenChange={setAddToListOpen}
+          selectedDeals={selectedDealsForList}
+          entityType="referral_deal"
         />
       </div>
     </TooltipProvider>

@@ -1,6 +1,6 @@
-import { useState, useEffect, useMemo } from "react";
-import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
+import { useState, useCallback, useEffect, useMemo } from 'react';
+import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -8,29 +8,108 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import {
-  Sparkles, Loader2, BarChart3, ChevronDown, Plus, FileSpreadsheet, EyeOff,
-} from "lucide-react";
-import { cn } from "@/lib/utils";
-import { DealImportDialog } from "@/components/remarketing/DealImportDialog";
-import { FilterBar, TimeframeSelector, GP_PARTNER_FIELDS } from "@/components/filters";
-import { EnrichmentProgressIndicator } from "@/components/remarketing/EnrichmentProgressIndicator";
-import { useGPPartnerDeals } from "./useGPPartnerDeals";
-import { useAIUIActionHandler } from "@/hooks/useAIUIActionHandler";
-import { useAICommandCenterContext } from "@/components/ai-command-center/AICommandCenterProvider";
-import { GPPartnerKPICards } from "./GPPartnerKPICards";
-import { GPPartnerBulkActions } from "./GPPartnerBulkActions";
-import { GPPartnerTable } from "./GPPartnerTable";
-import { GPPartnerPagination } from "./GPPartnerPagination";
-import { AddDealDialog } from "./AddDealDialog";
-import { PushToDialerModal } from "@/components/remarketing/PushToDialerModal";
-import { AddDealsToListDialog } from "@/components/remarketing";
-import type { DealForList } from "@/components/remarketing";
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import {
+  Sparkles,
+  Loader2,
+  BarChart3,
+  ChevronDown,
+  Plus,
+  FileSpreadsheet,
+  EyeOff,
+} from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { supabase } from '@/integrations/supabase/client';
+import { DealImportDialog } from '@/components/remarketing/DealImportDialog';
+import { FilterBar, TimeframeSelector, GP_PARTNER_FIELDS } from '@/components/filters';
+import { EnrichmentProgressIndicator } from '@/components/remarketing/EnrichmentProgressIndicator';
+import { useGPPartnerDeals } from './useGPPartnerDeals';
+import { useAIUIActionHandler } from '@/hooks/useAIUIActionHandler';
+import { useAICommandCenterContext } from '@/components/ai-command-center/AICommandCenterProvider';
+import { GPPartnerKPICards } from './GPPartnerKPICards';
+import { DealBulkActionBar } from '@/components/remarketing/DealBulkActionBar';
+import { GPPartnerTable } from './GPPartnerTable';
+import { GPPartnerPagination } from './GPPartnerPagination';
+import { AddDealDialog } from './AddDealDialog';
+import { PushToDialerModal } from '@/components/remarketing/PushToDialerModal';
+import { PushToSmartleadModal } from '@/components/remarketing/PushToSmartleadModal';
+import { AddDealsToListDialog } from '@/components/remarketing';
+import type { DealForList } from '@/components/remarketing';
 
 export default function GPPartnerDeals() {
   const hook = useGPPartnerDeals();
   const { setPageContext } = useAICommandCenterContext();
   const [dialerOpen, setDialerOpen] = useState(false);
+  const [smartleadOpen, setSmartleadOpen] = useState(false);
   const [addToListOpen, setAddToListOpen] = useState(false);
+  const [showArchiveDialog, setShowArchiveDialog] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [isArchiving, setIsArchiving] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const handleBulkArchive = useCallback(async () => {
+    setIsArchiving(true);
+    try {
+      const dealIds = Array.from(hook.selectedIds);
+      const { error } = await supabase
+        .from('listings')
+        .update({ captarget_status: 'inactive' })
+        .in('id', dealIds);
+      if (error) throw error;
+      hook.toast({
+        title: 'Deals Archived',
+        description: `${dealIds.length} deal(s) have been moved to Inactive`,
+      });
+      hook.setSelectedIds(new Set());
+      setShowArchiveDialog(false);
+      await hook.queryClient.invalidateQueries({ queryKey: ['remarketing', 'gp-partner-deals'] });
+    } catch (err: unknown) {
+      hook.toast({
+        variant: 'destructive',
+        title: 'Archive Failed',
+        description: err instanceof Error ? err.message : 'Unknown error',
+      });
+    } finally {
+      setIsArchiving(false);
+    }
+  }, [hook]);
+
+  const handleBulkDelete = useCallback(async () => {
+    setIsDeleting(true);
+    try {
+      const dealIds = Array.from(hook.selectedIds);
+      for (const dealId of dealIds) {
+        await supabase.from('enrichment_queue').delete().eq('listing_id', dealId);
+        await supabase.from('remarketing_scores').delete().eq('listing_id', dealId);
+        await supabase.from('buyer_deal_scores').delete().eq('deal_id', dealId);
+      }
+      const { error } = await supabase.from('listings').delete().in('id', dealIds);
+      if (error) throw error;
+      hook.toast({
+        title: 'Deals Deleted',
+        description: `${dealIds.length} deal(s) have been permanently deleted`,
+      });
+      hook.setSelectedIds(new Set());
+      setShowDeleteDialog(false);
+      await hook.queryClient.invalidateQueries({ queryKey: ['remarketing', 'gp-partner-deals'] });
+    } catch (err: unknown) {
+      hook.toast({
+        variant: 'destructive',
+        title: 'Delete Failed',
+        description: err instanceof Error ? err.message : 'Unknown error',
+      });
+    } finally {
+      setIsDeleting(false);
+    }
+  }, [hook]);
 
   const selectedDealsForList = useMemo((): DealForList[] => {
     if (!hook.filteredDeals || hook.selectedIds.size === 0) return [];
@@ -38,7 +117,7 @@ export default function GPPartnerDeals() {
       .filter((d) => hook.selectedIds.has(d.id))
       .map((d) => ({
         dealId: d.id,
-        dealName: d.internal_company_name || d.title || "Unknown Deal",
+        dealName: d.internal_company_name || d.title || 'Unknown Deal',
         contactName: d.main_contact_name,
         contactEmail: d.main_contact_email,
         contactPhone: d.main_contact_phone,
@@ -209,15 +288,21 @@ export default function GPPartnerDeals() {
       </div>
 
       {/* Bulk Actions */}
-      <GPPartnerBulkActions
+      <DealBulkActionBar
         selectedIds={hook.selectedIds}
-        setSelectedIds={hook.setSelectedIds}
-        filteredDeals={hook.filteredDeals}
-        isPushing={hook.isPushing}
+        deals={hook.filteredDeals || []}
+        onClearSelection={() => hook.setSelectedIds(new Set())}
+        onRefetch={hook.refetch}
+        onApproveToActiveDeals={hook.handlePushToAllDeals}
+        isApproving={hook.isPushing}
+        onEnrichSelected={hook.handleEnrichSelected}
         isEnriching={hook.isEnriching}
-        handlePushToAllDeals={hook.handlePushToAllDeals}
-        handleEnrichSelected={hook.handleEnrichSelected}
+        onArchive={() => setShowArchiveDialog(true)}
+        isArchiving={isArchiving}
+        onDelete={() => setShowDeleteDialog(true)}
+        isDeleting={isDeleting}
         onPushToDialer={() => setDialerOpen(true)}
+        onPushToSmartlead={() => setSmartleadOpen(true)}
         onAddToList={() => setAddToListOpen(true)}
       />
       <PushToDialerModal
@@ -227,6 +312,57 @@ export default function GPPartnerDeals() {
         contactCount={hook.selectedIds.size}
         entityType="listings"
       />
+      <PushToSmartleadModal
+        open={smartleadOpen}
+        onOpenChange={setSmartleadOpen}
+        contactIds={Array.from(hook.selectedIds)}
+        contactCount={hook.selectedIds.size}
+        entityType="listings"
+      />
+
+      {/* Archive Confirmation Dialog */}
+      <AlertDialog open={showArchiveDialog} onOpenChange={setShowArchiveDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Archive {hook.selectedIds.size} Deal(s)?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will move the selected deals to the Inactive tab. They can be found there later.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleBulkArchive} disabled={isArchiving}>
+              {isArchiving ? 'Archiving...' : 'Archive'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-destructive">
+              Permanently Delete {hook.selectedIds.size} Deal(s)?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete the selected deals and all related data (scores,
+              enrichment records). This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleBulkDelete}
+              disabled={isDeleting}
+              className="bg-destructive hover:bg-destructive/90"
+            >
+              {isDeleting ? 'Deleting...' : 'Delete Permanently'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       <AddDealsToListDialog
         open={addToListOpen}
         onOpenChange={setAddToListOpen}

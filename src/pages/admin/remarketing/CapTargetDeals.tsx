@@ -54,10 +54,21 @@ import { DealsKPICards } from './components/DealsKPICards';
 import { CapTargetSyncBar } from './components/CapTargetSyncBar';
 import { CapTargetExclusionLog } from './components/CapTargetExclusionLog';
 import { CapTargetTableRow } from './components/CapTargetTableRow';
-import { CapTargetBulkActions } from './components/CapTargetBulkActions';
+import { DealBulkActionBar } from '@/components/remarketing/DealBulkActionBar';
 import { PushToDialerModal } from '@/components/remarketing/PushToDialerModal';
+import { PushToSmartleadModal } from '@/components/remarketing/PushToSmartleadModal';
 import { AddDealsToListDialog } from '@/components/remarketing';
 import type { DealForList } from '@/components/remarketing';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 interface CapTargetDeal {
   id: string;
@@ -189,6 +200,7 @@ export default function CapTargetDeals() {
   // Selection
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [dialerOpen, setDialerOpen] = useState(false);
+  const [smartleadOpen, setSmartleadOpen] = useState(false);
   const [addToListOpen, setAddToListOpen] = useState(false);
 
   // Wire AI UI actions to this page's state
@@ -933,7 +945,7 @@ export default function CapTargetDeals() {
       .filter((d) => selectedIds.has(d.id))
       .map((d) => ({
         dealId: d.id,
-        dealName: d.internal_company_name || d.title || "Unknown Deal",
+        dealName: d.internal_company_name || d.title || 'Unknown Deal',
         contactName: d.main_contact_name,
         contactEmail: d.main_contact_email,
         contactPhone: d.main_contact_phone,
@@ -1225,24 +1237,21 @@ export default function CapTargetDeals() {
       </div>
 
       {/* Bulk Actions */}
-      <CapTargetBulkActions
+      <DealBulkActionBar
         selectedIds={selectedIds}
-        deals={deals}
-        isPushing={isPushing}
-        isEnriching={isEnriching}
-        isArchiving={isArchiving}
-        isDeleting={isDeleting}
-        onPushToAllDeals={handlePushToAllDeals}
-        onEnrichSelected={handleEnrichSelected}
+        deals={deals || []}
         onClearSelection={() => setSelectedIds(new Set())}
         onRefetch={refetch}
-        showArchiveDialog={showArchiveDialog}
-        setShowArchiveDialog={setShowArchiveDialog}
-        onBulkArchive={handleBulkArchive}
-        showDeleteDialog={showDeleteDialog}
-        setShowDeleteDialog={setShowDeleteDialog}
-        onBulkDelete={handleBulkDelete}
+        onApproveToActiveDeals={handlePushToAllDeals}
+        isApproving={isPushing}
+        onEnrichSelected={handleEnrichSelected}
+        isEnriching={isEnriching}
+        onArchive={() => setShowArchiveDialog(true)}
+        isArchiving={isArchiving}
+        onDelete={() => setShowDeleteDialog(true)}
+        isDeleting={isDeleting}
         onPushToDialer={() => setDialerOpen(true)}
+        onPushToSmartlead={() => setSmartleadOpen(true)}
         onAddToList={() => setAddToListOpen(true)}
       />
       <PushToDialerModal
@@ -1252,6 +1261,57 @@ export default function CapTargetDeals() {
         contactCount={selectedIds.size}
         entityType="listings"
       />
+      <PushToSmartleadModal
+        open={smartleadOpen}
+        onOpenChange={setSmartleadOpen}
+        contactIds={Array.from(selectedIds)}
+        contactCount={selectedIds.size}
+        entityType="listings"
+      />
+
+      {/* Archive Confirmation Dialog */}
+      <AlertDialog open={showArchiveDialog} onOpenChange={setShowArchiveDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Archive {selectedIds.size} Deal(s)?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will move the selected deals to the Inactive tab. They can be found there later.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleBulkArchive} disabled={isArchiving}>
+              {isArchiving ? 'Archiving...' : 'Archive'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-destructive">
+              Permanently Delete {selectedIds.size} Deal(s)?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete the selected deals and all related data (scores,
+              enrichment records). This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleBulkDelete}
+              disabled={isDeleting}
+              className="bg-destructive hover:bg-destructive/90"
+            >
+              {isDeleting ? 'Deleting...' : 'Delete Permanently'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       <AddDealsToListDialog
         open={addToListOpen}
         onOpenChange={setAddToListOpen}

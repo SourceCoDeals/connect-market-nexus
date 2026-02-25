@@ -66,7 +66,7 @@ import { DEFAULT_COLUMN_WIDTHS } from './types';
 import { ResizableHeader } from './components/ResizableHeader';
 import { DealTableRow } from './components/DealTableRow';
 import { DealsKPICards } from './components/DealsKPICards';
-import { DealsBulkActions } from './components/DealsBulkActions';
+import { DealBulkActionBar } from '@/components/remarketing/DealBulkActionBar';
 import { DealsActionDialogs } from './components/DealsActionDialogs';
 import { AddDealsToListDialog } from '@/components/remarketing';
 import type { DealForList } from '@/components/remarketing';
@@ -1323,17 +1323,18 @@ const ReMarketingDeals = () => {
       </FilterBar>
 
       {/* Bulk Actions Toolbar */}
-      <DealsBulkActions
-        selectedDeals={selectedDeals}
-        localOrder={localOrder}
+      <DealBulkActionBar
+        selectedIds={selectedDeals}
+        deals={localOrder}
         onClearSelection={handleClearSelection}
-        onShowUniverseDialog={() => setShowUniverseDialog(true)}
-        onShowArchiveDialog={() => setShowArchiveDialog(true)}
-        onShowDeleteDialog={() => setShowDeleteDialog(true)}
+        onRefetch={refetchListings}
+        onSendToUniverse={() => setShowUniverseDialog(true)}
+        showMarketplaceActions
+        onArchive={() => setShowArchiveDialog(true)}
+        isArchiving={isArchiving}
+        onDelete={() => setShowDeleteDialog(true)}
+        isDeleting={isDeleting}
         onAddToList={() => setShowAddToListDialog(true)}
-        setSelectedDeals={(deals) => setSelectedDeals(deals)}
-        refetchListings={refetchListings}
-        toast={toast}
       />
 
       {/* Data Table */}
