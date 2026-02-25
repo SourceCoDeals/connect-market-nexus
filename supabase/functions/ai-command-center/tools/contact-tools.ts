@@ -214,37 +214,29 @@ async function searchPeContacts(
 
   if (args.firm_name) {
     firmNameUsed = true;
-    const firmTerm = (args.firm_name as string).toLowerCase();
+    const firmTerm = (args.firm_name as string).trim().replace(/[%_]/g, '\\$&');
 
-    // Search firm_agreements for matching company names
+    // Search firm_agreements for matching company names using DB-level ilike
     const { data: firms } = await supabase
       .from('firm_agreements')
-      .select('id, primary_company_name')
-      .limit(100);
+      .select('id')
+      .ilike('primary_company_name', `%${firmTerm}%`)
+      .limit(200);
 
     if (firms) {
-      firmIds = firms
-        .filter((f: Record<string, unknown>) =>
-          (f.primary_company_name as string)?.toLowerCase().includes(firmTerm),
-        )
-        .map((f: Record<string, unknown>) => f.id as string);
+      firmIds = (firms as Array<Record<string, unknown>>).map((f) => f.id as string);
     }
 
-    // Also search remarketing_buyers for matching company/PE firm names
+    // Also search remarketing_buyers for matching company/PE firm names using DB-level ilike
     const { data: buyers } = await supabase
       .from('remarketing_buyers')
-      .select('id, company_name, pe_firm_name')
+      .select('id')
       .eq('archived', false)
+      .or(`company_name.ilike.%${firmTerm}%,pe_firm_name.ilike.%${firmTerm}%`)
       .limit(500);
 
     if (buyers) {
-      buyerIds = buyers
-        .filter(
-          (b: Record<string, unknown>) =>
-            (b.company_name as string)?.toLowerCase().includes(firmTerm) ||
-            (b.pe_firm_name as string)?.toLowerCase().includes(firmTerm),
-        )
-        .map((b: Record<string, unknown>) => b.id as string);
+      buyerIds = (buyers as Array<Record<string, unknown>>).map((b) => b.id as string);
     }
 
     // If no matching firms or buyers found, return early with helpful message
@@ -262,13 +254,16 @@ async function searchPeContacts(
     }
   }
 
+  // When role_category is provided, fetch more rows from DB since we filter client-side
+  const fetchLimit = args.role_category ? Math.min(limit * 5, 500) : limit;
+
   let query = supabase
     .from('contacts')
     .select(contactFields)
     .eq('contact_type', 'buyer')
     .eq('archived', false)
     .order('created_at', { ascending: false })
-    .limit(limit);
+    .limit(fetchLimit);
 
   if (args.buyer_id) query = query.eq('remarketing_buyer_id', args.buyer_id as string);
   if (args.firm_id) query = query.eq('firm_id', args.firm_id as string);

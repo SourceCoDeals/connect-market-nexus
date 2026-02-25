@@ -129,9 +129,16 @@ const BYPASS_RULES: Array<{
     },
   },
   // Transcript / meeting questions
+  // NOTE: bare "call" excluded — "call history", "call log", "call activity" etc.
+  // are handled by the PhoneBurner/ENGAGEMENT rule below.
   {
     test: (q) =>
-      /\b(transcript|call|meeting|fireflies|recording|said|mentioned|discussed)\b/i.test(q),
+      /\b(transcript|meeting|fireflies|recording|says?|said|mentioned|discussed)\b/i.test(q) ||
+      (/\bcall\b/i.test(q) &&
+        !/\bcall\s+(history|log|activity|outcome|disposition)\b/i.test(q) &&
+        !/\b(phone.?burner|dialing|dial.?session|cold call|talk time|last call|who called|did\s+\w+\s+call|been called|how many calls|calling session)\b/i.test(
+          q,
+        )),
     result: {
       category: 'MEETING_INTEL',
       tier: 'STANDARD',
@@ -140,9 +147,11 @@ const BYPASS_RULES: Array<{
     },
   },
   // Select / filter / sort / action on table rows
+  // NOTE: "check" removed — too broad, matches "check the status", "check our outreach" etc.
+  // "select" kept because it's specific to table row selection.
   {
     test: (q) =>
-      /\b(select|check|pick|highlight|filter|show only|narrow|within \d+ miles|sort|order by|arrange|sort by)\b/i.test(
+      /\b(select|pick|highlight|filter|show only|narrow|within \d+ miles|sort|order by|arrange|sort by)\b/i.test(
         q,
       ),
     result: {
@@ -159,8 +168,13 @@ const BYPASS_RULES: Array<{
     },
   },
   // Create task / add note
+  // NOTE: "log" narrowed to "log activity/log call/log note" to avoid shadowing "NDA log", "call log", etc.
   {
-    test: (q) => /\b(create task|add task|new task|add note|log|remind me)\b/i.test(q),
+    test: (q) =>
+      /\b(create task|add task|new task|add note|remind me)\b/i.test(q) ||
+      (/\blog\b/i.test(q) &&
+        /\b(activity|call|note|interaction|meeting)\b/i.test(q) &&
+        !/\b(nda|fee|agreement|call)\s+log\b/i.test(q)),
     result: {
       category: 'ACTION',
       tier: 'STANDARD',

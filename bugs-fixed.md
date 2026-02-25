@@ -63,6 +63,62 @@
 - **Fix:** Changed `BrowserRouter` import and usage to `MemoryRouter` in the test utility wrapper.
 - **Status:** FIXED
 
+### Issue 5: MEETING_INTEL Rule Shadows Call History Queries
+
+- **Severity:** MEDIUM
+- **File:** `supabase/functions/ai-command-center/router.ts` line 136
+- **Problem:** The MEETING_INTEL bypass rule used bare `\bcall\b` which matched before the PhoneBurner/ENGAGEMENT rule for queries like "show me the call history", "call log for Trivest", "how many calls have we made". These queries need PhoneBurner call data, not Fireflies transcripts.
+- **Fix:** Added exclusion patterns for call-history-specific terms (`call history|log|activity|outcome|disposition`) and PhoneBurner terms (`phone.?burner|dialing|dial.?session|cold call|talk time|last call|who called|been called|how many calls|calling session`) so they fall through to the ENGAGEMENT rule.
+- **Status:** FIXED
+
+### Issue 6: ACTION Rule "log" Shadows NDA Log Queries
+
+- **Severity:** MEDIUM
+- **File:** `supabase/functions/ai-command-center/router.ts` line 172
+- **Problem:** The ACTION bypass rule matched bare `\blog\b` which triggered on "NDA log", "fee agreement log" queries. These need firm_agreements/NDA data, not the task creation tools.
+- **Fix:** Narrowed "log" to require context words (`activity|call|note|interaction|meeting`) and exclude NDA/fee/agreement patterns (`nda|fee|agreement|call log`).
+- **Status:** FIXED
+
+### Issue 7: REMARKETING Rule "check" Too Broad
+
+- **Severity:** MEDIUM
+- **File:** `supabase/functions/ai-command-center/router.ts` line 148
+- **Problem:** The REMARKETING bypass rule included `check` which matched conversational queries like "check the status of our outreach", "check our call history" — routing them to table filter/sort tools instead of the correct category.
+- **Fix:** Removed "check" from the REMARKETING trigger patterns.
+- **Status:** FIXED
+
+### Issue 8: MEETING_INTEL Missing "say" (Present Tense)
+
+- **Severity:** MEDIUM
+- **File:** `supabase/functions/ai-command-center/router.ts` line 136
+- **Problem:** The MEETING_INTEL regex matched "said" (past tense) but not "say" or "says" (present tense). Queries like "What did the seller say about the timeline" would miss the transcript branch and be misrouted.
+- **Fix:** Changed `said` to `says?|said` in the MEETING_INTEL regex first branch.
+- **Status:** FIXED
+
+### Issue 9: `did.+call` Exclusion Pattern Too Greedy
+
+- **Severity:** MEDIUM
+- **File:** `supabase/functions/ai-command-center/router.ts` line 139
+- **Problem:** The PhoneBurner exclusion `did.+call` matched any "did...call" regardless of distance, incorrectly excluding transcript queries like "What did the seller say in the call" where "did" and "call" are far apart.
+- **Fix:** Tightened to `did\s+\w+\s+call` which only matches "did [word] call" (e.g., "did you call", "did we call") not multi-word gaps.
+- **Status:** FIXED
+
+### Issue 10: contact-tools firm_name Search Fetches All Then Filters
+
+- **Severity:** MEDIUM
+- **File:** `supabase/functions/ai-command-center/tools/contact-tools.ts`
+- **Problem:** When searching contacts by `firm_name`, the tool fetched ALL firm_agreements (capped at 100 rows) then filtered client-side with `.filter()`. Firms beyond the 100-row cap were silently missed.
+- **Fix:** Changed to DB-level `ilike` query: `.ilike('primary_company_name', '%term%')` with a 200-row limit. Same fix applied to remarketing_buyers search using `.or('company_name.ilike...,pe_firm_name.ilike...')`.
+- **Status:** FIXED
+
+### Issue 11: contact-tools role_category Filter After DB Limit
+
+- **Severity:** MEDIUM
+- **File:** `supabase/functions/ai-command-center/tools/contact-tools.ts`
+- **Problem:** When filtering contacts by `role_category`, the DB query applied `limit` first, then the role_category filter ran client-side on the already-limited results. Contacts with the desired role beyond the DB limit were silently dropped.
+- **Fix:** When `role_category` is active, fetch `limit * 5` rows (capped at 500) to provide enough headroom for client-side filtering to find sufficient matches.
+- **Status:** FIXED
+
 ---
 
 ## Low Priority Issues
@@ -73,12 +129,12 @@ None found.
 
 ## Summary
 
-| Severity  | Found | Fixed |
-| --------- | ----- | ----- |
-| Critical  | 1     | 1     |
-| High      | 1     | 1     |
-| Medium    | 4     | 4     |
-| Low       | 0     | 0     |
-| **Total** | **6** | **6** |
+| Severity  | Found  | Fixed  |
+| --------- | ------ | ------ |
+| Critical  | 1      | 1      |
+| High      | 1      | 1      |
+| Medium    | 11     | 11     |
+| Low       | 0      | 0      |
+| **Total** | **13** | **13** |
 
-All discovered issues have been fixed and verified. Test suite passes at 100% (876/876 tests).
+All discovered issues have been fixed and verified. Test suite passes at 100% (896/896 tests, including 20 new regression tests).

@@ -116,9 +116,15 @@ const BYPASS_RULES: BypassRule[] = [
     },
   },
   // Transcript / meeting
+  // NOTE: bare "call" excluded — "call history", "call log" etc. handled by ENGAGEMENT rule
   {
     test: (q) =>
-      /\b(transcript|call|meeting|fireflies|recording|said|mentioned|discussed)\b/i.test(q),
+      /\b(transcript|meeting|fireflies|recording|says?|said|mentioned|discussed)\b/i.test(q) ||
+      (/\bcall\b/i.test(q) &&
+        !/\bcall\s+(history|log|activity|outcome|disposition)\b/i.test(q) &&
+        !/\b(phone.?burner|dialing|dial.?session|cold call|talk time|last call|who called|did\s+\w+\s+call|been called|how many calls|calling session)\b/i.test(
+          q,
+        )),
     result: {
       category: 'MEETING_INTEL',
       tier: 'STANDARD',
@@ -127,9 +133,10 @@ const BYPASS_RULES: BypassRule[] = [
     },
   },
   // Select / filter / sort
+  // NOTE: "check" removed — too broad, matches "check the status" etc.
   {
     test: (q) =>
-      /\b(select|check|pick|highlight|filter|show only|narrow|within \d+ miles|sort|order by|arrange|sort by)\b/i.test(
+      /\b(select|pick|highlight|filter|show only|narrow|within \d+ miles|sort|order by|arrange|sort by)\b/i.test(
         q,
       ),
     result: {
@@ -146,8 +153,13 @@ const BYPASS_RULES: BypassRule[] = [
     },
   },
   // Create task / add note
+  // NOTE: bare "log" narrowed to "log activity/call/note" to avoid shadowing "NDA log" etc.
   {
-    test: (q) => /\b(create task|add task|new task|add note|log|remind me)\b/i.test(q),
+    test: (q) =>
+      /\b(create task|add task|new task|add note|remind me)\b/i.test(q) ||
+      (/\blog\b/i.test(q) &&
+        /\b(activity|call|note|interaction|meeting)\b/i.test(q) &&
+        !/\b(nda|fee|agreement|call)\s+log\b/i.test(q)),
     result: {
       category: 'ACTION',
       tier: 'STANDARD',
@@ -209,6 +221,49 @@ const BYPASS_RULES: BypassRule[] = [
       tier: 'STANDARD',
       tools: ['get_outreach_records', 'get_remarketing_outreach', 'get_deal_tasks'],
       confidence: 0.85,
+    },
+  },
+  // Smartlead email campaigns
+  {
+    test: (q) =>
+      /\b(smartlead|smart.?lead|email campaign|cold email|email outreach|email sequence|campaign stats|campaign performance|how.?s the email|email history|outreach email|drip campaign|email cadence)\b/i.test(
+        q,
+      ),
+    result: {
+      category: 'SMARTLEAD_OUTREACH',
+      tier: 'STANDARD',
+      tools: [
+        'get_smartlead_campaigns',
+        'get_smartlead_campaign_stats',
+        'get_smartlead_email_history',
+      ],
+      confidence: 0.9,
+    },
+  },
+  // PhoneBurner call history
+  {
+    test: (q) =>
+      /\b(call history|call log|call activity|phone.?burner|have we called|been called|how many calls|calling session|last call|call outcome|call.?disposition|did.+call|who called|dialing|dial.?session|cold call|talk time)\b/i.test(
+        q,
+      ),
+    result: {
+      category: 'ENGAGEMENT',
+      tier: 'STANDARD',
+      tools: ['get_call_history', 'get_engagement_signals'],
+      confidence: 0.88,
+    },
+  },
+  // NDA logs / fee agreement audit
+  {
+    test: (q) =>
+      /\b(nda log|fee agreement|fee log|agreement signed|who signed|firm agreement|agreement status)\b/i.test(
+        q,
+      ),
+    result: {
+      category: 'CONTACTS',
+      tier: 'STANDARD',
+      tools: ['get_firm_agreements', 'get_nda_logs'],
+      confidence: 0.87,
     },
   },
   // LinkedIn URL pasted — enrich that person's contact info via Prospeo
@@ -876,5 +931,123 @@ describe('Edge cases in intent classification', () => {
     const result = classifyQuery('status', {});
     // "status" alone doesn't match any non-contextual bypass rule
     expect(result).toBeNull();
+  });
+});
+
+// ============================================================================
+// Rule Shadowing Regression Tests
+// ============================================================================
+
+describe('Rule shadowing: call history must NOT match MEETING_INTEL', () => {
+  it('"show me the call history" routes to ENGAGEMENT not MEETING_INTEL', () => {
+    const result = classifyQuery('Show me the call history for this deal');
+    // Should NOT match MEETING_INTEL (transcript tools)
+    expect(result?.category).not.toBe('MEETING_INTEL');
+  });
+
+  it('"call log for Trivest" does NOT route to MEETING_INTEL', () => {
+    const result = classifyQuery('Show me the call log for Trivest Partners');
+    expect(result?.category).not.toBe('MEETING_INTEL');
+  });
+
+  it('"call activity for this buyer" does NOT route to MEETING_INTEL', () => {
+    const result = classifyQuery('Show me call activity for this buyer');
+    expect(result?.category).not.toBe('MEETING_INTEL');
+  });
+
+  it('"how many calls have we made" does NOT route to MEETING_INTEL', () => {
+    const result = classifyQuery('How many calls have we made to HVAC sellers');
+    expect(result?.category).not.toBe('MEETING_INTEL');
+  });
+
+  it('"who called the seller" does NOT route to MEETING_INTEL', () => {
+    const result = classifyQuery('Who called the seller last week');
+    expect(result?.category).not.toBe('MEETING_INTEL');
+  });
+
+  it('"last call with this buyer" does NOT route to MEETING_INTEL', () => {
+    const result = classifyQuery('When was the last call with this buyer');
+    expect(result?.category).not.toBe('MEETING_INTEL');
+  });
+
+  // But real transcript/meeting queries SHOULD still match MEETING_INTEL
+  it('"what was discussed in the meeting" still routes to MEETING_INTEL', () => {
+    const result = classifyQuery('What was discussed in the meeting with Trivest');
+    expect(result?.category).toBe('MEETING_INTEL');
+  });
+
+  it('"search Fireflies transcripts" still routes to MEETING_INTEL', () => {
+    const result = classifyQuery('Search Fireflies transcripts for HVAC');
+    expect(result?.category).toBe('MEETING_INTEL');
+  });
+
+  it('"what did the seller say in the call" still routes to MEETING_INTEL (said keyword)', () => {
+    const result = classifyQuery('What did the seller say in the call');
+    // "said" keyword should match MEETING_INTEL
+    expect(result?.category).toBe('MEETING_INTEL');
+  });
+});
+
+describe('Rule shadowing: NDA log must NOT match ACTION', () => {
+  it('"show me the NDA log" does NOT route to ACTION', () => {
+    const result = classifyQuery('Show me the NDA log');
+    expect(result?.category).not.toBe('ACTION');
+  });
+
+  it('"NDA log for Trivest" does NOT route to ACTION', () => {
+    const result = classifyQuery('NDA log for Trivest Partners');
+    expect(result?.category).not.toBe('ACTION');
+  });
+
+  it('"fee agreement log" does NOT route to ACTION', () => {
+    const result = classifyQuery('Show me the fee agreement log');
+    expect(result?.category).not.toBe('ACTION');
+  });
+
+  // But real task creation queries should STILL match ACTION
+  it('"create task to follow up" still routes to correct category', () => {
+    const result = classifyQuery('Create task to call the seller tomorrow');
+    // Should match FOLLOW_UP or ACTION — not fall through
+    expect(result).not.toBeNull();
+  });
+
+  it('"add note about the deal progress" still routes to ACTION', () => {
+    const result = classifyQuery('Add note about the deal progress');
+    // "add note" should match ACTION (avoids "meeting" keyword triggering MEETING_INTEL)
+    expect(result?.category).toBe('ACTION');
+  });
+
+  it('"remind me to send the teaser" still routes to ACTION', () => {
+    const result = classifyQuery('Remind me to send the teaser next week');
+    expect(result?.category).toBe('ACTION');
+  });
+});
+
+describe('Rule shadowing: "check" should NOT trigger REMARKETING', () => {
+  it('"check the status of our outreach" does NOT route to REMARKETING', () => {
+    const result = classifyQuery('Check the status of our outreach to Advent Partners');
+    // "check" was removed from REMARKETING rule, so this should match FOLLOW_UP (outreach keyword)
+    expect(result?.category).not.toBe('REMARKETING');
+  });
+
+  it('"check our call history" does NOT route to REMARKETING', () => {
+    const result = classifyQuery('Check our call history with this buyer');
+    expect(result?.category).not.toBe('REMARKETING');
+  });
+
+  // But real table operations should still work
+  it('"filter buyers by location" still routes to REMARKETING', () => {
+    const result = classifyQuery('Filter buyers by location in Texas');
+    expect(result?.category).toBe('REMARKETING');
+  });
+
+  it('"sort by name" still routes to REMARKETING', () => {
+    const result = classifyQuery('Sort by name descending');
+    expect(result?.category).toBe('REMARKETING');
+  });
+
+  it('"select all buyers in Florida" still routes to REMARKETING', () => {
+    const result = classifyQuery('Select all buyers in Florida');
+    expect(result?.category).toBe('REMARKETING');
   });
 });
