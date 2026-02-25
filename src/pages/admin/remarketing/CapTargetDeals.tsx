@@ -133,14 +133,44 @@ export default function CapTargetDeals() {
   // Filters
   const [search] = useState('');
   const [pushedFilter] = useState<string>('all');
-  const [hidePushed, setHidePushed] = useState(false);
   const [sourceTabFilter] = useState<string>('all');
-  const [statusTab, setStatusTab] = useState<'all' | 'active' | 'inactive'>('all');
 
-  // Sorting – persisted in URL so navigating back restores the sort
+  // Sorting & filters – persisted in URL so navigating back restores them
   const [searchParams, setSearchParams] = useSearchParams();
   const sortColumn = (searchParams.get('sort') as SortColumn) ?? 'contact_date';
   const sortDirection = (searchParams.get('dir') as SortDirection) ?? 'desc';
+  const hidePushed = searchParams.get('hidePushed') === '1';
+  const setHidePushed = useCallback(
+    (v: boolean) => {
+      setSearchParams(
+        (p) => {
+          const n = new URLSearchParams(p);
+          if (v) n.set('hidePushed', '1');
+          else n.delete('hidePushed');
+          n.delete('cp');
+          return n;
+        },
+        { replace: true },
+      );
+    },
+    [setSearchParams],
+  );
+  const statusTab = (searchParams.get('status') as 'all' | 'active' | 'inactive') ?? 'all';
+  const setStatusTab = useCallback(
+    (v: 'all' | 'active' | 'inactive') => {
+      setSearchParams(
+        (p) => {
+          const n = new URLSearchParams(p);
+          if (v !== 'all') n.set('status', v);
+          else n.delete('status');
+          n.delete('cp');
+          return n;
+        },
+        { replace: true },
+      );
+    },
+    [setSearchParams],
+  );
 
   // Column resizing
   const [columnWidths, setColumnWidths] = useState<Record<string, number>>({
@@ -220,6 +250,7 @@ export default function CapTargetDeals() {
       const rules = filters.map((f, idx) => ({
         id: `ai-filter-${idx}`,
         field: f.field,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         operator: f.operator as any,
         value: f.value,
       }));
@@ -235,13 +266,30 @@ export default function CapTargetDeals() {
         interest_type: 'interest_type',
         priority: 'priority',
       };
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       handleSort((fieldMap[field] || field) as any);
     },
   });
 
-  // Pagination
+  // Pagination (URL-persisted)
   const PAGE_SIZE = 50;
-  const [currentPage, setCurrentPage] = useState(1);
+  const currentPage = Number(searchParams.get('cp')) || 1;
+  const setCurrentPage = useCallback(
+    (v: number | ((prev: number) => number)) => {
+      setSearchParams(
+        (p) => {
+          const cur = Number(p.get('cp')) || 1;
+          const resolved = typeof v === 'function' ? v(cur) : v;
+          const n = new URLSearchParams(p);
+          if (resolved > 1) n.set('cp', String(resolved));
+          else n.delete('cp');
+          return n;
+        },
+        { replace: true },
+      );
+    },
+    [setSearchParams],
+  );
 
   // Loading states
   const [isPushing, setIsPushing] = useState(false);
@@ -461,7 +509,7 @@ export default function CapTargetDeals() {
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [filterState, sortColumn, sortDirection]);
+  }, [filterState, sortColumn, sortDirection, setCurrentPage]);
 
   const handleSort = (col: SortColumn) => {
     setSearchParams(
@@ -798,15 +846,7 @@ export default function CapTargetDeals() {
       setIsEnriching(false);
       queryClient.invalidateQueries({ queryKey: ['remarketing', 'captarget-deals'] });
     },
-    [
-      user,
-      startOrQueueMajorOp,
-      completeOperation,
-      updateProgress,
-      queryClient,
-      supabase,
-      filteredDeals,
-    ],
+    [user, startOrQueueMajorOp, completeOperation, updateProgress, queryClient, filteredDeals],
   );
 
   // LinkedIn + Google only enrichment

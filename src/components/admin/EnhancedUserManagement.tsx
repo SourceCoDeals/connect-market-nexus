@@ -1,4 +1,5 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import {
   Select,
   SelectContent,
@@ -31,12 +32,98 @@ export function EnhancedUserManagement({
   onApprove,
   onFilteredUsersChange,
 }: EnhancedUserManagementProps) {
-  const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState<string>('all');
-  const [buyerTypeFilter, setBuyerTypeFilter] = useState<string>('all');
-  const [profileCompletionFilter, setProfileCompletionFilter] = useState<string>('all');
-  const [tierFilter, setTierFilter] = useState<string>('all');
-  const [platformSignalFilter, setPlatformSignalFilter] = useState<boolean>(false);
+  // URL-persisted filter state (survives browser Back navigation)
+  const [searchParams, setSearchParams] = useSearchParams();
+  const searchQuery = searchParams.get('q') ?? '';
+  const setSearchQuery = useCallback(
+    (v: string) => {
+      setSearchParams(
+        (p) => {
+          const n = new URLSearchParams(p);
+          if (v) n.set('q', v);
+          else n.delete('q');
+          return n;
+        },
+        { replace: true },
+      );
+    },
+    [setSearchParams],
+  );
+  const statusFilter = searchParams.get('status') ?? 'all';
+  const setStatusFilter = useCallback(
+    (v: string) => {
+      setSearchParams(
+        (p) => {
+          const n = new URLSearchParams(p);
+          if (v !== 'all') n.set('status', v);
+          else n.delete('status');
+          return n;
+        },
+        { replace: true },
+      );
+    },
+    [setSearchParams],
+  );
+  const buyerTypeFilter = searchParams.get('buyerType') ?? 'all';
+  const setBuyerTypeFilter = useCallback(
+    (v: string) => {
+      setSearchParams(
+        (p) => {
+          const n = new URLSearchParams(p);
+          if (v !== 'all') n.set('buyerType', v);
+          else n.delete('buyerType');
+          return n;
+        },
+        { replace: true },
+      );
+    },
+    [setSearchParams],
+  );
+  const profileCompletionFilter = searchParams.get('profile') ?? 'all';
+  const setProfileCompletionFilter = useCallback(
+    (v: string) => {
+      setSearchParams(
+        (p) => {
+          const n = new URLSearchParams(p);
+          if (v !== 'all') n.set('profile', v);
+          else n.delete('profile');
+          return n;
+        },
+        { replace: true },
+      );
+    },
+    [setSearchParams],
+  );
+  const tierFilter = searchParams.get('tier') ?? 'all';
+  const setTierFilter = useCallback(
+    (v: string) => {
+      setSearchParams(
+        (p) => {
+          const n = new URLSearchParams(p);
+          if (v !== 'all') n.set('tier', v);
+          else n.delete('tier');
+          return n;
+        },
+        { replace: true },
+      );
+    },
+    [setSearchParams],
+  );
+  const platformSignalFilter = searchParams.get('signal') === '1';
+  const setPlatformSignalFilter = useCallback(
+    (v: boolean) => {
+      setSearchParams(
+        (p) => {
+          const n = new URLSearchParams(p);
+          if (v) n.set('signal', '1');
+          else n.delete('signal');
+          return n;
+        },
+        { replace: true },
+      );
+    },
+    [setSearchParams],
+  );
   const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
 
   // Use centralized profile completion calculation

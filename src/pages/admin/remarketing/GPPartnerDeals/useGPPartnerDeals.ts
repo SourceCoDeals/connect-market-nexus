@@ -37,8 +37,40 @@ export function useGPPartnerDeals() {
 
   // Selection
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [hidePushed, setHidePushed] = useState(false);
-  const [currentPage, setCurrentPage] = useState(1);
+  // URL-persisted filter state (survives browser Back navigation)
+  const hidePushed = searchParams.get('hidePushed') === '1';
+  const setHidePushed = useCallback(
+    (v: boolean) => {
+      setSearchParams(
+        (p) => {
+          const n = new URLSearchParams(p);
+          if (v) n.set('hidePushed', '1');
+          else n.delete('hidePushed');
+          n.delete('cp');
+          return n;
+        },
+        { replace: true },
+      );
+    },
+    [setSearchParams],
+  );
+  const currentPage = Number(searchParams.get('cp')) || 1;
+  const setCurrentPage = useCallback(
+    (v: number | ((prev: number) => number)) => {
+      setSearchParams(
+        (p) => {
+          const cur = Number(p.get('cp')) || 1;
+          const resolved = typeof v === 'function' ? v(cur) : v;
+          const n = new URLSearchParams(p);
+          if (resolved > 1) n.set('cp', String(resolved));
+          else n.delete('cp');
+          return n;
+        },
+        { replace: true },
+      );
+    },
+    [setSearchParams],
+  );
 
   // Action states
   const [isPushing, setIsPushing] = useState(false);
@@ -118,6 +150,7 @@ export function useGPPartnerDeals() {
     let items = [...engineFiltered];
     if (hidePushed) items = items.filter((d) => !d.pushed_to_all_deals);
     items.sort((a, b) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       let valA: any, valB: any;
       switch (sortColumn) {
         case 'company_name':
@@ -192,7 +225,7 @@ export function useGPPartnerDeals() {
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [filterState, sortColumn, sortDirection]);
+  }, [filterState, sortColumn, sortDirection, setCurrentPage]);
 
   const handleSort = (col: SortColumn) => {
     setSearchParams(

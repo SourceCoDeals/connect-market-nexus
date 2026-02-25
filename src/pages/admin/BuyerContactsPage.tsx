@@ -1,9 +1,15 @@
-import { useState, useMemo, useCallback } from "react";
-import { Link } from "react-router-dom";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
+import { useState, useMemo, useCallback } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Badge } from '@/components/ui/badge';
 import {
   Users,
   Search,
@@ -13,19 +19,62 @@ import {
   Mail,
   TrendingUp,
   ListChecks,
-} from "lucide-react";
-import { NonMarketplaceUsersTable } from "@/components/admin/NonMarketplaceUsersTable";
-import { BulkContactActions } from "@/components/admin/non-marketplace/BulkContactActions";
-import { useNonMarketplaceUsers } from "@/hooks/admin/use-non-marketplace-users";
-import type { NonMarketplaceUserFilters } from "@/types/non-marketplace-user";
+} from 'lucide-react';
+import { NonMarketplaceUsersTable } from '@/components/admin/NonMarketplaceUsersTable';
+import { BulkContactActions } from '@/components/admin/non-marketplace/BulkContactActions';
+import { useNonMarketplaceUsers } from '@/hooks/admin/use-non-marketplace-users';
+import type { NonMarketplaceUserFilters } from '@/types/non-marketplace-user';
 
 const BuyerContactsPage = () => {
   const { data: nonMarketplaceUsers = [], isLoading } = useNonMarketplaceUsers();
 
-  // Filters
-  const [searchQuery, setSearchQuery] = useState("");
-  const [sourceFilter, setSourceFilter] = useState<string>("all");
-  const [agreementFilter, setAgreementFilter] = useState<string>("all");
+  // URL-persisted filter state (survives browser Back navigation)
+  const [searchParams, setSearchParams] = useSearchParams();
+  const searchQuery = searchParams.get('q') ?? '';
+  const setSearchQuery = useCallback(
+    (v: string) => {
+      setSearchParams(
+        (p) => {
+          const n = new URLSearchParams(p);
+          if (v) n.set('q', v);
+          else n.delete('q');
+          return n;
+        },
+        { replace: true },
+      );
+    },
+    [setSearchParams],
+  );
+  const sourceFilter = searchParams.get('source') ?? 'all';
+  const setSourceFilter = useCallback(
+    (v: string) => {
+      setSearchParams(
+        (p) => {
+          const n = new URLSearchParams(p);
+          if (v !== 'all') n.set('source', v);
+          else n.delete('source');
+          return n;
+        },
+        { replace: true },
+      );
+    },
+    [setSearchParams],
+  );
+  const agreementFilter = searchParams.get('agreement') ?? 'all';
+  const setAgreementFilter = useCallback(
+    (v: string) => {
+      setSearchParams(
+        (p) => {
+          const n = new URLSearchParams(p);
+          if (v !== 'all') n.set('agreement', v);
+          else n.delete('agreement');
+          return n;
+        },
+        { replace: true },
+      );
+    },
+    [setSearchParams],
+  );
 
   // Selection
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -33,10 +82,10 @@ const BuyerContactsPage = () => {
   const filters: NonMarketplaceUserFilters = useMemo(
     () => ({
       searchQuery,
-      sourceFilter: sourceFilter as NonMarketplaceUserFilters["sourceFilter"],
-      agreementFilter: agreementFilter as NonMarketplaceUserFilters["agreementFilter"],
+      sourceFilter: sourceFilter as NonMarketplaceUserFilters['sourceFilter'],
+      agreementFilter: agreementFilter as NonMarketplaceUserFilters['agreementFilter'],
     }),
-    [searchQuery, sourceFilter, agreementFilter]
+    [searchQuery, sourceFilter, agreementFilter],
   );
 
   // Compute filtered users for stats (same logic as table)
@@ -53,17 +102,25 @@ const BuyerContactsPage = () => {
           user.listing_names.some((l) => l.toLowerCase().includes(query));
         if (!matchesSearch) return false;
       }
-      if (filters.sourceFilter && filters.sourceFilter !== "all") {
+      if (filters.sourceFilter && filters.sourceFilter !== 'all') {
         if (!user.sources.includes(filters.sourceFilter)) return false;
       }
-      if (filters.agreementFilter && filters.agreementFilter !== "all") {
-        const ndaSigned = user.nda_status === "signed";
-        const feeSigned = user.fee_agreement_status === "signed";
+      if (filters.agreementFilter && filters.agreementFilter !== 'all') {
+        const ndaSigned = user.nda_status === 'signed';
+        const feeSigned = user.fee_agreement_status === 'signed';
         switch (filters.agreementFilter) {
-          case "nda_signed": if (!ndaSigned) return false; break;
-          case "fee_signed": if (!feeSigned) return false; break;
-          case "both_signed": if (!ndaSigned || !feeSigned) return false; break;
-          case "none_signed": if (ndaSigned || feeSigned) return false; break;
+          case 'nda_signed':
+            if (!ndaSigned) return false;
+            break;
+          case 'fee_signed':
+            if (!feeSigned) return false;
+            break;
+          case 'both_signed':
+            if (!ndaSigned || !feeSigned) return false;
+            break;
+          case 'none_signed':
+            if (ndaSigned || feeSigned) return false;
+            break;
         }
       }
       return true;
@@ -73,28 +130,29 @@ const BuyerContactsPage = () => {
   // Stats
   const stats = useMemo(() => {
     const total = nonMarketplaceUsers.length;
-    const ndaSigned = nonMarketplaceUsers.filter((u) => u.nda_status === "signed").length;
-    const feeSigned = nonMarketplaceUsers.filter((u) => u.fee_agreement_status === "signed").length;
-    const fromRequests = nonMarketplaceUsers.filter((u) => u.sources.includes("connection_request")).length;
-    const fromLeads = nonMarketplaceUsers.filter((u) => u.sources.includes("inbound_lead")).length;
-    const fromDeals = nonMarketplaceUsers.filter((u) => u.sources.includes("deal")).length;
+    const ndaSigned = nonMarketplaceUsers.filter((u) => u.nda_status === 'signed').length;
+    const feeSigned = nonMarketplaceUsers.filter((u) => u.fee_agreement_status === 'signed').length;
+    const fromRequests = nonMarketplaceUsers.filter((u) =>
+      u.sources.includes('connection_request'),
+    ).length;
+    const fromLeads = nonMarketplaceUsers.filter((u) => u.sources.includes('inbound_lead')).length;
+    const fromDeals = nonMarketplaceUsers.filter((u) => u.sources.includes('deal')).length;
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-    const recentCount = nonMarketplaceUsers.filter((u) => new Date(u.created_at) >= thirtyDaysAgo).length;
+    const recentCount = nonMarketplaceUsers.filter(
+      (u) => new Date(u.created_at) >= thirtyDaysAgo,
+    ).length;
     return { total, ndaSigned, feeSigned, fromRequests, fromLeads, fromDeals, recentCount };
   }, [nonMarketplaceUsers]);
 
-  const toggleSelect = useCallback(
-    (id: string) => {
-      setSelectedIds((prev) => {
-        const next = new Set(prev);
-        if (next.has(id)) next.delete(id);
-        else next.add(id);
-        return next;
-      });
-    },
-    []
-  );
+  const toggleSelect = useCallback((id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
 
   const toggleSelectAll = useCallback(() => {
     setSelectedIds((prev) => {
@@ -109,7 +167,7 @@ const BuyerContactsPage = () => {
 
   const selectedUsers = useMemo(
     () => nonMarketplaceUsers.filter((u) => selectedIds.has(u.id)),
-    [nonMarketplaceUsers, selectedIds]
+    [nonMarketplaceUsers, selectedIds],
   );
 
   return (
@@ -193,12 +251,17 @@ const BuyerContactsPage = () => {
 
         {/* Results count */}
         <div className="text-sm text-muted-foreground">
-          {filteredUsers.length} contact{filteredUsers.length !== 1 ? "s" : ""} found
-          {nonMarketplaceUsers.length !== filteredUsers.length && ` (${nonMarketplaceUsers.length} total)`}
+          {filteredUsers.length} contact{filteredUsers.length !== 1 ? 's' : ''} found
+          {nonMarketplaceUsers.length !== filteredUsers.length &&
+            ` (${nonMarketplaceUsers.length} total)`}
         </div>
 
         {/* Bulk Actions */}
-        <BulkContactActions selectedUsers={selectedUsers} onClearSelection={clearSelection} filters={filters} />
+        <BulkContactActions
+          selectedUsers={selectedUsers}
+          onClearSelection={clearSelection}
+          filters={filters}
+        />
 
         {/* Table */}
         <div className="bg-card rounded-lg border overflow-hidden">

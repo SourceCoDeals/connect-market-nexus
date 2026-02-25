@@ -1,5 +1,5 @@
-import { useState, useEffect, useMemo } from 'react';
-import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useParams, Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/context/AuthContext';
@@ -36,12 +36,12 @@ import {
   EmailPreviewDialog,
   type OutreachStatus,
   ReMarketingChat,
-} from "@/components/remarketing";
-import { PushToDialerModal } from "@/components/remarketing/PushToDialerModal";
-import { AddBuyersToListDialog } from "@/components/remarketing/AddBuyersToListDialog";
-import { RemarketingErrorBoundary } from "@/components/remarketing/RemarketingErrorBoundary";
-import { AddToUniverseQuickAction } from "@/components/remarketing/AddToUniverseQuickAction";
-import { useBackgroundScoringProgress } from "@/hooks/useBackgroundScoringProgress";
+} from '@/components/remarketing';
+import { PushToDialerModal } from '@/components/remarketing/PushToDialerModal';
+import { AddBuyersToListDialog } from '@/components/remarketing/AddBuyersToListDialog';
+import { RemarketingErrorBoundary } from '@/components/remarketing/RemarketingErrorBoundary';
+import { AddToUniverseQuickAction } from '@/components/remarketing/AddToUniverseQuickAction';
+import { useBackgroundScoringProgress } from '@/hooks/useBackgroundScoringProgress';
 
 type SortOption = 'score' | 'geography' | 'score_geo';
 type FilterTab = 'all' | 'approved' | 'interested' | 'passed' | 'outreach';
@@ -50,7 +50,115 @@ const ReMarketingDealMatching = () => {
   const { listingId } = useParams<{ listingId: string }>();
   const navigate = useNavigate();
   const { user } = useAuth();
-  const [selectedUniverse, setSelectedUniverse] = useState<string>('');
+  // URL-persisted filter state (survives browser Back navigation)
+  const [searchParams, setSearchParams] = useSearchParams();
+  const selectedUniverse = searchParams.get('universe') ?? '';
+  const setSelectedUniverse = useCallback(
+    (v: string) => {
+      setSearchParams(
+        (p) => {
+          const n = new URLSearchParams(p);
+          if (v) n.set('universe', v);
+          else n.delete('universe');
+          return n;
+        },
+        { replace: true },
+      );
+    },
+    [setSearchParams],
+  );
+  const activeTab = (searchParams.get('tab') as FilterTab) ?? 'all';
+  const setActiveTab = useCallback(
+    (v: FilterTab) => {
+      setSearchParams(
+        (p) => {
+          const n = new URLSearchParams(p);
+          if (v !== 'all') n.set('tab', v);
+          else n.delete('tab');
+          return n;
+        },
+        { replace: true },
+      );
+    },
+    [setSearchParams],
+  );
+  const sortBy = (searchParams.get('sortBy') as SortOption) ?? 'score';
+  const setSortBy = useCallback(
+    (v: SortOption) => {
+      setSearchParams(
+        (p) => {
+          const n = new URLSearchParams(p);
+          if (v !== 'score') n.set('sortBy', v);
+          else n.delete('sortBy');
+          return n;
+        },
+        { replace: true },
+      );
+    },
+    [setSearchParams],
+  );
+  const sortDesc = searchParams.get('sortDesc') !== '0';
+  const setSortDesc = useCallback(
+    (v: boolean) => {
+      setSearchParams(
+        (p) => {
+          const n = new URLSearchParams(p);
+          if (!v) n.set('sortDesc', '0');
+          else n.delete('sortDesc');
+          return n;
+        },
+        { replace: true },
+      );
+    },
+    [setSearchParams],
+  );
+  const hideDisqualified = searchParams.get('hideDisq') === '1';
+  const setHideDisqualified = useCallback(
+    (v: boolean) => {
+      setSearchParams(
+        (p) => {
+          const n = new URLSearchParams(p);
+          if (v) n.set('hideDisq', '1');
+          else n.delete('hideDisq');
+          return n;
+        },
+        { replace: true },
+      );
+    },
+    [setSearchParams],
+  );
+  const searchQuery = searchParams.get('q') ?? '';
+  const setSearchQuery = useCallback(
+    (v: string) => {
+      setSearchParams(
+        (p) => {
+          const n = new URLSearchParams(p);
+          if (v) n.set('q', v);
+          else n.delete('q');
+          return n;
+        },
+        { replace: true },
+      );
+    },
+    [setSearchParams],
+  );
+  const geographyMode =
+    (searchParams.get('geoMode') as 'critical' | 'preferred' | 'minimal') ?? 'critical';
+  const setGeographyMode = useCallback(
+    (v: 'critical' | 'preferred' | 'minimal') => {
+      setSearchParams(
+        (p) => {
+          const n = new URLSearchParams(p);
+          if (v !== 'critical') n.set('geoMode', v);
+          else n.delete('geoMode');
+          return n;
+        },
+        { replace: true },
+      );
+    },
+    [setSearchParams],
+  );
+
   const [isScoring, setIsScoring] = useState(false);
   const [scoringProgress, setScoringProgress] = useState(0);
   const [passDialogOpen, setPassDialogOpen] = useState(false);
@@ -59,26 +167,14 @@ const ReMarketingDealMatching = () => {
     name: string;
     scoreData?: any;
   } | null>(null);
-
-  // New state for enhanced features
-  const [activeTab, setActiveTab] = useState<FilterTab>('all');
-  const [sortBy, setSortBy] = useState<SortOption>('score');
-  const [sortDesc, setSortDesc] = useState(true);
-  const [hideDisqualified, setHideDisqualified] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [emailDialogOpen, setEmailDialogOpen] = useState(false);
   const [dialerOpen, setDialerOpen] = useState(false);
   const [addToListOpen, setAddToListOpen] = useState(false);
   const [highlightedBuyerIds, setHighlightedBuyerIds] = useState<string[]>([]);
-  const [searchQuery, setSearchQuery] = useState('');
 
   // Custom scoring instructions state
   const [customInstructions, setCustomInstructions] = useState('');
-
-  // Geography mode state (critical/preferred/minimal)
-  const [geographyMode, setGeographyMode] = useState<'critical' | 'preferred' | 'minimal'>(
-    'critical',
-  );
 
   // Background scoring progress hook
   const backgroundScoring = useBackgroundScoringProgress(
@@ -161,7 +257,7 @@ const ReMarketingDealMatching = () => {
     if (linkedUniverses && linkedUniverses.length > 0 && !selectedUniverse) {
       setSelectedUniverse('all');
     }
-  }, [linkedUniverses, selectedUniverse]);
+  }, [linkedUniverses, selectedUniverse, setSelectedUniverse]);
 
   // Fetch ALL existing scores for this listing (from all universes)
   const { data: allScores, isLoading: scoresLoading } = useQuery({
@@ -899,8 +995,8 @@ const ReMarketingDealMatching = () => {
     return scores
       .filter((s) => selectedIds.has(s.id))
       .map((s) => ({
-        buyerId: s.buyer?.id || "",
-        companyName: s.buyer?.company_name || "Unknown",
+        buyerId: s.buyer?.id || '',
+        companyName: s.buyer?.company_name || 'Unknown',
         scoreId: s.id,
       }))
       .filter((b) => b.buyerId);
@@ -1048,72 +1144,75 @@ const ReMarketingDealMatching = () => {
           </CardContent>
         </Card>
 
-      {/* Bulk Actions Toolbar */}
-      <BulkActionsToolbar
-        selectedCount={selectedIds.size}
-        onClearSelection={() => setSelectedIds(new Set())}
-        onBulkApprove={handleBulkApprove}
-        onBulkPass={handleBulkPass}
-        onExportCSV={handleExportCSV}
-        onGenerateEmails={() => setEmailDialogOpen(true)}
-        onPushToDialer={() => setDialerOpen(true)}
-        onAddToList={() => setAddToListOpen(true)}
-        isProcessing={bulkApproveMutation.isPending}
-        activeTab={activeTab}
-      />
-      <PushToDialerModal
-        open={dialerOpen}
-        onOpenChange={setDialerOpen}
-        contactIds={Array.from(selectedIds)}
-        contactCount={selectedIds.size}
-        entityType="buyers"
-      />
-      <AddBuyersToListDialog
-        open={addToListOpen}
-        onOpenChange={setAddToListOpen}
-        selectedBuyers={selectedBuyersForList}
-      />
+        {/* Bulk Actions Toolbar */}
+        <BulkActionsToolbar
+          selectedCount={selectedIds.size}
+          onClearSelection={() => setSelectedIds(new Set())}
+          onBulkApprove={handleBulkApprove}
+          onBulkPass={handleBulkPass}
+          onExportCSV={handleExportCSV}
+          onGenerateEmails={() => setEmailDialogOpen(true)}
+          onPushToDialer={() => setDialerOpen(true)}
+          onAddToList={() => setAddToListOpen(true)}
+          isProcessing={bulkApproveMutation.isPending}
+          activeTab={activeTab}
+        />
+        <PushToDialerModal
+          open={dialerOpen}
+          onOpenChange={setDialerOpen}
+          contactIds={Array.from(selectedIds)}
+          contactCount={selectedIds.size}
+          entityType="buyers"
+        />
+        <AddBuyersToListDialog
+          open={addToListOpen}
+          onOpenChange={setAddToListOpen}
+          selectedBuyers={selectedBuyersForList}
+        />
 
-      {/* Two-Column Stats Row */}
-      {scores && scores.length > 0 && (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-          {/* Left: Stats Summary Card */}
-          <Card className="lg:col-span-1 bg-amber-50/50 border-amber-100">
-            <CardContent className="p-4 space-y-3">
-              <div className="flex items-center gap-2 text-sm">
-                <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-                <span className="font-medium">{stats.qualified} qualified buyers</span>
-              </div>
-              <div className="flex items-center gap-2 text-sm text-red-600">
-                <AlertCircle className="h-4 w-4" />
-                <span>{stats.disqualified} disqualified{stats.disqualificationReason && ` (${stats.disqualificationReason})`}</span>
-              </div>
-              <div className="flex items-center gap-2 text-sm">
-                <Target className="h-4 w-4 text-blue-500" />
-                <span className="font-medium">{stats.strong} strong matches (&gt;80%)</span>
-              </div>
-              <div className="flex items-center gap-2 text-sm text-emerald-600">
-                <Check className="h-4 w-4" />
-                <span>{stats.approved} approved</span>
-              </div>
-              {stats.interested > 0 && (
-                <div className="flex items-center gap-2 text-sm text-blue-600">
-                  <Check className="h-4 w-4" />
-                  <span>{stats.interested} interested</span>
+        {/* Two-Column Stats Row */}
+        {scores && scores.length > 0 && (
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+            {/* Left: Stats Summary Card */}
+            <Card className="lg:col-span-1 bg-amber-50/50 border-amber-100">
+              <CardContent className="p-4 space-y-3">
+                <div className="flex items-center gap-2 text-sm">
+                  <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                  <span className="font-medium">{stats.qualified} qualified buyers</span>
                 </div>
-              )}
-              <div className="flex items-center gap-2 pt-2 border-t border-amber-200">
-                <Switch
-                  id="hide-disqualified"
-                  checked={hideDisqualified}
-                  onCheckedChange={setHideDisqualified}
-                />
-                <Label htmlFor="hide-disqualified" className="text-sm">
-                  Hide disqualified
-                </Label>
-              </div>
-            </CardContent>
-          </Card>
+                <div className="flex items-center gap-2 text-sm text-red-600">
+                  <AlertCircle className="h-4 w-4" />
+                  <span>
+                    {stats.disqualified} disqualified
+                    {stats.disqualificationReason && ` (${stats.disqualificationReason})`}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2 text-sm">
+                  <Target className="h-4 w-4 text-blue-500" />
+                  <span className="font-medium">{stats.strong} strong matches (&gt;80%)</span>
+                </div>
+                <div className="flex items-center gap-2 text-sm text-emerald-600">
+                  <Check className="h-4 w-4" />
+                  <span>{stats.approved} approved</span>
+                </div>
+                {stats.interested > 0 && (
+                  <div className="flex items-center gap-2 text-sm text-blue-600">
+                    <Check className="h-4 w-4" />
+                    <span>{stats.interested} interested</span>
+                  </div>
+                )}
+                <div className="flex items-center gap-2 pt-2 border-t border-amber-200">
+                  <Switch
+                    id="hide-disqualified"
+                    checked={hideDisqualified}
+                    onCheckedChange={setHideDisqualified}
+                  />
+                  <Label htmlFor="hide-disqualified" className="text-sm">
+                    Hide disqualified
+                  </Label>
+                </div>
+              </CardContent>
+            </Card>
 
             {/* Right: Collapsible Scoring Insights Panel */}
             {linkedUniverses && linkedUniverses.length > 0 && (
