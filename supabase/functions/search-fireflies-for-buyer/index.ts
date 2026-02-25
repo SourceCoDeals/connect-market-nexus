@@ -1,15 +1,26 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+/* eslint-disable no-console */
+import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
-import { getCorsHeaders, corsPreflightResponse } from "../_shared/cors.ts";
+import { getCorsHeaders, corsPreflightResponse } from '../_shared/cors.ts';
 
-/** Internal email domains to filter out when extracting external participants */
-const INTERNAL_DOMAINS = ['sourcecodeals.com', 'captarget.com'];
+/** Internal email domains to filter out when extracting external participants.
+ * Configure via INTERNAL_EMAIL_DOMAINS env var (comma-separated) for flexibility.
+ */
+const INTERNAL_DOMAINS = (
+  Deno.env.get('INTERNAL_EMAIL_DOMAINS') || 'sourcecodeals.com,captarget.com'
+)
+  .split(',')
+  .map((d) => d.trim().toLowerCase())
+  .filter(Boolean);
+
+const FIREFLIES_API_TIMEOUT_MS = 15_000;
+const FIREFLIES_RATE_LIMIT_BACKOFF_MS = 3_000;
 
 interface SearchRequest {
-  emails?: string[];           // array of contact emails (primary search)
-  query?: string;              // keyword search term
-  companyName?: string;        // for fallback keyword search
+  emails?: string[]; // array of contact emails (primary search)
+  query?: string; // keyword search term
+  companyName?: string; // for fallback keyword search
   dealId?: string;
   participantEmails?: string[]; // legacy field — mapped to emails
   limit?: number;
@@ -37,38 +48,73 @@ interface SearchResult {
 /**
  * Call the Fireflies GraphQL API directly.
  * Requires FIREFLIES_API_KEY set as a Supabase secret.
+ * Includes timeout enforcement and rate limit handling.
  */
 async function firefliesGraphQL(query: string, variables?: Record<string, unknown>) {
-  const apiKey = Deno.env.get("FIREFLIES_API_KEY");
+  const apiKey = Deno.env.get('FIREFLIES_API_KEY');
   if (!apiKey) {
-    throw new Error(
-      "FIREFLIES_API_KEY is not configured. Add it as a Supabase secret: " +
-      "supabase secrets set FIREFLIES_API_KEY=your_key"
-    );
+    throw new Error('Fireflies API key is not configured. Please contact an administrator.');
   }
 
-  const response = await fetch("https://api.fireflies.ai/graphql", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify({ query, variables }),
-  });
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), FIREFLIES_API_TIMEOUT_MS);
 
-  if (!response.ok) {
-    const text = await response.text();
-    throw new Error(`Fireflies API error (${response.status}): ${text}`);
+  try {
+    const response = await fetch('https://api.fireflies.ai/graphql', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({ query, variables }),
+      signal: controller.signal,
+    });
+
+    // Handle rate limiting
+    if (response.status === 429) {
+      console.warn(
+        `[fireflies] Rate limited (429), backing off ${FIREFLIES_RATE_LIMIT_BACKOFF_MS}ms`,
+      );
+      await new Promise((r) => setTimeout(r, FIREFLIES_RATE_LIMIT_BACKOFF_MS));
+      const retryRes = await fetch('https://api.fireflies.ai/graphql', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({ query, variables }),
+        signal: AbortSignal.timeout(FIREFLIES_API_TIMEOUT_MS),
+      });
+      if (!retryRes.ok) {
+        throw new Error(`Fireflies API error (${retryRes.status})`);
+      }
+      const retryResult = await retryRes.json();
+      if (retryResult.errors) {
+        throw new Error(
+          `Fireflies GraphQL error: ${retryResult.errors[0]?.message || 'Unknown error'}`,
+        );
+      }
+      return retryResult.data;
+    }
+
+    if (!response.ok) {
+      throw new Error(`Fireflies API error (${response.status})`);
+    }
+
+    const result = await response.json();
+    if (result.errors) {
+      throw new Error(`Fireflies GraphQL error: ${result.errors[0]?.message || 'Unknown error'}`);
+    }
+
+    return result.data;
+  } catch (err: unknown) {
+    if (err instanceof Error && err.name === 'AbortError') {
+      throw new Error(`Fireflies API timed out after ${FIREFLIES_API_TIMEOUT_MS}ms`);
+    }
+    throw err;
+  } finally {
+    clearTimeout(timeout);
   }
-
-  const result = await response.json();
-  if (result.errors) {
-    throw new Error(
-      `Fireflies GraphQL error: ${result.errors[0]?.message || JSON.stringify(result.errors)}`
-    );
-  }
-
-  return result.data;
 }
 
 /**
@@ -134,7 +180,7 @@ function transcriptHasContent(t: any): boolean {
   const info = t.meeting_info || {};
   const isSilent = info.silent_meeting === true;
   const isSkipped = info.summary_status === 'skipped';
-  const hasSummary = !!(t.summary?.short_summary);
+  const hasSummary = !!t.summary?.short_summary;
 
   // Only flag as no-content if it's silent/skipped AND has no summary
   if ((isSilent || isSkipped) && !hasSummary) {
@@ -154,7 +200,7 @@ function extractExternalParticipants(attendees: any[]): ExternalParticipant[] {
     .filter((a: any) => {
       const email = (a.email || '').toLowerCase();
       if (!email) return false;
-      return !INTERNAL_DOMAINS.some(domain => email.endsWith(`@${domain}`));
+      return !INTERNAL_DOMAINS.some((domain) => email.endsWith(`@${domain}`));
     })
     .map((a: any) => ({
       name: a.displayName || a.name || a.email?.split('@')[0] || 'Unknown',
@@ -169,7 +215,7 @@ async function paginatedFetch(
   gqlQuery: string,
   variables: Record<string, unknown>,
   maxPages = 4,
-  batchSize = 50
+  batchSize = 50,
 ): Promise<any[]> {
   const results: any[] = [];
   let skip = 0;
@@ -202,61 +248,72 @@ async function paginatedFetch(
 serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
 
-  if (req.method === "OPTIONS") {
+  if (req.method === 'OPTIONS') {
     return corsPreflightResponse(req);
   }
 
   try {
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
     // Verify the caller has a valid auth token (admin or service role)
-    const authHeader = req.headers.get("Authorization");
+    const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
-      return new Response(
-        JSON.stringify({ error: "Authorization required" }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      return new Response(JSON.stringify({ error: 'Authorization required' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
 
-    const token = authHeader.replace("Bearer ", "");
+    const token = authHeader.replace('Bearer ', '');
     if (token !== supabaseKey) {
-      const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+      const {
+        data: { user },
+        error: authError,
+      } = await supabase.auth.getUser(token);
       if (authError || !user) {
-        return new Response(
-          JSON.stringify({ error: "Invalid auth token" }),
-          { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
+        return new Response(JSON.stringify({ error: 'Invalid auth token' }), {
+          status: 401,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
       }
 
       const { data: profile } = await supabase
-        .from("profiles")
-        .select("is_admin")
-        .eq("id", user.id)
+        .from('profiles')
+        .select('is_admin')
+        .eq('id', user.id)
         .single();
 
       if (!profile?.is_admin) {
-        return new Response(
-          JSON.stringify({ error: "Admin access required" }),
-          { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
+        return new Response(JSON.stringify({ error: 'Admin access required' }), {
+          status: 403,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
       }
     }
 
-    const body = await req.json() as SearchRequest;
-    const { query, companyName, dealId, limit = 20 } = body;
+    const body = (await req.json()) as SearchRequest;
+    const { query, companyName, dealId: _dealId } = body;
+    // Cap limit to prevent excessive API calls
+    const limit = Math.min(Math.max(body.limit || 20, 1), 50);
 
     // Support both new `emails` and legacy `participantEmails` field
     const emails = body.emails || body.participantEmails || [];
-    const validEmails = emails.filter(Boolean).map(e => e.toLowerCase());
+    // Validate email format and limit count
+    const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const validEmails = emails
+      .filter(Boolean)
+      .map((e) => e.toLowerCase().trim())
+      .filter((e) => EMAIL_REGEX.test(e))
+      .slice(0, 20); // Cap at 20 emails to prevent abuse
 
     const trimmedQuery = (query || '').trim();
 
     if (!trimmedQuery && validEmails.length === 0 && !companyName) {
       return new Response(
-        JSON.stringify({ error: "Search query, participant emails, or company name required" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        JSON.stringify({ error: 'Search query, participant emails, or company name required' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
       );
     }
 
@@ -270,24 +327,38 @@ serve(async (req) => {
       // Combined array search
       searches.push(
         (async () => {
-          const results = await paginatedFetch(PARTICIPANT_SEARCH_QUERY, {
-            participants: validEmails,
-          }, 8, 50);
-          console.log(`Combined participant search [${validEmails.join(', ')}] returned ${results.length} results`);
+          const results = await paginatedFetch(
+            PARTICIPANT_SEARCH_QUERY,
+            {
+              participants: validEmails,
+            },
+            8,
+            50,
+          );
+          console.log(
+            `Combined participant search [${validEmails.join(', ')}] returned ${results.length} results`,
+          );
           return { results, type: 'email' as const };
-        })()
+        })(),
       );
 
       // Individual email searches (to catch transcripts the combined search misses)
       for (const email of validEmails) {
         searches.push(
           (async () => {
-            const results = await paginatedFetch(PARTICIPANT_SEARCH_QUERY, {
-              participants: [email],
-            }, 8, 50);
-            console.log(`Individual participant search [${email}] returned ${results.length} results`);
+            const results = await paginatedFetch(
+              PARTICIPANT_SEARCH_QUERY,
+              {
+                participants: [email],
+              },
+              8,
+              50,
+            );
+            console.log(
+              `Individual participant search [${email}] returned ${results.length} results`,
+            );
             return { results, type: 'email' as const };
-          })()
+          })(),
         );
       }
 
@@ -295,12 +366,17 @@ serve(async (req) => {
       for (const email of validEmails.slice(0, 3)) {
         searches.push(
           (async () => {
-            const results = await paginatedFetch(KEYWORD_SEARCH_QUERY, {
-              keyword: email,
-            }, 4, 50);
+            const results = await paginatedFetch(
+              KEYWORD_SEARCH_QUERY,
+              {
+                keyword: email,
+              },
+              4,
+              50,
+            );
             console.log(`Email keyword search "${email}" returned ${results.length} results`);
             return { results, type: 'email' as const };
-          })()
+          })(),
         );
       }
     }
@@ -309,12 +385,17 @@ serve(async (req) => {
     if (trimmedQuery) {
       searches.push(
         (async () => {
-          const results = await paginatedFetch(KEYWORD_SEARCH_QUERY, {
-            keyword: trimmedQuery,
-          }, 8, 50);
+          const results = await paginatedFetch(
+            KEYWORD_SEARCH_QUERY,
+            {
+              keyword: trimmedQuery,
+            },
+            8,
+            50,
+          );
           console.log(`Keyword search "${trimmedQuery}" returned ${results.length} results`);
           return { results, type: 'keyword' as const };
-        })()
+        })(),
       );
     }
 
@@ -324,7 +405,7 @@ serve(async (req) => {
         (async () => {
           const data = await firefliesGraphQL(ALL_TRANSCRIPTS_QUERY, { limit: 50, skip: 0 });
           return { results: data.transcripts || [], type: 'keyword' as const };
-        })()
+        })(),
       );
     }
 
@@ -351,16 +432,22 @@ serve(async (req) => {
 
     // === Phase 2: Fallback keyword search by company name ===
     // Only run if primary email search returned 0 results with content
-    const emailResultsWithContent = matchingResults.filter(t =>
-      seen.get(t.id) === 'email' && transcriptHasContent(t)
+    const emailResultsWithContent = matchingResults.filter(
+      (t) => seen.get(t.id) === 'email' && transcriptHasContent(t),
     );
 
-    let fallbackResults: any[] = [];
+    const fallbackResults: any[] = [];
     if (emailResultsWithContent.length === 0 && companyName && companyName.trim().length >= 3) {
-      console.log(`No email results with content, running fallback keyword search for "${companyName}"`);
-      const fallbackRaw = await paginatedFetch(KEYWORD_SEARCH_QUERY, {
-        keyword: companyName.trim(),
-      }, 2); // Limit fallback to 2 pages
+      console.log(
+        `No email results with content, running fallback keyword search for "${companyName}"`,
+      );
+      const fallbackRaw = await paginatedFetch(
+        KEYWORD_SEARCH_QUERY,
+        {
+          keyword: companyName.trim(),
+        },
+        2,
+      ); // Limit fallback to 2 pages
 
       // Only add results not already found
       for (const t of fallbackRaw) {
@@ -369,44 +456,42 @@ serve(async (req) => {
           fallbackResults.push(t);
         }
       }
-      console.log(`Fallback search for "${companyName}" returned ${fallbackResults.length} new results`);
+      console.log(
+        `Fallback search for "${companyName}" returned ${fallbackResults.length} new results`,
+      );
     }
 
     const allResults = [...matchingResults, ...fallbackResults];
 
     // === Format results ===
-    const formattedResults: SearchResult[] = allResults
-      .slice(0, limit)
-      .map((t: any) => {
-        // Convert date
-        let dateStr = new Date().toISOString();
-        if (t.date) {
-          const dateNum = typeof t.date === 'number'
-            ? t.date
-            : parseInt(t.date, 10);
-          if (!isNaN(dateNum)) {
-            dateStr = new Date(dateNum).toISOString();
-          }
+    const formattedResults: SearchResult[] = allResults.slice(0, limit).map((t: any) => {
+      // Convert date
+      let dateStr = new Date().toISOString();
+      if (t.date) {
+        const dateNum = typeof t.date === 'number' ? t.date : parseInt(t.date, 10);
+        if (!isNaN(dateNum)) {
+          dateStr = new Date(dateNum).toISOString();
         }
+      }
 
-        const hasContent = transcriptHasContent(t);
-        const matchType = seen.get(t.id) || 'keyword';
-        const externalParticipants = extractExternalParticipants(t.meeting_attendees || []);
+      const hasContent = transcriptHasContent(t);
+      const matchType = seen.get(t.id) || 'keyword';
+      const externalParticipants = extractExternalParticipants(t.meeting_attendees || []);
 
-        return {
-          id: t.id,
-          title: t.title || 'Untitled Call',
-          date: dateStr,
-          duration_minutes: t.duration ? Math.round(t.duration) : null,
-          participants: t.meeting_attendees || [],
-          external_participants: externalParticipants,
-          summary: t.summary?.short_summary || '',
-          meeting_url: t.transcript_url || '',
-          keywords: t.summary?.keywords || [],
-          has_content: hasContent,
-          match_type: matchType,
-        };
-      });
+      return {
+        id: t.id,
+        title: t.title || 'Untitled Call',
+        date: dateStr,
+        duration_minutes: t.duration ? Math.round(t.duration) : null,
+        participants: t.meeting_attendees || [],
+        external_participants: externalParticipants,
+        summary: t.summary?.short_summary || '',
+        meeting_url: t.transcript_url || '',
+        keywords: t.summary?.keywords || [],
+        has_content: hasContent,
+        match_type: matchType,
+      };
+    });
 
     return new Response(
       JSON.stringify({
@@ -418,17 +503,21 @@ serve(async (req) => {
         companyNameSearched: companyName || null,
         fallbackUsed: fallbackResults.length > 0,
       }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
     );
-
   } catch (error) {
-    console.error("Search error:", error);
+    console.error('Search error:', error);
+    // Don't leak internal error details (API keys, raw responses) to client
+    const safeMessage =
+      error instanceof Error && !error.message.includes('API key')
+        ? error.message
+        : 'Transcript search failed. Please try again.';
     return new Response(
       JSON.stringify({
         success: false,
-        error: error instanceof Error ? error.message : "Unknown error"
+        error: safeMessage,
       }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
     );
   }
 });

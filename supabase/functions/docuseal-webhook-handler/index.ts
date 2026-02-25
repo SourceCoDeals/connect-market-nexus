@@ -1,3 +1,4 @@
+/* eslint-disable no-console */
 import { serve } from 'https://deno.land/std@0.190.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.47.10';
 
@@ -28,25 +29,36 @@ function timingSafeEqual(a: string, b: string): boolean {
 // in DocuSeal's dashboard. Default header name: "onboarding-secret".
 // Override via DOCUSEAL_WEBHOOK_SECRET_HEADER env var if needed.
 function verifyDocuSealWebhook(req: Request, secret: string): boolean {
-  const headerName = (Deno.env.get("DOCUSEAL_WEBHOOK_SECRET_HEADER") || "onboarding-secret").toLowerCase();
+  const headerName = (
+    Deno.env.get('DOCUSEAL_WEBHOOK_SECRET_HEADER') || 'onboarding-secret'
+  ).toLowerCase();
   const headerValue = req.headers.get(headerName);
   if (!headerValue) return false;
   return timingSafeEqual(headerValue, secret);
 }
 
-// Validate that a URL is HTTPS and from a trusted domain
+// Validate that a URL is HTTPS and from a trusted domain.
+// Uses specific subdomain patterns instead of broad domain wildcards.
 function isValidDocumentUrl(url: string): boolean {
   try {
     const parsed = new URL(url);
     if (parsed.protocol !== 'https:') return false;
-    const trustedDomains = [
-      'docuseal.com',
-      'docuseal.co',
-      'amazonaws.com',
-      'storage.googleapis.com',
-      'supabase.co',
+    const hostname = parsed.hostname.toLowerCase();
+
+    // Exact or specific subdomain matches for trusted providers
+    const trustedPatterns = [
+      // DocuSeal domains
+      (h: string) => h === 'docuseal.com' || h.endsWith('.docuseal.com'),
+      (h: string) => h === 'docuseal.co' || h.endsWith('.docuseal.co'),
+      // S3 — only specific bucket patterns, not all of amazonaws.com
+      (h: string) => h.endsWith('.s3.amazonaws.com') || /^s3\.[a-z0-9-]+\.amazonaws\.com$/.test(h),
+      // GCS — only the storage API host
+      (h: string) => h === 'storage.googleapis.com',
+      // Supabase storage
+      (h: string) => h.endsWith('.supabase.co'),
     ];
-    return trustedDomains.some((d) => parsed.hostname.endsWith(d));
+
+    return trustedPatterns.some((check) => check(hostname));
   } catch {
     return false;
   }
@@ -71,16 +83,16 @@ serve(async (req: Request) => {
   try {
     const rawBody = await req.text();
 
-    const webhookSecret = Deno.env.get("DOCUSEAL_WEBHOOK_SECRET");
-    
+    const webhookSecret = Deno.env.get('DOCUSEAL_WEBHOOK_SECRET');
+
     // If secret is configured, verify the webhook and reject unauthorized requests
     if (webhookSecret) {
       const valid = verifyDocuSealWebhook(req, webhookSecret);
       if (!valid) {
-        console.warn("⚠️ Webhook secret verification failed — rejecting request");
-        return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401 });
+        console.warn('⚠️ Webhook secret verification failed — rejecting request');
+        return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 });
       }
-      console.log("✅ Webhook secret verified");
+      console.log('✅ Webhook secret verified');
     }
 
     // Parse and validate payload structure
@@ -97,8 +109,15 @@ serve(async (req: Request) => {
       return new Response(JSON.stringify({ error: 'Invalid payload' }), { status: 400 });
     }
 
-    const eventType = payload.event_type || payload.type;
+    const rawEventType = payload.event_type || payload.type;
     const submissionData = payload.data || payload;
+
+    // Validate event_type format (only allow known patterns)
+    const VALID_EVENT_PATTERN =
+      /^(form|submission)\.(completed|viewed|started|declined|expired|created|archived)$/;
+    const eventType = VALID_EVENT_PATTERN.test(rawEventType)
+      ? rawEventType
+      : rawEventType.replace(/[^a-z0-9._-]/gi, '').substring(0, 50);
 
     console.log(`📩 DocuSeal webhook: ${eventType}`, {
       submission_id: submissionData.submission_id || submissionData.id,
@@ -108,7 +127,11 @@ serve(async (req: Request) => {
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    const submissionId = String(submissionData.submission_id || submissionData.id);
+    // Validate submission_id format (should be numeric string)
+    const rawSubmissionId = submissionData.submission_id || submissionData.id;
+    const submissionId = String(rawSubmissionId)
+      .replace(/[^a-zA-Z0-9_-]/g, '')
+      .substring(0, 100);
 
     // ── Idempotency check: skip if we already processed this exact event ──
     const { data: existingLog } = await supabase
@@ -271,17 +294,23 @@ async function processEvent(
   console.log(`📝 Processing ${eventType} for ${documentType} on firm ${firmId}`);
 
   // Prevent backward state transitions (e.g., "viewed" overwriting "completed")
-  const TERMINAL_STATUSES = new Set(["completed", "declined", "expired"]);
-  const statusCol = isNda ? "nda_docuseal_status" : "fee_docuseal_status";
+  const TERMINAL_STATUSES = new Set(['completed', 'declined', 'expired']);
+  const statusCol = isNda ? 'nda_docuseal_status' : 'fee_docuseal_status';
   const { data: currentFirm } = await supabase
-    .from("firm_agreements")
+    .from('firm_agreements')
     .select(statusCol)
-    .eq("id", firmId)
+    .eq('id', firmId)
     .single();
 
   const currentStatus = currentFirm?.[statusCol];
-  if (currentStatus && TERMINAL_STATUSES.has(currentStatus) && !TERMINAL_STATUSES.has(docusealStatus)) {
-    console.log(`⏩ Skipping non-terminal update: current=${currentStatus}, incoming=${docusealStatus}`);
+  if (
+    currentStatus &&
+    TERMINAL_STATUSES.has(currentStatus) &&
+    !TERMINAL_STATUSES.has(docusealStatus)
+  ) {
+    console.log(
+      `⏩ Skipping non-terminal update: current=${currentStatus}, incoming=${docusealStatus}`,
+    );
     return;
   }
 
