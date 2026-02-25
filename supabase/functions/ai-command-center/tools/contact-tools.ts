@@ -521,6 +521,51 @@ async function searchContacts(
     }
   }
 
+  // Resolve company context from linked listings and remarketing_buyers
+  // This gives Claude the company name so it can auto-enrich without asking the user
+  if (results.length > 0) {
+    const listingIds = [...new Set(results.map((c) => c.listing_id as string).filter(Boolean))];
+    const buyerIds = [
+      ...new Set(results.map((c) => c.remarketing_buyer_id as string).filter(Boolean)),
+    ];
+
+    const listingMap: Record<string, string> = {};
+    const buyerMap: Record<string, string> = {};
+
+    if (listingIds.length > 0) {
+      const { data: listings } = await supabase
+        .from('listings')
+        .select('id, title')
+        .in('id', listingIds);
+      if (listings) {
+        for (const l of listings as Array<Record<string, unknown>>) {
+          if (l.title) listingMap[l.id as string] = l.title as string;
+        }
+      }
+    }
+
+    if (buyerIds.length > 0) {
+      const { data: buyers } = await supabase
+        .from('remarketing_buyers')
+        .select('id, company_name, pe_firm_name')
+        .in('id', buyerIds);
+      if (buyers) {
+        for (const b of buyers as Array<Record<string, unknown>>) {
+          buyerMap[b.id as string] = (b.company_name || b.pe_firm_name || '') as string;
+        }
+      }
+    }
+
+    // Attach company_name to each contact
+    for (const c of results) {
+      if (c.listing_id && listingMap[c.listing_id as string]) {
+        c.company_name = listingMap[c.listing_id as string];
+      } else if (c.remarketing_buyer_id && buyerMap[c.remarketing_buyer_id as string]) {
+        c.company_name = buyerMap[c.remarketing_buyer_id as string];
+      }
+    }
+  }
+
   // Fallback: if searching by name and no results, also check enriched_contacts
   let enrichedResults: Array<Record<string, unknown>> = [];
   if (args.search && results.length === 0) {
@@ -532,6 +577,7 @@ async function searchContacts(
       contacts: results.slice(0, limit),
       total: results.length,
       with_email: results.filter((c) => c.email).length,
+      with_linkedin: results.filter((c) => c.linkedin_url).length,
       by_type: {
         buyer: results.filter((c) => c.contact_type === 'buyer').length,
         seller: results.filter((c) => c.contact_type === 'seller').length,

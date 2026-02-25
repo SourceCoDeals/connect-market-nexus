@@ -263,6 +263,7 @@ const TOOL_CATEGORIES: Record<string, string[]> = {
     'enrich_buyer_contacts',
     'enrich_linkedin_contact',
     'find_contact_linkedin',
+    'find_and_enrich_person',
     'send_document',
   ],
 
@@ -281,6 +282,7 @@ const TOOL_CATEGORIES: Record<string, string[]> = {
     'enrich_buyer_contacts',
     'enrich_linkedin_contact',
     'find_contact_linkedin',
+    'find_and_enrich_person',
     'save_contacts_to_crm',
     'search_contacts',
     'search_pe_contacts',

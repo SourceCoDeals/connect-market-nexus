@@ -386,9 +386,11 @@ const BYPASS_RULES: Array<{
       category: 'CONTACTS',
       tier: 'STANDARD',
       tools: [
+        'find_and_enrich_person',
         'search_contacts',
         'search_pe_contacts',
         'enrich_buyer_contacts',
+        'enrich_linkedin_contact',
         'get_buyer_profile',
       ],
       confidence: 0.87,
