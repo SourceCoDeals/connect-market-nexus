@@ -68,6 +68,7 @@ import {
   DealPipelinePanel,
   DealMarketplacePanel,
   DealBuyerHistoryTab,
+  DealContactHistoryTab,
 } from '@/components/remarketing/deal-detail';
 import { ListingNotesLog } from '@/components/remarketing/deal-detail/ListingNotesLog';
 
@@ -1447,6 +1448,13 @@ const ReMarketingDealDetail = () => {
 
         {/* ════════════════ HISTORY TAB ════════════════ */}
         <TabsContent value="history" className="space-y-6">
+          {/* Contact Communication History — emails (SmartLead) + calls (PhoneBurner) for all associated contacts */}
+          <DealContactHistoryTab
+            listingId={dealId!}
+            primaryContactEmail={deal.main_contact_email}
+            primaryContactName={deal.main_contact_name}
+          />
+
           {/* Notes Section */}
           <ListingNotesLog listingId={dealId!} />
 
