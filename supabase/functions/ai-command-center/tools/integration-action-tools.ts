@@ -509,7 +509,95 @@ async function enrichBuyerContacts(
     return true;
   });
 
-  const toEnrich = filtered.slice(0, targetCount);
+  // 5b. Pre-check CRM contacts table — skip people we already have email/phone for
+  // deno-lint-ignore no-explicit-any
+  const crmAlreadyKnown = new Set<string>();
+  if (filtered.length > 0) {
+    // Collect LinkedIn URLs from scraped employees
+    const linkedInUrls = filtered
+      // deno-lint-ignore no-explicit-any
+      .map((e: any) => e.profileUrl?.toLowerCase())
+      .filter(Boolean) as string[];
+
+    if (linkedInUrls.length > 0) {
+      // Query CRM for contacts matching these LinkedIn URLs that already have email or phone
+      const { data: existingByLinkedIn } = await supabase
+        .from('contacts')
+        .select('linkedin_url')
+        .eq('archived', false)
+        .not('email', 'is', null)
+        .in(
+          'linkedin_url',
+          linkedInUrls.map((u: string) => {
+            // Normalize: strip protocol + www to match stored URLs
+            return u.replace('https://www.', '').replace('https://', '').replace('http://', '');
+          }),
+        );
+
+      if (existingByLinkedIn?.length) {
+        for (const c of existingByLinkedIn) {
+          if (c.linkedin_url) crmAlreadyKnown.add(c.linkedin_url.toLowerCase());
+        }
+      }
+    }
+
+    // Also check by name + company for contacts without LinkedIn URLs
+    // deno-lint-ignore no-explicit-any
+    const nameKeys = filtered
+      // deno-lint-ignore no-explicit-any
+      .filter((e: any) => !e.profileUrl)
+      // deno-lint-ignore no-explicit-any
+      .map((e: any) => {
+        const first = (e.firstName || e.fullName?.split(' ')[0] || '').toLowerCase();
+        const last = (e.lastName || e.fullName?.split(' ').slice(1).join(' ') || '').toLowerCase();
+        return { first, last };
+      })
+      .filter((n: { first: string; last: string }) => n.first && n.last);
+
+    if (nameKeys.length > 0) {
+      const { data: existingByName } = await supabase
+        .from('contacts')
+        .select('first_name, last_name, company_name')
+        .eq('archived', false)
+        .not('email', 'is', null)
+        .ilike('company_name', `%${companyName}%`);
+
+      if (existingByName?.length) {
+        for (const c of existingByName) {
+          crmAlreadyKnown.add(
+            `${(c.first_name || '').toLowerCase()}:${(c.last_name || '').toLowerCase()}`,
+          );
+        }
+      }
+    }
+  }
+
+  // Filter out contacts already in CRM with email
+  // deno-lint-ignore no-explicit-any
+  const needsEnrichment = filtered.filter((e: any) => {
+    const profileUrl = (e.profileUrl || '').toLowerCase();
+    const normalizedUrl = profileUrl
+      .replace('https://www.', '')
+      .replace('https://', '')
+      .replace('http://', '');
+    if (normalizedUrl && crmAlreadyKnown.has(normalizedUrl)) return false;
+
+    if (!profileUrl) {
+      const first = (e.firstName || e.fullName?.split(' ')[0] || '').toLowerCase();
+      const last = (e.lastName || e.fullName?.split(' ').slice(1).join(' ') || '').toLowerCase();
+      if (first && last && crmAlreadyKnown.has(`${first}:${last}`)) return false;
+    }
+    return true;
+  });
+
+  const skippedFromCrm = filtered.length - needsEnrichment.length;
+  if (skippedFromCrm > 0) {
+    console.log(
+      `[enrich-buyer-contacts] Skipped ${skippedFromCrm} contacts already in CRM with email`,
+    );
+  }
+
+  const toEnrich = needsEnrichment.slice(0, targetCount);
 
   // 6. Prospeo enrichment
   const domain = (args.company_domain as string) || inferDomain(companyName);
@@ -625,9 +713,10 @@ async function enrichBuyerContacts(
       contacts: allContacts,
       total_found: filtered.length,
       total_enriched: contacts.length,
+      skipped_already_in_crm: skippedFromCrm,
       from_cache: false,
       errors: errors.length > 0 ? errors : undefined,
-      message: `Found ${allContacts.length} contacts for "${companyName}" (${contacts.length} with email)`,
+      message: `Found ${allContacts.length} contacts for "${companyName}" (${contacts.length} with email)${skippedFromCrm > 0 ? ` — skipped ${skippedFromCrm} already in CRM` : ''}`,
     },
   };
 }
@@ -694,7 +783,9 @@ async function enrichLinkedInContact(
       .from('enriched_contacts')
       .upsert(contactData, { onConflict: 'workspace_id,linkedin_url', ignoreDuplicates: false });
 
-    // Also check if this person exists in our CRM contacts and update them
+    // Also check if this person exists in our CRM contacts — update or create
+    let crmContactId: string | null = null;
+    let crmAction: 'created' | 'updated' | null = null;
     if (result.email) {
       const { data: existingContacts } = await supabase
         .from('contacts')
@@ -715,6 +806,33 @@ async function enrichLinkedInContact(
           await supabase.from('contacts').update(updates).eq('id', existing.id);
           console.log(`[enrich-linkedin] Updated CRM contact ${existing.id} with enriched data`);
         }
+        crmContactId = existing.id as string;
+        crmAction = 'updated';
+      } else {
+        // Create a new CRM contact record so enriched profiles are immediately usable
+        const { data: newContact } = await supabase
+          .from('contacts')
+          .insert({
+            first_name: result.first_name,
+            last_name: result.last_name,
+            email: result.email,
+            phone: result.phone || null,
+            title: result.title || null,
+            linkedin_url: result.linkedin_url || linkedinUrl,
+            company_name: result.company || null,
+            contact_type: 'buyer',
+            source: 'ai_command_center',
+            created_by: userId,
+            archived: false,
+          })
+          .select('id')
+          .single();
+
+        if (newContact) {
+          crmContactId = newContact.id;
+          crmAction = 'created';
+          console.log(`[enrich-linkedin] Created new CRM contact ${newContact.id}`);
+        }
       }
     }
 
@@ -730,8 +848,10 @@ async function enrichLinkedInContact(
         confidence: result.confidence,
         source: result.source,
         saved_to_enriched: true,
+        crm_contact_id: crmContactId || undefined,
+        crm_action: crmAction || undefined,
         message: result.email
-          ? `Found email for ${result.first_name} ${result.last_name}: ${result.email} (confidence: ${result.confidence})`
+          ? `Found email for ${result.first_name} ${result.last_name}: ${result.email} (confidence: ${result.confidence})${crmAction === 'created' ? ' — new CRM contact created' : crmAction === 'updated' ? ' — existing CRM contact updated' : ''}`
           : `Found contact info but no email. Phone: ${result.phone || 'none'}. Try providing company_domain for a name+domain fallback.`,
       },
     };
