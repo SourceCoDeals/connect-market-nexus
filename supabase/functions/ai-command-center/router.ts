@@ -367,7 +367,7 @@ const BYPASS_RULES: Array<{
     result: {
       category: 'CONTACTS',
       tier: 'STANDARD',
-      tools: ['search_contacts', 'search_pe_contacts', 'get_buyer_profile'],
+      tools: ['search_contacts', 'search_pe_contacts', 'enrich_buyer_contacts', 'get_buyer_profile'],
       confidence: 0.87,
     },
   },

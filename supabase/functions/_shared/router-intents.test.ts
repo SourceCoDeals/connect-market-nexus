@@ -218,7 +218,7 @@ const BYPASS_RULES: BypassRule[] = [
     result: {
       category: 'CONTACTS',
       tier: 'STANDARD',
-      tools: ['search_contacts', 'search_pe_contacts', 'get_buyer_profile'],
+      tools: ['search_contacts', 'search_pe_contacts', 'enrich_buyer_contacts', 'get_buyer_profile'],
       confidence: 0.87,
     },
   },
@@ -670,10 +670,11 @@ describe('Core intent classification', () => {
 // ============================================================================
 
 describe('Person-name email lookup intent classification', () => {
-  it('classifies "find the email for Russ Esau" as CONTACTS', () => {
+  it('classifies "find the email for Russ Esau" as CONTACTS with enrichment tool', () => {
     const result = classifyQuery('Find the email for Russ Esau');
     expect(result?.category).toBe('CONTACTS');
     expect(result?.tools).toContain('search_contacts');
+    expect(result?.tools).toContain('enrich_buyer_contacts');
   });
 
   it('classifies "what\'s John Smith\'s email" as CONTACTS', () => {
