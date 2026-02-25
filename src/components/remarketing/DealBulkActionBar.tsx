@@ -31,6 +31,7 @@ import {
   FolderPlus,
   Mail,
   Send,
+  Zap,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
@@ -61,11 +62,22 @@ interface DealBulkActionBarProps {
   enrichDropdown?: boolean;
   isEnriching?: boolean;
 
+  /* ---- Valuation Leads: combined push+enrich ---- */
+  onPushAndEnrich?: (dealIds: string[]) => void;
+  isPushAndEnriching?: boolean;
+  onReEnrichPushed?: (dealIds: string[]) => void;
+  isReEnrichingPushed?: boolean;
+
   /* ---- Common actions ---- */
   onPushToDialer?: () => void;
   onPushToSmartlead?: () => void;
   onPushToHeyreach?: () => void;
   onAddToList?: () => void;
+
+  /* ---- Overrides ---- */
+  onExportCSV?: () => void;
+  /** Hide the priority toggle (e.g. for leads that aren't in the listings table) */
+  showPriorityToggle?: boolean;
 
   /* ---- Destructive ---- */
   onArchive?: () => void;
@@ -91,10 +103,16 @@ export function DealBulkActionBar({
   onEnrichSelected,
   enrichDropdown,
   isEnriching,
+  onPushAndEnrich,
+  isPushAndEnriching,
+  onReEnrichPushed,
+  isReEnrichingPushed,
   onPushToDialer,
   onPushToSmartlead,
   onPushToHeyreach,
   onAddToList,
+  onExportCSV,
+  showPriorityToggle = true,
   onArchive,
   isArchiving,
   onDelete,
@@ -164,13 +182,13 @@ export function DealBulkActionBar({
           </>
         )}
 
-        {/* ---- Pipeline: Approve & Enrich ---- */}
-        {(onApproveToActiveDeals || onEnrichSelected) && <div className="h-5 w-px bg-border" />}
+        {/* ---- Pipeline: Approve, Push & Enrich, Re-Enrich ---- */}
+        {(onApproveToActiveDeals || onPushAndEnrich || onEnrichSelected) && <div className="h-5 w-px bg-border" />}
         {onApproveToActiveDeals && (
           <Button
             size="sm"
             onClick={() => onApproveToActiveDeals(dealIds)}
-            disabled={isPushing}
+            disabled={isPushing || isPushAndEnriching}
             className="gap-2"
           >
             {isPushing ? (
@@ -179,6 +197,37 @@ export function DealBulkActionBar({
               <CheckCircle2 className="h-4 w-4" />
             )}
             Approve to Active Deals
+          </Button>
+        )}
+        {onPushAndEnrich && (
+          <Button
+            size="sm"
+            onClick={() => onPushAndEnrich(dealIds)}
+            disabled={isPushAndEnriching || isPushing}
+            className="gap-2"
+          >
+            {isPushAndEnriching ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Zap className="h-4 w-4" />
+            )}
+            Push &amp; Enrich
+          </Button>
+        )}
+        {onReEnrichPushed && (
+          <Button
+            size="sm"
+            variant="secondary"
+            onClick={() => onReEnrichPushed(dealIds)}
+            disabled={isReEnrichingPushed}
+            className="gap-2"
+          >
+            {isReEnrichingPushed ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Sparkles className="h-4 w-4" />
+            )}
+            Re-Enrich Pushed
           </Button>
         )}
         {onEnrichSelected && enrichDropdown ? (
@@ -224,23 +273,25 @@ export function DealBulkActionBar({
         <div className="h-5 w-px bg-border" />
 
         {/* Priority toggle */}
-        <Button
-          size="sm"
-          variant="outline"
-          onClick={handleTogglePriority}
-          className={cn(
-            'gap-2',
-            allPriority
-              ? 'text-muted-foreground'
-              : 'text-amber-600 border-amber-200 hover:bg-amber-50',
-          )}
-        >
-          <Star className={cn('h-4 w-4', allPriority ? '' : 'fill-amber-500')} />
-          {allPriority ? 'Remove Priority' : 'Mark as Priority'}
-        </Button>
+        {showPriorityToggle && (
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={handleTogglePriority}
+            className={cn(
+              'gap-2',
+              allPriority
+                ? 'text-muted-foreground'
+                : 'text-amber-600 border-amber-200 hover:bg-amber-50',
+            )}
+          >
+            <Star className={cn('h-4 w-4', allPriority ? '' : 'fill-amber-500')} />
+            {allPriority ? 'Remove Priority' : 'Mark as Priority'}
+          </Button>
+        )}
 
         {/* Export CSV */}
-        <Button size="sm" variant="outline" onClick={handleExportCSV} className="gap-2">
+        <Button size="sm" variant="outline" onClick={onExportCSV || handleExportCSV} className="gap-2">
           <Download className="h-4 w-4" />
           Export CSV
         </Button>
