@@ -29,9 +29,10 @@ import {
   Plus,
   ChevronDown,
   ChevronRight,
+  Sparkles,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { useContactLists, useCreateContactList, useAddMembersToList } from "@/hooks/admin/use-contact-lists";
+import { useContactLists, useCreateContactList, useAddMembersToList, useEnrichListContacts } from "@/hooks/admin/use-contact-lists";
 import type { CreateContactListMemberInput } from "@/types/contact-list";
 
 interface BuyerContactInfo {
@@ -64,7 +65,7 @@ export function AddBuyersToListDialog({
   selectedBuyers,
 }: AddBuyersToListDialogProps) {
   const navigate = useNavigate();
-  const [listMode, setListMode] = useState<ListMode>("new");
+  const [listMode, setListMode] = useState<ListMode>("existing");
   const [selectedListId, setSelectedListId] = useState<string>("");
   const [name, setName] = useState("");
 
@@ -78,10 +79,18 @@ export function AddBuyersToListDialog({
   const { data: existingLists } = useContactLists();
   const createList = useCreateContactList();
   const addMembers = useAddMembersToList();
+  const enrichContacts = useEnrichListContacts();
 
   // Stable key for buyer list to avoid re-fetch on every render
   const buyerKey = selectedBuyers.map((b) => b.buyerId).sort().join(",");
   const fetchIdRef = useRef(0);
+
+  // Default to "existing" when lists are available, fall back to "new" if none
+  useEffect(() => {
+    if (open && existingLists) {
+      setListMode(existingLists.length > 0 ? "existing" : "new");
+    }
+  }, [open, existingLists]);
 
   // Fetch contacts for all selected buyers when dialog opens
   useEffect(() => {
@@ -137,7 +146,6 @@ export function AddBuyersToListDialog({
   useEffect(() => {
     if (!open) {
       setName("");
-      setListMode("new");
       setSelectedListId("");
       setContactsByBuyer({});
       setSelectedContactIds(new Set());
@@ -198,6 +206,48 @@ export function AddBuyersToListDialog({
     });
   };
 
+  // Collect contact IDs that are missing email (candidates for enrichment)
+  const contactsMissingEmail = useMemo(() => {
+    const ids: string[] = [];
+    for (const buyer of selectedBuyers) {
+      for (const c of contactsByBuyer[buyer.buyerId] || []) {
+        if (!c.email && c.first_name) ids.push(c.id);
+      }
+    }
+    return ids;
+  }, [selectedBuyers, contactsByBuyer]);
+
+  const handleEnrich = () => {
+    if (contactsMissingEmail.length === 0) return;
+    enrichContacts.mutate({ contact_ids: contactsMissingEmail }, {
+      onSuccess: (results) => {
+        // Update local contact state with enriched data
+        setContactsByBuyer((prev) => {
+          const next = { ...prev };
+          for (const r of results) {
+            if (!r.email && !r.phone) continue;
+            for (const buyerId of Object.keys(next)) {
+              next[buyerId] = next[buyerId].map((c) =>
+                c.id === r.contact_id
+                  ? { ...c, email: r.email || c.email, phone: r.phone || c.phone }
+                  : c,
+              );
+            }
+          }
+          return next;
+        });
+        // Auto-select newly enriched contacts
+        setSelectedContactIds((prev) => {
+          const next = new Set(prev);
+          for (const r of results) {
+            if (r.email) next.add(r.contact_id);
+          }
+          return next;
+        });
+      },
+    });
+  };
+
   const buildMembers = (): CreateContactListMemberInput[] => {
     const members: CreateContactListMemberInput[] = [];
     for (const buyer of selectedBuyers) {
@@ -245,7 +295,7 @@ export function AddBuyersToListDialog({
     }
   };
 
-  const isPending = createList.isPending || addMembers.isPending;
+  const isPending = createList.isPending || addMembers.isPending || enrichContacts.isPending;
   const canSubmit =
     summary.selectedContacts > 0 &&
     !isPending &&
@@ -276,11 +326,27 @@ export function AddBuyersToListDialog({
             <span className="text-xs text-muted-foreground">
               {summary.withPhone} with phone
             </span>
-            {summary.companiesWithoutContacts > 0 && (
-              <Badge variant="outline" className="text-xs text-amber-600 border-amber-300">
-                <AlertTriangle className="h-3 w-3 mr-1" />
-                {summary.companiesWithoutContacts} with no contacts
-              </Badge>
+            {contactsMissingEmail.length > 0 && (
+              <>
+                <Badge variant="outline" className="text-xs text-amber-600 border-amber-300">
+                  <AlertTriangle className="h-3 w-3 mr-1" />
+                  {contactsMissingEmail.length} missing email
+                </Badge>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-6 text-xs gap-1"
+                  onClick={handleEnrich}
+                  disabled={enrichContacts.isPending}
+                >
+                  {enrichContacts.isPending ? (
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                  ) : (
+                    <Sparkles className="h-3 w-3" />
+                  )}
+                  {enrichContacts.isPending ? "Enriching..." : "Find via Prospeo"}
+                </Button>
+              </>
             )}
           </div>
 
@@ -416,7 +482,6 @@ export function AddBuyersToListDialog({
                 variant={listMode === "existing" ? "secondary" : "ghost"}
                 size="sm"
                 onClick={() => setListMode("existing")}
-                disabled={!existingLists?.length}
               >
                 <ListChecks className="h-3.5 w-3.5 mr-1" />
                 Existing List {existingLists?.length ? `(${existingLists.length})` : ""}
@@ -433,7 +498,7 @@ export function AddBuyersToListDialog({
                   placeholder="e.g., HVAC Buyers - Colorado Deal"
                 />
               </div>
-            ) : (
+            ) : existingLists?.length ? (
               <div className="space-y-1.5">
                 <Label>Select List</Label>
                 <Select value={selectedListId} onValueChange={setSelectedListId}>
@@ -441,7 +506,7 @@ export function AddBuyersToListDialog({
                     <SelectValue placeholder="Choose a list..." />
                   </SelectTrigger>
                   <SelectContent>
-                    {existingLists?.map((list) => (
+                    {existingLists.map((list) => (
                       <SelectItem key={list.id} value={list.id}>
                         {list.name} ({list.contact_count} contacts)
                       </SelectItem>
@@ -449,6 +514,8 @@ export function AddBuyersToListDialog({
                   </SelectContent>
                 </Select>
               </div>
+            ) : (
+              <p className="text-sm text-muted-foreground py-2">No lists yet. Switch to "New List" to create one.</p>
             )}
           </div>
         </div>
