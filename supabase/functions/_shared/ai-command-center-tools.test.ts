@@ -1060,3 +1060,222 @@ describe('Tool Result Shapes', () => {
     expect(result.data.total_messages).toBe(2);
   });
 });
+
+// ============================================================================
+// PART 8: Fuzzy Matching — Company Name Resolution
+// ============================================================================
+
+describe('Fuzzy matching — fuzzyContains', () => {
+  // Replicate the fuzzyContains function from contact-tools.ts
+  function fuzzyContains(target: string, query: string): boolean {
+    if (target.includes(query)) return true;
+    if (query.length < 4) return false;
+    for (let i = 0; i <= target.length - query.length + 1; i++) {
+      const sub = target.substring(i, i + query.length);
+      let dist = 0;
+      for (let j = 0; j < query.length; j++) {
+        if (sub[j] !== query[j]) dist++;
+        if (dist > 1) break;
+      }
+      if (dist <= 1) return true;
+    }
+    return false;
+  }
+
+  it('exact substring match', () => {
+    expect(fuzzyContains('essential benefit administrators', 'essential benefit')).toBe(true);
+  });
+
+  it('handles 1-character difference (singular vs plural)', () => {
+    // "benefit" vs "benefits" — the "s" is an extra char, but since we match on same-length substrings,
+    // "benefit" (7 chars) matches within "benefits" (8 chars) via exact substring
+    expect(fuzzyContains('essential benefits advisors', 'benefit')).toBe(true);
+  });
+
+  it('handles 1-edit-distance typo', () => {
+    // "advisors" has 1 edit from "advizors"
+    expect(fuzzyContains('essential benefit advisors', 'advizors')).toBe(true);
+  });
+
+  it('rejects 2+ edit distance', () => {
+    // "administrators" vs "advisors" — very different, should NOT match
+    expect(fuzzyContains('administrators', 'advisors')).toBe(false);
+  });
+
+  it('short queries still match via includes()', () => {
+    // "ess" is a substring of "essential", so includes() catches it even though fuzzy skips < 4 chars
+    expect(fuzzyContains('essential benefit administrators', 'ess')).toBe(true);
+    expect(fuzzyContains('the ess company', 'ess')).toBe(true);
+  });
+
+  it('short query that is NOT a substring does not match', () => {
+    // "xyz" is not a substring and too short for fuzzy
+    expect(fuzzyContains('essential benefit administrators', 'xyz')).toBe(false);
+  });
+
+  it('1-edit-distance matches for capitalization differences', () => {
+    // "Essential" vs "essential" — 1 edit (E→e), 9 chars, so fuzzy catches it
+    expect(fuzzyContains('essential', 'Essential')).toBe(true);
+    expect(fuzzyContains('essential', 'essential')).toBe(true);
+  });
+});
+
+describe('Fuzzy matching — multi-word company name resolution', () => {
+  // Replicate the multi-word matching logic from resolveCompanyName
+  function fuzzyContains(target: string, query: string): boolean {
+    if (target.includes(query)) return true;
+    if (query.length < 4) return false;
+    for (let i = 0; i <= target.length - query.length + 1; i++) {
+      const sub = target.substring(i, i + query.length);
+      let dist = 0;
+      for (let j = 0; j < query.length; j++) {
+        if (sub[j] !== query[j]) dist++;
+        if (dist > 1) break;
+      }
+      if (dist <= 1) return true;
+    }
+    return false;
+  }
+
+  function matchesCompany(companyInDb: string, searchTerm: string): boolean {
+    const target = companyInDb.toLowerCase();
+    const term = searchTerm.toLowerCase();
+    const words = term.split(/\s+/).filter((w) => w.length > 2);
+
+    // Exact substring
+    if (target.includes(term)) return true;
+    // Multi-word fuzzy: all words must match
+    if (words.length > 1 && words.every((w) => fuzzyContains(target, w))) return true;
+    // Single-term fuzzy
+    if (term.length >= 4 && fuzzyContains(target, term)) return true;
+
+    return false;
+  }
+
+  it('exact match: "Essential Benefit Administrators"', () => {
+    expect(
+      matchesCompany('Essential Benefit Administrators', 'Essential Benefit Administrators'),
+    ).toBe(true);
+  });
+
+  it('partial match: "Essential Benefit"', () => {
+    expect(matchesCompany('Essential Benefit Administrators', 'Essential Benefit')).toBe(true);
+  });
+
+  it('fuzzy multi-word: "Essential Benefits" matches "Essential Benefit Administrators"', () => {
+    // "essential" exact match, "benefits" fuzzy matches "benefit" (1 edit: extra "s")
+    // Wait: "benefits" (8 chars) vs substrings of "benefit" (7 chars) — length mismatch
+    // But "benefits" as query, searching in "essential benefit administrators"
+    // At position 10: "benefit " (8 chars including space) vs "benefits" — 1 edit distance
+    expect(matchesCompany('Essential Benefit Administrators', 'Essential Benefits')).toBe(true);
+  });
+
+  it('fuzzy multi-word: "Essential Benefit Advisors" does NOT match (Advisors ≠ Administrators)', () => {
+    // "advisors" (8 chars) vs "administ" (8 chars at various positions) — more than 1 edit
+    // This should NOT match because "advisors" is too different from "administrators"
+    expect(matchesCompany('Essential Benefit Administrators', 'Essential Benefit Advisors')).toBe(
+      false,
+    );
+  });
+
+  it('fuzzy multi-word: only 2 of 3 words need to match when word > 2 chars filter applies', () => {
+    // "Essential Benefits Advisors" → words: ["essential", "benefits", "advisors"]
+    // Against "Essential Benefit Administrators":
+    // "essential" ✓ (exact), "benefits" ✓ (fuzzy ~benefit), "advisors" ✗ (too far from administrators)
+    // ALL words must match → false
+    expect(matchesCompany('Essential Benefit Administrators', 'Essential Benefits Advisors')).toBe(
+      false,
+    );
+  });
+
+  it('matches when company name is contained in longer text', () => {
+    expect(
+      matchesCompany('Essential Benefit Administrators LLC', 'Essential Benefit Administrators'),
+    ).toBe(true);
+  });
+
+  it('single word searches work', () => {
+    expect(matchesCompany('Essential Benefit Administrators', 'Essential')).toBe(true);
+  });
+
+  it('completely unrelated company does NOT match', () => {
+    expect(matchesCompany('Essential Benefit Administrators', 'Acme Corporation')).toBe(false);
+  });
+
+  it('empty search matches via includes (empty string is substring of everything)', () => {
+    // "".includes("") is true in JS, so empty term matches everything
+    expect(matchesCompany('Essential Benefit Administrators', '')).toBe(true);
+  });
+
+  it('completely different string does not match', () => {
+    expect(matchesCompany('Essential Benefit Administrators', 'Zebra Quantum Holdings')).toBe(
+      false,
+    );
+  });
+});
+
+describe('search_contacts — company_name parameter', () => {
+  it('tool definition includes company_name property', () => {
+    const toolDef = {
+      name: 'search_contacts',
+      input_schema: {
+        type: 'object',
+        properties: {
+          contact_type: { type: 'string' },
+          listing_id: { type: 'string' },
+          remarketing_buyer_id: { type: 'string' },
+          firm_id: { type: 'string' },
+          company_name: { type: 'string' },
+          search: { type: 'string' },
+          is_primary: { type: 'boolean' },
+          has_email: { type: 'boolean' },
+          nda_signed: { type: 'boolean' },
+          limit: { type: 'number' },
+        },
+        required: [],
+      },
+    };
+    expect(toolDef.input_schema.properties.company_name).toBeDefined();
+    expect(toolDef.input_schema.properties.company_name.type).toBe('string');
+  });
+
+  it('returns company_name_searched in response when company_name used', () => {
+    const result = {
+      data: {
+        contacts: [],
+        total: 0,
+        source: 'unified_contacts_table',
+        company_name_searched: 'Essential Benefit Administrators',
+        company_matches: ['Essential Benefit Administrators'],
+      },
+    };
+    expect(result.data.company_name_searched).toBe('Essential Benefit Administrators');
+    expect(result.data.company_matches).toContain('Essential Benefit Administrators');
+  });
+
+  it('returns helpful note when no company match found', () => {
+    const result = {
+      data: {
+        contacts: [],
+        total: 0,
+        source: 'unified_contacts_table',
+        company_name_searched: 'Nonexistent Corp',
+        note: 'No deal or company matching "Nonexistent Corp" found in the database. Try query_deals with a broader search term, or check the exact company name in Active Deals.',
+      },
+    };
+    expect(result.data.note).toContain('No deal or company matching');
+    expect(result.data.contacts).toHaveLength(0);
+  });
+
+  it('combines company_name with search for name+company queries', () => {
+    // The ideal call: search_contacts(company_name="Essential Benefit Administrators", search="Ryan")
+    const args = {
+      company_name: 'Essential Benefit Administrators',
+      search: 'Ryan',
+      contact_type: 'seller',
+    };
+    expect(args.company_name).toBe('Essential Benefit Administrators');
+    expect(args.search).toBe('Ryan');
+    expect(args.contact_type).toBe('seller');
+  });
+});

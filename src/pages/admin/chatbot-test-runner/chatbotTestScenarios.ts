@@ -2369,8 +2369,7 @@ export function getChatbotTestScenarios(): TestScenario[] {
       name: '1.1.1 Simple company lookup',
       description:
         'Find decision makers at a specific company with revenue/geography filters. Validates Prospeo returns actionable contacts with relevant titles.',
-      userMessage:
-        'Find me decision makers at a $5M revenue accounting firm in Columbus, Ohio',
+      userMessage: 'Find me decision makers at a $5M revenue accounting firm in Columbus, Ohio',
       expectedBehavior: [
         'Returns 3-5 relevant contacts with clear titles (CFO, controller, managing partner)',
         'Shows contact email, phone if available',
@@ -2387,7 +2386,15 @@ export function getChatbotTestScenarios(): TestScenario[] {
       severity: 'critical',
       autoValidation: {
         expectedRouteCategories: ['CONTACT_ENRICHMENT', 'CONTACTS'],
-        mustContainAny: ['contact', 'email', 'CFO', 'controller', 'partner', 'accounting', 'Columbus'],
+        mustContainAny: [
+          'contact',
+          'email',
+          'CFO',
+          'controller',
+          'partner',
+          'accounting',
+          'Columbus',
+        ],
         minResponseLength: 150,
       },
     },
@@ -2455,7 +2462,7 @@ export function getChatbotTestScenarios(): TestScenario[] {
       description:
         'Tests competitive buyer intelligence: identifies competing acquirers (not industry competitors), their deal patterns, and strategic positioning.',
       userMessage:
-        'Show me who we\'re competing against to buy that collision repair consolidator in Denver. Pull the owners/operators at the top 3 competitors.',
+        "Show me who we're competing against to buy that collision repair consolidator in Denver. Pull the owners/operators at the top 3 competitors.",
       expectedBehavior: [
         'Interprets "competitors" as other buyers (PE, strategics, other platforms)',
         'Returns actual operators/principals at competitor platforms',
@@ -2501,7 +2508,15 @@ export function getChatbotTestScenarios(): TestScenario[] {
       ],
       severity: 'critical',
       autoValidation: {
-        mustContainAny: ['confidence', 'accuracy', 'reliable', 'CFO', 'software', 'verify', 'data quality'],
+        mustContainAny: [
+          'confidence',
+          'accuracy',
+          'reliable',
+          'CFO',
+          'software',
+          'verify',
+          'data quality',
+        ],
         mustNotContain: ['100% accurate', 'guaranteed accurate', 'all data is verified'],
         minResponseLength: 200,
       },
@@ -2529,7 +2544,15 @@ export function getChatbotTestScenarios(): TestScenario[] {
       ],
       severity: 'high',
       autoValidation: {
-        mustContainAny: ['coverage', 'rural', 'limited', 'COO', 'manufacturing', 'alternative', 'gap'],
+        mustContainAny: [
+          'coverage',
+          'rural',
+          'limited',
+          'COO',
+          'manufacturing',
+          'alternative',
+          'gap',
+        ],
         mustNotContain: ['i can guarantee', 'will definitely find', '100% coverage'],
         minResponseLength: 100,
       },
@@ -2562,7 +2585,7 @@ export function getChatbotTestScenarios(): TestScenario[] {
         'Forgets mention of institutional buyers',
         'Talks only about sellers, ignores buy-side',
         'Cannot explain why founders should use us vs hiring an advisor',
-        'Mentions irrelevant services we don\'t offer',
+        "Mentions irrelevant services we don't offer",
       ],
       severity: 'critical',
       autoValidation: {
@@ -2594,7 +2617,15 @@ export function getChatbotTestScenarios(): TestScenario[] {
       ],
       severity: 'critical',
       autoValidation: {
-        mustContainAny: ['buyer', 'PE', 'home services', 'Atlanta', 'score', 'roll-up', 'strategic'],
+        mustContainAny: [
+          'buyer',
+          'PE',
+          'home services',
+          'Atlanta',
+          'score',
+          'roll-up',
+          'strategic',
+        ],
         minResponseLength: 150,
       },
     },
@@ -2643,7 +2674,7 @@ export function getChatbotTestScenarios(): TestScenario[] {
         'Recommends expertise layer: "This is where having a good tax advisor matters"',
       ],
       edgeCases: [
-        'Treats earnout as simple deferred payment (it\'s not)',
+        "Treats earnout as simple deferred payment (it's not)",
         'No risk identification',
         'Cannot explain metric gaming concept',
         'Suggests structures that favor one party unfairly',
@@ -2662,8 +2693,7 @@ export function getChatbotTestScenarios(): TestScenario[] {
       name: '2.3.1 Collision repair consolidation',
       description:
         'Tests industry-specific knowledge: driving factors, buyer types, valuation environment, active consolidators, and our angle.',
-      userMessage:
-        "What's happening in collision repair right now? Why is it consolidating?",
+      userMessage: "What's happening in collision repair right now? Why is it consolidating?",
       expectedBehavior: [
         'Names driving factors: insurance pressure on repair costs, labor shortages, capital needs for tech',
         'Notes buyer types: DRP-focused consolidators, insurance captives, strategic service companies',
@@ -2771,7 +2801,15 @@ export function getChatbotTestScenarios(): TestScenario[] {
       ],
       severity: 'critical',
       autoValidation: {
-        mustContainAny: ['profile', 'scoring', 'match', 'industry', 'ticket size', 'geography', 'fit'],
+        mustContainAny: [
+          'profile',
+          'scoring',
+          'match',
+          'industry',
+          'ticket size',
+          'geography',
+          'fit',
+        ],
         minResponseLength: 150,
       },
     },
@@ -2797,11 +2835,19 @@ export function getChatbotTestScenarios(): TestScenario[] {
         'Treats all sellers as immediately market-ready',
         'No assessment of buyer appeal factors',
         'Cannot identify deal prep needs',
-        'Generic responses that don\'t address landscaping specifics',
+        "Generic responses that don't address landscaping specifics",
       ],
       severity: 'critical',
       autoValidation: {
-        mustContainAny: ['landscaping', 'EBITDA', 'customer', 'concentration', 'owner', 'team', 'fit'],
+        mustContainAny: [
+          'landscaping',
+          'EBITDA',
+          'customer',
+          'concentration',
+          'owner',
+          'team',
+          'fit',
+        ],
         minResponseLength: 200,
       },
     },
@@ -2874,7 +2920,7 @@ export function getChatbotTestScenarios(): TestScenario[] {
       expectedBehavior: [
         'References DocuSeal integration for NDA/fee agreement signing',
         'Can track status: docs generated → sent to parties → signed → executed',
-        'Identifies bottlenecks: seller hasn\'t signed NDA, buyer delayed, counsel reviewing',
+        "Identifies bottlenecks: seller hasn't signed NDA, buyer delayed, counsel reviewing",
         'Shows what is ready: asset purchase agreement templates available',
         'Notes integration dependency: "Once DocuSeal completes, next step is formal SPA negotiation"',
         'Explains role clarity: buyer counsel handles SPA, our role is coordination',
@@ -2935,8 +2981,7 @@ export function getChatbotTestScenarios(): TestScenario[] {
       name: '4.1.2 Complex buyer segment analytics',
       description:
         'Tests behavioral analytics: buyer activity patterns, closure rates by segment, actionable recommendations, and data limitations.',
-      userMessage:
-        'Which buyer segments are actually closing deals? Who should we focus on?',
+      userMessage: 'Which buyer segments are actually closing deals? Who should we focus on?',
       expectedBehavior: [
         'Queries buyer activity, closure rates, average deal size by type',
         'Identifies patterns: "PE firms close at X% rate, $Y-Z range. Strategics at A% rate"',
@@ -2966,8 +3011,7 @@ export function getChatbotTestScenarios(): TestScenario[] {
       name: '4.2.1 Extracting deal intelligence from calls',
       description:
         'Tests Fireflies transcript analysis: timeline extraction, contextual interpretation, risk flagging, and follow-up suggestions.',
-      userMessage:
-        "What did the buyer say about timeline in yesterday's call with our seller?",
+      userMessage: "What did the buyer say about timeline in yesterday's call with our seller?",
       expectedBehavior: [
         'Queries recent Fireflies transcripts matching buyer + seller',
         'Pulls relevant quotes about timeline',
@@ -3013,7 +3057,12 @@ export function getChatbotTestScenarios(): TestScenario[] {
       severity: 'high',
       autoValidation: {
         requiresToolCalls: true,
-        expectedTools: ['search_transcripts', 'search_fireflies', 'semantic_transcript_search', 'search_buyer_transcripts'],
+        expectedTools: [
+          'search_transcripts',
+          'search_fireflies',
+          'semantic_transcript_search',
+          'search_buyer_transcripts',
+        ],
         mustContainAny: ['buyer', 'interest', 'signal', 'call', 'priority'],
         minResponseLength: 150,
       },
@@ -3026,8 +3075,7 @@ export function getChatbotTestScenarios(): TestScenario[] {
       name: '4.3.1 Deal velocity & vertical comparison',
       description:
         'Tests multi-source analysis: historical deal data by vertical, industry context for timeline differences, risk assessment, and benchmarking.',
-      userMessage:
-        'Why are home services deals taking longer to close than SaaS? Should we worry?',
+      userMessage: 'Why are home services deals taking longer to close than SaaS? Should we worry?',
       expectedBehavior: [
         'Queries deal data: average time-to-close by vertical',
         'Pulls context: home services typically 120+ days, SaaS 85 days (normal)',
@@ -3075,7 +3123,12 @@ export function getChatbotTestScenarios(): TestScenario[] {
       severity: 'medium',
       autoValidation: {
         requiresToolCalls: true,
-        expectedTools: ['search_buyers', 'get_buyer_profile', 'get_score_breakdown', 'get_top_buyers_for_deal'],
+        expectedTools: [
+          'search_buyers',
+          'get_buyer_profile',
+          'get_score_breakdown',
+          'get_top_buyers_for_deal',
+        ],
         mustContainAny: ['buyer', 'fit', 'landscaping', 'score', 'match', 'profile'],
         minResponseLength: 200,
       },
@@ -3139,7 +3192,15 @@ export function getChatbotTestScenarios(): TestScenario[] {
       ],
       severity: 'critical',
       autoValidation: {
-        mustContainAny: ['valuation', 'revenue', 'EBITDA', 'multiple', 'industry', 'comparable', 'methodology'],
+        mustContainAny: [
+          'valuation',
+          'revenue',
+          'EBITDA',
+          'multiple',
+          'industry',
+          'comparable',
+          'methodology',
+        ],
         mustNotContain: ['that sounds right', 'that valuation is correct', '$3M is accurate'],
         minResponseLength: 200,
       },
@@ -3172,6 +3233,93 @@ export function getChatbotTestScenarios(): TestScenario[] {
         expectedTools: ['get_pipeline_summary', 'query_deals', 'get_deal_tasks', 'get_stale_deals'],
         mustContainAny: ['deal', 'stage', 'week', 'timeline', 'progress', 'normal', 'status'],
         minResponseLength: 150,
+      },
+    },
+
+    // ── CONTACT SEARCH — Company Name Resolution ──
+    {
+      id: 'contact-company-name-exact',
+      category: 'Contact Search — Company Name',
+      name: 'Find contact at a company by exact name',
+      description:
+        'Verify the bot can find a seller contact when the user provides the company name. This was a real failure: "find Ryan at Essential Benefit Administrators" returned no results because search_contacts had no company_name parameter.',
+      userMessage: 'Find the email for Ryan from Essential Benefit Administrators',
+      expectedBehavior: [
+        'Uses search_contacts with company_name="Essential Benefit Administrators" and search="Ryan"',
+        'Finds the deal/listing for Essential Benefit Administrators',
+        'Returns Ryan Brown as the primary contact',
+        'Shows his email if on file',
+        'Does NOT say "no results found" if the company exists in Active Deals',
+      ],
+      severity: 'critical',
+      autoValidation: {
+        requiresToolCalls: true,
+        expectedTools: ['search_contacts'],
+        mustContainAny: ['ryan', 'essential benefit', 'contact'],
+        mustNotContain: ['no results found', 'not in our system', 'not tracked'],
+      },
+    },
+    {
+      id: 'contact-company-name-fuzzy',
+      category: 'Contact Search — Company Name',
+      name: 'Find contact with slightly wrong company name',
+      description:
+        'Verify fuzzy matching works when user provides a close but incorrect company name (e.g. "Essential Benefits Advisors" instead of "Essential Benefit Administrators").',
+      userMessage: 'Find Ryan at Essential Benefits Advisors',
+      expectedBehavior: [
+        'Fuzzy-matches "Essential Benefits Advisors" to "Essential Benefit Administrators"',
+        'Finds the correct company despite name differences',
+        'Returns the matching contact (Ryan Brown)',
+        'Does NOT fail silently or return unrelated results',
+      ],
+      edgeCases: [
+        'Try with singular/plural variations: "Essential Benefit" vs "Essential Benefits"',
+        'Try with different suffixes: "Advisors" vs "Administrators" vs "Associates"',
+      ],
+      severity: 'critical',
+      autoValidation: {
+        requiresToolCalls: true,
+        expectedTools: ['search_contacts'],
+        mustContainAny: ['ryan', 'essential', 'contact'],
+      },
+    },
+    {
+      id: 'contact-company-seller-not-buyer',
+      category: 'Contact Search — Company Name',
+      name: 'Seller company not confused with buyer',
+      description:
+        'Verify the bot correctly identifies a company as a seller (deal in Active Deals) rather than searching buyers. A real failure: user asked about Essential Benefit Administrators (a deal/seller) and the bot used search_buyers which returned nothing.',
+      userMessage: 'Who is the owner of Essential Benefit Administrators?',
+      expectedBehavior: [
+        'Recognizes this is a deal/listing (seller), not a buyer',
+        'Uses search_contacts with company_name, NOT search_buyers',
+        'Returns the deal owner/primary contact',
+        'Does NOT say "they are not a buyer in our system"',
+      ],
+      severity: 'high',
+      autoValidation: {
+        requiresToolCalls: true,
+        expectedTools: ['search_contacts', 'query_deals'],
+        mustNotContain: ['not a buyer', 'not tracked as a buyer'],
+      },
+    },
+    {
+      id: 'contact-company-name-no-match',
+      category: 'Contact Search — Company Name',
+      name: 'Company name with no match',
+      description: 'Verify graceful handling when the company truly does not exist in the system.',
+      userMessage: 'Find the email for John at Nonexistent Corp International',
+      expectedBehavior: [
+        'Clearly states no matching company/deal was found',
+        'Suggests checking the exact name in Active Deals',
+        'Does NOT hallucinate a contact',
+        'May offer to search externally',
+      ],
+      severity: 'high',
+      autoValidation: {
+        requiresToolCalls: true,
+        expectedTools: ['search_contacts'],
+        mustContainAny: ['no', 'not found', 'found 0', "don't have", "couldn't find"],
       },
     },
   ];
