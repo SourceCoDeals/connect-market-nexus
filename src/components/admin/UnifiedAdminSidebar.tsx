@@ -107,23 +107,6 @@ export function UnifiedAdminSidebar({
         ],
       },
       {
-        id: 'lists',
-        label: 'Lists',
-        icon: <List className="h-4 w-4" />,
-        items: [
-          {
-            label: 'Contact Lists',
-            href: '/admin/lists',
-            icon: <ListChecks className="h-4 w-4" />,
-          },
-          {
-            label: 'Saved Listings',
-            href: '/saved-listings',
-            icon: <Bookmark className="h-4 w-4" />,
-          },
-        ],
-      },
-      {
         id: 'buyers',
         label: 'Buyers',
         icon: <Users className="h-4 w-4" />,
@@ -218,6 +201,23 @@ export function UnifiedAdminSidebar({
             href: '/admin/settings/owner-leads',
             icon: <ClipboardList className="h-4 w-4" />,
             badge: unviewedOwnerLeadsCount,
+          },
+        ],
+      },
+      {
+        id: 'lists',
+        label: 'Lists',
+        icon: <List className="h-4 w-4" />,
+        items: [
+          {
+            label: 'Contact Lists',
+            href: '/admin/lists',
+            icon: <ListChecks className="h-4 w-4" />,
+          },
+          {
+            label: 'Saved Listings',
+            href: '/saved-listings',
+            icon: <Bookmark className="h-4 w-4" />,
           },
         ],
       },
