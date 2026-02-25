@@ -99,6 +99,11 @@ export const ROUTES = {
       settings: '/admin/smartlead/settings',
     },
 
+    phoneburner: {
+      sessions: '/admin/phoneburner/sessions',
+      settings: '/admin/phoneburner/settings',
+    },
+
     settings: {
       team: '/admin/settings/team',
       ownerLeads: '/admin/settings/owner-leads',
