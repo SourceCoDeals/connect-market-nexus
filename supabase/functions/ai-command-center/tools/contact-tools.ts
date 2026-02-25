@@ -293,6 +293,12 @@ async function searchPeContacts(
     }
   }
 
+  // Fallback: if searching by name and no results, also check enriched_contacts
+  let enrichedResults: Array<Record<string, unknown>> = [];
+  if (args.search && results.length === 0) {
+    enrichedResults = await searchEnrichedContacts(supabase, args.search as string, limit);
+  }
+
   return {
     data: {
       contacts: results.slice(0, limit),
@@ -302,8 +308,58 @@ async function searchPeContacts(
       firm_name_searched: args.firm_name || null,
       firm_ids_matched: firmNameUsed ? firmIds.length : undefined,
       buyer_ids_matched: firmNameUsed ? buyerIds.length : undefined,
+      enriched_contacts: enrichedResults.length > 0 ? enrichedResults : undefined,
+      enriched_note: enrichedResults.length > 0
+        ? `No matches in CRM contacts, but found ${enrichedResults.length} match(es) in previously enriched contacts (not yet saved to CRM). Use save_contacts_to_crm to add them.`
+        : undefined,
     },
   };
+}
+
+/**
+ * Search the enriched_contacts table (Prospeo/Apify results not yet saved to CRM).
+ * Used as a fallback when the main contacts table has no matches.
+ */
+async function searchEnrichedContacts(
+  supabase: SupabaseClient,
+  searchTerm: string,
+  limit: number,
+): Promise<Array<Record<string, unknown>>> {
+  const words = searchTerm.trim().split(/\s+/).filter(w => w.length > 0);
+  const orConditions: string[] = [];
+
+  for (const word of words) {
+    const escaped = word.replace(/[%_]/g, '\\$&');
+    orConditions.push(`first_name.ilike.%${escaped}%`);
+    orConditions.push(`last_name.ilike.%${escaped}%`);
+    orConditions.push(`full_name.ilike.%${escaped}%`);
+    orConditions.push(`email.ilike.%${escaped}%`);
+  }
+
+  if (orConditions.length === 0) return [];
+
+  const { data, error } = await supabase
+    .from('enriched_contacts')
+    .select('id, full_name, first_name, last_name, email, phone, title, company_name, linkedin_url, confidence, source, enriched_at')
+    .or(orConditions.join(','))
+    .order('enriched_at', { ascending: false })
+    .limit(limit);
+
+  if (error || !data) return [];
+
+  let results = data as Array<Record<string, unknown>>;
+
+  // Multi-word precision filter
+  if (words.length > 1) {
+    const lowerWords = words.map(w => w.toLowerCase());
+    results = results.filter(c => {
+      const fullName = ((c.full_name as string) || `${(c.first_name as string) || ''} ${(c.last_name as string) || ''}`).toLowerCase();
+      const email = (c.email as string)?.toLowerCase() || '';
+      return lowerWords.every(w => fullName.includes(w) || email.includes(w));
+    });
+  }
+
+  return results;
 }
 
 /**
@@ -373,6 +429,12 @@ async function searchContacts(
     }
   }
 
+  // Fallback: if searching by name and no results, also check enriched_contacts
+  let enrichedResults: Array<Record<string, unknown>> = [];
+  if (args.search && results.length === 0) {
+    enrichedResults = await searchEnrichedContacts(supabase, args.search as string, limit);
+  }
+
   return {
     data: {
       contacts: results.slice(0, limit),
@@ -385,6 +447,10 @@ async function searchContacts(
         internal: results.filter(c => c.contact_type === 'internal').length,
       },
       source: 'unified_contacts_table',
+      enriched_contacts: enrichedResults.length > 0 ? enrichedResults : undefined,
+      enriched_note: enrichedResults.length > 0
+        ? `No matches in CRM contacts, but found ${enrichedResults.length} match(es) in previously enriched contacts (not yet saved to CRM). Use save_contacts_to_crm to add them.`
+        : undefined,
     },
   };
 }

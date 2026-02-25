@@ -638,9 +638,15 @@ Present engagement data as a timeline or summary:
 - "Buyer X has 4 signals in the last 30 days: 2 site visits, 1 financial request, 1 NDA signed."
 - "7 buyers passed; top reasons: size_mismatch (3), geographic_mismatch (2), other (2)."`,
 
-  CONTACTS: `For contact searches by firm/company name (e.g. "find VPs at Trivest"), use search_pe_contacts with the firm_name parameter. This will look up the firm in both firm_agreements and remarketing_buyers tables, then find matching contacts.
+  CONTACTS: `For PERSON NAME lookups (e.g. "find email for Russ Esau", "what's John Smith's email"):
+- Use search_contacts with the search parameter set to the person's name. This searches across first_name, last_name, email, and title at the database level.
+- search_contacts searches ALL contact types (buyer, seller, advisor, internal) — use it first for person lookups since you may not know the contact type.
+- If no results are found in the main contacts table, the tool automatically checks the enriched_contacts table (Prospeo/Apify results not yet saved to CRM). If matches are found there, suggest saving them with save_contacts_to_crm.
+- If still no results, suggest using enrich_buyer_contacts if you know their company, or say the contact hasn't been imported yet.
+
+For FIRM/COMPANY searches (e.g. "find VPs at Trivest"), use search_pe_contacts with the firm_name parameter. This will look up the firm in both firm_agreements and remarketing_buyers tables, then find matching contacts.
 For role-specific searches (e.g. "find associates at Audax"), use search_pe_contacts with both firm_name and role_category parameters.
-If no contacts are found, clearly state that the firm's contacts have not been imported into SourceCo yet and suggest using enrich_buyer_contacts to discover and import them via LinkedIn/Prospeo.`,
+If no contacts are found for a firm, clearly state that the firm's contacts have not been imported into SourceCo yet and suggest using enrich_buyer_contacts to discover and import them via LinkedIn/Prospeo.`,
 
   CONTACT_ENRICHMENT: `When the user asks to find contacts at a company:
 1. FIRST check existing contacts with search_pe_contacts or search_contacts

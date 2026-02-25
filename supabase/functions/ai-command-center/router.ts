@@ -357,12 +357,13 @@ const BYPASS_RULES: Array<{
       confidence: 0.87,
     },
   },
-  // PE / platform contacts — find who to call, email at a firm
+  // PE / platform contacts — find who to call, email at a firm, person email lookups
   {
     test: (q) =>
-      /\b(contact at|contact for|who.?s the|find contact|email for|phone for|partner at|principal at|deal team|pe contact|platform contact)\b/i.test(
-        q,
-      ),
+      /\b(contact at|contact for|who.?s the|find contact|email for|phone for|partner at|principal at|deal team|pe contact|platform contact)\b/i.test(q) ||
+      /\b(what.?s|what is|do we have|get me|look up|find).{0,20}\b(email|phone|contact info)\b/i.test(q) ||
+      /\b(email|phone)\s+(address\s+)?(for|of)\b/i.test(q) ||
+      /\bemail\b.*\b(address)\b/i.test(q),
     result: {
       category: 'CONTACTS',
       tier: 'STANDARD',
