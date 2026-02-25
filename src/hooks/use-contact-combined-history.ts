@@ -135,18 +135,6 @@ export function useContactCombinedHistory(buyerId: string | null) {
         .eq('remarketing_buyer_id', buyerId)
         .order('created_at', { ascending: false });
 
-      // Get campaign names
-      const campaignIds = [...new Set((campaignLeads || []).map((l) => l.campaign_id))];
-      let campaignNameMap = new Map<string, string>();
-      if (campaignIds.length > 0) {
-        const { data: campaigns } = await supabase
-          .from('smartlead_campaigns')
-          .select('id, name')
-          .in('id', campaignIds);
-        if (campaigns) {
-          campaignNameMap = new Map(campaigns.map((c) => [c.id, c.name]));
-        }
-      }
 
       // Get emails for webhook event lookup
       const emails = [...new Set((campaignLeads || []).map((c) => c.email).filter(Boolean))];
