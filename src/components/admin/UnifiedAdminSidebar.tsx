@@ -14,7 +14,6 @@ import {
   MessageSquare,
   UserCog,
   Target,
-  Activity,
   Crosshair,
   Briefcase,
   Calculator,
@@ -180,11 +179,6 @@ export function UnifiedAdminSidebar({
             exact: true,
           },
           {
-            label: 'Activity Queue',
-            href: '/admin/remarketing/activity-queue',
-            icon: <Activity className="h-4 w-4" />,
-          },
-          {
             label: 'CapTarget Deals',
             href: '/admin/remarketing/leads/captarget',
             icon: <Crosshair className="h-4 w-4" />,
@@ -230,44 +224,6 @@ export function UnifiedAdminSidebar({
           },
         ],
       },
-      ...((canAccessSettings
-        ? [
-            {
-              id: 'smartlead',
-              label: 'Smartlead',
-              icon: <Mail className="h-4 w-4" />,
-              items: [
-                {
-                  label: 'Campaigns',
-                  href: '/admin/smartlead/campaigns',
-                  icon: <Mail className="h-4 w-4" />,
-                },
-                {
-                  label: 'Integration Settings',
-                  href: '/admin/smartlead/settings',
-                  icon: <Settings className="h-4 w-4" />,
-                },
-              ],
-            },
-            {
-              id: 'phoneburner',
-              label: 'PhoneBurner',
-              icon: <Phone className="h-4 w-4" />,
-              items: [
-                {
-                  label: 'Dial Sessions',
-                  href: '/admin/phoneburner/sessions',
-                  icon: <Phone className="h-4 w-4" />,
-                },
-                {
-                  label: 'Integration Settings',
-                  href: '/admin/phoneburner/settings',
-                  icon: <Settings className="h-4 w-4" />,
-                },
-              ],
-            },
-          ]
-        : []) as NavSection[]),
       {
         id: 'admin',
         label: 'Admin',
@@ -295,6 +251,17 @@ export function UnifiedAdminSidebar({
                 {
                   label: 'Smartlead Settings',
                   href: '/admin/smartlead/settings',
+                  icon: <Settings className="h-4 w-4" />,
+                },
+                {
+                  label: 'Dial Sessions',
+                  href: '/admin/phoneburner/sessions',
+                  icon: <Phone className="h-4 w-4" />,
+                  separator: 'PhoneBurner',
+                },
+                {
+                  label: 'PhoneBurner Settings',
+                  href: '/admin/phoneburner/settings',
                   icon: <Settings className="h-4 w-4" />,
                 },
                 {
