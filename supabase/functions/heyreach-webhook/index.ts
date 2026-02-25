@@ -141,6 +141,46 @@ Deno.serve(async (req) => {
         .limit(1);
     }
 
+    // ─── Sync linkedin_url to contacts table ───────────────────────────
+    // If we have a lead's LinkedIn URL, make sure it's captured on any
+    // matching contact records (matched by email or by heyreach_campaign_leads link)
+    if (leadLinkedInUrl) {
+      try {
+        // Strategy 1: Match via heyreach_campaign_leads → buyer_contact_id / remarketing_buyer_id
+        if (campaignId) {
+          const { data: leads } = await supabase
+            .from('heyreach_campaign_leads')
+            .select('buyer_contact_id, remarketing_buyer_id, email, first_name, last_name')
+            .eq('linkedin_url', leadLinkedInUrl)
+            .limit(5);
+
+          for (const lead of leads || []) {
+            // Update unified contacts table by remarketing_buyer_id + email match
+            if (lead.remarketing_buyer_id && lead.email) {
+              await supabase
+                .from('contacts')
+                .update({ linkedin_url: leadLinkedInUrl })
+                .eq('remarketing_buyer_id', lead.remarketing_buyer_id)
+                .ilike('email', lead.email)
+                .is('linkedin_url', null);
+            }
+          }
+        }
+
+        // Strategy 2: Match any contact by email if we have it
+        if (leadEmail) {
+          await supabase
+            .from('contacts')
+            .update({ linkedin_url: leadLinkedInUrl })
+            .ilike('email', leadEmail)
+            .is('linkedin_url', null);
+        }
+      } catch (syncErr) {
+        // Non-fatal: log but don't fail the webhook
+        console.warn('[heyreach-webhook] Contact linkedin_url sync error:', syncErr);
+      }
+    }
+
     console.log(
       `[heyreach-webhook] Processed ${eventType} for campaign ${campaignId}, lead ${leadLinkedInUrl}`,
     );

@@ -383,6 +383,7 @@ export function BuyerContactsTab({ buyerId }: BuyerContactsTabProps) {
                 <TableHead>Priority</TableHead>
                 <TableHead>Email</TableHead>
                 <TableHead>Phone</TableHead>
+                <TableHead>LinkedIn</TableHead>
                 <TableHead>Contact Type</TableHead>
                 <TableHead className="w-[50px]"></TableHead>
               </TableRow>
@@ -438,6 +439,21 @@ export function BuyerContactsTab({ buyerId }: BuyerContactsTabProps) {
                     )}
                   </TableCell>
                   <TableCell>
+                    {contact.linkedin_url ? (
+                      <a
+                        href={contact.linkedin_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-1 text-primary hover:underline"
+                      >
+                        <Linkedin className="h-3 w-3" />
+                        Profile
+                      </a>
+                    ) : (
+                      <span className="text-sm text-muted-foreground">—</span>
+                    )}
+                  </TableCell>
+                  <TableCell>
                     <div className="flex items-center gap-1">
                       {contact.is_primary_contact && (
                         <Badge variant="default" className="text-xs">
@@ -448,16 +464,6 @@ export function BuyerContactsTab({ buyerId }: BuyerContactsTabProps) {
                         <Badge variant="secondary" className="text-xs">
                           Deal Team
                         </Badge>
-                      )}
-                      {contact.linkedin_url && (
-                        <a
-                          href={contact.linkedin_url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-primary hover:text-primary/80"
-                        >
-                          <Linkedin className="w-3 h-3" />
-                        </a>
                       )}
                     </div>
                   </TableCell>
