@@ -1,6 +1,9 @@
 import { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
 import {
   Mail,
   Phone,
@@ -12,6 +15,8 @@ import {
   TrendingUp,
   Mic,
   Activity,
+  User,
+  Users,
 } from 'lucide-react';
 import { format, formatDistanceToNow, subDays } from 'date-fns';
 import {
@@ -19,6 +24,11 @@ import {
   useContactCombinedHistoryByEmail,
   type UnifiedActivityEntry,
 } from '@/hooks/use-contact-combined-history';
+import {
+  ContactActivityTimeline,
+  ContactActivityTimelineByEmail,
+} from '@/components/remarketing/ContactActivityTimeline';
+import { ListingNotesLog } from './ListingNotesLog';
 
 // ── Types ──
 
@@ -28,6 +38,15 @@ interface ContactHistoryTrackerProps {
   listingId: string;
   primaryContactEmail?: string | null;
   primaryContactName?: string | null;
+}
+
+interface AssociatedBuyer {
+  id: string;
+  buyerName: string;
+  contactName: string | null;
+  contactEmail: string | null;
+  remarketing_buyer_id: string | null;
+  buyerType: string | null;
 }
 
 // ── Helpers ──
@@ -184,7 +203,7 @@ export function ContactHistoryTracker({
     emails: true,
   });
 
-  // Fetch associated buyers for this deal (same pattern as DealContactHistoryTab)
+  // Fetch associated buyers for this deal
   const { data: associatedBuyers = [], isLoading: buyersLoading } = useQuery({
     queryKey: ['contact-history-tracker-buyers', listingId],
     queryFn: async () => {
@@ -212,26 +231,55 @@ export function ContactHistoryTracker({
           ((d.remarketing_buyers as Record<string, unknown> | null)?.company_name as string) ||
           (d.contact_name as string) ||
           'Unknown',
+        contactName: d.contact_name as string | null,
         contactEmail: d.contact_email as string | null,
         remarketing_buyer_id: d.remarketing_buyer_id as string | null,
+        buyerType:
+          ((d.remarketing_buyers as Record<string, unknown> | null)?.buyer_type as string) || null,
       }));
     },
     enabled: !!listingId,
   });
 
-  // Find the best buyer ID or email for fetching history
+  // Fetch seller-side contacts
+  const { data: sellerContacts = [], isLoading: contactsLoading } = useQuery({
+    queryKey: ['contact-history-tracker-seller', listingId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('contacts')
+        .select('id, first_name, last_name, email, phone, title, contact_type')
+        .eq('listing_id', listingId)
+        .eq('archived', false)
+        .order('is_primary_seller_contact', { ascending: false });
+
+      if (error) throw error;
+
+      return (data || []).map((c) => ({
+        id: c.id as string,
+        name: `${c.first_name || ''} ${c.last_name || ''}`.trim() || 'Unknown',
+        email: c.email as string | null,
+        phone: c.phone as string | null,
+        title: c.title as string | null,
+        contactType: c.contact_type as string | null,
+      }));
+    },
+    enabled: !!listingId,
+  });
+
+  // Find the best buyer ID or email for the overview
   const primaryBuyerId =
     associatedBuyers.find((b) => b.remarketing_buyer_id)?.remarketing_buyer_id || null;
   const lookupEmail =
     primaryContactEmail || associatedBuyers.find((b) => b.contactEmail)?.contactEmail || null;
 
-  // Fetch combined history
+  // Fetch combined history for overview stats
   const { data: entriesByBuyer = [], isLoading: historyByBuyerLoading } =
     useContactCombinedHistory(primaryBuyerId);
   const { data: entriesByEmail = [], isLoading: historyByEmailLoading } =
     useContactCombinedHistoryByEmail(!primaryBuyerId ? lookupEmail : null);
 
-  const isLoading = buyersLoading || historyByBuyerLoading || historyByEmailLoading;
+  const isLoading =
+    buyersLoading || contactsLoading || historyByBuyerLoading || historyByEmailLoading;
   const allEntries = primaryBuyerId ? entriesByBuyer : entriesByEmail;
 
   // Filter by date range
@@ -247,134 +295,170 @@ export function ContactHistoryTracker({
     setExpandedSections((prev) => ({ ...prev, [section]: !prev[section] }));
   };
 
+  // Build contact tabs for the per-contact activity log section
+  const allContactEmails = new Set<string>();
+  if (primaryContactEmail) allContactEmails.add(primaryContactEmail.toLowerCase());
+
+  const uniqueBuyers: AssociatedBuyer[] = [];
+  for (const b of associatedBuyers) {
+    const email = b.contactEmail?.toLowerCase();
+    if (email && allContactEmails.has(email)) continue;
+    if (email) allContactEmails.add(email);
+    uniqueBuyers.push(b);
+  }
+
+  type ContactTab = {
+    id: string;
+    label: string;
+    email?: string | null;
+    buyerId?: string | null;
+    type: 'primary' | 'buyer' | 'seller';
+  };
+
+  const contactTabs: ContactTab[] = [];
+
+  if (primaryContactEmail) {
+    contactTabs.push({
+      id: 'primary',
+      label: primaryContactName || 'Primary Contact',
+      email: primaryContactEmail,
+      type: 'primary',
+    });
+  }
+
+  for (const b of uniqueBuyers) {
+    contactTabs.push({
+      id: `buyer-${b.id}`,
+      label: b.contactName || b.buyerName,
+      email: b.contactEmail,
+      buyerId: b.remarketing_buyer_id,
+      type: 'buyer',
+    });
+  }
+
+  for (const c of sellerContacts) {
+    if (allContactEmails.has(c.email?.toLowerCase() || '')) continue;
+    contactTabs.push({
+      id: `seller-${c.id}`,
+      label: c.name,
+      email: c.email,
+      type: 'seller',
+    });
+  }
+
+  const [activeContactTab, setActiveContactTab] = useState<string>('');
+  const effectiveContactTab = activeContactTab || (contactTabs.length > 0 ? contactTabs[0].id : '');
+  const activeContact = contactTabs.find((t) => t.id === effectiveContactTab);
+
   if (isLoading) {
     return (
-      <div className="min-h-[400px] bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 rounded-2xl p-8">
-        <div className="animate-pulse space-y-6">
-          <div className="h-8 w-48 bg-slate-800 rounded" />
-          <div className="grid grid-cols-2 gap-6">
-            <div className="h-40 bg-slate-800/50 rounded-2xl" />
-            <div className="h-40 bg-slate-800/50 rounded-2xl" />
-          </div>
-          <div className="grid grid-cols-3 gap-4">
-            <div className="h-20 bg-slate-800/30 rounded-xl" />
-            <div className="h-20 bg-slate-800/30 rounded-xl" />
-            <div className="h-20 bg-slate-800/30 rounded-xl" />
-          </div>
-        </div>
+      <div className="space-y-6">
+        <Card>
+          <CardHeader>
+            <Skeleton className="h-6 w-48" />
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <Skeleton className="h-32" />
+              <Skeleton className="h-32" />
+            </div>
+            <div className="grid grid-cols-3 gap-4">
+              <Skeleton className="h-20" />
+              <Skeleton className="h-20" />
+              <Skeleton className="h-20" />
+            </div>
+          </CardContent>
+        </Card>
       </div>
     );
   }
 
   return (
-    <div className="bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 rounded-2xl relative overflow-hidden">
-      {/* Ambient background effects */}
-      <div className="absolute inset-0 pointer-events-none">
-        <div className="absolute top-0 right-0 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl" />
-        <div className="absolute bottom-0 left-0 w-96 h-96 bg-teal-500/10 rounded-full blur-3xl" />
-      </div>
-
-      <div className="relative z-10">
-        {/* Header */}
-        <div className="border-b border-slate-800/50 bg-slate-900/40 backdrop-blur-xl">
-          <div className="px-6 py-6">
-            <div className="mb-4">
-              <h2 className="text-2xl font-bold bg-gradient-to-r from-blue-400 via-teal-400 to-emerald-400 bg-clip-text text-transparent mb-1">
-                Contact History
-              </h2>
-              <p className="text-slate-400 text-sm">
-                {primaryContactName || 'All contacts'} | Activity timeline across all channels
-              </p>
-            </div>
-
-            {/* Date Range Selector */}
-            <div className="flex gap-2">
-              {[
-                { value: '7d' as const, label: 'Last 7 days' },
-                { value: '30d' as const, label: 'Last 30 days' },
-                { value: '90d' as const, label: 'Last 90 days' },
-                { value: 'all' as const, label: 'All time' },
-              ].map((range) => (
-                <button
-                  key={range.value}
-                  onClick={() => setDateRange(range.value)}
-                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
-                    dateRange === range.value
-                      ? 'bg-gradient-to-r from-blue-500 to-teal-500 text-white shadow-lg shadow-blue-500/30'
-                      : 'bg-slate-800/50 text-slate-400 hover:bg-slate-700/50'
-                  }`}
-                >
-                  {range.label}
-                </button>
-              ))}
-            </div>
+    <div className="space-y-6">
+      {/* ─── Overview & Stats Card ─── */}
+      <Card>
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Activity className="h-5 w-5" />
+              Contact History
+            </CardTitle>
+            <p className="text-sm text-muted-foreground">
+              {primaryContactName || 'All contacts'} | Activity across all channels
+            </p>
           </div>
-        </div>
 
-        <div className="px-6 py-6 space-y-6">
+          {/* Date Range Selector */}
+          <div className="flex gap-2 mt-3">
+            {[
+              { value: '7d' as const, label: 'Last 7 days' },
+              { value: '30d' as const, label: 'Last 30 days' },
+              { value: '90d' as const, label: 'Last 90 days' },
+              { value: 'all' as const, label: 'All time' },
+            ].map((range) => (
+              <button
+                key={range.value}
+                onClick={() => setDateRange(range.value)}
+                className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                  dateRange === range.value
+                    ? 'bg-primary text-primary-foreground shadow-sm'
+                    : 'bg-muted text-muted-foreground hover:bg-muted/80'
+                }`}
+              >
+                {range.label}
+              </button>
+            ))}
+          </div>
+        </CardHeader>
+
+        <CardContent className="space-y-4">
           {/* Overview Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Card 1: Days Since Last Contact */}
-            <div className="group relative">
-              <div className="absolute inset-0 bg-gradient-to-r from-blue-500/20 to-teal-500/20 rounded-2xl blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-              <div className="relative bg-gradient-to-br from-slate-800/80 to-slate-900/80 border border-slate-700/50 rounded-2xl p-8 backdrop-blur-sm overflow-hidden">
-                <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/10 rounded-full -mr-16 -mt-16" />
-                <div className="relative z-10">
-                  <div className="flex items-center justify-between mb-4">
-                    <span className="text-slate-400 text-sm font-medium uppercase tracking-wide">
-                      Days Since Last Contact
-                    </span>
-                    <Clock className="w-5 h-5 text-blue-400/50" />
-                  </div>
-                  <div className="flex items-baseline gap-2 mb-3">
-                    <span className="text-6xl font-bold text-white">
-                      {overview.daysSinceLastContact ?? '—'}
-                    </span>
-                    {overview.daysSinceLastContact !== null && (
-                      <span className="text-slate-400 text-lg">days</span>
-                    )}
-                  </div>
-                  {overview.lastContactDate && (
-                    <div className="flex items-center gap-2 text-xs text-slate-500 mb-4">
-                      <CheckCircle className="w-3 h-3 text-green-400/60" />
-                      Last contacted via {overview.lastContactChannel} on{' '}
-                      {format(new Date(overview.lastContactDate), 'MMM d')}
-                    </div>
-                  )}
-                  <EngagementBadge status={overview.engagementStatus} />
-                </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Days Since Last Contact */}
+            <div className="rounded-lg border bg-card p-5">
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                  Days Since Last Contact
+                </span>
+                <Clock className="w-4 h-4 text-muted-foreground/50" />
               </div>
+              <div className="flex items-baseline gap-2 mb-2">
+                <span className="text-4xl font-bold">{overview.daysSinceLastContact ?? '—'}</span>
+                {overview.daysSinceLastContact !== null && (
+                  <span className="text-muted-foreground text-sm">days</span>
+                )}
+              </div>
+              {overview.lastContactDate && (
+                <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-3">
+                  <CheckCircle className="w-3 h-3 text-green-500" />
+                  Last contacted via {overview.lastContactChannel} on{' '}
+                  {format(new Date(overview.lastContactDate), 'MMM d')}
+                </div>
+              )}
+              <EngagementBadge status={overview.engagementStatus} />
             </div>
 
-            {/* Card 2: Next Best Action */}
-            <div className="group relative">
-              <div className="absolute inset-0 bg-gradient-to-r from-purple-500/20 to-pink-500/20 rounded-2xl blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-              <div className="relative bg-gradient-to-br from-slate-800/80 to-slate-900/80 border border-slate-700/50 rounded-2xl p-8 backdrop-blur-sm overflow-hidden">
-                <div className="absolute top-0 right-0 w-32 h-32 bg-purple-500/10 rounded-full -mr-16 -mt-16" />
-                <div className="relative z-10">
-                  <div className="flex items-center justify-between mb-4">
-                    <span className="text-slate-400 text-sm font-medium uppercase tracking-wide">
-                      Next Best Action
-                    </span>
-                    <Zap className="w-5 h-5 text-amber-400/50" />
-                  </div>
-                  <div className="space-y-3">
-                    <div className="flex items-start gap-3 p-3 rounded-lg bg-amber-500/20 border border-amber-500/30">
-                      <NextActionIcon type={overview.nextBestAction.icon} />
-                      <div className="flex-1">
-                        <div className="font-semibold text-white text-sm">
-                          {overview.nextBestAction.action}
-                        </div>
-                        <div className="text-xs text-slate-300 mt-1">
-                          {overview.nextBestAction.reason}
-                        </div>
-                      </div>
-                    </div>
-                    <div className="text-xs text-slate-500 flex items-center gap-1">
-                      <TrendingUp className="w-3 h-3" />
-                      Recommended {overview.nextBestAction.timing}
+            {/* Next Best Action */}
+            <div className="rounded-lg border bg-card p-5">
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                  Next Best Action
+                </span>
+                <Zap className="w-4 h-4 text-amber-500/50" />
+              </div>
+              <div className="space-y-2">
+                <div className="flex items-start gap-3 p-3 rounded-md bg-amber-50 border border-amber-200 dark:bg-amber-950/20 dark:border-amber-800">
+                  <NextActionIcon type={overview.nextBestAction.icon} />
+                  <div className="flex-1">
+                    <div className="font-semibold text-sm">{overview.nextBestAction.action}</div>
+                    <div className="text-xs text-muted-foreground mt-0.5">
+                      {overview.nextBestAction.reason}
                     </div>
                   </div>
+                </div>
+                <div className="text-xs text-muted-foreground flex items-center gap-1">
+                  <TrendingUp className="w-3 h-3" />
+                  Recommended {overview.nextBestAction.timing}
                 </div>
               </div>
             </div>
@@ -383,34 +467,31 @@ export function ContactHistoryTracker({
           {/* Quick Stats Bar */}
           <div className="grid grid-cols-3 gap-4">
             <StatCard label="Emails" value={overview.totalEmails} icon={Mail} color="blue" />
-            <StatCard label="Calls" value={overview.totalCalls} icon={Phone} color="orange" />
+            <StatCard label="Calls" value={overview.totalCalls} icon={Phone} color="green" />
             <StatCard
               label="LinkedIn"
               value={overview.totalLinkedIn}
               icon={Linkedin}
-              color="purple"
+              color="violet"
             />
           </div>
 
-          {/* Activity Timeline - Collapsible Sections */}
+          {/* Activity Sections - Collapsible */}
           {filteredEntries.length === 0 ? (
-            <div className="text-center py-12">
-              <Activity className="w-10 h-10 mx-auto mb-3 text-slate-600" />
-              <p className="text-slate-400 text-sm">No communication activity recorded yet</p>
-              <p className="text-slate-500 text-xs mt-1">
+            <div className="text-center py-10 text-muted-foreground">
+              <Activity className="w-8 h-8 mx-auto mb-2 opacity-40" />
+              <p className="text-sm">No communication activity recorded yet</p>
+              <p className="text-xs mt-1">
                 Email, call, and LinkedIn history from SmartLead, PhoneBurner, and HeyReach will
                 appear here
               </p>
             </div>
           ) : (
-            <div className="space-y-4">
-              {/* Email Section */}
+            <div className="space-y-3">
               {overview.emailEntries.length > 0 && (
                 <ChannelSection
-                  channel="emails"
                   icon={Mail}
                   title="Email History"
-                  emoji="📧"
                   count={overview.emailEntries.length}
                   color="blue"
                   expanded={!!expandedSections.emails}
@@ -422,15 +503,12 @@ export function ContactHistoryTracker({
                 </ChannelSection>
               )}
 
-              {/* Call Section */}
               {overview.callEntries.length > 0 && (
                 <ChannelSection
-                  channel="calls"
                   icon={Phone}
                   title="Call History"
-                  emoji="📞"
                   count={overview.callEntries.length}
-                  color="orange"
+                  color="green"
                   expanded={!!expandedSections.calls}
                   onToggle={() => toggleSection('calls')}
                 >
@@ -440,15 +518,12 @@ export function ContactHistoryTracker({
                 </ChannelSection>
               )}
 
-              {/* LinkedIn Section */}
               {overview.linkedInEntries.length > 0 && (
                 <ChannelSection
-                  channel="linkedin"
                   icon={Linkedin}
                   title="LinkedIn Activity"
-                  emoji="💼"
                   count={overview.linkedInEntries.length}
-                  color="purple"
+                  color="violet"
                   expanded={!!expandedSections.linkedin}
                   onToggle={() => toggleSection('linkedin')}
                 >
@@ -459,8 +534,96 @@ export function ContactHistoryTracker({
               )}
             </div>
           )}
-        </div>
-      </div>
+        </CardContent>
+      </Card>
+
+      {/* ─── Per-Contact Activity Log ─── */}
+      <Card>
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Users className="h-5 w-5" />
+              Contact Activity Log
+            </CardTitle>
+            <Badge variant="secondary" className="text-xs">
+              {contactTabs.length} contact{contactTabs.length !== 1 ? 's' : ''}
+            </Badge>
+          </div>
+          <p className="text-xs text-muted-foreground mt-1">
+            Per-contact email, call, and LinkedIn history from SmartLead, PhoneBurner, and HeyReach
+          </p>
+        </CardHeader>
+        <CardContent>
+          {contactTabs.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              <Users className="h-8 w-8 mx-auto mb-2 opacity-30" />
+              <p className="text-sm">No contacts associated with this deal yet</p>
+              <p className="text-xs mt-1">
+                Add a primary contact or associate buyers to see their activity here
+              </p>
+            </div>
+          ) : contactTabs.length === 1 ? (
+            <SingleContactTimeline tab={contactTabs[0]} />
+          ) : (
+            <>
+              {/* Contact selector */}
+              <div className="flex gap-2 flex-wrap mb-4">
+                {contactTabs.map((tab) => (
+                  <button
+                    key={tab.id}
+                    onClick={() => setActiveContactTab(tab.id)}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                      effectiveContactTab === tab.id
+                        ? 'bg-primary text-primary-foreground shadow-sm'
+                        : 'bg-muted text-muted-foreground hover:bg-muted/80'
+                    }`}
+                  >
+                    <User className="h-3 w-3" />
+                    <span className="truncate max-w-[120px]">{tab.label}</span>
+                    {tab.type === 'primary' && (
+                      <Badge variant="default" className="text-[8px] px-1 py-0 h-4 ml-1">
+                        Primary
+                      </Badge>
+                    )}
+                    {tab.type === 'buyer' && (
+                      <Badge
+                        variant="outline"
+                        className="text-[8px] px-1 py-0 h-4 ml-1 border-blue-200 text-blue-700"
+                      >
+                        Buyer
+                      </Badge>
+                    )}
+                  </button>
+                ))}
+              </div>
+
+              {/* Contact info header */}
+              {activeContact && (
+                <div className="flex items-center gap-3 mb-4 p-3 rounded-lg bg-muted/50">
+                  <div className="flex items-center justify-center h-9 w-9 rounded-full bg-primary/10">
+                    <User className="h-4 w-4 text-primary" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium">{activeContact.label}</p>
+                    {activeContact.email && (
+                      <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                        <Mail className="h-3 w-3" />
+                        {activeContact.email}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Timeline for active contact */}
+              {activeContact && <SingleContactTimeline tab={activeContact} />}
+            </>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* ─── Notes ─── */}
+      <ListingNotesLog listingId={listingId} />
     </div>
   );
 }
@@ -472,35 +635,36 @@ function EngagementBadge({ status }: { status: 'active' | 'warm' | 'cold' | 'non
 
   const config = {
     active: {
-      bg: 'bg-emerald-500/20 border-emerald-500/30',
-      dot: 'bg-emerald-400',
-      text: 'text-emerald-300',
+      classes:
+        'bg-emerald-50 border-emerald-200 text-emerald-700 dark:bg-emerald-950/30 dark:border-emerald-800 dark:text-emerald-400',
+      dot: 'bg-emerald-500',
       label: 'Actively Engaged',
     },
     warm: {
-      bg: 'bg-amber-500/20 border-amber-500/30',
-      dot: 'bg-amber-400',
-      text: 'text-amber-300',
+      classes:
+        'bg-amber-50 border-amber-200 text-amber-700 dark:bg-amber-950/30 dark:border-amber-800 dark:text-amber-400',
+      dot: 'bg-amber-500',
       label: 'Warm Lead',
     },
     cold: {
-      bg: 'bg-slate-500/20 border-slate-500/30',
-      dot: 'bg-slate-400',
-      text: 'text-slate-300',
+      classes: 'bg-muted border-border text-muted-foreground',
+      dot: 'bg-muted-foreground',
       label: 'Gone Cold',
     },
   }[status];
 
   return (
-    <div className={`inline-flex items-center gap-2 px-3 py-1 rounded-full border ${config.bg}`}>
-      <div className={`w-2 h-2 rounded-full ${config.dot} animate-pulse`} />
-      <span className={`text-xs font-medium ${config.text}`}>{config.label}</span>
+    <div
+      className={`inline-flex items-center gap-2 px-2.5 py-1 rounded-full border text-xs font-medium ${config.classes}`}
+    >
+      <div className={`w-1.5 h-1.5 rounded-full ${config.dot} animate-pulse`} />
+      {config.label}
     </div>
   );
 }
 
 function NextActionIcon({ type }: { type: 'mail' | 'phone' | 'linkedin' }) {
-  const className = 'w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5';
+  const className = 'w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5';
   if (type === 'phone') return <Phone className={className} />;
   if (type === 'linkedin') return <Linkedin className={className} />;
   return <Mail className={className} />;
@@ -515,23 +679,23 @@ function StatCard({
   label: string;
   value: number;
   icon: typeof Mail;
-  color: 'blue' | 'orange' | 'purple';
+  color: 'blue' | 'green' | 'violet';
 }) {
   const iconColor = {
-    blue: 'text-blue-400/50',
-    orange: 'text-orange-400/50',
-    purple: 'text-purple-400/50',
+    blue: 'text-blue-500',
+    green: 'text-green-500',
+    violet: 'text-violet-500',
   }[color];
 
   return (
-    <div className="group bg-gradient-to-br from-slate-800/40 to-slate-900/40 border border-slate-700/30 rounded-xl p-4 hover:border-slate-600/50 transition-all duration-300">
-      <div className="flex items-center justify-between mb-2">
-        <span className="text-slate-400 text-xs uppercase tracking-wide font-medium">{label}</span>
-        <Icon className={`w-4 h-4 ${iconColor} group-hover:opacity-100 transition-colors`} />
+    <div className="rounded-lg border bg-card p-4 hover:bg-muted/30 transition-colors">
+      <div className="flex items-center justify-between mb-1">
+        <span className="text-xs uppercase tracking-wide font-medium text-muted-foreground">
+          {label}
+        </span>
+        <Icon className={`w-4 h-4 ${iconColor}`} />
       </div>
-      <div className="text-3xl font-bold text-white group-hover:scale-110 transition-transform duration-300 origin-left">
-        {value}
-      </div>
+      <div className="text-2xl font-bold">{value}</div>
     </div>
   );
 }
@@ -539,77 +703,58 @@ function StatCard({
 function ChannelSection({
   icon: Icon,
   title,
-  emoji,
   count,
   color,
   expanded,
   onToggle,
   children,
 }: {
-  channel: string;
   icon: typeof Mail;
   title: string;
-  emoji: string;
   count: number;
-  color: 'blue' | 'orange' | 'purple';
+  color: 'blue' | 'green' | 'violet';
   expanded: boolean;
   onToggle: () => void;
   children: React.ReactNode;
 }) {
   const colorStyles = {
     blue: {
-      bg: 'from-blue-500/10 to-transparent',
-      border: 'border-blue-500/20 hover:border-blue-500/40 hover:bg-blue-500/15',
-      iconBg: 'bg-blue-500/20',
-      iconColor: 'text-blue-400',
+      border: 'border-blue-200 dark:border-blue-800',
+      icon: 'text-blue-500 bg-blue-50 dark:bg-blue-950/30',
     },
-    orange: {
-      bg: 'from-orange-500/10 to-transparent',
-      border: 'border-orange-500/20 hover:border-orange-500/40 hover:bg-orange-500/15',
-      iconBg: 'bg-orange-500/20',
-      iconColor: 'text-orange-400',
+    green: {
+      border: 'border-green-200 dark:border-green-800',
+      icon: 'text-green-500 bg-green-50 dark:bg-green-950/30',
     },
-    purple: {
-      bg: 'from-purple-500/10 to-transparent',
-      border: 'border-purple-500/20 hover:border-purple-500/40 hover:bg-purple-500/15',
-      iconBg: 'bg-purple-500/20',
-      iconColor: 'text-purple-400',
+    violet: {
+      border: 'border-violet-200 dark:border-violet-800',
+      icon: 'text-violet-500 bg-violet-50 dark:bg-violet-950/30',
     },
   }[color];
 
   return (
-    <div>
-      <button onClick={onToggle} className="w-full text-left">
-        <div
-          className={`bg-gradient-to-r ${colorStyles.bg} border ${colorStyles.border} rounded-2xl p-6 transition-all duration-300 cursor-pointer`}
-        >
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <div className={`p-3 rounded-lg ${colorStyles.iconBg}`}>
-                <Icon className={`w-6 h-6 ${colorStyles.iconColor}`} />
-              </div>
-              <div>
-                <h3 className="font-semibold text-white text-lg">
-                  {emoji} {title}
-                </h3>
-                <p className="text-sm text-slate-400 mt-1">
-                  {count} total{' '}
-                  {title.toLowerCase().includes('activity')
-                    ? 'interactions'
-                    : count === 1
-                      ? 'entry'
-                      : 'entries'}
-                </p>
-              </div>
-            </div>
-            <ChevronDown
-              className={`w-6 h-6 text-slate-400 transition-transform duration-300 ${expanded ? 'rotate-180' : ''}`}
-            />
+    <div className={`rounded-lg border ${colorStyles.border} overflow-hidden`}>
+      <button
+        onClick={onToggle}
+        className="w-full flex items-center justify-between p-4 hover:bg-muted/30 transition-colors"
+      >
+        <div className="flex items-center gap-3">
+          <div className={`p-2 rounded-md ${colorStyles.icon}`}>
+            <Icon className="w-4 h-4" />
+          </div>
+          <div className="text-left">
+            <h3 className="font-medium text-sm">{title}</h3>
+            <p className="text-xs text-muted-foreground">
+              {count} {count === 1 ? 'entry' : 'entries'}
+            </p>
           </div>
         </div>
+        <ChevronDown
+          className={`w-4 h-4 text-muted-foreground transition-transform duration-200 ${expanded ? 'rotate-180' : ''}`}
+        />
       </button>
 
-      {expanded && <div className="mt-3 space-y-3">{children}</div>}
+      {expanded && <div className="border-t px-4 pb-4 pt-2 space-y-2">{children}</div>}
     </div>
   );
 }
@@ -622,45 +767,45 @@ function EmailEntry({ entry }: { entry: UnifiedActivityEntry }) {
   const isSent = entry.event_type === 'EMAIL_SENT';
 
   return (
-    <div className="bg-slate-800/30 border border-slate-700/30 rounded-xl p-4 ml-12 hover:border-slate-600/50 transition-all duration-200">
-      <div className="flex justify-between items-start mb-3">
+    <div className="rounded-md border bg-card p-3 hover:bg-muted/30 transition-colors">
+      <div className="flex justify-between items-start mb-2">
         <div className="flex-1">
-          <h4 className="font-semibold text-white text-sm">{entry.label}</h4>
-          {entry.context && <p className="text-xs text-slate-500 mt-1">{entry.context}</p>}
+          <h4 className="font-medium text-sm">{entry.label}</h4>
+          {entry.context && <p className="text-xs text-muted-foreground mt-0.5">{entry.context}</p>}
           {entry.details.lead_email && (
-            <p className="text-xs text-slate-500 mt-0.5">{entry.details.lead_email}</p>
+            <p className="text-xs text-muted-foreground mt-0.5">{entry.details.lead_email}</p>
           )}
         </div>
-        <span className="text-xs text-slate-400 whitespace-nowrap ml-4">
-          {format(new Date(entry.timestamp), 'MMM d')} {format(new Date(entry.timestamp), 'h:mm a')}
+        <span className="text-xs text-muted-foreground whitespace-nowrap ml-4">
+          {format(new Date(entry.timestamp), 'MMM d, h:mm a')}
         </span>
       </div>
-      <div className="flex flex-wrap gap-3 text-xs">
-        <div className="flex items-center gap-1 px-2 py-1 rounded bg-slate-900/40">
+      <div className="flex flex-wrap gap-2 text-xs">
+        <div className="flex items-center gap-1 px-2 py-0.5 rounded bg-muted">
           {isOpened || isReplied ? (
             <>
-              <CheckCircle className="w-3 h-3 text-green-400" />
-              <span className="text-slate-300">{isReplied ? 'Replied' : 'Opened'}</span>
+              <CheckCircle className="w-3 h-3 text-green-500" />
+              <span>{isReplied ? 'Replied' : 'Opened'}</span>
             </>
           ) : isSent ? (
             <>
-              <Mail className="w-3 h-3 text-blue-400" />
-              <span className="text-slate-300">Sent</span>
+              <Mail className="w-3 h-3 text-blue-500" />
+              <span>Sent</span>
             </>
           ) : (
             <>
-              <Clock className="w-3 h-3 text-slate-500" />
-              <span className="text-slate-400">{entry.label}</span>
+              <Clock className="w-3 h-3 text-muted-foreground" />
+              <span>{entry.label}</span>
             </>
           )}
         </div>
-        <span className="text-slate-500">
+        <span className="text-muted-foreground">
           {formatDistanceToNow(new Date(entry.timestamp), { addSuffix: true })}
         </span>
       </div>
       {isReplied && entry.details.lead_email && (
-        <div className="mt-3 p-3 rounded-lg bg-emerald-500/15 border border-emerald-500/30">
-          <div className="text-xs text-slate-400 mb-1">
+        <div className="mt-2 p-2 rounded-md bg-emerald-50 border border-emerald-200 dark:bg-emerald-950/20 dark:border-emerald-800">
+          <div className="text-xs text-muted-foreground">
             Reply received from {entry.details.lead_email}
           </div>
         </div>
@@ -677,48 +822,45 @@ function CallEntry({ entry }: { entry: UnifiedActivityEntry }) {
     entry.details.disposition_code?.toLowerCase().includes('voicemail');
 
   return (
-    <div className="bg-slate-800/30 border border-slate-700/30 rounded-xl p-4 ml-12 hover:border-slate-600/50 transition-all duration-200">
-      <div className="flex justify-between items-start mb-3">
+    <div className="rounded-md border bg-card p-3 hover:bg-muted/30 transition-colors">
+      <div className="flex justify-between items-start mb-2">
         <div>
           <div className="flex items-center gap-2">
-            <span className="font-semibold text-white text-sm">{entry.label}</span>
-            <span
-              className={`text-xs font-medium ${
-                isConnected ? 'text-green-400' : isVoicemail ? 'text-yellow-400' : 'text-slate-400'
-              }`}
+            <span className="font-medium text-sm">{entry.label}</span>
+            <Badge
+              variant={isConnected ? 'default' : isVoicemail ? 'secondary' : 'outline'}
+              className="text-[10px]"
             >
               {isConnected
                 ? 'Connected'
                 : isVoicemail
                   ? 'Voicemail'
                   : entry.details.call_outcome || ''}
-            </span>
+            </Badge>
           </div>
-          {entry.context && <p className="text-xs text-slate-500 mt-1">{entry.context}</p>}
+          {entry.context && <p className="text-xs text-muted-foreground mt-0.5">{entry.context}</p>}
         </div>
-        <span className="text-xs text-slate-400">
-          {format(new Date(entry.timestamp), 'MMM d')} {format(new Date(entry.timestamp), 'h:mm a')}
+        <span className="text-xs text-muted-foreground">
+          {format(new Date(entry.timestamp), 'MMM d, h:mm a')}
         </span>
       </div>
       {entry.details.call_duration_seconds && entry.details.call_duration_seconds > 0 && (
-        <div className="text-xs text-slate-400 mb-3">
+        <div className="text-xs text-muted-foreground mb-2">
           Duration:{' '}
-          <span className="text-white font-semibold">
+          <span className="font-semibold">
             {formatDuration(entry.details.call_duration_seconds)}
           </span>
         </div>
       )}
       {entry.details.disposition_label && (
-        <div className="flex items-center gap-1 text-xs mb-3">
-          <span className="px-2 py-0.5 rounded bg-slate-900/40 text-slate-300">
-            {entry.details.disposition_label}
-          </span>
-        </div>
+        <Badge variant="secondary" className="text-[10px] mb-2">
+          {entry.details.disposition_label}
+        </Badge>
       )}
       {entry.details.disposition_notes && (
-        <div className="p-3 rounded-lg bg-slate-900/40">
-          <div className="text-xs text-slate-400 mb-1">Notes:</div>
-          <div className="text-sm text-white">{entry.details.disposition_notes}</div>
+        <div className="p-2 rounded-md bg-muted text-sm">
+          <div className="text-xs text-muted-foreground mb-0.5">Notes:</div>
+          {entry.details.disposition_notes}
         </div>
       )}
       {entry.details.recording_url && (
@@ -726,7 +868,7 @@ function CallEntry({ entry }: { entry: UnifiedActivityEntry }) {
           href={entry.details.recording_url}
           target="_blank"
           rel="noopener noreferrer"
-          className="inline-flex items-center gap-1 mt-2 text-xs text-blue-400 hover:underline"
+          className="inline-flex items-center gap-1 mt-2 text-xs text-primary hover:underline"
         >
           <Mic className="w-3 h-3" />
           Listen to Recording
@@ -759,24 +901,67 @@ function LinkedInEntry({ entry }: { entry: UnifiedActivityEntry }) {
     }[entry.event_type] || entry.label;
 
   return (
-    <div className="bg-slate-800/30 border border-slate-700/30 rounded-xl p-4 ml-12 hover:border-slate-600/50 transition-all duration-200">
-      <div className="flex justify-between items-start mb-3">
-        <span className="font-semibold text-white text-sm">{typeLabel}</span>
-        <span className="text-xs text-slate-400">
-          {format(new Date(entry.timestamp), 'MMM d')} {format(new Date(entry.timestamp), 'h:mm a')}
+    <div className="rounded-md border bg-card p-3 hover:bg-muted/30 transition-colors">
+      <div className="flex justify-between items-start mb-2">
+        <span className="font-medium text-sm">{typeLabel}</span>
+        <span className="text-xs text-muted-foreground">
+          {format(new Date(entry.timestamp), 'MMM d, h:mm a')}
         </span>
       </div>
-      {entry.context && <p className="text-xs text-slate-500 mb-2">{entry.context}</p>}
+      {entry.context && <p className="text-xs text-muted-foreground mb-1">{entry.context}</p>}
       {entry.details.lead_linkedin_url && (
-        <p className="text-xs text-slate-500 mb-2 truncate">{entry.details.lead_linkedin_url}</p>
+        <p className="text-xs text-muted-foreground mb-1 truncate">
+          {entry.details.lead_linkedin_url}
+        </p>
       )}
       {(isReply || isAccepted) && (
-        <div className="p-3 rounded-lg bg-emerald-500/15 border border-emerald-500/30">
-          <div className="text-xs text-slate-400 mb-1">
+        <div className="p-2 rounded-md bg-emerald-50 border border-emerald-200 dark:bg-emerald-950/20 dark:border-emerald-800">
+          <div className="text-xs text-muted-foreground">
             {isAccepted ? 'Connection accepted' : 'Response received'}
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+// ── Per-contact timeline ──
+
+function SingleContactTimeline({
+  tab,
+}: {
+  tab: {
+    buyerId?: string | null;
+    email?: string | null;
+    label: string;
+  };
+}) {
+  if (tab.buyerId) {
+    return (
+      <ContactActivityTimeline
+        buyerId={tab.buyerId}
+        title={`${tab.label} - Activity`}
+        maxHeight={600}
+        compact
+      />
+    );
+  }
+
+  if (tab.email) {
+    return (
+      <ContactActivityTimelineByEmail
+        email={tab.email}
+        title={`${tab.label} - Activity`}
+        maxHeight={600}
+        compact
+      />
+    );
+  }
+
+  return (
+    <div className="text-center py-6 text-muted-foreground text-sm">
+      <Phone className="h-6 w-6 mx-auto mb-2 opacity-40" />
+      No email address on file — cannot look up communication history
     </div>
   );
 }
