@@ -5237,6 +5237,131 @@ export type Database = {
         }
         Relationships: []
       }
+      enrichment_test_results: {
+        Row: {
+          company_name: string | null
+          confidence: string | null
+          contact_id: string | null
+          contact_name: string
+          contact_type: string | null
+          created_at: string
+          email_found: string | null
+          enrichment_ms: number | null
+          enrichment_source: string | null
+          error: string | null
+          had_email_before: boolean
+          had_linkedin_before: boolean
+          had_phone_before: boolean
+          id: string
+          linkedin_found: string | null
+          phone_found: string | null
+          saved_to_contacts: boolean
+          saved_to_enriched: boolean
+          test_run_id: string
+        }
+        Insert: {
+          company_name?: string | null
+          confidence?: string | null
+          contact_id?: string | null
+          contact_name: string
+          contact_type?: string | null
+          created_at?: string
+          email_found?: string | null
+          enrichment_ms?: number | null
+          enrichment_source?: string | null
+          error?: string | null
+          had_email_before?: boolean
+          had_linkedin_before?: boolean
+          had_phone_before?: boolean
+          id?: string
+          linkedin_found?: string | null
+          phone_found?: string | null
+          saved_to_contacts?: boolean
+          saved_to_enriched?: boolean
+          test_run_id: string
+        }
+        Update: {
+          company_name?: string | null
+          confidence?: string | null
+          contact_id?: string | null
+          contact_name?: string
+          contact_type?: string | null
+          created_at?: string
+          email_found?: string | null
+          enrichment_ms?: number | null
+          enrichment_source?: string | null
+          error?: string | null
+          had_email_before?: boolean
+          had_linkedin_before?: boolean
+          had_phone_before?: boolean
+          id?: string
+          linkedin_found?: string | null
+          phone_found?: string | null
+          saved_to_contacts?: boolean
+          saved_to_enriched?: boolean
+          test_run_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "enrichment_test_results_test_run_id_fkey"
+            columns: ["test_run_id"]
+            isOneToOne: false
+            referencedRelation: "enrichment_test_runs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      enrichment_test_runs: {
+        Row: {
+          avg_enrichment_ms: number | null
+          completed_at: string | null
+          contacts_enriched: number
+          created_at: string
+          emails_found: number
+          errors: Json | null
+          id: string
+          linkedin_resolved: number
+          phones_found: number
+          started_at: string
+          status: string
+          success_rate: number | null
+          total_contacts: number
+          triggered_by: string | null
+        }
+        Insert: {
+          avg_enrichment_ms?: number | null
+          completed_at?: string | null
+          contacts_enriched?: number
+          created_at?: string
+          emails_found?: number
+          errors?: Json | null
+          id?: string
+          linkedin_resolved?: number
+          phones_found?: number
+          started_at?: string
+          status?: string
+          success_rate?: number | null
+          total_contacts?: number
+          triggered_by?: string | null
+        }
+        Update: {
+          avg_enrichment_ms?: number | null
+          completed_at?: string | null
+          contacts_enriched?: number
+          created_at?: string
+          emails_found?: number
+          errors?: Json | null
+          id?: string
+          linkedin_resolved?: number
+          phones_found?: number
+          started_at?: string
+          status?: string
+          success_rate?: number | null
+          total_contacts?: number
+          triggered_by?: string | null
+        }
+        Relationships: []
+      }
       fee_agreement_logs: {
         Row: {
           action_type: string
@@ -11155,6 +11280,18 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      enrichment_success_rate: {
+        Row: {
+          avg_ms_per_contact: number | null
+          avg_success_rate: number | null
+          runs: number | null
+          test_date: string | null
+          total_contacts_tested: number | null
+          total_emails_found: number | null
+          total_phones_found: number | null
+        }
+        Relationships: []
       }
       linkedin_manual_review_queue: {
         Row: {
