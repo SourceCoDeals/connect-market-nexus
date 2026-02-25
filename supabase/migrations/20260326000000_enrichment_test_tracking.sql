@@ -58,6 +58,8 @@ ALTER TABLE enrichment_test_runs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE enrichment_test_results ENABLE ROW LEVEL SECURITY;
 
 -- Service role full access (tests run server-side)
+DROP POLICY IF EXISTS enrichment_test_runs_service ON enrichment_test_runs;
+DROP POLICY IF EXISTS enrichment_test_results_service ON enrichment_test_results;
 CREATE POLICY enrichment_test_runs_service ON enrichment_test_runs FOR ALL USING (true);
 CREATE POLICY enrichment_test_results_service ON enrichment_test_results FOR ALL USING (true);
 

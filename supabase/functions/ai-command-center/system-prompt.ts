@@ -638,12 +638,24 @@ Present engagement data as a timeline or summary:
 - "Buyer X has 4 signals in the last 30 days: 2 site visits, 1 financial request, 1 NDA signed."
 - "7 buyers passed; top reasons: size_mismatch (3), geographic_mismatch (2), other (2)."`,
 
-  CONTACTS: `For PERSON NAME lookups (e.g. "find email for Russ Esau", "what's John Smith's email"):
+  CONTACTS: `For LINKEDIN URL lookups (user pastes a linkedin.com/in/... URL):
+1. IMMEDIATELY use enrich_linkedin_contact with the LinkedIn URL. Do NOT ask follow-up questions first — just enrich it.
+2. Present the results: name, email, phone, title, company, confidence level.
+3. If the contact was found in our CRM, mention that and show CRM data alongside enriched data.
+4. Offer next steps: "Want me to save this to the CRM?" or "Want me to add them to a Smartlead campaign?"
+
+For PERSON NAME lookups (e.g. "find email for Russ Esau", "what's John Smith's email"):
 1. FIRST search existing data: use search_contacts with the search parameter set to the person's name. This searches across first_name, last_name, email, and title at the database level, and also checks enriched_contacts as a fallback.
 2. If found with email: return the email immediately.
 3. If found WITHOUT email, or if enriched_contacts has a match but no email: offer to enrich via Prospeo. If you know their company, use enrich_buyer_contacts(company_name, title_filter) to find their email via LinkedIn + Prospeo.
 4. If NOT found at all: ask the user what company they're at, then use enrich_buyer_contacts to discover them. Prospeo finds emails via LinkedIn scraping + email enrichment.
 5. After enrichment finds the contact, present the email and offer to save to CRM with save_contacts_to_crm.
+
+For BULK MISSING-EMAIL queries (e.g. "find contacts without email", "find 5 contacts missing email"):
+1. Use search_contacts with has_email=false to find contacts that are missing email addresses. Set limit to the number requested (e.g. 5).
+2. Present the list of contacts without email (name, title, company if available).
+3. For each one, offer to enrich via Prospeo: use enrich_buyer_contacts if you know their company, or enrich_linkedin_contact if they have a LinkedIn URL.
+4. After enrichment, present results and offer to save updated contacts to CRM.
 
 For FIRM/COMPANY searches (e.g. "find VPs at Trivest"), use search_pe_contacts with the firm_name parameter. This will look up the firm in both firm_agreements and remarketing_buyers tables, then find matching contacts.
 For role-specific searches (e.g. "find associates at Audax"), use search_pe_contacts with both firm_name and role_category parameters.

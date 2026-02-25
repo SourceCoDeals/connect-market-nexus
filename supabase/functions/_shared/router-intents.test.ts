@@ -211,17 +211,27 @@ const BYPASS_RULES: BypassRule[] = [
       confidence: 0.85,
     },
   },
+  // LinkedIn URL pasted — enrich that person's contact info via Prospeo
+  {
+    test: (q) => /linkedin\.com\/in\//i.test(q),
+    result: {
+      category: 'CONTACTS',
+      tier: 'STANDARD',
+      tools: ['enrich_linkedin_contact', 'search_contacts', 'save_contacts_to_crm'],
+      confidence: 0.95,
+    },
+  },
   // PE / platform contacts — find who to call, email at a firm, person email lookups
   {
     test: (q) =>
-      /\b(contact at|contact for|who.?s the|find contact|email for|phone for|partner at|principal at|deal team|pe contact|platform contact)\b/i.test(
+      /\b(contact at|contact for|who.?s the|find contact|emails? for|phones? for|partner at|principal at|deal team|pe contact|platform contact)\b/i.test(
         q,
       ) ||
-      /\b(what.?s|what is|do we have|get me|look up|find).{0,20}\b(email|phone|contact info)\b/i.test(
+      /\b(what.?s|what is|do we have|get me|look up|find).{0,20}\b(emails?|phones?|contact info)\b/i.test(
         q,
       ) ||
-      /\b(email|phone)\s+(address\s+)?(for|of)\b/i.test(q) ||
-      /\bemail\b.*\b(address)\b/i.test(q),
+      /\b(emails?|phones?)\s+(address(es)?\s+)?(for|of)\b/i.test(q) ||
+      /\bemails?\b.*\b(address)\b/i.test(q),
     result: {
       category: 'CONTACTS',
       tier: 'STANDARD',
@@ -234,6 +244,21 @@ const BYPASS_RULES: BypassRule[] = [
       confidence: 0.87,
     },
   },
+  // Contacts missing email/phone — "find contacts without email", "contacts missing email"
+  {
+    test: (q) =>
+      /\b(contacts?\s+(missing|without|no|lacking)\s+(emails?|phones?))\b/i.test(q) ||
+      /\b(missing\s+emails?|no\s+emails?|without\s+emails?)\b.*\bcontacts?\b/i.test(q) ||
+      /\b(find|get|show|list)\s+.{0,20}\bcontacts?\b.{0,20}\b(missing|without|no)\s+(emails?|phones?)\b/i.test(
+        q,
+      ),
+    result: {
+      category: 'CONTACTS',
+      tier: 'STANDARD',
+      tools: ['search_contacts', 'enrich_buyer_contacts'],
+      confidence: 0.92,
+    },
+  },
   // Contact finder — find people at a company, get emails/phones
   {
     test: (q) =>
@@ -244,15 +269,28 @@ const BYPASS_RULES: BypassRule[] = [
       /\b(who\s+(works?|is)\s+at)\b/i.test(q) ||
       /\b(find\s+\d+.*\b(at|from)\b)/i.test(q),
     result: {
-      category: 'CONTACTS',
+      category: 'CONTACT_ENRICHMENT',
       tier: 'STANDARD',
       tools: [
-        'search_contacts',
         'search_pe_contacts',
+        'search_contacts',
         'enrich_buyer_contacts',
         'get_buyer_profile',
       ],
       confidence: 0.92,
+    },
+  },
+  // Enrich contacts / Prospeo / LinkedIn enrichment
+  {
+    test: (q) =>
+      /\b(enrich|prospeo|linkedin scrape|find emails?|find phones?|discover contact|import contact|scrape)\b/i.test(
+        q,
+      ),
+    result: {
+      category: 'CONTACT_ENRICHMENT',
+      tier: 'STANDARD',
+      tools: ['enrich_buyer_contacts', 'search_contacts', 'search_pe_contacts'],
+      confidence: 0.9,
     },
   },
   // Company/deal discovery
@@ -302,24 +340,24 @@ describe('GROUP A: Contact Research Intent Classification', () => {
 
     it('classifies "find contacts at Trivest Partners"', () => {
       const result = classifyQuery('Find contacts at Trivest Partners');
-      expect(result?.category).toBe('CONTACTS');
+      expect(['CONTACTS', 'CONTACT_ENRICHMENT']).toContain(result?.category);
     });
 
     it('classifies "get me contact info for people at Blackstone"', () => {
       const result = classifyQuery('Get me contact info for people at Blackstone');
-      expect(result?.category).toBe('CONTACTS');
+      expect(['CONTACTS', 'CONTACT_ENRICHMENT']).toContain(result?.category);
     });
   });
 
   describe('Q2: Find contacts at competitor/unknown buyer', () => {
     it('classifies "find people at New Heritage Capital"', () => {
       const result = classifyQuery('Find people at New Heritage Capital');
-      expect(result?.category).toBe('CONTACTS');
+      expect(['CONTACTS', 'CONTACT_ENRICHMENT']).toContain(result?.category);
     });
 
     it('classifies "who works at New Heritage Capital"', () => {
       const result = classifyQuery('Who works at New Heritage Capital');
-      expect(result?.category).toBe('CONTACTS');
+      expect(['CONTACTS', 'CONTACT_ENRICHMENT']).toContain(result?.category);
     });
   });
 
@@ -328,7 +366,7 @@ describe('GROUP A: Contact Research Intent Classification', () => {
       const result = classifyQuery(
         'Find 6-8 people at Blackstone who have associate or principal in their title',
       );
-      expect(result?.category).toBe('CONTACTS');
+      expect(['CONTACTS', 'CONTACT_ENRICHMENT']).toContain(result?.category);
     });
   });
 
@@ -716,6 +754,89 @@ describe('Person-name email lookup intent classification', () => {
   it('classifies "phone for the partner at Audax" as CONTACTS', () => {
     const result = classifyQuery('Phone for the partner at Audax');
     expect(result?.category).toBe('CONTACTS');
+  });
+
+  // Plural "emails" / "phones" variants
+  it('classifies "find emails for 5 contacts" as CONTACTS or CONTACT_ENRICHMENT', () => {
+    const result = classifyQuery('Find emails for 5 contacts that are missing them');
+    expect(result).not.toBeNull();
+    expect(['CONTACTS', 'CONTACT_ENRICHMENT']).toContain(result?.category);
+  });
+
+  it('classifies "find emails for buyers" as CONTACTS or CONTACT_ENRICHMENT', () => {
+    const result = classifyQuery('Find emails for the buyers on this deal');
+    expect(result).not.toBeNull();
+    expect(['CONTACTS', 'CONTACT_ENRICHMENT']).toContain(result?.category);
+  });
+
+  it('classifies "get me the phones for these contacts" as CONTACTS', () => {
+    const result = classifyQuery('Get me the phones for these contacts');
+    expect(result).not.toBeNull();
+    expect(['CONTACTS', 'CONTACT_ENRICHMENT']).toContain(result?.category);
+  });
+});
+
+// ============================================================================
+// Contacts Missing Email/Phone
+// ============================================================================
+
+describe('Contacts missing email/phone intent classification', () => {
+  it('classifies "find contacts without email" as CONTACTS', () => {
+    const result = classifyQuery('Find contacts without email');
+    expect(result?.category).toBe('CONTACTS');
+    expect(result?.tools).toContain('search_contacts');
+  });
+
+  it('classifies "contacts missing email" as CONTACTS', () => {
+    const result = classifyQuery('Show me contacts missing email');
+    expect(result?.category).toBe('CONTACTS');
+    expect(result?.tools).toContain('search_contacts');
+  });
+
+  it('classifies "find 5 contacts with no email" as CONTACTS', () => {
+    const result = classifyQuery('Find 5 contacts with no email');
+    expect(result?.category).toBe('CONTACTS');
+  });
+
+  it('classifies "contacts without phone numbers" as CONTACTS', () => {
+    const result = classifyQuery('Show contacts without phone numbers');
+    expect(result?.category).toBe('CONTACTS');
+  });
+
+  it('classifies "list contacts lacking email" as CONTACTS', () => {
+    const result = classifyQuery('List contacts lacking email');
+    expect(result?.category).toBe('CONTACTS');
+  });
+});
+
+// ============================================================================
+// LinkedIn URL Lookup
+// ============================================================================
+
+describe('LinkedIn URL pasted in chat', () => {
+  it('classifies a bare LinkedIn URL as CONTACTS with enrich_linkedin_contact', () => {
+    const result = classifyQuery('https://www.linkedin.com/in/john-smith-123');
+    expect(result?.category).toBe('CONTACTS');
+    expect(result?.tools).toContain('enrich_linkedin_contact');
+    expect(result?.confidence).toBe(0.95);
+  });
+
+  it('classifies LinkedIn URL with surrounding text', () => {
+    const result = classifyQuery('Can you look up this person? https://linkedin.com/in/jane-doe');
+    expect(result?.category).toBe('CONTACTS');
+    expect(result?.tools).toContain('enrich_linkedin_contact');
+  });
+
+  it('classifies "find the email for linkedin.com/in/..." as CONTACTS', () => {
+    const result = classifyQuery('find the email for https://www.linkedin.com/in/russ-esau');
+    expect(result?.category).toBe('CONTACTS');
+    expect(result?.tools).toContain('enrich_linkedin_contact');
+  });
+
+  it('classifies LinkedIn URL without https prefix', () => {
+    const result = classifyQuery('linkedin.com/in/mike-johnson');
+    expect(result?.category).toBe('CONTACTS');
+    expect(result?.tools).toContain('enrich_linkedin_contact');
   });
 });
 
