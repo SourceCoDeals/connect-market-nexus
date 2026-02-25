@@ -11309,6 +11309,182 @@ export type Database = {
         Returns: Json
       }
       extract_domain: { Args: { url: string }; Returns: string }
+      find_listing_by_normalized_domain: {
+        Args: { target_domain: string }
+        Returns: {
+          acquisition_type: string | null
+          address: string | null
+          address_city: string | null
+          address_country: string | null
+          address_state: string | null
+          address_zip: string | null
+          business_model: string | null
+          captarget_call_notes: string | null
+          captarget_client_name: string | null
+          captarget_contact_date: string | null
+          captarget_interest_type: string | null
+          captarget_outreach_channel: string | null
+          captarget_row_hash: string | null
+          captarget_sheet_tab: string | null
+          captarget_source_url: string | null
+          captarget_status: string | null
+          categories: string[] | null
+          category: string | null
+          competitive_position: string | null
+          created_at: string
+          custom_metric_label: string | null
+          custom_metric_subtitle: string | null
+          custom_metric_value: string | null
+          custom_sections: Json | null
+          customer_concentration: number | null
+          customer_geography: string | null
+          customer_types: string | null
+          deal_identifier: string | null
+          deal_owner_id: string | null
+          deal_size_score: number | null
+          deal_source: string | null
+          deal_total_score: number | null
+          deleted_at: string | null
+          description: string | null
+          description_html: string | null
+          description_json: Json | null
+          ebitda: number | null
+          ebitda_is_inferred: boolean | null
+          ebitda_margin: number | null
+          ebitda_metric_subtitle: string | null
+          ebitda_score: number | null
+          ebitda_source_quote: string | null
+          end_market_description: string | null
+          enriched_at: string | null
+          enrichment_status: string | null
+          executive_summary: string | null
+          external_id: string | null
+          external_source: string | null
+          extraction_sources: Json | null
+          files: string[] | null
+          financial_followup_questions: string[] | null
+          financial_notes: string | null
+          fireflies_url: string | null
+          founded_year: number | null
+          fts: unknown
+          full_time_employees: number | null
+          general_notes: string | null
+          geographic_states: string[] | null
+          google_maps_url: string | null
+          google_place_id: string | null
+          google_rating: number | null
+          google_review_count: number | null
+          growth_drivers: Json | null
+          growth_trajectory: string | null
+          hero_description: string | null
+          id: string
+          image_url: string | null
+          industry: string | null
+          industry_tier: number | null
+          industry_tier_name: string | null
+          internal_company_name: string | null
+          internal_contact_info: string | null
+          internal_deal_memo_link: string | null
+          internal_notes: string | null
+          internal_primary_owner: string | null
+          internal_salesforce_link: string | null
+          investment_thesis: string | null
+          is_internal_deal: boolean
+          is_priority_target: boolean | null
+          key_quotes: string[] | null
+          key_risks: Json | null
+          lead_source_id: string | null
+          linkedin_boost: number | null
+          linkedin_employee_count: number | null
+          linkedin_employee_range: string | null
+          linkedin_headquarters: string | null
+          linkedin_match_confidence: string | null
+          linkedin_match_signals: Json | null
+          linkedin_url: string | null
+          linkedin_verified_at: string | null
+          location: string | null
+          location_radius_requirement: string | null
+          main_contact_email: string | null
+          main_contact_name: string | null
+          main_contact_phone: string | null
+          main_contact_title: string | null
+          management_depth: string | null
+          manual_rank_override: number | null
+          market_position: Json | null
+          metric_3_custom_label: string | null
+          metric_3_custom_subtitle: string | null
+          metric_3_custom_value: string | null
+          metric_3_type: string | null
+          metric_4_custom_label: string | null
+          metric_4_custom_subtitle: string | null
+          metric_4_custom_value: string | null
+          metric_4_type: string | null
+          need_buyer_universe: boolean | null
+          need_owner_contact: boolean | null
+          needs_owner_contact: boolean | null
+          needs_owner_contact_at: string | null
+          needs_owner_contact_by: string | null
+          notes: string | null
+          notes_analyzed_at: string | null
+          number_of_locations: number | null
+          owner_goals: string | null
+          owner_notes: string | null
+          owner_response: string | null
+          ownership_structure: string | null
+          part_time_employees: number | null
+          presented_by_admin_id: string | null
+          primary_owner_id: string | null
+          project_name: string | null
+          published_at: string | null
+          published_by_admin_id: string | null
+          pushed_to_all_deals: boolean | null
+          pushed_to_all_deals_at: string | null
+          quality_calculation_version: string | null
+          real_estate_info: string | null
+          referral_partner_id: string | null
+          remarketing_status: string | null
+          revenue: number | null
+          revenue_is_inferred: boolean | null
+          revenue_metric_subtitle: string | null
+          revenue_model: string | null
+          revenue_model_breakdown: Json | null
+          revenue_score: number | null
+          revenue_source_quote: string | null
+          scoring_notes: string | null
+          seller_interest_analyzed_at: string | null
+          seller_interest_notes: Json | null
+          seller_interest_score: number | null
+          seller_involvement_preference: string | null
+          seller_motivation: string | null
+          service_mix: string | null
+          services: string[] | null
+          special_requirements: string | null
+          status: string
+          status_label: string | null
+          status_tag: string | null
+          street_address: string | null
+          tags: string[] | null
+          team_page_employee_count: number | null
+          technology_systems: string | null
+          timeline_notes: string | null
+          timeline_preference: string | null
+          title: string
+          transaction_preferences: Json | null
+          transition_preferences: string | null
+          universe_build_flagged: boolean | null
+          universe_build_flagged_at: string | null
+          universe_build_flagged_by: string | null
+          updated_at: string
+          visible_to_buyer_types: string[] | null
+          website: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "listings"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       generate_deal_identifier: { Args: never; Returns: string }
       get_all_user_roles: {
         Args: never

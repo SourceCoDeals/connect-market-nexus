@@ -203,21 +203,31 @@ export function DealImportDialog({
       let existingListing: Record<string, unknown> | null = null;
 
       if (website) {
-        const { data } = await supabase
-          .from('listings')
-          .select('*')
-          .eq('website', website)
+        // Primary: use DB-level normalized domain matching via RPC
+        const { data: rpcData } = await supabase
+          .rpc('find_listing_by_normalized_domain', { target_domain: website })
           .limit(1)
           .maybeSingle();
-        existingListing = data as Record<string, unknown> | null;
+        existingListing = rpcData as Record<string, unknown> | null;
+
+        // Fallback: exact match for backward compat if RPC not yet available
+        if (!existingListing) {
+          const { data } = await supabase
+            .from('listings')
+            .select('*')
+            .eq('website', website)
+            .limit(1)
+            .maybeSingle();
+          existingListing = data as Record<string, unknown> | null;
+        }
       }
 
-      // Fallback: try matching by title if website didn't match
+      // Fallback: try matching by title (case-insensitive) if website didn't match
       if (!existingListing && title) {
         const { data } = await supabase
           .from('listings')
           .select('*')
-          .eq('title', title)
+          .ilike('title', title)
           .limit(1)
           .maybeSingle();
         existingListing = data as Record<string, unknown> | null;

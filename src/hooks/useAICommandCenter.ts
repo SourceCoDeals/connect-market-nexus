@@ -157,18 +157,15 @@ export function useAICommandCenter(pageContext?: PageContext) {
 
       // Retry up to 2 times on network errors (Failed to fetch / TypeError)
       let response: Response | undefined;
-      let lastNetworkError: Error | undefined;
       for (let attempt = 0; attempt < 3; attempt++) {
         try {
           response = await fetch(
             `${SUPABASE_URL}/functions/v1/ai-command-center`,
             fetchOptions,
           );
-          lastNetworkError = undefined;
           break;
         } catch (fetchErr) {
           if (fetchErr instanceof Error && fetchErr.name === 'AbortError') throw fetchErr;
-          lastNetworkError = fetchErr instanceof Error ? fetchErr : new Error(String(fetchErr));
           if (attempt < 2) {
             await new Promise(r => setTimeout(r, 1000 * (attempt + 1)));
           }
