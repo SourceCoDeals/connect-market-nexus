@@ -72,7 +72,8 @@ Deno.serve(async (req) => {
   const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
   const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
   const webhookSecret = Deno.env.get('PHONEBURNER_WEBHOOK_SECRET') || '';
-  const supabase = createClient(supabaseUrl, serviceRoleKey);
+  // deno-lint-ignore no-explicit-any
+  const supabase: any = createClient(supabaseUrl, serviceRoleKey);
 
   const rawBody = await req.text();
 

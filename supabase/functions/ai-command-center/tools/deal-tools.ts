@@ -359,13 +359,13 @@ async function getDealDetails(
     if (dealsRow.buyer_contact_id) {
       contactFetches.push(
         supabase.from('contacts').select(contactFields).eq('id', dealsRow.buyer_contact_id).single()
-          .then(r => { buyerContact = r.data; })
+          .then((r: any) => { buyerContact = r.data; })
       );
     }
     if (dealsRow.seller_contact_id) {
       contactFetches.push(
         supabase.from('contacts').select(contactFields).eq('id', dealsRow.seller_contact_id).single()
-          .then(r => { sellerContact = r.data; })
+          .then((r: any) => { sellerContact = r.data; })
       );
     }
 
@@ -427,9 +427,9 @@ async function getDealTasks(
   // Group by status for easier consumption
   const tasks = data || [];
   const grouped = {
-    pending: tasks.filter(t => t.status === 'pending'),
-    in_progress: tasks.filter(t => t.status === 'in_progress'),
-    completed: tasks.filter(t => t.status === 'completed'),
+    pending: tasks.filter((t: any) => t.status === 'pending'),
+    in_progress: tasks.filter((t: any) => t.status === 'in_progress'),
+    completed: tasks.filter((t: any) => t.status === 'completed'),
   };
 
   return {
@@ -437,7 +437,7 @@ async function getDealTasks(
       tasks,
       total: tasks.length,
       by_status: { pending: grouped.pending.length, in_progress: grouped.in_progress.length, completed: grouped.completed.length },
-      overdue: tasks.filter(t => t.due_date && new Date(t.due_date) < new Date() && t.status !== 'completed').length,
+      overdue: tasks.filter((t: any) => t.due_date && new Date(t.due_date) < new Date() && t.status !== 'completed').length,
     },
   };
 }
@@ -484,7 +484,7 @@ async function getPipelineSummary(
   return {
     data: {
       total_deals: deals.length,
-      priority_deals: deals.filter(d => d.is_priority_target).length,
+      priority_deals: deals.filter((d: any) => d.is_priority_target).length,
       grouped_by: groupBy,
       groups,
     },

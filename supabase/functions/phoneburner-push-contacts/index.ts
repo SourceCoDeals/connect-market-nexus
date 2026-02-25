@@ -38,8 +38,8 @@ interface ResolvedContact {
 }
 
 async function getValidToken(
-  supabase: ReturnType<typeof createClient>,
-  userId: string,
+// deno-lint-ignore no-explicit-any
+  supabase: any,
 ): Promise<string | null> {
   const { data: tokenRow } = await supabase
     .from('phoneburner_oauth_tokens')
@@ -327,7 +327,8 @@ Deno.serve(async (req) => {
 
   const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
   const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-  const supabase = createClient(supabaseUrl, serviceRoleKey);
+  // deno-lint-ignore no-explicit-any
+  const supabase: any = createClient(supabaseUrl, serviceRoleKey);
 
   // Auth check
   const authHeader = req.headers.get('Authorization');

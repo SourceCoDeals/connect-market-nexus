@@ -108,7 +108,7 @@ async function searchBuyerTranscripts(
   // Client-side keyword filter
   if (args.keywords) {
     const term = (args.keywords as string).toLowerCase();
-    results = results.filter(t => {
+    results = results.filter((t: any) => {
       const text = (t.transcript_text || '').toLowerCase();
       const insights = JSON.stringify(t.extracted_insights || {}).toLowerCase();
       const extractedData = JSON.stringify(t.extracted_data || {}).toLowerCase();
@@ -116,7 +116,7 @@ async function searchBuyerTranscripts(
     });
   }
 
-  const summaries = results.map(t => ({
+  const summaries = results.map((t: any) => ({
     id: t.id,
     buyer_id: t.buyer_id,
     created_at: t.created_at,
@@ -162,7 +162,7 @@ async function searchTranscripts(
   // Client-side keyword search
   if (args.keywords) {
     const term = (args.keywords as string).toLowerCase();
-    results = results.filter(t => {
+    results = results.filter((t: any) => {
       const text = (t.transcript_text || '').toLowerCase();
       const quotes = JSON.stringify(t.key_quotes || []).toLowerCase();
       const insights = JSON.stringify(t.extracted_insights || []).toLowerCase();
@@ -171,7 +171,7 @@ async function searchTranscripts(
   }
 
   // Return summaries (truncate transcript_text for response size)
-  const summaries = results.map(t => ({
+  const summaries = results.map((t: any) => ({
     id: t.id,
     deal_id: t.listing_id,
     buyer_id: t.buyer_id,
@@ -214,7 +214,7 @@ async function searchFireflies(
   // Client-side search
   if (args.search) {
     const term = (args.search as string).toLowerCase();
-    results = results.filter(t =>
+    results = results.filter((t: any) =>
       t.title?.toLowerCase().includes(term) ||
       t.transcript_text?.toLowerCase().includes(term) ||
       t.meeting_attendees?.some((a: string) => a.toLowerCase().includes(term))
@@ -222,7 +222,7 @@ async function searchFireflies(
   }
 
   // Truncate transcript for response size
-  const summaries = results.map(t => ({
+  const summaries = results.map((t: any) => ({
     id: t.id,
     title: t.title,
     deal_id: t.listing_id,

@@ -149,8 +149,8 @@ async function getOutreachStatus(
   let filteredDealAccess = dealAccess;
   if (args.buyer_id) {
     const bid = args.buyer_id as string;
-    filteredAccess = access.filter((a: Record<string, unknown>) => a.remarketing_buyer_id === bid);
-    filteredDealAccess = dealAccess.filter((a: Record<string, unknown>) => a.buyer_id === bid);
+    filteredAccess = (access as any[]).filter((a: any) => a.remarketing_buyer_id === bid);
+    filteredDealAccess = (dealAccess as any[]).filter((a: any) => a.buyer_id === bid);
   }
 
   // Compute status summary from scores

@@ -206,7 +206,7 @@ async function searchBuyerTranscripts(
     return [];
   }
 
-  return (data || []).map(d => ({
+  return (data || []).map((d: any) => ({
     ...d,
     source_type: 'buyer_transcript',
   }));
@@ -232,7 +232,7 @@ async function searchDealTranscripts(
     return [];
   }
 
-  return (data || []).map(d => ({
+  return (data || []).map((d: any) => ({
     ...d,
     source_type: 'deal_transcript',
     buyer_id: null,

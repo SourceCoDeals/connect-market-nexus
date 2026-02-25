@@ -400,7 +400,8 @@ async function searchBuyers(
 
   // CapTarget exclusion filter — remove PE/VC/investment banks when requested
   if (args.exclude_financial_buyers === true) {
-    results = results.filter((b) => {
+    // deno-lint-ignore no-explicit-any
+    results = results.filter((b: any) => {
       const exclusion = checkCompanyExclusion({
         companyName: b.company_name || b.pe_firm_name || '',
         description: b.business_summary || b.thesis_summary || '',

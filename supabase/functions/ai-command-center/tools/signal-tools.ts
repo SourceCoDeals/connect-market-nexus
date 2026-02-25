@@ -260,7 +260,7 @@ async function getInterestSignals(
     data: {
       signals,
       total: signals.length,
-      converted: signals.filter(s => s.converted_to_connection).length,
+      converted: signals.filter((s: any) => s.converted_to_connection).length,
     },
   };
 }

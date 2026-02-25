@@ -75,7 +75,7 @@ async function getCurrentUserContext(
   if (profileResult.error) return { error: profileResult.error.message };
 
   const tasks = tasksResult.data || [];
-  const overdueTasks = tasks.filter(t => t.due_date && new Date(t.due_date) < new Date());
+  const overdueTasks = tasks.filter((t: any) => t.due_date && new Date(t.due_date) < new Date());
 
   return {
     data: {

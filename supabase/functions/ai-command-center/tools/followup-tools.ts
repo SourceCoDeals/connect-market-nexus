@@ -185,7 +185,7 @@ async function getFollowUpQueue(
         unread_messages: unreadMessages.length,
         upcoming_tasks: upcomingTasks.length,
       },
-      overdue_tasks: overdueTasks.map((t) => ({
+      overdue_tasks: overdueTasks.map((t: any) => ({
         id: t.id,
         title: t.title,
         deal_id: t.deal_id,
@@ -195,7 +195,7 @@ async function getFollowUpQueue(
           (now.getTime() - new Date(t.due_date).getTime()) / (1000 * 60 * 60 * 24),
         ),
       })),
-      stale_outreach: staleOutreach.map((o) => ({
+      stale_outreach: staleOutreach.map((o: any) => ({
         id: o.id,
         buyer_name: o.buyer_name,
         deal_id: o.deal_id,
@@ -206,19 +206,19 @@ async function getFollowUpQueue(
         ),
         next_action: o.next_action,
       })),
-      pending_ndas: pendingNdas.map((n) => ({
+      pending_ndas: pendingNdas.map((n: any) => ({
         id: n.id,
         company: n.primary_company_name,
         has_fee_agreement: n.fee_agreement_signed,
         created_at: n.created_at,
       })),
-      unread_messages: unreadMessages.map((m) => ({
+      unread_messages: unreadMessages.map((m: any) => ({
         id: m.id,
         preview: (m.body || '').substring(0, 100),
         connection_request_id: m.connection_request_id,
         created_at: m.created_at,
       })),
-      upcoming_tasks: upcomingTasks.map((t) => ({
+      upcoming_tasks: upcomingTasks.map((t: any) => ({
         id: t.id,
         title: t.title,
         deal_id: t.deal_id,
