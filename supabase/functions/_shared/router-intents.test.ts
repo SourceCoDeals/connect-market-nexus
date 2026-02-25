@@ -185,9 +185,12 @@ const BYPASS_RULES: BypassRule[] = [
       confidence: 0.85,
     },
   },
-  // Outreach drafting
+  // Outreach drafting — matches intent to compose/send a message.
+  // NOTE: bare "email" removed to avoid catching "find email for X" (contact lookups).
   {
-    test: (q) => /\b(draft|write|compose|email|outreach|message)\b/i.test(q),
+    test: (q) =>
+      /\b(draft|write|compose)\b/i.test(q) ||
+      /\b(outreach|send\s+(a\s+)?message|send\s+(an?\s+)?email)\b/i.test(q),
     result: {
       category: 'OUTREACH_DRAFT',
       tier: 'DEEP',
@@ -211,14 +214,23 @@ const BYPASS_RULES: BypassRule[] = [
   // PE / platform contacts — find who to call, email at a firm, person email lookups
   {
     test: (q) =>
-      /\b(contact at|contact for|who.?s the|find contact|email for|phone for|partner at|principal at|deal team|pe contact|platform contact)\b/i.test(q) ||
-      /\b(what.?s|what is|do we have|get me|look up|find).{0,20}\b(email|phone|contact info)\b/i.test(q) ||
+      /\b(contact at|contact for|who.?s the|find contact|email for|phone for|partner at|principal at|deal team|pe contact|platform contact)\b/i.test(
+        q,
+      ) ||
+      /\b(what.?s|what is|do we have|get me|look up|find).{0,20}\b(email|phone|contact info)\b/i.test(
+        q,
+      ) ||
       /\b(email|phone)\s+(address\s+)?(for|of)\b/i.test(q) ||
       /\bemail\b.*\b(address)\b/i.test(q),
     result: {
       category: 'CONTACTS',
       tier: 'STANDARD',
-      tools: ['search_contacts', 'search_pe_contacts', 'enrich_buyer_contacts', 'get_buyer_profile'],
+      tools: [
+        'search_contacts',
+        'search_pe_contacts',
+        'enrich_buyer_contacts',
+        'get_buyer_profile',
+      ],
       confidence: 0.87,
     },
   },
@@ -234,7 +246,12 @@ const BYPASS_RULES: BypassRule[] = [
     result: {
       category: 'CONTACTS',
       tier: 'STANDARD',
-      tools: ['search_contacts', 'search_pe_contacts', 'enrich_buyer_contacts', 'get_buyer_profile'],
+      tools: [
+        'search_contacts',
+        'search_pe_contacts',
+        'enrich_buyer_contacts',
+        'get_buyer_profile',
+      ],
       confidence: 0.92,
     },
   },
@@ -279,8 +296,7 @@ describe('GROUP A: Contact Research Intent Classification', () => {
       // The "find...associates...at" or "find 8...at" pattern should trigger CONTACTS,
       // but the regex may not match due to intervening text. LLM fallback is correct.
       expect(
-        result === null ||
-          ['CONTACTS', 'BUYER_SEARCH', 'REMARKETING'].includes(result.category),
+        result === null || ['CONTACTS', 'BUYER_SEARCH', 'REMARKETING'].includes(result.category),
       ).toBe(true);
     });
 
@@ -323,8 +339,7 @@ describe('GROUP A: Contact Research Intent Classification', () => {
       );
       // Complex multi-entity query — may match BUYER_SEARCH/CONTACTS or fall to LLM
       expect(
-        result === null ||
-          ['CONTACTS', 'BUYER_SEARCH', 'REMARKETING'].includes(result.category),
+        result === null || ['CONTACTS', 'BUYER_SEARCH', 'REMARKETING'].includes(result.category),
       ).toBe(true);
     });
   });
@@ -337,8 +352,7 @@ describe('GROUP A: Contact Research Intent Classification', () => {
       // Complex multi-criteria query — may fall to LLM for proper handling
       // LLM fallback is acceptable for this complexity level
       expect(
-        result === null ||
-          ['CONTACTS', 'BUYER_SEARCH', 'REMARKETING'].includes(result.category),
+        result === null || ['CONTACTS', 'BUYER_SEARCH', 'REMARKETING'].includes(result.category),
       ).toBe(true);
     });
   });
@@ -452,9 +466,7 @@ describe('GROUP C: Fireflies Call Analysis Intent Classification', () => {
       // "calls" triggers MEETING_INTEL or "collision repair shop" may trigger BUYER_SEARCH
       expect(result).not.toBeNull();
       if (result) {
-        expect(['MEETING_INTEL', 'SEMANTIC_SEARCH', 'BUYER_SEARCH']).toContain(
-          result.category,
-        );
+        expect(['MEETING_INTEL', 'SEMANTIC_SEARCH', 'BUYER_SEARCH']).toContain(result.category);
       }
     });
   });
@@ -620,8 +632,7 @@ describe('Core intent classification', () => {
     // "buyer" + "find" should trigger BUYER_SEARCH, but both words need to be in the query
     // Falls to LLM if bypass doesn't match exactly
     expect(
-      result === null ||
-        ['BUYER_SEARCH', 'REMARKETING', 'CONTACTS'].includes(result.category),
+      result === null || ['BUYER_SEARCH', 'REMARKETING', 'CONTACTS'].includes(result.category),
     ).toBe(true);
   });
 

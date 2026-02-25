@@ -208,9 +208,13 @@ const BYPASS_RULES: Array<{
       confidence: 0.85,
     },
   },
-  // Outreach drafting
+  // Outreach drafting — matches intent to compose/send a message.
+  // NOTE: bare "email" removed to avoid catching "find email for X" (contact lookups).
+  // Drafting intent is captured by draft/write/compose + optional "email/message".
   {
-    test: (q) => /\b(draft|write|compose|email|outreach|message)\b/i.test(q),
+    test: (q) =>
+      /\b(draft|write|compose)\b/i.test(q) ||
+      /\b(outreach|send\s+(a\s+)?message|send\s+(an?\s+)?email)\b/i.test(q),
     result: {
       category: 'OUTREACH_DRAFT',
       tier: 'DEEP',
@@ -360,14 +364,23 @@ const BYPASS_RULES: Array<{
   // PE / platform contacts — find who to call, email at a firm, person email lookups
   {
     test: (q) =>
-      /\b(contact at|contact for|who.?s the|find contact|email for|phone for|partner at|principal at|deal team|pe contact|platform contact)\b/i.test(q) ||
-      /\b(what.?s|what is|do we have|get me|look up|find).{0,20}\b(email|phone|contact info)\b/i.test(q) ||
+      /\b(contact at|contact for|who.?s the|find contact|email for|phone for|partner at|principal at|deal team|pe contact|platform contact)\b/i.test(
+        q,
+      ) ||
+      /\b(what.?s|what is|do we have|get me|look up|find).{0,20}\b(email|phone|contact info)\b/i.test(
+        q,
+      ) ||
       /\b(email|phone)\s+(address\s+)?(for|of)\b/i.test(q) ||
       /\bemail\b.*\b(address)\b/i.test(q),
     result: {
       category: 'CONTACTS',
       tier: 'STANDARD',
-      tools: ['search_contacts', 'search_pe_contacts', 'enrich_buyer_contacts', 'get_buyer_profile'],
+      tools: [
+        'search_contacts',
+        'search_pe_contacts',
+        'enrich_buyer_contacts',
+        'get_buyer_profile',
+      ],
       confidence: 0.87,
     },
   },
