@@ -1,5 +1,5 @@
-import { Link, useLocation } from "react-router-dom";
-import { cn } from "@/lib/utils";
+import { Link, useLocation } from 'react-router-dom';
+import { cn } from '@/lib/utils';
 import {
   LayoutDashboard,
   Globe2,
@@ -15,13 +15,13 @@ import {
   Activity,
   Crosshair,
   Briefcase,
-} from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { useState } from "react";
+  ListChecks,
+} from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { useState } from 'react';
 
-
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface NavItem {
   label: string;
@@ -35,64 +35,66 @@ export function ReMarketingSidebar() {
   const location = useLocation();
   const [collapsed, setCollapsed] = useState(false);
 
-
-
-
   const navItems: NavItem[] = [
     {
-      label: "Dashboard",
-      href: "/admin/remarketing",
+      label: 'Dashboard',
+      href: '/admin/remarketing',
       icon: <LayoutDashboard className="h-5 w-5" />,
       exact: true,
     },
     {
-      label: "Buyer Universes",
-      href: "/admin/buyers/universes",
+      label: 'Daily Tasks',
+      href: '/admin/remarketing/daily-tasks',
+      icon: <ListChecks className="h-5 w-5" />,
+    },
+    {
+      label: 'Buyer Universes',
+      href: '/admin/buyers/universes',
       icon: <Globe2 className="h-5 w-5" />,
     },
     {
-      label: "Active Deals",
-      href: "/admin/deals",
+      label: 'Active Deals',
+      href: '/admin/deals',
       icon: <Building2 className="h-5 w-5" />,
     },
     {
-      label: "CapTarget Deals",
-      href: "/admin/remarketing/leads/captarget",
+      label: 'CapTarget Deals',
+      href: '/admin/remarketing/leads/captarget',
       icon: <Crosshair className="h-5 w-5" />,
     },
     {
-      label: "GP Partner Deals",
-      href: "/admin/remarketing/leads/gp-partners",
+      label: 'GP Partner Deals',
+      href: '/admin/remarketing/leads/gp-partners',
       icon: <Briefcase className="h-5 w-5" />,
     },
     {
-      label: "Valuation Leads",
-      href: "/admin/remarketing/leads/valuation",
+      label: 'Valuation Leads',
+      href: '/admin/remarketing/leads/valuation',
       icon: <Calculator className="h-5 w-5" />,
     },
     {
-      label: "Referral Partners",
-      href: "/admin/remarketing/leads/referrals",
+      label: 'Referral Partners',
+      href: '/admin/remarketing/leads/referrals',
       icon: <Handshake className="h-5 w-5" />,
     },
     {
-      label: "All Buyers",
-      href: "/admin/buyers",
+      label: 'All Buyers',
+      href: '/admin/buyers',
       icon: <Users className="h-5 w-5" />,
     },
     {
-      label: "Analytics",
-      href: "/admin/analytics",
+      label: 'Analytics',
+      href: '/admin/analytics',
       icon: <BarChart3 className="h-5 w-5" />,
     },
     {
-      label: "Activity Queue",
-      href: "/admin/remarketing/activity-queue",
+      label: 'Activity Queue',
+      href: '/admin/remarketing/activity-queue',
       icon: <Activity className="h-5 w-5" />,
     },
     {
-      label: "Settings",
-      href: "/admin/settings/remarketing",
+      label: 'Settings',
+      href: '/admin/settings/remarketing',
       icon: <Settings className="h-5 w-5" />,
     },
   ];
@@ -108,8 +110,8 @@ export function ReMarketingSidebar() {
     <TooltipProvider delayDuration={0}>
       <aside
         className={cn(
-          "flex flex-col border-r border-border bg-card transition-all duration-200",
-          collapsed ? "w-16" : "w-56"
+          'flex flex-col border-r border-border bg-card transition-all duration-200',
+          collapsed ? 'w-16' : 'w-56',
         )}
       >
         {/* Header */}
@@ -128,11 +130,7 @@ export function ReMarketingSidebar() {
             className="h-8 w-8"
             onClick={() => setCollapsed(!collapsed)}
           >
-            {collapsed ? (
-              <ChevronRight className="h-4 w-4" />
-            ) : (
-              <ChevronLeft className="h-4 w-4" />
-            )}
+            {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
           </Button>
         </div>
 
@@ -148,10 +146,10 @@ export function ReMarketingSidebar() {
                     <Link
                       to={item.href}
                       className={cn(
-                        "flex items-center justify-center h-10 w-full rounded-lg transition-colors relative",
+                        'flex items-center justify-center h-10 w-full rounded-lg transition-colors relative',
                         active
-                          ? "bg-primary text-primary-foreground"
-                          : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                          ? 'bg-primary text-primary-foreground'
+                          : 'text-muted-foreground hover:bg-muted hover:text-foreground',
                       )}
                     >
                       {item.icon}
@@ -164,7 +162,7 @@ export function ReMarketingSidebar() {
                   </TooltipTrigger>
                   <TooltipContent side="right">
                     {item.label}
-                    {item.badge && item.badge > 0 ? ` (${item.badge})` : ""}
+                    {item.badge && item.badge > 0 ? ` (${item.badge})` : ''}
                   </TooltipContent>
                 </Tooltip>
               );
@@ -175,10 +173,10 @@ export function ReMarketingSidebar() {
                 key={item.href}
                 to={item.href}
                 className={cn(
-                  "flex items-center gap-3 px-3 py-2 rounded-lg transition-colors text-sm font-medium",
+                  'flex items-center gap-3 px-3 py-2 rounded-lg transition-colors text-sm font-medium',
                   active
-                    ? "bg-primary text-primary-foreground"
-                    : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                    ? 'bg-primary text-primary-foreground'
+                    : 'text-muted-foreground hover:bg-muted hover:text-foreground',
                 )}
               >
                 {item.icon}
@@ -207,9 +205,7 @@ export function ReMarketingSidebar() {
                   </Button>
                 </Link>
               </TooltipTrigger>
-              <TooltipContent side="right">
-                New Buyer Universe
-              </TooltipContent>
+              <TooltipContent side="right">New Buyer Universe</TooltipContent>
             </Tooltip>
           ) : (
             <Link to="/admin/buyers/universes?new=true">
@@ -232,9 +228,7 @@ export function ReMarketingSidebar() {
                   </Button>
                 </Link>
               </TooltipTrigger>
-              <TooltipContent side="right">
-                Back to Admin
-              </TooltipContent>
+              <TooltipContent side="right">Back to Admin</TooltipContent>
             </Tooltip>
           ) : (
             <Link to="/admin">
