@@ -123,6 +123,7 @@ export function useValuationLeadsData() {
   const [isReEnriching, setIsReEnriching] = useState(false);
   const [isScoring, setIsScoring] = useState(false);
   const [isEnriching, setIsEnriching] = useState(false);
+  const [isMarkingNotFit, setIsMarkingNotFit] = useState(false);
 
   // Fetch valuation leads
   const {
@@ -658,19 +659,24 @@ export function useValuationLeadsData() {
   const handleMarkNotFit = useCallback(
     async (leadIds: string[]) => {
       if (leadIds.length === 0) return;
-      const { error } = await supabase
-        .from('valuation_leads')
-        .update({ not_a_fit: true } as never)
-        .in('id', leadIds);
-      if (error) {
-        sonnerToast.error('Failed to mark leads as not a fit');
-        return;
+      setIsMarkingNotFit(true);
+      try {
+        const { error } = await supabase
+          .from('valuation_leads')
+          .update({ not_a_fit: true } as never)
+          .in('id', leadIds);
+        if (error) {
+          sonnerToast.error('Failed to mark leads as not a fit');
+          return;
+        }
+        sonnerToast.success(
+          `Marked ${leadIds.length} lead${leadIds.length !== 1 ? 's' : ''} as not a fit`,
+        );
+        setSelectedIds(new Set());
+        queryClient.invalidateQueries({ queryKey: ['remarketing', 'valuation-leads'] });
+      } finally {
+        setIsMarkingNotFit(false);
       }
-      sonnerToast.success(
-        `Marked ${leadIds.length} lead${leadIds.length !== 1 ? 's' : ''} as not a fit`,
-      );
-      setSelectedIds(new Set());
-      queryClient.invalidateQueries({ queryKey: ['remarketing', 'valuation-leads'] });
     },
     [queryClient],
   );
@@ -969,6 +975,7 @@ export function useValuationLeadsData() {
     isReEnriching,
     isScoring,
     isEnriching,
+    isMarkingNotFit,
     // Enrichment
     enrichmentProgress,
     enrichmentSummary,

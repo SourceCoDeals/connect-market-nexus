@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -373,7 +373,7 @@ const ReMarketingUniverses = () => {
   }, [flaggedDeals, localFlaggedOrder]);
 
   // Keep local order in sync when data changes (but not during drag)
-  useMemo(() => {
+  useEffect(() => {
     if (flaggedDeals) setLocalFlaggedOrder(flaggedDeals);
   }, [flaggedDeals]);
 

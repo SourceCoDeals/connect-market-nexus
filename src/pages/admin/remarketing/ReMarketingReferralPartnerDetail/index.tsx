@@ -384,7 +384,7 @@ export default function ReMarketingReferralPartnerDetail() {
                   )}
                 >
                   <ThumbsDown className="h-3.5 w-3.5" />
-                  {data.hideNotFit ? 'Not Fit Hidden' : 'Hide Not Fit'}
+                  {data.hideNotFit ? 'Not Fit Hidden' : 'Show Not Fit'}
                 </button>
               </div>
             </div>

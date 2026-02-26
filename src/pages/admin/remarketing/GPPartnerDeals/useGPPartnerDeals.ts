@@ -166,7 +166,7 @@ export function useGPPartnerDeals() {
   const filteredDeals = useMemo(() => {
     let items = [...engineFiltered];
     if (hidePushed) items = items.filter((d) => !d.pushed_to_all_deals);
-    if (hideNotFit) items = items.filter((d) => (d as any).remarketing_status !== 'not_a_fit');
+    if (hideNotFit) items = items.filter((d) => d.remarketing_status !== 'not_a_fit');
     items.sort((a, b) => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       let valA: any, valB: any;

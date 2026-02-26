@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { cn } from "@/lib/utils";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -337,17 +338,21 @@ export function OwnerLeadsTableContent({ leads, onStatusChange, onNotesUpdate, o
       </TableHeader>
       <TableBody>
         {sortedLeads.map((lead) => (
-          <TableRow key={lead.id} className={selectedIds?.has(lead.id) ? "bg-primary/5" : ""}>
+          <TableRow key={lead.id} className={cn(
+            selectedIds?.has(lead.id) ? "bg-primary/5" : "",
+            lead.status === 'not_a_fit' && "opacity-60 bg-orange-50/50 hover:bg-orange-100/50 dark:bg-orange-950/20 dark:hover:bg-orange-950/30",
+          )}>
             {selectedIds && onSelectionChange && (
               <TableCell
                 onClick={(e) => {
-                  if ((e.target as HTMLElement).closest('[role="checkbox"]')) {
-                    e.stopPropagation();
-                    handleToggle(lead.id, !selectedIds.has(lead.id), e);
-                  }
+                  e.stopPropagation();
+                  handleToggle(lead.id, !selectedIds.has(lead.id), e);
                 }}
               >
-                <Checkbox checked={selectedIds.has(lead.id)} />
+                <Checkbox
+                  checked={selectedIds.has(lead.id)}
+                  onCheckedChange={() => {/* handled by TableCell onClick for shift-key support */}}
+                />
               </TableCell>
             )}
             <TableCell>

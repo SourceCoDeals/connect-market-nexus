@@ -92,6 +92,7 @@ export default function ValuationLeads() {
     isReEnriching,
     isScoring,
     isEnriching,
+    isMarkingNotFit,
     enrichmentProgress,
     enrichmentSummary,
     showEnrichmentSummary,
@@ -379,6 +380,7 @@ export default function ValuationLeads() {
         }}
         showPriorityToggle={false}
         onMarkNotFit={() => handleMarkNotFit(Array.from(selectedIds))}
+        isMarkingNotFit={isMarkingNotFit}
         onArchive={() => handleArchive(Array.from(selectedIds))}
         onPushToDialer={() => setDialerOpen(true)}
         onPushToSmartlead={() => setSmartleadOpen(true)}
