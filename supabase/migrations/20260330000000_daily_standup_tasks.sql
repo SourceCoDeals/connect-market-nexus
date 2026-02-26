@@ -126,7 +126,7 @@ BEGIN
   GET DIAGNOSTICS affected = ROW_COUNT;
   RETURN affected;
 END;
-$$ LANGUAGE plpgsql;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- ============================================================
 -- RLS policies

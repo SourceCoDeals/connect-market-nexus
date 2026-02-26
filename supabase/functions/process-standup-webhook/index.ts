@@ -11,22 +11,11 @@ import { getCorsHeaders, corsPreflightResponse } from '../_shared/cors.ts';
  * and triggers the extract-standup-tasks function.
  *
  * Standup identification:
- * 1. Meeting tagged with "daily-standup" in Fireflies
- * 2. Or meeting title matches common standup patterns
+ * Meetings are tagged with `<ds>` in the meeting title/header.
+ * This is the team's convention for marking daily standup meetings.
  */
 
-const STANDUP_TITLE_PATTERNS = [
-  /daily\s*standup/i,
-  /morning\s*meeting/i,
-  /daily\s*sync/i,
-  /standup\s*meeting/i,
-  /daily\s*huddle/i,
-  /team\s*standup/i,
-  /bd\s*standup/i,
-  /bd\s*daily/i,
-];
-
-const STANDUP_TAG = 'daily-standup';
+const STANDUP_TITLE_TAG = '<ds>';
 
 serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
@@ -46,7 +35,6 @@ serve(async (req) => {
     // Fireflies webhook payload
     const transcriptId = body.data?.transcript_id || body.transcript_id || body.id;
     const meetingTitle = body.data?.title || body.title || '';
-    const tags = body.data?.tags || body.tags || [];
 
     if (!transcriptId) {
       return new Response(JSON.stringify({ error: 'No transcript_id in webhook payload' }), {
@@ -55,14 +43,11 @@ serve(async (req) => {
       });
     }
 
-    // Check if this is a standup meeting
-    const hasStandupTag =
-      Array.isArray(tags) &&
-      tags.some((t: string) => t.toLowerCase().replace(/\s+/g, '-') === STANDUP_TAG);
-    const matchesTitle = STANDUP_TITLE_PATTERNS.some((p) => p.test(meetingTitle));
+    // Check if this is a standup meeting by looking for <ds> tag in title
+    const isStandup = meetingTitle.toLowerCase().includes(STANDUP_TITLE_TAG);
 
-    if (!hasStandupTag && !matchesTitle) {
-      console.log(`Skipping non-standup meeting: "${meetingTitle}" (tags: ${tags.join(', ')})`);
+    if (!isStandup) {
+      console.log(`Skipping non-standup meeting: "${meetingTitle}" (no <ds> tag)`);
       return new Response(
         JSON.stringify({
           success: true,

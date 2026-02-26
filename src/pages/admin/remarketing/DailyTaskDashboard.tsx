@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/context/AuthContext';
 import { useDailyTasks, useDeleteTask } from '@/hooks/useDailyTasks';
+import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -28,7 +29,7 @@ import {
   BarChart3,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { cn } from '@/lib/utils';
+import { cn, getLocalDateString } from '@/lib/utils';
 import { TaskCard } from '@/components/daily-tasks/TaskCard';
 import { AddTaskDialog } from '@/components/daily-tasks/AddTaskDialog';
 import { EditTaskDialog } from '@/components/daily-tasks/EditTaskDialog';
@@ -38,6 +39,7 @@ import type { DailyStandupTaskWithRelations } from '@/types/daily-tasks';
 
 const DailyTaskDashboard = () => {
   const { teamRole } = useAuth();
+  const { toast } = useToast();
   const isLeadership = teamRole === 'owner' || teamRole === 'admin';
 
   const [view, setView] = useState<'my' | 'all'>('my');
@@ -50,7 +52,7 @@ const DailyTaskDashboard = () => {
 
   const deleteTaskMutation = useDeleteTask();
 
-  const today = new Date().toISOString().split('T')[0];
+  const today = getLocalDateString();
 
   const { data: tasks, isLoading } = useDailyTasks({
     view,
@@ -104,22 +106,31 @@ const DailyTaskDashboard = () => {
 
   const handleDelete = async () => {
     if (!deleteTask) return;
-    await deleteTaskMutation.mutateAsync(deleteTask.id);
-    setDeleteTask(null);
+    try {
+      await deleteTaskMutation.mutateAsync(deleteTask.id);
+      setDeleteTask(null);
+    } catch (err) {
+      toast({
+        title: 'Failed to delete task',
+        description: err instanceof Error ? err.message : 'Unknown error',
+        variant: 'destructive',
+      });
+      setDeleteTask(null);
+    }
   };
 
   return (
-    <div className="p-6 space-y-5 bg-gray-50/50 min-h-screen">
+    <div className="px-8 py-6 space-y-5">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Daily Tasks</h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            Tasks extracted from the daily standup meeting, ranked by priority.
+          <h2 className="text-lg font-semibold tracking-tight">Today's Tasks</h2>
+          <p className="text-sm text-muted-foreground mt-0.5">
+            Extracted from standup meetings, ranked by priority
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Link to="/admin/remarketing/daily-tasks/analytics">
+          <Link to="/admin/daily-tasks/analytics">
             <Button variant="outline" size="sm">
               <BarChart3 className="h-4 w-4 mr-2" />
               Analytics
@@ -133,7 +144,7 @@ const DailyTaskDashboard = () => {
       </div>
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <Card>
           <CardContent className="pt-4 pb-3">
             <div className="flex items-center gap-3">

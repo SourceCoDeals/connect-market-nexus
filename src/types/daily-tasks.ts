@@ -130,12 +130,17 @@ export const TASK_TYPE_OPTIONS: { value: TaskType; label: string }[] = [
 // ─── Priority Scoring Constants ───
 
 export const DEAL_STAGE_SCORES: Record<string, number> = {
-  'New / Prospecting': 20,
-  'Owner Engaged': 40,
-  'Marketing / Buyer Outreach': 60,
-  'LOI / Negotiation': 90,
-  'Under Contract / Closing': 80,
-  'On Hold / Paused': 10,
+  Sourced: 20,
+  Qualified: 30,
+  'NDA Sent': 40,
+  'NDA Signed': 50,
+  'Fee Agreement Sent': 55,
+  'Fee Agreement Signed': 60,
+  'Due Diligence': 70,
+  'LOI Submitted': 90,
+  'Under Contract': 80,
+  'Closed Won': 100,
+  'Closed Lost': 0,
 };
 
 export const TASK_TYPE_SCORES: Record<TaskType, number> = {

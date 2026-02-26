@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
+import { useToast } from '@/hooks/use-toast';
 import {
   Select,
   SelectContent,
@@ -30,6 +31,7 @@ interface EditTaskDialogProps {
 
 export function EditTaskDialog({ task, open, onOpenChange }: EditTaskDialogProps) {
   const editTask = useEditTask();
+  const { toast } = useToast();
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [taskType, setTaskType] = useState<TaskType>('other');
@@ -49,18 +51,25 @@ export function EditTaskDialog({ task, open, onOpenChange }: EditTaskDialogProps
   const handleSave = async () => {
     if (!task || !title.trim()) return;
 
-    await editTask.mutateAsync({
-      taskId: task.id,
-      updates: {
-        title: title.trim(),
-        description: description.trim() || null,
-        task_type: taskType,
-        due_date: dueDate,
-        deal_reference: dealReference.trim() || null,
-      },
-    });
-
-    onOpenChange(false);
+    try {
+      await editTask.mutateAsync({
+        taskId: task.id,
+        updates: {
+          title: title.trim(),
+          description: description.trim() || null,
+          task_type: taskType,
+          due_date: dueDate,
+          deal_reference: dealReference.trim() || null,
+        },
+      });
+      onOpenChange(false);
+    } catch (err) {
+      toast({
+        title: 'Failed to save changes',
+        description: err instanceof Error ? err.message : 'Unknown error',
+        variant: 'destructive',
+      });
+    }
   };
 
   return (

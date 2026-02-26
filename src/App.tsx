@@ -296,6 +296,10 @@ function App() {
               {/* Dashboard */}
               <Route index element={<AdminDashboard />} />
 
+              {/* Daily Tasks */}
+              <Route path="daily-tasks" element={<DailyTaskDashboard />} />
+              <Route path="daily-tasks/analytics" element={<DailyTaskAnalytics />} />
+
               {/* DEALS */}
               <Route path="deals" element={<ReMarketingDeals />} />
               <Route path="deals/:dealId" element={<ReMarketingDealDetail />} />
@@ -362,8 +366,6 @@ function App() {
                 }
               >
                 <Route index element={<ReMarketingDashboard />} />
-                <Route path="daily-tasks" element={<DailyTaskDashboard />} />
-                <Route path="daily-tasks/analytics" element={<DailyTaskAnalytics />} />
                 <Route path="activity-queue" element={<ReMarketingActivityQueue />} />
                 <Route path="leads/captarget" element={<CapTargetDeals />} />
                 <Route path="leads/captarget/:dealId" element={<ReMarketingDealDetail />} />

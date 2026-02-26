@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { formatDistanceToNow } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
@@ -44,8 +44,16 @@ export function TaskCard({
 }: TaskCardProps) {
   const toggleComplete = useToggleTaskComplete();
   const [justCompleted, setJustCompleted] = useState(false);
+  const undoTimerRef = useRef<ReturnType<typeof setTimeout>>();
   const isOverdue = task.status === 'overdue';
   const isCompleted = task.status === 'completed';
+
+  // Clean up undo timer on unmount
+  useEffect(() => {
+    return () => {
+      if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
+    };
+  }, []);
 
   const handleCheck = () => {
     if (isCompleted) {
@@ -53,14 +61,15 @@ export function TaskCard({
     } else {
       toggleComplete.mutate({ taskId: task.id, completed: true });
       setJustCompleted(true);
-      // Allow undo for 5 seconds
-      setTimeout(() => setJustCompleted(false), 5000);
+      if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
+      undoTimerRef.current = setTimeout(() => setJustCompleted(false), 5000);
     }
   };
 
   const handleUndo = () => {
     toggleComplete.mutate({ taskId: task.id, completed: false });
     setJustCompleted(false);
+    if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
   };
 
   const assigneeName = task.assignee

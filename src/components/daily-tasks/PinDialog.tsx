@@ -12,6 +12,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Loader2 } from 'lucide-react';
 import { usePinTask } from '@/hooks/useDailyTasks';
+import { useToast } from '@/hooks/use-toast';
 import type { DailyStandupTaskWithRelations } from '@/types/daily-tasks';
 
 interface PinDialogProps {
@@ -22,6 +23,7 @@ interface PinDialogProps {
 
 export function PinDialog({ task, open, onOpenChange }: PinDialogProps) {
   const pinTask = usePinTask();
+  const { toast } = useToast();
   const [rank, setRank] = useState('1');
   const [reason, setReason] = useState('');
 
@@ -30,21 +32,29 @@ export function PinDialog({ task, open, onOpenChange }: PinDialogProps) {
   const handlePin = async () => {
     if (!task) return;
 
-    if (isCurrentlyPinned) {
-      await pinTask.mutateAsync({ taskId: task.id, rank: null });
-    } else {
-      const rankNum = parseInt(rank, 10);
-      if (isNaN(rankNum) || rankNum < 1) return;
-      await pinTask.mutateAsync({
-        taskId: task.id,
-        rank: rankNum,
-        reason: reason.trim() || undefined,
+    try {
+      if (isCurrentlyPinned) {
+        await pinTask.mutateAsync({ taskId: task.id, rank: null });
+      } else {
+        const rankNum = parseInt(rank, 10);
+        if (isNaN(rankNum) || rankNum < 1) return;
+        await pinTask.mutateAsync({
+          taskId: task.id,
+          rank: rankNum,
+          reason: reason.trim() || undefined,
+        });
+      }
+
+      setRank('1');
+      setReason('');
+      onOpenChange(false);
+    } catch (err) {
+      toast({
+        title: isCurrentlyPinned ? 'Failed to unpin task' : 'Failed to pin task',
+        description: err instanceof Error ? err.message : 'Unknown error',
+        variant: 'destructive',
       });
     }
-
-    setRank('1');
-    setReason('');
-    onOpenChange(false);
   };
 
   return (

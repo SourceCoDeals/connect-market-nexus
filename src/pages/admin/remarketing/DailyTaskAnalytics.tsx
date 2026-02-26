@@ -44,7 +44,7 @@ const DailyTaskAnalytics = () => {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <Link to="/admin/remarketing/daily-tasks">
+          <Link to="/admin/daily-tasks">
             <Button variant="ghost" size="icon" className="h-8 w-8">
               <ArrowLeft className="h-4 w-4" />
             </Button>
@@ -78,7 +78,7 @@ const DailyTaskAnalytics = () => {
         {/* ─── Team Overview Tab ─── */}
         <TabsContent value="team" className="space-y-4">
           {loadingAnalytics ? (
-            <div className="grid grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               {[...Array(4)].map((_, i) => (
                 <Skeleton key={i} className="h-24" />
               ))}
@@ -86,7 +86,7 @@ const DailyTaskAnalytics = () => {
           ) : analytics ? (
             <>
               {/* KPI Cards */}
-              <div className="grid grid-cols-4 gap-4">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <Card>
                   <CardContent className="pt-4 pb-3">
                     <div className="flex items-center gap-3">
@@ -160,33 +160,38 @@ const DailyTaskAnalytics = () => {
                   </CardHeader>
                   <CardContent>
                     <div className="flex items-end gap-1 h-32">
-                      {volumeTrend.slice(-30).map((day) => {
-                        const maxCreated = Math.max(...volumeTrend.map((d) => d.created));
-                        const height = maxCreated > 0 ? (day.created / maxCreated) * 100 : 0;
-                        const completedHeight =
-                          maxCreated > 0 ? (day.completed / maxCreated) * 100 : 0;
-                        return (
-                          <div
-                            key={day.date}
-                            className="flex-1 flex flex-col justify-end items-center gap-0.5"
-                            title={`${day.date}: ${day.created} created, ${day.completed} completed`}
-                          >
-                            <div className="w-full relative">
-                              <div
-                                className="w-full bg-blue-200 rounded-t"
-                                style={{ height: `${height}%`, minHeight: day.created > 0 ? 4 : 0 }}
-                              />
-                              <div
-                                className="w-full bg-green-400 rounded-t absolute bottom-0"
-                                style={{
-                                  height: `${completedHeight}%`,
-                                  minHeight: day.completed > 0 ? 2 : 0,
-                                }}
-                              />
+                      {(() => {
+                        const maxCreated = Math.max(...volumeTrend.map((d) => d.created), 1);
+                        return volumeTrend.slice(-30).map((day) => {
+                          const height = maxCreated > 0 ? (day.created / maxCreated) * 100 : 0;
+                          const completedHeight =
+                            maxCreated > 0 ? (day.completed / maxCreated) * 100 : 0;
+                          return (
+                            <div
+                              key={day.date}
+                              className="flex-1 flex flex-col justify-end items-center gap-0.5"
+                              title={`${day.date}: ${day.created} created, ${day.completed} completed`}
+                            >
+                              <div className="w-full relative">
+                                <div
+                                  className="w-full bg-blue-200 rounded-t"
+                                  style={{
+                                    height: `${height}%`,
+                                    minHeight: day.created > 0 ? 4 : 0,
+                                  }}
+                                />
+                                <div
+                                  className="w-full bg-green-400 rounded-t absolute bottom-0"
+                                  style={{
+                                    height: `${completedHeight}%`,
+                                    minHeight: day.completed > 0 ? 2 : 0,
+                                  }}
+                                />
+                              </div>
                             </div>
-                          </div>
-                        );
-                      })}
+                          );
+                        });
+                      })()}
                     </div>
                     <div className="flex items-center gap-4 mt-2 text-[10px] text-muted-foreground">
                       <span className="flex items-center gap-1">
