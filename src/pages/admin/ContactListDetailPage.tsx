@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useShiftSelect } from '@/hooks/useShiftSelect';
 import { useParams, Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';

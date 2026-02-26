@@ -3498,6 +3498,8 @@ export type Database = {
       }
       daily_standup_tasks: {
         Row: {
+          approved_at: string | null
+          approved_by: string | null
           assignee_id: string | null
           completed_at: string | null
           completed_by: string | null
@@ -3525,6 +3527,8 @@ export type Database = {
           updated_at: string | null
         }
         Insert: {
+          approved_at?: string | null
+          approved_by?: string | null
           assignee_id?: string | null
           completed_at?: string | null
           completed_by?: string | null
@@ -3552,6 +3556,8 @@ export type Database = {
           updated_at?: string | null
         }
         Update: {
+          approved_at?: string | null
+          approved_by?: string | null
           assignee_id?: string | null
           completed_at?: string | null
           completed_by?: string | null
@@ -3579,6 +3585,13 @@ export type Database = {
           updated_at?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "daily_standup_tasks_approved_by_fkey"
+            columns: ["approved_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "daily_standup_tasks_assignee_id_fkey"
             columns: ["assignee_id"]
