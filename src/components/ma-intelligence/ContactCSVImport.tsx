@@ -5,6 +5,7 @@ import { Progress } from "@/components/ui/progress";
 import { Upload, FileText, CheckCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { readSpreadsheetAsText, SPREADSHEET_ACCEPT } from "@/lib/parseSpreadsheet";
 
 interface ContactCSVImportProps {
   trackerId: string;
@@ -31,8 +32,8 @@ export function ContactCSVImport({ trackerId, onImportComplete }: ContactCSVImpo
     setProgress(0);
 
     try {
-      // Read file content
-      const text = await file.text();
+      // Read file content (supports CSV, XLS, XLSX)
+      const text = await readSpreadsheetAsText(file);
       const rows = text.split("\n").filter(row => row.trim());
 
       if (rows.length === 0) {
@@ -111,12 +112,12 @@ export function ContactCSVImport({ trackerId, onImportComplete }: ContactCSVImpo
   return (
     <div className="space-y-4">
       <div className="space-y-2">
-        <Label htmlFor="csv-file">Select CSV File</Label>
+        <Label htmlFor="csv-file">Select File (CSV, XLS, XLSX)</Label>
         <div className="flex items-center gap-3">
           <input
             id="csv-file"
             type="file"
-            accept=".csv"
+            accept={SPREADSHEET_ACCEPT}
             onChange={handleFileChange}
             className="hidden"
           />

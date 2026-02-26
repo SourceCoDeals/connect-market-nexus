@@ -81,6 +81,22 @@ export function useValuationLeadsData() {
     },
     [setSearchParams],
   );
+  const hideNotFit = searchParams.get('hideNotFit') !== '0'; // hidden by default
+  const setHideNotFit = useCallback(
+    (v: boolean) => {
+      setSearchParams(
+        (p) => {
+          const n = new URLSearchParams(p);
+          if (!v) n.set('hideNotFit', '0');
+          else n.delete('hideNotFit');
+          n.delete('cp');
+          return n;
+        },
+        { replace: true },
+      );
+    },
+    [setSearchParams],
+  );
   const currentPage = Number(searchParams.get('cp')) || 1;
   const setCurrentPage = useCallback(
     (v: number | ((prev: number) => number)) => {
@@ -199,6 +215,7 @@ export function useValuationLeadsData() {
   const filteredLeads = useMemo(() => {
     let filtered = engineFiltered;
     filtered = filtered.filter((l) => !l.is_archived);
+    if (hideNotFit) filtered = filtered.filter((l) => !l.not_a_fit);
     if (hidePushed) filtered = filtered.filter((l) => !l.pushed_to_all_deals);
     if (activeTab !== 'all') {
       filtered = filtered.filter((l) => l.calculator_type === activeTab);
@@ -304,7 +321,7 @@ export function useValuationLeadsData() {
     });
 
     return sorted;
-  }, [engineFiltered, activeTab, isInRange, sortColumn, sortDirection, adminProfiles, hidePushed]);
+  }, [engineFiltered, activeTab, isInRange, sortColumn, sortDirection, adminProfiles, hidePushed, hideNotFit]);
 
   // Pagination
   const totalPages = Math.max(1, Math.ceil(filteredLeads.length / PAGE_SIZE));
@@ -638,6 +655,26 @@ export function useValuationLeadsData() {
     [queryClient],
   );
 
+  const handleMarkNotFit = useCallback(
+    async (leadIds: string[]) => {
+      if (leadIds.length === 0) return;
+      const { error } = await supabase
+        .from('valuation_leads')
+        .update({ not_a_fit: true } as never)
+        .in('id', leadIds);
+      if (error) {
+        sonnerToast.error('Failed to mark leads as not a fit');
+        return;
+      }
+      sonnerToast.success(
+        `Marked ${leadIds.length} lead${leadIds.length !== 1 ? 's' : ''} as not a fit`,
+      );
+      setSelectedIds(new Set());
+      queryClient.invalidateQueries({ queryKey: ['remarketing', 'valuation-leads'] });
+    },
+    [queryClient],
+  );
+
   const handleBulkEnrich = useCallback(
     async (mode: 'unenriched' | 'all') => {
       const allLeads = leads || [];
@@ -913,12 +950,15 @@ export function useValuationLeadsData() {
     // Toggles
     hidePushed,
     setHidePushed,
+    hideNotFit,
+    setHideNotFit,
     // Actions
     handleRowClick,
     handlePushToAllDeals,
     handlePushAndEnrich,
     handleReEnrich,
     handleArchive,
+    handleMarkNotFit,
     handleBulkEnrich,
     handleRetryFailedEnrichment,
     handleScoreLeads,

@@ -14,6 +14,7 @@ import {
 import { useAuth } from '@/context/AuthContext';
 import { useAdminProfiles } from '@/hooks/admin/use-admin-profiles';
 import { useEnrichmentProgress } from '@/hooks/useEnrichmentProgress';
+import { useShiftSelect } from '@/hooks/useShiftSelect';
 import type { GPPartnerDeal, SortColumn, SortDirection, NewDealForm } from './types';
 import { EMPTY_NEW_DEAL } from './types';
 
@@ -46,6 +47,22 @@ export function useGPPartnerDeals() {
           const n = new URLSearchParams(p);
           if (v) n.set('hidePushed', '1');
           else n.delete('hidePushed');
+          n.delete('cp');
+          return n;
+        },
+        { replace: true },
+      );
+    },
+    [setSearchParams],
+  );
+  const hideNotFit = searchParams.get('hideNotFit') !== '0'; // hidden by default
+  const setHideNotFit = useCallback(
+    (v: boolean) => {
+      setSearchParams(
+        (p) => {
+          const n = new URLSearchParams(p);
+          if (!v) n.set('hideNotFit', '0');
+          else n.delete('hideNotFit');
           n.delete('cp');
           return n;
         },
@@ -112,7 +129,7 @@ export function useGPPartnerDeals() {
             linkedin_employee_range, google_rating, google_review_count,
             is_priority_target, need_buyer_universe, need_owner_contact,
             category, executive_summary, industry, revenue, ebitda, location,
-            address_city, address_state, deal_owner_id,
+            address_city, address_state, deal_owner_id, remarketing_status,
             deal_owner:profiles!listings_deal_owner_id_fkey(id, first_name, last_name, email)
           `,
           )
@@ -149,6 +166,7 @@ export function useGPPartnerDeals() {
   const filteredDeals = useMemo(() => {
     let items = [...engineFiltered];
     if (hidePushed) items = items.filter((d) => !d.pushed_to_all_deals);
+    if (hideNotFit) items = items.filter((d) => (d as any).remarketing_status !== 'not_a_fit');
     items.sort((a, b) => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       let valA: any, valB: any;
@@ -213,7 +231,7 @@ export function useGPPartnerDeals() {
       return 0;
     });
     return items;
-  }, [engineFiltered, sortColumn, sortDirection, hidePushed]);
+  }, [engineFiltered, sortColumn, sortDirection, hidePushed, hideNotFit]);
 
   // Pagination
   const totalPages = Math.max(1, Math.ceil(filteredDeals.length / PAGE_SIZE));
@@ -263,6 +281,9 @@ export function useGPPartnerDeals() {
       return next;
     });
   };
+
+  const orderedPageIds = useMemo(() => paginatedDeals.map((d) => d.id), [paginatedDeals]);
+  const { handleToggle: shiftToggle } = useShiftSelect(orderedPageIds, selectedIds, setSelectedIds);
 
   // Push to Active Deals
   const handlePushToAllDeals = useCallback(
@@ -685,6 +706,11 @@ export function useGPPartnerDeals() {
     // Hide pushed
     hidePushed,
     setHidePushed,
+    // Hide not fit
+    hideNotFit,
+    setHideNotFit,
+    // Shift-click selection
+    shiftToggle,
     // Action states
     isPushing,
     isEnriching,

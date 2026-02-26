@@ -41,6 +41,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import Papa from 'papaparse';
+import { parseSpreadsheet, SPREADSHEET_ACCEPT } from '@/lib/parseSpreadsheet';
 
 interface CSVRow {
   [key: string]: string;
@@ -361,7 +362,7 @@ export const BuyerCSVImport = ({
   }, []);
 
   const handleFileUpload = useCallback(
-    (event: React.ChangeEvent<HTMLInputElement>) => {
+    async (event: React.ChangeEvent<HTMLInputElement>) => {
       const file = event.target.files?.[0];
       if (!file) return;
 
@@ -374,36 +375,30 @@ export const BuyerCSVImport = ({
         return;
       }
 
-      Papa.parse(file, {
-        header: true,
-        skipEmptyLines: true,
-        complete: async (results) => {
-          const data = results.data as CSVRow[];
-          const headers = results.meta.fields || [];
+      try {
+        const { data, columns: headers } = await parseSpreadsheet(file);
 
-          if (data.length === 0) {
-            toast.error('CSV file is empty');
-            return;
-          }
+        if (data.length === 0) {
+          toast.error('File is empty');
+          return;
+        }
 
-          if (data.length > MAX_ROW_COUNT) {
-            toast.error(
-              `CSV has ${data.length.toLocaleString()} rows, which exceeds the ${MAX_ROW_COUNT.toLocaleString()} row limit. Please split the file into smaller batches.`,
-            );
-            return;
-          }
+        if (data.length > MAX_ROW_COUNT) {
+          toast.error(
+            `File has ${data.length.toLocaleString()} rows, which exceeds the ${MAX_ROW_COUNT.toLocaleString()} row limit. Please split the file into smaller batches.`,
+          );
+          return;
+        }
 
-          setCsvData(data);
-          setCsvHeaders(headers);
-          setStep('mapping');
+        setCsvData(data as CSVRow[]);
+        setCsvHeaders(headers);
+        setStep('mapping');
 
-          // Analyze columns with AI
-          await analyzeColumnsWithAI(headers, data.slice(0, 3));
-        },
-        error: (error) => {
-          toast.error(`Failed to parse CSV: ${error.message}`);
-        },
-      });
+        // Analyze columns with AI
+        await analyzeColumnsWithAI(headers, data.slice(0, 3));
+      } catch (error) {
+        toast.error(`Failed to parse file: ${(error as Error).message}`);
+      }
     },
     [analyzeColumnsWithAI],
   );
@@ -908,9 +903,9 @@ export const BuyerCSVImport = ({
                     <p className="mb-2 text-sm text-muted-foreground">
                       <span className="font-semibold">Click to upload</span> or drag and drop
                     </p>
-                    <p className="text-xs text-muted-foreground">CSV files only</p>
+                    <p className="text-xs text-muted-foreground">CSV, XLS, or XLSX files</p>
                   </div>
-                  <input type="file" accept=".csv" className="hidden" onChange={handleFileUpload} />
+                  <input type="file" accept={SPREADSHEET_ACCEPT} className="hidden" onChange={handleFileUpload} />
                 </label>
               </div>
             )}

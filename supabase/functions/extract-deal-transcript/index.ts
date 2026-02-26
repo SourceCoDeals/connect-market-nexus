@@ -23,12 +23,19 @@ interface ExtractionResult {
     is_inferred?: boolean;
     source_quote?: string;
   };
+  asking_price?: number;
   financial_notes?: string;
+  financial_followup_questions?: string[];
 
   // Business basics
   location?: string;
   industry?: string;
   website?: string;
+  founded_year?: number;
+
+  // Employees
+  full_time_employees?: number;
+  part_time_employees?: number;
 
   // Services
   services?: string[];
@@ -43,15 +50,20 @@ interface ExtractionResult {
   ownership_structure?: string;
   transition_preferences?: string;
   timeline_notes?: string;
+  special_requirements?: string;
 
   // Customers
   customer_types?: string;
   customer_concentration?: string;
   customer_geography?: string;
+  end_market_description?: string;
 
   // Strategic info
   executive_summary?: string;
   growth_trajectory?: string;
+  key_risks?: string;
+  technology_systems?: string;
+  real_estate_info?: string;
 
   // Contact info
   main_contact_name?: string;
@@ -391,10 +403,82 @@ Use MOST SPECIFIC category: "Fire & Water Restoration" NOT "Restoration" or "Con
 ### Website (string or null)
 Full URL format: "https://www.example.com". If company name mentioned but no URL, leave null — do NOT guess.
 
+### Founded Year (number or null)
+4-digit year the company was founded/established. Listen for: "been in business since 1998", "started the company 20 years ago" (calculate from current year), "founded in 2005", "been doing this for 30 years".
+
+### Employee Count
+- **full_time_employees** (number or null): Total full-time employee headcount. Listen for: "we have 45 employees", "about 50 people", "30 full-time guys", "team of 25". Also listen for crew counts: "we run 6 crews of 4" = ~24. Include office staff if mentioned.
+- **part_time_employees** (number or null): Part-time or seasonal employees if mentioned separately. "We bring on 10-15 guys in the summer" = part_time_employees ~12.
+
+### Asking Price (number or null)
+The seller's asking price in raw dollars if mentioned. "Listed at $5 million" = 5000000. "Looking for $3.5M" = 3500000. Do NOT confuse with revenue or EBITDA. Set to null if not discussed.
+
 ### Primary Contact
 Name, email, phone of main contact person (usually the speaker). Note their role (owner, broker, CEO, partner).
 
-## SECTION 9: KEY QUOTES (8-10 EXACT VERBATIM)
+## SECTION 9: RISK, OPERATIONS & INFRASTRUCTURE
+
+### Key Risks (string or null — detailed paragraph)
+Identify ALL risk factors mentioned or implied in the transcript:
+1. **Key person risk:** "I manage everything", "I'm the only one who knows the customers"
+2. **Customer concentration:** Single customer >20% of revenue, reliance on specific insurance carriers
+3. **Regulatory/compliance:** Licensing requirements, pending regulatory changes, environmental issues
+4. **Market risks:** Industry downturns, competitive threats, seasonal volatility
+5. **Operational risks:** Equipment age, deferred maintenance, supply chain issues
+6. **Financial risks:** Customer payment issues, working capital constraints, debt levels
+7. **Legal risks:** Pending litigation, warranty claims, non-compete issues
+8. **Succession risk:** No management team in place, key employees threatening to leave
+If no risks are discussed or implied, set to null.
+
+### Technology Systems (string or null)
+Software and technology infrastructure discussed:
+- ERP/accounting: "We use QuickBooks", "NetSuite", "SAP"
+- CRM: "Salesforce", "HubSpot", "spreadsheets for tracking"
+- Field/operations: "ServiceTitan", "Jobber", "field service management"
+- Dispatch/scheduling: "We use a dispatch system", "manual scheduling"
+- Industry-specific: "Xactimate for estimating", "DASH for insurance claims"
+- Fleet/GPS: "GPS on all trucks", "Verizon fleet tracking"
+- Communication: "Teams", "Slack", "radio"
+- Custom/proprietary: Any custom-built systems or processes
+If not discussed, set to null.
+
+### Real Estate Info (string or null)
+Physical real estate details discussed:
+- Owned vs leased facilities
+- Lease terms: "5-year lease, 3 years remaining"
+- Facility size: "10,000 sq ft warehouse"
+- Monthly rent/cost: "Paying $8K/month for the shop"
+- Related party leases: "I own the building and lease it to the company"
+- Plans: "Need bigger space", "Just signed a new lease"
+If not discussed, set to null.
+
+### Special Requirements (string or null)
+Any special deal requirements, conditions, or constraints the seller has mentioned:
+- "Must keep all employees"
+- "Non-compete for 5 years in this market"
+- "Want to keep the company name"
+- "Need to close before end of year for tax reasons"
+- "Key customer contracts need to transfer"
+- "Want to stay involved in community partnerships"
+If not discussed, set to null.
+
+### End Market Description (string or null)
+Detailed description of the end markets and verticals the company serves:
+- "We primarily serve the insurance restoration market, working with carriers on water and fire claims"
+- "Our end market is commercial property management — facility maintenance for Class A office buildings"
+- "We serve residential new construction in the $300K-$800K home price range"
+Include market dynamics if discussed: growing, shrinking, competitive landscape, barriers to entry.
+If not discussed, set to null.
+
+### Financial Follow-up Questions (array of strings)
+Questions that remain unanswered after this call, specifically about financials or deal terms:
+- "What are the add-backs beyond owner compensation?"
+- "What is the current debt load on the business?"
+- "What is the revenue trend over the last 3 years?"
+- "What is the customer concentration among the top 5 accounts?"
+Include 3-8 specific, actionable follow-up questions. Always generate at least a few based on gaps in the financial data.
+
+## SECTION 10: KEY QUOTES (8-10 EXACT VERBATIM)
 
 Select the 8-10 most revealing quotes — the "highlights reel" a buyer scans to understand the opportunity.
 Priority order:
@@ -460,21 +544,31 @@ Return a JSON object with these fields (use null for unknown, empty array [] whe
 {
   "revenue": { "value": number|null, "is_inferred": boolean, "source_quote": string|null, "inference_method": string|null },
   "ebitda": { "amount": number|null, "margin_percentage": number|null, "is_inferred": boolean, "source_quote": string|null },
+  "asking_price": number|null,
   "financial_notes": string|null,
+  "financial_followup_questions": string[],
   "executive_summary": string|null,
   "services": string[],
   "service_mix": string|null,
   "location": string|null,
   "geographic_states": string[],
   "number_of_locations": number|null,
+  "founded_year": number|null,
+  "full_time_employees": number|null,
+  "part_time_employees": number|null,
   "owner_goals": string|null,
   "ownership_structure": string|null,
   "transition_preferences": string|null,
   "timeline_notes": string|null,
+  "special_requirements": string|null,
   "customer_types": string|null,
   "customer_concentration": string|null,
   "customer_geography": string|null,
+  "end_market_description": string|null,
   "growth_trajectory": string|null,
+  "key_risks": string|null,
+  "technology_systems": string|null,
+  "real_estate_info": string|null,
   "industry": string|null,
   "website": string|null,
   "main_contact_name": string|null,
@@ -667,6 +761,30 @@ Return ONLY the JSON object. No markdown fences, no explanation.`;
         if ((extracted as any).ownership_structure) flatExtracted.ownership_structure = (extracted as any).ownership_structure;
         if (extracted.timeline_notes) flatExtracted.timeline_notes = extracted.timeline_notes;
         if (extracted.services?.length) flatExtracted.services = extracted.services;
+
+        // New enrichment fields
+        {
+          const askingPrice = toFiniteNumber(extracted.asking_price);
+          if (askingPrice != null) flatExtracted.asking_price = askingPrice;
+        }
+        {
+          const fte = toFiniteNumber(extracted.full_time_employees);
+          if (fte != null) flatExtracted.full_time_employees = fte;
+        }
+        {
+          const pte = toFiniteNumber(extracted.part_time_employees);
+          if (pte != null) flatExtracted.part_time_employees = pte;
+        }
+        {
+          const fy = toFiniteNumber(extracted.founded_year);
+          if (fy != null && fy > 1800 && fy <= new Date().getFullYear()) flatExtracted.founded_year = fy;
+        }
+        if (extracted.key_risks) flatExtracted.key_risks = extracted.key_risks;
+        if (extracted.technology_systems) flatExtracted.technology_systems = extracted.technology_systems;
+        if (extracted.real_estate_info) flatExtracted.real_estate_info = extracted.real_estate_info;
+        if (extracted.special_requirements) flatExtracted.special_requirements = extracted.special_requirements;
+        if (extracted.end_market_description) flatExtracted.end_market_description = extracted.end_market_description;
+        if (extracted.financial_followup_questions?.length) flatExtracted.financial_followup_questions = extracted.financial_followup_questions;
 
         // SAFETY: Only update columns that actually exist on the listings row.
         // PostgREST rejects the entire update when any unknown column is present.

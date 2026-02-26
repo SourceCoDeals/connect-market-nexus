@@ -26,6 +26,7 @@ import {
   Sparkles,
   CheckCircle2,
   EyeOff,
+  ThumbsDown,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useValuationLeadsData } from './useValuationLeadsData';
@@ -74,11 +75,14 @@ export default function ValuationLeads() {
     toggleSelect,
     hidePushed,
     setHidePushed,
+    hideNotFit,
+    setHideNotFit,
     handleRowClick,
     handlePushToAllDeals,
     handlePushAndEnrich,
     handleReEnrich,
     handleArchive,
+    handleMarkNotFit,
     handleBulkEnrich,
     handleRetryFailedEnrichment,
     handleScoreLeads,
@@ -305,7 +309,7 @@ export default function ValuationLeads() {
         filteredCount={filteredCount}
       />
 
-      {/* Hide Pushed Toggle */}
+      {/* Hide Pushed / Hide Not Fit Toggles */}
       <div className="flex items-center gap-2">
         <button
           onClick={() => setHidePushed(!hidePushed)}
@@ -318,6 +322,18 @@ export default function ValuationLeads() {
         >
           <EyeOff className="h-3.5 w-3.5" />
           {hidePushed ? 'Showing Un-Pushed Only' : 'Hide Pushed'}
+        </button>
+        <button
+          onClick={() => setHideNotFit(!hideNotFit)}
+          className={cn(
+            'flex items-center gap-2 text-sm px-3 py-1.5 rounded-md border transition-colors',
+            hideNotFit
+              ? 'bg-orange-100 border-orange-300 text-orange-700 font-medium'
+              : 'border-border text-muted-foreground hover:text-foreground hover:bg-muted/50',
+          )}
+        >
+          <ThumbsDown className="h-3.5 w-3.5" />
+          {hideNotFit ? 'Not Fit Hidden' : 'Show Not Fit'}
         </button>
       </div>
 
@@ -362,6 +378,7 @@ export default function ValuationLeads() {
           exportLeadsToCSV(selected);
         }}
         showPriorityToggle={false}
+        onMarkNotFit={() => handleMarkNotFit(Array.from(selectedIds))}
         onArchive={() => handleArchive(Array.from(selectedIds))}
         onPushToDialer={() => setDialerOpen(true)}
         onPushToSmartlead={() => setSmartleadOpen(true)}
@@ -389,6 +406,7 @@ export default function ValuationLeads() {
         sortDirection={sortDirection}
         handleSort={handleSort}
         selectedIds={selectedIds}
+        setSelectedIds={setSelectedIds}
         allSelected={allSelected}
         toggleSelectAll={toggleSelectAll}
         toggleSelect={toggleSelect}
@@ -396,6 +414,7 @@ export default function ValuationLeads() {
         handlePushToAllDeals={handlePushToAllDeals}
         handleReEnrich={handleReEnrich}
         handlePushAndEnrich={handlePushAndEnrich}
+        handleMarkNotFit={handleMarkNotFit}
         handleAssignOwner={handleAssignOwner}
         adminProfiles={adminProfiles}
         safePage={safePage}

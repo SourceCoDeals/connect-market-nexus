@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -59,9 +59,14 @@ import {
   X,
   Handshake,
   Network,
-  
+  GripVertical,
+  Sparkles,
+  Loader2,
 } from "lucide-react";
 import { toast } from "sonner";
+import { DndContext, closestCenter, type DragEndEvent, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
+import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import { IntelligenceCoverageBar, ReMarketingChat } from "@/components/remarketing";
 import { deleteUniverseWithRelated } from "@/lib/ma-intelligence/cascadeDelete";
 
@@ -97,6 +102,80 @@ function extractGuideDescription(guideContent: string | null | undefined): strin
   return null;
 }
 
+/** Sortable row for the "To Be Created" drag-and-drop list */
+function SortableFlaggedRow({
+  deal,
+  index,
+  onCreateClick,
+  onNavigate,
+}: {
+  deal: { id: string; title: string | null; internal_company_name: string | null; industry: string | null; address_state: string | null; universe_build_flagged_at: string | null; universe_build_priority: number | null };
+  index: number;
+  onCreateClick: (e: React.MouseEvent) => void;
+  onNavigate: () => void;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: deal.id });
+  const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.5 : 1 };
+
+  return (
+    <TableRow
+      ref={setNodeRef}
+      style={style}
+      className="cursor-pointer hover:bg-muted/50"
+      onClick={onNavigate}
+    >
+      <TableCell className="w-[40px]" onClick={(e) => e.stopPropagation()}>
+        <button
+          className="flex items-center justify-center h-8 w-8 cursor-grab active:cursor-grabbing rounded hover:bg-muted"
+          {...attributes}
+          {...listeners}
+        >
+          <GripVertical className="h-3.5 w-3.5 text-muted-foreground" />
+        </button>
+      </TableCell>
+      <TableCell className="w-[40px] text-center text-xs text-muted-foreground tabular-nums">
+        {index + 1}
+      </TableCell>
+      <TableCell>
+        <div className="flex items-center gap-3">
+          <div className="h-9 w-9 rounded-lg bg-blue-500/10 flex items-center justify-center shrink-0">
+            <Network className="h-4 w-4 text-blue-600" />
+          </div>
+          <p className="font-medium text-foreground truncate">{deal.internal_company_name || deal.title}</p>
+        </div>
+      </TableCell>
+      <TableCell>
+        {deal.industry ? (
+          <Badge variant="secondary" className="text-xs">{deal.industry}</Badge>
+        ) : (
+          <span className="text-muted-foreground text-sm">—</span>
+        )}
+      </TableCell>
+      <TableCell>
+        <span className="text-sm">{deal.address_state || '—'}</span>
+      </TableCell>
+      <TableCell>
+        <span className="text-sm text-muted-foreground">
+          {deal.universe_build_flagged_at
+            ? new Date(deal.universe_build_flagged_at).toLocaleDateString()
+            : '—'}
+        </span>
+      </TableCell>
+      <TableCell>
+        <Button
+          size="sm"
+          variant="outline"
+          className="gap-1.5"
+          onClick={(e) => { e.stopPropagation(); onCreateClick(e); }}
+        >
+          <Plus className="h-3.5 w-3.5" />
+          Create
+        </Button>
+      </TableCell>
+    </TableRow>
+  );
+}
+
 const ReMarketingUniverses = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -116,6 +195,59 @@ const ReMarketingUniverses = () => {
   const showNewDialog = searchParams.get('new') === 'true';
   const [newName, setNewName] = useState("");
   const [newDescription, setNewDescription] = useState("");
+  const [isGeneratingDescription, setIsGeneratingDescription] = useState(false);
+
+  const handleGenerateDescription = useCallback(async () => {
+    if (!newName.trim()) {
+      toast.error('Enter a universe name first');
+      return;
+    }
+    setIsGeneratingDescription(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const response = await fetch(
+        `https://vhzipqarkmmfuqadefep.supabase.co/functions/v1/clarify-industry`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${session?.access_token}`,
+          },
+          body: JSON.stringify({
+            industry_name: newName.trim(),
+            generate_description: true,
+          }),
+        },
+      );
+      if (response.ok) {
+        const result = await response.json();
+        if (result.description) {
+          setNewDescription(result.description);
+          toast.success('Description generated');
+        } else {
+          // Fallback: generate a simple description from the name
+          setNewDescription(
+            `Buyer universe targeting companies in the ${newName.trim()} industry. Includes PE firms, strategic acquirers, and family offices actively seeking acquisitions in this space.`,
+          );
+          toast.success('Description generated');
+        }
+      } else {
+        // Fallback description
+        setNewDescription(
+          `Buyer universe targeting companies in the ${newName.trim()} industry. Includes PE firms, strategic acquirers, and family offices actively seeking acquisitions in this space.`,
+        );
+        toast.success('Description generated');
+      }
+    } catch {
+      // Fallback description on error
+      setNewDescription(
+        `Buyer universe targeting companies in the ${newName.trim()} industry. Includes PE firms, strategic acquirers, and family offices actively seeking acquisitions in this space.`,
+      );
+      toast.success('Description generated');
+    } finally {
+      setIsGeneratingDescription(false);
+    }
+  }, [newName]);
 
   // Fetch universes with buyer counts
   const { data: universes, isLoading } = useQuery({
@@ -224,13 +356,59 @@ const ReMarketingUniverses = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('listings')
-        .select('id, title, internal_company_name, industry, address_state, universe_build_flagged_at, created_at')
+        .select('id, title, internal_company_name, industry, address_state, universe_build_flagged_at, universe_build_priority, created_at')
         .eq('universe_build_flagged', true)
+        .order('universe_build_priority', { ascending: true, nullsFirst: false })
         .order('universe_build_flagged_at', { ascending: false });
       if (error) throw error;
       return data || [];
     }
   });
+
+  // Local ordering state for drag-and-drop
+  const [localFlaggedOrder, setLocalFlaggedOrder] = useState<typeof flaggedDeals>([]);
+  const orderedFlagged = useMemo(() => {
+    if (localFlaggedOrder && localFlaggedOrder.length > 0) return localFlaggedOrder;
+    return flaggedDeals || [];
+  }, [flaggedDeals, localFlaggedOrder]);
+
+  // Keep local order in sync when data changes (but not during drag)
+  useMemo(() => {
+    if (flaggedDeals) setLocalFlaggedOrder(flaggedDeals);
+  }, [flaggedDeals]);
+
+  const flaggedSensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+  );
+
+  const handleFlaggedDragEnd = useCallback(
+    async (event: DragEndEvent) => {
+      const { active, over } = event;
+      if (!over || active.id === over.id) return;
+      const current = [...orderedFlagged];
+      const oldIdx = current.findIndex((d) => d.id === active.id);
+      const newIdx = current.findIndex((d) => d.id === over.id);
+      if (oldIdx === -1 || newIdx === -1) return;
+      const reordered = arrayMove(current, oldIdx, newIdx);
+      setLocalFlaggedOrder(reordered);
+
+      // Persist new priority order
+      try {
+        await Promise.all(
+          reordered.map((deal, idx) =>
+            supabase
+              .from('listings')
+              .update({ universe_build_priority: idx + 1 } as never)
+              .eq('id', deal.id),
+          ),
+        );
+        queryClient.invalidateQueries({ queryKey: ['remarketing', 'universe-build-flagged-deals'] });
+      } catch {
+        toast.error('Failed to save new order');
+      }
+    },
+    [orderedFlagged, queryClient],
+  );
   // Create universe mutation
   const createMutation = useMutation({
     mutationFn: async () => {
@@ -699,79 +877,49 @@ const ReMarketingUniverses = () => {
       </Card>
         </>
       ) : (
-        /* To Be Created Tab */
+        /* To Be Created Tab – drag-and-drop ranking */
         <Card>
           <CardContent className="p-0">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Deal Name</TableHead>
-                  <TableHead>Industry</TableHead>
-                  <TableHead>State</TableHead>
-                  <TableHead>Flagged At</TableHead>
-                  <TableHead className="w-[120px]">Action</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {!flaggedDeals || flaggedDeals.length === 0 ? (
+            <DndContext sensors={flaggedSensors} collisionDetection={closestCenter} onDragEnd={handleFlaggedDragEnd}>
+              <Table>
+                <TableHeader>
                   <TableRow>
-                    <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
-                      <Network className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                      <p>No deals flagged for universe build</p>
-                      <p className="text-sm">Flag deals in Active Deals to queue them for universe creation</p>
-                    </TableCell>
+                    <TableHead className="w-[40px]" />
+                    <TableHead className="w-[40px]">#</TableHead>
+                    <TableHead>Deal Name</TableHead>
+                    <TableHead>Industry</TableHead>
+                    <TableHead>State</TableHead>
+                    <TableHead>Flagged At</TableHead>
+                    <TableHead className="w-[120px]">Action</TableHead>
                   </TableRow>
-                ) : (
-                  flaggedDeals.map((deal) => (
-                    <TableRow 
-                      key={deal.id} 
-                      className="cursor-pointer hover:bg-muted/50"
-                      onClick={() => navigate(`/admin/deals/${deal.id}`)}
-                    >
-                      <TableCell>
-                        <div className="flex items-center gap-3">
-                          <div className="h-9 w-9 rounded-lg bg-blue-500/10 flex items-center justify-center shrink-0">
-                            <Network className="h-4 w-4 text-blue-600" />
-                          </div>
-                          <p className="font-medium text-foreground truncate">{deal.internal_company_name || deal.title}</p>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        {deal.industry ? (
-                          <Badge variant="secondary" className="text-xs">{deal.industry}</Badge>
-                        ) : (
-                          <span className="text-muted-foreground text-sm">—</span>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        <span className="text-sm">{deal.address_state || '—'}</span>
-                      </TableCell>
-                      <TableCell>
-                        <span className="text-sm text-muted-foreground">
-                          {deal.universe_build_flagged_at 
-                            ? new Date(deal.universe_build_flagged_at).toLocaleDateString() 
-                            : '—'}
-                        </span>
-                      </TableCell>
-                      <TableCell>
-                        <Button 
-                          size="sm" 
-                          variant="outline" 
-                          className="gap-1.5"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setSearchParams((prev) => { const n = new URLSearchParams(prev); n.set('new', 'true'); return n; });
-                          }}
-                        >
-                          <Plus className="h-3.5 w-3.5" />
-                          Create
-                        </Button>
+                </TableHeader>
+                <TableBody>
+                  {orderedFlagged.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                        <Network className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                        <p>No deals flagged for universe build</p>
+                        <p className="text-sm">Flag deals in Active Deals to queue them for universe creation</p>
                       </TableCell>
                     </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
+                  ) : (
+                    <SortableContext items={orderedFlagged.map((d) => d.id)} strategy={verticalListSortingStrategy}>
+                      {orderedFlagged.map((deal, idx) => (
+                        <SortableFlaggedRow
+                          key={deal.id}
+                          deal={deal}
+                          index={idx}
+                          onNavigate={() => navigate(`/admin/deals/${deal.id}`)}
+                          onCreateClick={() => {
+                            setSearchParams((prev) => { const n = new URLSearchParams(prev); n.set('new', 'true'); return n; });
+                          }}
+                        />
+                      ))}
+                    </SortableContext>
+                  )}
+                </TableBody>
+              </Table>
+            </DndContext>
           </CardContent>
         </Card>
       )}
@@ -796,7 +944,24 @@ const ReMarketingUniverses = () => {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="description">Description (optional)</Label>
+              <div className="flex items-center justify-between">
+                <Label htmlFor="description">Description (optional)</Label>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 gap-1.5 text-xs text-primary"
+                  onClick={handleGenerateDescription}
+                  disabled={!newName.trim() || isGeneratingDescription}
+                >
+                  {isGeneratingDescription ? (
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                  ) : (
+                    <Sparkles className="h-3 w-3" />
+                  )}
+                  {isGeneratingDescription ? 'Generating...' : 'AI Generate'}
+                </Button>
+              </div>
               <Input
                 id="description"
                 placeholder="Brief description of this buyer universe"

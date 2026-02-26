@@ -8,14 +8,15 @@ import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Building2, Phone, Mail, Globe, Calendar, DollarSign, MessageSquare, ExternalLink, StickyNote, ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react";
 import { format } from "date-fns";
-import { 
-  OwnerLead, 
-  formatRevenueRange, 
+import {
+  OwnerLead,
+  formatRevenueRange,
   formatSaleTimeline,
   REVENUE_PRIORITY,
   TIMELINE_PRIORITY,
   STATUS_PRIORITY
 } from "@/hooks/admin/use-owner-leads";
+import { useShiftSelect } from "@/hooks/useShiftSelect";
 
 const STATUS_OPTIONS = [
   { value: "new", label: "New", color: "bg-blue-100 text-blue-800" },
@@ -23,6 +24,7 @@ const STATUS_OPTIONS = [
   { value: "meeting_scheduled", label: "Meeting Scheduled", color: "bg-purple-100 text-purple-800" },
   { value: "engaged", label: "Engaged", color: "bg-green-100 text-green-800" },
   { value: "not_interested", label: "Not Interested", color: "bg-gray-100 text-gray-800" },
+  { value: "not_a_fit", label: "Not a Fit", color: "bg-orange-100 text-orange-800" },
   { value: "closed", label: "Closed", color: "bg-emerald-100 text-emerald-800" },
 ];
 
@@ -187,6 +189,15 @@ interface OwnerLeadsTableContentProps {
 export function OwnerLeadsTableContent({ leads, onStatusChange, onNotesUpdate, onContactedChange, selectedIds, onSelectionChange }: OwnerLeadsTableContentProps) {
   const [sortColumn, setSortColumn] = useState<SortColumn | null>(null);
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
+  // We need a stable setter for useShiftSelect – wrap onSelectionChange
+  const setSelectedIds: React.Dispatch<React.SetStateAction<Set<string>>> = (action) => {
+    if (!onSelectionChange) return;
+    if (typeof action === 'function') {
+      onSelectionChange(action(selectedIds ?? new Set()));
+    } else {
+      onSelectionChange(action);
+    }
+  };
 
   const handleSort = (column: SortColumn) => {
     if (sortColumn === column) {
@@ -239,6 +250,9 @@ export function OwnerLeadsTableContent({ leads, onStatusChange, onNotesUpdate, o
       return sortDirection === 'asc' ? comparison : -comparison;
     });
   }, [leads, sortColumn, sortDirection]);
+
+  const orderedIds = useMemo(() => sortedLeads.map(l => l.id), [sortedLeads]);
+  const { handleToggle } = useShiftSelect(orderedIds, selectedIds ?? new Set(), setSelectedIds);
 
   return (
     <Table>
@@ -325,16 +339,15 @@ export function OwnerLeadsTableContent({ leads, onStatusChange, onNotesUpdate, o
         {sortedLeads.map((lead) => (
           <TableRow key={lead.id} className={selectedIds?.has(lead.id) ? "bg-primary/5" : ""}>
             {selectedIds && onSelectionChange && (
-              <TableCell>
-                <Checkbox
-                  checked={selectedIds.has(lead.id)}
-                  onCheckedChange={(checked) => {
-                    const next = new Set(selectedIds);
-                    if (checked) next.add(lead.id);
-                    else next.delete(lead.id);
-                    onSelectionChange(next);
-                  }}
-                />
+              <TableCell
+                onClick={(e) => {
+                  if ((e.target as HTMLElement).closest('[role="checkbox"]')) {
+                    e.stopPropagation();
+                    handleToggle(lead.id, !selectedIds.has(lead.id), e);
+                  }
+                }}
+              >
+                <Checkbox checked={selectedIds.has(lead.id)} />
               </TableCell>
             )}
             <TableCell>

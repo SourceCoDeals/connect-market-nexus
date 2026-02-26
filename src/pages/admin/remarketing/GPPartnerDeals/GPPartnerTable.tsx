@@ -16,7 +16,7 @@ import {
 } from "@/components/ui/select";
 import {
   Building2, ArrowUpDown, CheckCircle2, Plus, FileSpreadsheet,
-  MoreHorizontal, ExternalLink, Zap, Archive, Star, Users, Phone,
+  MoreHorizontal, ExternalLink, Zap, Archive, Star, Users, Phone, ThumbsDown,
 } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
@@ -42,6 +42,8 @@ interface GPPartnerTableProps {
   adminProfiles: Record<string, any> | undefined;
   setAddDealOpen: (open: boolean) => void;
   setCsvUploadOpen: (open: boolean) => void;
+  onMarkNotFit?: (dealId: string) => void;
+  shiftToggle?: (id: string, checked: boolean, event?: React.MouseEvent | React.KeyboardEvent) => void;
 }
 
 export function GPPartnerTable({
@@ -50,6 +52,7 @@ export function GPPartnerTable({
   handleSort, handlePushToAllDeals, handleEnrichSelected,
   handleAssignOwner, adminProfiles,
   setAddDealOpen, setCsvUploadOpen,
+  onMarkNotFit, shiftToggle,
 }: GPPartnerTableProps) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -116,13 +119,30 @@ export function GPPartnerTable({
                     key={deal.id}
                     className={cn(
                       "cursor-pointer hover:bg-muted/50 transition-colors",
-                      deal.is_priority_target && "bg-amber-50 hover:bg-amber-100/80 dark:bg-amber-950/30 dark:hover:bg-amber-950/50",
-                      !deal.is_priority_target && deal.pushed_to_all_deals && "bg-green-50/60 hover:bg-green-50"
+                      (deal as any).remarketing_status === 'not_a_fit' && "opacity-60 bg-orange-50/50 hover:bg-orange-100/50 dark:bg-orange-950/20 dark:hover:bg-orange-950/30",
+                      (deal as any).remarketing_status !== 'not_a_fit' && deal.is_priority_target && "bg-amber-50 hover:bg-amber-100/80 dark:bg-amber-950/30 dark:hover:bg-amber-950/50",
+                      (deal as any).remarketing_status !== 'not_a_fit' && !deal.is_priority_target && deal.pushed_to_all_deals && "bg-green-50/60 hover:bg-green-50"
                     )}
                     onClick={() => navigate(`/admin/remarketing/leads/gp-partners/${deal.id}`, { state: { from: "/admin/remarketing/leads/gp-partners" } })}
                   >
                     <TableCell onClick={(e) => e.stopPropagation()} className="w-[40px]">
-                      <Checkbox checked={selectedIds.has(deal.id)} onCheckedChange={() => toggleSelect(deal.id)} />
+                      <Checkbox
+                        checked={selectedIds.has(deal.id)}
+                        onCheckedChange={(checked) => {
+                          if (shiftToggle) {
+                            // shiftToggle will read the native event for shiftKey
+                            shiftToggle(deal.id, !!checked);
+                          } else {
+                            toggleSelect(deal.id);
+                          }
+                        }}
+                        onClick={(e: React.MouseEvent) => {
+                          if (shiftToggle && e.shiftKey) {
+                            e.preventDefault();
+                            shiftToggle(deal.id, !selectedIds.has(deal.id), e);
+                          }
+                        }}
+                      />
                     </TableCell>
                     <TableCell className="w-[50px] text-center text-xs text-muted-foreground tabular-nums">
                       {(safePage - 1) * PAGE_SIZE + index + 1}
@@ -241,6 +261,7 @@ export function GPPartnerTable({
                         handlePushToAllDeals={handlePushToAllDeals}
                         queryClient={queryClient}
                         toast={toast}
+                        onMarkNotFit={onMarkNotFit}
                       />
                     </TableCell>
                   </TableRow>
@@ -255,7 +276,7 @@ export function GPPartnerTable({
 }
 
 function DealRowActions({
-  deal, navigate, handleEnrichSelected, handlePushToAllDeals, queryClient, toast,
+  deal, navigate, handleEnrichSelected, handlePushToAllDeals, queryClient, toast, onMarkNotFit,
 }: {
   deal: GPPartnerDeal;
   navigate: (path: string, opts?: any) => void;
@@ -263,6 +284,7 @@ function DealRowActions({
   handlePushToAllDeals: (dealIds: string[]) => Promise<void>;
   queryClient: any;
   toast: any;
+  onMarkNotFit?: (dealId: string) => void;
 }) {
   return (
     <DropdownMenu>
@@ -314,6 +336,15 @@ function DealRowActions({
         <DropdownMenuItem onClick={() => handlePushToAllDeals([deal.id])} disabled={!!deal.pushed_to_all_deals}>
           <CheckCircle2 className="h-4 w-4 mr-2" />Approve to Active Deals
         </DropdownMenuItem>
+        {onMarkNotFit && (
+          <DropdownMenuItem
+            className="text-orange-600 focus:text-orange-600"
+            onClick={() => onMarkNotFit(deal.id)}
+          >
+            <ThumbsDown className="h-4 w-4 mr-2" />
+            {(deal as any).remarketing_status === 'not_a_fit' ? 'Already Not a Fit' : 'Mark as Not a Fit'}
+          </DropdownMenuItem>
+        )}
         <DropdownMenuSeparator />
         <DropdownMenuItem
           className="text-amber-600 focus:text-amber-600"

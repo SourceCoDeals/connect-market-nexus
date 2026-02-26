@@ -1,7 +1,8 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { formatCompactCurrency } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
+import { useShiftSelect } from "@/hooks/useShiftSelect";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
@@ -20,7 +21,7 @@ import { toast as sonnerToast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   ArrowUpDown, CheckCircle2, MoreHorizontal, ExternalLink,
-  Star, Sparkles, Phone, Network, Archive, Calculator,
+  Star, Sparkles, Phone, Network, Archive, Calculator, ThumbsDown,
 } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
@@ -41,6 +42,7 @@ interface ValuationLeadsTableProps {
   sortDirection: string;
   handleSort: (col: SortColumn) => void;
   selectedIds: Set<string>;
+  setSelectedIds: React.Dispatch<React.SetStateAction<Set<string>>>;
   allSelected: boolean;
   toggleSelectAll: () => void;
   toggleSelect: (id: string, e?: React.MouseEvent) => void;
@@ -48,6 +50,7 @@ interface ValuationLeadsTableProps {
   handlePushToAllDeals: (leadIds: string[]) => void;
   handleReEnrich: (leadIds: string[]) => void;
   handlePushAndEnrich: (leadIds: string[]) => void;
+  handleMarkNotFit: (leadIds: string[]) => void;
   handleAssignOwner: (lead: ValuationLead, ownerId: string | null) => void;
   adminProfiles: Record<string, { id: string; displayName: string }> | undefined;
   safePage: number;
@@ -62,6 +65,7 @@ export function ValuationLeadsTable({
   sortDirection: _sortDirection,
   handleSort,
   selectedIds,
+  setSelectedIds,
   allSelected,
   toggleSelectAll,
   toggleSelect,
@@ -69,6 +73,7 @@ export function ValuationLeadsTable({
   handlePushToAllDeals,
   handleReEnrich,
   handlePushAndEnrich,
+  handleMarkNotFit,
   handleAssignOwner,
   adminProfiles,
   safePage,
@@ -77,6 +82,9 @@ export function ValuationLeadsTable({
 }: ValuationLeadsTableProps) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+
+  const orderedIds = useMemo(() => paginatedLeads.map((l) => l.id), [paginatedLeads]);
+  const { handleToggle: handleShiftToggle } = useShiftSelect(orderedIds, selectedIds, setSelectedIds);
 
   const [colWidths, setColWidths] = useState<Record<string, number>>(DEFAULT_COL_WIDTHS);
 
@@ -196,8 +204,18 @@ export function ValuationLeadsTable({
                     )}
                     onClick={() => handleRowClick(lead)}
                   >
-                    <TableCell onClick={(e) => e.stopPropagation()} className="w-[40px]">
-                      <Checkbox checked={selectedIds.has(lead.id)} onCheckedChange={() => toggleSelect(lead.id)} />
+                    <TableCell
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        const isChecked = !selectedIds.has(lead.id);
+                        handleShiftToggle(lead.id, isChecked, e);
+                      }}
+                      className="w-[40px]"
+                    >
+                      <Checkbox
+                        checked={selectedIds.has(lead.id)}
+                        onCheckedChange={() => {/* handled by TableCell onClick for shift-key support */}}
+                      />
                     </TableCell>
                     <TableCell className="text-center text-xs text-muted-foreground tabular-nums">
                       {(safePage - 1) * PAGE_SIZE + idx + 1}
@@ -393,6 +411,12 @@ export function ValuationLeadsTable({
                             <CheckCircle2 className="h-4 w-4 mr-2" />Approve to Active Deals
                           </DropdownMenuItem>
                           <DropdownMenuSeparator />
+                          <DropdownMenuItem
+                            className="text-orange-600 focus:text-orange-600"
+                            onClick={() => handleMarkNotFit([lead.id])}
+                          >
+                            <ThumbsDown className="h-4 w-4 mr-2" />Mark as Not a Fit
+                          </DropdownMenuItem>
                           <DropdownMenuItem
                             className="text-destructive focus:text-destructive"
                             onClick={async () => {

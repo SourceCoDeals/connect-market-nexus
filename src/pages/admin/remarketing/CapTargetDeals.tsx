@@ -36,6 +36,7 @@ import {
   ChevronRight,
   ChevronsLeft,
   ChevronsRight,
+  ThumbsDown,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
@@ -97,6 +98,7 @@ interface CapTargetDeal {
   category: string | null;
   executive_summary: string | null;
   industry: string | null;
+  remarketing_status: string | null;
 }
 
 type SortColumn =
@@ -147,6 +149,22 @@ export default function CapTargetDeals() {
           const n = new URLSearchParams(p);
           if (v) n.set('hidePushed', '1');
           else n.delete('hidePushed');
+          n.delete('cp');
+          return n;
+        },
+        { replace: true },
+      );
+    },
+    [setSearchParams],
+  );
+  const hideNotFit = searchParams.get('hideNotFit') !== '0'; // hidden by default
+  const setHideNotFit = useCallback(
+    (v: boolean) => {
+      setSearchParams(
+        (p) => {
+          const n = new URLSearchParams(p);
+          if (!v) n.set('hideNotFit', '0');
+          else n.delete('hideNotFit');
           n.delete('cp');
           return n;
         },
@@ -360,7 +378,7 @@ export default function CapTargetDeals() {
             enriched_at, deal_total_score, linkedin_employee_count, linkedin_employee_range,
             google_rating, google_review_count, captarget_status, is_priority_target,
             need_buyer_universe, need_owner_contact,
-            category, executive_summary, industry
+            category, executive_summary, industry, remarketing_status
           `,
           )
           .eq('deal_source', 'captarget')
@@ -397,6 +415,7 @@ export default function CapTargetDeals() {
       if (pushedFilter === 'pushed' && !deal.pushed_to_all_deals) return false;
       if (pushedFilter === 'not_pushed' && deal.pushed_to_all_deals) return false;
       if (hidePushed && deal.pushed_to_all_deals) return false;
+      if (hideNotFit && deal.remarketing_status === 'not_a_fit') return false;
       if (sourceTabFilter !== 'all' && deal.captarget_sheet_tab !== sourceTabFilter) return false;
       if (dateRange.from || dateRange.to) {
         const dateStr = deal.captarget_contact_date || deal.created_at;
@@ -407,7 +426,7 @@ export default function CapTargetDeals() {
       }
       return true;
     });
-  }, [deals, search, pushedFilter, sourceTabFilter, dateRange, hidePushed]);
+  }, [deals, search, pushedFilter, sourceTabFilter, dateRange, hidePushed, hideNotFit]);
 
   const tabItems = useMemo(() => {
     if (statusTab === 'all') return preTabFiltered;
@@ -945,6 +964,34 @@ export default function CapTargetDeals() {
     }
   }, [selectedIds, toast, queryClient]);
 
+  // Mark as Not a Fit
+  const [isMarkingNotFit, setIsMarkingNotFit] = useState(false);
+  const handleMarkNotFit = useCallback(async () => {
+    setIsMarkingNotFit(true);
+    try {
+      const dealIds = Array.from(selectedIds);
+      const { error } = await supabase
+        .from('listings')
+        .update({ remarketing_status: 'not_a_fit' } as never)
+        .in('id', dealIds);
+      if (error) throw error;
+      toast({
+        title: 'Marked as Not a Fit',
+        description: `${dealIds.length} deal(s) marked as not a fit and hidden`,
+      });
+      setSelectedIds(new Set());
+      await queryClient.invalidateQueries({ queryKey: ['remarketing', 'captarget-deals'] });
+    } catch (err: unknown) {
+      toast({
+        variant: 'destructive',
+        title: 'Failed',
+        description: err instanceof Error ? err.message : 'Unknown error',
+      });
+    } finally {
+      setIsMarkingNotFit(false);
+    }
+  }, [selectedIds, toast, queryClient]);
+
   // KPI stats
   const dateFilteredDeals = useMemo(() => {
     if (!deals) return [];
@@ -1250,7 +1297,7 @@ export default function CapTargetDeals() {
         filteredCount={filteredCount}
       />
 
-      {/* Hide Pushed Toggle */}
+      {/* Hide Pushed / Hide Not Fit Toggles */}
       <div className="flex items-center gap-2">
         <button
           onClick={() => setHidePushed(!hidePushed)}
@@ -1263,6 +1310,18 @@ export default function CapTargetDeals() {
         >
           <span className="text-xs">🙈</span>
           {hidePushed ? 'Showing Un-Pushed Only' : 'Hide Pushed'}
+        </button>
+        <button
+          onClick={() => setHideNotFit(!hideNotFit)}
+          className={cn(
+            'flex items-center gap-2 text-sm px-3 py-1.5 rounded-md border transition-colors',
+            hideNotFit
+              ? 'bg-orange-100 border-orange-300 text-orange-700 font-medium'
+              : 'border-border text-muted-foreground hover:text-foreground hover:bg-muted/50',
+          )}
+        >
+          <ThumbsDown className="h-3.5 w-3.5" />
+          {hideNotFit ? 'Not Fit Hidden' : 'Show Not Fit'}
         </button>
       </div>
 
@@ -1281,6 +1340,8 @@ export default function CapTargetDeals() {
         onPushToSmartlead={() => setSmartleadOpen(true)}
         onPushToHeyreach={() => setHeyreachOpen(true)}
         onAddToList={() => setAddToListOpen(true)}
+        onMarkNotFit={handleMarkNotFit}
+        isMarkingNotFit={isMarkingNotFit}
         onArchive={handleBulkArchive}
         isArchiving={isArchiving}
         onDelete={handleBulkDelete}

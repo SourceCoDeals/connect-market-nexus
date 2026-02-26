@@ -86,6 +86,7 @@ export const VALID_LISTING_UPDATE_KEYS = new Set([
   'ebitda_source_quote',
   'financial_notes',
   'financial_followup_questions',
+  'asking_price',
 ]);
 
 // Financial data must NEVER come from website scraping — only from transcripts or manual entry
@@ -94,6 +95,7 @@ export const FINANCIAL_FIELDS_BLOCKED_FROM_WEBSITES = [
   'ebitda', 'ebitda_amount', 'ebitda_margin', 'ebitda_margin_percentage',
   'ebitda_is_inferred', 'ebitda_source_quote',
   'financial_notes', 'financial_followup_questions',
+  'asking_price',
 ];
 
 // Numeric columns that need special sanitization (LLM often returns prose for these)
@@ -108,6 +110,7 @@ export const NUMERIC_LISTING_FIELDS = new Set([
   'part_time_employees',
   'team_page_employee_count',
   'customer_concentration', // numeric column — LLM often returns prose
+  'asking_price',
 ]);
 
 // Placeholder values to reject from any field
@@ -655,6 +658,30 @@ export function mapTranscriptToListing(extracted: any, listingKeys: Set<string>)
   if (Array.isArray(extracted?.services) && extracted.services.length) out.services = extracted.services;
   if (extracted?.website) out.website = extracted.website;
   if (extracted?.location) out.location = extracted.location;
+
+  // Additional enrichment fields from transcript extraction
+  {
+    const askingPrice = toFiniteNumber(extracted?.asking_price);
+    if (askingPrice != null) out.asking_price = askingPrice;
+  }
+  {
+    const fte = toFiniteNumber(extracted?.full_time_employees);
+    if (fte != null) out.full_time_employees = fte;
+  }
+  {
+    const pte = toFiniteNumber(extracted?.part_time_employees);
+    if (pte != null) out.part_time_employees = pte;
+  }
+  {
+    const fy = toFiniteNumber(extracted?.founded_year);
+    if (fy != null && fy > 1800 && fy <= new Date().getFullYear()) out.founded_year = fy;
+  }
+  if (extracted?.key_risks) out.key_risks = extracted.key_risks;
+  if (extracted?.technology_systems) out.technology_systems = extracted.technology_systems;
+  if (extracted?.real_estate_info) out.real_estate_info = extracted.real_estate_info;
+  if (extracted?.special_requirements) out.special_requirements = extracted.special_requirements;
+  if (extracted?.end_market_description) out.end_market_description = extracted.end_market_description;
+  if (Array.isArray(extracted?.financial_followup_questions) && extracted.financial_followup_questions.length) out.financial_followup_questions = extracted.financial_followup_questions;
 
   // Filter to known listing columns (defensive)
   const filtered: Record<string, unknown> = {};

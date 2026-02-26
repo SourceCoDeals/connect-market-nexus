@@ -53,6 +53,7 @@ export interface ValuationLead {
   need_to_contact_owner?: boolean | null;
   need_owner_contact?: boolean | null;
   is_archived?: boolean | null;
+  not_a_fit?: boolean | null;
   // Joined from listings (via pushed_listing_id) — populated by enrichment
   listing_description?: string | null;
 }
