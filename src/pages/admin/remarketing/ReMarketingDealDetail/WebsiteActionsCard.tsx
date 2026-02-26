@@ -166,9 +166,7 @@ export function WebsiteActionsCard({
             </Tooltip>
           </TooltipProvider>
           {/* Push to Marketplace Queue Button */}
-          {deal?.remarketing_status === 'active' && (
-            <PushToMarketplaceButton deal={deal} dealId={dealId} />
-          )}
+          <PushToMarketplaceButton deal={deal} dealId={dealId} />
         </div>
         {isEnriching && (
           <div className="mt-4 space-y-2">
