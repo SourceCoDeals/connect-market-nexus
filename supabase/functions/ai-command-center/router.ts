@@ -165,6 +165,7 @@ const BYPASS_RULES: Array<{
   {
     test: (q) =>
       !/\bhow does\b.*\b(work|function)\b/i.test(q) &&
+      !/\bwhat (does|is)\b.*\b(system|feature|methodology)\b/i.test(q) &&
       /\b(score|scoring|rank|top buyer|best buyer|fit)\b/i.test(q),
     result: {
       category: 'BUYER_ANALYSIS',

@@ -13,6 +13,7 @@ import {
   Sparkles, Send, Loader2, X, Minimize2, Trash2,
   ChevronUp, Bot, User, Wrench,
   CheckCircle, XCircle, MousePointerClick, Square,
+  ThumbsUp, ThumbsDown,
 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { cn } from '@/lib/utils';
@@ -23,6 +24,8 @@ import {
   type ToolCallInfo,
   type UIActionPayload,
 } from '@/hooks/useAICommandCenter';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 
 // ---------- Props ----------
 
@@ -198,8 +201,14 @@ export function AICommandCenterPanel({ pageContext, onUIAction, className }: AIC
             )}
 
             {/* Message list */}
-            {messages.map(msg => (
-              <MessageBubble key={msg.id} message={msg} onConfirm={confirmAction} onDeny={denyAction} />
+            {messages.map((msg, idx) => (
+              <MessageBubble
+                key={msg.id}
+                message={msg}
+                onConfirm={confirmAction}
+                onDeny={denyAction}
+                userQuery={msg.role === 'assistant' && idx > 0 ? messages[idx - 1]?.content : undefined}
+              />
             ))}
 
             {/* Streaming content */}
@@ -208,6 +217,14 @@ export function AICommandCenterPanel({ pageContext, onUIAction, className }: AIC
                 content={streamingContent}
                 phase={currentPhase}
                 tools={activeTools}
+              />
+            )}
+
+            {/* Follow-up suggestions after last assistant message */}
+            {!isLoading && messages.length > 0 && messages[messages.length - 1]?.role === 'assistant' && (
+              <FollowUpSuggestions
+                category={messages[messages.length - 1]?.metadata?.category}
+                onSuggestion={handleSuggestion}
               />
             )}
 
@@ -278,12 +295,32 @@ function MessageBubble({
   message,
   onConfirm,
   onDeny,
+  userQuery,
 }: {
   message: AIMessage;
   onConfirm: () => void;
   onDeny: () => void;
+  userQuery?: string;
 }) {
   const isUser = message.role === 'user';
+  const [feedbackGiven, setFeedbackGiven] = React.useState<number | null>(null);
+
+  const submitFeedback = async (rating: number) => {
+    setFeedbackGiven(rating);
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      await supabase.from('chat_feedback').insert({
+        user_id: sessionData.session?.user?.id,
+        query: userQuery || '',
+        response: message.content?.substring(0, 2000) || '',
+        rating,
+        category: message.metadata?.category || null,
+      });
+      toast.success(rating > 0 ? 'Thanks for the feedback!' : 'Thanks — we\'ll improve this.');
+    } catch {
+      // Non-critical, don't block UX
+    }
+  };
 
   return (
     <div className={cn('flex gap-2', isUser ? 'justify-end' : 'justify-start')}>
@@ -347,13 +384,42 @@ function MessageBubble({
           </div>
         )}
 
-        {/* Timestamp */}
-        <p className="text-[10px] mt-1 text-muted-foreground">
-          {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-          {message.metadata?.cost != null && (
-            <span className="ml-2">${message.metadata.cost.toFixed(4)}</span>
+        {/* Timestamp + Feedback */}
+        <div className="flex items-center justify-between mt-1">
+          <p className="text-[10px] text-muted-foreground">
+            {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+            {message.metadata?.cost != null && (
+              <span className="ml-2">${message.metadata.cost.toFixed(4)}</span>
+            )}
+          </p>
+          {/* Feedback buttons for assistant messages */}
+          {!isUser && message.content && !message.pendingConfirmation && (
+            <div className="flex items-center gap-1">
+              {feedbackGiven === null ? (
+                <>
+                  <button
+                    onClick={() => submitFeedback(1)}
+                    className="p-0.5 rounded hover:bg-green-100 text-muted-foreground hover:text-green-600 transition-colors"
+                    title="Good response"
+                  >
+                    <ThumbsUp className="h-3 w-3" />
+                  </button>
+                  <button
+                    onClick={() => submitFeedback(-1)}
+                    className="p-0.5 rounded hover:bg-red-100 text-muted-foreground hover:text-red-600 transition-colors"
+                    title="Poor response"
+                  >
+                    <ThumbsDown className="h-3 w-3" />
+                  </button>
+                </>
+              ) : (
+                <span className="text-[10px] text-muted-foreground">
+                  {feedbackGiven > 0 ? '👍' : '👎'}
+                </span>
+              )}
+            </div>
           )}
-        </p>
+        </div>
       </div>
 
       {isUser && (
@@ -428,6 +494,36 @@ function StreamingIndicator({
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+function FollowUpSuggestions({ category, onSuggestion }: { category?: string; onSuggestion: (text: string) => void }) {
+  const suggestions: Record<string, string[]> = {
+    PIPELINE_ANALYTICS: ['Which deals need attention?', 'Show deals by industry', 'What changed this week?'],
+    DEAL_STATUS: ['Who are the top buyers for this deal?', 'Show me the deal timeline', 'Any overdue tasks?'],
+    BUYER_SEARCH: ['Score these buyers against our top deal', 'Show engagement history', 'Draft outreach to top matches'],
+    CONTACTS: ['Enrich missing contact emails', 'Push contacts to dialer', 'Find more contacts at this firm'],
+    MEETING_INTEL: ['Summarize key takeaways', 'What action items came up?', 'Search for pricing discussions'],
+    DAILY_BRIEFING: ['Show my overdue tasks', 'Any new buyer engagement?', 'Which deals went quiet?'],
+    ENGAGEMENT: ['Who viewed our data room?', 'Show pass reasons this month', 'Which buyers are most engaged?'],
+    OUTREACH_DRAFT: ['Refine the tone', 'Make it shorter', 'Add deal metrics to the draft'],
+    FOLLOW_UP: ['Show stale deals', 'Create follow-up tasks', 'Who needs a call this week?'],
+  };
+
+  const items = suggestions[category || ''] || ['Show pipeline summary', 'Find top buyers', 'Give me my briefing'];
+
+  return (
+    <div className="flex flex-wrap gap-1.5 mt-1">
+      {items.map((s, i) => (
+        <button
+          key={i}
+          onClick={() => onSuggestion(s)}
+          className="text-xs px-2.5 py-1 rounded-full border border-[#DEC76B]/30 text-[#0E101A]/70 hover:bg-[#F7F4DD] hover:text-[#0E101A] transition-colors"
+        >
+          {s}
+        </button>
+      ))}
     </div>
   );
 }

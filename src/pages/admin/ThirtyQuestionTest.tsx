@@ -2,7 +2,8 @@
  * 30-Question QA Test Runner
  *
  * Sends 30 pre-built questions to the AI Command Center one-by-one,
- * compares actual responses to predicted behavior, and shows summary stats.
+ * compares actual responses to predicted behavior, and shows summary stats
+ * including route accuracy tracking.
  */
 
 import { useState, useRef, useCallback } from 'react';
@@ -20,6 +21,7 @@ import {
   Clock,
   Loader2,
   RotateCcw,
+  Target,
 } from 'lucide-react';
 import { THIRTY_Q_SUITE, type ThirtyQQuestion } from './chatbot-test-runner/thirtyQuestionSuite';
 import { sendAIQuery } from './chatbot-test-runner/chatbotInfraTests';
@@ -159,6 +161,12 @@ export default function ThirtyQuestionTest() {
   const successRate = completed.length > 0 ? Math.round((passed.length / completed.length) * 100) : 0;
   const progress = Math.round((completed.length / THIRTY_Q_SUITE.length) * 100);
 
+  // Route accuracy
+  const routeMatches = completed.filter(
+    (r) => r.routeCategory && r.question.expectedRoute && r.routeCategory === r.question.expectedRoute,
+  );
+  const routeAccuracy = completed.length > 0 ? Math.round((routeMatches.length / completed.length) * 100) : 0;
+
   // ---------- Export ----------
 
   const handleExport = useCallback(() => {
@@ -166,9 +174,11 @@ export default function ThirtyQuestionTest() {
       id: r.question.id,
       category: r.question.category,
       question: r.question.question,
+      expected_route: r.question.expectedRoute,
+      actual_route: r.routeCategory,
+      route_match: r.routeCategory === r.question.expectedRoute ? 'YES' : 'NO',
       expected: r.question.expectedBehavior,
       status: r.status,
-      route_category: r.routeCategory,
       tools_used: r.tools.join(', '),
       duration_ms: r.durationMs,
       actual_response: r.actualResponse.substring(0, 500),
@@ -182,7 +192,7 @@ export default function ThirtyQuestionTest() {
   return (
     <div className="space-y-6">
       {/* Summary stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
         <Card>
           <CardContent className="pt-6">
             <div className="text-2xl font-bold">{completed.length}/{THIRTY_Q_SUITE.length}</div>
@@ -195,6 +205,15 @@ export default function ThirtyQuestionTest() {
             <div className="text-2xl font-bold text-primary">{successRate}%</div>
             <p className="text-xs text-muted-foreground">Success Rate</p>
             <p className="text-xs text-muted-foreground mt-1">{passed.length} pass / {failed.length} fail</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-6">
+            <div className={`text-2xl font-bold ${routeAccuracy >= 80 ? 'text-green-600' : routeAccuracy >= 50 ? 'text-yellow-600' : 'text-red-600'}`}>
+              {routeAccuracy}%
+            </div>
+            <p className="text-xs text-muted-foreground">Route Accuracy</p>
+            <p className="text-xs text-muted-foreground mt-1">{routeMatches.length}/{completed.length} correct</p>
           </CardContent>
         </Card>
         <Card>
@@ -253,6 +272,7 @@ export default function ThirtyQuestionTest() {
 
 function ResultRow({ result }: { result: QuestionResult }) {
   const { question: q, status, actualResponse, routeCategory, tools, durationMs, error } = result;
+  const routeMatch = routeCategory && q.expectedRoute && routeCategory === q.expectedRoute;
 
   const statusIcon = {
     pending: <Clock className="h-4 w-4 text-muted-foreground" />,
@@ -272,7 +292,16 @@ function ResultRow({ result }: { result: QuestionResult }) {
             <Badge variant="outline" className="text-xs">{q.category}</Badge>
             {status !== 'pending' && status !== 'running' && (
               <>
-                <Badge variant="secondary" className="text-xs">Route: {routeCategory}</Badge>
+                <Badge
+                  variant="secondary"
+                  className={`text-xs ${routeMatch ? 'bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-300' : 'bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300'}`}
+                >
+                  <Target className="h-3 w-3 mr-1" />
+                  {routeCategory}
+                  {!routeMatch && routeCategory && (
+                    <span className="ml-1 opacity-60">(exp: {q.expectedRoute})</span>
+                  )}
+                </Badge>
                 <span className="text-xs text-muted-foreground">{durationMs.toLocaleString()}ms</span>
               </>
             )}

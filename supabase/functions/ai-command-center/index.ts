@@ -67,6 +67,26 @@ Deno.serve(async (req: Request) => {
 
     const userId = auth.userId!;
 
+    // Rate limiting: max 120 queries per hour per user
+    try {
+      const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+      const { count } = await supabaseAdmin
+        .from('ai_command_center_usage')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', userId)
+        .gte('created_at', oneHourAgo);
+
+      if (count !== null && count >= 120) {
+        return new Response(
+          JSON.stringify({ error: 'Rate limit exceeded. Maximum 120 queries per hour. Please wait and try again.' }),
+          { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+        );
+      }
+    } catch (rateLimitErr) {
+      // Non-critical: if rate limit check fails, allow the request
+      console.warn('[ai-cc] Rate limit check failed:', rateLimitErr);
+    }
+
     // Parse request body
     let body: ChatRequest;
     try {
