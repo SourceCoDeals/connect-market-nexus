@@ -1,8 +1,3 @@
-// ORPHANED — NOT currently rendered anywhere. The active component is in
-// ./BuyerCSVImport/index.tsx (the directory version).
-// Do not edit. Scheduled for deletion.
-// AUDIT REF: CTO Audit February 2026
-
 /**
  * BuyerCSVImport.tsx
  *
