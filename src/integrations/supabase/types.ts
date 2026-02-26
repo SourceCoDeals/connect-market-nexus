@@ -9366,8 +9366,11 @@ export type Database = {
         Row: {
           access_token: string
           created_at: string | null
+          display_name: string | null
           expires_at: string
           id: string
+          phoneburner_user_email: string | null
+          phoneburner_user_id: string | null
           refresh_token: string
           scope: string | null
           token_type: string | null
@@ -9377,8 +9380,11 @@ export type Database = {
         Insert: {
           access_token: string
           created_at?: string | null
+          display_name?: string | null
           expires_at: string
           id?: string
+          phoneburner_user_email?: string | null
+          phoneburner_user_id?: string | null
           refresh_token: string
           scope?: string | null
           token_type?: string | null
@@ -9388,8 +9394,11 @@ export type Database = {
         Update: {
           access_token?: string
           created_at?: string | null
+          display_name?: string | null
           expires_at?: string
           id?: string
+          phoneburner_user_email?: string | null
+          phoneburner_user_id?: string | null
           refresh_token?: string
           scope?: string | null
           token_type?: string | null
@@ -13974,6 +13983,20 @@ export type Database = {
           target_email: string
           target_name: string
           target_user_id: string
+        }[]
+      }
+      get_phoneburner_connected_users: {
+        Args: never
+        Returns: {
+          display_name: string
+          expires_at: string
+          phoneburner_user_email: string
+          profile_email: string
+          profile_first_name: string
+          profile_last_name: string
+          token_id: string
+          updated_at: string
+          user_id: string
         }[]
       }
       get_remarketing_dashboard_stats: {
