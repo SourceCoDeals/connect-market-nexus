@@ -1,3 +1,9 @@
+// ORPHANED — NOT currently rendered anywhere. The active component is in
+// ./ReMarketingDealMatching/index.tsx (the directory version).
+// This monolithic 1,582-line file is superseded by the refactored directory version.
+// Do not edit. Scheduled for deletion.
+// AUDIT REF: CTO Audit February 2026
+
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useParams, Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';

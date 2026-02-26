@@ -1,3 +1,9 @@
+// ORPHANED — NOT currently rendered anywhere. The active component is in
+// ./ReMarketingBuyerDetail/index.tsx (the directory version).
+// This monolithic 1,143-line file is superseded by the refactored directory version.
+// Do not edit. Scheduled for deletion.
+// AUDIT REF: CTO Audit February 2026
+
 import { useState, useMemo, useEffect } from 'react';
 import { BuyerDealHistoryPanel } from '@/components/admin/data-room/BuyerDealHistoryPanel';
 import { ExtractionSummaryDialog } from '@/components/remarketing/buyer-detail/ExtractionSummaryDialog';
