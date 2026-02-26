@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import { formatDistanceToNow, format, isToday, isTomorrow, isPast, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
@@ -13,6 +13,13 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
   MoreVertical,
   Pin,
   ExternalLink,
@@ -24,7 +31,10 @@ import {
 } from 'lucide-react';
 import type { DailyStandupTaskWithRelations } from '@/types/daily-tasks';
 import { TASK_TYPE_LABELS, TASK_TYPE_COLORS } from '@/types/daily-tasks';
-import { useToggleTaskComplete } from '@/hooks/useDailyTasks';
+import { useToggleTaskComplete, useReassignTask, useEditTask } from '@/hooks/useDailyTasks';
+import { useAdminProfiles } from '@/hooks/admin/use-admin-profiles';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
 
 interface TaskCardProps {
   task: DailyStandupTaskWithRelations;
@@ -33,6 +43,27 @@ interface TaskCardProps {
   onReassign?: (task: DailyStandupTaskWithRelations) => void;
   onPin?: (task: DailyStandupTaskWithRelations) => void;
   onDelete?: (task: DailyStandupTaskWithRelations) => void;
+}
+
+/** Minimal deal list for the deal picker */
+function useDealsForPicker() {
+  return useQuery({
+    queryKey: ['daily-tasks-deal-picker'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('deals')
+        .select('id, listing_id, listings(title, internal_company_name)')
+        .order('created_at', { ascending: false })
+        .limit(200);
+      if (error) throw error;
+      return (data || []) as Array<{
+        id: string;
+        listing_id: string;
+        listings: { title: string | null; internal_company_name: string | null } | null;
+      }>;
+    },
+    staleTime: 60_000,
+  });
 }
 
 export function TaskCard({
@@ -44,6 +75,11 @@ export function TaskCard({
   onDelete,
 }: TaskCardProps) {
   const toggleComplete = useToggleTaskComplete();
+  const reassignTask = useReassignTask();
+  const editTask = useEditTask();
+  const { data: adminProfiles } = useAdminProfiles();
+  const { data: deals } = useDealsForPicker();
+
   const [justCompleted, setJustCompleted] = useState(false);
   const [detailOpen, setDetailOpen] = useState(false);
   const undoTimerRef = useRef<ReturnType<typeof setTimeout>>();
@@ -92,12 +128,35 @@ export function TaskCard({
   const dealName =
     task.deal?.listings?.internal_company_name || task.deal?.listings?.title || task.deal_reference;
 
-  const ebitda = task.deal?.listings?.ebitda;
+  const adminList = useMemo(() => {
+    if (!adminProfiles) return [];
+    return Object.entries(adminProfiles).map(([id, profile]) => ({
+      id,
+      name: profile.displayName,
+    })).sort((a, b) => a.name.localeCompare(b.name));
+  }, [adminProfiles]);
 
-  const formatCurrency = (value: number) => {
-    if (value >= 1_000_000) return `$${(value / 1_000_000).toFixed(1)}M`;
-    if (value >= 1_000) return `$${(value / 1_000).toFixed(0)}K`;
-    return `$${value.toLocaleString()}`;
+  const dealList = useMemo(() => {
+    if (!deals) return [];
+    return deals.map((d) => ({
+      id: d.id,
+      name: d.listings?.internal_company_name || d.listings?.title || d.id.slice(0, 8),
+    })).sort((a, b) => a.name.localeCompare(b.name));
+  }, [deals]);
+
+  const handleAssigneeChange = (newAssigneeId: string) => {
+    reassignTask.mutate({ taskId: task.id, newAssigneeId });
+  };
+
+  const handleDealChange = (newDealId: string) => {
+    const deal = deals?.find((d) => d.id === newDealId);
+    editTask.mutate({
+      taskId: task.id,
+      updates: {
+        deal_id: newDealId,
+        deal_reference: deal?.listings?.internal_company_name || deal?.listings?.title || null,
+      },
+    });
   };
 
   return (
@@ -262,32 +321,59 @@ export function TaskCard({
                 </Badge>
               </div>
 
-              {/* Assignee */}
-              {assigneeName && (
-                <div>
-                  <p className="text-xs text-muted-foreground mb-1">Assigned to</p>
-                  <span className="inline-flex items-center gap-1.5 text-sm">
-                    <UserRound className="h-3.5 w-3.5 text-muted-foreground" />
-                    {assigneeName}
-                  </span>
-                </div>
-              )}
+              {/* Assignee – editable dropdown */}
+              <div>
+                <p className="text-xs text-muted-foreground mb-1">Assigned to</p>
+                <Select
+                  value={task.assignee_id || ''}
+                  onValueChange={handleAssigneeChange}
+                >
+                  <SelectTrigger className="h-8 text-sm w-full">
+                    <SelectValue placeholder="Unassigned">
+                      {assigneeName && (
+                        <span className="inline-flex items-center gap-1.5">
+                          <UserRound className="h-3.5 w-3.5 text-muted-foreground" />
+                          {assigneeName}
+                        </span>
+                      )}
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    {adminList.map((admin) => (
+                      <SelectItem key={admin.id} value={admin.id}>
+                        {admin.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
 
-              {/* Deal */}
-              {dealName && (
-                <div>
-                  <p className="text-xs text-muted-foreground mb-1">Deal</p>
-                  <span className="inline-flex items-center gap-1.5 text-sm">
-                    <Building2 className="h-3.5 w-3.5 text-muted-foreground" />
-                    {dealName}
-                    {ebitda != null && (
-                      <span className="text-xs text-muted-foreground">
-                        ({formatCurrency(ebitda)} EBITDA)
-                      </span>
-                    )}
-                  </span>
-                </div>
-              )}
+              {/* Deal – editable dropdown */}
+              <div>
+                <p className="text-xs text-muted-foreground mb-1">Deal</p>
+                <Select
+                  value={task.deal_id || ''}
+                  onValueChange={handleDealChange}
+                >
+                  <SelectTrigger className="h-8 text-sm w-full">
+                    <SelectValue placeholder="No deal linked">
+                      {dealName && (
+                        <span className="inline-flex items-center gap-1.5">
+                          <Building2 className="h-3.5 w-3.5 text-muted-foreground" />
+                          {dealName}
+                        </span>
+                      )}
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    {dealList.map((deal) => (
+                      <SelectItem key={deal.id} value={deal.id}>
+                        {deal.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
 
               {/* Due date */}
               <div>
