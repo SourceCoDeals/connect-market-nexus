@@ -54,6 +54,26 @@ export const universeTools: ClaudeTool[] = [
     },
   },
   {
+    name: 'get_universe_buyer_fits',
+    description: 'Get buyers in a universe categorized by fit status — identifies which buyers are fits, not fits (passed/disqualified), or unscored. Returns buyer IDs grouped by category, ready for UI selection. Use when user asks to "select not fits", "check the non-fits", "select passed buyers", etc. The buyer IDs returned can be passed directly to select_table_rows to check their boxes in the UI.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        universe_id: { type: 'string', description: 'The buyer universe UUID' },
+        fit_filter: {
+          type: 'string',
+          enum: ['not_fit', 'fit', 'unscored', 'all'],
+          description: 'Which category to return: "not_fit" = passed/disqualified buyers, "fit" = active/approved buyers, "unscored" = buyers with no scores, "all" = all buyers with their categories. Default: "all"',
+        },
+        score_threshold: {
+          type: 'number',
+          description: 'Optional: treat buyers with composite_score below this threshold as not-fits (e.g. 40). Only applies when fit_filter is "not_fit".',
+        },
+      },
+      required: ['universe_id'],
+    },
+  },
+  {
     name: 'get_remarketing_outreach',
     description: 'Get remarketing outreach status records — outreach campaigns by status (pending, contacted, responded, meeting_scheduled, nda_sent, passed). Use to track buyer contact pipeline.',
     input_schema: {
@@ -79,6 +99,7 @@ export async function executeUniverseTool(
   switch (toolName) {
     case 'search_buyer_universes': return searchBuyerUniverses(supabase, args);
     case 'get_universe_details': return getUniverseDetails(supabase, args);
+    case 'get_universe_buyer_fits': return getUniverseBuyerFits(supabase, args);
     case 'get_outreach_records': return getOutreachRecords(supabase, args);
     case 'get_remarketing_outreach': return getRemarketingOutreach(supabase, args);
     default: return { error: `Unknown universe tool: ${toolName}` };
@@ -151,6 +172,130 @@ async function getUniverseDetails(
       buyer_count: buyerCountResult.count || 0,
     },
   };
+}
+
+async function getUniverseBuyerFits(
+  supabase: SupabaseClient,
+  args: Record<string, unknown>,
+): Promise<ToolResult> {
+  const universeId = args.universe_id as string;
+  const fitFilter = (args.fit_filter as string) || 'all';
+  const scoreThreshold = args.score_threshold as number | undefined;
+
+  // 1. Fetch all buyers in this universe
+  const { data: buyers, error: buyersError } = await supabase
+    .from('remarketing_buyers')
+    .select('id, company_name, alignment_score, has_fee_agreement')
+    .eq('universe_id', universeId)
+    .eq('archived', false)
+    .order('company_name');
+
+  if (buyersError) return { error: buyersError.message };
+  if (!buyers || buyers.length === 0) {
+    return { data: { message: 'No buyers found in this universe', total: 0 } };
+  }
+
+  const buyerIds = buyers.map((b: any) => b.id);
+
+  // 2. Fetch all scores for these buyers (across all deals in the universe)
+  // Batch in chunks of 100 to avoid query limits
+  const allScores: any[] = [];
+  for (let i = 0; i < buyerIds.length; i += 100) {
+    const chunk = buyerIds.slice(i, i + 100);
+    const { data: scores } = await supabase
+      .from('remarketing_scores')
+      .select('buyer_id, listing_id, composite_score, status, is_disqualified, pass_reason, disqualification_reason')
+      .in('buyer_id', chunk);
+    if (scores) allScores.push(...scores);
+  }
+
+  // 3. Build a map of buyer_id -> worst score status (if ANY deal marks them as not-fit, they're not-fit)
+  const buyerScoreMap = new Map<string, { status: string; is_disqualified: boolean; min_score: number | null; reasons: string[] }>();
+  for (const score of allScores) {
+    const existing = buyerScoreMap.get(score.buyer_id);
+    const isNotFit = score.is_disqualified || score.status === 'passed' || score.status === 'disqualified';
+    const reason = score.disqualification_reason || score.pass_reason || '';
+
+    if (!existing) {
+      buyerScoreMap.set(score.buyer_id, {
+        status: isNotFit ? 'not_fit' : (score.status || 'scored'),
+        is_disqualified: !!score.is_disqualified,
+        min_score: score.composite_score,
+        reasons: reason ? [reason] : [],
+      });
+    } else {
+      // If ANY score marks them as not-fit, mark overall as not-fit
+      if (isNotFit) {
+        existing.status = 'not_fit';
+        existing.is_disqualified = existing.is_disqualified || !!score.is_disqualified;
+      }
+      if (score.composite_score !== null) {
+        existing.min_score = existing.min_score === null
+          ? score.composite_score
+          : Math.min(existing.min_score, score.composite_score);
+      }
+      if (reason) existing.reasons.push(reason);
+    }
+  }
+
+  // 4. Categorize buyers
+  const notFitBuyers: Array<{ id: string; company_name: string; reason: string }> = [];
+  const fitBuyers: Array<{ id: string; company_name: string; score: number | null }> = [];
+  const unscoredBuyers: Array<{ id: string; company_name: string }> = [];
+
+  for (const buyer of buyers) {
+    const scoreInfo = buyerScoreMap.get(buyer.id);
+
+    if (!scoreInfo) {
+      // No scores at all — unscored
+      unscoredBuyers.push({ id: buyer.id, company_name: buyer.company_name });
+    } else if (scoreInfo.status === 'not_fit') {
+      // Passed or disqualified
+      notFitBuyers.push({
+        id: buyer.id,
+        company_name: buyer.company_name,
+        reason: scoreInfo.reasons[0] || (scoreInfo.is_disqualified ? 'disqualified' : 'passed'),
+      });
+    } else if (scoreThreshold && scoreInfo.min_score !== null && scoreInfo.min_score < scoreThreshold) {
+      // Below score threshold — also not a fit
+      notFitBuyers.push({
+        id: buyer.id,
+        company_name: buyer.company_name,
+        reason: `score below ${scoreThreshold} (${scoreInfo.min_score})`,
+      });
+    } else {
+      fitBuyers.push({ id: buyer.id, company_name: buyer.company_name, score: scoreInfo.min_score });
+    }
+  }
+
+  // 5. Return based on filter
+  const result: Record<string, unknown> = {
+    universe_id: universeId,
+    total_buyers: buyers.length,
+    summary: {
+      not_fit: notFitBuyers.length,
+      fit: fitBuyers.length,
+      unscored: unscoredBuyers.length,
+    },
+  };
+
+  if (fitFilter === 'not_fit' || fitFilter === 'all') {
+    result.not_fit_buyers = notFitBuyers;
+    result.not_fit_ids = notFitBuyers.map(b => b.id);
+  }
+  if (fitFilter === 'fit' || fitFilter === 'all') {
+    result.fit_buyers = fitBuyers;
+    result.fit_ids = fitBuyers.map(b => b.id);
+  }
+  if (fitFilter === 'unscored' || fitFilter === 'all') {
+    result.unscored_buyers = unscoredBuyers;
+    result.unscored_ids = unscoredBuyers.map(b => b.id);
+  }
+
+  // Provide a helpful message for the AI to know what to do next
+  result.hint = 'Use select_table_rows with table="buyers" and the returned IDs to select these buyers in the UI.';
+
+  return { data: result };
 }
 
 async function getOutreachRecords(

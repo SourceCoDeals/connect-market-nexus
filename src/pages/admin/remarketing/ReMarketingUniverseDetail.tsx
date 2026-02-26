@@ -76,6 +76,8 @@ import { useBuyerEnrichmentQueue } from '@/hooks/useBuyerEnrichmentQueue';
 import { useDealEnrichment } from '@/hooks/useDealEnrichment';
 import { useEnrichmentProgress } from '@/hooks/useEnrichmentProgress';
 import { useAlignmentScoring } from '@/hooks/useAlignmentScoring';
+import { useAICommandCenterContext } from '@/components/ai-command-center/AICommandCenterProvider';
+import { useAIUIActionHandler } from '@/hooks/useAIUIActionHandler';
 
 const ReMarketingUniverseDetail = () => {
   const { id } = useParams<{ id: string }>();
@@ -121,6 +123,43 @@ const ReMarketingUniverseDetail = () => {
   const [dialerOpen, setDialerOpen] = useState(false);
   const [smartleadOpen, setSmartleadOpen] = useState(false);
   const [editingHeader, setEditingHeader] = useState(false);
+
+  // Register AI Command Center context for this universe page
+  const { setPageContext } = useAICommandCenterContext();
+
+  useEffect(() => {
+    if (id && !isNew) {
+      setPageContext({ page: 'universe_detail', entity_id: id, entity_type: 'universe' });
+    }
+  }, [id, isNew, setPageContext]);
+
+  // Wire AI UI actions to this page's buyer table
+  useAIUIActionHandler({
+    table: 'buyers',
+    onSelectRows: (rowIds, mode) => {
+      if (mode === 'replace') {
+        setSelectedBuyerIds(rowIds);
+      } else if (mode === 'add') {
+        setSelectedBuyerIds((prev) => [...new Set([...prev, ...rowIds])]);
+      } else {
+        // toggle
+        setSelectedBuyerIds((prev) => {
+          const prevSet = new Set(prev);
+          rowIds.forEach((id) => (prevSet.has(id) ? prevSet.delete(id) : prevSet.add(id)));
+          return [...prevSet];
+        });
+      }
+    },
+    onClearSelection: () => setSelectedBuyerIds([]),
+    onSortColumn: (field) => {
+      console.log(`[ai-ui-action] Sort requested for ${field} on universe buyer table`);
+    },
+    onTriggerAction: (action) => {
+      if (action === 'push_to_dialer') setDialerOpen(true);
+      if (action === 'push_to_smartlead') setSmartleadOpen(true);
+      if (action === 'remove_from_universe') handleRemoveSelectedBuyers();
+    },
+  });
 
   // Use the enrichment hook for proper batch processing with progress tracking (legacy - for direct enrichment)
   useBuyerEnrichment(id);

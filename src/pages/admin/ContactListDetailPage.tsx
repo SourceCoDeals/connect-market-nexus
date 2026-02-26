@@ -34,6 +34,8 @@ import { PushToDialerModal } from '@/components/remarketing/PushToDialerModal';
 import { PushToSmartleadModal } from '@/components/remarketing/PushToSmartleadModal';
 import { PushToHeyreachModal } from '@/components/remarketing/PushToHeyreachModal';
 import type { ContactListMember } from '@/types/contact-list';
+import { useAICommandCenterContext } from '@/components/ai-command-center/AICommandCenterProvider';
+import { useAIUIActionHandler } from '@/hooks/useAIUIActionHandler';
 
 const ContactListDetailPage = () => {
   const { id } = useParams<{ id: string }>();
@@ -45,6 +47,32 @@ const ContactListDetailPage = () => {
   const [isDialerOpen, setIsDialerOpen] = useState(false);
   const [isSmartleadOpen, setIsSmartleadOpen] = useState(false);
   const [isHeyreachOpen, setIsHeyreachOpen] = useState(false);
+
+  // Register AI Command Center context
+  const { setPageContext } = useAICommandCenterContext();
+  useEffect(() => {
+    if (id) setPageContext({ page: 'contact_list_detail', entity_id: id, entity_type: 'contacts' });
+  }, [id, setPageContext]);
+
+  // Wire AI UI actions
+  useAIUIActionHandler({
+    table: 'contacts',
+    onSelectRows: (rowIds, mode) => {
+      if (mode === 'replace') {
+        setSelectedIds(new Set(rowIds));
+      } else if (mode === 'add') {
+        setSelectedIds((prev) => { const next = new Set(prev); rowIds.forEach((rid) => next.add(rid)); return next; });
+      } else {
+        setSelectedIds((prev) => { const next = new Set(prev); rowIds.forEach((rid) => (next.has(rid) ? next.delete(rid) : next.add(rid))); return next; });
+      }
+    },
+    onClearSelection: () => setSelectedIds(new Set()),
+    onTriggerAction: (action) => {
+      if (action === 'push_to_dialer') setIsDialerOpen(true);
+      if (action === 'push_to_smartlead') setIsSmartleadOpen(true);
+      if (action === 'push_to_heyreach') setIsHeyreachOpen(true);
+    },
+  });
 
   const activeMembers = useMemo(
     () => (list?.members ?? []).filter((m) => !m.removed_at),

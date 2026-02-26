@@ -144,6 +144,11 @@ const ReMarketingDeals = () => {
       };
       h.handleSort(fieldMap[field] || field);
     },
+    onTriggerAction: (action) => {
+      if (action === 'push_to_dialer') setDialerOpen(true);
+      if (action === 'push_to_smartlead') setSmartleadOpen(true);
+      if (action === 'push_to_heyreach') setHeyreachOpen(true);
+    },
   });
 
   const SortableHeader = ({

@@ -1,7 +1,8 @@
 /**
  * UI Action Tools
  * Return structured commands that the frontend executes —
- * selecting rows, applying filters, sorting columns, navigating to pages.
+ * selecting rows, applying filters, sorting columns, navigating to pages,
+ * and triggering page-level actions (push to dialer, smartlead, etc.).
  *
  * These tools don't query the database directly. They return
  * UI action payloads that the frontend chat panel intercepts
@@ -16,7 +17,7 @@ import type { ToolResult } from "./index.ts";
 // ---------- UI Action payload types ----------
 
 export interface UIAction {
-  type: 'select_rows' | 'apply_filter' | 'sort_column' | 'navigate' | 'highlight_rows' | 'clear_selection';
+  type: 'select_rows' | 'apply_filter' | 'sort_column' | 'navigate' | 'highlight_rows' | 'clear_selection' | 'trigger_action';
   target: string;  // Which UI component to target (e.g. 'buyers_table', 'deals_table')
   payload: Record<string, unknown>;
 }
@@ -32,7 +33,7 @@ export const uiActionTools: ClaudeTool[] = [
       properties: {
         table: {
           type: 'string',
-          enum: ['buyers', 'deals', 'leads', 'scores', 'transcripts'],
+          enum: ['buyers', 'deals', 'leads', 'scores', 'transcripts', 'contacts', 'documents', 'universes'],
           description: 'Which table to select rows in',
         },
         row_ids: {
@@ -57,7 +58,7 @@ export const uiActionTools: ClaudeTool[] = [
       properties: {
         table: {
           type: 'string',
-          enum: ['buyers', 'deals', 'leads', 'scores'],
+          enum: ['buyers', 'deals', 'leads', 'scores', 'contacts', 'documents'],
           description: 'Which table to filter',
         },
         filters: {
@@ -89,7 +90,7 @@ export const uiActionTools: ClaudeTool[] = [
       properties: {
         table: {
           type: 'string',
-          enum: ['buyers', 'deals', 'leads', 'scores'],
+          enum: ['buyers', 'deals', 'leads', 'scores', 'contacts', 'documents'],
           description: 'Which table to sort',
         },
         field: {
@@ -106,6 +107,42 @@ export const uiActionTools: ClaudeTool[] = [
     },
   },
   {
+    name: 'trigger_page_action',
+    description: 'Trigger a button-click action on the current page — like pushing selected rows to PhoneBurner (dialer), SmartLead (email campaign), Heyreach (LinkedIn outreach), removing from universe, or starting enrichment. First use select_table_rows to select the right rows, then use this tool to click the action button. The frontend page must support the action.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        table: {
+          type: 'string',
+          enum: ['buyers', 'deals', 'leads', 'scores', 'contacts', 'documents', 'universes'],
+          description: 'Which table/page to trigger the action on',
+        },
+        action: {
+          type: 'string',
+          enum: [
+            'push_to_dialer',
+            'push_to_smartlead',
+            'push_to_heyreach',
+            'remove_from_universe',
+            'enrich_selected',
+            'score_alignment',
+            'export_csv',
+            'bulk_approve',
+            'bulk_pass',
+            'toggle_fee_agreement',
+            'archive_selected',
+          ],
+          description: 'Which action to trigger. push_to_dialer = open PhoneBurner modal, push_to_smartlead = open SmartLead modal, push_to_heyreach = open Heyreach modal, remove_from_universe = remove selected buyers from current universe, enrich_selected = start enrichment for selected, export_csv = export table data to CSV.',
+        },
+        args: {
+          type: 'object',
+          description: 'Optional arguments for the action (e.g. campaign_id for smartlead)',
+        },
+      },
+      required: ['table', 'action'],
+    },
+  },
+  {
     name: 'navigate_to_page',
     description: 'Navigate the user to a specific page or view in the application. Use when the user asks to go to a deal, buyer profile, or specific section.',
     input_schema: {
@@ -113,10 +150,17 @@ export const uiActionTools: ClaudeTool[] = [
       properties: {
         page: {
           type: 'string',
-          enum: ['deal_detail', 'buyer_profile', 'pipeline', 'buyers_list', 'remarketing', 'data_room', 'transcripts', 'analytics', 'active_deals', 'captarget', 'gp_partners', 'valuation_leads', 'owner_leads', 'referral_partners'],
+          enum: [
+            'deal_detail', 'buyer_profile', 'pipeline', 'buyers_list',
+            'remarketing', 'data_room', 'transcripts', 'analytics',
+            'active_deals', 'captarget', 'gp_partners', 'valuation_leads',
+            'owner_leads', 'referral_partners', 'universes', 'universe_detail',
+            'buyer_contacts', 'contact_lists', 'deal_matching',
+            'smartlead_campaigns', 'document_tracking',
+          ],
           description: 'Target page/view',
         },
-        entity_id: { type: 'string', description: 'ID of the entity to navigate to (deal_id or buyer_id)' },
+        entity_id: { type: 'string', description: 'ID of the entity to navigate to (deal_id or buyer_id or universe_id)' },
         tab: { type: 'string', description: 'Optional tab within the page to open' },
       },
       required: ['page'],
@@ -135,6 +179,7 @@ export async function executeUIActionTool(
     case 'select_table_rows': return selectTableRows(args);
     case 'apply_table_filter': return applyTableFilter(args);
     case 'sort_table_column': return sortTableColumn(args);
+    case 'trigger_page_action': return triggerPageAction(args);
     case 'navigate_to_page': return navigateToPage(args);
     default: return { error: `Unknown UI action tool: ${toolName}` };
   }
@@ -224,6 +269,46 @@ function sortTableColumn(args: Record<string, unknown>): ToolResult {
   };
 }
 
+function triggerPageAction(args: Record<string, unknown>): ToolResult {
+  const table = args.table as string;
+  const actionName = args.action as string;
+  const actionArgs = args.args as Record<string, unknown> | undefined;
+
+  if (!actionName) {
+    return { error: 'No action specified' };
+  }
+
+  const actionLabels: Record<string, string> = {
+    push_to_dialer: 'Push to PhoneBurner',
+    push_to_smartlead: 'Push to SmartLead',
+    push_to_heyreach: 'Push to Heyreach',
+    remove_from_universe: 'Remove from Universe',
+    enrich_selected: 'Enrich Selected',
+    score_alignment: 'Score Alignment',
+    export_csv: 'Export CSV',
+    bulk_approve: 'Bulk Approve',
+    bulk_pass: 'Bulk Pass',
+    toggle_fee_agreement: 'Toggle Fee Agreement',
+    archive_selected: 'Archive Selected',
+  };
+
+  const action: UIAction = {
+    type: 'trigger_action',
+    target: `${table}_table`,
+    payload: {
+      action: actionName,
+      args: actionArgs || {},
+    },
+  };
+
+  return {
+    data: {
+      ui_action: action,
+      message: `Triggered "${actionLabels[actionName] || actionName}" on ${table} table`,
+    },
+  };
+}
+
 function navigateToPage(args: Record<string, unknown>): ToolResult {
   const page = args.page as string;
   const entityId = args.entity_id as string;
@@ -242,6 +327,13 @@ function navigateToPage(args: Record<string, unknown>): ToolResult {
     valuation_leads: '/admin/remarketing/valuation-leads',
     owner_leads: '/admin/remarketing/owner-leads',
     referral_partners: '/admin/remarketing/referral-partners',
+    universes: '/admin/remarketing/universes',
+    universe_detail: entityId ? `/admin/remarketing/universes/${entityId}` : '/admin/remarketing/universes',
+    buyer_contacts: '/admin/buyer-contacts',
+    contact_lists: '/admin/contact-lists',
+    deal_matching: entityId ? `/admin/remarketing/matching/${entityId}` : '/admin/remarketing',
+    smartlead_campaigns: '/admin/smartlead/campaigns',
+    document_tracking: '/admin/document-tracking',
     data_room: entityId ? `/deals/${entityId}/data-room` : '/data-room',
     transcripts: entityId ? `/deals/${entityId}/transcripts` : '/transcripts',
     analytics: '/analytics',

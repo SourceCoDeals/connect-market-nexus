@@ -1,8 +1,8 @@
 /**
  * useAIUIActionHandler
  * Pages use this hook to register their ability to handle AI-driven UI actions
- * (select rows, apply filters, sort columns, clear selection).
- * 
+ * (select rows, apply filters, sort columns, clear selection, trigger actions).
+ *
  * The AI Command Center dispatches actions through the provider,
  * and this hook bridges them to page-level state.
  */
@@ -15,7 +15,7 @@ import { toast } from 'sonner';
 
 export interface AIUIActionHandlers {
   /** Which table this page manages (matches backend tool's `table` enum) */
-  table: 'deals' | 'buyers' | 'leads' | 'scores' | 'transcripts';
+  table: 'deals' | 'buyers' | 'leads' | 'scores' | 'transcripts' | 'contacts' | 'documents' | 'universes';
   /** Called when the AI wants to select specific row IDs */
   onSelectRows?: (rowIds: string[], mode: 'replace' | 'add' | 'toggle') => void;
   /** Called when the AI wants to clear selection */
@@ -26,6 +26,8 @@ export interface AIUIActionHandlers {
   onSortColumn?: (field: string, direction: 'asc' | 'desc') => void;
   /** Called when the AI wants to highlight rows (visual only, no selection) */
   onHighlightRows?: (rowIds: string[]) => void;
+  /** Called when the AI wants to trigger a page-level action (click a button) */
+  onTriggerAction?: (action: string, args?: Record<string, unknown>) => void;
 }
 
 /**
@@ -97,6 +99,16 @@ export function useAIUIActionHandler(handlers: AIUIActionHandlers) {
         const rowIds = payload.row_ids as string[];
         if (handlers.onHighlightRows && rowIds?.length > 0) {
           handlers.onHighlightRows(rowIds);
+        }
+        break;
+      }
+
+      case 'trigger_action': {
+        const actionName = payload.action as string;
+        const actionArgs = payload.args as Record<string, unknown> | undefined;
+        if (handlers.onTriggerAction && actionName) {
+          handlers.onTriggerAction(actionName, actionArgs);
+          toast.success(`AI triggered: ${actionName.replace(/_/g, ' ')}`);
         }
         break;
       }

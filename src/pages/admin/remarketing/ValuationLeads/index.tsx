@@ -124,6 +124,16 @@ export default function ValuationLeads() {
         });
     },
     onClearSelection: () => setSelectedIds(new Set()),
+    onApplyFilter: (filters, clearExisting) => {
+      const rules = filters.map((f, idx) => ({
+        id: `ai-filter-${idx}`,
+        field: f.field,
+        operator: f.operator as any,
+        value: f.value,
+      }));
+      if (clearExisting) setFilterState({ rules, conjunction: 'and', search: '' });
+      else setFilterState((prev) => ({ ...prev, rules: [...prev.rules, ...rules] }));
+    },
     onSortColumn: (field) => {
       const fieldMap: Record<string, string> = {
         company_name: 'company_name',
@@ -133,6 +143,10 @@ export default function ValuationLeads() {
         calculator_type: 'calculator_type',
       };
       handleSort((fieldMap[field] || field) as any);
+    },
+    onTriggerAction: (action) => {
+      if (action === 'push_to_dialer') setDialerOpen(true);
+      if (action === 'push_to_smartlead') setSmartleadOpen(true);
     },
   });
 

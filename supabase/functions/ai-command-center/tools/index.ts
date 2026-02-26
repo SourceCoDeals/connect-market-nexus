@@ -108,6 +108,7 @@ const TOOL_CATEGORIES: Record<string, string[]> = {
     'select_table_rows',
     'apply_table_filter',
     'sort_table_column',
+    'trigger_page_action',
   ],
   BUYER_ANALYSIS: [
     'search_buyers',
@@ -128,9 +129,15 @@ const TOOL_CATEGORIES: Record<string, string[]> = {
   BUYER_UNIVERSE: [
     'search_buyer_universes',
     'get_universe_details',
+    'get_universe_buyer_fits',
     'get_outreach_records',
     'get_remarketing_outreach',
     'get_top_buyers_for_deal',
+    'search_buyers',
+    'select_table_rows',
+    'apply_table_filter',
+    'sort_table_column',
+    'trigger_page_action',
   ],
 
   // Meeting intelligence
@@ -192,7 +199,7 @@ const TOOL_CATEGORIES: Record<string, string[]> = {
     'convert_to_pipeline_deal',
     'save_contacts_to_crm',
   ],
-  UI_ACTION: ['select_table_rows', 'apply_table_filter', 'sort_table_column', 'navigate_to_page'],
+  UI_ACTION: ['select_table_rows', 'apply_table_filter', 'sort_table_column', 'trigger_page_action', 'navigate_to_page'],
 
   // Remarketing workflow
   REMARKETING: [
@@ -200,9 +207,11 @@ const TOOL_CATEGORIES: Record<string, string[]> = {
     'get_top_buyers_for_deal',
     'get_score_breakdown',
     'explain_buyer_score',
+    'get_universe_buyer_fits',
     'select_table_rows',
     'apply_table_filter',
     'sort_table_column',
+    'trigger_page_action',
     'get_engagement_signals',
     'get_buyer_decisions',
   ],
