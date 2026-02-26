@@ -234,3 +234,15 @@ verify_jwt = false
 verify_jwt = false
 [functions.ai-command-center]
 verify_jwt = false
+[functions.heyreach-campaigns]
+verify_jwt = false
+[functions.heyreach-leads]
+verify_jwt = false
+[functions.heyreach-webhook]
+verify_jwt = false
+[functions.smartlead-campaigns]
+verify_jwt = false
+[functions.smartlead-leads]
+verify_jwt = false
+[functions.smartlead-webhook]
+verify_jwt = false
