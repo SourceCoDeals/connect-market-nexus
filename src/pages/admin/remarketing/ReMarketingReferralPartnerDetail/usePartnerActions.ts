@@ -20,6 +20,7 @@ export function usePartnerActions(partnerId: string | undefined, partner: any, d
   const [enrichmentDialogOpen, setEnrichmentDialogOpen] = useState(false);
   const [confirmAction, setConfirmAction] = useState<{ type: "archive" | "delete"; ids: string[] } | null>(null);
   const [lastGeneratedPassword, setLastGeneratedPassword] = useState<string | null>(null);
+  const [isMarkingNotFit, setIsMarkingNotFit] = useState(false);
 
   // Selection helpers
   const allSelected = deals?.length ? selectedDealIds.size === deals.length : false;
@@ -204,6 +205,30 @@ export function usePartnerActions(partnerId: string | undefined, partner: any, d
     setConfirmAction(null);
   };
 
+  // Bulk mark as not a fit
+  const handleMarkNotFit = async () => {
+    const ids = Array.from(selectedDealIds);
+    if (!ids.length) return;
+    setIsMarkingNotFit(true);
+    try {
+      const { error } = await supabase
+        .from("listings")
+        .update({ remarketing_status: "not_a_fit" } as never)
+        .in("id", ids);
+      if (error) {
+        toast.error("Failed to mark deals as not a fit");
+      } else {
+        toast.success(`${ids.length} deal(s) marked as not a fit`);
+        setSelectedDealIds(new Set());
+        queryClient.invalidateQueries({ queryKey: ["referral-partners", partnerId, "deals"] });
+      }
+    } catch (err: any) {
+      toast.error(`Failed: ${err.message}`);
+    } finally {
+      setIsMarkingNotFit(false);
+    }
+  };
+
   const handleDealCreated = async () => {
     queryClient.invalidateQueries({ queryKey: ["referral-partners", partnerId, "deals"] });
     queryClient.invalidateQueries({ queryKey: ["remarketing", "deals"] });
@@ -237,6 +262,7 @@ export function usePartnerActions(partnerId: string | undefined, partner: any, d
     handleCopyShareLink, resetPasswordMutation, deactivateMutation,
     handleBulkEnrich, handleBulkScore, handleEnrichDeal,
     handleBulkApprove, handleBulkArchive, handleBulkDelete,
+    handleMarkNotFit, isMarkingNotFit,
     handleDealCreated, handleImportComplete, handleImportCompleteWithIds,
   };
 }

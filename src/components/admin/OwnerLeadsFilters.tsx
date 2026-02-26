@@ -13,6 +13,7 @@ const STATUS_OPTIONS = [
   { value: "meeting_scheduled", label: "Meeting Scheduled" },
   { value: "engaged", label: "Engaged" },
   { value: "not_interested", label: "Not Interested" },
+  { value: "not_a_fit", label: "Not a Fit" },
   { value: "closed", label: "Closed" },
 ];
 

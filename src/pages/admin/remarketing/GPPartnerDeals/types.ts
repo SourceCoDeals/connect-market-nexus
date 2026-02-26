@@ -32,6 +32,7 @@ export interface GPPartnerDeal {
   address_state: string | null;
   deal_owner_id: string | null;
   deal_owner: { id: string; first_name: string | null; last_name: string | null; email: string } | null;
+  remarketing_status: string | null;
 }
 
 export type SortColumn =

@@ -141,10 +141,11 @@ export const TIMELINE_PRIORITY: Record<string, number> = {
 
 // Status priority for sorting
 export const STATUS_PRIORITY: Record<string, number> = {
-  new: 6,
-  contacted: 5,
-  meeting_scheduled: 4,
-  engaged: 3,
-  not_interested: 2,
+  new: 7,
+  contacted: 6,
+  meeting_scheduled: 5,
+  engaged: 4,
+  not_interested: 3,
+  not_a_fit: 2,
   closed: 1,
 };

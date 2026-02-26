@@ -6,6 +6,7 @@ import { normalizeCompanyName } from "./helpers";
 
 export function usePartnerData(partnerId: string | undefined) {
   const [hidePushed, setHidePushed] = useState(false);
+  const [hideNotFit, setHideNotFit] = useState(true);
   const [sortField, setSortField] = useState<SortField>(() => {
     const saved = sessionStorage.getItem(`referral-sort-${partnerId}`);
     return saved ? (JSON.parse(saved).field as SortField) : "added";
@@ -56,7 +57,8 @@ export function usePartnerData(partnerId: string | undefined) {
            linkedin_employee_count, linkedin_employee_range,
            google_review_count, google_rating, is_priority_target,
            need_buyer_universe, need_owner_contact,
-           main_contact_name, main_contact_title, main_contact_email, main_contact_phone, deal_source`
+           main_contact_name, main_contact_title, main_contact_email, main_contact_phone, deal_source,
+           remarketing_status`
         )
         .eq("referral_partner_id", partnerId!)
         .order("created_at", { ascending: false });
@@ -110,6 +112,7 @@ export function usePartnerData(partnerId: string | undefined) {
     if (!deals) return [];
     let items = [...deals];
     if (hidePushed) items = items.filter((d) => !d.pushed_to_all_deals);
+    if (hideNotFit) items = items.filter((d) => d.remarketing_status !== 'not_a_fit');
     return items.sort((a, b) => {
       const dir = sortDir === "asc" ? 1 : -1;
       const getValue = (deal: typeof a) => {
@@ -135,7 +138,7 @@ export function usePartnerData(partnerId: string | undefined) {
       if (typeof va === "string" && typeof vb === "string") return va.localeCompare(vb) * dir;
       return ((va as number) - (vb as number)) * dir;
     });
-  }, [deals, sortField, sortDir, hidePushed]);
+  }, [deals, sortField, sortDir, hidePushed, hideNotFit]);
 
   // Enrichment progress
   const enrichmentProgress = useMemo(() => {
@@ -155,5 +158,6 @@ export function usePartnerData(partnerId: string | undefined) {
     kpis, sortedDeals, enrichmentProgress,
     sortField, sortDir, toggleSort,
     hidePushed, setHidePushed,
+    hideNotFit, setHideNotFit,
   };
 }

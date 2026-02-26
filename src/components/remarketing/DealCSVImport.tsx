@@ -19,6 +19,7 @@ import { Upload, FileSpreadsheet, Loader2, Check, AlertCircle } from 'lucide-rea
 import { toast } from 'sonner';
 import Papa from 'papaparse';
 import { normalizeDomain } from '@/lib/ma-intelligence/normalizeDomain';
+import { parseSpreadsheet, SPREADSHEET_ACCEPT } from '@/lib/parseSpreadsheet';
 
 // Import from unified import engine
 import {
@@ -65,70 +66,52 @@ export const DealCSVImport = ({
 
     setFile(uploadedFile);
 
-    Papa.parse(uploadedFile, {
-      header: true,
-      skipEmptyLines: true,
+    try {
       // Normalize headers (strip BOM + trim) so mapping + row access works reliably
-      transformHeader: (header) => header.replace(/^\uFEFF/, '').trim(),
-      complete: async (results) => {
-        const data = results.data as Record<string, string>[];
-        setCsvData(data);
+      const stripBom = (header: string) => header.replace(/^\uFEFF/, '').trim();
+      const { data, columns } = await parseSpreadsheet(uploadedFile, stripBom);
+      setCsvData(data);
 
-        // Get column names
-        // Prefer PapaParse meta.fields. If it comes back empty (encoding/format edge cases),
-        // fall back to keys on the first parsed row.
-        const metaColumns = (results.meta.fields || [])
-          .map((c) => (c ? normalizeHeader(c) : ''))
-          .filter((c) => c.trim());
+      if (columns.length === 0) {
+        toast.error('Could not detect headers', {
+          description: 'Please verify the file has a header row and is a valid CSV, XLS, or XLSX file.',
+        });
+        reset();
+        return;
+      }
 
-        const fallbackColumns = Object.keys(data?.[0] || {})
-          .map((c) => (c ? normalizeHeader(c) : ''))
-          .filter((c) => c.trim());
+      // Try AI mapping
+      setIsMapping(true);
+      try {
+        const { data: mappingResult, error } = await supabase.functions.invoke(
+          'map-csv-columns',
+          {
+            // Pass a few sample rows to improve mapping quality (disambiguates similar headers)
+            body: { columns, targetType: 'deal', sampleData: data.slice(0, 3) },
+          },
+        );
 
-        const columns = metaColumns.length > 0 ? metaColumns : fallbackColumns;
+        if (error) throw error;
 
-        if (columns.length === 0) {
-          toast.error('Could not detect CSV headers', {
-            description: 'Please verify the file has a header row and is a valid CSV.',
-          });
-          reset();
-          return;
-        }
+        // CRITICAL: Merge AI mappings with full column list
+        // This ensures all parsed columns are visible even if AI returns partial list
+        const [merged, stats] = mergeColumnMappings(columns, mappingResult?.mappings);
 
-        // Try AI mapping
-        setIsMapping(true);
-        try {
-          const { data: mappingResult, error } = await supabase.functions.invoke(
-            'map-csv-columns',
-            {
-              // Pass a few sample rows to improve mapping quality (disambiguates similar headers)
-              body: { columns, targetType: 'deal', sampleData: data.slice(0, 3) },
-            },
-          );
-
-          if (error) throw error;
-
-          // CRITICAL: Merge AI mappings with full column list
-          // This ensures all parsed columns are visible even if AI returns partial list
-          const [merged, stats] = mergeColumnMappings(columns, mappingResult?.mappings);
-
-          setColumnMappings(merged);
-          setMappingStats(stats);
-        } catch (error) {
-          // AI mapping failed — using fallback
-          // Fallback to empty mapping - still use merge to ensure all columns present
-          const [merged, stats] = mergeColumnMappings(columns, []);
-          setColumnMappings(merged);
-          setMappingStats(stats);
-        } finally {
-          setIsMapping(false);
-          setStep('mapping');
-        }
-      },
-      error: (error) => {
-        toast.error(`Failed to parse CSV: ${error.message}`);
-      },
-    });
+        setColumnMappings(merged);
+        setMappingStats(stats);
+      } catch (error) {
+        // AI mapping failed — using fallback
+        // Fallback to empty mapping - still use merge to ensure all columns present
+        const [merged, stats] = mergeColumnMappings(columns, []);
+        setColumnMappings(merged);
+        setMappingStats(stats);
+      } finally {
+        setIsMapping(false);
+        setStep('mapping');
+      }
+    } catch (error) {
+      toast.error(`Failed to parse file: ${(error as Error).message}`);
+    }
   }, []);
 
   const updateMapping = (csvColumn: string, targetField: string | null) => {
@@ -525,13 +508,13 @@ export const DealCSVImport = ({
         <div className="flex-1 flex flex-col items-center justify-center py-12">
           <div className="border-2 border-dashed rounded-lg p-12 text-center w-full">
             <FileSpreadsheet className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-            <p className="text-lg font-medium mb-2">Upload CSV File</p>
-            <p className="text-sm text-muted-foreground mb-4">Drag and drop or click to browse</p>
+            <p className="text-lg font-medium mb-2">Upload Spreadsheet</p>
+            <p className="text-sm text-muted-foreground mb-4">CSV, XLS, or XLSX -- drag and drop or click to browse</p>
             <Label htmlFor="csv-upload" className="cursor-pointer">
               <Input
                 id="csv-upload"
                 type="file"
-                accept=".csv"
+                accept={SPREADSHEET_ACCEPT}
                 onChange={handleFileUpload}
                 className="hidden"
               />

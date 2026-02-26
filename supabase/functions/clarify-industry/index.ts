@@ -19,8 +19,8 @@ serve(async (req) => {
   }
 
   try {
-    const { industry_name, industry_description } = await req.json();
-    
+    const { industry_name, industry_description, generate_description } = await req.json();
+
     if (!industry_name) {
       return new Response(
         JSON.stringify({ error: 'industry_name is required' }),
@@ -28,14 +28,55 @@ serve(async (req) => {
       );
     }
 
-    const descriptionContext = industry_description 
-      ? `\n\nUser provided description: "${industry_description}"`
-      : '';
-
     const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY');
     if (!GEMINI_API_KEY) {
       throw new Error('GEMINI_API_KEY is not configured');
     }
+
+    // Handle description generation mode
+    if (generate_description) {
+      const descTool = {
+        type: "function",
+        function: {
+          name: "generate_description",
+          description: "Generate a buyer universe description",
+          parameters: {
+            type: "object",
+            properties: {
+              description: { type: "string", description: "A 2-3 sentence buyer universe description for M&A professionals" }
+            },
+            required: ["description"]
+          }
+        }
+      };
+
+      const descResult = await callGeminiWithTool(
+        `You are an M&A industry expert. Generate a concise 2-3 sentence description for a buyer universe focused on the given industry. The description should explain what types of buyers are included (PE firms, strategic acquirers, family offices, etc.) and what makes this space attractive for acquisitions. Be specific to the industry.`,
+        `Generate a buyer universe description for: "${industry_name}"`,
+        descTool,
+        GEMINI_API_KEY,
+        DEFAULT_GEMINI_MODEL,
+        15000,
+        1024
+      );
+
+      if (descResult.data?.description) {
+        return new Response(
+          JSON.stringify({ description: descResult.data.description }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      // Fallback
+      return new Response(
+        JSON.stringify({ description: `Buyer universe targeting companies in the ${industry_name} industry. Includes PE firms, strategic acquirers, and family offices actively seeking acquisitions in this space.` }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const descriptionContext = industry_description
+      ? `\n\nUser provided description: "${industry_description}"`
+      : '';
 
     const systemPrompt = `You are an M&A industry expert helping clarify the scope of an industry research guide.
 

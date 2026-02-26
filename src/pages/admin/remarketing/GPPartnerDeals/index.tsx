@@ -15,6 +15,7 @@ import {
   Plus,
   FileSpreadsheet,
   EyeOff,
+  ThumbsDown,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
@@ -46,6 +47,7 @@ export default function GPPartnerDeals() {
   const [addToListOpen, setAddToListOpen] = useState(false);
   const [isArchiving, setIsArchiving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isMarkingNotFit, setIsMarkingNotFit] = useState(false);
 
   const handleBulkArchive = useCallback(async () => {
     setIsArchiving(true);
@@ -97,6 +99,39 @@ export default function GPPartnerDeals() {
       setIsDeleting(false);
     }
   }, [hook.selectedIds, hook.toast, hook.queryClient, hook.setSelectedIds]);
+
+  const handleMarkNotFit = useCallback(async () => {
+    setIsMarkingNotFit(true);
+    try {
+      const dealIds = Array.from(hook.selectedIds);
+      const { error } = await supabase
+        .from('listings')
+        .update({ remarketing_status: 'not_a_fit' } as never)
+        .in('id', dealIds);
+      if (error) throw error;
+      hook.toast({ title: 'Marked as Not a Fit', description: `${dealIds.length} deal(s) marked as not a fit` });
+      hook.setSelectedIds(new Set());
+      hook.queryClient.invalidateQueries({ queryKey: ['remarketing', 'gp-partner-deals'] });
+    } catch (err: unknown) {
+      hook.toast({ variant: 'destructive', title: 'Failed', description: err instanceof Error ? err.message : 'Unknown error' });
+    } finally {
+      setIsMarkingNotFit(false);
+    }
+  }, [hook.selectedIds, hook.toast, hook.queryClient, hook.setSelectedIds]);
+
+  const handleMarkNotFitSingle = useCallback(async (dealId: string) => {
+    try {
+      const { error } = await supabase
+        .from('listings')
+        .update({ remarketing_status: 'not_a_fit' } as never)
+        .eq('id', dealId);
+      if (error) throw error;
+      hook.toast({ title: 'Marked as Not a Fit', description: '1 deal marked as not a fit' });
+      hook.queryClient.invalidateQueries({ queryKey: ['remarketing', 'gp-partner-deals'] });
+    } catch (err: unknown) {
+      hook.toast({ variant: 'destructive', title: 'Failed', description: err instanceof Error ? err.message : 'Unknown error' });
+    }
+  }, [hook.toast, hook.queryClient]);
 
   const selectedDealsForList = useMemo((): DealForList[] => {
     if (!hook.filteredDeals || hook.selectedIds.size === 0) return [];
@@ -272,6 +307,18 @@ export default function GPPartnerDeals() {
           <EyeOff className="h-3.5 w-3.5" />
           {hook.hidePushed ? 'Showing Un-Pushed Only' : 'Hide Pushed'}
         </button>
+        <button
+          onClick={() => hook.setHideNotFit(!hook.hideNotFit)}
+          className={cn(
+            'flex items-center gap-2 text-sm px-3 py-1.5 rounded-md border transition-colors',
+            hook.hideNotFit
+              ? 'bg-orange-100 border-orange-300 text-orange-700 font-medium'
+              : 'border-border text-muted-foreground hover:text-foreground hover:bg-muted/50',
+          )}
+        >
+          <ThumbsDown className="h-3.5 w-3.5" />
+          {hook.hideNotFit ? 'Not Fit Hidden' : 'Show Not Fit'}
+        </button>
       </div>
 
       {/* Bulk Actions */}
@@ -288,6 +335,8 @@ export default function GPPartnerDeals() {
         onPushToSmartlead={() => setSmartleadOpen(true)}
         onPushToHeyreach={() => setHeyreachOpen(true)}
         onAddToList={() => setAddToListOpen(true)}
+        onMarkNotFit={handleMarkNotFit}
+        isMarkingNotFit={isMarkingNotFit}
         onArchive={handleBulkArchive}
         isArchiving={isArchiving}
         onDelete={handleBulkDelete}
@@ -338,6 +387,8 @@ export default function GPPartnerDeals() {
         adminProfiles={hook.adminProfiles}
         setAddDealOpen={hook.setAddDealOpen}
         setCsvUploadOpen={hook.setCsvUploadOpen}
+        onMarkNotFit={handleMarkNotFitSingle}
+        shiftToggle={hook.shiftToggle}
       />
 
       {/* Pagination */}

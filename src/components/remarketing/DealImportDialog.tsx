@@ -42,6 +42,7 @@ import {
 import { toast } from "sonner";
 import Papa from "papaparse";
 import { normalizeDomain } from "@/lib/ma-intelligence/normalizeDomain";
+import { parseSpreadsheet, SPREADSHEET_ACCEPT } from "@/lib/parseSpreadsheet";
 
 // Import from unified import engine
 import {
@@ -100,80 +101,61 @@ export function DealImportDialog({
 
     setFile(uploadedFile);
 
-    Papa.parse(uploadedFile, {
-      header: true,
-      skipEmptyLines: true,
-      transformHeader: normalizeHeader,
-      complete: async (results) => {
-        const data = results.data as Record<string, string>[];
-        setCsvData(data);
+    try {
+      const { data, columns } = await parseSpreadsheet(uploadedFile, normalizeHeader);
+      setCsvData(data);
 
-        // Get column names
-        // Prefer PapaParse meta.fields (source of truth). If it comes back empty (can happen
-        // with odd CSVs / encoding), fall back to keys on the first parsed row.
-        const metaColumns = (results.meta.fields || [])
-          .map((c) => (c ? normalizeHeader(c) : ""))
-          .filter((c) => c.trim());
+      if (columns.length === 0) {
+        toast.error('Could not detect headers', {
+          description: 'Please verify the file has a header row and is a valid CSV, XLS, or XLSX file.'
+        });
+        reset();
+        return;
+      }
 
-        const fallbackColumns = Object.keys(data?.[0] || {})
-          .map((c) => (c ? normalizeHeader(c) : ""))
-          .filter((c) => c.trim());
+      // Get sample data for context
+      const sampleData = data.slice(0, 3);
 
-        const columns = metaColumns.length > 0 ? metaColumns : fallbackColumns;
+      // Try AI mapping
+      setIsMapping(true);
+      setStep("mapping");
 
-        if (columns.length === 0) {
-          toast.error('Could not detect CSV headers', {
-            description: 'Please verify the file has a header row and is a valid CSV.'
-          });
-          reset();
-          return;
-        }
-        
-        // Get sample data for context
-        const sampleData = data.slice(0, 3);
-        
-        // Try AI mapping
-        setIsMapping(true);
-        setStep("mapping");
-        
-        try {
-          const { data: mappingResult, error } = await supabase.functions.invoke(
-            "map-csv-columns",
-            {
-              body: { 
-                columns, 
-                targetType: "deal",
-                sampleData 
-              },
-            }
-          );
+      try {
+        const { data: mappingResult, error } = await supabase.functions.invoke(
+          "map-csv-columns",
+          {
+            body: {
+              columns,
+              targetType: "deal",
+              sampleData
+            },
+          }
+        );
 
-          if (error) throw error;
+        if (error) throw error;
 
-          // Helps verify which backend deployment the UI is actually hitting
-          setMappingVersion(mappingResult?._version ?? null);
+        // Helps verify which backend deployment the UI is actually hitting
+        setMappingVersion(mappingResult?._version ?? null);
 
-          // CRITICAL: Merge AI mappings with full column list
-          // This ensures all parsed columns are visible even if AI returns partial list
-          const [merged, stats] = mergeColumnMappings(columns, mappingResult?.mappings);
+        // CRITICAL: Merge AI mappings with full column list
+        // This ensures all parsed columns are visible even if AI returns partial list
+        const [merged, stats] = mergeColumnMappings(columns, mappingResult?.mappings);
 
-          // AI may return incomplete mappings — this is handled by the merge step above
-          
-          setColumnMappings(merged);
-          setMappingStats(stats);
-        } catch (error) {
-          // AI mapping failed — fallback to empty mapping, use merge to ensure all columns present
-          const [merged, stats] = mergeColumnMappings(columns, []);
-          setColumnMappings(merged);
-          setMappingStats(stats);
-        } finally {
-          setIsMapping(false);
-        }
-      },
-      error: (error) => {
-        toast.error(`Failed to parse CSV: ${error.message}`);
-      },
-    });
+        // AI may return incomplete mappings — this is handled by the merge step above
+
+        setColumnMappings(merged);
+        setMappingStats(stats);
+      } catch (error) {
+        // AI mapping failed — fallback to empty mapping, use merge to ensure all columns present
+        const [merged, stats] = mergeColumnMappings(columns, []);
+        setColumnMappings(merged);
+        setMappingStats(stats);
+      } finally {
+        setIsMapping(false);
+      }
+    } catch (error) {
+      toast.error(`Failed to parse file: ${(error as Error).message}`);
+    }
   }, []);
 
   const updateMapping = (csvColumn: string, targetField: string | null) => {
@@ -480,10 +462,10 @@ export function DealImportDialog({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <FileSpreadsheet className="h-5 w-5" />
-            Import Deals from CSV
+            Import Deals from Spreadsheet
           </DialogTitle>
           <DialogDescription>
-            {step === "upload" && "Upload a CSV file with your deal data"}
+            {step === "upload" && "Upload a CSV, XLS, or XLSX file with your deal data"}
             {step === "mapping" && "Review and confirm column mappings"}
             {step === "preview" && "Preview the data before importing"}
             {step === "importing" && "Importing deals..."}
@@ -497,15 +479,15 @@ export function DealImportDialog({
             <div className="flex-1 flex flex-col items-center justify-center py-12">
               <div className="border-2 border-dashed rounded-lg p-12 text-center w-full max-w-md">
                 <FileSpreadsheet className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-                <p className="text-lg font-medium mb-2">Upload CSV File</p>
+                <p className="text-lg font-medium mb-2">Upload Spreadsheet</p>
                 <p className="text-sm text-muted-foreground mb-4">
-                  AI will automatically map your columns
+                  CSV, XLS, or XLSX -- AI will automatically map your columns
                 </p>
                 <Label htmlFor="csv-upload" className="cursor-pointer">
                   <Input
                     id="csv-upload"
                     type="file"
-                    accept=".csv"
+                    accept={SPREADSHEET_ACCEPT}
                     onChange={handleFileUpload}
                     className="hidden"
                   />

@@ -32,6 +32,7 @@ import {
   Mail,
   Send,
   Zap,
+  ThumbsDown,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
@@ -79,6 +80,10 @@ interface DealBulkActionBarProps {
   /** Hide the priority toggle (e.g. for leads that aren't in the listings table) */
   showPriorityToggle?: boolean;
 
+  /* ---- Not a Fit ---- */
+  onMarkNotFit?: () => void;
+  isMarkingNotFit?: boolean;
+
   /* ---- Destructive ---- */
   onArchive?: () => void;
   isArchiving?: boolean;
@@ -113,6 +118,8 @@ export function DealBulkActionBar({
   onAddToList,
   onExportCSV,
   showPriorityToggle = true,
+  onMarkNotFit,
+  isMarkingNotFit,
   onArchive,
   isArchiving,
   onDelete,
@@ -121,6 +128,7 @@ export function DealBulkActionBar({
 }: DealBulkActionBarProps) {
   const [showArchiveDialog, setShowArchiveDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [showNotFitDialog, setShowNotFitDialog] = useState(false);
 
   if (selectedIds.size === 0) return null;
 
@@ -328,6 +336,27 @@ export function DealBulkActionBar({
           </Button>
         )}
 
+        {/* ---- Not a Fit ---- */}
+        {onMarkNotFit && (
+          <>
+            <div className="h-5 w-px bg-border" />
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setShowNotFitDialog(true)}
+              disabled={isMarkingNotFit}
+              className="gap-2 text-orange-600 border-orange-200 hover:bg-orange-50"
+            >
+              {isMarkingNotFit ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <ThumbsDown className="h-4 w-4" />
+              )}
+              Not a Fit
+            </Button>
+          </>
+        )}
+
         {/* ---- Archive / Delete ---- */}
         {(onArchive || onDelete) && <div className="h-5 w-px bg-border" />}
         {onArchive && (
@@ -415,6 +444,34 @@ export function DealBulkActionBar({
                 className="bg-destructive hover:bg-destructive/90"
               >
                 {isDeleting ? 'Deleting...' : 'Delete Permanently'}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      )}
+
+      {/* Not a Fit Confirmation Dialog */}
+      {onMarkNotFit && (
+        <AlertDialog open={showNotFitDialog} onOpenChange={setShowNotFitDialog}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Mark {selectedIds.size} Deal(s) as Not a Fit?</AlertDialogTitle>
+              <AlertDialogDescription>
+                These deals will be marked as &ldquo;Not a Fit&rdquo; and hidden from the default
+                view. You can show them again using the &ldquo;Show Not Fit&rdquo; toggle.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={() => {
+                  onMarkNotFit();
+                  setShowNotFitDialog(false);
+                }}
+                disabled={isMarkingNotFit}
+                className="bg-orange-600 hover:bg-orange-700"
+              >
+                {isMarkingNotFit ? 'Marking...' : 'Mark as Not a Fit'}
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
