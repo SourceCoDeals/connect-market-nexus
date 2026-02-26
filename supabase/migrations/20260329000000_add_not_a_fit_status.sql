@@ -1,8 +1,21 @@
--- Add 'not_a_fit' to the remarketing_status enum
+-- Add 'not_a_fit' to the remarketing_status CHECK constraint on listings
+-- The remarketing_status column uses TEXT + CHECK (not an enum type)
 -- This allows deals to be marked as "Not a Fit" and hidden from lead tracker views
 
-ALTER TYPE remarketing_status ADD VALUE IF NOT EXISTS 'not_a_fit';
+-- Drop the existing constraint and recreate with the new value
+DO $$
+BEGIN
+  -- Drop old constraint if it exists
+  IF EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conname = 'listings_remarketing_status_check'
+  ) THEN
+    ALTER TABLE public.listings
+      DROP CONSTRAINT listings_remarketing_status_check;
+  END IF;
 
--- Add not_a_fit status to owner_seller_leads as well
--- Owner leads use a separate 'status' text column, so add it to the status options
-COMMENT ON TYPE remarketing_status IS 'Remarketing pipeline status: active, archived, not_a_fit';
+  -- Add updated constraint that includes 'not_a_fit'
+  ALTER TABLE public.listings
+    ADD CONSTRAINT listings_remarketing_status_check
+    CHECK (remarketing_status IN ('active', 'archived', 'excluded', 'completed', 'not_a_fit'));
+END $$;
