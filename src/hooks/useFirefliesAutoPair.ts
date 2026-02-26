@@ -1,3 +1,14 @@
+/**
+ * useFirefliesAutoPair
+ *
+ * Invokes the auto-pair-all-fireflies edge function to match Fireflies
+ * transcripts with buyers and deals, and reports pairing results.
+ *
+ * Returns: { loading, result, runAutoPair }
+ *
+ * Tables: fireflies_transcripts, remarketing_buyers, deals (via edge function)
+ */
+
 import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";

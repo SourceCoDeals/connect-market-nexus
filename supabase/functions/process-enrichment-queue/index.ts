@@ -1,3 +1,27 @@
+/**
+ * EDGE FUNCTION: process-enrichment-queue
+ *
+ * PURPOSE:
+ *   Background queue worker that processes pending deal enrichment jobs from the
+ *   enrichment_queue table. Claims items atomically (via RPC or fallback),
+ *   processes them in parallel batches with configurable concurrency, handles
+ *   retries (up to 3 attempts), stale job recovery, and self-continuation for
+ *   large queues. Delegates actual enrichment to the enrich-deal function.
+ *
+ * TRIGGERS:
+ *   HTTP POST request (scheduled via cron or manual invocation)
+ *   Body: { action?: 'cancel_pending', before?: ISO string } for cancellation
+ *
+ * DATABASE TABLES TOUCHED:
+ *   READ:  enrichment_queue, rate_limit_config
+ *   WRITE: enrichment_queue, enrichment_events, global_activity_queue
+ *
+ * EXTERNAL APIS:
+ *   Calls enrich-deal edge function internally for each queued item
+ *
+ * LAST UPDATED: 2026-02-26
+ * AUDIT REF: CTO Audit February 2026
+ */
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { runListingEnrichmentPipeline } from "./enrichmentPipeline.ts";

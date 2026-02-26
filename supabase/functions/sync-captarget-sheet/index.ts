@@ -1,3 +1,27 @@
+/**
+ * EDGE FUNCTION: sync-captarget-sheet
+ *
+ * PURPOSE:
+ *   Syncs deal data from a CapTarget Google Sheet into the listings table.
+ *   Reads rows from Active and Inactive summary tabs, normalizes fields
+ *   (domains, interest types, outreach channels, dates), computes SHA-256
+ *   hashes for deduplication, and upserts records. Supports pagination
+ *   for large sheets and applies company exclusion filters.
+ *
+ * TRIGGERS:
+ *   HTTP POST request (admin-only, from UI or scheduled)
+ *   Body: { startTab?, startRow? } for pagination continuation
+ *
+ * DATABASE TABLES TOUCHED:
+ *   READ:  listings (hash-based dedup lookup)
+ *   WRITE: listings, captarget_sync_log, captarget_exclusions
+ *
+ * EXTERNAL APIS:
+ *   Google Sheets API (via service account JWT authentication)
+ *
+ * LAST UPDATED: 2026-02-26
+ * AUDIT REF: CTO Audit February 2026
+ */
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { getCorsHeaders, corsPreflightResponse } from "../_shared/cors.ts";

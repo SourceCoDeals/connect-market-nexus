@@ -1,3 +1,26 @@
+/**
+ * EDGE FUNCTION: sync-fireflies-transcripts
+ *
+ * PURPOSE:
+ *   Syncs call transcripts from Fireflies.ai for a given deal. Searches by
+ *   participant emails (with individual + combined queries) and falls back to
+ *   company name keyword search. Filters out silent/skipped meetings, extracts
+ *   external participants, deduplicates results, and upserts into deal_transcripts.
+ *
+ * TRIGGERS:
+ *   HTTP POST request (from UI deal enrichment flow)
+ *   Body: { listingId, contactEmails[], contactEmail?, companyName?, limit? }
+ *
+ * DATABASE TABLES TOUCHED:
+ *   READ:  deal_transcripts (dedup check)
+ *   WRITE: deal_transcripts
+ *
+ * EXTERNAL APIS:
+ *   Fireflies.ai GraphQL API (transcript search by participant and keyword)
+ *
+ * LAST UPDATED: 2026-02-26
+ * AUDIT REF: CTO Audit February 2026
+ */
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 

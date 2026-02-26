@@ -1,3 +1,17 @@
+/**
+ * ContactHistoryTracker.tsx
+ *
+ * Aggregates and displays all outreach activity (emails, calls, LinkedIn messages)
+ * for a deal's contacts. Shows overview stats, date-range filtering, and a unified
+ * activity timeline across all communication channels.
+ *
+ * Data sources:
+ *   useContactCombinedHistory / useContactCombinedHistoryByEmail hooks (outreach_events,
+ *   call_logs, linkedin_activities tables); ListingNotesLog for listing-level notes
+ *
+ * Used on:
+ *   ReMarketing deal detail page (/admin/remarketing/deals/:id)
+ */
 import { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';

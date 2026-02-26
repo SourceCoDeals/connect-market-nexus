@@ -1,3 +1,14 @@
+/**
+ * usePushToDialer
+ *
+ * Manages the open/close state and entity selection for the Push to Dialer
+ * modal. Works with any entity type; the edge function resolves contacts server-side.
+ *
+ * Returns: { dialerOpen, dialerEntityType, dialerEntityIds, dialerEntityCount, openDialer, closeDialer }
+ *
+ * Tables: none (state-only hook; dialer resolution happens server-side)
+ */
+
 import { useState, useCallback } from "react";
 
 export type DialerEntityType = "buyer_contacts" | "buyers" | "listings" | "leads";

@@ -1,3 +1,29 @@
+/**
+ * EDGE FUNCTION: enrich-deal
+ *
+ * PURPOSE:
+ *   Enriches a deal (listing) with data extracted from multiple sources:
+ *   transcripts (AI-powered extraction via Gemini), website scraping (via Firecrawl),
+ *   LinkedIn profiles, Google reviews, and deal notes analysis. Uses a source-priority
+ *   system to merge data without overwriting higher-confidence sources.
+ *
+ * TRIGGERS:
+ *   HTTP POST request (from UI or process-enrichment-queue worker)
+ *   Body: { dealId, forceReExtract?, skipExternalEnrichment? }
+ *
+ * DATABASE TABLES TOUCHED:
+ *   READ:  listings, deal_transcripts
+ *   WRITE: listings, deal_transcripts, enrichment_events, ai_cost_log
+ *
+ * EXTERNAL APIS:
+ *   Gemini (AI extraction from transcripts and website content)
+ *   Firecrawl (website scraping)
+ *   LinkedIn enrichment (via sub-module)
+ *   Google Reviews enrichment (via sub-module)
+ *
+ * LAST UPDATED: 2026-02-26
+ * AUDIT REF: CTO Audit February 2026
+ */
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { normalizeStates, mergeStates } from "../_shared/geography.ts";

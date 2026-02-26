@@ -1,3 +1,15 @@
+/**
+ * useDailyTasks
+ *
+ * Provides queries and mutations for the daily standup task system, including
+ * fetching tasks with relations, toggling completion, approving, reassigning,
+ * editing, adding, deleting, pinning tasks, and triggering AI extraction.
+ *
+ * Returns: React Query hook results (useQuery / useMutation) per function
+ *
+ * Tables: daily_standup_tasks, standup_meetings, task_pin_log, profiles, deals
+ */
+
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';

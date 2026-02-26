@@ -1,3 +1,28 @@
+/**
+ * EDGE FUNCTION: enrich-buyer
+ *
+ * PURPOSE:
+ *   Enriches a remarketing buyer record by scraping their platform website and
+ *   PE firm website via Firecrawl, then running a multi-prompt AI extraction pipeline
+ *   (Gemini) to populate business overview, customer profile, geography, and PE
+ *   intelligence fields. Includes SSRF validation, concurrency locking, and
+ *   field-level provenance tracking.
+ *
+ * TRIGGERS:
+ *   HTTP POST request (from UI or process-buyer-enrichment-queue worker)
+ *   Body: { buyerId, skipLock? }
+ *
+ * DATABASE TABLES TOUCHED:
+ *   READ:  remarketing_buyers, rate_limit_config
+ *   WRITE: remarketing_buyers, enrichment_events, ai_cost_log
+ *
+ * EXTERNAL APIS:
+ *   Firecrawl (website scraping and sitemap mapping)
+ *   Gemini (AI extraction: business overview, customer profile, geography, PE intelligence)
+ *
+ * LAST UPDATED: 2026-02-26
+ * AUDIT REF: CTO Audit February 2026
+ */
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { validateUrl, ssrfErrorResponse } from "../_shared/security.ts";
 import { logAICallCost } from "../_shared/cost-tracker.ts";

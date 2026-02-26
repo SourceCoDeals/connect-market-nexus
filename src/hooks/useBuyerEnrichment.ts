@@ -1,3 +1,14 @@
+/**
+ * useBuyerEnrichment
+ *
+ * Manages batch enrichment of buyers by website, tracking per-buyer status,
+ * progress counts, cancellation, and credit/rate-limit awareness.
+ *
+ * Returns: { progress, enrichBuyers, cancel, reset }
+ *
+ * Tables: remarketing_buyers (read/write via edge function)
+ */
+
 import { useState, useCallback } from 'react';
 import { toast } from 'sonner';
 

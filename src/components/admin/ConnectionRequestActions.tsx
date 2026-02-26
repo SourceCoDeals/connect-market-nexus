@@ -1,3 +1,19 @@
+/**
+ * ConnectionRequestActions.tsx
+ *
+ * Action panel for a single connection request, providing approve/reject/hold
+ * controls, NDA agreement sending, data-room access management, admin messaging,
+ * flag-for-review workflow, and request history display.
+ *
+ * Data sources:
+ *   useUpdateConnectionRequestStatus, useFlagConnectionRequest, useUpdateAccess,
+ *   useConnectionMessages, useSendMessage, useAdminProfiles, useAddManualTask hooks;
+ *   connection_requests, data_room_access, connection_messages Supabase tables
+ *
+ * Used on:
+ *   Embedded within ConnectionRequestsTable on the admin requests page
+ *   (/admin/requests)
+ */
 import { useState, useEffect, useRef } from "react";
 import { useConnectionRequestFirm } from "@/hooks/admin/use-connection-request-firm";
 import { SendAgreementDialog } from "@/components/docuseal/SendAgreementDialog";

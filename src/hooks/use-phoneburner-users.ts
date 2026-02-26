@@ -1,3 +1,14 @@
+/**
+ * usePhoneBurnerConnectedUsers / useDisconnectPhoneBurnerUser / useSavePhoneBurnerAccessToken
+ *
+ * Fetches connected PhoneBurner users (via RPC with profile fallback),
+ * disconnects a user's token, and saves/upserts a manual access token.
+ *
+ * Returns: React Query hook results (useQuery / useMutation) per function
+ *
+ * Tables: phoneburner_oauth_tokens, profiles
+ */
+
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 

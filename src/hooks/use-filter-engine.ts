@@ -1,3 +1,15 @@
+/**
+ * useFilterEngine
+ *
+ * Client-side filtering engine that evaluates filter rules against an array
+ * of items. Supports text, number, date, select, multi-select, boolean, and
+ * user field types with URL-based filter state persistence.
+ *
+ * Returns: { filteredItems, filterState, setFilterState, activeFilterCount, totalCount, filteredCount, fieldDefinitions, dynamicOptions }
+ *
+ * Tables: none (client-side filtering only)
+ */
+
 import { useMemo, useState, useCallback } from "react";
 import { useSearchParams } from "react-router-dom";
 import {

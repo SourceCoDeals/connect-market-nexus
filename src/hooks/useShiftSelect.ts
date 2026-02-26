@@ -1,3 +1,15 @@
+/**
+ * useShiftSelect
+ *
+ * Provides Excel-like shift-click multi-select behavior for checkbox lists.
+ * When shift is held during a click, all items between the last-clicked and
+ * current item are selected or deselected in bulk.
+ *
+ * Returns: { handleToggle }
+ *
+ * Tables: none (UI-only state hook)
+ */
+
 import { useCallback, useRef } from 'react';
 
 /**

@@ -1,3 +1,15 @@
+/**
+ * useReMarketingAnalytics
+ *
+ * Aggregates remarketing analytics data including tier distribution, scoring
+ * trends, funnel stages, universe performance, and category averages across
+ * all remarketing scores, buyers, and universes.
+ *
+ * Returns: { data, isLoading, error } (via useQuery wrapping ReMarketingAnalyticsData)
+ *
+ * Tables: remarketing_scores, remarketing_buyers, remarketing_buyer_universes, outreach_records
+ */
+
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { subDays, format } from 'date-fns';

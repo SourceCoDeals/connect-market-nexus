@@ -1,3 +1,18 @@
+/**
+ * ReMarketingChat.tsx
+ *
+ * AI-powered chat assistant that provides contextual answers about deals, buyers,
+ * and universes. Supports streaming responses, chat persistence, smart suggestions,
+ * and proactive recommendations.
+ *
+ * Data sources:
+ *   Supabase edge function (chat-remarketing) via streaming fetch; useChatPersistence
+ *   hook for conversation history; chat-analytics for usage tracking
+ *
+ * Used on:
+ *   ReMarketing deal matching, buyers, universe detail, and deals list pages
+ *   (/admin/remarketing/*)
+ */
 import { useState, useRef, useEffect, useCallback } from "react";
 import type React from "react";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";

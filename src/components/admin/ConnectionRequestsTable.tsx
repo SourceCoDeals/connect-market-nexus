@@ -1,3 +1,18 @@
+/**
+ * ConnectionRequestsTable.tsx
+ *
+ * Sortable, filterable table of buyer connection requests and owner leads. Displays
+ * request status, buyer profile details, quality tier badges, source context, and
+ * inline action controls for approving, rejecting, or flagging each request.
+ *
+ * Data sources:
+ *   AdminConnectionRequest[] passed via props (from connection_requests table);
+ *   useUpdateConnectionRequestStatus, useFlagConnectionRequest, useAdminProfiles,
+ *   useUnreadMessageCounts hooks
+ *
+ * Used on:
+ *   Admin requests page (/admin/requests)
+ */
 import { useState, useCallback } from "react";
 import { format } from "date-fns";
 import { Button } from "@/components/ui/button";

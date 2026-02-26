@@ -1,3 +1,18 @@
+/**
+ * BuyerCSVImport.tsx
+ *
+ * Bulk buyer import wizard that accepts CSV/Excel files, auto-maps columns to
+ * target fields with AI-suggested mappings, validates rows, and upserts buyer
+ * records into the remarketing_buyers table via Supabase.
+ *
+ * Data sources:
+ *   File upload parsed by parseSpreadsheet utility; writes to remarketing_buyers
+ *   table via Supabase client
+ *
+ * Used on:
+ *   ReMarketing buyers page and universe detail page
+ *   (/admin/remarketing/buyers, /admin/remarketing/universes/:id)
+ */
 import { useState, useCallback, useMemo } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';

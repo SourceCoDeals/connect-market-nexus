@@ -1,3 +1,18 @@
+/**
+ * UnifiedAdminSidebar.tsx
+ *
+ * Collapsible navigation sidebar for the admin layout. Renders grouped nav sections
+ * (Deals, Buyers, Marketplace, Outreach, Admin) with permission-gated items, unread
+ * notification badges, and active-route highlighting.
+ *
+ * Data sources:
+ *   usePermissions for role-based visibility; useUnviewedDealSourcingCount,
+ *   useUnviewedConnectionRequests, useUnviewedUsers, useUnviewedOwnerLeads,
+ *   useUnreadMessageCounts for badge counts
+ *
+ * Used on:
+ *   AdminLayout wrapper (all /admin/* routes)
+ */
 import { useState, useMemo } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
