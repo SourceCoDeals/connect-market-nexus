@@ -1664,53 +1664,11 @@ async function getPhoneBurnerToken(
 ): Promise<string | null> {
   const { data: tokenRow } = await supabase
     .from('phoneburner_oauth_tokens')
-    .select('*')
+    .select('access_token')
     .eq('user_id', userId)
     .single();
 
-  if (!tokenRow) return null;
-
-  const expiresAt = new Date(tokenRow.expires_at).getTime();
-  if (Date.now() < expiresAt - 5 * 60 * 1000) {
-    return tokenRow.access_token;
-  }
-
-  // Refresh token
-  const clientId = Deno.env.get('PHONEBURNER_CLIENT_ID');
-  const clientSecret = Deno.env.get('PHONEBURNER_CLIENT_SECRET');
-  if (!clientId || !clientSecret) return null;
-
-  try {
-    const res = await fetch('https://www.phoneburner.com/oauth/accesstoken', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams({
-        grant_type: 'refresh_token',
-        refresh_token: tokenRow.refresh_token,
-        client_id: clientId,
-        client_secret: clientSecret,
-      }),
-    });
-
-    if (!res.ok) return null;
-
-    const tokens = await res.json();
-    if (!tokens.access_token) return null;
-
-    await supabase
-      .from('phoneburner_oauth_tokens')
-      .update({
-        access_token: tokens.access_token,
-        refresh_token: tokens.refresh_token || tokenRow.refresh_token,
-        expires_at: new Date(Date.now() + (tokens.expires_in || 3600) * 1000).toISOString(),
-        updated_at: new Date().toISOString(),
-      })
-      .eq('user_id', userId);
-
-    return tokens.access_token;
-  } catch {
-    return null;
-  }
+  return tokenRow?.access_token || null;
 }
 
 async function pushToPhoneBurner(

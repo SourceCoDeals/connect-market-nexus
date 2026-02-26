@@ -45,6 +45,7 @@ interface PushResult {
   exclusions?: { name: string; reason: string }[];
   errors?: string[];
   error?: string;
+  redirect_url?: string;
 }
 
 export function PushToDialerModal({
@@ -141,6 +142,10 @@ export function PushToDialerModal({
           toast.success(
             `${results[0].result.contacts_added} contacts pushed to PhoneBurner`,
           );
+          // Open PhoneBurner dialer in new tab if redirect URL returned
+          if (results[0].result.redirect_url) {
+            window.open(results[0].result.redirect_url, '_blank');
+          }
         } else if (results[0].result.error) {
           toast.error(results[0].result.error);
         }
@@ -165,6 +170,11 @@ export function PushToDialerModal({
           toast.success(
             `${totalAdded} contacts pushed across ${results.length} PhoneBurner accounts`,
           );
+          // Open first redirect URL for multi-user push
+          const firstRedirect = results.find((r) => r.result.redirect_url)?.result.redirect_url;
+          if (firstRedirect) {
+            window.open(firstRedirect, '_blank');
+          }
         }
         if (totalFailed > 0) {
           toast.warning(`${totalFailed} contacts failed across accounts`);

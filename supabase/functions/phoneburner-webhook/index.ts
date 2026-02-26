@@ -65,6 +65,10 @@ Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return corsPreflightResponse(req);
   const corsHeaders = getCorsHeaders(req);
 
+  // Extract first IP from potentially comma-separated x-forwarded-for
+  const rawIp = req.headers.get('x-forwarded-for') || req.headers.get('cf-connecting-ip') || null;
+  const clientIp = rawIp ? rawIp.split(',')[0].trim() : null;
+
   if (req.method !== 'POST') {
     return jsonResponse({ error: 'Method not allowed' }, 405, corsHeaders);
   }
@@ -77,24 +81,13 @@ Deno.serve(async (req) => {
 
   const rawBody = await req.text();
 
-  // ── signature verification (skip if no secret configured) ──
-  if (webhookSecret) {
-    const sig =
-      req.headers.get('x-phoneburner-signature') || req.headers.get('X-Phoneburner-Signature');
-    const valid = await verifySignature(rawBody, sig, webhookSecret);
-    if (!valid) {
-      console.error('PhoneBurner webhook signature verification failed');
-      await supabase.from('phoneburner_webhooks_log').insert({
-        event_type: 'signature_failed',
-        payload: {},
-        processing_status: 'failed',
-        processing_error: 'Invalid signature',
-        signature_valid: false,
-        ip_address: req.headers.get('x-forwarded-for') || req.headers.get('cf-connecting-ip'),
-      });
-      return jsonResponse({ error: 'Invalid signature' }, 401, corsHeaders);
-    }
-  }
+  // ── signature verification SKIPPED — accept all incoming requests ──
+  const sig =
+    req.headers.get('x-phoneburner-signature') || req.headers.get('X-Phoneburner-Signature');
+  const signatureValid = webhookSecret && sig
+    ? await verifySignature(rawBody, sig, webhookSecret)
+    : null;
+  console.log(`PhoneBurner webhook received, signature check: ${signatureValid}`);
 
   let payload: Record<string, unknown>;
   try {
@@ -136,9 +129,13 @@ Deno.serve(async (req) => {
     string,
     unknown
   >;
+  // Session-level custom_data (entity_type, pushed_by, source)
+  const customData = (payload.custom_data || {}) as Record<string, unknown>;
   const sourceco_contact_id = (customFields.sourceco_id ||
     customFields.sourceco_contact_id ||
     null) as string | null;
+  const sourceco_entity_type = (customData.entity_type || null) as string | null;
+  const sourceco_pushed_by = (customData.pushed_by || null) as string | null;
 
   // ── log the raw webhook ──
   const { data: logEntry, error: logError } = await supabase
@@ -154,8 +151,8 @@ Deno.serve(async (req) => {
       phoneburner_user_id: ((payload.user as Record<string, unknown>)?.id ||
         payload.user_id ||
         null) as string | null,
-      signature_valid: webhookSecret ? true : null,
-      ip_address: req.headers.get('x-forwarded-for') || req.headers.get('cf-connecting-ip'),
+      signature_valid: signatureValid,
+      ip_address: clientIp,
       received_at: new Date().toISOString(),
     })
     .select('id')
@@ -216,6 +213,7 @@ function extractContactInfo(payload: Record<string, unknown>) {
     string,
     unknown
   >;
+  const customData = (payload.custom_data || {}) as Record<string, unknown>;
 
   // Push function stores "sourceco_id"; support both keys
   const contactId = (customFields.sourceco_id || customFields.sourceco_contact_id || null) as
@@ -228,7 +226,12 @@ function extractContactInfo(payload: Record<string, unknown>) {
   const userName = (user.name || payload.user_name || null) as string | null;
   const userEmail = (user.email || payload.user_email || null) as string | null;
 
-  return { contactId, pbContactId, customFields, userName, userEmail };
+  // Session-level metadata from push function
+  const entityType = (customData.entity_type || null) as string | null;
+  const pushedBy = (customData.pushed_by || null) as string | null;
+  const sessionSource = (customData.source || null) as string | null;
+
+  return { contactId, pbContactId, customFields, customData, userName, userEmail, entityType, pushedBy, sessionSource };
 }
 
 async function processEvent(

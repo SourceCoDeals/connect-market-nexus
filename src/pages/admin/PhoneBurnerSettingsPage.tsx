@@ -16,13 +16,11 @@ import {
   UserPlus,
   Loader2,
   Trash2,
-  AlertTriangle,
-  Key,
+  KeyRound,
 } from 'lucide-react';
 import {
   usePhoneBurnerConnectedUsers,
   useDisconnectPhoneBurnerUser,
-  useInitiatePhoneBurnerOAuth,
   useSavePhoneBurnerAccessToken,
 } from '@/hooks/use-phoneburner-users';
 import { toast } from 'sonner';
@@ -65,108 +63,46 @@ function usePhoneBurnerWebhookLog() {
   });
 }
 
-function AddAccessTokenForm() {
-  const [accessToken, setAccessToken] = useState('');
-  const [displayName, setDisplayName] = useState('');
-  const saveMutation = useSavePhoneBurnerAccessToken();
-
-  const handleSave = () => {
-    if (!accessToken.trim()) {
-      toast.error('Please enter an access token');
-      return;
-    }
-    if (!displayName.trim()) {
-      toast.error('Please enter a display name');
-      return;
-    }
-    saveMutation.mutate(
-      { accessToken: accessToken.trim(), displayName: displayName.trim() },
-      {
-        onSuccess: () => {
-          toast.success(`PhoneBurner token saved for "${displayName.trim()}"`);
-          setAccessToken('');
-          setDisplayName('');
-        },
-        onError: (err) => {
-          toast.error(`Failed to save token: ${err instanceof Error ? err.message : 'Unknown error'}`);
-        },
-      },
-    );
-  };
-
-  return (
-    <div className="border rounded-lg p-4 space-y-3 bg-muted/30">
-      <div className="flex items-center gap-2 text-sm font-medium">
-        <Key className="h-4 w-4 text-muted-foreground" />
-        Add Access Token Manually
-      </div>
-      <p className="text-xs text-muted-foreground">
-        Paste a PhoneBurner access token directly. This is tied to your current user account.
-        To get a token, go to PhoneBurner → Settings → API.
-      </p>
-      <div className="grid gap-2">
-        <div className="space-y-1">
-          <Label htmlFor="pb-display-name" className="text-xs">Display Name</Label>
-          <Input
-            id="pb-display-name"
-            placeholder="e.g. Nish - PhoneBurner"
-            value={displayName}
-            onChange={(e) => setDisplayName(e.target.value)}
-            className="h-8 text-sm"
-          />
-        </div>
-        <div className="space-y-1">
-          <Label htmlFor="pb-access-token" className="text-xs">Access Token</Label>
-          <Input
-            id="pb-access-token"
-            type="password"
-            placeholder="Paste your PhoneBurner access token"
-            value={accessToken}
-            onChange={(e) => setAccessToken(e.target.value)}
-            className="h-8 text-sm font-mono"
-          />
-        </div>
-      </div>
-      <Button
-        size="sm"
-        onClick={handleSave}
-        disabled={saveMutation.isPending || !accessToken.trim() || !displayName.trim()}
-      >
-        {saveMutation.isPending ? (
-          <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
-        ) : (
-          <Key className="mr-2 h-3.5 w-3.5" />
-        )}
-        Save Token
-      </Button>
-    </div>
-  );
-}
-
 export default function PhoneBurnerSettingsPage() {
   const { data: connectedUsers = [], isLoading: usersLoading } =
     usePhoneBurnerConnectedUsers();
   const { data: stats } = usePhoneBurnerStats();
   const { data: webhookEvents = [] } = usePhoneBurnerWebhookLog();
   const disconnectMutation = useDisconnectPhoneBurnerUser();
-  const oauthMutation = useInitiatePhoneBurnerOAuth();
+  const saveMutation = useSavePhoneBurnerAccessToken();
 
   const webhookUrl = `${SUPABASE_URL}/functions/v1/phoneburner-webhook`;
-  const oauthCallbackUrl = `${SUPABASE_URL}/functions/v1/phoneburner-oauth-callback`;
 
-  const handleConnect = async () => {
-    try {
-      const result = await oauthMutation.mutateAsync();
-      if (result.authorize_url) {
-        window.location.href = result.authorize_url;
-      }
-    } catch {
-      toast.error('Failed to start PhoneBurner OAuth. Use the manual token option below instead.');
+  const [newToken, setNewToken] = useState('');
+  const [newDisplayName, setNewDisplayName] = useState('');
+
+  const handleSaveToken = async () => {
+    const token = newToken.trim();
+    const name = newDisplayName.trim();
+    if (!token) {
+      toast.error('Please enter an access token');
+      return;
     }
+    if (!name) {
+      toast.error('Please enter a display name for this token');
+      return;
+    }
+    saveMutation.mutate(
+      { accessToken: token, displayName: name },
+      {
+        onSuccess: () => {
+          toast.success(`PhoneBurner token saved for "${name}"`);
+          setNewToken('');
+          setNewDisplayName('');
+        },
+        onError: (err) =>
+          toast.error(`Failed to save token: ${err instanceof Error ? err.message : 'Unknown error'}`),
+      },
+    );
   };
 
   const handleDisconnect = (userId: string, label: string) => {
-    if (!confirm(`Disconnect ${label} from PhoneBurner? They will need to reconnect to push contacts.`)) {
+    if (!confirm(`Disconnect ${label} from PhoneBurner? They will need a new token to push contacts.`)) {
       return;
     }
     disconnectMutation.mutate(userId, {
@@ -176,7 +112,6 @@ export default function PhoneBurnerSettingsPage() {
   };
 
   const validCount = connectedUsers.filter((u) => !u.is_expired).length;
-  const expiredCount = connectedUsers.filter((u) => u.is_expired).length;
 
   return (
     <div className="container mx-auto py-6 space-y-6">
@@ -185,7 +120,7 @@ export default function PhoneBurnerSettingsPage() {
           <div>
             <h1 className="text-2xl font-bold tracking-tight">PhoneBurner Integration</h1>
             <p className="text-muted-foreground">
-              Manage PhoneBurner connections for your team. Each user connects their own account.
+              Manage PhoneBurner access tokens for your team. Paste each user's API access token below.
             </p>
           </div>
           <Button variant="ghost" size="sm" asChild>
@@ -237,50 +172,83 @@ export default function PhoneBurnerSettingsPage() {
         </Card>
       </div>
 
+      {/* Add Token */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg flex items-center gap-2">
+            <KeyRound className="h-5 w-5" />
+            Add Access Token
+          </CardTitle>
+          <CardDescription>
+            Paste a PhoneBurner API access token to connect an account. Get tokens from{' '}
+            <a
+              href="https://www.phoneburner.com/developer"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="underline"
+            >
+              PhoneBurner Developer Settings
+            </a>.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-2">
+              <Label htmlFor="pb-display-name">Display Name</Label>
+              <Input
+                id="pb-display-name"
+                placeholder="e.g. John Smith"
+                value={newDisplayName}
+                onChange={(e) => setNewDisplayName(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="pb-token">Access Token</Label>
+              <Input
+                id="pb-token"
+                type="password"
+                placeholder="Paste access token..."
+                value={newToken}
+                onChange={(e) => setNewToken(e.target.value)}
+              />
+            </div>
+          </div>
+          <Button
+            onClick={handleSaveToken}
+            disabled={saveMutation.isPending || !newToken.trim() || !newDisplayName.trim()}
+          >
+            {saveMutation.isPending ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <UserPlus className="mr-2 h-4 w-4" />
+            )}
+            Save Token
+          </Button>
+        </CardContent>
+      </Card>
+
       {/* Connected Accounts */}
       <Card>
         <CardHeader>
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle className="text-lg flex items-center gap-2">
-                <CheckCircle2 className="h-5 w-5 text-emerald-600" />
-                Connected Accounts
-              </CardTitle>
-              <CardDescription>
-                Each team member connects their own PhoneBurner account via OAuth or by pasting
-                an access token directly.
-              </CardDescription>
-            </div>
-            <Button
-              onClick={handleConnect}
-              disabled={oauthMutation.isPending}
-              size="sm"
-              variant="outline"
-            >
-              {oauthMutation.isPending ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                <UserPlus className="mr-2 h-4 w-4" />
-              )}
-              Connect via OAuth
-            </Button>
-          </div>
+          <CardTitle className="text-lg flex items-center gap-2">
+            <CheckCircle2 className="h-5 w-5 text-emerald-600" />
+            Connected Accounts
+          </CardTitle>
+          <CardDescription>
+            Accounts with saved access tokens. The admin can push contact lists to any connected account.
+          </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
-          {/* Manual token form — always visible */}
-          <AddAccessTokenForm />
-
-          {/* Connected accounts list */}
+        <CardContent>
           {usersLoading ? (
             <div className="flex items-center justify-center py-8">
               <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
             </div>
           ) : connectedUsers.length === 0 ? (
-            <div className="text-center py-6 text-muted-foreground">
+            <div className="text-center py-8 text-muted-foreground">
               <Phone className="h-10 w-10 mx-auto mb-3 opacity-40" />
               <p className="font-medium">No accounts connected yet</p>
               <p className="text-sm mt-1">
-                Paste an access token above or click "Connect via OAuth" to link a PhoneBurner account.
+                Add an access token above to connect a PhoneBurner account.
               </p>
             </div>
           ) : (
@@ -294,36 +262,20 @@ export default function PhoneBurnerSettingsPage() {
                     <Phone className="h-4 w-4 text-muted-foreground" />
                     <div>
                       <span className="font-medium">{user.label}</span>
+                      {user.is_manual_token && (
+                        <Badge variant="outline" className="ml-2 text-xs">Manual Token</Badge>
+                      )}
                       {user.phoneburner_user_email && (
                         <span className="text-xs text-muted-foreground ml-2">
                           {user.phoneburner_user_email}
                         </span>
                       )}
-                      {user.profile_email &&
-                        user.profile_email !== user.phoneburner_user_email && (
-                          <span className="text-xs text-muted-foreground ml-2">
-                            (SourceCo: {user.profile_email})
-                          </span>
-                        )}
                     </div>
                   </div>
                   <div className="flex items-center gap-3">
-                    {user.is_manual_token && (
-                      <Badge variant="outline" className="text-xs gap-1">
-                        <Key className="h-3 w-3" />
-                        Manual token
-                      </Badge>
-                    )}
-                    {user.is_expired ? (
-                      <Badge variant="destructive" className="text-xs gap-1">
-                        <AlertTriangle className="h-3 w-3" />
-                        Expired
-                      </Badge>
-                    ) : (
-                      <Badge className="bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300 text-xs">
-                        Active
-                      </Badge>
-                    )}
+                    <Badge className="bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300 text-xs">
+                      Active
+                    </Badge>
                     <span className="text-xs text-muted-foreground">
                       Updated:{' '}
                       {user.updated_at
@@ -342,12 +294,6 @@ export default function PhoneBurnerSettingsPage() {
                   </div>
                 </div>
               ))}
-              {expiredCount > 0 && (
-                <p className="text-xs text-amber-600 dark:text-amber-400 mt-2">
-                  {expiredCount} account{expiredCount !== 1 ? 's have' : ' has'} expired
-                  tokens. Re-paste the access token above to refresh.
-                </p>
-              )}
             </div>
           )}
         </CardContent>
@@ -357,45 +303,15 @@ export default function PhoneBurnerSettingsPage() {
       <Card>
         <CardHeader>
           <CardTitle className="text-lg">Setup</CardTitle>
-          <CardDescription>Configure PhoneBurner for your team</CardDescription>
+          <CardDescription>
+            Configure PhoneBurner webhooks for call tracking
+          </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-2">
-            <h3 className="text-sm font-medium">Option A — Manual Access Token (Recommended)</h3>
+            <h3 className="text-sm font-medium">1. Webhook URL</h3>
             <p className="text-sm text-muted-foreground">
-              Get your access token from PhoneBurner → Settings → API Access, then paste it in
-              the form above. No OAuth app setup required.
-            </p>
-          </div>
-
-          <div className="space-y-2">
-            <h3 className="text-sm font-medium">Option B — OAuth App (for automatic token refresh)</h3>
-            <p className="text-sm text-muted-foreground">
-              Add these secrets to your Supabase Edge Function environment, then click
-              "Connect via OAuth":
-            </p>
-            <div className="space-y-1 text-xs font-mono bg-muted p-3 rounded-md">
-              <p>PHONEBURNER_CLIENT_ID=your_client_id</p>
-              <p>PHONEBURNER_CLIENT_SECRET=your_client_secret</p>
-            </div>
-            <div className="flex items-center gap-2">
-              <code className="bg-muted px-3 py-2 rounded text-xs flex-1 overflow-x-auto">
-                {oauthCallbackUrl}
-              </code>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => navigator.clipboard.writeText(oauthCallbackUrl)}
-              >
-                Copy
-              </Button>
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <h3 className="text-sm font-medium">Webhook URL (for call event tracking)</h3>
-            <p className="text-sm text-muted-foreground">
-              Add this in PhoneBurner settings to receive call events back into SourceCo:
+              Add this webhook URL in your PhoneBurner settings to receive call events:
             </p>
             <div className="flex items-center gap-2">
               <code className="bg-muted px-3 py-2 rounded text-xs flex-1 overflow-x-auto">
@@ -413,6 +329,67 @@ export default function PhoneBurnerSettingsPage() {
               Subscribe to: call.started, call.connected, call.ended, disposition.set,
               callback.scheduled, contact.updated
             </p>
+          </div>
+
+          <div className="space-y-2">
+            <h3 className="text-sm font-medium">2. Webhook Secret (Optional)</h3>
+            <p className="text-sm text-muted-foreground">
+              For HMAC-SHA256 signature validation, set{' '}
+              <code className="bg-muted px-1.5 py-0.5 rounded text-xs">
+                PHONEBURNER_WEBHOOK_SECRET
+              </code>{' '}
+              in your Supabase secrets.
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* How It Works */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg">How It Works</CardTitle>
+          <CardDescription>
+            Push contacts from SourceCo to individual PhoneBurner accounts
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="flex items-start gap-3">
+            <div className="flex items-center justify-center h-6 w-6 rounded-full bg-primary/10 text-primary text-xs font-bold shrink-0 mt-0.5">1</div>
+            <div>
+              <p className="text-sm font-medium">Add Access Tokens</p>
+              <p className="text-xs text-muted-foreground">
+                Paste each team member's PhoneBurner API access token above. Tokens are stored securely.
+              </p>
+            </div>
+          </div>
+          <div className="flex items-start gap-3">
+            <div className="flex items-center justify-center h-6 w-6 rounded-full bg-primary/10 text-primary text-xs font-bold shrink-0 mt-0.5">2</div>
+            <div>
+              <p className="text-sm font-medium">Admin Builds Calling Lists</p>
+              <p className="text-xs text-muted-foreground">
+                Select contacts from Buyer Contacts or any list and click "Push to Dialer."
+              </p>
+            </div>
+          </div>
+          <div className="flex items-start gap-3">
+            <div className="flex items-center justify-center h-6 w-6 rounded-full bg-primary/10 text-primary text-xs font-bold shrink-0 mt-0.5">3</div>
+            <div>
+              <p className="text-sm font-medium">Choose Target Account(s)</p>
+              <p className="text-xs text-muted-foreground">
+                In the Push to Dialer dialog, select one or more connected PhoneBurner accounts
+                to push the contacts to.
+              </p>
+            </div>
+          </div>
+          <div className="flex items-start gap-3">
+            <div className="flex items-center justify-center h-6 w-6 rounded-full bg-primary/10 text-primary text-xs font-bold shrink-0 mt-0.5">4</div>
+            <div>
+              <p className="text-sm font-medium">Track Activity</p>
+              <p className="text-xs text-muted-foreground">
+                Call events and dispositions sync back automatically via webhooks. View call
+                history on buyer detail pages.
+              </p>
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -449,7 +426,7 @@ export default function PhoneBurnerSettingsPage() {
                     ) : event.processing_status === 'failed' ? (
                       <Badge variant="destructive" className="text-xs">Failed</Badge>
                     ) : (
-                      <Badge variant="outline" className="text-xs">Pending</Badge>
+                      <Badge variant="outline" className="text-xs">Received</Badge>
                     )}
                     <span className="text-xs text-muted-foreground">
                       {new Date(event.created_at as string).toLocaleString()}

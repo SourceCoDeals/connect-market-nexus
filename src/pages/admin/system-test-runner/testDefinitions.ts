@@ -1167,7 +1167,7 @@ export function buildTests(): TestDef[] {
     });
   });
 
-  // --- PhoneBurner (webhook + push + OAuth) ---
+  // --- PhoneBurner (webhook + push) ---
   add(C15, 'phoneburner-webhook edge function reachable', async () => {
     await invokeEdgeFunction('phoneburner-webhook', {});
   });
@@ -1177,10 +1177,6 @@ export function buildTests(): TestDef[] {
       entity_type: 'buyers',
       entity_ids: [],
     });
-  });
-
-  add(C15, 'phoneburner-oauth-callback edge function reachable', async () => {
-    await invokeEdgeFunction('phoneburner-oauth-callback', {});
   });
 
   add(C15, 'contact_activities table accessible', async () => {

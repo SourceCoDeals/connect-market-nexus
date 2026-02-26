@@ -1,9 +1,7 @@
 /**
  * PhoneBurner Push Contacts — Creates a dial session via PhoneBurner API
  *
- * Supports two token modes:
- * - Manual token (is_manual_token=true): uses the stored access_token directly, no refresh
- * - OAuth token: auto-refreshes if within 5 min of expiry
+ * Uses manually-provided access tokens stored in phoneburner_oauth_tokens.
  *
  * Uses POST /rest/1/dialsession which accepts contacts inline and returns
  * a redirect_url (one-time SSO link) to open the dialer immediately.
@@ -50,76 +48,11 @@ async function getValidToken(
 ): Promise<string | null> {
   const { data: tokenRow } = await supabase
     .from('phoneburner_oauth_tokens')
-    .select('*')
+    .select('access_token')
     .eq('user_id', userId)
     .single();
 
-  if (!tokenRow) return null;
-
-  // Manual tokens: use as-is, no refresh logic
-  if (tokenRow.is_manual_token) {
-    return tokenRow.access_token;
-  }
-
-  // OAuth tokens: check expiry and refresh if needed
-  const expiresAt = new Date(tokenRow.expires_at).getTime();
-  if (Date.now() < expiresAt - 5 * 60 * 1000) {
-    return tokenRow.access_token;
-  }
-
-  const clientId = Deno.env.get('PHONEBURNER_CLIENT_ID');
-  const clientSecret = Deno.env.get('PHONEBURNER_CLIENT_SECRET');
-  if (!clientId || !clientSecret) {
-    console.error('PHONEBURNER_CLIENT_ID / PHONEBURNER_CLIENT_SECRET not set — cannot refresh OAuth token');
-    return null;
-  }
-
-  let lastError = '';
-  for (let attempt = 0; attempt < 2; attempt++) {
-    try {
-      const res = await fetch('https://www.phoneburner.com/oauth/accesstoken', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: new URLSearchParams({
-          grant_type: 'refresh_token',
-          refresh_token: tokenRow.refresh_token,
-          client_id: clientId,
-          client_secret: clientSecret,
-        }),
-      });
-
-      if (res.ok) {
-        const tokens = await res.json();
-        if (!tokens.access_token) return null;
-        const newExpiresAt = new Date(
-          Date.now() + (tokens.expires_in || 3600) * 1000,
-        ).toISOString();
-        await supabase
-          .from('phoneburner_oauth_tokens')
-          .update({
-            access_token: tokens.access_token,
-            refresh_token: tokens.refresh_token || tokenRow.refresh_token,
-            expires_at: newExpiresAt,
-            updated_at: new Date().toISOString(),
-          })
-          .eq('user_id', userId);
-        return tokens.access_token;
-      }
-
-      lastError = `HTTP ${res.status}: ${await res.text()}`;
-      if (res.status === 401 || res.status === 400) {
-        await supabase.from('phoneburner_oauth_tokens').delete().eq('user_id', userId);
-        return null;
-      }
-      if (attempt < 1) await new Promise((r) => setTimeout(r, 1000));
-    } catch (err) {
-      lastError = err instanceof Error ? err.message : String(err);
-      if (attempt < 1) await new Promise((r) => setTimeout(r, 1000));
-    }
-  }
-
-  console.error(`Token refresh failed after retries: ${lastError}`);
-  return null;
+  return tokenRow?.access_token || null;
 }
 
 // ─── Contact resolvers ───
@@ -158,6 +91,8 @@ async function resolveFromBuyerContacts(
       source_entity: 'buyer_contact',
       last_contacted_date: c.last_contacted_date,
       extra_context: {
+        sourceco_id: c.id,
+        sourceco_buyer_id: c.buyer_id,
         buyer_type: buyer?.buyer_type || '',
         pe_firm: buyer?.pe_firm_name || '',
         target_services: Array.isArray(buyer?.target_services)
@@ -284,6 +219,12 @@ async function resolveFromListings(
       company: l.internal_company_name || l.title || null,
       source_entity: `listing:${l.deal_source || 'unknown'}`,
       last_contacted_date: null,
+      extra_context: {
+        sourceco_id: `listing-${l.id}`,
+        sourceco_listing_id: l.id,
+        deal_source: l.deal_source || 'unknown',
+        company_name: l.internal_company_name || l.title || '',
+      },
     }));
 }
 
@@ -442,15 +383,26 @@ Deno.serve(async (req: Request) => {
   // Build contacts array for PhoneBurner dial session
   const pbContacts = eligible.map((contact) => {
     const nameParts = contact.name.split(' ');
-    return {
+    const pbContact: Record<string, unknown> = {
       first_name: nameParts[0] || '',
       last_name: nameParts.slice(1).join(' ') || '',
       phone: contact.phone,
       email: contact.email || '',
       company: contact.company || '',
       title: contact.title || '',
+      lead_id: contact.id, // Maps back to our system
     };
+
+    // Add custom fields if available
+    if (contact.extra_context) {
+      pbContact.custom_fields = contact.extra_context;
+    }
+
+    return pbContact;
   });
+
+  // Build webhook callback URL for call events
+  const webhookUrl = `${supabaseUrl}/functions/v1/phoneburner-webhook`;
 
   // Create dial session — returns redirect_url to open dialer immediately
   const pbRes = await fetch(`${PB_API_BASE}/dialsession`, {
@@ -461,7 +413,17 @@ Deno.serve(async (req: Request) => {
     },
     body: JSON.stringify({
       contacts: pbContacts,
-      ...(session_name ? { session_name } : {}),
+      callbacks: [
+        { callback_type: 'api_callbegin', callback: webhookUrl },
+        { callback_type: 'api_calldone', callback: webhookUrl },
+        { callback_type: 'api_contact_displayed', callback: webhookUrl },
+      ],
+      custom_data: {
+        source: 'sourceco',
+        session_name: session_name || '',
+        entity_type: entityType,
+        pushed_by: user.id,
+      },
     }),
   });
 
