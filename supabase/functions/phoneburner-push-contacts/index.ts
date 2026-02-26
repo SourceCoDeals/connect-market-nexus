@@ -1,9 +1,7 @@
 /**
  * PhoneBurner Push Contacts — Creates a dial session via PhoneBurner API
  *
- * Supports two token modes:
- * - Manual token (is_manual_token=true): uses the stored access_token directly, no refresh
- * - OAuth token: auto-refreshes if within 5 min of expiry
+ * Uses manually-provided access tokens stored in phoneburner_oauth_tokens.
  *
  * Uses POST /rest/1/dialsession which accepts contacts inline and returns
  * a redirect_url (one-time SSO link) to open the dialer immediately.
@@ -50,76 +48,11 @@ async function getValidToken(
 ): Promise<string | null> {
   const { data: tokenRow } = await supabase
     .from('phoneburner_oauth_tokens')
-    .select('*')
+    .select('access_token')
     .eq('user_id', userId)
     .single();
 
-  if (!tokenRow) return null;
-
-  // Manual tokens: use as-is, no refresh logic
-  if (tokenRow.is_manual_token) {
-    return tokenRow.access_token;
-  }
-
-  // OAuth tokens: check expiry and refresh if needed
-  const expiresAt = new Date(tokenRow.expires_at).getTime();
-  if (Date.now() < expiresAt - 5 * 60 * 1000) {
-    return tokenRow.access_token;
-  }
-
-  const clientId = Deno.env.get('PHONEBURNER_CLIENT_ID');
-  const clientSecret = Deno.env.get('PHONEBURNER_CLIENT_SECRET');
-  if (!clientId || !clientSecret) {
-    console.error('PHONEBURNER_CLIENT_ID / PHONEBURNER_CLIENT_SECRET not set — cannot refresh OAuth token');
-    return null;
-  }
-
-  let lastError = '';
-  for (let attempt = 0; attempt < 2; attempt++) {
-    try {
-      const res = await fetch('https://www.phoneburner.com/oauth/accesstoken', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: new URLSearchParams({
-          grant_type: 'refresh_token',
-          refresh_token: tokenRow.refresh_token,
-          client_id: clientId,
-          client_secret: clientSecret,
-        }),
-      });
-
-      if (res.ok) {
-        const tokens = await res.json();
-        if (!tokens.access_token) return null;
-        const newExpiresAt = new Date(
-          Date.now() + (tokens.expires_in || 3600) * 1000,
-        ).toISOString();
-        await supabase
-          .from('phoneburner_oauth_tokens')
-          .update({
-            access_token: tokens.access_token,
-            refresh_token: tokens.refresh_token || tokenRow.refresh_token,
-            expires_at: newExpiresAt,
-            updated_at: new Date().toISOString(),
-          })
-          .eq('user_id', userId);
-        return tokens.access_token;
-      }
-
-      lastError = `HTTP ${res.status}: ${await res.text()}`;
-      if (res.status === 401 || res.status === 400) {
-        await supabase.from('phoneburner_oauth_tokens').delete().eq('user_id', userId);
-        return null;
-      }
-      if (attempt < 1) await new Promise((r) => setTimeout(r, 1000));
-    } catch (err) {
-      lastError = err instanceof Error ? err.message : String(err);
-      if (attempt < 1) await new Promise((r) => setTimeout(r, 1000));
-    }
-  }
-
-  console.error(`Token refresh failed after retries: ${lastError}`);
-  return null;
+  return tokenRow?.access_token || null;
 }
 
 // ─── Contact resolvers ───

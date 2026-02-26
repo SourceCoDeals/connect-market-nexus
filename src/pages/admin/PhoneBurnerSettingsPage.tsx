@@ -13,7 +13,6 @@ import {
   Webhook,
   ExternalLink,
   CheckCircle2,
-  UserPlus,
   Loader2,
   Trash2,
   AlertTriangle,
@@ -22,7 +21,6 @@ import {
 import {
   usePhoneBurnerConnectedUsers,
   useDisconnectPhoneBurnerUser,
-  useInitiatePhoneBurnerOAuth,
   useSavePhoneBurnerAccessToken,
 } from '@/hooks/use-phoneburner-users';
 import { toast } from 'sonner';
@@ -149,21 +147,8 @@ export default function PhoneBurnerSettingsPage() {
   const { data: stats } = usePhoneBurnerStats();
   const { data: webhookEvents = [] } = usePhoneBurnerWebhookLog();
   const disconnectMutation = useDisconnectPhoneBurnerUser();
-  const oauthMutation = useInitiatePhoneBurnerOAuth();
 
   const webhookUrl = `${SUPABASE_URL}/functions/v1/phoneburner-webhook`;
-  const oauthCallbackUrl = `${SUPABASE_URL}/functions/v1/phoneburner-oauth-callback`;
-
-  const handleConnect = async () => {
-    try {
-      const result = await oauthMutation.mutateAsync();
-      if (result.authorize_url) {
-        window.location.href = result.authorize_url;
-      }
-    } catch {
-      toast.error('Failed to start PhoneBurner OAuth. Use the manual token option below instead.');
-    }
-  };
 
   const handleDisconnect = (userId: string, label: string) => {
     if (!confirm(`Disconnect ${label} from PhoneBurner? They will need to reconnect to push contacts.`)) {
@@ -247,23 +232,10 @@ export default function PhoneBurnerSettingsPage() {
                 Connected Accounts
               </CardTitle>
               <CardDescription>
-                Each team member connects their own PhoneBurner account via OAuth or by pasting
-                an access token directly.
+                Each team member connects their own PhoneBurner account by pasting
+                an access token.
               </CardDescription>
             </div>
-            <Button
-              onClick={handleConnect}
-              disabled={oauthMutation.isPending}
-              size="sm"
-              variant="outline"
-            >
-              {oauthMutation.isPending ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                <UserPlus className="mr-2 h-4 w-4" />
-              )}
-              Connect via OAuth
-            </Button>
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -280,7 +252,7 @@ export default function PhoneBurnerSettingsPage() {
               <Phone className="h-10 w-10 mx-auto mb-3 opacity-40" />
               <p className="font-medium">No accounts connected yet</p>
               <p className="text-sm mt-1">
-                Paste an access token above or click "Connect via OAuth" to link a PhoneBurner account.
+                Paste an access token above to link a PhoneBurner account.
               </p>
             </div>
           ) : (
@@ -361,35 +333,11 @@ export default function PhoneBurnerSettingsPage() {
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-2">
-            <h3 className="text-sm font-medium">Option A — Manual Access Token (Recommended)</h3>
+            <h3 className="text-sm font-medium">Access Token</h3>
             <p className="text-sm text-muted-foreground">
               Get your access token from PhoneBurner → Settings → API Access, then paste it in
-              the form above. No OAuth app setup required.
+              the form above.
             </p>
-          </div>
-
-          <div className="space-y-2">
-            <h3 className="text-sm font-medium">Option B — OAuth App (for automatic token refresh)</h3>
-            <p className="text-sm text-muted-foreground">
-              Add these secrets to your Supabase Edge Function environment, then click
-              "Connect via OAuth":
-            </p>
-            <div className="space-y-1 text-xs font-mono bg-muted p-3 rounded-md">
-              <p>PHONEBURNER_CLIENT_ID=your_client_id</p>
-              <p>PHONEBURNER_CLIENT_SECRET=your_client_secret</p>
-            </div>
-            <div className="flex items-center gap-2">
-              <code className="bg-muted px-3 py-2 rounded text-xs flex-1 overflow-x-auto">
-                {oauthCallbackUrl}
-              </code>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => navigator.clipboard.writeText(oauthCallbackUrl)}
-              >
-                Copy
-              </Button>
-            </div>
           </div>
 
           <div className="space-y-2">

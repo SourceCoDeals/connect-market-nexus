@@ -118,19 +118,6 @@ export function useDisconnectPhoneBurnerUser() {
   });
 }
 
-export function useInitiatePhoneBurnerOAuth() {
-  return useMutation({
-    mutationFn: async () => {
-      const { data, error } = await supabase.functions.invoke(
-        "phoneburner-oauth-callback",
-        { method: "POST", body: {} },
-      );
-      if (error) throw error;
-      return data as { authorize_url: string };
-    },
-  });
-}
-
 export interface SaveAccessTokenParams {
   accessToken: string;
   displayName: string;

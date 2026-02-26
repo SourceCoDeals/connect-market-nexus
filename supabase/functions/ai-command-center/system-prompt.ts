@@ -184,7 +184,7 @@ DATA SOURCES YOU CAN QUERY:
 - enriched_contacts: contacts discovered and enriched via Apify (LinkedIn) + Prospeo (email). Contains name, title, email, phone, LinkedIn URL, confidence score, and source.
 - contact_search_cache: 7-day cache of previous enrichment searches by company name.
 - phoneburner_sessions: PhoneBurner dialing session logs — contacts pushed, session status, created_by.
-- phoneburner_oauth_tokens: per-user PhoneBurner OAuth tokens (managed automatically).
+- phoneburner_oauth_tokens: per-user PhoneBurner access tokens (added manually by admins).
 - remarketing_buyer_contacts: FROZEN — read-only legacy buyer contact data pre-Feb 2026. New contacts are in the unified "contacts" table.
 - industry_trackers: named industry verticals with deal/buyer counts and scoring weight configs
 - smartlead_campaigns: Smartlead cold email campaigns linked to deals/universes. Tracks campaign name, status (ACTIVE/PAUSED/DRAFTED/COMPLETED/STOPPED), lead count, and sync status.
