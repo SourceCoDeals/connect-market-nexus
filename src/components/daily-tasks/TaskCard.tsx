@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { formatDistanceToNow } from 'date-fns';
+import { formatDistanceToNow, format, isToday, isTomorrow, isPast, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -20,6 +20,7 @@ import {
   Trash2,
   UserRound,
   Building2,
+  Calendar,
 } from 'lucide-react';
 import type { DailyStandupTaskWithRelations } from '@/types/daily-tasks';
 import { TASK_TYPE_LABELS, TASK_TYPE_COLORS } from '@/types/daily-tasks';
@@ -48,6 +49,16 @@ export function TaskCard({
   const undoTimerRef = useRef<ReturnType<typeof setTimeout>>();
   const isOverdue = task.status === 'overdue';
   const isCompleted = task.status === 'completed';
+  const isPendingApproval = task.status === 'pending_approval';
+
+  const dueDateLabel = (() => {
+    const d = parseISO(task.due_date);
+    if (isToday(d)) return 'Today';
+    if (isTomorrow(d)) return 'Tomorrow';
+    return format(d, 'MMM d');
+  })();
+
+  const isDuePast = isPast(parseISO(task.due_date + 'T23:59:59'));
 
   useEffect(() => {
     return () => {
@@ -105,19 +116,21 @@ export function TaskCard({
           justCompleted && 'bg-green-50/50 border-green-300',
         )}
       >
-        {/* Checkbox */}
-        <div
-          className="flex-shrink-0"
-          onClick={(e) => e.stopPropagation()}
-          onKeyDown={(e) => e.stopPropagation()}
-        >
-          <Checkbox
-            checked={isCompleted}
-            onCheckedChange={() => handleCheck()}
-            disabled={toggleComplete.isPending}
-            className={cn('h-5 w-5', isOverdue && 'border-red-400')}
-          />
-        </div>
+        {/* Checkbox – only shown for approved tasks */}
+        {!isPendingApproval && (
+          <div
+            className="flex-shrink-0"
+            onClick={(e) => e.stopPropagation()}
+            onKeyDown={(e) => e.stopPropagation()}
+          >
+            <Checkbox
+              checked={isCompleted}
+              onCheckedChange={() => handleCheck()}
+              disabled={toggleComplete.isPending}
+              className={cn('h-5 w-5', isOverdue && 'border-red-400')}
+            />
+          </div>
+        )}
 
         {/* Title */}
         <span
@@ -127,6 +140,21 @@ export function TaskCard({
           )}
         >
           {task.title}
+        </span>
+
+        {/* Due date */}
+        <span
+          className={cn(
+            'inline-flex items-center gap-1 text-[11px] shrink-0 tabular-nums',
+            isCompleted
+              ? 'text-muted-foreground'
+              : isOverdue || (isDuePast && !isCompleted)
+                ? 'text-red-600 font-medium'
+                : 'text-muted-foreground',
+          )}
+        >
+          <Calendar className="h-3 w-3" />
+          {dueDateLabel}
         </span>
 
         {/* Overdue badge */}
