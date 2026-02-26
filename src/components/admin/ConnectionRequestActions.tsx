@@ -201,7 +201,7 @@ export function ConnectionRequestActions({
     setFlagPopoverOpen(false);
 
     const assignedAdmin = adminProfiles?.[assignedToId];
-    const assigneeName = assignedAdmin?.displayName || "Team member";
+    void assignedAdmin;
     const buyerLabel = `${user.first_name || ""} ${user.last_name || ""}`.trim() || "Buyer";
     const dealLabel = listing?.title || "a deal";
 
