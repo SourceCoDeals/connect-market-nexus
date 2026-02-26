@@ -212,6 +212,25 @@ const BYPASS_RULES: Array<{
       confidence: 0.8,
     },
   },
+  // Universe buyer fit selection — "select not fits", "check the non-fits", "select passed/disqualified buyers"
+  {
+    test: (q, ctx) =>
+      (ctx.entity_type === 'universe' || /\buniverse\b/i.test(q)) &&
+      (
+        /\b(not\s*fits?|non.?fits?|passed|disqualified|bad fits?|poor fits?|weak fits?)\b/i.test(q) ||
+        /\b(select|check|pick)\b.*\b(not|non|bad|poor|weak|passed|disqualified)\b/i.test(q)
+      ),
+    result: {
+      category: 'BUYER_UNIVERSE',
+      tier: 'STANDARD',
+      tools: [
+        'get_universe_buyer_fits',
+        'select_table_rows',
+        'search_buyer_universes',
+      ],
+      confidence: 0.95,
+    },
+  },
   // Select / filter / sort / action on table rows
   {
     test: (q) =>

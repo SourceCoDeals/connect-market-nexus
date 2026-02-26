@@ -128,9 +128,14 @@ const TOOL_CATEGORIES: Record<string, string[]> = {
   BUYER_UNIVERSE: [
     'search_buyer_universes',
     'get_universe_details',
+    'get_universe_buyer_fits',
     'get_outreach_records',
     'get_remarketing_outreach',
     'get_top_buyers_for_deal',
+    'search_buyers',
+    'select_table_rows',
+    'apply_table_filter',
+    'sort_table_column',
   ],
 
   // Meeting intelligence
@@ -200,6 +205,7 @@ const TOOL_CATEGORIES: Record<string, string[]> = {
     'get_top_buyers_for_deal',
     'get_score_breakdown',
     'explain_buyer_score',
+    'get_universe_buyer_fits',
     'select_table_rows',
     'apply_table_filter',
     'sort_table_column',

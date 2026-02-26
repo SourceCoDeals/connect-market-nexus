@@ -683,7 +683,11 @@ Use the buyer's actual details and deal specifics — never generic templates.`,
 1. Use search_buyer_universes to find a universe by name
 2. Use get_universe_details to get full criteria, buyer count, and associated deals
 3. Use get_top_buyers_for_deal(deal_id, state='XX', limit=1000) for geographic counts within a universe
+4. Use get_universe_buyer_fits to identify fit/not-fit/unscored buyers in a universe — then use select_table_rows to select them in the UI
 Always show: universe name, total buyer count, and the filtered count requested.
+When the user asks to "select not fits" or "check the non-fits" on a universe page:
+  a. Call get_universe_buyer_fits(universe_id, fit_filter='not_fit') to get the not-fit buyer IDs
+  b. Call select_table_rows(table='buyers', row_ids=<not_fit_ids>) to check their boxes in the UI
 Example: "The Threffold Collision universe has 847 buyers total; 23 have a location in Oklahoma."`,
 
   LEAD_INTEL: `For inbound lead questions, use search_inbound_leads with status/source/industry filters.
