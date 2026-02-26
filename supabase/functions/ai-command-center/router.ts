@@ -517,9 +517,11 @@ const BYPASS_RULES: Array<{
         /\b(who.?s the|find contacts?|emails? for|phones? for|partner at|principal at|deal team|pe contacts?|platform contacts?)\b/i.test(
           q,
         ) ||
-        /\b(what.?s|what is|do we have|get me|look up|find).{0,20}\b(emails?|phones?|contact info)\b/i.test(
+        /\b(what.?s|what is|do we have|get me|look up|find).{0,60}\b(emails?|phones?|contact info)\b/i.test(
           q,
         ) ||
+        // "[person]'s email" or "email for [person/company]"
+        /\b\w+.?s\s+emails?\b/i.test(q) ||
         /\b(emails?|phones?)\s+(address(es)?\s+)?(for|of)\b/i.test(q) ||
         /\bemails?\b.*\b(address)\b/i.test(q) ||
         /\b(show me|list|who are)\b.*\bcontacts?\b/i.test(q) ||
@@ -1064,6 +1066,7 @@ Rules:
 - "How do I" / "what does X do" / "explain X" = PLATFORM_GUIDE, even if the topic mentions deals, buyers, scoring, etc.
 - "Create a CIM" / "write a teaser" / "draft an email" = OUTREACH_DRAFT, not DEAL_STATUS
 - "Who is the contact for" / "find contacts at" = CONTACTS, not DEAL_STATUS
+- "Find [person]'s email" / "find [person] from [company] email" / "[person] email at [company]" = CONTACTS — always use search_contacts with search and company_name params
 - "Which buyers showed interest" / "most engaged" = ENGAGEMENT, not BUYER_SEARCH`;
 
 export async function routeIntent(query: string, pageContext?: PageContext): Promise<RouterResult> {
