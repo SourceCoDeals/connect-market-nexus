@@ -1,4 +1,5 @@
 import { useState, useMemo, useCallback } from "react";
+import { useShiftSelect } from "@/hooks/useShiftSelect";
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -304,14 +305,8 @@ export default function DocumentTrackingPage() {
     });
   }, [allSelected, allFilteredKeys]);
 
-  const toggleRow = useCallback((key: string) => {
-    setSelectedIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(key)) next.delete(key);
-      else next.add(key);
-      return next;
-    });
-  }, []);
+  const orderedKeys = useMemo(() => allFilteredKeys, [allFilteredKeys]);
+  const { handleToggle: toggleRow } = useShiftSelect(orderedKeys, selectedIds, setSelectedIds);
 
   return (
     <div className="space-y-6">
@@ -460,10 +455,10 @@ export default function DocumentTrackingPage() {
                   return (
                   <tr key={rowKey} className={`hover:bg-muted/30 transition-colors ${selectedIds.has(rowKey) ? 'bg-primary/5' : ''}`}>
                     {/* Checkbox */}
-                    <td className="px-4 py-3 w-10">
+                    <td className="px-4 py-3 w-10" onClick={(e) => { e.stopPropagation(); toggleRow(rowKey, !selectedIds.has(rowKey), e); }}>
                       <Checkbox
                         checked={selectedIds.has(rowKey)}
-                        onCheckedChange={() => toggleRow(rowKey)}
+                        onCheckedChange={() => {/* handled by td onClick for shift support */}}
                         aria-label={`Select ${doc.companyName}`}
                       />
                     </td>

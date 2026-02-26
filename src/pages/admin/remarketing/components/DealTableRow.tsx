@@ -77,7 +77,7 @@ export const DealTableRow = ({
   getScoreTrendIcon: (score: number) => JSX.Element;
   columnWidths: ColumnWidths;
   isSelected: boolean;
-  onToggleSelect: (dealId: string) => void;
+  onToggleSelect: (dealId: string, checked: boolean, event?: React.MouseEvent | React.KeyboardEvent) => void;
   onArchive: (dealId: string, dealName: string) => void;
   onDelete: (dealId: string, dealName: string) => void;
   onTogglePriority: (dealId: string, currentStatus: boolean) => void;
@@ -170,12 +170,12 @@ export const DealTableRow = ({
     >
       {/* Checkbox */}
       <TableCell
-        onClick={(e) => e.stopPropagation()}
+        onClick={(e) => { e.stopPropagation(); onToggleSelect(listing.id, !isSelected, e); }}
         style={{ width: columnWidths.select, minWidth: 40 }}
       >
         <Checkbox
           checked={isSelected}
-          onCheckedChange={() => onToggleSelect(listing.id)}
+          onCheckedChange={() => {/* handled by TableCell onClick for shift support */}}
         />
       </TableCell>
 

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Loader2 } from "lucide-react";
@@ -12,6 +12,7 @@ import type { MABuyer } from "@/lib/ma-intelligence/types";
 import { useRealtimeTrackerBuyers } from "@/hooks/ma-intelligence/useRealtimeTrackerBuyers";
 import { useGlobalGateCheck, useGlobalActivityMutations } from "@/hooks/remarketing/useGlobalActivityQueue";
 import { useAuth } from "@/context/AuthContext";
+import { useShiftSelect } from "@/hooks/useShiftSelect";
 
 interface TrackerBuyersTabProps {
   trackerId: string;
@@ -243,15 +244,29 @@ export function TrackerBuyersTab({ trackerId, onBuyerCountChange }: TrackerBuyer
     }
   };
 
-  const handleToggleSelect = (buyerId: string) => {
-    const newSelected = new Set(selectedBuyers);
-    if (newSelected.has(buyerId)) {
-      newSelected.delete(buyerId);
-    } else {
-      newSelected.add(buyerId);
+  const filteredBuyers = useMemo(() => buyers.filter(buyer => {
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase();
+      const matchesSearch =
+        buyer.pe_firm_name?.toLowerCase().includes(query) ||
+        buyer.platform_company_name?.toLowerCase().includes(query) ||
+        buyer.hq_city?.toLowerCase().includes(query) ||
+        buyer.hq_state?.toLowerCase().includes(query);
+      if (!matchesSearch) return false;
     }
-    setSelectedBuyers(newSelected);
-  };
+    if (filterCoverage !== "all") {
+      const hasThesis = !!buyer.thesis_summary;
+      const hasGeo = !!buyer.geo_preferences;
+      const hasSize = !!buyer.min_revenue || !!buyer.max_revenue;
+      const filledFields = [hasThesis, hasGeo, hasSize].filter(Boolean).length;
+      const coverage = filledFields >= 2 ? "high" : filledFields === 1 ? "medium" : "low";
+      if (coverage !== filterCoverage) return false;
+    }
+    return true;
+  }), [buyers, searchQuery, filterCoverage]);
+
+  const orderedIds = useMemo(() => filteredBuyers.map((b: any) => b.id), [filteredBuyers]);
+  const { handleToggle: handleToggleSelect } = useShiftSelect(orderedIds, selectedBuyers, setSelectedBuyers);
 
   const handleSelectAll = () => {
     if (selectedBuyers.size === buyers.length) {
@@ -260,34 +275,6 @@ export function TrackerBuyersTab({ trackerId, onBuyerCountChange }: TrackerBuyer
       setSelectedBuyers(new Set(buyers.map(b => b.id)));
     }
   };
-
-  const filteredBuyers = buyers.filter(buyer => {
-    // Search filter
-    if (searchQuery) {
-      const query = searchQuery.toLowerCase();
-      const matchesSearch =
-        buyer.pe_firm_name?.toLowerCase().includes(query) ||
-        buyer.platform_company_name?.toLowerCase().includes(query) ||
-        buyer.hq_city?.toLowerCase().includes(query) ||
-        buyer.hq_state?.toLowerCase().includes(query);
-
-      if (!matchesSearch) return false;
-    }
-
-    // Coverage filter
-    if (filterCoverage !== "all") {
-      // Calculate coverage - simplified version
-      const hasThesis = !!buyer.thesis_summary;
-      const hasGeo = !!buyer.geo_preferences;
-      const hasSize = !!buyer.min_revenue || !!buyer.max_revenue;
-      const filledFields = [hasThesis, hasGeo, hasSize].filter(Boolean).length;
-      const coverage = filledFields >= 2 ? "high" : filledFields === 1 ? "medium" : "low";
-
-      if (coverage !== filterCoverage) return false;
-    }
-
-    return true;
-  });
 
   if (isLoading) {
     return (

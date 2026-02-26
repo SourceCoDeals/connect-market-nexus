@@ -90,7 +90,7 @@ interface CapTargetTableRowProps {
   index: number;
   pageOffset: number;
   isSelected: boolean;
-  onToggleSelect: (id: string, event?: React.MouseEvent) => void;
+  onToggleSelect: (id: string, checked: boolean, event?: React.MouseEvent | React.KeyboardEvent) => void;
   onPushToAllDeals: (dealIds: string[]) => void;
   onEnrichSelected: (dealIds: string[], mode: "all" | "unenriched") => void;
   onDeleteDeal: (id: string) => void;
@@ -131,7 +131,7 @@ export function CapTargetTableRow({
       <TableCell
         onClick={(e) => {
           e.stopPropagation();
-          onToggleSelect(deal.id, e);
+          onToggleSelect(deal.id, !isSelected, e);
         }}
         className="w-[40px] cursor-pointer select-none"
       >

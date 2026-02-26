@@ -31,7 +31,7 @@ interface BuyerTableRowProps {
   buyers: any[] | undefined;
   platformCountsByFirm: Map<string, number>;
   buyerIdsWithTranscripts: Set<string> | undefined;
-  toggleSelect: (id: string) => void;
+  toggleSelect: (id: string, checked: boolean, event?: React.MouseEvent | React.KeyboardEvent) => void;
   handleEnrichBuyer: (e: React.MouseEvent, buyerId: string) => void;
   deleteMutation: { mutate: (id: string) => void };
 }
@@ -61,10 +61,10 @@ const BuyerTableRow = ({
       onClick={() => navigate(detailPath)}
     >
       {/* Checkbox */}
-      <TableCell onClick={(e) => e.stopPropagation()}>
+      <TableCell onClick={(e) => { e.stopPropagation(); toggleSelect(buyer.id, !selectedIds.has(buyer.id), e); }}>
         <Checkbox
           checked={selectedIds.has(buyer.id)}
-          onCheckedChange={() => toggleSelect(buyer.id)}
+          onCheckedChange={() => {/* handled by TableCell onClick for shift support */}}
         />
       </TableCell>
 

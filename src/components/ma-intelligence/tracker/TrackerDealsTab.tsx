@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useEnrichmentProgress } from "@/hooks/useEnrichmentProgress";
 import { EnrichmentProgressIndicator } from "@/components/remarketing/EnrichmentProgressIndicator";
 import { supabase } from "@/integrations/supabase/client";
@@ -13,6 +13,7 @@ import { useToast } from "@/hooks/use-toast";
 import type { MADeal } from "@/lib/ma-intelligence/types";
 import { useGlobalGateCheck, useGlobalActivityMutations } from "@/hooks/remarketing/useGlobalActivityQueue";
 import { useAuth } from "@/context/AuthContext";
+import { useShiftSelect } from "@/hooks/useShiftSelect";
 
 interface TrackerDealsTabProps {
   trackerId: string;
@@ -311,42 +312,16 @@ export function TrackerDealsTab({ trackerId, onDealCountChange }: TrackerDealsTa
     }
   };
 
-  const handleToggleSelect = (dealId: string) => {
-    const newSelected = new Set(selectedDeals);
-    if (newSelected.has(dealId)) {
-      newSelected.delete(dealId);
-    } else {
-      newSelected.add(dealId);
-    }
-    setSelectedDeals(newSelected);
-  };
-
-  const handleSelectAll = () => {
-    if (selectedDeals.size === deals.length) {
-      setSelectedDeals(new Set());
-    } else {
-      setSelectedDeals(new Set(deals.map(d => d.id)));
-    }
-  };
-
-  const filteredDeals = deals.filter(deal => {
-    // Search filter
+  const filteredDeals = useMemo(() => deals.filter(deal => {
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
       const matchesSearch =
         deal.deal_name?.toLowerCase().includes(query) ||
         deal.company_website?.toLowerCase().includes(query) ||
         deal.headquarters?.toLowerCase().includes(query);
-
       if (!matchesSearch) return false;
     }
-
-    // Status filter
-    if (filterStatus !== "all" && deal.status !== filterStatus) {
-      return false;
-    }
-
-    // Score filter
+    if (filterStatus !== "all" && deal.status !== filterStatus) return false;
     if (filterScore !== "all") {
       const score = deal.deal_score;
       if (filterScore === "hot" && (score === null || score < 85)) return false;
@@ -355,9 +330,19 @@ export function TrackerDealsTab({ trackerId, onDealCountChange }: TrackerDealsTa
       if (filterScore === "low" && (score === null || score >= 40)) return false;
       if (filterScore === "unscored" && score !== null) return false;
     }
-
     return true;
-  });
+  }), [deals, searchQuery, filterStatus, filterScore]);
+
+  const orderedIds = useMemo(() => filteredDeals.map((d: any) => d.id), [filteredDeals]);
+  const { handleToggle: handleToggleSelect } = useShiftSelect(orderedIds, selectedDeals, setSelectedDeals);
+
+  const handleSelectAll = () => {
+    if (selectedDeals.size === deals.length) {
+      setSelectedDeals(new Set());
+    } else {
+      setSelectedDeals(new Set(deals.map(d => d.id)));
+    }
+  };
 
   if (isLoading) {
     return (

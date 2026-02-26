@@ -26,7 +26,7 @@ import { formatDistanceToNow } from "date-fns";
 interface TrackerBuyersTableProps {
   buyers: MABuyer[];
   selectedBuyers: Set<string>;
-  onToggleSelect: (buyerId: string) => void;
+  onToggleSelect: (buyerId: string, checked: boolean, event?: React.MouseEvent | React.KeyboardEvent) => void;
   onSelectAll: () => void;
   onRefresh: () => void;
   onEnrich: (buyerId: string) => void;
@@ -93,10 +93,10 @@ export function TrackerBuyersTable({
                 className="cursor-pointer hover:bg-muted/30"
                 onClick={() => navigate(`/admin/ma-intelligence/buyers/${buyer.id}`)}
               >
-                <TableCell onClick={(e) => e.stopPropagation()}>
+                <TableCell onClick={(e) => { e.stopPropagation(); onToggleSelect(buyer.id, !selectedBuyers.has(buyer.id), e); }}>
                   <Checkbox
                     checked={selectedBuyers.has(buyer.id)}
-                    onCheckedChange={() => onToggleSelect(buyer.id)}
+                    onCheckedChange={() => {/* handled by TableCell onClick for shift support */}}
                   />
                 </TableCell>
                 <TableCell>
