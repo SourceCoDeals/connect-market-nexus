@@ -140,7 +140,6 @@ async function fetchTranscript(transcriptId: string) {
 // ─── AI Extraction ───
 
 function buildExtractionPrompt(
-  transcript: string,
   teamMembers: { name: string; aliases: string[] }[],
   today: string,
 ): string {
@@ -201,7 +200,7 @@ async function extractTasksWithAI(
   teamMembers: { name: string; aliases: string[] }[],
   today: string,
 ): Promise<ExtractedTask[]> {
-  const systemPrompt = buildExtractionPrompt(transcriptText, teamMembers, today);
+  const systemPrompt = buildExtractionPrompt(teamMembers, today);
 
   const response = await callClaude({
     model: CLAUDE_MODELS.sonnet,
@@ -398,9 +397,15 @@ serve(async (req) => {
         }
       }
       // Fuzzy: check if name is contained in any team member name
-      for (const m of teamMembers) {
-        if (m.name.toLowerCase().includes(lower) || lower.includes(m.first_name.toLowerCase())) {
-          return m.id;
+      // Require minimum 3 characters to avoid false positives (e.g., "an" matching "Dan")
+      if (lower.length >= 3) {
+        for (const m of teamMembers) {
+          if (
+            m.name.toLowerCase().includes(lower) ||
+            (m.first_name.length >= 3 && lower.includes(m.first_name.toLowerCase()))
+          ) {
+            return m.id;
+          }
         }
       }
       return null;
@@ -430,8 +435,8 @@ serve(async (req) => {
         const deal = deals[0] as any;
         return {
           id: deal.id,
-          ebitda: deal.listings?.ebitda || null,
-          stage_name: deal.deal_stages?.name || null,
+          ebitda: deal.listings?.ebitda ?? null,
+          stage_name: deal.deal_stages?.name ?? null,
         };
       }
       return null;
@@ -480,8 +485,8 @@ serve(async (req) => {
         {
           task_type: task.task_type,
           due_date: task.due_date || today,
-          deal_ebitda: dealMatch?.ebitda || null,
-          deal_stage_name: dealMatch?.stage_name || null,
+          deal_ebitda: dealMatch?.ebitda ?? null,
+          deal_stage_name: dealMatch?.stage_name ?? null,
           all_ebitda_values: allEbitdaValues,
         },
         today,
@@ -524,16 +529,28 @@ serve(async (req) => {
         .order('created_at', { ascending: true });
 
       if (allTasks) {
-        // Separate pinned and unpinned
-        const pinned = allTasks.filter((t) => t.is_pinned && t.pinned_rank);
-        const unpinned = allTasks.filter((t) => !t.is_pinned || !t.pinned_rank);
+        const totalTasks = allTasks.length;
+
+        // Separate pinned (with valid ranks in range) and unpinned
+        const validPinned = allTasks.filter(
+          (t) => t.is_pinned && t.pinned_rank && t.pinned_rank <= totalTasks,
+        );
+        // Deduplicate: if two tasks share a pinned_rank, only the first keeps the slot
+        const pinnedSlots = new Map<number, string>();
+        const pinnedTaskIds = new Set<string>();
+        for (const p of validPinned) {
+          if (!pinnedSlots.has(p.pinned_rank!)) {
+            pinnedSlots.set(p.pinned_rank!, p.id);
+            pinnedTaskIds.add(p.id);
+          }
+        }
+
+        // Everyone not occupying a pinned slot goes into the unpinned pool (in score order)
+        const unpinned = allTasks.filter((t) => !pinnedTaskIds.has(t.id));
 
         // Build final ranking
         const ranked: { id: string; rank: number }[] = [];
-        const pinnedSlots = new Map(pinned.map((p) => [p.pinned_rank!, p.id]));
-
         let unpinnedIdx = 0;
-        const totalTasks = allTasks.length;
 
         for (let rank = 1; rank <= totalTasks; rank++) {
           if (pinnedSlots.has(rank)) {

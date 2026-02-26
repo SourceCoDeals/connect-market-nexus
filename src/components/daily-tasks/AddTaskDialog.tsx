@@ -20,6 +20,7 @@ import {
 } from '@/components/ui/select';
 import { Loader2 } from 'lucide-react';
 import { useAddManualTask } from '@/hooks/useDailyTasks';
+import { getLocalDateString } from '@/lib/utils';
 import { TASK_TYPE_OPTIONS } from '@/types/daily-tasks';
 import type { TaskType } from '@/types/daily-tasks';
 
@@ -36,7 +37,7 @@ export function AddTaskDialog({ open, onOpenChange, teamMembers }: AddTaskDialog
   const [description, setDescription] = useState('');
   const [assigneeId, setAssigneeId] = useState('');
   const [taskType, setTaskType] = useState<TaskType>('other');
-  const [dueDate, setDueDate] = useState(new Date().toISOString().split('T')[0]);
+  const [dueDate, setDueDate] = useState(getLocalDateString());
   const [dealReference, setDealReference] = useState('');
 
   const handleSubmit = async () => {
@@ -58,7 +59,7 @@ export function AddTaskDialog({ open, onOpenChange, teamMembers }: AddTaskDialog
       setDescription('');
       setAssigneeId('');
       setTaskType('other');
-      setDueDate(new Date().toISOString().split('T')[0]);
+      setDueDate(getLocalDateString());
       setDealReference('');
       onOpenChange(false);
     } catch (err) {

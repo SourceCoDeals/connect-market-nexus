@@ -29,7 +29,7 @@ import {
   BarChart3,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { cn } from '@/lib/utils';
+import { cn, getLocalDateString } from '@/lib/utils';
 import { TaskCard } from '@/components/daily-tasks/TaskCard';
 import { AddTaskDialog } from '@/components/daily-tasks/AddTaskDialog';
 import { EditTaskDialog } from '@/components/daily-tasks/EditTaskDialog';
@@ -52,7 +52,7 @@ const DailyTaskDashboard = () => {
 
   const deleteTaskMutation = useDeleteTask();
 
-  const today = new Date().toISOString().split('T')[0];
+  const today = getLocalDateString();
 
   const { data: tasks, isLoading } = useDailyTasks({
     view,

@@ -298,14 +298,29 @@ async function recomputeRanks() {
 
   if (!tasks || tasks.length === 0) return;
 
-  const pinned = (tasks as any[]).filter((t) => t.is_pinned && t.pinned_rank);
-  const unpinned = (tasks as any[]).filter((t) => !t.is_pinned || !t.pinned_rank);
+  const totalTasks = tasks.length;
 
-  const pinnedSlots = new Map(pinned.map((p: any) => [p.pinned_rank, p.id]));
+  // Separate pinned (with valid ranks within range) and unpinned
+  const validPinned = (tasks as any[]).filter(
+    (t) => t.is_pinned && t.pinned_rank && t.pinned_rank <= totalTasks,
+  );
+  // Deduplicate: if two tasks have the same pinned_rank, only the first keeps the slot
+  const pinnedSlots = new Map<number, string>();
+  const pinnedTaskIds = new Set<string>();
+  for (const p of validPinned) {
+    if (!pinnedSlots.has(p.pinned_rank)) {
+      pinnedSlots.set(p.pinned_rank, p.id);
+      pinnedTaskIds.add(p.id);
+    }
+  }
+
+  // Everyone not occupying a pinned slot goes into the unpinned pool (in score order)
+  const unpinned = (tasks as any[]).filter((t: any) => !pinnedTaskIds.has(t.id));
+
   const ranked: { id: string; rank: number }[] = [];
   let unpinnedIdx = 0;
 
-  for (let rank = 1; rank <= tasks.length; rank++) {
+  for (let rank = 1; rank <= totalTasks; rank++) {
     if (pinnedSlots.has(rank)) {
       ranked.push({ id: pinnedSlots.get(rank)!, rank });
     } else if (unpinnedIdx < unpinned.length) {
