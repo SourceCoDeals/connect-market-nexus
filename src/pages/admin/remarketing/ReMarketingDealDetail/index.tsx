@@ -1,3 +1,9 @@
+// ORPHANED — not currently rendered anywhere. The monolithic ReMarketingDealDetail.tsx
+// file at the parent directory level takes precedence in module resolution.
+// This directory-based version has only 2 tabs (Overview, Data Room) while the
+// monolithic version has 4+ tabs and is the one actually imported by the router.
+// Do not edit. Scheduled for deletion or replacement of the monolith.
+// CTO Audit February 2026
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";

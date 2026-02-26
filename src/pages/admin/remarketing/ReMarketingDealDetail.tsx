@@ -1,3 +1,9 @@
+// ACTIVE — this is the component rendered at /admin/remarketing/deals/:dealId
+// and /admin/remarketing/leads/captarget/:dealId, /admin/remarketing/leads/gp-partners/:dealId
+// Contains 4+ tabs: Overview, Buyer Introductions, Contact History, Data Room, etc.
+// NOTE: A directory-based version at ReMarketingDealDetail/index.tsx exists but is ORPHANED (not rendered).
+// Monolithic — 1675 lines. Scheduled for refactoring into per-tab sub-components.
+// CTO Audit February 2026
 import { useState, useMemo, useRef, useEffect } from 'react';
 import { useAICommandCenterContext } from '@/components/ai-command-center/AICommandCenterProvider';
 import { MemosTab } from '@/components/admin/data-room/MemosTab';
