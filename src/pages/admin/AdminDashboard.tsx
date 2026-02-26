@@ -90,9 +90,9 @@ const AdminDashboard = () => {
   const activeDashboard =
     viewParam === 'remarketing'
       ? 'remarketing'
-      : viewParam === 'daily-tasks'
-        ? 'daily-tasks'
-        : 'marketplace';
+      : viewParam === 'marketplace'
+        ? 'marketplace'
+        : 'daily-tasks';
 
   const handleRefresh = () => {
     window.location.reload();
@@ -103,7 +103,7 @@ const AdminDashboard = () => {
   };
 
   const setView = (view: string) => {
-    if (view === 'marketplace') {
+    if (view === 'daily-tasks') {
       searchParams.delete('view');
     } else {
       searchParams.set('view', view);
