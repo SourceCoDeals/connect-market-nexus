@@ -2224,6 +2224,10 @@ export type Database = {
           decision_at: string | null
           decision_notes: string | null
           firm_id: string | null
+          flagged_for_review: boolean | null
+          flagged_for_review_assigned_to: string | null
+          flagged_for_review_at: string | null
+          flagged_for_review_by: string | null
           followed_up: boolean | null
           followed_up_at: string | null
           followed_up_by: string | null
@@ -2283,6 +2287,10 @@ export type Database = {
           decision_at?: string | null
           decision_notes?: string | null
           firm_id?: string | null
+          flagged_for_review?: boolean | null
+          flagged_for_review_assigned_to?: string | null
+          flagged_for_review_at?: string | null
+          flagged_for_review_by?: string | null
           followed_up?: boolean | null
           followed_up_at?: string | null
           followed_up_by?: string | null
@@ -2342,6 +2350,10 @@ export type Database = {
           decision_at?: string | null
           decision_notes?: string | null
           firm_id?: string | null
+          flagged_for_review?: boolean | null
+          flagged_for_review_assigned_to?: string | null
+          flagged_for_review_at?: string | null
+          flagged_for_review_by?: string | null
           followed_up?: boolean | null
           followed_up_at?: string | null
           followed_up_by?: string | null
