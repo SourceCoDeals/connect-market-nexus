@@ -133,7 +133,8 @@ export default function EnrichmentQueue() {
   const [tab, setTab] = useState("deals");
 
   const fetchStatsForTable = useCallback(async (table: 'enrichment_queue' | 'buyer_enrichment_queue' | 'remarketing_scoring_queue', cutoff: string): Promise<QueueStats> => {
-    const q = (status: string) => supabase.from(table).select('*', { count: 'exact', head: true }).eq('status', status).gte('queued_at', cutoff);
+    const dateCol = table === 'remarketing_scoring_queue' ? 'created_at' : 'queued_at';
+    const q = (status: string) => supabase.from(table).select('*', { count: 'exact', head: true }).eq('status', status).gte(dateCol, cutoff);
     const [p, pr, c, f] = await Promise.all([q('pending'), q('processing'), q('completed'), q('failed')]);
     return {
       pending: p.count ?? 0,
@@ -161,7 +162,7 @@ export default function EnrichmentQueue() {
       const [dealRes, buyerRes, scoringRes] = await Promise.all([
         supabase.from("enrichment_queue").select("id, listing_id, status, queued_at, started_at, completed_at, last_error, attempts").gte("queued_at", cutoff).order("queued_at", { ascending: false }).limit(100),
         supabase.from("buyer_enrichment_queue").select("id, buyer_id, status, queued_at, started_at, completed_at, last_error, attempts").gte("queued_at", cutoff).order("queued_at", { ascending: false }).limit(100),
-        supabase.from("remarketing_scoring_queue").select("id, buyer_id, deal_id, status, queued_at, started_at, completed_at, last_error, attempts").gte("queued_at", cutoff).order("queued_at", { ascending: false }).limit(100),
+        supabase.from("remarketing_scoring_queue").select("id, buyer_id, listing_id, score_type, status, created_at, processed_at, last_error, attempts").gte("created_at", cutoff).order("created_at", { ascending: false }).limit(100),
       ]);
 
       // Fetch labels for deals
@@ -184,8 +185,30 @@ export default function EnrichmentQueue() {
       }
       setBuyerItems((buyerRes.data || []).map((b: any) => ({ ...b, label: buyerLabels[b.buyer_id] || b.buyer_id?.slice(0, 8) || "—" })));
 
-      // Scoring items
-      setScoringItems((scoringRes.data || []).map((s: any) => ({ ...s, label: s.deal_id?.slice(0, 8) || "—" })));
+      // Fetch labels for scoring items (may reference listings or buyers)
+      const scoringListingIds = (scoringRes.data || []).map((s: any) => s.listing_id).filter(Boolean);
+      const scoringBuyerIds = (scoringRes.data || []).map((s: any) => s.buyer_id).filter(Boolean);
+      const scoringListingLabels: Record<string, string> = {};
+      const scoringBuyerLabels: Record<string, string> = {};
+      if (scoringListingIds.length > 0) {
+        const { data: sListings } = await supabase.from("listings").select("id, internal_company_name, title").in("id", scoringListingIds.slice(0, 100));
+        (sListings || []).forEach((l: any) => { scoringListingLabels[l.id] = l.internal_company_name || l.title || l.id.slice(0, 8); });
+      }
+      if (scoringBuyerIds.length > 0) {
+        const { data: sBuyers } = await supabase.from("remarketing_buyers").select("id, company_name").in("id", scoringBuyerIds.slice(0, 100));
+        (sBuyers || []).forEach((b: any) => { scoringBuyerLabels[b.id] = b.company_name || b.id.slice(0, 8); });
+      }
+      setScoringItems((scoringRes.data || []).map((s: any) => ({
+        ...s,
+        queued_at: s.created_at,
+        completed_at: s.processed_at,
+        started_at: null,
+        label: s.listing_id
+          ? scoringListingLabels[s.listing_id] || s.listing_id.slice(0, 8)
+          : s.buyer_id
+            ? scoringBuyerLabels[s.buyer_id] || s.buyer_id.slice(0, 8)
+            : "—",
+      })));
     } catch (err) {
       console.error("Failed to fetch queue data:", err);
     } finally {
