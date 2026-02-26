@@ -261,7 +261,7 @@ const FlagForReviewButton = ({ request }: { request: AdminConnectionRequest }) =
               onClick={handleUnflag}
               className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-medium bg-orange-100 text-orange-700 border border-orange-200 hover:bg-orange-200 transition-colors"
             >
-              <Flag className="h-3 w-3 fill-orange-500 text-orange-500" />
+              <Flag className="h-8 w-8 fill-orange-500 text-orange-500" />
               {assignedName ? `For ${assignedName}` : 'Flagged'}
             </button>
           </TooltipTrigger>
@@ -282,7 +282,7 @@ const FlagForReviewButton = ({ request }: { request: AdminConnectionRequest }) =
           onClick={(e) => { e.stopPropagation(); setOpen(true); }}
           className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-medium text-muted-foreground hover:text-orange-600 hover:bg-orange-50 border border-transparent hover:border-orange-200 transition-colors"
         >
-          <Flag className="h-3 w-3" />
+          <Flag className="h-8 w-8" />
           Flag
         </button>
       </PopoverTrigger>
@@ -604,10 +604,10 @@ function ReactiveRequestCard({
                 <StatusBadge status={request.status} />
                 <SourceBadge source={request.source || 'marketplace'} />
                 <ConnectionRequestFirmBadge requestId={request.id} compact={true} />
+                <FlagForReviewButton request={request} />
                 {request.user && (
                   <BuyerTierBadge tier={(request.user as any).buyer_tier} />
                 )}
-                <FlagForReviewButton request={request} />
               </div>
                <div className="text-sm text-muted-foreground space-y-1">
                  <div className="flex items-center gap-2">
