@@ -68,6 +68,7 @@ export const ROUTES = {
     },
 
     marketplace: {
+      queue: '/admin/marketplace/queue',
       requests: '/admin/marketplace/requests',
       messages: '/admin/marketplace/messages',
       users: '/admin/marketplace/users',
