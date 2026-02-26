@@ -685,6 +685,9 @@ function ReactiveRequestCard({
                   requestStatus={request.status}
                   userMessage={request.user_message}
                   createdAt={request.created_at}
+                  flaggedForReview={request.flagged_for_review}
+                  flaggedByAdmin={request.flaggedByAdmin}
+                  flaggedAssignedToAdmin={request.flaggedAssignedToAdmin}
                 />
               ) : (
                 <LeadRequestActions request={request} />
