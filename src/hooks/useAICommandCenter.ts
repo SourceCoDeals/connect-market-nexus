@@ -420,13 +420,34 @@ export function useAICommandCenter(pageContext?: PageContext) {
     sessionStorage.removeItem('ai-cc-conversation-id');
   }, []);
 
-  // Persist messages to sessionStorage on change
-  if (messages.length > 0 && !isLoading) {
+  // Persist messages to sessionStorage + database on change
+  useEffect(() => {
+    if (messages.length === 0 || isLoading) return;
+    // SessionStorage for instant reload
     try {
       sessionStorage.setItem('ai-cc-messages', JSON.stringify(messages.slice(-20)));
       sessionStorage.setItem('ai-cc-conversation-id', conversationIdRef.current);
     } catch { /* storage full — ignore */ }
-  }
+
+    // Database persistence (async, non-blocking)
+    const lastMsg = messages[messages.length - 1];
+    if (lastMsg && !persistedRef.current) {
+      persistedRef.current = true;
+    }
+    // Save the last message to chat_analytics for audit trail
+    if (lastMsg?.role === 'assistant' && lastMsg.metadata) {
+      supabase.from('chat_analytics').insert({
+        conversation_id: conversationIdRef.current,
+        query: messages.length >= 2 ? messages[messages.length - 2]?.content?.substring(0, 500) : '',
+        response: lastMsg.content?.substring(0, 2000) || '',
+        route_category: lastMsg.metadata.category || null,
+        tools_called: lastMsg.toolCalls?.map(t => t.name) || [],
+        response_time_ms: lastMsg.metadata.durationMs || null,
+        tokens_total: null,
+        estimated_cost: lastMsg.metadata.cost || null,
+      }).then(() => {}).catch(() => {}); // Fire and forget
+    }
+  }, [messages, isLoading]);
 
   // Stop streaming
   const stopStreaming = useCallback(() => {

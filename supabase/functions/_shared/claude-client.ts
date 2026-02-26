@@ -90,12 +90,13 @@ export async function callClaude(options: ClaudeCallOptions): Promise<ClaudeResp
       headers: {
         'x-api-key': apiKey,
         'anthropic-version': '2023-06-01',
+        'anthropic-beta': 'prompt-caching-2024-07-31',
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
         model: options.model,
         max_tokens: options.maxTokens,
-        system: options.systemPrompt,
+        system: [{ type: 'text', text: options.systemPrompt, cache_control: { type: 'ephemeral' } }],
         messages: options.messages,
         tools: options.tools,
         stream: false,
@@ -136,12 +137,13 @@ export async function streamClaude(
       headers: {
         'x-api-key': apiKey,
         'anthropic-version': '2023-06-01',
+        'anthropic-beta': 'prompt-caching-2024-07-31',
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
         model: options.model,
         max_tokens: options.maxTokens,
-        system: options.systemPrompt,
+        system: [{ type: 'text', text: options.systemPrompt, cache_control: { type: 'ephemeral' } }],
         messages: options.messages,
         tools: options.tools,
         stream: true,

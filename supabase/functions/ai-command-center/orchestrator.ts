@@ -114,6 +114,45 @@ function truncateToolResult(json: string): string {
   });
 }
 
+// ---------- Circuit Breaker ----------
+
+/** Track tool success/failure rates to disable consistently failing tools. */
+const toolStats = new Map<string, { success: number; failure: number; lastFailure: number }>();
+const CIRCUIT_BREAKER_THRESHOLD = 5; // Failures before tripping
+const CIRCUIT_BREAKER_WINDOW_MS = 5 * 60 * 1000; // 5 minute window
+const CIRCUIT_BREAKER_COOLDOWN_MS = 2 * 60 * 1000; // 2 minute cooldown after tripping
+
+function isToolCircuitOpen(toolName: string): boolean {
+  const stats = toolStats.get(toolName);
+  if (!stats) return false;
+  // Reset if outside window
+  if (Date.now() - stats.lastFailure > CIRCUIT_BREAKER_WINDOW_MS) {
+    toolStats.delete(toolName);
+    return false;
+  }
+  // Trip if too many failures
+  if (stats.failure >= CIRCUIT_BREAKER_THRESHOLD) {
+    // Allow retry after cooldown
+    if (Date.now() - stats.lastFailure > CIRCUIT_BREAKER_COOLDOWN_MS) {
+      toolStats.delete(toolName);
+      return false;
+    }
+    return true;
+  }
+  return false;
+}
+
+function recordToolResult(toolName: string, success: boolean): void {
+  const stats = toolStats.get(toolName) || { success: 0, failure: 0, lastFailure: 0 };
+  if (success) {
+    stats.success++;
+  } else {
+    stats.failure++;
+    stats.lastFailure = Date.now();
+  }
+  toolStats.set(toolName, stats);
+}
+
 // ---------- Orchestrator ----------
 
 const MAX_TOOL_ROUNDS = 8;
@@ -242,6 +281,18 @@ export async function orchestrate(
         };
       }
 
+      // Check circuit breaker before executing
+      if (isToolCircuitOpen(toolName)) {
+        console.warn(`[ai-cc] Circuit breaker OPEN for tool: ${toolName} — skipping`);
+        toolResults.push({
+          type: 'tool_result',
+          tool_use_id: toolId,
+          content: JSON.stringify({ error: `Tool ${toolName} is temporarily disabled due to repeated failures. Please try again in a few minutes.` }),
+          is_error: true,
+        });
+        continue;
+      }
+
       // Execute the tool
       await writer.write(sseEvent('tool_start', { id: toolId, name: toolName }));
       const result = await executeTool(
@@ -252,11 +303,14 @@ export async function orchestrate(
       );
       toolCallCount++;
 
+      const toolSuccess = !result.error;
+      recordToolResult(toolName, toolSuccess);
+
       await writer.write(
         sseEvent('tool_result', {
           id: toolId,
           name: toolName,
-          success: !result.error,
+          success: toolSuccess,
           has_ui_action: !!(result.data as Record<string, unknown>)?.ui_action,
         }),
       );
