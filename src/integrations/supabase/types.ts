@@ -3496,6 +3496,126 @@ export type Database = {
         }
         Relationships: []
       }
+      daily_standup_tasks: {
+        Row: {
+          assignee_id: string | null
+          completed_at: string | null
+          completed_by: string | null
+          created_at: string | null
+          deal_id: string | null
+          deal_reference: string | null
+          description: string | null
+          due_date: string
+          extraction_confidence: string | null
+          id: string
+          is_manual: boolean | null
+          is_pinned: boolean | null
+          needs_review: boolean | null
+          pin_reason: string | null
+          pinned_at: string | null
+          pinned_by: string | null
+          pinned_rank: number | null
+          priority_rank: number | null
+          priority_score: number | null
+          source_meeting_id: string | null
+          source_timestamp: string | null
+          status: string
+          task_type: string
+          title: string
+          updated_at: string | null
+        }
+        Insert: {
+          assignee_id?: string | null
+          completed_at?: string | null
+          completed_by?: string | null
+          created_at?: string | null
+          deal_id?: string | null
+          deal_reference?: string | null
+          description?: string | null
+          due_date?: string
+          extraction_confidence?: string | null
+          id?: string
+          is_manual?: boolean | null
+          is_pinned?: boolean | null
+          needs_review?: boolean | null
+          pin_reason?: string | null
+          pinned_at?: string | null
+          pinned_by?: string | null
+          pinned_rank?: number | null
+          priority_rank?: number | null
+          priority_score?: number | null
+          source_meeting_id?: string | null
+          source_timestamp?: string | null
+          status?: string
+          task_type?: string
+          title: string
+          updated_at?: string | null
+        }
+        Update: {
+          assignee_id?: string | null
+          completed_at?: string | null
+          completed_by?: string | null
+          created_at?: string | null
+          deal_id?: string | null
+          deal_reference?: string | null
+          description?: string | null
+          due_date?: string
+          extraction_confidence?: string | null
+          id?: string
+          is_manual?: boolean | null
+          is_pinned?: boolean | null
+          needs_review?: boolean | null
+          pin_reason?: string | null
+          pinned_at?: string | null
+          pinned_by?: string | null
+          pinned_rank?: number | null
+          priority_rank?: number | null
+          priority_score?: number | null
+          source_meeting_id?: string | null
+          source_timestamp?: string | null
+          status?: string
+          task_type?: string
+          title?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "daily_standup_tasks_assignee_id_fkey"
+            columns: ["assignee_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "daily_standup_tasks_completed_by_fkey"
+            columns: ["completed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "daily_standup_tasks_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "deals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "daily_standup_tasks_pinned_by_fkey"
+            columns: ["pinned_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "daily_standup_tasks_source_meeting_id_fkey"
+            columns: ["source_meeting_id"]
+            isOneToOne: false
+            referencedRelation: "standup_meetings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       data_room_access: {
         Row: {
           access_token: string | null
@@ -11608,6 +11728,132 @@ export type Database = {
         }
         Relationships: []
       }
+      standup_meetings: {
+        Row: {
+          created_at: string | null
+          extraction_confidence_avg: number | null
+          fireflies_transcript_id: string
+          id: string
+          meeting_date: string
+          meeting_duration_minutes: number | null
+          meeting_title: string | null
+          processed_at: string | null
+          tasks_extracted: number | null
+          tasks_unassigned: number | null
+          transcript_url: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          extraction_confidence_avg?: number | null
+          fireflies_transcript_id: string
+          id?: string
+          meeting_date?: string
+          meeting_duration_minutes?: number | null
+          meeting_title?: string | null
+          processed_at?: string | null
+          tasks_extracted?: number | null
+          tasks_unassigned?: number | null
+          transcript_url?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          extraction_confidence_avg?: number | null
+          fireflies_transcript_id?: string
+          id?: string
+          meeting_date?: string
+          meeting_duration_minutes?: number | null
+          meeting_title?: string | null
+          processed_at?: string | null
+          tasks_extracted?: number | null
+          tasks_unassigned?: number | null
+          transcript_url?: string | null
+        }
+        Relationships: []
+      }
+      task_pin_log: {
+        Row: {
+          action: string
+          id: string
+          performed_at: string | null
+          performed_by: string
+          pinned_rank: number | null
+          reason: string | null
+          task_id: string
+        }
+        Insert: {
+          action: string
+          id?: string
+          performed_at?: string | null
+          performed_by: string
+          pinned_rank?: number | null
+          reason?: string | null
+          task_id: string
+        }
+        Update: {
+          action?: string
+          id?: string
+          performed_at?: string | null
+          performed_by?: string
+          pinned_rank?: number | null
+          reason?: string | null
+          task_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "task_pin_log_performed_by_fkey"
+            columns: ["performed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "task_pin_log_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "daily_standup_tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      team_member_aliases: {
+        Row: {
+          alias: string
+          created_at: string | null
+          created_by: string | null
+          id: string
+          profile_id: string
+        }
+        Insert: {
+          alias: string
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          profile_id: string
+        }
+        Update: {
+          alias?: string
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          profile_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "team_member_aliases_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "team_member_aliases_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       trigger_logs: {
         Row: {
           created_at: string | null
@@ -13824,6 +14070,7 @@ export type Database = {
         Args: { event_type: string; metadata?: Json; user_id?: string }
         Returns: undefined
       }
+      mark_overdue_standup_tasks: { Args: never; Returns: number }
       match_deal_alerts_with_listing: {
         Args: { listing_data: Json }
         Returns: {
