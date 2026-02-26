@@ -9417,10 +9417,9 @@ export type Database = {
           display_name: string | null
           expires_at: string
           id: string
-          is_manual_token: boolean
           phoneburner_user_email: string | null
           phoneburner_user_id: string | null
-          refresh_token: string | null
+          refresh_token: string
           scope: string | null
           token_type: string | null
           updated_at: string | null
@@ -9432,10 +9431,9 @@ export type Database = {
           display_name?: string | null
           expires_at: string
           id?: string
-          is_manual_token?: boolean
           phoneburner_user_email?: string | null
           phoneburner_user_id?: string | null
-          refresh_token?: string | null
+          refresh_token: string
           scope?: string | null
           token_type?: string | null
           updated_at?: string | null
@@ -9447,10 +9445,9 @@ export type Database = {
           display_name?: string | null
           expires_at?: string
           id?: string
-          is_manual_token?: boolean
           phoneburner_user_email?: string | null
           phoneburner_user_id?: string | null
-          refresh_token?: string | null
+          refresh_token?: string
           scope?: string | null
           token_type?: string | null
           updated_at?: string | null
