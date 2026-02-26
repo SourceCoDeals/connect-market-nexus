@@ -53,6 +53,10 @@ export interface DealListing {
   universe_build_flagged_at: string | null;
   universe_build_flagged_by: string | null;
   is_internal_deal: boolean | null;
+  // Marketplace queue
+  pushed_to_marketplace: boolean | null;
+  pushed_to_marketplace_at: string | null;
+  pushed_to_marketplace_by: string | null;
 }
 
 // Column width configuration

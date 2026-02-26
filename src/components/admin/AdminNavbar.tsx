@@ -101,6 +101,12 @@ export function AdminNavbar({ className, onSearchClick }: AdminNavbarProps) {
       section: "Marketplace",
     },
     {
+      to: "/admin/marketplace/queue",
+      label: "Marketplace Queue",
+      icon: <Store className="h-4 w-4 mr-2" />,
+      active: location.pathname.startsWith("/admin/marketplace/queue"),
+    },
+    {
       to: "/admin/marketplace/requests",
       label: "Connection Requests",
       icon: <MessageSquare className="h-4 w-4 mr-2" />,
