@@ -22,8 +22,15 @@ interface UseDailyTasksOptions {
 export function useDailyTasks(options: UseDailyTasksOptions) {
   const { user } = useAuth();
 
+  // Don't run the 'my' view query until the user is loaded — otherwise the
+  // filter `.eq('assignee_id', user.id)` can't be applied and the query
+  // either returns all tasks (leaking data) or returns nothing once the
+  // correct key is set.
+  const isMyView = options.view === 'my';
+
   return useQuery({
     queryKey: [QUERY_KEY, options, user?.id],
+    enabled: !isMyView || !!user?.id,
     queryFn: async () => {
       // Mark overdue tasks first
       await supabase.rpc('mark_overdue_standup_tasks' as any);
@@ -42,7 +49,7 @@ export function useDailyTasks(options: UseDailyTasksOptions) {
         .order('priority_score', { ascending: false })
         .order('created_at', { ascending: true });
 
-      if (options.view === 'my' && user?.id) {
+      if (isMyView && user?.id) {
         query = query.eq('assignee_id', user.id);
       }
 
