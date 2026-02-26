@@ -931,8 +931,7 @@ const ReMarketingDealDetail = () => {
                       </Tooltip>
                     </TooltipProvider>
                     {/* Push to Marketplace Queue Button */}
-                    {deal?.remarketing_status === 'active' && (
-                      <TooltipProvider>
+                    <TooltipProvider>
                         <Tooltip>
                           <TooltipTrigger asChild>
                             {deal?.pushed_to_marketplace ? (
@@ -992,7 +991,6 @@ const ReMarketingDealDetail = () => {
                           </TooltipContent>
                         </Tooltip>
                       </TooltipProvider>
-                    )}
                   </div>
                   {isEnriching && (
                     <div className="mt-4 space-y-2">
