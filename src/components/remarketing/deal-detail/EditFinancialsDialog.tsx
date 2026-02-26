@@ -26,6 +26,22 @@ interface EditFinancialsDialogProps {
   isSaving?: boolean;
 }
 
+const formatWithCommas = (value: string): string => {
+  const cleaned = value.replace(/[^0-9.]/g, "");
+  const parts = cleaned.split(".");
+  parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+  return parts.length > 1 ? `${parts[0]}.${parts[1]}` : parts[0];
+};
+
+const stripCommas = (value: string): string => {
+  return value.replace(/,/g, "");
+};
+
+const numberToFormatted = (value: number | null | undefined): string => {
+  if (value == null) return "";
+  return formatWithCommas(value.toString());
+};
+
 export const EditFinancialsDialog = ({
   open,
   onOpenChange,
@@ -34,19 +50,24 @@ export const EditFinancialsDialog = ({
   isSaving = false,
 }: EditFinancialsDialogProps) => {
   const [formData, setFormData] = useState({
-    revenue: data.revenue?.toString() || "",
-    ebitda: data.ebitda?.toString() || "",
+    revenue: numberToFormatted(data.revenue),
+    ebitda: numberToFormatted(data.ebitda),
   });
 
   useEffect(() => {
     setFormData({
-      revenue: data.revenue?.toString() || "",
-      ebitda: data.ebitda?.toString() || "",
+      revenue: numberToFormatted(data.revenue),
+      ebitda: numberToFormatted(data.ebitda),
     });
   }, [data]);
 
+  const handleChange = (field: "revenue" | "ebitda", value: string) => {
+    const formatted = formatWithCommas(value);
+    setFormData((prev) => ({ ...prev, [field]: formatted }));
+  };
+
   const parseNumber = (value: string): number | undefined => {
-    const num = parseFloat(value);
+    const num = parseFloat(stripCommas(value));
     return isNaN(num) ? undefined : num;
   };
 
@@ -71,10 +92,11 @@ export const EditFinancialsDialog = ({
             <Label htmlFor="revenue">Annual Revenue (USD)</Label>
             <Input
               id="revenue"
-              type="number"
-              placeholder="e.g., 5000000"
+              type="text"
+              inputMode="decimal"
+              placeholder="e.g., 5,000,000"
               value={formData.revenue}
-              onChange={(e) => setFormData({ ...formData, revenue: e.target.value })}
+              onChange={(e) => handleChange("revenue", e.target.value)}
             />
           </div>
 
@@ -82,10 +104,11 @@ export const EditFinancialsDialog = ({
             <Label htmlFor="ebitda">Annual EBITDA (USD)</Label>
             <Input
               id="ebitda"
-              type="number"
-              placeholder="e.g., 1000000"
+              type="text"
+              inputMode="decimal"
+              placeholder="e.g., 1,000,000"
               value={formData.ebitda}
-              onChange={(e) => setFormData({ ...formData, ebitda: e.target.value })}
+              onChange={(e) => handleChange("ebitda", e.target.value)}
             />
           </div>
 
