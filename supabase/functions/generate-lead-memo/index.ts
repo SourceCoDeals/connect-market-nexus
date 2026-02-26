@@ -265,6 +265,15 @@ function buildDataContext(deal: any, transcripts: any[], valuationData: any): Da
     "founded_year", "end_market_description", "customer_segments",
     "industry", "category", "revenue", "ebitda", "ebitda_margin",
     "employee_count", "number_of_locations",
+    // Deep enrichment fields from transcript extraction
+    "competitive_advantages", "management_team", "workforce_details",
+    "add_backs", "debt_details", "capex_details",
+    "recurring_revenue_percentage", "seasonality_details",
+    "key_risks", "technology_systems", "real_estate_info",
+    "customer_types", "customer_geography", "growth_trajectory",
+    "owner_goals", "ownership_structure", "transition_preferences",
+    "timeline_notes", "special_requirements", "financial_notes",
+    "full_time_employees", "part_time_employees",
   ];
   const enrichmentData = enrichmentFields
     .filter(f => deal[f] != null && deal[f] !== "")

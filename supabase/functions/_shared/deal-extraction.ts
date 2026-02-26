@@ -87,6 +87,15 @@ export const VALID_LISTING_UPDATE_KEYS = new Set([
   'financial_notes',
   'financial_followup_questions',
   'asking_price',
+  // Deep enrichment fields (from transcript extraction)
+  'add_backs',
+  'debt_details',
+  'capex_details',
+  'recurring_revenue_percentage',
+  'seasonality_details',
+  'workforce_details',
+  'management_team',
+  'competitive_advantages',
 ]);
 
 // Financial data must NEVER come from website scraping — only from transcripts or manual entry
@@ -96,6 +105,8 @@ export const FINANCIAL_FIELDS_BLOCKED_FROM_WEBSITES = [
   'ebitda_is_inferred', 'ebitda_source_quote',
   'financial_notes', 'financial_followup_questions',
   'asking_price',
+  'add_backs', 'debt_details', 'capex_details',
+  'recurring_revenue_percentage', 'seasonality_details',
 ];
 
 // Numeric columns that need special sanitization (LLM often returns prose for these)
@@ -111,6 +122,7 @@ export const NUMERIC_LISTING_FIELDS = new Set([
   'team_page_employee_count',
   'customer_concentration', // numeric column — LLM often returns prose
   'asking_price',
+  'recurring_revenue_percentage',
 ]);
 
 // Placeholder values to reject from any field
@@ -682,6 +694,19 @@ export function mapTranscriptToListing(extracted: any, listingKeys: Set<string>)
   if (extracted?.special_requirements) out.special_requirements = extracted.special_requirements;
   if (extracted?.end_market_description) out.end_market_description = extracted.end_market_description;
   if (Array.isArray(extracted?.financial_followup_questions) && extracted.financial_followup_questions.length) out.financial_followup_questions = extracted.financial_followup_questions;
+
+  // Deep enrichment fields
+  if (extracted?.add_backs) out.add_backs = extracted.add_backs;
+  if (extracted?.debt_details) out.debt_details = extracted.debt_details;
+  if (extracted?.capex_details) out.capex_details = extracted.capex_details;
+  if (extracted?.seasonality_details) out.seasonality_details = extracted.seasonality_details;
+  if (extracted?.workforce_details) out.workforce_details = extracted.workforce_details;
+  if (extracted?.management_team) out.management_team = extracted.management_team;
+  if (extracted?.competitive_advantages) out.competitive_advantages = extracted.competitive_advantages;
+  {
+    const rrp = toFiniteNumber(extracted?.recurring_revenue_percentage);
+    if (rrp != null && rrp >= 0 && rrp <= 100) out.recurring_revenue_percentage = rrp;
+  }
 
   // Filter to known listing columns (defensive)
   const filtered: Record<string, unknown> = {};

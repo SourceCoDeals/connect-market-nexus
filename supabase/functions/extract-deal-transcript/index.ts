@@ -27,6 +27,13 @@ interface ExtractionResult {
   financial_notes?: string;
   financial_followup_questions?: string[];
 
+  // Financial depth fields
+  add_backs?: string;
+  debt_details?: string;
+  capex_details?: string;
+  recurring_revenue_percentage?: number;
+  seasonality_details?: string;
+
   // Business basics
   location?: string;
   industry?: string;
@@ -36,10 +43,12 @@ interface ExtractionResult {
   // Employees
   full_time_employees?: number;
   part_time_employees?: number;
+  workforce_details?: string;
 
   // Services
   services?: string[];
   service_mix?: string;
+  competitive_advantages?: string;
 
   // Geography
   geographic_states?: string[];
@@ -51,6 +60,7 @@ interface ExtractionResult {
   transition_preferences?: string;
   timeline_notes?: string;
   special_requirements?: string;
+  management_team?: string;
 
   // Customers
   customer_types?: string;
@@ -229,21 +239,68 @@ Search for EBITDA, earnings, cash flow, profit, margin, SDE, owner's benefit, ad
 - "We keep about 20 cents on every dollar" → margin_percentage=20.
 - "After I pay myself $300K, the business throws off another $800K" — this is likely SDE territory. Flag it.
 
-### Financial Notes (string — detailed paragraph)
+### Financial Notes (string — detailed paragraph, 3-5 sentences MINIMUM)
 
-Scan the ENTIRE transcript for financial context beyond revenue/EBITDA. Include ALL of the following if mentioned:
-- **Seasonality:** "70% of revenue comes Q2-Q3", "December is dead month"
-- **Revenue trends:** "Revenue grown 15% YoY for 3 years", "down year in 2023"
-- **One-time items:** "$500K insurance claim inflated last year", "bought new fleet — unusual capex"
-- **Owner compensation:** ALWAYS capture this — "I pay myself $250K plus car and health insurance." Affects SDE/EBITDA adjustments.
-- **Add-backs:** Personal expenses through business, one-time legal, family on payroll not working full-time, above-market rent to related entity
-- **Debt/liens:** Business debt, SBA loans, equipment financing, lines of credit
+Scan the ENTIRE transcript for financial context beyond revenue/EBITDA. This field is CRITICAL for buyer due diligence. Include ALL of the following if mentioned:
+- **Revenue trends:** "Revenue grown 15% YoY for 3 years", "down year in 2023", "tracking to $X this year". Include MULTIPLE years if discussed.
 - **Pending changes:** "Just signed $2M contract starting next quarter", "about to lose biggest customer"
-- **Capex:** Equipment needs, deferred maintenance
 - **Tax structure:** S-corp, C-corp, LLC, sole proprietor — how taxes affect reported earnings
-- **Working capital needs:** AR/AP cycles, inventory requirements
+- **Working capital needs:** AR/AP cycles, inventory requirements, payment terms
+- **One-time items:** "$500K insurance claim inflated last year", "bought new fleet — unusual capex"
 
 If NOTHING beyond revenue/EBITDA mentioned: "No additional financial context provided in this call."
+
+### Add-Backs (string — detailed paragraph)
+
+This is CRITICAL for deal valuation. Extract EVERY mention of owner compensation and adjustable expenses:
+1. **Owner/officer compensation:** Base salary, bonuses, car allowance, health insurance, retirement contributions, country club, personal travel. "I pay myself $250K plus car and health insurance" — capture EXACT figures.
+2. **Family on payroll:** Spouse, children, relatives employed. "My wife handles the books part-time but she's on payroll for $80K" — flag whether they perform legitimate work.
+3. **Personal expenses through business:** Meals, entertainment, vehicles, home office, personal travel billed to company.
+4. **Above-market rent:** "I own the building and charge the company $12K/month" — note market rate vs charged rate if discussed.
+5. **One-time expenses:** Litigation, equipment write-offs, COVID impacts, startup costs for new service lines.
+6. **Discretionary expenses:** Charitable donations, sponsorships, marketing that new owner could cut.
+Include DOLLAR AMOUNTS wherever the owner gives them. This data directly affects EBITDA normalization.
+If not discussed, set to null.
+
+### Debt Details (string — detailed paragraph)
+
+Extract ALL mentions of business debt and financial obligations:
+1. **Loan types:** SBA loans, equipment financing, vehicle loans, lines of credit, term loans, real estate loans, merchant cash advances.
+2. **Amounts:** Current balance, original amount, monthly payment. "We owe about $500K on the SBA loan."
+3. **Terms:** Interest rate, remaining years, maturity date, balloon payment.
+4. **Covenant restrictions:** Any operational constraints from lenders.
+5. **Personal guarantees:** Owner's personal guarantee on business debt.
+6. **Lines of credit:** Available credit, current draw, terms.
+If not discussed, set to null.
+
+### Capex Details (string — detailed paragraph)
+
+Extract ALL capital expenditure and equipment information:
+1. **Recent investments:** "Just bought $500K in new trucks", "Invested $200K in the textile facility last year"
+2. **Deferred maintenance:** Equipment that needs replacing, buildings needing repair.
+3. **Fleet details:** Number and age of vehicles, replacement cycle, fleet value.
+4. **Equipment condition:** "Our equipment is all less than 5 years old" vs "Some machines are 20 years old."
+5. **Planned purchases:** Near-term capex needs that a buyer would inherit.
+6. **Annual capex run rate:** "We spend about $100K a year on equipment."
+If not discussed, set to null.
+
+### Recurring Revenue Percentage (number or null)
+
+What percentage of revenue is recurring, contracted, or subscription-based vs one-time/project-based?
+- "About 60% of our work is recurring maintenance contracts" → 60
+- "Most of our revenue comes from insurance referrals that repeat" → estimate based on context
+- "It's mostly project-based, one-off jobs" → 10-20 range based on context
+- Only capture if discussed. Do NOT guess without evidence.
+Store as integer (60 not 0.60).
+
+### Seasonality Details (string or null)
+
+Detailed seasonal revenue and operational patterns:
+- Which months/quarters are strongest and weakest: "Q2-Q3 is 70% of our revenue"
+- How seasonality affects staffing: "We hire 15 temps in summer, lay off in winter"
+- Cash flow timing: "Collections slow in Q4"
+- How owner manages: "We do commercial work in winter to fill the gap"
+If not discussed, set to null.
 
 ## SECTION 2: EXECUTIVE SUMMARY (string — 5-12 sentences)
 
@@ -416,7 +473,44 @@ The seller's asking price in raw dollars if mentioned. "Listed at $5 million" = 
 ### Primary Contact
 Name, email, phone of main contact person (usually the speaker). Note their role (owner, broker, CEO, partner).
 
-## SECTION 9: RISK, OPERATIONS & INFRASTRUCTURE
+## SECTION 9: WORKFORCE, MANAGEMENT & COMPETITIVE POSITION
+
+### Workforce Details (string — detailed paragraph, 3-5 sentences)
+
+Go DEEP on the workforce. This is one of the MOST IMPORTANT fields for buyer due diligence. Extract:
+1. **Functional breakdown:** How many in field/production vs office/admin vs sales vs management? "We have 30 field guys, 5 in the office, and 3 project managers."
+2. **Tenure and retention:** Average years with the company, turnover rate. "Most of my guys have been here 5+ years." "We lose maybe 2-3 people a year."
+3. **Compensation structure:** Hourly vs salary, W-2 vs 1099/subcontractor split, benefits offered (health, retirement, PTO). "Field guys average $25/hour, office staff is salaried."
+4. **Certifications and training:** Industry certifications held by staff (IICRC, EPA, OSHA, CDL, master electrician, etc.). "All our techs are IICRC certified."
+5. **Union status:** Unionized or not, which trades, CBA terms.
+6. **Key person dependencies:** Which employees are critical? "My ops manager basically runs the day-to-day." "If my lead estimator left, we'd lose 30% of our sales."
+7. **Hiring challenges:** Difficulty finding workers, labor market conditions, specialized skills needed.
+If not discussed in detail, capture whatever WAS discussed. Set to null only if workforce is completely unmentioned.
+
+### Management Team (string — detailed paragraph, 2-4 sentences)
+
+Extract details about the management layer BELOW the owner. This is CRITICAL for succession risk assessment:
+1. **Key personnel:** Name, title, tenure, responsibilities. "My ops manager John has been here 12 years, he runs everything day-to-day."
+2. **The #2 person:** Is there someone who could take over if the owner left? "If I stepped away, Sarah could keep it running."
+3. **Bench strength:** How deep is the team? "I have 3 project managers who each handle their own book."
+4. **Owner dependence:** How involved is the owner? "I still sell 80% of the work" vs "I'm mostly just overseeing."
+5. **Recent hires:** Did they recently bring in management talent? "Just hired a GM last year to take over operations."
+6. **Gaps:** What roles are missing? "We need a proper CFO" or "No dedicated sales person."
+If not discussed: "Management team structure not discussed on this call. Recommend follow-up to assess succession readiness."
+
+### Competitive Advantages (string — detailed paragraph, 3-5 sentences)
+
+Extract EVERY competitive differentiator and barrier to entry discussed:
+1. **Certifications and designations:** IICRC, ISO, EPA, preferred vendor status, franchise affiliations, contractor licenses. "We're one of only 3 certified Xactimate shops in the state."
+2. **Customer lock-in:** Long-term contracts, switching costs, DRP (direct repair program) relationships, exclusive arrangements. "We're on State Farm's preferred vendor list — that took 5 years to get."
+3. **Proprietary processes:** Unique methodologies, custom software, patents, trade secrets. "We built our own dispatch system."
+4. **Scale advantages:** Fleet size, geographic coverage, equipment that smaller competitors can't afford. "We have 20 trucks — most competitors have 3-5."
+5. **Reputation and brand:** Google reviews, awards, years in market, referral networks. "We have 500 Google reviews at 4.8 stars."
+6. **Regulatory moats:** Licensing barriers, bonding requirements, insurance carrier approvals. "You need $5M in insurance just to bid on these jobs."
+7. **Relationships:** Key customer relationships, vendor partnerships, referral sources that took years to build.
+If not discussed, set to null.
+
+## SECTION 10: RISK, OPERATIONS & INFRASTRUCTURE
 
 ### Key Risks (string or null — detailed paragraph)
 Identify ALL risk factors mentioned or implied in the transcript:
@@ -478,7 +572,7 @@ Questions that remain unanswered after this call, specifically about financials 
 - "What is the customer concentration among the top 5 accounts?"
 Include 3-8 specific, actionable follow-up questions. Always generate at least a few based on gaps in the financial data.
 
-## SECTION 10: KEY QUOTES (8-10 EXACT VERBATIM)
+## SECTION 11: KEY QUOTES (8-10 EXACT VERBATIM)
 
 Select the 8-10 most revealing quotes — the "highlights reel" a buyer scans to understand the opportunity.
 Priority order:
@@ -529,14 +623,22 @@ CORE RULES:
 9. DO NOT OVER-EXTRACT jokes or hypotheticals.
 10. IGNORE THE INTERVIEWER: Extract data from the business owner/seller only.
 
-DEPTH REQUIREMENTS — Every text field should be DETAILED with MAXIMUM CONTEXT:
-- executive_summary: 5-12 sentences — this is the MOST IMPORTANT field. 5-10 sentences covering what the company does, business model (how it makes money), size indicators, geography, competitive advantages (certifications, preferred vendor status, proprietary processes, market position), customer base quality, growth trajectory, and acquisition attractiveness. Then 1-2 sentences on owner goals and why they want to transact (only if discussed in transcript). Write like a PE investor memo. Every sentence must contain specific facts or numbers.
+DEPTH REQUIREMENTS — Every text field should be DETAILED with MAXIMUM CONTEXT. Think of each field as a mini-section of an investment memo:
+- executive_summary: 5-12 sentences — this is the SINGLE MOST IMPORTANT field. 5-10 sentences covering what the company does, business model (how it makes money), size indicators, geography, competitive advantages (certifications, preferred vendor status, proprietary processes, market position), customer base quality, growth trajectory, and acquisition attractiveness. Then 1-2 sentences on owner goals and why they want to transact (only if discussed in transcript). Write like a PE investor memo. Every sentence must contain specific facts or numbers.
+- financial_notes: 3-5 sentences covering revenue trends over time, tax structure, working capital needs, pending changes. Focus on TRENDS and CONTEXT — the add_backs, debt_details, capex_details, and seasonality_details fields handle the rest.
+- add_backs: 2-4 sentences — CRITICAL for valuation. Owner compensation (salary + perks + benefits), family on payroll, personal expenses through business, above-market rent to related entity, one-time items. Include DOLLAR AMOUNTS.
+- debt_details: 2-3 sentences — loan types (SBA, equipment, LOC), amounts, monthly payments, terms, personal guarantees.
+- capex_details: 2-3 sentences — recent investments, deferred maintenance, fleet details, annual capex run rate, equipment age/condition.
+- seasonality_details: 1-3 sentences — strongest/weakest quarters, % revenue by season, staffing impact.
+- workforce_details: 3-5 sentences — functional breakdown (field vs office vs sales vs management), tenure/retention, compensation structure (hourly/salary, W-2/1099, benefits), certifications held, key person dependencies, hiring challenges.
+- management_team: 2-4 sentences — key personnel below owner (name, title, tenure, what they handle), who is the #2, bench strength, owner's day-to-day involvement level.
+- competitive_advantages: 3-5 sentences — certifications/designations, customer lock-in (DRP, contracts, switching costs), proprietary processes, scale advantages, reputation/brand, regulatory moats, key relationships that took years to build. This is what makes the company HARD TO REPLICATE.
 - service_mix: 2-4 sentences with revenue percentages if stated, residential vs commercial split, recurring vs project-based, how services interrelate, in-house vs subcontracted.
 - owner_goals: 2-4 sentences with primary motivation, desired deal type, financial expectations, beyond-money goals, urgency signals. Include owner's exact words.
 - transition_preferences: 2-3 sentences covering duration, role, willing vs not willing, key relationships held, training plan, non-compete.
-- growth_trajectory: 2-3 sentences with specific numbers — revenue growth rates, new locations, new services, hiring, contract wins, expansion plans.
-- financial_notes: 3-5 sentences covering seasonality, revenue trends, one-time items, owner compensation, add-backs, debt, pending changes, capex, tax structure, working capital.
-- customer_types: 2-3 sentences covering specific segments, concentration details, key accounts, repeat rates.
+- growth_trajectory: 2-3 sentences with specific numbers — revenue growth rates, new locations, new services, hiring, contract wins, expansion plans. Split into HISTORICAL (what has happened) and FUTURE POTENTIAL (what could happen with investment).
+- customer_types: 2-3 sentences covering specific segments, concentration details, key accounts, repeat rates, contract vs spot work.
+- key_risks: 2-4 sentences — key person risk, customer concentration, regulatory, market, operational, financial, legal, succession. Be BALANCED — include negatives.
 - key_quotes: 8-10 VERBATIM quotes from the owner, prioritized by financial specifics, growth statements, motivation, competitive advantages, risk revelations.
 
 Return a JSON object with these fields (use null for unknown, empty array [] when no items):
@@ -547,15 +649,23 @@ Return a JSON object with these fields (use null for unknown, empty array [] whe
   "asking_price": number|null,
   "financial_notes": string|null,
   "financial_followup_questions": string[],
+  "add_backs": string|null,
+  "debt_details": string|null,
+  "capex_details": string|null,
+  "recurring_revenue_percentage": number|null,
+  "seasonality_details": string|null,
   "executive_summary": string|null,
   "services": string[],
   "service_mix": string|null,
+  "competitive_advantages": string|null,
   "location": string|null,
   "geographic_states": string[],
   "number_of_locations": number|null,
   "founded_year": number|null,
   "full_time_employees": number|null,
   "part_time_employees": number|null,
+  "workforce_details": string|null,
+  "management_team": string|null,
   "owner_goals": string|null,
   "ownership_structure": string|null,
   "transition_preferences": string|null,
@@ -786,6 +896,19 @@ Return ONLY the JSON object. No markdown fences, no explanation.`;
         if (extracted.end_market_description) flatExtracted.end_market_description = extracted.end_market_description;
         if (extracted.financial_followup_questions?.length) flatExtracted.financial_followup_questions = extracted.financial_followup_questions;
 
+        // New depth fields
+        if (extracted.add_backs) flatExtracted.add_backs = extracted.add_backs;
+        if (extracted.debt_details) flatExtracted.debt_details = extracted.debt_details;
+        if (extracted.capex_details) flatExtracted.capex_details = extracted.capex_details;
+        if (extracted.seasonality_details) flatExtracted.seasonality_details = extracted.seasonality_details;
+        if (extracted.workforce_details) flatExtracted.workforce_details = extracted.workforce_details;
+        if (extracted.management_team) flatExtracted.management_team = extracted.management_team;
+        if (extracted.competitive_advantages) flatExtracted.competitive_advantages = extracted.competitive_advantages;
+        {
+          const rrp = toFiniteNumber(extracted.recurring_revenue_percentage);
+          if (rrp != null && rrp >= 0 && rrp <= 100) flatExtracted.recurring_revenue_percentage = rrp;
+        }
+
         // SAFETY: Only update columns that actually exist on the listings row.
         // PostgREST rejects the entire update when any unknown column is present.
         const listingKeys = new Set(Object.keys(listing as Record<string, unknown>));
@@ -805,6 +928,7 @@ Return ONLY the JSON object. No markdown fences, no explanation.`;
           'revenue', 'ebitda', 'ebitda_margin', 'number_of_locations',
           'full_time_employees', 'part_time_employees', 'founded_year',
           'linkedin_employee_count', 'team_page_employee_count', 'customer_concentration',
+          'recurring_revenue_percentage',
         ]);
         const removedNumeric: Array<{ key: string; value: unknown }> = [];
         for (const [k, v] of Object.entries(filteredExtracted)) {
