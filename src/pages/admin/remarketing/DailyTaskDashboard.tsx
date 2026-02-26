@@ -120,13 +120,13 @@ const DailyTaskDashboard = () => {
   };
 
   return (
-    <div className="p-6 space-y-5 bg-gray-50/50 min-h-screen">
+    <div className="px-8 py-6 space-y-5">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Daily Tasks</h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            Tasks extracted from the daily standup meeting, ranked by priority.
+          <h2 className="text-lg font-semibold tracking-tight">Today's Tasks</h2>
+          <p className="text-sm text-muted-foreground mt-0.5">
+            Extracted from standup meetings, ranked by priority
           </p>
         </div>
         <div className="flex items-center gap-2">
