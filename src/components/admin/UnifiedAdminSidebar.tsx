@@ -37,6 +37,7 @@ import {
   List,
   ListChecks,
   Contact,
+  Copy,
   Mail,
   Search,
   Phone,
@@ -130,6 +131,11 @@ export function UnifiedAdminSidebar({
             label: 'Buyer Contacts',
             href: '/admin/buyers/contacts',
             icon: <Contact className="h-4 w-4" />,
+          },
+          {
+            label: 'Duplicate Contacts',
+            href: '/admin/contacts/duplicates',
+            icon: <Copy className="h-4 w-4" />,
           },
           {
             label: 'Document Tracking',

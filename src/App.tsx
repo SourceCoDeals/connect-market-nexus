@@ -87,6 +87,9 @@ const AdminDashboard = lazyWithRetry(() => import('@/pages/admin/AdminDashboard'
 const MarketplaceUsersPage = lazyWithRetry(() => import('@/pages/admin/MarketplaceUsersPage'));
 const InternalTeamPage = lazyWithRetry(() => import('@/pages/admin/InternalTeamPage'));
 const BuyerContactsPage = lazyWithRetry(() => import('@/pages/admin/BuyerContactsPage'));
+const DuplicateContactsPage = lazyWithRetry(
+  () => import('@/pages/admin/DuplicateContactsPage'),
+);
 const ContactListsPage = lazyWithRetry(() => import('@/pages/admin/ContactListsPage'));
 const ContactListDetailPage = lazyWithRetry(() => import('@/pages/admin/ContactListDetailPage'));
 const OwnerLeadsPage = lazyWithRetry(() => import('@/pages/admin/OwnerLeadsPage'));
@@ -342,6 +345,7 @@ function App() {
               />
               <Route path="buyers/deal-sourcing" element={<AdminDealSourcing />} />
               <Route path="buyers/contacts" element={<BuyerContactsPage />} />
+              <Route path="contacts/duplicates" element={<DuplicateContactsPage />} />
 
               {/* CONTACT LISTS */}
               <Route path="lists" element={<ContactListsPage />} />

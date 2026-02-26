@@ -60,6 +60,7 @@ export const ROUTES = {
       peFirmDetail: '/admin/buyers/pe-firms/:id',
       dealSourcing: '/admin/buyers/deal-sourcing',
       contacts: '/admin/buyers/contacts',
+      duplicateContacts: '/admin/contacts/duplicates',
     },
 
     lists: {
