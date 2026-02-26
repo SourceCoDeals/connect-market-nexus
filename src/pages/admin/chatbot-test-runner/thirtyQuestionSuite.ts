@@ -47,7 +47,7 @@ export const THIRTY_Q_SUITE: ThirtyQQuestion[] = [
   { id: 14, category: 'Platform Guide', question: 'What does the deal scoring system do?', expectedRoute: 'PLATFORM_GUIDE', expectedBehavior: 'Explains the deal scoring methodology and how scores are calculated.' },
 
   // Transcript Search (15-16)
-  { id: 15, category: 'Transcript Search', question: 'Search transcripts for mentions of recurring revenue', expectedRoute: 'SEMANTIC_SEARCH', expectedBehavior: 'Uses transcript search tool to find buyer call transcripts mentioning recurring revenue.' },
+  { id: 15, category: 'Transcript Search', question: 'Search transcripts for mentions of recurring revenue', expectedRoute: 'MEETING_INTEL', expectedBehavior: 'Uses transcript search tool to find buyer call transcripts mentioning recurring revenue.' },
   { id: 16, category: 'Transcript Search', question: 'What did buyers say about geographic expansion?', expectedRoute: 'SEMANTIC_SEARCH', expectedBehavior: 'Searches transcripts for geographic expansion discussions and summarizes findings.' },
 
   // Outreach (17-18)
