@@ -129,6 +129,10 @@ export default function ValuationLeads() {
       };
       handleSort((fieldMap[field] || field) as any);
     },
+    onTriggerAction: (action) => {
+      if (action === 'push_to_dialer') setDialerOpen(true);
+      if (action === 'push_to_smartlead') setSmartleadOpen(true);
+    },
   });
 
   const totalLeads = leads?.length || 0;

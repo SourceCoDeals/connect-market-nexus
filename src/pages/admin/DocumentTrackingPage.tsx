@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -18,6 +18,8 @@ import {
   ArrowUpDown,
 } from "lucide-react";
 import { formatDistanceToNow, format } from "date-fns";
+import { useAICommandCenterContext } from '@/components/ai-command-center/AICommandCenterProvider';
+import { useAIUIActionHandler } from '@/hooks/useAIUIActionHandler';
 
 // ─── Types ───────────────────────────────────────────────────────────
 
@@ -222,6 +224,32 @@ export default function DocumentTrackingPage() {
   const [sortField, setSortField] = useState<SortField>("date");
   const [sortAsc, setSortAsc] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+
+  // Register AI Command Center context
+  const { setPageContext } = useAICommandCenterContext();
+  useEffect(() => {
+    setPageContext({ page: 'document_tracking', entity_type: 'documents' });
+  }, [setPageContext]);
+
+  // Wire AI UI actions
+  useAIUIActionHandler({
+    table: 'documents',
+    onSelectRows: (rowIds, mode) => {
+      if (mode === 'replace') {
+        setSelectedIds(new Set(rowIds));
+      } else if (mode === 'add') {
+        setSelectedIds((prev) => { const next = new Set(prev); rowIds.forEach((id) => next.add(id)); return next; });
+      } else {
+        setSelectedIds((prev) => { const next = new Set(prev); rowIds.forEach((id) => (next.has(id) ? next.delete(id) : next.add(id))); return next; });
+      }
+    },
+    onClearSelection: () => setSelectedIds(new Set()),
+    onSortColumn: (field) => {
+      const fieldMap: Record<string, SortField> = { company_name: 'company', date: 'date', status: 'status' };
+      const mapped = fieldMap[field] || field;
+      if (mapped === 'company' || mapped === 'date' || mapped === 'status') toggleSort(mapped as SortField);
+    },
+  });
 
   const toggleSort = (field: SortField) => {
     if (sortField === field) {

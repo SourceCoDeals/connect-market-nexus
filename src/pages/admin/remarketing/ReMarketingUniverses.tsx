@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -64,6 +64,8 @@ import {
 import { toast } from "sonner";
 import { IntelligenceCoverageBar, ReMarketingChat } from "@/components/remarketing";
 import { deleteUniverseWithRelated } from "@/lib/ma-intelligence/cascadeDelete";
+import { useAICommandCenterContext } from '@/components/ai-command-center/AICommandCenterProvider';
+import { useAIUIActionHandler } from '@/hooks/useAIUIActionHandler';
 
 type SortField = 'name' | 'buyers' | 'deals' | 'coverage';
 type SortOrder = 'asc' | 'desc';
@@ -101,16 +103,37 @@ const ReMarketingUniverses = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
-  
+
   const [activeTab, setActiveTab] = useState<'existing' | 'to_be_created'>('existing');
   const search = searchParams.get("q") ?? "";
   const [showArchived, setShowArchived] = useState(false);
   const sortField = (searchParams.get("sort") as SortField) ?? "name";
   const sortOrder = (searchParams.get("dir") as SortOrder) ?? "asc";
-  
+
   // Selection state
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [showBulkDeleteDialog, setShowBulkDeleteDialog] = useState(false);
+
+  // Register AI Command Center context
+  const { setPageContext } = useAICommandCenterContext();
+  useEffect(() => {
+    setPageContext({ page: 'universes', entity_type: 'universes' });
+  }, [setPageContext]);
+
+  // Wire AI UI actions
+  useAIUIActionHandler({
+    table: 'universes',
+    onSelectRows: (rowIds, mode) => {
+      if (mode === 'replace') {
+        setSelectedIds(new Set(rowIds));
+      } else if (mode === 'add') {
+        setSelectedIds((prev) => { const next = new Set(prev); rowIds.forEach((id) => next.add(id)); return next; });
+      } else {
+        setSelectedIds((prev) => { const next = new Set(prev); rowIds.forEach((id) => (next.has(id) ? next.delete(id) : next.add(id))); return next; });
+      }
+    },
+    onClearSelection: () => setSelectedIds(new Set()),
+  });
   
   // New universe dialog
   const showNewDialog = searchParams.get('new') === 'true';

@@ -42,6 +42,8 @@ import { AddBuyersToListDialog } from '@/components/remarketing/AddBuyersToListD
 import { RemarketingErrorBoundary } from '@/components/remarketing/RemarketingErrorBoundary';
 import { AddToUniverseQuickAction } from '@/components/remarketing/AddToUniverseQuickAction';
 import { useBackgroundScoringProgress } from '@/hooks/useBackgroundScoringProgress';
+import { useAICommandCenterContext } from '@/components/ai-command-center/AICommandCenterProvider';
+import { useAIUIActionHandler } from '@/hooks/useAIUIActionHandler';
 
 type SortOption = 'score' | 'geography' | 'score_geo';
 type FilterTab = 'all' | 'approved' | 'interested' | 'passed' | 'outreach';
@@ -172,6 +174,31 @@ const ReMarketingDealMatching = () => {
   const [dialerOpen, setDialerOpen] = useState(false);
   const [addToListOpen, setAddToListOpen] = useState(false);
   const [highlightedBuyerIds, setHighlightedBuyerIds] = useState<string[]>([]);
+
+  // Register AI Command Center context
+  const { setPageContext } = useAICommandCenterContext();
+  useEffect(() => {
+    if (listingId) setPageContext({ page: 'deal_matching', entity_id: listingId, entity_type: 'scores' });
+  }, [listingId, setPageContext]);
+
+  // Wire AI UI actions
+  useAIUIActionHandler({
+    table: 'scores',
+    onSelectRows: (rowIds, mode) => {
+      if (mode === 'replace') {
+        setSelectedIds(new Set(rowIds));
+      } else if (mode === 'add') {
+        setSelectedIds((prev) => { const next = new Set(prev); rowIds.forEach((id) => next.add(id)); return next; });
+      } else {
+        setSelectedIds((prev) => { const next = new Set(prev); rowIds.forEach((id) => (next.has(id) ? next.delete(id) : next.add(id))); return next; });
+      }
+    },
+    onClearSelection: () => setSelectedIds(new Set()),
+    onTriggerAction: (action) => {
+      if (action === 'push_to_dialer') setDialerOpen(true);
+      if (action === 'push_to_smartlead') setEmailDialogOpen(true);
+    },
+  });
 
   // Custom scoring instructions state
   const [customInstructions, setCustomInstructions] = useState('');

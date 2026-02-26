@@ -15,6 +15,8 @@ import { OwnerLeadsTableContent } from '@/components/admin/OwnerLeadsTableConten
 import { PushToDialerModal } from '@/components/remarketing/PushToDialerModal';
 import { PushToSmartleadModal } from '@/components/remarketing/PushToSmartleadModal';
 import { OwnerLead } from '@/hooks/admin/use-owner-leads';
+import { useAICommandCenterContext } from '@/components/ai-command-center/AICommandCenterProvider';
+import { useAIUIActionHandler } from '@/hooks/useAIUIActionHandler';
 
 const OwnerLeadsPage = () => {
   const { data: ownerLeads = [], isLoading: isLoadingOwnerLeads } = useOwnerLeads();
@@ -26,6 +28,31 @@ const OwnerLeadsPage = () => {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [dialerOpen, setDialerOpen] = useState(false);
   const [smartleadOpen, setSmartleadOpen] = useState(false);
+
+  // Register AI Command Center context
+  const { setPageContext } = useAICommandCenterContext();
+  useEffect(() => {
+    setPageContext({ page: 'owner_leads', entity_type: 'leads' });
+  }, [setPageContext]);
+
+  // Wire AI UI actions
+  useAIUIActionHandler({
+    table: 'leads',
+    onSelectRows: (rowIds, mode) => {
+      if (mode === 'replace') {
+        setSelectedIds(new Set(rowIds));
+      } else if (mode === 'add') {
+        setSelectedIds((prev) => { const next = new Set(prev); rowIds.forEach((id) => next.add(id)); return next; });
+      } else {
+        setSelectedIds((prev) => { const next = new Set(prev); rowIds.forEach((id) => (next.has(id) ? next.delete(id) : next.add(id))); return next; });
+      }
+    },
+    onClearSelection: () => setSelectedIds(new Set()),
+    onTriggerAction: (action) => {
+      if (action === 'push_to_dialer') setDialerOpen(true);
+      if (action === 'push_to_smartlead') setSmartleadOpen(true);
+    },
+  });
 
   useEffect(() => {
     markOwnerLeadsAsViewed();

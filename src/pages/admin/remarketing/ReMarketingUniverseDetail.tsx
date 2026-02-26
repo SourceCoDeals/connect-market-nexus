@@ -152,8 +152,12 @@ const ReMarketingUniverseDetail = () => {
     },
     onClearSelection: () => setSelectedBuyerIds([]),
     onSortColumn: (field) => {
-      // The buyer table handles sorting internally, but we could wire it if needed
       console.log(`[ai-ui-action] Sort requested for ${field} on universe buyer table`);
+    },
+    onTriggerAction: (action) => {
+      if (action === 'push_to_dialer') setDialerOpen(true);
+      if (action === 'push_to_smartlead') setSmartleadOpen(true);
+      if (action === 'remove_from_universe') handleRemoveSelectedBuyers();
     },
   });
 

@@ -269,6 +269,10 @@ export default function CapTargetDeals() {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       handleSort((fieldMap[field] || field) as any);
     },
+    onTriggerAction: (action) => {
+      if (action === 'push_to_dialer') setDialerOpen(true);
+      if (action === 'push_to_smartlead') setSmartleadOpen(true);
+    },
   });
 
   // Pagination (URL-persisted)

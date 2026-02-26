@@ -142,6 +142,11 @@ export default function GPPartnerDeals() {
       };
       hook.handleSort((fieldMap[field] || field) as any);
     },
+    onTriggerAction: (action) => {
+      if (action === 'push_to_dialer') setDialerOpen(true);
+      if (action === 'push_to_smartlead') setSmartleadOpen(true);
+      if (action === 'push_to_heyreach') setHeyreachOpen(true);
+    },
   });
 
   if (hook.isLoading) {

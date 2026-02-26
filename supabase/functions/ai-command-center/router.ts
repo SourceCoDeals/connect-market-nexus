@@ -231,6 +231,39 @@ const BYPASS_RULES: Array<{
       confidence: 0.95,
     },
   },
+  // Push to dialer / smartlead / heyreach — "push selected to dialer", "send these to smartlead"
+  {
+    test: (q) =>
+      /\b(push|send|export|add)\b.*\b(dialer|phoneburner|phone\s*burner|smartlead|smart\s*lead|heyreach|hey\s*reach|email campaign)\b/i.test(q) ||
+      /\b(dialer|phoneburner|smartlead|heyreach)\b/i.test(q),
+    result: {
+      category: 'REMARKETING',
+      tier: 'STANDARD',
+      tools: [
+        'search_buyers',
+        'query_deals',
+        'select_table_rows',
+        'trigger_page_action',
+      ],
+      confidence: 0.92,
+    },
+  },
+  // Remove from universe — "remove selected from universe", "take these out of the universe"
+  {
+    test: (q, ctx) =>
+      ctx.entity_type === 'universe' &&
+      /\b(remove|delete|take out|drop)\b.*\b(from|selected|buyers?)\b/i.test(q),
+    result: {
+      category: 'BUYER_UNIVERSE',
+      tier: 'STANDARD',
+      tools: [
+        'get_universe_buyer_fits',
+        'select_table_rows',
+        'trigger_page_action',
+      ],
+      confidence: 0.92,
+    },
+  },
   // Select / filter / sort / action on table rows
   {
     test: (q) =>
@@ -246,6 +279,7 @@ const BYPASS_RULES: Array<{
         'select_table_rows',
         'apply_table_filter',
         'sort_table_column',
+        'trigger_page_action',
       ],
       confidence: 0.85,
     },

@@ -108,6 +108,7 @@ const TOOL_CATEGORIES: Record<string, string[]> = {
     'select_table_rows',
     'apply_table_filter',
     'sort_table_column',
+    'trigger_page_action',
   ],
   BUYER_ANALYSIS: [
     'search_buyers',
@@ -136,6 +137,7 @@ const TOOL_CATEGORIES: Record<string, string[]> = {
     'select_table_rows',
     'apply_table_filter',
     'sort_table_column',
+    'trigger_page_action',
   ],
 
   // Meeting intelligence
@@ -197,7 +199,7 @@ const TOOL_CATEGORIES: Record<string, string[]> = {
     'convert_to_pipeline_deal',
     'save_contacts_to_crm',
   ],
-  UI_ACTION: ['select_table_rows', 'apply_table_filter', 'sort_table_column', 'navigate_to_page'],
+  UI_ACTION: ['select_table_rows', 'apply_table_filter', 'sort_table_column', 'trigger_page_action', 'navigate_to_page'],
 
   // Remarketing workflow
   REMARKETING: [
@@ -209,6 +211,7 @@ const TOOL_CATEGORIES: Record<string, string[]> = {
     'select_table_rows',
     'apply_table_filter',
     'sort_table_column',
+    'trigger_page_action',
     'get_engagement_signals',
     'get_buyer_decisions',
   ],

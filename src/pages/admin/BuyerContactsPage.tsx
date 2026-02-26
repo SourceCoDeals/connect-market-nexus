@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -24,6 +24,8 @@ import { NonMarketplaceUsersTable } from '@/components/admin/NonMarketplaceUsers
 import { BulkContactActions } from '@/components/admin/non-marketplace/BulkContactActions';
 import { useNonMarketplaceUsers } from '@/hooks/admin/use-non-marketplace-users';
 import type { NonMarketplaceUserFilters } from '@/types/non-marketplace-user';
+import { useAICommandCenterContext } from '@/components/ai-command-center/AICommandCenterProvider';
+import { useAIUIActionHandler } from '@/hooks/useAIUIActionHandler';
 
 const BuyerContactsPage = () => {
   const { data: nonMarketplaceUsers = [], isLoading } = useNonMarketplaceUsers();
@@ -78,6 +80,27 @@ const BuyerContactsPage = () => {
 
   // Selection
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+
+  // Register AI Command Center context
+  const { setPageContext } = useAICommandCenterContext();
+  useEffect(() => {
+    setPageContext({ page: 'buyer_contacts', entity_type: 'contacts' });
+  }, [setPageContext]);
+
+  // Wire AI UI actions
+  useAIUIActionHandler({
+    table: 'contacts',
+    onSelectRows: (rowIds, mode) => {
+      if (mode === 'replace') {
+        setSelectedIds(new Set(rowIds));
+      } else if (mode === 'add') {
+        setSelectedIds((prev) => { const next = new Set(prev); rowIds.forEach((id) => next.add(id)); return next; });
+      } else {
+        setSelectedIds((prev) => { const next = new Set(prev); rowIds.forEach((id) => (next.has(id) ? next.delete(id) : next.add(id))); return next; });
+      }
+    },
+    onClearSelection: () => setSelectedIds(new Set()),
+  });
 
   const filters: NonMarketplaceUserFilters = useMemo(
     () => ({
