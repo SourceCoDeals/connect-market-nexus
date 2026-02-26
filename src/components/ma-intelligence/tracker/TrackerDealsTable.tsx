@@ -43,7 +43,7 @@ type SortDirection = "asc" | "desc";
 interface TrackerDealsTableProps {
   deals: MADeal[];
   selectedDeals: Set<string>;
-  onToggleSelect: (dealId: string) => void;
+  onToggleSelect: (dealId: string, checked: boolean, event?: React.MouseEvent | React.KeyboardEvent) => void;
   onSelectAll: () => void;
   onRefresh: () => void;
   onScore: (dealId: string) => void;
@@ -194,10 +194,10 @@ export function TrackerDealsTable({
                 className="cursor-pointer hover:bg-muted/30"
                 onClick={() => navigate(`/admin/ma-intelligence/deals/${deal.id}`)}
               >
-                <TableCell onClick={(e) => e.stopPropagation()}>
+                <TableCell onClick={(e) => { e.stopPropagation(); onToggleSelect(deal.id, !selectedDeals.has(deal.id), e); }}>
                   <Checkbox
                     checked={selectedDeals.has(deal.id)}
-                    onCheckedChange={() => onToggleSelect(deal.id)}
+                    onCheckedChange={() => {/* handled by TableCell onClick for shift support */}}
                   />
                 </TableCell>
                 <TableCell>

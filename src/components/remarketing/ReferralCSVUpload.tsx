@@ -18,7 +18,8 @@ import {
   Check,
 } from "lucide-react";
 import { toast } from "sonner";
-import Papa from "papaparse";
+// Papa removed – using parseSpreadsheet instead
+import { parseSpreadsheet, SPREADSHEET_ACCEPT } from "@/lib/parseSpreadsheet";
 
 interface ReferralCSVUploadProps {
   shareToken: string;
@@ -90,55 +91,50 @@ export function ReferralCSVUpload({
     URL.revokeObjectURL(link.href);
   };
 
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    Papa.parse(file, {
-      header: true,
-      skipEmptyLines: true,
-      complete: (results) => {
-        const data = results.data as Record<string, string>[];
-        const rows: ParsedRow[] = [];
-        let skipped = 0;
+    try {
+      const { data } = await parseSpreadsheet(file);
+      const rows: ParsedRow[] = [];
+      let skipped = 0;
 
-        for (const row of data) {
-          // Normalize header keys (case-insensitive)
-          const normalized: Record<string, string> = {};
-          for (const [key, val] of Object.entries(row)) {
-            normalized[key.trim().toLowerCase()] = val?.toString().trim() || "";
-          }
-
-          const companyName =
-            normalized["company name"] || normalized["company_name"] || normalized["companyname"] || "";
-
-          if (!companyName.trim()) {
-            skipped++;
-            continue;
-          }
-
-          rows.push({
-            company_name: companyName.trim(),
-            website: normalized["website"] || null,
-            industry: normalized["industry"] || null,
-            revenue: parseFinancialValue(normalized["revenue"] || ""),
-            ebitda: parseFinancialValue(normalized["ebitda"] || ""),
-            location: normalized["location"] || null,
-            contact_name: normalized["contact name"] || normalized["contact_name"] || null,
-            contact_email: normalized["contact email"] || normalized["contact_email"] || null,
-            contact_phone: normalized["contact phone"] || normalized["contact_phone"] || null,
-            notes: normalized["notes"] || null,
-          });
+      for (const row of data) {
+        // Normalize header keys (case-insensitive)
+        const normalized: Record<string, string> = {};
+        for (const [key, val] of Object.entries(row)) {
+          normalized[key.trim().toLowerCase()] = val?.toString().trim() || "";
         }
 
-        setParsedRows(rows);
-        setSkippedCount(skipped);
-        setShowPreview(true);
-      },
-      error: (err) => {
-        toast.error(`Failed to parse CSV: ${err.message}`);
-      },
-    });
+        const companyName =
+          normalized["company name"] || normalized["company_name"] || normalized["companyname"] || "";
+
+        if (!companyName.trim()) {
+          skipped++;
+          continue;
+        }
+
+        rows.push({
+          company_name: companyName.trim(),
+          website: normalized["website"] || null,
+          industry: normalized["industry"] || null,
+          revenue: parseFinancialValue(normalized["revenue"] || ""),
+          ebitda: parseFinancialValue(normalized["ebitda"] || ""),
+          location: normalized["location"] || null,
+          contact_name: normalized["contact name"] || normalized["contact_name"] || null,
+          contact_email: normalized["contact email"] || normalized["contact_email"] || null,
+          contact_phone: normalized["contact phone"] || normalized["contact_phone"] || null,
+          notes: normalized["notes"] || null,
+        });
+      }
+
+      setParsedRows(rows);
+      setSkippedCount(skipped);
+      setShowPreview(true);
+    } catch (err: any) {
+      toast.error(`Failed to parse file: ${err.message}`);
+    }
 
     // Reset file input
     if (fileInputRef.current) fileInputRef.current.value = "";
@@ -266,13 +262,13 @@ export function ReferralCSVUpload({
         <input
           ref={fileInputRef}
           type="file"
-          accept=".csv"
+          accept={SPREADSHEET_ACCEPT}
           className="hidden"
           onChange={handleFileSelect}
         />
       </div>
       <p className="text-xs text-muted-foreground">
-        Download the template, fill in your companies (one per row), then upload the completed CSV.
+        Download the template, fill in your companies (one per row), then upload the completed file (CSV, XLS, or XLSX).
       </p>
     </div>
   );

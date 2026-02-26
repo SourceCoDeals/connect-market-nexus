@@ -1,4 +1,5 @@
 import { useState, useMemo, useCallback, useEffect } from 'react';
+import { useShiftSelect } from '@/hooks/useShiftSelect';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useSearchParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
@@ -46,6 +47,22 @@ export function useGPPartnerDeals() {
           const n = new URLSearchParams(p);
           if (v) n.set('hidePushed', '1');
           else n.delete('hidePushed');
+          n.delete('cp');
+          return n;
+        },
+        { replace: true },
+      );
+    },
+    [setSearchParams],
+  );
+  const hideNotFit = searchParams.get('hideNotFit') !== '0'; // hidden by default
+  const setHideNotFit = useCallback(
+    (v: boolean) => {
+      setSearchParams(
+        (p) => {
+          const n = new URLSearchParams(p);
+          if (!v) n.set('hideNotFit', '0');
+          else n.delete('hideNotFit');
           n.delete('cp');
           return n;
         },
@@ -112,7 +129,7 @@ export function useGPPartnerDeals() {
             linkedin_employee_range, google_rating, google_review_count,
             is_priority_target, need_buyer_universe, need_owner_contact,
             category, executive_summary, industry, revenue, ebitda, location,
-            address_city, address_state, deal_owner_id,
+            address_city, address_state, deal_owner_id, remarketing_status,
             deal_owner:profiles!listings_deal_owner_id_fkey(id, first_name, last_name, email)
           `,
           )
@@ -149,6 +166,7 @@ export function useGPPartnerDeals() {
   const filteredDeals = useMemo(() => {
     let items = [...engineFiltered];
     if (hidePushed) items = items.filter((d) => !d.pushed_to_all_deals);
+    if (hideNotFit) items = items.filter((d) => d.remarketing_status !== 'not_a_fit');
     items.sort((a, b) => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       let valA: any, valB: any;
@@ -213,7 +231,7 @@ export function useGPPartnerDeals() {
       return 0;
     });
     return items;
-  }, [engineFiltered, sortColumn, sortDirection, hidePushed]);
+  }, [engineFiltered, sortColumn, sortDirection, hidePushed, hideNotFit]);
 
   // Pagination
   const totalPages = Math.max(1, Math.ceil(filteredDeals.length / PAGE_SIZE));
@@ -255,14 +273,9 @@ export function useGPPartnerDeals() {
     }
   };
 
-  const toggleSelect = (id: string) => {
-    setSelectedIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  };
+  const orderedIds = useMemo(() => paginatedDeals.map((d) => d.id), [paginatedDeals]);
+  const { handleToggle: toggleSelect } = useShiftSelect(orderedIds, selectedIds, setSelectedIds);
+
 
   // Push to Active Deals
   const handlePushToAllDeals = useCallback(
@@ -685,6 +698,10 @@ export function useGPPartnerDeals() {
     // Hide pushed
     hidePushed,
     setHidePushed,
+    // Hide not fit
+    hideNotFit,
+    setHideNotFit,
+    // Action states
     // Action states
     isPushing,
     isEnriching,

@@ -438,14 +438,13 @@ export function useAICommandCenter(pageContext?: PageContext) {
     if (lastMsg?.role === 'assistant' && lastMsg.metadata) {
       supabase.from('chat_analytics').insert({
         conversation_id: conversationIdRef.current,
-        query: messages.length >= 2 ? messages[messages.length - 2]?.content?.substring(0, 500) : '',
-        response: lastMsg.content?.substring(0, 2000) || '',
-        route_category: lastMsg.metadata.category || null,
+        query_text: messages.length >= 2 ? messages[messages.length - 2]?.content?.substring(0, 500) : '',
+        response_text: lastMsg.content?.substring(0, 2000) || '',
+        query_intent: lastMsg.metadata.category || null,
         tools_called: lastMsg.toolCalls?.map(t => t.name) || [],
         response_time_ms: lastMsg.metadata.durationMs || null,
         tokens_total: null,
-        estimated_cost: lastMsg.metadata.cost || null,
-      }).then(() => {}).catch(() => {}); // Fire and forget
+      } as never).then(() => {}); // Fire and forget
     }
   }, [messages, isLoading]);
 

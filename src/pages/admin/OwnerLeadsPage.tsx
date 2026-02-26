@@ -1,7 +1,17 @@
 import { useState, useEffect } from 'react';
-import { Building2, Loader2, Phone, XCircle } from 'lucide-react';
+import { Building2, Loader2, Phone, XCircle, ThumbsDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import {
   useOwnerLeads,
   useUpdateOwnerLeadStatus,
@@ -15,8 +25,9 @@ import { OwnerLeadsTableContent } from '@/components/admin/OwnerLeadsTableConten
 import { PushToDialerModal } from '@/components/remarketing/PushToDialerModal';
 import { PushToSmartleadModal } from '@/components/remarketing/PushToSmartleadModal';
 import { OwnerLead } from '@/hooks/admin/use-owner-leads';
-import { useAICommandCenterContext } from '@/components/ai-command-center/AICommandCenterProvider';
-import { useAIUIActionHandler } from '@/hooks/useAIUIActionHandler';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from '@/hooks/use-toast';
+import { cn } from '@/lib/utils';
 
 const OwnerLeadsPage = () => {
   const { data: ownerLeads = [], isLoading: isLoadingOwnerLeads } = useOwnerLeads();
@@ -28,6 +39,9 @@ const OwnerLeadsPage = () => {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [dialerOpen, setDialerOpen] = useState(false);
   const [smartleadOpen, setSmartleadOpen] = useState(false);
+  const [hideNotFit, setHideNotFit] = useState(true);
+  const [showNotFitDialog, setShowNotFitDialog] = useState(false);
+  const [isMarkingNotFit, setIsMarkingNotFit] = useState(false);
 
   // Register AI Command Center context
   const { setPageContext } = useAICommandCenterContext();
@@ -74,6 +88,37 @@ const OwnerLeadsPage = () => {
     updateOwnerContacted.mutate({ id, contacted });
   };
 
+  const handleMarkNotFit = async () => {
+    const ids = Array.from(selectedIds);
+    if (ids.length === 0) return;
+    setIsMarkingNotFit(true);
+    try {
+      const { error } = await supabase
+        .from('inbound_leads')
+        .update({ status: 'not_a_fit', updated_at: new Date().toISOString() })
+        .in('id', ids);
+      if (error) throw error;
+      toast({
+        title: 'Marked as Not a Fit',
+        description: `${ids.length} lead(s) marked as not a fit.`,
+      });
+      setSelectedIds(new Set());
+    } catch {
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'Failed to mark leads as not a fit.',
+      });
+    } finally {
+      setIsMarkingNotFit(false);
+    }
+  };
+
+  // Apply hideNotFit filter on top of the filtered leads
+  const displayedLeads = hideNotFit
+    ? filteredOwnerLeads.filter((l) => l.status !== 'not_a_fit')
+    : filteredOwnerLeads;
+
   return (
     <div className="min-h-screen bg-background">
       <div className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-40">
@@ -94,23 +139,41 @@ const OwnerLeadsPage = () => {
           <OwnerLeadsFilters leads={ownerLeads} onFilteredLeadsChange={setFilteredOwnerLeads} />
         </div>
 
+        {/* Hide Not Fit Toggle */}
+        <div className="flex items-center gap-2 mb-4">
+          <button
+            onClick={() => setHideNotFit(!hideNotFit)}
+            className={cn(
+              'flex items-center gap-2 text-sm px-3 py-1.5 rounded-md border transition-colors',
+              hideNotFit
+                ? 'bg-orange-100 border-orange-300 text-orange-700 font-medium'
+                : 'border-border text-muted-foreground hover:text-foreground hover:bg-muted/50',
+            )}
+          >
+            <ThumbsDown className="h-3.5 w-3.5" />
+            {hideNotFit ? 'Not Fit Hidden' : 'Show Not Fit'}
+          </button>
+        </div>
+
         <div className="bg-card rounded-lg border overflow-hidden">
           {isLoadingOwnerLeads ? (
             <div className="flex items-center justify-center py-12">
               <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
             </div>
-          ) : filteredOwnerLeads.length === 0 ? (
+          ) : displayedLeads.length === 0 ? (
             <div className="text-center py-12">
               <Building2 className="h-12 w-12 mx-auto text-muted-foreground/50 mb-4" />
               <h3 className="text-lg font-medium text-foreground mb-1">No owner inquiries yet</h3>
               <p className="text-sm text-muted-foreground">
-                Owner inquiries from the /sell form will appear here.
+                {hideNotFit && filteredOwnerLeads.length > 0
+                  ? 'All leads in this view are marked as "Not a Fit". Toggle the filter above to see them.'
+                  : 'Owner inquiries from the /sell form will appear here.'}
               </p>
             </div>
           ) : (
             <div className="overflow-x-auto">
               <OwnerLeadsTableContent
-                leads={filteredOwnerLeads}
+                leads={displayedLeads}
                 onStatusChange={handleOwnerStatusChange}
                 onNotesUpdate={handleOwnerNotesUpdate}
                 onContactedChange={handleOwnerContactedChange}
@@ -150,8 +213,49 @@ const OwnerLeadsPage = () => {
               <Phone className="h-4 w-4" />
               Push to Smartlead
             </Button>
+            <div className="h-5 w-px bg-border" />
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setShowNotFitDialog(true)}
+              disabled={isMarkingNotFit}
+              className="gap-2 text-orange-600 border-orange-200 hover:bg-orange-50"
+            >
+              {isMarkingNotFit ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <ThumbsDown className="h-4 w-4" />
+              )}
+              Not a Fit
+            </Button>
           </div>
         )}
+
+        {/* Not a Fit Confirmation Dialog */}
+        <AlertDialog open={showNotFitDialog} onOpenChange={setShowNotFitDialog}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Mark {selectedIds.size} Lead(s) as Not a Fit?</AlertDialogTitle>
+              <AlertDialogDescription>
+                These leads will be marked as "Not a Fit" and hidden from the default view. You can
+                show them again using the "Show Not Fit" toggle.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={() => {
+                  handleMarkNotFit();
+                  setShowNotFitDialog(false);
+                }}
+                disabled={isMarkingNotFit}
+                className="bg-orange-600 hover:bg-orange-700"
+              >
+                {isMarkingNotFit ? 'Marking...' : 'Mark as Not a Fit'}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
 
         <PushToDialerModal
           open={dialerOpen}

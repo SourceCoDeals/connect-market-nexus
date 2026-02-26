@@ -1,4 +1,5 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo } from 'react';
+import { useShiftSelect } from '@/hooks/useShiftSelect';
 import { useParams, Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -92,14 +93,8 @@ const ContactListDetailPage = () => {
   const selectedMembers = filteredMembers.filter((m) => selectedIds.has(m.id));
   const selectedWithPhone = selectedMembers.filter((m) => m.contact_phone);
 
-  const toggleSelect = (id: string) => {
-    setSelectedIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  };
+  const orderedIds = useMemo(() => filteredMembers.map((m) => m.id), [filteredMembers]);
+  const { handleToggle: toggleSelect } = useShiftSelect(orderedIds, selectedIds, setSelectedIds);
 
   const toggleSelectAll = () => {
     if (selectedIds.size === filteredMembers.length) {
@@ -356,7 +351,7 @@ const ContactListDetailPage = () => {
                     key={member.id}
                     member={member}
                     isSelected={selectedIds.has(member.id)}
-                    onToggle={() => toggleSelect(member.id)}
+                    onToggle={(e?: React.MouseEvent) => toggleSelect(member.id, !selectedIds.has(member.id), e)}
                     onRemove={() => removeMember.mutate({ memberId: member.id, listId: list.id })}
                   />
                 ))
@@ -399,13 +394,13 @@ function MemberRow({
 }: {
   member: ContactListMember;
   isSelected: boolean;
-  onToggle: () => void;
+  onToggle: (e?: React.MouseEvent) => void;
   onRemove: () => void;
 }) {
   return (
     <TableRow className={isSelected ? 'bg-primary/5' : ''}>
-      <TableCell>
-        <Checkbox checked={isSelected} onCheckedChange={onToggle} />
+      <TableCell onClick={(e) => { e.stopPropagation(); onToggle(e); }}>
+        <Checkbox checked={isSelected} onCheckedChange={() => {/* handled by TableCell onClick */}} />
       </TableCell>
       <TableCell>
         <div className="flex flex-col">

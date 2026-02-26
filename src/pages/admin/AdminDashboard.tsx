@@ -1,27 +1,77 @@
-import { ErrorBoundary } from "@/components/ErrorBoundary";
-import { adminErrorHandler } from "@/lib/error-handler";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Button } from "@/components/ui/button";
-import { RefreshCw, Settings, Users, Database, Bell, HelpCircle, Loader2, Store, Target } from "lucide-react";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { useAdmin } from "@/hooks/use-admin";
-import { lazy, Suspense, useState } from "react";
-import { usePermissions } from "@/hooks/permissions/usePermissions";
-import { PermissionsModal } from "@/components/admin/permissions/PermissionsModal";
-import { useSearchParams } from "react-router-dom";
+import { ErrorBoundary } from '@/components/ErrorBoundary';
+import { adminErrorHandler } from '@/lib/error-handler';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Button } from '@/components/ui/button';
+import {
+  RefreshCw,
+  Settings,
+  Users,
+  Database,
+  Bell,
+  HelpCircle,
+  Loader2,
+  Store,
+  Target,
+  ListChecks,
+} from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { useAdmin } from '@/hooks/use-admin';
+import { lazy, Suspense, useState } from 'react';
+import { usePermissions } from '@/hooks/permissions/usePermissions';
+import { PermissionsModal } from '@/components/admin/permissions/PermissionsModal';
+import { useSearchParams } from 'react-router-dom';
 
 // Lazy-load marketplace tab content
-const StripeOverviewTab = lazy(() => import("@/components/admin/StripeOverviewTab").then(m => ({ default: m.StripeOverviewTab })));
-const AnalyticsTabContainer = lazy(() => import("@/components/admin/analytics/AnalyticsTabContainer").then(m => ({ default: m.AnalyticsTabContainer })));
-const StreamlinedManagementTab = lazy(() => import("@/components/admin/StreamlinedManagementTab").then(m => ({ default: m.StreamlinedManagementTab })));
-const RecentActivityTab = lazy(() => import("@/components/admin/RecentActivityTab").then(m => ({ default: m.RecentActivityTab })));
-const ListingIntelligenceTab = lazy(() => import("@/components/admin/ListingIntelligenceTab").then(m => ({ default: m.ListingIntelligenceTab })));
-const DataRecoveryTab = lazy(() => import("@/components/admin/data-recovery/DataRecoveryTab").then(m => ({ default: m.DataRecoveryTab })));
-const FormMonitoringTab = lazy(() => import("@/components/admin/form-monitoring/FormMonitoringTab").then(m => ({ default: m.FormMonitoringTab })));
-const MyDealsTab = lazy(() => import("@/components/admin/dashboard/MyDealsTab").then(m => ({ default: m.MyDealsTab })));
+const StripeOverviewTab = lazy(() =>
+  import('@/components/admin/StripeOverviewTab').then((m) => ({ default: m.StripeOverviewTab })),
+);
+const AnalyticsTabContainer = lazy(() =>
+  import('@/components/admin/analytics/AnalyticsTabContainer').then((m) => ({
+    default: m.AnalyticsTabContainer,
+  })),
+);
+const StreamlinedManagementTab = lazy(() =>
+  import('@/components/admin/StreamlinedManagementTab').then((m) => ({
+    default: m.StreamlinedManagementTab,
+  })),
+);
+const RecentActivityTab = lazy(() =>
+  import('@/components/admin/RecentActivityTab').then((m) => ({ default: m.RecentActivityTab })),
+);
+const ListingIntelligenceTab = lazy(() =>
+  import('@/components/admin/ListingIntelligenceTab').then((m) => ({
+    default: m.ListingIntelligenceTab,
+  })),
+);
+const DataRecoveryTab = lazy(() =>
+  import('@/components/admin/data-recovery/DataRecoveryTab').then((m) => ({
+    default: m.DataRecoveryTab,
+  })),
+);
+const FormMonitoringTab = lazy(() =>
+  import('@/components/admin/form-monitoring/FormMonitoringTab').then((m) => ({
+    default: m.FormMonitoringTab,
+  })),
+);
+const MyDealsTab = lazy(() =>
+  import('@/components/admin/dashboard/MyDealsTab').then((m) => ({ default: m.MyDealsTab })),
+);
 
 // Lazy-load remarketing dashboard content
-const ReMarketingDashboardContent = lazy(() => import("@/pages/admin/remarketing/ReMarketingDashboard"));
+const ReMarketingDashboardContent = lazy(
+  () => import('@/pages/admin/remarketing/ReMarketingDashboard'),
+);
+
+// Lazy-load daily tasks dashboard content
+const DailyTaskDashboardContent = lazy(
+  () => import('@/pages/admin/remarketing/DailyTaskDashboard'),
+);
 
 const TabFallback = () => (
   <div className="flex items-center justify-center py-16">
@@ -35,8 +85,14 @@ const AdminDashboard = () => {
   const [isPermissionsModalOpen, setIsPermissionsModalOpen] = useState(false);
   const { canManagePermissions } = usePermissions();
   const [searchParams, setSearchParams] = useSearchParams();
-  
-  const activeDashboard = searchParams.get("view") === "remarketing" ? "remarketing" : "marketplace";
+
+  const viewParam = searchParams.get('view');
+  const activeDashboard =
+    viewParam === 'remarketing'
+      ? 'remarketing'
+      : viewParam === 'marketplace'
+        ? 'marketplace'
+        : 'daily-tasks';
 
   const handleRefresh = () => {
     window.location.reload();
@@ -47,10 +103,10 @@ const AdminDashboard = () => {
   };
 
   const setView = (view: string) => {
-    if (view === "marketplace") {
-      searchParams.delete("view");
+    if (view === 'daily-tasks') {
+      searchParams.delete('view');
     } else {
-      searchParams.set("view", view);
+      searchParams.set('view', view);
     }
     setSearchParams(searchParams, { replace: true });
   };
@@ -71,14 +127,18 @@ const AdminDashboard = () => {
                 <div>
                   <h1 className="text-xl font-semibold tracking-tight">Dashboard</h1>
                   <p className="text-sm text-muted-foreground/70 mt-0.5">
-                    {activeDashboard === "marketplace" ? "Manage and monitor your marketplace" : "Deal pipeline overview"}
+                    {activeDashboard === 'daily-tasks'
+                      ? 'Tasks from daily standup meetings'
+                      : activeDashboard === 'remarketing'
+                        ? 'Deal pipeline overview'
+                        : 'Manage and monitor your marketplace'}
                   </p>
                 </div>
-                
+
                 {/* Quick Actions */}
                 <div className="flex items-center gap-1.5">
-                  <Button 
-                    variant="ghost" 
+                  <Button
+                    variant="ghost"
                     size="icon"
                     onClick={handleRefresh}
                     className="h-8 w-8 hover:bg-muted/50"
@@ -86,7 +146,7 @@ const AdminDashboard = () => {
                   >
                     <RefreshCw className="h-3.5 w-3.5" />
                   </Button>
-                  
+
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-muted/50">
@@ -96,10 +156,14 @@ const AdminDashboard = () => {
                     <DropdownMenuContent align="end" className="w-80">
                       <div className="flex items-center justify-between px-4 py-2">
                         <h4 className="font-medium text-sm">Notifications</h4>
-                        <Button variant="ghost" size="sm" className="h-auto p-0 text-xs">Mark all read</Button>
+                        <Button variant="ghost" size="sm" className="h-auto p-0 text-xs">
+                          Mark all read
+                        </Button>
                       </div>
                       <DropdownMenuSeparator />
-                      <div className="px-4 py-8 text-center text-sm text-muted-foreground">No new notifications</div>
+                      <div className="px-4 py-8 text-center text-sm text-muted-foreground">
+                        No new notifications
+                      </div>
                     </DropdownMenuContent>
                   </DropdownMenu>
 
@@ -137,47 +201,58 @@ const AdminDashboard = () => {
               {/* Top-level dashboard switcher */}
               <div className="flex items-center gap-1 rounded-lg border bg-muted/30 p-1 w-fit">
                 <button
-                  onClick={() => setView("marketplace")}
+                  onClick={() => setView('daily-tasks')}
                   className={`flex items-center gap-1.5 px-4 py-1.5 text-sm font-medium rounded-md transition-colors ${
-                    activeDashboard === "marketplace"
-                      ? "bg-background text-foreground shadow-sm"
-                      : "text-muted-foreground hover:text-foreground"
+                    activeDashboard === 'daily-tasks'
+                      ? 'bg-background text-foreground shadow-sm'
+                      : 'text-muted-foreground hover:text-foreground'
                   }`}
                 >
-                  <Store className="h-3.5 w-3.5" />
-                  Marketplace
+                  <ListChecks className="h-3.5 w-3.5" />
+                  Daily Tasks
                 </button>
                 <button
-                  onClick={() => setView("remarketing")}
+                  onClick={() => setView('remarketing')}
                   className={`flex items-center gap-1.5 px-4 py-1.5 text-sm font-medium rounded-md transition-colors ${
-                    activeDashboard === "remarketing"
-                      ? "bg-background text-foreground shadow-sm"
-                      : "text-muted-foreground hover:text-foreground"
+                    activeDashboard === 'remarketing'
+                      ? 'bg-background text-foreground shadow-sm'
+                      : 'text-muted-foreground hover:text-foreground'
                   }`}
                 >
                   <Target className="h-3.5 w-3.5" />
                   Remarketing
+                </button>
+                <button
+                  onClick={() => setView('marketplace')}
+                  className={`flex items-center gap-1.5 px-4 py-1.5 text-sm font-medium rounded-md transition-colors ${
+                    activeDashboard === 'marketplace'
+                      ? 'bg-background text-foreground shadow-sm'
+                      : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  <Store className="h-3.5 w-3.5" />
+                  Marketplace
                 </button>
               </div>
             </div>
           </div>
 
           {/* Marketplace sub-tabs (only when marketplace is active) */}
-          {activeDashboard === "marketplace" && (
+          {activeDashboard === 'marketplace' && (
             <Tabs defaultValue="analytics" className="w-full">
               <div className="px-8">
                 <TabsList className="inline-flex h-11 items-center justify-start rounded-none border-b-0 bg-transparent p-0 gap-6">
                   {[
-                    { value: "analytics", label: "Analytics" },
-                    { value: "overview", label: "Overview" },
-                    { value: "my-deals", label: "My Deals" },
-                    { value: "listings", label: "Listings" },
-                    { value: "management", label: "Users" },
-                    { value: "activity", label: "Activity" },
-                    { value: "data-recovery", label: "Data" },
-                    { value: "form-monitoring", label: "Forms" },
-                  ].map(tab => (
-                    <TabsTrigger 
+                    { value: 'analytics', label: 'Analytics' },
+                    { value: 'overview', label: 'Overview' },
+                    { value: 'my-deals', label: 'My Deals' },
+                    { value: 'listings', label: 'Listings' },
+                    { value: 'management', label: 'Users' },
+                    { value: 'activity', label: 'Activity' },
+                    { value: 'data-recovery', label: 'Data' },
+                    { value: 'form-monitoring', label: 'Forms' },
+                  ].map((tab) => (
+                    <TabsTrigger
                       key={tab.value}
                       value={tab.value}
                       className="relative rounded-none border-b-2 border-b-transparent bg-transparent px-0 pb-3 pt-0 text-[13px] font-medium text-muted-foreground/70 shadow-none transition-all hover:text-foreground data-[state=active]:border-b-foreground data-[state=active]:text-foreground data-[state=active]:shadow-none"
@@ -190,46 +265,66 @@ const AdminDashboard = () => {
 
               <div className="px-8 py-8">
                 <TabsContent value="overview" className="mt-0 space-y-6">
-                  <Suspense fallback={<TabFallback />}><StripeOverviewTab /></Suspense>
+                  <Suspense fallback={<TabFallback />}>
+                    <StripeOverviewTab />
+                  </Suspense>
                 </TabsContent>
                 <TabsContent value="my-deals" className="mt-0">
-                  <Suspense fallback={<TabFallback />}><MyDealsTab /></Suspense>
+                  <Suspense fallback={<TabFallback />}>
+                    <MyDealsTab />
+                  </Suspense>
                 </TabsContent>
                 <TabsContent value="analytics" className="mt-0">
-                  <Suspense fallback={<TabFallback />}><AnalyticsTabContainer /></Suspense>
+                  <Suspense fallback={<TabFallback />}>
+                    <AnalyticsTabContainer />
+                  </Suspense>
                 </TabsContent>
                 <TabsContent value="activity" className="mt-0">
-                  <Suspense fallback={<TabFallback />}><RecentActivityTab /></Suspense>
+                  <Suspense fallback={<TabFallback />}>
+                    <RecentActivityTab />
+                  </Suspense>
                 </TabsContent>
                 <TabsContent value="listings" className="mt-0">
-                  <Suspense fallback={<TabFallback />}><ListingIntelligenceTab /></Suspense>
+                  <Suspense fallback={<TabFallback />}>
+                    <ListingIntelligenceTab />
+                  </Suspense>
                 </TabsContent>
                 <TabsContent value="management" className="mt-0">
-                  <Suspense fallback={<TabFallback />}><StreamlinedManagementTab /></Suspense>
+                  <Suspense fallback={<TabFallback />}>
+                    <StreamlinedManagementTab />
+                  </Suspense>
                 </TabsContent>
                 <TabsContent value="data-recovery" className="mt-0">
-                  <Suspense fallback={<TabFallback />}><DataRecoveryTab users={usersData} /></Suspense>
+                  <Suspense fallback={<TabFallback />}>
+                    <DataRecoveryTab users={usersData} />
+                  </Suspense>
                 </TabsContent>
                 <TabsContent value="form-monitoring" className="mt-0">
-                  <Suspense fallback={<TabFallback />}><FormMonitoringTab /></Suspense>
+                  <Suspense fallback={<TabFallback />}>
+                    <FormMonitoringTab />
+                  </Suspense>
                 </TabsContent>
               </div>
             </Tabs>
           )}
         </div>
 
+        {/* Daily Tasks dashboard content (when daily-tasks is active) */}
+        {activeDashboard === 'daily-tasks' && (
+          <Suspense fallback={<TabFallback />}>
+            <DailyTaskDashboardContent />
+          </Suspense>
+        )}
+
         {/* Remarketing dashboard content (when remarketing is active) */}
-        {activeDashboard === "remarketing" && (
+        {activeDashboard === 'remarketing' && (
           <Suspense fallback={<TabFallback />}>
             <ReMarketingDashboardContent />
           </Suspense>
         )}
       </div>
 
-      <PermissionsModal 
-        open={isPermissionsModalOpen} 
-        onOpenChange={setIsPermissionsModalOpen}
-      />
+      <PermissionsModal open={isPermissionsModalOpen} onOpenChange={setIsPermissionsModalOpen} />
     </ErrorBoundary>
   );
 };

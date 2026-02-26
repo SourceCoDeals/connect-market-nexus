@@ -39,6 +39,7 @@ import {
   BarChart3,
   ChevronDown,
   EyeOff,
+  ThumbsDown,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
@@ -373,6 +374,18 @@ export default function ReMarketingReferralPartnerDetail() {
                   <EyeOff className="h-3.5 w-3.5" />
                   {data.hidePushed ? 'Showing Un-Pushed Only' : 'Hide Pushed'}
                 </button>
+                <button
+                  onClick={() => data.setHideNotFit((h) => !h)}
+                  className={cn(
+                    'flex items-center gap-2 text-sm px-3 py-1.5 rounded-md border transition-colors',
+                    data.hideNotFit
+                      ? 'bg-orange-100 border-orange-300 text-orange-700 font-medium'
+                      : 'border-border text-muted-foreground hover:text-foreground hover:bg-muted/50',
+                  )}
+                >
+                  <ThumbsDown className="h-3.5 w-3.5" />
+                  {data.hideNotFit ? 'Not Fit Hidden' : 'Show Not Fit'}
+                </button>
               </div>
             </div>
           </CardHeader>
@@ -396,6 +409,8 @@ export default function ReMarketingReferralPartnerDetail() {
                 onPushToSmartlead={() => setSmartleadOpen(true)}
                 onPushToHeyreach={() => setHeyreachOpen(true)}
                 onAddToList={() => setAddToListOpen(true)}
+                onMarkNotFit={actions.handleMarkNotFit}
+                isMarkingNotFit={actions.isMarkingNotFit}
                 onArchive={actions.handleBulkArchive}
                 onDelete={actions.handleBulkDelete}
               />
@@ -419,6 +434,7 @@ export default function ReMarketingReferralPartnerDetail() {
                 sortDir={data.sortDir}
                 toggleSort={data.toggleSort}
                 selectedDealIds={actions.selectedDealIds}
+                setSelectedDealIds={actions.setSelectedDealIds}
                 allSelected={actions.allSelected}
                 toggleSelectAll={actions.toggleSelectAll}
                 toggleSelect={actions.toggleSelect}

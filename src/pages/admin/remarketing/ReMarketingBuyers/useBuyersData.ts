@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { useShiftSelect } from "@/hooks/useShiftSelect";
 import { useSearchParams } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -320,14 +321,9 @@ export const useBuyersData = () => {
     }, { replace: true });
   };
 
-  // Selection helpers
-  const toggleSelect = (id: string) => {
-    setSelectedIds(prev => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id); else next.add(id);
-      return next;
-    });
-  };
+  // Selection helpers (shift-click multi-select)
+  const orderedIds = useMemo(() => pagedBuyers.map((b: any) => b.id), [pagedBuyers]);
+  const { handleToggle: toggleSelect } = useShiftSelect(orderedIds, selectedIds, setSelectedIds);
   const toggleSelectAll = () => {
     if (selectedIds.size === filteredBuyers.length) {
       setSelectedIds(new Set());

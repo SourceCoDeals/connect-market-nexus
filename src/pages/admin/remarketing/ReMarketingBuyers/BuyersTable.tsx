@@ -34,7 +34,7 @@ interface BuyersTableProps {
   buyerIdsWithTranscripts: Set<string> | undefined;
   sortColumn: string;
   sortDirection: "asc" | "desc";
-  toggleSelect: (id: string) => void;
+  toggleSelect: (id: string, checked: boolean, event?: React.MouseEvent | React.KeyboardEvent) => void;
   toggleSelectAll: () => void;
   handleSort: (column: string) => void;
   handleEnrichBuyer: (e: React.MouseEvent, buyerId: string) => void;

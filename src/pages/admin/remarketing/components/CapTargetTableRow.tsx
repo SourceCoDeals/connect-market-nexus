@@ -24,6 +24,7 @@ import {
   Trash2,
   Users,
   Phone,
+  ThumbsDown,
 } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
@@ -63,6 +64,7 @@ interface CapTargetDeal {
   category: string | null;
   executive_summary: string | null;
   industry: string | null;
+  remarketing_status: string | null;
 }
 
 const interestTypeLabel = (type: string | null) => {
@@ -88,7 +90,7 @@ interface CapTargetTableRowProps {
   index: number;
   pageOffset: number;
   isSelected: boolean;
-  onToggleSelect: (id: string, event?: React.MouseEvent) => void;
+  onToggleSelect: (id: string, checked: boolean, event?: React.MouseEvent | React.KeyboardEvent) => void;
   onPushToAllDeals: (dealIds: string[]) => void;
   onEnrichSelected: (dealIds: string[], mode: "all" | "unenriched") => void;
   onDeleteDeal: (id: string) => void;
@@ -115,8 +117,9 @@ export function CapTargetTableRow({
     <TableRow
       className={cn(
         "cursor-pointer hover:bg-muted/50 transition-colors",
-        deal.is_priority_target && "bg-amber-50 hover:bg-amber-100/80 dark:bg-amber-950/30 dark:hover:bg-amber-950/50",
-        !deal.is_priority_target && deal.pushed_to_all_deals && "bg-green-50/60 hover:bg-green-50"
+        deal.remarketing_status === 'not_a_fit' && "opacity-60 bg-orange-50/50 hover:bg-orange-100/50",
+        deal.remarketing_status !== 'not_a_fit' && deal.is_priority_target && "bg-amber-50 hover:bg-amber-100/80 dark:bg-amber-950/30 dark:hover:bg-amber-950/50",
+        deal.remarketing_status !== 'not_a_fit' && !deal.is_priority_target && deal.pushed_to_all_deals && "bg-green-50/60 hover:bg-green-50"
       )}
       onClick={() =>
         navigate(
@@ -128,7 +131,7 @@ export function CapTargetTableRow({
       <TableCell
         onClick={(e) => {
           e.stopPropagation();
-          onToggleSelect(deal.id, e);
+          onToggleSelect(deal.id, !isSelected, e);
         }}
         className="w-[40px] cursor-pointer select-none"
       >
@@ -346,6 +349,17 @@ export function CapTargetTableRow({
               Approve to Active Deals
             </DropdownMenuItem>
             <DropdownMenuSeparator />
+            <DropdownMenuItem
+              className="text-orange-600 focus:text-orange-600"
+              onClick={async () => {
+                const { error } = await supabase.from("listings").update({ remarketing_status: 'not_a_fit' } as never).eq("id", deal.id);
+                if (error) { toast({ title: "Error", description: "Failed to mark as not a fit" }); }
+                else { toast({ title: "Marked as Not a Fit" }); onRefetch(); }
+              }}
+            >
+              <ThumbsDown className="h-4 w-4 mr-2" />
+              {deal.remarketing_status === 'not_a_fit' ? 'Already Not a Fit' : 'Mark as Not a Fit'}
+            </DropdownMenuItem>
             <DropdownMenuItem
               className="text-amber-600 focus:text-amber-600"
               onClick={() => onArchiveDeal(deal.id)}

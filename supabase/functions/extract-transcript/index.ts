@@ -55,11 +55,23 @@ interface BuyerInsights {
   target_geography?: { regions?: string[]; states?: string[]; notes?: string };
   deal_size_range?: { revenue_min?: number; revenue_max?: number; ebitda_min?: number; ebitda_max?: number; notes?: string };
   acquisition_timeline?: string;
+  acquisition_appetite?: string;
+  acquisition_frequency?: string;
   services_offered?: string[];
+  target_services?: string[];
   business_summary?: string;
   operating_locations?: string[];
   geographic_footprint?: string[];
   missing_information?: string[];
+  buyer_type?: string;
+  industry_vertical?: string;
+  revenue_model?: string;
+  recent_acquisitions?: Array<{ company_name: string; date?: string; location?: string }>;
+  portfolio_companies?: string[];
+  deal_structure_preferences?: string;
+  management_team_notes?: string;
+  integration_approach?: string;
+  key_quotes?: string[];
 }
 
 serve(async (req) => {
@@ -478,6 +490,66 @@ If the transcript is primarily an evaluation of a target company (not a discussi
             type: "string",
             description: "How actively is the buyer looking? E.g., 'active', 'exploring', 'paused'. Use 'insufficient' if not discussed."
           },
+          acquisition_appetite: {
+            type: "string",
+            description: "Activity level and pace. E.g., 'Very Active - doing 3-4 deals per year', 'Moderate - 1-2 per year', 'Just starting acquisition strategy'. Include any specifics about how many deals they want to do."
+          },
+          acquisition_frequency: {
+            type: "string",
+            description: "How often they acquire. E.g., '2-3 per year', 'Monthly', 'Opportunistic'. Extract from statements like 'we try to do about one deal a quarter'."
+          },
+          target_services: {
+            type: "array",
+            items: { type: "string" },
+            description: "Specific service types the buyer wants to acquire. E.g., ['HVAC', 'plumbing', 'electrical'], ['commercial roofing', 'waterproofing']. Different from services_offered — these are what they WANT to buy."
+          },
+          buyer_type: {
+            type: "string",
+            description: "Classify the buyer: 'pe_firm' (private equity fund), 'platform' (PE-backed operating company doing add-ons), 'strategic' (corporate acquirer), 'family_office', 'search_fund', 'independent_sponsor', or 'other'."
+          },
+          industry_vertical: {
+            type: "string",
+            description: "The buyer's primary industry vertical. E.g., 'Home Services - HVAC', 'Facility Services', 'Environmental Services', 'Healthcare Services'."
+          },
+          revenue_model: {
+            type: "string",
+            description: "How the platform company generates revenue. E.g., 'Recurring maintenance contracts (60%) and project-based installation work (40%)', 'Insurance restoration referrals and direct-to-consumer'. 1-3 sentences."
+          },
+          deal_structure_preferences: {
+            type: "string",
+            description: "Preferred deal structures discussed. E.g., 'Prefers majority recaps with owner rollover', 'Full buyouts only', 'Open to earnouts', 'Wants seller to stay 2-3 years'. Include any mention of earnouts, rollover equity, seller notes, transition periods."
+          },
+          management_team_notes: {
+            type: "string",
+            description: "Notes about the buyer's management team or operating capabilities discussed. E.g., 'Has a dedicated integration team', 'CEO has 20 years industry experience', 'Looking for deals where owner stays to run operations'."
+          },
+          integration_approach: {
+            type: "string",
+            description: "How the buyer integrates acquisitions. E.g., 'Keep the brand and local management, centralize back-office', 'Full rebrand within 6 months', 'Light touch - just add shared services'. Include any operational integration details discussed."
+          },
+          recent_acquisitions: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                company_name: { type: "string" },
+                date: { type: "string", description: "YYYY-MM or YYYY format" },
+                location: { type: "string", description: "City, ST format" }
+              },
+              required: ["company_name"]
+            },
+            description: "Any acquisitions the buyer mentions having completed. E.g., 'We just closed on ABC Plumbing in Dallas last month'."
+          },
+          portfolio_companies: {
+            type: "array",
+            items: { type: "string" },
+            description: "Names of portfolio companies or platforms the buyer mentions owning or operating."
+          },
+          key_quotes: {
+            type: "array",
+            items: { type: "string" },
+            description: "5-8 most revealing verbatim quotes from the BUYER that capture their acquisition thesis, preferences, deal criteria, or strategic priorities. NOT quotes from the target company."
+          },
           services_offered: {
             type: "array",
             items: { type: "string" },
@@ -536,6 +608,9 @@ If the transcript is primarily an evaluation of a target company (not a discussi
     insights.geographic_footprint = [];
     insights.thesis_summary = '';
     insights.strategic_priorities = [];
+    insights.revenue_model = '';
+    insights.industry_vertical = '';
+    insights.key_quotes = [];
   }
 
   return insights;
@@ -544,6 +619,7 @@ If the transcript is primarily an evaluation of a target company (not a discussi
 async function updateListingFromTranscript(supabase: any, listingId: string, insights: DealInsights, transcriptId: string) {
   const updates: Record<string, unknown> = {};
 
+  // Financial metrics
   if (insights.financial_metrics?.revenue?.value) {
     updates.revenue = insights.financial_metrics.revenue.value;
     if (insights.financial_metrics.revenue.source_quote) updates.revenue_source_quote = insights.financial_metrics.revenue.source_quote;
@@ -552,14 +628,69 @@ async function updateListingFromTranscript(supabase: any, listingId: string, ins
     updates.ebitda = insights.financial_metrics.ebitda.value;
     if (insights.financial_metrics.ebitda.margin) updates.ebitda_margin = insights.financial_metrics.ebitda.margin;
   }
+  if (insights.financial_metrics?.growth_rate?.value) {
+    // Append growth rate info to financial_notes if not already captured
+    const growthNote = `Growth rate: ${(insights.financial_metrics.growth_rate.value * 100).toFixed(1)}%${insights.financial_metrics.growth_rate.period ? ` (${insights.financial_metrics.growth_rate.period})` : ''}`;
+    if (insights.financial_metrics.growth_rate.source_quote) {
+      updates.growth_trajectory = `${growthNote}. Source: "${insights.financial_metrics.growth_rate.source_quote}"`;
+    }
+  }
+  if (insights.financial_metrics?.other_metrics?.length) {
+    // Append other metrics to financial_notes
+    const otherMetricsText = insights.financial_metrics.other_metrics
+      .map(m => `${m.metric_name}: ${m.value}`)
+      .join('; ');
+    const existingNotes = (updates.financial_notes as string) || '';
+    updates.financial_notes = existingNotes
+      ? `${existingNotes}\n\nAdditional Metrics: ${otherMetricsText}`
+      : `Additional Metrics: ${otherMetricsText}`;
+  }
+
+  // Owner & transaction details
   if (insights.owner_details?.motivation) updates.owner_goals = insights.owner_details.motivation;
   if (insights.owner_details?.timeline) updates.transition_preferences = insights.owner_details.timeline;
+  if (insights.owner_details?.compensation) {
+    // Append owner compensation to financial_notes
+    const existingNotes = (updates.financial_notes as string) || '';
+    const compNote = `Owner Compensation: ${insights.owner_details.compensation}`;
+    updates.financial_notes = existingNotes ? `${existingNotes}\n\n${compNote}` : compNote;
+  }
+
+  // Company details
   if (insights.company_details?.industry) updates.industry = insights.company_details.industry;
   if (insights.company_details?.employees) updates.full_time_employees = insights.company_details.employees;
   if (insights.company_details?.founded) updates.founded_year = insights.company_details.founded;
   if (insights.company_details?.services?.length) updates.services = insights.company_details.services;
+  if (insights.company_details?.location) {
+    // Extract city and state from "City, ST" format
+    const locMatch = insights.company_details.location.match(/^(.+),\s*([A-Z]{2})$/);
+    if (locMatch) {
+      updates.address_city = locMatch[1].trim();
+      updates.address_state = locMatch[2].trim();
+    }
+  }
+
+  // Deal details
   if (insights.deal_details?.asking_price) updates.asking_price = insights.deal_details.asking_price;
-  if (insights.key_takeaways?.length) updates.financial_notes = insights.key_takeaways.join('\n');
+  if (insights.deal_details?.deal_type) {
+    // Append deal type info to owner_goals if not already there
+    const existingGoals = (updates.owner_goals as string) || '';
+    if (existingGoals && !existingGoals.includes(insights.deal_details.deal_type)) {
+      updates.owner_goals = `${existingGoals} Preferred deal type: ${insights.deal_details.deal_type}.`;
+    } else if (!existingGoals) {
+      updates.owner_goals = `Preferred deal type: ${insights.deal_details.deal_type}.`;
+    }
+  }
+  if (insights.deal_details?.deal_stage) {
+    updates.timeline_notes = insights.deal_details.deal_stage;
+  }
+
+  // Key takeaways and follow-ups
+  if (insights.key_takeaways?.length) {
+    const existingNotes = (updates.financial_notes as string) || '';
+    const takeawayText = insights.key_takeaways.join('\n');
+    updates.financial_notes = existingNotes ? `${existingNotes}\n\nKey Takeaways:\n${takeawayText}` : `Key Takeaways:\n${takeawayText}`;
+  }
   if (insights.follow_up_needed?.length) updates.financial_followup_questions = insights.follow_up_needed;
 
   if (Object.keys(updates).length > 0) {
@@ -576,7 +707,7 @@ async function updateListingFromTranscript(supabase: any, listingId: string, ins
 async function updateBuyerFromTranscript(supabase: any, buyerId: string, insights: BuyerInsights, transcriptId: string) {
   const { data: existingBuyer } = await supabase
     .from('remarketing_buyers')
-    .select('extraction_sources, thesis_summary, strategic_priorities, target_industries, services_offered, business_summary, operating_locations, geographic_footprint, key_quotes, target_geographies, acquisition_timeline')
+    .select('extraction_sources, thesis_summary, strategic_priorities, target_industries, services_offered, business_summary, operating_locations, geographic_footprint, key_quotes, target_geographies, acquisition_timeline, acquisition_appetite, acquisition_frequency, target_services, buyer_type, industry_vertical, revenue_model, recent_acquisitions, portfolio_companies, notes')
     .eq('id', buyerId)
     .single();
 
@@ -656,6 +787,84 @@ async function updateBuyerFromTranscript(supabase: any, buyerId: string, insight
     const existingGeo = Array.isArray(existing.geographic_footprint) ? existing.geographic_footprint : [];
     const merged = mergeArrays(existingGeo, insights.geographic_footprint);
     if (merged.length > 0) updates.geographic_footprint = merged;
+  }
+
+  // New buyer enrichment fields from transcript
+  if (shouldUpdate('acquisition_appetite', insights.acquisition_appetite)) {
+    if (!existing.acquisition_appetite || existing.acquisition_appetite.trim() === '') {
+      updates.acquisition_appetite = insights.acquisition_appetite;
+    }
+  }
+
+  if (shouldUpdate('acquisition_frequency', insights.acquisition_frequency)) {
+    if (!existing.acquisition_frequency || existing.acquisition_frequency.trim() === '') {
+      updates.acquisition_frequency = insights.acquisition_frequency;
+    }
+  }
+
+  if (insights.target_services?.length) {
+    const merged = mergeArrays(existing.target_services, insights.target_services);
+    if (merged.length > 0) updates.target_services = merged;
+  }
+
+  if (shouldUpdate('buyer_type', insights.buyer_type) && !insights.is_evaluation_call) {
+    if (!existing.buyer_type || existing.buyer_type.trim() === '') {
+      updates.buyer_type = insights.buyer_type;
+    }
+  }
+
+  if (shouldUpdate('industry_vertical', insights.industry_vertical) && !insights.is_evaluation_call) {
+    if (!existing.industry_vertical || existing.industry_vertical.trim() === '') {
+      updates.industry_vertical = insights.industry_vertical;
+    }
+  }
+
+  if (shouldUpdate('revenue_model', insights.revenue_model) && !insights.is_evaluation_call) {
+    if (!existing.revenue_model || existing.revenue_model.trim() === '') {
+      updates.revenue_model = insights.revenue_model;
+    }
+  }
+
+  if (insights.recent_acquisitions?.length) {
+    const existingAcqs = Array.isArray(existing.recent_acquisitions) ? existing.recent_acquisitions : [];
+    const existingNames = new Set(existingAcqs.map((a: any) => (a.company_name || '').toLowerCase()));
+    const newAcqs = insights.recent_acquisitions.filter(
+      a => !existingNames.has((a.company_name || '').toLowerCase())
+    );
+    if (newAcqs.length > 0) {
+      updates.recent_acquisitions = [...existingAcqs, ...newAcqs];
+    }
+  }
+
+  if (insights.portfolio_companies?.length) {
+    const merged = mergeArrays(existing.portfolio_companies, insights.portfolio_companies);
+    if (merged.length > 0) updates.portfolio_companies = merged;
+  }
+
+  if (insights.key_quotes?.length && !insights.is_evaluation_call) {
+    const existingQuotes = Array.isArray(existing.key_quotes) ? existing.key_quotes : [];
+    const merged = mergeArrays(existingQuotes, insights.key_quotes);
+    if (merged.length > 0) updates.key_quotes = merged;
+  }
+
+  // Append deal structure preferences, management team notes, and integration approach to notes
+  const noteAppendments: string[] = [];
+  if (shouldUpdate('deal_structure_preferences', insights.deal_structure_preferences)) {
+    noteAppendments.push(`Deal Structure Preferences: ${insights.deal_structure_preferences}`);
+  }
+  if (shouldUpdate('management_team_notes', insights.management_team_notes)) {
+    noteAppendments.push(`Management Team: ${insights.management_team_notes}`);
+  }
+  if (shouldUpdate('integration_approach', insights.integration_approach)) {
+    noteAppendments.push(`Integration Approach: ${insights.integration_approach}`);
+  }
+  if (noteAppendments.length > 0) {
+    const existingNotes = existing.notes || '';
+    const newNoteBlock = `\n\n--- Transcript Insights (${new Date().toISOString().split('T')[0]}) ---\n${noteAppendments.join('\n')}`;
+    // Only append if these insights aren't already in the notes
+    if (!existingNotes.includes(noteAppendments[0].substring(0, 50))) {
+      updates.notes = (existingNotes + newNoteBlock).trim();
+    }
   }
 
   if (Object.keys(updates).length > 0) {

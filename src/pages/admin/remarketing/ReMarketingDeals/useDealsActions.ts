@@ -1,4 +1,5 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
+import { useShiftSelect } from '@/hooks/useShiftSelect';
 import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -183,14 +184,8 @@ export function useDealsActions({
     [localOrder, setLocalOrder, sortedListingsRef, queryClient, toast],
   );
 
-  const handleToggleSelect = useCallback((dealId: string) => {
-    setSelectedDeals((prev) => {
-      const n = new Set(prev);
-      if (n.has(dealId)) n.delete(dealId);
-      else n.add(dealId);
-      return n;
-    });
-  }, []);
+  const orderedIds = useMemo(() => localOrder.map((d) => d.id), [localOrder]);
+  const { handleToggle: handleToggleSelect } = useShiftSelect(orderedIds, selectedDeals, setSelectedDeals);
 
   const handleSelectAll = useCallback(() => {
     if (selectedDeals.size === localOrder.length) setSelectedDeals(new Set());

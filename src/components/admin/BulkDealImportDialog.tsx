@@ -8,6 +8,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import Papa from 'papaparse';
 import { parse } from 'date-fns';
+import { readSpreadsheetAsText, SPREADSHEET_ACCEPT } from '@/lib/parseSpreadsheet';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { useAdminListings } from '@/hooks/admin/use-admin-listings';
@@ -64,7 +65,7 @@ export function BulkDealImportDialog({ isOpen, onClose, onConfirm, isLoading }: 
   const { data: listings } = useListings(undefined, isOpen);
   const { undoImport, isUndoing } = useUndoBulkImport();
 
-  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
@@ -79,12 +80,13 @@ export function BulkDealImportDialog({ isOpen, onClose, onConfirm, isLoading }: 
     }
 
     setFileName(file.name);
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const text = e.target?.result as string;
+    try {
+      const text = await readSpreadsheetAsText(file);
       setCsvText(text);
-    };
-    reader.readAsText(file);
+    } catch (err: any) {
+      toast.error('Failed to read file', { description: err.message });
+      event.target.value = '';
+    }
   };
 
   const extractCompanyFromEmail = (email: string, existingCompany?: string): string => {
@@ -462,9 +464,9 @@ export function BulkDealImportDialog({ isOpen, onClose, onConfirm, isLoading }: 
             </Select>
           </div>
 
-          {/* Step 2: Upload CSV */}
+          {/* Step 2: Upload File */}
           <div className="space-y-2 flex-shrink-0">
-            <Label htmlFor="csv-file">Step 2: Upload CSV File *</Label>
+            <Label htmlFor="csv-file">Step 2: Upload File (CSV, XLS, XLSX) *</Label>
             <div className="text-xs text-muted-foreground mb-2">
               Maximum {MAX_FILE_SIZE_MB}MB file size • Up to {MAX_ROWS} rows per import • Dates are imported in UTC timezone
             </div>
@@ -472,7 +474,7 @@ export function BulkDealImportDialog({ isOpen, onClose, onConfirm, isLoading }: 
               <Input
                 id="csv-file"
                 type="file"
-                accept=".csv"
+                accept={SPREADSHEET_ACCEPT}
                 onChange={handleFileUpload}
                 className="flex-1"
               />
@@ -482,7 +484,7 @@ export function BulkDealImportDialog({ isOpen, onClose, onConfirm, isLoading }: 
                 variant="secondary"
               >
                 <Upload className="w-4 h-4 mr-2" />
-                Parse CSV
+                Parse File
               </Button>
             </div>
             {fileName && (

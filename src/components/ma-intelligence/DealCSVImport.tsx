@@ -6,6 +6,7 @@ import { Progress } from "@/components/ui/progress";
 import { Upload, FileText, CheckCircle, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { readSpreadsheetAsText, SPREADSHEET_ACCEPT } from "@/lib/parseSpreadsheet";
 
 interface DealCSVImportProps {
   open: boolean;
@@ -35,8 +36,8 @@ export function DealCSVImport({ open, onOpenChange, trackerId, onDealsImported }
     setProgress(0);
 
     try {
-      // Read file content
-      const text = await file.text();
+      // Read file content (supports CSV, XLS, XLSX)
+      const text = await readSpreadsheetAsText(file);
       const rows = text.split("\n").filter(row => row.trim());
 
       if (rows.length === 0) {
@@ -128,20 +129,20 @@ export function DealCSVImport({ open, onOpenChange, trackerId, onDealsImported }
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Import Deals from CSV</DialogTitle>
+          <DialogTitle>Import Deals from Spreadsheet</DialogTitle>
           <DialogDescription>
-            Upload a CSV file to bulk import deals into this tracker
+            Upload a CSV, XLS, or XLSX file to bulk import deals into this tracker
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="deal-csv-file">Select CSV File</Label>
+            <Label htmlFor="deal-csv-file">Select File (CSV, XLS, XLSX)</Label>
             <div className="flex items-center gap-3">
               <input
                 id="deal-csv-file"
                 type="file"
-                accept=".csv"
+                accept={SPREADSHEET_ACCEPT}
                 onChange={handleFileChange}
                 className="hidden"
               />

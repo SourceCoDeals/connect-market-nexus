@@ -31,8 +31,7 @@ import {
 import {
   ArrowLeft,
   Users,
-  Phone,
-  Mail,
+  // Phone icon unused currently
   BarChart2,
   FileSignature,
   FolderOpen,
@@ -765,15 +764,15 @@ const ReMarketingBuyerDetail = () => {
       </div>
 
       {/* Main Content Tabs */}
-      <Tabs defaultValue="engagement" className="space-y-4">
+      <Tabs defaultValue="intelligence" className="space-y-4">
         <TabsList>
-          <TabsTrigger value="engagement" className="text-sm">
-            <Activity className="mr-1.5 h-3.5 w-3.5" />
-            Engagement
-          </TabsTrigger>
           <TabsTrigger value="intelligence" className="text-sm">
             <BarChart2 className="mr-1.5 h-3.5 w-3.5" />
             Intelligence
+          </TabsTrigger>
+          <TabsTrigger value="history" className="text-sm">
+            <Activity className="mr-1.5 h-3.5 w-3.5" />
+            History
           </TabsTrigger>
           <TabsTrigger value="contacts" className="text-sm">
             <Users className="mr-1.5 h-3.5 w-3.5" />
@@ -783,36 +782,13 @@ const ReMarketingBuyerDetail = () => {
             <FileSignature className="mr-1.5 h-3.5 w-3.5" />
             Agreements
           </TabsTrigger>
-          <TabsTrigger value="call-history" className="text-sm">
-            <Phone className="mr-1.5 h-3.5 w-3.5" />
-            Call History
-          </TabsTrigger>
-          <TabsTrigger value="email-history" className="text-sm">
-            <Mail className="mr-1.5 h-3.5 w-3.5" />
-            Email History
-          </TabsTrigger>
           <TabsTrigger value="documents" className="text-sm">
             <FolderOpen className="mr-1.5 h-3.5 w-3.5" />
             Documents
           </TabsTrigger>
         </TabsList>
 
-        {/* Engagement Tab (NEW DEFAULT) */}
-        <TabsContent value="engagement" className="space-y-4">
-          {/* Unified Contact Activity Timeline — combined SmartLead emails + PhoneBurner calls */}
-          <ContactActivityTimeline
-            buyerId={buyer!.id}
-            title="All Outreach Activity"
-            maxHeight={400}
-          />
-          <BuyerEngagementTab
-            buyerId={buyer!.id}
-            emailDomain={buyer?.email_domain}
-            marketplaceFirmId={buyer?.marketplace_firm_id}
-          />
-        </TabsContent>
-
-        {/* Intelligence Tab */}
+        {/* Intelligence Tab (DEFAULT) */}
         <TabsContent value="intelligence" className="space-y-4">
           {/* Buyer Notes Section */}
           <BuyerNotesSection
@@ -902,8 +878,41 @@ const ReMarketingBuyerDetail = () => {
           />
         </TabsContent>
 
-        {/* Call History Tab */}
-        <TabsContent value="call-history" className="space-y-4">
+        {/* Contacts Tab (REBUILT) */}
+        <TabsContent value="contacts">
+          <BuyerContactsHub
+            buyerId={buyer!.id}
+            emailDomain={buyer?.email_domain}
+            onAddContact={() => setIsContactDialogOpen(true)}
+            onDeleteContact={(contactId) => deleteContactMutation.mutate(contactId)}
+          />
+        </TabsContent>
+
+        {/* Agreements Tab (REBUILT) */}
+        <TabsContent value="agreements">
+          <BuyerAgreementsRebuild
+            marketplaceFirmId={buyer?.marketplace_firm_id || null}
+            hasFeeAgreement={buyer?.has_fee_agreement || false}
+            feeAgreementSource={buyer?.fee_agreement_source || null}
+            primaryContactEmail={contacts?.[0]?.email}
+            primaryContactName={contacts?.[0]?.name}
+          />
+        </TabsContent>
+
+        {/* History Tab — combined Engagement + Call History + Email History */}
+        <TabsContent value="history" className="space-y-4">
+          {/* Unified Contact Activity Timeline — combined SmartLead emails + PhoneBurner calls */}
+          <ContactActivityTimeline
+            buyerId={buyer!.id}
+            title="All Outreach Activity"
+            maxHeight={400}
+          />
+          <BuyerEngagementTab
+            buyerId={buyer!.id}
+            emailDomain={buyer?.email_domain}
+            marketplaceFirmId={buyer?.marketplace_firm_id}
+          />
+
           {/* PhoneBurner Call Activity Timeline */}
           <ContactCallTimeline buyerId={buyer!.id} />
 
@@ -928,31 +937,8 @@ const ReMarketingBuyerDetail = () => {
               />
             </CardContent>
           </Card>
-        </TabsContent>
 
-        {/* Contacts Tab (REBUILT) */}
-        <TabsContent value="contacts">
-          <BuyerContactsHub
-            buyerId={buyer!.id}
-            emailDomain={buyer?.email_domain}
-            onAddContact={() => setIsContactDialogOpen(true)}
-            onDeleteContact={(contactId) => deleteContactMutation.mutate(contactId)}
-          />
-        </TabsContent>
-
-        {/* Agreements Tab (REBUILT) */}
-        <TabsContent value="agreements">
-          <BuyerAgreementsRebuild
-            marketplaceFirmId={buyer?.marketplace_firm_id || null}
-            hasFeeAgreement={buyer?.has_fee_agreement || false}
-            feeAgreementSource={buyer?.fee_agreement_source || null}
-            primaryContactEmail={contacts?.[0]?.email}
-            primaryContactName={contacts?.[0]?.name}
-          />
-        </TabsContent>
-
-        {/* Email History Tab */}
-        <TabsContent value="email-history">
+          {/* SmartLead Email History */}
           <SmartleadEmailHistory buyerId={buyer!.id} />
         </TabsContent>
 

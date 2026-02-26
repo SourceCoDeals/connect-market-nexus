@@ -12,12 +12,13 @@ import {
 } from "@/components/ui/dropdown-menu";
 import {
   ExternalLink, MoreHorizontal, Sparkles, Zap, Trash2, Archive,
-  ChevronDown, ChevronUp, ArrowUpDown, Users, Star, Phone,
+  ChevronDown, ChevronUp, ArrowUpDown, Users, Star, Phone, ThumbsDown,
 } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { DealSourceBadge } from "@/components/remarketing/DealSourceBadge";
+import { useShiftSelect } from "@/hooks/useShiftSelect";
 import type { SortField } from "./types";
 import { formatCurrency, normalizeCompanyName, getDomain } from "./helpers";
 
@@ -27,6 +28,7 @@ interface DealsTableProps {
   sortDir: "asc" | "desc";
   toggleSort: (field: SortField) => void;
   selectedDealIds: Set<string>;
+  setSelectedDealIds: React.Dispatch<React.SetStateAction<Set<string>>>;
   allSelected: boolean;
   toggleSelectAll: () => void;
   toggleSelect: (id: string) => void;
@@ -37,11 +39,13 @@ interface DealsTableProps {
 
 export function DealsTable({
   deals, sortField, sortDir, toggleSort,
-  selectedDealIds, allSelected, toggleSelectAll, toggleSelect,
+  selectedDealIds, setSelectedDealIds, allSelected, toggleSelectAll, toggleSelect: _toggleSelect,
   onEnrichDeal, onConfirmAction, partnerId,
 }: DealsTableProps) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const orderedIds = deals.map((d) => d.id);
+  const { handleToggle } = useShiftSelect(orderedIds, selectedDealIds, setSelectedDealIds);
 
   return (
     <Table>
@@ -83,13 +87,26 @@ export function DealsTable({
             <TableRow
               key={deal.id}
               className={`cursor-pointer hover:bg-muted/50 ${
-                deal.status === 'active' ? "bg-green-50 hover:bg-green-100/80 dark:bg-green-950/20 dark:hover:bg-green-950/40"
+                deal.remarketing_status === 'not_a_fit' ? "opacity-50 bg-orange-50/50 hover:bg-orange-100/50 dark:bg-orange-950/10 dark:hover:bg-orange-950/20"
+                  : deal.status === 'active' ? "bg-green-50 hover:bg-green-100/80 dark:bg-green-950/20 dark:hover:bg-green-950/40"
                   : deal.is_priority_target ? "bg-amber-50 hover:bg-amber-100/80 dark:bg-amber-950/30 dark:hover:bg-amber-950/50" : ""
               }`}
               data-state={selectedDealIds.has(deal.id) ? "selected" : undefined}
             >
               <TableCell onClick={(e) => e.stopPropagation()}>
-                <Checkbox checked={selectedDealIds.has(deal.id)} onCheckedChange={() => toggleSelect(deal.id)} aria-label={`Select ${deal.title}`} />
+                <Checkbox
+                  checked={selectedDealIds.has(deal.id)}
+                  onCheckedChange={(checked) => {
+                    handleToggle(deal.id, !!checked);
+                  }}
+                  onClick={(e: React.MouseEvent) => {
+                    if (e.shiftKey) {
+                      e.preventDefault();
+                      handleToggle(deal.id, !selectedDealIds.has(deal.id), e);
+                    }
+                  }}
+                  aria-label={`Select ${deal.title}`}
+                />
               </TableCell>
               <TableCell className="font-medium" onClick={() => navigate(`/admin/deals/${deal.id}`)}>
                 <div className="flex items-center gap-1.5">
@@ -195,6 +212,17 @@ export function DealsTable({
                     >
                       <Phone className={cn("h-3 w-3 mr-2", deal.need_owner_contact && "text-orange-600")} />
                       {deal.need_owner_contact ? "Remove Contact Owner Flag" : "Flag: Need to Contact Owner"}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      className="text-orange-600 focus:text-orange-600"
+                      onClick={async () => {
+                        const { error } = await supabase.from("listings").update({ remarketing_status: 'not_a_fit' } as never).eq("id", deal.id);
+                        if (error) toast.error(error.message);
+                        else { toast.success("Marked as not a fit"); queryClient.invalidateQueries({ queryKey: ["referral-partners", partnerId, "deals"] }); }
+                      }}
+                    >
+                      <ThumbsDown className="h-3 w-3 mr-2" />
+                      Mark as Not a Fit
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem className="text-amber-600 focus:text-amber-600" onClick={() => onConfirmAction({ type: "archive", ids: [deal.id] })}>
