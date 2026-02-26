@@ -27,6 +27,7 @@ import {
   ListChecks,
   Users,
   BarChart3,
+  UserRound,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { cn, getLocalDateString } from '@/lib/utils';
@@ -36,6 +37,35 @@ import { EditTaskDialog } from '@/components/daily-tasks/EditTaskDialog';
 import { ReassignDialog } from '@/components/daily-tasks/ReassignDialog';
 import { PinDialog } from '@/components/daily-tasks/PinDialog';
 import type { DailyStandupTaskWithRelations } from '@/types/daily-tasks';
+
+// ─── Group tasks by assignee ───
+interface TaskGroup {
+  assigneeId: string | null;
+  assigneeName: string;
+  tasks: DailyStandupTaskWithRelations[];
+}
+
+function groupByOwner(tasks: DailyStandupTaskWithRelations[]): TaskGroup[] {
+  const groups = new Map<string, TaskGroup>();
+
+  for (const task of tasks) {
+    const key = task.assignee_id || '__unassigned__';
+    if (!groups.has(key)) {
+      const name = task.assignee
+        ? `${task.assignee.first_name || ''} ${task.assignee.last_name || ''}`.trim() || 'Unknown'
+        : 'Unassigned';
+      groups.set(key, { assigneeId: task.assignee_id, assigneeName: name, tasks: [] });
+    }
+    groups.get(key)!.tasks.push(task);
+  }
+
+  // Sort groups: assigned first (alphabetical), unassigned last
+  return Array.from(groups.values()).sort((a, b) => {
+    if (!a.assigneeId) return 1;
+    if (!b.assigneeId) return -1;
+    return a.assigneeName.localeCompare(b.assigneeName);
+  });
+}
 
 const DailyTaskDashboard = () => {
   const { teamRole } = useAuth();
@@ -103,6 +133,11 @@ const DailyTaskDashboard = () => {
     if (!tasks) return [];
     return tasks.filter((t) => t.status === 'completed');
   }, [tasks]);
+
+  // Grouped views
+  const todayGroups = useMemo(() => groupByOwner(todayTasks), [todayTasks]);
+  const futureGroups = useMemo(() => groupByOwner(futureTasks), [futureTasks]);
+  const completedGroups = useMemo(() => groupByOwner(completedTasks), [completedTasks]);
 
   const handleDelete = async () => {
     if (!deleteTask) return;
@@ -294,7 +329,7 @@ const DailyTaskDashboard = () => {
             )}
           </TabsList>
 
-          <TabsContent value="today" className="space-y-2">
+          <TabsContent value="today" className="space-y-4">
             {todayTasks.length === 0 ? (
               <Card>
                 <CardContent className="py-8 text-center text-muted-foreground">
@@ -302,46 +337,79 @@ const DailyTaskDashboard = () => {
                 </CardContent>
               </Card>
             ) : (
-              todayTasks.map((task) => (
-                <TaskCard
-                  key={task.id}
-                  task={task}
-                  isLeadership={isLeadership}
-                  onEdit={setEditTask}
-                  onReassign={setReassignTask}
-                  onPin={setPinTask}
-                  onDelete={setDeleteTask}
-                />
+              todayGroups.map((group) => (
+                <div key={group.assigneeId || 'unassigned'} className="space-y-2">
+                  <div className="flex items-center gap-2 pt-2 pb-1">
+                    <UserRound className="h-4 w-4 text-muted-foreground" />
+                    <h3 className="text-sm font-semibold text-foreground">{group.assigneeName}</h3>
+                    <Badge variant="secondary" className="h-5 px-1.5 text-[10px]">
+                      {group.tasks.length}
+                    </Badge>
+                  </div>
+                  {group.tasks.map((task) => (
+                    <TaskCard
+                      key={task.id}
+                      task={task}
+                      isLeadership={isLeadership}
+                      onEdit={setEditTask}
+                      onReassign={setReassignTask}
+                      onPin={setPinTask}
+                      onDelete={setDeleteTask}
+                    />
+                  ))}
+                </div>
               ))
             )}
           </TabsContent>
 
-          <TabsContent value="upcoming" className="space-y-2">
-            {futureTasks.map((task) => (
-              <TaskCard
-                key={task.id}
-                task={task}
-                isLeadership={isLeadership}
-                onEdit={setEditTask}
-                onReassign={setReassignTask}
-                onPin={setPinTask}
-                onDelete={setDeleteTask}
-              />
+          <TabsContent value="upcoming" className="space-y-4">
+            {futureGroups.map((group) => (
+              <div key={group.assigneeId || 'unassigned'} className="space-y-2">
+                <div className="flex items-center gap-2 pt-2 pb-1">
+                  <UserRound className="h-4 w-4 text-muted-foreground" />
+                  <h3 className="text-sm font-semibold text-foreground">{group.assigneeName}</h3>
+                  <Badge variant="secondary" className="h-5 px-1.5 text-[10px]">
+                    {group.tasks.length}
+                  </Badge>
+                </div>
+                {group.tasks.map((task) => (
+                  <TaskCard
+                    key={task.id}
+                    task={task}
+                    isLeadership={isLeadership}
+                    onEdit={setEditTask}
+                    onReassign={setReassignTask}
+                    onPin={setPinTask}
+                    onDelete={setDeleteTask}
+                  />
+                ))}
+              </div>
             ))}
           </TabsContent>
 
           {showCompleted && (
-            <TabsContent value="completed" className="space-y-2">
-              {completedTasks.map((task) => (
-                <TaskCard
-                  key={task.id}
-                  task={task}
-                  isLeadership={isLeadership}
-                  onEdit={setEditTask}
-                  onReassign={setReassignTask}
-                  onPin={setPinTask}
-                  onDelete={setDeleteTask}
-                />
+            <TabsContent value="completed" className="space-y-4">
+              {completedGroups.map((group) => (
+                <div key={group.assigneeId || 'unassigned'} className="space-y-2">
+                  <div className="flex items-center gap-2 pt-2 pb-1">
+                    <UserRound className="h-4 w-4 text-muted-foreground" />
+                    <h3 className="text-sm font-semibold text-foreground">{group.assigneeName}</h3>
+                    <Badge variant="secondary" className="h-5 px-1.5 text-[10px]">
+                      {group.tasks.length}
+                    </Badge>
+                  </div>
+                  {group.tasks.map((task) => (
+                    <TaskCard
+                      key={task.id}
+                      task={task}
+                      isLeadership={isLeadership}
+                      onEdit={setEditTask}
+                      onReassign={setReassignTask}
+                      onPin={setPinTask}
+                      onDelete={setDeleteTask}
+                    />
+                  ))}
+                </div>
               ))}
             </TabsContent>
           )}
