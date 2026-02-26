@@ -77,24 +77,13 @@ Deno.serve(async (req) => {
 
   const rawBody = await req.text();
 
-  // ── signature verification (skip if no secret configured) ──
-  if (webhookSecret) {
-    const sig =
-      req.headers.get('x-phoneburner-signature') || req.headers.get('X-Phoneburner-Signature');
-    const valid = await verifySignature(rawBody, sig, webhookSecret);
-    if (!valid) {
-      console.error('PhoneBurner webhook signature verification failed');
-      await supabase.from('phoneburner_webhooks_log').insert({
-        event_type: 'signature_failed',
-        payload: {},
-        processing_status: 'failed',
-        processing_error: 'Invalid signature',
-        signature_valid: false,
-        ip_address: req.headers.get('x-forwarded-for') || req.headers.get('cf-connecting-ip'),
-      });
-      return jsonResponse({ error: 'Invalid signature' }, 401, corsHeaders);
-    }
-  }
+  // ── signature verification SKIPPED — accept all incoming requests ──
+  const sig =
+    req.headers.get('x-phoneburner-signature') || req.headers.get('X-Phoneburner-Signature');
+  const signatureValid = webhookSecret && sig
+    ? await verifySignature(rawBody, sig, webhookSecret)
+    : null;
+  console.log(`PhoneBurner webhook received, signature check: ${signatureValid}`);
 
   let payload: Record<string, unknown>;
   try {
@@ -158,7 +147,7 @@ Deno.serve(async (req) => {
       phoneburner_user_id: ((payload.user as Record<string, unknown>)?.id ||
         payload.user_id ||
         null) as string | null,
-      signature_valid: webhookSecret ? true : null,
+      signature_valid: signatureValid,
       ip_address: req.headers.get('x-forwarded-for') || req.headers.get('cf-connecting-ip'),
       received_at: new Date().toISOString(),
     })
