@@ -83,15 +83,15 @@ CREATE TABLE IF NOT EXISTS task_pin_log (
 -- Indexes
 -- ============================================================
 
-CREATE INDEX idx_standup_tasks_assignee ON daily_standup_tasks(assignee_id);
-CREATE INDEX idx_standup_tasks_status ON daily_standup_tasks(status);
-CREATE INDEX idx_standup_tasks_due_date ON daily_standup_tasks(due_date);
-CREATE INDEX idx_standup_tasks_meeting ON daily_standup_tasks(source_meeting_id);
-CREATE INDEX idx_standup_tasks_deal ON daily_standup_tasks(deal_id);
-CREATE INDEX idx_standup_tasks_rank ON daily_standup_tasks(priority_rank);
-CREATE INDEX idx_standup_meetings_date ON standup_meetings(meeting_date);
-CREATE INDEX idx_team_member_aliases_alias ON team_member_aliases(alias);
-CREATE INDEX idx_task_pin_log_task ON task_pin_log(task_id);
+CREATE INDEX IF NOT EXISTS idx_standup_tasks_assignee ON daily_standup_tasks(assignee_id);
+CREATE INDEX IF NOT EXISTS idx_standup_tasks_status ON daily_standup_tasks(status);
+CREATE INDEX IF NOT EXISTS idx_standup_tasks_due_date ON daily_standup_tasks(due_date);
+CREATE INDEX IF NOT EXISTS idx_standup_tasks_meeting ON daily_standup_tasks(source_meeting_id);
+CREATE INDEX IF NOT EXISTS idx_standup_tasks_deal ON daily_standup_tasks(deal_id);
+CREATE INDEX IF NOT EXISTS idx_standup_tasks_rank ON daily_standup_tasks(priority_rank);
+CREATE INDEX IF NOT EXISTS idx_standup_meetings_date ON standup_meetings(meeting_date);
+CREATE INDEX IF NOT EXISTS idx_team_member_aliases_alias ON team_member_aliases(alias);
+CREATE INDEX IF NOT EXISTS idx_task_pin_log_task ON task_pin_log(task_id);
 
 -- ============================================================
 -- Auto-update updated_at
