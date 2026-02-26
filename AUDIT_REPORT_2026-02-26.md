@@ -156,11 +156,24 @@ The SourceCo platform is a mature, feature-rich M&A marketplace with 1,478 TypeS
   - `ReMarketingDealDetail/index.tsx` — ORPHANED, marked in code
   - `ReMarketingDeals/index.tsx` (771 lines) — Possible shadow of `ReMarketingDeals.tsx` (1899 lines) — needs investigation
 - **Refactors completed this session:** None (documentation-only per audit scope)
+- **Orphaned components found:** 65 components never imported anywhere (~10,400 lines of dead code)
+  - Largest orphans: `PipelineDetailBuyer.tsx` (564), `FirmAgreementsTable.tsx` (552), `CriteriaReviewPanel.tsx` (472)
+  - Pipeline tabs (Buyer, Communication, Tasks, Documents) suggest abandoned pipeline feature
+  - Listing detail features (InteractiveCashFlowProjections, InvestmentFitScore) unused
+- **Shadow/duplicate components found:** 17 same-name components in different locations, both imported
+  - `ErrorBoundary.tsx` — two versions (components/ and common/)
+  - `AddBuyerDialog.tsx` — MA Intelligence vs ReMarketing versions
+  - `DealCSVImport.tsx` — 663 lines vs 207 lines, both used
+  - `ScoringBehaviorPanel.tsx` — 339 lines vs 169 lines, both used
+  - `StructuredCriteriaPanel.tsx` — 476 lines vs 540 lines, both used
+  - `IntelligenceBadge.tsx`, `PassReasonDialog.tsx`, `KeyQuotesCard.tsx` — similar duplicates
 - **Refactors deferred:**
   - Break `ReMarketingDealDetail.tsx` into per-tab sub-components
   - Break `ReMarketingUniverseDetail.tsx` into sub-components
   - Break `ReMarketingDeals.tsx` into sub-components
   - Resolve `ReMarketingDeals` shadow component (file vs directory)
+  - Delete 65 orphaned components (~10,400 lines of dead code)
+  - Consolidate 17 shadow/duplicate components
 
 ### Phase 9: Security
 - **Hardcoded secrets found:**
@@ -195,10 +208,12 @@ The SourceCo platform is a mature, feature-rich M&A marketplace with 1,478 TypeS
 ## Recommended Priority Order for Next Session
 
 1. **Reduce AI system prompt to <4K tokens** — Highest impact. Move knowledge base to retrieval, keep core instructions only.
-2. **Refactor ReMarketingDealDetail.tsx monolith** — Break into per-tab files, delete orphan.
-3. **Consolidate AI tools (85 → ~60)** — Merge transcript search tools, contact search tools, enrichment tools.
-4. **Add edge function documentation headers** — Top 20 critical functions.
-5. **Database audit (RLS + indexes)** — Requires SQL access. Run the queries from Phase 2.4 and 2.5.
+2. **Delete 65 orphaned components** — ~10,400 lines of dead code. Remove pipeline tabs (abandoned feature), unused listing-detail features, and other orphans. This immediately reduces codebase complexity.
+3. **Refactor ReMarketingDealDetail.tsx monolith** — Break into per-tab files, delete orphan directory version.
+4. **Consolidate 17 shadow/duplicate components** — Merge ErrorBoundary, DealCSVImport, ScoringBehaviorPanel, etc. into single canonical versions.
+5. **Consolidate AI tools (85 → ~60)** — Merge transcript search tools, contact search tools, enrichment tools.
+6. **Add edge function documentation headers** — Top 20 critical functions.
+7. **Database audit (RLS + indexes)** — Requires SQL access. Run the queries from Phase 2.4 and 2.5.
 
 ---
 
