@@ -137,19 +137,19 @@ function SortableFlaggedRow({
         {index + 1}
       </TableCell>
       <TableCell>
+        {deal.industry ? (
+          <Badge variant="secondary" className="text-xs">{deal.industry}</Badge>
+        ) : (
+          <span className="text-muted-foreground text-sm">—</span>
+        )}
+      </TableCell>
+      <TableCell>
         <div className="flex items-center gap-3">
           <div className="h-9 w-9 rounded-lg bg-blue-500/10 flex items-center justify-center shrink-0">
             <Network className="h-4 w-4 text-blue-600" />
           </div>
           <p className="font-medium text-foreground truncate">{deal.internal_company_name || deal.title}</p>
         </div>
-      </TableCell>
-      <TableCell>
-        {deal.industry ? (
-          <Badge variant="secondary" className="text-xs">{deal.industry}</Badge>
-        ) : (
-          <span className="text-muted-foreground text-sm">—</span>
-        )}
       </TableCell>
       <TableCell>
         <span className="text-sm">{deal.address_state || '—'}</span>
@@ -885,8 +885,8 @@ const ReMarketingUniverses = () => {
                   <TableRow>
                     <TableHead className="w-[40px]" />
                     <TableHead className="w-[40px]">#</TableHead>
-                    <TableHead>Deal Name</TableHead>
                     <TableHead>Industry</TableHead>
+                    <TableHead>Deal Name</TableHead>
                     <TableHead>State</TableHead>
                     <TableHead>Flagged At</TableHead>
                     <TableHead className="w-[120px]">Action</TableHead>
