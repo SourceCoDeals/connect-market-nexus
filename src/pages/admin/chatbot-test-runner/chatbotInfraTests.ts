@@ -68,7 +68,7 @@ export async function sendAIQuery(
 ): Promise<{
   text: string;
   toolCalls: Array<{ name: string; id: string; success: boolean }>;
-  routeInfo: { category: string; tier: string; tools: string[] } | null;
+  routeInfo: { category: string; tier: string; tools: string[]; bypassed?: boolean; confidence?: number } | null;
   error: string | null;
   cost: number;
 }> {
@@ -112,7 +112,7 @@ export async function sendAIQuery(
     let buffer = '';
     let text = '';
     const toolCalls: Array<{ name: string; id: string; success: boolean }> = [];
-    let routeInfo: { category: string; tier: string; tools: string[] } | null = null;
+    let routeInfo: { category: string; tier: string; tools: string[]; bypassed?: boolean; confidence?: number } | null = null;
     let error: string | null = null;
     let cost = 0;
     let pendingEventType = '';

@@ -127,6 +127,8 @@ export default function ThirtyQuestionTest() {
           actualTools: res.toolCalls.map((t) => t.name),
           durationMs: Date.now() - start,
           actualRating: null,
+          bypassed: res.routeInfo?.bypassed,
+          confidence: res.routeInfo?.confidence,
           error: res.error || undefined,
         };
       } catch (err) {
@@ -303,6 +305,9 @@ export default function ThirtyQuestionTest() {
     return q && r.actualRoute === q.expectedRoute;
   }).length;
 
+  // Bypass rate — how many queries were handled by bypass rules (no LLM classification)
+  const bypassCount = doneResults.filter((r) => r.bypassed).length;
+
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-4 md:p-8">
       <div className="max-w-[1400px] mx-auto space-y-6">
@@ -377,12 +382,15 @@ export default function ThirtyQuestionTest() {
               </div>
             </div>
             <div className="bg-white dark:bg-gray-800 rounded-lg border p-4">
-              <div className="text-sm text-muted-foreground">Avg Predicted Rating</div>
+              <div className="text-sm text-muted-foreground">Bypass Rate</div>
               <div className="text-2xl font-bold">
-                {(questions.reduce((s, q) => s + q.predictedRating, 0) / questions.length).toFixed(
-                  1,
-                )}
-                /10
+                {doneResults.length > 0
+                  ? Math.round((bypassCount / doneResults.length) * 100)
+                  : 0}
+                %
+              </div>
+              <div className="text-xs text-muted-foreground mt-1">
+                {bypassCount}/{doneResults.length} bypassed LLM
               </div>
             </div>
           </div>
@@ -567,6 +575,24 @@ export default function ThirtyQuestionTest() {
                                         {r.actualRoute === q.expectedRoute
                                           ? ' ✓'
                                           : ` (expected: ${q.expectedRoute})`}
+                                        {r.bypassed != null && (
+                                          <Badge
+                                            variant="outline"
+                                            className={cn(
+                                              'ml-2 text-[10px] px-1.5 py-0',
+                                              r.bypassed
+                                                ? 'border-green-500 text-green-700 dark:text-green-400'
+                                                : 'border-yellow-500 text-yellow-700 dark:text-yellow-400',
+                                            )}
+                                          >
+                                            {r.bypassed ? 'bypass' : 'LLM'}
+                                          </Badge>
+                                        )}
+                                        {r.confidence != null && (
+                                          <span className="ml-1 text-muted-foreground">
+                                            ({(r.confidence * 100).toFixed(0)}%)
+                                          </span>
+                                        )}
                                       </div>
                                       <div>
                                         <span className="font-medium">Tools:</span>{' '}

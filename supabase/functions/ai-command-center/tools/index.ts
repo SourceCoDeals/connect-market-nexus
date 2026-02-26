@@ -367,13 +367,17 @@ const CONFIRMATION_REQUIRED = new Set([
 
 /**
  * Get tools available for a given intent category.
+ * When specificTools are provided (from bypass rules), they are MERGED with
+ * the category's default tools — not used as a replacement. This ensures
+ * Claude always has the full category toolset plus any extras the bypass rule adds.
  */
 export function getToolsForCategory(category: string, specificTools?: string[]): ClaudeTool[] {
+  const categoryToolNames = TOOL_CATEGORIES[category] || TOOL_CATEGORIES.GENERAL;
   if (specificTools && specificTools.length > 0) {
-    return ALL_TOOLS.filter((t) => specificTools.includes(t.name));
+    const merged = new Set([...categoryToolNames, ...specificTools]);
+    return ALL_TOOLS.filter((t) => merged.has(t.name));
   }
-  const toolNames = TOOL_CATEGORIES[category] || TOOL_CATEGORIES.GENERAL;
-  return ALL_TOOLS.filter((t) => toolNames.includes(t.name));
+  return ALL_TOOLS.filter((t) => categoryToolNames.includes(t.name));
 }
 
 /**

@@ -33,6 +33,8 @@ export interface QAResult {
   actualTools: string[];
   durationMs: number;
   actualRating: number | null; // user can rate
+  bypassed?: boolean; // true if bypass rule matched (no LLM classification needed)
+  confidence?: number; // router confidence score (0-1)
   error?: string;
 }
 
