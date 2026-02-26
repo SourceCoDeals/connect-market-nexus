@@ -174,6 +174,12 @@ const ReMarketingReferralPartnerDetail = lazyWithRetry(
 const CapTargetDeals = lazyWithRetry(() => import('@/pages/admin/remarketing/CapTargetDeals'));
 const GPPartnerDeals = lazyWithRetry(() => import('@/pages/admin/remarketing/GPPartnerDeals'));
 const ValuationLeads = lazyWithRetry(() => import('@/pages/admin/remarketing/ValuationLeads'));
+const DailyTaskDashboard = lazyWithRetry(
+  () => import('@/pages/admin/remarketing/DailyTaskDashboard'),
+);
+const DailyTaskAnalytics = lazyWithRetry(
+  () => import('@/pages/admin/remarketing/DailyTaskAnalytics'),
+);
 
 // M&A Intelligence (separate layout — unchanged)
 const MAIntelligenceLayout = lazyWithRetry(() =>
@@ -356,6 +362,8 @@ function App() {
                 }
               >
                 <Route index element={<ReMarketingDashboard />} />
+                <Route path="daily-tasks" element={<DailyTaskDashboard />} />
+                <Route path="daily-tasks/analytics" element={<DailyTaskAnalytics />} />
                 <Route path="activity-queue" element={<ReMarketingActivityQueue />} />
                 <Route path="leads/captarget" element={<CapTargetDeals />} />
                 <Route path="leads/captarget/:dealId" element={<ReMarketingDealDetail />} />

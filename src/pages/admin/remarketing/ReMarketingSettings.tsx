@@ -1,12 +1,14 @@
 import { useState } from 'react';
-import { Settings, GitMerge, ChevronDown } from 'lucide-react';
+import { Settings, GitMerge, ChevronDown, Users } from 'lucide-react';
 import { DealMergePanel } from '@/components/remarketing';
+import { TeamMemberRegistry } from '@/components/daily-tasks/TeamMemberRegistry';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Card, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 
 export default function ReMarketingSettings() {
   const [mergeOpen, setMergeOpen] = useState(true);
+  const [teamOpen, setTeamOpen] = useState(false);
 
   return (
     <div className="container mx-auto py-8 space-y-8">
@@ -14,9 +16,7 @@ export default function ReMarketingSettings() {
         <Settings className="h-8 w-8 text-primary" />
         <div>
           <h1 className="text-3xl font-bold">Settings</h1>
-          <p className="text-muted-foreground mt-1">
-            ReMarketing module configuration and tools
-          </p>
+          <p className="text-muted-foreground mt-1">ReMarketing module configuration and tools</p>
         </div>
       </div>
 
@@ -30,7 +30,9 @@ export default function ReMarketingSettings() {
                   Merge Deals
                 </CardTitle>
                 <Button variant="ghost" size="icon" className="h-8 w-8">
-                  <ChevronDown className={`h-4 w-4 transition-transform ${mergeOpen ? 'rotate-180' : ''}`} />
+                  <ChevronDown
+                    className={`h-4 w-4 transition-transform ${mergeOpen ? 'rotate-180' : ''}`}
+                  />
                 </Button>
               </div>
               <p className="text-sm text-muted-foreground">
@@ -41,6 +43,34 @@ export default function ReMarketingSettings() {
           <CollapsibleContent>
             <div className="px-6 pb-6">
               <DealMergePanel />
+            </div>
+          </CollapsibleContent>
+        </Card>
+      </Collapsible>
+
+      <Collapsible open={teamOpen} onOpenChange={setTeamOpen}>
+        <Card>
+          <CollapsibleTrigger asChild>
+            <CardHeader className="cursor-pointer hover:bg-muted/50 transition-colors">
+              <div className="flex items-center justify-between">
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <Users className="h-5 w-5 text-primary" />
+                  Daily Tasks — Team Name Mapping
+                </CardTitle>
+                <Button variant="ghost" size="icon" className="h-8 w-8">
+                  <ChevronDown
+                    className={`h-4 w-4 transition-transform ${teamOpen ? 'rotate-180' : ''}`}
+                  />
+                </Button>
+              </div>
+              <p className="text-sm text-muted-foreground">
+                Map Fireflies speaker names to team members for automatic task assignment
+              </p>
+            </CardHeader>
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <div className="px-6 pb-6">
+              <TeamMemberRegistry />
             </div>
           </CollapsibleContent>
         </Card>
