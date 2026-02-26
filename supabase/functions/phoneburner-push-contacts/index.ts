@@ -139,14 +139,17 @@ async function resolveFromBuyerContacts(
 
   if (!contacts?.length) return [];
 
-  const buyerIds = [...new Set(contacts.map((c) => c.buyer_id))];
+  // deno-lint-ignore no-explicit-any
+  const buyerIds = [...new Set(contacts.map((c: any) => c.buyer_id))];
   const { data: buyers } = await supabase
     .from('remarketing_buyers')
     .select('id, company_name, pe_firm_name, buyer_type, target_services, target_geographies')
     .in('id', buyerIds);
-  const buyerMap = new Map((buyers || []).map((b) => [b.id, b]));
+  // deno-lint-ignore no-explicit-any
+  const buyerMap = new Map((buyers || []).map((b: any) => [b.id, b]));
 
-  return contacts.map((c) => {
+  // deno-lint-ignore no-explicit-any
+  return contacts.map((c: any) => {
     const buyer = buyerMap.get(c.buyer_id);
     return {
       id: c.id,
@@ -196,15 +199,17 @@ async function resolveFromBuyers(
       'id, company_name, pe_firm_name, buyer_type, contact_name, contact_email, contact_phone',
     )
     .in('id', buyerIds);
-  const buyerMap = new Map((buyers || []).map((b) => [b.id, b]));
+  // deno-lint-ignore no-explicit-any
+  const buyerMap = new Map((buyers || []).map((b: any) => [b.id, b]));
 
   const seen = new Set<string>();
   const result: ResolvedContact[] = [];
   const buyersWithContacts = new Set<string>();
 
   // Prefer remarketing_buyer_contacts (primary first)
+  // deno-lint-ignore no-explicit-any
   for (const c of (rmContacts || []).sort(
-    (a, b) => (b.is_primary ? 1 : 0) - (a.is_primary ? 1 : 0),
+    (a: any, b: any) => (b.is_primary ? 1 : 0) - (a.is_primary ? 1 : 0),
   )) {
     const key = `${c.email?.toLowerCase() || ''}-${c.phone || ''}`;
     if (seen.has(key) && key !== '-') continue;
@@ -223,8 +228,8 @@ async function resolveFromBuyers(
     });
   }
 
-  // Add buyer_contacts not already seen
-  for (const c of bcContacts || []) {
+  // deno-lint-ignore no-explicit-any
+  for (const c of (bcContacts || []) as any[]) {
     const key = `${c.email?.toLowerCase() || ''}-${c.phone || ''}`;
     if (seen.has(key) && key !== '-') continue;
     seen.add(key);
@@ -280,8 +285,10 @@ async function resolveFromListings(
   if (!listings?.length) return [];
 
   return listings
-    .filter((l) => l.main_contact_name)
-    .map((l) => ({
+    // deno-lint-ignore no-explicit-any
+    .filter((l: any) => l.main_contact_name)
+    // deno-lint-ignore no-explicit-any
+    .map((l: any) => ({
       id: `listing-${l.id}`,
       name: l.main_contact_name!,
       phone: l.main_contact_phone,
@@ -305,7 +312,8 @@ async function resolveFromLeads(
 
   if (!leads?.length) return [];
 
-  return leads.map((l) => ({
+  // deno-lint-ignore no-explicit-any
+  return leads.map((l: any) => ({
     id: `lead-${l.id}`,
     name: l.name || l.email || 'Unknown',
     phone: l.phone_number,
