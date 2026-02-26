@@ -130,7 +130,7 @@ const DailyTaskDashboard = () => {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Link to="/admin/remarketing/daily-tasks/analytics">
+          <Link to="/admin/daily-tasks/analytics">
             <Button variant="outline" size="sm">
               <BarChart3 className="h-4 w-4 mr-2" />
               Analytics

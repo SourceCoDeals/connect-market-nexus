@@ -429,6 +429,13 @@ export function UnifiedAdminSidebar({
             collapsed={collapsed}
             badge={unreadMessages?.total || 0}
           />
+          <SidebarLink
+            href="/admin/daily-tasks"
+            icon={<ListChecks className="h-4 w-4" />}
+            label="Daily Tasks"
+            isActive={location.pathname.startsWith('/admin/daily-tasks')}
+            collapsed={collapsed}
+          />
         </div>
 
         {/* Scrollable sections */}

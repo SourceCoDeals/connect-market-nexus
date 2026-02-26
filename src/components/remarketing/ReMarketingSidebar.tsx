@@ -15,7 +15,6 @@ import {
   Activity,
   Crosshair,
   Briefcase,
-  ListChecks,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -41,11 +40,6 @@ export function ReMarketingSidebar() {
       href: '/admin/remarketing',
       icon: <LayoutDashboard className="h-5 w-5" />,
       exact: true,
-    },
-    {
-      label: 'Daily Tasks',
-      href: '/admin/remarketing/daily-tasks',
-      icon: <ListChecks className="h-5 w-5" />,
     },
     {
       label: 'Buyer Universes',

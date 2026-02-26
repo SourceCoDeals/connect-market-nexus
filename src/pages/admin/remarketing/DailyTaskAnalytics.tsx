@@ -44,7 +44,7 @@ const DailyTaskAnalytics = () => {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <Link to="/admin/remarketing/daily-tasks">
+          <Link to="/admin/daily-tasks">
             <Button variant="ghost" size="icon" className="h-8 w-8">
               <ArrowLeft className="h-4 w-4" />
             </Button>
