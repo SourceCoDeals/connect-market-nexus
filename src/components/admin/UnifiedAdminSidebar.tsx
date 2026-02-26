@@ -150,6 +150,11 @@ export function UnifiedAdminSidebar({
             external: true,
           },
           {
+            label: 'Marketplace Queue',
+            href: '/admin/marketplace/queue',
+            icon: <ClipboardList className="h-4 w-4" />,
+          },
+          {
             label: 'Connection Requests',
             href: '/admin/marketplace/requests',
             icon: <MessageSquare className="h-4 w-4" />,
