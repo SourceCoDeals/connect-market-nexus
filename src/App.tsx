@@ -126,6 +126,9 @@ const FirefliesIntegrationPage = lazyWithRetry(
   () => import('@/pages/admin/FirefliesIntegrationPage'),
 );
 
+// Daily Tasks page
+const DailyTasks = lazyWithRetry(() => import('@/pages/admin/remarketing/DailyTasks'));
+
 // ReMarketing pages (now rendered inside AdminLayout via shared sidebar)
 const ReMarketingLayout = lazyWithRetry(() =>
   import('@/components/remarketing').then((m) => ({ default: m.ReMarketingLayout })),
@@ -356,6 +359,7 @@ function App() {
                 }
               >
                 <Route index element={<ReMarketingDashboard />} />
+                <Route path="daily-tasks" element={<DailyTasks />} />
                 <Route path="activity-queue" element={<ReMarketingActivityQueue />} />
                 <Route path="leads/captarget" element={<CapTargetDeals />} />
                 <Route path="leads/captarget/:dealId" element={<ReMarketingDealDetail />} />

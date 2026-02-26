@@ -175,6 +175,11 @@ export function UnifiedAdminSidebar({
             exact: true,
           },
           {
+            label: 'Daily Tasks',
+            href: '/admin/remarketing/daily-tasks',
+            icon: <ClipboardList className="h-4 w-4" />,
+          },
+          {
             label: 'CapTarget Deals',
             href: '/admin/remarketing/leads/captarget',
             icon: <Crosshair className="h-4 w-4" />,
