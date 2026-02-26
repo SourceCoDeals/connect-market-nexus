@@ -46,7 +46,7 @@ const BYPASS_RULES: Array<{
   // Industry-specific deal count — "how many hvac deals", "total plumbing deals", "count of collision deals"
   {
     test: (q) =>
-      /\b(how many|total|count|number of)\b.*\b(deal|listing)\b/i.test(q) &&
+      /\b(how many|total|count|number of)\b.*\b(deals?|listings?)\b/i.test(q) &&
       /\b(hvac|plumbing|collision|auto|roofing|electrical|landscaping|pest|home service|restoration|mechanical|industrial|manufacturing|construction|fire|security|cleaning|staffing|healthcare|dental|veterinary|fitness)/i.test(
         q,
       ),
@@ -60,12 +60,12 @@ const BYPASS_RULES: Array<{
   // Aggregate / count / breakdown questions — "how many deals", "total deals", "breakdown of deals by status"
   {
     test: (q) =>
-      /\b(how many|total|count|number of)\b.*\b(deal|listing|active deal|pipeline deal)\b/i.test(
+      /\b(how many|total|count|number of)\b.*\b(deals?|listings?|active deals?|pipeline deals?)\b/i.test(
         q,
       ) ||
-      /\b(deal|listing)\b.*\b(how many|total|count)\b/i.test(q) ||
-      /\b(breakdown|distribution|split)\b.*\b(deal|listing)\b/i.test(q) ||
-      /\b(deal|listing)\b.*\b(breakdown|distribution|by status|by stage|by industry)\b/i.test(q),
+      /\b(deals?|listings?)\b.*\b(how many|total|count)\b/i.test(q) ||
+      /\b(breakdown|distribution|split)\b.*\b(deals?|listings?)\b/i.test(q) ||
+      /\b(deals?|listings?)\b.*\b(breakdown|distribution|by status|by stage|by industry)\b/i.test(q),
     result: {
       category: 'PIPELINE_ANALYTICS',
       tier: 'STANDARD',
@@ -103,7 +103,7 @@ const BYPASS_RULES: Array<{
   {
     test: (q) =>
       /\b(show|list|which|what)\b.*\bdeals?\b.*\b(in|at|in the)\b/i.test(q) ||
-      /\bdeals?\b.*\b(in|at)\s+(the\s+)?(screening|active marketing|loi|under loi|closed|dead|prospect|due diligence)/i.test(q) ||
+      /\bdeals?\b.*\b(in|at)\s+(the\s+)?(screening|active marketing|loi|under loi|closed|dead|prospect|due diligence)\b/i.test(q) ||
       /\b(our|the|most|latest|recent|newest)\b.*\bdeals?\b/i.test(q),
     result: {
       category: 'DEAL_STATUS',
@@ -330,7 +330,7 @@ const BYPASS_RULES: Array<{
   // Push to Smartlead — add to email campaign
   {
     test: (q) =>
-      /\b(push.*(smartlead|smart.?lead|email campaign)|add.*(email campaign|smartlead)|email.*(these|them|buyer)|start emailing|cold email.*(these|them|push))\b/i.test(
+      /\b(push.*(smartlead|smart.?lead|email campaigns?)|add.*(email campaigns?|smartlead)|email.*(these|them|buyer)|start emailing|cold email.*(these|them|push))\b/i.test(
         q,
       ),
     result: {
@@ -601,7 +601,7 @@ const BYPASS_RULES: Array<{
   // Deal comments
   {
     test: (q) =>
-      /\b(comment|internal note|deal note|team comment|who comment|what.*comment)\b/i.test(q),
+      /\b(comments?|internal notes?|deal notes?|team comments?|who comment|what.*comments?)\b/i.test(q),
     result: {
       category: 'DEAL_STATUS',
       tier: 'QUICK',
@@ -627,7 +627,7 @@ const BYPASS_RULES: Array<{
     test: (q) =>
       /\b(contacts?\s+(missing|without|no|lacking)\s+(emails?|phones?))\b/i.test(q) ||
       /\b(missing\s+emails?|no\s+emails?|without\s+emails?)\b.*\bcontacts?\b/i.test(q) ||
-      /\b(find|get|show|list)\s+.{0,20}\bcontacts?\b.{0,20}\b(missing|without|no)\s+(emails?|phones?)\b/i.test(
+      /\b(find|get|show|list)\s+.{0,50}\bcontacts?\b.{0,50}\b(missing|without|no)\s+(emails?|phones?)\b/i.test(
         q,
       ),
     result: {
@@ -641,7 +641,7 @@ const BYPASS_RULES: Array<{
   // Routes to both internal search AND enrichment for new contacts
   {
     test: (q) =>
-      /\b(find\s+(me\s+)?(contacts?|people|employees?|associates?|principals?|vps?|directors?|partners?)\s+(at|for|from))\b/i.test(
+      /\b(find\s+(me\s+)?(contacts?|people|employees?|associates?|principals?|vps?|directors?|partners?|executives?|ceos?|cfos?|coos?|founders?|owners?|managing directors?|analysts?)\s+(at|for|from))\b/i.test(
         q,
       ) ||
       /\b(get\s+(me\s+)?(contact\s+info|email|phone|linkedin)\s+(for|at|of))\b/i.test(q) ||
@@ -753,8 +753,8 @@ const BYPASS_RULES: Array<{
       /\b(find\s+(me\s+)?(companies|shops|businesses|firms|platforms)\s+(that|with|in|near|within))\b/i.test(
         q,
       ) ||
-      /\b(discover\s+compan|search\s+for\s+compan|who\s+owns)\b/i.test(q) ||
-      /\b(collision\s+repair|hvac|home\s+service|plumbing)\s+(shop|compan|business).*\b(with|near|within|in)\b/i.test(
+      /\b(discover\s+companies?|search\s+for\s+companies?|who\s+owns)\b/i.test(q) ||
+      /\b(collision\s+repair|hvac|home\s+service|plumbing)\s+(shops?|companies?|businesses?).*\b(with|near|within|in)\b/i.test(
         q,
       ),
     result: {
