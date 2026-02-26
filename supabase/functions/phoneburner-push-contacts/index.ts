@@ -1,13 +1,18 @@
 /**
- * PhoneBurner Push Contacts — Multi-entity support
+ * PhoneBurner Push Contacts — Creates a dial session via PhoneBurner API
+ *
+ * Supports two token modes:
+ * - Manual token (is_manual_token=true): uses the stored access_token directly, no refresh
+ * - OAuth token: auto-refreshes if within 5 min of expiry
+ *
+ * Uses POST /rest/1/dialsession which accepts contacts inline and returns
+ * a redirect_url (one-time SSO link) to open the dialer immediately.
  *
  * Accepts entity_type + entity_ids to resolve contacts from any source:
  * - buyer_contacts: direct contact IDs (original flow)
  * - buyers: resolve via remarketing_buyer_contacts + buyer_contacts
  * - listings: resolve main_contact_* fields from listings table
  * - leads: resolve from inbound_leads table
- *
- * Falls back to legacy { contact_ids } for backward compatibility.
  */
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
@@ -23,7 +28,7 @@ interface PushRequest {
   contact_ids?: string[]; // Legacy — treated as buyer_contacts
   session_name?: string;
   skip_recent_days?: number;
-  target_user_id?: string; // Push to a specific user's PhoneBurner account
+  target_user_id?: string;
 }
 
 interface ResolvedContact {
@@ -33,13 +38,13 @@ interface ResolvedContact {
   email: string | null;
   title: string | null;
   company: string | null;
-  source_entity: string; // For logging
+  source_entity: string;
   last_contacted_date: string | null;
   extra_context?: Record<string, string>;
 }
 
 async function getValidToken(
-// deno-lint-ignore no-explicit-any
+  // deno-lint-ignore no-explicit-any
   supabase: any,
   userId: string,
 ): Promise<string | null> {
@@ -51,15 +56,24 @@ async function getValidToken(
 
   if (!tokenRow) return null;
 
+  // Manual tokens: use as-is, no refresh logic
+  if (tokenRow.is_manual_token) {
+    return tokenRow.access_token;
+  }
+
+  // OAuth tokens: check expiry and refresh if needed
   const expiresAt = new Date(tokenRow.expires_at).getTime();
   if (Date.now() < expiresAt - 5 * 60 * 1000) {
     return tokenRow.access_token;
   }
 
-  const clientId = Deno.env.get('PHONEBURNER_CLIENT_ID')!;
-  const clientSecret = Deno.env.get('PHONEBURNER_CLIENT_SECRET')!;
+  const clientId = Deno.env.get('PHONEBURNER_CLIENT_ID');
+  const clientSecret = Deno.env.get('PHONEBURNER_CLIENT_SECRET');
+  if (!clientId || !clientSecret) {
+    console.error('PHONEBURNER_CLIENT_ID / PHONEBURNER_CLIENT_SECRET not set — cannot refresh OAuth token');
+    return null;
+  }
 
-  // Retry refresh up to 2 times for transient network failures
   let lastError = '';
   for (let attempt = 0; attempt < 2; attempt++) {
     try {
@@ -76,14 +90,10 @@ async function getValidToken(
 
       if (res.ok) {
         const tokens = await res.json();
-        if (!tokens.access_token) {
-          console.error('Token refresh returned no access_token:', tokens);
-          return null;
-        }
+        if (!tokens.access_token) return null;
         const newExpiresAt = new Date(
           Date.now() + (tokens.expires_in || 3600) * 1000,
         ).toISOString();
-
         await supabase
           .from('phoneburner_oauth_tokens')
           .update({
@@ -93,32 +103,18 @@ async function getValidToken(
             updated_at: new Date().toISOString(),
           })
           .eq('user_id', userId);
-
         return tokens.access_token;
       }
 
-      const errText = await res.text();
-      lastError = `HTTP ${res.status}: ${errText}`;
-
-      // 401/400 = token revoked or invalid → delete stale token so user gets re-auth prompt
+      lastError = `HTTP ${res.status}: ${await res.text()}`;
       if (res.status === 401 || res.status === 400) {
-        console.error(
-          `Token refresh rejected (${res.status}) — deleting stale token for user ${userId}`,
-        );
         await supabase.from('phoneburner_oauth_tokens').delete().eq('user_id', userId);
         return null;
       }
-
-      // 5xx or other transient error → retry after short delay
-      if (attempt < 1) {
-        await new Promise((r) => setTimeout(r, 1000));
-      }
+      if (attempt < 1) await new Promise((r) => setTimeout(r, 1000));
     } catch (err) {
       lastError = err instanceof Error ? err.message : String(err);
-      console.error(`Token refresh network error (attempt ${attempt + 1}):`, lastError);
-      if (attempt < 1) {
-        await new Promise((r) => setTimeout(r, 1000));
-      }
+      if (attempt < 1) await new Promise((r) => setTimeout(r, 1000));
     }
   }
 
@@ -147,7 +143,7 @@ async function resolveFromBuyerContacts(
     .select('id, company_name, pe_firm_name, buyer_type, target_services, target_geographies')
     .in('id', buyerIds);
   // deno-lint-ignore no-explicit-any
-  const buyerMap = new Map((buyers || []).map((b: any) => [b.id, b]));
+  const buyerMap = new Map<string, any>((buyers || []).map((b: any) => [b.id, b]));
 
   // deno-lint-ignore no-explicit-any
   return contacts.map((c: any) => {
@@ -180,34 +176,27 @@ async function resolveFromBuyers(
   supabase: any,
   buyerIds: string[],
 ): Promise<ResolvedContact[]> {
-  // Get contacts from remarketing_buyer_contacts first
   const { data: rmContacts } = await supabase
     .from('remarketing_buyer_contacts')
     .select('id, buyer_id, name, email, phone, role, company_type, is_primary')
     .in('buyer_id', buyerIds);
 
-  // Also get from buyer_contacts
   const { data: bcContacts } = await supabase
     .from('buyer_contacts')
-    .select(
-      'id, buyer_id, name, email, phone, title, company_type, last_contacted_date, is_primary_contact',
-    )
+    .select('id, buyer_id, name, email, phone, title, company_type, last_contacted_date, is_primary_contact')
     .in('buyer_id', buyerIds);
 
   const { data: buyers } = await supabase
     .from('remarketing_buyers')
-    .select(
-      'id, company_name, pe_firm_name, buyer_type, contact_name, contact_email, contact_phone',
-    )
+    .select('id, company_name, pe_firm_name, buyer_type, contact_name, contact_email, contact_phone')
     .in('id', buyerIds);
   // deno-lint-ignore no-explicit-any
-  const buyerMap = new Map((buyers || []).map((b: any) => [b.id, b]));
+  const buyerMap = new Map<string, any>((buyers || []).map((b: any) => [b.id, b]));
 
   const seen = new Set<string>();
   const result: ResolvedContact[] = [];
   const buyersWithContacts = new Set<string>();
 
-  // Prefer remarketing_buyer_contacts (primary first)
   // deno-lint-ignore no-explicit-any
   for (const c of (rmContacts || []).sort(
     (a: any, b: any) => (b.is_primary ? 1 : 0) - (a.is_primary ? 1 : 0),
@@ -248,7 +237,6 @@ async function resolveFromBuyers(
     });
   }
 
-  // Fallback: For buyers with NO sub-contacts, use the buyer's own contact fields
   for (const buyerId of buyerIds) {
     if (buyersWithContacts.has(buyerId)) continue;
     const buyer = buyerMap.get(buyerId);
@@ -278,9 +266,7 @@ async function resolveFromListings(
 ): Promise<ResolvedContact[]> {
   const { data: listings } = await supabase
     .from('listings')
-    .select(
-      'id, title, internal_company_name, main_contact_name, main_contact_email, main_contact_phone, main_contact_title, deal_source',
-    )
+    .select('id, title, internal_company_name, main_contact_name, main_contact_email, main_contact_phone, main_contact_title, deal_source')
     .in('id', listingIds);
 
   if (!listings?.length) return [];
@@ -328,7 +314,7 @@ async function resolveFromLeads(
 
 // ─── Main handler ───
 
-Deno.serve(async (req) => {
+Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') return corsPreflightResponse(req);
   const corsHeaders = getCorsHeaders(req);
 
@@ -344,7 +330,6 @@ Deno.serve(async (req) => {
   // deno-lint-ignore no-explicit-any
   const supabase: any = createClient(supabaseUrl, serviceRoleKey);
 
-  // Auth check
   const authHeader = req.headers.get('Authorization');
   if (!authHeader) {
     return new Response(JSON.stringify({ error: 'Unauthorized' }), {
@@ -355,10 +340,7 @@ Deno.serve(async (req) => {
 
   const anonClient = createClient(supabaseUrl, Deno.env.get('SUPABASE_ANON_KEY')!);
   const token = authHeader.replace('Bearer ', '');
-  const {
-    data: { user },
-    error: authError,
-  } = await anonClient.auth.getUser(token);
+  const { data: { user }, error: authError } = await anonClient.auth.getUser(token);
   if (authError || !user) {
     return new Response(JSON.stringify({ error: 'Invalid token' }), {
       status: 401,
@@ -377,25 +359,18 @@ Deno.serve(async (req) => {
   const body: PushRequest = await req.json();
   const { session_name, skip_recent_days = 7 } = body;
 
-  // Determine whose PhoneBurner account to use:
-  // If target_user_id is specified, admin is pushing to another user's PB account.
-  // Otherwise, use the calling admin's own PB account.
   const pbTokenUserId = body.target_user_id || user.id;
   const pbToken = await getValidToken(supabase, pbTokenUserId);
   if (!pbToken) {
     const targetLabel = body.target_user_id
       ? 'The selected user does not have a PhoneBurner account connected.'
-      : 'PhoneBurner not connected. Please connect your account first.';
+      : 'PhoneBurner not connected. Please add your access token in Settings.';
     return new Response(
-      JSON.stringify({
-        error: targetLabel,
-        code: 'PB_NOT_CONNECTED',
-      }),
+      JSON.stringify({ error: targetLabel, code: 'PB_NOT_CONNECTED' }),
       { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
     );
   }
 
-  // Resolve entity_type + entity_ids (with legacy fallback)
   const entityType: EntityType = body.entity_type || 'buyer_contacts';
   const entityIds = body.entity_ids || body.contact_ids || [];
 
@@ -406,7 +381,6 @@ Deno.serve(async (req) => {
     });
   }
 
-  // Resolve to contacts
   let contacts: ResolvedContact[];
   switch (entityType) {
     case 'buyer_contacts':
@@ -457,7 +431,6 @@ Deno.serve(async (req) => {
       JSON.stringify({
         success: false,
         contacts_added: 0,
-        contacts_failed: 0,
         contacts_excluded: excluded.length,
         exclusions: excluded,
         error: 'All contacts were excluded (no phone number or recently contacted)',
@@ -466,55 +439,43 @@ Deno.serve(async (req) => {
     );
   }
 
-  // Push to PhoneBurner
-  let added = 0;
-  let failed = 0;
-  const errors: string[] = [];
-
-  for (const contact of eligible) {
+  // Build contacts array for PhoneBurner dial session
+  const pbContacts = eligible.map((contact) => {
     const nameParts = contact.name.split(' ');
-    const firstName = nameParts[0] || '';
-    const lastName = nameParts.slice(1).join(' ') || '';
-
-    const pbContact = {
-      first_name: firstName,
-      last_name: lastName,
+    return {
+      first_name: nameParts[0] || '',
+      last_name: nameParts.slice(1).join(' ') || '',
       phone: contact.phone,
       email: contact.email || '',
       company: contact.company || '',
       title: contact.title || '',
-      custom_fields: {
-        sourceco_id: contact.id,
-        source_entity: contact.source_entity,
-        contact_source: 'SourceCo Push to Dialer',
-        ...(contact.extra_context || {}),
-      },
     };
+  });
 
-    try {
-      const pbRes = await fetch(`${PB_API_BASE}/contacts`, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${pbToken}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(pbContact),
-      });
+  // Create dial session — returns redirect_url to open dialer immediately
+  const pbRes = await fetch(`${PB_API_BASE}/dialsession`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${pbToken}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      contacts: pbContacts,
+      ...(session_name ? { session_name } : {}),
+    }),
+  });
 
-      if (pbRes.ok) {
-        added++;
-      } else {
-        const errBody = await pbRes.text();
-        console.error(`PB push failed for ${contact.name}:`, errBody);
-        errors.push(`${contact.name}: ${errBody.slice(0, 100)}`);
-        failed++;
-      }
-    } catch (err) {
-      console.error(`PB push error for ${contact.name}:`, err);
-      errors.push(`${contact.name}: ${err instanceof Error ? err.message : String(err)}`);
-      failed++;
-    }
+  if (!pbRes.ok) {
+    const errBody = await pbRes.text();
+    console.error('PhoneBurner dialsession error:', errBody);
+    return new Response(
+      JSON.stringify({ error: `PhoneBurner API error: ${errBody.slice(0, 200)}` }),
+      { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+    );
   }
+
+  const pbData = await pbRes.json();
+  const redirectUrl = pbData?.dialsessions?.redirect_url || null;
 
   // Look up display name for the target PB user
   let targetDisplayName: string | null = null;
@@ -527,16 +488,14 @@ Deno.serve(async (req) => {
     targetDisplayName = tokenRow?.display_name || null;
   }
 
-  // Log the push session
   const sessionLabel = targetDisplayName
     ? `${session_name || 'Push'} → ${targetDisplayName}`
     : session_name || `Push - ${new Date().toLocaleDateString()}`;
 
   await supabase.from('phoneburner_sessions').insert({
     session_name: sessionLabel,
-    session_type:
-      entityType === 'buyer_contacts' || entityType === 'buyers' ? 'buyer_outreach' : entityType,
-    total_contacts_added: added,
+    session_type: entityType === 'buyer_contacts' || entityType === 'buyers' ? 'buyer_outreach' : entityType,
+    total_contacts_added: eligible.length,
     session_status: 'active',
     created_by_user_id: user.id,
     started_at: new Date().toISOString(),
@@ -545,11 +504,10 @@ Deno.serve(async (req) => {
   return new Response(
     JSON.stringify({
       success: true,
-      contacts_added: added,
-      contacts_failed: failed,
+      redirect_url: redirectUrl,
+      contacts_added: eligible.length,
       contacts_excluded: excluded.length,
       exclusions: excluded,
-      errors: errors.length > 0 ? errors : undefined,
     }),
     { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
   );

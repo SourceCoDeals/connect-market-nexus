@@ -11,6 +11,7 @@ export interface PhoneBurnerConnectedUser {
   profile_first_name: string | null;
   profile_last_name: string | null;
   profile_email: string | null;
+  is_manual_token: boolean;
   /** Computed label for display */
   label: string;
   is_expired: boolean;
@@ -32,10 +33,10 @@ export function usePhoneBurnerConnectedUsers() {
         // Fallback: query tokens + profiles directly
         const { data: tokens } = await supabase
           .from("phoneburner_oauth_tokens")
-          .select("id, user_id, display_name, phoneburner_user_email, expires_at, updated_at");
+          .select("id, user_id, display_name, phoneburner_user_email, expires_at, updated_at, is_manual_token");
         if (!tokens?.length) return [];
 
-        const userIds = tokens.map((t) => t.user_id);
+        const userIds = tokens.map((t: Record<string, unknown>) => t.user_id as string);
         const { data: profiles } = await supabase
           .from("profiles")
           .select("id, first_name, last_name, email")
@@ -48,7 +49,7 @@ export function usePhoneBurnerConnectedUsers() {
           ]),
         );
 
-        rows = tokens.map((t) => {
+        rows = tokens.map((t: Record<string, unknown>) => {
           const p = profileMap.get(t.user_id) as Record<string, unknown> | undefined;
           return {
             token_id: t.id,
@@ -57,6 +58,7 @@ export function usePhoneBurnerConnectedUsers() {
             phoneburner_user_email: (t as Record<string, unknown>).phoneburner_user_email ?? null,
             expires_at: t.expires_at,
             updated_at: t.updated_at,
+            is_manual_token: (t as Record<string, unknown>).is_manual_token ?? false,
             profile_first_name: p?.first_name ?? null,
             profile_last_name: p?.last_name ?? null,
             profile_email: p?.email ?? null,
@@ -67,12 +69,17 @@ export function usePhoneBurnerConnectedUsers() {
       }
 
       return rows.map((r): PhoneBurnerConnectedUser => {
+        const isManual = Boolean(r.is_manual_token);
         const displayName =
           (r.display_name as string) ||
           [r.profile_first_name, r.profile_last_name].filter(Boolean).join(" ") ||
           (r.phoneburner_user_email as string) ||
           (r.profile_email as string) ||
           "Unknown user";
+        // Manual tokens never show as expired (no expiry concept)
+        const isExpired = isManual
+          ? false
+          : new Date(r.expires_at as string) < new Date();
         return {
           token_id: r.token_id as string,
           user_id: r.user_id as string,
@@ -80,11 +87,12 @@ export function usePhoneBurnerConnectedUsers() {
           phoneburner_user_email: r.phoneburner_user_email as string | null,
           expires_at: r.expires_at as string,
           updated_at: r.updated_at as string | null,
+          is_manual_token: isManual,
           profile_first_name: r.profile_first_name as string | null,
           profile_last_name: r.profile_last_name as string | null,
           profile_email: r.profile_email as string | null,
           label: displayName,
-          is_expired: new Date(r.expires_at as string) < new Date(),
+          is_expired: isExpired,
         };
       });
     },
@@ -119,6 +127,44 @@ export function useInitiatePhoneBurnerOAuth() {
       );
       if (error) throw error;
       return data as { authorize_url: string };
+    },
+  });
+}
+
+export interface SaveAccessTokenParams {
+  accessToken: string;
+  displayName: string;
+}
+
+export function useSavePhoneBurnerAccessToken() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ accessToken, displayName }: SaveAccessTokenParams) => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Not authenticated");
+
+      const { error } = await supabase
+        .from("phoneburner_oauth_tokens")
+        .upsert(
+          {
+            user_id: user.id,
+            access_token: accessToken,
+            refresh_token: null,
+            display_name: displayName,
+            is_manual_token: true,
+            // Far-future expiry — manual tokens don't expire through this system
+            expires_at: new Date("2099-01-01").toISOString(),
+            updated_at: new Date().toISOString(),
+          },
+          { onConflict: "user_id" },
+        );
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: QUERY_KEY });
+      queryClient.invalidateQueries({ queryKey: ["phoneburner-connection-status"] });
     },
   });
 }
