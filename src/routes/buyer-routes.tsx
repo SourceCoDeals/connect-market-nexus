@@ -7,7 +7,7 @@ const Marketplace = lazyWithRetry(() => import('@/pages/Marketplace'));
 const Profile = lazyWithRetry(() => import('@/pages/Profile'));
 const ListingDetail = lazyWithRetry(() => import('@/pages/ListingDetail'));
 const MyRequests = lazyWithRetry(() => import('@/pages/MyRequests'));
-const BuyerMessages = lazyWithRetry(() => import('@/pages/BuyerMessages'));
+const BuyerMessages = lazyWithRetry(() => import('@/pages/BuyerMessages/index'));
 const SavedListings = lazyWithRetry(() => import('@/pages/SavedListings'));
 
 export function BuyerRoutes() {

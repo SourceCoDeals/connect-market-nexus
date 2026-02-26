@@ -59,7 +59,7 @@ export { ScoreCalibrationChart } from './ScoreCalibrationChart';
 export { ReMarketingBadge } from './ReMarketingBadge';
 
 // Import Components
-export { default as BuyerCSVImport } from './BuyerCSVImport';
+export { default as BuyerCSVImport } from './BuyerCSVImport/index';
 
 export { DealImportDialog } from './DealImportDialog';
 export type { DealIdMapping } from './DealMergePanel';
