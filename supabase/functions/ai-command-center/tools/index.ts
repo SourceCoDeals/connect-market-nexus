@@ -405,13 +405,19 @@ export async function executeTool(
 ): Promise<ToolResult> {
   const startTime = Date.now();
 
-  // External API tools get a longer timeout (30s) since they call Prospeo/Apify/Fireflies
-  const EXTERNAL_API_TOOLS = new Set([
+  // Enrichment tools get 90s (Apify LinkedIn scraper polls up to 120s internally)
+  const ENRICHMENT_TOOLS = new Set([
     'enrich_buyer_contacts', 'enrich_linkedin_contact', 'find_and_enrich_person',
+    'find_contact_linkedin',
+  ]);
+  // Other external API tools get 45s (Google search, Fireflies, etc.)
+  const EXTERNAL_API_TOOLS = new Set([
     'google_search_companies', 'push_to_phoneburner', 'push_to_smartlead',
     'search_fireflies', 'semantic_transcript_search',
   ]);
-  const timeoutMs = EXTERNAL_API_TOOLS.has(toolName) ? 30000 : 15000;
+  const timeoutMs = ENRICHMENT_TOOLS.has(toolName) ? 90000
+    : EXTERNAL_API_TOOLS.has(toolName) ? 45000
+    : 15000;
 
   try {
     const result = await Promise.race([
