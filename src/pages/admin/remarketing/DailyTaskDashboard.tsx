@@ -2,13 +2,17 @@ import { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/context/AuthContext';
-import { useDailyTasks, useDeleteTask } from '@/hooks/useDailyTasks';
+import {
+  useDailyTasks,
+  useDeleteTask,
+  useApproveTask,
+  useApproveAllTasks,
+} from '@/hooks/useDailyTasks';
 import { useToast } from '@/hooks/use-toast';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -27,6 +31,8 @@ import {
   ListChecks,
   Users,
   BarChart3,
+  UserRound,
+  ShieldCheck,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { cn, getLocalDateString } from '@/lib/utils';
@@ -36,6 +42,101 @@ import { EditTaskDialog } from '@/components/daily-tasks/EditTaskDialog';
 import { ReassignDialog } from '@/components/daily-tasks/ReassignDialog';
 import { PinDialog } from '@/components/daily-tasks/PinDialog';
 import type { DailyStandupTaskWithRelations } from '@/types/daily-tasks';
+
+// ─── Group tasks by assignee into separate sections ───
+interface TaskGroup {
+  assigneeId: string | null;
+  assigneeName: string;
+  tasks: DailyStandupTaskWithRelations[];
+}
+
+function groupByOwner(tasks: DailyStandupTaskWithRelations[]): TaskGroup[] {
+  const groups = new Map<string, TaskGroup>();
+
+  for (const task of tasks) {
+    const key = task.assignee_id || '__unassigned__';
+    if (!groups.has(key)) {
+      const name = task.assignee
+        ? `${task.assignee.first_name || ''} ${task.assignee.last_name || ''}`.trim() || 'Unknown'
+        : 'Unassigned';
+      groups.set(key, { assigneeId: task.assignee_id, assigneeName: name, tasks: [] });
+    }
+    groups.get(key)!.tasks.push(task);
+  }
+
+  // Sort: assigned first (alphabetical), unassigned last
+  return Array.from(groups.values()).sort((a, b) => {
+    if (!a.assigneeId) return 1;
+    if (!b.assigneeId) return -1;
+    return a.assigneeName.localeCompare(b.assigneeName);
+  });
+}
+
+// ─── Person Card: renders one person's tasks inside a Card ───
+function PersonTaskGroup({
+  group,
+  isLeadership,
+  isPendingApproval,
+  onEdit,
+  onReassign,
+  onPin,
+  onDelete,
+  onApprove,
+}: {
+  group: TaskGroup;
+  isLeadership: boolean;
+  isPendingApproval?: boolean;
+  onEdit: (task: DailyStandupTaskWithRelations) => void;
+  onReassign: (task: DailyStandupTaskWithRelations) => void;
+  onPin: (task: DailyStandupTaskWithRelations) => void;
+  onDelete: (task: DailyStandupTaskWithRelations) => void;
+  onApprove?: (taskId: string) => void;
+}) {
+  return (
+    <Card>
+      <CardHeader className="pb-2 pt-4 px-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
+              <UserRound className="h-4 w-4 text-primary" />
+            </div>
+            <CardTitle className="text-sm font-semibold">{group.assigneeName}</CardTitle>
+            <Badge variant="secondary" className="h-5 px-1.5 text-[10px]">
+              {group.tasks.length} {group.tasks.length === 1 ? 'task' : 'tasks'}
+            </Badge>
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent className="px-4 pb-4 pt-1 space-y-2">
+        {group.tasks.map((task) => (
+          <div key={task.id} className="flex items-start gap-2">
+            <div className="flex-1 min-w-0">
+              <TaskCard
+                task={task}
+                isLeadership={isLeadership}
+                onEdit={onEdit}
+                onReassign={onReassign}
+                onPin={onPin}
+                onDelete={onDelete}
+              />
+            </div>
+            {isPendingApproval && isLeadership && onApprove && (
+              <Button
+                size="sm"
+                variant="outline"
+                className="shrink-0 mt-2 gap-1 text-green-700 border-green-300 hover:bg-green-50"
+                onClick={() => onApprove(task.id)}
+              >
+                <CheckCircle2 className="h-3.5 w-3.5" />
+                Approve
+              </Button>
+            )}
+          </div>
+        ))}
+      </CardContent>
+    </Card>
+  );
+}
 
 const DailyTaskDashboard = () => {
   const { teamRole } = useAuth();
@@ -51,6 +152,8 @@ const DailyTaskDashboard = () => {
   const [deleteTask, setDeleteTask] = useState<DailyStandupTaskWithRelations | null>(null);
 
   const deleteTaskMutation = useDeleteTask();
+  const approveTask = useApproveTask();
+  const approveAll = useApproveAllTasks();
 
   const today = getLocalDateString();
 
@@ -78,31 +181,51 @@ const DailyTaskDashboard = () => {
   });
   const teamMembers = teamMembersRaw || [];
 
-  // Task stats
-  const stats = useMemo(() => {
-    if (!tasks) return { total: 0, completed: 0, overdue: 0, pending: 0 };
-    return {
-      total: tasks.length,
-      completed: tasks.filter((t) => t.status === 'completed').length,
-      overdue: tasks.filter((t) => t.status === 'overdue').length,
-      pending: tasks.filter((t) => t.status === 'pending').length,
-    };
+  // Separate tasks by approval status
+  const pendingApprovalTasks = useMemo(() => {
+    if (!tasks) return [];
+    return tasks.filter((t) => t.status === 'pending_approval');
   }, [tasks]);
 
-  const todayTasks = useMemo(() => {
+  const approvedTasks = useMemo(() => {
     if (!tasks) return [];
-    return tasks.filter((t) => t.due_date === today || t.status === 'overdue');
-  }, [tasks, today]);
+    return tasks.filter((t) => t.status !== 'pending_approval');
+  }, [tasks]);
+
+  // Stats (only from approved tasks)
+  const stats = useMemo(() => {
+    if (!approvedTasks) return { total: 0, completed: 0, overdue: 0, pending: 0 };
+    return {
+      total: approvedTasks.length,
+      completed: approvedTasks.filter((t) => t.status === 'completed').length,
+      overdue: approvedTasks.filter((t) => t.status === 'overdue').length,
+      pending: approvedTasks.filter((t) => t.status === 'pending').length,
+    };
+  }, [approvedTasks]);
+
+  // Filter approved tasks into today/future/completed
+  const todayTasks = useMemo(() => {
+    return approvedTasks.filter((t) => t.due_date === today || t.status === 'overdue');
+  }, [approvedTasks, today]);
 
   const futureTasks = useMemo(() => {
-    if (!tasks) return [];
-    return tasks.filter((t) => t.due_date > today && t.status !== 'overdue');
-  }, [tasks, today]);
+    return approvedTasks.filter(
+      (t) => t.due_date > today && t.status !== 'overdue' && t.status !== 'completed',
+    );
+  }, [approvedTasks, today]);
 
   const completedTasks = useMemo(() => {
-    if (!tasks) return [];
-    return tasks.filter((t) => t.status === 'completed');
-  }, [tasks]);
+    return approvedTasks.filter((t) => t.status === 'completed');
+  }, [approvedTasks]);
+
+  // Grouped views
+  const pendingApprovalGroups = useMemo(
+    () => groupByOwner(pendingApprovalTasks),
+    [pendingApprovalTasks],
+  );
+  const todayGroups = useMemo(() => groupByOwner(todayTasks), [todayTasks]);
+  const futureGroups = useMemo(() => groupByOwner(futureTasks), [futureTasks]);
+  const completedGroups = useMemo(() => groupByOwner(completedTasks), [completedTasks]);
 
   const handleDelete = async () => {
     if (!deleteTask) return;
@@ -119,6 +242,39 @@ const DailyTaskDashboard = () => {
     }
   };
 
+  const handleApproveTask = async (taskId: string) => {
+    try {
+      await approveTask.mutateAsync(taskId);
+      toast({ title: 'Task approved' });
+    } catch (err) {
+      toast({
+        title: 'Failed to approve task',
+        description: err instanceof Error ? err.message : 'Unknown error',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleApproveAll = async () => {
+    try {
+      await approveAll.mutateAsync();
+      toast({ title: `${pendingApprovalTasks.length} tasks approved` });
+    } catch (err) {
+      toast({
+        title: 'Failed to approve tasks',
+        description: err instanceof Error ? err.message : 'Unknown error',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const taskHandlers = {
+    onEdit: setEditTask,
+    onReassign: setReassignTask,
+    onPin: setPinTask,
+    onDelete: setDeleteTask,
+  };
+
   return (
     <div className="px-8 py-6 space-y-5">
       {/* Header */}
@@ -126,7 +282,7 @@ const DailyTaskDashboard = () => {
         <div>
           <h2 className="text-lg font-semibold tracking-tight">Today's Tasks</h2>
           <p className="text-sm text-muted-foreground mt-0.5">
-            Extracted from standup meetings, ranked by priority
+            Deal & remarketing action items from standup
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -201,6 +357,60 @@ const DailyTaskDashboard = () => {
         </Card>
       </div>
 
+      {/* Pending Approval Banner (leadership only) */}
+      {pendingApprovalTasks.length > 0 && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <ShieldCheck className="h-5 w-5 text-amber-600" />
+              <h3 className="text-sm font-semibold text-amber-800">Awaiting Approval</h3>
+              <Badge variant="outline" className="border-amber-300 text-amber-700 text-[10px]">
+                {pendingApprovalTasks.length} tasks
+              </Badge>
+            </div>
+            {isLeadership && (
+              <Button
+                size="sm"
+                onClick={handleApproveAll}
+                disabled={approveAll.isPending}
+                className="gap-1.5"
+              >
+                <ShieldCheck className="h-4 w-4" />
+                Approve All ({pendingApprovalTasks.length})
+              </Button>
+            )}
+          </div>
+
+          {/* Pending approval tasks grouped by person */}
+          <div className="space-y-3">
+            {pendingApprovalGroups.map((group) => (
+              <PersonTaskGroup
+                key={group.assigneeId || 'unassigned'}
+                group={group}
+                isLeadership={isLeadership}
+                isPendingApproval
+                onApprove={handleApproveTask}
+                {...taskHandlers}
+              />
+            ))}
+          </div>
+
+          {/* Divider */}
+          {approvedTasks.length > 0 && (
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t" />
+              </div>
+              <div className="relative flex justify-center">
+                <span className="bg-background px-3 text-xs text-muted-foreground">
+                  Approved Tasks
+                </span>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* View Toggle */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-1 rounded-lg border bg-white p-0.5">
@@ -243,8 +453,8 @@ const DailyTaskDashboard = () => {
       {/* Task List */}
       {isLoading ? (
         <div className="space-y-3">
-          {[...Array(5)].map((_, i) => (
-            <Skeleton key={i} className="h-20 w-full rounded-lg" />
+          {[...Array(3)].map((_, i) => (
+            <Skeleton key={i} className="h-32 w-full rounded-lg" />
           ))}
         </div>
       ) : !tasks || tasks.length === 0 ? (
@@ -265,88 +475,69 @@ const DailyTaskDashboard = () => {
             </Button>
           </CardContent>
         </Card>
-      ) : (
-        <Tabs defaultValue="today" className="space-y-3">
-          <TabsList>
-            <TabsTrigger value="today" className="gap-1.5">
-              Today & Overdue
-              {todayTasks.length > 0 && (
+      ) : approvedTasks.length > 0 ? (
+        <div className="space-y-6">
+          {/* Today & Overdue */}
+          {todayTasks.length > 0 && (
+            <div className="space-y-3">
+              <div className="flex items-center gap-2">
+                <h3 className="text-sm font-semibold text-foreground">Today & Overdue</h3>
                 <Badge variant="secondary" className="h-5 px-1.5 text-[10px]">
                   {todayTasks.length}
                 </Badge>
-              )}
-            </TabsTrigger>
-            {futureTasks.length > 0 && (
-              <TabsTrigger value="upcoming" className="gap-1.5">
-                Upcoming
+              </div>
+              {todayGroups.map((group) => (
+                <PersonTaskGroup
+                  key={group.assigneeId || 'unassigned'}
+                  group={group}
+                  isLeadership={isLeadership}
+                  {...taskHandlers}
+                />
+              ))}
+            </div>
+          )}
+
+          {/* Upcoming */}
+          {futureTasks.length > 0 && (
+            <div className="space-y-3">
+              <div className="flex items-center gap-2">
+                <h3 className="text-sm font-semibold text-foreground">Upcoming</h3>
                 <Badge variant="secondary" className="h-5 px-1.5 text-[10px]">
                   {futureTasks.length}
                 </Badge>
-              </TabsTrigger>
-            )}
-            {showCompleted && completedTasks.length > 0 && (
-              <TabsTrigger value="completed" className="gap-1.5">
-                Completed
+              </div>
+              {futureGroups.map((group) => (
+                <PersonTaskGroup
+                  key={group.assigneeId || 'unassigned'}
+                  group={group}
+                  isLeadership={isLeadership}
+                  {...taskHandlers}
+                />
+              ))}
+            </div>
+          )}
+
+          {/* Completed */}
+          {showCompleted && completedTasks.length > 0 && (
+            <div className="space-y-3">
+              <div className="flex items-center gap-2">
+                <h3 className="text-sm font-semibold text-foreground">Completed</h3>
                 <Badge variant="secondary" className="h-5 px-1.5 text-[10px]">
                   {completedTasks.length}
                 </Badge>
-              </TabsTrigger>
-            )}
-          </TabsList>
-
-          <TabsContent value="today" className="space-y-2">
-            {todayTasks.length === 0 ? (
-              <Card>
-                <CardContent className="py-8 text-center text-muted-foreground">
-                  No tasks due today. Great job!
-                </CardContent>
-              </Card>
-            ) : (
-              todayTasks.map((task) => (
-                <TaskCard
-                  key={task.id}
-                  task={task}
+              </div>
+              {completedGroups.map((group) => (
+                <PersonTaskGroup
+                  key={group.assigneeId || 'unassigned'}
+                  group={group}
                   isLeadership={isLeadership}
-                  onEdit={setEditTask}
-                  onReassign={setReassignTask}
-                  onPin={setPinTask}
-                  onDelete={setDeleteTask}
-                />
-              ))
-            )}
-          </TabsContent>
-
-          <TabsContent value="upcoming" className="space-y-2">
-            {futureTasks.map((task) => (
-              <TaskCard
-                key={task.id}
-                task={task}
-                isLeadership={isLeadership}
-                onEdit={setEditTask}
-                onReassign={setReassignTask}
-                onPin={setPinTask}
-                onDelete={setDeleteTask}
-              />
-            ))}
-          </TabsContent>
-
-          {showCompleted && (
-            <TabsContent value="completed" className="space-y-2">
-              {completedTasks.map((task) => (
-                <TaskCard
-                  key={task.id}
-                  task={task}
-                  isLeadership={isLeadership}
-                  onEdit={setEditTask}
-                  onReassign={setReassignTask}
-                  onPin={setPinTask}
-                  onDelete={setDeleteTask}
+                  {...taskHandlers}
                 />
               ))}
-            </TabsContent>
+            </div>
           )}
-        </Tabs>
-      )}
+        </div>
+      ) : null}
 
       {/* Dialogs */}
       <AddTaskDialog

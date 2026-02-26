@@ -9,7 +9,7 @@ export type TaskType =
   | 'schedule_call'
   | 'other';
 
-export type TaskStatus = 'pending' | 'completed' | 'overdue';
+export type TaskStatus = 'pending_approval' | 'pending' | 'completed' | 'overdue';
 
 export type ExtractionConfidence = 'high' | 'medium' | 'low';
 
@@ -52,6 +52,8 @@ export interface DailyStandupTask {
   extraction_confidence: ExtractionConfidence;
   needs_review: boolean;
   is_manual: boolean;
+  approved_by: string | null;
+  approved_at: string | null;
   updated_at: string;
 }
 

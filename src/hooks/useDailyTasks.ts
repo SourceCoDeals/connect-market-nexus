@@ -47,7 +47,7 @@ export function useDailyTasks(options: UseDailyTasksOptions) {
       }
 
       if (!options.includeCompleted) {
-        query = query.in('status', ['pending', 'overdue']);
+        query = query.in('status', ['pending_approval', 'pending', 'overdue']);
       }
 
       if (options.dateFrom) {
@@ -93,6 +93,59 @@ export function useToggleTaskComplete() {
       if (error) throw error;
 
       // Recompute ranks whenever task status changes
+      await recomputeRanks();
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: [QUERY_KEY] });
+    },
+  });
+}
+
+// ─── Approve a task (leadership only) ───
+
+export function useApproveTask() {
+  const qc = useQueryClient();
+  const { user } = useAuth();
+
+  return useMutation({
+    mutationFn: async (taskId: string) => {
+      const { error } = await supabase
+        .from('daily_standup_tasks' as any)
+        .update({
+          status: 'pending' as TaskStatus,
+          approved_by: user?.id,
+          approved_at: new Date().toISOString(),
+        })
+        .eq('id', taskId)
+        .eq('status', 'pending_approval');
+
+      if (error) throw error;
+      await recomputeRanks();
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: [QUERY_KEY] });
+    },
+  });
+}
+
+// ─── Approve all pending tasks at once (leadership only) ───
+
+export function useApproveAllTasks() {
+  const qc = useQueryClient();
+  const { user } = useAuth();
+
+  return useMutation({
+    mutationFn: async () => {
+      const { error } = await supabase
+        .from('daily_standup_tasks' as any)
+        .update({
+          status: 'pending' as TaskStatus,
+          approved_by: user?.id,
+          approved_at: new Date().toISOString(),
+        })
+        .eq('status', 'pending_approval');
+
+      if (error) throw error;
       await recomputeRanks();
     },
     onSuccess: () => {
@@ -173,7 +226,7 @@ export function useAddManualTask() {
         .insert({
           ...task,
           is_manual: true,
-          status: 'pending',
+          status: 'pending_approval',
           priority_score: 50, // default mid-range for manual tasks
           extraction_confidence: 'high',
           needs_review: false,
@@ -292,7 +345,7 @@ async function recomputeRanks() {
   const { data: tasks } = await supabase
     .from('daily_standup_tasks' as any)
     .select('id, priority_score, is_pinned, pinned_rank, created_at')
-    .in('status', ['pending', 'overdue'])
+    .in('status', ['pending_approval', 'pending', 'overdue'])
     .order('priority_score', { ascending: false })
     .order('created_at', { ascending: true });
 
