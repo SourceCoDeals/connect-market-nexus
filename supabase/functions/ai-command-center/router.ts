@@ -100,11 +100,30 @@ const BYPASS_RULES: Array<{
     },
   },
   // Deal filtering — "show me deals in [industry/stage]", "which deals are in [stage]", "deals in screening"
+  // NOTE: excludes queries about contacts, platform features, content creation, and engagement —
+  //       these should route to their specific categories instead.
   {
     test: (q) =>
-      /\b(show|list|which|what)\b.*\bdeals?\b.*\b(in|at|in the)\b/i.test(q) ||
-      /\bdeals?\b.*\b(in|at)\s+(the\s+)?(screening|active marketing|loi|under loi|closed|dead|prospect|due diligence)\b/i.test(q) ||
-      /\b(our|the|most|latest|recent|newest)\b.*\bdeals?\b/i.test(q),
+      // Skip platform guide questions ("how do I", "what does X do", "explain")
+      !/\b(how (do|does|can|should) I|what does|what is the\b.{0,30}\b(system|feature|tool|method))\b/i.test(q) &&
+      // Skip contact queries ("who is the contact for", "main contact for")
+      !/\bcontacts?\s+(at|for)\b/i.test(q) &&
+      !/\b(who.?s the|main contact|find contacts?|list.*contacts?)\b/i.test(q) &&
+      // Skip content creation ("create a CIM", "write a teaser", "generate a list")
+      !/\b(create|write|draft|compose|generate)\s+(a|an|the|my)\b/i.test(q) &&
+      // Skip engagement queries
+      !/\b(interest|engaged|engagement|most interest)\b/i.test(q) &&
+      // Skip enrichment queries ("enrichment data", "enrichment status")
+      !/\benrichment\b/i.test(q) &&
+      // Skip analytics-level "deal flow" queries
+      !/\bdeal flow\b/i.test(q) &&
+      // Skip action intent ("add a note", "add a task", "create a task")
+      !/\b(add\s+(a\s+)?note|add\s+(a\s+)?task|create\s+(a\s+)?task)\b/i.test(q) &&
+      (
+        /\b(show|list|which|what)\b.*\bdeals?\b.*\b(in|at|in the)\b/i.test(q) ||
+        /\bdeals?\b.*\b(in|at)\s+(the\s+)?(screening|active marketing|loi|under loi|closed|dead|prospect|due diligence)\b/i.test(q) ||
+        /\b(our|the|most|latest|recent|newest)\b.*\bdeals?\b/i.test(q)
+      ),
     result: {
       category: 'DEAL_STATUS',
       tier: 'STANDARD',
@@ -127,7 +146,10 @@ const BYPASS_RULES: Array<{
   },
   // Tasks / follow-ups
   {
-    test: (q) => /\b(task|todo|to-do|follow.?up|overdue|pending|assigned)\b/i.test(q),
+    test: (q) =>
+      // Skip calling/contact list queries — those route to CONTACT_ENRICHMENT
+      !/\b(calling list|contact list|outreach list|prospect list|call list)\b/i.test(q) &&
+      /\b(task|todo|to-do|follow.?up|overdue|pending|assigned)\b/i.test(q),
     result: {
       category: 'FOLLOW_UP',
       tier: 'QUICK',
@@ -140,8 +162,13 @@ const BYPASS_RULES: Array<{
   {
     test: (q) =>
       !/\bengagement\b/i.test(q) &&
+      // Skip engagement-intent interest queries — those route to ENGAGEMENT
+      // (but allow "interested in X" which is a search filter, not engagement)
+      !/\b(most interest|shown.*interest|expressed.*interest|interest.*recently)\b/i.test(q) &&
+      // Skip calling list / phone number queries — those route to CONTACT_ENRICHMENT
+      !/\b(calling list|contact list|phone numbers?|with phones?)\b/i.test(q) &&
       /\b(buyers?|acquirers?|PE firms?|strategics?|search buyer|find buyer)\b/i.test(q) &&
-      /\b(search|find|show|list|who|which|located|based|interested)\b/i.test(q),
+      /\b(search|find|show|list|who|which|located|based)\b/i.test(q),
     result: {
       category: 'BUYER_SEARCH',
       tier: 'STANDARD',
@@ -177,7 +204,7 @@ const BYPASS_RULES: Array<{
   // Transcript / meeting questions
   {
     test: (q) =>
-      /\b(transcript|call|meeting|fireflies|recording|said|mentioned|discussed)\b/i.test(q),
+      /\b(transcripts?|call|meeting|fireflies|recording|said|mentions?|mentioned|discussed)\b/i.test(q),
     result: {
       category: 'MEETING_INTEL',
       tier: 'STANDARD',
@@ -206,7 +233,7 @@ const BYPASS_RULES: Array<{
   },
   // Create task / add note
   {
-    test: (q) => /\b(create task|add task|new task|add note|log|remind me)\b/i.test(q),
+    test: (q) => /\b(create\s+(a\s+)?task|add\s+(a\s+)?task|new task|add\s+(a\s+)?note|log|remind me)\b/i.test(q),
     result: {
       category: 'ACTION',
       tier: 'STANDARD',
@@ -231,7 +258,7 @@ const BYPASS_RULES: Array<{
   },
   // Analytics / reports
   {
-    test: (q) => /\b(analytics|report|metrics|performance|trend|chart|dashboard)\b/i.test(q),
+    test: (q) => /\b(analytics|report|metrics|performance|trend|chart|dashboard|deal flow|month over month|year over year|week over week|compare.*month)\b/i.test(q),
     result: {
       category: 'PIPELINE_ANALYTICS',
       tier: 'STANDARD',
@@ -261,6 +288,7 @@ const BYPASS_RULES: Array<{
   {
     test: (q) =>
       /\b(draft|write|compose)\b/i.test(q) ||
+      /\b(create|generate)\s+(a\s+|an?\s+|the\s+)?(cim|teaser|memo|executive summary|outreach|email|message|proposal|template|pitch|one[- ]?pager)\b/i.test(q) ||
       /\b(send\s+(a\s+)?message|send\s+(an?\s+)?email)\b/i.test(q),
     result: {
       category: 'OUTREACH_DRAFT',
@@ -283,9 +311,13 @@ const BYPASS_RULES: Array<{
     },
   },
   // Buyer universe geographic questions — "how many buyers in X universe are in [state]"
+  // NOTE: excludes "how do I" questions about universes which should route to PLATFORM_GUIDE
   {
     test: (q) =>
-      /\b(buyer universe|universe|how many buyer|buyers.*in.*[A-Z]{2}|buyers.*locat|location.*buyer)\b/i.test(
+      !/\b(how (do|does|can|should) I|how to|create|set up|build)\b/i.test(q) &&
+      // Skip enrichment queries — those route to CONTACT_ENRICHMENT
+      !/\benrich\b/i.test(q) &&
+      /\b(buyer universe|universe|how many buyer|buyers.*locat|location.*buyer)\b/i.test(
         q,
       ),
     result: {
@@ -356,14 +388,15 @@ const BYPASS_RULES: Array<{
       confidence: 0.88,
     },
   },
-  // Engagement signals — buyer engagement events
+  // Engagement signals — buyer engagement events, interest signals
   {
     test: (q) =>
       /\b(engagement signal|buyer signal|how engaged|site visit|ioi|loi|letter of intent|indication of interest|ceo involved|financial request)\b/i.test(
         q,
       ) ||
       /\b(engagement)\b.*\b(activity|feed|history|latest|recent|update)\b/i.test(q) ||
-      /\b(latest|recent)\b.*\b(engagement|buyer activity)\b/i.test(q),
+      /\b(latest|recent)\b.*\b(engagement|buyer activity)\b/i.test(q) ||
+      /\b(most interest|shown.*interest|expressed.*interest|interest.*recently)\b/i.test(q),
     result: {
       category: 'ENGAGEMENT',
       tier: 'STANDARD',
@@ -424,7 +457,9 @@ const BYPASS_RULES: Array<{
   // NOTE: Skip if query starts with "enrich" — those go to CONTACT_ENRICHMENT rule instead
   {
     test: (q) =>
-      !/\benrich\b/i.test(q) && (
+      !/\benrich\b/i.test(q) &&
+      // Skip "find N contacts at X" — those route to CONTACT_ENRICHMENT
+      !/\bfind\s+(\d+\s+)?contacts?\s+(at|for|from)\b/i.test(q) && (
         /\bcontacts?\s+(at|for)\b/i.test(q) ||
         /\b(who.?s the|find contacts?|emails? for|phones? for|partner at|principal at|deal team|pe contacts?|platform contacts?)\b/i.test(
           q,
@@ -451,9 +486,11 @@ const BYPASS_RULES: Array<{
       confidence: 0.87,
     },
   },
-  // Deal documents and memos
+  // Deal documents and memos — looking up existing docs
+  // NOTE: excludes content creation ("create a CIM", "write a teaser") → OUTREACH_DRAFT
   {
     test: (q) =>
+      !/\b(create|write|draft|compose|generate|build)\s+(a|an|the|my)\b/i.test(q) &&
       /\b(document|data room file|teaser|memo|investment memo|cim|anonymous teaser|full memo)\b/i.test(
         q,
       ),
@@ -888,7 +925,7 @@ const BYPASS_RULES: Array<{
   // Platform help / "how do I" / "what is" questions about SourceCo features
   {
     test: (q) =>
-      (/\b(how (do|does|can|should) I|how to|what is|what are|explain|help me|teach me|show me how|guide|tutorial|walkthrough|what can you do|what tools|capabilities)\b/i.test(q) &&
+      (/\b(how (do|does|can|should) I|how to|what is|what are|what does|explain|help me|teach me|show me how|guide|tutorial|walkthrough|what can you do|what tools|capabilities)\b/i.test(q) &&
         /\b(platform|sourceco|captarget|cap target|gp partner|go partner|marketplace|remarketing|universe|scoring|enrichment|data room|nda|fee agreement|phoneburner|phone burner|smartlead|smart lead|pipeline|outreach|chatbot|ai command|command center|this tool|this app|lead source|tracker|valuation|calling list|prospeo|apify|linkedin|memo|teaser|deal|buyer|contact)\b/i.test(q)) ||
       /\b(what can (you|the (bot|chatbot|ai|assistant)) (do|help))\b/i.test(q) ||
       /\b(what can you help)\b/i.test(q) ||
@@ -969,7 +1006,12 @@ Rules:
 - Tier STANDARD: Multi-tool queries, search + analysis
 - Tier DEEP: Content generation, complex analysis, meeting prep
 - Select 1-4 tools maximum
-- Prefer fewer tools when intent is clear`;
+- Prefer fewer tools when intent is clear
+- DEAL_STATUS is ONLY for questions about a specific deal's details, stage, or financials — NOT for contact lookups, content creation, platform guidance, or engagement queries
+- "How do I" / "what does X do" / "explain X" = PLATFORM_GUIDE, even if the topic mentions deals, buyers, scoring, etc.
+- "Create a CIM" / "write a teaser" / "draft an email" = OUTREACH_DRAFT, not DEAL_STATUS
+- "Who is the contact for" / "find contacts at" = CONTACTS, not DEAL_STATUS
+- "Which buyers showed interest" / "most engaged" = ENGAGEMENT, not BUYER_SEARCH`;
 
 export async function routeIntent(query: string, pageContext?: PageContext): Promise<RouterResult> {
   // 1. Try context bypass rules first (no LLM call needed)

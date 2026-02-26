@@ -1,9 +1,12 @@
 /**
- * 30-Question QA Test Runner
+ * 35-Question QA Test Runner
  *
- * Sends 30 pre-built questions to the AI Command Center one-by-one,
+ * Sends 35 pre-built questions to the AI Command Center one-by-one,
  * compares actual responses to predicted behavior, and shows summary stats
  * including route accuracy tracking.
+ *
+ * Q1-30: Core coverage across all categories
+ * Q31-35: LinkedIn profile identification & contact enrichment
  */
 
 import { useState, useRef, useCallback } from 'react';

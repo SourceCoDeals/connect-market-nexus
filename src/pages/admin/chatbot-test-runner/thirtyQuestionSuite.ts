@@ -1,11 +1,14 @@
 /**
- * 30-Question QA Suite
+ * 35-Question QA Suite
  *
  * Pre-built test questions across all AI Command Center categories.
  * Each question has an expected route, predicted behavior, and category tag.
  *
  * IMPORTANT: expectedRoute values MUST match actual router categories defined
  * in supabase/functions/ai-command-center/router.ts.
+ *
+ * Q1-30: Original core coverage
+ * Q31-35: LinkedIn profile identification & contact enrichment
  */
 
 export interface ThirtyQQuestion {
@@ -53,7 +56,7 @@ export const THIRTY_Q_SUITE: ThirtyQQuestion[] = [
 
   // Daily Briefing (19-20)
   { id: 19, category: 'Daily Briefing', question: 'Give me my daily briefing', expectedRoute: 'DAILY_BRIEFING', expectedBehavior: 'Synthesizes recent activity: new deals, pending tasks, engagement updates, follow-ups.' },
-  { id: 20, category: 'Daily Briefing', question: 'Catch me up on what happened this week', expectedRoute: 'EOD_RECAP', expectedBehavior: 'Provides a weekly summary of pipeline changes, buyer activity, and key events.' },
+  { id: 20, category: 'Daily Briefing', question: 'Catch me up on what happened this week', expectedRoute: 'DAILY_BRIEFING', expectedBehavior: 'Provides a weekly summary of pipeline changes, buyer activity, and key events.' },
 
   // Engagement (21-22)
   { id: 21, category: 'Engagement', question: 'Which buyers have shown the most interest recently?', expectedRoute: 'ENGAGEMENT', expectedBehavior: 'Returns buyers with recent interest signals or high engagement scores.' },
@@ -76,4 +79,21 @@ export const THIRTY_Q_SUITE: ThirtyQQuestion[] = [
 
   // Edge Cases (30)
   { id: 30, category: 'Edge Case', question: 'asdfghjkl random nonsense query 12345', expectedRoute: 'GENERAL', expectedBehavior: 'Handles gracefully — returns a helpful "I didn\'t understand" or clarification response without errors.' },
+
+  // ---------- LinkedIn & Contact Enrichment (31-35) ----------
+
+  // Contact finder at PE firm
+  { id: 31, category: 'Contact Enrichment', question: 'Find 5 contacts at Trivest Partners', expectedRoute: 'CONTACT_ENRICHMENT', expectedBehavior: 'Uses enrich_buyer_contacts or search_pe_contacts to find associates/principals at Trivest. Returns names, titles, emails if available.' },
+
+  // LinkedIn URL paste → enrich
+  { id: 32, category: 'LinkedIn Enrichment', question: 'https://linkedin.com/in/johndoe — get me this person\'s email and phone number', expectedRoute: 'CONTACTS', expectedBehavior: 'Detects LinkedIn URL, uses enrich_linkedin_contact to look up email/phone via Prospeo. Returns enriched contact data.' },
+
+  // Find missing LinkedIn profiles for seller contacts
+  { id: 33, category: 'LinkedIn Discovery', question: 'Find LinkedIn profiles for our seller contacts that are missing them', expectedRoute: 'CONTACT_ENRICHMENT', expectedBehavior: 'Uses find_contact_linkedin to search Google for LinkedIn URLs of seller contacts without linkedin_url. Returns matched profiles with confidence.' },
+
+  // Enrich contacts for buyer universe
+  { id: 34, category: 'Contact Enrichment', question: 'Enrich the contacts for buyers in our HVAC deal universe', expectedRoute: 'CONTACT_ENRICHMENT', expectedBehavior: 'Uses enrich_buyer_contacts across HVAC universe buyers. Runs Apify LinkedIn scrape + Prospeo email waterfall. Returns enriched contacts with confidence levels.' },
+
+  // Build calling list with phone numbers (multi-step workflow)
+  { id: 35, category: 'Contact Enrichment', question: 'Build me a calling list with phone numbers for our top 10 HVAC buyers', expectedRoute: 'CONTACT_ENRICHMENT', expectedBehavior: 'Multi-step: search_buyers for HVAC → enrich_buyer_contacts for phone numbers → compile formatted calling list with name, title, phone, company.' },
 ];

@@ -48,12 +48,29 @@ export async function googleSearch(
   }
 
   const runData = await runResponse.json();
+  const runId = runData.data?.id;
   const datasetId = runData.data?.defaultDatasetId;
 
-  if (!datasetId) throw new Error('No dataset ID returned from Apify');
+  if (!datasetId || !runId) throw new Error('No dataset/run ID returned from Apify');
 
-  // Wait briefly for results
-  await new Promise((r) => setTimeout(r, 5000));
+  // Poll for completion (max 30s, 2s intervals) — matches LinkedIn scraper pattern
+  const maxWait = 30_000;
+  const pollInterval = 2_000;
+  const start = Date.now();
+
+  while (Date.now() - start < maxWait) {
+    await new Promise((r) => setTimeout(r, pollInterval));
+
+    const statusRes = await fetch(`${APIFY_API_BASE}/actor-runs/${runId}?token=${apiKey}`);
+    if (!statusRes.ok) continue;
+    const statusData = await statusRes.json();
+    const status = statusData.data?.status;
+
+    if (status === 'SUCCEEDED') break;
+    if (['FAILED', 'ABORTED', 'TIMED-OUT'].includes(status)) {
+      throw new Error(`Apify Google search run ${status}`);
+    }
+  }
 
   // Fetch dataset
   const datasetRes = await fetch(
