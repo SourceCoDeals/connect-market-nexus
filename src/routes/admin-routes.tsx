@@ -85,6 +85,7 @@ const ReMarketingReferralPartnerDetail = lazyWithRetry(
 );
 const CapTargetDeals = lazyWithRetry(() => import('@/pages/admin/remarketing/CapTargetDeals'));
 const GPPartnerDeals = lazyWithRetry(() => import('@/pages/admin/remarketing/GPPartnerDeals'));
+const SourceCoDeals = lazyWithRetry(() => import('@/pages/admin/remarketing/SourceCoDeals'));
 const ValuationLeads = lazyWithRetry(() => import('@/pages/admin/remarketing/ValuationLeads'));
 
 function RedirectWithId({ to }: { to: string }) {
@@ -174,6 +175,8 @@ export function AdminRoutes() {
         <Route path="leads/captarget/:dealId" element={<ReMarketingDealDetail />} />
         <Route path="leads/gp-partners" element={<GPPartnerDeals />} />
         <Route path="leads/gp-partners/:dealId" element={<ReMarketingDealDetail />} />
+        <Route path="leads/sourceco" element={<SourceCoDeals />} />
+        <Route path="leads/sourceco/:dealId" element={<ReMarketingDealDetail />} />
         <Route path="leads/valuation" element={<ValuationLeads />} />
         <Route path="leads/referrals" element={<ReMarketingReferralPartners />} />
         <Route path="leads/referrals/:partnerId" element={<ReMarketingReferralPartnerDetail />} />

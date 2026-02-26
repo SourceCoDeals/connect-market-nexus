@@ -16,6 +16,7 @@ import {
   Target,
   Crosshair,
   Briefcase,
+  Zap,
   Calculator,
   Handshake,
   BarChart3,
@@ -184,6 +185,11 @@ export function UnifiedAdminSidebar({
             label: 'GP Partner Deals',
             href: '/admin/remarketing/leads/gp-partners',
             icon: <Briefcase className="h-4 w-4" />,
+          },
+          {
+            label: 'SourceCo Deals',
+            href: '/admin/remarketing/leads/sourceco',
+            icon: <Zap className="h-4 w-4" />,
           },
           {
             label: 'Valuation Leads',

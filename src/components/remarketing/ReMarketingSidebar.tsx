@@ -15,6 +15,7 @@ import {
   Activity,
   Crosshair,
   Briefcase,
+  Zap,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -60,6 +61,11 @@ export function ReMarketingSidebar() {
       label: 'GP Partner Deals',
       href: '/admin/remarketing/leads/gp-partners',
       icon: <Briefcase className="h-5 w-5" />,
+    },
+    {
+      label: 'SourceCo Deals',
+      href: '/admin/remarketing/leads/sourceco',
+      icon: <Zap className="h-5 w-5" />,
     },
     {
       label: 'Valuation Leads',
