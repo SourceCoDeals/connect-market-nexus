@@ -28,6 +28,8 @@ import { OwnerLead } from '@/hooks/admin/use-owner-leads';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
+import { useAICommandCenterContext } from '@/components/ai-command-center/AICommandCenterProvider';
+import { useAIUIActionHandler } from '@/hooks/useAIUIActionHandler';
 
 const OwnerLeadsPage = () => {
   const { data: ownerLeads = [], isLoading: isLoadingOwnerLeads } = useOwnerLeads();
