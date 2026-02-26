@@ -2412,6 +2412,20 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "connection_requests_flagged_for_review_assigned_to_fkey"
+            columns: ["flagged_for_review_assigned_to"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "connection_requests_flagged_for_review_by_fkey"
+            columns: ["flagged_for_review_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "connection_requests_listing_id_fkey"
             columns: ["listing_id"]
             isOneToOne: false
