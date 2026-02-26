@@ -100,11 +100,24 @@ const BYPASS_RULES: Array<{
     },
   },
   // Deal filtering — "show me deals in [industry/stage]", "which deals are in [stage]", "deals in screening"
+  // NOTE: excludes queries about contacts, platform features, content creation, and engagement —
+  //       these should route to their specific categories instead.
   {
     test: (q) =>
-      /\b(show|list|which|what)\b.*\bdeals?\b.*\b(in|at|in the)\b/i.test(q) ||
-      /\bdeals?\b.*\b(in|at)\s+(the\s+)?(screening|active marketing|loi|under loi|closed|dead|prospect|due diligence)\b/i.test(q) ||
-      /\b(our|the|most|latest|recent|newest)\b.*\bdeals?\b/i.test(q),
+      // Skip platform guide questions ("how do I", "what does X do", "explain")
+      !/\b(how (do|does|can|should) I|what does|what is the\b.{0,30}\b(system|feature|tool|method))\b/i.test(q) &&
+      // Skip contact queries ("who is the contact for", "main contact for")
+      !/\bcontacts?\s+(at|for)\b/i.test(q) &&
+      !/\b(who.?s the|main contact|find contacts?|list.*contacts?)\b/i.test(q) &&
+      // Skip content creation ("create a CIM", "write a teaser", "generate a list")
+      !/\b(create|write|draft|compose|generate)\s+(a|an|the|my)\b/i.test(q) &&
+      // Skip engagement queries
+      !/\b(interest|engaged|engagement|most interest)\b/i.test(q) &&
+      (
+        /\b(show|list|which|what)\b.*\bdeals?\b.*\b(in|at|in the)\b/i.test(q) ||
+        /\bdeals?\b.*\b(in|at)\s+(the\s+)?(screening|active marketing|loi|under loi|closed|dead|prospect|due diligence)\b/i.test(q) ||
+        /\b(our|the|most|latest|recent|newest)\b.*\bdeals?\b/i.test(q)
+      ),
     result: {
       category: 'DEAL_STATUS',
       tier: 'STANDARD',
@@ -283,8 +296,10 @@ const BYPASS_RULES: Array<{
     },
   },
   // Buyer universe geographic questions — "how many buyers in X universe are in [state]"
+  // NOTE: excludes "how do I" questions about universes which should route to PLATFORM_GUIDE
   {
     test: (q) =>
+      !/\b(how (do|does|can|should) I|how to|create|set up|build)\b/i.test(q) &&
       /\b(buyer universe|universe|how many buyer|buyers.*in.*[A-Z]{2}|buyers.*locat|location.*buyer)\b/i.test(
         q,
       ),
@@ -356,14 +371,15 @@ const BYPASS_RULES: Array<{
       confidence: 0.88,
     },
   },
-  // Engagement signals — buyer engagement events
+  // Engagement signals — buyer engagement events, interest signals
   {
     test: (q) =>
       /\b(engagement signal|buyer signal|how engaged|site visit|ioi|loi|letter of intent|indication of interest|ceo involved|financial request)\b/i.test(
         q,
       ) ||
       /\b(engagement)\b.*\b(activity|feed|history|latest|recent|update)\b/i.test(q) ||
-      /\b(latest|recent)\b.*\b(engagement|buyer activity)\b/i.test(q),
+      /\b(latest|recent)\b.*\b(engagement|buyer activity)\b/i.test(q) ||
+      /\b(most interest|shown.*interest|expressed.*interest|interest.*recently)\b/i.test(q),
     result: {
       category: 'ENGAGEMENT',
       tier: 'STANDARD',
@@ -451,9 +467,11 @@ const BYPASS_RULES: Array<{
       confidence: 0.87,
     },
   },
-  // Deal documents and memos
+  // Deal documents and memos — looking up existing docs
+  // NOTE: excludes content creation ("create a CIM", "write a teaser") → OUTREACH_DRAFT
   {
     test: (q) =>
+      !/\b(create|write|draft|compose|generate|build)\s+(a|an|the|my)\b/i.test(q) &&
       /\b(document|data room file|teaser|memo|investment memo|cim|anonymous teaser|full memo)\b/i.test(
         q,
       ),
@@ -969,7 +987,12 @@ Rules:
 - Tier STANDARD: Multi-tool queries, search + analysis
 - Tier DEEP: Content generation, complex analysis, meeting prep
 - Select 1-4 tools maximum
-- Prefer fewer tools when intent is clear`;
+- Prefer fewer tools when intent is clear
+- DEAL_STATUS is ONLY for questions about a specific deal's details, stage, or financials — NOT for contact lookups, content creation, platform guidance, or engagement queries
+- "How do I" / "what does X do" / "explain X" = PLATFORM_GUIDE, even if the topic mentions deals, buyers, scoring, etc.
+- "Create a CIM" / "write a teaser" / "draft an email" = OUTREACH_DRAFT, not DEAL_STATUS
+- "Who is the contact for" / "find contacts at" = CONTACTS, not DEAL_STATUS
+- "Which buyers showed interest" / "most engaged" = ENGAGEMENT, not BUYER_SEARCH`;
 
 export async function routeIntent(query: string, pageContext?: PageContext): Promise<RouterResult> {
   // 1. Try context bypass rules first (no LLM call needed)

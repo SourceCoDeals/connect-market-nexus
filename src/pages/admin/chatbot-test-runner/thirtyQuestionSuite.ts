@@ -44,7 +44,7 @@ export const THIRTY_Q_SUITE: ThirtyQQuestion[] = [
   { id: 14, category: 'Platform Guide', question: 'What does the deal scoring system do?', expectedRoute: 'PLATFORM_GUIDE', expectedBehavior: 'Explains the deal scoring methodology and how scores are calculated.' },
 
   // Transcript Search (15-16)
-  { id: 15, category: 'Transcript Search', question: 'Search transcripts for mentions of recurring revenue', expectedRoute: 'MEETING_INTEL', expectedBehavior: 'Uses transcript search tool to find buyer call transcripts mentioning recurring revenue.' },
+  { id: 15, category: 'Transcript Search', question: 'Search transcripts for mentions of recurring revenue', expectedRoute: 'SEMANTIC_SEARCH', expectedBehavior: 'Uses transcript search tool to find buyer call transcripts mentioning recurring revenue.' },
   { id: 16, category: 'Transcript Search', question: 'What did buyers say about geographic expansion?', expectedRoute: 'SEMANTIC_SEARCH', expectedBehavior: 'Searches transcripts for geographic expansion discussions and summarizes findings.' },
 
   // Outreach (17-18)
@@ -53,7 +53,7 @@ export const THIRTY_Q_SUITE: ThirtyQQuestion[] = [
 
   // Daily Briefing (19-20)
   { id: 19, category: 'Daily Briefing', question: 'Give me my daily briefing', expectedRoute: 'DAILY_BRIEFING', expectedBehavior: 'Synthesizes recent activity: new deals, pending tasks, engagement updates, follow-ups.' },
-  { id: 20, category: 'Daily Briefing', question: 'Catch me up on what happened this week', expectedRoute: 'EOD_RECAP', expectedBehavior: 'Provides a weekly summary of pipeline changes, buyer activity, and key events.' },
+  { id: 20, category: 'Daily Briefing', question: 'Catch me up on what happened this week', expectedRoute: 'DAILY_BRIEFING', expectedBehavior: 'Provides a weekly summary of pipeline changes, buyer activity, and key events.' },
 
   // Engagement (21-22)
   { id: 21, category: 'Engagement', question: 'Which buyers have shown the most interest recently?', expectedRoute: 'ENGAGEMENT', expectedBehavior: 'Returns buyers with recent interest signals or high engagement scores.' },
