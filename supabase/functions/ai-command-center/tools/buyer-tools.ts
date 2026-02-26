@@ -332,8 +332,10 @@ async function searchBuyers(
   // Apply state filter at DB level (checks hq_state OR geographic_footprint array)
   // This ensures ALL matching buyers are returned, not just the top N by score
   if (args.state) {
-    const st = (args.state as string).toUpperCase();
-    query = query.or(`hq_state.eq.${st},geographic_footprint.cs.{${st}}`);
+    const st = (args.state as string).toUpperCase().replace(/[^A-Z]/g, '');
+    if (st.length === 2) {
+      query = query.or(`hq_state.eq.${st},geographic_footprint.cs.{${st}}`);
+    }
   }
 
   const { data, error } = await query;
@@ -567,8 +569,10 @@ async function getTopBuyersForDeal(
 
   // Apply state filter at DB level when requested
   if (args.state) {
-    const st = (args.state as string).toUpperCase();
-    buyerQuery = buyerQuery.or(`hq_state.eq.${st},geographic_footprint.cs.{${st}}`);
+    const st = (args.state as string).toUpperCase().replace(/[^A-Z]/g, '');
+    if (st.length === 2) {
+      buyerQuery = buyerQuery.or(`hq_state.eq.${st},geographic_footprint.cs.{${st}}`);
+    }
   }
 
   const { data: buyers } = await buyerQuery;

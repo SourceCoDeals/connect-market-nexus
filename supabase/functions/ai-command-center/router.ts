@@ -29,12 +29,13 @@ const BYPASS_RULES: Array<{
   test: (query: string, ctx: PageContext) => boolean;
   result: Omit<RouterResult, 'bypassed'>;
 }> = [
-  // Pipeline overview questions
+  // Pipeline overview questions / daily briefing
   {
     test: (q) =>
-      /^(pipeline|summary|overview|how.?s the pipeline|briefing|daily|good morning|what.?s new|catch me up)/i.test(
+      /\b(pipeline summary|pipeline overview|how.?s the pipeline|daily briefing|morning briefing|good morning|what.?s new|catch me up|give me a.*briefing|start.?of.?day|daily update)\b/i.test(
         q,
-      ),
+      ) ||
+      /^(pipeline|summary|overview|briefing|daily)\b/i.test(q),
     result: {
       category: 'DAILY_BRIEFING',
       tier: 'STANDARD',
@@ -45,7 +46,7 @@ const BYPASS_RULES: Array<{
   // Industry-specific deal count — "how many hvac deals", "total plumbing deals", "count of collision deals"
   {
     test: (q) =>
-      /\b(how many|total|count|number of)\b.*\b(deal|listing)\b/i.test(q) &&
+      /\b(how many|total|count|number of)\b.*\b(deals?|listings?)\b/i.test(q) &&
       /\b(hvac|plumbing|collision|auto|roofing|electrical|landscaping|pest|home service|restoration|mechanical|industrial|manufacturing|construction|fire|security|cleaning|staffing|healthcare|dental|veterinary|fitness)/i.test(
         q,
       ),
@@ -56,17 +57,32 @@ const BYPASS_RULES: Array<{
       confidence: 0.95,
     },
   },
-  // Aggregate / count questions — "how many deals", "total deals", "deal count", "number of deals"
+  // Aggregate / count / breakdown questions — "how many deals", "total deals", "breakdown of deals by status"
   {
     test: (q) =>
-      /\b(how many|total|count|number of)\b.*\b(deal|listing|active deal|pipeline deal)\b/i.test(
+      /\b(how many|total|count|number of)\b.*\b(deals?|listings?|active deals?|pipeline deals?)\b/i.test(
         q,
-      ) || /\b(deal|listing)\b.*\b(how many|total|count)\b/i.test(q),
+      ) ||
+      /\b(deals?|listings?)\b.*\b(how many|total|count)\b/i.test(q) ||
+      /\b(breakdown|distribution|split)\b.*\b(deals?|listings?)\b/i.test(q) ||
+      /\b(deals?|listings?)\b.*\b(breakdown|distribution|by status|by stage|by industry)\b/i.test(q),
     result: {
       category: 'PIPELINE_ANALYTICS',
       tier: 'STANDARD',
       tools: ['get_pipeline_summary', 'query_deals'],
       confidence: 0.92,
+    },
+  },
+  // Industry-level pipeline analysis — "which industries have the most deals"
+  {
+    test: (q) =>
+      /\b(which|what)\s+(industries|verticals|sectors)\b.*\b(most|deals|pipeline)\b/i.test(q) ||
+      /\b(deals?|listings?)\b.*\b(by industry|per industry|by vertical|by sector)\b/i.test(q),
+    result: {
+      category: 'PIPELINE_ANALYTICS',
+      tier: 'STANDARD',
+      tools: ['get_pipeline_summary', 'query_deals'],
+      confidence: 0.9,
     },
   },
   // Deal lookup by name — "what kind of company is X", "tell me about [deal name]", "what is [company]"
@@ -81,6 +97,19 @@ const BYPASS_RULES: Array<{
       tier: 'STANDARD',
       tools: ['query_deals', 'get_deal_details'],
       confidence: 0.9,
+    },
+  },
+  // Deal filtering — "show me deals in [industry/stage]", "which deals are in [stage]", "deals in screening"
+  {
+    test: (q) =>
+      /\b(show|list|which|what)\b.*\bdeals?\b.*\b(in|at|in the)\b/i.test(q) ||
+      /\bdeals?\b.*\b(in|at)\s+(the\s+)?(screening|active marketing|loi|under loi|closed|dead|prospect|due diligence)\b/i.test(q) ||
+      /\b(our|the|most|latest|recent|newest)\b.*\bdeals?\b/i.test(q),
+    result: {
+      category: 'DEAL_STATUS',
+      tier: 'STANDARD',
+      tools: ['query_deals', 'get_pipeline_summary'],
+      confidence: 0.88,
     },
   },
   // Deal-specific questions when on a deal page
@@ -107,15 +136,29 @@ const BYPASS_RULES: Array<{
     },
   },
   // Buyer search
+  // NOTE: excludes "engagement" queries which should route to ENGAGEMENT instead
   {
     test: (q) =>
-      /\b(buyer|acquirer|PE firm|strategic|search buyer|find buyer)\b/i.test(q) &&
-      /\b(search|find|show|list|who|which)\b/i.test(q),
+      !/\bengagement\b/i.test(q) &&
+      /\b(buyers?|acquirers?|PE firms?|strategics?|search buyer|find buyer)\b/i.test(q) &&
+      /\b(search|find|show|list|who|which|located|based|interested)\b/i.test(q),
     result: {
       category: 'BUYER_SEARCH',
       tier: 'STANDARD',
       tools: ['search_buyers'],
       confidence: 0.85,
+    },
+  },
+  // Buyer intel — "what do we know about X as a buyer", "tell me about X buyer"
+  {
+    test: (q) =>
+      /\b(what do we know|what do you know|background on|intel on|research on)\b.*\b(buyer|acquirer|firm|investor)\b/i.test(q) ||
+      /\b(buyer|acquirer|firm|investor)\b.*\b(what do we know|background|intel|research)\b/i.test(q),
+    result: {
+      category: 'BUYER_SEARCH',
+      tier: 'STANDARD',
+      tools: ['search_buyers', 'get_buyer_profile', 'search_contacts'],
+      confidence: 0.88,
     },
   },
   // Score questions and "best buyer for X" — includes search_buyers for hypothetical deals without a deal_id
@@ -209,12 +252,13 @@ const BYPASS_RULES: Array<{
     },
   },
   // Outreach drafting — matches intent to compose/send a message.
+  // NOTE: bare "outreach" removed to avoid catching "outreach status/campaigns" (tracking queries).
   // NOTE: bare "email" removed to avoid catching "find email for X" (contact lookups).
   // Drafting intent is captured by draft/write/compose + optional "email/message".
   {
     test: (q) =>
       /\b(draft|write|compose)\b/i.test(q) ||
-      /\b(outreach|send\s+(a\s+)?message|send\s+(an?\s+)?email)\b/i.test(q),
+      /\b(send\s+(a\s+)?message|send\s+(an?\s+)?email)\b/i.test(q),
     result: {
       category: 'OUTREACH_DRAFT',
       tier: 'DEEP',
@@ -253,16 +297,16 @@ const BYPASS_RULES: Array<{
       confidence: 0.87,
     },
   },
-  // Outreach tracking — NDA, contacted, meeting, follow-up pipeline
+  // Outreach tracking — NDA, contacted, meeting, follow-up pipeline, outreach campaigns
   {
     test: (q) =>
-      /\b(outreach|nda|contacted|who.?ve we|who have we|follow.?up pipeline|overdue action|next action|meeting scheduled|cim sent)\b/i.test(
+      /\b(outreach status|outreach campaigns?|status of.*outreach|nda|contacted|who.?ve we|who have we|follow.?up pipeline|overdue action|next action|meeting scheduled|cim sent)\b/i.test(
         q,
       ),
     result: {
       category: 'FOLLOW_UP',
       tier: 'STANDARD',
-      tools: ['get_outreach_records', 'get_remarketing_outreach', 'get_deal_tasks'],
+      tools: ['get_outreach_records', 'get_remarketing_outreach', 'get_deal_tasks', 'get_outreach_status'],
       confidence: 0.85,
     },
   },
@@ -286,7 +330,7 @@ const BYPASS_RULES: Array<{
   // Push to Smartlead — add to email campaign
   {
     test: (q) =>
-      /\b(push.*(smartlead|smart.?lead|email campaign)|add.*(email campaign|smartlead)|email.*(these|them|buyer)|start emailing|cold email.*(these|them|push))\b/i.test(
+      /\b(push.*(smartlead|smart.?lead|email campaigns?)|add.*(email campaigns?|smartlead)|email.*(these|them|buyer)|start emailing|cold email.*(these|them|push))\b/i.test(
         q,
       ),
     result: {
@@ -314,7 +358,9 @@ const BYPASS_RULES: Array<{
     test: (q) =>
       /\b(engagement signal|buyer signal|how engaged|site visit|ioi|loi|letter of intent|indication of interest|ceo involved|financial request)\b/i.test(
         q,
-      ),
+      ) ||
+      /\b(engagement)\b.*\b(activity|feed|history|latest|recent|update)\b/i.test(q) ||
+      /\b(latest|recent)\b.*\b(engagement|buyer activity)\b/i.test(q),
     result: {
       category: 'ENGAGEMENT',
       tier: 'STANDARD',
@@ -372,16 +418,22 @@ const BYPASS_RULES: Array<{
     },
   },
   // PE / platform contacts — find who to call, email at a firm, person email lookups
+  // NOTE: Skip if query starts with "enrich" — those go to CONTACT_ENRICHMENT rule instead
   {
     test: (q) =>
-      /\b(contact at|contact for|who.?s the|find contact|emails? for|phones? for|partner at|principal at|deal team|pe contact|platform contact)\b/i.test(
-        q,
-      ) ||
-      /\b(what.?s|what is|do we have|get me|look up|find).{0,20}\b(emails?|phones?|contact info)\b/i.test(
-        q,
-      ) ||
-      /\b(emails?|phones?)\s+(address(es)?\s+)?(for|of)\b/i.test(q) ||
-      /\bemails?\b.*\b(address)\b/i.test(q),
+      !/\benrich\b/i.test(q) && (
+        /\bcontacts?\s+(at|for)\b/i.test(q) ||
+        /\b(who.?s the|find contacts?|emails? for|phones? for|partner at|principal at|deal team|pe contacts?|platform contacts?)\b/i.test(
+          q,
+        ) ||
+        /\b(what.?s|what is|do we have|get me|look up|find).{0,20}\b(emails?|phones?|contact info)\b/i.test(
+          q,
+        ) ||
+        /\b(emails?|phones?)\s+(address(es)?\s+)?(for|of)\b/i.test(q) ||
+        /\bemails?\b.*\b(address)\b/i.test(q) ||
+        /\b(show me|list|who are)\b.*\bcontacts?\b/i.test(q) ||
+        /\b(recently|most recent|newest|latest)\b.*\bcontacts?\b/i.test(q)
+      ),
     result: {
       category: 'CONTACTS',
       tier: 'STANDARD',
@@ -549,7 +601,7 @@ const BYPASS_RULES: Array<{
   // Deal comments
   {
     test: (q) =>
-      /\b(comment|internal note|deal note|team comment|who comment|what.*comment)\b/i.test(q),
+      /\b(comments?|internal notes?|deal notes?|team comments?|who comment|what.*comments?)\b/i.test(q),
     result: {
       category: 'DEAL_STATUS',
       tier: 'QUICK',
@@ -575,7 +627,7 @@ const BYPASS_RULES: Array<{
     test: (q) =>
       /\b(contacts?\s+(missing|without|no|lacking)\s+(emails?|phones?))\b/i.test(q) ||
       /\b(missing\s+emails?|no\s+emails?|without\s+emails?)\b.*\bcontacts?\b/i.test(q) ||
-      /\b(find|get|show|list)\s+.{0,20}\bcontacts?\b.{0,20}\b(missing|without|no)\s+(emails?|phones?)\b/i.test(
+      /\b(find|get|show|list)\s+.{0,50}\bcontacts?\b.{0,50}\b(missing|without|no)\s+(emails?|phones?)\b/i.test(
         q,
       ),
     result: {
@@ -589,7 +641,7 @@ const BYPASS_RULES: Array<{
   // Routes to both internal search AND enrichment for new contacts
   {
     test: (q) =>
-      /\b(find\s+(me\s+)?(contacts?|people|employees?|associates?|principals?|vps?|directors?|partners?)\s+(at|for|from))\b/i.test(
+      /\b(find\s+(me\s+)?(contacts?|people|employees?|associates?|principals?|vps?|directors?|partners?|executives?|ceos?|cfos?|coos?|founders?|owners?|managing directors?|analysts?)\s+(at|for|from))\b/i.test(
         q,
       ) ||
       /\b(get\s+(me\s+)?(contact\s+info|email|phone|linkedin)\s+(for|at|of))\b/i.test(q) ||
@@ -701,8 +753,8 @@ const BYPASS_RULES: Array<{
       /\b(find\s+(me\s+)?(companies|shops|businesses|firms|platforms)\s+(that|with|in|near|within))\b/i.test(
         q,
       ) ||
-      /\b(discover\s+compan|search\s+for\s+compan|who\s+owns)\b/i.test(q) ||
-      /\b(collision\s+repair|hvac|home\s+service|plumbing)\s+(shop|compan|business).*\b(with|near|within|in)\b/i.test(
+      /\b(discover\s+companies?|search\s+for\s+companies?|who\s+owns)\b/i.test(q) ||
+      /\b(collision\s+repair|hvac|home\s+service|plumbing)\s+(shops?|companies?|businesses?).*\b(with|near|within|in)\b/i.test(
         q,
       ),
     result: {
@@ -830,6 +882,43 @@ const BYPASS_RULES: Array<{
       confidence: 0.9,
     },
   },
+  // Platform help / "how do I" / "what is" questions about SourceCo features
+  {
+    test: (q) =>
+      (/\b(how (do|does|can|should) I|how to|what is|what are|explain|help me|teach me|show me how|guide|tutorial|walkthrough|what can you do|what tools|capabilities)\b/i.test(q) &&
+        /\b(platform|sourceco|captarget|cap target|gp partner|go partner|marketplace|remarketing|universe|scoring|enrichment|data room|nda|fee agreement|phoneburner|phone burner|smartlead|smart lead|pipeline|outreach|chatbot|ai command|command center|this tool|this app|lead source|tracker|valuation|calling list|prospeo|apify|linkedin|memo|teaser|deal|buyer|contact)\b/i.test(q)) ||
+      /\b(what can (you|the (bot|chatbot|ai|assistant)) (do|help))\b/i.test(q) ||
+      /\b(what can you help)\b/i.test(q) ||
+      /\b(help|how does (this|it|the (platform|system|tool|chatbot|ai)) work)\b/i.test(q) ||
+      /\bhow does\b.*\b(work|function)\b/i.test(q),
+    result: {
+      category: 'PLATFORM_GUIDE',
+      tier: 'STANDARD',
+      tools: ['get_current_user_context'],
+      confidence: 0.95,
+    },
+  },
+  // Building lists / compiling contacts — multi-step workflow
+  {
+    test: (q) =>
+      /\b(build|compile|create|make|generate|put together|assemble)\b.*\b(list|roster|spreadsheet|report|directory)\b.*\b(owner|contact|phone|email|call)\b/i.test(q) ||
+      /\b(calling list|contact list|outreach list|prospect list|call list)\b/i.test(q),
+    result: {
+      category: 'CONTACT_ENRICHMENT',
+      tier: 'STANDARD',
+      tools: [
+        'search_lead_sources',
+        'search_valuation_leads',
+        'query_deals',
+        'search_contacts',
+        'enrich_buyer_contacts',
+        'google_search_companies',
+        'save_contacts_to_crm',
+        'push_to_phoneburner',
+      ],
+      confidence: 0.92,
+    },
+  },
 ];
 
 // ---------- LLM-based routing ----------
@@ -864,6 +953,7 @@ Categories:
 - DEAL_CONVERSION: Convert remarketing match to pipeline deal
 - SMARTLEAD_OUTREACH: Smartlead cold email campaigns, email outreach history, push contacts to email campaigns, campaign stats
 - INDUSTRY: Industry trackers, vertical scoring configs
+- PLATFORM_GUIDE: Questions about how to use the platform, what features do, how workflows work, what the chatbot can do
 - GENERAL: Other / unclear intent
 
 Available tools: query_deals, get_deal_details, get_deal_activities, get_deal_tasks, get_deal_documents, get_deal_memos, get_deal_comments, get_deal_scoring_adjustments, get_deal_referrals, get_deal_conversations, get_pipeline_summary, search_buyers, get_buyer_profile, get_score_breakdown, get_top_buyers_for_deal, get_buyer_decisions, get_score_history, get_buyer_learning_history, search_lead_sources, search_valuation_leads, search_inbound_leads, get_referral_data, search_pe_contacts, get_firm_agreements, get_nda_logs, get_connection_requests, get_connection_messages, search_buyer_universes, get_universe_details, get_outreach_records, get_remarketing_outreach, get_engagement_signals, get_interest_signals, search_transcripts, search_buyer_transcripts, search_fireflies, get_meeting_action_items, get_outreach_status, get_analytics, get_enrichment_status, get_industry_trackers, get_current_user_context, create_deal_task, complete_deal_task, add_deal_note, log_deal_activity, update_deal_stage, grant_data_room_access, select_table_rows, apply_table_filter, sort_table_column, navigate_to_page, explain_buyer_score, get_cross_deal_analytics, semantic_transcript_search, get_follow_up_queue, get_call_history, search_contacts, get_stale_deals, get_document_engagement, enrich_buyer_contacts, push_to_phoneburner, push_to_smartlead, send_document, google_search_companies, save_contacts_to_crm, reassign_deal_task, convert_to_pipeline_deal, get_data_quality_report, detect_buyer_conflicts, get_deal_health, match_leads_to_deals, generate_eod_recap, get_smartlead_campaigns, get_smartlead_campaign_stats, get_smartlead_email_history
@@ -880,22 +970,22 @@ Rules:
 
 export async function routeIntent(query: string, pageContext?: PageContext): Promise<RouterResult> {
   // 1. Try context bypass rules first (no LLM call needed)
-  if (pageContext) {
-    for (const rule of BYPASS_RULES) {
-      if (rule.test(query, pageContext)) {
-        console.log(
-          `[ai-cc] Router bypassed → ${rule.result.category} (confidence: ${rule.result.confidence})`,
-        );
+  // Always run bypass rules — most are query-only and don't need page context
+  const ctx: PageContext = pageContext || {};
+  for (const rule of BYPASS_RULES) {
+    if (rule.test(query, ctx)) {
+      console.log(
+        `[ai-cc] Router bypassed → ${rule.result.category} (confidence: ${rule.result.confidence})`,
+      );
 
-        // Inject entity_id context into tool args hint
-        const tools = [...rule.result.tools];
+      // Inject entity_id context into tool args hint
+      const tools = [...rule.result.tools];
 
-        return {
-          ...rule.result,
-          tools,
-          bypassed: true,
-        };
-      }
+      return {
+        ...rule.result,
+        tools,
+        bypassed: true,
+      };
     }
   }
 

@@ -187,13 +187,16 @@ async function searchBuyerTranscripts(
   buyerId: string | undefined,
   limit: number,
 ): Promise<any[]> {
-  // Build OR filter for text search
-  const orFilters = terms.slice(0, 5).map(t => `transcript_text.ilike.%${t}%`).join(',');
+  // buyer_transcripts has title, summary, key_points — but NOT transcript_text
+  // Search across title and summary columns
+  const titleFilters = terms.slice(0, 5).map(t => `title.ilike.%${t}%`);
+  const summaryFilters = terms.slice(0, 5).map(t => `summary.ilike.%${t}%`);
+  const orFilters = [...titleFilters, ...summaryFilters].join(',');
   if (!orFilters) return [];
 
   let query = supabase
     .from('buyer_transcripts')
-    .select('id, buyer_id, title, transcript_text, summary, call_date, created_at, key_points')
+    .select('id, buyer_id, title, summary, call_date, created_at, key_points')
     .or(orFilters)
     .order('call_date', { ascending: false })
     .limit(limit);
@@ -208,6 +211,8 @@ async function searchBuyerTranscripts(
 
   return (data || []).map((d: any) => ({
     ...d,
+    // Use summary as transcript_text for downstream snippet extraction
+    transcript_text: d.summary || d.title || '',
     source_type: 'buyer_transcript',
   }));
 }
@@ -217,13 +222,17 @@ async function searchDealTranscripts(
   terms: string[],
   limit: number,
 ): Promise<any[]> {
-  const orFilters = terms.slice(0, 5).map(t => `transcript_text.ilike.%${t}%`).join(',');
+  // Search transcript_text and title for deal transcripts
+  const textFilters = terms.slice(0, 5).map(t => `transcript_text.ilike.%${t}%`);
+  const titleFilters = terms.slice(0, 5).map(t => `title.ilike.%${t}%`);
+  const orFilters = [...textFilters, ...titleFilters].join(',');
   if (!orFilters) return [];
 
   const { data, error } = await supabase
     .from('deal_transcripts')
-    .select('id, title, transcript_text, summary, call_date, created_at, key_points')
+    .select('id, listing_id, title, transcript_text, call_date, created_at')
     .or(orFilters)
+    .neq('transcript_text', '') // Only return transcripts with actual content
     .order('call_date', { ascending: false })
     .limit(limit);
 

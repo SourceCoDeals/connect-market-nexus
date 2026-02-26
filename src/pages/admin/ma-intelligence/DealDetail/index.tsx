@@ -1,7 +1,9 @@
+import { useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react";
 import { AddTranscriptDialog } from "@/components/ma-intelligence/AddTranscriptDialog";
+import { useAICommandCenterContext } from "@/components/ai-command-center/AICommandCenterProvider";
 import { useDealDetailData } from "./useDealDetailData";
 import { DealDetailHeader } from "./DealDetailHeader";
 import { DealDetailTabs } from "./DealDetailTabs";
@@ -10,6 +12,11 @@ import type { ScoringAdjustmentsState } from "./types";
 export default function DealDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { setPageContext } = useAICommandCenterContext();
+
+  useEffect(() => {
+    setPageContext({ page: 'deal_detail', entity_type: 'deal', entity_id: id });
+  }, [id, setPageContext]);
 
   const {
     deal,

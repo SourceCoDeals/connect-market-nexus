@@ -1,4 +1,5 @@
 import { useState, useMemo, useRef, useEffect } from 'react';
+import { useAICommandCenterContext } from '@/components/ai-command-center/AICommandCenterProvider';
 import { MemosTab } from '@/components/admin/data-room/MemosTab';
 import { DocumentsPanel } from '@/components/admin/data-room/DocumentsPanel';
 import { AccessMatrixPanel } from '@/components/admin/data-room/AccessMatrixPanel';
@@ -81,6 +82,13 @@ const ReMarketingDealDetail = () => {
   const location = useLocation();
   const backTo = (location.state as { from?: string } | null)?.from || null;
   const queryClient = useQueryClient();
+  const { setPageContext } = useAICommandCenterContext();
+
+  useEffect(() => {
+    if (dealId) {
+      setPageContext({ page: 'deal_detail', entity_type: 'deal', entity_id: dealId });
+    }
+  }, [dealId, setPageContext]);
 
   const [isEnriching, setIsEnriching] = useState(false);
   const [isAnalyzingNotes, setIsAnalyzingNotes] = useState(false);

@@ -313,6 +313,13 @@ serve(async (req) => {
       transcriptText = `[Summary only]\n${transcript.summary.short_summary}`;
     }
 
+    // Cap transcript text at 500K characters to prevent DB bloat on very long calls
+    const MAX_TRANSCRIPT_TEXT_CHARS = 500_000;
+    if (transcriptText && transcriptText.length > MAX_TRANSCRIPT_TEXT_CHARS) {
+      transcriptText = transcriptText.substring(0, MAX_TRANSCRIPT_TEXT_CHARS) +
+        '\n\n[Transcript truncated at 500K characters]';
+    }
+
     if (!transcriptText || transcriptText.length < 50) {
       console.warn('Fetched content is too short or empty:', transcriptText?.substring(0, 100));
 
