@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { BuyerDealHistoryPanel } from '@/components/admin/data-room/BuyerDealHistoryPanel';
 import { ExtractionSummaryDialog } from '@/components/remarketing/buyer-detail/ExtractionSummaryDialog';
 import { BuyerNotesSection } from '@/components/remarketing/buyer-detail/BuyerNotesSection';
@@ -10,6 +10,7 @@ import { BuyerAgreementsRebuild } from '@/components/remarketing/buyer-detail/Bu
 import { SmartleadEmailHistory } from '@/components/remarketing/SmartleadEmailHistory';
 import { ContactActivityTimeline } from '@/components/remarketing/ContactActivityTimeline';
 import { useParams, useNavigate, useLocation, Link } from 'react-router-dom';
+import { useAICommandCenterContext } from '@/components/ai-command-center/AICommandCenterProvider';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { invokeWithTimeout } from '@/lib/invoke-with-timeout';
@@ -148,6 +149,13 @@ const ReMarketingBuyerDetail = () => {
   const queryClient = useQueryClient();
   const backTo = (location.state as { from?: string } | null)?.from || '/admin/buyers';
   const isNew = id === 'new';
+  const { setPageContext } = useAICommandCenterContext();
+
+  useEffect(() => {
+    if (id && !isNew) {
+      setPageContext({ page: 'buyer_profile', entity_type: 'buyer', entity_id: id });
+    }
+  }, [id, isNew, setPageContext]);
 
   const [isContactDialogOpen, setIsContactDialogOpen] = useState(false);
   const [activeEditDialog, setActiveEditDialog] = useState<EditDialogType>(null);

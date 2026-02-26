@@ -4,7 +4,7 @@
  * UI action dispatch, and conversation persistence.
  */
 
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import { supabase, SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY } from '@/integrations/supabase/client';
 
 // ---------- Types ----------
@@ -84,7 +84,7 @@ export function useAICommandCenter(pageContext?: PageContext) {
   const persistedRef = useRef(false);
 
   // Load persisted conversation on mount
-  useState(() => {
+  useEffect(() => {
     const saved = sessionStorage.getItem('ai-cc-messages');
     const savedId = sessionStorage.getItem('ai-cc-conversation-id');
     if (saved && savedId) {
@@ -95,7 +95,7 @@ export function useAICommandCenter(pageContext?: PageContext) {
         persistedRef.current = true;
       } catch { /* ignore corrupt data */ }
     }
-  });
+  }, []);
 
   // Register a handler for UI actions (select_rows, filter, navigate)
   const onUIAction = useCallback((handler: UIActionHandler) => {

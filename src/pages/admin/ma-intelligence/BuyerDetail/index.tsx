@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -12,6 +13,7 @@ import { BuyerContactsTab } from "@/components/ma-intelligence/BuyerContactsTab"
 import { BuyerActivitySection } from "@/components/ma-intelligence/BuyerActivitySection";
 import { BuyerAgreementsPanel } from "@/components/ma-intelligence/BuyerAgreementsPanel";
 import { PassReasonDialog } from "@/components/ma-intelligence/PassReasonDialog";
+import { useAICommandCenterContext } from "@/components/ai-command-center/AICommandCenterProvider";
 
 import { useBuyerDetail } from "./useBuyerDetail";
 import { BuyerOverviewTab } from "./BuyerOverviewTab";
@@ -25,6 +27,14 @@ export default function BuyerDetail() {
     handleApproveForDeal, handleSaveSection, handleCancelEdit,
     handleSaveNotes, handleAnalyzeNotes, navigate, toast,
   } = useBuyerDetail();
+
+  const { setPageContext } = useAICommandCenterContext();
+
+  useEffect(() => {
+    if (buyer?.id) {
+      setPageContext({ page: 'buyer_profile', entity_type: 'buyer', entity_id: buyer.id });
+    }
+  }, [buyer?.id, setPageContext]);
 
   if (isLoading) {
     return <div className="flex items-center justify-center min-h-[60vh]"><Loader2 className="w-8 h-8 animate-spin" /></div>;

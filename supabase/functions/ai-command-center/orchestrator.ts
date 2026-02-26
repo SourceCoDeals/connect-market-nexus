@@ -106,11 +106,12 @@ function truncateToolResult(json: string): string {
     // Fall through to hard truncation
   }
 
-  // Hard truncation fallback
-  return (
-    json.substring(0, MAX_TOOL_RESULT_CHARS) +
-    '... [truncated — result too large for context window]'
-  );
+  // Hard truncation fallback — wrap in valid JSON so Claude can still parse it
+  return JSON.stringify({
+    _truncated: true,
+    _note: 'Result too large for context window. Use more specific filters to narrow results.',
+    partial_text: json.substring(0, MAX_TOOL_RESULT_CHARS - 200),
+  });
 }
 
 // ---------- Orchestrator ----------
