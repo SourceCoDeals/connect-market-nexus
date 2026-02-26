@@ -390,7 +390,7 @@ export default function ReMarketingReferralPartnerDetail() {
                   })
                 }
                 onApproveToActiveDeals={() => actions.handleBulkApprove()}
-                onEnrichSelected={(dealIds, mode) => actions.handleBulkEnrich(mode || 'unenriched')}
+                onEnrichSelected={(_dealIds, mode) => actions.handleBulkEnrich(mode || 'unenriched')}
                 enrichDropdown
                 onPushToDialer={() => setDialerOpen(true)}
                 onPushToSmartlead={() => setSmartleadOpen(true)}

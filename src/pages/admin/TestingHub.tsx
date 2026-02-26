@@ -1,6 +1,6 @@
 import { lazy, Suspense } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Loader2, FlaskConical, Activity, Beaker, Bot, Mail, ClipboardList } from 'lucide-react';
+import { Loader2, FlaskConical, Activity, Beaker, Bot, Mail, ListChecks } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
 
 const EnrichmentTest = lazy(() => import('@/pages/admin/EnrichmentTest'));
@@ -61,7 +61,7 @@ export default function TestingHub() {
               AI Chatbot
             </TabsTrigger>
             <TabsTrigger value="30q" className="gap-2">
-              <ClipboardList className="h-4 w-4" />
+              <ListChecks className="h-4 w-4" />
               30-Question QA
             </TabsTrigger>
           </TabsList>
