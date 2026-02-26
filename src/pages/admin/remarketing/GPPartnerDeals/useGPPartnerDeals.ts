@@ -1,4 +1,5 @@
 import { useState, useMemo, useCallback, useEffect } from 'react';
+import { useShiftSelect } from '@/hooks/useShiftSelect';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useSearchParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
@@ -14,7 +15,6 @@ import {
 import { useAuth } from '@/context/AuthContext';
 import { useAdminProfiles } from '@/hooks/admin/use-admin-profiles';
 import { useEnrichmentProgress } from '@/hooks/useEnrichmentProgress';
-import { useShiftSelect } from '@/hooks/useShiftSelect';
 import type { GPPartnerDeal, SortColumn, SortDirection, NewDealForm } from './types';
 import { EMPTY_NEW_DEAL } from './types';
 
@@ -273,17 +273,9 @@ export function useGPPartnerDeals() {
     }
   };
 
-  const toggleSelect = (id: string) => {
-    setSelectedIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  };
+  const orderedIds = useMemo(() => paginatedDeals.map((d) => d.id), [paginatedDeals]);
+  const { handleToggle: toggleSelect } = useShiftSelect(orderedIds, selectedIds, setSelectedIds);
 
-  const orderedPageIds = useMemo(() => paginatedDeals.map((d) => d.id), [paginatedDeals]);
-  const { handleToggle: shiftToggle } = useShiftSelect(orderedPageIds, selectedIds, setSelectedIds);
 
   // Push to Active Deals
   const handlePushToAllDeals = useCallback(
@@ -709,8 +701,7 @@ export function useGPPartnerDeals() {
     // Hide not fit
     hideNotFit,
     setHideNotFit,
-    // Shift-click selection
-    shiftToggle,
+    // Action states
     // Action states
     isPushing,
     isEnriching,

@@ -34,7 +34,7 @@ interface GPPartnerTableProps {
   allSelected: boolean;
   toggleSelectAll: () => void;
   selectedIds: Set<string>;
-  toggleSelect: (id: string) => void;
+  toggleSelect: (id: string, checked: boolean, event?: React.MouseEvent) => void;
   handleSort: (col: SortColumn) => void;
   handlePushToAllDeals: (dealIds: string[]) => Promise<void>;
   handleEnrichSelected: (dealIds: string[]) => Promise<void>;
@@ -43,7 +43,6 @@ interface GPPartnerTableProps {
   setAddDealOpen: (open: boolean) => void;
   setCsvUploadOpen: (open: boolean) => void;
   onMarkNotFit?: (dealId: string) => void;
-  shiftToggle?: (id: string, checked: boolean, event?: React.MouseEvent | React.KeyboardEvent) => void;
 }
 
 export function GPPartnerTable({
@@ -51,8 +50,7 @@ export function GPPartnerTable({
   allSelected, toggleSelectAll, selectedIds, toggleSelect,
   handleSort, handlePushToAllDeals, handleEnrichSelected,
   handleAssignOwner, adminProfiles,
-  setAddDealOpen, setCsvUploadOpen,
-  onMarkNotFit, shiftToggle,
+  setAddDealOpen, setCsvUploadOpen, onMarkNotFit,
 }: GPPartnerTableProps) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -128,19 +126,10 @@ export function GPPartnerTable({
                     <TableCell onClick={(e) => e.stopPropagation()} className="w-[40px]">
                       <Checkbox
                         checked={selectedIds.has(deal.id)}
-                        onCheckedChange={(checked) => {
-                          if (shiftToggle) {
-                            // shiftToggle will read the native event for shiftKey
-                            shiftToggle(deal.id, !!checked);
-                          } else {
-                            toggleSelect(deal.id);
-                          }
-                        }}
+                        onCheckedChange={() => {/* handled by onClick */}}
                         onClick={(e: React.MouseEvent) => {
-                          if (shiftToggle && e.shiftKey) {
-                            e.preventDefault();
-                            shiftToggle(deal.id, !selectedIds.has(deal.id), e);
-                          }
+                          e.stopPropagation();
+                          toggleSelect(deal.id, !selectedIds.has(deal.id), e);
                         }}
                       />
                     </TableCell>

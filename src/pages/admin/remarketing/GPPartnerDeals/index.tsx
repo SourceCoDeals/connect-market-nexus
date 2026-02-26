@@ -388,7 +388,7 @@ export default function GPPartnerDeals() {
         setAddDealOpen={hook.setAddDealOpen}
         setCsvUploadOpen={hook.setCsvUploadOpen}
         onMarkNotFit={handleMarkNotFitSingle}
-        shiftToggle={hook.shiftToggle}
+        
       />
 
       {/* Pagination */}
