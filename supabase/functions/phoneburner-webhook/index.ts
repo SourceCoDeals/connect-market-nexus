@@ -65,6 +65,10 @@ Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return corsPreflightResponse(req);
   const corsHeaders = getCorsHeaders(req);
 
+  // Extract first IP from potentially comma-separated x-forwarded-for
+  const rawIp = req.headers.get('x-forwarded-for') || req.headers.get('cf-connecting-ip') || null;
+  const clientIp = rawIp ? rawIp.split(',')[0].trim() : null;
+
   if (req.method !== 'POST') {
     return jsonResponse({ error: 'Method not allowed' }, 405, corsHeaders);
   }
@@ -148,7 +152,7 @@ Deno.serve(async (req) => {
         payload.user_id ||
         null) as string | null,
       signature_valid: signatureValid,
-      ip_address: req.headers.get('x-forwarded-for') || req.headers.get('cf-connecting-ip'),
+      ip_address: clientIp,
       received_at: new Date().toISOString(),
     })
     .select('id')
