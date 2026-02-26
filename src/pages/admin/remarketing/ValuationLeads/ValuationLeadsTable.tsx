@@ -68,7 +68,7 @@ export function ValuationLeadsTable({
   setSelectedIds,
   allSelected,
   toggleSelectAll,
-  toggleSelect,
+  toggleSelect: _toggleSelect,
   handleRowClick,
   handlePushToAllDeals,
   handleReEnrich,

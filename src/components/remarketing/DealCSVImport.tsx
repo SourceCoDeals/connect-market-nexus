@@ -17,7 +17,7 @@ import {
 } from '@/components/ui/table';
 import { Upload, FileSpreadsheet, Loader2, Check, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
-import Papa from 'papaparse';
+// Papa removed – using parseSpreadsheet instead
 import { normalizeDomain } from '@/lib/ma-intelligence/normalizeDomain';
 import { parseSpreadsheet, SPREADSHEET_ACCEPT } from '@/lib/parseSpreadsheet';
 
@@ -26,7 +26,7 @@ import {
   type ColumnMapping,
   type MergeStats,
   DEAL_IMPORT_FIELDS,
-  normalizeHeader,
+  // normalizeHeader is re-exported but used internally by mergeColumnMappings
   mergeColumnMappings,
   sanitizeListingInsert,
 } from '@/lib/deal-csv-import';

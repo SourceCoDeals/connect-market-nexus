@@ -14,7 +14,7 @@ export function useShiftSelect(
   /** Ordered list of IDs currently visible (e.g. the paginated rows) */
   orderedIds: string[],
   /** Current selection set */
-  selectedIds: Set<string>,
+  _selectedIds: Set<string>,
   /** Setter for the selection set */
   setSelectedIds: React.Dispatch<React.SetStateAction<Set<string>>>,
 ) {

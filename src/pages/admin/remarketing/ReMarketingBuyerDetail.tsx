@@ -31,7 +31,7 @@ import {
 import {
   ArrowLeft,
   Users,
-  Phone,
+  // Phone icon unused currently
   BarChart2,
   FileSignature,
   FolderOpen,

@@ -18,7 +18,7 @@ import {
   Check,
 } from "lucide-react";
 import { toast } from "sonner";
-import Papa from "papaparse";
+// Papa removed – using parseSpreadsheet instead
 import { parseSpreadsheet, SPREADSHEET_ACCEPT } from "@/lib/parseSpreadsheet";
 
 interface ReferralCSVUploadProps {

@@ -39,7 +39,7 @@ interface DealsTableProps {
 
 export function DealsTable({
   deals, sortField, sortDir, toggleSort,
-  selectedDealIds, setSelectedDealIds, allSelected, toggleSelectAll, toggleSelect,
+  selectedDealIds, setSelectedDealIds, allSelected, toggleSelectAll, toggleSelect: _toggleSelect,
   onEnrichDeal, onConfirmAction, partnerId,
 }: DealsTableProps) {
   const navigate = useNavigate();

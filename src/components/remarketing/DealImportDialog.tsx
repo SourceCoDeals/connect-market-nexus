@@ -40,7 +40,7 @@ import {
   ArrowLeft
 } from "lucide-react";
 import { toast } from "sonner";
-import Papa from "papaparse";
+// Papa removed – using parseSpreadsheet instead
 import { normalizeDomain } from "@/lib/ma-intelligence/normalizeDomain";
 import { parseSpreadsheet, SPREADSHEET_ACCEPT } from "@/lib/parseSpreadsheet";
 
