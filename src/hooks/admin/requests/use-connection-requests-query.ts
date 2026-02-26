@@ -70,7 +70,9 @@ export function useConnectionRequestsQuery() {
         const approvedIds = Array.from(new Set(requests.map(r => r.approved_by).filter(Boolean)));
         const rejectedIds = Array.from(new Set(requests.map(r => r.rejected_by).filter(Boolean)));
         const onHoldIds = Array.from(new Set(requests.map(r => r.on_hold_by).filter(Boolean)));
-        const profileIds = Array.from(new Set([...userIds, ...followedIds, ...negativeFollowedIds, ...approvedIds, ...rejectedIds, ...onHoldIds])).filter((id): id is string => id !== null);
+        const flaggedIds = Array.from(new Set(requests.map(r => r.flagged_for_review_by).filter(Boolean)));
+        const flaggedAssignedIds = Array.from(new Set(requests.map(r => r.flagged_for_review_assigned_to).filter(Boolean)));
+        const profileIds = Array.from(new Set([...userIds, ...followedIds, ...negativeFollowedIds, ...approvedIds, ...rejectedIds, ...onHoldIds, ...flaggedIds, ...flaggedAssignedIds])).filter((id): id is string => id !== null);
 
         // Batch fetch related data in parallel
         const emptyResult = { data: [] as Record<string, unknown>[], error: null };
@@ -101,6 +103,8 @@ export function useConnectionRequestsQuery() {
           const approvedAdminProfile = request.approved_by ? profilesById.get(request.approved_by) : null;
           const rejectedAdminProfile = request.rejected_by ? profilesById.get(request.rejected_by) : null;
           const onHoldAdminProfile = request.on_hold_by ? profilesById.get(request.on_hold_by) : null;
+          const flaggedAdminProfile = request.flagged_for_review_by ? profilesById.get(request.flagged_for_review_by) : null;
+          const flaggedAssignedProfile = request.flagged_for_review_assigned_to ? profilesById.get(request.flagged_for_review_assigned_to) : null;
 
           const user = userData ? createUserObject(userData) : null;
           const listing = listingData ? createListingFromData(listingData) : null;
@@ -112,6 +116,8 @@ export function useConnectionRequestsQuery() {
             status,
             user,
             listing,
+            flaggedByAdmin: flaggedAdminProfile ? createUserObject(flaggedAdminProfile) : null,
+            flaggedAssignedToAdmin: flaggedAssignedProfile ? createUserObject(flaggedAssignedProfile) : null,
             followedUpByAdmin: followedAdminProfile ? createUserObject(followedAdminProfile) : null,
             negativeFollowedUpByAdmin: negativeFollowedAdminProfile ? createUserObject(negativeFollowedAdminProfile) : null,
             approvedByAdmin: approvedAdminProfile ? createUserObject(approvedAdminProfile) : null,

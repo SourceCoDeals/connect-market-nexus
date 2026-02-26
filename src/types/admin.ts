@@ -155,6 +155,10 @@ export interface AdminConnectionRequest {
   admin_comment?: string;
   user_message?: string;
   decision_notes?: string;
+  flagged_for_review?: boolean;
+  flagged_for_review_at?: string;
+  flagged_for_review_by?: string;
+  flagged_for_review_assigned_to?: string;
   followed_up?: boolean;
   followed_up_at?: string;
   followed_up_by?: string;
@@ -193,7 +197,9 @@ export interface AdminConnectionRequest {
   decision_at?: string;
   user?: User | null;
   listing?: Listing | null;
-  // Admin profiles who performed follow-ups
+  // Admin profiles who performed actions
+  flaggedByAdmin?: User | null;
+  flaggedAssignedToAdmin?: User | null;
   followedUpByAdmin?: User | null;
   negativeFollowedUpByAdmin?: User | null;
   approvedByAdmin?: User | null;

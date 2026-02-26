@@ -20,15 +20,15 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { 
-  ChevronDown, 
-  ChevronUp, 
-  Clock, 
-  CheckCircle, 
-  XCircle, 
-  User, 
-  Building2, 
-  Mail, 
+import {
+  ChevronDown,
+  ChevronUp,
+  Clock,
+  CheckCircle,
+  XCircle,
+  User,
+  Building2,
+  Mail,
   Phone,
   AlertTriangle,
   RefreshCw,
@@ -37,6 +37,7 @@ import {
   ExternalLink,
   Zap,
   Loader2,
+  Flag,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { AdminConnectionRequest } from "@/types/admin";
@@ -58,6 +59,19 @@ import { MessageConflictDisplay } from './MessageConflictDisplay';
 import { ConnectionRequestFirmBadge } from './ConnectionRequestFirmBadge';
 import { BuyerTierBadge, BuyerScoreBadge } from './BuyerQualityBadges';
 import { useUpdateConnectionRequestStatus } from "@/hooks/admin/use-connection-request-status";
+import { useFlagConnectionRequest } from "@/hooks/admin/use-flag-connection-request";
+import { useAdminProfiles } from "@/hooks/admin/use-admin-profiles";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { useToast } from "@/hooks/use-toast";
 
 // Enhanced company name formatting with real company in bold and clickable listing
@@ -202,6 +216,94 @@ const ScoreBuyersButton = ({ requests, onRefresh }: { requests: AdminConnectionR
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
+  );
+};
+
+// ─── Flag for Review Button ───
+
+const FlagForReviewButton = ({ request }: { request: AdminConnectionRequest }) => {
+  const [open, setOpen] = useState(false);
+  const flagMutation = useFlagConnectionRequest();
+  const { data: adminProfiles } = useAdminProfiles();
+  const isFlagged = !!request.flagged_for_review;
+
+  const adminList = adminProfiles
+    ? Object.values(adminProfiles).sort((a, b) => a.displayName.localeCompare(b.displayName))
+    : [];
+
+  const handleFlag = (assignedToId: string) => {
+    flagMutation.mutate({
+      requestId: request.id,
+      flagged: true,
+      assignedTo: assignedToId,
+    });
+    setOpen(false);
+  };
+
+  const handleUnflag = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    flagMutation.mutate({ requestId: request.id, flagged: false });
+  };
+
+  if (isFlagged) {
+    const assignedName = request.flaggedAssignedToAdmin
+      ? `${request.flaggedAssignedToAdmin.first_name || ''} ${request.flaggedAssignedToAdmin.last_name || ''}`.trim()
+      : null;
+    const flaggedByName = request.flaggedByAdmin
+      ? `${request.flaggedByAdmin.first_name || ''} ${request.flaggedByAdmin.last_name || ''}`.trim()
+      : null;
+
+    return (
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button
+              onClick={handleUnflag}
+              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-medium bg-orange-100 text-orange-700 border border-orange-200 hover:bg-orange-200 transition-colors"
+            >
+              <Flag className="h-3 w-3 fill-orange-500 text-orange-500" />
+              {assignedName ? `For ${assignedName}` : 'Flagged'}
+            </button>
+          </TooltipTrigger>
+          <TooltipContent side="bottom" className="text-xs">
+            <p>{flaggedByName ? `Flagged by ${flaggedByName}` : 'Flagged for review'}</p>
+            {assignedName && <p>Assigned to {assignedName}</p>}
+            <p className="text-muted-foreground mt-0.5">Click to remove flag</p>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+    );
+  }
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <button
+          onClick={(e) => { e.stopPropagation(); setOpen(true); }}
+          className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-medium text-muted-foreground hover:text-orange-600 hover:bg-orange-50 border border-transparent hover:border-orange-200 transition-colors"
+        >
+          <Flag className="h-3 w-3" />
+          Flag
+        </button>
+      </PopoverTrigger>
+      <PopoverContent className="w-56 p-2" align="start" onClick={(e) => e.stopPropagation()}>
+        <p className="text-xs font-semibold text-muted-foreground px-2 py-1.5">Flag for team member</p>
+        <div className="max-h-48 overflow-y-auto">
+          {adminList.map((admin) => (
+            <button
+              key={admin.id}
+              onClick={() => handleFlag(admin.id)}
+              className="w-full text-left px-2 py-1.5 text-sm rounded-md hover:bg-muted transition-colors"
+            >
+              {admin.displayName}
+            </button>
+          ))}
+          {adminList.length === 0 && (
+            <p className="text-xs text-muted-foreground px-2 py-1.5">No team members found</p>
+          )}
+        </div>
+      </PopoverContent>
+    </Popover>
   );
 };
 
@@ -505,6 +607,7 @@ function ReactiveRequestCard({
                 {request.user && (
                   <BuyerTierBadge tier={(request.user as any).buyer_tier} />
                 )}
+                <FlagForReviewButton request={request} />
               </div>
                <div className="text-sm text-muted-foreground space-y-1">
                  <div className="flex items-center gap-2">
@@ -618,14 +721,21 @@ export default function ConnectionRequestsTable({
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [showBulkRejectDialog, setShowBulkRejectDialog] = useState(false);
   const [bulkRejectNote, setBulkRejectNote] = useState("");
+  const [showFlaggedOnly, setShowFlaggedOnly] = useState(false);
   const { data: unreadCounts } = useUnreadMessageCounts();
   const updateStatus = useUpdateConnectionRequestStatus();
   const { toast } = useToast();
 
-  // Filter requests by selected sources
-  const filteredRequests = selectedSources.length > 0 
+  // Filter requests by selected sources, then by flagged status
+  const sourceFilteredRequests = selectedSources.length > 0
     ? requests.filter(req => selectedSources.includes(req.source || 'marketplace'))
     : requests;
+
+  const filteredRequests = showFlaggedOnly
+    ? sourceFilteredRequests.filter(req => req.flagged_for_review)
+    : sourceFilteredRequests;
+
+  const flaggedCount = requests.filter(req => req.flagged_for_review).length;
 
   const toggleExpanded = (requestId: string) => {
     const newExpanded = new Set(expandedRows);
@@ -725,14 +835,23 @@ export default function ConnectionRequestsTable({
               : `${filteredRequests.length} of ${requests.length} connection request${requests.length !== 1 ? 's' : ''}`}
           </span>
           {showSourceFilter && onSourcesChange && (
-            <SourceFilter 
+            <SourceFilter
               selectedSources={selectedSources}
               onSourcesChange={onSourcesChange}
             />
           )}
         </div>
-        
+
         <div className="flex items-center gap-2">
+          <Button
+            variant={showFlaggedOnly ? "default" : "outline"}
+            size="sm"
+            onClick={() => setShowFlaggedOnly(!showFlaggedOnly)}
+            className={showFlaggedOnly ? "bg-orange-500 hover:bg-orange-600 text-white" : ""}
+          >
+            <Flag className={`h-4 w-4 mr-2 ${showFlaggedOnly ? "fill-white" : ""}`} />
+            Flagged{flaggedCount > 0 ? ` (${flaggedCount})` : ''}
+          </Button>
           {onRefresh && (
             <Button variant="outline" size="sm" onClick={onRefresh}>
               <RefreshCw className="h-4 w-4 mr-2" />
