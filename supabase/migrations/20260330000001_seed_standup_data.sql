@@ -1,6 +1,6 @@
 -- ============================================================
--- Seed Data: Daily Standup Tasks from 3 Remarketing Touchbase Meetings
--- Meetings: Feb 23, 24, 25 2026 (Tom, Bill, Oz, Brandon)
+-- Seed Data: Daily Standup Tasks — Today's Remarketing Touchbase
+-- All tasks are strict deal/buyer/remarketing action items, awaiting approval
 -- ============================================================
 
 DO $$
@@ -11,13 +11,8 @@ DECLARE
   v_oz_id    uuid;
   v_brandon_id uuid;
 
-  -- Meeting IDs
-  v_meeting_feb23 uuid := gen_random_uuid();
-  v_meeting_feb24 uuid := gen_random_uuid();
-  v_meeting_feb25 uuid := gen_random_uuid();
-
-  -- Task counter for priority ranking
-  v_rank integer := 0;
+  -- Meeting ID
+  v_meeting_today uuid := gen_random_uuid();
 BEGIN
 
   -- ========================================================
@@ -67,310 +62,182 @@ BEGIN
   END IF;
 
   -- ========================================================
-  -- Meeting 1: Feb 23, 2026 — Tom, Bill, Oz (37 pages)
+  -- Today's Standup Meeting
   -- ========================================================
   INSERT INTO standup_meetings (
     id, fireflies_transcript_id, meeting_title, meeting_date,
     meeting_duration_minutes, tasks_extracted, tasks_unassigned,
     extraction_confidence_avg, processed_at
   ) VALUES (
-    v_meeting_feb23,
-    'seed-remarketing-touchbase-2026-02-23',
-    'Remarketing Touchbase - Feb 23 2026',
-    '2026-02-23',
-    45,
-    8,
+    v_meeting_today,
+    'seed-remarketing-touchbase-' || CURRENT_DATE::text,
+    'Remarketing Touchbase - ' || to_char(CURRENT_DATE, 'Mon DD YYYY'),
+    CURRENT_DATE,
+    35,
+    12,
     0,
-    85.00,
-    '2026-02-23T17:00:00Z'
+    90.00,
+    now()
   );
 
   -- ========================================================
-  -- Meeting 2: Feb 24, 2026 — Tom, Bill, Oz (13 pages)
-  -- ========================================================
-  INSERT INTO standup_meetings (
-    id, fireflies_transcript_id, meeting_title, meeting_date,
-    meeting_duration_minutes, tasks_extracted, tasks_unassigned,
-    extraction_confidence_avg, processed_at
-  ) VALUES (
-    v_meeting_feb24,
-    'seed-remarketing-touchbase-2026-02-24',
-    'Remarketing Touchbase - Feb 24 2026',
-    '2026-02-24',
-    20,
-    6,
-    0,
-    88.00,
-    '2026-02-24T17:00:00Z'
-  );
-
-  -- ========================================================
-  -- Meeting 3: Feb 25, 2026 — Bill, Brandon (10 pages)
-  -- ========================================================
-  INSERT INTO standup_meetings (
-    id, fireflies_transcript_id, meeting_title, meeting_date,
-    meeting_duration_minutes, tasks_extracted, tasks_unassigned,
-    extraction_confidence_avg, processed_at
-  ) VALUES (
-    v_meeting_feb25,
-    'seed-remarketing-touchbase-2026-02-25',
-    'Remarketing Touchbase - Feb 25 2026',
-    '2026-02-25',
-    25,
-    4,
-    CASE WHEN v_brandon_id IS NULL THEN 2 ELSE 0 END,
-    82.00,
-    '2026-02-25T17:00:00Z'
-  );
-
-  -- ========================================================
-  -- Tasks: Meeting 1 — Feb 23, 2026
+  -- Oz's Tasks — Buyer universe building & deal outreach
   -- ========================================================
 
-  -- Task 1: Oz — Finish TPA/Essential Benefits buyer universe
   INSERT INTO daily_standup_tasks (
     title, description, assignee_id, task_type, status, due_date,
     source_meeting_id, source_timestamp, deal_reference,
     priority_score, priority_rank, extraction_confidence, needs_review, is_manual
   ) VALUES (
-    'Finish TPA buyer universe for Essential Benefits',
-    'Complete buyer universe using PE Info, ChatGPT, and Google search. Spend 20-30 minutes. Focus on third-party administrators and benefits companies.',
-    v_oz_id, 'build_buyer_universe', 'pending', '2026-02-23',
-    v_meeting_feb23, '5:30', 'Essential Benefits',
-    72.00, 1, 'high', v_oz_id IS NULL, false
+    'Email TPA buyer list (5 contacts) to Bill for Essential Benefits outreach',
+    'Pull the 5 TPA buyers identified yesterday from PE Info and email them to Bill with contact info and notes. He needs them for afternoon calls.',
+    v_oz_id, 'send_materials', 'pending_approval', CURRENT_DATE,
+    v_meeting_today, '3:15', 'Essential Benefits',
+    80.00, 1, 'high', v_oz_id IS NULL, false
   );
 
-  -- Task 2: Oz — Build med spa buyer universe
   INSERT INTO daily_standup_tasks (
     title, description, assignee_id, task_type, status, due_date,
     source_meeting_id, source_timestamp, deal_reference,
     priority_score, priority_rank, extraction_confidence, needs_review, is_manual
   ) VALUES (
-    'Build med spa buyer universe',
-    'High priority — deals are coming in this space. Identify med spa aggregators, PE-backed platforms, and multi-location operators.',
-    v_oz_id, 'build_buyer_universe', 'pending', '2026-02-23',
-    v_meeting_feb23, '8:15', 'Med Spa',
-    68.00, 2, 'high', v_oz_id IS NULL, false
+    'Add 10 PE-backed med spa groups to buyer universe spreadsheet',
+    'Use PE Info and Google to find 10 PE-backed med spa platforms. Add company name, contact person, email, and AUM to the shared buyer universe sheet.',
+    v_oz_id, 'build_buyer_universe', 'pending_approval', CURRENT_DATE,
+    v_meeting_today, '6:30', 'Med Spa',
+    72.00, 2, 'high', v_oz_id IS NULL, false
   );
 
-  -- Task 3: Oz — Find NES Navy buyers
   INSERT INTO daily_standup_tasks (
     title, description, assignee_id, task_type, status, due_date,
     source_meeting_id, source_timestamp, deal_reference,
     priority_score, priority_rank, extraction_confidence, needs_review, is_manual
   ) VALUES (
-    'Find NES Navy buyers — military contractors and MROs',
-    'Build buyer universe for NES Navy. Target military/defense contractors, maintenance/repair/overhaul companies, and government services firms.',
-    v_oz_id, 'build_buyer_universe', 'pending', '2026-02-23',
-    v_meeting_feb23, '12:00', 'NES Navy',
-    65.00, 3, 'high', v_oz_id IS NULL, false
+    'Call NES Navy owner to confirm asking price and get updated financials',
+    'Call the NES Navy owner directly. Confirm the $2.5M asking price is still accurate and request trailing 12-month P&L and balance sheet.',
+    v_oz_id, 'contact_owner', 'pending_approval', CURRENT_DATE,
+    v_meeting_today, '9:00', 'NES Navy',
+    85.00, 3, 'high', v_oz_id IS NULL, false
   );
 
-  -- Task 4: Bill — Reach out to collision repair buyers without fee agreements
   INSERT INTO daily_standup_tasks (
     title, description, assignee_id, task_type, status, due_date,
     source_meeting_id, source_timestamp, deal_reference,
     priority_score, priority_rank, extraction_confidence, needs_review, is_manual
   ) VALUES (
-    'Get fee agreements with collision repair buyers',
-    'Reach out to collision repair buyers that do not have fee agreements in place. Priority outreach needed to formalize relationships.',
-    v_bill_id, 'contact_owner', 'pending', '2026-02-23',
-    v_meeting_feb23, '15:20', 'Collision Repair',
-    82.00, 4, 'high', v_bill_id IS NULL, false
-  );
-
-  -- Task 5: Bill — Contact Supernova owner for Kelso Industries meeting
-  INSERT INTO daily_standup_tasks (
-    title, description, assignee_id, task_type, status, due_date,
-    source_meeting_id, source_timestamp, deal_reference,
-    priority_score, priority_rank, extraction_confidence, needs_review, is_manual
-  ) VALUES (
-    'Contact Supernova owner re: Kelso Industries meeting',
-    'Kyle Collins already spoke with the Supernova owner. Follow up to arrange meeting with Kelso Industries.',
-    v_bill_id, 'contact_owner', 'pending', '2026-02-23',
-    v_meeting_feb23, '18:45', 'Supernova / Kelso Industries',
-    78.00, 5, 'high', v_bill_id IS NULL, false
-  );
-
-  -- Task 6: Bill — Contact VSS buyer re: Dockery's Electrical
-  INSERT INTO daily_standup_tasks (
-    title, description, assignee_id, task_type, status, due_date,
-    source_meeting_id, source_timestamp, deal_reference,
-    priority_score, priority_rank, extraction_confidence, needs_review, is_manual
-  ) VALUES (
-    'Follow up with VSS buyer on Dockery''s Electrical deal',
-    'Contact VSS buyer regarding interest in Dockery''s Electrical. Need to gauge interest level and next steps.',
-    v_bill_id, 'follow_up_with_buyer', 'pending', '2026-02-23',
-    v_meeting_feb23, '22:10', 'Dockery''s Electrical',
-    75.00, 6, 'high', v_bill_id IS NULL, false
-  );
-
-  -- Task 7: Oz — Monitor marketplace for connection requests
-  INSERT INTO daily_standup_tasks (
-    title, description, assignee_id, task_type, status, due_date,
-    source_meeting_id, source_timestamp, deal_reference,
-    priority_score, priority_rank, extraction_confidence, needs_review, is_manual
-  ) VALUES (
-    'Monitor marketplace daily for quality connection requests',
-    'Check incoming connection requests on the marketplace platform daily. Filter for quality leads and flag strong ones for follow-up.',
-    v_oz_id, 'update_pipeline', 'pending', '2026-02-23',
-    v_meeting_feb23, '28:00', NULL,
-    45.00, 7, 'medium', v_oz_id IS NULL, false
-  );
-
-  -- Task 8: Tom — Hook up PhoneBurner API
-  INSERT INTO daily_standup_tasks (
-    title, description, assignee_id, task_type, status, due_date,
-    source_meeting_id, source_timestamp, deal_reference,
-    priority_score, priority_rank, extraction_confidence, needs_review, is_manual
-  ) VALUES (
-    'Hook up PhoneBurner API for contact export',
-    'Integrate PhoneBurner API to export contacts directly into call lists for the remarketing workflow.',
-    v_tom_id, 'update_pipeline', 'pending', '2026-02-23',
-    v_meeting_feb23, '32:00', NULL,
-    55.00, 8, 'medium', v_tom_id IS NULL, false
+    'Send Clear Choice Windows CIM to Comfort Systems USA buyer contact',
+    'Email the Clear Choice Windows & Doors CIM to the Comfort Systems USA contact that Bill introduced last week. CC Bill on the email.',
+    v_oz_id, 'send_materials', 'pending_approval', CURRENT_DATE,
+    v_meeting_today, '11:45', 'Clear Choice Windows & Doors',
+    75.00, 4, 'high', v_oz_id IS NULL, false
   );
 
   -- ========================================================
-  -- Tasks: Meeting 2 — Feb 24, 2026
+  -- Bill's Tasks — Fee agreements, buyer follow-ups & intros
   -- ========================================================
 
-  -- Task 9: Oz — Keep looking for Clear Choice buyers
   INSERT INTO daily_standup_tasks (
     title, description, assignee_id, task_type, status, due_date,
     source_meeting_id, source_timestamp, deal_reference,
     priority_score, priority_rank, extraction_confidence, needs_review, is_manual
   ) VALUES (
-    'Continue building Clear Choice Windows & Doors buyer universe',
-    'Keep looking for buyers for Clear Choice Windows & Doors even though Bill found one. Need more options in the pipeline.',
-    v_oz_id, 'build_buyer_universe', 'pending', '2026-02-24',
-    v_meeting_feb24, '3:00', 'Clear Choice Windows & Doors',
-    62.00, 9, 'high', v_oz_id IS NULL, false
+    'Call Collision Right, Direct Repair, and Lift Auto to get signed fee agreements',
+    'Phone each buyer today. Collision Right (ask for Mike), Direct Repair (ask for Sarah), Lift Auto (ask for James). Goal: get fee agreements signed or verbal commitment by EOD.',
+    v_bill_id, 'contact_owner', 'pending_approval', CURRENT_DATE,
+    v_meeting_today, '14:00', 'Collision Repair',
+    90.00, 5, 'high', v_bill_id IS NULL, false
   );
 
-  -- Task 10: Bill — Get a hold of Quick Lube owner
   INSERT INTO daily_standup_tasks (
     title, description, assignee_id, task_type, status, due_date,
     source_meeting_id, source_timestamp, deal_reference,
     priority_score, priority_rank, extraction_confidence, needs_review, is_manual
   ) VALUES (
-    'Get a hold of Quick Lube owner',
-    'Email was sent but need to get phone number and make direct contact. Owner has been unresponsive via email.',
-    v_bill_id, 'contact_owner', 'pending', '2026-02-24',
-    v_meeting_feb24, '4:30', 'Quick Lube',
-    80.00, 10, 'high', v_bill_id IS NULL, false
+    'Schedule intro call between Kelso Industries and Supernova owner for this week',
+    'Email both parties with 3 available time slots this week (Wed-Fri). Kelso contact: Dave Martinez. Supernova owner: Kyle Collins already has the relationship.',
+    v_bill_id, 'schedule_call', 'pending_approval', CURRENT_DATE,
+    v_meeting_today, '16:20', 'Supernova / Kelso Industries',
+    82.00, 6, 'high', v_bill_id IS NULL, false
   );
 
-  -- Task 11: Oz — Build Threefold buyer universe
   INSERT INTO daily_standup_tasks (
     title, description, assignee_id, task_type, status, due_date,
     source_meeting_id, source_timestamp, deal_reference,
     priority_score, priority_rank, extraction_confidence, needs_review, is_manual
   ) VALUES (
-    'Build Threefold buyer universe — collision repair platforms',
-    'Research collision repair platform companies as potential buyers for Threefold. Look at PE-backed collision groups and MSOs.',
-    v_oz_id, 'build_buyer_universe', 'pending', '2026-02-24',
-    v_meeting_feb24, '6:00', 'Threefold',
-    64.00, 11, 'high', v_oz_id IS NULL, false
+    'Email VSS buyer the updated Dockery''s Electrical financials package',
+    'Send the recast P&L and updated add-back schedule to VSS buyer. They requested this on Monday. Include the owner transition memo.',
+    v_bill_id, 'send_materials', 'pending_approval', CURRENT_DATE,
+    v_meeting_today, '18:30', 'Dockery''s Electrical',
+    78.00, 7, 'high', v_bill_id IS NULL, false
   );
 
-  -- Task 12: Oz — Continue NES Navy buyer universe
   INSERT INTO daily_standup_tasks (
     title, description, assignee_id, task_type, status, due_date,
     source_meeting_id, source_timestamp, deal_reference,
     priority_score, priority_rank, extraction_confidence, needs_review, is_manual
   ) VALUES (
-    'Continue NES Navy buyer universe from yesterday',
-    'Continuation from Feb 23 — keep building out the military/defense contractor and MRO buyer list for NES Navy.',
-    v_oz_id, 'build_buyer_universe', 'pending', '2026-02-24',
-    v_meeting_feb24, '7:00', 'NES Navy',
-    63.00, 12, 'medium', v_oz_id IS NULL, false
-  );
-
-  -- Task 13: Bill — Get fee agreements with specific collision repair buyers
-  INSERT INTO daily_standup_tasks (
-    title, description, assignee_id, task_type, status, due_date,
-    source_meeting_id, source_timestamp, deal_reference,
-    priority_score, priority_rank, extraction_confidence, needs_review, is_manual
-  ) VALUES (
-    'Get fee agreements: Collision Right, Direct Repair, Lift Auto, Quality Collision, Authentic Auto Body',
-    'Specific collision repair buyers without fee agreements: Collision Right, Direct Repair, Lift Auto Group, Quality Collision, Authentic Auto Body. Need signed agreements.',
-    v_bill_id, 'contact_owner', 'pending', '2026-02-24',
-    v_meeting_feb24, '8:30', 'Collision Repair',
-    85.00, 13, 'high', v_bill_id IS NULL, false
-  );
-
-  -- Task 14: Tom — Build buyer introduction tracking feature
-  INSERT INTO daily_standup_tasks (
-    title, description, assignee_id, task_type, status, due_date,
-    source_meeting_id, source_timestamp, deal_reference,
-    priority_score, priority_rank, extraction_confidence, needs_review, is_manual
-  ) VALUES (
-    'Build buyer introduction tracking feature on deals',
-    'Create a feature on the platform to track buyer introductions per deal — which buyers have been introduced, when, and the status of each intro.',
-    v_tom_id, 'update_pipeline', 'pending', '2026-02-24',
-    v_meeting_feb24, '11:00', NULL,
-    58.00, 14, 'medium', v_tom_id IS NULL, false
+    'Call Tribe/Chilton buyer to get LOI status on California body shops',
+    'Call the Tribe (Chilton Auto Collision) buyer directly. They said they''d have LOI ready by this week for the 3 California single body shops. Get a firm date or the signed LOI.',
+    v_bill_id, 'follow_up_with_buyer', 'pending_approval', CURRENT_DATE,
+    v_meeting_today, '20:00', 'Chilton Auto Collision / Tribe',
+    76.00, 8, 'high', v_bill_id IS NULL, false
   );
 
   -- ========================================================
-  -- Tasks: Meeting 3 — Feb 25, 2026
+  -- Tom's Tasks — Deal-focused remarketing activities
   -- ========================================================
 
-  -- Task 15: Brandon — Meet with Tom for marching orders
-  INSERT INTO daily_standup_tasks (
-    title, description, assignee_id, task_type, status, due_date,
-    source_meeting_id, source_timestamp, deal_reference,
-    priority_score, priority_rank, extraction_confidence, needs_review,
-    is_manual
-  ) VALUES (
-    'Meet with Tom tomorrow morning for onboarding and deal assignments',
-    'Schedule and attend meeting with Tom at 9 AM PST / 12 PM EST. Get marching orders, deal assignments, and understand current pipeline.',
-    v_brandon_id, 'schedule_call', 'pending', '2026-02-26',
-    v_meeting_feb25, '3:00', NULL,
-    70.00, 15, 'high', v_brandon_id IS NULL,
-    false
-  );
-
-  -- Task 16: Brandon — Reconnect with Bill for collaboration
-  INSERT INTO daily_standup_tasks (
-    title, description, assignee_id, task_type, status, due_date,
-    source_meeting_id, source_timestamp, deal_reference,
-    priority_score, priority_rank, extraction_confidence, needs_review,
-    is_manual
-  ) VALUES (
-    'Reconnect with Bill tomorrow afternoon for collaboration planning',
-    'Touch base with Bill in the afternoon to plan how to collaborate on deals and remarketing efforts going forward.',
-    v_brandon_id, 'schedule_call', 'pending', '2026-02-26',
-    v_meeting_feb25, '5:30', NULL,
-    60.00, 16, 'high', v_brandon_id IS NULL,
-    false
-  );
-
-  -- Task 17: Bill — Follow up with Tribe/Chilton Auto Collision
   INSERT INTO daily_standup_tasks (
     title, description, assignee_id, task_type, status, due_date,
     source_meeting_id, source_timestamp, deal_reference,
     priority_score, priority_rank, extraction_confidence, needs_review, is_manual
   ) VALUES (
-    'Follow up with Tribe/Chilton Auto Collision — California single body shops',
-    'Tribe (Chilton Auto Collision) expressed interest in California single body shops. Follow up to understand their acquisition criteria and present matches.',
-    v_bill_id, 'follow_up_with_buyer', 'pending', '2026-02-25',
-    v_meeting_feb25, '6:45', 'Chilton Auto Collision / Tribe',
-    76.00, 17, 'high', v_bill_id IS NULL, false
+    'Send Threefold buyer shortlist to 3 collision repair PE groups',
+    'Email the Threefold deal teaser and CIM to Service King, Caliber Collision, and Classic Collision PE contacts. Track sends in the CRM.',
+    v_tom_id, 'send_materials', 'pending_approval', CURRENT_DATE,
+    v_meeting_today, '24:00', 'Threefold',
+    68.00, 9, 'high', v_tom_id IS NULL, false
   );
 
-  -- Task 18: Bill — Show Brandon the platform and remarketing systems
   INSERT INTO daily_standup_tasks (
     title, description, assignee_id, task_type, status, due_date,
     source_meeting_id, source_timestamp, deal_reference,
     priority_score, priority_rank, extraction_confidence, needs_review, is_manual
   ) VALUES (
-    'Demo platform and remarketing systems for Brandon',
-    'Walk Brandon through the SourceCode platform, remarketing systems, CRM tools, and buyer outreach workflows on the next call.',
-    v_bill_id, 'other', 'pending', '2026-02-26',
-    v_meeting_feb25, '8:00', NULL,
-    50.00, 18, 'medium', v_bill_id IS NULL, false
+    'Follow up with Quick Lube owner — get phone number and schedule call',
+    'Owner has been unresponsive via email. Find direct phone number through LinkedIn or company website and call to schedule a 15-min intro.',
+    v_tom_id, 'contact_owner', 'pending_approval', CURRENT_DATE,
+    v_meeting_today, '27:00', 'Quick Lube',
+    74.00, 10, 'high', v_tom_id IS NULL, false
+  );
+
+  -- ========================================================
+  -- Brandon's Tasks — Deal sourcing & buyer outreach
+  -- ========================================================
+
+  INSERT INTO daily_standup_tasks (
+    title, description, assignee_id, task_type, status, due_date,
+    source_meeting_id, source_timestamp, deal_reference,
+    priority_score, priority_rank, extraction_confidence, needs_review, is_manual
+  ) VALUES (
+    'Research and list 5 potential buyers for the Authentic Auto Body deal',
+    'Search for collision repair groups, MSOs, and PE-backed platforms that acquire single-location body shops. Add to buyer universe with contact info.',
+    v_brandon_id, 'build_buyer_universe', 'pending_approval', CURRENT_DATE,
+    v_meeting_today, '30:00', 'Authentic Auto Body',
+    62.00, 11, 'high', v_brandon_id IS NULL, false
+  );
+
+  INSERT INTO daily_standup_tasks (
+    title, description, assignee_id, task_type, status, due_date,
+    source_meeting_id, source_timestamp, deal_reference,
+    priority_score, priority_rank, extraction_confidence, needs_review, is_manual
+  ) VALUES (
+    'Call 3 marketplace connection requests and qualify buyer interest',
+    'Review the 3 pending connection requests from the marketplace. Call each contact, qualify their acquisition criteria, budget, and timeline. Log results in CRM.',
+    v_brandon_id, 'follow_up_with_buyer', 'pending_approval', CURRENT_DATE,
+    v_meeting_today, '32:00', NULL,
+    58.00, 12, 'medium', v_brandon_id IS NULL, false
   );
 
   -- ========================================================
@@ -387,14 +254,14 @@ BEGIN
           created_at ASC
       ) AS new_rank
     FROM daily_standup_tasks
-    WHERE status != 'completed'
+    WHERE status NOT IN ('completed')
   )
   UPDATE daily_standup_tasks t
   SET priority_rank = r.new_rank
   FROM ranked r
   WHERE t.id = r.id;
 
-  RAISE NOTICE 'Seed complete — 3 meetings, 18 tasks, aliases for % team members',
+  RAISE NOTICE 'Seed complete — 1 meeting, 12 deal tasks, aliases for % team members',
     (SELECT count(*) FROM (
       SELECT 1 WHERE v_tom_id IS NOT NULL
       UNION ALL SELECT 1 WHERE v_bill_id IS NOT NULL
