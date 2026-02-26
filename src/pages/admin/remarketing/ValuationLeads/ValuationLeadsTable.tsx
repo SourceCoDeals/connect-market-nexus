@@ -198,9 +198,10 @@ export function ValuationLeadsTable({
                     key={lead.id}
                     className={cn(
                       "transition-colors cursor-pointer",
-                      lead.is_priority_target && "bg-amber-50 hover:bg-amber-100/80 dark:bg-amber-950/30",
-                      !lead.is_priority_target && lead.pushed_to_all_deals && "bg-green-50/60 hover:bg-green-50",
-                      !lead.pushed_to_all_deals && "hover:bg-muted/40"
+                      lead.not_a_fit && "opacity-60 bg-orange-50/50 hover:bg-orange-100/50 dark:bg-orange-950/20 dark:hover:bg-orange-950/30",
+                      !lead.not_a_fit && lead.is_priority_target && "bg-amber-50 hover:bg-amber-100/80 dark:bg-amber-950/30",
+                      !lead.not_a_fit && !lead.is_priority_target && lead.pushed_to_all_deals && "bg-green-50/60 hover:bg-green-50",
+                      !lead.not_a_fit && !lead.pushed_to_all_deals && "hover:bg-muted/40"
                     )}
                     onClick={() => handleRowClick(lead)}
                   >
