@@ -3,25 +3,24 @@ import { supabase, SUPABASE_URL } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Phone, Zap, PhoneCall, Webhook, ExternalLink, CheckCircle2 } from 'lucide-react';
-
-function usePhoneBurnerConnection() {
-  return useQuery({
-    queryKey: ['phoneburner-connection-status'],
-    queryFn: async () => {
-      // Check if OAuth tokens exist for any user
-      const { data: tokens } = await supabase
-        .from('phoneburner_oauth_tokens')
-        .select('id, user_id, expires_at, updated_at')
-        .limit(5);
-
-      return {
-        connected: (tokens?.length ?? 0) > 0,
-        tokens: tokens || [],
-      };
-    },
-  });
-}
+import {
+  Phone,
+  Zap,
+  PhoneCall,
+  Webhook,
+  ExternalLink,
+  CheckCircle2,
+  UserPlus,
+  Loader2,
+  Trash2,
+  AlertTriangle,
+} from 'lucide-react';
+import {
+  usePhoneBurnerConnectedUsers,
+  useDisconnectPhoneBurnerUser,
+  useInitiatePhoneBurnerOAuth,
+} from '@/hooks/use-phoneburner-users';
+import { toast } from 'sonner';
 
 function usePhoneBurnerStats() {
   return useQuery({
@@ -62,12 +61,39 @@ function usePhoneBurnerWebhookLog() {
 }
 
 export default function PhoneBurnerSettingsPage() {
-  const { data: connection, isLoading: connLoading } = usePhoneBurnerConnection();
+  const { data: connectedUsers = [], isLoading: usersLoading } =
+    usePhoneBurnerConnectedUsers();
   const { data: stats } = usePhoneBurnerStats();
   const { data: webhookEvents = [] } = usePhoneBurnerWebhookLog();
+  const disconnectMutation = useDisconnectPhoneBurnerUser();
+  const oauthMutation = useInitiatePhoneBurnerOAuth();
 
   const webhookUrl = `${SUPABASE_URL}/functions/v1/phoneburner-webhook`;
   const oauthCallbackUrl = `${SUPABASE_URL}/functions/v1/phoneburner-oauth-callback`;
+
+  const handleConnect = async () => {
+    try {
+      const result = await oauthMutation.mutateAsync();
+      if (result.authorize_url) {
+        window.location.href = result.authorize_url;
+      }
+    } catch (err) {
+      toast.error('Failed to start PhoneBurner connection. Check that OAuth is configured.');
+    }
+  };
+
+  const handleDisconnect = (userId: string, label: string) => {
+    if (!confirm(`Disconnect ${label} from PhoneBurner? They will need to reconnect to push contacts.`)) {
+      return;
+    }
+    disconnectMutation.mutate(userId, {
+      onSuccess: () => toast.success(`${label} disconnected from PhoneBurner`),
+      onError: () => toast.error('Failed to disconnect account'),
+    });
+  };
+
+  const validCount = connectedUsers.filter((u) => !u.is_expired).length;
+  const expiredCount = connectedUsers.filter((u) => u.is_expired).length;
 
   return (
     <div className="container mx-auto py-6 space-y-6">
@@ -76,7 +102,7 @@ export default function PhoneBurnerSettingsPage() {
           <div>
             <h1 className="text-2xl font-bold tracking-tight">PhoneBurner Integration</h1>
             <p className="text-muted-foreground">
-              Manage your PhoneBurner power dialer connection and call tracking
+              Manage PhoneBurner connections for your team. Each user connects their own account.
             </p>
           </div>
           <Button variant="ghost" size="sm" asChild>
@@ -88,23 +114,23 @@ export default function PhoneBurnerSettingsPage() {
         </div>
       </div>
 
-      {/* Connection Status */}
+      {/* Stats Row */}
       <div className="grid gap-4 md:grid-cols-4">
         <Card>
           <CardContent className="p-4 text-center">
             <Zap className="h-5 w-5 mx-auto mb-1 text-muted-foreground" />
-            <p className="text-xs text-muted-foreground">Connection</p>
-            {connLoading ? (
+            <p className="text-xs text-muted-foreground">Connected Users</p>
+            {usersLoading ? (
               <Badge variant="outline" className="mt-1">
                 Checking...
               </Badge>
-            ) : connection?.connected ? (
+            ) : validCount > 0 ? (
               <Badge className="mt-1 bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300">
-                Connected
+                {validCount} connected
               </Badge>
             ) : (
               <Badge variant="destructive" className="mt-1">
-                Not connected
+                None
               </Badge>
             )}
           </CardContent>
@@ -132,50 +158,111 @@ export default function PhoneBurnerSettingsPage() {
         </Card>
       </div>
 
-      {/* Connection Details */}
-      {connection?.connected && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg flex items-center gap-2">
-              <CheckCircle2 className="h-5 w-5 text-emerald-600" />
-              Connected Accounts
-            </CardTitle>
-            <CardDescription>
-              {connection.tokens.length} OAuth token{connection.tokens.length !== 1 ? 's' : ''}{' '}
-              active
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
+      {/* Connected Accounts */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="text-lg flex items-center gap-2">
+                <CheckCircle2 className="h-5 w-5 text-emerald-600" />
+                Connected Accounts
+              </CardTitle>
+              <CardDescription>
+                Each team member connects their own PhoneBurner account. The admin can then push
+                contact lists to any connected account.
+              </CardDescription>
+            </div>
+            <Button
+              onClick={handleConnect}
+              disabled={oauthMutation.isPending}
+              size="sm"
+            >
+              {oauthMutation.isPending ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <UserPlus className="mr-2 h-4 w-4" />
+              )}
+              Connect My Account
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {usersLoading ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+            </div>
+          ) : connectedUsers.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              <Phone className="h-10 w-10 mx-auto mb-3 opacity-40" />
+              <p className="font-medium">No accounts connected yet</p>
+              <p className="text-sm mt-1">
+                Click "Connect My Account" to link your PhoneBurner account.
+                Each team member should connect their own account.
+              </p>
+            </div>
+          ) : (
             <div className="space-y-2">
-              {connection.tokens.map((t) => (
+              {connectedUsers.map((user) => (
                 <div
-                  key={t.id}
-                  className="flex items-center justify-between py-2 px-3 rounded-md bg-muted/50 text-sm"
+                  key={user.token_id}
+                  className="flex items-center justify-between py-3 px-4 rounded-md bg-muted/50 text-sm"
                 >
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-3">
                     <Phone className="h-4 w-4 text-muted-foreground" />
-                    <span>User: {t.user_id.slice(0, 8)}...</span>
+                    <div>
+                      <span className="font-medium">{user.label}</span>
+                      {user.phoneburner_user_email && (
+                        <span className="text-xs text-muted-foreground ml-2">
+                          {user.phoneburner_user_email}
+                        </span>
+                      )}
+                      {user.profile_email &&
+                        user.profile_email !== user.phoneburner_user_email && (
+                          <span className="text-xs text-muted-foreground ml-2">
+                            (SourceCo: {user.profile_email})
+                          </span>
+                        )}
+                    </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    {new Date(t.expires_at) > new Date() ? (
-                      <Badge className="bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300 text-xs">
-                        Valid
+                  <div className="flex items-center gap-3">
+                    {user.is_expired ? (
+                      <Badge variant="destructive" className="text-xs gap-1">
+                        <AlertTriangle className="h-3 w-3" />
+                        Expired
                       </Badge>
                     ) : (
-                      <Badge variant="destructive" className="text-xs">
-                        Expired
+                      <Badge className="bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300 text-xs">
+                        Active
                       </Badge>
                     )}
                     <span className="text-xs text-muted-foreground">
-                      Updated: {t.updated_at ? new Date(t.updated_at).toLocaleDateString() : '--'}
+                      Updated:{' '}
+                      {user.updated_at
+                        ? new Date(user.updated_at).toLocaleDateString()
+                        : '--'}
                     </span>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                      onClick={() => handleDisconnect(user.user_id, user.label)}
+                      disabled={disconnectMutation.isPending}
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
                   </div>
                 </div>
               ))}
+              {expiredCount > 0 && (
+                <p className="text-xs text-amber-600 dark:text-amber-400 mt-2">
+                  {expiredCount} account{expiredCount !== 1 ? 's have' : ' has'} expired
+                  tokens. The user should reconnect to refresh their access.
+                </p>
+              )}
             </div>
-          </CardContent>
-        </Card>
-      )}
+          )}
+        </CardContent>
+      </Card>
 
       {/* Setup Instructions */}
       <Card>
@@ -252,12 +339,12 @@ export default function PhoneBurnerSettingsPage() {
         </CardContent>
       </Card>
 
-      {/* Usage Guide */}
+      {/* How It Works */}
       <Card>
         <CardHeader>
           <CardTitle className="text-lg">How It Works</CardTitle>
           <CardDescription>
-            Push contacts from SourceCo to PhoneBurner for power dialing
+            Push contacts from SourceCo to individual PhoneBurner accounts
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
@@ -266,9 +353,10 @@ export default function PhoneBurnerSettingsPage() {
               1
             </div>
             <div>
-              <p className="text-sm font-medium">Build a Contact List</p>
+              <p className="text-sm font-medium">Each User Connects Their Account</p>
               <p className="text-xs text-muted-foreground">
-                Select contacts from Buyer Contacts page and click "Save as List"
+                Team members click "Connect My Account" and log into their PhoneBurner.
+                Each person has their own token stored securely.
               </p>
             </div>
           </div>
@@ -277,9 +365,9 @@ export default function PhoneBurnerSettingsPage() {
               2
             </div>
             <div>
-              <p className="text-sm font-medium">Push to PhoneBurner</p>
+              <p className="text-sm font-medium">Admin Builds Calling Lists</p>
               <p className="text-xs text-muted-foreground">
-                Open any contact list and click "Push to Dialer" to send contacts to PhoneBurner
+                Select contacts from Buyer Contacts or any list and click "Push to Dialer."
               </p>
             </div>
           </div>
@@ -288,10 +376,23 @@ export default function PhoneBurnerSettingsPage() {
               3
             </div>
             <div>
+              <p className="text-sm font-medium">Choose Target Account(s)</p>
+              <p className="text-xs text-muted-foreground">
+                In the Push to Dialer dialog, select one or more connected PhoneBurner accounts
+                to push the contacts to. Each selected user will receive the contacts in their
+                own PhoneBurner.
+              </p>
+            </div>
+          </div>
+          <div className="flex items-start gap-3">
+            <div className="flex items-center justify-center h-6 w-6 rounded-full bg-primary/10 text-primary text-xs font-bold shrink-0 mt-0.5">
+              4
+            </div>
+            <div>
               <p className="text-sm font-medium">Track Activity</p>
               <p className="text-xs text-muted-foreground">
-                Call events and dispositions sync back automatically via webhooks. View call history
-                on buyer detail pages.
+                Call events and dispositions sync back automatically via webhooks. View call
+                history on buyer detail pages.
               </p>
             </div>
           </div>
