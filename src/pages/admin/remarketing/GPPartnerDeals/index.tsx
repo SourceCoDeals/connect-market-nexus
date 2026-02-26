@@ -133,6 +133,16 @@ export default function GPPartnerDeals() {
         });
     },
     onClearSelection: () => hook.setSelectedIds(new Set()),
+    onApplyFilter: (filters, clearExisting) => {
+      const rules = filters.map((f, idx) => ({
+        id: `ai-filter-${idx}`,
+        field: f.field,
+        operator: f.operator as any,
+        value: f.value,
+      }));
+      if (clearExisting) hook.setFilterState({ rules, conjunction: 'and', search: '' });
+      else hook.setFilterState((prev) => ({ ...prev, rules: [...prev.rules, ...rules] }));
+    },
     onSortColumn: (field) => {
       const fieldMap: Record<string, string> = {
         company_name: 'company_name',

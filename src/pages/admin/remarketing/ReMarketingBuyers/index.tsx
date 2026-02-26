@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,6 +19,8 @@ import { toast } from "sonner";
 import { useBuyerEnrichmentProgress } from "@/hooks/useBuyerEnrichmentProgress";
 import { EnrichmentProgressIndicator } from "@/components/remarketing/EnrichmentProgressIndicator";
 import { BuyerCSVImport, ReMarketingChat } from "@/components/remarketing";
+import { useAIUIActionHandler } from "@/hooks/useAIUIActionHandler";
+import { useAICommandCenterContext } from "@/components/ai-command-center/AICommandCenterProvider";
 import { useBuyersData } from "./useBuyersData";
 import AddBuyerDialog from "./AddBuyerDialog";
 import BuyersTable from "./BuyersTable";
@@ -66,6 +69,54 @@ const ReMarketingBuyers = () => {
 
     queryClient,
   } = useBuyersData();
+
+  const { setPageContext } = useAICommandCenterContext();
+
+  useEffect(() => {
+    setPageContext({ page: 'remarketing_buyers', entity_type: 'buyers' });
+  }, [setPageContext]);
+
+  useAIUIActionHandler({
+    table: 'buyers',
+    onSelectRows: (rowIds, mode) => {
+      if (mode === 'replace') setSelectedIds(new Set(rowIds));
+      else if (mode === 'add')
+        setSelectedIds((prev) => {
+          const n = new Set(prev);
+          rowIds.forEach((id) => n.add(id));
+          return n;
+        });
+      else
+        setSelectedIds((prev) => {
+          const n = new Set(prev);
+          rowIds.forEach((id) => (n.has(id) ? n.delete(id) : n.add(id)));
+          return n;
+        });
+    },
+    onClearSelection: () => setSelectedIds(new Set()),
+    onSortColumn: (field) => {
+      const fieldMap: Record<string, string> = {
+        company_name: 'company_name',
+        buyer_type: 'buyer_type',
+        created_at: 'created_at',
+      };
+      handleSort(fieldMap[field] || field);
+    },
+    onTriggerAction: (action) => {
+      if (action === 'enrich_selected') {
+        const ids = selectedIds.size > 0 ? Array.from(selectedIds) : filteredBuyers.map((b: any) => b.id);
+        if (ids.length > 0) {
+          setEnrichingIds(new Set(ids));
+          import("@/lib/remarketing/queueEnrichment").then(({ queueBuyerEnrichment }) =>
+            queueBuyerEnrichment(ids).then(() => {
+              queryClient.invalidateQueries({ queryKey: ['remarketing', 'buyers'] });
+            }).catch(() => toast.error('Failed to queue enrichment')).finally(() => setEnrichingIds(new Set()))
+          );
+        }
+      }
+      if (action === 'export_csv') handleExportCSV();
+    },
+  });
 
   return (
     <div className="p-6 space-y-6">
