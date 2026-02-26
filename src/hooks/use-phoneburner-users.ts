@@ -33,10 +33,10 @@ export function usePhoneBurnerConnectedUsers() {
         // Fallback: query tokens + profiles directly
         const { data: tokens } = await supabase
           .from("phoneburner_oauth_tokens")
-          .select("id, user_id, display_name, phoneburner_user_email, expires_at, updated_at, is_manual_token");
+          .select("id, user_id, display_name, phoneburner_user_email, expires_at, updated_at") as { data: Array<Record<string, unknown>> | null };
         if (!tokens?.length) return [];
 
-        const userIds = tokens.map((t: Record<string, unknown>) => t.user_id as string);
+        const userIds = tokens.map((t) => t.user_id as string);
         const { data: profiles } = await supabase
           .from("profiles")
           .select("id, first_name, last_name, email")
@@ -49,13 +49,13 @@ export function usePhoneBurnerConnectedUsers() {
           ]),
         );
 
-        rows = tokens.map((t: Record<string, unknown>) => {
-          const p = profileMap.get(t.user_id) as Record<string, unknown> | undefined;
+        rows = tokens.map((t) => {
+          const p = profileMap.get(t.user_id as string) as Record<string, unknown> | undefined;
           return {
             token_id: t.id,
             user_id: t.user_id,
-            display_name: (t as Record<string, unknown>).display_name ?? null,
-            phoneburner_user_email: (t as Record<string, unknown>).phoneburner_user_email ?? null,
+            display_name: t.display_name ?? null,
+            phoneburner_user_email: t.phoneburner_user_email ?? null,
             expires_at: t.expires_at,
             updated_at: t.updated_at,
             is_manual_token: (t as Record<string, unknown>).is_manual_token ?? false,
@@ -76,7 +76,6 @@ export function usePhoneBurnerConnectedUsers() {
           (r.phoneburner_user_email as string) ||
           (r.profile_email as string) ||
           "Unknown user";
-        // Manual tokens never show as expired (no expiry concept)
         const isExpired = isManual
           ? false
           : new Date(r.expires_at as string) < new Date();
@@ -131,16 +130,18 @@ export function useSavePhoneBurnerAccessToken() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
 
-      const { error } = await supabase
-        .from("phoneburner_oauth_tokens")
+      // Use type assertion to handle is_manual_token column (added via migration)
+      const { error } = await (supabase
+        .from("phoneburner_oauth_tokens") as unknown as {
+          upsert: (data: Record<string, unknown>, opts: Record<string, unknown>) => Promise<{ error: Error | null }>;
+        })
         .upsert(
           {
             user_id: user.id,
             access_token: accessToken,
-            refresh_token: null,
+            refresh_token: "",
             display_name: displayName,
             is_manual_token: true,
-            // Far-future expiry — manual tokens don't expire through this system
             expires_at: new Date("2099-01-01").toISOString(),
             updated_at: new Date().toISOString(),
           },
