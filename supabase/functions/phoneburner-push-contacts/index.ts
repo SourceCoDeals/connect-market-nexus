@@ -375,15 +375,26 @@ Deno.serve(async (req: Request) => {
   // Build contacts array for PhoneBurner dial session
   const pbContacts = eligible.map((contact) => {
     const nameParts = contact.name.split(' ');
-    return {
+    const pbContact: Record<string, unknown> = {
       first_name: nameParts[0] || '',
       last_name: nameParts.slice(1).join(' ') || '',
       phone: contact.phone,
       email: contact.email || '',
       company: contact.company || '',
       title: contact.title || '',
+      lead_id: contact.id, // Maps back to our system
     };
+
+    // Add custom fields if available
+    if (contact.extra_context) {
+      pbContact.custom_fields = contact.extra_context;
+    }
+
+    return pbContact;
   });
+
+  // Build webhook callback URL for call events
+  const webhookUrl = `${supabaseUrl}/functions/v1/phoneburner-webhook`;
 
   // Create dial session — returns redirect_url to open dialer immediately
   const pbRes = await fetch(`${PB_API_BASE}/dialsession`, {
@@ -394,7 +405,17 @@ Deno.serve(async (req: Request) => {
     },
     body: JSON.stringify({
       contacts: pbContacts,
-      ...(session_name ? { session_name } : {}),
+      callbacks: [
+        { callback_type: 'api_callbegin', callback: webhookUrl },
+        { callback_type: 'api_calldone', callback: webhookUrl },
+        { callback_type: 'api_contact_displayed', callback: webhookUrl },
+      ],
+      custom_data: {
+        source: 'sourceco',
+        session_name: session_name || '',
+        entity_type: entityType,
+        pushed_by: user.id,
+      },
     }),
   });
 
