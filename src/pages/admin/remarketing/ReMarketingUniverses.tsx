@@ -109,7 +109,7 @@ function SortableFlaggedRow({
   onCreateClick,
   onNavigate,
 }: {
-  deal: { id: string; title: string | null; internal_company_name: string | null; industry: string | null; address_state: string | null; universe_build_flagged_at: string | null; universe_build_priority: number | null };
+  deal: { id: string; title: string | null; internal_company_name: string | null; industry: string | null; address_state: string | null; universe_build_flagged_at: string | null };
   index: number;
   onCreateClick: (e: React.MouseEvent) => void;
   onNavigate: () => void;
@@ -356,9 +356,8 @@ const ReMarketingUniverses = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('listings')
-        .select('id, title, internal_company_name, industry, address_state, universe_build_flagged_at, universe_build_priority, created_at')
+        .select('id, title, internal_company_name, industry, address_state, universe_build_flagged_at, created_at')
         .eq('universe_build_flagged', true)
-        .order('universe_build_priority', { ascending: true, nullsFirst: false })
         .order('universe_build_flagged_at', { ascending: false });
       if (error) throw error;
       return data || [];

@@ -315,7 +315,7 @@ function MessageBubble({
         response: message.content?.substring(0, 2000) || '',
         rating,
         category: message.metadata?.category || null,
-      });
+      } as never);
       toast.success(rating > 0 ? 'Thanks for the feedback!' : 'Thanks — we\'ll improve this.');
     } catch {
       // Non-critical, don't block UX
