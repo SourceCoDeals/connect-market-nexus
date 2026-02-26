@@ -1,3 +1,8 @@
+// ACTIVE — this is the component rendered at /admin/remarketing/deals/:dealId
+// and /admin/remarketing/leads/captarget/:dealId and /admin/remarketing/leads/gp-partners/:dealId
+// The monolithic sibling file ReMarketingDealDetail.tsx (1,675 lines) is ORPHANED.
+// AUDIT REF: CTO Audit February 2026
+
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
