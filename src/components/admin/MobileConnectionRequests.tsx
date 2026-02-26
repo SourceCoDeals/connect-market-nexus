@@ -28,10 +28,14 @@ export function MobileConnectionRequests({
   const filteredRequests = requests.filter((request) => {
     const searchLower = searchQuery.toLowerCase();
     return (
+      !searchQuery ||
       request.user?.first_name?.toLowerCase().includes(searchLower) ||
       request.user?.last_name?.toLowerCase().includes(searchLower) ||
       request.user?.company?.toLowerCase().includes(searchLower) ||
       request.user?.email?.toLowerCase().includes(searchLower) ||
+      request.lead_name?.toLowerCase().includes(searchLower) ||
+      request.lead_email?.toLowerCase().includes(searchLower) ||
+      request.lead_company?.toLowerCase().includes(searchLower) ||
       request.listing?.title?.toLowerCase().includes(searchLower) ||
       request.listing?.category?.toLowerCase().includes(searchLower)
     );
