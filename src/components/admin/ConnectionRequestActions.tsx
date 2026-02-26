@@ -19,12 +19,21 @@ import {
   Undo2,
   Scale,
   Link2,
+  Flag,
 } from "lucide-react";
 import { UserNotesSection } from "./UserNotesSection";
 import { User as UserType, Listing } from "@/types";
 
 import { useUpdateConnectionRequestStatus } from "@/hooks/admin/use-connection-request-status";
+import { useFlagConnectionRequest } from "@/hooks/admin/use-flag-connection-request";
+import { useAdminProfiles } from "@/hooks/admin/use-admin-profiles";
+import { useAddManualTask } from "@/hooks/useDailyTasks";
 import { useUserConnectionRequests } from "@/hooks/admin/use-user-connection-requests";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { useUpdateAccess } from "@/hooks/admin/data-room/use-data-room";
 import {
   useConnectionMessages,
@@ -53,6 +62,10 @@ interface ConnectionRequestActionsProps {
   requestStatus?: "pending" | "approved" | "rejected" | "on_hold";
   userMessage?: string;
   createdAt?: string;
+  // Flag for review
+  flaggedForReview?: boolean;
+  flaggedByAdmin?: UserType | null;
+  flaggedAssignedToAdmin?: UserType | null;
   // Legacy props — kept for call-site compatibility
   followedUp?: boolean;
   negativeFollowedUp?: boolean;
@@ -71,11 +84,17 @@ export function ConnectionRequestActions({
   requestStatus = "pending",
   userMessage,
   createdAt,
+  flaggedForReview,
+  flaggedByAdmin,
+  flaggedAssignedToAdmin,
 }: ConnectionRequestActionsProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const updateStatus = useUpdateConnectionRequestStatus();
   const updateAccess = useUpdateAccess();
+  const flagMutation = useFlagConnectionRequest();
+  const { data: adminProfiles } = useAdminProfiles();
+  const addTask = useAddManualTask();
   const sendMessage = useSendMessage();
   const { data: firmInfo } = useConnectionRequestFirm(requestId || null);
 
@@ -89,6 +108,11 @@ export function ConnectionRequestActions({
     newValue: boolean;
     label: string;
   } | null>(null);
+  const [flagPopoverOpen, setFlagPopoverOpen] = useState(false);
+
+  const adminList = adminProfiles
+    ? Object.values(adminProfiles).sort((a, b) => a.displayName.localeCompare(b.displayName))
+    : [];
 
   // Fetch all connection requests for this user (for BuyerDealsOverview)
   const { data: userRequests = [] } = useUserConnectionRequests(user.id);
@@ -168,6 +192,45 @@ export function ConnectionRequestActions({
   const handleResetToPending = () => {
     if (!requestId) return;
     updateStatus.mutate({ requestId, status: "pending" });
+  };
+
+  // ─── Flag for Review ───
+
+  const handleFlagForReview = async (assignedToId: string) => {
+    if (!requestId) return;
+    setFlagPopoverOpen(false);
+
+    const assignedAdmin = adminProfiles?.[assignedToId];
+    const assigneeName = assignedAdmin?.displayName || "Team member";
+    const buyerLabel = `${user.first_name || ""} ${user.last_name || ""}`.trim() || "Buyer";
+    const dealLabel = listing?.title || "a deal";
+
+    // Flag the connection request
+    flagMutation.mutate({
+      requestId,
+      flagged: true,
+      assignedTo: assignedToId,
+    });
+
+    // Create a task in the daily task dashboard for the assigned team member
+    try {
+      await addTask.mutateAsync({
+        title: `Review flagged request: ${buyerLabel} → ${dealLabel}`,
+        description: `A connection request from ${buyerLabel} for "${dealLabel}" has been flagged for your review. Please open the connection request in the admin dashboard to take action.`,
+        assignee_id: assignedToId,
+        task_type: "follow_up_with_buyer",
+        due_date: new Date().toISOString().split("T")[0],
+        deal_reference: listing?.title || null,
+        deal_id: null,
+      });
+    } catch {
+      // Task creation is best-effort; the flag itself already succeeded via the mutation
+    }
+  };
+
+  const handleUnflag = () => {
+    if (!requestId) return;
+    flagMutation.mutate({ requestId, flagged: false });
   };
 
   // ─── Document Access ───
@@ -281,11 +344,68 @@ export function ConnectionRequestActions({
                 <XCircle className="h-4 w-4 mr-1.5" />
                 Decline
               </Button>
+              <Popover open={flagPopoverOpen} onOpenChange={setFlagPopoverOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className="border-orange-300 text-orange-700 bg-orange-50 hover:bg-orange-100 h-10 px-5 text-sm font-bold"
+                  >
+                    <Flag className="h-4 w-4 mr-1.5" />
+                    Flag for Review
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-64 p-2" align="end">
+                  <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider px-3 py-2">Assign to team member</p>
+                  <div className="max-h-56 overflow-y-auto">
+                    {adminList.map((admin) => (
+                      <button
+                        key={admin.id}
+                        onClick={() => handleFlagForReview(admin.id)}
+                        className="w-full text-left px-3 py-2 text-sm rounded-md hover:bg-muted transition-colors font-medium"
+                      >
+                        {admin.displayName}
+                      </button>
+                    ))}
+                    {adminList.length === 0 && (
+                      <p className="text-xs text-muted-foreground px-3 py-2">No team members found</p>
+                    )}
+                  </div>
+                </PopoverContent>
+              </Popover>
               <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground bg-foreground/5 rounded-full px-4 py-1.5">
                 Awaiting Action
               </span>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Flagged for review indicator — shown across all statuses */}
+      {flaggedForReview && requestId && (
+        <div className="rounded-xl bg-orange-50 border border-orange-200 px-5 py-3.5 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-7 h-7 rounded-full bg-orange-500 flex items-center justify-center">
+              <Flag className="h-4 w-4 text-white fill-white" />
+            </div>
+            <div>
+              <p className="text-sm font-bold text-orange-800">
+                Flagged for Review
+                {flaggedAssignedToAdmin && (
+                  <span className="font-normal text-orange-700">
+                    {" "}— assigned to {flaggedAssignedToAdmin.first_name} {flaggedAssignedToAdmin.last_name}
+                  </span>
+                )}
+              </p>
+              {flaggedByAdmin && (
+                <p className="text-xs text-orange-600">
+                  Flagged by {flaggedByAdmin.first_name} {flaggedByAdmin.last_name}
+                </p>
+              )}
+            </div>
+          </div>
+          <Button variant="ghost" size="sm" onClick={handleUnflag} disabled={flagMutation.isPending} className="text-xs h-7 text-orange-700 hover:text-orange-800 hover:bg-orange-200/50">
+            <XCircle className="h-3 w-3 mr-1" /> Remove Flag
+          </Button>
         </div>
       )}
 
@@ -341,6 +461,38 @@ export function ConnectionRequestActions({
             <Undo2 className="h-3 w-3 mr-1" /> Undo
           </Button>
         </div>
+      )}
+
+      {/* Flag for Review button — for non-pending statuses when not already flagged */}
+      {requestStatus !== "pending" && !flaggedForReview && requestId && (
+        <Popover open={flagPopoverOpen} onOpenChange={setFlagPopoverOpen}>
+          <PopoverTrigger asChild>
+            <Button
+              variant="outline"
+              className="border-orange-300 text-orange-700 bg-orange-50 hover:bg-orange-100 h-10 px-5 text-sm font-bold"
+            >
+              <Flag className="h-4 w-4 mr-1.5" />
+              Flag for Review
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-64 p-2" align="start">
+            <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider px-3 py-2">Assign to team member</p>
+            <div className="max-h-56 overflow-y-auto">
+              {adminList.map((admin) => (
+                <button
+                  key={admin.id}
+                  onClick={() => handleFlagForReview(admin.id)}
+                  className="w-full text-left px-3 py-2 text-sm rounded-md hover:bg-muted transition-colors font-medium"
+                >
+                  {admin.displayName}
+                </button>
+              ))}
+              {adminList.length === 0 && (
+                <p className="text-xs text-muted-foreground px-3 py-2">No team members found</p>
+              )}
+            </div>
+          </PopoverContent>
+        </Popover>
       )}
 
       {/* Document status + access for approved */}
