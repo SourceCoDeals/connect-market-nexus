@@ -366,11 +366,14 @@ serve(async (req) => {
     }
 
     const teamMembers = (teamRoles || []).map((r: any) => ({
-      id: r.profiles.id,
+      // Use user_id directly from user_roles (matches auth.uid()) rather than
+      // the joined profiles.id which can be unreliable when PostgREST infers
+      // the FK path through auth.users with multiple candidate FKs.
+      id: r.user_id,
       name: `${r.profiles.first_name || ''} ${r.profiles.last_name || ''}`.trim(),
       first_name: r.profiles.first_name || '',
       last_name: r.profiles.last_name || '',
-      aliases: aliasMap.get(r.profiles.id) || [],
+      aliases: aliasMap.get(r.user_id) || [],
     }));
 
     console.log(`Found ${teamMembers.length} team members`);

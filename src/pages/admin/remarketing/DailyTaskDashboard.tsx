@@ -172,9 +172,11 @@ const DailyTaskDashboard = () => {
         .in('role', ['owner', 'admin', 'moderator']);
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       return (data || []).map((r: any) => ({
-        id: r.profiles.id,
+        // Use user_id directly from user_roles (matches auth.uid()) to ensure
+        // consistent IDs with what useDailyTasks uses for the "My Tasks" filter.
+        id: r.user_id,
         name:
-          `${r.profiles.first_name || ''} ${r.profiles.last_name || ''}`.trim() || r.profiles.id,
+          `${r.profiles.first_name || ''} ${r.profiles.last_name || ''}`.trim() || r.user_id,
       }));
     },
     staleTime: 300_000,

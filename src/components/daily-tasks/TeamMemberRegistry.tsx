@@ -34,11 +34,13 @@ export function TeamMemberRegistry() {
       }
 
       return (roles || []).map((r: any) => ({
-        id: r.profiles.id,
+        // Use user_id directly from user_roles (matches auth.uid()) to ensure
+        // consistent IDs with the assignee_id filter in useDailyTasks.
+        id: r.user_id,
         name: `${r.profiles.first_name || ''} ${r.profiles.last_name || ''}`.trim(),
         email: r.profiles.email,
         role: r.role,
-        aliases: aliasMap.get(r.profiles.id) || [],
+        aliases: aliasMap.get(r.user_id) || [],
       }));
     },
     staleTime: 60_000,
