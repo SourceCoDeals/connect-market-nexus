@@ -73,7 +73,8 @@ export function useDealsData() {
             deal_owner:profiles!listings_deal_owner_id_fkey(id, first_name, last_name, email),
             needs_owner_contact, needs_owner_contact_at,
             universe_build_flagged, universe_build_flagged_at, universe_build_flagged_by,
-            is_internal_deal
+            is_internal_deal,
+            pushed_to_marketplace, pushed_to_marketplace_at, pushed_to_marketplace_by
           `)
           .eq('remarketing_status', 'active')
           .or(
@@ -190,6 +191,7 @@ export function useDealsData() {
       }
       if (universeBuildFilter && !listing.universe_build_flagged) return false;
       if (dealTab === "marketplace") { if (listing.is_internal_deal !== false || listing.status !== 'active') return false; }
+      else if (dealTab === "marketplace_queue") { if (!listing.pushed_to_marketplace) return false; }
       else if (dealTab === "internal") { if (listing.is_internal_deal === false) return false; }
       else if (dealTab === "pipeline") { if (!pipelineCounts?.[listing.id]) return false; }
       else if (dealTab === "needs_universe") { const u = universeDealMap?.[listing.id]; if (u && u.length > 0) return false; }

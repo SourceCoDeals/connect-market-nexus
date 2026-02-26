@@ -99,6 +99,7 @@ const TranscriptAnalytics = lazyWithRetry(
   () => import('@/pages/admin/analytics/TranscriptAnalytics'),
 );
 const EnrichmentQueue = lazyWithRetry(() => import('@/pages/admin/EnrichmentQueue'));
+const MarketplaceQueue = lazyWithRetry(() => import('@/pages/admin/MarketplaceQueue'));
 const DataRecoveryPage = lazyWithRetry(() => import('@/pages/admin/DataRecoveryPage'));
 const FormMonitoringPage = lazyWithRetry(() => import('@/pages/admin/FormMonitoringPage'));
 const SecuritySettings = lazyWithRetry(() => import('@/pages/admin/settings/SecuritySettings'));
@@ -352,6 +353,7 @@ function App() {
                 path="marketplace/listings"
                 element={<Navigate to="/admin/deals?tab=marketplace" replace />}
               />
+              <Route path="marketplace/queue" element={<MarketplaceQueue />} />
               <Route path="marketplace/requests" element={<AdminRequests />} />
               <Route path="marketplace/messages" element={<MessageCenter />} />
               <Route path="marketplace/users" element={<MarketplaceUsersPage />} />

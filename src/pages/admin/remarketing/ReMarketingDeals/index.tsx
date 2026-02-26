@@ -308,6 +308,7 @@ const ReMarketingDeals = () => {
         {[
           { key: 'all', label: 'All' },
           { key: 'marketplace', label: 'Marketplace' },
+          { key: 'marketplace_queue', label: 'Marketplace Queue' },
         ].map((tab) => (
           <button
             key={tab.key}

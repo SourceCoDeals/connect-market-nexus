@@ -39,6 +39,7 @@ import {
   FolderOpen,
   Handshake,
   Activity,
+  Store,
 } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -929,6 +930,69 @@ const ReMarketingDealDetail = () => {
                         </TooltipContent>
                       </Tooltip>
                     </TooltipProvider>
+                    {/* Push to Marketplace Queue Button */}
+                    {deal?.remarketing_status === 'active' && (
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            {deal?.pushed_to_marketplace ? (
+                              <Badge
+                                variant="outline"
+                                className="bg-blue-50 text-blue-700 border-blue-200 gap-1 py-1.5 px-3"
+                              >
+                                <Store className="h-3 w-3" />
+                                In Marketplace Queue
+                                {deal.pushed_to_marketplace_at && (
+                                  <span className="text-blue-500 ml-1">
+                                    {format(new Date(deal.pushed_to_marketplace_at), 'MMM d, yyyy')}
+                                  </span>
+                                )}
+                              </Badge>
+                            ) : (
+                              <Button
+                                variant="outline"
+                                className="gap-2 border-blue-300 text-blue-600 hover:bg-blue-50 hover:border-blue-500"
+                                onClick={async () => {
+                                  const {
+                                    data: { user: authUser },
+                                  } = await supabase.auth.getUser();
+                                  const { error } = await supabase
+                                    .from('listings')
+                                    .update({
+                                      pushed_to_marketplace: true,
+                                      pushed_to_marketplace_at: new Date().toISOString(),
+                                      pushed_to_marketplace_by: authUser?.id || null,
+                                    })
+                                    .eq('id', dealId!);
+                                  if (error) {
+                                    toast.error('Failed to push to marketplace queue');
+                                  } else {
+                                    toast.success('Deal pushed to Marketplace Queue');
+                                    queryClient.invalidateQueries({
+                                      queryKey: ['remarketing', 'deal', dealId],
+                                    });
+                                    queryClient.invalidateQueries({
+                                      queryKey: ['remarketing', 'deals'],
+                                    });
+                                    queryClient.invalidateQueries({
+                                      queryKey: ['marketplace-queue'],
+                                    });
+                                  }
+                                }}
+                              >
+                                <Store className="h-4 w-4" />
+                                Push to Marketplace
+                              </Button>
+                            )}
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            {deal?.pushed_to_marketplace
+                              ? 'This deal is in the Marketplace Queue. It will be reviewed before going live.'
+                              : 'Push this deal to the Marketplace Queue for review and publishing.'}
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    )}
                   </div>
                   {isEnriching && (
                     <div className="mt-4 space-y-2">

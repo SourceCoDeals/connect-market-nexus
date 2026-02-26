@@ -8183,6 +8183,9 @@ export type Database = {
           published_by_admin_id: string | null
           pushed_to_all_deals: boolean | null
           pushed_to_all_deals_at: string | null
+          pushed_to_marketplace: boolean | null
+          pushed_to_marketplace_at: string | null
+          pushed_to_marketplace_by: string | null
           quality_calculation_version: string | null
           real_estate_info: string | null
           referral_partner_id: string | null
@@ -8350,6 +8353,9 @@ export type Database = {
           published_by_admin_id?: string | null
           pushed_to_all_deals?: boolean | null
           pushed_to_all_deals_at?: string | null
+          pushed_to_marketplace?: boolean | null
+          pushed_to_marketplace_at?: string | null
+          pushed_to_marketplace_by?: string | null
           quality_calculation_version?: string | null
           real_estate_info?: string | null
           referral_partner_id?: string | null
@@ -8517,6 +8523,9 @@ export type Database = {
           published_by_admin_id?: string | null
           pushed_to_all_deals?: boolean | null
           pushed_to_all_deals_at?: string | null
+          pushed_to_marketplace?: boolean | null
+          pushed_to_marketplace_at?: string | null
+          pushed_to_marketplace_by?: string | null
           quality_calculation_version?: string | null
           real_estate_info?: string | null
           referral_partner_id?: string | null
@@ -13702,6 +13711,9 @@ export type Database = {
           published_by_admin_id: string | null
           pushed_to_all_deals: boolean | null
           pushed_to_all_deals_at: string | null
+          pushed_to_marketplace: boolean | null
+          pushed_to_marketplace_at: string | null
+          pushed_to_marketplace_by: string | null
           quality_calculation_version: string | null
           real_estate_info: string | null
           referral_partner_id: string | null
