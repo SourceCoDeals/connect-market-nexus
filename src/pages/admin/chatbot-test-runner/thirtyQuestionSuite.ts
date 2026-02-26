@@ -8,6 +8,11 @@
  *
  * The test runner sends each question via sendAIQuery() and displays
  * actual results alongside predictions for comparison.
+ *
+ * IMPORTANT: expectedRoute values MUST match actual router categories defined
+ * in supabase/functions/ai-command-center/router.ts. The router has ~36
+ * categories — do NOT invent categories that don't exist (e.g. OUTREACH,
+ * CONTENT_CREATION, MARKET_ANALYSIS, CALLING_LIST are NOT valid routes).
  */
 
 export interface QAQuestion {
@@ -41,7 +46,7 @@ export function getThirtyQuestions(): QAQuestion[] {
       category: 'Pipeline Analytics',
       question: 'How many total deals are in the pipeline?',
       expectedRoute: 'PIPELINE_ANALYTICS',
-      expectedTools: ['get_pipeline_summary'],
+      expectedTools: ['get_pipeline_summary', 'query_deals'],
       predictedResponse:
         'Should call get_pipeline_summary and return a specific deal count with a breakdown by status. Will include numbers like "X active deals" with stage distribution.',
       predictedRating: 9,
@@ -51,9 +56,9 @@ export function getThirtyQuestions(): QAQuestion[] {
       category: 'Pipeline Analytics',
       question: 'Show me a breakdown of deals by status',
       expectedRoute: 'PIPELINE_ANALYTICS',
-      expectedTools: ['get_pipeline_summary'],
+      expectedTools: ['get_pipeline_summary', 'query_deals'],
       predictedResponse:
-        'Should call get_pipeline_summary and present a table or list showing deal counts per status (screening, active marketing, LOI, etc.). Well-structured response expected.',
+        'Bypass rule matches "breakdown...deals" pattern. Should call get_pipeline_summary and present a table or list showing deal counts per status (screening, active marketing, LOI, etc.).',
       predictedRating: 9,
     },
     {
@@ -63,7 +68,7 @@ export function getThirtyQuestions(): QAQuestion[] {
       expectedRoute: 'PIPELINE_ANALYTICS',
       expectedTools: ['get_pipeline_summary', 'query_deals'],
       predictedResponse:
-        'Should use query_deals with industry filter for HVAC. Will return a count and possibly list the HVAC deals by name. This was a known test case that previously worked.',
+        'Bypass rule matches industry-specific deal count pattern. Should use query_deals with industry filter for HVAC. Will return a count and possibly list the HVAC deals by name.',
       predictedRating: 8,
     },
 
@@ -73,9 +78,9 @@ export function getThirtyQuestions(): QAQuestion[] {
       category: 'Deal Status',
       question: 'What are our most recent deals?',
       expectedRoute: 'DEAL_STATUS',
-      expectedTools: ['query_deals'],
+      expectedTools: ['query_deals', 'get_pipeline_summary'],
       predictedResponse:
-        'Should call query_deals sorted by created_at desc. Will list 5-10 most recent deals with names, industries, and statuses. Clean tabular or bullet format.',
+        'Bypass rule matches "our...deals" pattern. Should call query_deals sorted by created_at desc. Will list 5-10 most recent deals with names, industries, and statuses.',
       predictedRating: 9,
     },
     {
@@ -83,9 +88,9 @@ export function getThirtyQuestions(): QAQuestion[] {
       category: 'Deal Status',
       question: 'Which deals are in the screening stage?',
       expectedRoute: 'DEAL_STATUS',
-      expectedTools: ['query_deals'],
+      expectedTools: ['query_deals', 'get_pipeline_summary'],
       predictedResponse:
-        'Should filter deals by status=screening. Will list matching deals. If none in screening, will say so clearly rather than hallucinating.',
+        'Bypass rule matches "which deals...in" pattern. Should filter deals by status=screening. Will list matching deals with names and details.',
       predictedRating: 8,
     },
     {
@@ -93,9 +98,9 @@ export function getThirtyQuestions(): QAQuestion[] {
       category: 'Deal Status',
       question: 'Show me deals in the collision repair industry',
       expectedRoute: 'DEAL_STATUS',
-      expectedTools: ['query_deals'],
+      expectedTools: ['query_deals', 'get_pipeline_summary'],
       predictedResponse:
-        'Should query_deals with industry filter for collision repair. Given this is a known vertical in the system, should return real deals with names and details.',
+        'Bypass rule matches "show...deals...in" pattern. Should query_deals with industry filter for collision repair. Will return real deals with names and details.',
       predictedRating: 8,
     },
 
@@ -107,7 +112,7 @@ export function getThirtyQuestions(): QAQuestion[] {
       expectedRoute: 'BUYER_SEARCH',
       expectedTools: ['search_buyers'],
       predictedResponse:
-        'Should call search_buyers with industry/interest filter. Will return a list of buyers with names, types (PE/strategic), and relevant details. Well-structured.',
+        'Bypass rule matches "buyers" + "interested" keywords. Should call search_buyers with industry/interest filter. Will return a list of buyers with names, types (PE/strategic), and relevant details.',
       predictedRating: 8,
     },
     {
@@ -117,7 +122,7 @@ export function getThirtyQuestions(): QAQuestion[] {
       expectedRoute: 'BUYER_SEARCH',
       expectedTools: ['search_buyers'],
       predictedResponse:
-        'Should filter search_buyers by buyer_type=strategic. Will list strategic buyers with basic info. May be a long list if many exist.',
+        'Bypass rule matches "strategic" + "show" keywords. Should filter search_buyers by buyer_type=strategic. Will list strategic buyers with basic info.',
       predictedRating: 8,
     },
     {
@@ -127,7 +132,7 @@ export function getThirtyQuestions(): QAQuestion[] {
       expectedRoute: 'BUYER_SEARCH',
       expectedTools: ['search_buyers'],
       predictedResponse:
-        'Should search_buyers with location filter for Florida. Quality depends on whether location data is populated. May return empty if location field is sparse.',
+        'Bypass rule matches "buyers" + "located" keywords. Should search_buyers with location filter for Florida. Quality depends on whether location data is populated.',
       predictedRating: 6,
     },
 
@@ -137,9 +142,9 @@ export function getThirtyQuestions(): QAQuestion[] {
       category: 'Contacts',
       question: 'Show me contacts at Alpine Investors',
       expectedRoute: 'CONTACTS',
-      expectedTools: ['search_contacts', 'search_pe_contacts'],
+      expectedTools: ['search_contacts', 'search_pe_contacts', 'find_and_enrich_person'],
       predictedResponse:
-        'Should search contacts/PE contacts for "Alpine Investors". Will return names, titles, emails if available. Quality depends on data in the system.',
+        'Bypass rule matches "show me...contacts" and "contacts at" patterns. Should search contacts/PE contacts for "Alpine Investors". Will return names, titles, emails if available.',
       predictedRating: 7,
     },
     {
@@ -147,9 +152,9 @@ export function getThirtyQuestions(): QAQuestion[] {
       category: 'Contacts',
       question: 'Who are the most recently added contacts?',
       expectedRoute: 'CONTACTS',
-      expectedTools: ['search_contacts'],
+      expectedTools: ['search_contacts', 'search_pe_contacts'],
       predictedResponse:
-        'Should call search_contacts sorted by created_at. Will list recent contacts with names and firms. Straightforward DB query.',
+        'Bypass rule matches "recently...contacts" pattern. Should call search_contacts sorted by created_at. Will list recent contacts with names and firms.',
       predictedRating: 7,
     },
 
@@ -158,20 +163,20 @@ export function getThirtyQuestions(): QAQuestion[] {
       id: 12,
       category: 'Contact Enrichment',
       question: 'Find the email address for the CEO of Alpine Investors',
-      expectedRoute: 'CONTACT_ENRICHMENT',
-      expectedTools: ['find_and_enrich_person', 'enrich_buyer_contacts'],
+      expectedRoute: 'CONTACTS',
+      expectedTools: ['find_and_enrich_person', 'search_contacts', 'search_pe_contacts', 'enrich_buyer_contacts'],
       predictedResponse:
-        'Will attempt to call enrichment tools but LIKELY FAIL — Prospeo API key may not be configured. Expected to return an error message about enrichment being unavailable or timing out.',
-      predictedRating: 3,
+        'Bypass rule matches "email address for" pattern → CONTACTS route (which includes enrichment tools). Will attempt find_and_enrich_person. May fail if Prospeo API key is not configured, but will search existing contacts first.',
+      predictedRating: 6,
     },
     {
       id: 13,
       category: 'Contact Enrichment',
       question: 'Enrich all contacts for our top HVAC buyer',
       expectedRoute: 'CONTACT_ENRICHMENT',
-      expectedTools: ['search_buyers', 'enrich_buyer_contacts'],
+      expectedTools: ['enrich_buyer_contacts', 'search_contacts', 'search_pe_contacts'],
       predictedResponse:
-        'Will first search_buyers to find the top HVAC buyer, then attempt enrich_buyer_contacts. Enrichment step will likely fail due to missing API key. Partial success — finds buyer but cannot enrich.',
+        'Bypass rule matches "enrich" keyword → CONTACT_ENRICHMENT route. Will first search_buyers to find the top HVAC buyer, then attempt enrich_buyer_contacts. Enrichment step may fail due to missing API key.',
       predictedRating: 4,
     },
 
@@ -181,19 +186,19 @@ export function getThirtyQuestions(): QAQuestion[] {
       category: 'Platform Guide',
       question: 'How do I create a new deal?',
       expectedRoute: 'PLATFORM_GUIDE',
-      expectedTools: ['get_knowledge_articles'],
+      expectedTools: ['get_current_user_context'],
       predictedResponse:
-        'Should call get_knowledge_articles and return step-by-step instructions for creating a deal. Clear, actionable guidance. This is a core platform question that should work well.',
-      predictedRating: 9,
+        'Bypass rule matches "how do I" + "deal" keywords. Should return step-by-step instructions for creating a deal from the system prompt knowledge. Clear, actionable guidance.',
+      predictedRating: 8,
     },
     {
       id: 15,
       category: 'Platform Guide',
       question: 'What is the remarketing feature and how does it work?',
       expectedRoute: 'PLATFORM_GUIDE',
-      expectedTools: ['get_knowledge_articles'],
+      expectedTools: ['get_current_user_context'],
       predictedResponse:
-        'Should explain remarketing: outreach campaigns to buyers, email sequences, PhoneBurner integration, etc. Well-documented feature in the knowledge base.',
+        'Bypass rule matches "what is" + "remarketing" keywords. Should explain remarketing: outreach campaigns to buyers, email sequences, PhoneBurner integration. Knowledge is in the system prompt.',
       predictedRating: 8,
     },
     {
@@ -201,9 +206,9 @@ export function getThirtyQuestions(): QAQuestion[] {
       category: 'Platform Guide',
       question: 'How does deal scoring work?',
       expectedRoute: 'PLATFORM_GUIDE',
-      expectedTools: ['get_knowledge_articles'],
+      expectedTools: ['get_current_user_context'],
       predictedResponse:
-        'Should explain the scoring methodology. May be general if scoring details are not fully documented in knowledge articles. Should not hallucinate specific weights.',
+        'Bypass rule matches "how does...work" pattern. Should explain the scoring methodology from system prompt knowledge. May be general if scoring details are not fully documented.',
       predictedRating: 7,
     },
 
@@ -213,9 +218,9 @@ export function getThirtyQuestions(): QAQuestion[] {
       category: 'Meeting Intel',
       question: 'Search Fireflies for calls about valuation expectations',
       expectedRoute: 'MEETING_INTEL',
-      expectedTools: ['search_fireflies', 'semantic_transcript_search'],
+      expectedTools: ['semantic_transcript_search', 'search_transcripts', 'search_fireflies'],
       predictedResponse:
-        'Should call semantic_transcript_search with "valuation expectations". Will search deal_transcripts and buyer_transcripts. Results depend on transcript data availability. Should return snippets if matches found.',
+        'Bypass rule matches "Fireflies" keyword. Should call semantic_transcript_search with "valuation expectations". Results depend on transcript data availability. Should return snippets if matches found.',
       predictedRating: 7,
     },
     {
@@ -223,9 +228,9 @@ export function getThirtyQuestions(): QAQuestion[] {
       category: 'Meeting Intel',
       question: 'What have buyers said about geographic expansion in recent calls?',
       expectedRoute: 'MEETING_INTEL',
-      expectedTools: ['semantic_transcript_search'],
+      expectedTools: ['semantic_transcript_search', 'search_transcripts', 'search_fireflies'],
       predictedResponse:
-        'Should use semantic_transcript_search with expanded keywords. Quality depends on transcript content in the DB. If transcripts exist with this topic, will return relevant snippets.',
+        'Bypass rule matches "said" keyword. Should use semantic_transcript_search with expanded keywords. Quality depends on transcript content in the DB.',
       predictedRating: 6,
     },
     {
@@ -233,9 +238,9 @@ export function getThirtyQuestions(): QAQuestion[] {
       category: 'Meeting Intel',
       question: 'Find any transcript mentioning management retention concerns',
       expectedRoute: 'MEETING_INTEL',
-      expectedTools: ['semantic_transcript_search', 'search_fireflies'],
+      expectedTools: ['semantic_transcript_search', 'search_transcripts', 'search_fireflies'],
       predictedResponse:
-        'Will search for "management retention" across transcripts. The semantic search fix should allow this to work across both deal and buyer transcripts. Results depend on data.',
+        'Bypass rule matches "transcript" keyword. Will search for "management retention" across deal and buyer transcripts. Results depend on data.',
       predictedRating: 6,
     },
 
@@ -244,10 +249,10 @@ export function getThirtyQuestions(): QAQuestion[] {
       id: 20,
       category: 'Outreach',
       question: "What's the status of our outreach campaigns?",
-      expectedRoute: 'OUTREACH',
-      expectedTools: ['get_outreach_status', 'get_remarketing_outreach'],
+      expectedRoute: 'FOLLOW_UP',
+      expectedTools: ['get_outreach_records', 'get_remarketing_outreach', 'get_deal_tasks', 'get_outreach_status'],
       predictedResponse:
-        'Should call get_outreach_status and report on active campaigns, response rates, and recent activity. Well-structured response with metrics.',
+        'Bypass rule matches "outreach campaigns" and "status of...outreach" patterns → FOLLOW_UP route with outreach tools. Should report on active campaigns, response rates, and recent activity.',
       predictedRating: 8,
     },
     {
@@ -255,9 +260,9 @@ export function getThirtyQuestions(): QAQuestion[] {
       category: 'Follow-Up',
       question: 'Which buyers need follow-up this week?',
       expectedRoute: 'FOLLOW_UP',
-      expectedTools: ['get_outreach_status'],
+      expectedTools: ['get_deal_tasks', 'get_current_user_context'],
       predictedResponse:
-        'Should identify buyers with pending follow-ups or recent engagement. May use get_outreach_status to find stale conversations. Quality depends on outreach data.',
+        'Bypass rule matches "follow-up" keyword. Should identify buyers with pending follow-ups or recent engagement. Will use get_deal_tasks to find upcoming tasks.',
       predictedRating: 7,
     },
 
@@ -267,9 +272,9 @@ export function getThirtyQuestions(): QAQuestion[] {
       category: 'Daily Briefing',
       question: 'Give me a morning briefing',
       expectedRoute: 'DAILY_BRIEFING',
-      expectedTools: ['get_pipeline_summary', 'get_outreach_status'],
+      expectedTools: ['get_follow_up_queue', 'get_analytics', 'get_cross_deal_analytics'],
       predictedResponse:
-        'Should combine pipeline summary + outreach status into a concise daily briefing. Expected to cover: deal counts, recent activity, pending follow-ups, and key metrics. Well-formatted.',
+        'Bypass rule matches "morning briefing" pattern. Should combine pipeline summary + outreach status into a concise daily briefing covering deal counts, recent activity, pending follow-ups, and key metrics.',
       predictedRating: 9,
     },
 
@@ -279,22 +284,22 @@ export function getThirtyQuestions(): QAQuestion[] {
       category: 'Engagement',
       question: 'Show me the latest buyer engagement activity',
       expectedRoute: 'ENGAGEMENT',
-      expectedTools: ['get_engagement_feed'],
+      expectedTools: ['get_engagement_signals', 'get_buyer_decisions', 'get_score_history'],
       predictedResponse:
-        'Should call get_engagement_feed and return recent buyer interactions — emails opened, links clicked, responses received. Chronological feed format.',
+        'Bypass rule matches "engagement...activity" pattern. Should call get_engagement_signals and return recent buyer interactions — site visits, document views, IOIs, calls. Chronological format.',
       predictedRating: 7,
     },
 
-    // ── CONTENT CREATION (2) ──
+    // ── CONTENT CREATION / OUTREACH DRAFT (2) ──
     {
       id: 24,
       category: 'Content Creation',
       question:
         'Write a LinkedIn post about the collision repair market based on our deal data',
-      expectedRoute: 'CONTENT_CREATION',
-      expectedTools: ['query_deals'],
+      expectedRoute: 'OUTREACH_DRAFT',
+      expectedTools: ['get_deal_details', 'get_buyer_profile'],
       predictedResponse:
-        'Should first query_deals for collision repair data, then generate a professional LinkedIn post. Will reference real deal metrics if available. Creative and well-formatted content.',
+        'Bypass rule matches "write" keyword → OUTREACH_DRAFT route. Should first query deals for collision repair data, then generate a professional LinkedIn post referencing real deal metrics if available.',
       predictedRating: 8,
     },
     {
@@ -302,70 +307,70 @@ export function getThirtyQuestions(): QAQuestion[] {
       category: 'Content Creation',
       question:
         'Draft an outreach email to PE firms about our new HVAC acquisition opportunity',
-      expectedRoute: 'CONTENT_CREATION',
-      expectedTools: ['query_deals'],
+      expectedRoute: 'OUTREACH_DRAFT',
+      expectedTools: ['get_deal_details', 'get_buyer_profile'],
       predictedResponse:
-        'Should look up HVAC deals and draft a professional outreach email. Will include deal highlights and a call-to-action. May query deals first for specifics.',
+        'Bypass rule matches "draft" keyword → OUTREACH_DRAFT route. Should look up HVAC deals and draft a professional outreach email with deal highlights and a call-to-action.',
       predictedRating: 8,
     },
 
-    // ── MARKET ANALYSIS (1) ──
+    // ── PIPELINE ANALYTICS / INDUSTRY (1) ──
     {
       id: 26,
       category: 'Market Analysis',
       question: 'Which industries have the most deals in our pipeline?',
-      expectedRoute: 'MARKET_ANALYSIS',
+      expectedRoute: 'PIPELINE_ANALYTICS',
       expectedTools: ['get_pipeline_summary', 'query_deals'],
       predictedResponse:
-        'Should aggregate deals by industry. Will call get_pipeline_summary or query_deals. Should present a ranked list of industries by deal count. Clear data-driven response.',
+        'Bypass rule matches "which industries...deals" pattern → PIPELINE_ANALYTICS. Should aggregate deals by industry and present a ranked list. Clear data-driven response.',
       predictedRating: 8,
     },
 
-    // ── CALLING LIST (1) ──
+    // ── CONTACT ENRICHMENT / CALLING LIST (1) ──
     {
       id: 27,
       category: 'Calling List',
       question: 'Build me a calling list for HVAC buyers with phone numbers',
-      expectedRoute: 'CALLING_LIST',
-      expectedTools: ['search_buyers', 'search_contacts'],
+      expectedRoute: 'CONTACT_ENRICHMENT',
+      expectedTools: ['search_lead_sources', 'search_valuation_leads', 'query_deals', 'search_contacts', 'enrich_buyer_contacts'],
       predictedResponse:
-        'Should search_buyers for HVAC interest, then search_contacts for their phone numbers. Will compile a list. Phone data may be sparse — quality depends on contact data completeness.',
+        'Bypass rule matches "calling list" pattern → CONTACT_ENRICHMENT route. Should search_buyers for HVAC interest, then search_contacts for phone numbers. Phone data may be sparse.',
       predictedRating: 6,
     },
 
-    // ── LEAD INTEL (1) ──
+    // ── BUYER SEARCH / LEAD INTEL (1) ──
     {
       id: 28,
       category: 'Lead Intel',
       question: 'What do we know about New Heritage Capital as a buyer?',
-      expectedRoute: 'LEAD_INTEL',
-      expectedTools: ['search_buyers'],
+      expectedRoute: 'BUYER_SEARCH',
+      expectedTools: ['search_buyers', 'get_buyer_profile', 'search_contacts'],
       predictedResponse:
-        'Should search_buyers for "New Heritage Capital" and return any stored information — investment criteria, past deals, contacts, engagement history. Quality depends on data richness.',
+        'Bypass rule matches "what do we know...buyer" pattern → BUYER_SEARCH with profile tools. Should search_buyers for "New Heritage Capital" and return investment criteria, past deals, engagement history.',
       predictedRating: 7,
     },
 
-    // ── ACTION (1) ──
+    // ── SMARTLEAD OUTREACH / ACTION (1) ──
     {
       id: 29,
       category: 'Action',
       question: 'Push our top 5 HVAC buyers to a SmartLead campaign',
-      expectedRoute: 'ACTION',
-      expectedTools: ['search_buyers', 'push_to_smartlead'],
+      expectedRoute: 'SMARTLEAD_OUTREACH',
+      expectedTools: ['push_to_smartlead', 'get_smartlead_campaigns', 'search_buyers', 'search_contacts'],
       predictedResponse:
-        'Should first search_buyers for top HVAC buyers, then attempt push_to_smartlead. Will likely require confirmation before executing. May fail if SmartLead integration is not configured.',
-      predictedRating: 5,
+        'Bypass rule matches "push...SmartLead" pattern → SMARTLEAD_OUTREACH route. Should first search_buyers for top HVAC buyers, then attempt push_to_smartlead. Will require confirmation before executing.',
+      predictedRating: 6,
     },
 
-    // ── CHITCHAT / EDGE CASE (1) ──
+    // ── PLATFORM GUIDE / EDGE CASE (1) ──
     {
       id: 30,
       category: 'Edge Case',
       question: 'What can you help me with?',
       expectedRoute: 'PLATFORM_GUIDE',
-      expectedTools: [],
+      expectedTools: ['get_current_user_context'],
       predictedResponse:
-        'Should return a capabilities overview — deal management, buyer search, outreach, transcripts, content creation, etc. Bypass rule should catch this as a platform guide question. Well-formatted list of capabilities.',
+        'Bypass rule matches "what can you help" pattern → PLATFORM_GUIDE. Should return a capabilities overview — deal management, buyer search, outreach, transcripts, content creation, etc.',
       predictedRating: 9,
     },
   ];
