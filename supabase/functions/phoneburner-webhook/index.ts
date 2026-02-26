@@ -136,9 +136,13 @@ Deno.serve(async (req) => {
     string,
     unknown
   >;
+  // Session-level custom_data (entity_type, pushed_by, source)
+  const customData = (payload.custom_data || {}) as Record<string, unknown>;
   const sourceco_contact_id = (customFields.sourceco_id ||
     customFields.sourceco_contact_id ||
     null) as string | null;
+  const sourceco_entity_type = (customData.entity_type || null) as string | null;
+  const sourceco_pushed_by = (customData.pushed_by || null) as string | null;
 
   // ── log the raw webhook ──
   const { data: logEntry, error: logError } = await supabase
@@ -216,6 +220,7 @@ function extractContactInfo(payload: Record<string, unknown>) {
     string,
     unknown
   >;
+  const customData = (payload.custom_data || {}) as Record<string, unknown>;
 
   // Push function stores "sourceco_id"; support both keys
   const contactId = (customFields.sourceco_id || customFields.sourceco_contact_id || null) as
@@ -228,7 +233,12 @@ function extractContactInfo(payload: Record<string, unknown>) {
   const userName = (user.name || payload.user_name || null) as string | null;
   const userEmail = (user.email || payload.user_email || null) as string | null;
 
-  return { contactId, pbContactId, customFields, userName, userEmail };
+  // Session-level metadata from push function
+  const entityType = (customData.entity_type || null) as string | null;
+  const pushedBy = (customData.pushed_by || null) as string | null;
+  const sessionSource = (customData.source || null) as string | null;
+
+  return { contactId, pbContactId, customFields, customData, userName, userEmail, entityType, pushedBy, sessionSource };
 }
 
 async function processEvent(

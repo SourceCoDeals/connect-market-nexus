@@ -91,6 +91,8 @@ async function resolveFromBuyerContacts(
       source_entity: 'buyer_contact',
       last_contacted_date: c.last_contacted_date,
       extra_context: {
+        sourceco_id: c.id,
+        sourceco_buyer_id: c.buyer_id,
         buyer_type: buyer?.buyer_type || '',
         pe_firm: buyer?.pe_firm_name || '',
         target_services: Array.isArray(buyer?.target_services)
@@ -218,6 +220,7 @@ async function resolveFromListings(
       source_entity: `listing:${l.deal_source || 'unknown'}`,
       last_contacted_date: null,
       extra_context: {
+        sourceco_id: `listing-${l.id}`,
         sourceco_listing_id: l.id,
         deal_source: l.deal_source || 'unknown',
         company_name: l.internal_company_name || l.title || '',
