@@ -163,7 +163,9 @@ const BYPASS_RULES: Array<{
   },
   // Score questions and "best buyer for X" — includes search_buyers for hypothetical deals without a deal_id
   {
-    test: (q) => /\b(score|scoring|rank|top buyer|best buyer|fit)\b/i.test(q),
+    test: (q) =>
+      !/\bhow does\b.*\b(work|function)\b/i.test(q) &&
+      /\b(score|scoring|rank|top buyer|best buyer|fit)\b/i.test(q),
     result: {
       category: 'BUYER_ANALYSIS',
       tier: 'STANDARD',
