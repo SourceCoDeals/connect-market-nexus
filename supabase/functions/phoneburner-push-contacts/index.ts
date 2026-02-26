@@ -217,6 +217,11 @@ async function resolveFromListings(
       company: l.internal_company_name || l.title || null,
       source_entity: `listing:${l.deal_source || 'unknown'}`,
       last_contacted_date: null,
+      extra_context: {
+        sourceco_listing_id: l.id,
+        deal_source: l.deal_source || 'unknown',
+        company_name: l.internal_company_name || l.title || '',
+      },
     }));
 }
 
