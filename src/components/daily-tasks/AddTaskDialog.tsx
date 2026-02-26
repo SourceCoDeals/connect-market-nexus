@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
+import { useToast } from '@/hooks/use-toast';
 import {
   Select,
   SelectContent,
@@ -30,6 +31,7 @@ interface AddTaskDialogProps {
 
 export function AddTaskDialog({ open, onOpenChange, teamMembers }: AddTaskDialogProps) {
   const addTask = useAddManualTask();
+  const { toast } = useToast();
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [assigneeId, setAssigneeId] = useState('');
@@ -40,24 +42,32 @@ export function AddTaskDialog({ open, onOpenChange, teamMembers }: AddTaskDialog
   const handleSubmit = async () => {
     if (!title.trim()) return;
 
-    await addTask.mutateAsync({
-      title: title.trim(),
-      description: description.trim() || null,
-      assignee_id: assigneeId || null,
-      task_type: taskType,
-      due_date: dueDate,
-      deal_reference: dealReference.trim() || null,
-      deal_id: null,
-    });
+    try {
+      await addTask.mutateAsync({
+        title: title.trim(),
+        description: description.trim() || null,
+        assignee_id: assigneeId || null,
+        task_type: taskType,
+        due_date: dueDate,
+        deal_reference: dealReference.trim() || null,
+        deal_id: null,
+      });
 
-    // Reset form
-    setTitle('');
-    setDescription('');
-    setAssigneeId('');
-    setTaskType('other');
-    setDueDate(new Date().toISOString().split('T')[0]);
-    setDealReference('');
-    onOpenChange(false);
+      // Reset form
+      setTitle('');
+      setDescription('');
+      setAssigneeId('');
+      setTaskType('other');
+      setDueDate(new Date().toISOString().split('T')[0]);
+      setDealReference('');
+      onOpenChange(false);
+    } catch (err) {
+      toast({
+        title: 'Failed to add task',
+        description: err instanceof Error ? err.message : 'Unknown error',
+        variant: 'destructive',
+      });
+    }
   };
 
   return (

@@ -207,16 +207,28 @@ export function useMeetingQualityMetrics(dateFrom: string | null, dateTo: string
       const { data: meetings, error: meetingsError } = await query;
       if (meetingsError) throw meetingsError;
 
-      // For each meeting, get task details
+      const meetingList = (meetings || []) as any[];
+      if (meetingList.length === 0) return [];
+
+      // Fetch all tasks for these meetings in a single query (avoid N+1)
+      const meetingIds = meetingList.map((m: any) => m.id);
+      const { data: allTasks } = await supabase
+        .from('daily_standup_tasks' as any)
+        .select('id, source_meeting_id, assignee_id, extraction_confidence, needs_review')
+        .in('source_meeting_id', meetingIds);
+
+      // Group tasks by meeting
+      const tasksByMeeting = new Map<string, any[]>();
+      for (const t of (allTasks || []) as any[]) {
+        const list = tasksByMeeting.get(t.source_meeting_id) || [];
+        list.push(t);
+        tasksByMeeting.set(t.source_meeting_id, list);
+      }
+
       const metrics: MeetingQualityMetrics[] = [];
 
-      for (const meeting of (meetings || []) as any[]) {
-        const { data: tasks } = await supabase
-          .from('daily_standup_tasks' as any)
-          .select('id, assignee_id, extraction_confidence, needs_review')
-          .eq('source_meeting_id', meeting.id);
-
-        const taskList = (tasks || []) as any[];
+      for (const meeting of meetingList) {
+        const taskList = tasksByMeeting.get(meeting.id) || [];
         const total = taskList.length;
 
         if (total === 0) {

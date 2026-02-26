@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/context/AuthContext';
 import { useDailyTasks, useDeleteTask } from '@/hooks/useDailyTasks';
+import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -38,6 +39,7 @@ import type { DailyStandupTaskWithRelations } from '@/types/daily-tasks';
 
 const DailyTaskDashboard = () => {
   const { teamRole } = useAuth();
+  const { toast } = useToast();
   const isLeadership = teamRole === 'owner' || teamRole === 'admin';
 
   const [view, setView] = useState<'my' | 'all'>('my');
@@ -104,8 +106,17 @@ const DailyTaskDashboard = () => {
 
   const handleDelete = async () => {
     if (!deleteTask) return;
-    await deleteTaskMutation.mutateAsync(deleteTask.id);
-    setDeleteTask(null);
+    try {
+      await deleteTaskMutation.mutateAsync(deleteTask.id);
+      setDeleteTask(null);
+    } catch (err) {
+      toast({
+        title: 'Failed to delete task',
+        description: err instanceof Error ? err.message : 'Unknown error',
+        variant: 'destructive',
+      });
+      setDeleteTask(null);
+    }
   };
 
   return (
@@ -133,7 +144,7 @@ const DailyTaskDashboard = () => {
       </div>
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <Card>
           <CardContent className="pt-4 pb-3">
             <div className="flex items-center gap-3">

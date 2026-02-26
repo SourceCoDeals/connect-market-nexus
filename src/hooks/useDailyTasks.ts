@@ -34,6 +34,7 @@ export function useDailyTasks(options: UseDailyTasksOptions) {
           `
           *,
           assignee:profiles!daily_standup_tasks_assignee_id_fkey(id, first_name, last_name, email),
+          deal:deals!daily_standup_tasks_deal_id_fkey(id, listing_id, listings(title, internal_company_name, ebitda), deal_stages(name)),
           source_meeting:standup_meetings(id, meeting_title, meeting_date, transcript_url)
         `,
         )
@@ -91,10 +92,8 @@ export function useToggleTaskComplete() {
 
       if (error) throw error;
 
-      // Recompute ranks for remaining pending/overdue tasks
-      if (completed) {
-        await recomputeRanks();
-      }
+      // Recompute ranks whenever task status changes
+      await recomputeRanks();
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: [QUERY_KEY] });

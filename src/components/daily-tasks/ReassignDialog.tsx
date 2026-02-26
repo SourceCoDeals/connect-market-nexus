@@ -17,6 +17,7 @@ import {
 import { Label } from '@/components/ui/label';
 import { Loader2 } from 'lucide-react';
 import { useReassignTask } from '@/hooks/useDailyTasks';
+import { useToast } from '@/hooks/use-toast';
 import type { DailyStandupTaskWithRelations } from '@/types/daily-tasks';
 
 interface ReassignDialogProps {
@@ -28,13 +29,22 @@ interface ReassignDialogProps {
 
 export function ReassignDialog({ task, open, onOpenChange, teamMembers }: ReassignDialogProps) {
   const reassign = useReassignTask();
+  const { toast } = useToast();
   const [selectedId, setSelectedId] = useState('');
 
   const handleReassign = async () => {
     if (!task || !selectedId) return;
-    await reassign.mutateAsync({ taskId: task.id, newAssigneeId: selectedId });
-    setSelectedId('');
-    onOpenChange(false);
+    try {
+      await reassign.mutateAsync({ taskId: task.id, newAssigneeId: selectedId });
+      setSelectedId('');
+      onOpenChange(false);
+    } catch (err) {
+      toast({
+        title: 'Failed to reassign task',
+        description: err instanceof Error ? err.message : 'Unknown error',
+        variant: 'destructive',
+      });
+    }
   };
 
   return (

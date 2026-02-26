@@ -78,7 +78,7 @@ const DailyTaskAnalytics = () => {
         {/* ─── Team Overview Tab ─── */}
         <TabsContent value="team" className="space-y-4">
           {loadingAnalytics ? (
-            <div className="grid grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               {[...Array(4)].map((_, i) => (
                 <Skeleton key={i} className="h-24" />
               ))}
@@ -86,7 +86,7 @@ const DailyTaskAnalytics = () => {
           ) : analytics ? (
             <>
               {/* KPI Cards */}
-              <div className="grid grid-cols-4 gap-4">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <Card>
                   <CardContent className="pt-4 pb-3">
                     <div className="flex items-center gap-3">

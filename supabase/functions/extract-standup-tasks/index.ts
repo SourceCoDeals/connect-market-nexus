@@ -38,22 +38,18 @@ const TASK_TYPES = [
 ];
 
 const DEAL_STAGE_SCORES: Record<string, number> = {
-  new: 20,
-  prospecting: 20,
-  'owner engaged': 40,
-  owner_engaged: 40,
-  marketing: 60,
-  'buyer outreach': 60,
-  buyer_outreach: 60,
-  loi: 90,
-  negotiation: 90,
-  loi_negotiation: 90,
+  // Match actual deal_stages table values (case-insensitive lookup)
+  sourced: 20,
+  qualified: 30,
+  'nda sent': 40,
+  'nda signed': 50,
+  'fee agreement sent': 55,
+  'fee agreement signed': 60,
+  'due diligence': 70,
+  'loi submitted': 90,
   'under contract': 80,
-  closing: 80,
-  under_contract: 80,
-  'on hold': 10,
-  paused: 10,
-  on_hold: 10,
+  'closed won': 100,
+  'closed lost': 0,
 };
 
 const TASK_TYPE_SCORES: Record<string, number> = {
@@ -415,13 +411,19 @@ serve(async (req) => {
       dealRef: string,
     ): Promise<{ id: string; ebitda: number | null; stage_name: string | null } | null> {
       if (!dealRef) return null;
+      // Sanitize dealRef to prevent PostgREST filter injection
+      // Remove characters that could break the .or() filter syntax
+      const sanitized = dealRef.replace(/[(),."'\\]/g, '').trim();
+      if (!sanitized) return null;
+
       const { data: deals } = await supabase
         .from('deals')
         .select(
           'id, listing_id, stage_id, deal_stages(name), listings!inner(ebitda, title, internal_company_name)',
         )
-        .or(`listings.title.ilike.%${dealRef}%,listings.internal_company_name.ilike.%${dealRef}%`)
-        .is('deleted_at', null)
+        .or(`title.ilike.%${sanitized}%,internal_company_name.ilike.%${sanitized}%`, {
+          referencedTable: 'listings',
+        })
         .limit(1);
 
       if (deals && deals.length > 0) {
@@ -438,8 +440,7 @@ serve(async (req) => {
     // 6. Get all EBITDA values for scoring normalization
     const { data: allDeals } = await supabase
       .from('deals')
-      .select('listing_id, listings!inner(ebitda)')
-      .is('deleted_at', null);
+      .select('listing_id, listings!inner(ebitda)');
 
     const allEbitdaValues = (allDeals || [])
       .map((d: any) => d.listings?.ebitda)
