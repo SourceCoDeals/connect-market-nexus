@@ -23,6 +23,7 @@ interface PushRequest {
   contact_ids?: string[]; // Legacy — treated as buyer_contacts
   session_name?: string;
   skip_recent_days?: number;
+  target_user_id?: string; // Push to a specific user's PhoneBurner account
 }
 
 interface ResolvedContact {
@@ -373,20 +374,26 @@ Deno.serve(async (req) => {
     });
   }
 
-  // Get PhoneBurner access token
-  const pbToken = await getValidToken(supabase, user.id);
+  const body: PushRequest = await req.json();
+  const { session_name, skip_recent_days = 7 } = body;
+
+  // Determine whose PhoneBurner account to use:
+  // If target_user_id is specified, admin is pushing to another user's PB account.
+  // Otherwise, use the calling admin's own PB account.
+  const pbTokenUserId = body.target_user_id || user.id;
+  const pbToken = await getValidToken(supabase, pbTokenUserId);
   if (!pbToken) {
+    const targetLabel = body.target_user_id
+      ? 'The selected user does not have a PhoneBurner account connected.'
+      : 'PhoneBurner not connected. Please connect your account first.';
     return new Response(
       JSON.stringify({
-        error: 'PhoneBurner not connected. Please connect your account first.',
+        error: targetLabel,
         code: 'PB_NOT_CONNECTED',
       }),
       { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
     );
   }
-
-  const body: PushRequest = await req.json();
-  const { session_name, skip_recent_days = 7 } = body;
 
   // Resolve entity_type + entity_ids (with legacy fallback)
   const entityType: EntityType = body.entity_type || 'buyer_contacts';
@@ -509,9 +516,24 @@ Deno.serve(async (req) => {
     }
   }
 
+  // Look up display name for the target PB user
+  let targetDisplayName: string | null = null;
+  if (body.target_user_id) {
+    const { data: tokenRow } = await supabase
+      .from('phoneburner_oauth_tokens')
+      .select('display_name')
+      .eq('user_id', body.target_user_id)
+      .single();
+    targetDisplayName = tokenRow?.display_name || null;
+  }
+
   // Log the push session
+  const sessionLabel = targetDisplayName
+    ? `${session_name || 'Push'} → ${targetDisplayName}`
+    : session_name || `Push - ${new Date().toLocaleDateString()}`;
+
   await supabase.from('phoneburner_sessions').insert({
-    session_name: session_name || `Push - ${new Date().toLocaleDateString()}`,
+    session_name: sessionLabel,
     session_type:
       entityType === 'buyer_contacts' || entityType === 'buyers' ? 'buyer_outreach' : entityType,
     total_contacts_added: added,

@@ -66,6 +66,25 @@ Deno.serve(async (req) => {
       const tokens = await tokenRes.json();
       const expiresAt = new Date(Date.now() + (tokens.expires_in || 3600) * 1000).toISOString();
 
+      // Fetch the PhoneBurner user's profile to store their display name
+      let pbDisplayName: string | null = null;
+      let pbUserEmail: string | null = null;
+      let pbUserId: string | null = null;
+      try {
+        const meRes = await fetch("https://www.phoneburner.com/rest/1/members/me", {
+          headers: { Authorization: `Bearer ${tokens.access_token}` },
+        });
+        if (meRes.ok) {
+          const meData = await meRes.json();
+          const member = meData?.member || meData;
+          pbDisplayName = [member.first_name, member.last_name].filter(Boolean).join(" ") || null;
+          pbUserEmail = member.email || null;
+          pbUserId = member.user_id ? String(member.user_id) : null;
+        }
+      } catch (err) {
+        console.warn("Could not fetch PhoneBurner user profile:", err);
+      }
+
       // Upsert tokens for this user
       const { error: upsertError } = await supabase
         .from("phoneburner_oauth_tokens")
@@ -76,6 +95,9 @@ Deno.serve(async (req) => {
           token_type: tokens.token_type || "Bearer",
           expires_at: expiresAt,
           scope: tokens.scope || null,
+          display_name: pbDisplayName,
+          phoneburner_user_email: pbUserEmail,
+          phoneburner_user_id: pbUserId,
         }, { onConflict: "user_id" });
 
       if (upsertError) {
@@ -83,7 +105,7 @@ Deno.serve(async (req) => {
         return Response.redirect(`${siteUrl}/admin/settings?error=storage_failed`, 302);
       }
 
-      return Response.redirect(`${siteUrl}/admin/settings?phoneburner=connected`, 302);
+      return Response.redirect(`${siteUrl}/admin/phoneburner/settings?phoneburner=connected`, 302);
     } catch (err) {
       console.error("OAuth callback error:", err);
       return Response.redirect(`${siteUrl}/admin/settings?error=callback_failed`, 302);
