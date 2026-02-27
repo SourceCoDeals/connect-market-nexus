@@ -223,7 +223,7 @@ async function drainNextQueuedOperation(supabase: SupabaseClient): Promise<void>
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({ fromGlobalQueue: true, globalQueueId: nextOp.id, ...nextOp.context_json }),
-        }).catch(() => {}); // Swallow — processor will be invoked by cron anyway
+        }).catch((err: unknown) => { console.warn('[global-activity-queue] Trigger dispatch failed (cron will retry):', err); });
       } catch {
         // Non-blocking
       }

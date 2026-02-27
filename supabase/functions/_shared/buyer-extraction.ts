@@ -493,17 +493,18 @@ export function validateSizeCriteria(extracted: AIExtractionResult): AIExtractio
   if (!extracted?.data) return extracted;
   const data = extracted.data;
 
-  // Check for EBITDA multiple confusion (values under 100 are likely multiples, not dollars)
-  const checkForMultiple = (value: number | null) => {
-    if (value && value < 100) {
-      console.warn('Possible EBITDA multiple detected, clearing value');
+  // Check for EBITDA multiple confusion (values under 20 are almost certainly multiples like 3x, 5x, 10x)
+  // Threshold lowered from 100 to 20: AI may return values in thousands (e.g., 50 = $50K EBITDA)
+  const checkForMultiple = (value: number | null, fieldName: string) => {
+    if (value && value > 0 && value < 20) {
+      console.warn(`[validateSizeCriteria] Possible EBITDA multiple detected for ${fieldName}: ${value} — clearing value`);
       return null;
     }
     return value;
   };
 
-  data.min_ebitda = checkForMultiple(data.min_ebitda);
-  data.max_ebitda = checkForMultiple(data.max_ebitda);
+  data.min_ebitda = checkForMultiple(data.min_ebitda, 'min_ebitda');
+  data.max_ebitda = checkForMultiple(data.max_ebitda, 'max_ebitda');
 
   return { ...extracted, data };
 }

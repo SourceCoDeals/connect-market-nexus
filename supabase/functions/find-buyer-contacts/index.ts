@@ -180,9 +180,10 @@ serve(async (req) => {
     }
 
     // Save contacts if buyerId provided
+    // Use ignoreDuplicates: false so new data (email, linkedin_url) updates existing records
     if (buyerId && uniqueContacts.length > 0) {
       for (const contact of uniqueContacts) {
-        await supabase.from('remarketing_buyer_contacts').upsert(
+        const { error: upsertError } = await supabase.from('remarketing_buyer_contacts').upsert(
           {
             buyer_id: buyerId,
             name: contact.name,
@@ -196,9 +197,12 @@ serve(async (req) => {
           },
           {
             onConflict: 'buyer_id,name',
-            ignoreDuplicates: true,
+            ignoreDuplicates: false,
           },
         );
+        if (upsertError) {
+          console.error(`[find-buyer-contacts] Failed to save contact ${contact.name}:`, upsertError.message);
+        }
       }
     }
 

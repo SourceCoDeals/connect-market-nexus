@@ -673,7 +673,7 @@ Deno.serve(async (req) => {
         outputTokens: totalOutputTokens > 0 ? totalOutputTokens : promptsSuccessful * 800,
       },
       undefined, { buyerId, promptsRun, promptsSuccessful }
-    ).catch(() => {});
+    ).catch((err: unknown) => { console.warn('[enrich-buyer] Cost tracking failed:', err); });
 
     // Log provenance violations as prominent warnings
     if (provenanceViolations.length > 0) {

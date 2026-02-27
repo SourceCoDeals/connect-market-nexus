@@ -636,7 +636,7 @@ serve(async (req) => {
           offset: nextOffset,
           scoredSoFar: nextScoredSoFar,
         }),
-      }).catch(() => {}); // fire-and-forget
+      }).catch((err: unknown) => { console.warn('[deal-quality] Continuation trigger failed:', err); });
     } else if (batchSource && listingsToScore.length < BATCH_SIZE && globalQueueId) {
       // Last batch — mark complete
       const totalScoredSoFar = scoredSoFar + scored;
