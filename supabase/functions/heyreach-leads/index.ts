@@ -303,9 +303,17 @@ Deno.serve(async (req) => {
           );
         }
 
-        // HeyReach API call — add leads to campaign
-        const apiLeads = linkedInLeads.map(({ _source_id: _, _source_type: __, ...rest }) => rest);
-        const result = await addLeadsToCampaign(campaign_id, list_id, apiLeads);
+        // HeyReach API call — add leads to campaign using V2 format
+        const accountLeadPairs = linkedInLeads.map((l) => ({
+          lead: {
+            profileUrl: l.linkedInUrl,
+            firstName: l.firstName,
+            lastName: l.lastName,
+            companyName: l.companyName,
+            emailAddress: l.email,
+          },
+        }));
+        const result = await addLeadsToCampaign(campaign_id, accountLeadPairs);
 
         const totalAdded = result.ok ? linkedInLeads.length : 0;
         const errors: string[] = [];
@@ -448,7 +456,13 @@ Deno.serve(async (req) => {
           );
         }
 
-        const apiLeads = linkedInLeads.map(({ _source_id: _, _source_type: __, ...rest }) => rest);
+        const apiLeads = linkedInLeads.map((l) => ({
+          profileUrl: l.linkedInUrl,
+          firstName: l.firstName,
+          lastName: l.lastName,
+          companyName: l.companyName,
+          emailAddress: l.email,
+        }));
         const result = await addLeadsToList(list_id, apiLeads);
 
         if (!result.ok) {
