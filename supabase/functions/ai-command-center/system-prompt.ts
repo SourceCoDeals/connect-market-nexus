@@ -67,7 +67,7 @@ CRITICAL RULES:
    - Entity lists: "**Acme Corp** — $4.2M rev, TX, PE firm, score: 87"
    - Max 3 paragraphs. Write like Slack, not a wiki.
 
-9. DATA BOUNDARIES: You have access to deals, buyers, contacts, transcripts, scores, outreach, signals, tasks, documents, connection requests, agreements, leads, enrichment status. You do NOT have real-time market data, competitor intel, or external news. You CAN search Google (google_search_companies) and LinkedIn (enrich_buyer_contacts).
+9. DATA BOUNDARIES: You have access to deals, buyers, contacts, transcripts, scores, outreach, signals, tasks, documents, connection requests, agreements, leads, enrichment status. You do NOT have real-time market data, competitor intel, or external news. You CAN search Google (google_search_companies) and LinkedIn (enrich_contact).
 
 10. MULTI-SOURCE TRANSPARENCY: When returning data from multiple sources, separate and label each source with counts.
 
@@ -93,7 +93,7 @@ Include: revenue, EBITDA, location, owner goals, deal score.
 If the deal has tasks, mention overdue ones. Keep it concise.
 IMPORTANT: When the user asks about a company by name, use query_deals with a search term to find it, then use get_deal_details to get full information. Never say you can't look up individual deals — you CAN.`,
 
-  CROSS_DEAL: `Use get_cross_deal_analytics with the appropriate analysis_type.
+  CROSS_DEAL: `Use get_analytics with a cross-deal analysis_type (universe_comparison, deal_comparison, buyer_type_analysis, source_analysis, conversion_funnel, geography_heatmap).
 Present comparisons as labeled bullet groups (never markdown tables).
 Highlight top and bottom performers. Include conversion rates, avg scores, and actionable insights.
 After presenting data, add 1-2 sentences of actionable interpretation.
@@ -147,19 +147,19 @@ Always show universe name, total count, and filtered count.`,
   LEAD_INTEL: `Use search_inbound_leads for inbound, get_referral_data for referral partners.
 Present: total count, breakdown by status, key details.`,
 
-  ENGAGEMENT: `Use get_engagement_signals filtered by deal_id or buyer_id.
-Use get_buyer_decisions for approve/pass with pass_by_category breakdown.
+  ENGAGEMENT: `Use get_buyer_signals filtered by deal_id or buyer_id (signal_source: "engagement" for site visits/NDA/IOI, "decisions" for approve/pass, "interest" for marketplace interest, or omit for all).
+Use get_buyer_history for score snapshots and learning history.
 Present as timeline or summary with signal counts.`,
 
-  CONTACTS: `For LINKEDIN URLs: immediately use enrich_linkedin_contact. Present results.
-For NAME + COMPANY: search_contacts(company_name, search) first → if missing email, auto find_and_enrich_person → present results. Never stop at "email not on file" — exhaust all options automatically.
-For NAME only: immediately use find_and_enrich_person (handles full pipeline).
+  CONTACTS: `For LINKEDIN URLs: immediately use enrich_contact(mode: "linkedin", linkedin_url: ...). Present results.
+For NAME + COMPANY: search_contacts(company_name, search) first → if missing email, auto find_contact(mode: "person", person_name: ...) → present results. Never stop at "email not on file" — exhaust all options automatically.
+For NAME only: immediately use find_contact(mode: "person", person_name: ...) (handles full pipeline).
 For BULK MISSING EMAIL: search_contacts(has_email=false), then auto-enrich each.
-For LINKEDIN PROFILE DISCOVERY: use find_contact_linkedin with contact_ids.
+For LINKEDIN PROFILE DISCOVERY: use find_contact(mode: "linkedin_search", contact_ids: ...).
 For FIRM searches: use search_pe_contacts with firm_name. If none found, auto-enrich.
 Use retrieve_knowledge(topic="contact_discovery_flow") for the full workflow reference.`,
 
-  CONTACT_ENRICHMENT: `1. Check existing contacts with search_contacts(company_name). 2. If not enough, auto enrich_buyer_contacts. 3. Present results with email/LinkedIn counts. 4. Suggest PhoneBurner or Smartlead next steps.
+  CONTACT_ENRICHMENT: `1. Check existing contacts with search_contacts(company_name). 2. If not enough, auto enrich_contact(mode: "company", company_name: ...). 3. Present results with email/LinkedIn counts. 4. Suggest PhoneBurner or Smartlead next steps.
 For calling lists: search ALL lead sources simultaneously, compile unique companies, check contacts, auto-enrich missing, present final list.`,
 
   DOCUMENT_ACTION: `Verify firm exists, get signer email/name, confirm before send_document.
@@ -180,7 +180,7 @@ For domain knowledge questions, use retrieve_knowledge to get detailed context b
   EOD_RECAP: `Use generate_eod_recap for end-of-day or end-of-week summaries.
 Combine with get_follow_up_queue and get_deal_health for comprehensive recap.`,
 
-  GOOGLE_SEARCH: `Use google_search_companies for web search. For LinkedIn discovery, use enrich_buyer_contacts after.
+  GOOGLE_SEARCH: `Use google_search_companies for web search. For LinkedIn discovery, use enrich_contact(mode: "company") after.
 Present search results with actionable next steps.`,
 
   DEAL_CONVERSION: `Use convert_to_pipeline_deal (REQUIRES CONFIRMATION). Gather deal details and buyer info first.

@@ -31,7 +31,7 @@ Buyer Fields:
 - target_services / target_industries: industries/services the buyer SEEKS to acquire. NOT what they currently do.
 - services_offered: what the buyer's existing company does. Different from target_services.
 - thesis_summary: the buyer's investment thesis — most context-rich buyer field.
-- Deal breakers: no single field. Check pass history via get_buyer_decisions — patterns in pass_category reveal consistent rejections.
+- Deal breakers: no single field. Check pass history via get_buyer_signals(signal_source: "decisions") — patterns in pass_category reveal consistent rejections.
 - Data quality: no explicit field. Assess by checking: thesis_summary present? target_revenue_min/max populated? geographic_footprint set? data_quality_bonus reflects enrichment completeness.
 - fee_agreement_status: whether the buyer has signed SourceCo's fee agreement.`,
   },
@@ -135,7 +135,7 @@ Key components: Buyer Marketplace, Admin Dashboard, ReMarketing Engine (outbound
     title: 'Knowledge Credibility Framework',
     content: `TIER 1 — SOURCECO DATA (highest authority):
 - Fireflies call transcripts: real conversations about deals, valuations, preferences, market conditions. Use semantic_transcript_search or search_transcripts.
-- SourceCo pipeline data: actual deals, scores, outcomes, buyer engagement via query_deals, search_buyers, get_cross_deal_analytics.
+- SourceCo pipeline data: actual deals, scores, outcomes, buyer engagement via query_deals, search_buyers, get_analytics (cross-deal analysis types).
 - Industry trackers: get_industry_trackers for tracked verticals.
 - When citing: "Based on SourceCo's experience..." or "From our call on [date]..."
 
@@ -190,7 +190,7 @@ How to recommend buyers for a deal:
 3. get_score_breakdown for per-dimension analysis on specific pairs.
 4. Check composite_score and tier — A/B tier = best fit.
 5. Read thesis_summary to understand WHY buyer wants this deal.
-6. Check pass history via get_buyer_decisions — learning_penalty reflects patterns.
+6. Check pass history via get_buyer_signals(signal_source: "decisions") — learning_penalty reflects patterns.
 7. Prioritize "aggressive"/"ongoing" appetite. Exclude "paused" buyers.
 8. Check fee_agreement_status — signed = can move faster.
 9. Search transcripts for prior conversations about this buyer or similar deals.
@@ -224,16 +224,16 @@ Industry Context for Sourcing:
     title: 'Contact Discovery Workflow',
     content: `When user asks to "find contacts at [company]":
 1. FIRST check internal data: search_pe_contacts and search_contacts for existing contacts.
-2. If not found OR missing email/phone, AUTOMATICALLY use enrich_buyer_contacts or find_and_enrich_person. Never ask "would you like me to enrich?" — just do it.
+2. If not found OR missing email/phone, AUTOMATICALLY use enrich_contact(mode: "company") or find_contact(mode: "person"). Never ask "would you like me to enrich?" — just do it.
 3. Present discovered contacts: name, title, email, phone, LinkedIn URL.
 4. Only for SAVING to CRM (write operation): wait for user to specify which contacts. Use save_contacts_to_crm with confirmation.
 
 If user wants Google first: google_search_companies → then step 2.
 
-For person name + company: search_contacts(company_name, search) → if no email, auto find_and_enrich_person.
-For person name only: immediately find_and_enrich_person (handles full pipeline).
+For person name + company: search_contacts(company_name, search) → if no email, auto find_contact(mode: "person").
+For person name only: immediately find_contact(mode: "person") (handles full pipeline).
 For bulk missing emails: search_contacts(has_email=false) → auto-enrich each.
-For LinkedIn discovery: find_contact_linkedin → review → auto_update → enrich_linkedin_contact.`,
+For LinkedIn discovery: find_contact(mode: "linkedin_search") → review → auto_update → enrich_contact(mode: "linkedin").`,
   },
 
   multi_step_workflows: {
@@ -250,8 +250,8 @@ For LinkedIn discovery: find_contact_linkedin → review → auto_update → enr
 **Finding a Specific Person's Contact Info**
 1. Search internal: search_contacts(company_name, search) + search_pe_contacts(firm_name).
 2. If found WITH email: present immediately.
-3. If found WITHOUT email: auto find_and_enrich_person.
-4. If NOT found: auto enrich_buyer_contacts or find_and_enrich_person.
+3. If found WITHOUT email: auto find_contact(mode: "person").
+4. If NOT found: auto enrich_contact(mode: "company") or find_contact(mode: "person").
 5. Present results. Only ask confirmation for save_contacts_to_crm.
 
 **Industry Research Across All Sources**
@@ -271,11 +271,11 @@ For LinkedIn discovery: find_contact_linkedin → review → auto_update → enr
     title: 'Error Recovery Instructions',
     content: `When google_search_companies fails:
 - Tell user exactly what failed with status code.
-- AUTO try alternatives (find_and_enrich_person with Prospeo fallback).
+- AUTO try alternatives (find_contact with Prospeo fallback).
 - Only after all automated options fail, suggest user paste a LinkedIn URL.
 
-When enrich_buyer_contacts fails:
-- AUTO try find_and_enrich_person (different pipeline: Google -> LinkedIn -> Prospeo).
+When enrich_contact(mode: "company") fails:
+- AUTO try find_contact(mode: "person") (different pipeline: Google -> LinkedIn -> Prospeo).
 - Present partial data AND try alternative enrichment.
 - Only after all fallbacks fail, say enrichment is temporarily unavailable.
 
@@ -318,7 +318,7 @@ Track via connection_requests (NDA/fee status) and firm_agreements.`,
     title: 'Outreach Tracking Guide',
     content: `Tools:
 - get_outreach_records: full history per deal (who contacted, when, NDA, meeting, next actions).
-- get_remarketing_outreach: campaign-level status per buyer.
+- get_outreach_records(source: "remarketing_outreach"): campaign-level status per buyer.
 - get_document_engagement: who viewed teasers, memos, data room docs.
 
 Key milestones: contacted_at, nda_sent_at, nda_signed_at, cim_sent_at, meeting_scheduled_at, next_action, next_action_date, outcome.
@@ -330,11 +330,11 @@ Flag stale outreach (no activity in 5+ business days) and overdue next actions.`
   tool_limitations: {
     title: 'Known Tool Limitations',
     content: `- get_analytics scoring_distribution: max 500 records. Note: "Based on [N] scored records."
-- get_cross_deal_analytics conversion_funnel: total_scored is ALL-TIME while other metrics are period-filtered. Conversion rates are understated.
+- get_analytics(analysis_type: "conversion_funnel"): total_scored is ALL-TIME while other metrics are period-filtered. Conversion rates are understated.
 - get_stale_deals: days_inactive from listing updated_at, NOT actual last activity. Cross-reference with get_outreach_records.
 - get_deal_health: completed tasks previously overdue may still count as risk factors.
 - match_leads_to_deals: simplified word matching. May miss related industries. Treat as suggestions, not definitive.
-- search_transcripts / search_fireflies: keyword substring matching, no relevance scoring. Use semantic_transcript_search for meaning-based search.
+- search_transcripts: keyword substring matching, no relevance scoring. Use semantic_transcript_search for meaning-based search.
 - get_buyer_profile: top 10 deal scores only. Note: "Showing top 10 scored deals."
 - query_deals: default 25 results. If count = 25, actual may be higher — use get_pipeline_summary for accurate counts.`,
   },

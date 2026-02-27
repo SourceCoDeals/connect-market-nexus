@@ -376,7 +376,7 @@ async function googleSearchCompanies(args: Record<string, unknown>): Promise<Too
         diagnosis,
         alternatives: [
           'Search the internal database using search_contacts, search_pe_contacts, or query_deals instead',
-          'The user can search Google manually and paste a LinkedIn URL for enrichment via enrich_linkedin_contact',
+          'The user can search Google manually and paste a LinkedIn URL for enrichment via enrich_contact(mode: "linkedin")',
           'Check APIFY_API_KEY in Supabase Edge Function secrets if this persists',
         ],
       },
@@ -816,7 +816,7 @@ async function enrichBuyerContacts(
         message: `Could not find contacts for "${companyName}" — external enrichment APIs failed.`,
         alternatives: [
           'Search internal contacts using search_contacts or search_pe_contacts',
-          'If the user has a LinkedIn URL for someone at this company, use enrich_linkedin_contact instead',
+          'If the user has a LinkedIn URL for someone at this company, use enrich_contact(mode: "linkedin") instead',
           'The user can paste a LinkedIn company URL and try again with the company_linkedin_url parameter',
           'Check APIFY_API_KEY and PROSPEO_API_KEY in Supabase Edge Function secrets',
         ],
@@ -1639,8 +1639,8 @@ async function findContactLinkedIn(
       errors: errors.length > 0 ? errors : undefined,
       message: `Searched ${contacts.length} contacts: found ${matches.filter((m) => m.linkedin_url).length} LinkedIn profiles (${highConfidence.length} high confidence, ${mediumConfidence.length} medium)${updated.length > 0 ? ` — ${updated.length} auto-updated in CRM` : ''}`,
       next_steps: autoUpdate
-        ? 'High-confidence matches have been saved. Review medium/low confidence matches and use enrich_linkedin_contact to get their emails.'
-        : 'Review the matches above. To save them, call find_contact_linkedin again with auto_update=true, or manually update individual contacts. Then use enrich_linkedin_contact on each LinkedIn URL to find their emails.',
+        ? 'High-confidence matches have been saved. Review medium/low confidence matches and use enrich_contact(mode: "linkedin") to get their emails.'
+        : 'Review the matches above. To save them, call find_contact(mode: "linkedin_search") again with auto_update=true, or manually update individual contacts. Then use enrich_contact(mode: "linkedin") on each LinkedIn URL to find their emails.',
     },
   };
 }
