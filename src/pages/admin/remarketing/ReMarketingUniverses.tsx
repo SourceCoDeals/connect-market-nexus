@@ -537,6 +537,8 @@ const ReMarketingUniverses = () => {
   );
   // AI buyer universe generation
   const [generatingIds, setGeneratingIds] = useState<Set<string>>(new Set());
+  const [isBulkEnriching, setIsBulkEnriching] = useState(false);
+  const [bulkEnrichProgress, setBulkEnrichProgress] = useState({ current: 0, total: 0 });
 
   const generateBuyerUniverse = useCallback(
     async (listingId: string) => {
@@ -579,6 +581,65 @@ const ReMarketingUniverses = () => {
     },
     [queryClient],
   );
+
+  // Bulk enrich all unenriched flagged deals
+  const enrichAllFlaggedDeals = useCallback(async () => {
+    const unenriched = orderedFlagged.filter((d) => !d.buyer_universe_generated_at);
+    if (unenriched.length === 0) {
+      toast.info('All deals already have buyer universe data');
+      return;
+    }
+
+    setIsBulkEnriching(true);
+    setBulkEnrichProgress({ current: 0, total: unenriched.length });
+
+    let successCount = 0;
+    let failCount = 0;
+
+    for (const deal of unenriched) {
+      try {
+        setGeneratingIds((prev) => new Set(prev).add(deal.id));
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+        const response = await fetch(`${SUPABASE_URL}/functions/v1/generate-buyer-universe`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${session?.access_token}`,
+          },
+          body: JSON.stringify({ listing_id: deal.id }),
+        });
+
+        if (!response.ok) {
+          const err = await response.json().catch(() => ({ error: 'Unknown error' }));
+          throw new Error(err.error || `HTTP ${response.status}`);
+        }
+
+        await response.json();
+        successCount++;
+      } catch (err) {
+        console.error(`Failed to generate for deal ${deal.id}:`, err);
+        failCount++;
+      } finally {
+        setGeneratingIds((prev) => {
+          const next = new Set(prev);
+          next.delete(deal.id);
+          return next;
+        });
+        setBulkEnrichProgress((prev) => ({ ...prev, current: prev.current + 1 }));
+      }
+    }
+
+    setIsBulkEnriching(false);
+    queryClient.invalidateQueries({ queryKey: ['remarketing', 'universe-build-flagged-deals'] });
+
+    if (failCount === 0) {
+      toast.success(`Generated buyer universe data for ${successCount} deal${successCount > 1 ? 's' : ''}`);
+    } else {
+      toast.warning(`Generated ${successCount}, failed ${failCount} of ${unenriched.length}`);
+    }
+  }, [orderedFlagged, queryClient]);
 
   // Create universe mutation
   const createMutation = useMutation({
@@ -1135,6 +1196,33 @@ const ReMarketingUniverses = () => {
         /* To Be Created Tab – drag-and-drop ranking */
         <Card>
           <CardContent className="p-0">
+            {/* Enrich All button bar */}
+            {orderedFlagged.length > 0 && (
+              <div className="flex items-center justify-between px-4 py-3 border-b">
+                <p className="text-sm text-muted-foreground">
+                  {orderedFlagged.filter((d) => !d.buyer_universe_generated_at).length} of{' '}
+                  {orderedFlagged.length} deals need enrichment
+                </p>
+                <Button
+                  size="sm"
+                  className="gap-1.5"
+                  disabled={isBulkEnriching || orderedFlagged.every((d) => !!d.buyer_universe_generated_at)}
+                  onClick={enrichAllFlaggedDeals}
+                >
+                  {isBulkEnriching ? (
+                    <>
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      Enriching {bulkEnrichProgress.current}/{bulkEnrichProgress.total}...
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="h-3.5 w-3.5" />
+                      Enrich All
+                    </>
+                  )}
+                </Button>
+              </div>
+            )}
             <DndContext
               sensors={flaggedSensors}
               collisionDetection={closestCenter}
