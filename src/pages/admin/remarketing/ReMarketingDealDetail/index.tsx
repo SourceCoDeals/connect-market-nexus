@@ -7,12 +7,13 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Building2, Eye, FolderOpen } from "lucide-react";
+import { Building2, Eye, FolderOpen, Phone } from "lucide-react";
 import { useDealDetail } from "./useDealDetail";
 import { CapTargetInfoCard } from "./CapTargetInfoCard";
 import { DealHeader } from "./DealHeader";
 import { OverviewTab } from "./OverviewTab";
 import { DataRoomTab } from "./DataRoomTab";
+import { DealCallActivityTab } from "./DealCallActivityTab";
 
 const ReMarketingDealDetail = () => {
   const {
@@ -78,10 +79,14 @@ const ReMarketingDealDetail = () => {
       />
 
       <Tabs defaultValue="overview" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-2">
+        <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="overview" className="text-sm">
             <Eye className="mr-1.5 h-3.5 w-3.5" />
             Overview
+          </TabsTrigger>
+          <TabsTrigger value="call-activity" className="text-sm">
+            <Phone className="mr-1.5 h-3.5 w-3.5" />
+            Call Activity
           </TabsTrigger>
           <TabsTrigger value="data-room" className="text-sm">
             <FolderOpen className="mr-1.5 h-3.5 w-3.5" />
@@ -113,6 +118,10 @@ const ReMarketingDealDetail = () => {
             toggleUniverseFlagMutation={toggleUniverseFlagMutation}
             queryClient={queryClient}
           />
+        </TabsContent>
+
+        <TabsContent value="call-activity" className="space-y-6">
+          <DealCallActivityTab listingId={dealId!} />
         </TabsContent>
 
         <TabsContent value="data-room" className="space-y-6">
