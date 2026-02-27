@@ -362,8 +362,8 @@ Deno.serve(async (req) => {
 
     const scrapeResults = await Promise.all(scrapePromises);
 
-    // Start firecrawlMap discovery in parallel — but don't block on it
-    let locationPagePromise: Promise<string | null> | null = null;
+    // Start firecrawlMap discovery in parallel — runs alongside initial scrape result processing
+    let locationPagesPromise: Promise<string | null> | null = null;
 
     for (const { type, result } of scrapeResults) {
       if (type === 'platform') {
@@ -372,20 +372,46 @@ Deno.serve(async (req) => {
           sources.platform = platformWebsite!;
           console.log(`Scraped platform website: ${platformContent.length} chars`);
 
-          // PERF: Start location page discovery immediately (runs in parallel with Gemini batch 1)
-          locationPagePromise = firecrawlMap(platformWebsite!, firecrawlApiKey)
+          // PERF: Start location page discovery immediately (runs in parallel with non-geography Gemini prompts)
+          // Scrape up to 3 location pages to capture full geographic footprint
+          locationPagesPromise = firecrawlMap(platformWebsite!, firecrawlApiKey)
             .then(async (links) => {
-              const locationPage = links.find(link =>
+              // Find all matching location pages, prioritize more specific patterns
+              const locationPages = links.filter(link =>
                 LOCATION_PATTERNS.some(p => link.toLowerCase().includes(p))
               );
-              if (locationPage) {
-                console.log(`Found location page: ${locationPage}`);
-                const locationResult = await scrapeWebsite(locationPage, firecrawlApiKey);
-                if (locationResult.success && locationResult.content) {
-                  return locationResult.content;
+              if (locationPages.length === 0) {
+                console.log('No location pages found in sitemap');
+                return null;
+              }
+
+              // Deduplicate: skip pages that are subpaths of already-matched pages
+              // e.g., if we have /locations and /locations/texas, prefer /locations (the index)
+              const unique = locationPages.filter((page, i) => {
+                const pageLower = page.toLowerCase();
+                // Keep this page unless another shorter page is a prefix of it
+                return !locationPages.some((other, j) =>
+                  j !== i && pageLower.startsWith(other.toLowerCase()) && other.length < page.length
+                );
+              });
+
+              const toScrape = unique.slice(0, 3); // Cap at 3 pages to control API costs
+              console.log(`Found ${locationPages.length} location pages, scraping ${toScrape.length}: ${toScrape.join(', ')}`);
+
+              const locationScrapeResults = await Promise.allSettled(
+                toScrape.map(url => scrapeWebsite(url, firecrawlApiKey))
+              );
+
+              const contents: string[] = [];
+              for (let i = 0; i < locationScrapeResults.length; i++) {
+                const settled = locationScrapeResults[i];
+                if (settled.status === 'fulfilled' && settled.value.success && settled.value.content) {
+                  console.log(`Scraped location page (${settled.value.content.length} chars): ${toScrape[i]}`);
+                  contents.push(settled.value.content);
                 }
               }
-              return null;
+
+              return contents.length > 0 ? contents.join('\n\n--- ADDITIONAL LOCATION PAGE ---\n\n') : null;
             })
             .catch((err) => {
               console.warn('Location page discovery failed:', err);
@@ -506,7 +532,24 @@ Deno.serve(async (req) => {
     if (platformContent) {
       allTasks.push(
         () => extractBusinessOverview(platformContent, geminiApiKey, _rateLimitConfig).then(r => ({ name: 'business', result: r, url: platformWebsite })),
-        () => extractGeography(platformContent, geminiApiKey, _rateLimitConfig).then(r => ({ name: 'geography', result: validateGeography(r), url: platformWebsite })),
+        // Geography extraction: await location page content and combine with homepage for full coverage
+        () => (async (): Promise<ExtractionResult> => {
+          let geoContent = platformContent;
+
+          // Wait for location page discovery (started earlier in parallel with homepage scraping)
+          if (locationPagesPromise) {
+            const locationContent = await locationPagesPromise;
+            if (locationContent) {
+              geoContent = platformContent + '\n\n--- LOCATION/BRANCH PAGES ---\n\n' + locationContent;
+              console.log(`Geography extraction using combined content: ${geoContent.length} chars (homepage ${platformContent.length} + location pages ${locationContent.length})`);
+            } else {
+              console.log('No location page content found — using homepage only for geography');
+            }
+          }
+
+          const r = await extractGeography(geoContent, geminiApiKey, _rateLimitConfig);
+          return { name: 'geography', result: validateGeography(r), url: platformWebsite };
+        })(),
         () => extractCustomerProfile(platformContent, geminiApiKey, _rateLimitConfig).then(r => ({ name: 'customer', result: r, url: platformWebsite })),
         () => extractPEIntelligence(platformContent, geminiApiKey, _rateLimitConfig).then(r => ({ name: 'pe_intelligence', result: r, url: platformWebsite })),
       );

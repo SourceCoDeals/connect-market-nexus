@@ -98,16 +98,31 @@ export const FIELD_TO_COLUMN_MAP: Record<string, string> = {
 };
 
 // Location page patterns for discovery
+// Ordered by specificity — more specific patterns first for better matching
 export const LOCATION_PATTERNS = [
   '/locations',
   '/our-locations',
+  '/all-locations',
+  '/store-locator',
+  '/store-finder',
+  '/find-a-store',
+  '/find-a-location',
+  '/find-location',
+  '/find-us',
+  '/stores',
+  '/our-stores',
   '/service-areas',
   '/service-area',
   '/branches',
   '/offices',
+  '/our-offices',
   '/coverage',
+  '/coverage-area',
   '/where-we-work',
+  '/territories',
   '/markets',
+  '/dealer-locator',
+  '/dealers',
   '/about-us',
   '/about',
   '/contact',
@@ -375,8 +390,10 @@ export async function extractCustomerProfile(
 export async function extractGeography(
   content: string, geminiApiKey: string, rateLimitConfig?: RateLimitConfig
 ): Promise<AIExtractionResult> {
-  console.log('Running Prompt 3a: Geographic Footprint');
-  const userPrompt = `Website Content:\n\n${content.substring(0, 50000)}\n\nExtract geographic coverage information. Include states from addresses, service area descriptions, location pages, contact info, and any explicitly named states or cities where the company operates or serves customers. For each city found, add it to operating_locations as "City, ST" format. Always use 2-letter state codes.`;
+  console.log(`Running Prompt 3a: Geographic Footprint (${content.length} chars input)`);
+  // Geography gets a higher content limit (100k) because location pages can be very large
+  // for multi-location businesses (hundreds of branch addresses)
+  const userPrompt = `Website Content:\n\n${content.substring(0, 100000)}\n\nExtract geographic coverage information. Include states from addresses, service area descriptions, location pages, contact info, and any explicitly named states or cities where the company operates or serves customers. For each city found, add it to operating_locations as "City, ST" format. Always use 2-letter state codes. Pay special attention to any "LOCATION/BRANCH PAGES" sections — these contain the most accurate location data.`;
   return await callBuyerGemini(PROMPT_3A_SYSTEM, userPrompt, PROMPT_3A_GEOGRAPHY, geminiApiKey, rateLimitConfig);
 }
 
