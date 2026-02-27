@@ -227,7 +227,7 @@ Edge functions use server-side secrets configured in the Supabase dashboard:
 | `BREVO_API_KEY` | Email functions | Brevo transactional email API key |
 | `MAPBOX_TOKEN` | `get-mapbox-token` | Mapbox GL access token |
 | `FIRECRAWL_API_KEY` | `firecrawl-scrape` | Firecrawl web scraping API key |
-| `APIFY_API_KEY` | `apify-*` functions | Apify scraping platform key |
+| `APIFY_API_TOKEN` | `apify-*` functions | Apify scraping platform token |
 | `DOCUSEAL_API_KEY` | `create-docuseal-submission` | DocuSeal e-signature API key |
 | `FIREFLIES_API_KEY` | `fetch-fireflies-content` | Fireflies.ai transcription API key |
 
