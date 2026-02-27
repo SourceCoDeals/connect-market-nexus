@@ -11,6 +11,7 @@ const RATE_LIMIT_BACKOFF_MS = 60000; // 60s backoff on rate limit
 const STALE_PROCESSING_MINUTES = 5; // Recovery timeout for stuck items
 const MAX_FUNCTION_RUNTIME_MS = 140000; // 140s — stop looping before Deno 150s timeout
 const INTER_BUYER_DELAY_MS = 200; // 200ms breathing room between buyers
+const MAX_CONTINUATIONS = 50; // Prevent infinite self-continuation loops
 
 Deno.serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
@@ -27,7 +28,12 @@ Deno.serve(async (req) => {
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    console.log('Processing buyer enrichment queue (self-looping)...');
+    // Parse request body for continuation tracking
+    let body: Record<string, unknown> = {};
+    try { body = await req.json(); } catch { /* empty body ok */ }
+
+    const continuationCount = (typeof body.continuationCount === 'number') ? body.continuationCount : 0;
+    console.log(`Processing buyer enrichment queue (self-looping)... [continuation ${continuationCount}/${MAX_CONTINUATIONS}]`);
 
     // Auto-recover any stale global operations (prevents deadlocks)
     const recovered = await recoverStaleOperations(supabase);
@@ -380,42 +386,48 @@ Deno.serve(async (req) => {
     const totalRemaining = (remaining || 0) + (rateLimitedRemaining || 0);
 
     if (totalRemaining > 0) {
-      // Determine delay: if rate limited, wait for cooldown + jitter before continuing
-      const continuationDelayMs = totalRateLimited > 0 ? RATE_LIMIT_BACKOFF_MS + Math.random() * 5000 : 0;
-
-      if (continuationDelayMs > 0) {
-        console.log(`${totalRemaining} buyers remaining (${rateLimitedRemaining} rate-limited). Scheduling continuation in ${Math.round(continuationDelayMs / 1000)}s...`);
+      // BUG-4 FIX: Guard against infinite self-continuation loops
+      if (continuationCount >= MAX_CONTINUATIONS) {
+        console.error(`MAX_CONTINUATIONS (${MAX_CONTINUATIONS}) reached — stopping self-continuation to prevent infinite loop. ${totalRemaining} items still pending.`);
+        await completeGlobalQueueOperation(supabase, 'buyer_enrichment', 'failed');
       } else {
-        console.log(`${remaining} buyers still pending, triggering next batch...`);
-      }
+        // Determine delay: if rate limited, wait for cooldown + jitter before continuing
+        const continuationDelayMs = totalRateLimited > 0 ? RATE_LIMIT_BACKOFF_MS + Math.random() * 5000 : 0;
 
-      // Self-continuation with optional delay for rate-limit recovery.
-      // Retry up to 3 times with exponential backoff if the trigger itself fails.
-      const triggerContinuation = async () => {
         if (continuationDelayMs > 0) {
-          await new Promise(r => setTimeout(r, continuationDelayMs));
+          console.log(`${totalRemaining} buyers remaining (${rateLimitedRemaining} rate-limited). Scheduling continuation ${continuationCount + 1}/${MAX_CONTINUATIONS} in ${Math.round(continuationDelayMs / 1000)}s...`);
+        } else {
+          console.log(`${remaining} buyers still pending, triggering continuation ${continuationCount + 1}/${MAX_CONTINUATIONS}...`);
         }
-        for (let attempt = 0; attempt < 3; attempt++) {
-          try {
-            await fetch(`${supabaseUrl}/functions/v1/process-buyer-enrichment-queue`, {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'apikey': supabaseAnonKey,
-                'Authorization': `Bearer ${supabaseServiceKey}`,
-              },
-              body: JSON.stringify({ continuation: true }),
-              signal: AbortSignal.timeout(30_000),
-            });
-            return; // success
-          } catch (err) {
-            console.warn(`Self-continuation trigger attempt ${attempt + 1} failed:`, err);
-            if (attempt < 2) await new Promise(r => setTimeout(r, 2000 * (attempt + 1)));
+
+        // Self-continuation with optional delay for rate-limit recovery.
+        // Retry up to 3 times with exponential backoff if the trigger itself fails.
+        const triggerContinuation = async () => {
+          if (continuationDelayMs > 0) {
+            await new Promise(r => setTimeout(r, continuationDelayMs));
           }
-        }
-        console.error('Self-continuation failed after 3 attempts — queue may stall. Items will recover on next manual trigger.');
-      };
-      triggerContinuation().catch((err: unknown) => { console.warn('[process-buyer-enrichment-queue] Continuation trigger failed:', err); });
+          for (let attempt = 0; attempt < 3; attempt++) {
+            try {
+              await fetch(`${supabaseUrl}/functions/v1/process-buyer-enrichment-queue`, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'apikey': supabaseAnonKey,
+                  'Authorization': `Bearer ${supabaseServiceKey}`,
+                },
+                body: JSON.stringify({ continuation: true, continuationCount: continuationCount + 1 }),
+                signal: AbortSignal.timeout(30_000),
+              });
+              return; // success
+            } catch (err) {
+              console.warn(`Self-continuation trigger attempt ${attempt + 1} failed:`, err);
+              if (attempt < 2) await new Promise(r => setTimeout(r, 2000 * (attempt + 1)));
+            }
+          }
+          console.error('Self-continuation failed after 3 attempts — queue may stall. Items will recover on next manual trigger.');
+        };
+        triggerContinuation().catch((err: unknown) => { console.warn('[process-buyer-enrichment-queue] Continuation trigger failed:', err); });
+      }
     }
 
     return new Response(

@@ -16,6 +16,13 @@ export type OperationType =
 /**
  * Update progress on a global_activity_queue item.
  * Called after each item completes in a queue processor.
+ *
+ * BUG-6 FIX: Uses RPC for atomic increment when available, falling back to
+ * read-modify-write for error_log appends (which can't be done atomically
+ * without an RPC). The completed_items and failed_items counters are the
+ * critical path — these are now incremented atomically via SQL to prevent
+ * lost updates under concurrent access (e.g., deal queue processes 5 items
+ * in parallel, all calling this function simultaneously).
  */
 export async function updateGlobalQueueProgress(
   supabase: SupabaseClient,
@@ -27,35 +34,70 @@ export async function updateGlobalQueueProgress(
   }
 ): Promise<void> {
   try {
-    // Find the running queue item for this operation type
-    const { data: item } = await supabase
-      .from('global_activity_queue')
-      .select('id, completed_items, failed_items, error_log')
-      .eq('operation_type', operationType)
-      .eq('status', 'running')
-      .limit(1)
-      .maybeSingle();
+    // Try atomic RPC first (prevents lost increments under concurrent access)
+    const rpcResult = await supabase.rpc('increment_global_queue_progress', {
+      p_operation_type: operationType,
+      p_completed_delta: update.completedDelta || 0,
+      p_failed_delta: update.failedDelta || 0,
+    });
 
-    if (!item) return; // No tracked operation — minor op or not yet integrated
+    if (!rpcResult.error) {
+      // RPC succeeded for counters. Now handle error_log append separately
+      // (requires read-modify-write since JSONB array append isn't in the RPC yet)
+      if (update.errorEntry) {
+        const { data: item } = await supabase
+          .from('global_activity_queue')
+          .select('id, error_log')
+          .eq('operation_type', operationType)
+          .eq('status', 'running')
+          .limit(1)
+          .maybeSingle();
 
-    const updates: Record<string, unknown> = {};
-    if (update.completedDelta) {
-      updates.completed_items = (item.completed_items || 0) + update.completedDelta;
-    }
-    if (update.failedDelta) {
-      updates.failed_items = (item.failed_items || 0) + update.failedDelta;
-    }
-    if (update.errorEntry) {
-      const log = Array.isArray(item.error_log) ? item.error_log : [];
-      log.push({ ...update.errorEntry, timestamp: new Date().toISOString() });
-      updates.error_log = log;
+        if (item) {
+          const log = Array.isArray(item.error_log) ? item.error_log : [];
+          log.push({ ...update.errorEntry, timestamp: new Date().toISOString() });
+          await supabase
+            .from('global_activity_queue')
+            .update({ error_log: log })
+            .eq('id', item.id);
+        }
+      }
+      return;
     }
 
-    if (Object.keys(updates).length > 0) {
-      await supabase
+    // RPC not available — fall back to read-modify-write (original behavior)
+    if (rpcResult.error?.code === 'PGRST202' || rpcResult.error?.code === '42883') {
+      const { data: item } = await supabase
         .from('global_activity_queue')
-        .update(updates)
-        .eq('id', item.id);
+        .select('id, completed_items, failed_items, error_log')
+        .eq('operation_type', operationType)
+        .eq('status', 'running')
+        .limit(1)
+        .maybeSingle();
+
+      if (!item) return;
+
+      const updates: Record<string, unknown> = {};
+      if (update.completedDelta) {
+        updates.completed_items = (item.completed_items || 0) + update.completedDelta;
+      }
+      if (update.failedDelta) {
+        updates.failed_items = (item.failed_items || 0) + update.failedDelta;
+      }
+      if (update.errorEntry) {
+        const log = Array.isArray(item.error_log) ? item.error_log : [];
+        log.push({ ...update.errorEntry, timestamp: new Date().toISOString() });
+        updates.error_log = log;
+      }
+
+      if (Object.keys(updates).length > 0) {
+        await supabase
+          .from('global_activity_queue')
+          .update(updates)
+          .eq('id', item.id);
+      }
+    } else {
+      console.error('[global-activity-queue] RPC error:', rpcResult.error);
     }
   } catch (err) {
     // Non-blocking — don't let global queue tracking break the actual processing

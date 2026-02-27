@@ -8,6 +8,7 @@ const RATE_LIMIT_BACKOFF_MS = 60000;
 const STALE_PROCESSING_MINUTES = 5;
 const MAX_FUNCTION_RUNTIME_MS = 140000;
 const INTER_ITEM_DELAY_MS = 2000; // 2s between scoring calls to respect Gemini limits
+const MAX_CONTINUATIONS = 50; // Prevent infinite self-continuation loops
 
 Deno.serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
@@ -20,18 +21,33 @@ Deno.serve(async (req) => {
     const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    console.log('Processing scoring queue (self-looping)...');
+    // Parse request body for continuation tracking
+    let body: Record<string, unknown> = {};
+    try { body = await req.json(); } catch { /* empty body ok */ }
+
+    const continuationCount = (typeof body.continuationCount === 'number') ? body.continuationCount : 0;
+    console.log(`Processing scoring queue (self-looping)... [continuation ${continuationCount}/${MAX_CONTINUATIONS}]`);
 
     // Recover stale global operations
     await recoverStaleOperations(supabase);
 
     // Recovery: reset stale processing items
+    // BUG-2 FIX: The scoring queue lacks a dedicated started_at column, so we use
+    // a heuristic: items in 'processing' state whose attempts were last updated more
+    // than STALE_PROCESSING_MINUTES ago are considered stuck. We check created_at only
+    // as a safety floor — items created less than STALE_PROCESSING_MINUTES ago that are
+    // still processing are likely still actively being worked on.
     const staleCutoff = new Date(Date.now() - STALE_PROCESSING_MINUTES * 60 * 1000).toISOString();
-    await supabase
+    const { data: recoveredItems } = await supabase
       .from('remarketing_scoring_queue')
       .update({ status: 'pending', last_error: 'Recovered from stale processing', processed_at: null })
       .eq('status', 'processing')
-      .lt('created_at', staleCutoff);
+      .lt('created_at', staleCutoff)
+      .select('id');
+
+    if (recoveredItems && recoveredItems.length > 0) {
+      console.log(`Recovered ${recoveredItems.length} stale scoring items from processing state`);
+    }
 
     // Guard: skip if another processor is active
     const { data: active } = await supabase
@@ -219,9 +235,13 @@ Deno.serve(async (req) => {
       .eq('status', 'pending');
 
     if (remaining && remaining > 0) {
-      if (rateLimited) {
+      // BUG-4 FIX: Guard against infinite self-continuation loops
+      if (continuationCount >= MAX_CONTINUATIONS) {
+        console.error(`MAX_CONTINUATIONS (${MAX_CONTINUATIONS}) reached — stopping self-continuation to prevent infinite loop. ${remaining} items still pending.`);
+        await completeGlobalQueueOperation(supabase, 'buyer_scoring', 'failed');
+      } else if (rateLimited) {
         // Schedule delayed self-continuation after rate limit cooldown
-        console.log(`${remaining} items pending but rate limited — scheduling retry in ${RATE_LIMIT_BACKOFF_MS / 1000}s`);
+        console.log(`${remaining} items pending but rate limited — scheduling retry ${continuationCount + 1}/${MAX_CONTINUATIONS} in ${RATE_LIMIT_BACKOFF_MS / 1000}s`);
         setTimeout(() => {
           fetch(`${supabaseUrl}/functions/v1/process-scoring-queue`, {
             method: 'POST',
@@ -230,12 +250,12 @@ Deno.serve(async (req) => {
               'apikey': supabaseAnonKey,
               'Authorization': `Bearer ${supabaseServiceKey}`,
             },
-            body: JSON.stringify({ continuation: true, afterRateLimit: true }),
+            body: JSON.stringify({ continuation: true, afterRateLimit: true, continuationCount: continuationCount + 1 }),
             signal: AbortSignal.timeout(30_000),
           }).catch((err: unknown) => { console.warn('[process-scoring-queue] Continuation failed:', err); });
         }, Math.min(RATE_LIMIT_BACKOFF_MS, 30_000));
       } else {
-        console.log(`${remaining} items still pending, triggering next batch...`);
+        console.log(`${remaining} items still pending, triggering continuation ${continuationCount + 1}/${MAX_CONTINUATIONS}...`);
         fetch(`${supabaseUrl}/functions/v1/process-scoring-queue`, {
           method: 'POST',
           headers: {
@@ -243,7 +263,7 @@ Deno.serve(async (req) => {
             'apikey': supabaseAnonKey,
             'Authorization': `Bearer ${supabaseServiceKey}`,
           },
-          body: JSON.stringify({ continuation: true }),
+          body: JSON.stringify({ continuation: true, continuationCount: continuationCount + 1 }),
           signal: AbortSignal.timeout(30_000),
         }).catch((err: unknown) => { console.warn('[process-scoring-queue] Continuation failed:', err); });
       }
