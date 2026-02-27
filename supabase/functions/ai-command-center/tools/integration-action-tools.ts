@@ -21,7 +21,7 @@ import {
   inferDomain,
 } from '../../_shared/apify-client.ts';
 import { batchEnrich, domainSearchEnrich, enrichContact } from '../../_shared/prospeo-client.ts';
-import { findCompanyLinkedIn, googleSearch } from '../../_shared/apify-google-client.ts';
+import { findCompanyLinkedIn, googleSearch } from '../../_shared/serper-client.ts';
 
 // ---------- Tool definitions ----------
 
@@ -96,7 +96,8 @@ export const integrationActionTools: ClaudeTool[] = [
         mode: {
           type: 'string',
           enum: ['company', 'linkedin'],
-          description: '"company" to discover contacts at a company (requires company_name), "linkedin" to enrich from a LinkedIn profile URL (requires linkedin_url). Default: auto-detected based on provided params.',
+          description:
+            '"company" to discover contacts at a company (requires company_name), "linkedin" to enrich from a LinkedIn profile URL (requires linkedin_url). Default: auto-detected based on provided params.',
         },
         company_name: {
           type: 'string',
@@ -122,7 +123,8 @@ export const integrationActionTools: ClaudeTool[] = [
         },
         linkedin_url: {
           type: 'string',
-          description: 'LinkedIn profile URL to enrich (linkedin mode, e.g. "https://www.linkedin.com/in/john-smith")',
+          description:
+            'LinkedIn profile URL to enrich (linkedin mode, e.g. "https://www.linkedin.com/in/john-smith")',
         },
         first_name: {
           type: 'string',
@@ -210,7 +212,8 @@ export const integrationActionTools: ClaudeTool[] = [
         mode: {
           type: 'string',
           enum: ['person', 'linkedin_search'],
-          description: '"person" to find a person\'s email via the full enrichment pipeline (default), "linkedin_search" to find LinkedIn URLs for existing CRM contacts missing them.',
+          description:
+            '"person" to find a person\'s email via the full enrichment pipeline (default), "linkedin_search" to find LinkedIn URLs for existing CRM contacts missing them.',
         },
         person_name: {
           type: 'string',
@@ -218,17 +221,20 @@ export const integrationActionTools: ClaudeTool[] = [
         },
         company_name: {
           type: 'string',
-          description: 'Company name if known. If omitted in person mode, resolves from linked listings/deals. (person mode)',
+          description:
+            'Company name if known. If omitted in person mode, resolves from linked listings/deals. (person mode)',
         },
         contact_type: {
           type: 'string',
           enum: ['buyer', 'seller', 'advisor', 'all'],
-          description: 'Filter by contact type (default "all" for person mode, "seller" for linkedin_search mode)',
+          description:
+            'Filter by contact type (default "all" for person mode, "seller" for linkedin_search mode)',
         },
         contact_ids: {
           type: 'array',
           items: { type: 'string' },
-          description: 'Specific contact UUIDs to find LinkedIn URLs for (linkedin_search mode). If omitted, auto-discovers contacts missing LinkedIn.',
+          description:
+            'Specific contact UUIDs to find LinkedIn URLs for (linkedin_search mode). If omitted, auto-discovers contacts missing LinkedIn.',
         },
         limit: {
           type: 'number',
@@ -236,7 +242,8 @@ export const integrationActionTools: ClaudeTool[] = [
         },
         auto_update: {
           type: 'boolean',
-          description: 'If true, automatically update high-confidence matches in the contacts table (linkedin_search mode). Default false.',
+          description:
+            'If true, automatically update high-confidence matches in the contacts table (linkedin_search mode). Default false.',
         },
       },
       required: [],
@@ -356,14 +363,17 @@ async function googleSearchCompanies(args: Record<string, unknown>): Promise<Too
   } catch (err) {
     const errMsg = err instanceof Error ? err.message : String(err);
     const is404 = errMsg.includes('404');
-    const isAuth = errMsg.includes('401') || errMsg.includes('403') || errMsg.includes('Unauthorized');
+    const isAuth =
+      errMsg.includes('401') || errMsg.includes('403') || errMsg.includes('Unauthorized');
     const isRateLimit = errMsg.includes('429');
 
     let diagnosis = '';
     if (is404) {
-      diagnosis = 'The Apify Google search actor may have been renamed or removed. The APIFY_API_TOKEN or actor ID may need updating in Supabase Edge Function secrets.';
+      diagnosis =
+        'The Apify Google search actor may have been renamed or removed. The APIFY_API_TOKEN or actor ID may need updating in Supabase Edge Function secrets.';
     } else if (isAuth) {
-      diagnosis = 'The APIFY_API_TOKEN appears to be invalid or expired. It needs to be updated in Supabase Edge Function secrets.';
+      diagnosis =
+        'The APIFY_API_TOKEN appears to be invalid or expired. It needs to be updated in Supabase Edge Function secrets.';
     } else if (isRateLimit) {
       diagnosis = 'Apify rate limit hit. Try again in a few minutes.';
     } else {
@@ -571,9 +581,13 @@ async function enrichBuyerContacts(
     const is404 = errMsg.includes('404');
     const isAuth = errMsg.includes('401') || errMsg.includes('403');
     if (is404) {
-      errors.push(`LinkedIn scrape failed (404): The Apify actor may have been renamed or removed. Check APIFY_API_TOKEN and actor ID in Supabase secrets.`);
+      errors.push(
+        `LinkedIn scrape failed (404): The Apify actor may have been renamed or removed. Check APIFY_API_TOKEN and actor ID in Supabase secrets.`,
+      );
     } else if (isAuth) {
-      errors.push(`LinkedIn scrape failed (auth): APIFY_API_TOKEN may be invalid or expired. Update it in Supabase Edge Function secrets.`);
+      errors.push(
+        `LinkedIn scrape failed (auth): APIFY_API_TOKEN may be invalid or expired. Update it in Supabase Edge Function secrets.`,
+      );
     } else {
       errors.push(`LinkedIn scrape failed: ${errMsg}`);
     }
@@ -708,7 +722,9 @@ async function enrichBuyerContacts(
     const is404 = errMsg.includes('404');
     const isAuth = errMsg.includes('401') || errMsg.includes('403');
     if (is404) {
-      errors.push(`Email enrichment failed (404): Prospeo API endpoint may have changed. Check PROSPEO_API_KEY in Supabase secrets.`);
+      errors.push(
+        `Email enrichment failed (404): Prospeo API endpoint may have changed. Check PROSPEO_API_KEY in Supabase secrets.`,
+      );
     } else if (isAuth) {
       errors.push(`Email enrichment failed (auth): PROSPEO_API_KEY may be invalid or expired.`);
     } else {

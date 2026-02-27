@@ -16,7 +16,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { getCorsHeaders, corsPreflightResponse } from '../_shared/cors.ts';
 import { requireAdmin } from '../_shared/auth.ts';
 import { enrichContact } from '../_shared/prospeo-client.ts';
-import { findCompanyLinkedIn } from '../_shared/apify-google-client.ts';
+import { findCompanyLinkedIn } from '../_shared/serper-client.ts';
 import { inferDomain } from '../_shared/apify-client.ts';
 
 // deno-lint-ignore no-explicit-any

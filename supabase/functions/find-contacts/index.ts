@@ -21,7 +21,7 @@ import { getCorsHeaders, corsPreflightResponse } from '../_shared/cors.ts';
 import { requireAdmin } from '../_shared/auth.ts';
 import { scrapeCompanyEmployees, resolveCompanyUrl, inferDomain } from '../_shared/apify-client.ts';
 import { batchEnrich, domainSearchEnrich } from '../_shared/prospeo-client.ts';
-import { findCompanyLinkedIn } from '../_shared/apify-google-client.ts';
+import { findCompanyLinkedIn } from '../_shared/serper-client.ts';
 
 interface FindContactsRequest {
   company_name: string;

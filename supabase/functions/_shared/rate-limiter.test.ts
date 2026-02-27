@@ -10,7 +10,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 // Re-implement core rate limiter types and functions (mirrors rate-limiter.ts)
 // ---------------------------------------------------------------------------
 
-type AIProviderName = 'gemini' | 'firecrawl' | 'apify';
+type AIProviderName = 'gemini' | 'firecrawl' | 'apify' | 'serper';
 
 const PROVIDER_LIMITS: Record<
   AIProviderName,
@@ -19,6 +19,7 @@ const PROVIDER_LIMITS: Record<
   gemini: { maxConcurrent: 10, cooldownMs: 10000, softLimitRpm: 30 },
   firecrawl: { maxConcurrent: 5, cooldownMs: 10000, softLimitRpm: 20 },
   apify: { maxConcurrent: 3, cooldownMs: 30000, softLimitRpm: 10 },
+  serper: { maxConcurrent: 10, cooldownMs: 5000, softLimitRpm: 50 },
 };
 
 let localState: Record<string, { lastRateLimited: number; backoffUntil: number }> = {};

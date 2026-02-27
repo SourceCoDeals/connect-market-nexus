@@ -1,15 +1,14 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
-import { getCorsHeaders, corsPreflightResponse } from "../_shared/cors.ts";
+import { getCorsHeaders, corsPreflightResponse } from '../_shared/cors.ts';
+import { searchGoogleMaps, parseAddress } from '../_shared/serper-client.ts';
+import type { GoogleMapsPlace } from '../_shared/serper-client.ts';
 
-// Apify Google Maps Scraper actor - extracts reviews, ratings, and business info
-// Using compass~crawler-google-places (the original working actor with tilde separator)
-const APIFY_ACTOR = 'compass~crawler-google-places';
 interface GooglePlaceData {
   title?: string;
-  totalScore?: number;        // Google rating (e.g., 4.5)
-  reviewsCount?: number;      // Number of reviews
+  totalScore?: number; // Google rating (e.g., 4.5)
+  reviewsCount?: number; // Number of reviews
   address?: string;
   city?: string;
   state?: string;
@@ -18,9 +17,36 @@ interface GooglePlaceData {
   website?: string;
   categoryName?: string;
   placeId?: string;
-  url?: string;               // Google Maps URL
+  url?: string; // Google Maps URL
   temporarilyClosed?: boolean;
   permanentlyClosed?: boolean;
+}
+
+/** Convert Serper GoogleMapsPlace to the internal GooglePlaceData shape. */
+function toPlaceData(place: GoogleMapsPlace): GooglePlaceData {
+  const parsed = parseAddress(place.address || '');
+  const mapsUrl = place.cid
+    ? `https://www.google.com/maps?cid=${place.cid}`
+    : place.placeId
+      ? `https://www.google.com/maps/place/?q=place_id:${place.placeId}`
+      : null;
+
+  return {
+    title: place.title,
+    totalScore: place.rating,
+    reviewsCount: place.ratingCount,
+    address: place.address,
+    city: parsed.city,
+    state: parsed.state,
+    postalCode: parsed.postalCode,
+    phone: place.phoneNumber,
+    website: place.website,
+    categoryName: place.category,
+    placeId: place.placeId,
+    url: mapsUrl || undefined,
+    temporarilyClosed: false,
+    permanentlyClosed: false,
+  };
 }
 
 serve(async (req) => {
@@ -34,13 +60,13 @@ serve(async (req) => {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 
-    const APIFY_API_TOKEN = Deno.env.get('APIFY_API_TOKEN');
+    const SERPER_API_KEY = Deno.env.get('SERPER_API_KEY');
 
-    if (!APIFY_API_TOKEN) {
-      console.error('APIFY_API_TOKEN not configured');
+    if (!SERPER_API_KEY) {
+      console.error('SERPER_API_KEY not configured');
       return new Response(
-        JSON.stringify({ success: false, error: 'Apify API token not configured' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({ success: false, error: 'Serper API key not configured' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
       );
     }
 
@@ -51,7 +77,7 @@ serve(async (req) => {
       state,
       googleMapsUrl,
       dealId,
-      scrapeAll  // If true, scrape all deals needing Google data
+      scrapeAll, // If true, scrape all deals needing Google data
     } = await req.json();
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
@@ -71,8 +97,12 @@ serve(async (req) => {
 
       if (!deals || deals.length === 0) {
         return new Response(
-          JSON.stringify({ success: true, message: 'All deals already have Google review data', scraped: 0 }),
-          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          JSON.stringify({
+            success: true,
+            message: 'All deals already have Google review data',
+            scraped: 0,
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
         );
       }
 
@@ -85,9 +115,10 @@ serve(async (req) => {
         try {
           const companyName = deal.internal_company_name || deal.title;
           // Prefer structured city/state over legacy address
-          const location = (deal.address_city && deal.address_state)
-            ? `${deal.address_city}, ${deal.address_state}`
-            : (deal.address || deal.location);
+          const location =
+            deal.address_city && deal.address_state
+              ? `${deal.address_city}, ${deal.address_state}`
+              : deal.address || deal.location;
 
           if (!companyName) {
             console.log(`Skipping deal ${deal.id} - no company name`);
@@ -95,11 +126,9 @@ serve(async (req) => {
           }
 
           // Build search query - company name + location is best for Google search
-          const searchQuery = location
-            ? `${companyName} ${location}`
-            : companyName;
+          const searchQuery = location ? `${companyName} ${location}` : companyName;
 
-          const result = await scrapeGooglePlace(APIFY_API_TOKEN, searchQuery, null);
+          const result = await scrapeGooglePlace(searchQuery);
 
           if (result.success && result.data) {
             const updateData: Record<string, unknown> = {
@@ -134,7 +163,9 @@ serve(async (req) => {
               console.error(`Error updating deal ${deal.id}:`, updateError);
               errors++;
             } else {
-              console.log(`Updated deal ${deal.id}: ${result.data.reviewsCount} reviews, ${result.data.totalScore} rating`);
+              console.log(
+                `Updated deal ${deal.id}: ${result.data.reviewsCount} reviews, ${result.data.totalScore} rating`,
+              );
               scraped++;
             }
           } else {
@@ -149,9 +180,8 @@ serve(async (req) => {
             }
           }
 
-          // Rate limit - wait 2 seconds between scrapes
-          await new Promise(resolve => setTimeout(resolve, 2000));
-
+          // Rate limit - wait 1 second between scrapes (Serper is faster than Apify)
+          await new Promise((resolve) => setTimeout(resolve, 1000));
         } catch (dealError) {
           console.error(`Error scraping deal ${deal.id}:`, dealError);
           errors++;
@@ -164,23 +194,38 @@ serve(async (req) => {
           message: `Scraped ${scraped} deals, ${errors} errors`,
           scraped,
           errors,
-          total: deals.length
+          total: deals.length,
         }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
       );
     }
 
     // Single deal scrape
     if (!businessName && !googleMapsUrl) {
       return new Response(
-        JSON.stringify({ success: false, error: 'Either businessName or googleMapsUrl is required' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({
+          success: false,
+          error: 'Either businessName or googleMapsUrl is required',
+        }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
       );
     }
 
     // Build search query
-    let searchQuery = googleMapsUrl;
-    if (!searchQuery && businessName) {
+    let searchQuery: string;
+    if (googleMapsUrl) {
+      // Try to extract business name from Google Maps URL path
+      // URLs look like: https://www.google.com/maps/place/Business+Name/...
+      const placeMatch = googleMapsUrl.match(/\/maps\/place\/([^/]+)/);
+      if (placeMatch) {
+        searchQuery = decodeURIComponent(placeMatch[1].replace(/\+/g, ' '));
+      } else if (businessName) {
+        searchQuery = [businessName, city, state].filter(Boolean).join(', ');
+      } else {
+        // Fall back to using the URL as a search query (may not work well but best effort)
+        searchQuery = googleMapsUrl;
+      }
+    } else {
       searchQuery = [businessName, city, state].filter(Boolean).join(', ');
       if (address) {
         searchQuery = `${businessName} ${address}`;
@@ -189,13 +234,13 @@ serve(async (req) => {
 
     console.log(`Scraping Google reviews for: ${searchQuery}`);
 
-    const result = await scrapeGooglePlace(APIFY_API_TOKEN, searchQuery, googleMapsUrl);
+    const result = await scrapeGooglePlace(searchQuery);
 
     if (!result.success) {
-      return new Response(
-        JSON.stringify(result),
-        { status: 422, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      return new Response(JSON.stringify(result), {
+        status: 422,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
 
     const placeData = result.data!;
@@ -249,96 +294,53 @@ serve(async (req) => {
       }
     }
 
-    return new Response(
-      JSON.stringify(response),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
-
+    return new Response(JSON.stringify(response), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
   } catch (error) {
     console.error('Error in apify-google-reviews:', error);
     const message = error instanceof Error ? error.message : 'Unknown error';
-    return new Response(
-      JSON.stringify({ success: false, error: message }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+    return new Response(JSON.stringify({ success: false, error: message }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
   }
 });
 
 async function scrapeGooglePlace(
-  apiToken: string,
-  searchQuery: string | null,
-  directUrl: string | null
+  searchQuery: string,
 ): Promise<{ success: boolean; data?: GooglePlaceData; error?: string }> {
-
-  const apifyUrl = `https://api.apify.com/v2/acts/${APIFY_ACTOR}/run-sync-get-dataset-items?token=${apiToken}`;
-
-  // Configure the actor input for compass~crawler-google-places
-  const actorInput: Record<string, unknown> = {
-    maxCrawledPlacesPerSearch: 1,  // We only need the first/best match
-    language: 'en',
-    deeperCityScrape: false,
-    scrapeReviewerName: false,     // Don't need individual reviews
-    scrapeReviewerId: false,
-    scrapeReviewerUrl: false,
-    scrapeReviewId: false,
-    scrapeReviewUrl: false,
-    scrapeResponseFromOwnerText: false,
-    maxImages: 0,
-  };
-
-  if (directUrl) {
-    // If we have a direct Google Maps URL, use it
-    actorInput.startUrls = [{ url: directUrl }];
-  } else if (searchQuery) {
-    // Search by query - compass actor uses 'searchStringsArray'
-    actorInput.searchStringsArray = [searchQuery];
-  }
-
   try {
-    const apifyResponse = await fetch(apifyUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(actorInput),
-      signal: AbortSignal.timeout(90000) // 90 second timeout (Google scraping can be slow)
-    });
+    const place = await searchGoogleMaps(searchQuery);
 
-    if (!apifyResponse.ok) {
-      const errorText = await apifyResponse.text();
-      console.error('Apify API error:', apifyResponse.status, errorText);
-      return {
-        success: false,
-        error: `Apify API error: ${apifyResponse.status}`
-      };
-    }
-
-    const items = await apifyResponse.json();
-
-    if (!items || items.length === 0) {
+    if (!place) {
       console.log('No Google Place data found');
       return {
         success: false,
-        error: 'No business found on Google Maps'
+        error: 'No business found on Google Maps',
       };
     }
 
-    const placeData = items[0] as GooglePlaceData;
-    console.log('Google Place data:', JSON.stringify({
-      title: placeData.title,
-      rating: placeData.totalScore,
-      reviews: placeData.reviewsCount,
-      address: placeData.address
-    }));
+    const placeData = toPlaceData(place);
+    console.log(
+      'Google Place data:',
+      JSON.stringify({
+        title: placeData.title,
+        rating: placeData.totalScore,
+        reviews: placeData.reviewsCount,
+        address: placeData.address,
+      }),
+    );
 
     return {
       success: true,
-      data: placeData
+      data: placeData,
     };
-
   } catch (fetchError) {
-    console.error('Error calling Apify:', fetchError);
+    console.error('Error calling Serper:', fetchError);
     return {
       success: false,
-      error: fetchError instanceof Error ? fetchError.message : 'Network error'
+      error: fetchError instanceof Error ? fetchError.message : 'Network error',
     };
   }
 }

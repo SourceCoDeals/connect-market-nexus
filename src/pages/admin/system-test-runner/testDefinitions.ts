@@ -655,14 +655,18 @@ export function buildTests(): TestDef[] {
     if (error) throw new Error(error.message);
   });
 
-  add(C9, 'deal_transcripts unique constraint on (listing_id, fireflies_transcript_id)', async () => {
-    // Verify the unique constraint exists by trying to query with both fields
-    const { error } = await supabase
-      .from('deal_transcripts')
-      .select('id, listing_id, fireflies_transcript_id')
-      .limit(1);
-    if (error) throw new Error(error.message);
-  });
+  add(
+    C9,
+    'deal_transcripts unique constraint on (listing_id, fireflies_transcript_id)',
+    async () => {
+      // Verify the unique constraint exists by trying to query with both fields
+      const { error } = await supabase
+        .from('deal_transcripts')
+        .select('id, listing_id, fireflies_transcript_id')
+        .limit(1);
+      if (error) throw new Error(error.message);
+    },
+  );
 
   // --- 9b: Edge Function Reachability ---
   add(C9, 'sync-fireflies-transcripts edge function reachable', async () => {
@@ -801,10 +805,7 @@ export function buildTests(): TestDef[] {
 
   // --- 9f: Data Integrity Tests ---
   add(C9, 'deal_transcripts source values are valid', async () => {
-    const { data, error } = await supabase
-      .from('deal_transcripts')
-      .select('source')
-      .limit(100);
+    const { data, error } = await supabase.from('deal_transcripts').select('source').limit(100);
     if (error) throw new Error(error.message);
     const validSources = ['fireflies', 'upload', 'file_upload', 'manual', null];
     const invalidSources = (data || [])
@@ -861,7 +862,7 @@ export function buildTests(): TestDef[] {
     if (listingsError) throw new Error(listingsError.message);
 
     const existingIds = new Set((listings || []).map((l: any) => l.id));
-    const orphaned = listingIds.filter(id => !existingIds.has(id));
+    const orphaned = listingIds.filter((id) => !existingIds.has(id));
     if (orphaned.length > 0) {
       throw new Error(`${orphaned.length} deal_transcript(s) reference non-existent listings`);
     }
@@ -881,7 +882,9 @@ export function buildTests(): TestDef[] {
       }
       for (const p of ep) {
         if (typeof p !== 'object' || p === null) {
-          throw new Error(`Transcript ${row.id}: external_participants contains non-object element`);
+          throw new Error(
+            `Transcript ${row.id}: external_participants contains non-object element`,
+          );
         }
       }
     }
@@ -920,7 +923,9 @@ export function buildTests(): TestDef[] {
       .eq('applied_to_deal', true);
 
     // This is informational — log counts for visibility
-    console.log(`Transcript Stats: ${totalCount || 0} total, ${ffCount || 0} Fireflies, ${uploadCount || 0} uploads, ${noContentCount || 0} no-content, ${extractedCount || 0} extracted, ${appliedCount || 0} applied`);
+    console.log(
+      `Transcript Stats: ${totalCount || 0} total, ${ffCount || 0} Fireflies, ${uploadCount || 0} uploads, ${noContentCount || 0} no-content, ${extractedCount || 0} extracted, ${appliedCount || 0} applied`,
+    );
 
     if (!totalCount || totalCount === 0) {
       throw new Error('No deal_transcripts found — Fireflies integration may not be in use yet');
@@ -1123,7 +1128,9 @@ export function buildTests(): TestDef[] {
     }
 
     if (warned.length > 0 && passed.length === 0) {
-      throw new Error(`All sub-tests returned warnings: ${warned.map((r: any) => r.detail).join('; ')}`);
+      throw new Error(
+        `All sub-tests returned warnings: ${warned.map((r: any) => r.detail).join('; ')}`,
+      );
     }
     // Success: all passed (warnings are acceptable if passes also exist)
   });
@@ -1133,14 +1140,14 @@ export function buildTests(): TestDef[] {
   // ═══════════════════════════════════════════════════
   const C15 = '15. External API Health';
 
-  // --- Apify (LinkedIn scraping, Google reviews, company discovery) ---
+  // --- Apify (LinkedIn scraping) + Serper (Google reviews, company discovery) ---
   add(C15, 'apify-linkedin-scrape edge function reachable', async () => {
     await invokeEdgeFunction('apify-linkedin-scrape', {
       listingId: '00000000-0000-0000-0000-000000000000',
     });
   });
 
-  add(C15, 'apify-google-reviews edge function reachable', async () => {
+  add(C15, 'google-reviews (Serper) edge function reachable', async () => {
     await invokeEdgeFunction('apify-google-reviews', {
       listingId: '00000000-0000-0000-0000-000000000000',
     });
