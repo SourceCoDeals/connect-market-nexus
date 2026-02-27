@@ -163,9 +163,10 @@ Present: total count, breakdown by status, key details.`,
 Use get_buyer_history for score snapshots and learning history.
 Present as timeline or summary with signal counts.`,
 
-  CONTACTS: `For LINKEDIN URLs: immediately use enrich_contact(mode: "linkedin", linkedin_url: ...). Present results.
-For NAME + COMPANY: search_contacts(company_name, search) first → if missing email, auto find_contact(mode: "person", person_name: ...) → present results. Never stop at "email not on file" — exhaust all options automatically.
-For NAME only: immediately use find_contact(mode: "person", person_name: ...) (handles full pipeline).
+  CONTACTS: `For LINKEDIN URLs: immediately use enrich_contact(mode: "linkedin", linkedin_url: ...) with the EXACT URL the user provided. CRITICAL: If the user pastes a LinkedIn URL, ALWAYS use that URL directly — even if an existing CRM contact has a different LinkedIn URL stored. The user's provided URL takes priority over stored data. Do NOT substitute a stored URL for the user's URL. Present results.
+For NAME + COMPANY: search_contacts(company_name, search) first → if missing email, auto find_contact(mode: "person", person_name: ...) → present results. Never stop at "email not on file" — exhaust all options automatically. The enrichment pipeline will automatically verify stored LinkedIn URLs against Google search.
+For NAME only: immediately use find_contact(mode: "person", person_name: ...) (handles full pipeline with LinkedIn verification).
+For COMPANY CONTACTS / "who runs X" / "find contacts at X": use find_contact(mode: "decision_makers", company_name: ...) to discover all key decision makers (CEO, founders, VPs, etc.) at a company via Google search. This is faster and more reliable than enrich_contact(mode: "company"). Provide company_domain if known for better accuracy.
 For BULK MISSING EMAIL: search_contacts(has_email=false), then auto-enrich each.
 For LINKEDIN PROFILE DISCOVERY: use find_contact(mode: "linkedin_search", contact_ids: ...).
 For FIRM searches: use search_pe_contacts with firm_name. If none found, auto-enrich.
