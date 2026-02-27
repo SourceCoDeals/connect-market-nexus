@@ -231,12 +231,12 @@ export const BuyerQueryChat = ({ universeId, className, defaultOpen = false }: B
                       : 'bg-muted'
                   )}
                 >
-                  <p className="text-sm">{message.content}</p>
+                  <p className="text-base leading-relaxed" style={{ color: message.role === 'user' ? undefined : '#0E101A' }}>{message.content}</p>
                 </div>
 
                 {/* Show reasoning */}
                 {message.reasoning && (
-                  <p className="text-xs text-muted-foreground mt-1 max-w-[90%]">
+                  <p className="text-sm mt-1 max-w-[90%]" style={{ color: '#3a3a3a' }}>
                     {message.reasoning}
                   </p>
                 )}
@@ -296,7 +296,7 @@ export const BuyerQueryChat = ({ universeId, className, defaultOpen = false }: B
 
                 {/* Show suggestions */}
                 {message.suggestions && (
-                  <p className="text-xs text-primary mt-2 max-w-[90%]">
+                  <p className="text-sm text-primary mt-2 max-w-[90%]">
                     💡 {message.suggestions}
                   </p>
                 )}

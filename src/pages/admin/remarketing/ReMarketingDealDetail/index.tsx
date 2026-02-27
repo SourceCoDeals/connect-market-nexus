@@ -10,6 +10,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Building2, Eye, FolderOpen, Phone } from "lucide-react";
 import { useDealDetail } from "./useDealDetail";
 import { CapTargetInfoCard } from "./CapTargetInfoCard";
+import { SalesforceInfoCard } from "./SalesforceInfoCard";
 import { DealHeader } from "./DealHeader";
 import { OverviewTab } from "./OverviewTab";
 import { DataRoomTab } from "./DataRoomTab";
@@ -60,6 +61,7 @@ const ReMarketingDealDetail = () => {
     <div className="p-6 space-y-6">
 
       <CapTargetInfoCard deal={deal} dealId={dealId!} />
+      <SalesforceInfoCard deal={deal} />
 
       <DealHeader
         deal={deal}

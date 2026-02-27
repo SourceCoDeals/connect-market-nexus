@@ -96,12 +96,12 @@ export function PipelineDetailMessages({ deal }: PipelineDetailMessagesProps) {
                     : { backgroundColor: '#FFFFFF', borderColor: '#E5DDD0', color: '#0E101A' }
                   }
                 >
-                  <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
+                  <div className="flex items-center gap-2 text-xs" style={{ color: '#5A5A5A' }}>
                     <span className="font-medium">{senderName}</span>
                     <span>·</span>
                     <span>{formatDistanceToNow(new Date(msg.created_at), { addSuffix: true })}</span>
                   </div>
-                  <p className="text-sm text-foreground whitespace-pre-wrap">{msg.body}</p>
+                  <p className="text-base whitespace-pre-wrap leading-relaxed" style={{ color: '#0E101A' }}>{msg.body}</p>
                   {msg.message_type === 'decision' && (
                     <span className="inline-block mt-1 text-[10px] px-1.5 py-0.5 rounded font-semibold" style={{ backgroundColor: '#DEC76B', color: '#0E101A' }}>
                       Decision
