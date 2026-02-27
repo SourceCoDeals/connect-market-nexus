@@ -63,6 +63,7 @@ import {
   GripVertical,
   Sparkles,
   Loader2,
+  ChevronDown,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import {
@@ -137,6 +138,8 @@ interface FlaggedDeal {
   buyer_universe_label: string | null;
   buyer_universe_description: string | null;
   buyer_universe_generated_at: string | null;
+  enriched_at: string | null;
+  created_at: string | null;
 }
 
 /** Sortable row for the "To Be Created" drag-and-drop list */
@@ -456,7 +459,7 @@ const ReMarketingUniverses = () => {
       const { data, error } = await supabase
         .from('listings')
         .select(
-          'id, title, internal_company_name, industry, address_state, universe_build_flagged_at, buyer_universe_label, buyer_universe_description, buyer_universe_generated_at, created_at',
+          'id, title, internal_company_name, industry, address_state, universe_build_flagged_at, buyer_universe_label, buyer_universe_description, buyer_universe_generated_at, enriched_at, created_at',
         )
         .eq('universe_build_flagged', true)
         .order('universe_build_flagged_at', { ascending: false });
@@ -547,6 +550,80 @@ const ReMarketingUniverses = () => {
 
     toast.info(`Queued ${unenriched.length} deal${unenriched.length > 1 ? 's' : ''} for buyer universe generation`);
   }, [orderedFlagged, startOrQueueMajorOp]);
+
+  // Deal-level enrichment (website/LinkedIn data) — same pattern as GP Partners
+  const [isDealEnriching, setIsDealEnriching] = useState(false);
+
+  const handleBulkDealEnrich = useCallback(
+    async (mode: 'unenriched' | 'all') => {
+      if (!orderedFlagged?.length) return;
+      const targets =
+        mode === 'unenriched'
+          ? orderedFlagged.filter((d) => !d.enriched_at)
+          : orderedFlagged;
+      if (!targets.length) {
+        toast.info('No deals to enrich');
+        return;
+      }
+      setIsDealEnriching(true);
+
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      try {
+        await startOrQueueMajorOp({
+          operationType: 'deal_enrichment',
+          totalItems: targets.length,
+          description: `Enriching ${targets.length} flagged deals`,
+          userId: user?.id || '',
+          contextJson: { source: 'universe_flagged' },
+        });
+      } catch {
+        /* Non-blocking */
+      }
+
+      const now = new Date().toISOString();
+      const seen = new Set<string>();
+      const rows = targets
+        .filter((d) => {
+          if (seen.has(d.id)) return false;
+          seen.add(d.id);
+          return true;
+        })
+        .map((d) => ({
+          listing_id: d.id,
+          status: 'pending' as const,
+          attempts: 0,
+          queued_at: now,
+        }));
+
+      const CHUNK = 500;
+      for (let i = 0; i < rows.length; i += CHUNK) {
+        const chunk = rows.slice(i, i + CHUNK);
+        const { error } = await supabase
+          .from('enrichment_queue')
+          .upsert(chunk, { onConflict: 'listing_id' });
+        if (error) {
+          toast.error('Failed to queue enrichment');
+          setIsDealEnriching(false);
+          return;
+        }
+      }
+
+      toast.success(`Queued ${targets.length} deals for enrichment`);
+
+      supabase.functions
+        .invoke('process-enrichment-queue', {
+          body: { source: 'universe_flagged_bulk' },
+        })
+        .catch(() => {});
+
+      setIsDealEnriching(false);
+      queryClient.invalidateQueries({ queryKey: ['remarketing', 'universe-build-flagged-deals'] });
+    },
+    [orderedFlagged, startOrQueueMajorOp, queryClient],
+  );
 
   // Create universe mutation
   const createMutation = useMutation({
@@ -1103,31 +1180,63 @@ const ReMarketingUniverses = () => {
         /* To Be Created Tab – drag-and-drop ranking */
         <Card>
           <CardContent className="p-0">
-            {/* Enrich All button bar */}
+            {/* Enrich toolbar */}
             {orderedFlagged.length > 0 && (
               <div className="flex items-center justify-between px-4 py-3 border-b">
                 <p className="text-sm text-muted-foreground">
-                  {orderedFlagged.filter((d) => !d.buyer_universe_generated_at).length} of{' '}
-                  {orderedFlagged.length} deals need enrichment
+                  {orderedFlagged.filter((d) => !d.enriched_at).length} of{' '}
+                  {orderedFlagged.length} deals need data enrichment &middot;{' '}
+                  {orderedFlagged.filter((d) => !d.buyer_universe_generated_at).length} need universe generation
                 </p>
-                <Button
-                  size="sm"
-                  className="gap-1.5"
-                  disabled={isBulkEnriching || orderedFlagged.every((d) => !!d.buyer_universe_generated_at)}
-                  onClick={enrichAllFlaggedDeals}
-                >
-                  {isBulkEnriching ? (
-                    <>
-                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                      Enriching {runningOp?.completed_items || 0}/{runningOp?.total_items || 0}...
-                    </>
-                  ) : (
-                    <>
-                      <Sparkles className="h-3.5 w-3.5" />
-                      Enrich All
-                    </>
-                  )}
-                </Button>
+                <div className="flex items-center gap-2">
+                  {/* Deal-level enrichment dropdown */}
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="gap-1.5"
+                        disabled={isDealEnriching}
+                      >
+                        {isDealEnriching ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        ) : (
+                          <Sparkles className="h-3.5 w-3.5" />
+                        )}
+                        Enrich Deals
+                        <ChevronDown className="h-3 w-3" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent>
+                      <DropdownMenuItem onClick={() => handleBulkDealEnrich('unenriched')}>
+                        Enrich Unenriched
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => handleBulkDealEnrich('all')}>
+                        Re-enrich All
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+
+                  {/* Universe generation button */}
+                  <Button
+                    size="sm"
+                    className="gap-1.5"
+                    disabled={isBulkEnriching || orderedFlagged.every((d) => !!d.buyer_universe_generated_at)}
+                    onClick={enrichAllFlaggedDeals}
+                  >
+                    {isBulkEnriching ? (
+                      <>
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        Generating {runningOp?.completed_items || 0}/{runningOp?.total_items || 0}...
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles className="h-3.5 w-3.5" />
+                        Generate Universes
+                      </>
+                    )}
+                  </Button>
+                </div>
               </div>
             )}
             <DndContext
