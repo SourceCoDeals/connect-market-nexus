@@ -11,16 +11,13 @@
  */
 
 const PRODUCTION_ALLOWED_ORIGINS = [
-  "https://connect-market-nexus.lovable.app",
-  "https://app.sourcecoconnect.com",
-  "https://sourcecoconnect.com",
+  'https://connect-market-nexus.lovable.app',
+  'https://app.sourcecoconnect.com',
+  'https://sourcecoconnect.com',
 ];
 
 // N13 FIX: Localhost origins only included in non-production environments
-const DEV_ORIGINS = [
-  "http://localhost:5173",
-  "http://localhost:3000",
-];
+const DEV_ORIGINS = ['http://localhost:5173', 'http://localhost:3000'];
 
 /**
  * Check if origin matches allowed patterns (including Lovable preview domains).
@@ -29,23 +26,27 @@ function isOriginAllowed(origin: string): boolean {
   if (!origin) return false;
   const allowed = getAllowedOrigins();
   if (allowed.includes(origin)) return true;
-  // Allow Lovable preview/development domains for this project only
-  if (/^https:\/\/[a-z0-9-]+\.lovableproject\.com$/.test(origin)) return true;
-  // Match Lovable preview patterns: <branch>--connect-market-nexus.lovable.app
-  if (/^https:\/\/[a-z0-9-]+--connect-market-nexus\.lovable\.app$/.test(origin)) return true;
-  // Match Lovable Cloud preview patterns: id-preview--<uuid>.lovable.app
-  if (/^https:\/\/id-preview--[a-z0-9-]+\.lovable\.app$/.test(origin)) return true;
+  // Allow Lovable preview/development domains — only in non-production
+  const env = Deno.env.get('ENVIRONMENT') || '';
+  if (env !== 'production') {
+    if (/^https:\/\/[a-z0-9-]+\.lovableproject\.com$/.test(origin)) return true;
+    if (/^https:\/\/[a-z0-9-]+--connect-market-nexus\.lovable\.app$/.test(origin)) return true;
+    if (/^https:\/\/id-preview--[a-z0-9-]+\.lovable\.app$/.test(origin)) return true;
+  }
   return false;
 }
 
 function getAllowedOrigins(): string[] {
-  const envOrigins = Deno.env.get("CORS_ALLOWED_ORIGINS");
+  const envOrigins = Deno.env.get('CORS_ALLOWED_ORIGINS');
   if (envOrigins) {
-    return envOrigins.split(",").map((o) => o.trim()).filter(Boolean);
+    return envOrigins
+      .split(',')
+      .map((o) => o.trim())
+      .filter(Boolean);
   }
   // N13 FIX: Only include localhost in non-production environments
-  const env = Deno.env.get("ENVIRONMENT") || "";
-  if (env === "production") {
+  const env = Deno.env.get('ENVIRONMENT') || '';
+  if (env === 'production') {
     return PRODUCTION_ALLOWED_ORIGINS;
   }
   return [...PRODUCTION_ALLOWED_ORIGINS, ...DEV_ORIGINS];
@@ -57,16 +58,16 @@ function getAllowedOrigins(): string[] {
  * returns the first allowed origin (browsers will block the response).
  */
 export function getCorsHeaders(req: Request): Record<string, string> {
-  const origin = req.headers.get("Origin") || "";
+  const origin = req.headers.get('Origin') || '';
   const allowed = getAllowedOrigins();
   const reflectedOrigin = isOriginAllowed(origin) ? origin : allowed[0];
 
   return {
-    "Access-Control-Allow-Origin": reflectedOrigin,
-    "Access-Control-Allow-Headers":
-      "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
-    "Access-Control-Allow-Methods": "POST, OPTIONS",
-    "Vary": "Origin",
+    'Access-Control-Allow-Origin': reflectedOrigin,
+    'Access-Control-Allow-Headers':
+      'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    Vary: 'Origin',
   };
 }
 
@@ -74,5 +75,5 @@ export function getCorsHeaders(req: Request): Record<string, string> {
  * Convenience: build a preflight (OPTIONS) response.
  */
 export function corsPreflightResponse(req: Request): Response {
-  return new Response("ok", { headers: getCorsHeaders(req) });
+  return new Response('ok', { headers: getCorsHeaders(req) });
 }

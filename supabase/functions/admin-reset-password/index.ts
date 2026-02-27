@@ -1,24 +1,24 @@
-import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
-import { getCorsHeaders, corsPreflightResponse } from "../_shared/cors.ts";
+import { serve } from 'https://deno.land/std@0.190.0/http/server.ts';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
+import { getCorsHeaders, corsPreflightResponse } from '../_shared/cors.ts';
 
-const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 
 serve(async (req: Request) => {
   const corsHeaders = getCorsHeaders(req);
 
-  if (req.method === "OPTIONS") {
+  if (req.method === 'OPTIONS') {
     return corsPreflightResponse(req);
   }
 
   try {
     // Verify caller is admin
-    const authHeader = req.headers.get("Authorization");
+    const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
         status: 401,
-        headers: { "Content-Type": "application/json", ...corsHeaders },
+        headers: { 'Content-Type': 'application/json', ...corsHeaders },
       });
     }
 
@@ -27,37 +27,56 @@ serve(async (req: Request) => {
       global: { headers: { Authorization: authHeader } },
     });
 
-    const { data: { user: caller } } = await callerClient.auth.getUser();
+    const {
+      data: { user: caller },
+    } = await callerClient.auth.getUser();
     if (!caller) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
         status: 401,
-        headers: { "Content-Type": "application/json", ...corsHeaders },
+        headers: { 'Content-Type': 'application/json', ...corsHeaders },
       });
     }
 
     // Check admin role
-    const { data: isAdmin } = await supabaseAdmin.rpc("is_admin", { user_id: caller.id });
+    const { data: isAdmin } = await supabaseAdmin.rpc('is_admin', { user_id: caller.id });
     if (!isAdmin) {
-      return new Response(JSON.stringify({ error: "Forbidden" }), {
+      return new Response(JSON.stringify({ error: 'Forbidden' }), {
         status: 403,
-        headers: { "Content-Type": "application/json", ...corsHeaders },
+        headers: { 'Content-Type': 'application/json', ...corsHeaders },
       });
     }
 
     const { userId, newPassword } = await req.json();
 
     if (!userId || !newPassword) {
-      return new Response(JSON.stringify({ error: "userId and newPassword are required" }), {
+      return new Response(JSON.stringify({ error: 'userId and newPassword are required' }), {
         status: 400,
-        headers: { "Content-Type": "application/json", ...corsHeaders },
+        headers: { 'Content-Type': 'application/json', ...corsHeaders },
       });
     }
 
-    if (newPassword.length < 6) {
-      return new Response(JSON.stringify({ error: "Password must be at least 6 characters" }), {
+    if (newPassword.length < 12) {
+      return new Response(JSON.stringify({ error: 'Password must be at least 12 characters' }), {
         status: 400,
-        headers: { "Content-Type": "application/json", ...corsHeaders },
+        headers: { 'Content-Type': 'application/json', ...corsHeaders },
       });
+    }
+
+    // Require at least one uppercase, one lowercase, one digit, one special char
+    const hasUpper = /[A-Z]/.test(newPassword);
+    const hasLower = /[a-z]/.test(newPassword);
+    const hasDigit = /[0-9]/.test(newPassword);
+    const hasSpecial = /[^A-Za-z0-9]/.test(newPassword);
+    if (!hasUpper || !hasLower || !hasDigit || !hasSpecial) {
+      return new Response(
+        JSON.stringify({
+          error: 'Password must include uppercase, lowercase, number, and special character',
+        }),
+        {
+          status: 400,
+          headers: { 'Content-Type': 'application/json', ...corsHeaders },
+        },
+      );
     }
 
     const { error: resetError } = await supabaseAdmin.auth.admin.updateUserById(userId, {
@@ -65,10 +84,10 @@ serve(async (req: Request) => {
     });
 
     if (resetError) {
-      console.error("Password reset failed:", resetError);
-      return new Response(JSON.stringify({ error: "Failed to reset password" }), {
+      console.error('Password reset failed:', resetError);
+      return new Response(JSON.stringify({ error: 'Failed to reset password' }), {
         status: 500,
-        headers: { "Content-Type": "application/json", ...corsHeaders },
+        headers: { 'Content-Type': 'application/json', ...corsHeaders },
       });
     }
 
@@ -76,13 +95,13 @@ serve(async (req: Request) => {
 
     return new Response(JSON.stringify({ success: true }), {
       status: 200,
-      headers: { "Content-Type": "application/json", ...corsHeaders },
+      headers: { 'Content-Type': 'application/json', ...corsHeaders },
     });
   } catch (error: any) {
-    console.error("Error in admin-reset-password:", error);
-    return new Response(JSON.stringify({ error: "Internal server error" }), {
+    console.error('Error in admin-reset-password:', error);
+    return new Response(JSON.stringify({ error: 'Internal server error' }), {
       status: 500,
-      headers: { "Content-Type": "application/json", ...corsHeaders },
+      headers: { 'Content-Type': 'application/json', ...corsHeaders },
     });
   }
 });

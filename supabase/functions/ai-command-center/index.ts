@@ -12,12 +12,12 @@
  * 4. Usage tracking
  */
 
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { getCorsHeaders, corsPreflightResponse } from "../_shared/cors.ts";
-import { requireAdmin } from "../_shared/auth.ts";
-import { routeIntent } from "./router.ts";
-import { orchestrate, executeConfirmedAction } from "./orchestrator.ts";
-import type { ClaudeMessage } from "../_shared/claude-client.ts";
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { getCorsHeaders, corsPreflightResponse } from '../_shared/cors.ts';
+import { requireAdmin } from '../_shared/auth.ts';
+import { routeIntent } from './router.ts';
+import { orchestrate, executeConfirmedAction } from './orchestrator.ts';
+import type { ClaudeMessage } from '../_shared/claude-client.ts';
 
 // ---------- Request/Response types ----------
 
@@ -59,10 +59,10 @@ Deno.serve(async (req: Request) => {
 
     const auth = await requireAdmin(req, supabaseAdmin);
     if (!auth.authenticated || !auth.isAdmin) {
-      return new Response(
-        JSON.stringify({ error: auth.error || 'Unauthorized' }),
-        { status: auth.authenticated ? 403 : 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
-      );
+      return new Response(JSON.stringify({ error: auth.error || 'Unauthorized' }), {
+        status: auth.authenticated ? 403 : 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
 
     const userId = auth.userId!;
@@ -72,19 +72,25 @@ Deno.serve(async (req: Request) => {
       const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
       const { count } = await supabaseAdmin
         .from('ai_command_center_usage')
-        .select('*', { count: 'exact', head: true })
+        .select('id', { count: 'exact', head: true })
         .eq('user_id', userId)
         .gte('created_at', oneHourAgo);
 
       if (count !== null && count >= 120) {
         return new Response(
-          JSON.stringify({ error: 'Rate limit exceeded. Maximum 120 queries per hour. Please wait and try again.' }),
+          JSON.stringify({
+            error: 'Rate limit exceeded. Maximum 120 queries per hour. Please wait and try again.',
+          }),
           { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
         );
       }
     } catch (rateLimitErr) {
-      // Non-critical: if rate limit check fails, allow the request
-      console.warn('[ai-cc] Rate limit check failed:', rateLimitErr);
+      // Fail-closed: if rate limit check fails, deny the request to prevent abuse
+      console.error('[ai-cc] Rate limit check failed:', rateLimitErr);
+      return new Response(
+        JSON.stringify({ error: 'Service temporarily unavailable. Please try again.' }),
+        { status: 503, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      );
     }
 
     // Parse request body
@@ -92,18 +98,30 @@ Deno.serve(async (req: Request) => {
     try {
       body = await req.json();
     } catch {
-      return new Response(
-        JSON.stringify({ error: 'Invalid request body' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
-      );
+      return new Response(JSON.stringify({ error: 'Invalid request body' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
 
-    if (!body.query?.trim()) {
-      return new Response(
-        JSON.stringify({ error: 'Query is required' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
-      );
+    const trimmedQuery = body.query?.trim() || '';
+    if (!trimmedQuery) {
+      return new Response(JSON.stringify({ error: 'Query is required' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
+
+    // Input length limit: reject excessively long queries (max 4000 chars)
+    if (trimmedQuery.length > 4000) {
+      return new Response(JSON.stringify({ error: 'Query too long. Maximum 4000 characters.' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // Sanitize: overwrite body.query with trimmed version
+    body.query = trimmedQuery;
 
     // Set up SSE streaming response
     const encoder = new TextEncoder();
@@ -128,7 +146,7 @@ Deno.serve(async (req: Request) => {
         ...corsHeaders,
         'Content-Type': 'text/event-stream',
         'Cache-Control': 'no-cache',
-        'Connection': 'keep-alive',
+        Connection: 'keep-alive',
       },
     });
 
@@ -136,7 +154,11 @@ Deno.serve(async (req: Request) => {
     processPromise
       .catch((err) => {
         console.error('[ai-cc] Processing error:', err);
-        writer.write(`event: error\ndata: ${JSON.stringify({ message: err instanceof Error ? err.message : 'Internal error' })}\n\n`).catch(() => {});
+        writer
+          .write(
+            `event: error\ndata: ${JSON.stringify({ message: err instanceof Error ? err.message : 'Internal error' })}\n\n`,
+          )
+          .catch(() => {});
       })
       .finally(() => {
         writer.close().catch(() => {});
@@ -147,10 +169,10 @@ Deno.serve(async (req: Request) => {
     // Top-level catch: ensures CORS headers are always returned so the
     // browser doesn't mask the real error behind "Failed to fetch".
     console.error('[ai-cc] Unhandled error in request handler:', err);
-    return new Response(
-      JSON.stringify({ error: err instanceof Error ? err.message : 'Internal server error' }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
-    );
+    return new Response(JSON.stringify({ error: 'Internal server error' }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
   }
 });
 
@@ -168,7 +190,9 @@ async function processChat(
 
   // 1. Handle confirmed action (skip routing)
   if (confirmed_action) {
-    await writer.write(`event: status\ndata: ${JSON.stringify({ phase: 'executing_confirmed_action' })}\n\n`);
+    await writer.write(
+      `event: status\ndata: ${JSON.stringify({ phase: 'executing_confirmed_action' })}\n\n`,
+    );
 
     const result = await executeConfirmedAction(
       {
@@ -205,15 +229,19 @@ async function processChat(
   await writer.write(`event: status\ndata: ${JSON.stringify({ phase: 'routing' })}\n\n`);
   const routerResult = await routeIntent(query, page_context);
 
-  await writer.write(`event: routed\ndata: ${JSON.stringify({
-    category: routerResult.category,
-    tier: routerResult.tier,
-    tools: routerResult.tools,
-    confidence: routerResult.confidence,
-    bypassed: routerResult.bypassed,
-  })}\n\n`);
+  await writer.write(
+    `event: routed\ndata: ${JSON.stringify({
+      category: routerResult.category,
+      tier: routerResult.tier,
+      tools: routerResult.tools,
+      confidence: routerResult.confidence,
+      bypassed: routerResult.bypassed,
+    })}\n\n`,
+  );
 
-  console.log(`[ai-cc] Routed: ${routerResult.category} (${routerResult.tier}) tools=[${routerResult.tools.join(',')}] confidence=${routerResult.confidence} bypassed=${routerResult.bypassed}`);
+  console.log(
+    `[ai-cc] Routed: ${routerResult.category} (${routerResult.tier}) tools=[${routerResult.tools.join(',')}] confidence=${routerResult.confidence} bypassed=${routerResult.bypassed}`,
+  );
 
   // 3. Orchestrate (tool-calling loop)
   await writer.write(`event: status\ndata: ${JSON.stringify({ phase: 'processing' })}\n\n`);
@@ -234,7 +262,9 @@ async function processChat(
 
   // 4. Track usage
   const durationMs = Date.now() - startTime;
-  console.log(`[ai-cc] Complete: ${durationMs}ms, ${result.toolCallCount} tools, $${result.totalCost.toFixed(4)}`);
+  console.log(
+    `[ai-cc] Complete: ${durationMs}ms, ${result.toolCallCount} tools, $${result.totalCost.toFixed(4)}`,
+  );
 
   await trackUsage(supabase, userId, body.conversation_id, {
     query,

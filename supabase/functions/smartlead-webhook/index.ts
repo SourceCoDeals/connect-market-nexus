@@ -14,6 +14,35 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { getCorsHeaders, corsPreflightResponse } from '../_shared/cors.ts';
 
+const encoder = new TextEncoder();
+
+/** Timing-safe HMAC-SHA256 verification (mirrors PhoneBurner webhook). */
+async function verifyHmac(
+  payload: string,
+  signature: string | null,
+  secret: string,
+): Promise<boolean> {
+  if (!signature) return false;
+  const rawSig = signature.replace(/^sha256=/, '');
+  const key = await crypto.subtle.importKey(
+    'raw',
+    encoder.encode(secret),
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,
+    ['sign'],
+  );
+  const sig = await crypto.subtle.sign('HMAC', key, encoder.encode(payload));
+  const computed = Array.from(new Uint8Array(sig))
+    .map((b) => b.toString(16).padStart(2, '0'))
+    .join('');
+  if (computed.length !== rawSig.length) return false;
+  let mismatch = 0;
+  for (let i = 0; i < computed.length; i++) {
+    mismatch |= computed.charCodeAt(i) ^ rawSig.charCodeAt(i);
+  }
+  return mismatch === 0;
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return corsPreflightResponse(req);
   const corsHeaders = getCorsHeaders(req);
@@ -26,19 +55,31 @@ Deno.serve(async (req) => {
     });
   }
 
-  // ─── Verify webhook secret ─────────────────────────────────────────────
+  // ─── Verify webhook secret (mandatory, HMAC-SHA256) ─────────────────────
   const webhookSecret = Deno.env.get('SMARTLEAD_WEBHOOK_SECRET');
-  if (webhookSecret) {
-    const providedSecret =
-      req.headers.get('x-webhook-secret') || new URL(req.url).searchParams.get('secret');
+  if (!webhookSecret) {
+    console.error('[smartlead-webhook] SMARTLEAD_WEBHOOK_SECRET not configured');
+    return new Response(JSON.stringify({ error: 'Webhook auth not configured' }), {
+      status: 500,
+      headers: jsonHeaders,
+    });
+  }
 
-    if (providedSecret !== webhookSecret) {
-      console.warn('[smartlead-webhook] Invalid webhook secret');
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-        status: 401,
-        headers: jsonHeaders,
-      });
-    }
+  // Read raw body for HMAC verification
+  const rawBody = await req.text();
+  const hmacSignature =
+    req.headers.get('x-webhook-signature') || req.headers.get('x-webhook-secret');
+
+  // Try HMAC first, fall back to plain header match for backwards compat
+  const hmacValid = hmacSignature ? await verifyHmac(rawBody, hmacSignature, webhookSecret) : false;
+  const headerMatch = hmacSignature === webhookSecret;
+
+  if (!hmacValid && !headerMatch) {
+    console.warn('[smartlead-webhook] Invalid webhook signature');
+    return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+      status: 401,
+      headers: jsonHeaders,
+    });
   }
 
   const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
@@ -46,7 +87,7 @@ Deno.serve(async (req) => {
   const supabase = createClient(supabaseUrl, serviceRoleKey);
 
   try {
-    const payload = await req.json();
+    const payload = JSON.parse(rawBody);
 
     // Extract event details from Smartlead webhook payload
     const eventType = payload.event_type || payload.event || payload.type || 'unknown';
@@ -150,11 +191,9 @@ Deno.serve(async (req) => {
     });
   } catch (err) {
     console.error('[smartlead-webhook] Error:', err);
-    return new Response(
-      JSON.stringify({
-        error: err instanceof Error ? err.message : 'Internal error',
-      }),
-      { status: 500, headers: jsonHeaders },
-    );
+    return new Response(JSON.stringify({ error: 'Internal error' }), {
+      status: 500,
+      headers: jsonHeaders,
+    });
   }
 });
