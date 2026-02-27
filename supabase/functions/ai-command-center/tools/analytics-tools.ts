@@ -1,6 +1,9 @@
 /**
  * Pipeline Analytics Tools
  * Aggregated metrics and analytics across the deal pipeline.
+ *
+ * MERGED Feb 2026: get_analytics + get_cross_deal_analytics
+ * → unified get_analytics with expanded analysis_type including cross-deal modes.
  */
 
 // deno-lint-ignore no-explicit-any
@@ -40,16 +43,30 @@ export const analyticsTools: ClaudeTool[] = [
   },
   {
     name: 'get_analytics',
-    description: 'Get pipeline analytics — deal counts, revenue totals, conversion rates, scoring distributions, and time-based trends. Use for dashboards, reports, and pipeline health checks.',
+    description: 'Get pipeline and cross-deal analytics. Supports pipeline-level metrics (pipeline_health, scoring_distribution, source_performance, activity_summary, buyer_engagement) and cross-deal strategic analysis (universe_comparison, deal_comparison, buyer_type_analysis, source_analysis, conversion_funnel, geography_heatmap). Use for dashboards, reports, pipeline health, and strategic insights.',
     input_schema: {
       type: 'object',
       properties: {
-        metric: {
+        analysis_type: {
           type: 'string',
-          enum: ['pipeline_health', 'scoring_distribution', 'source_performance', 'activity_summary', 'buyer_engagement'],
-          description: 'Which analytics view to return',
+          enum: [
+            'pipeline_health', 'scoring_distribution', 'source_performance', 'activity_summary', 'buyer_engagement',
+            'universe_comparison', 'deal_comparison', 'buyer_type_analysis', 'source_analysis', 'conversion_funnel', 'geography_heatmap',
+          ],
+          description: 'Which analysis to run. Pipeline metrics: pipeline_health, scoring_distribution, source_performance, activity_summary, buyer_engagement. Cross-deal: universe_comparison, deal_comparison, buyer_type_analysis, source_analysis, conversion_funnel, geography_heatmap. Default: pipeline_health.',
         },
-        days: { type: 'number', description: 'Lookback period in days (default 30)' },
+        days: { type: 'number', description: 'Lookback period in days (default 30 for pipeline, 90 for cross-deal)' },
+        universe_ids: {
+          type: 'array',
+          items: { type: 'string' },
+          description: 'Specific universe UUIDs to compare (universe_comparison only)',
+        },
+        deal_ids: {
+          type: 'array',
+          items: { type: 'string' },
+          description: 'Specific deal UUIDs to compare (deal_comparison only)',
+        },
+        limit: { type: 'number', description: 'Max results per group (default 10, cross-deal only)' },
       },
       required: [],
     },
@@ -66,7 +83,9 @@ export async function executeAnalyticsTool(
   switch (toolName) {
     case 'get_enrichment_status': return getEnrichmentStatus(supabase, args);
     case 'get_industry_trackers': return getIndustryTrackers(supabase, args);
-    case 'get_analytics': return getAnalytics(supabase, args);
+    case 'get_analytics': return getAnalyticsUnified(supabase, args);
+    // Backward compatibility alias: get_cross_deal_analytics routes into the unified handler
+    case 'get_cross_deal_analytics': return getAnalyticsUnified(supabase, args);
     default: return { error: `Unknown analytics tool: ${toolName}` };
   }
 }
@@ -158,15 +177,34 @@ async function getEnrichmentStatus(
 
 // ---------- Implementations ----------
 
-async function getAnalytics(
+import {
+  executeCrossDealAnalyticsTool,
+} from './cross-deal-analytics-tools.ts';
+
+const CROSS_DEAL_TYPES = new Set([
+  'universe_comparison', 'deal_comparison', 'buyer_type_analysis',
+  'source_analysis', 'conversion_funnel', 'geography_heatmap',
+]);
+
+async function getAnalyticsUnified(
   supabase: SupabaseClient,
   args: Record<string, unknown>,
 ): Promise<ToolResult> {
-  const metric = (args.metric as string) || 'pipeline_health';
+  // Support both old `metric` param and new `analysis_type` param
+  const analysisType = (args.analysis_type as string) || (args.metric as string) || 'pipeline_health';
   const days = Number(args.days) || 30;
   const cutoffDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
 
-  switch (metric) {
+  // Route cross-deal analysis types to the cross-deal handler
+  if (CROSS_DEAL_TYPES.has(analysisType)) {
+    return executeCrossDealAnalyticsTool(supabase, 'get_cross_deal_analytics', {
+      ...args,
+      analysis_type: analysisType,
+    });
+  }
+
+  // Pipeline-level metrics
+  switch (analysisType) {
     case 'pipeline_health':
       return pipelineHealth(supabase);
     case 'scoring_distribution':

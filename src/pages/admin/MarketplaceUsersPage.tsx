@@ -16,6 +16,8 @@ import { EnhancedUserManagement } from '@/components/admin/EnhancedUserManagemen
 import { useMarkUsersViewed } from '@/hooks/admin/use-mark-users-viewed';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { useAICommandCenterContext } from '@/components/ai-command-center/AICommandCenterProvider';
+import { useAIUIActionHandler } from '@/hooks/useAIUIActionHandler';
 
 // Error boundary to catch silent rendering crashes in the table
 class TableErrorBoundary extends Component<
@@ -80,6 +82,17 @@ const MarketplaceUsersPage = () => {
   useEffect(() => {
     markAsViewed();
   }, []);
+
+  // Register AI Command Center context
+  const { setPageContext } = useAICommandCenterContext();
+  useEffect(() => {
+    setPageContext({ page: 'marketplace_users', entity_type: 'buyers' });
+  }, [setPageContext]);
+
+  // Wire AI UI actions
+  useAIUIActionHandler({
+    table: 'buyers',
+  });
 
   // Initialize filteredUsers from usersData when it loads
   // EnhancedUserManagement will then manage the filtered state via onFilteredUsersChange

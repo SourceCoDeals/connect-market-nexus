@@ -5,6 +5,10 @@
  *
  * These tools call external APIs directly using shared clients or API keys from env,
  * avoiding the need to call other edge functions (which require JWT auth).
+ *
+ * MERGED Feb 2026: Contact enrichment tools consolidated:
+ *   enrich_buyer_contacts + enrich_linkedin_contact → enrich_contact (with mode param)
+ *   find_contact_linkedin + find_and_enrich_person → find_contact (with mode param)
  */
 
 // deno-lint-ignore no-explicit-any
@@ -83,36 +87,53 @@ export const integrationActionTools: ClaudeTool[] = [
     },
   },
   {
-    name: 'enrich_buyer_contacts',
+    name: 'enrich_contact',
     description:
-      'Find and enrich contacts at a company using LinkedIn scraping (Apify) and email enrichment (Prospeo). Discovers employees at a company, filters by title/role, and enriches with email and phone. Results are saved to the enriched_contacts table. Use when the user asks "find me contacts at [company]" or "enrich contacts for [buyer firm]". This calls external APIs and may take 30-60 seconds.',
+      'Enrich contacts via external APIs (Apify LinkedIn scraping + Prospeo email enrichment). Two modes: "company" mode discovers employees at a company, filters by title/role, and enriches with email/phone. "linkedin" mode enriches a single contact from their LinkedIn profile URL. Results are saved to the enriched_contacts table. This calls external APIs and may take 30-60 seconds.',
     input_schema: {
       type: 'object',
       properties: {
+        mode: {
+          type: 'string',
+          enum: ['company', 'linkedin'],
+          description: '"company" to discover contacts at a company (requires company_name), "linkedin" to enrich from a LinkedIn profile URL (requires linkedin_url). Default: auto-detected based on provided params.',
+        },
         company_name: {
           type: 'string',
-          description: 'Company name to search for contacts',
+          description: 'Company name to search for contacts (company mode)',
         },
         title_filter: {
           type: 'array',
           items: { type: 'string' },
           description:
-            'Filter by title/role keywords. E.g. ["associate", "principal", "vp", "director", "partner"]. Supports aliases.',
+            'Filter by title/role keywords. E.g. ["associate", "principal", "vp", "director", "partner"]. Supports aliases. (company mode)',
         },
         target_count: {
           type: 'number',
-          description: 'Number of contacts to find (default 10, max 25)',
+          description: 'Number of contacts to find (default 10, max 25) (company mode)',
         },
         company_linkedin_url: {
           type: 'string',
-          description: 'LinkedIn company page URL if known (skips URL resolution)',
+          description: 'LinkedIn company page URL if known (skips URL resolution) (company mode)',
         },
         company_domain: {
           type: 'string',
           description: 'Company email domain if known (e.g. "trivest.com")',
         },
+        linkedin_url: {
+          type: 'string',
+          description: 'LinkedIn profile URL to enrich (linkedin mode, e.g. "https://www.linkedin.com/in/john-smith")',
+        },
+        first_name: {
+          type: 'string',
+          description: 'First name if known (helps with name+domain fallback, linkedin mode)',
+        },
+        last_name: {
+          type: 'string',
+          description: 'Last name if known (helps with name+domain fallback, linkedin mode)',
+        },
       },
-      required: ['company_name'],
+      required: [],
     },
   },
   {
@@ -180,88 +201,45 @@ export const integrationActionTools: ClaudeTool[] = [
     },
   },
   {
-    name: 'enrich_linkedin_contact',
+    name: 'find_contact',
     description:
-      'Enrich a single contact from their LinkedIn profile URL. Calls Prospeo to find their email and phone. Use when a user pastes a LinkedIn URL like "linkedin.com/in/john-smith" into the chat, or says "look up this person" with a LinkedIn link. Returns email, phone, name, title, and company. Results are saved to enriched_contacts.',
+      'Find and enrich a person\'s contact information. Two modes: "person" mode chains CRM lookup + company resolution + LinkedIn discovery + email enrichment + CRM update in one command. "linkedin_search" mode finds LinkedIn profile URLs for existing CRM contacts who are missing them. Use "person" mode when asked "find the email for [name]" or "get me [name]\'s contact info". Use "linkedin_search" mode when asked "find LinkedIn URLs" or "find LinkedIn profiles" for existing contacts.',
     input_schema: {
       type: 'object',
       properties: {
-        linkedin_url: {
+        mode: {
           type: 'string',
-          description: 'LinkedIn profile URL (e.g. "https://www.linkedin.com/in/john-smith")',
+          enum: ['person', 'linkedin_search'],
+          description: '"person" to find a person\'s email via the full enrichment pipeline (default), "linkedin_search" to find LinkedIn URLs for existing CRM contacts missing them.',
         },
-        first_name: {
-          type: 'string',
-          description: 'First name if known (helps with name+domain fallback)',
-        },
-        last_name: {
-          type: 'string',
-          description: 'Last name if known (helps with name+domain fallback)',
-        },
-        company_domain: {
-          type: 'string',
-          description:
-            'Company email domain if known (e.g. "trivest.com") — used as fallback for name+domain lookup',
-        },
-      },
-      required: ['linkedin_url'],
-    },
-  },
-  {
-    name: 'find_contact_linkedin',
-    description:
-      'Find LinkedIn profile URLs for contacts who are missing them. Searches Google for each contact using their name, title, and associated company (from their linked deal/listing). Cross-references results to verify matches by checking name, title, and company overlap. Use when asked to "find LinkedIn URLs" or "find LinkedIn profiles" for contacts. Returns matched profiles with confidence scores and verification details. Can optionally update the contact record in the CRM.',
-    input_schema: {
-      type: 'object',
-      properties: {
-        contact_ids: {
-          type: 'array',
-          items: { type: 'string' },
-          description:
-            'Specific contact UUIDs to find LinkedIn URLs for. If omitted, searches for seller contacts missing LinkedIn URLs.',
-        },
-        contact_type: {
-          type: 'string',
-          enum: ['buyer', 'seller', 'advisor', 'all'],
-          description:
-            'Filter contacts by type when auto-discovering contacts without LinkedIn (default "seller")',
-        },
-        limit: {
-          type: 'number',
-          description: 'Max contacts to search for (default 5, max 10)',
-        },
-        auto_update: {
-          type: 'boolean',
-          description:
-            'If true, automatically update high-confidence matches in the contacts table. Default false — returns results for review first.',
-        },
-      },
-      required: [],
-    },
-  },
-  {
-    name: 'find_and_enrich_person',
-    description:
-      'Find a person\'s email in one command. Automatically chains: CRM lookup → company resolution → LinkedIn discovery (Google/Apify) → email enrichment (Prospeo) → CRM update. Use this whenever a user asks to "find the email for [name]", "get me [name]\'s contact info", or "enrich [name]". No manual steps needed — handles the entire pipeline automatically.',
-    input_schema: {
-      type: 'object',
-      properties: {
         person_name: {
           type: 'string',
-          description: 'Full name of the person (e.g. "Larry Phillips")',
+          description: 'Full name of the person to find (person mode, e.g. "Larry Phillips")',
         },
         company_name: {
           type: 'string',
-          description:
-            'Company name if known. If omitted, the tool resolves company from linked listings/deals automatically.',
+          description: 'Company name if known. If omitted in person mode, resolves from linked listings/deals. (person mode)',
         },
         contact_type: {
           type: 'string',
           enum: ['buyer', 'seller', 'advisor', 'all'],
-          description: 'Filter CRM search by contact type (default "all")',
+          description: 'Filter by contact type (default "all" for person mode, "seller" for linkedin_search mode)',
+        },
+        contact_ids: {
+          type: 'array',
+          items: { type: 'string' },
+          description: 'Specific contact UUIDs to find LinkedIn URLs for (linkedin_search mode). If omitted, auto-discovers contacts missing LinkedIn.',
+        },
+        limit: {
+          type: 'number',
+          description: 'Max contacts to search for in linkedin_search mode (default 5, max 10)',
+        },
+        auto_update: {
+          type: 'boolean',
+          description: 'If true, automatically update high-confidence matches in the contacts table (linkedin_search mode). Default false.',
         },
       },
-      required: ['person_name'],
+      required: [],
     },
   },
 ];
@@ -279,12 +257,25 @@ export async function executeIntegrationActionTool(
       return googleSearchCompanies(args);
     case 'save_contacts_to_crm':
       return saveContactsToCrm(supabase, args, userId);
-    case 'enrich_buyer_contacts':
+    // Merged: enrich_contact routes to company or linkedin mode
+    case 'enrich_contact': {
+      const mode = (args.mode as string) || (args.linkedin_url ? 'linkedin' : 'company');
+      if (mode === 'linkedin') return enrichLinkedInContact(supabase, args, userId);
       return enrichBuyerContacts(supabase, args, userId);
+    }
+    // Merged: find_contact routes to person or linkedin_search mode
+    case 'find_contact': {
+      const mode = (args.mode as string) || (args.contact_ids ? 'linkedin_search' : 'person');
+      if (mode === 'linkedin_search') return findContactLinkedIn(supabase, args, userId);
+      return findAndEnrichPerson(supabase, args, userId);
+    }
     case 'push_to_phoneburner':
       return pushToPhoneBurner(supabase, args, userId);
     case 'send_document':
       return sendDocument(supabase, args, userId);
+    // Backward compatibility aliases for old tool names
+    case 'enrich_buyer_contacts':
+      return enrichBuyerContacts(supabase, args, userId);
     case 'enrich_linkedin_contact':
       return enrichLinkedInContact(supabase, args, userId);
     case 'find_and_enrich_person':
@@ -385,7 +376,7 @@ async function googleSearchCompanies(args: Record<string, unknown>): Promise<Too
         diagnosis,
         alternatives: [
           'Search the internal database using search_contacts, search_pe_contacts, or query_deals instead',
-          'The user can search Google manually and paste a LinkedIn URL for enrichment via enrich_linkedin_contact',
+          'The user can search Google manually and paste a LinkedIn URL for enrichment via enrich_contact(mode: "linkedin")',
           'Check APIFY_API_KEY in Supabase Edge Function secrets if this persists',
         ],
       },
@@ -825,7 +816,7 @@ async function enrichBuyerContacts(
         message: `Could not find contacts for "${companyName}" — external enrichment APIs failed.`,
         alternatives: [
           'Search internal contacts using search_contacts or search_pe_contacts',
-          'If the user has a LinkedIn URL for someone at this company, use enrich_linkedin_contact instead',
+          'If the user has a LinkedIn URL for someone at this company, use enrich_contact(mode: "linkedin") instead',
           'The user can paste a LinkedIn company URL and try again with the company_linkedin_url parameter',
           'Check APIFY_API_KEY and PROSPEO_API_KEY in Supabase Edge Function secrets',
         ],
@@ -1648,8 +1639,8 @@ async function findContactLinkedIn(
       errors: errors.length > 0 ? errors : undefined,
       message: `Searched ${contacts.length} contacts: found ${matches.filter((m) => m.linkedin_url).length} LinkedIn profiles (${highConfidence.length} high confidence, ${mediumConfidence.length} medium)${updated.length > 0 ? ` — ${updated.length} auto-updated in CRM` : ''}`,
       next_steps: autoUpdate
-        ? 'High-confidence matches have been saved. Review medium/low confidence matches and use enrich_linkedin_contact to get their emails.'
-        : 'Review the matches above. To save them, call find_contact_linkedin again with auto_update=true, or manually update individual contacts. Then use enrich_linkedin_contact on each LinkedIn URL to find their emails.',
+        ? 'High-confidence matches have been saved. Review medium/low confidence matches and use enrich_contact(mode: "linkedin") to get their emails.'
+        : 'Review the matches above. To save them, call find_contact(mode: "linkedin_search") again with auto_update=true, or manually update individual contacts. Then use enrich_contact(mode: "linkedin") on each LinkedIn URL to find their emails.',
     },
   };
 }

@@ -310,7 +310,7 @@ export function GeneralChatView({ onBack }: { onBack: () => void }) {
         });
         if (error) throw error;
       } else {
-        const OZ_ADMIN_ID = 'ea1f0064-52ef-43fb-bec4-22391b720328';
+        const { OZ_ADMIN_ID } = await import('@/constants');
         await supabase.functions.invoke('notify-admin-document-question', {
           body: {
             admin_id: OZ_ADMIN_ID,

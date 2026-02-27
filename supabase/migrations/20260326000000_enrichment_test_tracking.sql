@@ -1,3 +1,11 @@
+-- ═══════════════════════════════════════════════════════════════
+-- Migration: enrichment_test_tracking
+-- Date: 2026-03-26
+-- Purpose: Creates tables and views for tracking contact enrichment test runs,
+--          recording per-contact results, and monitoring success rates over time.
+-- Tables affected: enrichment_test_runs, enrichment_test_results
+-- ═══════════════════════════════════════════════════════════════
+
 -- Enrichment Test Tracking
 -- Tracks success rate of contact enrichment over time.
 -- Each test run picks random contacts without email/phone and attempts enrichment.

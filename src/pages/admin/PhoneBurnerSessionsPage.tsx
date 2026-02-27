@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent } from '@/components/ui/card';
@@ -33,6 +33,8 @@ import {
   Calendar,
 } from 'lucide-react';
 import { format, formatDistanceToNow } from 'date-fns';
+import { useAICommandCenterContext } from '@/components/ai-command-center/AICommandCenterProvider';
+import { useAIUIActionHandler } from '@/hooks/useAIUIActionHandler';
 
 interface PhoneBurnerSession {
   id: string;
@@ -99,6 +101,40 @@ export default function PhoneBurnerSessionsPage() {
   const { data: sessions = [], isLoading, refetch } = usePhoneBurnerSessions();
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
+
+  // Register AI Command Center context
+  const { setPageContext } = useAICommandCenterContext();
+  useEffect(() => {
+    setPageContext({ page: 'phoneburner_sessions', entity_type: 'contacts' });
+  }, [setPageContext]);
+
+  // Wire AI UI actions
+  useAIUIActionHandler({
+    table: 'contacts',
+    onApplyFilter: (filters, clearExisting) => {
+      if (clearExisting) {
+        setSearch('');
+        setStatusFilter('all');
+      }
+      filters.forEach((f) => {
+        switch (f.field) {
+          case 'status':
+          case 'session_status':
+            setStatusFilter(f.value as string);
+            break;
+          case 'search':
+          case 'query':
+          case 'session_name':
+            setSearch(f.value as string);
+            break;
+        }
+      });
+    },
+    onClearSelection: () => {
+      setSearch('');
+      setStatusFilter('all');
+    },
+  });
 
   const filtered = sessions.filter((s) => {
     const matchesSearch = !search || s.session_name.toLowerCase().includes(search.toLowerCase());
