@@ -106,17 +106,24 @@ export function DealMessagesTab({ requestId, requestStatus }: DealMessagesTabPro
               }`}
             >
               <div
-                className={`max-w-[80%] rounded-xl px-3.5 py-2 text-sm ${
+                className={`max-w-[80%] rounded-xl px-3.5 py-2 ${
                   msg.message_type === "decision" || msg.message_type === "system"
-                    ? "bg-muted text-muted-foreground italic text-xs"
+                    ? "bg-muted italic text-sm"
                     : msg.sender_role === "buyer"
-                      ? "bg-primary text-primary-foreground"
-                      : "bg-muted/60 text-foreground border border-border/40"
+                      ? "bg-primary text-primary-foreground text-base"
+                      : "border border-border/40 text-base"
                 }`}
+                style={
+                  msg.message_type === "decision" || msg.message_type === "system"
+                    ? { color: '#3a3a3a' }
+                    : msg.sender_role !== "buyer"
+                      ? { backgroundColor: 'rgba(0,0,0,0.04)', color: '#0E101A' }
+                      : undefined
+                }
               >
                 {msg.message_type !== "system" && msg.message_type !== "decision" && (
                   <div className="flex items-center gap-1.5 mb-0.5">
-                    <span className="font-medium text-xs opacity-80">
+                    <span className="font-medium text-xs">
                       {msg.sender_role === "buyer"
                         ? "You"
                         : msg.sender?.first_name || "SourceCo"}
@@ -126,7 +133,7 @@ export function DealMessagesTab({ requestId, requestStatus }: DealMessagesTabPro
                     </span>
                   </div>
                 )}
-                <p className="leading-relaxed whitespace-pre-wrap">{msg.body}</p>
+                <p className="leading-relaxed whitespace-pre-wrap" style={{ color: msg.sender_role === "buyer" ? undefined : '#0E101A' }}>{msg.body}</p>
                 {(msg.message_type === "system" || msg.message_type === "decision") && (
                   <span className="opacity-50 text-[10px] block mt-0.5">
                     {formatDistanceToNow(new Date(msg.created_at), { addSuffix: true })}

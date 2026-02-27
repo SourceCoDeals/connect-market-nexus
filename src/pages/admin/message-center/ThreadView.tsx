@@ -340,7 +340,7 @@ export function ThreadView({
               if (isSystem) {
                 return (
                   <div key={msg.id} className="flex justify-center">
-                    <div className="bg-muted/40 text-muted-foreground italic text-xs px-3 py-1.5 rounded-full max-w-[80%]">
+                    <div className="bg-muted/40 italic text-sm px-3 py-1.5 rounded-full max-w-[80%]" style={{ color: '#3a3a3a' }}>
                       {msg.body}
                       <span className="opacity-50 text-[10px] ml-2">
                         {formatDistanceToNow(new Date(msg.created_at), { addSuffix: true })}
@@ -373,7 +373,7 @@ export function ThreadView({
                       </span>
                     )}
                   </div>
-                  <p className="text-sm whitespace-pre-wrap leading-relaxed" style={{ color: '#0E101A' }}>
+                  <p className="text-base whitespace-pre-wrap leading-relaxed" style={{ color: '#0E101A' }}>
                     {msg.body}
                   </p>
                 </div>
