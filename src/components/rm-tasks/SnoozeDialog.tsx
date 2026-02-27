@@ -23,7 +23,7 @@ interface SnoozeDialogProps {
 function addDays(days: number): string {
   const d = new Date();
   d.setDate(d.getDate() + days);
-  return d.toISOString().split('T')[0];
+  return d.toLocaleDateString('en-CA'); // YYYY-MM-DD in local timezone
 }
 
 export function SnoozeDialog({ open, onOpenChange, taskId }: SnoozeDialogProps) {

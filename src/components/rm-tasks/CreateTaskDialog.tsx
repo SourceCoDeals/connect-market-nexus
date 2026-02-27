@@ -46,9 +46,11 @@ export function CreateTaskDialog({
   const [title, setTitle] = useState('');
   const [entityType, setEntityType] = useState<RmTaskEntityType>(defaultEntityType ?? 'deal');
   const [entityId, setEntityId] = useState(defaultEntityId ?? '');
-  const [dueDate, setDueDate] = useState(
-    new Date(Date.now() + 7 * 86400000).toISOString().split('T')[0],
-  );
+  const [dueDate, setDueDate] = useState(() => {
+    const d = new Date();
+    d.setDate(d.getDate() + 7);
+    return d.toLocaleDateString('en-CA'); // YYYY-MM-DD in local timezone
+  });
   const [priority, setPriority] = useState<RmTaskPriority>('medium');
   const [ownerId, setOwnerId] = useState(user?.id ?? '');
   const [notes, setNotes] = useState('');
@@ -59,7 +61,9 @@ export function CreateTaskDialog({
     setTitle('');
     setEntityType(defaultEntityType ?? 'deal');
     setEntityId(defaultEntityId ?? '');
-    setDueDate(new Date(Date.now() + 7 * 86400000).toISOString().split('T')[0]);
+    const d = new Date();
+    d.setDate(d.getDate() + 7);
+    setDueDate(d.toLocaleDateString('en-CA'));
     setPriority('medium');
     setOwnerId(user?.id ?? '');
     setNotes('');

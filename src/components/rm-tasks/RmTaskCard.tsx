@@ -226,9 +226,14 @@ export function RmTaskCard({ task, onEdit, showEntity = false }: RmTaskCardProps
                   {ownerName}
                 </span>
                 {showEntity && (
-                  <span className="flex items-center gap-1 capitalize">
+                  <span className="flex items-center gap-1">
                     <Link2 className="h-3 w-3" />
-                    {task.entity_type}
+                    <span className="capitalize">{task.entity_type}</span>
+                    {task.entity_name && (
+                      <span className="text-foreground font-medium truncate max-w-[180px]">
+                        {task.entity_name}
+                      </span>
+                    )}
                   </span>
                 )}
               </div>

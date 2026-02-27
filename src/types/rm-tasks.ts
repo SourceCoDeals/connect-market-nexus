@@ -28,12 +28,19 @@ export type RmDealTeamRole = 'lead' | 'analyst' | 'support';
 
 export type OverdueTier = 'at_risk' | 'recent' | 'aging' | 'critical' | 'abandoned';
 
+/** Parse a YYYY-MM-DD string as a local-timezone midnight date (avoids UTC offset issues) */
+function parseLocalDate(dateStr: string): Date {
+  const [y, m, d] = dateStr.split('-').map(Number);
+  return new Date(y, m - 1, d);
+}
+
 export function getOverdueTier(dueDate: string | null, status: RmTaskStatus): OverdueTier | null {
   if (!dueDate || !['open', 'in_progress'].includes(status)) return null;
   const now = new Date();
-  const due = new Date(dueDate + 'T23:59:59');
+  now.setHours(0, 0, 0, 0); // local midnight
+  const due = parseLocalDate(dueDate);
   const diffMs = now.getTime() - due.getTime();
-  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+  const diffDays = Math.round(diffMs / (1000 * 60 * 60 * 24));
 
   if (diffDays < -2) return null; // more than 48h away
   if (diffDays < 0) return 'at_risk'; // due within 48h
@@ -274,9 +281,9 @@ export function getDueDateColor(dueDate: string | null, status: RmTaskStatus): s
   if (!dueDate || !['open', 'in_progress'].includes(status)) return 'text-muted-foreground';
   const now = new Date();
   now.setHours(0, 0, 0, 0);
-  const due = new Date(dueDate);
+  const due = parseLocalDate(dueDate);
   const diffMs = due.getTime() - now.getTime();
-  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+  const diffDays = Math.round(diffMs / (1000 * 60 * 60 * 24));
 
   if (diffDays < 0) return 'text-red-600 font-semibold'; // overdue
   if (diffDays <= 2) return 'text-amber-600'; // due within 48h
@@ -285,7 +292,7 @@ export function getDueDateColor(dueDate: string | null, status: RmTaskStatus): s
 
 export function formatDueDate(dueDate: string | null): string {
   if (!dueDate) return 'No due date';
-  const date = new Date(dueDate);
+  const date = parseLocalDate(dueDate);
   const now = new Date();
   now.setHours(0, 0, 0, 0);
   const diffMs = date.getTime() - now.getTime();

@@ -17,7 +17,6 @@ import type {
   RmTaskStatus,
   RmTaskEntityType,
   RmTaskPriority,
-  RmTaskSource,
   CreateRmTaskInput,
   DealStageTemplate,
   RmTaskFilters,
@@ -32,12 +31,19 @@ const COUNTS_KEY = 'rm-tasks-counts';
 function addDays(days: number): string {
   const d = new Date();
   d.setDate(d.getDate() + days);
-  return d.toISOString().split('T')[0];
+  return localDateStr(d);
+}
+
+/** Returns YYYY-MM-DD in local timezone (not UTC) */
+function localDateStr(d: Date = new Date()): string {
+  return d.toLocaleDateString('en-CA'); // en-CA gives YYYY-MM-DD
 }
 
 function todayStr(): string {
-  return new Date().toISOString().split('T')[0];
+  return localDateStr();
 }
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 // ─── Task counts for badge ───
 
@@ -58,44 +64,40 @@ export function useRmTaskCounts() {
     queryFn: async (): Promise<RmTaskCounts> => {
       const today = todayStr();
 
-      // Open tasks count
-      const { count: openCount } = await (supabase as any)
-        .from('rm_tasks')
-        .select('id', { count: 'exact', head: true })
-        .eq('owner_id', user!.id)
-        .in('status', ['open', 'in_progress']);
-
-      // Overdue count
-      const { count: overdueCount } = await (supabase as any)
-        .from('rm_tasks')
-        .select('id', { count: 'exact', head: true })
-        .eq('owner_id', user!.id)
-        .in('status', ['open', 'in_progress'])
-        .lt('due_date', today);
-
-      // Due today count
-      const { count: dueTodayCount } = await (supabase as any)
-        .from('rm_tasks')
-        .select('id', { count: 'exact', head: true })
-        .eq('owner_id', user!.id)
-        .in('status', ['open', 'in_progress'])
-        .eq('due_date', today);
-
-      // AI pending count
-      const { count: aiPendingCount } = await (supabase as any)
-        .from('rm_tasks')
-        .select('id', { count: 'exact', head: true })
-        .eq('owner_id', user!.id)
-        .eq('source', 'ai')
-        .is('confirmed_at', null)
-        .is('dismissed_at', null)
-        .gt('expires_at', new Date().toISOString());
+      // Fire all 4 count queries in parallel
+      const [openRes, overdueRes, dueTodayRes, aiPendingRes] = await Promise.all([
+        (supabase as any)
+          .from('rm_tasks')
+          .select('id', { count: 'exact', head: true })
+          .eq('owner_id', user!.id)
+          .in('status', ['open', 'in_progress']),
+        (supabase as any)
+          .from('rm_tasks')
+          .select('id', { count: 'exact', head: true })
+          .eq('owner_id', user!.id)
+          .in('status', ['open', 'in_progress'])
+          .lt('due_date', today),
+        (supabase as any)
+          .from('rm_tasks')
+          .select('id', { count: 'exact', head: true })
+          .eq('owner_id', user!.id)
+          .in('status', ['open', 'in_progress'])
+          .eq('due_date', today),
+        (supabase as any)
+          .from('rm_tasks')
+          .select('id', { count: 'exact', head: true })
+          .eq('owner_id', user!.id)
+          .eq('source', 'ai')
+          .is('confirmed_at', null)
+          .is('dismissed_at', null)
+          .gt('expires_at', new Date().toISOString()),
+      ]);
 
       return {
-        open: openCount ?? 0,
-        overdue: overdueCount ?? 0,
-        dueToday: dueTodayCount ?? 0,
-        aiPending: aiPendingCount ?? 0,
+        open: openRes.count ?? 0,
+        overdue: overdueRes.count ?? 0,
+        dueToday: dueTodayRes.count ?? 0,
+        aiPending: aiPendingRes.count ?? 0,
       };
     },
   });
@@ -128,7 +130,8 @@ export function useRmTasks(options: UseRmTasksOptions) {
       const today = todayStr();
       const weekEnd = addDays(7);
 
-      let query = (supabase as any).from('rm_tasks').select(`
+      // Use enriched view which resolves entity_name and secondary_entity_name
+      let query = (supabase as any).from('rm_tasks_enriched').select(`
           *,
           owner:profiles!rm_tasks_owner_id_fkey(id, first_name, last_name, email),
           blocking_task:rm_tasks!rm_tasks_depends_on_fkey(id, title, status)
@@ -136,6 +139,7 @@ export function useRmTasks(options: UseRmTasksOptions) {
 
       // If scoped to a specific entity
       if (options.entityType && options.entityId) {
+        if (!UUID_RE.test(options.entityId)) throw new Error('Invalid entity ID');
         // Show tasks where entity matches OR secondary entity matches
         query = query.or(
           `and(entity_type.eq.${options.entityType},entity_id.eq.${options.entityId}),and(secondary_entity_type.eq.${options.entityType},secondary_entity_id.eq.${options.entityId})`,
@@ -171,6 +175,7 @@ export function useRmTasks(options: UseRmTasksOptions) {
           break;
         case 'ai_suggested':
           query = query
+            .eq('owner_id', user!.id)
             .eq('source', 'ai')
             .is('confirmed_at', null)
             .is('dismissed_at', null)
@@ -227,8 +232,10 @@ export function useEntityRmTasks(entityType: RmTaskEntityType, entityId: string 
     queryKey: [QUERY_KEY, 'entity', entityType, entityId],
     enabled: !!entityId,
     queryFn: async (): Promise<RmTaskWithRelations[]> => {
+      if (!entityId || !UUID_RE.test(entityId)) throw new Error('Invalid entity ID');
+
       const { data, error } = await (supabase as any)
-        .from('rm_tasks')
+        .from('rm_tasks_enriched')
         .select(
           `
           *,
@@ -499,34 +506,24 @@ export function useCreateFromTemplate() {
       const config = DEAL_STAGE_TEMPLATES[template];
       if (!config) throw new Error(`Unknown template: ${template}`);
 
-      const createdIds: string[] = [];
+      // Build the task array for the RPC function
+      const templateTasks = config.tasks.map((t) => ({
+        title: t.title,
+        due_days: t.due_days,
+        priority: t.priority,
+        depends_on_index: t.depends_on_index ?? null,
+      }));
 
-      for (let i = 0; i < config.tasks.length; i++) {
-        const t = config.tasks[i];
-        const dueDate = addDays(t.due_days);
-        const dependsOn = t.depends_on_index != null ? createdIds[t.depends_on_index] : null;
+      // Use the atomic RPC function — all tasks created in a single transaction
+      const { data, error } = await (supabase as any).rpc('rm_create_template_tasks', {
+        p_template_tasks: templateTasks,
+        p_deal_id: dealId,
+        p_owner_id: ownerId,
+        p_created_by: user!.id,
+      });
 
-        const { data, error } = await (supabase as any)
-          .from('rm_tasks')
-          .insert({
-            title: t.title,
-            entity_type: 'deal' as RmTaskEntityType,
-            entity_id: dealId,
-            due_date: dueDate,
-            priority: t.priority,
-            owner_id: ownerId,
-            source: 'template' as RmTaskSource,
-            depends_on: dependsOn,
-            created_by: user!.id,
-          })
-          .select('id')
-          .single();
-
-        if (error) throw error;
-        createdIds.push(data.id);
-      }
-
-      return createdIds;
+      if (error) throw error;
+      return (data ?? []) as string[];
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [QUERY_KEY] });

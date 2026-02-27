@@ -40,8 +40,9 @@ export function EditTaskDialog({ open, onOpenChange, task }: EditTaskDialogProps
   const [status, setStatus] = useState<RmTaskStatus>('open');
   const [notes, setNotes] = useState('');
 
+  // Reset form state when dialog opens (not just when task reference changes)
   useEffect(() => {
-    if (task) {
+    if (open && task) {
       setTitle(task.title);
       setDueDate(task.due_date ?? '');
       setPriority(task.priority);
@@ -49,7 +50,7 @@ export function EditTaskDialog({ open, onOpenChange, task }: EditTaskDialogProps
       setStatus(task.status);
       setNotes(task.notes ?? '');
     }
-  }, [task]);
+  }, [open, task]);
 
   const handleSave = async () => {
     if (!task || !title.trim()) return;
