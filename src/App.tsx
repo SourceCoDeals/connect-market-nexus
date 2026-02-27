@@ -101,6 +101,7 @@ const TranscriptAnalytics = lazyWithRetry(
 );
 const EnrichmentQueue = lazyWithRetry(() => import('@/pages/admin/EnrichmentQueue'));
 const MarketplaceQueue = lazyWithRetry(() => import('@/pages/admin/MarketplaceQueue'));
+const AdminListings = lazyWithRetry(() => import('@/pages/admin/AdminListings'));
 const DataRecoveryPage = lazyWithRetry(() => import('@/pages/admin/DataRecoveryPage'));
 const FormMonitoringPage = lazyWithRetry(() => import('@/pages/admin/FormMonitoringPage'));
 const SecuritySettings = lazyWithRetry(() => import('@/pages/admin/settings/SecuritySettings'));
@@ -353,10 +354,7 @@ function App() {
               <Route path="lists/:id" element={<ContactListDetailPage />} />
 
               {/* MARKETPLACE (listings absorbed into unified All Deals page) */}
-              <Route
-                path="marketplace/listings"
-                element={<Navigate to="/admin/deals?tab=marketplace" replace />}
-              />
+              <Route path="marketplace/listings" element={<AdminListings />} />
               <Route path="marketplace/queue" element={<MarketplaceQueue />} />
               <Route path="marketplace/requests" element={<AdminRequests />} />
               <Route path="marketplace/messages" element={<MessageCenter />} />

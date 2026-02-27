@@ -17,6 +17,7 @@ import {
   X,
   Loader2,
   ArrowUpDown,
+  Plus,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
@@ -64,7 +65,7 @@ const MarketplaceQueue = () => {
           `id, title, internal_company_name, description, industry, category,
            revenue, ebitda, location, address_state, website, deal_total_score,
            pushed_to_marketplace_at, pushed_to_marketplace_by, status, created_at,
-           deal_source`
+           deal_source`,
         )
         .eq('pushed_to_marketplace', true)
         .eq('remarketing_status', 'active')
@@ -105,7 +106,7 @@ const MarketplaceQueue = () => {
         (d) =>
           (d.internal_company_name || d.title || '').toLowerCase().includes(q) ||
           (d.industry || d.category || '').toLowerCase().includes(q) ||
-          (d.address_state || '').toLowerCase().includes(q)
+          (d.address_state || '').toLowerCase().includes(q),
       );
     }
 
@@ -133,7 +134,9 @@ const MarketplaceQueue = () => {
         const cmp = aVal.localeCompare(bVal as string);
         return sortDir === 'asc' ? cmp : -cmp;
       }
-      return sortDir === 'asc' ? (aVal as number) - (bVal as number) : (bVal as number) - (aVal as number);
+      return sortDir === 'asc'
+        ? (aVal as number) - (bVal as number)
+        : (bVal as number) - (aVal as number);
     });
 
     return result;
@@ -161,6 +164,10 @@ const MarketplaceQueue = () => {
             {(deals?.length ?? 0) !== 1 ? 's' : ''} in queue.
           </p>
         </div>
+        <Button onClick={() => navigate('/admin/marketplace/listings')}>
+          <Plus className="h-4 w-4 mr-2" />
+          Create Listing
+        </Button>
       </div>
 
       <div className="flex items-center gap-3">
@@ -248,9 +255,7 @@ const MarketplaceQueue = () => {
                           Rev: {formatCurrency(deal.revenue)}
                         </span>
                       )}
-                      {deal.ebitda != null && (
-                        <span>EBITDA: {formatCurrency(deal.ebitda)}</span>
-                      )}
+                      {deal.ebitda != null && <span>EBITDA: {formatCurrency(deal.ebitda)}</span>}
                       {deal.address_state && (
                         <span className="flex items-center gap-1">
                           <MapPin className="h-3.5 w-3.5" />
@@ -277,7 +282,7 @@ const MarketplaceQueue = () => {
                             deal.website!.startsWith('http')
                               ? deal.website!
                               : `https://${deal.website}`,
-                            '_blank'
+                            '_blank',
                           );
                         }}
                       >
@@ -292,7 +297,7 @@ const MarketplaceQueue = () => {
                         e.stopPropagation();
                         handleRemoveFromQueue(
                           deal.id,
-                          deal.internal_company_name || deal.title || 'Deal'
+                          deal.internal_company_name || deal.title || 'Deal',
                         );
                       }}
                     >
