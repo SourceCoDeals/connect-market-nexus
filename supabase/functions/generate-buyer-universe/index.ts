@@ -2,7 +2,7 @@ import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { getCorsHeaders, corsPreflightResponse } from '../_shared/cors.ts';
 import { requireAdmin } from '../_shared/auth.ts';
-import { callClaude, CLAUDE_MODELS } from '../_shared/claude-client.ts';
+import { callGeminiWithTool, DEFAULT_GEMINI_MODEL } from '../_shared/ai-providers.ts';
 
 serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
@@ -15,6 +15,11 @@ serve(async (req) => {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY');
+    if (!GEMINI_API_KEY) {
+      throw new Error('GEMINI_API_KEY is not configured');
+    }
 
     // Require admin authentication
     const auth = await requireAdmin(req, supabase);
@@ -118,61 +123,52 @@ Given information about a company, you must produce two outputs:
 
 Be specific and actionable. Reference geography, specialization, and deal thesis where possible.`;
 
-    const response = await callClaude({
-      model: CLAUDE_MODELS.sonnet,
-      maxTokens: 512,
-      systemPrompt,
-      messages: [
-        {
-          role: 'user',
-          content: `Analyze this company and generate the buyer universe label and description:\n\n${companyContext}`,
-        },
-      ],
-      tools: [
-        {
-          name: 'set_buyer_universe',
-          description: 'Set the buyer universe label and description for this deal',
-          input_schema: {
-            type: 'object',
-            properties: {
-              buyer_universe_label: {
-                type: 'string',
-                description:
-                  'Short 3-6 word label describing who would buy this company (buyer perspective, not seller)',
-              },
-              buyer_universe_description: {
-                type: 'string',
-                description:
-                  'Exactly 2 sentences: what the company does specifically, then who would acquire and why',
-              },
+    const tool = {
+      type: 'function',
+      function: {
+        name: 'set_buyer_universe',
+        description: 'Set the buyer universe label and description for this deal',
+        parameters: {
+          type: 'object',
+          properties: {
+            buyer_universe_label: {
+              type: 'string',
+              description:
+                'Short 3-6 word label describing who would buy this company (buyer perspective, not seller)',
             },
-            required: ['buyer_universe_label', 'buyer_universe_description'],
+            buyer_universe_description: {
+              type: 'string',
+              description:
+                'Exactly 2 sentences: what the company does specifically, then who would acquire and why',
+            },
           },
+          required: ['buyer_universe_label', 'buyer_universe_description'],
         },
-      ],
-      timeoutMs: 30000,
-    });
+      },
+    };
 
-    // Extract tool use result
-    let label: string | null = null;
-    let description: string | null = null;
+    const result = await callGeminiWithTool(
+      systemPrompt,
+      `Analyze this company and generate the buyer universe label and description:\n\n${companyContext}`,
+      tool,
+      GEMINI_API_KEY,
+      DEFAULT_GEMINI_MODEL,
+      20000,
+      1024,
+    );
 
-    for (const block of response.content) {
-      if (block.type === 'tool_use' && block.name === 'set_buyer_universe' && block.input) {
-        label = (block.input as Record<string, string>).buyer_universe_label || null;
-        description = (block.input as Record<string, string>).buyer_universe_description || null;
-        break;
+    if (result.error) {
+      if (result.error.code === 'rate_limited') {
+        return new Response(
+          JSON.stringify({ error: 'AI service busy. Please wait 30 seconds and try again.' }),
+          { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+        );
       }
+      throw new Error(result.error.message);
     }
 
-    // Fallback: parse from text if tool use wasn't triggered
-    if (!label) {
-      const textBlock = response.content.find((b) => b.type === 'text');
-      if (textBlock?.text) {
-        label = companyName || 'Unknown';
-        description = textBlock.text.slice(0, 500);
-      }
-    }
+    const label: string | null = result.data?.buyer_universe_label || null;
+    const description: string | null = result.data?.buyer_universe_description || null;
 
     if (!label) {
       return new Response(JSON.stringify({ error: 'AI failed to generate buyer universe data' }), {
