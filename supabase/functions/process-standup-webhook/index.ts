@@ -16,6 +16,53 @@ import { getCorsHeaders, corsPreflightResponse } from '../_shared/cors.ts';
  */
 
 const STANDUP_TITLE_TAG = '<ds>';
+const FIREFLIES_API_TIMEOUT_MS = 10_000;
+
+/** Fetch the transcript title from Fireflies API as a fallback */
+async function fetchTitleFromFireflies(transcriptId: string): Promise<string> {
+  const apiKey = Deno.env.get('FIREFLIES_API_KEY');
+  if (!apiKey) {
+    console.warn('FIREFLIES_API_KEY not configured, cannot fetch title');
+    return '';
+  }
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), FIREFLIES_API_TIMEOUT_MS);
+
+  try {
+    const response = await fetch('https://api.fireflies.ai/graphql', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        query: `query GetTitle($id: String!) { transcript(id: $id) { title } }`,
+        variables: { id: transcriptId },
+      }),
+      signal: controller.signal,
+    });
+    clearTimeout(timeoutId);
+
+    if (!response.ok) return '';
+    const result = await response.json();
+    return result.data?.transcript?.title || '';
+  } catch {
+    return '';
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
+/** Check if a title contains the standup tag, including HTML-encoded variants */
+function hasStandupTag(title: string): boolean {
+  const lower = title.toLowerCase();
+  return (
+    lower.includes(STANDUP_TITLE_TAG) ||
+    lower.includes('&lt;ds&gt;') ||
+    lower.includes('%3cds%3e')
+  );
+}
 
 serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
@@ -34,7 +81,7 @@ serve(async (req) => {
 
     // Fireflies webhook payload
     const transcriptId = body.data?.transcript_id || body.transcript_id || body.id;
-    const meetingTitle = body.data?.title || body.title || '';
+    let meetingTitle = body.data?.title || body.title || '';
 
     if (!transcriptId) {
       return new Response(JSON.stringify({ error: 'No transcript_id in webhook payload' }), {
@@ -43,8 +90,16 @@ serve(async (req) => {
       });
     }
 
+    // If the webhook payload doesn't include the title (or it's empty),
+    // fetch it from the Fireflies API so we can check for the <ds> tag.
+    if (!meetingTitle) {
+      console.log(`No title in webhook payload, fetching from Fireflies API...`);
+      meetingTitle = await fetchTitleFromFireflies(transcriptId);
+      console.log(`Fetched title from API: "${meetingTitle}"`);
+    }
+
     // Check if this is a standup meeting by looking for <ds> tag in title
-    const isStandup = meetingTitle.toLowerCase().includes(STANDUP_TITLE_TAG);
+    const isStandup = hasStandupTag(meetingTitle);
 
     if (!isStandup) {
       console.log(`Skipping non-standup meeting: "${meetingTitle}" (no <ds> tag)`);
