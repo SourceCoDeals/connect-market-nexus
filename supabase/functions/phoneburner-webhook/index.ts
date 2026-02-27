@@ -12,7 +12,10 @@
  *   - email.unsubscribed
  *   - sms.opt_out
  *
- * Authentication: HMAC-SHA256 signature via X-Phoneburner-Signature header
+ * Authentication: None — accepts all incoming POST requests without
+ * signature or authentication to ensure the dialer can always post
+ * call activity updates. Signature is still checked and logged for
+ * auditing purposes when PHONEBURNER_WEBHOOK_SECRET is configured.
  *
  * IMPORTANT: The push function stores `sourceco_id` in custom_fields.
  * We read both `sourceco_id` and `sourceco_contact_id` for backwards-compat.
@@ -75,7 +78,9 @@ function normalizePayload(raw: Record<string, unknown>): {
   const body = (raw.body || {}) as Record<string, unknown>;
   const hasBody = Object.keys(body).length > 0;
   const data = hasBody ? body : raw;
-  const transcript = ((raw.Transcript || raw.transcript || data.Transcript || data.transcript || '') as string) || null;
+  const transcript =
+    ((raw.Transcript || raw.transcript || data.Transcript || data.transcript || '') as string) ||
+    null;
   const pbStatus = ((raw.status || data.status || '') as string) || null;
   return { data, transcript, pbStatus };
 }
@@ -94,24 +99,23 @@ Deno.serve(async (req) => {
   const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
   const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
   const webhookSecret = Deno.env.get('PHONEBURNER_WEBHOOK_SECRET');
-  if (!webhookSecret) {
-    console.error('PHONEBURNER_WEBHOOK_SECRET is not set — rejecting request');
-    return jsonResponse({ error: 'Server misconfigured' }, 500, corsHeaders);
-  }
   // deno-lint-ignore no-explicit-any
   const supabase: any = createClient(supabaseUrl, serviceRoleKey);
 
   const rawBody = await req.text();
 
-  // ── signature verification ──
+  // ── signature check (logged for auditing, NOT enforced) ──
   const sig =
     req.headers.get('x-phoneburner-signature') || req.headers.get('X-Phoneburner-Signature');
-  const signatureValid = await verifySignature(rawBody, sig, webhookSecret);
-  if (!signatureValid) {
-    console.warn('PhoneBurner webhook rejected — invalid signature');
-    return jsonResponse({ error: 'Invalid signature' }, 401, corsHeaders);
+  let signatureValid = false;
+  if (webhookSecret && sig) {
+    signatureValid = await verifySignature(rawBody, sig, webhookSecret);
   }
-  console.log('PhoneBurner webhook received, signature verified');
+  if (!signatureValid) {
+    console.warn('PhoneBurner webhook signature missing or invalid — proceeding without auth');
+  } else {
+    console.log('PhoneBurner webhook received, signature verified');
+  }
 
   let payload: Record<string, unknown>;
   try {
@@ -124,7 +128,11 @@ Deno.serve(async (req) => {
     req.headers.get('x-phoneburner-event-type') || req.headers.get('X-Phoneburner-Event-Type');
 
   // Normalize: extract from body wrapper
-  const { data: normalizedPayload, transcript: topLevelTranscript, pbStatus: topLevelStatus } = normalizePayload(payload);
+  const {
+    data: normalizedPayload,
+    transcript: topLevelTranscript,
+    pbStatus: topLevelStatus,
+  } = normalizePayload(payload);
 
   const eventType = headerEventType || detectEventType(normalizedPayload);
 
@@ -151,9 +159,14 @@ Deno.serve(async (req) => {
 
   // Extract contact info for logging
   const contact = (normalizedPayload.contact || {}) as Record<string, unknown>;
-  const customFields = (contact.custom_fields || normalizedPayload.custom_fields || {}) as Record<string, unknown>;
-  const customData = (normalizedPayload.custom_data || {}) as Record<string, unknown>;
-  const sourceco_contact_id = (customFields.sourceco_id || customFields.sourceco_contact_id || null) as string | null;
+  const customFields = (contact.custom_fields || normalizedPayload.custom_fields || {}) as Record<
+    string,
+    unknown
+  >;
+  const _customData = (normalizedPayload.custom_data || {}) as Record<string, unknown>;
+  const sourceco_contact_id = (customFields.sourceco_id ||
+    customFields.sourceco_contact_id ||
+    null) as string | null;
 
   // ── log the raw webhook ──
   const { data: logEntry, error: logError } = await supabase
@@ -184,7 +197,13 @@ Deno.serve(async (req) => {
 
   // ── process the event ──
   try {
-    const activityId = await processEvent(supabase, eventType, normalizedPayload, topLevelTranscript, topLevelStatus);
+    const activityId = await processEvent(
+      supabase,
+      eventType,
+      normalizedPayload,
+      topLevelTranscript,
+      topLevelStatus,
+    );
     await supabase
       .from('phoneburner_webhooks_log')
       .update({
@@ -224,10 +243,15 @@ function detectEventType(payload: Record<string, unknown>): string {
  */
 function extractContactInfo(payload: Record<string, unknown>) {
   const contact = (payload.contact || {}) as Record<string, unknown>;
-  const customFields = (contact.custom_fields || payload.custom_fields || {}) as Record<string, unknown>;
+  const customFields = (contact.custom_fields || payload.custom_fields || {}) as Record<
+    string,
+    unknown
+  >;
   const customData = (payload.custom_data || {}) as Record<string, unknown>;
 
-  const contactId = (customFields.sourceco_id || customFields.sourceco_contact_id || null) as string | null;
+  const contactId = (customFields.sourceco_id || customFields.sourceco_contact_id || null) as
+    | string
+    | null;
   const pbContactId = (contact.id || contact.user_id || payload.contact_id || '') as string;
 
   // User/rep info — can be in `agent` or `owner` or `user` depending on event type
@@ -235,12 +259,16 @@ function extractContactInfo(payload: Record<string, unknown>) {
   const owner = (payload.owner || {}) as Record<string, unknown>;
   const user = (payload.user || {}) as Record<string, unknown>;
 
-  const userName = (agent.first_name
-    ? `${agent.first_name} ${agent.last_name || ''}`.trim()
-    : owner.first_name
-      ? `${owner.first_name} ${owner.last_name || ''}`.trim()
-      : user.name || payload.user_name || null) as string | null;
-  const userEmail = (agent.email || owner.email || user.email || payload.user_email || null) as string | null;
+  const userName = (
+    agent.first_name
+      ? `${agent.first_name} ${agent.last_name || ''}`.trim()
+      : owner.first_name
+        ? `${owner.first_name} ${owner.last_name || ''}`.trim()
+        : user.name || payload.user_name || null
+  ) as string | null;
+  const userEmail = (agent.email || owner.email || user.email || payload.user_email || null) as
+    | string
+    | null;
 
   const entityType = (customData.entity_type || null) as string | null;
   const pushedBy = (customData.pushed_by || null) as string | null;
@@ -259,7 +287,21 @@ function extractContactInfo(payload: Record<string, unknown>) {
   // Extract listing UUID from "listing-<uuid>" format
   const listingId = rawLeadId?.startsWith('listing-') ? rawLeadId.replace('listing-', '') : null;
 
-  return { contactId, pbContactId, customFields, customData, userName, userEmail, entityType, pushedBy, sessionSource, contactEmail, contactNotes, leadId, listingId };
+  return {
+    contactId,
+    pbContactId,
+    customFields,
+    customData,
+    userName,
+    userEmail,
+    entityType,
+    pushedBy,
+    sessionSource,
+    contactEmail,
+    contactNotes,
+    leadId,
+    listingId,
+  };
 }
 
 async function processEvent(
@@ -270,7 +312,16 @@ async function processEvent(
   topLevelTranscript: string | null,
   topLevelStatus: string | null,
 ): Promise<string | null> {
-  const { contactId, pbContactId, userName, userEmail, contactEmail, contactNotes, leadId, listingId } = extractContactInfo(payload);
+  const {
+    contactId,
+    pbContactId,
+    userName,
+    userEmail,
+    contactEmail,
+    contactNotes,
+    leadId,
+    listingId,
+  } = extractContactInfo(payload);
 
   switch (eventType) {
     case 'call_begin':
@@ -329,11 +380,13 @@ async function processEvent(
 
       // --- Duration ---
       const callSummary = (payload.call_summary || {}) as Record<string, unknown>;
-      const duration = Number(callSummary.total_duration_seconds ||
-        payload.duration ||
-        payload.call_duration ||
-        payload.total_duration_seconds ||
-        0);
+      const duration = Number(
+        callSummary.total_duration_seconds ||
+          payload.duration ||
+          payload.call_duration ||
+          payload.total_duration_seconds ||
+          0,
+      );
       const talkTime = (callSummary.talk_duration_seconds ||
         payload.talk_time ||
         payload.talk_duration_seconds ||
@@ -364,11 +417,11 @@ async function processEvent(
         ((payload.end_time ||
           callSummary.ended_at ||
           payload.ended_at ||
-          payload.timestamp) as string) ||
-        new Date().toISOString();
+          payload.timestamp) as string) || new Date().toISOString();
 
       // --- Connected flag ---
-      const connected = payload.connected === 1 || payload.connected === true || payload.connected === '1';
+      const connected =
+        payload.connected === 1 || payload.connected === true || payload.connected === '1';
 
       const { data } = await supabase
         .from('contact_activities')
@@ -466,7 +519,9 @@ async function processEvent(
           activity_type: 'callback_scheduled',
           source_system: 'phoneburner',
           phoneburner_contact_id: String(pbContactId),
-          callback_scheduled_date: (callback.scheduled_for || payload.callback_date || null) as string | null,
+          callback_scheduled_date: (callback.scheduled_for || payload.callback_date || null) as
+            | string
+            | null,
           disposition_notes: (callback.notes || payload.callback_notes || '') as string,
           contact_id: contactId,
           contact_email: contactEmail,
