@@ -363,7 +363,7 @@ async function getCallHistory(
 
     if (scErr) return { error: `Failed to resolve deal buyers: ${scErr.message}` };
     dealBuyerIds = (scoredBuyers || []).map((s: { buyer_id: string }) => s.buyer_id);
-    if (dealBuyerIds.length === 0) {
+    if (!dealBuyerIds || dealBuyerIds.length === 0) {
       return {
         data: {
           activities: [],

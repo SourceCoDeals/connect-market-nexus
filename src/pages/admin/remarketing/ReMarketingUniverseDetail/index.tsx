@@ -80,7 +80,7 @@ const ReMarketingUniverseDetail = () => {
   const {
     id,
     isNew,
-    navigate,
+    navigate: _navigate,
     queryClient,
 
     // Form state
