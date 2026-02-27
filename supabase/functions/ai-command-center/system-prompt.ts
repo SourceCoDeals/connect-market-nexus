@@ -106,10 +106,22 @@ Group by buyer if multiple transcripts match. Highlight the most insightful pass
   FOLLOW_UP: `Focus on actionable items: overdue tasks, pending follow-ups, upcoming due dates.
 Use get_follow_up_queue FIRST for a unified view. Prioritize: overdue > due today > stale outreach > unread messages > upcoming.`,
 
-  BUYER_SEARCH: `Return buyer matches as: name, type, HQ, revenue range, key services, alignment score.
-Use search_buyers with state filter for geographic searches (checks both hq_state and geographic_footprint).
-Use industry parameter for industry-specific searches. Use search_lead_sources for lead source questions.
-Use get_top_buyers_for_deal with state filter for universe + geography questions.`,
+  BUYER_SEARCH: `TOOL SELECTION — pick the right data source:
+- search_buyers → remarketing_buyers table (acquirers, PE firms, platforms). Use for "find HVAC buyers", "buyers in TX".
+- search_lead_sources → listings table filtered by deal_source. Use for "captarget HVAC leads", "GO Partner leads in TX".
+- search_valuation_leads → valuation_leads table (calculator leads). Use for "HVAC calculator leads", "valuation leads in TX".
+- search_inbound_leads → inbound_leads table. Use for "who contacted us about HVAC".
+- query_deals → listings table (pipeline deals). Use for "HVAC deals", "deals in TX over $5M".
+- search_buyer_universes → buyer universes. Use for "find the HVAC universe".
+- get_top_buyers_for_deal → scored buyers for a specific deal. Use for "buyers in the [deal] universe in OK".
+
+KEY BEHAVIORS:
+- search_buyers industry param auto-matches universe names (e.g. "HVAC" finds buyers in "Residential HVAC, Plumbing and Electrical" universe even if buyer record itself doesn't mention HVAC).
+- search_buyers state filter checks BOTH hq_state and geographic_footprint — returns ALL matching buyers.
+- search_lead_sources industry param checks industry, category, categories, services, title, captarget_sheet_tab fields.
+- query_deals industry param checks 12+ fields including executive_summary, investment_thesis, business_model.
+
+FORMAT: Return buyer matches as: name, type, HQ, revenue range, key services, alignment score.`,
 
   BUYER_ANALYSIS: `Present scores with context: composite, geography, service, size, owner goals, portfolio, business_model, acquisition.
 Explain score drivers and flags. Use get_score_breakdown for per-dimension breakdown.

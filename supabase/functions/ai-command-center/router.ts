@@ -34,8 +34,7 @@ const BYPASS_RULES: Array<{
     test: (q) =>
       /\b(pipeline summary|pipeline overview|how.?s the pipeline|daily briefing|morning briefing|good morning|what.?s new|catch me up|give me a.*briefing|start.?of.?day|daily update)\b/i.test(
         q,
-      ) ||
-      /^(pipeline|summary|overview|briefing|daily)\b/i.test(q),
+      ) || /^(pipeline|summary|overview|briefing|daily)\b/i.test(q),
     result: {
       category: 'DAILY_BRIEFING',
       tier: 'STANDARD',
@@ -65,7 +64,9 @@ const BYPASS_RULES: Array<{
       ) ||
       /\b(deals?|listings?)\b.*\b(how many|total|count)\b/i.test(q) ||
       /\b(breakdown|distribution|split)\b.*\b(deals?|listings?)\b/i.test(q) ||
-      /\b(deals?|listings?)\b.*\b(breakdown|distribution|by status|by stage|by industry)\b/i.test(q),
+      /\b(deals?|listings?)\b.*\b(breakdown|distribution|by status|by stage|by industry)\b/i.test(
+        q,
+      ),
     result: {
       category: 'PIPELINE_ANALYTICS',
       tier: 'STANDARD',
@@ -105,7 +106,9 @@ const BYPASS_RULES: Array<{
   {
     test: (q) =>
       // Skip platform guide questions ("how do I", "what does X do", "explain")
-      !/\b(how (do|does|can|should) I|what does|what is the\b.{0,30}\b(system|feature|tool|method))\b/i.test(q) &&
+      !/\b(how (do|does|can|should) I|what does|what is the\b.{0,30}\b(system|feature|tool|method))\b/i.test(
+        q,
+      ) &&
       // Skip contact queries ("who is the contact for", "main contact for")
       !/\bcontacts?\s+(at|for)\b/i.test(q) &&
       !/\b(who.?s the|main contact|find contacts?|list.*contacts?)\b/i.test(q) &&
@@ -119,11 +122,11 @@ const BYPASS_RULES: Array<{
       !/\bdeal flow\b/i.test(q) &&
       // Skip action intent ("add a note", "add a task", "create a task")
       !/\b(add\s+(a\s+)?note|add\s+(a\s+)?task|create\s+(a\s+)?task)\b/i.test(q) &&
-      (
-        /\b(show|list|which|what)\b.*\bdeals?\b.*\b(in|at|in the)\b/i.test(q) ||
-        /\bdeals?\b.*\b(in|at)\s+(the\s+)?(screening|active marketing|loi|under loi|closed|dead|prospect|due diligence)\b/i.test(q) ||
-        /\b(our|the|most|latest|recent|newest)\b.*\bdeals?\b/i.test(q)
-      ),
+      (/\b(show|list|which|what)\b.*\bdeals?\b.*\b(in|at|in the)\b/i.test(q) ||
+        /\bdeals?\b.*\b(in|at)\s+(the\s+)?(screening|active marketing|loi|under loi|closed|dead|prospect|due diligence)\b/i.test(
+          q,
+        ) ||
+        /\b(our|the|most|latest|recent|newest)\b.*\bdeals?\b/i.test(q)),
     result: {
       category: 'DEAL_STATUS',
       tier: 'STANDARD',
@@ -172,15 +175,19 @@ const BYPASS_RULES: Array<{
     result: {
       category: 'BUYER_SEARCH',
       tier: 'STANDARD',
-      tools: ['search_buyers'],
+      tools: ['search_buyers', 'search_buyer_universes'],
       confidence: 0.85,
     },
   },
   // Buyer intel — "what do we know about X as a buyer", "tell me about X buyer"
   {
     test: (q) =>
-      /\b(what do we know|what do you know|background on|intel on|research on)\b.*\b(buyer|acquirer|firm|investor)\b/i.test(q) ||
-      /\b(buyer|acquirer|firm|investor)\b.*\b(what do we know|background|intel|research)\b/i.test(q),
+      /\b(what do we know|what do you know|background on|intel on|research on)\b.*\b(buyer|acquirer|firm|investor)\b/i.test(
+        q,
+      ) ||
+      /\b(buyer|acquirer|firm|investor)\b.*\b(what do we know|background|intel|research)\b/i.test(
+        q,
+      ),
     result: {
       category: 'BUYER_SEARCH',
       tier: 'STANDARD',
@@ -204,7 +211,9 @@ const BYPASS_RULES: Array<{
   // Transcript / meeting questions
   {
     test: (q) =>
-      /\b(transcripts?|call|meeting|fireflies|recording|said|mentions?|mentioned|discussed)\b/i.test(q),
+      /\b(transcripts?|call|meeting|fireflies|recording|said|mentions?|mentioned|discussed)\b/i.test(
+        q,
+      ),
     result: {
       category: 'MEETING_INTEL',
       tier: 'STANDARD',
@@ -216,35 +225,27 @@ const BYPASS_RULES: Array<{
   {
     test: (q, ctx) =>
       (ctx.entity_type === 'universe' || /\buniverse\b/i.test(q)) &&
-      (
-        /\b(not\s*fits?|non.?fits?|passed|disqualified|bad fits?|poor fits?|weak fits?)\b/i.test(q) ||
-        /\b(select|check|pick)\b.*\b(not|non|bad|poor|weak|passed|disqualified)\b/i.test(q)
-      ),
+      (/\b(not\s*fits?|non.?fits?|passed|disqualified|bad fits?|poor fits?|weak fits?)\b/i.test(
+        q,
+      ) ||
+        /\b(select|check|pick)\b.*\b(not|non|bad|poor|weak|passed|disqualified)\b/i.test(q)),
     result: {
       category: 'BUYER_UNIVERSE',
       tier: 'STANDARD',
-      tools: [
-        'get_universe_buyer_fits',
-        'select_table_rows',
-        'search_buyer_universes',
-      ],
+      tools: ['get_universe_buyer_fits', 'select_table_rows', 'search_buyer_universes'],
       confidence: 0.95,
     },
   },
   // Push to dialer / smartlead / heyreach — "push selected to dialer", "send these to smartlead"
   {
     test: (q) =>
-      /\b(push|send|export|add)\b.*\b(dialer|phoneburner|phone\s*burner|smartlead|smart\s*lead|heyreach|hey\s*reach|email campaign)\b/i.test(q) ||
-      /\b(dialer|phoneburner|smartlead|heyreach)\b/i.test(q),
+      /\b(push|send|export|add)\b.*\b(dialer|phoneburner|phone\s*burner|smartlead|smart\s*lead|heyreach|hey\s*reach|email campaign)\b/i.test(
+        q,
+      ) || /\b(dialer|phoneburner|smartlead|heyreach)\b/i.test(q),
     result: {
       category: 'REMARKETING',
       tier: 'STANDARD',
-      tools: [
-        'search_buyers',
-        'query_deals',
-        'select_table_rows',
-        'trigger_page_action',
-      ],
+      tools: ['search_buyers', 'query_deals', 'select_table_rows', 'trigger_page_action'],
       confidence: 0.92,
     },
   },
@@ -256,11 +257,7 @@ const BYPASS_RULES: Array<{
     result: {
       category: 'BUYER_UNIVERSE',
       tier: 'STANDARD',
-      tools: [
-        'get_universe_buyer_fits',
-        'select_table_rows',
-        'trigger_page_action',
-      ],
+      tools: ['get_universe_buyer_fits', 'select_table_rows', 'trigger_page_action'],
       confidence: 0.92,
     },
   },
@@ -286,7 +283,10 @@ const BYPASS_RULES: Array<{
   },
   // Create task / add note
   {
-    test: (q) => /\b(create\s+(a\s+)?task|add\s+(a\s+)?task|new task|add\s+(a\s+)?note|log|remind me)\b/i.test(q),
+    test: (q) =>
+      /\b(create\s+(a\s+)?task|add\s+(a\s+)?task|new task|add\s+(a\s+)?note|log|remind me)\b/i.test(
+        q,
+      ),
     result: {
       category: 'ACTION',
       tier: 'STANDARD',
@@ -311,7 +311,10 @@ const BYPASS_RULES: Array<{
   },
   // Analytics / reports
   {
-    test: (q) => /\b(analytics|report|metrics|performance|trend|chart|dashboard|deal flow|month over month|year over year|week over week|compare.*month)\b/i.test(q),
+    test: (q) =>
+      /\b(analytics|report|metrics|performance|trend|chart|dashboard|deal flow|month over month|year over year|week over week|compare.*month)\b/i.test(
+        q,
+      ),
     result: {
       category: 'PIPELINE_ANALYTICS',
       tier: 'STANDARD',
@@ -341,7 +344,9 @@ const BYPASS_RULES: Array<{
   {
     test: (q) =>
       /\b(draft|write|compose)\b/i.test(q) ||
-      /\b(create|generate)\s+(a\s+|an?\s+|the\s+)?(cim|teaser|memo|executive summary|outreach|email|message|proposal|template|pitch|one[- ]?pager)\b/i.test(q) ||
+      /\b(create|generate)\s+(a\s+|an?\s+|the\s+)?(cim|teaser|memo|executive summary|outreach|email|message|proposal|template|pitch|one[- ]?pager)\b/i.test(
+        q,
+      ) ||
       /\b(send\s+(a\s+)?message|send\s+(an?\s+)?email)\b/i.test(q),
     result: {
       category: 'OUTREACH_DRAFT',
@@ -370,9 +375,7 @@ const BYPASS_RULES: Array<{
       !/\b(how (do|does|can|should) I|how to|create|set up|build)\b/i.test(q) &&
       // Skip enrichment queries — those route to CONTACT_ENRICHMENT
       !/\benrich\b/i.test(q) &&
-      /\b(buyer universe|universe|how many buyer|buyers.*locat|location.*buyer)\b/i.test(
-        q,
-      ),
+      /\b(buyer universe|universe|how many buyer|buyers.*locat|location.*buyer)\b/i.test(q),
     result: {
       category: 'BUYER_UNIVERSE',
       tier: 'STANDARD',
@@ -512,8 +515,8 @@ const BYPASS_RULES: Array<{
     test: (q) =>
       !/\benrich\b/i.test(q) &&
       // Skip "find N contacts at X" — those route to CONTACT_ENRICHMENT
-      !/\bfind\s+(\d+\s+)?contacts?\s+(at|for|from)\b/i.test(q) && (
-        /\bcontacts?\s+(at|for)\b/i.test(q) ||
+      !/\bfind\s+(\d+\s+)?contacts?\s+(at|for|from)\b/i.test(q) &&
+      (/\bcontacts?\s+(at|for)\b/i.test(q) ||
         /\b(who.?s the|find contacts?|emails? for|phones? for|partner at|principal at|deal team|pe contacts?|platform contacts?)\b/i.test(
           q,
         ) ||
@@ -525,8 +528,7 @@ const BYPASS_RULES: Array<{
         /\b(emails?|phones?)\s+(address(es)?\s+)?(for|of)\b/i.test(q) ||
         /\bemails?\b.*\b(address)\b/i.test(q) ||
         /\b(show me|list|who are)\b.*\bcontacts?\b/i.test(q) ||
-        /\b(recently|most recent|newest|latest)\b.*\bcontacts?\b/i.test(q)
-      ),
+        /\b(recently|most recent|newest|latest)\b.*\bcontacts?\b/i.test(q)),
     result: {
       category: 'CONTACTS',
       tier: 'STANDARD',
@@ -695,7 +697,9 @@ const BYPASS_RULES: Array<{
   // Deal comments
   {
     test: (q) =>
-      /\b(comments?|internal notes?|deal notes?|team comments?|who comment|what.*comments?)\b/i.test(q),
+      /\b(comments?|internal notes?|deal notes?|team comments?|who comment|what.*comments?)\b/i.test(
+        q,
+      ),
     result: {
       category: 'DEAL_STATUS',
       tier: 'QUICK',
@@ -744,12 +748,7 @@ const BYPASS_RULES: Array<{
     result: {
       category: 'CONTACT_ENRICHMENT',
       tier: 'STANDARD',
-      tools: [
-        'search_pe_contacts',
-        'search_contacts',
-        'enrich_contact',
-        'get_buyer_profile',
-      ],
+      tools: ['search_pe_contacts', 'search_contacts', 'enrich_contact', 'get_buyer_profile'],
       confidence: 0.92,
     },
   },
@@ -762,12 +761,7 @@ const BYPASS_RULES: Array<{
     result: {
       category: 'CONTACT_ENRICHMENT',
       tier: 'STANDARD',
-      tools: [
-        'find_contact',
-        'search_contacts',
-        'enrich_contact',
-        'save_contacts_to_crm',
-      ],
+      tools: ['find_contact', 'search_contacts', 'enrich_contact', 'save_contacts_to_crm'],
       confidence: 0.92,
     },
   },
@@ -780,12 +774,7 @@ const BYPASS_RULES: Array<{
     result: {
       category: 'CONTACT_ENRICHMENT',
       tier: 'STANDARD',
-      tools: [
-        'enrich_contact',
-        'search_contacts',
-        'search_pe_contacts',
-        'find_contact',
-      ],
+      tools: ['enrich_contact', 'search_contacts', 'search_pe_contacts', 'find_contact'],
       confidence: 0.9,
     },
   },
@@ -979,8 +968,12 @@ const BYPASS_RULES: Array<{
   // Platform help / "how do I" / "what is" questions about SourceCo features
   {
     test: (q) =>
-      (/\b(how (do|does|can|should) I|how to|what is|what are|what does|explain|help me|teach me|show me how|guide|tutorial|walkthrough|what can you do|what tools|capabilities)\b/i.test(q) &&
-        /\b(platform|sourceco|captarget|cap target|gp partner|go partner|marketplace|remarketing|universe|scoring|enrichment|data room|nda|fee agreement|phoneburner|phone burner|smartlead|smart lead|pipeline|outreach|chatbot|ai command|command center|this tool|this app|lead source|tracker|valuation|calling list|prospeo|apify|linkedin|memo|teaser|deal|buyer|contact)\b/i.test(q)) ||
+      (/\b(how (do|does|can|should) I|how to|what is|what are|what does|explain|help me|teach me|show me how|guide|tutorial|walkthrough|what can you do|what tools|capabilities)\b/i.test(
+        q,
+      ) &&
+        /\b(platform|sourceco|captarget|cap target|gp partner|go partner|marketplace|remarketing|universe|scoring|enrichment|data room|nda|fee agreement|phoneburner|phone burner|smartlead|smart lead|pipeline|outreach|chatbot|ai command|command center|this tool|this app|lead source|tracker|valuation|calling list|prospeo|apify|linkedin|memo|teaser|deal|buyer|contact)\b/i.test(
+          q,
+        )) ||
       /\b(what can (you|the (bot|chatbot|ai|assistant)) (do|help))\b/i.test(q) ||
       /\b(what can you help)\b/i.test(q) ||
       /\b(help|how does (this|it|the (platform|system|tool|chatbot|ai)) work)\b/i.test(q) ||
@@ -995,8 +988,9 @@ const BYPASS_RULES: Array<{
   // Building lists / compiling contacts — multi-step workflow
   {
     test: (q) =>
-      /\b(build|compile|create|make|generate|put together|assemble)\b.*\b(list|roster|spreadsheet|report|directory)\b.*\b(owner|contact|phone|email|call)\b/i.test(q) ||
-      /\b(calling list|contact list|outreach list|prospect list|call list)\b/i.test(q),
+      /\b(build|compile|create|make|generate|put together|assemble)\b.*\b(list|roster|spreadsheet|report|directory)\b.*\b(owner|contact|phone|email|call)\b/i.test(
+        q,
+      ) || /\b(calling list|contact list|outreach list|prospect list|call list)\b/i.test(q),
     result: {
       category: 'CONTACT_ENRICHMENT',
       tier: 'STANDARD',

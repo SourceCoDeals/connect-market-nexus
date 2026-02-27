@@ -3,6 +3,7 @@
  * Search, profile, and analyze remarketing buyers.
  */
 
+/* eslint-disable @typescript-eslint/no-explicit-any */
 // deno-lint-ignore no-explicit-any
 type SupabaseClient = any;
 import type { ClaudeTool } from '../../_shared/claude-client.ts';
@@ -89,14 +90,18 @@ const LISTING_LEAD_FIELDS = [
 export const buyerTools: ClaudeTool[] = [
   {
     name: 'search_buyers',
-    description:
-      'Search remarketing buyers by criteria — geography, type, services, revenue range, acquisition appetite, fee agreement status, and free text. When state is provided, returns ALL buyers in that state (not limited to top results). Returns buyer summaries sorted by alignment score.',
+    description: `Search remarketing buyers (acquirers, PE firms, platforms) in the remarketing_buyers table.
+DATA SOURCE: remarketing_buyers table + cross-references remarketing_buyer_universes for universe-aware matching.
+USE WHEN: "find HVAC buyers", "buyers in Texas", "PE firms interested in plumbing", "who has a fee agreement".
+SEARCHABLE FIELDS: company_name, pe_firm_name, target_industries, target_services, services_offered, industry_vertical, thesis_summary, business_summary, notes, alignment_reasoning, hq_state, geographic_footprint, target_geographies, service_regions, operating_locations, revenue_model.
+KEY BEHAVIOR: Automatically includes buyers from universes whose name matches the search/industry term (e.g. "HVAC" finds buyers in the "Residential HVAC, Plumbing and Electrical" universe even if the buyer record itself doesn't say "HVAC"). When state is provided, returns ALL buyers in that state (not limited to top results).`,
     input_schema: {
       type: 'object',
       properties: {
         search: {
           type: 'string',
-          description: 'Free-text search across company name, PE firm, services, geography',
+          description:
+            'Free-text search across company_name, pe_firm_name, buyer_type, business_type, target_services, services_offered, target_industries, industry_vertical, thesis_summary, business_summary, notes, alignment_reasoning, revenue_model, hq_state, hq_city, hq_region, geographic_footprint, target_geographies, service_regions, operating_locations. Also matches universe names.',
         },
         buyer_type: {
           type: 'string',
@@ -116,7 +121,7 @@ export const buyerTools: ClaudeTool[] = [
         industry: {
           type: 'string',
           description:
-            'Filter by industry keyword (searches target_industries, target_services, company_name, and business_summary)',
+            'Filter by industry keyword (e.g. "hvac", "plumbing", "collision"). Searches target_industries, target_services, services_offered, industry_vertical, company_name, pe_firm_name, thesis_summary, business_summary, notes, alignment_reasoning — AND automatically matches universe names.',
         },
         services: {
           type: 'array',
@@ -207,8 +212,11 @@ export const buyerTools: ClaudeTool[] = [
   },
   {
     name: 'search_lead_sources',
-    description:
-      'Search deals/leads by lead source type — CP Targets (captarget), GO Partners, marketplace, internal. Returns deal/listing records with industry, revenue, and status. Use this to answer questions like "how many captarget leads are HVAC companies". Supports industry keyword filtering.',
+    description: `Search deals/leads by lead source type — CP Targets (captarget), GO Partners, marketplace, internal.
+DATA SOURCE: listings table filtered by deal_source.
+USE WHEN: "how many captarget leads are HVAC", "show me GO Partner leads in Texas", "HVAC leads by source".
+SEARCHABLE FIELDS: industry filter checks industry, category, categories, title, services, captarget_sheet_tab. State filter checks address_state and geographic_states.
+NOT FOR: searching acquirers/buyers (use search_buyers), valuation leads (use search_valuation_leads), inbound leads (use search_inbound_leads).`,
     input_schema: {
       type: 'object',
       properties: {
@@ -222,6 +230,11 @@ export const buyerTools: ClaudeTool[] = [
           description:
             'Filter by industry keyword (e.g. "hvac", "collision", "plumbing", "auto shop", "landscaping")',
         },
+        state: {
+          type: 'string',
+          description:
+            'Filter by US state code (e.g. "TX", "FL"). Checks address_state and geographic_states.',
+        },
         status: { type: 'string', description: 'Filter by deal status' },
         limit: { type: 'number', description: 'Max results (default 5000 for counts)' },
       },
@@ -230,8 +243,11 @@ export const buyerTools: ClaudeTool[] = [
   },
   {
     name: 'search_valuation_leads',
-    description:
-      'Search valuation calculator leads — business owners who used SourceCo valuation tools (HVAC calculator, collision calculator, auto shop calculator, general calculator). These are high-intent seller leads with self-reported financials. Use for questions about specific calculator lead types.',
+    description: `Search valuation calculator leads — business owners who used SourceCo valuation tools (HVAC calculator, collision calculator, auto shop calculator, general calculator).
+DATA SOURCE: valuation_leads table.
+USE WHEN: "how many HVAC calculator leads", "valuation leads in Texas", "show me auto shop leads".
+SEARCHABLE FIELDS: search param checks business_name, display_name, industry, region, location. State param checks region and location.
+These are high-intent SELLER leads with self-reported financials — NOT buyers/acquirers.`,
     input_schema: {
       type: 'object',
       properties: {
@@ -240,6 +256,16 @@ export const buyerTools: ClaudeTool[] = [
           enum: ['general', 'auto_shop', 'hvac', 'collision', 'all'],
           description:
             'Filter by calculator type. "hvac" for HVAC companies, "collision" for collision/auto body, "auto_shop" for auto repair, "general" for general calculator.',
+        },
+        search: {
+          type: 'string',
+          description:
+            'Free-text search across business_name, display_name, industry, region, and location',
+        },
+        state: {
+          type: 'string',
+          description:
+            'Filter by US state/region keyword (e.g. "Texas", "FL"). Searches the region and location fields.',
         },
         status: {
           type: 'string',
@@ -343,6 +369,58 @@ async function searchBuyers(
 
   let results = data || [];
 
+  // ---- Universe-aware search ----
+  // When searching by industry or free text, also find universes whose name/description
+  // matches the search term, and include all buyers from those universes.
+  // This ensures "Find HVAC buyers" returns buyers from the "Residential HVAC, Plumbing
+  // and Electrical" universe even if individual buyer records don't contain "hvac".
+  const matchingUniverseIds: Set<string> = new Set();
+  if ((args.industry || args.search) && !args.universe_id) {
+    const searchTerm = ((args.industry || args.search) as string).toLowerCase();
+    const { data: universes } = await supabase
+      .from('remarketing_buyer_universes')
+      .select('id, name, description')
+      .eq('archived', false);
+
+    if (universes) {
+      for (const u of universes) {
+        if (
+          u.name?.toLowerCase().includes(searchTerm) ||
+          u.description?.toLowerCase().includes(searchTerm)
+        ) {
+          matchingUniverseIds.add(u.id);
+        }
+      }
+    }
+
+    // Fetch additional buyers from matching universes that may not be in the initial results
+    if (matchingUniverseIds.size > 0) {
+      const existingIds = new Set(results.map((b: any) => b.id));
+      const universeIds = Array.from(matchingUniverseIds);
+
+      let universeQuery = supabase
+        .from('remarketing_buyers')
+        .select(fields)
+        .in('universe_id', universeIds)
+        .order('alignment_score', { ascending: false, nullsFirst: false })
+        .limit(500);
+
+      if (args.include_archived !== true) {
+        universeQuery = universeQuery.eq('archived', false);
+      }
+
+      const { data: universeBuyers } = await universeQuery;
+      if (universeBuyers) {
+        for (const b of universeBuyers) {
+          if (!existingIds.has(b.id)) {
+            results.push(b);
+            existingIds.add(b.id);
+          }
+        }
+      }
+    }
+  }
+
   // Helper: safely check if a field (which may be string or array) contains a term
   const fieldContains = (field: unknown, term: string): boolean => {
     if (!field) return false;
@@ -374,10 +452,12 @@ async function searchBuyers(
 
   // Client-side industry keyword filter — searches ALL relevant buyer fields
   // Uses fieldContains() for array/string columns that may have mixed types
+  // Also matches buyers whose universe name/description contains the term
   if (args.industry) {
     const term = (args.industry as string).toLowerCase();
     results = results.filter(
       (b: any) =>
+        (matchingUniverseIds.size > 0 && matchingUniverseIds.has(b.universe_id)) ||
         fieldContains(b.target_industries, term) ||
         fieldContains(b.target_services, term) ||
         fieldContains(b.services_offered, term) ||
@@ -392,10 +472,14 @@ async function searchBuyers(
   }
 
   // Client-side free-text search — searches ALL buyer data fields with fuzzy matching
+  // Also matches buyers whose universe name/description contains the term
   if (args.search) {
     const term = (args.search as string).toLowerCase();
     const searchWords = term.split(/\s+/).filter((w) => w.length > 2);
     results = results.filter((b: any) => {
+      // Match by universe name/description
+      if (matchingUniverseIds.size > 0 && matchingUniverseIds.has(b.universe_id)) return true;
+
       const compName = (b.company_name || '').toLowerCase();
       const peName = (b.pe_firm_name || '').toLowerCase();
 
@@ -438,6 +522,9 @@ async function searchBuyers(
     });
   }
 
+  // Track count before client-side filtering for response quality
+  const totalBeforeFiltering = results.length;
+
   // CapTarget exclusion filter — remove PE/VC/investment banks when requested
   if (args.exclude_financial_buyers === true) {
     // deno-lint-ignore no-explicit-any
@@ -452,12 +539,37 @@ async function searchBuyers(
     });
   }
 
+  // Build filter echo and zero-result suggestion
+  const filtersApplied: Record<string, unknown> = {};
+  if (args.state) filtersApplied.state = args.state;
+  if (args.industry) filtersApplied.industry = args.industry;
+  if (args.search) filtersApplied.search = args.search;
+  if (args.services) filtersApplied.services = args.services;
+  if (args.buyer_type) filtersApplied.buyer_type = args.buyer_type;
+  if (args.min_revenue) filtersApplied.min_revenue = args.min_revenue;
+  if (args.max_revenue) filtersApplied.max_revenue = args.max_revenue;
+  if (args.has_fee_agreement !== undefined)
+    filtersApplied.has_fee_agreement = args.has_fee_agreement;
+  if (args.acquisition_appetite) filtersApplied.acquisition_appetite = args.acquisition_appetite;
+  if (args.universe_id) filtersApplied.universe_id = args.universe_id;
+  if (args.exclude_financial_buyers) filtersApplied.exclude_financial_buyers = true;
+
   return {
     data: {
       buyers: results,
       total: results.length,
+      total_before_filtering: totalBeforeFiltering,
       depth,
-      state_filter: args.state || null,
+      filters_applied: filtersApplied,
+      limit_reached: results.length >= limit,
+      ...(results.length === 0
+        ? {
+            suggestion:
+              totalBeforeFiltering > 0
+                ? `${totalBeforeFiltering} buyers were fetched but none matched your filters. Try broadening: remove the industry/search/state filter, or check search_lead_sources and search_valuation_leads for other data sources.`
+                : 'No buyers found in the database with the current filters. Try removing filters or checking other sources (search_lead_sources, search_valuation_leads, search_inbound_leads).',
+          }
+        : {}),
     },
   };
 }
@@ -555,7 +667,20 @@ async function getTopBuyersForDeal(
   if (scoresError) return { error: scoresError.message };
 
   if (!scores || scores.length === 0) {
-    return { data: { buyers: [], total: 0 } };
+    return {
+      data: {
+        buyers: [],
+        total: 0,
+        deal_id: dealId,
+        filters_applied: {
+          ...(args.status ? { status: args.status } : {}),
+          ...(args.min_score ? { min_score: args.min_score } : {}),
+          ...(args.state ? { state: args.state } : {}),
+        },
+        suggestion:
+          'No scored buyers found for this deal. The deal may not have a buyer universe built yet, or no buyers have been scored. Check with get_deal_details to confirm remarketing_status.',
+      },
+    };
   }
 
   // Fetch buyer details for the scored buyer IDs
@@ -591,8 +716,19 @@ async function getTopBuyersForDeal(
     data: {
       buyers: enriched,
       total: enriched.length,
+      total_scored: scores.length,
       deal_id: dealId,
-      state_filter: args.state || null,
+      filters_applied: {
+        ...(args.status ? { status: args.status } : {}),
+        ...(args.min_score ? { min_score: args.min_score } : {}),
+        ...(args.state ? { state: args.state } : {}),
+      },
+      limit_reached: scores.length >= limit,
+      ...(enriched.length === 0 && args.state
+        ? {
+            suggestion: `${scores.length} buyers scored for this deal but none match state "${args.state}". Try removing the state filter to see all scored buyers.`,
+          }
+        : {}),
     },
   };
 }
@@ -640,7 +776,26 @@ async function searchLeadSources(
     offset += batch.length;
   }
 
-  // Client-side industry keyword filter — checks industry, category, categories, title, and services
+  const totalFromDb = allData.length;
+
+  // Client-side state filter — checks address_state and geographic_states
+  if (args.state) {
+    const st = (args.state as string).toUpperCase().replace(/[^A-Z]/g, '');
+    if (st.length === 2) {
+      const stLower = st.toLowerCase();
+      allData = allData.filter((d: Record<string, unknown>) => {
+        const addrState = ((d.address_state as string) || '').toLowerCase();
+        const geoStates = (d.geographic_states as string[]) || [];
+        return (
+          addrState === stLower ||
+          addrState.includes(stLower) ||
+          geoStates.some((s: string) => s.toUpperCase() === st)
+        );
+      });
+    }
+  }
+
+  // Client-side industry keyword filter — checks ALL relevant text fields
   if (args.industry) {
     const term = (args.industry as string).toLowerCase();
     allData = allData.filter((d: Record<string, unknown>) => {
@@ -649,12 +804,14 @@ async function searchLeadSources(
       const categories = (d.categories as string[]) || [];
       const title = ((d.title as string) || '').toLowerCase();
       const services = (d.services as string[]) || [];
+      const captargetTab = ((d.captarget_sheet_tab as string) || '').toLowerCase();
       return (
         industry.includes(term) ||
         category.includes(term) ||
         categories.some((c: string) => c.toLowerCase().includes(term)) ||
         title.includes(term) ||
-        services.some((s: string) => s.toLowerCase().includes(term))
+        services.some((s: string) => s.toLowerCase().includes(term)) ||
+        captargetTab.includes(term)
       );
     });
   }
@@ -670,12 +827,28 @@ async function searchLeadSources(
     industryBreakdown[ind] = (industryBreakdown[ind] || 0) + 1;
   }
 
+  const filtersApplied: Record<string, unknown> = { source_type: sourceType };
+  if (args.industry) filtersApplied.industry = args.industry;
+  if (args.state) filtersApplied.state = args.state;
+  if (args.status) filtersApplied.status = args.status;
+
   return {
     data: {
       deals: allData,
       total: allData.length,
+      total_before_filtering: totalFromDb,
       source_breakdown: sourceBreakdown,
       industry_breakdown: industryBreakdown,
+      filters_applied: filtersApplied,
+      limit_reached: allData.length >= requestedLimit,
+      ...(allData.length === 0
+        ? {
+            suggestion:
+              totalFromDb > 0
+                ? `${totalFromDb} leads found from ${sourceType} sources but none matched your industry/state filter. Try broadening: remove the "${args.industry || args.state}" filter.`
+                : `No leads found for source type "${sourceType}". Try source_type "all" to search across all sources, or use search_buyers for acquirers/PE firms.`,
+          }
+        : {}),
     },
   };
 }
@@ -707,7 +880,30 @@ async function searchValuationLeads(
   const { data, error } = await query;
   if (error) return { error: error.message };
 
-  const leads = data || [];
+  let leads = data || [];
+  const totalFromDb = leads.length;
+
+  // Client-side free-text search across all relevant fields
+  if (args.search) {
+    const term = (args.search as string).toLowerCase();
+    leads = leads.filter(
+      (l: any) =>
+        l.business_name?.toLowerCase().includes(term) ||
+        l.display_name?.toLowerCase().includes(term) ||
+        l.industry?.toLowerCase().includes(term) ||
+        l.region?.toLowerCase().includes(term) ||
+        l.location?.toLowerCase().includes(term),
+    );
+  }
+
+  // Client-side state/region filter
+  if (args.state) {
+    const term = (args.state as string).toLowerCase();
+    leads = leads.filter(
+      (l: any) =>
+        l.region?.toLowerCase().includes(term) || l.location?.toLowerCase().includes(term),
+    );
+  }
 
   // Aggregate by calculator type
   const byType: Record<string, number> = {};
@@ -718,13 +914,30 @@ async function searchValuationLeads(
     byStatus[st] = (byStatus[st] || 0) + 1;
   }
 
+  const filtersApplied: Record<string, unknown> = { calculator_type: calcType };
+  if (args.search) filtersApplied.search = args.search;
+  if (args.state) filtersApplied.state = args.state;
+  if (args.status) filtersApplied.status = args.status;
+  if (args.min_revenue) filtersApplied.min_revenue = args.min_revenue;
+  if (args.pushed_to_deals !== undefined) filtersApplied.pushed_to_deals = args.pushed_to_deals;
+
   return {
     data: {
       leads,
       total: leads.length,
+      total_before_filtering: totalFromDb,
       by_calculator_type: byType,
       by_status: byStatus,
-      calculator_type_filter: calcType,
+      filters_applied: filtersApplied,
+      limit_reached: leads.length >= limit,
+      ...(leads.length === 0
+        ? {
+            suggestion:
+              totalFromDb > 0
+                ? `${totalFromDb} valuation leads exist for calculator_type "${calcType}" but none matched your search/state filter. Try broadening your search.`
+                : `No valuation leads found for calculator_type "${calcType}". Try calculator_type "all", or use search_lead_sources / search_buyers for other data sources.`,
+          }
+        : {}),
     },
   };
 }

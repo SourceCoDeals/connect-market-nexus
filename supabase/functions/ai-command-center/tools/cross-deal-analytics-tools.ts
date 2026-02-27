@@ -3,10 +3,11 @@
  * Aggregate analytics across universes, deals, and buyers for strategic insights.
  */
 
+/* eslint-disable @typescript-eslint/no-explicit-any */
 // deno-lint-ignore no-explicit-any
 type SupabaseClient = any;
-import type { ClaudeTool } from "../../_shared/claude-client.ts";
-import type { ToolResult } from "./index.ts";
+import type { ClaudeTool } from '../../_shared/claude-client.ts';
+import type { ToolResult } from './index.ts';
 
 // ---------- Tool definitions ----------
 
@@ -15,16 +16,24 @@ export const crossDealAnalyticsTools: ClaudeTool[] = [
     name: 'get_cross_deal_analytics',
     description: `Get aggregate analytics across multiple deals and buyer universes. Answers questions like:
 - "Which universe has the best conversion rate?"
+- "Compare my HVAC deals" (use industry param)
 - "Compare buyer engagement across my top 3 deals"
 - "What's the average score by buyer type?"
 - "Which deal source produces the highest quality leads?"
-Supports multiple analysis modes: universe_comparison, deal_comparison, buyer_type_analysis, source_analysis, conversion_funnel.`,
+Supports multiple analysis modes: universe_comparison, deal_comparison, buyer_type_analysis, source_analysis, conversion_funnel, geography_heatmap. Use the industry param to filter deal_comparison and source_analysis to a specific vertical.`,
     input_schema: {
       type: 'object',
       properties: {
         analysis_type: {
           type: 'string',
-          enum: ['universe_comparison', 'deal_comparison', 'buyer_type_analysis', 'source_analysis', 'conversion_funnel', 'geography_heatmap'],
+          enum: [
+            'universe_comparison',
+            'deal_comparison',
+            'buyer_type_analysis',
+            'source_analysis',
+            'conversion_funnel',
+            'geography_heatmap',
+          ],
           description: 'Type of cross-deal analysis to perform',
         },
         universe_ids: {
@@ -36,6 +45,11 @@ Supports multiple analysis modes: universe_comparison, deal_comparison, buyer_ty
           type: 'array',
           items: { type: 'string' },
           description: 'Specific deal UUIDs to compare',
+        },
+        industry: {
+          type: 'string',
+          description:
+            'Filter deals by industry keyword (e.g. "hvac", "plumbing"). Applies to deal_comparison and source_analysis. Checks title, industry, category, services fields.',
         },
         days: {
           type: 'number',
@@ -59,8 +73,10 @@ export async function executeCrossDealAnalyticsTool(
   args: Record<string, unknown>,
 ): Promise<ToolResult> {
   switch (toolName) {
-    case 'get_cross_deal_analytics': return getCrossDealAnalytics(supabase, args);
-    default: return { error: `Unknown cross-deal analytics tool: ${toolName}` };
+    case 'get_cross_deal_analytics':
+      return getCrossDealAnalytics(supabase, args);
+    default:
+      return { error: `Unknown cross-deal analytics tool: ${toolName}` };
   }
 }
 
@@ -73,13 +89,20 @@ async function getCrossDealAnalytics(
   const analysisType = args.analysis_type as string;
 
   switch (analysisType) {
-    case 'universe_comparison': return universeComparison(supabase, args);
-    case 'deal_comparison': return dealComparison(supabase, args);
-    case 'buyer_type_analysis': return buyerTypeAnalysis(supabase, args);
-    case 'source_analysis': return sourceAnalysis(supabase, args);
-    case 'conversion_funnel': return conversionFunnel(supabase, args);
-    case 'geography_heatmap': return geographyHeatmap(supabase, args);
-    default: return { error: `Unknown analysis type: ${analysisType}` };
+    case 'universe_comparison':
+      return universeComparison(supabase, args);
+    case 'deal_comparison':
+      return dealComparison(supabase, args);
+    case 'buyer_type_analysis':
+      return buyerTypeAnalysis(supabase, args);
+    case 'source_analysis':
+      return sourceAnalysis(supabase, args);
+    case 'conversion_funnel':
+      return conversionFunnel(supabase, args);
+    case 'geography_heatmap':
+      return geographyHeatmap(supabase, args);
+    default:
+      return { error: `Unknown analysis type: ${analysisType}` };
   }
 }
 
@@ -122,7 +145,7 @@ async function universeComparison(
 
   const scores = scoresResult.data || [];
   const outreach = outreachResult.data || [];
-  const approvals = decisionsResult.data || [];
+  const _approvals = decisionsResult.data || [];
 
   // Aggregate per universe
   const universeStats = universes.map((u: any) => {
@@ -133,9 +156,10 @@ async function universeComparison(
     const uOutreach = outreach.filter((o: any) => (o as any).universe_id === u.id);
 
     const compositeScores = uScores.map((s: any) => s.composite_score).filter(Boolean) as number[];
-    const avgScore = compositeScores.length > 0
-      ? Math.round(compositeScores.reduce((a, b) => a + b, 0) / compositeScores.length)
-      : null;
+    const avgScore =
+      compositeScores.length > 0
+        ? Math.round(compositeScores.reduce((a, b) => a + b, 0) / compositeScores.length)
+        : null;
 
     const statusBreakdown: Record<string, number> = {};
     for (const s of uScores) {
@@ -185,18 +209,53 @@ async function dealComparison(
 ): Promise<ToolResult> {
   let query = supabase
     .from('listings')
-    .select('id, title, revenue, ebitda, status, deal_total_score, deal_source, address_state, remarketing_status, created_at')
+    .select(
+      'id, title, industry, category, services, revenue, ebitda, status, deal_total_score, deal_source, address_state, remarketing_status, created_at',
+    )
     .is('deleted_at', null)
     .order('deal_total_score', { ascending: false, nullsFirst: false })
-    .limit(Number(args.limit) || 10);
+    .limit(Number(args.limit) || 50);
 
   if (args.deal_ids) {
     query = query.in('id', args.deal_ids as string[]);
   }
 
-  const { data: deals, error } = await query;
+  const { data: rawDeals, error } = await query;
   if (error) return { error: error.message };
-  if (!deals?.length) return { data: { deals: [], message: 'No deals found' } };
+
+  // Client-side industry filter
+  let deals = rawDeals || [];
+  if (args.industry) {
+    const term = (args.industry as string).toLowerCase();
+    deals = deals.filter(
+      (d: any) =>
+        d.title?.toLowerCase().includes(term) ||
+        d.industry?.toLowerCase().includes(term) ||
+        d.category?.toLowerCase().includes(term) ||
+        (d.services || []).some((s: string) => s.toLowerCase().includes(term)),
+    );
+  }
+
+  // Apply final limit after filtering
+  deals = deals.slice(0, Number(args.limit) || 10);
+
+  if (!deals.length)
+    return {
+      data: {
+        analysis_type: 'deal_comparison',
+        deals: [],
+        total_deals: 0,
+        total_before_filtering: (rawDeals || []).length,
+        filters_applied: {
+          ...(args.industry ? { industry: args.industry } : {}),
+          ...(args.deal_ids ? { deal_ids: args.deal_ids } : {}),
+        },
+        suggestion: args.industry
+          ? `${(rawDeals || []).length} deals exist but none match industry "${args.industry}". Try a broader keyword or remove the industry filter.`
+          : 'No deals found. Check that deals exist in the pipeline with query_deals.',
+        source_tables: ['listings'],
+      },
+    };
 
   // Fetch score counts per deal
   const dealIds = deals.map((d: any) => d.id);
@@ -205,14 +264,8 @@ async function dealComparison(
       .from('remarketing_scores')
       .select('listing_id, composite_score, status')
       .in('listing_id', dealIds),
-    supabase
-      .from('outreach_records')
-      .select('deal_id, stage')
-      .in('deal_id', dealIds),
-    supabase
-      .from('deal_tasks')
-      .select('deal_id, status')
-      .in('deal_id', dealIds),
+    supabase.from('outreach_records').select('deal_id, stage').in('deal_id', dealIds),
+    supabase.from('deal_tasks').select('deal_id, status').in('deal_id', dealIds),
   ]);
 
   const scores = scoresResult.data || [];
@@ -225,9 +278,10 @@ async function dealComparison(
     const dTasks = tasks.filter((t: any) => t.deal_id === d.id);
 
     const composites = dScores.map((s: any) => s.composite_score).filter(Boolean) as number[];
-    const avgScore = composites.length > 0
-      ? Math.round(composites.reduce((a: number, b: number) => a + b, 0) / composites.length)
-      : null;
+    const avgScore =
+      composites.length > 0
+        ? Math.round(composites.reduce((a: number, b: number) => a + b, 0) / composites.length)
+        : null;
 
     const approved = dScores.filter((s: any) => s.status === 'approved').length;
     const passed = dScores.filter((s: any) => s.status === 'passed').length;
@@ -246,7 +300,8 @@ async function dealComparison(
       passed_buyers: passed,
       approval_rate_pct: dScores.length > 0 ? Math.round((approved / dScores.length) * 100) : 0,
       active_outreach: dOutreach.length,
-      open_tasks: dTasks.filter((t: any) => t.status === 'pending' || t.status === 'in_progress').length,
+      open_tasks: dTasks.filter((t: any) => t.status === 'pending' || t.status === 'in_progress')
+        .length,
     };
   });
 
@@ -255,6 +310,11 @@ async function dealComparison(
       analysis_type: 'deal_comparison',
       deals: dealStats,
       total_deals: dealStats.length,
+      total_before_filtering: (rawDeals || []).length,
+      filters_applied: {
+        ...(args.industry ? { industry: args.industry } : {}),
+        ...(args.deal_ids ? { deal_ids: args.deal_ids } : {}),
+      },
       source_tables: ['listings', 'remarketing_scores', 'outreach_records', 'deal_tasks'],
     },
   };
@@ -266,16 +326,22 @@ async function buyerTypeAnalysis(
 ): Promise<ToolResult> {
   const { data: buyers, error } = await supabase
     .from('remarketing_buyers')
-    .select('id, buyer_type, alignment_score, has_fee_agreement, total_acquisitions, acquisition_appetite')
+    .select(
+      'id, buyer_type, alignment_score, has_fee_agreement, total_acquisitions, acquisition_appetite',
+    )
     .eq('archived', false);
 
   if (error) return { error: error.message };
 
-  const byType: Record<string, { count: number; avgScore: number; feeAgreements: number; totalAcqs: number; scores: number[] }> = {};
+  const byType: Record<
+    string,
+    { count: number; avgScore: number; feeAgreements: number; totalAcqs: number; scores: number[] }
+  > = {};
 
   for (const b of buyers || []) {
     const type = b.buyer_type || 'unknown';
-    if (!byType[type]) byType[type] = { count: 0, avgScore: 0, feeAgreements: 0, totalAcqs: 0, scores: [] };
+    if (!byType[type])
+      byType[type] = { count: 0, avgScore: 0, feeAgreements: 0, totalAcqs: 0, scores: [] };
     byType[type].count++;
     if (b.alignment_score) byType[type].scores.push(b.alignment_score);
     if (b.has_fee_agreement) byType[type].feeAgreements++;
@@ -285,7 +351,10 @@ async function buyerTypeAnalysis(
   const analysis = Object.entries(byType).map(([type, stats]) => ({
     buyer_type: type,
     count: stats.count,
-    avg_alignment_score: stats.scores.length > 0 ? Math.round(stats.scores.reduce((a, b) => a + b, 0) / stats.scores.length) : null,
+    avg_alignment_score:
+      stats.scores.length > 0
+        ? Math.round(stats.scores.reduce((a, b) => a + b, 0) / stats.scores.length)
+        : null,
     fee_agreement_pct: Math.round((stats.feeAgreements / stats.count) * 100),
     avg_acquisitions: stats.count > 0 ? Math.round(stats.totalAcqs / stats.count) : 0,
   }));
@@ -309,17 +378,35 @@ async function sourceAnalysis(
   const days = Number(args.days) || 90;
   const cutoff = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
 
-  const { data: deals, error } = await supabase
+  const { data: rawDeals, error } = await supabase
     .from('listings')
-    .select('id, deal_source, status, revenue, ebitda, deal_total_score, is_priority_target, created_at')
+    .select(
+      'id, title, industry, category, services, deal_source, status, revenue, ebitda, deal_total_score, is_priority_target, created_at',
+    )
     .is('deleted_at', null)
     .gte('created_at', cutoff);
 
   if (error) return { error: error.message };
 
-  const bySrc: Record<string, { count: number; active: number; priority: number; revenue: number; scores: number[] }> = {};
+  // Client-side industry filter
+  let filteredDeals = rawDeals || [];
+  if (args.industry) {
+    const term = (args.industry as string).toLowerCase();
+    filteredDeals = filteredDeals.filter(
+      (d: any) =>
+        d.title?.toLowerCase().includes(term) ||
+        d.industry?.toLowerCase().includes(term) ||
+        d.category?.toLowerCase().includes(term) ||
+        (d.services || []).some((s: string) => s.toLowerCase().includes(term)),
+    );
+  }
 
-  for (const d of deals || []) {
+  const bySrc: Record<
+    string,
+    { count: number; active: number; priority: number; revenue: number; scores: number[] }
+  > = {};
+
+  for (const d of filteredDeals) {
     const src = d.deal_source || 'unknown';
     if (!bySrc[src]) bySrc[src] = { count: 0, active: 0, priority: 0, revenue: 0, scores: [] };
     bySrc[src].count++;
@@ -335,7 +422,10 @@ async function sourceAnalysis(
     active_deals: stats.active,
     priority_deals: stats.priority,
     total_revenue: stats.revenue,
-    avg_deal_score: stats.scores.length > 0 ? Math.round(stats.scores.reduce((a, b) => a + b, 0) / stats.scores.length) : null,
+    avg_deal_score:
+      stats.scores.length > 0
+        ? Math.round(stats.scores.reduce((a, b) => a + b, 0) / stats.scores.length)
+        : null,
     quality_ratio: stats.count > 0 ? Math.round((stats.priority / stats.count) * 100) : 0,
   }));
 
@@ -346,7 +436,19 @@ async function sourceAnalysis(
       analysis_type: 'source_analysis',
       period_days: days,
       sources: analysis,
-      total_deals: (deals || []).length,
+      total_deals: filteredDeals.length,
+      total_before_filtering: (rawDeals || []).length,
+      filters_applied: {
+        period_days: days,
+        ...(args.industry ? { industry: args.industry } : {}),
+      },
+      ...(filteredDeals.length === 0
+        ? {
+            suggestion: args.industry
+              ? `${(rawDeals || []).length} deals found in the last ${days} days but none match industry "${args.industry}". Try a broader keyword or longer lookback period.`
+              : `No deals found in the last ${days} days. Try increasing the days parameter.`,
+          }
+        : {}),
       source_tables: ['listings'],
     },
   };
@@ -360,7 +462,10 @@ async function conversionFunnel(
   const cutoff = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
 
   const [scoresResult, outreachResult, approvalsResult, passResult] = await Promise.all([
-    supabase.from('remarketing_scores').select('id, status, composite_score').gte('updated_at', cutoff),
+    supabase
+      .from('remarketing_scores')
+      .select('id, status, composite_score')
+      .gte('updated_at', cutoff),
     supabase.from('outreach_records').select('id, stage').gte('created_at', cutoff),
     supabase.from('buyer_approve_decisions').select('id').gte('created_at', cutoff),
     supabase.from('buyer_pass_decisions').select('id, pass_category').gte('created_at', cutoff),
@@ -378,7 +483,8 @@ async function conversionFunnel(
 
   const passByCategory: Record<string, number> = {};
   for (const p of passes) {
-    passByCategory[p.pass_category || 'uncategorized'] = (passByCategory[p.pass_category || 'uncategorized'] || 0) + 1;
+    passByCategory[p.pass_category || 'uncategorized'] =
+      (passByCategory[p.pass_category || 'uncategorized'] || 0) + 1;
   }
 
   return {
@@ -396,12 +502,22 @@ async function conversionFunnel(
         meeting_scheduled: outreachByStage['meeting_scheduled'] || 0,
       },
       conversion_rates: {
-        scored_to_approved: scores.length > 0 ? Math.round((approvals.length / scores.length) * 100) : 0,
-        approved_to_outreach: approvals.length > 0 ? Math.round((outreach.length / approvals.length) * 100) : 0,
-        outreach_to_meeting: outreach.length > 0 ? Math.round(((outreachByStage['meeting_scheduled'] || 0) / outreach.length) * 100) : 0,
+        scored_to_approved:
+          scores.length > 0 ? Math.round((approvals.length / scores.length) * 100) : 0,
+        approved_to_outreach:
+          approvals.length > 0 ? Math.round((outreach.length / approvals.length) * 100) : 0,
+        outreach_to_meeting:
+          outreach.length > 0
+            ? Math.round(((outreachByStage['meeting_scheduled'] || 0) / outreach.length) * 100)
+            : 0,
       },
       pass_reasons: passByCategory,
-      source_tables: ['remarketing_scores', 'outreach_records', 'buyer_approve_decisions', 'buyer_pass_decisions'],
+      source_tables: [
+        'remarketing_scores',
+        'outreach_records',
+        'buyer_approve_decisions',
+        'buyer_pass_decisions',
+      ],
     },
   };
 }
@@ -415,10 +531,7 @@ async function geographyHeatmap(
       .from('remarketing_buyers')
       .select('hq_state, geographic_footprint')
       .eq('archived', false),
-    supabase
-      .from('listings')
-      .select('address_state, geographic_states')
-      .is('deleted_at', null),
+    supabase.from('listings').select('address_state, geographic_states').is('deleted_at', null),
   ]);
 
   const buyers = buyersResult.data || [];
