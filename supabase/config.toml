@@ -248,3 +248,5 @@ verify_jwt = false
 verify_jwt = false
 [functions.phoneburner-reprocess-logs]
 verify_jwt = false
+[functions.salesforce-remarketing-webhook]
+verify_jwt = false

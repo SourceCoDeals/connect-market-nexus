@@ -8238,6 +8238,7 @@ export type Database = {
           revenue_model_breakdown: Json | null
           revenue_score: number | null
           revenue_source_quote: string | null
+          salesforce_account_id: string | null
           scoring_notes: string | null
           seller_interest_analyzed_at: string | null
           seller_interest_notes: Json | null
@@ -8246,6 +8247,25 @@ export type Database = {
           seller_motivation: string | null
           service_mix: string | null
           services: string[] | null
+          sf_created_date: string | null
+          sf_historic_note_summary: string | null
+          sf_interest_in_selling: string | null
+          sf_last_modified_date: string | null
+          sf_marketplace_sub_stage: string | null
+          sf_note_summary: string | null
+          sf_owner_id: string | null
+          sf_previous_search_opportunity_id: string | null
+          sf_primary_client_account_id: string | null
+          sf_primary_opportunity_id: string | null
+          sf_record_type_id: string | null
+          sf_remarketing: boolean | null
+          sf_remarketing_cb_create_date: string | null
+          sf_remarketing_reason: string | null
+          sf_remarketing_target_stages: string | null
+          sf_remarks_internal: string | null
+          sf_target_stage: string | null
+          sf_target_sub_stage: string | null
+          sf_tier: string | null
           special_requirements: string | null
           status: string
           status_label: string | null
@@ -8411,6 +8431,7 @@ export type Database = {
           revenue_model_breakdown?: Json | null
           revenue_score?: number | null
           revenue_source_quote?: string | null
+          salesforce_account_id?: string | null
           scoring_notes?: string | null
           seller_interest_analyzed_at?: string | null
           seller_interest_notes?: Json | null
@@ -8419,6 +8440,25 @@ export type Database = {
           seller_motivation?: string | null
           service_mix?: string | null
           services?: string[] | null
+          sf_created_date?: string | null
+          sf_historic_note_summary?: string | null
+          sf_interest_in_selling?: string | null
+          sf_last_modified_date?: string | null
+          sf_marketplace_sub_stage?: string | null
+          sf_note_summary?: string | null
+          sf_owner_id?: string | null
+          sf_previous_search_opportunity_id?: string | null
+          sf_primary_client_account_id?: string | null
+          sf_primary_opportunity_id?: string | null
+          sf_record_type_id?: string | null
+          sf_remarketing?: boolean | null
+          sf_remarketing_cb_create_date?: string | null
+          sf_remarketing_reason?: string | null
+          sf_remarketing_target_stages?: string | null
+          sf_remarks_internal?: string | null
+          sf_target_stage?: string | null
+          sf_target_sub_stage?: string | null
+          sf_tier?: string | null
           special_requirements?: string | null
           status?: string
           status_label?: string | null
@@ -8584,6 +8624,7 @@ export type Database = {
           revenue_model_breakdown?: Json | null
           revenue_score?: number | null
           revenue_source_quote?: string | null
+          salesforce_account_id?: string | null
           scoring_notes?: string | null
           seller_interest_analyzed_at?: string | null
           seller_interest_notes?: Json | null
@@ -8592,6 +8633,25 @@ export type Database = {
           seller_motivation?: string | null
           service_mix?: string | null
           services?: string[] | null
+          sf_created_date?: string | null
+          sf_historic_note_summary?: string | null
+          sf_interest_in_selling?: string | null
+          sf_last_modified_date?: string | null
+          sf_marketplace_sub_stage?: string | null
+          sf_note_summary?: string | null
+          sf_owner_id?: string | null
+          sf_previous_search_opportunity_id?: string | null
+          sf_primary_client_account_id?: string | null
+          sf_primary_opportunity_id?: string | null
+          sf_record_type_id?: string | null
+          sf_remarketing?: boolean | null
+          sf_remarketing_cb_create_date?: string | null
+          sf_remarketing_reason?: string | null
+          sf_remarketing_target_stages?: string | null
+          sf_remarks_internal?: string | null
+          sf_target_stage?: string | null
+          sf_target_sub_stage?: string | null
+          sf_tier?: string | null
           special_requirements?: string | null
           status?: string
           status_label?: string | null
@@ -13787,6 +13847,7 @@ export type Database = {
           revenue_model_breakdown: Json | null
           revenue_score: number | null
           revenue_source_quote: string | null
+          salesforce_account_id: string | null
           scoring_notes: string | null
           seller_interest_analyzed_at: string | null
           seller_interest_notes: Json | null
@@ -13795,6 +13856,25 @@ export type Database = {
           seller_motivation: string | null
           service_mix: string | null
           services: string[] | null
+          sf_created_date: string | null
+          sf_historic_note_summary: string | null
+          sf_interest_in_selling: string | null
+          sf_last_modified_date: string | null
+          sf_marketplace_sub_stage: string | null
+          sf_note_summary: string | null
+          sf_owner_id: string | null
+          sf_previous_search_opportunity_id: string | null
+          sf_primary_client_account_id: string | null
+          sf_primary_opportunity_id: string | null
+          sf_record_type_id: string | null
+          sf_remarketing: boolean | null
+          sf_remarketing_cb_create_date: string | null
+          sf_remarketing_reason: string | null
+          sf_remarketing_target_stages: string | null
+          sf_remarks_internal: string | null
+          sf_target_stage: string | null
+          sf_target_sub_stage: string | null
+          sf_tier: string | null
           special_requirements: string | null
           status: string
           status_label: string | null
