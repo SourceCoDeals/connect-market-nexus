@@ -1145,7 +1145,7 @@ function PendingAgreementBanner() {
       if (!user?.id) return [];
       const { data } = await supabase
         .from('user_notifications')
-        .select('*')
+        .select('id, metadata, message, created_at')
         .eq('user_id', user.id)
         .eq('notification_type', 'agreement_pending')
         .order('created_at', { ascending: false })

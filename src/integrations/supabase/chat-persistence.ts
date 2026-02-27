@@ -48,10 +48,13 @@ export interface Conversation {
 const db = supabase as unknown as SupabaseClient;
 
 export async function saveConversation(
-  options: SaveConversationOptions
+  options: SaveConversationOptions,
 ): Promise<{ success: boolean; conversationId?: string; error?: string }> {
   try {
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
     if (authError) throw authError;
     if (!user) {
       return { success: false, error: 'User not authenticated' };
@@ -101,10 +104,13 @@ export async function saveConversation(
 
 export async function loadConversationsByContext(
   context: ConversationContext,
-  limit: number = 10
+  limit: number = 10,
 ): Promise<{ success: boolean; conversations?: Conversation[]; error?: string }> {
   try {
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
     if (authError) throw authError;
     if (!user) {
       return { success: false, error: 'User not authenticated' };
@@ -112,7 +118,9 @@ export async function loadConversationsByContext(
 
     let query = db
       .from('chat_conversations')
-      .select('*')
+      .select(
+        'id, context_type, deal_id, universe_id, title, messages, created_at, updated_at, last_message_at, message_count, archived',
+      )
       .eq('user_id', user.id)
       .eq('context_type', context.type)
       .eq('archived', false)
@@ -142,10 +150,13 @@ export async function loadConversationsByContext(
 }
 
 export async function loadConversationById(
-  conversationId: string
+  conversationId: string,
 ): Promise<{ success: boolean; conversation?: Conversation; error?: string }> {
   try {
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
     if (authError) throw authError;
     if (!user) {
       return { success: false, error: 'User not authenticated' };
@@ -153,7 +164,9 @@ export async function loadConversationById(
 
     const { data, error } = await db
       .from('chat_conversations')
-      .select('*')
+      .select(
+        'id, context_type, deal_id, universe_id, title, messages, created_at, updated_at, last_message_at, message_count, archived',
+      )
       .eq('id', conversationId)
       .eq('user_id', user.id)
       .single();
@@ -171,10 +184,13 @@ export async function loadConversationById(
 }
 
 export async function archiveConversation(
-  conversationId: string
+  conversationId: string,
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
     if (authError) throw authError;
     if (!user) {
       return { success: false, error: 'User not authenticated' };
@@ -199,10 +215,13 @@ export async function archiveConversation(
 }
 
 export async function getRecentConversations(
-  limit: number = 10
+  limit: number = 10,
 ): Promise<{ success: boolean; conversations?: Conversation[]; error?: string }> {
   try {
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
     if (authError) throw authError;
     if (!user) {
       return { success: false, error: 'User not authenticated' };
@@ -210,7 +229,9 @@ export async function getRecentConversations(
 
     const { data, error } = await db
       .from('chat_conversations')
-      .select('*')
+      .select(
+        'id, context_type, deal_id, universe_id, title, messages, created_at, updated_at, last_message_at, message_count, archived',
+      )
       .eq('user_id', user.id)
       .eq('archived', false)
       .order('updated_at', { ascending: false })
@@ -229,7 +250,7 @@ export async function getRecentConversations(
 }
 
 function generateTitle(messages: ChatMessage[]): string {
-  const firstUserMessage = messages.find(m => m.role === 'user');
+  const firstUserMessage = messages.find((m) => m.role === 'user');
   if (!firstUserMessage) return 'New Conversation';
   const title = firstUserMessage.content.substring(0, 50).trim();
   return title.length < firstUserMessage.content.length ? title + '...' : title;
@@ -244,7 +265,10 @@ export async function getConversationStats(): Promise<{
   error?: string;
 }> {
   try {
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
     if (authError) throw authError;
     if (!user) {
       return { success: false, error: 'User not authenticated' };
@@ -268,7 +292,7 @@ export async function getConversationStats(): Promise<{
         deals: rows.filter((c) => c.context_type === 'deals').length,
         buyers: rows.filter((c) => c.context_type === 'buyers').length,
         universe: rows.filter((c) => c.context_type === 'universe').length,
-      }
+      },
     };
 
     return { success: true, stats };

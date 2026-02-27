@@ -63,7 +63,9 @@ function usePhoneBurnerSessions() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('phoneburner_sessions')
-        .select('*')
+        .select(
+          'id, session_name, session_type, session_status, session_description, total_contacts_added, total_dials, total_connections, total_talk_time_seconds, total_qualified_leads, total_meetings_scheduled, total_disqualified, total_voicemails_left, total_no_answers, connection_rate_percentage, started_at, completed_at, last_activity_at, created_at, created_by_user_id',
+        )
         .order('created_at', { ascending: false });
       if (error) throw error;
       return (data || []) as PhoneBurnerSession[];

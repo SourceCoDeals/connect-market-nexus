@@ -11,11 +11,11 @@ export default function TranscriptAnalytics() {
       type UntypedTable = Parameters<typeof supabase.from>[0];
       const { data, error } = await supabase
         .from('transcript_extraction_health' as UntypedTable)
-        .select('*');
+        .select('table_name, total_transcripts, processed_count, processed_percentage');
 
       if (error) throw error;
       return (data || []) as unknown as TranscriptHealth[];
-    }
+    },
   });
 
   if (isLoading) {

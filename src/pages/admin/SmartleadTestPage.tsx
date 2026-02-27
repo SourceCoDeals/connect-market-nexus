@@ -101,7 +101,7 @@ function CampaignListTest() {
     const start2 = Date.now();
     const { data: stats, error: statsError } = await supabase
       .from('smartlead_campaign_stats')
-      .select('*')
+      .select('id')
       .limit(5);
 
     const dur2 = Date.now() - start2;

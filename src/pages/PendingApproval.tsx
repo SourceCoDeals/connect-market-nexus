@@ -51,21 +51,21 @@ const PendingApproval = () => {
 
     setFirmCreationAttempted(true);
 
-    supabase.functions
-      .invoke('auto-create-firm-on-signup', {
-        body: { userId: user.id, company: user.company || '' },
-      })
-      .then(({ error }) => {
+    void (async () => {
+      try {
+        const { error } = await supabase.functions.invoke('auto-create-firm-on-signup', {
+          body: { userId: user.id, company: user.company || '' },
+        });
         if (!error) {
           // Firm created — re-fetch NDA status so the signing panel appears
           refetchNdaStatus();
         } else {
           console.warn('Fallback firm creation failed:', error);
         }
-      })
-      .catch((err) => {
+      } catch (err) {
         console.warn('Fallback firm creation error:', err);
-      });
+      }
+    })();
   }, [user, ndaStatus, firmCreationAttempted, refetchNdaStatus]);
 
   // Fetch NDA embed src when buyer has a firm but hasn't signed
@@ -100,7 +100,9 @@ const PendingApproval = () => {
     };
 
     fetchNdaEmbed();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [user, ndaStatus, ndaEmbedSrc, ndaLoading]);
 
   // Auto-poll approval status every 30s
@@ -173,9 +175,10 @@ const PendingApproval = () => {
       });
     } catch (error: unknown) {
       toast({
-        variant: "destructive",
-        title: "Failed to resend email",
-        description: error instanceof Error ? error.message : "Please try again later or contact support.",
+        variant: 'destructive',
+        title: 'Failed to resend email',
+        description:
+          error instanceof Error ? error.message : 'Please try again later or contact support.',
       });
     } finally {
       setIsResending(false);
@@ -461,8 +464,14 @@ const PendingApproval = () => {
 
                     <p className="text-[11px] text-muted-foreground text-center">
                       Questions about the NDA? Email{' '}
-                      <a href={`mailto:${APP_CONFIG.adminEmail}`} className="text-primary hover:underline">{APP_CONFIG.adminEmail}</a>
-                      {' '}— a small percentage of buyers request modifications and we're happy to discuss.
+                      <a
+                        href={`mailto:${APP_CONFIG.adminEmail}`}
+                        className="text-primary hover:underline"
+                      >
+                        {APP_CONFIG.adminEmail}
+                      </a>{' '}
+                      — a small percentage of buyers request modifications and we're happy to
+                      discuss.
                     </p>
                   </div>
                 )}

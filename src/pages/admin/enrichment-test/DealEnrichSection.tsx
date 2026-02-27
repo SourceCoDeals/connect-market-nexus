@@ -45,7 +45,9 @@ export default function DealEnrichSection({ addLog, dealId, runRef }: Props) {
       // Fetch before
       const { data: bData, error: bDataError } = await supabase
         .from('listings')
-        .select('*')
+        .select(
+          'id, executive_summary, description, revenue, ebitda, full_time_employees, address_city, address_state, address_zip, website, linkedin_url, enriched_at, deal_total_score',
+        )
         .eq('id', dealId)
         .single();
       if (bDataError) throw bDataError;
@@ -67,7 +69,9 @@ export default function DealEnrichSection({ addLog, dealId, runRef }: Props) {
       // Fetch after
       const { data: aData, error: aDataError } = await supabase
         .from('listings')
-        .select('*')
+        .select(
+          'id, executive_summary, description, revenue, ebitda, full_time_employees, address_city, address_state, address_zip, website, linkedin_url, enriched_at, deal_total_score',
+        )
         .eq('id', dealId)
         .single();
       if (aDataError) throw aDataError;

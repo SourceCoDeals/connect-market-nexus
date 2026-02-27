@@ -68,7 +68,13 @@ export async function sendAIQuery(
 ): Promise<{
   text: string;
   toolCalls: Array<{ name: string; id: string; success: boolean }>;
-  routeInfo: { category: string; tier: string; tools: string[]; bypassed?: boolean; confidence?: number } | null;
+  routeInfo: {
+    category: string;
+    tier: string;
+    tools: string[];
+    bypassed?: boolean;
+    confidence?: number;
+  } | null;
   error: string | null;
   cost: number;
 }> {
@@ -112,7 +118,13 @@ export async function sendAIQuery(
     let buffer = '';
     let text = '';
     const toolCalls: Array<{ name: string; id: string; success: boolean }> = [];
-    let routeInfo: { category: string; tier: string; tools: string[]; bypassed?: boolean; confidence?: number } | null = null;
+    let routeInfo: {
+      category: string;
+      tier: string;
+      tools: string[];
+      bypassed?: boolean;
+      confidence?: number;
+    } | null = null;
     let error: string | null = null;
     let cost = 0;
     let pendingEventType = '';
@@ -283,7 +295,7 @@ export function buildChatbotTests(): ChatbotTestDef[] {
 
     const { data, error } = await db
       .from('chat_conversations')
-      .select('*')
+      .select('id')
       .eq('user_id', user.id)
       .eq('context_type', 'deals')
       .eq('archived', false)
@@ -297,7 +309,7 @@ export function buildChatbotTests(): ChatbotTestDef[] {
     if (!testConvId) throw new Error('No test conversation created');
     const { data, error } = await db
       .from('chat_conversations')
-      .select('*')
+      .select('id, title')
       .eq('id', testConvId)
       .single();
     if (error) throw new Error(error.message);

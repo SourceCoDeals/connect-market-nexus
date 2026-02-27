@@ -1,26 +1,18 @@
-import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
-import { StatCard, IntelligenceCoverageBar } from "@/components/ma-intelligence";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import {
-  Building2,
-  FileText,
-  Users,
-  Brain,
-  Plus,
-  ArrowRight,
-  Loader2,
-} from "lucide-react";
+import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
+import { supabase } from '@/integrations/supabase/client';
+import { StatCard, IntelligenceCoverageBar } from '@/components/ma-intelligence';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Building2, FileText, Users, Brain, Plus, ArrowRight, Loader2 } from 'lucide-react';
 
 interface TrackerWithStats {
   id: string;
   industry_name: string;
   buyer_count: number;
   deal_count: number;
-  enriched_count: number;    // Buyers with website enrichment (contributes up to 50%)
-  transcript_count: number;  // Buyers with transcripts (contributes up to 50%)
+  enriched_count: number; // Buyers with website enrichment (contributes up to 50%)
+  transcript_count: number; // Buyers with transcripts (contributes up to 50%)
 }
 
 export default function MADashboard() {
@@ -36,22 +28,32 @@ export default function MADashboard() {
     setIsLoading(true);
     try {
       const { data: trackersData, error: trackersError } = await supabase
-        .from("industry_trackers")
-        .select("*")
-        .eq("is_active", true)
-        .order("updated_at", { ascending: false });
+        .from('industry_trackers')
+        .select('id, name')
+        .eq('is_active', true)
+        .order('updated_at', { ascending: false });
 
       if (trackersError) throw trackersError;
 
       const trackersWithStats: TrackerWithStats[] = await Promise.all(
         (trackersData || []).map(async (tracker) => {
           // Get buyer IDs first, then filter transcripts to only those buyers
-          const buyersResult = await supabase.from("remarketing_buyers").select("id").eq("industry_tracker_id", tracker.id);
-          const dealsResult = await supabase.from("deals").select("id").eq("listing_id", tracker.id);
+          const buyersResult = await supabase
+            .from('remarketing_buyers')
+            .select('id')
+            .eq('industry_tracker_id', tracker.id);
+          const dealsResult = await supabase
+            .from('deals')
+            .select('id')
+            .eq('listing_id', tracker.id);
           const buyerIds = (buyersResult.data || []).map((b) => b.id);
-          const transcriptsResult = buyerIds.length > 0
-            ? await supabase.from("buyer_transcripts").select("buyer_id").in("buyer_id", buyerIds.slice(0, 100))
-            : { data: [] as Array<{ buyer_id: string }> };
+          const transcriptsResult =
+            buyerIds.length > 0
+              ? await supabase
+                  .from('buyer_transcripts')
+                  .select('buyer_id')
+                  .in('buyer_id', buyerIds.slice(0, 100))
+              : { data: [] as Array<{ buyer_id: string }> };
 
           const buyers = buyersResult.data || [];
           const transcripts = transcriptsResult.data || [];
@@ -60,7 +62,7 @@ export default function MADashboard() {
           const enrichedCount = buyers.length;
 
           // Count buyers with transcripts
-          const transcriptCount = buyers.filter(b => buyerIdsWithTranscripts.has(b.id)).length;
+          const transcriptCount = buyers.filter((b) => buyerIdsWithTranscripts.has(b.id)).length;
 
           return {
             id: tracker.id,
@@ -70,16 +72,16 @@ export default function MADashboard() {
             enriched_count: enrichedCount,
             transcript_count: transcriptCount,
           };
-        })
+        }),
       );
 
       setTrackers(trackersWithStats);
 
       // Load total stats using remarketing tables
       const [buyersCount, dealsCount, scoresCount] = await Promise.all([
-        supabase.from("remarketing_buyers").select("id", { count: "exact", head: true }),
-        supabase.from("deals").select("id", { count: "exact", head: true }),
-        supabase.from("remarketing_scores").select("id", { count: "exact", head: true }),
+        supabase.from('remarketing_buyers').select('id', { count: 'exact', head: true }),
+        supabase.from('deals').select('id', { count: 'exact', head: true }),
+        supabase.from('remarketing_scores').select('id', { count: 'exact', head: true }),
       ]);
 
       setTotalStats({
@@ -88,7 +90,7 @@ export default function MADashboard() {
         scores: scoresCount.count || 0,
       });
     } catch (error) {
-      console.error("Error loading dashboard:", error);
+      console.error('Error loading dashboard:', error);
     } finally {
       setIsLoading(false);
     }
@@ -156,7 +158,7 @@ export default function MADashboard() {
           value={`${avgCoverage}%`}
           subtitle={`${totalTranscripts} with transcripts, ${totalEnriched} enriched`}
           icon={Brain}
-          variant={avgCoverage >= 70 ? "success" : avgCoverage >= 40 ? "warning" : "default"}
+          variant={avgCoverage >= 70 ? 'success' : avgCoverage >= 40 ? 'warning' : 'default'}
         />
       </div>
 
@@ -190,12 +192,14 @@ export default function MADashboard() {
           <div className="grid gap-4">
             {trackers.slice(0, 4).map((tracker) => {
               // Two-tier intel: website (up to 50%) + transcripts (up to 50%)
-              const websiteIntel = tracker.buyer_count > 0 
-                ? Math.round((tracker.enriched_count / tracker.buyer_count) * 50) 
-                : 0;
-              const transcriptIntel = tracker.buyer_count > 0 
-                ? Math.round((tracker.transcript_count / tracker.buyer_count) * 50) 
-                : 0;
+              const websiteIntel =
+                tracker.buyer_count > 0
+                  ? Math.round((tracker.enriched_count / tracker.buyer_count) * 50)
+                  : 0;
+              const transcriptIntel =
+                tracker.buyer_count > 0
+                  ? Math.round((tracker.transcript_count / tracker.buyer_count) * 50)
+                  : 0;
               const coverage = websiteIntel + transcriptIntel;
 
               return (
@@ -213,7 +217,9 @@ export default function MADashboard() {
                       </div>
                     </div>
                     <Badge
-                      variant={coverage >= 75 ? "default" : coverage >= 50 ? "secondary" : "outline"}
+                      variant={
+                        coverage >= 75 ? 'default' : coverage >= 50 ? 'secondary' : 'outline'
+                      }
                     >
                       {coverage}% intel
                     </Badge>
