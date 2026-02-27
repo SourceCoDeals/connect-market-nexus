@@ -14,8 +14,9 @@
  *   AdminLayout wrapper (all /admin/* routes)
  */
 import { useState, useMemo } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
+import { useAuth } from '@/context/AuthContext';
 import { usePermissions } from '@/hooks/permissions/usePermissions';
 import {
   LayoutDashboard,
@@ -55,7 +56,18 @@ import {
   Mail,
   Search,
   Phone,
+  LogOut,
+  User,
 } from 'lucide-react';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -93,6 +105,8 @@ export function UnifiedAdminSidebar({
   onCollapsedChange,
   onSearchClick,
 }: AdminSidebarProps) {
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
   const location = useLocation();
   const { isAdmin: _isFullAdmin, canAccessSettings } = usePermissions();
   const { unviewedCount: unviewedDealSourcingCount } = useUnviewedDealSourcingCount();
@@ -601,6 +615,67 @@ export function UnifiedAdminSidebar({
             </Tooltip>
           </div>
         )}
+
+        {/* User profile menu */}
+        <div className="px-3 py-2 border-t border-border/50">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              {collapsed ? (
+                <button className="flex items-center justify-center w-full h-9 rounded-md text-muted-foreground hover:bg-muted hover:text-foreground transition-colors">
+                  <Avatar className="h-7 w-7">
+                    <AvatarFallback className="text-xs">
+                      {`${user?.first_name?.charAt(0) || ''}${user?.last_name?.charAt(0) || ''}`.toUpperCase()}
+                    </AvatarFallback>
+                  </Avatar>
+                </button>
+              ) : (
+                <button className="flex items-center gap-2.5 w-full px-2 py-1.5 text-sm rounded-md text-muted-foreground hover:bg-muted hover:text-foreground transition-colors">
+                  <Avatar className="h-7 w-7 shrink-0">
+                    <AvatarFallback className="text-xs">
+                      {`${user?.first_name?.charAt(0) || ''}${user?.last_name?.charAt(0) || ''}`.toUpperCase()}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="flex-1 text-left truncate">
+                    <span className="block text-sm font-medium truncate text-foreground">
+                      {user?.first_name} {user?.last_name}
+                    </span>
+                    <span className="block text-[11px] truncate text-muted-foreground">
+                      {user?.email}
+                    </span>
+                  </div>
+                </button>
+              )}
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align={collapsed ? 'center' : 'end'} side="top" className="w-56">
+              <DropdownMenuLabel>
+                <div className="flex flex-col space-y-1">
+                  <p className="text-sm font-medium leading-none">
+                    {user?.first_name} {user?.last_name}
+                  </p>
+                  <p className="text-xs leading-none text-muted-foreground">
+                    {user?.email}
+                  </p>
+                </div>
+              </DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => navigate('/profile')}>
+                <User className="mr-2 h-4 w-4" />
+                Profile
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={async () => {
+                try {
+                  await logout();
+                } catch {
+                  window.location.href = '/login';
+                }
+              }}>
+                <LogOut className="mr-2 h-4 w-4" />
+                Log Out
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
       </div>
     </TooltipProvider>
   );
