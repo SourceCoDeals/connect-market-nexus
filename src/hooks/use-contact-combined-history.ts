@@ -26,7 +26,15 @@ export interface UnifiedActivityEntry {
     disposition_label?: string | null;
     disposition_notes?: string | null;
     call_duration_seconds?: number | null;
+    talk_time_seconds?: number | null;
     recording_url?: string | null;
+    recording_url_public?: string | null;
+    call_transcript?: string | null;
+    call_connected?: boolean | null;
+    call_direction?: string | null;
+    phoneburner_status?: string | null;
+    contact_notes?: string | null;
+    callback_scheduled_date?: string | null;
     user_name?: string | null;
   };
 }
@@ -106,7 +114,15 @@ export function useContactCombinedHistory(buyerId: string | null) {
               disposition_label: a.disposition_label,
               disposition_notes: a.disposition_notes,
               call_duration_seconds: a.call_duration_seconds,
+              talk_time_seconds: a.talk_time_seconds,
               recording_url: a.recording_url,
+              recording_url_public: a.recording_url_public,
+              call_transcript: a.call_transcript,
+              call_connected: a.call_connected,
+              call_direction: a.call_direction,
+              phoneburner_status: a.phoneburner_status,
+              contact_notes: a.contact_notes,
+              callback_scheduled_date: a.callback_scheduled_date,
               user_name: a.user_name,
             },
           });
@@ -138,7 +154,15 @@ export function useContactCombinedHistory(buyerId: string | null) {
             disposition_label: a.disposition_label,
             disposition_notes: a.disposition_notes,
             call_duration_seconds: a.call_duration_seconds,
+            talk_time_seconds: a.talk_time_seconds,
             recording_url: a.recording_url,
+            recording_url_public: a.recording_url_public,
+            call_transcript: a.call_transcript,
+            call_connected: a.call_connected,
+            call_direction: a.call_direction,
+            phoneburner_status: a.phoneburner_status,
+            contact_notes: a.contact_notes,
+            callback_scheduled_date: a.callback_scheduled_date,
             user_name: a.user_name,
           },
         });
@@ -317,7 +341,15 @@ export function useContactCombinedHistoryByEmail(email: string | null) {
             disposition_label: a.disposition_label,
             disposition_notes: a.disposition_notes,
             call_duration_seconds: a.call_duration_seconds,
+            talk_time_seconds: a.talk_time_seconds,
             recording_url: a.recording_url,
+            recording_url_public: a.recording_url_public,
+            call_transcript: a.call_transcript,
+            call_connected: a.call_connected,
+            call_direction: a.call_direction,
+            phoneburner_status: a.phoneburner_status,
+            contact_notes: a.contact_notes,
+            callback_scheduled_date: a.callback_scheduled_date,
             user_name: a.user_name,
           },
         });

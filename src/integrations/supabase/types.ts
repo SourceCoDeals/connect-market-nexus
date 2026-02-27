@@ -2508,16 +2508,20 @@ export type Database = {
         Row: {
           activity_type: string
           answered_by: string | null
+          call_connected: boolean | null
           call_connected_at: string | null
+          call_direction: string | null
           call_duration_seconds: number | null
           call_ended_at: string | null
           call_outcome: string | null
           call_started_at: string | null
+          call_transcript: string | null
           callback_completed_at: string | null
           callback_outcome: string | null
           callback_scheduled_date: string | null
           contact_email: string | null
           contact_id: string | null
+          contact_notes: string | null
           created_at: string
           disposition_code: string | null
           disposition_label: string | null
@@ -2527,9 +2531,12 @@ export type Database = {
           phoneburner_call_id: string | null
           phoneburner_contact_id: string | null
           phoneburner_event_id: string | null
+          phoneburner_lead_id: string | null
           phoneburner_session_id: string | null
+          phoneburner_status: string | null
           recording_duration_seconds: number | null
           recording_url: string | null
+          recording_url_public: string | null
           remarketing_buyer_id: string | null
           source_system: string
           talk_time_seconds: number | null
@@ -2541,16 +2548,20 @@ export type Database = {
         Insert: {
           activity_type: string
           answered_by?: string | null
+          call_connected?: boolean | null
           call_connected_at?: string | null
+          call_direction?: string | null
           call_duration_seconds?: number | null
           call_ended_at?: string | null
           call_outcome?: string | null
           call_started_at?: string | null
+          call_transcript?: string | null
           callback_completed_at?: string | null
           callback_outcome?: string | null
           callback_scheduled_date?: string | null
           contact_email?: string | null
           contact_id?: string | null
+          contact_notes?: string | null
           created_at?: string
           disposition_code?: string | null
           disposition_label?: string | null
@@ -2560,9 +2571,12 @@ export type Database = {
           phoneburner_call_id?: string | null
           phoneburner_contact_id?: string | null
           phoneburner_event_id?: string | null
+          phoneburner_lead_id?: string | null
           phoneburner_session_id?: string | null
+          phoneburner_status?: string | null
           recording_duration_seconds?: number | null
           recording_url?: string | null
+          recording_url_public?: string | null
           remarketing_buyer_id?: string | null
           source_system?: string
           talk_time_seconds?: number | null
@@ -2574,16 +2588,20 @@ export type Database = {
         Update: {
           activity_type?: string
           answered_by?: string | null
+          call_connected?: boolean | null
           call_connected_at?: string | null
+          call_direction?: string | null
           call_duration_seconds?: number | null
           call_ended_at?: string | null
           call_outcome?: string | null
           call_started_at?: string | null
+          call_transcript?: string | null
           callback_completed_at?: string | null
           callback_outcome?: string | null
           callback_scheduled_date?: string | null
           contact_email?: string | null
           contact_id?: string | null
+          contact_notes?: string | null
           created_at?: string
           disposition_code?: string | null
           disposition_label?: string | null
@@ -2593,9 +2611,12 @@ export type Database = {
           phoneburner_call_id?: string | null
           phoneburner_contact_id?: string | null
           phoneburner_event_id?: string | null
+          phoneburner_lead_id?: string | null
           phoneburner_session_id?: string | null
+          phoneburner_status?: string | null
           recording_duration_seconds?: number | null
           recording_url?: string | null
+          recording_url_public?: string | null
           remarketing_buyer_id?: string | null
           source_system?: string
           talk_time_seconds?: number | null
