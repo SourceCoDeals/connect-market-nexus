@@ -2528,6 +2528,7 @@ export type Database = {
           disposition_notes: string | null
           disposition_set_at: string | null
           id: string
+          listing_id: string | null
           phoneburner_call_id: string | null
           phoneburner_contact_id: string | null
           phoneburner_event_id: string | null
@@ -2568,6 +2569,7 @@ export type Database = {
           disposition_notes?: string | null
           disposition_set_at?: string | null
           id?: string
+          listing_id?: string | null
           phoneburner_call_id?: string | null
           phoneburner_contact_id?: string | null
           phoneburner_event_id?: string | null
@@ -2608,6 +2610,7 @@ export type Database = {
           disposition_notes?: string | null
           disposition_set_at?: string | null
           id?: string
+          listing_id?: string | null
           phoneburner_call_id?: string | null
           phoneburner_contact_id?: string | null
           phoneburner_event_id?: string | null

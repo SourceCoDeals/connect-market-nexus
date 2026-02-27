@@ -253,10 +253,13 @@ function extractContactInfo(payload: Record<string, unknown>) {
   // Contact notes
   const contactNotes = (contact.notes || '') as string;
 
-  // Lead ID (listing reference)
-  const leadId = (contact.lead_id || payload.lead_id || null) as string | null;
+  // Lead ID (listing reference) — PB stores as "listing-<uuid>"
+  const rawLeadId = (contact.lead_id || payload.lead_id || null) as string | null;
+  const leadId = rawLeadId;
+  // Extract listing UUID from "listing-<uuid>" format
+  const listingId = rawLeadId?.startsWith('listing-') ? rawLeadId.replace('listing-', '') : null;
 
-  return { contactId, pbContactId, customFields, customData, userName, userEmail, entityType, pushedBy, sessionSource, contactEmail, contactNotes, leadId };
+  return { contactId, pbContactId, customFields, customData, userName, userEmail, entityType, pushedBy, sessionSource, contactEmail, contactNotes, leadId, listingId };
 }
 
 async function processEvent(
@@ -267,7 +270,7 @@ async function processEvent(
   topLevelTranscript: string | null,
   topLevelStatus: string | null,
 ): Promise<string | null> {
-  const { contactId, pbContactId, userName, userEmail, contactEmail, contactNotes, leadId } = extractContactInfo(payload);
+  const { contactId, pbContactId, userName, userEmail, contactEmail, contactNotes, leadId, listingId } = extractContactInfo(payload);
 
   switch (eventType) {
     case 'call_begin':
@@ -292,6 +295,7 @@ async function processEvent(
           user_name: userName,
           user_email: userEmail,
           phoneburner_lead_id: leadId,
+          listing_id: listingId,
         })
         .select('id')
         .single();
@@ -391,6 +395,7 @@ async function processEvent(
           phoneburner_status: topLevelStatus || null,
           contact_notes: contactNotes || null,
           phoneburner_lead_id: leadId,
+          listing_id: listingId,
           contact_id: contactId,
           contact_email: contactEmail,
           user_name: userName,
@@ -446,6 +451,7 @@ async function processEvent(
           user_name: userName,
           user_email: userEmail,
           phoneburner_lead_id: leadId,
+          listing_id: listingId,
         })
         .select('id')
         .single();
@@ -467,6 +473,7 @@ async function processEvent(
           user_name: userName,
           user_email: userEmail,
           phoneburner_lead_id: leadId,
+          listing_id: listingId,
         })
         .select('id')
         .single();
