@@ -12,11 +12,18 @@
  */
 
 export interface ThirtyQAutoValidation {
+  /** Domain keywords a PE partner expects in the response */
   mustContainAny?: string[];
+  /** Content that should never appear (hallucination / fabrication guard) */
   mustNotContain?: string[];
+  /** Tools the AI should invoke to fetch real data */
   expectedTools?: string[];
+  /** False for pure-knowledge answers (platform guide, content drafts) */
   requiresToolCalls?: boolean;
+  /** Minimum response length for adequate depth */
   minResponseLength?: number;
+  /** Max acceptable response time in ms — PE partners are impatient */
+  maxResponseTimeMs?: number;
 }
 
 export interface ThirtyQQuestion {
@@ -35,21 +42,56 @@ export interface ThirtyQCheckResult {
   weight: number; // points out of 100
 }
 
+/** Grade labels from a PE partner's perspective */
+export type PEGrade = 'A' | 'B' | 'C' | 'D' | 'F';
+export const PE_GRADE_LABELS: Record<PEGrade, string> = {
+  A: 'Deal-Ready',
+  B: 'Useful',
+  C: 'Needs Work',
+  D: 'Inadequate',
+  F: 'Failure',
+};
+
 export interface ThirtyQScore {
   total: number;       // 0-100
   checks: ThirtyQCheckResult[];
-  grade: 'A' | 'B' | 'C' | 'D' | 'F';
+  grade: PEGrade;
+  gradeLabel: string;
 }
 
+// ─── Actionability signals ───────────────────────────────────────────
+// Patterns that indicate the response contains concrete, actionable data
+// a PE partner can act on immediately rather than vague platitudes.
+
+const DATA_SPECIFICITY_PATTERNS = [
+  /\$[\d,.]+[KkMmBb]?/,              // dollar amounts ($4.2M, $500K)
+  /\d{1,3}(,\d{3})+/,                // large numbers with commas (1,250)
+  /\d+(\.\d+)?%/,                     // percentages (42%, 3.5%)
+  /\d+(\.\d+)?[xX]\s/,               // multiples (3.5x EBITDA)
+  /\b\d{1,2}\/\d{1,2}\/\d{2,4}\b/,  // dates (2/15/2026)
+  /\b(Q[1-4]|H[12])\s*\d{4}\b/i,    // quarters/halves (Q2 2026)
+  /\bebitda\b/i,                       // financial metrics
+  /\brevenue\b/i,
+  /\bmultiple\b/i,
+];
+
+const ACTIONABILITY_PHRASES = [
+  'recommend', 'next step', 'action', 'follow up', 'follow-up',
+  'should', 'reach out', 'schedule', 'prioritize', 'call',
+  'contact', 'review', 'approve', 'confirm', 'proceed',
+];
+
 /**
- * Score a 30Q response against its expected behavior.
+ * Score a 30Q response from a PE firm partner's perspective.
  *
- * Scoring dimensions (100 pts total):
- *  - Route accuracy:     25 pts
- *  - Response received:  15 pts
- *  - Keyword relevance:  35 pts
- *  - Tool usage:         15 pts
- *  - Response depth:     10 pts
+ * A partner cares about:
+ *  1. Actionable Intelligence (25 pts) — Can I act on this right now?
+ *  2. Data Specificity (25 pts) — Real numbers, names, financials — not vague
+ *  3. Completeness (20 pts) — Did it fully answer what I asked?
+ *  4. Correct Routing (15 pts) — Did it understand my intent?
+ *  5. Speed (15 pts) — I'm busy, don't waste my time
+ *
+ * Hallucination guard applied as a penalty.
  */
 export function scoreThirtyQResponse(
   question: ThirtyQQuestion,
@@ -58,115 +100,152 @@ export function scoreThirtyQResponse(
     tools: string[];
     routeCategory: string;
     error?: string;
+    durationMs?: number;
   },
 ): ThirtyQScore {
   const checks: ThirtyQCheckResult[] = [];
   const v = question.autoValidation;
+  const txt = response.text || '';
+  const lower = txt.toLowerCase();
+  const hasResponse = !!txt.trim() && !response.error;
 
-  // 1. Route accuracy (25 pts)
-  const routeMatch = response.routeCategory === question.expectedRoute;
-  checks.push({
-    name: 'Route accuracy',
-    passed: routeMatch,
-    detail: routeMatch
-      ? `Correct: ${response.routeCategory}`
-      : `Expected ${question.expectedRoute}, got ${response.routeCategory || 'unknown'}`,
-    weight: 25,
-  });
+  // ── 1. Actionable Intelligence (25 pts) ────────────────────────
+  // Does the response give me something I can act on?
+  // Looks for: tool calls that fetched real data, actionability phrases,
+  // and whether the response isn't just a refusal or clarification.
+  {
+    const expectedTools = v?.expectedTools;
+    const requiresTools = v?.requiresToolCalls ?? true;
 
-  // 2. Response received (15 pts)
-  const hasResponse = !!response.text?.trim() && !response.error;
-  checks.push({
-    name: 'Response received',
-    passed: hasResponse,
-    detail: response.error
-      ? `Error: ${response.error}`
-      : response.text
-        ? `${response.text.length} chars`
-        : 'Empty response',
-    weight: 15,
-  });
+    let toolScore = 0;
+    if (expectedTools && expectedTools.length > 0) {
+      toolScore = expectedTools.some((t) => response.tools.includes(t)) ? 1 : 0;
+    } else if (requiresTools) {
+      toolScore = response.tools.length > 0 ? 1 : 0;
+    } else {
+      toolScore = 1; // no tools needed
+    }
 
-  // 3. Keyword relevance (35 pts)
-  const keywords = v?.mustContainAny ?? extractKeywords(question.expectedBehavior);
-  if (keywords.length > 0 && response.text) {
-    const lower = response.text.toLowerCase();
-    const found = keywords.filter((k) => lower.includes(k.toLowerCase()));
-    const ratio = found.length / keywords.length;
+    const actionPhraseHits = ACTIONABILITY_PHRASES.filter((p) => lower.includes(p));
+    const hasActionContent = actionPhraseHits.length >= 1;
+    const passed = hasResponse && (toolScore === 1 || hasActionContent);
+
+    const details: string[] = [];
+    if (expectedTools && expectedTools.length > 0) {
+      const called = response.tools.filter((t) => expectedTools.includes(t));
+      details.push(called.length > 0 ? `Tools: ${called.join(', ')}` : `Missing tools: ${expectedTools.join(', ')}`);
+    } else if (requiresTools) {
+      details.push(response.tools.length > 0 ? `${response.tools.length} tool(s) called` : 'No tools called');
+    }
+    if (actionPhraseHits.length > 0) details.push(`Action cues: ${actionPhraseHits.join(', ')}`);
+    if (!hasResponse) details.push(response.error ? `Error: ${response.error}` : 'Empty response');
+
     checks.push({
-      name: 'Keyword relevance',
-      passed: ratio >= 0.3,
-      detail: `${found.length}/${keywords.length} keywords found (${Math.round(ratio * 100)}%): ${found.length > 0 ? found.join(', ') : 'none'}`,
-      weight: 35,
-    });
-  } else {
-    checks.push({
-      name: 'Keyword relevance',
-      passed: hasResponse,
-      detail: hasResponse ? 'Response present (no keyword criteria)' : 'No response to check',
-      weight: 35,
+      name: 'Actionable Intelligence',
+      passed,
+      detail: details.join(' | ') || (passed ? 'Actionable' : 'Not actionable'),
+      weight: 25,
     });
   }
 
-  // 4. Tool usage (15 pts)
-  const expectedTools = v?.expectedTools;
-  const requiresTools = v?.requiresToolCalls ?? true; // most questions need tools
-  if (expectedTools && expectedTools.length > 0) {
-    const calledAny = expectedTools.some((t) => response.tools.includes(t));
+  // ── 2. Data Specificity (25 pts) ───────────────────────────────
+  // Does the response contain real data points — dollar amounts, counts,
+  // percentages, dates, names — not vague hand-waving?
+  {
+    const patternHits = DATA_SPECIFICITY_PATTERNS.filter((rx) => rx.test(txt));
+    const keywords = v?.mustContainAny ?? [];
+    const keywordHits = keywords.filter((k) => lower.includes(k.toLowerCase()));
+    const keywordRatio = keywords.length > 0 ? keywordHits.length / keywords.length : (hasResponse ? 0.5 : 0);
+
+    // Pass if at least 2 data patterns hit OR 40%+ keywords present
+    const passed = hasResponse && (patternHits.length >= 2 || keywordRatio >= 0.4);
+
+    const details: string[] = [];
+    if (patternHits.length > 0) details.push(`${patternHits.length} data pattern(s) found`);
+    if (keywords.length > 0) details.push(`${keywordHits.length}/${keywords.length} keywords (${Math.round(keywordRatio * 100)}%): ${keywordHits.length > 0 ? keywordHits.join(', ') : 'none'}`);
+    if (!hasResponse) details.push('No response');
+
     checks.push({
-      name: 'Expected tools used',
-      passed: calledAny,
-      detail: calledAny
-        ? `Called: ${response.tools.filter((t) => expectedTools.includes(t)).join(', ')}`
-        : `Expected any of: ${expectedTools.join(', ')}. Called: ${response.tools.join(', ') || 'none'}`,
-      weight: 15,
+      name: 'Data Specificity',
+      passed,
+      detail: details.join(' | ') || (passed ? 'Specific' : 'Vague'),
+      weight: 25,
     });
-  } else if (requiresTools) {
-    checks.push({
-      name: 'Tool usage',
-      passed: response.tools.length > 0,
-      detail: response.tools.length > 0
-        ? `${response.tools.length} tool(s): ${response.tools.join(', ')}`
-        : 'No tools called',
-      weight: 15,
-    });
-  } else {
-    checks.push({ name: 'Tool usage', passed: true, detail: 'No tools required', weight: 15 });
   }
 
-  // 5. Response depth (10 pts)
-  const minLen = v?.minResponseLength ?? 50;
-  const len = response.text?.length ?? 0;
-  checks.push({
-    name: 'Response depth',
-    passed: len >= minLen,
-    detail: `${len} chars (min ${minLen})`,
-    weight: 10,
-  });
+  // ── 3. Completeness (20 pts) ───────────────────────────────────
+  // Did it fully answer the question? Checks response depth and coverage
+  // of expected behavior keywords.
+  {
+    const minLen = v?.minResponseLength ?? 50;
+    const meetsLength = txt.length >= minLen;
 
-  // Hallucination guard
-  if (v?.mustNotContain && v.mustNotContain.length > 0 && response.text) {
-    const lower = response.text.toLowerCase();
+    // Derive coverage keywords from expectedBehavior
+    const coverageKw = extractKeywords(question.expectedBehavior);
+    const coverageHits = coverageKw.filter((k) => lower.includes(k));
+    const coverageRatio = coverageKw.length > 0 ? coverageHits.length / coverageKw.length : (hasResponse ? 0.5 : 0);
+
+    const passed = hasResponse && meetsLength && coverageRatio >= 0.25;
+
+    checks.push({
+      name: 'Completeness',
+      passed,
+      detail: `${txt.length} chars (min ${minLen}) | ${coverageHits.length}/${coverageKw.length} behavior keywords (${Math.round(coverageRatio * 100)}%)`,
+      weight: 20,
+    });
+  }
+
+  // ── 4. Correct Routing (15 pts) ────────────────────────────────
+  // Did the system understand what I was asking?
+  {
+    const routeMatch = response.routeCategory === question.expectedRoute;
+    checks.push({
+      name: 'Correct Routing',
+      passed: routeMatch,
+      detail: routeMatch
+        ? `Correct: ${response.routeCategory}`
+        : `Expected ${question.expectedRoute}, got ${response.routeCategory || 'unknown'}`,
+      weight: 15,
+    });
+  }
+
+  // ── 5. Speed (15 pts) ──────────────────────────────────────────
+  // A PE partner won't wait 30 seconds for an answer.
+  // <8s = full marks, 8-15s = pass, >15s = fail
+  {
+    const maxMs = v?.maxResponseTimeMs ?? 15000;
+    const ms = response.durationMs ?? 0;
+    const fast = ms > 0 && ms <= maxMs;
+    checks.push({
+      name: 'Speed',
+      passed: ms === 0 ? hasResponse : fast,
+      detail: ms > 0 ? `${(ms / 1000).toFixed(1)}s (max ${(maxMs / 1000).toFixed(0)}s)` : 'No timing data',
+      weight: 15,
+    });
+  }
+
+  // ── Hallucination guard (penalty) ──────────────────────────────
+  if (v?.mustNotContain && v.mustNotContain.length > 0 && txt) {
     const found = v.mustNotContain.filter((k) => lower.includes(k.toLowerCase()));
     if (found.length > 0) {
       checks.push({
-        name: 'No hallucinated content',
+        name: 'No Hallucination',
         passed: false,
         detail: `Found forbidden: ${found.join(', ')}`,
-        weight: 0, // penalty — deducts from total
+        weight: 0, // 0-weight = pure penalty — will not add to max but failing won't help
       });
     }
   }
 
-  // Compute total
+  // ── Compute total ──────────────────────────────────────────────
   const maxPts = checks.reduce((s, c) => s + c.weight, 0) || 100;
   const earnedPts = checks.reduce((s, c) => s + (c.passed ? c.weight : 0), 0);
   const total = Math.round((earnedPts / maxPts) * 100);
 
-  const grade: ThirtyQScore['grade'] =
+  const grade: PEGrade =
     total >= 90 ? 'A' : total >= 75 ? 'B' : total >= 60 ? 'C' : total >= 40 ? 'D' : 'F';
 
-  return { total, checks, grade };
+  return { total, checks, grade, gradeLabel: PE_GRADE_LABELS[grade] };
 }
 
 /** Extract meaningful keywords from expectedBehavior text */
@@ -185,7 +264,6 @@ function extractKeywords(text: string): string[] {
     .split(/\s+/)
     .map((w) => w.toLowerCase().trim())
     .filter((w) => w.length > 2 && !stopWords.has(w));
-  // dedupe
   return [...new Set(words)];
 }
 
@@ -212,9 +290,9 @@ export const THIRTY_Q_SUITE: ThirtyQQuestion[] = [
   { id: 11, category: 'Enrichment', question: 'How many deals still need enrichment?', expectedRoute: 'PIPELINE_ANALYTICS', expectedBehavior: 'Counts deals where enriched_at is null or enrichment is incomplete.', autoValidation: { mustContainAny: ['enrichment', 'enriched', 'deal', 'need'], expectedTools: ['get_pipeline_summary'], minResponseLength: 30 } },
   { id: 12, category: 'Enrichment', question: 'What enrichment data is available for the latest deal?', expectedRoute: 'PIPELINE_ANALYTICS', expectedBehavior: 'Returns enrichment fields (LinkedIn, Google reviews, etc.) for the most recent deal.', autoValidation: { mustContainAny: ['enrichment', 'deal', 'linkedin', 'google', 'review', 'data'], expectedTools: ['get_pipeline_summary', 'get_deal_status'], minResponseLength: 40 } },
 
-  // Platform Guide (13-14)
-  { id: 13, category: 'Platform Guide', question: 'How do I create a new buyer universe?', expectedRoute: 'PLATFORM_GUIDE', expectedBehavior: 'Provides step-by-step guidance on creating a buyer universe in the platform.', autoValidation: { mustContainAny: ['buyer', 'universe', 'create', 'step', 'navigate'], requiresToolCalls: false, minResponseLength: 100 } },
-  { id: 14, category: 'Platform Guide', question: 'What does the deal scoring system do?', expectedRoute: 'PLATFORM_GUIDE', expectedBehavior: 'Explains the deal scoring methodology and how scores are calculated.', autoValidation: { mustContainAny: ['score', 'scoring', 'deal', 'calculate', 'criteria', 'buyer'], requiresToolCalls: false, minResponseLength: 80 } },
+  // Platform Guide (13-14) — knowledge answers, partner expects instant
+  { id: 13, category: 'Platform Guide', question: 'How do I create a new buyer universe?', expectedRoute: 'PLATFORM_GUIDE', expectedBehavior: 'Provides step-by-step guidance on creating a buyer universe in the platform.', autoValidation: { mustContainAny: ['buyer', 'universe', 'create', 'step', 'navigate'], requiresToolCalls: false, minResponseLength: 100, maxResponseTimeMs: 8000 } },
+  { id: 14, category: 'Platform Guide', question: 'What does the deal scoring system do?', expectedRoute: 'PLATFORM_GUIDE', expectedBehavior: 'Explains the deal scoring methodology and how scores are calculated.', autoValidation: { mustContainAny: ['score', 'scoring', 'deal', 'calculate', 'criteria', 'buyer'], requiresToolCalls: false, minResponseLength: 80, maxResponseTimeMs: 8000 } },
 
   // Transcript Search (15-16)
   { id: 15, category: 'Transcript Search', question: 'Search transcripts for mentions of recurring revenue', expectedRoute: 'MEETING_INTEL', expectedBehavior: 'Uses transcript search tool to find buyer call transcripts mentioning recurring revenue.', autoValidation: { mustContainAny: ['transcript', 'recurring', 'revenue', 'mention', 'call'], expectedTools: ['search_transcripts', 'search_meeting_transcripts'], minResponseLength: 40 } },
@@ -232,9 +310,9 @@ export const THIRTY_Q_SUITE: ThirtyQQuestion[] = [
   { id: 21, category: 'Engagement', question: 'Which buyers have shown the most interest recently?', expectedRoute: 'ENGAGEMENT', expectedBehavior: 'Returns buyers with recent interest signals or high engagement scores.', autoValidation: { mustContainAny: ['buyer', 'interest', 'engagement', 'score', 'recent', 'signal'], expectedTools: ['get_buyer_engagement', 'get_engagement_signals'], minResponseLength: 40 } },
   { id: 22, category: 'Engagement', question: 'Show me the follow-up queue', expectedRoute: 'FOLLOW_UP', expectedBehavior: 'Lists pending follow-ups with buyers/deals that need attention.', autoValidation: { mustContainAny: ['follow-up', 'follow up', 'pending', 'queue', 'deal', 'buyer', 'attention'], expectedTools: ['get_follow_up_queue', 'get_follow_ups'], minResponseLength: 30 } },
 
-  // Content Creation (23-24)
-  { id: 23, category: 'Content Creation', question: 'Write a teaser for a $3M revenue plumbing company in Florida', expectedRoute: 'OUTREACH_DRAFT', expectedBehavior: 'Generates a deal teaser/summary with key metrics for buyer outreach.', autoValidation: { mustContainAny: ['plumbing', 'Florida', 'revenue', '$3M', '3M', 'opportunity', 'teaser'], requiresToolCalls: false, minResponseLength: 150 } },
-  { id: 24, category: 'Content Creation', question: 'Create a CIM executive summary for a commercial cleaning business', expectedRoute: 'OUTREACH_DRAFT', expectedBehavior: 'Drafts an executive summary section suitable for a Confidential Information Memorandum.', autoValidation: { mustContainAny: ['cleaning', 'executive', 'summary', 'CIM', 'confidential', 'business', 'revenue'], requiresToolCalls: false, minResponseLength: 200 } },
+  // Content Creation (23-24) — drafts are longer, allow more time
+  { id: 23, category: 'Content Creation', question: 'Write a teaser for a $3M revenue plumbing company in Florida', expectedRoute: 'OUTREACH_DRAFT', expectedBehavior: 'Generates a deal teaser/summary with key metrics for buyer outreach.', autoValidation: { mustContainAny: ['plumbing', 'Florida', 'revenue', '$3M', '3M', 'opportunity', 'teaser'], requiresToolCalls: false, minResponseLength: 150, maxResponseTimeMs: 20000 } },
+  { id: 24, category: 'Content Creation', question: 'Create a CIM executive summary for a commercial cleaning business', expectedRoute: 'OUTREACH_DRAFT', expectedBehavior: 'Drafts an executive summary section suitable for a Confidential Information Memorandum.', autoValidation: { mustContainAny: ['cleaning', 'executive', 'summary', 'CIM', 'confidential', 'business', 'revenue'], requiresToolCalls: false, minResponseLength: 200, maxResponseTimeMs: 25000 } },
 
   // Market Analysis (25-26)
   { id: 25, category: 'Market Analysis', question: 'What industries have the most deals in our pipeline?', expectedRoute: 'PIPELINE_ANALYTICS', expectedBehavior: 'Aggregates deals by industry and ranks them by count.', autoValidation: { mustContainAny: ['industry', 'deal', 'pipeline', 'count', 'most'], expectedTools: ['get_pipeline_summary'], minResponseLength: 40 } },

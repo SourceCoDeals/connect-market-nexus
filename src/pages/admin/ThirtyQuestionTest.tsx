@@ -30,6 +30,7 @@ import {
 import {
   THIRTY_Q_SUITE,
   scoreThirtyQResponse,
+  PE_GRADE_LABELS,
   type ThirtyQQuestion,
   type ThirtyQScore,
   type ThirtyQCheckResult,
@@ -128,12 +129,13 @@ export default function ThirtyQuestionTest() {
         const routeCategory = res.routeInfo?.category || 'unknown';
         const toolNames = res.toolCalls.map((t) => t.name);
 
-        // Score the response
+        // Score the response from a PE partner's perspective
         const score = scoreThirtyQResponse(q, {
           text: res.text || '',
           tools: toolNames,
           routeCategory,
           error: res.error || undefined,
+          durationMs,
         });
 
         setResults((prev) => {
@@ -159,6 +161,7 @@ export default function ThirtyQuestionTest() {
           tools: [],
           routeCategory: 'unknown',
           error: err instanceof Error ? err.message : String(err),
+          durationMs,
         });
 
         setResults((prev) => {
@@ -225,6 +228,7 @@ export default function ThirtyQuestionTest() {
   }, [scoredResults]);
 
   const overallGrade = avgScore >= 90 ? 'A' : avgScore >= 75 ? 'B' : avgScore >= 60 ? 'C' : avgScore >= 40 ? 'D' : 'F';
+  const overallLabel = PE_GRADE_LABELS[overallGrade];
 
   // Per-category scores
   const categoryScores = useMemo(() => {
@@ -253,8 +257,9 @@ export default function ThirtyQuestionTest() {
       route_match: r.routeCategory === r.question.expectedRoute ? 'YES' : 'NO',
       expected: r.question.expectedBehavior,
       status: r.status,
-      quality_score: r.score?.total ?? '',
+      partner_score: r.score?.total ?? '',
       grade: r.score?.grade ?? '',
+      grade_label: r.score?.gradeLabel ?? '',
       checks_passed: r.score ? r.score.checks.filter((c) => c.passed).length : '',
       checks_total: r.score ? r.score.checks.length : '',
       check_details: r.score ? r.score.checks.map((c) => `${c.passed ? 'PASS' : 'FAIL'}: ${c.name} — ${c.detail || ''}`).join(' | ') : '',
@@ -295,15 +300,15 @@ export default function ThirtyQuestionTest() {
             <p className="text-xs text-muted-foreground mt-1">{routeMatches.length}/{completed.length} correct</p>
           </CardContent>
         </Card>
-        {/* Quality Score card */}
+        {/* PE Partner Score card */}
         <Card>
           <CardContent className="pt-6">
             <div className="flex items-baseline gap-2">
               <span className={`text-2xl font-bold ${scoreColor(avgScore)}`}>{avgScore}</span>
               <Badge className={`text-xs ${GRADE_COLORS[overallGrade] || ''}`}>{overallGrade}</Badge>
             </div>
-            <p className="text-xs text-muted-foreground">Quality Score</p>
-            <p className="text-xs text-muted-foreground mt-1">{scoredResults.length} scored</p>
+            <p className="text-xs text-muted-foreground">Partner Score</p>
+            <p className="text-xs text-muted-foreground mt-1">{overallLabel} — {scoredResults.length} scored</p>
           </CardContent>
         </Card>
         <Card>
@@ -343,7 +348,7 @@ export default function ThirtyQuestionTest() {
       {categoryScores.length > 0 && (
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium">Score by Category</CardTitle>
+            <CardTitle className="text-sm font-medium">Partner Score by Category</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="flex flex-wrap gap-2">
@@ -417,7 +422,7 @@ function ResultRow({ result }: { result: QuestionResult }) {
                 {score && (
                   <Badge variant="secondary" className={`text-xs gap-1 ${GRADE_COLORS[score.grade]}`}>
                     <Award className="h-3 w-3" />
-                    {score.total}/100 ({score.grade})
+                    {score.total}/100 {score.grade} — {score.gradeLabel}
                   </Badge>
                 )}
                 <span className="text-xs text-muted-foreground">{durationMs.toLocaleString()}ms</span>
