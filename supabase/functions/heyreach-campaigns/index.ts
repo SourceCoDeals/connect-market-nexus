@@ -20,8 +20,9 @@ import { getCorsHeaders, corsPreflightResponse } from '../_shared/cors.ts';
 import {
   listCampaigns,
   getCampaign,
-  toggleCampaignStatus,
-  getCampaignAnalytics,
+  pauseCampaign,
+  resumeCampaign,
+  getOverallStats,
   getAllLists,
   createEmptyList,
   getLinkedInAccounts,
@@ -82,7 +83,7 @@ Deno.serve(async (req) => {
       case 'list': {
         const result = await listCampaigns(body.offset || 0, body.limit || 50);
         if (!result.ok) {
-          return new Response(JSON.stringify({ error: result.error }), {
+          return new Response(JSON.stringify({ error: result.error || `HeyReach API error (HTTP ${result.status})` }), {
             status: 502,
             headers: jsonHeaders,
           });
@@ -119,16 +120,20 @@ Deno.serve(async (req) => {
       }
 
       case 'toggle': {
-        const { campaign_id } = body;
+        const { campaign_id, current_status } = body;
         if (!campaign_id) {
           return new Response(JSON.stringify({ error: 'campaign_id required' }), {
             status: 400,
             headers: jsonHeaders,
           });
         }
-        const result = await toggleCampaignStatus(campaign_id);
+        // Use pause/resume based on current status
+        const isPaused = current_status === 'PAUSED' || current_status === 'DRAFT';
+        const result = isPaused
+          ? await resumeCampaign(campaign_id)
+          : await pauseCampaign(campaign_id);
         if (!result.ok) {
-          return new Response(JSON.stringify({ error: result.error }), {
+          return new Response(JSON.stringify({ error: result.error || `HeyReach API error (HTTP ${result.status})` }), {
             status: 502,
             headers: jsonHeaders,
           });
@@ -153,9 +158,9 @@ Deno.serve(async (req) => {
             headers: jsonHeaders,
           });
         }
-        const result = await getCampaignAnalytics(campaign_id);
+        const result = await getOverallStats([campaign_id]);
         if (!result.ok) {
-          return new Response(JSON.stringify({ error: result.error }), {
+          return new Response(JSON.stringify({ error: result.error || `HeyReach API error (HTTP ${result.status})` }), {
             status: 502,
             headers: jsonHeaders,
           });
