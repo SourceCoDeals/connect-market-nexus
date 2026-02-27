@@ -271,6 +271,18 @@ const MarketplaceQueue = () => {
                     </div>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-8 text-xs"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        navigate(`/admin/deals/${deal.id}`);
+                      }}
+                    >
+                      <Plus className="h-3.5 w-3.5 mr-1" />
+                      Create Listing
+                    </Button>
                     {deal.website && (
                       <Button
                         variant="ghost"
