@@ -119,7 +119,7 @@ serve(async (req) => {
     } else if (transcript_id) {
       const { data: transcript, error: transcriptError } = await supabase
         .from('call_transcripts')
-        .select('*')
+        .select('id, transcript_text, buyer_id, listing_id')
         .eq('id', transcript_id)
         .single();
 
