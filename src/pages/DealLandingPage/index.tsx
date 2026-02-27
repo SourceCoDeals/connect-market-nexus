@@ -69,7 +69,7 @@ export default function DealLandingPage() {
           {/* Right column — sticky sidebar (desktop) */}
           <div className="hidden lg:block lg:w-[32%]">
             <div className="sticky top-20">
-              <DealSidebar dealTitle={deal.title} executiveSummaryUrl={deal.executive_summary} />
+              <DealSidebar executiveSummaryUrl={deal.executive_summary} />
             </div>
           </div>
         </div>
