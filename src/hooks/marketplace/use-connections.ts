@@ -63,7 +63,12 @@ export const useRequestConnection = () => {
       });
 
       // Record milestone for user journey tracking
-      const visitorId = localStorage.getItem(VISITOR_ID_KEY);
+      let visitorId: string | null = null;
+      try {
+        visitorId = localStorage.getItem(VISITOR_ID_KEY);
+      } catch {
+        /* private browsing */
+      }
       if (visitorId) {
         supabase
           .rpc('update_journey_milestone', {
