@@ -8,6 +8,7 @@ import { useFilterEngine } from "@/hooks/use-filter-engine";
 import { DEAL_LISTING_FIELDS } from "@/components/filters";
 import { useTimeframe } from "@/hooks/use-timeframe";
 import { useSavedViews } from "@/hooks/use-saved-views";
+import { useAuth } from "@/context/AuthContext";
 
 import type { DealListing, ColumnWidths } from "../types";
 import { DEFAULT_COLUMN_WIDTHS } from "../types";
@@ -15,6 +16,7 @@ import { DEFAULT_COLUMN_WIDTHS } from "../types";
 const PAGE_SIZE = 50;
 
 export function useDealsData() {
+  const { user } = useAuth();
   const [universeFilter] = useState<string>("all");
   const [scoreFilter] = useState<string>("all");
   const [dateFilter, setDateFilter] = useState<string>("all");
@@ -197,9 +199,10 @@ export function useDealsData() {
       else if (dealTab === "pipeline") { if (!pipelineCounts?.[listing.id]) return false; }
       else if (dealTab === "needs_universe") { const u = universeDealMap?.[listing.id]; if (u && u.length > 0) return false; }
       else if (dealTab === "needs_enrichment") { if (listing.enriched_at && listing.deal_total_score !== null) return false; }
+      else if (dealTab === "my_deals") { if (!user?.id || listing.deal_owner_id !== user.id) return false; }
       return true;
     });
-  }, [engineFiltered, universeFilter, scoreFilter, dateFilter, customDateFrom, customDateTo, industryFilter, stateFilter, employeeFilter, referralPartnerFilter, scoreStats, universeBuildFilter, dealTab, pipelineCounts, universeDealMap]);
+  }, [engineFiltered, universeFilter, scoreFilter, dateFilter, customDateFrom, customDateTo, industryFilter, stateFilter, employeeFilter, referralPartnerFilter, scoreStats, universeBuildFilter, dealTab, pipelineCounts, universeDealMap, user?.id]);
 
   const handleSort = (column: string) => {
     setSearchParams((prev) => {
