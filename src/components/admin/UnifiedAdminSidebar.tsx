@@ -214,6 +214,11 @@ export function UnifiedAdminSidebar({
             exact: true,
           },
           {
+            label: 'Remarketing Deals',
+            href: '/admin/deals',
+            icon: <Building2 className="h-4 w-4" />,
+          },
+          {
             label: 'CapTarget Deals',
             href: '/admin/remarketing/leads/captarget',
             icon: <Crosshair className="h-4 w-4" />,
