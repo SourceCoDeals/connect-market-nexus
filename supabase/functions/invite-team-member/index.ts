@@ -149,31 +149,22 @@ const handler = async (req: Request): Promise<Response> => {
       }
     }
 
-    // Assign role — use upsert to avoid DELETE+INSERT race condition
-    const { error: roleError } = await supabaseAdmin
-      .from("user_roles")
-      .upsert(
-        {
-          user_id: userId,
-          role: role,
-          granted_by: auth.userId,
-          reason: `Invited as ${role === "admin" ? "Admin" : "Team Member"}`,
-        },
-        { onConflict: "user_id" }
-      );
+    // Assign role + audit log + sync is_admin via SQL function
+    // (direct upsert fails because PostgREST can't auto-cast text → app_role enum)
+    const roleReason = `Invited as ${role === "admin" ? "Admin" : "Team Member"}`;
+    const { error: roleError } = await supabaseAdmin.rpc(
+      "assign_role_for_invite",
+      {
+        _user_id: userId,
+        _role: role,
+        _granted_by: auth.userId,
+        _reason: roleReason,
+      }
+    );
 
     if (roleError) {
       console.error("[invite-team-member] Failed to assign role:", roleError);
     }
-
-    // Log to audit
-    await supabaseAdmin.from("permission_audit_log").insert({
-      target_user_id: userId,
-      changed_by: auth.userId,
-      old_role: null,
-      new_role: role,
-      reason: `Invited as ${role === "admin" ? "Admin" : "Team Member"}`,
-    });
 
     // Send magic link for login
     if (!existingUser) {
