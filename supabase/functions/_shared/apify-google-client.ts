@@ -25,8 +25,8 @@ export async function googleSearch(
   query: string,
   maxResults: number = 10,
 ): Promise<GoogleSearchItem[]> {
-  const apiKey = Deno.env.get('APIFY_API_KEY');
-  if (!apiKey) throw new Error('APIFY_API_KEY not configured');
+  const apiKey = Deno.env.get('APIFY_API_TOKEN');
+  if (!apiKey) throw new Error('APIFY_API_TOKEN not configured');
 
   const runUrl = `${APIFY_API_BASE}/acts/${GOOGLE_SCRAPER_ACTOR}/runs?token=${apiKey}`;
 
