@@ -1,3 +1,11 @@
+-- ═══════════════════════════════════════════════════════════════
+-- Migration: smartlead_integration
+-- Date: 2026-03-24
+-- Purpose: Creates the Smartlead email outreach integration schema, including
+--          campaign tracking, lead sync, statistics snapshots, and webhook event logging.
+-- Tables affected: smartlead_campaigns, smartlead_campaign_leads, smartlead_campaign_stats, smartlead_webhook_events
+-- ═══════════════════════════════════════════════════════════════
+
 -- Smartlead integration tables
 -- Tracks campaigns synced with Smartlead and maps leads to platform contacts
 

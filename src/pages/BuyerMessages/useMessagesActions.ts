@@ -31,7 +31,7 @@ export function useSendDocumentQuestion() {
         .limit(1)
         .maybeSingle();
 
-      const OZ_ADMIN_ID = 'ea1f0064-52ef-43fb-bec4-22391b720328';
+      const { OZ_ADMIN_ID } = await import('@/constants');
 
       if (activeRequest) {
         const { error } = await (supabase.from('connection_messages') as any).insert({

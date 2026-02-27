@@ -1,6 +1,9 @@
 /**
  * Buyer Universe & Outreach Tools
  * Query buyer universes, outreach records, and deal-universe mappings.
+ *
+ * MERGED Feb 2026: get_outreach_records + get_remarketing_outreach
+ * → unified get_outreach_records with a `source` parameter.
  */
 
 // deno-lint-ignore no-explicit-any
@@ -37,17 +40,23 @@ export const universeTools: ClaudeTool[] = [
   },
   {
     name: 'get_outreach_records',
-    description: 'Get outreach tracking records — who was contacted for a deal/buyer, NDA status, meeting history, outcomes, and next actions. Critical for follow-up management. Filter by deal, buyer, outcome, or date.',
+    description: 'Get outreach tracking records — who was contacted for a deal/buyer, NDA status, meeting history, outcomes, and next actions. Queries both outreach_records (detailed tracking with NDA/CIM/meeting dates) and remarketing_outreach (campaign status tracking) tables. Use `source` to target a specific table, or omit to search both.',
     input_schema: {
       type: 'object',
       properties: {
+        source: {
+          type: 'string',
+          enum: ['outreach_records', 'remarketing_outreach', 'all'],
+          description: 'Which outreach table to query: "outreach_records" for detailed NDA/meeting tracking, "remarketing_outreach" for campaign status tracking, "all" for both (default "all")',
+        },
         deal_id: { type: 'string', description: 'Filter by deal/listing UUID' },
         buyer_id: { type: 'string', description: 'Filter by buyer UUID' },
-        universe_id: { type: 'string', description: 'Filter by universe UUID' },
-        outcome: { type: 'string', description: 'Filter by outcome: in_progress, won, lost, withdrawn, no_response' },
-        has_nda: { type: 'boolean', description: 'Filter to records where NDA was sent' },
-        has_meeting: { type: 'boolean', description: 'Filter to records where meeting was scheduled' },
-        next_action_overdue: { type: 'boolean', description: 'Filter to records where next_action_date is past due' },
+        universe_id: { type: 'string', description: 'Filter by universe UUID (outreach_records only)' },
+        outcome: { type: 'string', description: 'Filter outreach_records by outcome: in_progress, won, lost, withdrawn, no_response' },
+        status: { type: 'string', description: 'Filter remarketing_outreach by status: pending, contacted, responded, meeting_scheduled, nda_sent, passed' },
+        has_nda: { type: 'boolean', description: 'Filter to records where NDA was sent (outreach_records only)' },
+        has_meeting: { type: 'boolean', description: 'Filter to records where meeting was scheduled (outreach_records only)' },
+        next_action_overdue: { type: 'boolean', description: 'Filter to records where next_action_date is past due (outreach_records only)' },
         limit: { type: 'number', description: 'Max results (default 50, use 1000 for full pipeline counts)' },
       },
       required: [],
@@ -73,20 +82,6 @@ export const universeTools: ClaudeTool[] = [
       required: ['universe_id'],
     },
   },
-  {
-    name: 'get_remarketing_outreach',
-    description: 'Get remarketing outreach status records — outreach campaigns by status (pending, contacted, responded, meeting_scheduled, nda_sent, passed). Use to track buyer contact pipeline.',
-    input_schema: {
-      type: 'object',
-      properties: {
-        deal_id: { type: 'string', description: 'Filter by deal/listing UUID' },
-        buyer_id: { type: 'string', description: 'Filter by buyer UUID' },
-        status: { type: 'string', description: 'Filter by status: pending, contacted, responded, meeting_scheduled, nda_sent, passed' },
-        limit: { type: 'number', description: 'Max results (default 50)' },
-      },
-      required: [],
-    },
-  },
 ];
 
 // ---------- Executor ----------
@@ -100,8 +95,9 @@ export async function executeUniverseTool(
     case 'search_buyer_universes': return searchBuyerUniverses(supabase, args);
     case 'get_universe_details': return getUniverseDetails(supabase, args);
     case 'get_universe_buyer_fits': return getUniverseBuyerFits(supabase, args);
-    case 'get_outreach_records': return getOutreachRecords(supabase, args);
-    case 'get_remarketing_outreach': return getRemarketingOutreach(supabase, args);
+    case 'get_outreach_records': return getOutreachRecordsUnified(supabase, args);
+    // Backward compatibility alias
+    case 'get_remarketing_outreach': return getOutreachRecordsUnified(supabase, { ...args, source: 'remarketing_outreach' });
     default: return { error: `Unknown universe tool: ${toolName}` };
   }
 }
@@ -298,79 +294,91 @@ async function getUniverseBuyerFits(
   return { data: result };
 }
 
-async function getOutreachRecords(
+async function getOutreachRecordsUnified(
   supabase: SupabaseClient,
   args: Record<string, unknown>,
 ): Promise<ToolResult> {
+  const source = (args.source as string) || 'all';
   const limit = Math.min(Number(args.limit) || 50, 2000);
-  const now = new Date().toISOString();
+  const results: Record<string, unknown> = { source_filter: source };
+  const errors: string[] = [];
 
-  let query = supabase
-    .from('outreach_records')
-    .select('id, listing_id, buyer_id, universe_id, contacted_at, nda_sent_at, nda_signed_at, cim_sent_at, meeting_scheduled_at, outcome, outcome_notes, outcome_at, last_contact_date, next_action, next_action_date, priority, notes, created_at, updated_at')
-    .order('updated_at', { ascending: false })
-    .limit(limit);
+  // Query outreach_records table
+  if (source === 'all' || source === 'outreach_records') {
+    const now = new Date().toISOString();
+    let query = supabase
+      .from('outreach_records')
+      .select('id, listing_id, buyer_id, universe_id, contacted_at, nda_sent_at, nda_signed_at, cim_sent_at, meeting_scheduled_at, outcome, outcome_notes, outcome_at, last_contact_date, next_action, next_action_date, priority, notes, created_at, updated_at')
+      .order('updated_at', { ascending: false })
+      .limit(limit);
 
-  if (args.deal_id) query = query.eq('listing_id', args.deal_id as string);
-  if (args.buyer_id) query = query.eq('buyer_id', args.buyer_id as string);
-  if (args.universe_id) query = query.eq('universe_id', args.universe_id as string);
-  if (args.outcome) query = query.eq('outcome', args.outcome as string);
-  if (args.has_nda === true) query = query.not('nda_sent_at', 'is', null);
-  if (args.has_meeting === true) query = query.not('meeting_scheduled_at', 'is', null);
-  if (args.next_action_overdue === true) query = query.lt('next_action_date', now).not('next_action_date', 'is', null);
+    if (args.deal_id) query = query.eq('listing_id', args.deal_id as string);
+    if (args.buyer_id) query = query.eq('buyer_id', args.buyer_id as string);
+    if (args.universe_id) query = query.eq('universe_id', args.universe_id as string);
+    if (args.outcome) query = query.eq('outcome', args.outcome as string);
+    if (args.has_nda === true) query = query.not('nda_sent_at', 'is', null);
+    if (args.has_meeting === true) query = query.not('meeting_scheduled_at', 'is', null);
+    if (args.next_action_overdue === true) query = query.lt('next_action_date', now).not('next_action_date', 'is', null);
 
-  const { data, error } = await query;
-  if (error) return { error: error.message };
-
-  const records = data || [];
-
-  // Summary counts
-  const byOutcome: Record<string, number> = {};
-  let nda_sent = 0, nda_signed = 0, meetings = 0, overdue = 0;
-  for (const r of records) {
-    const oc = r.outcome || 'in_progress';
-    byOutcome[oc] = (byOutcome[oc] || 0) + 1;
-    if (r.nda_sent_at) nda_sent++;
-    if (r.nda_signed_at) nda_signed++;
-    if (r.meeting_scheduled_at) meetings++;
-    if (r.next_action_date && new Date(r.next_action_date) < new Date() && r.outcome === 'in_progress') overdue++;
+    const { data, error } = await query;
+    if (error) {
+      errors.push(`outreach_records: ${error.message}`);
+    } else {
+      const records = data || [];
+      const byOutcome: Record<string, number> = {};
+      let nda_sent = 0, nda_signed = 0, meetings = 0, overdue = 0;
+      for (const r of records) {
+        const oc = r.outcome || 'in_progress';
+        byOutcome[oc] = (byOutcome[oc] || 0) + 1;
+        if (r.nda_sent_at) nda_sent++;
+        if (r.nda_signed_at) nda_signed++;
+        if (r.meeting_scheduled_at) meetings++;
+        if (r.next_action_date && new Date(r.next_action_date) < new Date() && r.outcome === 'in_progress') overdue++;
+      }
+      results.outreach_records = {
+        records,
+        total: records.length,
+        summary: { by_outcome: byOutcome, nda_sent, nda_signed, meetings_scheduled: meetings, overdue_actions: overdue },
+      };
+    }
   }
 
-  return {
-    data: {
-      records,
-      total: records.length,
-      summary: { by_outcome: byOutcome, nda_sent, nda_signed, meetings_scheduled: meetings, overdue_actions: overdue },
-    },
-  };
-}
+  // Query remarketing_outreach table
+  if (source === 'all' || source === 'remarketing_outreach') {
+    let query = supabase
+      .from('remarketing_outreach')
+      .select('id, listing_id, buyer_id, status, contact_method, contacted_at, response_at, meeting_at, notes, created_at, updated_at')
+      .order('updated_at', { ascending: false })
+      .limit(limit);
 
-async function getRemarketingOutreach(
-  supabase: SupabaseClient,
-  args: Record<string, unknown>,
-): Promise<ToolResult> {
-  const limit = Math.min(Number(args.limit) || 50, 1000);
+    if (args.deal_id) query = query.eq('listing_id', args.deal_id as string);
+    if (args.buyer_id) query = query.eq('buyer_id', args.buyer_id as string);
+    if (args.status) query = query.eq('status', args.status as string);
 
-  let query = supabase
-    .from('remarketing_outreach')
-    .select('id, listing_id, buyer_id, status, contact_method, contacted_at, response_at, meeting_at, notes, created_at, updated_at')
-    .order('updated_at', { ascending: false })
-    .limit(limit);
-
-  if (args.deal_id) query = query.eq('listing_id', args.deal_id as string);
-  if (args.buyer_id) query = query.eq('buyer_id', args.buyer_id as string);
-  if (args.status) query = query.eq('status', args.status as string);
-
-  const { data, error } = await query;
-  if (error) return { error: error.message };
-
-  const records = data || [];
-  const byStatus: Record<string, number> = {};
-  for (const r of records) {
-    byStatus[r.status] = (byStatus[r.status] || 0) + 1;
+    const { data, error } = await query;
+    if (error) {
+      errors.push(`remarketing_outreach: ${error.message}`);
+    } else {
+      const records = data || [];
+      const byStatus: Record<string, number> = {};
+      for (const r of records) {
+        byStatus[r.status] = (byStatus[r.status] || 0) + 1;
+      }
+      results.remarketing_outreach = {
+        records,
+        total: records.length,
+        by_status: byStatus,
+      };
+    }
   }
 
-  return {
-    data: { records, total: records.length, by_status: byStatus },
-  };
+  // Compute total
+  const totalCount =
+    ((results.outreach_records as any)?.total || 0) +
+    ((results.remarketing_outreach as any)?.total || 0);
+
+  results.total_across_sources = totalCount;
+  if (errors.length > 0) results.errors = errors;
+
+  return { data: results };
 }

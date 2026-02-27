@@ -1,6 +1,9 @@
 /**
  * Deal Extra Tools
  * Deal comments, referrals, listing conversations, scoring adjustments.
+ *
+ * MERGED Feb 2026: get_deal_comments + get_deal_conversations
+ * → unified get_deal_communication with a `source` parameter.
  */
 
 // deno-lint-ignore no-explicit-any
@@ -12,14 +15,21 @@ import type { ToolResult } from "./index.ts";
 
 export const dealExtraTools: ClaudeTool[] = [
   {
-    name: 'get_deal_comments',
-    description: 'Get internal admin comments on deals — free-form notes and observations left by deal team members on a deal. Different from deal_activities (structured log) — these are threaded discussion comments with mentions.',
+    name: 'get_deal_communication',
+    description: 'Get deal communication — internal admin comments and/or listing conversation threads. Use `source` to target specific data: "comments" for internal deal team notes/observations, "conversations" for messaging threads between admins and buyers/sellers, or "all" for both.',
     input_schema: {
       type: 'object',
       properties: {
+        source: {
+          type: 'string',
+          enum: ['comments', 'conversations', 'all'],
+          description: '"comments" for internal admin comments/notes, "conversations" for listing message threads, "all" for both (default "all")',
+        },
         deal_id: { type: 'string', description: 'Filter by deal/listing UUID' },
-        days: { type: 'number', description: 'Lookback period in days (default 30)' },
-        limit: { type: 'number', description: 'Max results (default 50)' },
+        connection_request_id: { type: 'string', description: 'Filter conversations by specific connection request UUID (conversations only)' },
+        status: { type: 'string', description: 'Filter conversations by status (conversations only)' },
+        days: { type: 'number', description: 'Lookback period in days for comments (default 30)' },
+        limit: { type: 'number', description: 'Max results per source (default 50 for comments, 25 for conversations)' },
       },
       required: [],
     },
@@ -35,20 +45,6 @@ export const dealExtraTools: ClaudeTool[] = [
         opened: { type: 'boolean', description: 'Filter by whether the referral email was opened' },
         days: { type: 'number', description: 'Lookback period in days (default 90)' },
         limit: { type: 'number', description: 'Max results (default 100)' },
-      },
-      required: [],
-    },
-  },
-  {
-    name: 'get_deal_conversations',
-    description: 'Get listing conversation threads with their messages — messaging threads attached to a deal between admins and buyers/sellers. Includes internal admin notes (is_internal_note=true) and buyer-facing messages.',
-    input_schema: {
-      type: 'object',
-      properties: {
-        deal_id: { type: 'string', description: 'Filter by deal/listing UUID' },
-        connection_request_id: { type: 'string', description: 'Filter by specific connection request UUID' },
-        status: { type: 'string', description: 'Filter conversations by status' },
-        limit: { type: 'number', description: 'Max conversations to return (default 25)' },
       },
       required: [],
     },
@@ -75,15 +71,42 @@ export async function executeDealExtraTool(
   args: Record<string, unknown>,
 ): Promise<ToolResult> {
   switch (toolName) {
-    case 'get_deal_comments': return getDealComments(supabase, args);
+    // Merged tool
+    case 'get_deal_communication': return getDealCommunication(supabase, args);
+    // Backward compatibility aliases
+    case 'get_deal_comments': return getDealCommunication(supabase, { ...args, source: 'comments' });
+    case 'get_deal_conversations': return getDealCommunication(supabase, { ...args, source: 'conversations' });
     case 'get_deal_referrals': return getDealReferrals(supabase, args);
-    case 'get_deal_conversations': return getDealConversations(supabase, args);
     case 'get_deal_scoring_adjustments': return getDealScoringAdjustments(supabase, args);
     default: return { error: `Unknown deal extra tool: ${toolName}` };
   }
 }
 
 // ---------- Implementations ----------
+
+async function getDealCommunication(
+  supabase: SupabaseClient,
+  args: Record<string, unknown>,
+): Promise<ToolResult> {
+  const source = (args.source as string) || 'all';
+  const results: Record<string, unknown> = { source_filter: source };
+  const errors: string[] = [];
+
+  if (source === 'all' || source === 'comments') {
+    const res = await getDealComments(supabase, args);
+    if (res.error) errors.push(`comments: ${res.error}`);
+    else results.comments = res.data;
+  }
+
+  if (source === 'all' || source === 'conversations') {
+    const res = await getDealConversations(supabase, args);
+    if (res.error) errors.push(`conversations: ${res.error}`);
+    else results.conversations = res.data;
+  }
+
+  if (errors.length > 0) results.errors = errors;
+  return { data: results };
+}
 
 async function getDealComments(
   supabase: SupabaseClient,

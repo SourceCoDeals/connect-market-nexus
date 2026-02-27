@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -28,6 +28,8 @@ import {
 import { ListChecks, Search, Phone, MoreHorizontal, Trash2, Users, Plus, Loader2 } from 'lucide-react';
 import { format, formatDistanceToNow } from 'date-fns';
 import { useContactLists, useDeleteContactList, useCreateContactList } from '@/hooks/admin/use-contact-lists';
+import { useAICommandCenterContext } from '@/components/ai-command-center/AICommandCenterProvider';
+import { useAIUIActionHandler } from '@/hooks/useAIUIActionHandler';
 
 const ContactListsPage = () => {
   const navigate = useNavigate();
@@ -37,6 +39,17 @@ const ContactListsPage = () => {
 
   const [createOpen, setCreateOpen] = useState(false);
   const [newListName, setNewListName] = useState('');
+
+  // Register AI Command Center context
+  const { setPageContext } = useAICommandCenterContext();
+  useEffect(() => {
+    setPageContext({ page: 'contact_lists', entity_type: 'contacts' });
+  }, [setPageContext]);
+
+  // Wire AI UI actions
+  useAIUIActionHandler({
+    table: 'contacts',
+  });
 
   // URL-persisted search (survives browser Back navigation)
   const [searchParams, setSearchParams] = useSearchParams();
