@@ -84,9 +84,8 @@ Deno.serve(async (req) => {
   // ── signature verification SKIPPED — accept all incoming requests ──
   const sig =
     req.headers.get('x-phoneburner-signature') || req.headers.get('X-Phoneburner-Signature');
-  const signatureValid = webhookSecret && sig
-    ? await verifySignature(rawBody, sig, webhookSecret)
-    : null;
+  const signatureValid =
+    webhookSecret && sig ? await verifySignature(rawBody, sig, webhookSecret) : null;
   console.log(`PhoneBurner webhook received, signature check: ${signatureValid}`);
 
   let payload: Record<string, unknown>;
@@ -134,8 +133,8 @@ Deno.serve(async (req) => {
   const sourceco_contact_id = (customFields.sourceco_id ||
     customFields.sourceco_contact_id ||
     null) as string | null;
-  const sourceco_entity_type = (customData.entity_type || null) as string | null;
-  const sourceco_pushed_by = (customData.pushed_by || null) as string | null;
+  const _sourceco_entity_type = (customData.entity_type || null) as string | null;
+  const _sourceco_pushed_by = (customData.pushed_by || null) as string | null;
 
   // ── log the raw webhook ──
   const { data: logEntry, error: logError } = await supabase
@@ -231,7 +230,17 @@ function extractContactInfo(payload: Record<string, unknown>) {
   const pushedBy = (customData.pushed_by || null) as string | null;
   const sessionSource = (customData.source || null) as string | null;
 
-  return { contactId, pbContactId, customFields, customData, userName, userEmail, entityType, pushedBy, sessionSource };
+  return {
+    contactId,
+    pbContactId,
+    customFields,
+    customData,
+    userName,
+    userEmail,
+    entityType,
+    pushedBy,
+    sessionSource,
+  };
 }
 
 async function processEvent(
@@ -349,7 +358,9 @@ async function processEvent(
       if (dispositionCode) {
         const { data: mapping } = await supabase
           .from('disposition_mappings')
-          .select('*')
+          .select(
+            'sourceco_contact_status, sourceco_contact_stage, mark_do_not_call, mark_phone_invalid',
+          )
           .eq('phoneburner_disposition_code', dispositionCode)
           .maybeSingle();
         if (mapping) {
