@@ -238,7 +238,7 @@ export function TrackerQueryChat({ trackerId, trackerName }: TrackerQueryChatPro
                         : "bg-muted"
                     )}
                   >
-                    <div className="text-sm whitespace-pre-wrap leading-relaxed">
+                    <div className="text-base whitespace-pre-wrap leading-relaxed" style={{ color: message.role === 'user' ? undefined : '#0E101A' }}>
                       {message.role === "assistant"
                         ? highlightBuyerNames(message.content)
                         : message.content
@@ -258,7 +258,7 @@ export function TrackerQueryChat({ trackerId, trackerName }: TrackerQueryChatPro
               {streamingContent && (
                 <div className="flex justify-start">
                   <div className="max-w-[85%] rounded-lg px-4 py-3 bg-muted">
-                    <div className="text-sm whitespace-pre-wrap leading-relaxed">
+                    <div className="text-base whitespace-pre-wrap leading-relaxed" style={{ color: '#0E101A' }}>
                       {highlightBuyerNames(streamingContent)}
                       <span className="inline-block w-2 h-4 bg-primary ml-1 animate-pulse" />
                     </div>
