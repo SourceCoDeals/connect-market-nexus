@@ -391,6 +391,8 @@ const ReMarketingDeals = () => {
         isArchiving={h.isArchiving}
         onDelete={h.handleBulkDelete}
         isDeleting={h.isDeleting}
+        adminProfiles={h.adminProfiles}
+        onBulkAssignOwner={h.handleBulkAssignOwner}
       />
 
       {/* Data Table */}

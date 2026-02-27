@@ -5,6 +5,7 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
 import {
   AlertDialog,
@@ -33,6 +34,7 @@ import {
   Send,
   Zap,
   ThumbsDown,
+  UserCog,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
@@ -92,6 +94,10 @@ interface DealBulkActionBarProps {
 
   /* ---- Active Deals only ---- */
   onSendToUniverse?: () => void;
+
+  /* ---- Bulk assign owner ---- */
+  adminProfiles?: Record<string, { id: string; first_name: string | null; last_name: string | null; email: string }> | null;
+  onBulkAssignOwner?: (dealIds: string[], ownerId: string | null) => void;
 }
 
 /* ------------------------------------------------------------------ */
@@ -125,6 +131,8 @@ export function DealBulkActionBar({
   onDelete,
   isDeleting,
   onSendToUniverse,
+  adminProfiles,
+  onBulkAssignOwner,
 }: DealBulkActionBarProps) {
   const [showArchiveDialog, setShowArchiveDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
@@ -296,6 +304,33 @@ export function DealBulkActionBar({
             <Star className={cn('h-4 w-4', allPriority ? '' : 'fill-amber-500')} />
             {allPriority ? 'Remove Priority' : 'Mark as Priority'}
           </Button>
+        )}
+
+        {/* Assign Owner */}
+        {onBulkAssignOwner && adminProfiles && (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button size="sm" variant="outline" className="gap-2">
+                <UserCog className="h-4 w-4" />
+                Assign Owner
+                <ChevronDown className="h-3 w-3" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent className="max-h-64 overflow-y-auto">
+              {Object.values(adminProfiles).map((profile) => (
+                <DropdownMenuItem
+                  key={profile.id}
+                  onClick={() => onBulkAssignOwner(dealIds, profile.id)}
+                >
+                  {profile.first_name} {profile.last_name}
+                </DropdownMenuItem>
+              ))}
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => onBulkAssignOwner(dealIds, null)}>
+                Unassign Owner
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         )}
 
         {/* Export CSV */}

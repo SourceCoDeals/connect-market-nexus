@@ -334,6 +334,49 @@ export function useDealsActions({
     [adminProfiles, toast, queryClient, setLocalOrder],
   );
 
+  const handleBulkAssignOwner = useCallback(
+    async (dealIds: string[], ownerId: string | null) => {
+      const ownerProfile = ownerId && adminProfiles ? adminProfiles[ownerId] : null;
+      // Optimistic update
+      setLocalOrder((prev) =>
+        prev.map((d) =>
+          dealIds.includes(d.id)
+            ? {
+                ...d,
+                deal_owner_id: ownerId,
+                deal_owner: ownerProfile
+                  ? {
+                      id: ownerProfile.id,
+                      first_name: ownerProfile.first_name,
+                      last_name: ownerProfile.last_name,
+                      email: ownerProfile.email,
+                    }
+                  : null,
+              }
+            : d,
+        ),
+      );
+      const { error } = await supabase
+        .from('listings')
+        .update({ deal_owner_id: ownerId })
+        .in('id', dealIds);
+      if (error) {
+        toast({ title: 'Error', description: error.message, variant: 'destructive' });
+        await queryClient.invalidateQueries({ queryKey: ['remarketing', 'deals'] });
+        return;
+      }
+      const ownerName = ownerProfile
+        ? `${ownerProfile.first_name || ''} ${ownerProfile.last_name || ''}`.trim()
+        : 'Unassigned';
+      toast({
+        title: 'Owner updated',
+        description: `${dealIds.length} deal(s) assigned to ${ownerName}`,
+      });
+      handleClearSelection();
+    },
+    [adminProfiles, toast, queryClient, setLocalOrder, handleClearSelection],
+  );
+
   const handleBulkArchive = useCallback(async () => {
     setIsArchiving(true);
     try {
@@ -534,6 +577,7 @@ export function useDealsActions({
     handleTogglePriority,
     handleToggleUniverseBuild,
     handleAssignOwner,
+    handleBulkAssignOwner,
     handleBulkArchive,
     handleBulkDelete,
     handleCalculateScores,
