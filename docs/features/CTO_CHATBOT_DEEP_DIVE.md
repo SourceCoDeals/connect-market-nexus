@@ -33,7 +33,7 @@ Prospeo email lookup:    prospeo-client.ts → api.prospeo.io/v1
 ```
 
 **Possible Failure Points:**
-- `APIFY_API_KEY` not set or expired in Supabase Edge Function secrets
+- `APIFY_API_TOKEN` not set or expired in Supabase Edge Function secrets
 - `PROSPEO_API_KEY` not set or expired
 - Apify actor IDs changed (`curious_coder/linkedin-company-employees-scraper` may have been renamed/removed)
 - Apify Google scraper actor (`apify/google-search-scraper`) deprecated or rate-limited

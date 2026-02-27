@@ -35,8 +35,8 @@ interface GoogleSearchItem {
 }
 
 async function googleSearch(query: string, maxResults: number = 10): Promise<GoogleSearchItem[]> {
-  const apiKey = Deno.env.get('APIFY_API_KEY');
-  if (!apiKey) throw new Error('APIFY_API_KEY not configured');
+  const apiKey = Deno.env.get('APIFY_API_TOKEN');
+  if (!apiKey) throw new Error('APIFY_API_TOKEN not configured');
 
   const runUrl = `${APIFY_API_BASE}/acts/${GOOGLE_SCRAPER_ACTOR}/runs?token=${apiKey}`;
 
@@ -138,7 +138,7 @@ function diagnoseGoogleSearchError(errMsg: string): {
   if (is404) {
     diagnosis = 'The Apify Google search actor may have been renamed or removed.';
   } else if (isAuth) {
-    diagnosis = 'The APIFY_API_KEY appears to be invalid or expired.';
+    diagnosis = 'The APIFY_API_TOKEN appears to be invalid or expired.';
   } else if (isRateLimit) {
     diagnosis = 'Apify rate limit hit. Try again in a few minutes.';
   } else {
@@ -174,24 +174,24 @@ describe('Google API Downtime Tests', () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     fetchSpy = vi.fn();
     globalThis.fetch = fetchSpy;
-    mockEnv['APIFY_API_KEY'] = 'test-apify-key-123';
+    mockEnv['APIFY_API_TOKEN'] = 'test-apify-key-123';
   });
 
   afterEach(() => {
     vi.useRealTimers();
     vi.restoreAllMocks();
-    delete mockEnv['APIFY_API_KEY'];
+    delete mockEnv['APIFY_API_TOKEN'];
   });
 
   // =========================================================================
   // Missing API key
   // =========================================================================
 
-  describe('Missing APIFY_API_KEY', () => {
+  describe('Missing APIFY_API_TOKEN', () => {
     it('throws immediately when API key is not configured', async () => {
-      delete mockEnv['APIFY_API_KEY'];
+      delete mockEnv['APIFY_API_TOKEN'];
 
-      await expect(googleSearch('test query')).rejects.toThrow('APIFY_API_KEY not configured');
+      await expect(googleSearch('test query')).rejects.toThrow('APIFY_API_TOKEN not configured');
       expect(fetchSpy).not.toHaveBeenCalled();
     });
   });

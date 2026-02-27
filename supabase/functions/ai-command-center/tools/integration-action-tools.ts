@@ -361,9 +361,9 @@ async function googleSearchCompanies(args: Record<string, unknown>): Promise<Too
 
     let diagnosis = '';
     if (is404) {
-      diagnosis = 'The Apify Google search actor may have been renamed or removed. The APIFY_API_KEY or actor ID may need updating in Supabase Edge Function secrets.';
+      diagnosis = 'The Apify Google search actor may have been renamed or removed. The APIFY_API_TOKEN or actor ID may need updating in Supabase Edge Function secrets.';
     } else if (isAuth) {
-      diagnosis = 'The APIFY_API_KEY appears to be invalid or expired. It needs to be updated in Supabase Edge Function secrets.';
+      diagnosis = 'The APIFY_API_TOKEN appears to be invalid or expired. It needs to be updated in Supabase Edge Function secrets.';
     } else if (isRateLimit) {
       diagnosis = 'Apify rate limit hit. Try again in a few minutes.';
     } else {
@@ -377,7 +377,7 @@ async function googleSearchCompanies(args: Record<string, unknown>): Promise<Too
         alternatives: [
           'Search the internal database using search_contacts, search_pe_contacts, or query_deals instead',
           'The user can search Google manually and paste a LinkedIn URL for enrichment via enrich_contact(mode: "linkedin")',
-          'Check APIFY_API_KEY in Supabase Edge Function secrets if this persists',
+          'Check APIFY_API_TOKEN in Supabase Edge Function secrets if this persists',
         ],
       },
     };
@@ -571,9 +571,9 @@ async function enrichBuyerContacts(
     const is404 = errMsg.includes('404');
     const isAuth = errMsg.includes('401') || errMsg.includes('403');
     if (is404) {
-      errors.push(`LinkedIn scrape failed (404): The Apify actor may have been renamed or removed. Check APIFY_API_KEY and actor ID in Supabase secrets.`);
+      errors.push(`LinkedIn scrape failed (404): The Apify actor may have been renamed or removed. Check APIFY_API_TOKEN and actor ID in Supabase secrets.`);
     } else if (isAuth) {
-      errors.push(`LinkedIn scrape failed (auth): APIFY_API_KEY may be invalid or expired. Update it in Supabase Edge Function secrets.`);
+      errors.push(`LinkedIn scrape failed (auth): APIFY_API_TOKEN may be invalid or expired. Update it in Supabase Edge Function secrets.`);
     } else {
       errors.push(`LinkedIn scrape failed: ${errMsg}`);
     }
@@ -818,7 +818,7 @@ async function enrichBuyerContacts(
           'Search internal contacts using search_contacts or search_pe_contacts',
           'If the user has a LinkedIn URL for someone at this company, use enrich_contact(mode: "linkedin") instead',
           'The user can paste a LinkedIn company URL and try again with the company_linkedin_url parameter',
-          'Check APIFY_API_KEY and PROSPEO_API_KEY in Supabase Edge Function secrets',
+          'Check APIFY_API_TOKEN and PROSPEO_API_KEY in Supabase Edge Function secrets',
         ],
       },
     };

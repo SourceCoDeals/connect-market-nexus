@@ -506,7 +506,7 @@ NDA sending is UI-only. AI cannot trigger document signing.
 
 ```
 FIREFLIES_API_KEY=
-APIFY_API_KEY=
+APIFY_API_TOKEN=
 FIRECRAWL_API_KEY=              # Optional
 PROSPEO_API_KEY=
 DOCUSEAL_WEBHOOK_SECRET=
