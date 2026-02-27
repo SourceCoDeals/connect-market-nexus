@@ -169,6 +169,7 @@ async function searchBuyerUniverses(
   if (error) return { error: error.message };
 
   let results = data || [];
+  const totalFromDb = results.length;
 
   if (args.search) {
     const term = (args.search as string).toLowerCase();
@@ -184,7 +185,26 @@ async function searchBuyerUniverses(
     );
   }
 
-  return { data: { universes: results, total: results.length } };
+  const filtersApplied: Record<string, unknown> = {};
+  if (args.search) filtersApplied.search = args.search;
+  if (args.archived) filtersApplied.archived = args.archived;
+
+  return {
+    data: {
+      universes: results,
+      total: results.length,
+      total_before_filtering: totalFromDb,
+      filters_applied: filtersApplied,
+      ...(results.length === 0
+        ? {
+            suggestion:
+              totalFromDb > 0
+                ? `${totalFromDb} universes exist but none match "${args.search}". Try a broader search term (e.g. "hvac" instead of "residential hvac") or omit the search to list all universes.`
+                : 'No buyer universes found. They may not have been created yet.',
+          }
+        : {}),
+    },
+  };
 }
 
 async function getUniverseDetails(

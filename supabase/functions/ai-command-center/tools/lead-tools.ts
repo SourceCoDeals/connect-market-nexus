@@ -123,6 +123,7 @@ async function searchInboundLeads(
   if (error) return { error: error.message };
 
   let results = data || [];
+  const totalFromDb = results.length;
 
   if (args.search) {
     const term = (args.search as string).toLowerCase();
@@ -146,13 +147,30 @@ async function searchInboundLeads(
     if (l.source) bySource[l.source] = (bySource[l.source] || 0) + 1;
   }
 
+  const filtersApplied: Record<string, unknown> = { lookback_days: days };
+  if (args.search) filtersApplied.search = args.search;
+  if (args.status) filtersApplied.status = args.status;
+  if (args.source) filtersApplied.source = args.source;
+  if (args.deal_id) filtersApplied.deal_id = args.deal_id;
+  if (args.converted !== undefined) filtersApplied.converted = args.converted;
+
   return {
     data: {
       leads: results,
       total: results.length,
+      total_before_filtering: totalFromDb,
       by_status: byStatus,
       by_source: bySource,
       converted: results.filter((l: any) => l.converted_to_request_id).length,
+      filters_applied: filtersApplied,
+      ...(results.length === 0
+        ? {
+            suggestion:
+              totalFromDb > 0
+                ? `${totalFromDb} inbound leads found in the last ${days} days but none matched your search "${args.search}". Try broader keywords or increase the lookback days.`
+                : `No inbound leads found in the last ${days} days. Try increasing the days parameter (e.g. days=90) or removing status/source filters.`,
+          }
+        : {}),
     },
   };
 }

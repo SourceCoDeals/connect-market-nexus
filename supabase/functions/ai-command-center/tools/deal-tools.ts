@@ -313,6 +313,7 @@ async function queryDeals(
   }
 
   let results = allData;
+  const totalFromDb = results.length;
 
   // Client-side state filter — supports both single state and multiple states
   // Checks address_state (full names like "Texas") and geographic_states (codes like "TX")
@@ -430,12 +431,33 @@ async function queryDeals(
     });
   }
 
+  const filtersApplied: Record<string, unknown> = {};
+  if (stateFilter.length > 0) filtersApplied.states = stateFilter;
+  if (args.industry) filtersApplied.industry = args.industry;
+  if (args.search) filtersApplied.search = args.search;
+  if (args.status) filtersApplied.status = args.status;
+  if (args.deal_source) filtersApplied.deal_source = args.deal_source;
+  if (args.is_priority) filtersApplied.is_priority = args.is_priority;
+  if (args.min_revenue) filtersApplied.min_revenue = args.min_revenue;
+  if (args.max_revenue) filtersApplied.max_revenue = args.max_revenue;
+  if (args.min_ebitda) filtersApplied.min_ebitda = args.min_ebitda;
+
   return {
     data: {
       deals: results,
       total: results.length,
+      total_before_filtering: totalFromDb,
       depth,
-      state_filter: stateFilter.length > 0 ? stateFilter : null,
+      filters_applied: filtersApplied,
+      limit_reached: results.length >= requestedLimit,
+      ...(results.length === 0
+        ? {
+            suggestion:
+              totalFromDb > 0
+                ? `${totalFromDb} deals fetched but none matched your filters (${Object.keys(filtersApplied).join(', ')}). Try broadening: remove the industry/state/search filter, or use get_pipeline_summary for aggregate counts.`
+                : 'No deals found with the current database-level filters. Try removing status/source filters, or use get_pipeline_summary to see what exists.',
+          }
+        : {}),
     },
   };
 }

@@ -242,8 +242,18 @@ async function dealComparison(
   if (!deals.length)
     return {
       data: {
+        analysis_type: 'deal_comparison',
         deals: [],
-        message: args.industry ? `No deals matching "${args.industry}" found` : 'No deals found',
+        total_deals: 0,
+        total_before_filtering: (rawDeals || []).length,
+        filters_applied: {
+          ...(args.industry ? { industry: args.industry } : {}),
+          ...(args.deal_ids ? { deal_ids: args.deal_ids } : {}),
+        },
+        suggestion: args.industry
+          ? `${(rawDeals || []).length} deals exist but none match industry "${args.industry}". Try a broader keyword or remove the industry filter.`
+          : 'No deals found. Check that deals exist in the pipeline with query_deals.',
+        source_tables: ['listings'],
       },
     };
 
@@ -300,6 +310,11 @@ async function dealComparison(
       analysis_type: 'deal_comparison',
       deals: dealStats,
       total_deals: dealStats.length,
+      total_before_filtering: (rawDeals || []).length,
+      filters_applied: {
+        ...(args.industry ? { industry: args.industry } : {}),
+        ...(args.deal_ids ? { deal_ids: args.deal_ids } : {}),
+      },
       source_tables: ['listings', 'remarketing_scores', 'outreach_records', 'deal_tasks'],
     },
   };
@@ -422,7 +437,18 @@ async function sourceAnalysis(
       period_days: days,
       sources: analysis,
       total_deals: filteredDeals.length,
-      ...(args.industry ? { industry_filter: args.industry } : {}),
+      total_before_filtering: (rawDeals || []).length,
+      filters_applied: {
+        period_days: days,
+        ...(args.industry ? { industry: args.industry } : {}),
+      },
+      ...(filteredDeals.length === 0
+        ? {
+            suggestion: args.industry
+              ? `${(rawDeals || []).length} deals found in the last ${days} days but none match industry "${args.industry}". Try a broader keyword or longer lookback period.`
+              : `No deals found in the last ${days} days. Try increasing the days parameter.`,
+          }
+        : {}),
       source_tables: ['listings'],
     },
   };

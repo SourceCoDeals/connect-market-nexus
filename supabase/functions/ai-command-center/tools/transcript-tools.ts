@@ -134,12 +134,34 @@ async function searchTranscriptsUnified(
     ((results.buyer_transcripts as any)?.total || 0) +
     ((results.fireflies as any)?.total || 0);
 
+  const totalBeforeFiltering =
+    ((results.call_transcripts as any)?.total_before_filtering || 0) +
+    ((results.buyer_transcripts as any)?.total_before_filtering || 0) +
+    ((results.fireflies as any)?.total_before_filtering || 0);
+
+  const filtersApplied: Record<string, unknown> = { source };
+  if (args.keywords) filtersApplied.keywords = args.keywords;
+  if (args.deal_id) filtersApplied.deal_id = args.deal_id;
+  if (args.buyer_id) filtersApplied.buyer_id = args.buyer_id;
+  if (args.ceo_detected !== undefined) filtersApplied.ceo_detected = args.ceo_detected;
+  if (args.call_type) filtersApplied.call_type = args.call_type;
+
   return {
     data: {
       source_filter: source,
       ...results,
       total_across_sources: totalCount,
+      total_before_filtering: totalBeforeFiltering,
+      filters_applied: filtersApplied,
       ...(errors.length > 0 ? { errors } : {}),
+      ...(totalCount === 0
+        ? {
+            suggestion:
+              totalBeforeFiltering > 0
+                ? `${totalBeforeFiltering} transcripts found but none matched keywords "${args.keywords}". Try broader keywords or remove the keyword filter.`
+                : 'No transcripts found. This deal/buyer may not have any recorded calls yet.',
+          }
+        : {}),
     },
   };
 }
@@ -168,6 +190,7 @@ async function searchCallTranscripts(
   if (error) return { error: error.message };
 
   let results = data || [];
+  const totalFromDb = results.length;
 
   // Client-side keyword search
   if (args.keywords) {
@@ -191,12 +214,14 @@ async function searchCallTranscripts(
     key_quotes: t.key_quotes,
     extracted_insights: t.extracted_insights,
     preview: t.transcript_text?.substring(0, 500) || null,
+    preview_truncated: (t.transcript_text?.length || 0) > 500,
   }));
 
   return {
     data: {
       transcripts: summaries,
       total: summaries.length,
+      total_before_filtering: totalFromDb,
     },
   };
 }
@@ -222,6 +247,7 @@ async function searchBuyerTranscripts(
   if (error) return { error: error.message };
 
   let results = data || [];
+  const totalFromDb = results.length;
 
   // Client-side keyword filter
   if (args.keywords) {
@@ -243,12 +269,14 @@ async function searchBuyerTranscripts(
     extracted_data: t.extracted_data,
     has_fireflies: !!t.fireflies_transcript_id,
     preview: t.transcript_text?.substring(0, 500) || null,
+    preview_truncated: (t.transcript_text?.length || 0) > 500,
   }));
 
   return {
     data: {
       transcripts: summaries,
       total: summaries.length,
+      total_before_filtering: totalFromDb,
     },
   };
 }
@@ -275,6 +303,7 @@ async function searchFireflies(
   if (error) return { error: error.message };
 
   let results = data || [];
+  const totalFromDb = results.length;
 
   // Client-side search (keywords param used as search term for fireflies)
   const searchTerm = args.keywords || args.search;
@@ -306,12 +335,14 @@ async function searchFireflies(
     extraction_status: t.extraction_status,
     has_fireflies: !!t.fireflies_meeting_id,
     preview: t.transcript_text?.substring(0, 500) || null,
+    preview_truncated: (t.transcript_text?.length || 0) > 500,
   }));
 
   return {
     data: {
       meetings: summaries,
       total: summaries.length,
+      total_before_filtering: totalFromDb,
     },
   };
 }

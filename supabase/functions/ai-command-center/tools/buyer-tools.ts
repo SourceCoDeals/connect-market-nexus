@@ -522,6 +522,9 @@ async function searchBuyers(
     });
   }
 
+  // Track count before client-side filtering for response quality
+  const totalBeforeFiltering = results.length;
+
   // CapTarget exclusion filter — remove PE/VC/investment banks when requested
   if (args.exclude_financial_buyers === true) {
     // deno-lint-ignore no-explicit-any
@@ -536,12 +539,37 @@ async function searchBuyers(
     });
   }
 
+  // Build filter echo and zero-result suggestion
+  const filtersApplied: Record<string, unknown> = {};
+  if (args.state) filtersApplied.state = args.state;
+  if (args.industry) filtersApplied.industry = args.industry;
+  if (args.search) filtersApplied.search = args.search;
+  if (args.services) filtersApplied.services = args.services;
+  if (args.buyer_type) filtersApplied.buyer_type = args.buyer_type;
+  if (args.min_revenue) filtersApplied.min_revenue = args.min_revenue;
+  if (args.max_revenue) filtersApplied.max_revenue = args.max_revenue;
+  if (args.has_fee_agreement !== undefined)
+    filtersApplied.has_fee_agreement = args.has_fee_agreement;
+  if (args.acquisition_appetite) filtersApplied.acquisition_appetite = args.acquisition_appetite;
+  if (args.universe_id) filtersApplied.universe_id = args.universe_id;
+  if (args.exclude_financial_buyers) filtersApplied.exclude_financial_buyers = true;
+
   return {
     data: {
       buyers: results,
       total: results.length,
+      total_before_filtering: totalBeforeFiltering,
       depth,
-      state_filter: args.state || null,
+      filters_applied: filtersApplied,
+      limit_reached: results.length >= limit,
+      ...(results.length === 0
+        ? {
+            suggestion:
+              totalBeforeFiltering > 0
+                ? `${totalBeforeFiltering} buyers were fetched but none matched your filters. Try broadening: remove the industry/search/state filter, or check search_lead_sources and search_valuation_leads for other data sources.`
+                : 'No buyers found in the database with the current filters. Try removing filters or checking other sources (search_lead_sources, search_valuation_leads, search_inbound_leads).',
+          }
+        : {}),
     },
   };
 }
@@ -639,7 +667,20 @@ async function getTopBuyersForDeal(
   if (scoresError) return { error: scoresError.message };
 
   if (!scores || scores.length === 0) {
-    return { data: { buyers: [], total: 0 } };
+    return {
+      data: {
+        buyers: [],
+        total: 0,
+        deal_id: dealId,
+        filters_applied: {
+          ...(args.status ? { status: args.status } : {}),
+          ...(args.min_score ? { min_score: args.min_score } : {}),
+          ...(args.state ? { state: args.state } : {}),
+        },
+        suggestion:
+          'No scored buyers found for this deal. The deal may not have a buyer universe built yet, or no buyers have been scored. Check with get_deal_details to confirm remarketing_status.',
+      },
+    };
   }
 
   // Fetch buyer details for the scored buyer IDs
@@ -675,8 +716,19 @@ async function getTopBuyersForDeal(
     data: {
       buyers: enriched,
       total: enriched.length,
+      total_scored: scores.length,
       deal_id: dealId,
-      state_filter: args.state || null,
+      filters_applied: {
+        ...(args.status ? { status: args.status } : {}),
+        ...(args.min_score ? { min_score: args.min_score } : {}),
+        ...(args.state ? { state: args.state } : {}),
+      },
+      limit_reached: scores.length >= limit,
+      ...(enriched.length === 0 && args.state
+        ? {
+            suggestion: `${scores.length} buyers scored for this deal but none match state "${args.state}". Try removing the state filter to see all scored buyers.`,
+          }
+        : {}),
     },
   };
 }
@@ -723,6 +775,8 @@ async function searchLeadSources(
     if (batch.length < batchSize) break;
     offset += batch.length;
   }
+
+  const totalFromDb = allData.length;
 
   // Client-side state filter — checks address_state and geographic_states
   if (args.state) {
@@ -773,12 +827,28 @@ async function searchLeadSources(
     industryBreakdown[ind] = (industryBreakdown[ind] || 0) + 1;
   }
 
+  const filtersApplied: Record<string, unknown> = { source_type: sourceType };
+  if (args.industry) filtersApplied.industry = args.industry;
+  if (args.state) filtersApplied.state = args.state;
+  if (args.status) filtersApplied.status = args.status;
+
   return {
     data: {
       deals: allData,
       total: allData.length,
+      total_before_filtering: totalFromDb,
       source_breakdown: sourceBreakdown,
       industry_breakdown: industryBreakdown,
+      filters_applied: filtersApplied,
+      limit_reached: allData.length >= requestedLimit,
+      ...(allData.length === 0
+        ? {
+            suggestion:
+              totalFromDb > 0
+                ? `${totalFromDb} leads found from ${sourceType} sources but none matched your industry/state filter. Try broadening: remove the "${args.industry || args.state}" filter.`
+                : `No leads found for source type "${sourceType}". Try source_type "all" to search across all sources, or use search_buyers for acquirers/PE firms.`,
+          }
+        : {}),
     },
   };
 }
@@ -811,6 +881,7 @@ async function searchValuationLeads(
   if (error) return { error: error.message };
 
   let leads = data || [];
+  const totalFromDb = leads.length;
 
   // Client-side free-text search across all relevant fields
   if (args.search) {
@@ -843,13 +914,30 @@ async function searchValuationLeads(
     byStatus[st] = (byStatus[st] || 0) + 1;
   }
 
+  const filtersApplied: Record<string, unknown> = { calculator_type: calcType };
+  if (args.search) filtersApplied.search = args.search;
+  if (args.state) filtersApplied.state = args.state;
+  if (args.status) filtersApplied.status = args.status;
+  if (args.min_revenue) filtersApplied.min_revenue = args.min_revenue;
+  if (args.pushed_to_deals !== undefined) filtersApplied.pushed_to_deals = args.pushed_to_deals;
+
   return {
     data: {
       leads,
       total: leads.length,
+      total_before_filtering: totalFromDb,
       by_calculator_type: byType,
       by_status: byStatus,
-      calculator_type_filter: calcType,
+      filters_applied: filtersApplied,
+      limit_reached: leads.length >= limit,
+      ...(leads.length === 0
+        ? {
+            suggestion:
+              totalFromDb > 0
+                ? `${totalFromDb} valuation leads exist for calculator_type "${calcType}" but none matched your search/state filter. Try broadening your search.`
+                : `No valuation leads found for calculator_type "${calcType}". Try calculator_type "all", or use search_lead_sources / search_buyers for other data sources.`,
+          }
+        : {}),
     },
   };
 }

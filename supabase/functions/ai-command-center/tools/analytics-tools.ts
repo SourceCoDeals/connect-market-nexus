@@ -154,6 +154,8 @@ async function getIndustryTrackers(
   if (error) return { error: error.message };
 
   let results = data || [];
+  const totalFromDb = results.length;
+
   if (args.search) {
     const term = (args.search as string).toLowerCase();
     results = results.filter(
@@ -166,12 +168,27 @@ async function getIndustryTrackers(
     );
   }
 
+  const filtersApplied: Record<string, unknown> = {};
+  if (args.search) filtersApplied.search = args.search;
+  if (args.universe_id) filtersApplied.universe_id = args.universe_id;
+  if (args.active_only !== false) filtersApplied.active_only = true;
+
   return {
     data: {
       trackers: results,
       total: results.length,
+      total_before_filtering: totalFromDb,
       total_deals: results.reduce((s: number, t: any) => s + (t.deal_count || 0), 0),
       total_buyers: results.reduce((s: number, t: any) => s + (t.buyer_count || 0), 0),
+      filters_applied: filtersApplied,
+      ...(results.length === 0
+        ? {
+            suggestion:
+              totalFromDb > 0
+                ? `${totalFromDb} industry trackers exist but none match "${args.search}". Try a broader keyword.`
+                : 'No industry trackers found. They may not have been set up yet.',
+          }
+        : {}),
     },
   };
 }

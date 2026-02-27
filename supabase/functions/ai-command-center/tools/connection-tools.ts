@@ -114,6 +114,8 @@ async function getConnectionRequests(
   if (error) return { error: error.message };
 
   let results = data || [];
+  const totalFromDb = results.length;
+
   if (args.search) {
     const term = (args.search as string).toLowerCase();
     results = results.filter(
@@ -139,14 +141,32 @@ async function getConnectionRequests(
     if (r.lead_fee_agreement_signed) fee_signed++;
   }
 
+  const filtersApplied: Record<string, unknown> = { lookback_days: days };
+  if (args.deal_id) filtersApplied.deal_id = args.deal_id;
+  if (args.status) filtersApplied.status = args.status;
+  if (args.conversation_state) filtersApplied.conversation_state = args.conversation_state;
+  if (args.has_nda) filtersApplied.has_nda = args.has_nda;
+  if (args.has_fee_agreement) filtersApplied.has_fee_agreement = args.has_fee_agreement;
+  if (args.search) filtersApplied.search = args.search;
+
   return {
     data: {
       requests: results,
       total: results.length,
+      total_before_filtering: totalFromDb,
       by_status: byStatus,
       by_conversation_state: byConvState,
       nda_signed,
       fee_agreement_signed: fee_signed,
+      filters_applied: filtersApplied,
+      ...(results.length === 0
+        ? {
+            suggestion:
+              totalFromDb > 0
+                ? `${totalFromDb} connection requests found in the last ${days} days but none matched your search "${args.search}". Try broader keywords.`
+                : `No connection requests found in the last ${days} days. Try increasing the days parameter or removing status/deal_id filters.`,
+          }
+        : {}),
     },
   };
 }
