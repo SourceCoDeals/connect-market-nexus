@@ -119,7 +119,9 @@ Deno.serve(async (req: Request) => {
       // Get the access record before revoking
       const { data: accessRecord } = await supabaseAdmin
         .from('data_room_access')
-        .select('*')
+        .select(
+          'id, deal_id, can_view_teaser, can_view_full_memo, can_view_data_room, remarketing_buyer_id, marketplace_user_id',
+        )
         .eq('id', access_id)
         .single();
 
