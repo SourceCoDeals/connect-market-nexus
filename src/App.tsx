@@ -67,6 +67,7 @@ const ReferralTrackerPage = lazyWithRetry(() => import('@/pages/ReferralTrackerP
 const DataRoomPortal = lazyWithRetry(() => import('@/pages/DataRoomPortal'));
 const TrackedDocumentViewer = lazyWithRetry(() => import('@/pages/TrackedDocumentViewer'));
 const AdminLogin = lazyWithRetry(() => import('@/pages/AdminLogin'));
+const DealLandingPage = lazyWithRetry(() => import('@/pages/DealLandingPage'));
 
 // Main app (buyer-facing)
 const Marketplace = lazyWithRetry(() => import('@/pages/Marketplace'));
@@ -172,7 +173,9 @@ const ReMarketingReferralPartners = lazyWithRetry(
 const ReMarketingReferralPartnerDetail = lazyWithRetry(
   () => import('@/pages/admin/remarketing/ReMarketingReferralPartnerDetail'),
 );
-const CapTargetDeals = lazyWithRetry(() => import('@/pages/admin/remarketing/CapTargetDeals/index'));
+const CapTargetDeals = lazyWithRetry(
+  () => import('@/pages/admin/remarketing/CapTargetDeals/index'),
+);
 const GPPartnerDeals = lazyWithRetry(() => import('@/pages/admin/remarketing/GPPartnerDeals'));
 const ValuationLeads = lazyWithRetry(() => import('@/pages/admin/remarketing/ValuationLeads'));
 const DailyTaskDashboard = lazyWithRetry(
@@ -264,6 +267,7 @@ function App() {
             <Route path="/referrals/:shareToken" element={<ReferralTrackerPage />} />
             <Route path="/dataroom/:accessToken" element={<DataRoomPortal />} />
             <Route path="/view/:linkToken" element={<TrackedDocumentViewer />} />
+            <Route path="/deals/:id" element={<DealLandingPage />} />
 
             {/* ─── BUYER-FACING (unchanged) ─── */}
             <Route
