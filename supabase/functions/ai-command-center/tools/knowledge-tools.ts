@@ -17,14 +17,14 @@ export const knowledgeTools: ClaudeTool[] = [
   {
     name: 'retrieve_knowledge',
     description:
-      'Retrieve detailed domain knowledge about SourceCo concepts, M&A terminology, scoring dimensions, field meanings, platform workflows, and more. Use when you need context about a specific topic that is not covered in your core instructions. Available topics include: field_meanings, scoring_dimensions, pass_categories, engagement_signals, call_dispositions, business_model, terminology, credibility_framework, business_signals, buyer_deal_matching, general_ma_knowledge, contact_discovery_flow, multi_step_workflows, error_recovery, buyer_onboarding, sourcing_process, outreach_tracking, tool_limitations, data_sources, platform_guide.',
+      'Retrieve detailed domain knowledge about SourceCo platform features, M&A terminology, scoring dimensions, field meanings, platform workflows, and more. ALWAYS use this tool when answering "how do I", "what is", "where do I find", or "explain" questions about the platform. Available topics include: field_meanings, scoring_dimensions, pass_categories, engagement_signals, call_dispositions, business_model, terminology, credibility_framework, business_signals, buyer_deal_matching, general_ma_knowledge, contact_discovery_flow, multi_step_workflows, error_recovery, buyer_onboarding, sourcing_process, outreach_tracking, tool_limitations, data_sources, platform_guide, admin_navigation, deal_pipeline_guide, task_system_guide, remarketing_guide, data_room_guide, marketplace_guide, agreements_guide, lead_sources_guide, integrations_guide, ai_command_center_guide, analytics_settings_guide.',
     input_schema: {
       type: 'object',
       properties: {
         topic: {
           type: 'string',
           description:
-            'The knowledge topic slug to retrieve. Use list_topics action to see all available topics, or pass a specific slug like "field_meanings", "scoring_dimensions", "buyer_deal_matching", etc.',
+            'The knowledge topic slug to retrieve. For platform usage questions, use: admin_navigation, deal_pipeline_guide, task_system_guide, remarketing_guide, data_room_guide, marketplace_guide, agreements_guide, lead_sources_guide, integrations_guide, ai_command_center_guide, analytics_settings_guide, platform_guide. For M&A domain knowledge, use: field_meanings, scoring_dimensions, buyer_deal_matching, terminology, general_ma_knowledge, etc.',
         },
         action: {
           type: 'string',

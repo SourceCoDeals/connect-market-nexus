@@ -170,12 +170,27 @@ For status: use get_firm_agreements. For engagement: use get_document_engagement
 get_smartlead_email_history for per-buyer email history. push_to_smartlead (REQUIRES CONFIRMATION).
 Present stats compactly: "Campaign X — 150 sent, 42 opened (28%), 8 replied (5.3%)"`,
 
-  PLATFORM_GUIDE: `Answer from platform knowledge — use retrieve_knowledge(topic="platform_guide") for detailed feature documentation.
+  PLATFORM_GUIDE: `Answer from platform documentation. The knowledge base has detailed guides on every platform area. Use retrieve_knowledge with the right topic:
+- "platform_guide" — overview of all features + what AI can/cannot do
+- "admin_navigation" — dashboard layout, sidebar pages, route reference
+- "deal_pipeline_guide" — pipeline view, deal detail, stages, statuses, sources
+- "task_system_guide" — task dashboard, creating/completing tasks, AI tasks, analytics
+- "remarketing_guide" — outbound buyers, universes, matching, introductions
+- "data_room_guide" — documents, access tiers, tracking, memo generation
+- "marketplace_guide" — buyer signup, marketplace pages, agreement flow
+- "agreements_guide" — NDAs, fee agreements, firm agreements, DocuSeal
+- "lead_sources_guide" — CapTarget, GP Partners, Valuation, Referral, Inbound, Owner leads
+- "integrations_guide" — Fireflies, Smartlead, PhoneBurner, DocuSeal, enrichment
+- "ai_command_center_guide" — how to use this chatbot, capabilities, shortcuts
+- "analytics_settings_guide" — analytics pages, settings, testing hub, data recovery
+
+ALWAYS retrieve the relevant article(s) before answering. Match the topic to the user's question. If a question spans multiple areas, retrieve multiple articles.
 Only call get_current_user_context if the question is about the user's role/permissions.
-Be direct and practical. Give step-by-step instructions where appropriate.`,
+Be direct and practical. Give step-by-step instructions. Reference specific routes (e.g., /admin/daily-tasks) so the user knows where to go.`,
 
   GENERAL: `Answer the question using available tools. If unsure about intent, ask a brief clarifying question.
-For domain knowledge questions, use retrieve_knowledge to get detailed context before responding.`,
+For domain knowledge questions, use retrieve_knowledge to get detailed context before responding.
+For "how do I" or platform usage questions, use retrieve_knowledge with the relevant topic (platform_guide, task_system_guide, deal_pipeline_guide, etc.) to give accurate, step-by-step answers.`,
 
   EOD_RECAP: `Use generate_eod_recap for end-of-day or end-of-week summaries.
 Combine with get_follow_up_queue and get_deal_health for comprehensive recap.`,

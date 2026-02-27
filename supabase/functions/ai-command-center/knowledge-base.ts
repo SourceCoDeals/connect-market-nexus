@@ -384,29 +384,349 @@ Flag stale outreach (no activity in 5+ business days) and overdue next actions.`
 
   platform_guide: {
     title: 'SourceCo Platform Features Guide',
-    content: `**Data Sources (where deals come from):**
-- CapTarget: external PE-backed acquisition targets from Google Sheets. Admin > M&A Intelligence > CapTarget Deals.
-- GP Partners: General Partner referral network. Admin > M&A Intelligence > GP Partner Deals.
-- Marketplace: public-facing deal marketplace. Admin > Marketplace.
-- Inbound Leads: website forms, referral partners, manual entry. Admin > Inbound Leads.
-- Valuation Leads: high-intent sellers via valuation calculator (HVAC, collision, auto shop, general). Admin > M&A Intelligence > Valuation Leads.
-- Active Deals (Pipeline): deals actively marketed. Admin > Active Deals.
+    content: `SourceCo is an M&A advisory platform with two sides: (1) a public Marketplace where registered buyers browse deals and request access, and (2) an Admin Platform where the deal team manages pipeline, outreach, scoring, enrichment, tasks, and AI tools.
 
-**Key Workflows:**
-- Building a Buyer Universe: deal page > "Build Universe" or ask AI. Curated buyers matched by industry, geography, size. Scored 0-100.
-- Sending an NDA: deal detail > select buyer > "Send NDA". Managed via firm_agreements. Track in firm_agreements and nda_logs.
-- Sending a Fee Agreement: similar to NDA. Required before full deal access.
-- Enriching Contacts: ask AI "find contacts at [company]" or Admin > Enrichment Queue.
-- Building a Calling List: ask AI "build a calling list of [industry] owners". Searches all sources, finds contacts, compiles list.
-- Pushing to PhoneBurner: after finding contacts with phones, "push to PhoneBurner". Creates dialing session.
-- Running Email Campaign: set up in SmartLead (Settings > SmartLead). Link to deals/universes. Track in Admin > Campaigns.
-- Scoring Buyers: automatic when added to universe. Geography, size, service, owner goals (all 0-100). Tiers: A (80+), B (60-79), C (40-59), D (<40).
-- Uploading Documents: deal > Data Room > Upload. Categories: anonymous teaser, full memo, data room. Access controlled per buyer.
-- Tracking Outreach: deal detail > Outreach tab. Shows contacted, NDA sent/signed, CIM sent, meeting scheduled, outcome. Overdue flagged.
+For detailed documentation on specific platform areas, use retrieve_knowledge with these topics:
+- "admin_navigation" — Admin dashboard layout, sidebar pages, quick reference of all routes
+- "deal_pipeline_guide" — Pipeline view, deal detail tabs, stages, statuses, sources
+- "task_system_guide" — Task dashboard, creating/completing/reassigning tasks, AI-extracted tasks, analytics
+- "remarketing_guide" — Outbound buyer work, universes, matching, introductions, outreach
+- "data_room_guide" — Documents, access tiers, audit logging, tracked links, memo distribution
+- "marketplace_guide" — Buyer signup, marketplace pages, agreement flow, buyer types
+- "agreements_guide" — NDAs, fee agreements, firm-level agreements, DocuSeal signing flow
+- "lead_sources_guide" — CapTarget, GP Partners, Valuation, Referral, Inbound, Owner leads
+- "integrations_guide" — Fireflies, Smartlead, PhoneBurner, DocuSeal, enrichment pipelines
+- "ai_command_center_guide" — How to use the AI chatbot, what it can do, keyboard shortcuts
+- "analytics_settings_guide" — Analytics pages, settings, testing hub, data recovery, CSV import
 
 **What AI Can Do:** Search/analyze deals across all sources. Find/enrich contacts via LinkedIn+Prospeo. Build calling lists. Search transcripts. Score/rank buyers. Track outreach, tasks, pipeline health. Push to PhoneBurner/Smartlead. Generate memos/emails. Navigate/filter/sort UI.
 
 **What AI Cannot Do:** Access external websites in real time (uses API integrations). Predict future market conditions. Access other companies' data. Send emails directly (drafts only). Delete data without confirmation.`,
+  },
+
+  admin_navigation: {
+    title: 'Admin Dashboard & Navigation Guide',
+    content: `When you log in as admin, you land on the Admin Dashboard (/admin). It has three switchable dashboards at the top:
+
+**Daily Tasks Dashboard (Default):** Your team's task list from standups and manual creation. KPI cards (Open, Completed, Overdue, Completion Rate), Awaiting Approval section (leadership), My Tasks/All Tasks toggle, three sections: Today & Overdue, Upcoming, Completed.
+
+**Remarketing Dashboard:** Overview of remarketing pipeline — activity metrics, deal activity, quick links to deals/buyers/universes.
+
+**Marketplace Dashboard:** 8 tabs — Analytics (revenue, signups, views), Overview (Stripe), My Deals, Listings, Users (approval/rejection), Activity feed, Data recovery (owner-only), Forms health.
+
+**Quick Navigation Reference:**
+| I want to... | Go to... |
+| See my tasks | /admin (default Daily Tasks view) |
+| View deal pipeline | /admin/deals/pipeline |
+| Find a remarketing buyer | /admin/buyers |
+| Find a marketplace buyer | /admin/marketplace/users |
+| Score buyers for a listing | /admin/remarketing/matching/:listingId |
+| Create a buyer universe | /admin/buyers/universes |
+| Review pending approvals | /admin/approvals |
+| Read buyer messages | /admin/marketplace/messages |
+| Check enrichment queue | /admin/settings/enrichment-queue |
+| Sync Fireflies transcripts | /admin/fireflies |
+| Manage team members | /admin/settings/team |
+| Track NDAs/fee agreements | /admin/documents |
+| View analytics | /admin/analytics |
+| Task analytics | /admin/daily-tasks/analytics |
+| Ask AI anything | Cmd+K / Ctrl+K from any admin page |
+
+**Top-right actions:** Settings dropdown (Manage Permissions, Export Data), Notifications bell, Refresh button.`,
+  },
+
+  deal_pipeline_guide: {
+    title: 'Deal Pipeline Guide',
+    content: `**Key Concept — Listings vs Deals:**
+- Listing = the sellside engagement (company being sold). In the "listings" table. Has title, revenue, EBITDA, location, categories, status.
+- Deal = a buyer-deal pipeline entry (one buyer pursuing one listing). In the "deals" table. Links buyer to listing with stage, status, priority, owner.
+- One listing can have many deals. One buyer can have many deals.
+
+**Pipeline View** (/admin/deals/pipeline): Visual board showing deals by stage. Drag deals between stages, click to open detail, filter by owner/status/priority/source. Stages: Lead → Qualified → NDA → CIM Sent → IOI → Management Presentation → LOI → Due Diligence → Closed.
+
+**Deal Detail** (/admin/deals/:dealId): Header with company name, stage, status, priority, owner. Tabs:
+- Overview: Financial cards, score stats, pipeline stats, transcripts, data completeness
+- Tasks: Tasks for this deal
+- Activity: Timeline of all actions
+- Notes: Internal team notes
+- Comments: @mention-enabled comments (triggers notifications)
+- Contacts: Contact persons associated with deal
+- Data Room: Documents for this deal
+
+**Deal Statuses:** active (live), won (closed successfully), lost (buyer passed), stalled (inactive but not dead).
+
+**Deal Sources:** marketplace (buyer requested), remarketing (outbound), manual (admin created), captarget, gp_partners, referral.
+
+**Auto-creation:** When admin approves a marketplace connection request, a deal is auto-created in pipeline.`,
+  },
+
+  task_system_guide: {
+    title: 'Task Management System Guide',
+    content: `**Route:** /admin/daily-tasks (also the default Admin Dashboard view)
+
+**Dashboard Layout:**
+- 4 KPI cards: Open Tasks, Completed, Overdue, Completion Rate
+- Awaiting Approval section (leadership only): AI-extracted tasks needing sign-off
+- My Tasks / All Tasks toggle
+- Three sections: Today & Overdue, Upcoming, Completed
+- Tasks grouped by person — each person gets a card
+
+**Creating Tasks:**
+1. From Dashboard: Click "+ Add Task" → fill in title, description, assignee, task type, due date, deal reference
+2. From Deal Detail: Go to deal's Tasks tab → "Add Task" → title, description, priority, assignee, due date
+
+**Task Types:** Contact Owner, Build Buyer Universe, Follow Up with Buyer, Send Materials, Update Pipeline, Schedule Call, Other
+
+**Working With Tasks:**
+- Complete: Click checkbox (5-second undo button appears)
+- View details: Click task card → popup with assignee, deal, due date, priority, pin, transcript link
+- Reassign: Three-dot menu → Reassign, or change assignee in detail popup
+- Edit: Three-dot menu → Edit Task
+- Pin (leadership): Three-dot menu → Pin to Rank (forces to top)
+- Delete: Three-dot menu → Delete → confirm
+
+**AI-Extracted Tasks (from Fireflies standups):**
+1. Platform pulls transcript from Fireflies
+2. AI extracts action items automatically
+3. Tasks appear as "Awaiting Approval"
+4. Leadership clicks "Approve" or "Approve All"
+5. Approved tasks join the normal task list
+
+**Priority Scoring:** Auto-scored by deal stage (later = higher), task type (Contact Owner = 90pts, Update Pipeline = 30pts), overdue status (boosted), pin status (overrides algorithm).
+
+**Task Analytics** (/admin/daily-tasks/analytics): Three tabs — Team Overview (completion rates, volume, leaderboard), Individual Scorecards, Meeting Quality (AI extraction effectiveness).
+
+**Coming in v3.1:** Unified task inbox, snooze, comments, templates, daily briefing emails, deal signals, buyer cadence tracking, team dashboards, bulk operations, escalation tiers. See docs/AI_TASK_SYSTEM_v3.1.md.`,
+  },
+
+  remarketing_guide: {
+    title: 'Remarketing System Guide',
+    content: `Remarketing is the outbound side — proactively finding and contacting buyers, not waiting for them via marketplace.
+
+**All Deals** (/admin/deals): Unified pipeline view. Filter by stage, owner, source, status. Sortable table.
+
+**All Buyers** (/admin/buyers): Complete remarketing buyer database. External profiles (PE firms, strategics, family offices) NOT marketplace users. Stored in remarketing_buyers. Each has: company name, HQ, targets (revenue/EBITDA/geography/services), buyer type, enrichment status, deal breakers, acquisition appetite.
+
+**Buyer Detail** (/admin/buyers/:id): Tabs — Overview, Contacts, Scores, Outreach, Transcripts, Deals.
+
+**Buyer Universes** (/admin/buyers/universes): Named buyer groups for targeted outreach on a deal. Example: "ABC Plumbing — Southeast PE Firms" with 50 matched buyers.
+How it works: Create universe with criteria (geography, revenue, industry, buyer type) → system queries matching buyers → review members → score against listing → send outreach.
+
+**Deal Matching** (/admin/remarketing/matching/:listingId): Scoring interface for a listing. See scored buyers ranked by composite score. Filter by tier (A/B/C/D/F), geography, type. Approve/pass/hide buyers.
+
+**Introductions** (/admin/remarketing/introductions/:listingId): Track which buyers were introduced, via which channel, their response.
+
+**Two Buyer Systems:**
+- Marketplace Buyers: in "profiles" table. Self-registered, have login, inbound.
+- Remarketing Buyers: in "remarketing_buyers" table. Imported/enriched, no login, outbound.
+A marketplace buyer can be linked to a remarketing buyer (same firm). Pipeline handles both via deals.buyer_id and deals.remarketing_buyer_id.`,
+  },
+
+  data_room_guide: {
+    title: 'Data Room & Documents Guide',
+    content: `Every listing has a data room — secure document repository by category:
+
+**Access Tiers:**
+| Category | Access Level | Content |
+| Anonymous Teaser | Lowest — after initial approval | 1-2 page anonymized summary |
+| Full Memo | Requires NDA | Detailed memo with company name, financials |
+| Data Room | Requires NDA + Fee Agreement | Full financials, tax returns, org charts |
+
+**Access Control** (data_room_access table per buyer per deal):
+- can_view_teaser, can_view_full_memo, can_view_data_room (boolean flags)
+- fee_agreement_override — skip fee agreement requirement
+- expires_at — optional access expiration
+
+**Document Tracking:** Every view/download logged in data_room_audit_log (IP address, timestamp, action).
+
+**Tracked Links:** Generate tracked document links via document_tracked_links. See exactly how many times a buyer opened a teaser.
+
+**Memo Distribution:** When memos emailed to buyers, logged in memo_distribution_log.
+
+**AI Memo Generation** (generate-lead-memo edge function):
+- Anonymous Teaser: anonymized 1-2 page overview, no identifying details
+- Full Memo: detailed with company name, financials, operations
+How to use: Listing/deal page → "Generate Memo" or ask AI → select type → AI generates → review/edit → publish.
+Versioned in lead_memo_versions. Can email (send-memo-email), share via tracked links, or add to data room.
+
+**How to grant access:** Deal detail → Data Room tab, or ask AI "grant data room access to [buyer] for [deal]". Requires confirmation.`,
+  },
+
+  marketplace_guide: {
+    title: 'Buyer Marketplace Guide',
+    content: `The marketplace is the public-facing side where registered buyers browse and request access to deals.
+
+**Buyer Signup Flow:**
+1. Visit marketplace → Sign Up
+2. Multi-step: email/password → personal info → company info → investment criteria (buyer type, industries, locations, revenue/EBITDA range)
+3. Email verification
+4. "Pending Approval" page until admin approves
+5. Approved buyers can browse active, non-internal listings
+
+**Buyer Types (self-selected):** Private Equity, Family Office, Search Fund, Corporate/Strategic, Independent Sponsor, Advisor, Individual, Business Owner. Affects scoring priority and listing visibility.
+
+**What Buyers See:**
+- Marketplace (/marketplace): Grid of active deals. Each card: anonymized title, description, state/region, revenue/EBITDA ranges, tags, "Request Access" button. Ordered by admin-controlled rank_order.
+- Listing Detail (/listing/:id): Full detail with hero, summary, blurred financials (until access), advisor card, similar listings, "Request Connection" button.
+- Saved Listings (/saved-listings): Bookmarked deals.
+- My Requests (/my-requests): Status of connection requests (pending/approved/rejected).
+- Profile (/profile): Personal info, company info, investment criteria, agreement status.
+- Data Room Portal (/data-room/:dealId): Secure document access after approval + agreements.
+
+**Agreement Flow:** Before accessing documents:
+1. Fee Agreement — success fee between SourceCo and buyer's firm (via DocuSeal)
+2. NDA — per-deal non-disclosure (via DocuSeal)
+Firm-level agreements cover all firm members automatically.
+
+**Admin Approval:** Admin reviews buyer in /admin/approvals → approve (auto-creates deal, generates teaser link) or decline (with reason category + optional email).`,
+  },
+
+  agreements_guide: {
+    title: 'Agreements — NDAs & Fee Agreements Guide',
+    content: `**Two Levels of Agreement Tracking:**
+1. Per-User: profiles.nda_signed / profiles.fee_agreement_signed — boolean flags
+2. Per-Firm: firm_agreements table — firm-level status, when firm signs all members are covered
+
+**Firm Agreement System** (/admin/firm-agreements):
+- Firm table showing fee agreement status, NDA status, member count
+- Expandable rows to see all firm members
+- Bulk actions: send to all firm members at once
+- Auto-linking: new users linked to firm via email domain matching
+
+**Agreement Flow:**
+1. Admin sends NDA or Fee Agreement via DocuSeal (e-signature)
+2. Buyer receives email with signing link
+3. Buyer signs digitally
+4. DocuSeal webhook → docuseal-webhook-handler processes it
+5. Status updated on profile + firm records
+6. Related connection requests and deals updated
+
+**Document Tracking Page** (/admin/documents):
+- Stats: Total sent, signed, awaiting, declined/expired
+- Sortable table with status badges
+- Search by company, contact, deal name
+- Filter by document type and status
+
+**How to send via AI:** "Send NDA to [buyer] for [deal]" or "Send fee agreement to [firm]". AI confirms before sending. Uses send_document tool.
+
+**Checking status:** "What's the NDA status for [buyer]?" or "Which buyers haven't signed fee agreements?" Uses get_firm_agreements and get_nda_logs tools.`,
+  },
+
+  lead_sources_guide: {
+    title: 'Lead Sources Guide',
+    content: `SourceCo ingests deal leads from multiple external sources:
+
+**CapTarget Deals** (/admin/remarketing/leads/captarget): External deal sourcing platform. Data syncs via Google Sheets (sync-captarget-sheet edge function). Shows sourced deals with sync status.
+
+**GP Partner Deals** (/admin/remarketing/leads/gp-partners): General Partner referral deals. Partners submit opportunities for team evaluation.
+
+**Valuation Leads** (/admin/remarketing/leads/valuation): "How much is my business worth?" inquiries. Business owners submit valuation requests → become potential leads. Scored via calculate-valuation-lead-score. Separate calculators for HVAC, collision, auto shop, general.
+
+**Referral Partners** (/admin/remarketing/leads/referrals): Referral partner program. Partners submit deals tracked in referral_submissions with partner profiles in referral_partners.
+
+**Owner Leads** (/admin/settings/owner-leads): "Sell with SourceCo" inquiry leads from the public website.
+
+**Inbound Leads:** External sources (Webflow forms, contact forms, API imports) stored in inbound_leads. Can be converted to connection requests.
+
+**How to search all sources with AI:** "Find all HVAC companies across our lead sources" or "Build a calling list of collision repair owners". AI searches CapTarget, GP Partners, Active Deals, Valuation Leads, Inbound Leads simultaneously and compiles results.
+
+**Converting leads to deals:** Use /admin/marketplace/requests → Inbound Leads tab. Map leads to listings, convert to connection requests, then approve to create pipeline deals.`,
+  },
+
+  integrations_guide: {
+    title: 'Integrations Guide — Fireflies, Smartlead, PhoneBurner, DocuSeal',
+    content: `**Fireflies.ai (Call Transcripts):**
+Route: /admin/fireflies
+- Sync All Transcripts: one-click sync of recent transcripts
+- Bulk Sync: full historical sync
+- Auto-pairs transcripts to buyers/deals via email/name matching
+- AI extracts key quotes, CEO detection, action items
+- Stored in: call_transcripts, deal_transcripts, buyer_transcripts
+- Task extraction: extract-standup-tasks processes standups → AI-suggested tasks
+
+**Smartlead (Email Campaigns):**
+Route: /admin/smartlead/settings (config), /admin/testing?tab=smartlead (test)
+- Multi-step email sequences (initial → follow-up 1 → follow-up 2)
+- Warm-up, deliverability, reply detection, bounce handling
+- Tracked in: smartlead_campaigns, smartlead_campaign_leads, smartlead_campaign_stats
+- Push via AI: "Push these buyers to Smartlead campaign"
+
+**PhoneBurner (Power Dialing):**
+Route: /admin/phoneburner/sessions
+- Power-dialing for phone outreach
+- Tracks sessions, call outcomes, syncs contact data
+- Push via AI: "Push these contacts to PhoneBurner"
+- Call history in contact_activities
+
+**DocuSeal (E-Signatures):**
+- NDAs and fee agreements sent for digital signing
+- Webhook integration for automatic status updates
+- Route: /admin/documents for tracking
+
+**Enrichment Pipeline:**
+Route: /admin/settings/enrichment-queue (3 tabs: Deal, Buyer, Scoring)
+- Firecrawl scrapes company websites
+- Apify scrapes LinkedIn for contacts
+- Claude/Gemini extracts structured data
+- Source priority: Transcript (100) > Notes (80) > Website (60)
+- Stats: Total, Pending, Processing, Completed, Failed. Auto-refreshes every 15s.`,
+  },
+
+  ai_command_center_guide: {
+    title: 'AI Command Center (Chatbot) Guide',
+    content: `**How to Open:** Cmd+K (Mac) or Ctrl+K (Windows/Linux), or click chat icon in top nav. Available from every admin page.
+
+**What It Can Do:**
+- Deal Intelligence: "What are my most active deals?", "Which deals are stalled?", "What happened on Acme Corp this week?"
+- Follow-Up: "Who do I need to follow up with?", "What are my overdue tasks?", "Which buyers haven't responded in 2 weeks?"
+- Buyer Intelligence: "Find PE firms that acquire plumbing in the Southeast", "Who are top-scored buyers for ABC Plumbing?"
+- Meeting Intelligence: "What did the CEO say about timing?", "Summarize my meeting with John from Summit Capital"
+- Content: "Prepare me for my meeting with Summit Capital", "Draft outreach to Tier A buyers", "Give me a weekly pipeline report"
+- Daily Briefing: "Give me my morning briefing", "What needs my attention today?"
+- Actions: "Create a task to follow up with [buyer]", "Update deal stage to NDA", "Grant data room access"
+- Contact Discovery: "Find contacts at [company]", "What's [person]'s email?", paste a LinkedIn URL for enrichment
+- Outreach: "Push these buyers to Smartlead", "Push contacts to PhoneBurner"
+
+**How It Works:**
+1. Intent classification via Claude Haiku (~500ms) — categorizes your query
+2. Tool selection — picks which DB queries and API calls to make
+3. Parallel execution — tools run simultaneously for speed
+4. Response generation — Claude Sonnet/Opus synthesizes results
+5. Streaming — response appears token-by-token
+
+**Context Awareness:** Knows what page you're on (deal detail, buyer list, etc.), your role, your team. Follow-up questions work. Chats are saved and auto-resumed.
+
+**ReMarketing Chat:** Separate chat panel on remarketing pages with deal/buyer-specific context. Floating panel, draggable, minimizable.
+
+**Limits:** 120 queries/hour per user.`,
+  },
+
+  analytics_settings_guide: {
+    title: 'Analytics, Settings & Admin Tools Guide',
+    content: `**Analytics Pages:**
+- Remarketing Analytics (/admin/analytics): Pipeline conversion, deal velocity, outreach effectiveness, score distribution, activity trends
+- Transcript Analytics (/admin/analytics/transcripts): Volume trends, topic extraction, meeting quality, CEO engagement
+- Marketplace Analytics (Admin Dashboard → Marketplace → Analytics): Active listings, signups, connection requests, page views
+- Task Analytics (/admin/daily-tasks/analytics): Team overview, individual scorecards, meeting quality
+
+**Settings Pages:**
+- Team Management (/admin/settings/team): View/invite team members, audit log
+- Security (/admin/settings/security): Security policies and access controls
+- Webhooks (/admin/settings/webhooks): External service callbacks
+- Smartlead Settings (/admin/settings/smartlead): API credentials, campaign config
+- PhoneBurner Settings (/admin/phoneburner/settings): Power dialing config
+- Remarketing Settings (/admin/settings/remarketing): Campaign parameters
+- Notifications (/admin/settings/notifications): In-app notification center (unread/earlier, click to navigate)
+
+**Testing Hub** (/admin/testing): 6 tabs — Enrichment Test (real APIs, uses credits), System Tests, DocuSeal Health, Smartlead, AI Chatbot QA, 30-Question QA.
+
+**Data Recovery** (/admin/settings/data-recovery, Owner-only): Profile data restoration from snapshots, orphaned user detection, soft-delete recovery.
+
+**Bulk CSV Import:** Upload buyer contacts with AI-assisted column mapping (map-csv-columns), data sanitization, 5-level duplicate detection, preview/validation.
+
+**Notification Types:** task_assigned, task_completed, deal stage changes, connection requests, buyer outreach responses, agreement changes, score changes, lead matches.
+
+**Email Notifications (via Brevo):** User approval/rejection, connection updates, NDA/fee requests, deal alerts, task assignments, password reset, verification, admin digest, owner inquiries, referral notifications.`,
   },
 };
 

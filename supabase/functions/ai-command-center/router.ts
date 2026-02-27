@@ -980,15 +980,17 @@ const BYPASS_RULES: Array<{
   {
     test: (q) =>
       (/\b(how (do|does|can|should) I|how to|what is|what are|what does|explain|help me|teach me|show me how|guide|tutorial|walkthrough|what can you do|what tools|capabilities)\b/i.test(q) &&
-        /\b(platform|sourceco|captarget|cap target|gp partner|go partner|marketplace|remarketing|universe|scoring|enrichment|data room|nda|fee agreement|phoneburner|phone burner|smartlead|smart lead|pipeline|outreach|chatbot|ai command|command center|this tool|this app|lead source|tracker|valuation|calling list|prospeo|apify|linkedin|memo|teaser|deal|buyer|contact)\b/i.test(q)) ||
+        /\b(platform|sourceco|captarget|cap target|gp partner|go partner|marketplace|remarketing|universe|scoring|enrichment|data room|nda|fee agreement|phoneburner|phone burner|smartlead|smart lead|pipeline|outreach|chatbot|ai command|command center|this tool|this app|lead source|tracker|valuation|calling list|prospeo|apify|linkedin|memo|teaser|deal|buyer|contact|task|tasks|daily tasks|approval|connection request|agreement|notification|message center|analytics|settings|data recovery|csv import|fireflies|transcript)\b/i.test(q)) ||
       /\b(what can (you|the (bot|chatbot|ai|assistant)) (do|help))\b/i.test(q) ||
       /\b(what can you help)\b/i.test(q) ||
       /\b(help|how does (this|it|the (platform|system|tool|chatbot|ai)) work)\b/i.test(q) ||
-      /\bhow does\b.*\b(work|function)\b/i.test(q),
+      /\bhow does\b.*\b(work|function)\b/i.test(q) ||
+      /\b(where (do|can|is|are)|where to)\b.*\b(find|see|view|check|look|go|access|get to|navigate)\b/i.test(q) ||
+      /\b(show me|walk me through|tell me about|explain)\b.*\b(platform|system|feature|tool|page|dashboard|admin|pipeline|task|buyer|deal|marketplace|remarketing|data room|scoring|enrichment|outreach|setting|agreement|notification|analytics|transcript|fireflies|smartlead|phoneburner)\b/i.test(q),
     result: {
       category: 'PLATFORM_GUIDE',
       tier: 'STANDARD',
-      tools: ['get_current_user_context'],
+      tools: ['retrieve_knowledge', 'get_current_user_context'],
       confidence: 0.95,
     },
   },
@@ -1047,7 +1049,7 @@ Categories:
 - DEAL_CONVERSION: Convert remarketing match to pipeline deal
 - SMARTLEAD_OUTREACH: Smartlead cold email campaigns, email outreach history, push contacts to email campaigns, campaign stats
 - INDUSTRY: Industry trackers, vertical scoring configs
-- PLATFORM_GUIDE: Questions about how to use the platform, what features do, how workflows work, what the chatbot can do
+- PLATFORM_GUIDE: Questions about how to use the platform, what features do, how workflows work, what the chatbot can do, "where do I find X", "how does X work", "explain the task system", "what is the data room", navigation questions, onboarding questions. The knowledge base has detailed guides on every platform area.
 - GENERAL: Other / unclear intent
 
 Available tools: query_deals, get_deal_details, get_deal_activities, get_deal_tasks, get_deal_documents, get_deal_memos, get_deal_communication, get_deal_scoring_adjustments, get_deal_referrals, get_pipeline_summary, search_buyers, get_buyer_profile, get_score_breakdown, get_top_buyers_for_deal, get_buyer_signals, get_buyer_history, search_lead_sources, search_valuation_leads, search_inbound_leads, get_referral_data, search_pe_contacts, get_firm_agreements, get_nda_logs, get_connection_requests, get_connection_messages, search_buyer_universes, get_universe_details, get_outreach_records, search_transcripts, get_meeting_action_items, get_outreach_status, get_analytics, get_enrichment_status, get_industry_trackers, get_current_user_context, create_deal_task, complete_deal_task, add_deal_note, log_deal_activity, update_deal_stage, grant_data_room_access, select_table_rows, apply_table_filter, sort_table_column, navigate_to_page, explain_buyer_score, semantic_transcript_search, get_follow_up_queue, get_call_history, search_contacts, get_stale_deals, get_document_engagement, enrich_contact, find_contact, push_to_phoneburner, push_to_smartlead, send_document, google_search_companies, save_contacts_to_crm, reassign_deal_task, convert_to_pipeline_deal, get_data_quality_report, detect_buyer_conflicts, get_deal_health, match_leads_to_deals, generate_eod_recap, get_smartlead_campaigns, get_smartlead_campaign_stats, get_smartlead_email_history, retrieve_knowledge
@@ -1062,7 +1064,7 @@ Rules:
 - Select 1-4 tools maximum
 - Prefer fewer tools when intent is clear
 - DEAL_STATUS is ONLY for questions about a specific deal's details, stage, or financials — NOT for contact lookups, content creation, platform guidance, or engagement queries
-- "How do I" / "what does X do" / "explain X" = PLATFORM_GUIDE, even if the topic mentions deals, buyers, scoring, etc.
+- "How do I" / "what does X do" / "explain X" / "where do I find X" / "tell me about the X feature" = PLATFORM_GUIDE, even if the topic mentions deals, buyers, scoring, etc. Always include retrieve_knowledge in tools for PLATFORM_GUIDE.
 - "Create a CIM" / "write a teaser" / "draft an email" = OUTREACH_DRAFT, not DEAL_STATUS
 - "Who is the contact for" / "find contacts at" = CONTACTS, not DEAL_STATUS
 - "Find [person]'s email" / "find [person] from [company] email" / "[person] email at [company]" = CONTACTS — always use search_contacts with search and company_name params
