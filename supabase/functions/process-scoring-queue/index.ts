@@ -232,7 +232,7 @@ Deno.serve(async (req) => {
             },
             body: JSON.stringify({ continuation: true, afterRateLimit: true }),
             signal: AbortSignal.timeout(30_000),
-          }).catch(() => {});
+          }).catch((err: unknown) => { console.warn('[process-scoring-queue] Continuation failed:', err); });
         }, Math.min(RATE_LIMIT_BACKOFF_MS, 30_000));
       } else {
         console.log(`${remaining} items still pending, triggering next batch...`);
@@ -245,7 +245,7 @@ Deno.serve(async (req) => {
           },
           body: JSON.stringify({ continuation: true }),
           signal: AbortSignal.timeout(30_000),
-        }).catch(() => {});
+        }).catch((err: unknown) => { console.warn('[process-scoring-queue] Continuation failed:', err); });
       }
     }
 

@@ -258,7 +258,7 @@ Deno.serve(async (req) => {
           if (enrichmentJobId) {
             Promise.resolve(supabase.rpc('update_enrichment_job_progress', {
               p_job_id: enrichmentJobId, p_rate_limited: true,
-            })).catch(() => {});
+            })).catch((err: unknown) => { console.warn('[buyer-enrichment-jobs] Progress update failed:', err); });
           }
           logEnrichmentEvent(supabase, {
             entityType: 'buyer', entityId: item.buyer_id, provider: 'gemini',
@@ -304,7 +304,7 @@ Deno.serve(async (req) => {
         if (enrichmentJobId) {
           Promise.resolve(supabase.rpc('update_enrichment_job_progress', {
             p_job_id: enrichmentJobId, p_succeeded_delta: 1, p_last_processed_id: item.buyer_id,
-          })).catch(() => {});
+          })).catch((err: unknown) => { console.warn('[buyer-enrichment-jobs] Progress update failed:', err); });
         }
         logEnrichmentEvent(supabase, {
           entityType: 'buyer', entityId: item.buyer_id, provider: 'pipeline',
@@ -340,7 +340,7 @@ Deno.serve(async (req) => {
           Promise.resolve(supabase.rpc('update_enrichment_job_progress', {
             p_job_id: enrichmentJobId, p_failed_delta: 1,
             p_last_processed_id: item.buyer_id, p_error_message: errorMsg,
-          })).catch(() => {});
+          })).catch((err: unknown) => { console.warn('[buyer-enrichment-jobs] Progress update failed:', err); });
         }
         logEnrichmentEvent(supabase, {
           entityType: 'buyer', entityId: item.buyer_id, provider: 'pipeline',
@@ -360,7 +360,7 @@ Deno.serve(async (req) => {
     // Complete enrichment job (non-blocking)
     if (enrichmentJobId) {
       const jobStatus = totalRateLimited > 0 ? 'paused' : totalFailed > 0 ? 'failed' : 'completed';
-      Promise.resolve(supabase.rpc('complete_enrichment_job', { p_job_id: enrichmentJobId, p_status: jobStatus })).catch(() => {});
+      Promise.resolve(supabase.rpc('complete_enrichment_job', { p_job_id: enrichmentJobId, p_status: jobStatus })).catch((err: unknown) => { console.warn('[buyer-enrichment-jobs] Progress update failed:', err); });
     }
 
     // If we processed some but queue isn't empty, trigger another invocation.
@@ -415,7 +415,7 @@ Deno.serve(async (req) => {
         }
         console.error('Self-continuation failed after 3 attempts — queue may stall. Items will recover on next manual trigger.');
       };
-      triggerContinuation().catch(() => {});
+      triggerContinuation().catch((err: unknown) => { console.warn('[process-buyer-enrichment-queue] Continuation trigger failed:', err); });
     }
 
     return new Response(

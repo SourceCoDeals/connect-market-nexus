@@ -91,7 +91,7 @@ serve(async (req) => {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({ continuation: true }),
-        }).catch(() => {});
+        }).catch((err: unknown) => { console.warn('[buyer-universe-queue] Continuation trigger failed:', err); });
         return new Response(
           JSON.stringify({ message: `Processed ${processed}, continuing in next invocation` }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },

@@ -397,7 +397,7 @@ serve(async (req) => {
             if (enrichmentJobId) {
               Promise.resolve(supabase.rpc('update_enrichment_job_progress', {
                 p_job_id: enrichmentJobId, p_succeeded_delta: 1, p_last_processed_id: item.listing_id,
-              })).catch(() => {});
+              })).catch((err: unknown) => { console.warn('[enrichment-jobs] Progress update failed:', err); });
             }
             // Enrichment event (non-blocking)
             logEnrichmentEvent(supabase, {
@@ -431,7 +431,7 @@ serve(async (req) => {
               Promise.resolve(supabase.rpc('update_enrichment_job_progress', {
                 p_job_id: enrichmentJobId, p_failed_delta: 1,
                 p_last_processed_id: item.listing_id, p_error_message: pipeline.error,
-              })).catch(() => {});
+              })).catch((err: unknown) => { console.warn('[enrichment-jobs] Progress update failed:', err); });
             }
             // Enrichment event (non-blocking)
             logEnrichmentEvent(supabase, {
@@ -490,23 +490,35 @@ serve(async (req) => {
     // Complete enrichment job (non-blocking)
     if (enrichmentJobId) {
       const jobStatus = circuitBroken ? 'paused' : results.failed > 0 ? 'failed' : 'completed';
-      Promise.resolve(supabase.rpc('complete_enrichment_job', { p_job_id: enrichmentJobId, p_status: jobStatus })).catch(() => {});
+      Promise.resolve(supabase.rpc('complete_enrichment_job', { p_job_id: enrichmentJobId, p_status: jobStatus })).catch((err: unknown) => { console.warn('[enrichment-jobs] Progress update failed:', err); });
       if (circuitBroken) {
         Promise.resolve(supabase.rpc('update_enrichment_job_progress', {
           p_job_id: enrichmentJobId, p_circuit_breaker: true,
-        })).catch(() => {});
+        })).catch((err: unknown) => { console.warn('[enrichment-jobs] Progress update failed:', err); });
       }
     }
 
     // Check if all items in the enrichment_queue are done (no more pending)
-    const { count: remainingPending } = await supabase
+    const { count: remainingPendingCount } = await supabase
       .from('enrichment_queue')
       .select('*', { count: 'exact', head: true })
-      .in('status', ['pending', 'processing']);
+      .eq('status', 'pending');
+
+    const { count: remainingProcessingCount } = await supabase
+      .from('enrichment_queue')
+      .select('*', { count: 'exact', head: true })
+      .eq('status', 'processing');
+
+    const remainingPending = (remainingPendingCount ?? 0) + (remainingProcessingCount ?? 0);
 
     if (remainingPending === 0) {
       await completeGlobalQueueOperation(supabase, 'deal_enrichment');
-    } else if ((remainingPending ?? 0) > 0) {
+    } else if (remainingPendingCount === 0 && (remainingProcessingCount ?? 0) > 0) {
+      // No pending items, but some still in 'processing' — likely stuck from a crashed invocation.
+      // Mark complete; stale recovery at the start of the next run will reset them if needed.
+      console.warn(`No pending items but ${remainingProcessingCount} items stuck in 'processing' — marking queue complete. Stale recovery will handle them on next invocation.`);
+      await completeGlobalQueueOperation(supabase, 'deal_enrichment');
+    } else if (remainingPending > 0) {
       // N06 FIX: Track continuation count to prevent infinite loops
       const continuationCount = (typeof body.continuationCount === 'number') ? body.continuationCount : 0;
 
@@ -548,7 +560,7 @@ serve(async (req) => {
           }
           console.error('Self-continuation failed after 3 attempts — queue may stall until next manual trigger.');
         };
-        triggerContinuation().catch(() => {});
+        triggerContinuation().catch((err: unknown) => { console.warn('[process-enrichment-queue] Continuation trigger failed:', err); });
       }
     }
 

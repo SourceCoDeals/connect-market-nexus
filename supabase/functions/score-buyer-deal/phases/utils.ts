@@ -57,8 +57,8 @@ export function saveScoreSnapshot(
     trigger_type: triggerType,
     scoring_version: 'v5',
   }) as unknown as Promise<{ error: { message: string } | null }>).then(({ error }) => {
-    if (error) console.warn('[score-snapshots] Failed to save snapshot:', error.message);
+    if (error) console.warn(`[score-snapshots] Failed to save snapshot for buyer=${score.buyer_id} listing=${score.listing_id}:`, error.message);
   }).catch((err: unknown) => {
-    console.warn('[score-snapshots] Snapshot error:', err);
+    console.warn(`[score-snapshots] Snapshot error for buyer=${score.buyer_id} listing=${score.listing_id}:`, err);
   });
 }

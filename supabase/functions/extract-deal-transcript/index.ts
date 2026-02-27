@@ -864,16 +864,17 @@ Return ONLY the JSON object. No markdown fences, no explanation.`;
           }
         }
 
-        // Mark transcript as applied ONLY if we actually updated the deal
-        // (older runs could mark applied even when listing updates were skipped)
-        if (dealUpdated) {
-          await supabase
-            .from('deal_transcripts')
-            .update({
-              applied_to_deal: true,
-              applied_at: new Date().toISOString(),
-            })
-            .eq('id', transcriptId);
+        // Mark transcript as applied once extraction succeeds, even if no fields changed
+        // (prevents re-extraction loops when all fields are already set from higher-priority sources)
+        await supabase
+          .from('deal_transcripts')
+          .update({
+            applied_to_deal: true,
+            applied_at: new Date().toISOString(),
+          })
+          .eq('id', transcriptId);
+        if (!dealUpdated) {
+          console.log(`Transcript ${transcriptId} extracted but no new fields applied (existing data has higher priority)`);
         }
       }
     }
