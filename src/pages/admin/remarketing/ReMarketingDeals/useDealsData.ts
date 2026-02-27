@@ -78,7 +78,7 @@ export function useDealsData() {
           `)
           .eq('remarketing_status', 'active')
           .or(
-            'deal_source.in.(marketplace,manual,referral,remarketing),' +
+            'deal_source.in.(marketplace,manual,referral,remarketing,salesforce_remarketing),' +
             'and(deal_source.in.(captarget,valuation_calculator,valuation_lead,gp_partners),pushed_to_all_deals.eq.true)'
           )
           .order('manual_rank_override', { ascending: true, nullsFirst: false })
