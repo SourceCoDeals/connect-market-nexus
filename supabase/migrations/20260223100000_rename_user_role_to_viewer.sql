@@ -84,13 +84,13 @@ BEGIN
   END IF;
 
   -- Upsert the role
-  INSERT INTO public.user_roles (user_id, role, assigned_by, reason)
+  INSERT INTO public.user_roles (user_id, role, granted_by, reason)
   VALUES (_target_user_id, _new_role, auth.uid(), _reason)
   ON CONFLICT (user_id)
   DO UPDATE SET
     role = EXCLUDED.role,
-    assigned_by = EXCLUDED.assigned_by,
-    assigned_at = now(),
+    granted_by = EXCLUDED.granted_by,
+    granted_at = now(),
     reason = EXCLUDED.reason;
 
   -- Log the change

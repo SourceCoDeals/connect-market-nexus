@@ -16,8 +16,8 @@ export interface UserRole {
   id: string;
   user_id: string;
   role: AppRole;
-  assigned_by: string | null;
-  assigned_at: string;
+  granted_by: string | null;
+  granted_at: string;
   reason: string | null;
 }
 
