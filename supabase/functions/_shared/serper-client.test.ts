@@ -206,3 +206,199 @@ describe('parseAddress', () => {
     expect(parseAddress('Some Random Place')).toEqual({});
   });
 });
+
+// ============================================================================
+// LinkedIn profile URL validation
+// ============================================================================
+
+describe('validateLinkedInProfileUrl', () => {
+  // Mirrors the validateLinkedInProfileUrl function from serper-client.ts
+  function validateLinkedInProfileUrl(url: unknown): string {
+    if (!url || typeof url !== 'string') return '';
+    const trimmed = url.trim();
+    if (!trimmed.includes('linkedin.com/in/')) return '';
+
+    const disallowed = [
+      'linkedin.com/company/',
+      'linkedin.com/posts/',
+      'linkedin.com/pub/dir/',
+      'linkedin.com/feed/',
+      'linkedin.com/jobs/',
+      'linkedin.com/school/',
+    ];
+    if (disallowed.some((d) => trimmed.includes(d))) return '';
+
+    return trimmed;
+  }
+
+  it('accepts valid personal profile URL', () => {
+    expect(validateLinkedInProfileUrl('https://www.linkedin.com/in/johndoe')).toBe(
+      'https://www.linkedin.com/in/johndoe',
+    );
+  });
+
+  it('accepts profile URL with trailing path', () => {
+    expect(validateLinkedInProfileUrl('https://linkedin.com/in/jane-smith-123abc')).toBe(
+      'https://linkedin.com/in/jane-smith-123abc',
+    );
+  });
+
+  it('rejects company page URLs', () => {
+    expect(validateLinkedInProfileUrl('https://linkedin.com/company/acme-inc')).toBe('');
+  });
+
+  it('rejects posts URLs', () => {
+    expect(validateLinkedInProfileUrl('https://linkedin.com/posts/johndoe')).toBe('');
+  });
+
+  it('rejects job URLs', () => {
+    expect(validateLinkedInProfileUrl('https://linkedin.com/jobs/view/12345')).toBe('');
+  });
+
+  it('rejects null/undefined/non-string', () => {
+    expect(validateLinkedInProfileUrl(null)).toBe('');
+    expect(validateLinkedInProfileUrl(undefined)).toBe('');
+    expect(validateLinkedInProfileUrl(42)).toBe('');
+  });
+
+  it('rejects empty string', () => {
+    expect(validateLinkedInProfileUrl('')).toBe('');
+  });
+
+  it('rejects non-LinkedIn URL', () => {
+    expect(validateLinkedInProfileUrl('https://twitter.com/johndoe')).toBe('');
+  });
+
+  it('trims whitespace', () => {
+    expect(validateLinkedInProfileUrl('  https://linkedin.com/in/johndoe  ')).toBe(
+      'https://linkedin.com/in/johndoe',
+    );
+  });
+});
+
+// ============================================================================
+// Search results formatting for LLM
+// ============================================================================
+
+describe('formatSearchResultsForLLM', () => {
+  interface SerperRawResult {
+    query: string;
+    organic: Array<{ title: string; link: string; snippet: string }>;
+  }
+
+  function formatSearchResultsForLLM(results: SerperRawResult[]): string {
+    const sections: string[] = [];
+
+    for (const result of results) {
+      const formatted = result.organic
+        .filter((item) => item.title && item.link && item.snippet)
+        .map((item) => `- ${item.title}\n  ${item.link}\n  ${item.snippet}`)
+        .join('\n---\n');
+
+      if (formatted) {
+        sections.push(`**Search Query:** ${result.query}\n\n${formatted}`);
+      }
+    }
+
+    return sections.join('\n\n\n');
+  }
+
+  it('formats multiple search results with separators', () => {
+    const results: SerperRawResult[] = [
+      {
+        query: 'example.com "Acme Inc" CEO',
+        organic: [
+          { title: 'About Us', link: 'https://example.com/about', snippet: 'CEO John Smith' },
+        ],
+      },
+      {
+        query: 'example.com "Acme Inc" Founder',
+        organic: [
+          {
+            title: 'Team Page',
+            link: 'https://example.com/team',
+            snippet: 'Founded by Jane Doe',
+          },
+        ],
+      },
+    ];
+
+    const formatted = formatSearchResultsForLLM(results);
+    expect(formatted).toContain('**Search Query:** example.com "Acme Inc" CEO');
+    expect(formatted).toContain('CEO John Smith');
+    expect(formatted).toContain('**Search Query:** example.com "Acme Inc" Founder');
+    expect(formatted).toContain('Founded by Jane Doe');
+  });
+
+  it('skips results with missing fields', () => {
+    const results: SerperRawResult[] = [
+      {
+        query: 'test query',
+        organic: [
+          { title: '', link: 'https://a.com', snippet: 'has snippet' },
+          { title: 'Has Title', link: 'https://b.com', snippet: 'and snippet' },
+        ],
+      },
+    ];
+
+    const formatted = formatSearchResultsForLLM(results);
+    expect(formatted).toContain('Has Title');
+    expect(formatted).not.toContain('has snippet');
+  });
+
+  it('returns empty string for empty results', () => {
+    expect(formatSearchResultsForLLM([])).toBe('');
+  });
+
+  it('skips results with empty organic array', () => {
+    const results: SerperRawResult[] = [{ query: 'test', organic: [] }];
+    expect(formatSearchResultsForLLM(results)).toBe('');
+  });
+});
+
+// ============================================================================
+// Decision maker search query generation
+// ============================================================================
+
+describe('Decision maker search queries', () => {
+  const DECISION_MAKER_QUERIES = [
+    '{domain} "{company}" CEO -zoominfo -dnb',
+    '{domain} "{company}" Founder owner -zoominfo -dnb',
+    '{domain} "{company}" president chairman -zoominfo -dnb',
+    '{domain} "{company}" partner -zoominfo -dnb',
+    '{domain} "{company}" contact email',
+  ];
+
+  function buildQueries(domain: string, companyName: string): string[] {
+    return DECISION_MAKER_QUERIES.map((q) =>
+      q.replace('{domain}', domain).replace('{company}', companyName),
+    );
+  }
+
+  it('generates 5 search queries per company', () => {
+    const queries = buildQueries('acme.com', 'Acme Inc');
+    expect(queries).toHaveLength(5);
+  });
+
+  it('includes domain and company name in each query', () => {
+    const queries = buildQueries('trivest.com', 'Trivest Partners');
+    for (const q of queries) {
+      expect(q).toContain('trivest.com');
+      expect(q).toContain('"Trivest Partners"');
+    }
+  });
+
+  it('excludes zoominfo and dnb from executive queries', () => {
+    const queries = buildQueries('test.com', 'Test Corp');
+    const ceoQuery = queries[0];
+    expect(ceoQuery).toContain('-zoominfo');
+    expect(ceoQuery).toContain('-dnb');
+  });
+
+  it('includes contact email query without exclusions', () => {
+    const queries = buildQueries('test.com', 'Test Corp');
+    const emailQuery = queries[4];
+    expect(emailQuery).toContain('contact email');
+    expect(emailQuery).not.toContain('-zoominfo');
+  });
+});

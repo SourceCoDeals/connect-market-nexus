@@ -1,7 +1,26 @@
+/**
+ * Find Buyer Contacts Edge Function
+ *
+ * Two-tier contact discovery:
+ *   Tier 1 (fast): Serper multi-query Google search → Gemini LLM extraction
+ *     - 5 parallel searches per domain targeting CEO, Founder, President, Partner, contact email
+ *     - LLM extracts names, titles, LinkedIn URLs, emails, phones from search snippets
+ *     - Completes in ~3-5s per company
+ *
+ *   Tier 2 (deep fallback): Firecrawl website scraping → Gemini AI extraction
+ *     - Maps team/leadership pages on company websites
+ *     - Scrapes and extracts contacts from page content
+ *     - Used when Serper finds fewer than 2 contacts
+ *
+ * Results are merged, deduplicated, and saved to remarketing_buyer_contacts.
+ */
+
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
 
 import { getCorsHeaders, corsPreflightResponse } from '../_shared/cors.ts';
+import { searchDecisionMakers, formatSearchResultsForLLM } from '../_shared/serper-client.ts';
+import { extractDecisionMakers } from '../_shared/decision-maker-extraction.ts';
 
 serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
@@ -13,16 +32,7 @@ serve(async (req) => {
   try {
     const { buyerId, peFirmWebsite, platformWebsite } = await req.json();
 
-    const FIRECRAWL_API_KEY = Deno.env.get('FIRECRAWL_API_KEY');
     const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY');
-
-    if (!FIRECRAWL_API_KEY) {
-      return new Response(JSON.stringify({ error: 'FIRECRAWL_API_KEY is not configured' }), {
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
-
     if (!GEMINI_API_KEY) {
       return new Response(JSON.stringify({ error: 'GEMINI_API_KEY is not configured' }), {
         status: 500,
@@ -37,7 +47,7 @@ serve(async (req) => {
     let websites: string[] = [];
     let buyer: any = null;
 
-    // Get buyer info if buyerId provided (use remarketing_buyers — the active schema)
+    // Get buyer info if buyerId provided
     if (buyerId) {
       const { data, error } = await supabase
         .from('remarketing_buyers')
@@ -67,97 +77,165 @@ serve(async (req) => {
     }
 
     const allContacts: any[] = [];
+    const companyName = buyer?.company_name || '';
 
-    for (const website of websites) {
-      try {
-        console.log(`[find-buyer-contacts] Processing: ${website}`);
+    // =========================================================================
+    // TIER 1: Serper multi-query search + LLM extraction (fast, ~3-5s)
+    // =========================================================================
+    const SERPER_API_KEY = Deno.env.get('SERPER_API_KEY');
+    if (SERPER_API_KEY) {
+      for (const website of websites) {
+        try {
+          const domain = extractDomain(website);
+          const name = companyName || domain.replace(/\.\w+$/, '');
 
-        // Step 1: Use Firecrawl Map API to find team pages
-        const mapResponse = await fetch('https://api.firecrawl.dev/v1/map', {
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${FIRECRAWL_API_KEY}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            url: website,
-            search: 'team leadership about people contact',
-            limit: 10,
-          }),
-          signal: AbortSignal.timeout(15000),
-        });
+          console.log(`[find-buyer-contacts] Tier 1 (Serper): searching for ${name} (${domain})`);
 
-        let teamPages: string[] = [];
-        if (mapResponse.ok) {
-          const mapResult = await mapResponse.json();
-          teamPages = mapResult.links || [];
-          console.log(`[find-buyer-contacts] Found ${teamPages.length} potential team pages`);
-        }
+          const searchResults = await searchDecisionMakers(domain, name);
+          const summary = formatSearchResultsForLLM(searchResults);
 
-        // Filter to likely team/about pages
-        const relevantPages = teamPages
-          .filter((url) =>
-            /team|leadership|about|people|staff|management|executives|partners/i.test(url),
-          )
-          .slice(0, 3);
+          if (summary.trim()) {
+            const contacts = await extractDecisionMakers(summary, domain, name);
+            console.log(
+              `[find-buyer-contacts] Tier 1: found ${contacts.length} contacts for ${domain}`,
+            );
 
-        // Add homepage if no team pages found
-        if (relevantPages.length === 0) {
-          relevantPages.push(website);
-        }
-
-        // Step 2: Scrape relevant pages
-        for (const pageUrl of relevantPages) {
-          try {
-            const scrapeResponse = await fetch('https://api.firecrawl.dev/v1/scrape', {
-              method: 'POST',
-              headers: {
-                Authorization: `Bearer ${FIRECRAWL_API_KEY}`,
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({
-                url: pageUrl,
-                formats: ['markdown'],
-                onlyMainContent: true,
-              }),
-              signal: AbortSignal.timeout(15000),
-            });
-
-            if (!scrapeResponse.ok) continue;
-
-            const scrapeResult = await scrapeResponse.json();
-            const pageContent = scrapeResult.data?.markdown || '';
-
-            if (pageContent.length < 100) continue;
-
-            // Step 3: Extract contacts using AI
-            const contacts = await extractContactsWithAI(pageContent, pageUrl, GEMINI_API_KEY);
-            allContacts.push(...contacts);
-          } catch (pageError) {
-            console.error(`[find-buyer-contacts] Error scraping ${pageUrl}:`, pageError);
+            // Convert to the standard contact format
+            for (const c of contacts) {
+              const fullName = `${c.first_name} ${c.last_name}`.trim();
+              if (fullName) {
+                allContacts.push({
+                  name: fullName,
+                  title: c.title,
+                  email: c.generic_email || null,
+                  linkedin_url: c.linkedin_url || null,
+                  role_category: categorizeRole(c.title),
+                  source_url: c.source_url,
+                  company_phone: c.company_phone,
+                  source: 'serper_search',
+                });
+              }
+              // Also track generic emails as separate entries
+              if (c.generic_email && !fullName) {
+                allContacts.push({
+                  name: c.generic_email,
+                  title: 'Generic Email',
+                  email: c.generic_email,
+                  linkedin_url: null,
+                  role_category: 'other',
+                  source_url: c.source_url,
+                  company_phone: c.company_phone,
+                  source: 'serper_search',
+                });
+              }
+            }
           }
+        } catch (err) {
+          console.error(`[find-buyer-contacts] Tier 1 error for ${website}:`, err);
         }
-      } catch (websiteError) {
-        console.error(`[find-buyer-contacts] Error processing ${website}:`, websiteError);
       }
     }
 
-    // Dedupe contacts by name
+    // =========================================================================
+    // TIER 2: Firecrawl website scraping fallback (deep, slower)
+    // Only runs if Tier 1 found fewer than 2 named contacts
+    // =========================================================================
+    const namedContacts = allContacts.filter((c) => c.name && c.title !== 'Generic Email');
+    const FIRECRAWL_API_KEY = Deno.env.get('FIRECRAWL_API_KEY');
+
+    if (namedContacts.length < 2 && FIRECRAWL_API_KEY) {
+      console.log(
+        `[find-buyer-contacts] Tier 2 (Firecrawl): only ${namedContacts.length} contacts from Serper, falling back to website scraping`,
+      );
+
+      for (const website of websites) {
+        try {
+          console.log(`[find-buyer-contacts] Tier 2: scraping ${website}`);
+
+          // Map team pages
+          const mapResponse = await fetch('https://api.firecrawl.dev/v1/map', {
+            method: 'POST',
+            headers: {
+              Authorization: `Bearer ${FIRECRAWL_API_KEY}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              url: website,
+              search: 'team leadership about people contact',
+              limit: 10,
+            }),
+            signal: AbortSignal.timeout(15000),
+          });
+
+          let teamPages: string[] = [];
+          if (mapResponse.ok) {
+            const mapResult = await mapResponse.json();
+            teamPages = mapResult.links || [];
+          }
+
+          const relevantPages = teamPages
+            .filter((url) =>
+              /team|leadership|about|people|staff|management|executives|partners/i.test(url),
+            )
+            .slice(0, 3);
+
+          if (relevantPages.length === 0) {
+            relevantPages.push(website);
+          }
+
+          // Scrape relevant pages
+          for (const pageUrl of relevantPages) {
+            try {
+              const scrapeResponse = await fetch('https://api.firecrawl.dev/v1/scrape', {
+                method: 'POST',
+                headers: {
+                  Authorization: `Bearer ${FIRECRAWL_API_KEY}`,
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                  url: pageUrl,
+                  formats: ['markdown'],
+                  onlyMainContent: true,
+                }),
+                signal: AbortSignal.timeout(15000),
+              });
+
+              if (!scrapeResponse.ok) continue;
+
+              const scrapeResult = await scrapeResponse.json();
+              const pageContent = scrapeResult.data?.markdown || '';
+
+              if (pageContent.length < 100) continue;
+
+              const contacts = await extractContactsWithAI(pageContent, pageUrl, GEMINI_API_KEY);
+              allContacts.push(...contacts);
+            } catch (pageError) {
+              console.error(`[find-buyer-contacts] Tier 2 error scraping ${pageUrl}:`, pageError);
+            }
+          }
+        } catch (websiteError) {
+          console.error(`[find-buyer-contacts] Tier 2 error processing ${website}:`, websiteError);
+        }
+      }
+    }
+
+    // =========================================================================
+    // Deduplicate and enrich missing LinkedIn URLs
+    // =========================================================================
     const uniqueContacts = dedupeContacts(allContacts);
 
-    // Enrich contacts missing linkedin_url with LinkedIn search via Serper
-    const SERPER_API_KEY = Deno.env.get('SERPER_API_KEY');
+    // Enrich contacts missing linkedin_url via Serper
     if (SERPER_API_KEY && uniqueContacts.length > 0) {
-      const companyName = buyer?.company_name || '';
-      const contactsNeedingLinkedIn = uniqueContacts.filter((c) => !c.linkedin_url && c.name);
+      const contactsNeedingLinkedIn = uniqueContacts.filter(
+        (c) => !c.linkedin_url && c.name && c.title !== 'Generic Email',
+      );
 
       if (contactsNeedingLinkedIn.length > 0) {
         console.log(
-          `[find-buyer-contacts] Looking up LinkedIn profiles for ${contactsNeedingLinkedIn.length} contacts`,
+          `[find-buyer-contacts] Looking up LinkedIn for ${contactsNeedingLinkedIn.length} contacts`,
         );
 
-        // Limit to 5 lookups to avoid excessive API usage
-        const lookupBatch = contactsNeedingLinkedIn.slice(0, 5);
+        const lookupBatch = contactsNeedingLinkedIn.slice(0, 8);
         await Promise.allSettled(
           lookupBatch.map(async (contact) => {
             try {
@@ -190,8 +268,9 @@ serve(async (req) => {
             email: contact.email,
             linkedin_url: contact.linkedin_url,
             role_category: contact.role_category,
-            source: 'ai_discovery',
+            source: contact.source || 'ai_discovery',
             source_url: contact.source_url,
+            company_phone: contact.company_phone || null,
             email_confidence: contact.email ? 'Guessed' : null,
           },
           {
@@ -220,6 +299,54 @@ serve(async (req) => {
   }
 });
 
+// =============================================================================
+// Helper functions
+// =============================================================================
+
+/**
+ * Extract domain from a URL (e.g., "https://www.example.com/about" → "example.com")
+ */
+function extractDomain(url: string): string {
+  try {
+    let normalized = url.trim();
+    if (!normalized.startsWith('http://') && !normalized.startsWith('https://')) {
+      normalized = 'https://' + normalized;
+    }
+    return new URL(normalized).hostname.replace(/^www\./, '');
+  } catch {
+    return url
+      .replace(/^https?:\/\//, '')
+      .replace(/^www\./, '')
+      .replace(/\/.*$/, '')
+      .trim();
+  }
+}
+
+/**
+ * Categorize a job title into role categories for the DB.
+ */
+function categorizeRole(title: string): 'deal_team' | 'executive' | 'operations' | 'other' {
+  const t = (title || '').toLowerCase();
+
+  // Executive
+  if (/\b(ceo|cfo|coo|cto|chief|president|chairman)\b/.test(t)) return 'executive';
+  if (/\b(founder|co-founder|owner|co-owner)\b/.test(t)) return 'executive';
+
+  // Deal team
+  if (/\b(partner|managing director|principal|director)\b/.test(t)) return 'deal_team';
+  if (/\b(vp|vice president|svp|evp)\b/.test(t)) return 'deal_team';
+  if (/\b(m&a|acquisitions|corporate development|business development)\b/.test(t))
+    return 'deal_team';
+
+  // Operations
+  if (/\b(general manager|operations|finance|controller|accounting)\b/.test(t)) return 'operations';
+
+  return 'other';
+}
+
+/**
+ * Extract contacts from page content using Gemini (Tier 2 fallback).
+ */
 async function extractContactsWithAI(
   content: string,
   sourceUrl: string,
@@ -276,11 +403,14 @@ Only include people with clear names and titles. Return empty array if no contac
     const result = await response.json();
     const responseContent = result.choices?.[0]?.message?.content || '';
 
-    // Parse JSON from response
     const jsonMatch = responseContent.match(/\[[\s\S]*\]/);
     if (jsonMatch) {
       const contacts = JSON.parse(jsonMatch[0]);
-      return contacts.map((c: any) => ({ ...c, source_url: sourceUrl }));
+      return contacts.map((c: any) => ({
+        ...c,
+        source_url: sourceUrl,
+        source: 'firecrawl_scrape',
+      }));
     }
 
     return [];
@@ -291,8 +421,7 @@ Only include people with clear names and titles. Return empty array if no contac
 }
 
 /**
- * Search for a person's LinkedIn profile URL using Serper (Google Search API).
- * Returns the first matching linkedin.com/in/ URL or null.
+ * Search for a person's LinkedIn profile URL using Serper.
  */
 async function searchLinkedInProfile(
   personName: string,
@@ -325,7 +454,6 @@ async function searchLinkedInProfile(
         !url.includes('/posts') &&
         !url.includes('/activity')
       ) {
-        // Normalize: https://www.linkedin.com/in/slug
         const match = url.match(/linkedin\.com\/in\/([^/?#]+)/);
         if (match) {
           return `https://www.linkedin.com/in/${match[1]}`;
@@ -339,20 +467,31 @@ async function searchLinkedInProfile(
   }
 }
 
+/**
+ * Deduplicate contacts by name, merging data from multiple sources.
+ */
 function dedupeContacts(contacts: any[]): any[] {
   const seen = new Map<string, any>();
 
   for (const contact of contacts) {
+    if (!contact.name) continue;
     const key = contact.name.toLowerCase().trim();
     if (!seen.has(key)) {
       seen.set(key, contact);
     } else {
-      // Merge additional data
+      // Merge additional data from duplicate into existing
       const existing = seen.get(key);
       if (!existing.email && contact.email) existing.email = contact.email;
       if (!existing.linkedin_url && contact.linkedin_url)
         existing.linkedin_url = contact.linkedin_url;
       if (!existing.title && contact.title) existing.title = contact.title;
+      if (!existing.company_phone && contact.company_phone)
+        existing.company_phone = contact.company_phone;
+      if (!existing.source_url && contact.source_url) existing.source_url = contact.source_url;
+      // Prefer longer/more specific title
+      if (contact.title && existing.title && contact.title.length > existing.title.length) {
+        existing.title = contact.title;
+      }
     }
   }
 
