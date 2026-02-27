@@ -324,17 +324,18 @@ export function useTranscriptActions({ dealId, transcripts, dealInfo }: UseTrans
       queryClient.invalidateQueries({ queryKey: ['remarketing', 'deal', dealId] });
       queryClient.invalidateQueries({ queryKey: ['remarketing', 'deal-transcripts', dealId] });
     } catch (error: any) {
-      // Enrich error — handled by toast/UI below
-      const errorMessage = error.message || '';
-      const isTimeout = errorMessage.includes('Failed to send') || errorMessage.includes('timeout') || errorMessage.includes('aborted') || errorMessage.includes('network');
-      if (isTimeout) {
+      const errorMessage = error?.message || String(error);
+      const isNetworkError = errorMessage.includes('Failed to send') || errorMessage.includes('Failed to fetch') || errorMessage.includes('timeout') || errorMessage.includes('aborted') || errorMessage.includes('network') || errorMessage.includes('FetchError');
+      if (isNetworkError) {
+        // Queue insert may have succeeded even if the worker trigger failed
         queryClient.invalidateQueries({ queryKey: ['remarketing', 'deal', dealId] });
         queryClient.invalidateQueries({ queryKey: ['remarketing', 'deal-transcripts', dealId] });
-        setEnrichmentResult({ success: false, error: 'The enrichment request timed out, but it may still be processing. Please refresh in a moment to check results.' });
+        toast.info('Deal queued for enrichment. Processing will start shortly.');
+        setEnrichmentPollingEnabled(true);
       } else {
         setEnrichmentResult({ success: false, error: errorMessage || 'Failed to enrich deal. Please try again.' });
+        setShowEnrichmentDialog(true);
       }
-      setShowEnrichmentDialog(true);
     } finally {
       setIsEnriching(false);
       setEnrichmentPhase(null);
