@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import { useAuth } from "@/context/AuthContext";
 import type { User } from "@/types";
 import { useMarketplace } from "@/hooks/use-marketplace";
-import { AlertCircle, FileText, MessageSquare, FolderOpen } from "lucide-react";
+import { AlertCircle, FileText, MessageSquare, FolderOpen, Activity, LayoutGrid } from "lucide-react";
 import {
   useUnreadBuyerMessageCounts,
 } from "@/hooks/use-connection-messages";
@@ -15,38 +15,18 @@ import { DealDetailsCard } from "@/components/deals/DealDetailsCard";
 import { DealMetricsCard } from "@/components/deals/DealMetricsCard";
 import { DealMessagesTab } from "@/components/deals/DealMessagesTab";
 import { DealDocumentsTab } from "@/components/deals/DealDocumentsTab";
-import { PendingSigningBanner } from "@/components/marketplace/PendingSigningBanner";
-import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
+import { DealActivityLog } from "@/components/deals/DealActivityLog";
+import { ActionHub } from "@/components/deals/ActionHub";
+import { DealPipelineCard } from "@/components/deals/DealPipelineCard";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useUserNotifications, useMarkRequestNotificationsAsRead, useMarkAllUserNotificationsAsRead } from "@/hooks/use-user-notifications";
 import { useSearchParams } from "react-router-dom";
 import { cn } from "@/lib/utils";
-import {
-  TechnologyIcon,
-  HealthcareIcon,
-  ManufacturingIcon,
-  FinanceIcon,
-  RetailIcon,
-  RealEstateIcon,
-  FoodBeverageIcon,
-  ProfessionalServicesIcon,
-  ConstructionIcon,
-  TransportationIcon,
-  EducationIcon,
-  HospitalityIcon,
-  EnergyIcon,
-  MediaIcon,
-  AutomotiveIcon,
-  AgricultureIcon,
-  TelecommunicationsIcon,
-  ConsumerGoodsIcon,
-  BusinessServicesIcon,
-  DefaultCategoryIcon,
-} from "@/components/icons/CategoryIcons";
+import { useBuyerNdaStatus } from "@/hooks/admin/use-docuseal";
 
 const MyRequests = () => {
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
   const { useUserConnectionRequests, useUpdateConnectionMessage } = useMarketplace();
   const { data: requests = [], isLoading, error } = useUserConnectionRequests();
   const updateMessage = useUpdateConnectionMessage();
@@ -58,6 +38,7 @@ const MyRequests = () => {
   const markRequestNotificationsAsRead = useMarkRequestNotificationsAsRead();
   const markAllNotificationsAsRead = useMarkAllUserNotificationsAsRead();
   const { data: unreadMsgCounts } = useUnreadBuyerMessageCounts();
+  const { data: ndaStatus } = useBuyerNdaStatus(!isAdmin ? user?.id : undefined);
 
   // Get/set inner tab for a specific deal
   const getInnerTab = (requestId: string) => innerTab[requestId] || "overview";
@@ -74,12 +55,12 @@ const MyRequests = () => {
         .select('*')
         .eq('id', user.id)
         .maybeSingle();
-      
+
       if (error) throw error;
       return data;
     },
     enabled: !!user?.id,
-    staleTime: 30_000, // 30 seconds — avoids aggressive refetch on every navigation
+    staleTime: 30_000,
     refetchOnWindowFocus: true,
     refetchOnMount: 'always',
   });
@@ -93,15 +74,22 @@ const MyRequests = () => {
     };
   }, [freshProfile, user]);
 
+  // Handle deal selection from URL or ActionHub
+  const handleSelectDeal = (dealId: string, tab?: string) => {
+    setSelectedDeal(dealId);
+    if (tab) {
+      setDealInnerTab(dealId, tab);
+    }
+  };
+
   // Set selected deal from URL parameter or default to first request
   useEffect(() => {
     if (requests && requests.length > 0) {
       const requestIdFromUrl = searchParams.get('request') || searchParams.get('deal');
       if (requestIdFromUrl && requests.find(r => r.id === requestIdFromUrl)) {
         setSelectedDeal(requestIdFromUrl);
-        // Also check for inner tab param (e.g., ?deal=xxx&tab=messages)
         const tabParam = searchParams.get('tab');
-        if (tabParam && ['overview', 'documents', 'messages'].includes(tabParam)) {
+        if (tabParam && ['overview', 'documents', 'messages', 'activity'].includes(tabParam)) {
           setDealInnerTab(requestIdFromUrl, tabParam);
         }
       } else if (!selectedDeal) {
@@ -115,71 +103,14 @@ const MyRequests = () => {
     markAllNotificationsAsRead.mutate();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Mark request-specific notifications as read when a deal tab is selected
+  // Mark request-specific notifications as read when a deal is selected
   useEffect(() => {
     if (selectedDeal) {
       markRequestNotificationsAsRead.mutate(selectedDeal);
     }
   }, [selectedDeal]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Helper function to get category icon
-  const getCategoryIcon = (category?: string) => {
-    if (!category) return DefaultCategoryIcon;
-    
-    const cat = category.toLowerCase();
-    
-    if (cat.includes('technology') || cat.includes('software')) return TechnologyIcon;
-    if (cat.includes('healthcare') || cat.includes('medical')) return HealthcareIcon;
-    if (cat.includes('manufacturing')) return ManufacturingIcon;
-    if (cat.includes('finance') || cat.includes('insurance')) return FinanceIcon;
-    if (cat.includes('retail') || cat.includes('e-commerce')) return RetailIcon;
-    if (cat.includes('real estate')) return RealEstateIcon;
-    if (cat.includes('food') || cat.includes('beverage')) return FoodBeverageIcon;
-    if (cat.includes('professional services')) return ProfessionalServicesIcon;
-    if (cat.includes('construction')) return ConstructionIcon;
-    if (cat.includes('transportation') || cat.includes('logistics')) return TransportationIcon;
-    if (cat.includes('education')) return EducationIcon;
-    if (cat.includes('hospitality') || cat.includes('tourism')) return HospitalityIcon;
-    if (cat.includes('energy') || cat.includes('utilities')) return EnergyIcon;
-    if (cat.includes('media') || cat.includes('entertainment')) return MediaIcon;
-    if (cat.includes('automotive')) return AutomotiveIcon;
-    if (cat.includes('agriculture')) return AgricultureIcon;
-    if (cat.includes('telecommunications')) return TelecommunicationsIcon;
-    if (cat.includes('consumer goods')) return ConsumerGoodsIcon;
-    if (cat.includes('business services')) return BusinessServicesIcon;
-    
-    return DefaultCategoryIcon;
-  };
-
-  // Helper function to get status color
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'approved': return 'bg-emerald-500';
-      case 'rejected': return 'bg-red-500';
-      default: return 'bg-[#8B6F47]'; // Warm brown to match "Under Review" badge
-    }
-  };
-
-  // Smart truncation based on screen size with better algorithm
-  const getTruncatedTitle = (title: string, isMobile: boolean = false) => {
-    const maxChars = isMobile ? 25 : 45;
-    
-    if (title.length <= maxChars) return title;
-    
-    // Split by common delimiters (space, dash, comma)
-    const parts = title.split(/[\s\-,]+/);
-    
-    // Take first 2-3 significant words
-    const wordLimit = isMobile ? 2 : 4;
-    const truncated = parts.slice(0, wordLimit).join(' ');
-    
-    // Ensure we don't exceed char limit
-    if (truncated.length > maxChars) {
-      return truncated.slice(0, maxChars - 3).trim() + '...';
-    }
-    
-    return truncated + '...';
-  };
+  const selectedRequest = requests.find(r => r.id === selectedDeal);
 
   if (error) {
     return (
@@ -194,26 +125,21 @@ const MyRequests = () => {
 
   if (isLoading) {
     return (
-      <div className="w-full bg-white min-h-screen">
-        {/* Header Skeleton */}
-        <div className="px-4 sm:px-8 pt-8 pb-6">
-          <Skeleton className="h-9 w-40" />
-          <Skeleton className="h-5 w-64 mt-2" />
+      <div className="w-full bg-[#FAFAF8] min-h-screen">
+        <div className="px-4 sm:px-8 pt-8 pb-6 max-w-7xl mx-auto">
+          <Skeleton className="h-9 w-48" />
+          <Skeleton className="h-5 w-72 mt-2" />
         </div>
-        
-        {/* Tabs Skeleton */}
-        <div className="border-b border-gray-200 px-4 sm:px-8">
-          <div className="flex gap-8 pb-3">
-            <Skeleton className="h-5 w-32" />
-            <Skeleton className="h-5 w-32" />
-          </div>
-        </div>
-        
-        {/* Content Skeleton */}
-        <div className="px-4 sm:px-8 py-8">
-          <div className="max-w-4xl mx-auto space-y-6">
-            <Skeleton className="h-48 w-full rounded-lg" />
-            <Skeleton className="h-32 w-full rounded-lg" />
+        <div className="px-4 sm:px-8 max-w-7xl mx-auto">
+          <Skeleton className="h-24 w-full rounded-xl mb-6" />
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="space-y-3">
+              <Skeleton className="h-32 w-full rounded-xl" />
+              <Skeleton className="h-32 w-full rounded-xl" />
+            </div>
+            <div className="lg:col-span-2">
+              <Skeleton className="h-96 w-full rounded-xl" />
+            </div>
           </div>
         </div>
       </div>
@@ -222,22 +148,20 @@ const MyRequests = () => {
 
   if (!requests || requests.length === 0) {
     return (
-      <div className="w-full bg-white min-h-screen">
-        {/* Header */}
-        <div className="px-4 sm:px-8 pt-8 pb-6">
-          <h1 className="text-3xl font-semibold text-gray-900 tracking-tight">My Deals</h1>
+      <div className="w-full bg-[#FAFAF8] min-h-screen">
+        <div className="px-4 sm:px-8 pt-8 pb-6 max-w-7xl mx-auto">
+          <h1 className="text-2xl font-semibold text-slate-900 tracking-tight">My Deals</h1>
+          <p className="text-sm text-slate-500 mt-1">Your deal pipeline at a glance</p>
         </div>
-        
-        {/* Empty State */}
         <div className="min-h-[50vh] flex items-center justify-center px-4">
           <div className="text-center space-y-4 max-w-sm">
             <div className="flex justify-center">
-              <div className="rounded-full bg-gray-100 p-3">
-                <FileText className="h-6 w-6 text-gray-400" />
+              <div className="rounded-full bg-slate-100 p-3">
+                <FileText className="h-6 w-6 text-slate-400" />
               </div>
             </div>
-            <h2 className="text-base font-semibold text-gray-900">No deals yet</h2>
-            <p className="text-sm text-gray-600 leading-6">
+            <h2 className="text-base font-semibold text-slate-900">No deals yet</h2>
+            <p className="text-sm text-slate-600 leading-6">
               You haven't submitted any connection requests yet. Browse the marketplace to find opportunities.
             </p>
           </div>
@@ -247,219 +171,249 @@ const MyRequests = () => {
   }
 
   return (
-    <div className="w-full bg-white min-h-screen">
-      {/* Page Header - Clean, no borders */}
-      <div className="px-4 sm:px-8 pt-8 pb-6 max-w-7xl mx-auto">
-        <h1 className="text-3xl font-semibold text-gray-900 tracking-tight">My Deals</h1>
-        <p className="text-sm text-gray-600 mt-1 max-w-md">
-          Track and manage your connection requests
-        </p>
-        <div className="mt-4">
-          <PendingSigningBanner />
+    <div className="w-full bg-[#FAFAF8] min-h-screen">
+      {/* ─── Page Header ─── */}
+      <div className="px-4 sm:px-8 pt-8 pb-4 max-w-7xl mx-auto">
+        <div className="flex items-center gap-3 mb-1">
+          <LayoutGrid className="h-5 w-5 text-slate-400" />
+          <h1 className="text-2xl font-semibold text-slate-900 tracking-tight">My Deals</h1>
+          <span className="inline-flex h-5 min-w-[20px] items-center justify-center rounded-full bg-slate-200 px-1.5 text-[10px] font-bold text-slate-600">
+            {requests.length}
+          </span>
         </div>
+        <p className="text-sm text-slate-500 ml-8">
+          Your deal pipeline at a glance
+        </p>
       </div>
 
-      {/* Tabs - Professional pill style with category icons and status */}
-      <Tabs 
-        value={selectedDeal || requests[0]?.id} 
-        onValueChange={setSelectedDeal}
-        className="w-full"
-      >
-        <div className="border-b border-slate-100 bg-white">
-          <div className="px-4 sm:px-8 max-w-7xl mx-auto py-3">
-            <ScrollArea className="w-full">
-              <TabsList className="inline-flex h-auto items-center justify-start bg-transparent p-0 gap-2">
-                {requests.map((request) => {
-                  const unreadForRequest = (unreadByRequest[request.id] || 0) + (unreadMsgCounts?.byRequest[request.id] || 0);
-                  const isActive = selectedDeal === request.id || (!selectedDeal && request.id === requests[0]?.id);
-                  const CategoryIcon = getCategoryIcon(request.listing?.category);
-                  
-                  return (
-                    <TabsTrigger 
-                      key={request.id} 
-                      value={request.id}
-                      className={cn(
-                        "inline-flex items-center gap-2 px-3.5 py-2 rounded-lg text-[13px] font-medium transition-all duration-200 shadow-none border-0 relative",
-                        isActive
-                          ? "bg-slate-900 text-white"
-                          : "bg-white text-slate-700 hover:bg-slate-50 hover:text-slate-900 border border-slate-200"
-                      )}
-                    >
-                      {/* Status indicator dot */}
-                      <div className={cn(
-                        "w-1.5 h-1.5 rounded-full shrink-0",
-                        getStatusColor(request.status)
-                      )} />
-                      
-                      {/* Category icon */}
-                      <CategoryIcon className={cn(
-                        "w-[14px] h-[14px] shrink-0",
-                        isActive ? "text-white" : "text-slate-500"
-                      )} />
-                      
-                      {/* Deal title */}
-                      <span className="truncate max-w-[180px]">
-                        {getTruncatedTitle(
-                          request.listing?.title || "Untitled", 
-                          isMobile
-                        )}
-                      </span>
-                      
-                      {/* Notification badge */}
-                      {unreadForRequest > 0 && (
-                        <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-red-600 px-1.5 text-[10px] font-bold text-white shadow-sm ring-2 ring-white">
-                          {unreadForRequest > 99 ? '99+' : unreadForRequest}
-                        </span>
-                      )}
-                    </TabsTrigger>
-                  );
-                })}
-              </TabsList>
-              <ScrollBar orientation="horizontal" className="h-2" />
-            </ScrollArea>
+      <div className="px-4 sm:px-8 pb-8 max-w-7xl mx-auto space-y-6">
+        {/* ─── Action Hub (aggregated pending actions) ─── */}
+        <ActionHub
+          requests={requests}
+          unreadByRequest={unreadByRequest}
+          unreadMsgCounts={unreadMsgCounts}
+          onSelectDeal={handleSelectDeal}
+        />
+
+        {/* ─── Main Layout: Deal Cards + Detail Panel ─── */}
+        <div className={cn(
+          "grid gap-6",
+          isMobile ? "grid-cols-1" : "grid-cols-1 lg:grid-cols-[340px_1fr]"
+        )}>
+          {/* ─── Left: Deal Cards ─── */}
+          <div className="space-y-3">
+            {requests.map((request) => {
+              const unreadForRequest = (unreadByRequest[request.id] || 0) + (unreadMsgCounts?.byRequest[request.id] || 0);
+
+              // Determine pending action text
+              let pendingAction: string | undefined;
+              if (request.status === 'pending') pendingAction = 'Under Review';
+
+              return (
+                <DealPipelineCard
+                  key={request.id}
+                  request={request}
+                  isSelected={selectedDeal === request.id}
+                  unreadCount={unreadForRequest}
+                  ndaSigned={ndaStatus?.ndaSigned}
+                  onSelect={() => handleSelectDeal(request.id)}
+                  pendingAction={pendingAction}
+                />
+              );
+            })}
           </div>
+
+          {/* ─── Right: Deal Detail Panel ─── */}
+          {selectedRequest && (
+            <div className="min-w-0">
+              <DetailPanel
+                request={selectedRequest}
+                innerTab={getInnerTab(selectedRequest.id)}
+                onInnerTabChange={(tab) => setDealInnerTab(selectedRequest.id, tab)}
+                unreadMsgCounts={unreadMsgCounts}
+                unreadDocsByDeal={unreadDocsByDeal}
+                updateMessage={updateMessage}
+                profileForCalc={profileForCalc}
+              />
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ─── Detail Panel Sub-Component ─────────────────────────────────────────
+interface DetailPanelProps {
+  request: import("@/types").ConnectionRequest;
+  innerTab: string;
+  onInnerTabChange: (tab: string) => void;
+  unreadMsgCounts?: { byRequest: Record<string, number> };
+  unreadDocsByDeal: Record<string, number>;
+  updateMessage: { mutateAsync: (args: { requestId: string; message: string }) => Promise<unknown> };
+  profileForCalc: User | null;
+}
+
+function DetailPanel({
+  request,
+  innerTab,
+  onInnerTabChange,
+  unreadMsgCounts,
+  unreadDocsByDeal,
+  updateMessage,
+  profileForCalc,
+}: DetailPanelProps) {
+  const requestStatus = request.status as "pending" | "approved" | "rejected" | "on_hold";
+  const msgUnread = unreadMsgCounts?.byRequest[request.id] || 0;
+  const docUnread = unreadDocsByDeal[request.listing_id] || 0;
+
+  return (
+    <div className="bg-white rounded-xl border border-slate-200 shadow-[0_1px_3px_0_rgba(0,0,0,0.04)] overflow-hidden">
+      {/* Detail Panel Header */}
+      <div className="px-5 py-4 border-b border-slate-100">
+        <h2 className="text-base font-semibold text-slate-900 truncate">
+          {request.listing?.title || 'Untitled'}
+        </h2>
+      </div>
+
+      {/* Inner Tabs */}
+      <Tabs value={innerTab} onValueChange={onInnerTabChange} className="w-full">
+        <div className="border-b border-slate-100 px-5">
+          <TabsList className="inline-flex h-auto items-center bg-transparent p-0 gap-0.5 w-full justify-start rounded-none">
+            <TabsTrigger
+              value="overview"
+              className={cn(
+                "px-3.5 py-2.5 text-sm font-medium rounded-none border-b-2 transition-colors",
+                innerTab === "overview"
+                  ? "border-slate-900 text-slate-900"
+                  : "border-transparent text-slate-500 hover:text-slate-700"
+              )}
+            >
+              Overview
+            </TabsTrigger>
+            <TabsTrigger
+              value="documents"
+              className={cn(
+                "px-3.5 py-2.5 text-sm font-medium rounded-none border-b-2 transition-colors flex items-center gap-1.5",
+                innerTab === "documents"
+                  ? "border-slate-900 text-slate-900"
+                  : "border-transparent text-slate-500 hover:text-slate-700"
+              )}
+            >
+              <FolderOpen className="h-3.5 w-3.5" />
+              Documents
+              {docUnread > 0 && (
+                <span className="flex h-4 min-w-[16px] items-center justify-center rounded-full bg-amber-500 px-1 text-[9px] font-bold text-white">
+                  {docUnread > 99 ? "99+" : docUnread}
+                </span>
+              )}
+            </TabsTrigger>
+            <TabsTrigger
+              value="messages"
+              className={cn(
+                "px-3.5 py-2.5 text-sm font-medium rounded-none border-b-2 transition-colors flex items-center gap-1.5",
+                innerTab === "messages"
+                  ? "border-slate-900 text-slate-900"
+                  : "border-transparent text-slate-500 hover:text-slate-700"
+              )}
+            >
+              <MessageSquare className="h-3.5 w-3.5" />
+              Messages
+              {msgUnread > 0 && (
+                <span className="flex h-4 min-w-[16px] items-center justify-center rounded-full bg-red-600 px-1 text-[9px] font-bold text-white">
+                  {msgUnread > 99 ? "99+" : msgUnread}
+                </span>
+              )}
+            </TabsTrigger>
+            <TabsTrigger
+              value="activity"
+              className={cn(
+                "px-3.5 py-2.5 text-sm font-medium rounded-none border-b-2 transition-colors flex items-center gap-1.5",
+                innerTab === "activity"
+                  ? "border-slate-900 text-slate-900"
+                  : "border-transparent text-slate-500 hover:text-slate-700"
+              )}
+            >
+              <Activity className="h-3.5 w-3.5" />
+              Activity Log
+            </TabsTrigger>
+          </TabsList>
         </div>
 
-        {/* Content - Clean layout */}
-        <div className="px-4 sm:px-8 py-8 max-w-7xl mx-auto">
-          {requests.map((request) => {
-            const requestStatus = request.status as "pending" | "approved" | "rejected" | "on_hold";
-            const currentInnerTab = getInnerTab(request.id);
-            const msgUnread = unreadMsgCounts?.byRequest[request.id] || 0;
-            const docUnread = unreadDocsByDeal[request.listing_id] || 0;
+        <div className="p-5">
+          {/* ─── Overview Tab ─── */}
+          <TabsContent value="overview" className="mt-0 space-y-6">
+            {/* Metrics Card */}
+            <DealMetricsCard
+              listing={{
+                id: request.listing_id,
+                title: request.listing?.title || "Untitled",
+                category: request.listing?.category,
+                location: request.listing?.location,
+                image_url: request.listing?.image_url,
+                revenue: request.listing?.revenue,
+                ebitda: request.listing?.ebitda,
+                full_time_employees: request.listing?.full_time_employees,
+                part_time_employees: request.listing?.part_time_employees,
+                acquisition_type: request.listing?.acquisition_type,
+              }}
+              status={request.status}
+            />
 
-            return (
-              <TabsContent
-                key={request.id}
-                value={request.id}
-                className="mt-0 focus-visible:outline-none focus-visible:ring-0"
-              >
-                <div className="max-w-4xl mx-auto">
-                  {/* Inner tabs: Overview / Documents / Messages */}
-                  <Tabs
-                    value={currentInnerTab}
-                    onValueChange={(tab) => setDealInnerTab(request.id, tab)}
-                    className="w-full"
-                  >
-                    <TabsList className="inline-flex h-auto items-center bg-transparent p-0 gap-1 mb-6 border-b border-slate-100 w-full justify-start rounded-none">
-                      <TabsTrigger
-                        value="overview"
-                        className={cn(
-                          "px-4 py-2.5 text-sm font-medium rounded-none border-b-2 transition-colors",
-                          currentInnerTab === "overview"
-                            ? "border-slate-900 text-slate-900"
-                            : "border-transparent text-slate-500 hover:text-slate-700"
-                        )}
-                      >
-                        Overview
-                      </TabsTrigger>
-                      <TabsTrigger
-                        value="documents"
-                        className={cn(
-                          "px-4 py-2.5 text-sm font-medium rounded-none border-b-2 transition-colors flex items-center gap-1.5",
-                          currentInnerTab === "documents"
-                            ? "border-slate-900 text-slate-900"
-                            : "border-transparent text-slate-500 hover:text-slate-700"
-                        )}
-                      >
-                        <FolderOpen className="h-3.5 w-3.5" />
-                        Documents
-                        {docUnread > 0 && (
-                          <span className="flex h-4 min-w-[16px] items-center justify-center rounded-full bg-amber-500 px-1 text-[9px] font-bold text-white">
-                            {docUnread > 99 ? "99+" : docUnread}
-                          </span>
-                        )}
-                      </TabsTrigger>
-                      <TabsTrigger
-                        value="messages"
-                        className={cn(
-                          "px-4 py-2.5 text-sm font-medium rounded-none border-b-2 transition-colors flex items-center gap-1.5",
-                          currentInnerTab === "messages"
-                            ? "border-slate-900 text-slate-900"
-                            : "border-transparent text-slate-500 hover:text-slate-700"
-                        )}
-                      >
-                        <MessageSquare className="h-3.5 w-3.5" />
-                        Messages
-                        {msgUnread > 0 && (
-                          <span className="flex h-4 min-w-[16px] items-center justify-center rounded-full bg-red-600 px-1 text-[9px] font-bold text-white">
-                            {msgUnread > 99 ? "99+" : msgUnread}
-                          </span>
-                        )}
-                      </TabsTrigger>
-                    </TabsList>
+            {/* Process Steps */}
+            <DealProcessSteps
+              requestStatus={request.status as "pending" | "approved" | "rejected"}
+              requestId={request.id}
+              userMessage={request.user_message}
+              onMessageUpdate={async (newMessage) => {
+                await updateMessage.mutateAsync({
+                  requestId: request.id,
+                  message: newMessage,
+                });
+              }}
+              isProfileComplete={getProfileCompletionDetails(profileForCalc).isComplete}
+              profileCompletionPercentage={getProfileCompletionDetails(profileForCalc).percentage}
+            />
 
-                    {/* ─── Overview Tab ─── */}
-                    <TabsContent value="overview" className="mt-0 space-y-6">
-                      {/* Metrics Card */}
-                      <DealMetricsCard
-                        listing={{
-                          id: request.listing_id,
-                          title: request.listing?.title || "Untitled",
-                          category: request.listing?.category,
-                          location: request.listing?.location,
-                          image_url: request.listing?.image_url,
-                          revenue: request.listing?.revenue,
-                          ebitda: request.listing?.ebitda,
-                          full_time_employees: request.listing?.full_time_employees,
-                          part_time_employees: request.listing?.part_time_employees,
-                          acquisition_type: request.listing?.acquisition_type,
-                        }}
-                        status={request.status}
-                      />
+            {/* Deal Details */}
+            <DealDetailsCard
+              listing={{
+                category: request.listing?.category,
+                location: request.listing?.location,
+                description: request.listing?.description,
+              }}
+              createdAt={request.created_at}
+            />
+          </TabsContent>
 
-                      {/* Process Steps */}
-                      <DealProcessSteps
-                        requestStatus={request.status as "pending" | "approved" | "rejected"}
-                        requestId={request.id}
-                        userMessage={request.user_message}
-                        onMessageUpdate={async (newMessage) => {
-                          await updateMessage.mutateAsync({
-                            requestId: request.id,
-                            message: newMessage,
-                          });
-                        }}
-                        isProfileComplete={getProfileCompletionDetails(profileForCalc).isComplete}
-                        profileCompletionPercentage={getProfileCompletionDetails(profileForCalc).percentage}
-                      />
+          {/* ─── Documents Tab ─── */}
+          <TabsContent value="documents" className="mt-0">
+            <DealDocumentsTab
+              requestId={request.id}
+              requestStatus={requestStatus}
+              dealId={request.listing_id}
+            />
+          </TabsContent>
 
+          {/* ─── Messages Tab (human-only) ─── */}
+          <TabsContent value="messages" className="mt-0">
+            <DealMessagesTab
+              requestId={request.id}
+              requestStatus={requestStatus}
+            />
+          </TabsContent>
 
-                      {/* Deal Details */}
-                      <DealDetailsCard
-                        listing={{
-                          category: request.listing?.category,
-                          location: request.listing?.location,
-                          description: request.listing?.description,
-                        }}
-                        createdAt={request.created_at}
-                      />
-                    </TabsContent>
-
-                    {/* ─── Documents Tab ─── */}
-                    <TabsContent value="documents" className="mt-0">
-                      <DealDocumentsTab
-                        requestId={request.id}
-                        requestStatus={requestStatus}
-                        dealId={request.listing_id}
-                      />
-                    </TabsContent>
-
-                    {/* ─── Messages Tab ─── */}
-                    <TabsContent value="messages" className="mt-0">
-                      <DealMessagesTab
-                        requestId={request.id}
-                        requestStatus={requestStatus}
-                      />
-                    </TabsContent>
-                  </Tabs>
-                </div>
-              </TabsContent>
-            );
-          })}
+          {/* ─── Activity Log Tab (system notifications) ─── */}
+          <TabsContent value="activity" className="mt-0">
+            <DealActivityLog
+              requestId={request.id}
+              requestStatus={requestStatus}
+            />
+          </TabsContent>
         </div>
       </Tabs>
     </div>
   );
-};
+}
 
 export default MyRequests;

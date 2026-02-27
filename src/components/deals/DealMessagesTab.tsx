@@ -15,7 +15,12 @@ interface DealMessagesTabProps {
 }
 
 export function DealMessagesTab({ requestId, requestStatus }: DealMessagesTabProps) {
-  const { data: messages = [], isLoading: messagesLoading } = useConnectionMessages(requestId);
+  const { data: allMessages = [], isLoading: messagesLoading } = useConnectionMessages(requestId);
+
+  // Filter out system/decision messages — those now live in the Activity Log tab
+  const messages = allMessages.filter(
+    (m) => m.message_type !== 'system' && m.message_type !== 'decision'
+  );
   const sendMsg = useSendMessage();
   const markRead = useMarkMessagesReadByBuyer();
   const [newMessage, setNewMessage] = useState("");
@@ -61,9 +66,9 @@ export function DealMessagesTab({ requestId, requestStatus }: DealMessagesTabPro
       <div className="px-5 py-3.5 border-b border-border/50 flex items-center gap-2">
         <MessageSquare className="h-4 w-4 text-muted-foreground" />
         <h3 className="text-sm font-semibold text-foreground">Messages</h3>
-        {messages.filter(m => m.message_type === "message").length > 0 && (
+        {messages.length > 0 && (
           <span className="text-xs text-muted-foreground">
-            {messages.filter(m => m.message_type === "message").length}
+            {messages.length}
           </span>
         )}
       </div>
@@ -98,11 +103,7 @@ export function DealMessagesTab({ requestId, requestStatus }: DealMessagesTabPro
             <div
               key={msg.id}
               className={`flex ${
-                msg.message_type === "decision" || msg.message_type === "system"
-                  ? "justify-center"
-                  : msg.sender_role === "buyer"
-                    ? "justify-end"
-                    : "justify-start"
+                msg.sender_role === "buyer" ? "justify-end" : "justify-start"
               }`}
             >
               <div
@@ -138,7 +139,8 @@ export function DealMessagesTab({ requestId, requestStatus }: DealMessagesTabPro
                   <span className="opacity-50 text-[10px] block mt-0.5">
                     {formatDistanceToNow(new Date(msg.created_at), { addSuffix: true })}
                   </span>
-                )}
+                </div>
+                <p className="leading-relaxed whitespace-pre-wrap">{msg.body}</p>
               </div>
             </div>
           ))
