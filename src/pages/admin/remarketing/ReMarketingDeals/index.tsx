@@ -308,7 +308,6 @@ const ReMarketingDeals = () => {
         {[
           { key: 'all', label: 'All' },
           { key: 'my_deals', label: 'My Deals' },
-          { key: 'salesforce', label: 'Salesforce' },
           { key: 'marketplace', label: 'Marketplace' },
           { key: 'marketplace_queue', label: 'Marketplace Queue' },
         ].map((tab) => (

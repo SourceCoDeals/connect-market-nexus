@@ -192,8 +192,7 @@ export function useDealsData() {
         else { const now = new Date(); const daysDiff = Math.floor((now.getTime() - createdAt.getTime()) / (1000*60*60*24)); if (dateFilter === "7d" && daysDiff > 7) return false; if (dateFilter === "30d" && daysDiff > 30) return false; if (dateFilter === "90d" && daysDiff > 90) return false; }
       }
       if (universeBuildFilter && !listing.universe_build_flagged) return false;
-      if (dealTab === "salesforce") { if ((listing as any).deal_source !== 'salesforce_remarketing') return false; }
-      else if (dealTab === "marketplace") { if (listing.is_internal_deal !== false || listing.status !== 'active') return false; }
+      if (dealTab === "marketplace") { if (listing.is_internal_deal !== false || listing.status !== 'active') return false; }
       else if (dealTab === "marketplace_queue") { if (!listing.pushed_to_marketplace) return false; }
       else if (dealTab === "internal") { if (listing.is_internal_deal === false) return false; }
       else if (dealTab === "pipeline") { if (!pipelineCounts?.[listing.id]) return false; }
