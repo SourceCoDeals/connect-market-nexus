@@ -1,7 +1,7 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
-import { getCorsHeaders, corsPreflightResponse } from "../_shared/cors.ts";
+import { getCorsHeaders, corsPreflightResponse } from '../_shared/cors.ts';
 
 interface WeightSuggestion {
   dimension: 'geography' | 'size' | 'service' | 'owner_goals';
@@ -24,44 +24,46 @@ interface PatternAnalysis {
 serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
 
-  if (req.method === "OPTIONS") {
+  if (req.method === 'OPTIONS') {
     return corsPreflightResponse(req);
   }
 
   try {
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
     const { universeId } = await req.json();
 
     if (!universeId) {
-      throw new Error("universeId is required");
+      throw new Error('universeId is required');
     }
 
     console.log(`Analyzing scoring patterns for universe: ${universeId}`);
 
     // Fetch universe configuration
     const { data: universe, error: universeError } = await supabase
-      .from("remarketing_buyer_universes")
-      .select("*")
-      .eq("id", universeId)
+      .from('remarketing_buyer_universes')
+      .select('id, geography_weight, size_weight, service_weight, owner_goals_weight')
+      .eq('id', universeId)
       .single();
 
     if (universeError || !universe) {
-      throw new Error("Universe not found");
+      throw new Error('Universe not found');
     }
 
     // Fetch learning history for this universe
     const { data: learningHistory, error: historyError } = await supabase
-      .from("buyer_learning_history")
-      .select("*")
-      .eq("universe_id", universeId)
-      .order("created_at", { ascending: false });
+      .from('buyer_learning_history')
+      .select(
+        'id, action, composite_score, geography_score, size_score, service_score, owner_goals_score, pass_category, created_at',
+      )
+      .eq('universe_id', universeId)
+      .order('created_at', { ascending: false });
 
     if (historyError) {
-      console.error("Failed to fetch learning history:", historyError);
-      throw new Error("Failed to fetch learning history");
+      console.error('Failed to fetch learning history:', historyError);
+      throw new Error('Failed to fetch learning history');
     }
 
     const history = learningHistory || [];
@@ -72,19 +74,21 @@ serve(async (req) => {
       return new Response(
         JSON.stringify({
           suggestions: [],
-          insights: ["Not enough decision data yet. Make at least 5 approval/pass decisions to see suggestions."],
+          insights: [
+            'Not enough decision data yet. Make at least 5 approval/pass decisions to see suggestions.',
+          ],
           approvalRateByTier: {},
           topPassReasons: [],
           totalDecisions: history.length,
           analysisDate: new Date().toISOString(),
         } as PatternAnalysis),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
       );
     }
 
     // Calculate statistics
-    const approved = history.filter(h => h.action === 'approved');
-    const passed = history.filter(h => h.action === 'passed');
+    const approved = history.filter((h) => h.action === 'approved');
+    const passed = history.filter((h) => h.action === 'passed');
     const approvalRate = history.length > 0 ? approved.length / history.length : 0;
 
     // Analyze score dimensions for approved vs passed
@@ -130,7 +134,7 @@ serve(async (req) => {
       else if (score >= 65) tier = 'B';
       else if (score >= 50) tier = 'C';
       else if (score >= 35) tier = 'D';
-      
+
       if (!tierCounts[tier]) {
         tierCounts[tier] = { approved: 0, total: 0 };
       }
@@ -142,9 +146,8 @@ serve(async (req) => {
 
     const approvalRateByTier: Record<string, number> = {};
     for (const [tier, counts] of Object.entries(tierCounts)) {
-      approvalRateByTier[tier] = counts.total > 0 
-        ? Math.round((counts.approved / counts.total) * 100) 
-        : 0;
+      approvalRateByTier[tier] =
+        counts.total > 0 ? Math.round((counts.approved / counts.total) * 100) : 0;
     }
 
     // Generate weight suggestions
@@ -159,8 +162,12 @@ serve(async (req) => {
     };
 
     // Analyze each dimension
-    const dimensions: Array<'geography' | 'size' | 'service' | 'owner_goals'> = 
-      ['geography', 'size', 'service', 'owner_goals'];
+    const dimensions: Array<'geography' | 'size' | 'service' | 'owner_goals'> = [
+      'geography',
+      'size',
+      'service',
+      'owner_goals',
+    ];
 
     for (const dim of dimensions) {
       const approvedAvg = avgApprovedScores[dim];
@@ -198,23 +205,33 @@ serve(async (req) => {
 
     // Generate insights
     if (approvalRate > 0.7) {
-      insights.push(`High approval rate (${Math.round(approvalRate * 100)}%) suggests scoring is well-calibrated or criteria may be too lenient.`);
+      insights.push(
+        `High approval rate (${Math.round(approvalRate * 100)}%) suggests scoring is well-calibrated or criteria may be too lenient.`,
+      );
     } else if (approvalRate < 0.3) {
-      insights.push(`Low approval rate (${Math.round(approvalRate * 100)}%) suggests scoring criteria may be too strict or buyer data quality is low.`);
+      insights.push(
+        `Low approval rate (${Math.round(approvalRate * 100)}%) suggests scoring criteria may be too strict or buyer data quality is low.`,
+      );
     }
 
     if (topPassReasons.length > 0 && topPassReasons[0].percentage > 40) {
-      insights.push(`${topPassReasons[0].category.replace(/_/g, ' ')} is the top pass reason (${topPassReasons[0].percentage}%). Consider adjusting ${topPassReasons[0].category} criteria.`);
+      insights.push(
+        `${topPassReasons[0].category.replace(/_/g, ' ')} is the top pass reason (${topPassReasons[0].percentage}%). Consider adjusting ${topPassReasons[0].category} criteria.`,
+      );
     }
 
     const tierAApproval = approvalRateByTier['A'] || 0;
     const tierBApproval = approvalRateByTier['B'] || 0;
     if (tierAApproval < 50 && tierBApproval > tierAApproval) {
-      insights.push(`Tier B buyers have higher approval rate than Tier A. Consider reviewing tier thresholds.`);
+      insights.push(
+        `Tier B buyers have higher approval rate than Tier A. Consider reviewing tier thresholds.`,
+      );
     }
 
     if (avgApprovedScores.composite < 70) {
-      insights.push(`Average approved score is ${Math.round(avgApprovedScores.composite)}. You may be approving lower-quality matches.`);
+      insights.push(
+        `Average approved score is ${Math.round(avgApprovedScores.composite)}. You may be approving lower-quality matches.`,
+      );
     }
 
     const analysis: PatternAnalysis = {
@@ -226,17 +243,18 @@ serve(async (req) => {
       analysisDate: new Date().toISOString(),
     };
 
-    console.log(`Analysis complete: ${suggestions.length} suggestions, ${insights.length} insights`);
-
-    return new Response(
-      JSON.stringify(analysis),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    console.log(
+      `Analysis complete: ${suggestions.length} suggestions, ${insights.length} insights`,
     );
+
+    return new Response(JSON.stringify(analysis), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
   } catch (error) {
-    console.error("Pattern analysis error:", error);
+    console.error('Pattern analysis error:', error);
     return new Response(
-      JSON.stringify({ error: error instanceof Error ? error.message : "Unknown error" }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      JSON.stringify({ error: error instanceof Error ? error.message : 'Unknown error' }),
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
     );
   }
 });
