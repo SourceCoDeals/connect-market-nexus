@@ -1,9 +1,9 @@
-import { useState, useEffect, useCallback } from "react";
-import { supabase } from "@/integrations/supabase/client";
-import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { useState, useEffect, useCallback } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+import { invokeWithTimeout } from '@/lib/invoke-with-timeout';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 import {
   Table,
   TableBody,
@@ -11,21 +11,21 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table";
+} from '@/components/ui/table';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+} from '@/components/ui/dropdown-menu';
 import {
   Dialog,
   DialogContent,
   DialogDescription,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
-import { useToast } from "@/hooks/use-toast";
+} from '@/components/ui/dialog';
+import { useToast } from '@/hooks/use-toast';
 import {
   Loader2,
   Plus,
@@ -35,9 +35,9 @@ import {
   Trash2,
   ExternalLink,
   FileText,
-} from "lucide-react";
-import { formatDistanceToNow } from "date-fns";
-import { AddTranscriptDialog } from "./AddTranscriptDialog";
+} from 'lucide-react';
+import { formatDistanceToNow } from 'date-fns';
+import { AddTranscriptDialog } from './AddTranscriptDialog';
 
 interface Transcript {
   id: string;
@@ -68,18 +68,20 @@ export function DealTranscriptsTab({ dealId }: DealTranscriptsTabProps) {
   const loadTranscripts = useCallback(async () => {
     try {
       const { data, error } = await supabase
-        .from("deal_transcripts")
-        .select("*")
-        .eq("listing_id", dealId)
-        .order("created_at", { ascending: false });
+        .from('deal_transcripts')
+        .select(
+          'id, listing_id, title, source, transcript_url, call_date, transcript_text, extracted_data, applied_to_deal, processed_at, created_at',
+        )
+        .eq('listing_id', dealId)
+        .order('created_at', { ascending: false });
 
       if (error) throw error;
       setTranscripts((data || []) as unknown as Transcript[]);
     } catch (error: any) {
       toast({
-        title: "Error loading transcripts",
+        title: 'Error loading transcripts',
         description: error.message,
-        variant: "destructive",
+        variant: 'destructive',
       });
     } finally {
       setIsLoading(false);
@@ -96,19 +98,16 @@ export function DealTranscriptsTab({ dealId }: DealTranscriptsTabProps) {
       // This prevents marking transcripts as "processed" when extraction actually fails
 
       // Call edge function to extract data (use extract-deal-transcript for deal_transcripts table)
-      const { error: functionError } = await invokeWithTimeout(
-        "extract-deal-transcript",
-        {
-          body: { transcriptId },
-          timeoutMs: 120_000,
-        }
-      );
+      const { error: functionError } = await invokeWithTimeout('extract-deal-transcript', {
+        body: { transcriptId },
+        timeoutMs: 120_000,
+      });
 
       if (functionError) throw functionError;
 
       toast({
-        title: "Processing complete",
-        description: "Transcript data has been extracted successfully",
+        title: 'Processing complete',
+        description: 'Transcript data has been extracted successfully',
       });
 
       // Reload transcripts to show updated processed_at status
@@ -117,36 +116,33 @@ export function DealTranscriptsTab({ dealId }: DealTranscriptsTabProps) {
       }, 1000);
     } catch (error: any) {
       toast({
-        title: "Error processing transcript",
+        title: 'Error processing transcript',
         description: error.message,
-        variant: "destructive",
+        variant: 'destructive',
       });
     }
   };
 
   const handleDeleteTranscript = async (transcriptId: string) => {
-    if (!confirm("Are you sure you want to delete this transcript?")) return;
+    if (!confirm('Are you sure you want to delete this transcript?')) return;
 
     try {
       // Use existing deal_transcripts table (unified migration not executed yet)
-      const { error } = await supabase
-        .from("deal_transcripts")
-        .delete()
-        .eq("id", transcriptId);
+      const { error } = await supabase.from('deal_transcripts').delete().eq('id', transcriptId);
 
       if (error) throw error;
 
       toast({
-        title: "Transcript deleted",
-        description: "The transcript has been deleted successfully",
+        title: 'Transcript deleted',
+        description: 'The transcript has been deleted successfully',
       });
 
       loadTranscripts();
     } catch (error: any) {
       toast({
-        title: "Error deleting transcript",
+        title: 'Error deleting transcript',
         description: error.message,
-        variant: "destructive",
+        variant: 'destructive',
       });
     }
   };
@@ -198,11 +194,7 @@ export function DealTranscriptsTab({ dealId }: DealTranscriptsTabProps) {
             <div className="text-center py-12 text-muted-foreground">
               <FileText className="w-12 h-12 mx-auto mb-4 opacity-50" />
               <p>No transcripts added yet</p>
-              <Button
-                variant="outline"
-                className="mt-4"
-                onClick={() => setIsAddDialogOpen(true)}
-              >
+              <Button variant="outline" className="mt-4" onClick={() => setIsAddDialogOpen(true)}>
                 <Plus className="w-4 h-4 mr-2" />
                 Add Your First Transcript
               </Button>
@@ -224,7 +216,7 @@ export function DealTranscriptsTab({ dealId }: DealTranscriptsTabProps) {
                   <TableRow key={transcript.id}>
                     <TableCell>
                       <div>
-                        <div className="font-medium">{transcript.title || "Untitled"}</div>
+                        <div className="font-medium">{transcript.title || 'Untitled'}</div>
                         {transcript.transcript_url && (
                           <a
                             href={transcript.transcript_url}
@@ -242,7 +234,7 @@ export function DealTranscriptsTab({ dealId }: DealTranscriptsTabProps) {
                     <TableCell>
                       {transcript.call_date
                         ? new Date(transcript.call_date).toLocaleDateString()
-                        : "—"}
+                        : '—'}
                     </TableCell>
                     <TableCell>{getStatusBadge(transcript)}</TableCell>
                     <TableCell className="text-sm text-muted-foreground">
@@ -259,9 +251,7 @@ export function DealTranscriptsTab({ dealId }: DealTranscriptsTabProps) {
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                           {transcript.processed_at && (
-                            <DropdownMenuItem
-                              onClick={() => handleViewExtractedData(transcript)}
-                            >
+                            <DropdownMenuItem onClick={() => handleViewExtractedData(transcript)}>
                               <Eye className="w-4 h-4 mr-2" />
                               View Extracted Data
                             </DropdownMenuItem>
@@ -305,18 +295,14 @@ export function DealTranscriptsTab({ dealId }: DealTranscriptsTabProps) {
         <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Extracted Data</DialogTitle>
-            <DialogDescription>
-              Data extracted from {selectedTranscript?.title}
-            </DialogDescription>
+            <DialogDescription>Data extracted from {selectedTranscript?.title}</DialogDescription>
           </DialogHeader>
           {selectedTranscript?.extracted_data ? (
             <pre className="bg-muted p-4 rounded-lg overflow-x-auto text-xs">
               {JSON.stringify(selectedTranscript.extracted_data, null, 2)}
             </pre>
           ) : (
-            <p className="text-muted-foreground text-center py-8">
-              No extracted data available
-            </p>
+            <p className="text-muted-foreground text-center py-8">No extracted data available</p>
           )}
         </DialogContent>
       </Dialog>

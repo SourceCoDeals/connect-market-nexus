@@ -1,8 +1,8 @@
-import { useState, useEffect, useCallback } from "react";
-import { supabase } from "@/integrations/supabase/client";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
+import { useState, useEffect, useCallback } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
 import {
   Table,
   TableBody,
@@ -10,7 +10,7 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table";
+} from '@/components/ui/table';
 import {
   Dialog,
   DialogContent,
@@ -18,24 +18,24 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
+} from '@/components/ui/dialog';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
+} from '@/components/ui/dropdown-menu';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
-import { Checkbox } from "@/components/ui/checkbox";
-import { useToast } from "@/hooks/use-toast";
+} from '@/components/ui/select';
+import { Checkbox } from '@/components/ui/checkbox';
+import { useToast } from '@/hooks/use-toast';
 import {
   Upload,
   Plus,
@@ -46,7 +46,7 @@ import {
   Loader2,
   Mail,
   Linkedin,
-  } from "lucide-react";
+} from 'lucide-react';
 
 interface BuyerContact {
   id: string;
@@ -78,7 +78,7 @@ export function BuyerContactsTab({ buyerId }: BuyerContactsTabProps) {
   const [contacts, setContacts] = useState<BuyerContact[]>([]);
   const [filteredContacts, setFilteredContacts] = useState<BuyerContact[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [searchQuery, setSearchQuery] = useState("");
+  const [searchQuery, setSearchQuery] = useState('');
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isCSVDialogOpen, setIsCSVDialogOpen] = useState(false);
   const [editingContact, setEditingContact] = useState<BuyerContact | null>(null);
@@ -86,37 +86,39 @@ export function BuyerContactsTab({ buyerId }: BuyerContactsTabProps) {
 
   // Form state
   const [formData, setFormData] = useState({
-    name: "",
-    title: "",
-    company_type: "PE Firm" as "PE Firm" | "Platform" | "Other",
+    name: '',
+    title: '',
+    company_type: 'PE Firm' as 'PE Firm' | 'Platform' | 'Other',
     priority_level: 2,
-    email: "",
-    email_confidence: "medium",
-    phone: "",
-    linkedin_url: "",
+    email: '',
+    email_confidence: 'medium',
+    phone: '',
+    linkedin_url: '',
     is_deal_team: false,
     is_primary_contact: false,
-    fee_agreement_status: "",
-    salesforce_id: "",
-    notes: "",
+    fee_agreement_status: '',
+    salesforce_id: '',
+    notes: '',
   });
 
   const loadContacts = useCallback(async () => {
     try {
       const { data, error } = await supabase
-        .from("buyer_contacts")
-        .select("*")
-        .eq("buyer_id", buyerId)
-        .order("created_at", { ascending: false });
+        .from('buyer_contacts')
+        .select(
+          'id, buyer_id, name, title, company_type, priority_level, email, email_confidence, phone, linkedin_url, is_deal_team, is_primary_contact, last_contacted_date, fee_agreement_status, salesforce_id, source, source_url, role_category, created_at',
+        )
+        .eq('buyer_id', buyerId)
+        .order('created_at', { ascending: false });
 
       if (error) throw error;
       setContacts(data || []);
       setFilteredContacts(data || []);
     } catch (error: any) {
       toast({
-        title: "Error loading contacts",
+        title: 'Error loading contacts',
         description: error.message,
-        variant: "destructive",
+        variant: 'destructive',
       });
     } finally {
       setIsLoading(false);
@@ -139,7 +141,7 @@ export function BuyerContactsTab({ buyerId }: BuyerContactsTabProps) {
         contact.name.toLowerCase().includes(query) ||
         contact.title?.toLowerCase().includes(query) ||
         contact.email?.toLowerCase().includes(query) ||
-        contact.company_type?.toLowerCase().includes(query)
+        contact.company_type?.toLowerCase().includes(query),
     );
     setFilteredContacts(filtered);
   }, [searchQuery, contacts]);
@@ -147,15 +149,15 @@ export function BuyerContactsTab({ buyerId }: BuyerContactsTabProps) {
   const handleAddContact = async () => {
     if (!formData.name || !formData.email) {
       toast({
-        title: "Missing information",
-        description: "Name and email are required",
-        variant: "destructive",
+        title: 'Missing information',
+        description: 'Name and email are required',
+        variant: 'destructive',
       });
       return;
     }
 
     try {
-      const { error } = await supabase.from("buyer_contacts").insert({
+      const { error } = await supabase.from('buyer_contacts').insert({
         buyer_id: buyerId,
         name: formData.name,
         title: formData.title || null,
@@ -175,8 +177,8 @@ export function BuyerContactsTab({ buyerId }: BuyerContactsTabProps) {
       if (error) throw error;
 
       toast({
-        title: "Contact added",
-        description: "The contact has been added successfully",
+        title: 'Contact added',
+        description: 'The contact has been added successfully',
       });
 
       resetForm();
@@ -184,9 +186,9 @@ export function BuyerContactsTab({ buyerId }: BuyerContactsTabProps) {
       loadContacts();
     } catch (error: any) {
       toast({
-        title: "Error adding contact",
+        title: 'Error adding contact',
         description: error.message,
-        variant: "destructive",
+        variant: 'destructive',
       });
     }
   };
@@ -196,7 +198,7 @@ export function BuyerContactsTab({ buyerId }: BuyerContactsTabProps) {
 
     try {
       const { error } = await supabase
-        .from("buyer_contacts")
+        .from('buyer_contacts')
         .update({
           name: formData.name,
           title: formData.title || null,
@@ -213,13 +215,13 @@ export function BuyerContactsTab({ buyerId }: BuyerContactsTabProps) {
           notes: formData.notes || null,
           updated_at: new Date().toISOString(),
         })
-        .eq("id", editingContact.id);
+        .eq('id', editingContact.id);
 
       if (error) throw error;
 
       toast({
-        title: "Contact updated",
-        description: "The contact has been updated successfully",
+        title: 'Contact updated',
+        description: 'The contact has been updated successfully',
       });
 
       resetForm();
@@ -228,35 +230,32 @@ export function BuyerContactsTab({ buyerId }: BuyerContactsTabProps) {
       loadContacts();
     } catch (error: any) {
       toast({
-        title: "Error updating contact",
+        title: 'Error updating contact',
         description: error.message,
-        variant: "destructive",
+        variant: 'destructive',
       });
     }
   };
 
   const handleDeleteContact = async (contactId: string) => {
-    if (!confirm("Are you sure you want to delete this contact?")) return;
+    if (!confirm('Are you sure you want to delete this contact?')) return;
 
     try {
-      const { error } = await supabase
-        .from("buyer_contacts")
-        .delete()
-        .eq("id", contactId);
+      const { error } = await supabase.from('buyer_contacts').delete().eq('id', contactId);
 
       if (error) throw error;
 
       toast({
-        title: "Contact deleted",
-        description: "The contact has been deleted successfully",
+        title: 'Contact deleted',
+        description: 'The contact has been deleted successfully',
       });
 
       loadContacts();
     } catch (error: any) {
       toast({
-        title: "Error deleting contact",
+        title: 'Error deleting contact',
         description: error.message,
-        variant: "destructive",
+        variant: 'destructive',
       });
     }
   };
@@ -264,18 +263,18 @@ export function BuyerContactsTab({ buyerId }: BuyerContactsTabProps) {
   const handleEditContact = (contact: BuyerContact) => {
     setFormData({
       name: contact.name,
-      title: contact.title || "",
-      company_type: (contact.company_type as "PE Firm" | "Platform" | "Other") || "PE Firm",
+      title: contact.title || '',
+      company_type: (contact.company_type as 'PE Firm' | 'Platform' | 'Other') || 'PE Firm',
       priority_level: contact.priority_level || 2,
-      email: contact.email || "",
-      email_confidence: contact.email_confidence || "medium",
-      phone: contact.phone || "",
-      linkedin_url: contact.linkedin_url || "",
+      email: contact.email || '',
+      email_confidence: contact.email_confidence || 'medium',
+      phone: contact.phone || '',
+      linkedin_url: contact.linkedin_url || '',
       is_deal_team: contact.is_deal_team || false,
       is_primary_contact: contact.is_primary_contact || false,
-      fee_agreement_status: contact.fee_agreement_status || "",
-      salesforce_id: contact.salesforce_id || "",
-      notes: "",
+      fee_agreement_status: contact.fee_agreement_status || '',
+      salesforce_id: contact.salesforce_id || '',
+      notes: '',
     });
     setEditingContact(contact);
     setIsAddDialogOpen(true);
@@ -283,34 +282,34 @@ export function BuyerContactsTab({ buyerId }: BuyerContactsTabProps) {
 
   const resetForm = () => {
     setFormData({
-      name: "",
-      title: "",
-      company_type: "PE Firm",
+      name: '',
+      title: '',
+      company_type: 'PE Firm',
       priority_level: 2,
-      email: "",
-      email_confidence: "medium",
-      phone: "",
-      linkedin_url: "",
+      email: '',
+      email_confidence: 'medium',
+      phone: '',
+      linkedin_url: '',
       is_deal_team: false,
       is_primary_contact: false,
-      fee_agreement_status: "",
-      salesforce_id: "",
-      notes: "",
+      fee_agreement_status: '',
+      salesforce_id: '',
+      notes: '',
     });
   };
 
   const getPriorityBadgeVariant = (level: number | null) => {
     switch (level) {
       case 1:
-        return "default";
+        return 'default';
       case 2:
-        return "secondary";
+        return 'secondary';
       case 3:
-        return "outline";
+        return 'outline';
       case 4:
-        return "outline";
+        return 'outline';
       default:
-        return "outline";
+        return 'outline';
     }
   };
 
@@ -338,10 +337,7 @@ export function BuyerContactsTab({ buyerId }: BuyerContactsTabProps) {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            onClick={() => setIsCSVDialogOpen(true)}
-          >
+          <Button variant="outline" onClick={() => setIsCSVDialogOpen(true)}>
             <Upload className="w-4 h-4 mr-2" />
             Import CSV
           </Button>
@@ -363,11 +359,7 @@ export function BuyerContactsTab({ buyerId }: BuyerContactsTabProps) {
         <div className="text-center py-12 text-muted-foreground">
           <Mail className="w-12 h-12 mx-auto mb-4 opacity-50" />
           <p>No contacts found</p>
-          <Button
-            variant="outline"
-            className="mt-4"
-            onClick={() => setIsAddDialogOpen(true)}
-          >
+          <Button variant="outline" className="mt-4" onClick={() => setIsAddDialogOpen(true)}>
             <Plus className="w-4 h-4 mr-2" />
             Add your first contact
           </Button>
@@ -393,7 +385,7 @@ export function BuyerContactsTab({ buyerId }: BuyerContactsTabProps) {
                 <TableRow key={contact.id}>
                   <TableCell className="font-medium">{contact.name}</TableCell>
                   <TableCell className="text-sm text-muted-foreground">
-                    {contact.title || "—"}
+                    {contact.title || '—'}
                   </TableCell>
                   <TableCell>
                     {contact.company_type && (
@@ -509,13 +501,9 @@ export function BuyerContactsTab({ buyerId }: BuyerContactsTabProps) {
       >
         <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>
-              {editingContact ? "Edit Contact" : "Add Contact"}
-            </DialogTitle>
+            <DialogTitle>{editingContact ? 'Edit Contact' : 'Add Contact'}</DialogTitle>
             <DialogDescription>
-              {editingContact
-                ? "Update contact information"
-                : "Add a new contact for this buyer"}
+              {editingContact ? 'Update contact information' : 'Add a new contact for this buyer'}
             </DialogDescription>
           </DialogHeader>
 
@@ -526,9 +514,7 @@ export function BuyerContactsTab({ buyerId }: BuyerContactsTabProps) {
                 <Input
                   id="name"
                   value={formData.name}
-                  onChange={(e) =>
-                    setFormData({ ...formData, name: e.target.value })
-                  }
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                 />
               </div>
               <div className="space-y-2">
@@ -536,9 +522,7 @@ export function BuyerContactsTab({ buyerId }: BuyerContactsTabProps) {
                 <Input
                   id="title"
                   value={formData.title}
-                  onChange={(e) =>
-                    setFormData({ ...formData, title: e.target.value })
-                  }
+                  onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                 />
               </div>
             </div>
@@ -548,9 +532,7 @@ export function BuyerContactsTab({ buyerId }: BuyerContactsTabProps) {
                 <Label htmlFor="company_type">Company Type</Label>
                 <Select
                   value={formData.company_type}
-                  onValueChange={(value: any) =>
-                    setFormData({ ...formData, company_type: value })
-                  }
+                  onValueChange={(value: any) => setFormData({ ...formData, company_type: value })}
                 >
                   <SelectTrigger id="company_type">
                     <SelectValue />
@@ -590,18 +572,14 @@ export function BuyerContactsTab({ buyerId }: BuyerContactsTabProps) {
                   id="email"
                   type="email"
                   value={formData.email}
-                  onChange={(e) =>
-                    setFormData({ ...formData, email: e.target.value })
-                  }
+                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                 />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="email_confidence">Email Confidence</Label>
                 <Select
                   value={formData.email_confidence}
-                  onValueChange={(value) =>
-                    setFormData({ ...formData, email_confidence: value })
-                  }
+                  onValueChange={(value) => setFormData({ ...formData, email_confidence: value })}
                 >
                   <SelectTrigger id="email_confidence">
                     <SelectValue />
@@ -621,9 +599,7 @@ export function BuyerContactsTab({ buyerId }: BuyerContactsTabProps) {
                 <Input
                   id="phone"
                   value={formData.phone}
-                  onChange={(e) =>
-                    setFormData({ ...formData, phone: e.target.value })
-                  }
+                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                 />
               </div>
               <div className="space-y-2">
@@ -631,9 +607,7 @@ export function BuyerContactsTab({ buyerId }: BuyerContactsTabProps) {
                 <Input
                   id="linkedin_url"
                   value={formData.linkedin_url}
-                  onChange={(e) =>
-                    setFormData({ ...formData, linkedin_url: e.target.value })
-                  }
+                  onChange={(e) => setFormData({ ...formData, linkedin_url: e.target.value })}
                 />
               </div>
             </div>
@@ -684,9 +658,7 @@ export function BuyerContactsTab({ buyerId }: BuyerContactsTabProps) {
                 <Input
                   id="salesforce_id"
                   value={formData.salesforce_id}
-                  onChange={(e) =>
-                    setFormData({ ...formData, salesforce_id: e.target.value })
-                  }
+                  onChange={(e) => setFormData({ ...formData, salesforce_id: e.target.value })}
                 />
               </div>
             </div>
@@ -696,9 +668,7 @@ export function BuyerContactsTab({ buyerId }: BuyerContactsTabProps) {
               <Textarea
                 id="notes"
                 value={formData.notes}
-                onChange={(e) =>
-                  setFormData({ ...formData, notes: e.target.value })
-                }
+                onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
                 rows={3}
               />
             </div>
@@ -715,10 +685,8 @@ export function BuyerContactsTab({ buyerId }: BuyerContactsTabProps) {
             >
               Cancel
             </Button>
-            <Button
-              onClick={editingContact ? handleUpdateContact : handleAddContact}
-            >
-              {editingContact ? "Update Contact" : "Add Contact"}
+            <Button onClick={editingContact ? handleUpdateContact : handleAddContact}>
+              {editingContact ? 'Update Contact' : 'Add Contact'}
             </Button>
           </DialogFooter>
         </DialogContent>

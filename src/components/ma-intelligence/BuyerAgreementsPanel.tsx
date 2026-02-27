@@ -1,9 +1,9 @@
-import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Check, X, FileSignature, Shield, Users } from "lucide-react";
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Check, X, FileSignature, Shield, Users } from 'lucide-react';
 
 interface BuyerAgreementsPanelProps {
   buyerId: string;
@@ -20,13 +20,15 @@ export function BuyerAgreementsPanel({
 }: BuyerAgreementsPanelProps) {
   // Fetch firm agreement details if linked
   const { data: firmAgreement, isLoading } = useQuery({
-    queryKey: ["firm-agreement", marketplaceFirmId],
+    queryKey: ['firm-agreement', marketplaceFirmId],
     queryFn: async () => {
       if (!marketplaceFirmId) return null;
       const { data, error } = await supabase
-        .from("firm_agreements")
-        .select("*")
-        .eq("id", marketplaceFirmId)
+        .from('firm_agreements')
+        .select(
+          'id, nda_signed, nda_signed_at, fee_agreement_signed_at, company_name, website_domain, email_domain',
+        )
+        .eq('id', marketplaceFirmId)
         .single();
       if (error) return null;
       return data;
@@ -36,13 +38,13 @@ export function BuyerAgreementsPanel({
 
   // Fetch firm members if linked
   const { data: firmMembers } = useQuery({
-    queryKey: ["firm-members", marketplaceFirmId],
+    queryKey: ['firm-members', marketplaceFirmId],
     queryFn: async () => {
       if (!marketplaceFirmId) return [];
       const { data, error } = await supabase
-        .from("firm_members")
-        .select("*, profile:profiles(first_name, last_name, email)")
-        .eq("firm_id", marketplaceFirmId);
+        .from('firm_members')
+        .select('*, profile:profiles(first_name, last_name, email)')
+        .eq('firm_id', marketplaceFirmId);
       if (error) return [];
       return data || [];
     },
@@ -103,16 +105,23 @@ export function BuyerAgreementsPanel({
               </div>
               {hasFeeAgreement ? (
                 <div className="space-y-1">
-                  <Badge className={`text-xs ${
-                    feeAgreementSource === 'pe_firm_inherited' ? 'bg-blue-600' :
-                    feeAgreementSource === 'manual_override' ? 'bg-amber-600' :
-                    'bg-green-600'
-                  }`}>
+                  <Badge
+                    className={`text-xs ${
+                      feeAgreementSource === 'pe_firm_inherited'
+                        ? 'bg-blue-600'
+                        : feeAgreementSource === 'manual_override'
+                          ? 'bg-amber-600'
+                          : 'bg-green-600'
+                    }`}
+                  >
                     <Check className="h-3 w-3 mr-1" />
-                    {feeAgreementSource === 'pe_firm_inherited' ? 'Inherited from PE Firm' :
-                     feeAgreementSource === 'manual_override' ? 'Manual Override' :
-                     feeAgreementSource === 'marketplace_synced' ? 'Marketplace Synced' :
-                     'Signed'}
+                    {feeAgreementSource === 'pe_firm_inherited'
+                      ? 'Inherited from PE Firm'
+                      : feeAgreementSource === 'manual_override'
+                        ? 'Manual Override'
+                        : feeAgreementSource === 'marketplace_synced'
+                          ? 'Marketplace Synced'
+                          : 'Signed'}
                   </Badge>
                   {firmAgreement?.fee_agreement_signed_at && (
                     <p className="text-xs text-muted-foreground">
@@ -131,9 +140,9 @@ export function BuyerAgreementsPanel({
 
           {!marketplaceFirmId && (
             <p className="mt-4 text-xs text-muted-foreground">
-              This buyer is not linked to a marketplace firm. Agreements are managed
-              through the marketplace. When the buyer&apos;s firm signs agreements there,
-              they&apos;ll sync here automatically.
+              This buyer is not linked to a marketplace firm. Agreements are managed through the
+              marketplace. When the buyer&apos;s firm signs agreements there, they&apos;ll sync here
+              automatically.
             </p>
           )}
         </CardContent>
@@ -151,14 +160,19 @@ export function BuyerAgreementsPanel({
           <CardContent>
             <div className="space-y-2">
               {firmMembers.map((member: any) => (
-                <div key={member.id} className="flex items-center justify-between py-2 border-b last:border-0">
+                <div
+                  key={member.id}
+                  className="flex items-center justify-between py-2 border-b last:border-0"
+                >
                   <div>
                     <p className="text-sm font-medium">
                       {member.profile?.first_name} {member.profile?.last_name}
                     </p>
                     <p className="text-xs text-muted-foreground">{member.profile?.email}</p>
                   </div>
-                  <Badge variant="outline" className="text-xs">{member.role || 'Member'}</Badge>
+                  <Badge variant="outline" className="text-xs">
+                    {member.role || 'Member'}
+                  </Badge>
                 </div>
               ))}
             </div>
@@ -175,12 +189,16 @@ export function BuyerAgreementsPanel({
           <CardContent className="text-sm space-y-2">
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <span className="text-muted-foreground">Company:</span>{" "}
-                <span className="font-medium">{(firmAgreement as Record<string, unknown>).company_name as string || '—'}</span>
+                <span className="text-muted-foreground">Company:</span>{' '}
+                <span className="font-medium">
+                  {((firmAgreement as Record<string, unknown>).company_name as string) || '—'}
+                </span>
               </div>
               <div>
-                <span className="text-muted-foreground">Domain:</span>{" "}
-                <span className="font-medium">{firmAgreement.website_domain || firmAgreement.email_domain || '—'}</span>
+                <span className="text-muted-foreground">Domain:</span>{' '}
+                <span className="font-medium">
+                  {firmAgreement.website_domain || firmAgreement.email_domain || '—'}
+                </span>
               </div>
             </div>
           </CardContent>

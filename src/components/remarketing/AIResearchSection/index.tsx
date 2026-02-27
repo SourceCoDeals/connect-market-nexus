@@ -186,7 +186,7 @@ export const AIResearchSection = ({
     try {
       const { data: activeGen, error: activeError } = await supabase
         .from('ma_guide_generations')
-        .select('*')
+        .select('id, status, phases_completed, total_phases, current_phase, generated_content')
         .eq('universe_id', universeId)
         .in('status', ['pending', 'processing'])
         .order('created_at', { ascending: false })
@@ -212,7 +212,7 @@ export const AIResearchSection = ({
       }
       const { data: completedGen, error: completedError } = await supabase
         .from('ma_guide_generations')
-        .select('*')
+        .select('id, status, generated_content, completed_at')
         .eq('universe_id', universeId)
         .eq('status', 'completed')
         .order('completed_at', { ascending: false })
@@ -273,7 +273,7 @@ export const AIResearchSection = ({
       }
       const { data: generation, error } = await supabase
         .from('ma_guide_generations')
-        .select('*')
+        .select('id, status, phases_completed, total_phases, current_phase, generated_content')
         .eq('id', generationId)
         .maybeSingle();
       if (error) {

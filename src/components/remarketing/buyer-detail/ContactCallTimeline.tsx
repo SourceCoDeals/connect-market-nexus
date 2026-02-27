@@ -1,10 +1,10 @@
-import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Phone, PhoneCall, PhoneOff, Clock, Mic } from "lucide-react";
-import { formatDistanceToNow, format } from "date-fns";
-import { Skeleton } from "@/components/ui/skeleton";
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Phone, PhoneCall, PhoneOff, Clock, Mic } from 'lucide-react';
+import { formatDistanceToNow, format } from 'date-fns';
+import { Skeleton } from '@/components/ui/skeleton';
 
 interface CallActivity {
   id: string;
@@ -28,23 +28,25 @@ interface ContactCallTimelineProps {
 
 export function ContactCallTimeline({ buyerId }: ContactCallTimelineProps) {
   const { data: activities = [], isLoading } = useQuery({
-    queryKey: ["contact-call-timeline", buyerId],
+    queryKey: ['contact-call-timeline', buyerId],
     queryFn: async () => {
       // Fetch activities linked to any contact belonging to this buyer
       const { data: contacts } = await supabase
-        .from("buyer_contacts")
-        .select("id")
-        .eq("buyer_id", buyerId);
+        .from('buyer_contacts')
+        .select('id')
+        .eq('buyer_id', buyerId);
 
       if (!contacts?.length) return [];
 
       const contactIds = contacts.map((c) => c.id);
 
       const { data, error } = await supabase
-        .from("contact_activities")
-        .select("*")
-        .in("contact_id", contactIds)
-        .order("created_at", { ascending: false })
+        .from('contact_activities')
+        .select(
+          'id, activity_type, call_started_at, call_ended_at, call_duration_seconds, call_outcome, disposition_code, disposition_label, disposition_notes, recording_url, source_system, user_name, created_at',
+        )
+        .in('contact_id', contactIds)
+        .order('created_at', { ascending: false })
         .limit(50);
 
       if (error) throw error;
@@ -54,13 +56,13 @@ export function ContactCallTimeline({ buyerId }: ContactCallTimelineProps) {
   });
 
   const getActivityIcon = (type: string, outcome: string | null) => {
-    if (type === "call_completed" && outcome === "dispositioned") {
+    if (type === 'call_completed' && outcome === 'dispositioned') {
       return <PhoneCall className="h-4 w-4 text-primary" />;
     }
-    if (type === "call_attempt") {
+    if (type === 'call_attempt') {
       return <Phone className="h-4 w-4 text-accent-foreground" />;
     }
-    if (outcome === "no_answer" || outcome === "busy") {
+    if (outcome === 'no_answer' || outcome === 'busy') {
       return <PhoneOff className="h-4 w-4 text-muted-foreground" />;
     }
     return <Phone className="h-4 w-4 text-muted-foreground" />;
@@ -68,13 +70,13 @@ export function ContactCallTimeline({ buyerId }: ContactCallTimelineProps) {
 
   const getOutcomeBadge = (activity: CallActivity) => {
     if (activity.disposition_code) {
-      const variant = activity.disposition_code.includes("INTERESTED")
-        ? "default"
-        : activity.disposition_code.includes("NOT")
-          ? "destructive"
-          : "secondary";
+      const variant = activity.disposition_code.includes('INTERESTED')
+        ? 'default'
+        : activity.disposition_code.includes('NOT')
+          ? 'destructive'
+          : 'secondary';
       return (
-        <Badge variant={variant as "default" | "secondary" | "destructive"} className="text-xs">
+        <Badge variant={variant as 'default' | 'secondary' | 'destructive'} className="text-xs">
           {activity.disposition_label || activity.disposition_code}
         </Badge>
       );
@@ -93,7 +95,7 @@ export function ContactCallTimeline({ buyerId }: ContactCallTimelineProps) {
     if (!seconds) return null;
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
-    return `${mins}:${secs.toString().padStart(2, "0")}`;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
   if (isLoading) {
@@ -120,7 +122,7 @@ export function ContactCallTimeline({ buyerId }: ContactCallTimelineProps) {
         </CardTitle>
         <CardDescription>
           {activities.length === 0
-            ? "No call activity recorded yet"
+            ? 'No call activity recorded yet'
             : `${activities.length} activities recorded`}
         </CardDescription>
       </CardHeader>
@@ -129,7 +131,9 @@ export function ContactCallTimeline({ buyerId }: ContactCallTimelineProps) {
           <div className="text-center py-8 text-muted-foreground">
             <Phone className="h-8 w-8 mx-auto mb-2 opacity-40" />
             <p className="text-sm">No calls recorded for this buyer&apos;s contacts</p>
-            <p className="text-xs mt-1">Push contacts to PhoneBurner and start dialing to see activity here</p>
+            <p className="text-xs mt-1">
+              Push contacts to PhoneBurner and start dialing to see activity here
+            </p>
           </div>
         ) : (
           <div className="space-y-1">
@@ -144,7 +148,7 @@ export function ContactCallTimeline({ buyerId }: ContactCallTimelineProps) {
                 <div className="flex-1 min-w-0 space-y-0.5">
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className="text-sm font-medium capitalize">
-                      {activity.activity_type.replace(/_/g, " ")}
+                      {activity.activity_type.replace(/_/g, ' ')}
                     </span>
                     {getOutcomeBadge(activity)}
                     {activity.call_duration_seconds ? (
@@ -174,7 +178,7 @@ export function ContactCallTimeline({ buyerId }: ContactCallTimelineProps) {
                     {activity.user_name && <span>{activity.user_name}</span>}
                     <span>
                       {activity.call_started_at
-                        ? format(new Date(activity.call_started_at), "MMM d, yyyy h:mm a")
+                        ? format(new Date(activity.call_started_at), 'MMM d, yyyy h:mm a')
                         : formatDistanceToNow(new Date(activity.created_at), { addSuffix: true })}
                     </span>
                   </div>

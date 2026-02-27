@@ -165,13 +165,17 @@ export function UserActions({ onUserStatusUpdated }: UserActionsProps) {
       setApprovedUser(user);
 
       // Step 2: Calculate Buyer Quality Score (fire-and-forget, non-blocking)
-      supabase.functions
-        .invoke('calculate-buyer-quality-score', { body: { profile_id: user.id } })
-        .then((res) => {
+      void (async () => {
+        try {
+          const res = await supabase.functions.invoke('calculate-buyer-quality-score', {
+            body: { profile_id: user.id },
+          });
           if (res.error) console.error('[UserActions] Quality score calc failed:', res.error);
           else console.log('[UserActions] Quality score calculated:', res.data?.total_score);
-        })
-        .catch((err) => console.error('[UserActions] Quality score calc error:', err));
+        } catch (err) {
+          console.error('[UserActions] Quality score calc error:', err);
+        }
+      })();
 
       // Step 3: Send email
       let emailSuccess = false;

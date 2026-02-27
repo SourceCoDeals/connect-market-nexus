@@ -33,7 +33,9 @@ export function PipelineDetailDealInfo({ deal }: PipelineDetailDealInfoProps) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('listings')
-        .select('*')
+        .select(
+          'id, title, internal_company_name, website, location, address, founded_year, full_time_employees, part_time_employees, industry, number_of_locations, location_radius_requirement, category, status, street_address, address_city, address_state, address_zip, address_country, google_review_count, google_rating, google_maps_url, linkedin_url, linkedin_employee_count, linkedin_employee_range, deal_total_score, revenue, ebitda, executive_summary, service_mix, geographic_states, owner_goals, ownership_structure, special_requirements, key_quotes, customer_types, customer_concentration, customer_geography',
+        )
         .eq('id', deal.listing_id)
         .maybeSingle();
       if (error) throw error;
@@ -45,10 +47,7 @@ export function PipelineDetailDealInfo({ deal }: PipelineDetailDealInfoProps) {
 
   const updateListing = useMutation({
     mutationFn: async (updates: Record<string, any>) => {
-      const { error } = await supabase
-        .from('listings')
-        .update(updates)
-        .eq('id', deal.listing_id);
+      const { error } = await supabase.from('listings').update(updates).eq('id', deal.listing_id);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -137,15 +136,21 @@ export function PipelineDetailDealInfo({ deal }: PipelineDetailDealInfoProps) {
           <CardContent>
             <div className="grid grid-cols-3 gap-6">
               <div>
-                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">Revenue</p>
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">
+                  Revenue
+                </p>
                 <span className="text-2xl font-bold">{formatCurrency(listing.revenue)}</span>
               </div>
               <div>
-                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">EBITDA</p>
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">
+                  EBITDA
+                </p>
                 <span className="text-2xl font-bold">{formatCurrency(listing.ebitda)}</span>
               </div>
               <div>
-                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">EBITDA Margin</p>
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">
+                  EBITDA Margin
+                </p>
                 <span className="text-2xl font-bold">
                   {listing.revenue && listing.ebitda
                     ? `${((listing.ebitda / listing.revenue) * 100).toFixed(0)}%`
@@ -204,12 +209,18 @@ export function PipelineDetailDealInfo({ deal }: PipelineDetailDealInfoProps) {
         {/* Customer Types */}
         <CustomerTypesCard
           customerTypes={listing.customer_types}
-          customerConcentration={listing.customer_concentration != null ? String(listing.customer_concentration) : undefined}
+          customerConcentration={
+            listing.customer_concentration != null
+              ? String(listing.customer_concentration)
+              : undefined
+          }
           customerGeography={listing.customer_geography ?? undefined}
           onSave={async (data) => {
             await updateListing.mutateAsync({
               customer_types: data.customerTypes,
-              customer_concentration: data.customerConcentration ? parseFloat(data.customerConcentration) : null,
+              customer_concentration: data.customerConcentration
+                ? parseFloat(data.customerConcentration)
+                : null,
               customer_geography: data.customerGeography,
             });
           }}

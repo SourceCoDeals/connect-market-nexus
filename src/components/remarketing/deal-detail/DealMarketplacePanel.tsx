@@ -1,11 +1,11 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Globe, Eye, EyeOff } from "lucide-react";
-import { toast } from "sonner";
-import { Link } from "react-router-dom";
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Globe, Eye, EyeOff } from 'lucide-react';
+import { toast } from 'sonner';
+import { Link } from 'react-router-dom';
 
 interface DealMarketplacePanelProps {
   listingId: string;
@@ -30,19 +30,19 @@ export const DealMarketplacePanel = ({
       // Count connection requests
       const { count: requestCount, error: reqError } = await supabase
         .from('connection_requests')
-        .select('*', { count: 'exact', head: true })
+        .select('id', { count: 'exact', head: true })
         .eq('listing_id', listingId);
 
       // Count views from analytics
       const { count: viewCount, error: viewError } = await supabase
         .from('listing_analytics' as never)
-        .select('*', { count: 'exact', head: true })
+        .select('id', { count: 'exact', head: true })
         .eq('listing_id', listingId)
         .eq('event_type', 'view');
 
       return {
-        connectionRequests: reqError ? 0 : (requestCount || 0),
-        views: viewError ? 0 : (viewCount || 0),
+        connectionRequests: reqError ? 0 : requestCount || 0,
+        views: viewError ? 0 : viewCount || 0,
       };
     },
     enabled: isListed,
@@ -60,9 +60,8 @@ export const DealMarketplacePanel = ({
     onSuccess: (_, listOnMarketplace) => {
       queryClient.invalidateQueries({ queryKey: ['remarketing', 'deal', listingId] });
       queryClient.invalidateQueries({ queryKey: ['remarketing', 'deals'] });
-      toast.success(listOnMarketplace
-        ? 'Deal listed on marketplace'
-        : 'Deal removed from marketplace'
+      toast.success(
+        listOnMarketplace ? 'Deal listed on marketplace' : 'Deal removed from marketplace',
       );
     },
     onError: () => {
@@ -125,7 +124,8 @@ export const DealMarketplacePanel = ({
         ) : (
           <div className="space-y-3">
             <p className="text-sm text-muted-foreground">
-              This deal is not currently listed on the marketplace. List it to make it visible to approved buyers.
+              This deal is not currently listed on the marketplace. List it to make it visible to
+              approved buyers.
             </p>
             <Button
               onClick={() => toggleListingMutation.mutate(true)}

@@ -1,16 +1,31 @@
-import { useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
-import { Switch } from "@/components/ui/switch";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, Trash2, TestTube, Check, X, Loader2, Webhook } from "lucide-react";
-import { toast } from "sonner";
+import { useState } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Badge } from '@/components/ui/badge';
+import { Switch } from '@/components/ui/switch';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import { Plus, Trash2, TestTube, Check, X, Loader2, Webhook } from 'lucide-react';
+import { toast } from 'sonner';
 
 interface WebhookConfig {
   id: string;
@@ -34,10 +49,10 @@ export function WebhookSettings({ universeId }: WebhookSettingsProps) {
   const [selectedWebhook, setSelectedWebhook] = useState<WebhookConfig | null>(null);
 
   const [formData, setFormData] = useState({
-    name: "",
-    webhook_url: "",
-    secret: "",
-    event_types: ["extraction.completed", "ceo.detected"] as string[],
+    name: '',
+    webhook_url: '',
+    secret: '',
+    event_types: ['extraction.completed', 'ceo.detected'] as string[],
   });
 
   // Fetch webhook configurations
@@ -47,7 +62,9 @@ export function WebhookSettings({ universeId }: WebhookSettingsProps) {
       // webhook_configs may not be in generated types yet - using 'as never' for table name
       let query = supabase
         .from('webhook_configs' as never)
-        .select('*')
+        .select(
+          'id, name, webhook_url, enabled, event_types, total_deliveries, total_failures, last_triggered_at, created_at',
+        )
         .order('created_at', { ascending: false });
 
       if (universeId) {
@@ -57,35 +74,33 @@ export function WebhookSettings({ universeId }: WebhookSettingsProps) {
       const { data, error } = await query;
       if (error) throw error;
       return (data || []) as unknown as WebhookConfig[];
-    }
+    },
   });
 
   // Add webhook mutation
   const addMutation = useMutation({
     mutationFn: async () => {
       // webhook_configs may not be in generated types yet - using 'as never' for table name
-      const { error } = await supabase
-        .from('webhook_configs' as any)
-        .insert({
-          universe_id: universeId || null,
-          name: formData.name,
-          webhook_url: formData.webhook_url,
-          secret: formData.secret || null,
-          event_types: formData.event_types,
-          enabled: true
-        } as any);
+      const { error } = await supabase.from('webhook_configs' as any).insert({
+        universe_id: universeId || null,
+        name: formData.name,
+        webhook_url: formData.webhook_url,
+        secret: formData.secret || null,
+        event_types: formData.event_types,
+        enabled: true,
+      } as any);
 
       if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['webhooks', universeId] });
-      toast.success("Webhook added successfully");
-      setFormData({ name: "", webhook_url: "", secret: "", event_types: ["extraction.completed"] });
+      toast.success('Webhook added successfully');
+      setFormData({ name: '', webhook_url: '', secret: '', event_types: ['extraction.completed'] });
       setIsAddDialogOpen(false);
     },
     onError: (error: Error) => {
       toast.error(`Failed to add webhook: ${error.message}`);
-    }
+    },
   });
 
   // Delete webhook mutation
@@ -101,11 +116,11 @@ export function WebhookSettings({ universeId }: WebhookSettingsProps) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['webhooks', universeId] });
-      toast.success("Webhook deleted");
+      toast.success('Webhook deleted');
     },
     onError: (error: Error) => {
       toast.error(`Failed to delete webhook: ${error.message}`);
-    }
+    },
   });
 
   // Toggle webhook enabled/disabled
@@ -124,7 +139,7 @@ export function WebhookSettings({ universeId }: WebhookSettingsProps) {
     },
     onError: (error: Error) => {
       toast.error(`Failed to toggle webhook: ${error.message}`);
-    }
+    },
   });
 
   // Test webhook mutation
@@ -132,12 +147,12 @@ export function WebhookSettings({ universeId }: WebhookSettingsProps) {
     mutationFn: async (webhook: WebhookConfig) => {
       // Send a test payload
       const testPayload = {
-        event: "webhook.test",
-        transcript_id: "00000000-0000-0000-0000-000000000000",
-        entity_type: "buyer",
-        extracted_fields: ["thesis_summary", "target_industries"],
+        event: 'webhook.test',
+        transcript_id: '00000000-0000-0000-0000-000000000000',
+        entity_type: 'buyer',
+        extracted_fields: ['thesis_summary', 'target_industries'],
         timestamp: new Date().toISOString(),
-        test: true
+        test: true,
       };
 
       const response = await fetch(webhook.webhook_url, {
@@ -145,9 +160,9 @@ export function WebhookSettings({ universeId }: WebhookSettingsProps) {
         headers: {
           'Content-Type': 'application/json',
           'X-Event-Type': 'webhook.test',
-          'User-Agent': 'ConnectMarketNexus-Webhook-Test/1.0'
+          'User-Agent': 'ConnectMarketNexus-Webhook-Test/1.0',
         },
-        body: JSON.stringify(testPayload)
+        body: JSON.stringify(testPayload),
       });
 
       if (!response.ok) {
@@ -162,13 +177,13 @@ export function WebhookSettings({ universeId }: WebhookSettingsProps) {
     },
     onError: (error: Error) => {
       toast.error(`Test failed: ${error.message}`);
-    }
+    },
   });
 
   const eventOptions = [
-    { value: "extraction.completed", label: "Extraction Completed" },
-    { value: "extraction.failed", label: "Extraction Failed" },
-    { value: "ceo.detected", label: "CEO Detected" },
+    { value: 'extraction.completed', label: 'Extraction Completed' },
+    { value: 'extraction.failed', label: 'Extraction Failed' },
+    { value: 'ceo.detected', label: 'CEO Detected' },
   ];
 
   return (
@@ -242,12 +257,12 @@ export function WebhookSettings({ universeId }: WebhookSettingsProps) {
                             if (e.target.checked) {
                               setFormData({
                                 ...formData,
-                                event_types: [...formData.event_types, event.value]
+                                event_types: [...formData.event_types, event.value],
                               });
                             } else {
                               setFormData({
                                 ...formData,
-                                event_types: formData.event_types.filter(t => t !== event.value)
+                                event_types: formData.event_types.filter((t) => t !== event.value),
                               });
                             }
                           }}
