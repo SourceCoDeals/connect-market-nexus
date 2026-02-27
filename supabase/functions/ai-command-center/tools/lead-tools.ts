@@ -14,12 +14,19 @@ import type { ToolResult } from './index.ts';
 export const leadTools: ClaudeTool[] = [
   {
     name: 'search_inbound_leads',
-    description:
-      "Search inbound leads — contacts who reached out about deals, mapped or unmapped to listings. Filter by status, source, or whether they've been converted to connection requests.",
+    description: `Search inbound leads — contacts who reached out about deals, mapped or unmapped to listings.
+DATA SOURCE: inbound_leads table.
+USE WHEN: "show inbound leads", "who contacted us about HVAC", "pending inbound leads".
+SEARCHABLE FIELDS: search param checks name, email, company_name, role, message, source_form_name, mapped_to_listing_title, phone_number.
+Filter by status, source, or whether they've been converted to connection requests.`,
     input_schema: {
       type: 'object',
       properties: {
-        search: { type: 'string', description: 'Free-text search across name, email, company' },
+        search: {
+          type: 'string',
+          description:
+            'Free-text search across name, email, company_name, role, message, source_form_name, mapped_to_listing_title, phone_number',
+        },
         source: {
           type: 'string',
           description: 'Filter by lead source (e.g. "website", "referral", "manual")',

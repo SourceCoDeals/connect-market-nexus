@@ -117,8 +117,11 @@ const DEAL_FIELDS_FULL = `
 export const dealTools: ClaudeTool[] = [
   {
     name: 'query_deals',
-    description:
-      'Search and filter deals in the pipeline. Supports filtering by status, source, geography, industry, revenue range, and text search. Returns a list of matching deals sorted by relevance.',
+    description: `Search and filter deals (listings) in the pipeline.
+DATA SOURCE: listings table (Active Deals / pipeline deals).
+USE WHEN: "show me HVAC deals", "deals in Texas", "deals over $5M revenue", "find deal by name".
+SEARCHABLE FIELDS: search param checks title, industry, category, location, address_city, address_state, internal_company_name, project_name, deal_identifier, executive_summary, investment_thesis, business_model, owner_goals, services, categories, geographic_states, service_mix. Industry param also checks industry_tier_name.
+NOT FOR: searching buyers/acquirers (use search_buyers), lead sources (use search_lead_sources), valuation leads (use search_valuation_leads).`,
     input_schema: {
       type: 'object',
       properties: {
@@ -142,13 +145,18 @@ export const dealTools: ClaudeTool[] = [
           description:
             'Filter by multiple US state codes in one call (e.g. ["TX", "FL", "CA"]). Prefer this over making separate calls per state.',
         },
-        industry: { type: 'string', description: 'Filter by industry keyword' },
+        industry: {
+          type: 'string',
+          description:
+            'Filter by industry keyword (e.g. "hvac", "plumbing"). Checks industry, category, categories, services, service_mix, title, internal_company_name, project_name, executive_summary, investment_thesis, business_model, industry_tier_name.',
+        },
         min_revenue: { type: 'number', description: 'Minimum revenue filter' },
         max_revenue: { type: 'number', description: 'Maximum revenue filter' },
         min_ebitda: { type: 'number', description: 'Minimum EBITDA filter' },
         search: {
           type: 'string',
-          description: 'Free-text search across title, description, services, location',
+          description:
+            'Free-text search across title, industry, category, location, address_city, address_state, internal_company_name, project_name, deal_identifier, executive_summary, investment_thesis, business_model, owner_goals, services, categories, geographic_states, service_mix.',
         },
         is_priority: { type: 'boolean', description: 'Filter to priority targets only' },
         limit: {

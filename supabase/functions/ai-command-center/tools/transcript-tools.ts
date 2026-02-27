@@ -17,8 +17,11 @@ import type { ToolResult } from './index.ts';
 export const transcriptTools: ClaudeTool[] = [
   {
     name: 'search_transcripts',
-    description:
-      'Search call transcripts and meeting recordings across all sources (call transcripts, buyer transcripts, Fireflies deal transcripts). Use the `source` parameter to target a specific source, or omit it to search all. Returns matching transcript excerpts with key quotes, insights, and extracted data.',
+    description: `Search call transcripts and meeting recordings across all sources.
+DATA SOURCES: call_transcripts (deal calls), buyer_transcripts (buyer-specific), deal_transcripts (Fireflies meetings).
+USE WHEN: "find calls about HVAC", "what was discussed in the meeting", "transcripts mentioning revenue".
+SEARCHABLE FIELDS: keywords param checks transcript_text, key_quotes, extracted_insights (call_transcripts); transcript_text, extracted_insights, extracted_data (buyer_transcripts); title, transcript_text, meeting_attendees, external_participants, extracted_data (Fireflies/deal_transcripts).
+Use the source parameter to target a specific source, or omit for all.`,
     input_schema: {
       type: 'object',
       properties: {

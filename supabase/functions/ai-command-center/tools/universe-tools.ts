@@ -17,14 +17,18 @@ import type { ToolResult } from './index.ts';
 export const universeTools: ClaudeTool[] = [
   {
     name: 'search_buyer_universes',
-    description:
-      'Search and list buyer universes — the curated buyer lists built for specific industry verticals. Each universe defines fit criteria (geography, size, services), scoring weights, and which deals it applies to. Use to find universes by name or industry.',
+    description: `Search and list buyer universes — the curated buyer lists built for specific industry verticals.
+DATA SOURCE: remarketing_buyer_universes table.
+USE WHEN: "find the HVAC universe", "which universes exist", "universes for plumbing buyers".
+SEARCHABLE FIELDS: search param checks name, description, fit_criteria, service_criteria, geography_criteria, size_criteria, buyer_types_criteria.
+Each universe defines fit criteria, scoring weights, and which deals it applies to.`,
     input_schema: {
       type: 'object',
       properties: {
         search: {
           type: 'string',
-          description: 'Free-text search across universe name and description',
+          description:
+            'Free-text search across name, description, fit_criteria, service_criteria, geography_criteria, size_criteria, buyer_types_criteria',
         },
         archived: { type: 'boolean', description: 'Include archived universes (default false)' },
         limit: { type: 'number', description: 'Max results (default 50)' },

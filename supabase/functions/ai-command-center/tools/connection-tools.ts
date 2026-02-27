@@ -14,8 +14,11 @@ import type { ToolResult } from './index.ts';
 export const connectionTools: ClaudeTool[] = [
   {
     name: 'get_connection_requests',
-    description:
-      'Get buyer connection requests for deals — formal requests from buyers/leads to connect with a listing. Includes NDA status, fee agreement status, conversation state (new/active/resolved), buyer contact details, approval/rejection info. This is the core buyer intake pipeline table — use it to see who has requested access to a deal.',
+    description: `Get buyer connection requests for deals — formal requests from buyers/leads to connect with a listing.
+DATA SOURCE: connection_requests table.
+USE WHEN: "who requested access to this deal", "pending connection requests", "NDA signed connections".
+SEARCHABLE FIELDS: search param checks lead_name, lead_email, lead_company, lead_role, decision_notes, last_message_preview.
+Includes NDA status, fee agreement status, conversation state, approval/rejection info.`,
     input_schema: {
       type: 'object',
       properties: {
@@ -30,7 +33,11 @@ export const connectionTools: ClaudeTool[] = [
           type: 'boolean',
           description: 'Filter to requests where fee agreement was signed',
         },
-        search: { type: 'string', description: 'Search by buyer name, email, or company' },
+        search: {
+          type: 'string',
+          description:
+            'Search across lead_name, lead_email, lead_company, lead_role, decision_notes, last_message_preview',
+        },
         days: { type: 'number', description: 'Lookback period in days (default 90)' },
         limit: { type: 'number', description: 'Max results (default 100)' },
       },

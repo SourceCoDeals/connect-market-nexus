@@ -39,12 +39,19 @@ export const analyticsTools: ClaudeTool[] = [
   },
   {
     name: 'get_industry_trackers',
-    description:
-      'Get industry trackers — named industry verticals that group deals and buyers together with custom scoring weights. Each tracker is linked to a buyer universe and shows deal count, buyer count, and scoring configuration (geography/size/service weights). Use to understand which industries SourceCo tracks and their scoring setup.',
+    description: `Get industry trackers — named industry verticals that group deals and buyers together with custom scoring weights.
+DATA SOURCE: industry_trackers table.
+USE WHEN: "which industries do we track", "HVAC tracker details", "tracker scoring weights".
+SEARCHABLE FIELDS: search param checks name, description, service_criteria, geography_criteria, size_criteria.
+Each tracker is linked to a buyer universe and shows deal count, buyer count, and scoring configuration.`,
     input_schema: {
       type: 'object',
       properties: {
-        search: { type: 'string', description: 'Search by tracker name or description' },
+        search: {
+          type: 'string',
+          description:
+            'Search across name, description, service_criteria, geography_criteria, size_criteria',
+        },
         universe_id: { type: 'string', description: 'Filter by associated buyer universe UUID' },
         active_only: {
           type: 'boolean',

@@ -90,14 +90,18 @@ const LISTING_LEAD_FIELDS = [
 export const buyerTools: ClaudeTool[] = [
   {
     name: 'search_buyers',
-    description:
-      'Search remarketing buyers by criteria — geography, type, services, revenue range, acquisition appetite, fee agreement status, and free text. Automatically includes buyers from universes whose name matches the search/industry term (e.g. searching "HVAC" finds buyers in the "Residential HVAC, Plumbing and Electrical" universe). When state is provided, returns ALL buyers in that state (not limited to top results). Returns buyer summaries sorted by alignment score.',
+    description: `Search remarketing buyers (acquirers, PE firms, platforms) in the remarketing_buyers table.
+DATA SOURCE: remarketing_buyers table + cross-references remarketing_buyer_universes for universe-aware matching.
+USE WHEN: "find HVAC buyers", "buyers in Texas", "PE firms interested in plumbing", "who has a fee agreement".
+SEARCHABLE FIELDS: company_name, pe_firm_name, target_industries, target_services, services_offered, industry_vertical, thesis_summary, business_summary, notes, alignment_reasoning, hq_state, geographic_footprint, target_geographies, service_regions, operating_locations, revenue_model.
+KEY BEHAVIOR: Automatically includes buyers from universes whose name matches the search/industry term (e.g. "HVAC" finds buyers in the "Residential HVAC, Plumbing and Electrical" universe even if the buyer record itself doesn't say "HVAC"). When state is provided, returns ALL buyers in that state (not limited to top results).`,
     input_schema: {
       type: 'object',
       properties: {
         search: {
           type: 'string',
-          description: 'Free-text search across company name, PE firm, services, geography',
+          description:
+            'Free-text search across company_name, pe_firm_name, buyer_type, business_type, target_services, services_offered, target_industries, industry_vertical, thesis_summary, business_summary, notes, alignment_reasoning, revenue_model, hq_state, hq_city, hq_region, geographic_footprint, target_geographies, service_regions, operating_locations. Also matches universe names.',
         },
         buyer_type: {
           type: 'string',
@@ -117,7 +121,7 @@ export const buyerTools: ClaudeTool[] = [
         industry: {
           type: 'string',
           description:
-            'Filter by industry keyword (searches target_industries, target_services, company_name, and business_summary)',
+            'Filter by industry keyword (e.g. "hvac", "plumbing", "collision"). Searches target_industries, target_services, services_offered, industry_vertical, company_name, pe_firm_name, thesis_summary, business_summary, notes, alignment_reasoning — AND automatically matches universe names.',
         },
         services: {
           type: 'array',
@@ -208,8 +212,11 @@ export const buyerTools: ClaudeTool[] = [
   },
   {
     name: 'search_lead_sources',
-    description:
-      'Search deals/leads by lead source type — CP Targets (captarget), GO Partners, marketplace, internal. Returns deal/listing records with industry, revenue, and status. Use this to answer questions like "how many captarget leads are HVAC companies" or "show me HVAC leads in Texas". Supports industry keyword and state filtering.',
+    description: `Search deals/leads by lead source type — CP Targets (captarget), GO Partners, marketplace, internal.
+DATA SOURCE: listings table filtered by deal_source.
+USE WHEN: "how many captarget leads are HVAC", "show me GO Partner leads in Texas", "HVAC leads by source".
+SEARCHABLE FIELDS: industry filter checks industry, category, categories, title, services, captarget_sheet_tab. State filter checks address_state and geographic_states.
+NOT FOR: searching acquirers/buyers (use search_buyers), valuation leads (use search_valuation_leads), inbound leads (use search_inbound_leads).`,
     input_schema: {
       type: 'object',
       properties: {
@@ -236,8 +243,11 @@ export const buyerTools: ClaudeTool[] = [
   },
   {
     name: 'search_valuation_leads',
-    description:
-      'Search valuation calculator leads — business owners who used SourceCo valuation tools (HVAC calculator, collision calculator, auto shop calculator, general calculator). These are high-intent seller leads with self-reported financials. Use for questions about specific calculator lead types.',
+    description: `Search valuation calculator leads — business owners who used SourceCo valuation tools (HVAC calculator, collision calculator, auto shop calculator, general calculator).
+DATA SOURCE: valuation_leads table.
+USE WHEN: "how many HVAC calculator leads", "valuation leads in Texas", "show me auto shop leads".
+SEARCHABLE FIELDS: search param checks business_name, display_name, industry, region, location. State param checks region and location.
+These are high-intent SELLER leads with self-reported financials — NOT buyers/acquirers.`,
     input_schema: {
       type: 'object',
       properties: {
