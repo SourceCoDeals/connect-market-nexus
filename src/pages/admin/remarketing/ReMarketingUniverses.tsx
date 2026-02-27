@@ -342,6 +342,11 @@ const ReMarketingUniverses = () => {
     }
   }, [newName]);
 
+  // Global activity queue — needed early for refetchInterval on flagged deals query
+  const { startOrQueueMajorOp } = useGlobalGateCheck();
+  const { runningOp } = useGlobalActivityQueue();
+  const isBulkEnriching = runningOp?.operation_type === 'buyer_universe_generation';
+
   // Fetch universes with buyer counts
   const { data: universes, isLoading } = useQuery({
     queryKey: ['remarketing', 'universes-with-stats', showArchived],
@@ -458,6 +463,8 @@ const ReMarketingUniverses = () => {
       if (error) throw error;
       return data || [];
     },
+    // Auto-refetch while enrichment is running so labels populate in real-time
+    refetchInterval: runningOp?.operation_type === 'buyer_universe_generation' ? 5000 : false,
   });
 
   // Local ordering state for drag-and-drop
@@ -506,10 +513,7 @@ const ReMarketingUniverses = () => {
     },
     [orderedFlagged, queryClient],
   );
-  // Bulk enrich via global activity queue
-  const { startOrQueueMajorOp } = useGlobalGateCheck();
-  const { runningOp } = useGlobalActivityQueue();
-  const isBulkEnriching = runningOp?.operation_type === 'buyer_universe_generation';
+  // Bulk enrich via global activity queue (hooks moved above for refetchInterval)
 
   const enrichAllFlaggedDeals = useCallback(async () => {
     const unenriched = orderedFlagged.filter((d) => !d.buyer_universe_generated_at);
