@@ -44,8 +44,13 @@ interface ListingOption {
   geographic_states: string[] | null;
   website: string | null;
   internal_deal_memo_link: string | null;
+  is_internal_deal: boolean;
+  deal_source: string | null;
+  pushed_to_all_deals: boolean | null;
   universes?: { id: string; name: string }[];
 }
+
+const LEAD_SOURCE_TYPES = ['captarget', 'valuation_calculator', 'valuation_lead', 'gp_partners'];
 
 // Helper to extract website URL from memo link or website field
 const getEffectiveWebsite = (listing: ListingOption): string | null => {
@@ -106,19 +111,18 @@ export const AddDealToUniverseDialog = ({
   });
 
   // Fetch available listings (not already in universe)
-  // IMPORTANT: Only show internal deals to prevent accidentally converting marketplace listings
+  // Shows internal deals + active marketplace deals, but excludes lead-source-only entries
   const { data: availableListings, isLoading: loadingListings } = useQuery({
     queryKey: ['listings', 'available-for-universe', universeId, search],
     queryFn: async (): Promise<ListingOption[]> => {
-      // Fetch internal listings AND active deals (pushed from lead sources)
-      // Internal deals (is_internal_deal = true) and active deals (status = 'active') should both be searchable
+      // Fetch internal deals and active deals (marketplace, manual, referral, etc.)
       const result = await supabase
         .from('listings')
         .select(
-          'id, title, internal_company_name, location, revenue, ebitda, enriched_at, geographic_states, website, internal_deal_memo_link, is_internal_deal, status',
+          'id, title, internal_company_name, location, revenue, ebitda, enriched_at, geographic_states, website, internal_deal_memo_link, is_internal_deal, status, deal_source, pushed_to_all_deals',
         )
         .is('deleted_at', null)
-        .or('is_internal_deal.eq.true,status.eq.active') // Include both internal deals AND active deals from lead sources
+        .or('is_internal_deal.eq.true,status.eq.active')
         .order('created_at', { ascending: false })
         .limit(500);
 
@@ -152,8 +156,17 @@ export const AddDealToUniverseDialog = ({
         universes: universeMap[listing.id] || [],
       }));
 
-      // Filter by search (title, internal_company_name, location) and exclude existing deals in THIS universe
+      // Exclude deals already in THIS universe
       data = data.filter((listing) => !existingDealIds.includes(listing.id));
+
+      // Exclude lead-source-only deals that haven't been pushed to "All Deals"
+      data = data.filter((listing) => {
+        if (listing.is_internal_deal) return true;
+        if (listing.deal_source && LEAD_SOURCE_TYPES.includes(listing.deal_source)) {
+          return listing.pushed_to_all_deals === true;
+        }
+        return true;
+      });
 
       if (search) {
         const searchLower = search.toLowerCase();
@@ -206,8 +219,13 @@ export const AddDealToUniverseDialog = ({
       onDealAdded?.();
       onOpenChange(false);
     },
-    onError: (_error) => {
-      toast.error('Failed to add deals to universe');
+    onError: (error: Error & { code?: string }) => {
+      const msg = error?.message || 'Failed to add deals to universe';
+      if (error?.code === '23505' || msg.includes('duplicate') || msg.includes('unique')) {
+        toast.error('One or more deals are already in this universe');
+      } else {
+        toast.error(msg);
+      }
     },
   });
 
