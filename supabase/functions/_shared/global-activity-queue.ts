@@ -10,7 +10,8 @@ export type OperationType =
   | 'buyer_enrichment'
   | 'guide_generation'
   | 'buyer_scoring'
-  | 'criteria_extraction';
+  | 'criteria_extraction'
+  | 'buyer_universe_generation';
 
 /**
  * Update progress on a global_activity_queue item.
@@ -207,6 +208,7 @@ async function drainNextQueuedOperation(supabase: SupabaseClient): Promise<void>
       buyer_enrichment: 'process-buyer-enrichment-queue',
       guide_generation: 'process-ma-guide-queue',
       buyer_scoring: 'process-scoring-queue',
+      buyer_universe_generation: 'process-buyer-universe-queue',
     };
     const functionName = processorMap[nextOp.operation_type];
     if (functionName) {
