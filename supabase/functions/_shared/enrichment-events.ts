@@ -30,29 +30,58 @@ export interface EnrichmentEventParams {
 /**
  * Log an enrichment event (non-blocking).
  * Swallows errors to prevent event logging from breaking the pipeline.
+ *
+ * BUG-5 FIX: Upgraded from console.warn to console.error for RPC failures so they
+ * appear in Supabase function error logs. Also added a direct INSERT fallback when
+ * the RPC doesn't exist (e.g., migration not applied), so events aren't silently lost.
  */
 export function logEnrichmentEvent(
   supabase: SupabaseClient,
   params: EnrichmentEventParams
 ): void {
+  const rpcParams = {
+    p_entity_type: params.entityType,
+    p_entity_id: params.entityId,
+    p_provider: params.provider,
+    p_function_name: params.functionName,
+    p_status: params.status,
+    p_step_name: params.stepName || null,
+    p_job_id: params.jobId || null,
+    p_error_message: params.errorMessage?.substring(0, 500) || null,
+    p_duration_ms: params.durationMs || null,
+    p_fields_updated: params.fieldsUpdated || 0,
+    p_tokens_used: params.tokensUsed || 0,
+  };
+
   Promise.resolve(
-    supabase.rpc('log_enrichment_event', {
-      p_entity_type: params.entityType,
-      p_entity_id: params.entityId,
-      p_provider: params.provider,
-      p_function_name: params.functionName,
-      p_status: params.status,
-      p_step_name: params.stepName || null,
-      p_job_id: params.jobId || null,
-      p_error_message: params.errorMessage?.substring(0, 500) || null,
-      p_duration_ms: params.durationMs || null,
-      p_fields_updated: params.fieldsUpdated || 0,
-      p_tokens_used: params.tokensUsed || 0,
-    })
+    supabase.rpc('log_enrichment_event', rpcParams)
   ).then((result: any) => {
-    if (result?.error) console.warn('[enrichment-events] Failed to log event:', result.error.message);
+    if (result?.error) {
+      // RPC doesn't exist — fall back to direct INSERT so events aren't silently lost
+      if (result.error.code === 'PGRST202' || result.error.code === '42883') {
+        return supabase.from('enrichment_events').insert({
+          entity_type: params.entityType,
+          entity_id: params.entityId,
+          provider: params.provider,
+          function_name: params.functionName,
+          status: params.status,
+          step_name: params.stepName || null,
+          job_id: params.jobId || null,
+          error_message: params.errorMessage?.substring(0, 500) || null,
+          duration_ms: params.durationMs || null,
+          fields_updated: params.fieldsUpdated || 0,
+          tokens_used: params.tokensUsed || 0,
+        }).then((insertResult: any) => {
+          if (insertResult?.error) {
+            console.error('[enrichment-events] Direct INSERT also failed:', insertResult.error.message);
+          }
+        });
+      }
+      console.error('[enrichment-events] RPC failed to log event:', result.error.message,
+        `(entity=${params.entityType}:${params.entityId}, status=${params.status})`);
+    }
   }).catch((err: unknown) => {
-    console.warn('[enrichment-events] Event logging error:', err);
+    console.error('[enrichment-events] Event logging error:', err);
   });
 }
 

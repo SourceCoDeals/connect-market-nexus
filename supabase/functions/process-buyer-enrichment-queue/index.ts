@@ -11,6 +11,7 @@ const RATE_LIMIT_BACKOFF_MS = 60000; // 60s backoff on rate limit
 const STALE_PROCESSING_MINUTES = 5; // Recovery timeout for stuck items
 const MAX_FUNCTION_RUNTIME_MS = 140000; // 140s — stop looping before Deno 150s timeout
 const INTER_BUYER_DELAY_MS = 200; // 200ms breathing room between buyers
+const MAX_CONTINUATIONS = 50; // Prevent infinite self-continuation loops
 
 Deno.serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
@@ -27,7 +28,12 @@ Deno.serve(async (req) => {
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    console.log('Processing buyer enrichment queue (self-looping)...');
+    // Parse request body for continuation tracking
+    let body: Record<string, unknown> = {};
+    try { body = await req.json(); } catch { /* empty body ok */ }
+
+    const continuationCount = (typeof body.continuationCount === 'number') ? body.continuationCount : 0;
+    console.log(`Processing buyer enrichment queue (self-looping)... [continuation ${continuationCount}/${MAX_CONTINUATIONS}]`);
 
     // Auto-recover any stale global operations (prevents deadlocks)
     const recovered = await recoverStaleOperations(supabase);
@@ -53,18 +59,35 @@ Deno.serve(async (req) => {
       console.log(`Recovered ${staleItems.length} stale processing items`);
     }
 
-    // GUARD: If anything is currently processing (and not stale), skip this run.
-    // Another invocation is already self-looping.
-    const { data: activeItems } = await supabase
-      .from('buyer_enrichment_queue')
-      .select('id')
-      .eq('status', 'processing')
-      .limit(1);
+    // BUG-3 FIX: Use pg_advisory_xact_lock via RPC for mutual exclusion.
+    // The previous pattern (SELECT processing items, then skip if any) had a TOCTOU race:
+    // two concurrent invocations could both see zero active items and both proceed.
+    // If the RPC isn't available yet, fall back to the original check-then-skip pattern
+    // which is still *mostly* safe because individual item claims use atomic status checks.
+    const { data: lockAcquired, error: lockError } = await supabase.rpc(
+      'try_acquire_queue_processor_lock',
+      { p_queue_name: 'buyer_enrichment' }
+    );
 
-    if (activeItems && activeItems.length > 0) {
-      console.log('Another processor is active, skipping this run');
+    if (lockError?.code === 'PGRST202' || lockError?.code === '42883') {
+      // RPC not deployed yet — fall back to original guard
+      const { data: activeItems } = await supabase
+        .from('buyer_enrichment_queue')
+        .select('id')
+        .eq('status', 'processing')
+        .limit(1);
+
+      if (activeItems && activeItems.length > 0) {
+        console.log('Another processor is active (fallback guard), skipping this run');
+        return new Response(
+          JSON.stringify({ success: true, message: 'Skipped - another processor active', processed: 0 }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+    } else if (lockAcquired === false) {
+      console.log('Another processor holds the lock, skipping this run');
       return new Response(
-        JSON.stringify({ success: true, message: 'Skipped - another processor active', processed: 0 }),
+        JSON.stringify({ success: true, message: 'Skipped - another processor holds lock', processed: 0 }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -163,26 +186,44 @@ Deno.serve(async (req) => {
 
       const itemForce = (item as any).force === true;
 
-      // Freshness check: skip re-enrichment if buyer data was updated within the stale window.
+      // BUG-7 FIX: Improved freshness check — only skip if the ENRICHMENT PROCESS itself
+      // updated the buyer recently, not just any edit. Previously, a manual note edit would
+      // bump data_last_updated and cause enrichment to be skipped.
+      // We now check extraction_sources for a recent enrichment-sourced update.
       // Bypassed when force=true (explicit user re-enrichment request).
       if (!itemForce) {
         const { data: buyerData } = await supabase
           .from('remarketing_buyers')
-          .select('data_last_updated')
+          .select('data_last_updated, extraction_sources')
           .eq('id', item.buyer_id)
           .single();
 
         if (buyerData?.data_last_updated) {
           const lastUpdatedMs = new Date(buyerData.data_last_updated).getTime();
           const freshnessWindowMs = STALE_PROCESSING_MINUTES * 60 * 1000;
-          if (Date.now() - lastUpdatedMs < freshnessWindowMs) {
-            console.log(`Skipping buyer ${item.buyer_id} — data_last_updated is recent (${buyerData.data_last_updated}), marking completed`);
+
+          // Only skip if the update was recent AND came from an enrichment source
+          // (platform_website, pe_firm_website, or transcript), not a manual edit.
+          const sources = Array.isArray(buyerData.extraction_sources) ? buyerData.extraction_sources : [];
+          const hasRecentEnrichmentSource = sources.some((src: any) => {
+            const srcType = src.type || src.source_type;
+            const isEnrichmentSource = srcType === 'platform_website' || srcType === 'pe_firm_website' || srcType === 'transcript';
+            if (!isEnrichmentSource) return false;
+            // Check if this source's timestamp is within the freshness window
+            const srcTimestamp = src.extracted_at || src.timestamp;
+            if (!srcTimestamp) return false;
+            const srcMs = new Date(srcTimestamp).getTime();
+            return Date.now() - srcMs < freshnessWindowMs;
+          });
+
+          if (Date.now() - lastUpdatedMs < freshnessWindowMs && hasRecentEnrichmentSource) {
+            console.log(`Skipping buyer ${item.buyer_id} — enrichment data is fresh (${buyerData.data_last_updated}), marking completed`);
             await supabase
               .from('buyer_enrichment_queue')
               .update({
                 status: 'completed',
                 completed_at: new Date().toISOString(),
-                last_error: 'Skipped: buyer data already fresh',
+                last_error: 'Skipped: buyer enrichment data already fresh',
                 updated_at: new Date().toISOString(),
               })
               .eq('id', item.id);
@@ -380,42 +421,48 @@ Deno.serve(async (req) => {
     const totalRemaining = (remaining || 0) + (rateLimitedRemaining || 0);
 
     if (totalRemaining > 0) {
-      // Determine delay: if rate limited, wait for cooldown + jitter before continuing
-      const continuationDelayMs = totalRateLimited > 0 ? RATE_LIMIT_BACKOFF_MS + Math.random() * 5000 : 0;
-
-      if (continuationDelayMs > 0) {
-        console.log(`${totalRemaining} buyers remaining (${rateLimitedRemaining} rate-limited). Scheduling continuation in ${Math.round(continuationDelayMs / 1000)}s...`);
+      // BUG-4 FIX: Guard against infinite self-continuation loops
+      if (continuationCount >= MAX_CONTINUATIONS) {
+        console.error(`MAX_CONTINUATIONS (${MAX_CONTINUATIONS}) reached — stopping self-continuation to prevent infinite loop. ${totalRemaining} items still pending.`);
+        await completeGlobalQueueOperation(supabase, 'buyer_enrichment', 'failed');
       } else {
-        console.log(`${remaining} buyers still pending, triggering next batch...`);
-      }
+        // Determine delay: if rate limited, wait for cooldown + jitter before continuing
+        const continuationDelayMs = totalRateLimited > 0 ? RATE_LIMIT_BACKOFF_MS + Math.random() * 5000 : 0;
 
-      // Self-continuation with optional delay for rate-limit recovery.
-      // Retry up to 3 times with exponential backoff if the trigger itself fails.
-      const triggerContinuation = async () => {
         if (continuationDelayMs > 0) {
-          await new Promise(r => setTimeout(r, continuationDelayMs));
+          console.log(`${totalRemaining} buyers remaining (${rateLimitedRemaining} rate-limited). Scheduling continuation ${continuationCount + 1}/${MAX_CONTINUATIONS} in ${Math.round(continuationDelayMs / 1000)}s...`);
+        } else {
+          console.log(`${remaining} buyers still pending, triggering continuation ${continuationCount + 1}/${MAX_CONTINUATIONS}...`);
         }
-        for (let attempt = 0; attempt < 3; attempt++) {
-          try {
-            await fetch(`${supabaseUrl}/functions/v1/process-buyer-enrichment-queue`, {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'apikey': supabaseAnonKey,
-                'Authorization': `Bearer ${supabaseServiceKey}`,
-              },
-              body: JSON.stringify({ continuation: true }),
-              signal: AbortSignal.timeout(30_000),
-            });
-            return; // success
-          } catch (err) {
-            console.warn(`Self-continuation trigger attempt ${attempt + 1} failed:`, err);
-            if (attempt < 2) await new Promise(r => setTimeout(r, 2000 * (attempt + 1)));
+
+        // Self-continuation with optional delay for rate-limit recovery.
+        // Retry up to 3 times with exponential backoff if the trigger itself fails.
+        const triggerContinuation = async () => {
+          if (continuationDelayMs > 0) {
+            await new Promise(r => setTimeout(r, continuationDelayMs));
           }
-        }
-        console.error('Self-continuation failed after 3 attempts — queue may stall. Items will recover on next manual trigger.');
-      };
-      triggerContinuation().catch((err: unknown) => { console.warn('[process-buyer-enrichment-queue] Continuation trigger failed:', err); });
+          for (let attempt = 0; attempt < 3; attempt++) {
+            try {
+              await fetch(`${supabaseUrl}/functions/v1/process-buyer-enrichment-queue`, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'apikey': supabaseAnonKey,
+                  'Authorization': `Bearer ${supabaseServiceKey}`,
+                },
+                body: JSON.stringify({ continuation: true, continuationCount: continuationCount + 1 }),
+                signal: AbortSignal.timeout(30_000),
+              });
+              return; // success
+            } catch (err) {
+              console.warn(`Self-continuation trigger attempt ${attempt + 1} failed:`, err);
+              if (attempt < 2) await new Promise(r => setTimeout(r, 2000 * (attempt + 1)));
+            }
+          }
+          console.error('Self-continuation failed after 3 attempts — queue may stall. Items will recover on next manual trigger.');
+        };
+        triggerContinuation().catch((err: unknown) => { console.warn('[process-buyer-enrichment-queue] Continuation trigger failed:', err); });
+      }
     }
 
     return new Response(
