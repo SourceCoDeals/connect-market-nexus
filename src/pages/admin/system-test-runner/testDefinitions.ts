@@ -309,6 +309,17 @@ export function buildTests(): TestDef[] {
     originalContactName = listings[0].main_contact_name;
     ctx.testListingId = sellerTestListingId;
 
+    // Clean up stale test contacts from previous runs that may not have cleaned up
+    await supabase
+      .from('contacts')
+      .delete()
+      .eq('contact_type', 'seller')
+      .eq('listing_id', sellerTestListingId)
+      .in('email', [
+        'qa-seller-primary@sourceco-test.local',
+        'qa-seller-second@sourceco-test.local',
+      ]);
+
     const { data, error } = await supabase
       .from('contacts')
       .insert({
@@ -538,25 +549,25 @@ export function buildTests(): TestDef[] {
     if (contactsError) throw contactsError;
     if (!listings?.length || !contacts?.length) throw new Error('Need listings + contacts');
 
-    // Get a document (required — document_id is NOT NULL)
-    const { data: docs, error: docsError } = await supabase
-      .from('data_room_documents')
+    // Get a document (required — document_id FK references deal_documents)
+    const { data: dealDocs, error: dealDocsError } = await supabase
+      .from('deal_documents')
       .select('id')
       .limit(1);
-    if (docsError) throw docsError;
+    if (dealDocsError) throw dealDocsError;
     let docId: string;
-    if (!docs?.length) {
-      // Try deal_documents as fallback
-      const { data: dealDocs, error: dealDocsError } = await supabase
-        .from('deal_documents')
+    if (!dealDocs?.length) {
+      // Try data_room_documents as fallback
+      const { data: docs, error: docsError } = await supabase
+        .from('data_room_documents')
         .select('id')
         .limit(1);
-      if (dealDocsError) throw dealDocsError;
-      if (!dealDocs?.length)
+      if (docsError) throw docsError;
+      if (!docs?.length)
         throw new Error('No documents exist to create tracked link (document_id is NOT NULL)');
-      docId = dealDocs[0].id;
-    } else {
       docId = docs[0].id;
+    } else {
+      docId = dealDocs[0].id;
     }
 
     const token = crypto.randomUUID();
