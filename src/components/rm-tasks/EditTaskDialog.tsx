@@ -63,7 +63,7 @@ export function EditTaskDialog({ open, onOpenChange, task }: EditTaskDialogProps
         priority,
         owner_id: ownerId,
         status,
-        notes: notes.trim() || undefined,
+        notes: notes.trim() || null,
       });
       toast({ title: 'Task updated' });
       onOpenChange(false);
