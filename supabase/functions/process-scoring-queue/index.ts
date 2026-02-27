@@ -49,16 +49,30 @@ Deno.serve(async (req) => {
       console.log(`Recovered ${recoveredItems.length} stale scoring items from processing state`);
     }
 
-    // Guard: skip if another processor is active
-    const { data: active } = await supabase
-      .from('remarketing_scoring_queue')
-      .select('id')
-      .eq('status', 'processing')
-      .limit(1);
+    // BUG-3 FIX: Use pg_advisory_xact_lock via RPC for mutual exclusion.
+    // Falls back to the original check-then-skip pattern if the RPC isn't deployed.
+    const { data: lockAcquired, error: lockError } = await supabase.rpc(
+      'try_acquire_queue_processor_lock',
+      { p_queue_name: 'scoring' }
+    );
 
-    if (active && active.length > 0) {
-      console.log('Another scoring processor is active, skipping');
-      return new Response(JSON.stringify({ success: true, message: 'Skipped', processed: 0 }), {
+    if (lockError?.code === 'PGRST202' || lockError?.code === '42883') {
+      // RPC not deployed yet — fall back to original guard
+      const { data: active } = await supabase
+        .from('remarketing_scoring_queue')
+        .select('id')
+        .eq('status', 'processing')
+        .limit(1);
+
+      if (active && active.length > 0) {
+        console.log('Another scoring processor is active (fallback guard), skipping');
+        return new Response(JSON.stringify({ success: true, message: 'Skipped', processed: 0 }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+    } else if (lockAcquired === false) {
+      console.log('Another scoring processor holds the lock, skipping');
+      return new Response(JSON.stringify({ success: true, message: 'Skipped - lock held', processed: 0 }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
