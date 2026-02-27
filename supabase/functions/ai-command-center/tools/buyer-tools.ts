@@ -90,7 +90,7 @@ export const buyerTools: ClaudeTool[] = [
   {
     name: 'search_buyers',
     description:
-      'Search remarketing buyers by criteria — geography, type, services, revenue range, acquisition appetite, fee agreement status, and free text. When state is provided, returns ALL buyers in that state (not limited to top results). Returns buyer summaries sorted by alignment score.',
+      'Search remarketing buyers by criteria — geography, type, services, revenue range, acquisition appetite, fee agreement status, and free text. Automatically includes buyers from universes whose name matches the search/industry term (e.g. searching "HVAC" finds buyers in the "Residential HVAC, Plumbing and Electrical" universe). When state is provided, returns ALL buyers in that state (not limited to top results). Returns buyer summaries sorted by alignment score.',
     input_schema: {
       type: 'object',
       properties: {
@@ -343,6 +343,58 @@ async function searchBuyers(
 
   let results = data || [];
 
+  // ---- Universe-aware search ----
+  // When searching by industry or free text, also find universes whose name/description
+  // matches the search term, and include all buyers from those universes.
+  // This ensures "Find HVAC buyers" returns buyers from the "Residential HVAC, Plumbing
+  // and Electrical" universe even if individual buyer records don't contain "hvac".
+  const matchingUniverseIds: Set<string> = new Set();
+  if ((args.industry || args.search) && !args.universe_id) {
+    const searchTerm = ((args.industry || args.search) as string).toLowerCase();
+    const { data: universes } = await supabase
+      .from('remarketing_buyer_universes')
+      .select('id, name, description')
+      .eq('archived', false);
+
+    if (universes) {
+      for (const u of universes) {
+        if (
+          u.name?.toLowerCase().includes(searchTerm) ||
+          u.description?.toLowerCase().includes(searchTerm)
+        ) {
+          matchingUniverseIds.add(u.id);
+        }
+      }
+    }
+
+    // Fetch additional buyers from matching universes that may not be in the initial results
+    if (matchingUniverseIds.size > 0) {
+      const existingIds = new Set(results.map((b: any) => b.id));
+      const universeIds = Array.from(matchingUniverseIds);
+
+      let universeQuery = supabase
+        .from('remarketing_buyers')
+        .select(fields)
+        .in('universe_id', universeIds)
+        .order('alignment_score', { ascending: false, nullsFirst: false })
+        .limit(500);
+
+      if (args.include_archived !== true) {
+        universeQuery = universeQuery.eq('archived', false);
+      }
+
+      const { data: universeBuyers } = await universeQuery;
+      if (universeBuyers) {
+        for (const b of universeBuyers) {
+          if (!existingIds.has(b.id)) {
+            results.push(b);
+            existingIds.add(b.id);
+          }
+        }
+      }
+    }
+  }
+
   // Helper: safely check if a field (which may be string or array) contains a term
   const fieldContains = (field: unknown, term: string): boolean => {
     if (!field) return false;
@@ -374,10 +426,12 @@ async function searchBuyers(
 
   // Client-side industry keyword filter — searches ALL relevant buyer fields
   // Uses fieldContains() for array/string columns that may have mixed types
+  // Also matches buyers whose universe name/description contains the term
   if (args.industry) {
     const term = (args.industry as string).toLowerCase();
     results = results.filter(
       (b: any) =>
+        (matchingUniverseIds.size > 0 && matchingUniverseIds.has(b.universe_id)) ||
         fieldContains(b.target_industries, term) ||
         fieldContains(b.target_services, term) ||
         fieldContains(b.services_offered, term) ||
@@ -392,10 +446,14 @@ async function searchBuyers(
   }
 
   // Client-side free-text search — searches ALL buyer data fields with fuzzy matching
+  // Also matches buyers whose universe name/description contains the term
   if (args.search) {
     const term = (args.search as string).toLowerCase();
     const searchWords = term.split(/\s+/).filter((w) => w.length > 2);
     results = results.filter((b: any) => {
+      // Match by universe name/description
+      if (matchingUniverseIds.size > 0 && matchingUniverseIds.has(b.universe_id)) return true;
+
       const compName = (b.company_name || '').toLowerCase();
       const peName = (b.pe_firm_name || '').toLowerCase();
 

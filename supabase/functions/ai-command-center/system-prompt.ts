@@ -108,7 +108,9 @@ Use get_follow_up_queue FIRST for a unified view. Prioritize: overdue > due toda
 
   BUYER_SEARCH: `Return buyer matches as: name, type, HQ, revenue range, key services, alignment score.
 Use search_buyers with state filter for geographic searches (checks both hq_state and geographic_footprint).
-Use industry parameter for industry-specific searches. Use search_lead_sources for lead source questions.
+Use industry parameter for industry-specific searches — this automatically includes buyers from universes whose name matches the industry (e.g. "HVAC" finds buyers in the "Residential HVAC, Plumbing and Electrical" universe).
+Use search_buyer_universes to find relevant buyer universes by name, then search_buyers with universe_id to drill into a specific universe.
+Use search_lead_sources for lead source questions.
 Use get_top_buyers_for_deal with state filter for universe + geography questions.`,
 
   BUYER_ANALYSIS: `Present scores with context: composite, geography, service, size, owner goals, portfolio, business_model, acquisition.
