@@ -1,7 +1,7 @@
 import { useState, useMemo, useCallback, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { supabase, SUPABASE_URL } from '@/integrations/supabase/client';
+import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -84,6 +84,7 @@ import { IntelligenceCoverageBar, ReMarketingChat } from '@/components/remarketi
 import { deleteUniverseWithRelated } from '@/lib/ma-intelligence/cascadeDelete';
 import { useAICommandCenterContext } from '@/components/ai-command-center/AICommandCenterProvider';
 import { useAIUIActionHandler } from '@/hooks/useAIUIActionHandler';
+import { useGlobalGateCheck, useGlobalActivityQueue } from '@/hooks/remarketing/useGlobalActivityQueue';
 
 type SortField = 'name' | 'buyers' | 'deals' | 'coverage';
 type SortOrder = 'asc' | 'desc';
@@ -142,15 +143,11 @@ interface FlaggedDeal {
 function SortableFlaggedRow({
   deal,
   index,
-  isGenerating,
-  onGenerateClick,
   onCreateClick,
   onNavigate,
 }: {
   deal: FlaggedDeal;
   index: number;
-  isGenerating: boolean;
-  onGenerateClick: (e: React.MouseEvent) => void;
   onCreateClick: (e: React.MouseEvent) => void;
   onNavigate: () => void;
 }) {
@@ -185,24 +182,14 @@ function SortableFlaggedRow({
         {index + 1}
       </TableCell>
       <TableCell>
-        {isGenerating ? (
-          <div className="flex items-center gap-1.5 text-muted-foreground">
-            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-            <span className="text-xs">Generating…</span>
-          </div>
-        ) : hasAIData ? (
+        {hasAIData ? (
           <span className="text-sm font-medium">{deal.buyer_universe_label}</span>
         ) : (
           <span className="text-muted-foreground text-sm">—</span>
         )}
       </TableCell>
       <TableCell className="max-w-[320px]">
-        {isGenerating ? (
-          <div className="flex items-center gap-1.5 text-muted-foreground">
-            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-            <span className="text-xs">Generating…</span>
-          </div>
-        ) : hasAIData && deal.buyer_universe_description ? (
+        {hasAIData && deal.buyer_universe_description ? (
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
@@ -241,22 +228,6 @@ function SortableFlaggedRow({
       </TableCell>
       <TableCell>
         <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
-          {!hasAIData && (
-            <Button
-              size="sm"
-              variant="ghost"
-              className="gap-1 text-xs h-7 px-2"
-              disabled={isGenerating}
-              onClick={onGenerateClick}
-            >
-              {isGenerating ? (
-                <Loader2 className="h-3 w-3 animate-spin" />
-              ) : (
-                <Sparkles className="h-3 w-3" />
-              )}
-              {isGenerating ? 'AI…' : 'AI'}
-            </Button>
-          )}
           <Button size="sm" variant="outline" className="gap-1.5" onClick={onCreateClick}>
             <Plus className="h-3.5 w-3.5" />
             Create
@@ -535,50 +506,43 @@ const ReMarketingUniverses = () => {
     },
     [orderedFlagged, queryClient],
   );
-  // AI buyer universe generation
-  const [generatingIds, setGeneratingIds] = useState<Set<string>>(new Set());
+  // Bulk enrich via global activity queue
+  const { startOrQueueMajorOp } = useGlobalGateCheck();
+  const { runningOp } = useGlobalActivityQueue();
+  const isBulkEnriching = runningOp?.operation_type === 'buyer_universe_generation';
 
-  const generateBuyerUniverse = useCallback(
-    async (listingId: string) => {
-      setGeneratingIds((prev) => new Set(prev).add(listingId));
-      try {
-        const {
-          data: { session },
-        } = await supabase.auth.getSession();
-        const response = await fetch(`${SUPABASE_URL}/functions/v1/generate-buyer-universe`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${session?.access_token}`,
-          },
-          body: JSON.stringify({ listing_id: listingId }),
-        });
+  const enrichAllFlaggedDeals = useCallback(async () => {
+    const unenriched = orderedFlagged.filter((d) => !d.buyer_universe_generated_at);
+    if (unenriched.length === 0) {
+      toast.info('All deals already have buyer universe data');
+      return;
+    }
 
-        if (!response.ok) {
-          const err = await response.json().catch(() => ({ error: 'Unknown error' }));
-          throw new Error(err.error || `HTTP ${response.status}`);
-        }
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
 
-        const result = await response.json();
-        queryClient.invalidateQueries({
-          queryKey: ['remarketing', 'universe-build-flagged-deals'],
-        });
-        if (!result.cached) {
-          toast.success('Buyer universe generated');
-        }
-      } catch (err) {
-        console.error('Failed to generate buyer universe:', err);
-        toast.error(err instanceof Error ? err.message : 'Failed to generate buyer universe');
-      } finally {
-        setGeneratingIds((prev) => {
-          const next = new Set(prev);
-          next.delete(listingId);
-          return next;
-        });
-      }
-    },
-    [queryClient],
-  );
+    const { queued } = await startOrQueueMajorOp({
+      operationType: 'buyer_universe_generation',
+      totalItems: unenriched.length,
+      contextJson: { listing_ids: unenriched.map((d) => d.id) },
+      description: `Generate buyer universes for ${unenriched.length} deal${unenriched.length > 1 ? 's' : ''}`,
+      userId: user?.id || 'unknown',
+    });
+
+    if (queued) {
+      return; // Toast already shown by startOrQueueMajorOp
+    }
+
+    // Trigger the processor edge function
+    supabase.functions
+      .invoke('process-buyer-universe-queue', {
+        body: { trigger: 'buyer-universe-generation' },
+      })
+      .catch((err) => console.warn('Worker trigger failed:', err));
+
+    toast.info(`Queued ${unenriched.length} deal${unenriched.length > 1 ? 's' : ''} for buyer universe generation`);
+  }, [orderedFlagged, startOrQueueMajorOp]);
 
   // Create universe mutation
   const createMutation = useMutation({
@@ -1135,6 +1099,33 @@ const ReMarketingUniverses = () => {
         /* To Be Created Tab – drag-and-drop ranking */
         <Card>
           <CardContent className="p-0">
+            {/* Enrich All button bar */}
+            {orderedFlagged.length > 0 && (
+              <div className="flex items-center justify-between px-4 py-3 border-b">
+                <p className="text-sm text-muted-foreground">
+                  {orderedFlagged.filter((d) => !d.buyer_universe_generated_at).length} of{' '}
+                  {orderedFlagged.length} deals need enrichment
+                </p>
+                <Button
+                  size="sm"
+                  className="gap-1.5"
+                  disabled={isBulkEnriching || orderedFlagged.every((d) => !!d.buyer_universe_generated_at)}
+                  onClick={enrichAllFlaggedDeals}
+                >
+                  {isBulkEnriching ? (
+                    <>
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      Enriching {runningOp?.completed_items || 0}/{runningOp?.total_items || 0}...
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="h-3.5 w-3.5" />
+                      Enrich All
+                    </>
+                  )}
+                </Button>
+              </div>
+            )}
             <DndContext
               sensors={flaggedSensors}
               collisionDetection={closestCenter}
@@ -1174,11 +1165,6 @@ const ReMarketingUniverses = () => {
                           key={deal.id}
                           deal={deal}
                           index={idx}
-                          isGenerating={generatingIds.has(deal.id)}
-                          onGenerateClick={(e) => {
-                            e.stopPropagation();
-                            generateBuyerUniverse(deal.id);
-                          }}
                           onNavigate={() => navigate(`/admin/deals/${deal.id}`)}
                           onCreateClick={(e) => {
                             e.stopPropagation();
