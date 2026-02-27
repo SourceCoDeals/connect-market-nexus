@@ -408,6 +408,66 @@ Flag stale outreach (no activity in 5+ business days) and overdue next actions.`
 
 **What AI Cannot Do:** Access external websites in real time (uses API integrations). Predict future market conditions. Access other companies' data. Send emails directly (drafts only). Delete data without confirmation.`,
   },
+
+  task_system: {
+    title: 'Task Management System Guide',
+    content: `The Task Management System tracks M&A workflow actions tied to specific deals and buyers.
+
+**CRITICAL RULE: Every task MUST be linked to a real entity.** Tasks are NOT generic to-dos — they are M&A actions for specific deals, listings, buyers, or contacts. Never create tasks without an entity link.
+
+**Entity Types:**
+- listing: A sellside engagement (company being sold). Primary deal entity. Most tasks link here.
+- deal: A buyer-deal pipeline entry (specific buyer's pursuit of a listing). Links buyer to listing.
+- buyer: A remarketing buyer (PE firm, strategic, etc.). For buyer-specific follow-ups.
+- contact: A unified contact record. For individual outreach tasks.
+
+**Task Sources:**
+- manual: Created by a user through the UI or chatbot
+- ai: Auto-extracted from call transcripts by the AI extraction pipeline
+- template: Generated from deal process templates (e.g., "Start NDA Process")
+- system: Auto-created by lifecycle triggers (listing status/deal stage changes)
+- chatbot: Created via AI Command Center conversation
+
+**Task Statuses:** pending, pending_approval, in_progress, completed, overdue, snoozed, cancelled, listing_closed
+
+**Priority:** high, medium, low — affects sort order and aging tier classification
+
+**Task Types (M&A-specific):**
+- buyer_outreach: Initial buyer contact, introduction, follow-up calls
+- nda_execution: NDA/fee agreement preparation, send, follow-up on signature
+- meeting_prep: Prepare for buyer meetings, management presentations
+- document_request: CIM distribution, data room setup, financial package
+- ioi_loi_process: IOI/LOI review, negotiation, counter-offer tracking
+- due_diligence: Due diligence coordination, Q&A management
+- buyer_qualification: Buyer screening, fit assessment, scoring review
+- seller_relationship: Seller communication, status updates, expectation management
+- buyer_ic_followup: Investment committee follow-up, decision tracking
+- follow_up: General follow-up action
+- other: Miscellaneous deal-related task
+
+**AI Task Constraints:**
+- AI-generated tasks require entity_id (enforced by database constraint)
+- AI tasks start as pending review (confirmed_at IS NULL) — user must confirm or dismiss
+- AI tasks expire after 7 days if not reviewed (configurable via platform_settings)
+- Relevance score threshold: 7/10 minimum (configurable)
+- Only "high" or "medium" confidence tasks are saved; low confidence is discarded
+
+**Deal Process Templates:**
+Pre-built task sets for M&A stages: Intake, Build Buyer Universe, NDA Execution, CIM Distribution, IOI Phase, LOI Negotiation. Each creates 3-5 linked tasks with dependencies and due date offsets.
+
+**Snooze:** Tasks can be snoozed for 1-30 days. A nightly pg_cron job wakes them up. Use for tasks that are valid but not actionable yet.
+
+**Deal Lifecycle Automation:**
+- Listing → sold: all open tasks auto-closed (status='listing_closed')
+- Listing → inactive: all open tasks auto-snoozed (30 days)
+- Listing → active (from inactive): snoozed tasks auto-woken
+- Deal → Closed Won: tasks auto-completed
+- Deal → Closed Lost: tasks auto-cancelled
+
+**Buyer Spotlight:** Tracks contact cadence per buyer-deal pair. Flags buyers overdue for contact based on expected_contact_days. Never-contacted buyers are highest priority.
+
+**Deal Signals:** AI-detected intelligence from call transcripts. Types: critical (deal risk), warning (attention needed), positive (good news), neutral (informational). Must be acknowledged by a team member.`,
+  },
 };
 
 /** List available topics with titles. */

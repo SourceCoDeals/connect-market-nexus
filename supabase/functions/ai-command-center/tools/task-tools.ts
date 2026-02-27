@@ -233,6 +233,7 @@ async function getTaskInbox(
     )
     .eq('assignee_id', targetUserId)
     .order('due_date', { ascending: true })
+    .order('priority_score', { ascending: false })
     .limit(limit);
 
   if (statusFilter === 'open') {
@@ -297,10 +298,13 @@ async function getDailyBriefing(
       .in('status', ['pending', 'in_progress'])
       .order('due_date', { ascending: true })
       .limit(5),
-    // AI tasks pending review
+    // AI tasks pending review (scoped to user's assigned tasks)
     supabase
       .from('daily_standup_tasks')
-      .select('id, title, task_type, ai_relevance_score, ai_confidence, expires_at')
+      .select(
+        'id, title, task_type, ai_relevance_score, ai_confidence, expires_at, entity_type, deal_reference',
+      )
+      .eq('assignee_id', targetUserId)
       .eq('source', 'ai')
       .is('confirmed_at', null)
       .is('dismissed_at', null)
@@ -394,19 +398,41 @@ async function getBuyerSpotlight(
   const now = Date.now();
   const withOverdue = (data || []).map(
     (cadence: { last_contacted_at: string | null; expected_contact_days: number }) => {
+      const neverContacted = !cadence.last_contacted_at;
       const lastContact = cadence.last_contacted_at
         ? new Date(cadence.last_contacted_at).getTime()
-        : 0;
-      const daysSinceContact = Math.floor((now - lastContact) / 86400000);
+        : now; // Treat never-contacted as "overdue since today"
+      const daysSinceContact = neverContacted
+        ? cadence.expected_contact_days + 1 // Guaranteed overdue
+        : Math.floor((now - lastContact) / 86400000);
       const daysOverdue = daysSinceContact - cadence.expected_contact_days;
 
-      return { ...cadence, days_since_contact: daysSinceContact, days_overdue: daysOverdue };
+      return {
+        ...cadence,
+        days_since_contact: daysSinceContact,
+        days_overdue: daysOverdue,
+        never_contacted: neverContacted,
+      };
     },
   );
 
+  // Sort: never-contacted first, then by days overdue descending
+  const overdueBuyers = withOverdue
+    .filter((b: { days_overdue: number }) => b.days_overdue > 0)
+    .sort(
+      (
+        a: { never_contacted: boolean; days_overdue: number },
+        b: { never_contacted: boolean; days_overdue: number },
+      ) => {
+        if (a.never_contacted && !b.never_contacted) return -1;
+        if (!a.never_contacted && b.never_contacted) return 1;
+        return b.days_overdue - a.days_overdue;
+      },
+    );
+
   return {
     data: {
-      buyers: withOverdue.filter((b: { days_overdue: number }) => b.days_overdue > 0),
+      buyers: overdueBuyers,
       total: withOverdue.length,
     },
   };

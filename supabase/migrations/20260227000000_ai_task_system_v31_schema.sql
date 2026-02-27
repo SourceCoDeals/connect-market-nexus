@@ -134,7 +134,32 @@ WHERE deal_id IS NOT NULL AND entity_id IS NULL;
 
 UPDATE public.daily_standup_tasks
 SET source = CASE WHEN is_manual THEN 'manual' ELSE 'ai' END
-WHERE source IS NULL OR source = 'manual' AND NOT is_manual;
+WHERE source IS NULL OR (source = 'manual' AND NOT is_manual);
+
+-- ─── 2b. Entity-linking constraint for AI tasks ───────────────────
+-- AI-generated tasks MUST be linked to a real entity. This prevents
+-- orphan tasks that don't relate to any deal or buyer.
+ALTER TABLE public.daily_standup_tasks
+  ADD CONSTRAINT dst_ai_entity_required
+    CHECK (
+      source != 'ai' OR entity_id IS NOT NULL
+    )
+    NOT VALID;
+
+-- Template tasks also require entity linking
+ALTER TABLE public.daily_standup_tasks
+  ADD CONSTRAINT dst_template_entity_required
+    CHECK (
+      source != 'template' OR entity_id IS NOT NULL
+    )
+    NOT VALID;
+
+-- Validate all constraints on new data going forward
+ALTER TABLE public.daily_standup_tasks VALIDATE CONSTRAINT dst_entity_type_check;
+ALTER TABLE public.daily_standup_tasks VALIDATE CONSTRAINT dst_source_check;
+ALTER TABLE public.daily_standup_tasks VALIDATE CONSTRAINT dst_priority_check;
+ALTER TABLE public.daily_standup_tasks VALIDATE CONSTRAINT dst_ai_entity_required;
+ALTER TABLE public.daily_standup_tasks VALIDATE CONSTRAINT dst_template_entity_required;
 
 
 -- ─── 3. rm_deal_team (Deal Team Membership) ────────────────────────
@@ -310,7 +335,7 @@ CREATE POLICY "Admins see discards"
 CREATE TABLE IF NOT EXISTS public.rm_task_activity_log (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   task_id uuid NOT NULL REFERENCES public.daily_standup_tasks(id) ON DELETE CASCADE,
-  user_id uuid NOT NULL REFERENCES public.profiles(id),
+  user_id uuid NOT NULL REFERENCES public.profiles(id) ON DELETE SET NULL,
   action text NOT NULL
     CHECK (action IN (
       'created','edited','reassigned','completed','reopened',
@@ -390,12 +415,12 @@ CREATE POLICY "Admins update settings"
     )
   );
 
--- Seed defaults
+-- Seed defaults (values as proper JSONB numbers)
 INSERT INTO public.platform_settings (key, value) VALUES
-  ('ai_relevance_threshold', '7'),
-  ('ai_task_expiry_days', '7'),
-  ('ai_task_expiry_warning_days', '5'),
-  ('buyer_spotlight_default_cadence_days', '14')
+  ('ai_relevance_threshold', '7'::jsonb),
+  ('ai_task_expiry_days', '7'::jsonb),
+  ('ai_task_expiry_warning_days', '5'::jsonb),
+  ('buyer_spotlight_default_cadence_days', '14'::jsonb)
 ON CONFLICT (key) DO NOTHING;
 
 
@@ -587,3 +612,17 @@ BEGIN
   WHERE discarded_at < now() - INTERVAL '90 days';
 END;
 $$;
+
+
+-- ─── 17. Additional performance indexes ──────────────────────────
+
+CREATE INDEX IF NOT EXISTS idx_task_activity_created
+  ON public.rm_task_activity_log(created_at);
+
+CREATE INDEX IF NOT EXISTS idx_signals_unacknowledged
+  ON public.rm_deal_signals(acknowledged_at)
+  WHERE acknowledged_at IS NULL;
+
+CREATE INDEX IF NOT EXISTS idx_cadence_active_contact
+  ON public.rm_buyer_deal_cadence(is_active, last_contacted_at)
+  WHERE is_active = true;

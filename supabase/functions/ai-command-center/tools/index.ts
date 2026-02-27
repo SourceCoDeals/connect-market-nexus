@@ -174,6 +174,11 @@ const TOOL_CATEGORIES: Record<string, string[]> = {
     'get_call_history',
     'get_stale_deals',
     'get_deal_health',
+    'get_daily_briefing',
+    'get_task_inbox',
+    'get_overdue_tasks',
+    'get_buyer_spotlight',
+    'get_deal_signals_summary',
   ],
 
   // General / context
