@@ -1,3 +1,14 @@
+/**
+ * useAlignmentScoring
+ *
+ * Queues and tracks buyer alignment scoring for a given universe. Filters
+ * out already-scored buyers, invokes the scoring queue, and exposes progress state.
+ *
+ * Returns: { isScoring, progress, scoreBuyers, cancel, reset }
+ *
+ * Tables: remarketing_scores (via queueAlignmentScoring)
+ */
+
 import { useState, useCallback } from "react";
 import { queueAlignmentScoring } from "@/lib/remarketing/queueScoring";
 import { toast } from "sonner";

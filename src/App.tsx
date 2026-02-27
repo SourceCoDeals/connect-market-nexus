@@ -73,7 +73,7 @@ const Marketplace = lazyWithRetry(() => import('@/pages/Marketplace'));
 const Profile = lazyWithRetry(() => import('@/pages/Profile'));
 const ListingDetail = lazyWithRetry(() => import('@/pages/ListingDetail'));
 const MyRequests = lazyWithRetry(() => import('@/pages/MyRequests'));
-const BuyerMessages = lazyWithRetry(() => import('@/pages/BuyerMessages'));
+const BuyerMessages = lazyWithRetry(() => import('@/pages/BuyerMessages/index'));
 const SavedListings = lazyWithRetry(() => import('@/pages/SavedListings'));
 
 // Admin layout
@@ -172,7 +172,7 @@ const ReMarketingReferralPartners = lazyWithRetry(
 const ReMarketingReferralPartnerDetail = lazyWithRetry(
   () => import('@/pages/admin/remarketing/ReMarketingReferralPartnerDetail'),
 );
-const CapTargetDeals = lazyWithRetry(() => import('@/pages/admin/remarketing/CapTargetDeals'));
+const CapTargetDeals = lazyWithRetry(() => import('@/pages/admin/remarketing/CapTargetDeals/index'));
 const GPPartnerDeals = lazyWithRetry(() => import('@/pages/admin/remarketing/GPPartnerDeals'));
 const ValuationLeads = lazyWithRetry(() => import('@/pages/admin/remarketing/ValuationLeads'));
 const DailyTaskDashboard = lazyWithRetry(

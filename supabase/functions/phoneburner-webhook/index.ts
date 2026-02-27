@@ -75,19 +75,25 @@ Deno.serve(async (req) => {
 
   const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
   const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-  const webhookSecret = Deno.env.get('PHONEBURNER_WEBHOOK_SECRET') || '';
+  const webhookSecret = Deno.env.get('PHONEBURNER_WEBHOOK_SECRET');
+  if (!webhookSecret) {
+    console.error('PHONEBURNER_WEBHOOK_SECRET is not set — rejecting request');
+    return jsonResponse({ error: 'Server misconfigured' }, 500, corsHeaders);
+  }
   // deno-lint-ignore no-explicit-any
   const supabase: any = createClient(supabaseUrl, serviceRoleKey);
 
   const rawBody = await req.text();
 
-  // ── signature verification SKIPPED — accept all incoming requests ──
+  // ── signature verification ──
   const sig =
     req.headers.get('x-phoneburner-signature') || req.headers.get('X-Phoneburner-Signature');
-  const signatureValid = webhookSecret && sig
-    ? await verifySignature(rawBody, sig, webhookSecret)
-    : null;
-  console.log(`PhoneBurner webhook received, signature check: ${signatureValid}`);
+  const signatureValid = await verifySignature(rawBody, sig, webhookSecret);
+  if (!signatureValid) {
+    console.warn('PhoneBurner webhook rejected — invalid signature');
+    return jsonResponse({ error: 'Invalid signature' }, 401, corsHeaders);
+  }
+  console.log('PhoneBurner webhook received, signature verified');
 
   let payload: Record<string, unknown>;
   try {

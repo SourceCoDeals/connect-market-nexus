@@ -1,3 +1,18 @@
+/**
+ * CompanyOverviewCard.tsx
+ *
+ * Editable card displaying a deal's company profile including name, website,
+ * structured address, founded year, employee counts, industry, Google reviews,
+ * LinkedIn data, and deal quality score with inline editing support.
+ *
+ * Data sources:
+ *   Props passed from parent (listings table fields); onSave callback persists
+ *   edits back to the listings table
+ *
+ * Used on:
+ *   ReMarketing deal detail page (/admin/remarketing/deals/:id),
+ *   Pipeline deal info tab (/admin/deals/pipeline/:id)
+ */
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";

@@ -1,3 +1,14 @@
+/**
+ * ORPHANED — This monolithic file has been replaced by the refactored version at
+ * src/pages/admin/remarketing/ReMarketingUniverseDetail/index.tsx
+ *
+ * It is kept here temporarily for reference during the refactor transition.
+ * Do NOT import this file.  All routing and lazy imports now resolve to the
+ * directory-based module (ReMarketingUniverseDetail/index.tsx).
+ *
+ * Safe to delete once the refactored version has been validated in production.
+ */
+
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';

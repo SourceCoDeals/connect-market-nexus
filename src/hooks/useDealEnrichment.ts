@@ -1,3 +1,14 @@
+/**
+ * useDealEnrichment
+ *
+ * Manages batch deal enrichment by listing ID, tracking per-deal status,
+ * progress counts, cancellation, and credit depletion state.
+ *
+ * Returns: { progress, enrichDeals, cancel, reset }
+ *
+ * Tables: deals, listings (read/write via edge function)
+ */
+
 import { useState, useCallback, useRef } from 'react';
 import { toast } from 'sonner';
 import { useQueryClient } from '@tanstack/react-query';

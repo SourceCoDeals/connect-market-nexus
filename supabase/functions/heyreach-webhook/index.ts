@@ -26,19 +26,25 @@ Deno.serve(async (req) => {
     });
   }
 
-  // ─── Verify webhook secret ─────────────────────────────────────────────
+  // ─── Verify webhook secret (mandatory) ──────────────────────────────────
   const webhookSecret = Deno.env.get('HEYREACH_WEBHOOK_SECRET');
-  if (webhookSecret) {
-    const providedSecret =
-      req.headers.get('x-webhook-secret') || new URL(req.url).searchParams.get('secret');
+  if (!webhookSecret) {
+    console.error('[heyreach-webhook] HEYREACH_WEBHOOK_SECRET is not set — rejecting request');
+    return new Response(JSON.stringify({ error: 'Server misconfigured' }), {
+      status: 500,
+      headers: jsonHeaders,
+    });
+  }
 
-    if (providedSecret !== webhookSecret) {
-      console.warn('[heyreach-webhook] Invalid webhook secret');
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-        status: 401,
-        headers: jsonHeaders,
-      });
-    }
+  const providedSecret =
+    req.headers.get('x-webhook-secret') || new URL(req.url).searchParams.get('secret');
+
+  if (providedSecret !== webhookSecret) {
+    console.warn('[heyreach-webhook] Invalid webhook secret');
+    return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+      status: 401,
+      headers: jsonHeaders,
+    });
   }
 
   const supabaseUrl = Deno.env.get('SUPABASE_URL')!;

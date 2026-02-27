@@ -1,5 +1,4 @@
-
--- Create categories table for dynamic category management
+-- Create categories table for dynamic listing category management (with RLS)
 CREATE TABLE public.categories (
   id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
   name TEXT NOT NULL UNIQUE,

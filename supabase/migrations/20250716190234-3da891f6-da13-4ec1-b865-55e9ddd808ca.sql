@@ -1,5 +1,4 @@
-
--- Phase 1: Critical Security & Reliability Fixes
+-- Security & reliability: replace hardcoded admin emails in RLS, add password reset tables
 
 -- 1. Fix hardcoded admin emails in RLS policies
 -- First, drop the problematic policy with hardcoded emails

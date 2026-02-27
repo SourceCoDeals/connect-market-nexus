@@ -1,3 +1,8 @@
+// ORPHANED — NOT currently rendered anywhere. The active component is in
+// ./CapTargetDeals/index.tsx (the directory version).
+// Do not edit. Scheduled for deletion.
+// AUDIT REF: CTO Audit February 2026
+
 import { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import { useShiftSelect } from '@/hooks/useShiftSelect';
 import { useSearchParams } from 'react-router-dom';

@@ -1,3 +1,14 @@
+/**
+ * useRealtimeAdmin
+ *
+ * Subscribes to Supabase Realtime postgres_changes for admin-relevant tables
+ * and shows toast notifications when new registrations, connection requests,
+ * listings, deals, or agreement changes occur. Only active for admin users.
+ *
+ * Returns: { isConnected }
+ *
+ * Tables: profiles, connection_requests, listings, deals, deal_tasks, connection_request_stages, firm_agreements, firm_members
+ */
 
 import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';

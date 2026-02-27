@@ -1,3 +1,9 @@
+// ORPHANED — NOT currently rendered anywhere. The active component is in
+// ./ReMarketingBuyers/index.tsx (the directory version).
+// This monolithic 1,355-line file is superseded by the refactored directory version.
+// Do not edit. Scheduled for deletion.
+// AUDIT REF: CTO Audit February 2026
+
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';

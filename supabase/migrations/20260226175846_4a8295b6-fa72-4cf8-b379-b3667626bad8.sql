@@ -1,3 +1,4 @@
+-- Seed a new GP Partners listing record
 INSERT INTO public.listings (
   title,
   internal_company_name,

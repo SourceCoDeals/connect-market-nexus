@@ -75,7 +75,7 @@ export function useSessionHeartbeat(userId?: string | null) {
         });
         
         navigator.sendBeacon?.(
-          `${import.meta.env.VITE_SUPABASE_URL || 'https://vhzipqarkmmfuqadefep.supabase.co'}/functions/v1/session-heartbeat`,
+          `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/session-heartbeat`,
           payload
         );
       } catch (error) {

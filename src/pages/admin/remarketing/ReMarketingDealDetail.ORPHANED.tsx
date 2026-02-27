@@ -1,3 +1,9 @@
+// ORPHANED — NOT currently rendered anywhere. The active component is in
+// ./ReMarketingDealDetail/index.tsx (the directory version with 2 tabs).
+// This monolithic 1,675-line file is superseded by the refactored directory version.
+// Do not edit. Scheduled for deletion in a future cleanup session.
+// AUDIT REF: CTO Audit February 2026
+
 import { useState, useMemo, useRef, useEffect } from 'react';
 import { useAICommandCenterContext } from '@/components/ai-command-center/AICommandCenterProvider';
 import { MemosTab } from '@/components/admin/data-room/MemosTab';

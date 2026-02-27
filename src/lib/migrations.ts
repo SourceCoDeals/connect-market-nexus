@@ -571,7 +571,7 @@ export const KEY_TABLES = {
   messaging: [
     'connection_messages',
     'listing_conversations',
-    'listing_messages',
+    'listing_messages', // DROPPED Feb 2026 — messages now in connection_messages
     'feedback_messages',
   ],
   security: [

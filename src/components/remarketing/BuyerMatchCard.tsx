@@ -1,3 +1,17 @@
+/**
+ * BuyerMatchCard.tsx
+ *
+ * Displays a single buyer match result for a deal, showing composite and sub-scores
+ * (geography, size, service, owner goals), fit reasoning, outreach status, and
+ * action buttons for approving, passing, or moving a buyer into the pipeline.
+ *
+ * Data sources:
+ *   Props received from parent (score data from remarketing_scores table);
+ *   OutreachStatusDialog for outreach tracking
+ *
+ * Used on:
+ *   ReMarketing deal matching page (/admin/remarketing/deals/:id/matching)
+ */
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { cn } from "@/lib/utils";

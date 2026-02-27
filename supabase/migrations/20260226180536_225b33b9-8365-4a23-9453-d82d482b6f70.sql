@@ -1,1 +1,2 @@
+-- Set deal_source to gp_partners for listing ee8cb7b5
 UPDATE public.listings SET deal_source = 'gp_partners' WHERE id = 'ee8cb7b5-c3c2-4e10-99f6-27de94b9442d'
