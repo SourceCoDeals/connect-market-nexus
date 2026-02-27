@@ -1,6 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
-import { getCorsHeaders, corsPreflightResponse } from "../_shared/cors.ts";
+import { getCorsHeaders, corsPreflightResponse } from '../_shared/cors.ts';
 
 // Dev/bot traffic patterns to filter out
 const DEV_TRAFFIC_PATTERNS = [
@@ -14,7 +14,7 @@ const DEV_TRAFFIC_PATTERNS = [
 function isDevTraffic(referrer: string | null): boolean {
   if (!referrer) return false;
   const lowerReferrer = referrer.toLowerCase();
-  return DEV_TRAFFIC_PATTERNS.some(pattern => lowerReferrer.includes(pattern));
+  return DEV_TRAFFIC_PATTERNS.some((pattern) => lowerReferrer.includes(pattern));
 }
 
 Deno.serve(async (req) => {
@@ -33,7 +33,7 @@ Deno.serve(async (req) => {
     // Parse optional date parameter (default to yesterday for cron jobs)
     const body = await req.json().catch(() => ({}));
     const targetDate = body.date || getYesterdayDate();
-    
+
     console.log(`Aggregating metrics for date: ${targetDate}`);
 
     const startOfDay = `${targetDate}T00:00:00Z`;
@@ -42,12 +42,12 @@ Deno.serve(async (req) => {
     // Get total users count
     const { count: totalUsers } = await supabase
       .from('profiles')
-      .select('*', { count: 'exact', head: true });
+      .select('id', { count: 'exact', head: true });
 
     // Get new signups for the day
     const { count: newSignups } = await supabase
       .from('profiles')
-      .select('*', { count: 'exact', head: true })
+      .select('id', { count: 'exact', head: true })
       .gte('created_at', startOfDay)
       .lte('created_at', endOfDay);
 
@@ -59,43 +59,49 @@ Deno.serve(async (req) => {
       .lte('started_at', endOfDay);
 
     // CRITICAL: Filter out dev traffic and deduplicate
-    const productionSessions = (sessions || []).filter(s => !isDevTraffic(s.referrer));
-    
+    const productionSessions = (sessions || []).filter((s) => !isDevTraffic(s.referrer));
+
     // Deduplicate by session_id
-    const uniqueSessionMap = new Map<string, typeof productionSessions[0]>();
-    productionSessions.forEach(s => {
+    const uniqueSessionMap = new Map<string, (typeof productionSessions)[0]>();
+    productionSessions.forEach((s) => {
       if (!uniqueSessionMap.has(s.session_id)) {
         uniqueSessionMap.set(s.session_id, s);
       }
     });
     const uniqueSessions = Array.from(uniqueSessionMap.values());
-    
+
     const totalSessions = uniqueSessions.length;
-    
+
     // CRITICAL FIX: Count unique VISITORS (people), not sessions
     // Only count sessions with identifiable visitors (user_id or visitor_id)
     const uniqueVisitorSet = new Set<string>();
-    uniqueSessions.forEach(s => {
+    uniqueSessions.forEach((s) => {
       // Only count if we have a real user/visitor identifier - NOT session_id fallback
       if (s.user_id) uniqueVisitorSet.add(s.user_id);
       else if (s.visitor_id) uniqueVisitorSet.add(s.visitor_id);
       // Anonymous sessions (no user_id or visitor_id) are NOT counted as unique visitors
     });
     const uniqueVisitors = uniqueVisitorSet.size;
-    
+
     // Active users (logged in users only)
-    const activeUsers = new Set(uniqueSessions.filter(s => s.user_id).map(s => s.user_id)).size;
-    
+    const activeUsers = new Set(uniqueSessions.filter((s) => s.user_id).map((s) => s.user_id)).size;
+
     // Calculate average session duration
-    const sessionsWithDuration = uniqueSessions.filter(s => s.session_duration_seconds && s.session_duration_seconds > 0);
-    const avgSessionDuration = sessionsWithDuration.length > 0
-      ? Math.round(sessionsWithDuration.reduce((sum, s) => sum + (s.session_duration_seconds || 0), 0) / sessionsWithDuration.length)
-      : 0;
+    const sessionsWithDuration = uniqueSessions.filter(
+      (s) => s.session_duration_seconds && s.session_duration_seconds > 0,
+    );
+    const avgSessionDuration =
+      sessionsWithDuration.length > 0
+        ? Math.round(
+            sessionsWithDuration.reduce((sum, s) => sum + (s.session_duration_seconds || 0), 0) /
+              sessionsWithDuration.length,
+          )
+        : 0;
 
     // Get page views
     const { count: pageViews } = await supabase
       .from('page_views')
-      .select('*', { count: 'exact', head: true })
+      .select('id', { count: 'exact', head: true })
       .gte('created_at', startOfDay)
       .lte('created_at', endOfDay);
 
@@ -105,13 +111,13 @@ Deno.serve(async (req) => {
       .select('session_id')
       .gte('created_at', startOfDay)
       .lte('created_at', endOfDay);
-    
-    const uniquePageViews = new Set(uniquePageViewData?.map(p => p.session_id)).size;
+
+    const uniquePageViews = new Set(uniquePageViewData?.map((p) => p.session_id)).size;
 
     // Get listing views
     const { count: listingViews } = await supabase
       .from('listing_analytics')
-      .select('*', { count: 'exact', head: true })
+      .select('id', { count: 'exact', head: true })
       .eq('action_type', 'view')
       .gte('created_at', startOfDay)
       .lte('created_at', endOfDay);
@@ -119,21 +125,21 @@ Deno.serve(async (req) => {
     // Get new listings
     const { count: newListings } = await supabase
       .from('listings')
-      .select('*', { count: 'exact', head: true })
+      .select('id', { count: 'exact', head: true })
       .gte('created_at', startOfDay)
       .lte('created_at', endOfDay);
 
     // Get connection requests
     const { count: connectionRequests } = await supabase
       .from('connection_requests')
-      .select('*', { count: 'exact', head: true })
+      .select('id', { count: 'exact', head: true })
       .gte('created_at', startOfDay)
       .lte('created_at', endOfDay);
 
     // Get successful connections (approved)
     const { count: successfulConnections } = await supabase
       .from('connection_requests')
-      .select('*', { count: 'exact', head: true })
+      .select('id', { count: 'exact', head: true })
       .eq('status', 'approved')
       .gte('approved_at', startOfDay)
       .lte('approved_at', endOfDay);
@@ -141,7 +147,7 @@ Deno.serve(async (req) => {
     // Get searches performed
     const { count: searchesPerformed } = await supabase
       .from('search_analytics')
-      .select('*', { count: 'exact', head: true })
+      .select('id', { count: 'exact', head: true })
       .gte('created_at', startOfDay)
       .lte('created_at', endOfDay);
 
@@ -153,20 +159,22 @@ Deno.serve(async (req) => {
       .lte('created_at', endOfDay);
 
     const pageCountsBySession: Record<string, number> = {};
-    sessionPageCounts?.forEach(p => {
+    sessionPageCounts?.forEach((p) => {
       pageCountsBySession[p.session_id] = (pageCountsBySession[p.session_id] || 0) + 1;
     });
-    
+
     const totalSessionsWithViews = Object.keys(pageCountsBySession).length;
-    const bouncedSessions = Object.values(pageCountsBySession).filter(count => count === 1).length;
-    const bounceRate = totalSessionsWithViews > 0 
-      ? Math.round((bouncedSessions / totalSessionsWithViews) * 100) 
-      : 0;
+    const bouncedSessions = Object.values(pageCountsBySession).filter(
+      (count) => count === 1,
+    ).length;
+    const bounceRate =
+      totalSessionsWithViews > 0 ? Math.round((bouncedSessions / totalSessionsWithViews) * 100) : 0;
 
     // CRITICAL FIX: Calculate conversion rate using unique visitors, not sessions
-    const conversionRate = uniqueVisitors > 0 
-      ? Math.round(((connectionRequests || 0) / uniqueVisitors) * 10000) / 100
-      : 0;
+    const conversionRate =
+      uniqueVisitors > 0
+        ? Math.round(((connectionRequests || 0) / uniqueVisitors) * 10000) / 100
+        : 0;
 
     // Returning users (users who had sessions before this day)
     const { data: todayUserIds } = await supabase
@@ -176,8 +184,8 @@ Deno.serve(async (req) => {
       .lte('started_at', endOfDay)
       .not('user_id', 'is', null);
 
-    const uniqueTodayUsers = [...new Set(todayUserIds?.map(u => u.user_id))];
-    
+    const uniqueTodayUsers = [...new Set(todayUserIds?.map((u) => u.user_id))];
+
     let returningUsers = 0;
     if (uniqueTodayUsers.length > 0) {
       const { count } = await supabase
@@ -225,21 +233,20 @@ Deno.serve(async (req) => {
     console.log(`Successfully aggregated metrics for ${targetDate}`);
 
     return new Response(
-      JSON.stringify({ 
-        success: true, 
+      JSON.stringify({
+        success: true,
         date: targetDate,
-        metrics 
+        metrics,
       }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
     );
-
   } catch (error) {
     console.error('Aggregate metrics error:', error);
     const message = error instanceof Error ? error.message : 'Unknown error';
-    return new Response(
-      JSON.stringify({ error: message }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+    return new Response(JSON.stringify({ error: message }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
   }
 });
 
