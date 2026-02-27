@@ -10,10 +10,27 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import {
-  Sparkles, Send, Loader2, X, Minimize2, Trash2,
-  ChevronUp, Bot, User, Wrench,
-  CheckCircle, XCircle, MousePointerClick, Square,
-  ThumbsUp, ThumbsDown,
+  Sparkles,
+  Send,
+  Loader2,
+  X,
+  Minimize2,
+  Trash2,
+  ChevronUp,
+  Bot,
+  User,
+  Wrench,
+  CheckCircle,
+  XCircle,
+  MousePointerClick,
+  Square,
+  ThumbsUp,
+  ThumbsDown,
+  History,
+  Plus,
+  ChevronLeft,
+  MessageSquare,
+  Archive,
 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { cn } from '@/lib/utils';
@@ -23,6 +40,7 @@ import {
   type AIMessage,
   type ToolCallInfo,
   type UIActionPayload,
+  type Conversation,
 } from '@/hooks/useAICommandCenter';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -73,19 +91,39 @@ function getSuggestions(page?: string): string[] {
 
 // ---------- Component ----------
 
-export function AICommandCenterPanel({ pageContext, onUIAction, className }: AICommandCenterPanelProps) {
+export function AICommandCenterPanel({
+  pageContext,
+  onUIAction,
+  className,
+}: AICommandCenterPanelProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
   const [input, setInput] = useState('');
+  const [showHistory, setShowHistory] = useState(false);
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const {
-    messages, isLoading, streamingContent, currentPhase,
-    routeInfo, activeTools, error,
-    sendMessage, confirmAction, denyAction, clearMessages, stopStreaming,
+    messages,
+    isLoading,
+    streamingContent,
+    currentPhase,
+    routeInfo,
+    activeTools,
+    error,
+    conversationHistory,
+    activeConversationDbId,
+    isLoadingHistory,
+    sendMessage,
+    confirmAction,
+    denyAction,
+    clearMessages,
+    stopStreaming,
     onUIAction: registerUIAction,
+    switchConversation,
+    startNewConversation,
+    deleteConversation,
   } = useAICommandCenter(pageContext);
 
   // Register UI action handler
@@ -109,17 +147,36 @@ export function AICommandCenterPanel({ pageContext, onUIAction, className }: AIC
     }
   }, [isOpen, isMinimized]);
 
-  const handleSubmit = useCallback((e: React.FormEvent) => {
-    e.preventDefault();
-    if (!input.trim() || isLoading) return;
-    sendMessage(input);
-    setInput('');
-  }, [input, isLoading, sendMessage]);
+  const handleSubmit = useCallback(
+    (e: React.FormEvent) => {
+      e.preventDefault();
+      if (!input.trim() || isLoading) return;
+      sendMessage(input);
+      setInput('');
+    },
+    [input, isLoading, sendMessage],
+  );
 
-  const handleSuggestion = useCallback((text: string) => {
-    setInput('');
-    sendMessage(text);
-  }, [sendMessage]);
+  const handleSuggestion = useCallback(
+    (text: string) => {
+      setInput('');
+      sendMessage(text);
+    },
+    [sendMessage],
+  );
+
+  const handleSelectConversation = useCallback(
+    (conversation: Conversation) => {
+      switchConversation(conversation);
+      setShowHistory(false);
+    },
+    [switchConversation],
+  );
+
+  const handleNewConversation = useCallback(() => {
+    startNewConversation();
+    setShowHistory(false);
+  }, [startNewConversation]);
 
   // ---------- Floating bubble (closed) ----------
   if (!isOpen) {
@@ -160,7 +217,10 @@ export function AICommandCenterPanel({ pageContext, onUIAction, className }: AIC
   // ---------- Full panel ----------
   return (
     <div className={cn('fixed bottom-8 right-8 z-50', className)}>
-      <Card className="w-[640px] max-w-[calc(100vw-64px)] h-[800px] max-h-[85vh] flex flex-col shadow-2xl border-[#DEC76B]/30" style={{ backgroundColor: '#FCF9F0' }}>
+      <Card
+        className="w-[640px] max-w-[calc(100vw-64px)] h-[800px] max-h-[85vh] flex flex-col shadow-2xl border-[#DEC76B]/30"
+        style={{ backgroundColor: '#FCF9F0' }}
+      >
         {/* Header */}
         <CardHeader className="pb-3 bg-[#0E101A] text-[#FCF9F0] rounded-t-lg">
           <div className="flex items-center justify-between">
@@ -174,91 +234,164 @@ export function AICommandCenterPanel({ pageContext, onUIAction, className }: AIC
               )}
             </div>
             <div className="flex items-center gap-1">
-              <Button variant="ghost" size="icon" className="h-7 w-7 text-white/80 hover:text-white hover:bg-white/10" onClick={clearMessages}>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7 text-white/80 hover:text-white hover:bg-white/10"
+                onClick={handleNewConversation}
+                title="New conversation"
+              >
+                <Plus className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                className={cn(
+                  'h-7 w-7 hover:bg-white/10',
+                  showHistory ? 'text-[#DEC76B]' : 'text-white/80 hover:text-white',
+                )}
+                onClick={() => setShowHistory(!showHistory)}
+                title="Conversation history"
+              >
+                <History className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7 text-white/80 hover:text-white hover:bg-white/10"
+                onClick={clearMessages}
+              >
                 <Trash2 className="h-4 w-4" />
               </Button>
-              <Button variant="ghost" size="icon" className="h-7 w-7 text-white/80 hover:text-white hover:bg-white/10" onClick={() => setIsMinimized(true)}>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7 text-white/80 hover:text-white hover:bg-white/10"
+                onClick={() => setIsMinimized(true)}
+              >
                 <Minimize2 className="h-4 w-4" />
               </Button>
-              <Button variant="ghost" size="icon" className="h-7 w-7 text-white/80 hover:text-white hover:bg-white/10" onClick={() => setIsOpen(false)}>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7 text-white/80 hover:text-white hover:bg-white/10"
+                onClick={() => setIsOpen(false)}
+              >
                 <X className="h-4 w-4" />
               </Button>
             </div>
           </div>
           {pageContext?.page && (
             <p className="text-xs text-white/60 mt-1">
-              Context: {pageContext.page}{pageContext.entity_id ? ` (${pageContext.entity_type} ${pageContext.entity_id.substring(0, 8)}...)` : ''}
+              Context: {pageContext.page}
+              {pageContext.entity_id
+                ? ` (${pageContext.entity_type} ${pageContext.entity_id.substring(0, 8)}...)`
+                : ''}
             </p>
           )}
         </CardHeader>
 
-        {/* Messages */}
-        <ScrollArea className="flex-1 p-4" ref={scrollRef} style={{ backgroundColor: '#FCF9F0' }}>
-          <div className="space-y-4">
-            {/* Empty state */}
-            {messages.length === 0 && !isLoading && (
-              <EmptyState suggestions={getSuggestions(pageContext?.page)} onSuggestion={handleSuggestion} />
-            )}
+        {/* History Panel */}
+        {showHistory ? (
+          <ConversationHistoryPanel
+            conversations={conversationHistory}
+            activeConversationId={activeConversationDbId}
+            isLoading={isLoadingHistory}
+            onSelect={handleSelectConversation}
+            onNewConversation={handleNewConversation}
+            onDelete={deleteConversation}
+            onBack={() => setShowHistory(false)}
+          />
+        ) : (
+          <>
+            {/* Messages */}
+            <ScrollArea
+              className="flex-1 p-4"
+              ref={scrollRef}
+              style={{ backgroundColor: '#FCF9F0' }}
+            >
+              <div className="space-y-4">
+                {/* Empty state */}
+                {messages.length === 0 && !isLoading && (
+                  <EmptyState
+                    suggestions={getSuggestions(pageContext?.page)}
+                    onSuggestion={handleSuggestion}
+                  />
+                )}
 
-            {/* Message list */}
-            {messages.map((msg, idx) => (
-              <MessageBubble
-                key={msg.id}
-                message={msg}
-                onConfirm={confirmAction}
-                onDeny={denyAction}
-                userQuery={msg.role === 'assistant' && idx > 0 ? messages[idx - 1]?.content : undefined}
-              />
-            ))}
+                {/* Message list */}
+                {messages.map((msg, idx) => (
+                  <MessageBubble
+                    key={msg.id}
+                    message={msg}
+                    onConfirm={confirmAction}
+                    onDeny={denyAction}
+                    userQuery={
+                      msg.role === 'assistant' && idx > 0 ? messages[idx - 1]?.content : undefined
+                    }
+                  />
+                ))}
 
-            {/* Streaming content */}
-            {isLoading && (
-              <StreamingIndicator
-                content={streamingContent}
-                phase={currentPhase}
-                tools={activeTools}
-              />
-            )}
+                {/* Streaming content */}
+                {isLoading && (
+                  <StreamingIndicator
+                    content={streamingContent}
+                    phase={currentPhase}
+                    tools={activeTools}
+                  />
+                )}
 
-            {/* Follow-up suggestions after last assistant message */}
-            {!isLoading && messages.length > 0 && messages[messages.length - 1]?.role === 'assistant' && (
-              <FollowUpSuggestions
-                category={messages[messages.length - 1]?.metadata?.category}
-                onSuggestion={handleSuggestion}
-              />
-            )}
+                {/* Follow-up suggestions after last assistant message */}
+                {!isLoading &&
+                  messages.length > 0 &&
+                  messages[messages.length - 1]?.role === 'assistant' && (
+                    <FollowUpSuggestions
+                      category={messages[messages.length - 1]?.metadata?.category}
+                      onSuggestion={handleSuggestion}
+                    />
+                  )}
 
-            {/* Error */}
-            {error && (
-              <div className="text-sm text-destructive bg-destructive/10 rounded-lg p-3">
-                {error}
+                {/* Error */}
+                {error && (
+                  <div className="text-sm text-destructive bg-destructive/10 rounded-lg p-3">
+                    {error}
+                  </div>
+                )}
               </div>
-            )}
-          </div>
-        </ScrollArea>
+            </ScrollArea>
 
-        {/* Input */}
-        <div className="p-3 border-t border-[#DEC76B]/20" style={{ backgroundColor: '#FCF9F0' }}>
-          <form onSubmit={handleSubmit} className="flex gap-2">
-            <Input
-              ref={inputRef}
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              placeholder="Ask anything about deals, buyers, pipeline..."
-              disabled={isLoading}
-              className="flex-1"
-            />
-            {isLoading ? (
-              <Button type="button" variant="outline" size="icon" onClick={stopStreaming}>
-                <Square className="h-4 w-4" />
-              </Button>
-            ) : (
-              <Button type="submit" disabled={!input.trim()} size="icon" className="bg-[#0E101A] hover:bg-[#000000] text-[#DEC76B]">
-                <Send className="h-4 w-4" />
-              </Button>
-            )}
-          </form>
-        </div>
+            {/* Input */}
+            <div
+              className="p-3 border-t border-[#DEC76B]/20"
+              style={{ backgroundColor: '#FCF9F0' }}
+            >
+              <form onSubmit={handleSubmit} className="flex gap-2">
+                <Input
+                  ref={inputRef}
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  placeholder="Ask anything about deals, buyers, pipeline..."
+                  disabled={isLoading}
+                  className="flex-1"
+                />
+                {isLoading ? (
+                  <Button type="button" variant="outline" size="icon" onClick={stopStreaming}>
+                    <Square className="h-4 w-4" />
+                  </Button>
+                ) : (
+                  <Button
+                    type="submit"
+                    disabled={!input.trim()}
+                    size="icon"
+                    className="bg-[#0E101A] hover:bg-[#000000] text-[#DEC76B]"
+                  >
+                    <Send className="h-4 w-4" />
+                  </Button>
+                )}
+              </form>
+            </div>
+          </>
+        )}
       </Card>
     </div>
   );
@@ -266,7 +399,13 @@ export function AICommandCenterPanel({ pageContext, onUIAction, className }: AIC
 
 // ---------- Sub-components ----------
 
-function EmptyState({ suggestions, onSuggestion }: { suggestions: string[]; onSuggestion: (text: string) => void }) {
+function EmptyState({
+  suggestions,
+  onSuggestion,
+}: {
+  suggestions: string[];
+  onSuggestion: (text: string) => void;
+}) {
   return (
     <div className="text-center py-8">
       <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-[#F7F4DD] mb-4">
@@ -316,7 +455,7 @@ function MessageBubble({
         rating,
         category: message.metadata?.category || null,
       } as never);
-      toast.success(rating > 0 ? 'Thanks for the feedback!' : 'Thanks — we\'ll improve this.');
+      toast.success(rating > 0 ? 'Thanks for the feedback!' : "Thanks — we'll improve this.");
     } catch {
       // Non-critical, don't block UX
     }
@@ -330,16 +469,18 @@ function MessageBubble({
         </div>
       )}
 
-      <div className={cn(
-        'max-w-[85%] rounded-lg px-3 py-2 border',
-        isUser
-          ? 'bg-[#F7F4DD] border-[#E5DDD0] text-[#0E101A]'
-          : 'bg-[#FCF9F0] border-[#E5DDD0] text-[#0E101A]',
-      )}>
+      <div
+        className={cn(
+          'max-w-[85%] rounded-lg px-3 py-2 border',
+          isUser
+            ? 'bg-[#F7F4DD] border-[#E5DDD0] text-[#0E101A]'
+            : 'bg-[#FCF9F0] border-[#E5DDD0] text-[#0E101A]',
+        )}
+      >
         {/* Tool call indicators */}
         {message.toolCalls && message.toolCalls.length > 0 && (
           <div className="flex flex-wrap gap-1 mb-2">
-            {message.toolCalls.map(tool => (
+            {message.toolCalls.map((tool) => (
               <ToolBadge key={tool.id} tool={tool} />
             ))}
           </div>
@@ -349,12 +490,21 @@ function MessageBubble({
         {message.uiActions && message.uiActions.length > 0 && (
           <div className="flex flex-wrap gap-1 mb-2">
             {message.uiActions.map((action, i) => (
-              <Badge key={i} variant="outline" className="text-xs gap-1 border-[#DEC76B]/50 text-[#0E101A]">
+              <Badge
+                key={i}
+                variant="outline"
+                className="text-xs gap-1 border-[#DEC76B]/50 text-[#0E101A]"
+              >
                 <MousePointerClick className="h-3 w-3" />
-                {action.type === 'select_rows' ? 'Selected rows' :
-                 action.type === 'apply_filter' ? 'Applied filter' :
-                 action.type === 'sort_column' ? 'Sorted column' :
-                 action.type === 'navigate' ? 'Navigated' : action.type}
+                {action.type === 'select_rows'
+                  ? 'Selected rows'
+                  : action.type === 'apply_filter'
+                    ? 'Applied filter'
+                    : action.type === 'sort_column'
+                      ? 'Sorted column'
+                      : action.type === 'navigate'
+                        ? 'Navigated'
+                        : action.type}
               </Badge>
             ))}
           </div>
@@ -432,17 +582,21 @@ function MessageBubble({
 }
 
 function ToolBadge({ tool }: { tool: ToolCallInfo }) {
-  const statusIcon = tool.status === 'running'
-    ? <Loader2 className="h-3 w-3 animate-spin" />
-    : tool.status === 'success'
-    ? <CheckCircle className="h-3 w-3" />
-    : <XCircle className="h-3 w-3" />;
+  const statusIcon =
+    tool.status === 'running' ? (
+      <Loader2 className="h-3 w-3 animate-spin" />
+    ) : tool.status === 'success' ? (
+      <CheckCircle className="h-3 w-3" />
+    ) : (
+      <XCircle className="h-3 w-3" />
+    );
 
-  const statusClass = tool.status === 'running'
-    ? 'border-[#DEC76B]/50 text-[#0E101A]'
-    : tool.status === 'success'
-    ? 'border-green-400 text-green-800'
-    : 'border-red-400 text-red-800';
+  const statusClass =
+    tool.status === 'running'
+      ? 'border-[#DEC76B]/50 text-[#0E101A]'
+      : tool.status === 'success'
+        ? 'border-green-400 text-green-800'
+        : 'border-red-400 text-red-800';
 
   return (
     <Badge variant="outline" className={cn('text-xs gap-1', statusClass)}>
@@ -462,10 +616,14 @@ function StreamingIndicator({
   phase: string;
   tools: ToolCallInfo[];
 }) {
-  const phaseLabel = phase === 'routing' ? 'Classifying intent...'
-    : phase === 'processing' ? 'Thinking...'
-    : phase === 'executing_confirmed_action' ? 'Executing action...'
-    : 'Processing...';
+  const phaseLabel =
+    phase === 'routing'
+      ? 'Classifying intent...'
+      : phase === 'processing'
+        ? 'Thinking...'
+        : phase === 'executing_confirmed_action'
+          ? 'Executing action...'
+          : 'Processing...';
 
   return (
     <div className="flex gap-2">
@@ -476,7 +634,7 @@ function StreamingIndicator({
         {/* Active tools */}
         {tools.length > 0 && (
           <div className="flex flex-wrap gap-1 mb-2">
-            {tools.map(tool => (
+            {tools.map((tool) => (
               <ToolBadge key={tool.id} tool={tool} />
             ))}
           </div>
@@ -498,20 +656,206 @@ function StreamingIndicator({
   );
 }
 
-function FollowUpSuggestions({ category, onSuggestion }: { category?: string; onSuggestion: (text: string) => void }) {
+function ConversationHistoryPanel({
+  conversations,
+  activeConversationId,
+  isLoading,
+  onSelect,
+  onNewConversation,
+  onDelete,
+  onBack,
+}: {
+  conversations: Conversation[];
+  activeConversationId: string | null;
+  isLoading: boolean;
+  onSelect: (conversation: Conversation) => void;
+  onNewConversation: () => void;
+  onDelete: (id: string) => void;
+  onBack: () => void;
+}) {
+  return (
+    <div className="flex-1 flex flex-col" style={{ backgroundColor: '#FCF9F0' }}>
+      {/* History header */}
+      <div className="flex items-center gap-2 px-4 py-3 border-b border-[#DEC76B]/20">
+        <button onClick={onBack} className="p-1 rounded hover:bg-[#F7F4DD] transition-colors">
+          <ChevronLeft className="h-4 w-4 text-[#0E101A]" />
+        </button>
+        <h3 className="text-sm font-semibold text-[#0E101A] flex-1">Message History</h3>
+        <Button
+          size="sm"
+          variant="outline"
+          className="h-7 text-xs gap-1 border-[#DEC76B]/40 hover:bg-[#F7F4DD]"
+          onClick={onNewConversation}
+        >
+          <Plus className="h-3 w-3" />
+          New Chat
+        </Button>
+      </div>
+
+      {/* Conversation list */}
+      <ScrollArea className="flex-1">
+        {isLoading ? (
+          <div className="flex items-center justify-center py-12">
+            <Loader2 className="h-5 w-5 animate-spin text-[#DEC76B]" />
+          </div>
+        ) : conversations.length === 0 ? (
+          <div className="text-center py-12 px-4">
+            <MessageSquare className="h-8 w-8 mx-auto mb-3 text-[#DEC76B]/50" />
+            <p className="text-sm text-muted-foreground mb-1">No conversations yet</p>
+            <p className="text-xs text-muted-foreground">Start a new chat to begin</p>
+          </div>
+        ) : (
+          <div className="p-2 space-y-1">
+            {conversations.map((conversation) => (
+              <ConversationHistoryItem
+                key={conversation.id}
+                conversation={conversation}
+                isActive={conversation.id === activeConversationId}
+                onSelect={() => onSelect(conversation)}
+                onDelete={() => onDelete(conversation.id)}
+              />
+            ))}
+          </div>
+        )}
+      </ScrollArea>
+    </div>
+  );
+}
+
+function ConversationHistoryItem({
+  conversation,
+  isActive,
+  onSelect,
+  onDelete,
+}: {
+  conversation: Conversation;
+  isActive: boolean;
+  onSelect: () => void;
+  onDelete: () => void;
+}) {
+  const [showDelete, setShowDelete] = React.useState(false);
+
+  const timeAgo = React.useMemo(() => {
+    const date = new Date(conversation.updated_at);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    if (diffMins < 1) return 'just now';
+    if (diffMins < 60) return `${diffMins}m ago`;
+    const diffHrs = Math.floor(diffMins / 60);
+    if (diffHrs < 24) return `${diffHrs}h ago`;
+    const diffDays = Math.floor(diffHrs / 24);
+    if (diffDays < 7) return `${diffDays}d ago`;
+    return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+  }, [conversation.updated_at]);
+
+  // Get a preview from the first user message
+  const preview = React.useMemo(() => {
+    const firstUser = conversation.messages?.find((m) => m.role === 'user');
+    if (!firstUser) return 'Empty conversation';
+    return firstUser.content.length > 80
+      ? firstUser.content.substring(0, 80) + '...'
+      : firstUser.content;
+  }, [conversation.messages]);
+
+  return (
+    <button
+      onClick={onSelect}
+      onMouseEnter={() => setShowDelete(true)}
+      onMouseLeave={() => setShowDelete(false)}
+      className={cn(
+        'w-full text-left rounded-lg px-3 py-2.5 transition-colors relative group',
+        isActive
+          ? 'bg-[#F7F4DD] border border-[#DEC76B]/40'
+          : 'hover:bg-[#F7F4DD]/50 border border-transparent',
+      )}
+    >
+      <div className="flex items-start gap-2">
+        <MessageSquare className="h-4 w-4 text-[#DEC76B] flex-shrink-0 mt-0.5" />
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-sm font-medium text-[#0E101A] truncate">
+              {conversation.title || 'Untitled'}
+            </p>
+            <span className="text-[10px] text-muted-foreground flex-shrink-0">{timeAgo}</span>
+          </div>
+          <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{preview}</p>
+          <div className="flex items-center gap-2 mt-1">
+            <span className="text-[10px] text-muted-foreground">
+              {conversation.message_count} message{conversation.message_count !== 1 ? 's' : ''}
+            </span>
+          </div>
+        </div>
+      </div>
+      {/* Delete button */}
+      {showDelete && (
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onDelete();
+          }}
+          className="absolute top-2 right-2 p-1 rounded hover:bg-red-100 text-muted-foreground hover:text-red-600 transition-colors"
+          title="Delete conversation"
+        >
+          <Archive className="h-3 w-3" />
+        </button>
+      )}
+    </button>
+  );
+}
+
+function FollowUpSuggestions({
+  category,
+  onSuggestion,
+}: {
+  category?: string;
+  onSuggestion: (text: string) => void;
+}) {
   const suggestions: Record<string, string[]> = {
-    PIPELINE_ANALYTICS: ['Which deals need attention?', 'Show deals by industry', 'What changed this week?'],
-    DEAL_STATUS: ['Who are the top buyers for this deal?', 'Show me the deal timeline', 'Any overdue tasks?'],
-    BUYER_SEARCH: ['Score these buyers against our top deal', 'Show engagement history', 'Draft outreach to top matches'],
-    CONTACTS: ['Enrich missing contact emails', 'Push contacts to dialer', 'Find more contacts at this firm'],
-    MEETING_INTEL: ['Summarize key takeaways', 'What action items came up?', 'Search for pricing discussions'],
-    DAILY_BRIEFING: ['Show my overdue tasks', 'Any new buyer engagement?', 'Which deals went quiet?'],
-    ENGAGEMENT: ['Who viewed our data room?', 'Show pass reasons this month', 'Which buyers are most engaged?'],
+    PIPELINE_ANALYTICS: [
+      'Which deals need attention?',
+      'Show deals by industry',
+      'What changed this week?',
+    ],
+    DEAL_STATUS: [
+      'Who are the top buyers for this deal?',
+      'Show me the deal timeline',
+      'Any overdue tasks?',
+    ],
+    BUYER_SEARCH: [
+      'Score these buyers against our top deal',
+      'Show engagement history',
+      'Draft outreach to top matches',
+    ],
+    CONTACTS: [
+      'Enrich missing contact emails',
+      'Push contacts to dialer',
+      'Find more contacts at this firm',
+    ],
+    MEETING_INTEL: [
+      'Summarize key takeaways',
+      'What action items came up?',
+      'Search for pricing discussions',
+    ],
+    DAILY_BRIEFING: [
+      'Show my overdue tasks',
+      'Any new buyer engagement?',
+      'Which deals went quiet?',
+    ],
+    ENGAGEMENT: [
+      'Who viewed our data room?',
+      'Show pass reasons this month',
+      'Which buyers are most engaged?',
+    ],
     OUTREACH_DRAFT: ['Refine the tone', 'Make it shorter', 'Add deal metrics to the draft'],
     FOLLOW_UP: ['Show stale deals', 'Create follow-up tasks', 'Who needs a call this week?'],
   };
 
-  const items = suggestions[category || ''] || ['Show pipeline summary', 'Find top buyers', 'Give me my briefing'];
+  const items = suggestions[category || ''] || [
+    'Show pipeline summary',
+    'Find top buyers',
+    'Give me my briefing',
+  ];
 
   return (
     <div className="flex flex-wrap gap-1.5 mt-1">
