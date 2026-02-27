@@ -1,7 +1,12 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { updateGlobalQueueProgress, completeGlobalQueueOperation, isOperationPaused, recoverStaleOperations } from "../_shared/global-activity-queue.ts";
-import { getCorsHeaders, corsPreflightResponse } from "../_shared/cors.ts";
-import { checkProviderAvailability, reportRateLimit } from "../_shared/rate-limiter.ts";
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import {
+  updateGlobalQueueProgress,
+  completeGlobalQueueOperation,
+  isOperationPaused,
+  recoverStaleOperations,
+} from '../_shared/global-activity-queue.ts';
+import { getCorsHeaders, corsPreflightResponse } from '../_shared/cors.ts';
+import { checkProviderAvailability, reportRateLimit } from '../_shared/rate-limiter.ts';
 
 const MAX_ATTEMPTS = 3;
 const RATE_LIMIT_BACKOFF_MS = 60000;
@@ -29,7 +34,11 @@ Deno.serve(async (req) => {
     const staleCutoff = new Date(Date.now() - STALE_PROCESSING_MINUTES * 60 * 1000).toISOString();
     await supabase
       .from('remarketing_scoring_queue')
-      .update({ status: 'pending', last_error: 'Recovered from stale processing', processed_at: null })
+      .update({
+        status: 'pending',
+        last_error: 'Recovered from stale processing',
+        processed_at: null,
+      })
       .eq('status', 'processing')
       .lt('created_at', staleCutoff);
 
@@ -50,13 +59,19 @@ Deno.serve(async (req) => {
     // Dead letter handling: mark exhausted items as permanently failed
     const { data: exhaustedItems } = await supabase
       .from('remarketing_scoring_queue')
-      .update({ status: 'failed', last_error: 'Max attempts reached', processed_at: new Date().toISOString() })
+      .update({
+        status: 'failed',
+        last_error: 'Max attempts reached',
+        processed_at: new Date().toISOString(),
+      })
       .eq('status', 'pending')
       .gte('attempts', MAX_ATTEMPTS)
       .select('id, buyer_id, listing_id, last_error');
 
     if (exhaustedItems && exhaustedItems.length > 0) {
-      console.warn(`[Dead Letter] ${exhaustedItems.length} items exhausted all ${MAX_ATTEMPTS} retries`);
+      console.warn(
+        `[Dead Letter] ${exhaustedItems.length} items exhausted all ${MAX_ATTEMPTS} retries`,
+      );
     }
 
     let totalProcessed = 0;
@@ -78,13 +93,16 @@ Deno.serve(async (req) => {
       // Fetch next pending item
       const { data: items, error: fetchErr } = await supabase
         .from('remarketing_scoring_queue')
-        .select('*')
+        .select('id, score_type, buyer_id, listing_id, universe_id, attempts, status, created_at')
         .eq('status', 'pending')
         .lt('attempts', MAX_ATTEMPTS)
         .order('created_at', { ascending: true })
         .limit(1);
 
-      if (fetchErr) { console.error('Fetch error:', fetchErr); break; }
+      if (fetchErr) {
+        console.error('Fetch error:', fetchErr);
+        break;
+      }
       if (!items || items.length === 0) {
         console.log(`Queue empty. Processed ${totalProcessed} items.`);
         await completeGlobalQueueOperation(supabase, 'buyer_scoring');
@@ -92,7 +110,9 @@ Deno.serve(async (req) => {
       }
 
       const item = items[0];
-      console.log(`Processing ${item.score_type} scoring: buyer=${item.buyer_id}, listing=${item.listing_id} (attempt ${item.attempts + 1})`);
+      console.log(
+        `Processing ${item.score_type} scoring: buyer=${item.buyer_id}, listing=${item.listing_id} (attempt ${item.attempts + 1})`,
+      );
 
       // Check rate limiter
       const availability = await checkProviderAvailability(supabase, 'gemini');
@@ -104,7 +124,7 @@ Deno.serve(async (req) => {
           break;
         }
         console.log(`Waiting ${Math.round(waitMs / 1000)}s for Gemini...`);
-        await new Promise(r => setTimeout(r, waitMs));
+        await new Promise((r) => setTimeout(r, waitMs));
       }
 
       // Mark as processing
@@ -136,8 +156,8 @@ Deno.serve(async (req) => {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'apikey': supabaseAnonKey,
-            'Authorization': `Bearer ${supabaseServiceKey}`,
+            apikey: supabaseAnonKey,
+            Authorization: `Bearer ${supabaseServiceKey}`,
           },
           body: JSON.stringify(body),
           signal: controller.signal,
@@ -161,12 +181,20 @@ Deno.serve(async (req) => {
         if (data.error_code === 'ma_guide_missing' || data.error_code === 'payment_required') {
           await supabase
             .from('remarketing_scoring_queue')
-            .update({ status: 'failed', last_error: data.error_code, processed_at: new Date().toISOString() })
+            .update({
+              status: 'failed',
+              last_error: data.error_code,
+              processed_at: new Date().toISOString(),
+            })
             .eq('id', item.id);
           // Fail all remaining items of same type+universe
           await supabase
             .from('remarketing_scoring_queue')
-            .update({ status: 'failed', last_error: data.error_code, processed_at: new Date().toISOString() })
+            .update({
+              status: 'failed',
+              last_error: data.error_code,
+              processed_at: new Date().toISOString(),
+            })
             .eq('universe_id', item.universe_id)
             .eq('score_type', item.score_type)
             .eq('status', 'pending');
@@ -186,7 +214,7 @@ Deno.serve(async (req) => {
           .from('remarketing_scoring_queue')
           .update({ status: 'completed', processed_at: new Date().toISOString() })
           .eq('id', item.id);
-        
+
         await updateGlobalQueueProgress(supabase, 'buyer_scoring', { completedDelta: 1 });
         totalSucceeded++;
       } catch (error) {
@@ -194,7 +222,11 @@ Deno.serve(async (req) => {
         const newStatus = item.attempts + 1 >= MAX_ATTEMPTS ? 'failed' : 'pending';
         await supabase
           .from('remarketing_scoring_queue')
-          .update({ status: newStatus, last_error: errorMsg, processed_at: newStatus === 'failed' ? new Date().toISOString() : null })
+          .update({
+            status: newStatus,
+            last_error: errorMsg,
+            processed_at: newStatus === 'failed' ? new Date().toISOString() : null,
+          })
           .eq('id', item.id);
         console.error(`Scoring failed for item ${item.id}:`, errorMsg);
         await updateGlobalQueueProgress(supabase, 'buyer_scoring', {
@@ -208,7 +240,7 @@ Deno.serve(async (req) => {
 
       // Delay between items
       if (Date.now() - functionStartTime < MAX_FUNCTION_RUNTIME_MS) {
-        await new Promise(r => setTimeout(r, INTER_ITEM_DELAY_MS));
+        await new Promise((r) => setTimeout(r, INTER_ITEM_DELAY_MS));
       }
     }
 
@@ -221,27 +253,32 @@ Deno.serve(async (req) => {
     if (remaining && remaining > 0) {
       if (rateLimited) {
         // Schedule delayed self-continuation after rate limit cooldown
-        console.log(`${remaining} items pending but rate limited — scheduling retry in ${RATE_LIMIT_BACKOFF_MS / 1000}s`);
-        setTimeout(() => {
-          fetch(`${supabaseUrl}/functions/v1/process-scoring-queue`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'apikey': supabaseAnonKey,
-              'Authorization': `Bearer ${supabaseServiceKey}`,
-            },
-            body: JSON.stringify({ continuation: true, afterRateLimit: true }),
-            signal: AbortSignal.timeout(30_000),
-          }).catch(() => {});
-        }, Math.min(RATE_LIMIT_BACKOFF_MS, 30_000));
+        console.log(
+          `${remaining} items pending but rate limited — scheduling retry in ${RATE_LIMIT_BACKOFF_MS / 1000}s`,
+        );
+        setTimeout(
+          () => {
+            fetch(`${supabaseUrl}/functions/v1/process-scoring-queue`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                apikey: supabaseAnonKey,
+                Authorization: `Bearer ${supabaseServiceKey}`,
+              },
+              body: JSON.stringify({ continuation: true, afterRateLimit: true }),
+              signal: AbortSignal.timeout(30_000),
+            }).catch(() => {});
+          },
+          Math.min(RATE_LIMIT_BACKOFF_MS, 30_000),
+        );
       } else {
         console.log(`${remaining} items still pending, triggering next batch...`);
         fetch(`${supabaseUrl}/functions/v1/process-scoring-queue`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'apikey': supabaseAnonKey,
-            'Authorization': `Bearer ${supabaseServiceKey}`,
+            apikey: supabaseAnonKey,
+            Authorization: `Bearer ${supabaseServiceKey}`,
           },
           body: JSON.stringify({ continuation: true }),
           signal: AbortSignal.timeout(30_000),
@@ -258,13 +295,16 @@ Deno.serve(async (req) => {
         dead_letter_count: exhaustedItems?.length || 0,
         remaining: remaining || 0,
       }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
     );
   } catch (error) {
     console.error('Error in process-scoring-queue:', error);
     return new Response(
-      JSON.stringify({ success: false, error: error instanceof Error ? error.message : 'Unknown error' }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      JSON.stringify({
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      }),
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
     );
   }
 });
