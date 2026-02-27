@@ -8,7 +8,10 @@ export function useUnviewedDealSourcingCount() {
   const query = useQuery({
     queryKey: ['unviewed-deal-sourcing-count'],
     queryFn: async () => {
-      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      const {
+        data: { user },
+        error: authError,
+      } = await supabase.auth.getUser();
       if (authError) throw authError;
       if (!user) return 0;
 
@@ -25,7 +28,7 @@ export function useUnviewedDealSourcingCount() {
       // Count requests created after last viewed
       const { count, error } = await supabase
         .from('deal_sourcing_requests')
-        .select('*', { count: 'exact', head: true })
+        .select('id', { count: 'exact', head: true })
         .gt('created_at', lastViewed);
 
       if (error) throw error;
@@ -37,13 +40,17 @@ export function useUnviewedDealSourcingCount() {
   useEffect(() => {
     const channel = supabase
       .channel('deal-sourcing-new-requests')
-      .on('postgres_changes', {
-        event: 'INSERT',
-        schema: 'public',
-        table: 'deal_sourcing_requests',
-      }, () => {
-        queryClient.invalidateQueries({ queryKey: ['unviewed-deal-sourcing-count'] });
-      })
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'deal_sourcing_requests',
+        },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ['unviewed-deal-sourcing-count'] });
+        },
+      )
       .subscribe();
 
     return () => {

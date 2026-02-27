@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { useEffect, useRef, useState } from 'react';
+import { supabase } from '@/integrations/supabase/client';
 import {
   Dialog,
   DialogContent,
@@ -7,28 +7,18 @@ import {
   DialogTitle,
   DialogDescription,
   DialogFooter,
-} from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import {
-  CheckCircle2,
-  AlertCircle,
-  XCircle,
-  Clock,
-  ChevronDown,
-  ChevronUp,
-} from "lucide-react";
-import { useGlobalActivityQueue } from "@/hooks/remarketing/useGlobalActivityQueue";
-import { OPERATION_TYPE_LABELS } from "@/types/remarketing";
-import type {
-  GlobalActivityQueueItem,
-  GlobalActivityErrorEntry,
-} from "@/types/remarketing";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+} from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { CheckCircle2, AlertCircle, XCircle, Clock, ChevronDown, ChevronUp } from 'lucide-react';
+import { useGlobalActivityQueue } from '@/hooks/remarketing/useGlobalActivityQueue';
+import { OPERATION_TYPE_LABELS } from '@/types/remarketing';
+import type { GlobalActivityQueueItem, GlobalActivityErrorEntry } from '@/types/remarketing';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 
 function formatDuration(startedAt: string | null, completedAt: string | null): string {
-  if (!startedAt || !completedAt) return "—";
+  if (!startedAt || !completedAt) return '—';
   const ms = new Date(completedAt).getTime() - new Date(startedAt).getTime();
   if (ms < 60_000) return `${Math.round(ms / 1000)}s`;
   const mins = Math.floor(ms / 60_000);
@@ -54,11 +44,11 @@ export function ActivityCompletionDialog() {
     const terminalItemIds: string[] = [];
 
     for (const item of allItems) {
-      if (item.status === "running" || item.status === "paused") {
+      if (item.status === 'running' || item.status === 'paused') {
         currentActiveIds.add(item.id);
       }
       if (
-        (item.status === "completed" || item.status === "failed" || item.status === "cancelled") &&
+        (item.status === 'completed' || item.status === 'failed' || item.status === 'cancelled') &&
         prevActiveIdsRef.current.has(item.id) &&
         !shownIdsRef.current.has(item.id)
       ) {
@@ -77,20 +67,22 @@ export function ActivityCompletionDialog() {
       const timer = setTimeout(async () => {
         try {
           const { data, error } = await supabase
-            .from("global_activity_queue")
-            .select("*")
-            .eq("id", latestId)
+            .from('global_activity_queue')
+            .select(
+              'id, operation_type, status, total_items, completed_items, failed_items, error_log, started_at, completed_at, description',
+            )
+            .eq('id', latestId)
             .maybeSingle();
           if (error) throw error;
           if (data) {
             setCompletedItem(data as unknown as GlobalActivityQueueItem);
           } else {
             // Fallback to cached version
-            const cached = allItems.find(i => i.id === latestId);
+            const cached = allItems.find((i) => i.id === latestId);
             if (cached) setCompletedItem(cached);
           }
         } catch {
-          const cached = allItems.find(i => i.id === latestId);
+          const cached = allItems.find((i) => i.id === latestId);
           if (cached) setCompletedItem(cached);
         }
         setOpen(true);
@@ -120,23 +112,15 @@ export function ActivityCompletionDialog() {
   const status = completedItem.status;
 
   const StatusIcon =
-    status === "completed"
-      ? CheckCircle2
-      : status === "failed"
-        ? AlertCircle
-        : XCircle;
+    status === 'completed' ? CheckCircle2 : status === 'failed' ? AlertCircle : XCircle;
   const statusColor =
-    status === "completed"
-      ? "text-emerald-500"
-      : status === "failed"
-        ? "text-red-500"
-        : "text-muted-foreground";
+    status === 'completed'
+      ? 'text-emerald-500'
+      : status === 'failed'
+        ? 'text-red-500'
+        : 'text-muted-foreground';
   const statusLabel =
-    status === "completed"
-      ? "Completed"
-      : status === "failed"
-        ? "Failed"
-        : "Cancelled";
+    status === 'completed' ? 'Completed' : status === 'failed' ? 'Failed' : 'Cancelled';
 
   // Deduplicate errors by itemId to keep the list concise
   const uniqueErrors = errors.reduce<GlobalActivityErrorEntry[]>((acc, e) => {
@@ -182,17 +166,19 @@ export function ActivityCompletionDialog() {
           <div className="flex items-center gap-2">
             <Badge
               variant={
-                status === "completed"
-                  ? "default"
-                  : status === "failed"
-                    ? "destructive"
-                    : "secondary"
+                status === 'completed'
+                  ? 'default'
+                  : status === 'failed'
+                    ? 'destructive'
+                    : 'secondary'
               }
             >
               {statusLabel}
             </Badge>
             {succeeded > 0 && failed === 0 && succeeded >= total && (
-              <span className="text-sm text-emerald-600 font-medium">All items processed successfully!</span>
+              <span className="text-sm text-emerald-600 font-medium">
+                All items processed successfully!
+              </span>
             )}
             {succeeded > 0 && failed === 0 && succeeded < total && (
               <span className="text-sm text-amber-600 font-medium">
@@ -210,9 +196,19 @@ export function ActivityCompletionDialog() {
           {uniqueErrors.length > 0 && (
             <Collapsible open={errorsExpanded} onOpenChange={setErrorsExpanded}>
               <CollapsibleTrigger asChild>
-                <Button variant="ghost" size="sm" className="gap-2 w-full justify-between text-destructive">
-                  <span>{uniqueErrors.length} error{uniqueErrors.length > 1 ? "s" : ""}</span>
-                  {errorsExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="gap-2 w-full justify-between text-destructive"
+                >
+                  <span>
+                    {uniqueErrors.length} error{uniqueErrors.length > 1 ? 's' : ''}
+                  </span>
+                  {errorsExpanded ? (
+                    <ChevronUp className="h-4 w-4" />
+                  ) : (
+                    <ChevronDown className="h-4 w-4" />
+                  )}
                 </Button>
               </CollapsibleTrigger>
               <CollapsibleContent>

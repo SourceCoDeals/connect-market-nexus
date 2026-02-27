@@ -178,7 +178,8 @@ const ReMarketingDealMatching = () => {
   // Register AI Command Center context
   const { setPageContext } = useAICommandCenterContext();
   useEffect(() => {
-    if (listingId) setPageContext({ page: 'deal_matching', entity_id: listingId, entity_type: 'scores' });
+    if (listingId)
+      setPageContext({ page: 'deal_matching', entity_id: listingId, entity_type: 'scores' });
   }, [listingId, setPageContext]);
 
   // Wire AI UI actions
@@ -188,9 +189,17 @@ const ReMarketingDealMatching = () => {
       if (mode === 'replace') {
         setSelectedIds(new Set(rowIds));
       } else if (mode === 'add') {
-        setSelectedIds((prev) => { const next = new Set(prev); rowIds.forEach((id) => next.add(id)); return next; });
+        setSelectedIds((prev) => {
+          const next = new Set(prev);
+          rowIds.forEach((id) => next.add(id));
+          return next;
+        });
       } else {
-        setSelectedIds((prev) => { const next = new Set(prev); rowIds.forEach((id) => (next.has(id) ? next.delete(id) : next.add(id))); return next; });
+        setSelectedIds((prev) => {
+          const next = new Set(prev);
+          rowIds.forEach((id) => (next.has(id) ? next.delete(id) : next.add(id)));
+          return next;
+        });
       }
     },
     onClearSelection: () => setSelectedIds(new Set()),
@@ -261,7 +270,7 @@ const ReMarketingDealMatching = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('deal_scoring_adjustments')
-        .select('*')
+        .select('id, reason')
         .eq('listing_id', listingId!)
         .eq('adjustment_type', 'custom_instructions')
         .single();
@@ -389,7 +398,7 @@ const ReMarketingDealMatching = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('remarketing_outreach')
-        .select('*')
+        .select('id, status, score_id, contacted_at, notes')
         .eq('listing_id', listingId!);
 
       if (error) throw error;

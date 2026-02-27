@@ -13,153 +13,160 @@ import { SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 export const chatTools = [
   {
-    type: "function",
+    type: 'function',
     function: {
-      name: "search_transcripts",
-      description: "Search call transcripts for specific keywords, topics, or questions. Use this when the user asks about specific content from calls or wants to find relevant quotes.",
+      name: 'search_transcripts',
+      description:
+        'Search call transcripts for specific keywords, topics, or questions. Use this when the user asks about specific content from calls or wants to find relevant quotes.',
       parameters: {
-        type: "object",
+        type: 'object',
         properties: {
           deal_id: {
-            type: "string",
-            description: "The deal/listing ID to search transcripts for"
+            type: 'string',
+            description: 'The deal/listing ID to search transcripts for',
           },
           keywords: {
-            type: "array",
-            items: { type: "string" },
-            description: "Keywords or phrases to search for in transcripts (e.g., ['timing', 'Q2', 'close'])"
+            type: 'array',
+            items: { type: 'string' },
+            description:
+              "Keywords or phrases to search for in transcripts (e.g., ['timing', 'Q2', 'close'])",
           },
           ceo_only: {
-            type: "boolean",
-            description: "If true, only search transcripts where CEO was detected",
-            default: false
-          }
+            type: 'boolean',
+            description: 'If true, only search transcripts where CEO was detected',
+            default: false,
+          },
         },
-        required: ["deal_id"]
-      }
-    }
+        required: ['deal_id'],
+      },
+    },
   },
   {
-    type: "function",
+    type: 'function',
     function: {
-      name: "get_buyer_details",
-      description: "Retrieve comprehensive details about a specific buyer including full acquisition history, portfolio, and strategic priorities. Use when user asks for detailed information about a specific buyer.",
+      name: 'get_buyer_details',
+      description:
+        'Retrieve comprehensive details about a specific buyer including full acquisition history, portfolio, and strategic priorities. Use when user asks for detailed information about a specific buyer.',
       parameters: {
-        type: "object",
+        type: 'object',
         properties: {
           buyer_id: {
-            type: "string",
-            description: "The UUID of the buyer to retrieve details for"
-          }
+            type: 'string',
+            description: 'The UUID of the buyer to retrieve details for',
+          },
         },
-        required: ["buyer_id"]
-      }
-    }
+        required: ['buyer_id'],
+      },
+    },
   },
   {
-    type: "function",
+    type: 'function',
     function: {
-      name: "search_buyers_by_criteria",
-      description: "Dynamically search for buyers matching specific criteria beyond the initial context. Use when user asks for buyers with very specific requirements not easily answered from the loaded context.",
+      name: 'search_buyers_by_criteria',
+      description:
+        'Dynamically search for buyers matching specific criteria beyond the initial context. Use when user asks for buyers with very specific requirements not easily answered from the loaded context.',
       parameters: {
-        type: "object",
+        type: 'object',
         properties: {
           geographies: {
-            type: "array",
-            items: { type: "string" },
-            description: "State codes or regions to filter by (e.g., ['TX', 'CA'])"
+            type: 'array',
+            items: { type: 'string' },
+            description: "State codes or regions to filter by (e.g., ['TX', 'CA'])",
           },
           services: {
-            type: "array",
-            items: { type: "string" },
-            description: "Service types to filter by"
+            type: 'array',
+            items: { type: 'string' },
+            description: 'Service types to filter by',
           },
           min_revenue: {
-            type: "number",
-            description: "Minimum target revenue in dollars"
+            type: 'number',
+            description: 'Minimum target revenue in dollars',
           },
           max_revenue: {
-            type: "number",
-            description: "Maximum target revenue in dollars"
+            type: 'number',
+            description: 'Maximum target revenue in dollars',
           },
           buyer_types: {
-            type: "array",
-            items: { type: "string" },
-            description: "Buyer types to filter by (e.g., ['Private Equity', 'Strategic'])"
+            type: 'array',
+            items: { type: 'string' },
+            description: "Buyer types to filter by (e.g., ['Private Equity', 'Strategic'])",
           },
           has_fee_agreement: {
-            type: "boolean",
-            description: "Filter buyers with fee agreements"
+            type: 'boolean',
+            description: 'Filter buyers with fee agreements',
           },
           min_acquisition_appetite: {
-            type: "string",
-            description: "Minimum acquisition appetite level"
-          }
+            type: 'string',
+            description: 'Minimum acquisition appetite level',
+          },
         },
-        required: []
-      }
-    }
+        required: [],
+      },
+    },
   },
   {
-    type: "function",
+    type: 'function',
     function: {
-      name: "get_score_breakdown",
-      description: "Get detailed scoring breakdown and reasoning for a specific buyer-deal match. Use when user wants to understand exactly why a score is what it is.",
+      name: 'get_score_breakdown',
+      description:
+        'Get detailed scoring breakdown and reasoning for a specific buyer-deal match. Use when user wants to understand exactly why a score is what it is.',
       parameters: {
-        type: "object",
+        type: 'object',
         properties: {
           buyer_id: {
-            type: "string",
-            description: "The buyer UUID"
+            type: 'string',
+            description: 'The buyer UUID',
           },
           deal_id: {
-            type: "string",
-            description: "The deal/listing UUID"
-          }
+            type: 'string',
+            description: 'The deal/listing UUID',
+          },
         },
-        required: ["buyer_id", "deal_id"]
-      }
-    }
+        required: ['buyer_id', 'deal_id'],
+      },
+    },
   },
   {
-    type: "function",
+    type: 'function',
     function: {
-      name: "get_contact_details",
-      description: "Retrieve full contact list for a buyer, not just the top 2. Use when user specifically asks for all contacts or contact information.",
+      name: 'get_contact_details',
+      description:
+        'Retrieve full contact list for a buyer, not just the top 2. Use when user specifically asks for all contacts or contact information.',
       parameters: {
-        type: "object",
+        type: 'object',
         properties: {
           buyer_id: {
-            type: "string",
-            description: "The buyer UUID"
-          }
+            type: 'string',
+            description: 'The buyer UUID',
+          },
         },
-        required: ["buyer_id"]
-      }
-    }
+        required: ['buyer_id'],
+      },
+    },
   },
   {
-    type: "function",
+    type: 'function',
     function: {
-      name: "get_acquisition_history",
-      description: "Retrieve detailed acquisition history for a buyer including recent deals, patterns, and trends.",
+      name: 'get_acquisition_history',
+      description:
+        'Retrieve detailed acquisition history for a buyer including recent deals, patterns, and trends.',
       parameters: {
-        type: "object",
+        type: 'object',
         properties: {
           buyer_id: {
-            type: "string",
-            description: "The buyer UUID"
+            type: 'string',
+            description: 'The buyer UUID',
           },
           limit: {
-            type: "number",
-            description: "Maximum number of acquisitions to return",
-            default: 10
-          }
+            type: 'number',
+            description: 'Maximum number of acquisitions to return',
+            default: 10,
+          },
         },
-        required: ["buyer_id"]
-      }
-    }
-  }
+        required: ['buyer_id'],
+      },
+    },
+  },
 ];
 
 // ============================================================================
@@ -178,12 +185,14 @@ interface TranscriptSearchResult {
 
 export async function searchTranscripts(
   supabase: SupabaseClient,
-  args: { deal_id: string; keywords?: string[]; ceo_only?: boolean }
+  args: { deal_id: string; keywords?: string[]; ceo_only?: boolean },
 ): Promise<{ results: TranscriptSearchResult[]; total: number; error?: string }> {
   try {
     let query = supabase
       .from('call_transcripts')
-      .select('id, created_at, call_type, ceo_detected, key_quotes, extracted_insights, transcript_text')
+      .select(
+        'id, created_at, call_type, ceo_detected, key_quotes, extracted_insights, transcript_text',
+      )
       .eq('listing_id', args.deal_id);
 
     if (args.ceo_only) {
@@ -205,27 +214,29 @@ export async function searchTranscripts(
     // Filter by keywords if provided
     let filteredTranscripts = transcripts;
     if (args.keywords && args.keywords.length > 0) {
-      const keywords = args.keywords.map(k => k.toLowerCase());
+      const keywords = args.keywords.map((k) => k.toLowerCase());
 
-      filteredTranscripts = transcripts.filter(t => {
+      filteredTranscripts = transcripts.filter((t) => {
         const searchText = [
           t.transcript_text || '',
           JSON.stringify(t.key_quotes || []),
-          JSON.stringify(t.extracted_insights || {})
-        ].join(' ').toLowerCase();
+          JSON.stringify(t.extracted_insights || {}),
+        ]
+          .join(' ')
+          .toLowerCase();
 
-        return keywords.some(keyword => searchText.includes(keyword));
+        return keywords.some((keyword) => searchText.includes(keyword));
       });
     }
 
-    const results: TranscriptSearchResult[] = filteredTranscripts.map(t => ({
+    const results: TranscriptSearchResult[] = filteredTranscripts.map((t) => ({
       transcript_id: t.id,
       created_at: t.created_at,
       call_type: t.call_type || 'Unknown',
       ceo_detected: t.ceo_detected || false,
       matching_quotes: t.key_quotes || [],
       relevant_insights: t.extracted_insights || {},
-      transcript_preview: t.transcript_text ? t.transcript_text.substring(0, 300) + '...' : ''
+      transcript_preview: t.transcript_text ? t.transcript_text.substring(0, 300) + '...' : '',
     }));
 
     return { results, total: results.length };
@@ -236,12 +247,14 @@ export async function searchTranscripts(
 
 export async function getBuyerDetails(
   supabase: SupabaseClient,
-  args: { buyer_id: string }
+  args: { buyer_id: string },
 ): Promise<{ buyer: any; error?: string }> {
   try {
     const { data: buyer, error } = await supabase
       .from('remarketing_buyers')
-      .select('*')
+      .select(
+        'id, company_name, pe_firm_name, buyer_type, hq_city, hq_state, geographic_footprint, target_geographies, target_services, target_industries, target_revenue_min, target_revenue_max, target_ebitda_min, target_ebitda_max, acquisition_appetite, total_acquisitions, last_acquisition_date, thesis_summary, business_summary, services_offered, operating_locations, recent_acquisitions, deal_breakers, strategic_priorities, extraction_sources, platform_website, company_website, pe_firm_website, has_fee_agreement, universe_id, notes',
+      )
       .eq('id', args.buyer_id)
       .single();
 
@@ -252,15 +265,15 @@ export async function getBuyerDetails(
     // Also fetch contacts
     const { data: contacts } = await supabase
       .from('buyer_contacts')
-      .select('*')
+      .select('id, buyer_id, name, title, email, phone, is_primary_contact, last_contacted_date')
       .eq('buyer_id', args.buyer_id)
       .order('is_primary_contact', { ascending: false });
 
     return {
       buyer: {
         ...buyer,
-        contacts: contacts || []
-      }
+        contacts: contacts || [],
+      },
     };
   } catch (err) {
     return { buyer: null, error: String(err) };
@@ -277,12 +290,14 @@ export async function searchBuyersByCriteria(
     buyer_types?: string[];
     has_fee_agreement?: boolean;
     min_acquisition_appetite?: string;
-  }
+  },
 ): Promise<{ buyers: any[]; total: number; error?: string }> {
   try {
     let query = supabase
       .from('remarketing_buyers')
-      .select('id, company_name, pe_firm_name, buyer_type, geographic_footprint, target_services, target_revenue_min, target_revenue_max, acquisition_appetite')
+      .select(
+        'id, company_name, pe_firm_name, buyer_type, geographic_footprint, target_services, target_revenue_min, target_revenue_max, acquisition_appetite',
+      )
       .eq('archived', false);
 
     // Apply filters
@@ -306,30 +321,32 @@ export async function searchBuyersByCriteria(
     let filteredBuyers = buyers || [];
 
     if (args.geographies && args.geographies.length > 0) {
-      filteredBuyers = filteredBuyers.filter(b =>
-        b.geographic_footprint &&
-        args.geographies!.some(geo => b.geographic_footprint.includes(geo))
+      filteredBuyers = filteredBuyers.filter(
+        (b) =>
+          b.geographic_footprint &&
+          args.geographies!.some((geo) => b.geographic_footprint.includes(geo)),
       );
     }
 
     if (args.services && args.services.length > 0) {
-      filteredBuyers = filteredBuyers.filter(b =>
-        b.target_services &&
-        args.services!.some(svc =>
-          b.target_services.some((ts: string) => ts.toLowerCase().includes(svc.toLowerCase()))
-        )
+      filteredBuyers = filteredBuyers.filter(
+        (b) =>
+          b.target_services &&
+          args.services!.some((svc) =>
+            b.target_services.some((ts: string) => ts.toLowerCase().includes(svc.toLowerCase())),
+          ),
       );
     }
 
     if (args.min_revenue !== undefined) {
-      filteredBuyers = filteredBuyers.filter(b =>
-        b.target_revenue_max === null || b.target_revenue_max >= args.min_revenue!
+      filteredBuyers = filteredBuyers.filter(
+        (b) => b.target_revenue_max === null || b.target_revenue_max >= args.min_revenue!,
       );
     }
 
     if (args.max_revenue !== undefined) {
-      filteredBuyers = filteredBuyers.filter(b =>
-        b.target_revenue_min === null || b.target_revenue_min <= args.max_revenue!
+      filteredBuyers = filteredBuyers.filter(
+        (b) => b.target_revenue_min === null || b.target_revenue_min <= args.max_revenue!,
       );
     }
 
@@ -341,12 +358,14 @@ export async function searchBuyersByCriteria(
 
 export async function getScoreBreakdown(
   supabase: SupabaseClient,
-  args: { buyer_id: string; deal_id: string }
+  args: { buyer_id: string; deal_id: string },
 ): Promise<{ score: any; error?: string }> {
   try {
     const { data: score, error } = await supabase
       .from('remarketing_scores')
-      .select('*')
+      .select(
+        'buyer_id, listing_id, universe_id, composite_score, geography_score, service_score, size_score, owner_goals_score, acquisition_score, business_model_score, portfolio_score, fit_reasoning, pass_reason, pass_category, status, tier, scored_at, size_multiplier, service_multiplier, geography_mode_factor, thesis_alignment_bonus, data_quality_bonus, custom_bonus, learning_penalty, is_disqualified, disqualification_reason, needs_review, deal_snapshot',
+      )
       .eq('buyer_id', args.buyer_id)
       .eq('listing_id', args.deal_id)
       .single();
@@ -363,12 +382,12 @@ export async function getScoreBreakdown(
 
 export async function getContactDetails(
   supabase: SupabaseClient,
-  args: { buyer_id: string }
+  args: { buyer_id: string },
 ): Promise<{ contacts: any[]; total: number; error?: string }> {
   try {
     const { data: contacts, error } = await supabase
       .from('buyer_contacts')
-      .select('*')
+      .select('id, buyer_id, name, title, email, phone, is_primary_contact, last_contacted_date')
       .eq('buyer_id', args.buyer_id)
       .order('is_primary_contact', { ascending: false });
 
@@ -384,7 +403,7 @@ export async function getContactDetails(
 
 export async function getAcquisitionHistory(
   supabase: SupabaseClient,
-  args: { buyer_id: string; limit?: number }
+  args: { buyer_id: string; limit?: number },
 ): Promise<{ acquisitions: any[]; total: number; error?: string }> {
   try {
     const { data: buyer, error } = await supabase
@@ -401,10 +420,8 @@ export async function getAcquisitionHistory(
     const limit = args.limit || 10;
 
     return {
-      acquisitions: Array.isArray(recentAcquisitions)
-        ? recentAcquisitions.slice(0, limit)
-        : [],
-      total: buyer?.total_acquisitions || 0
+      acquisitions: Array.isArray(recentAcquisitions) ? recentAcquisitions.slice(0, limit) : [],
+      total: buyer?.total_acquisitions || 0,
     };
   } catch (err) {
     return { acquisitions: [], total: 0, error: String(err) };
@@ -418,7 +435,7 @@ export async function getAcquisitionHistory(
 export async function executeToolCall(
   supabase: SupabaseClient,
   toolName: string,
-  args: any
+  args: any,
 ): Promise<any> {
   console.log(`[chat-tools] Executing tool: ${toolName}`, args);
 

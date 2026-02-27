@@ -198,7 +198,7 @@ export function useMeetingQualityMetrics(dateFrom: string | null, dateTo: string
     queryFn: async () => {
       let query = supabase
         .from('standup_meetings' as any)
-        .select('*')
+        .select('id, meeting_date, meeting_duration_minutes')
         .order('meeting_date', { ascending: false });
 
       if (dateFrom) query = query.gte('meeting_date', dateFrom);

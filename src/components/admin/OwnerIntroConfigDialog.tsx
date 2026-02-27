@@ -6,9 +6,15 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+} from '@/components/ui/alert-dialog';
+import { Button } from '@/components/ui/button';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
 
 interface OwnerIntroConfigDialogProps {
@@ -21,7 +27,12 @@ interface OwnerIntroConfigDialogProps {
   onConfirm: (config: { primaryOwnerId: string | null; dealOwnerId: string | null }) => void;
 }
 
-type AdminProfile = { id: string; email: string; first_name: string | null; last_name: string | null };
+type AdminProfile = {
+  id: string;
+  email: string;
+  first_name: string | null;
+  last_name: string | null;
+};
 
 export function OwnerIntroConfigDialog({
   open,
@@ -47,15 +58,15 @@ export function OwnerIntroConfigDialog({
   useEffect(() => {
     if (open && needsDealOwner) {
       setIsLoadingDealOwnerAdmins(true);
-      supabase
-        .from('profiles')
-        .select('id, email, first_name, last_name')
-        .eq('is_admin', true)
-        .order('first_name')
-        .then((result) => {
-          if (result.data) setDealOwnerAdmins(result.data);
-          setIsLoadingDealOwnerAdmins(false);
-        });
+      (async () => {
+        const result = await supabase
+          .from('profiles')
+          .select('id, email, first_name, last_name')
+          .eq('is_admin', true)
+          .order('first_name');
+        if (result.data) setDealOwnerAdmins(result.data);
+        setIsLoadingDealOwnerAdmins(false);
+      })();
     }
   }, [open, needsDealOwner]);
 
@@ -63,15 +74,15 @@ export function OwnerIntroConfigDialog({
   useEffect(() => {
     if (open && needsPrimaryOwner) {
       setIsLoadingPrimaryOwnerAdmins(true);
-      supabase
-        .from('profiles')
-        .select('id, email, first_name, last_name')
-        .eq('is_admin', true)
-        .order('first_name')
-        .then((result) => {
-          if (result.data) setPrimaryOwnerAdmins(result.data);
-          setIsLoadingPrimaryOwnerAdmins(false);
-        });
+      (async () => {
+        const result = await supabase
+          .from('profiles')
+          .select('id, email, first_name, last_name')
+          .eq('is_admin', true)
+          .order('first_name');
+        if (result.data) setPrimaryOwnerAdmins(result.data);
+        setIsLoadingPrimaryOwnerAdmins(false);
+      })();
     }
   }, [open, needsPrimaryOwner]);
 
@@ -114,7 +125,7 @@ export function OwnerIntroConfigDialog({
               Moving {dealTitle} to Owner intro requested
             </AlertDialogDescription>
           </AlertDialogHeader>
-          
+
           <div className="space-y-4 py-4">
             <div className="space-y-3">
               <div className="flex items-center justify-between py-2 border-b border-slate-200">
@@ -126,19 +137,24 @@ export function OwnerIntroConfigDialog({
                 <span className="text-sm text-slate-600">{currentDealOwner.name}</span>
               </div>
             </div>
-            
+
             <div className="bg-slate-50 rounded-lg p-4 border border-slate-200">
               <p className="text-sm text-slate-600">
-                An introduction email will be sent to <span className="font-medium text-slate-700">{currentPrimaryOwner.email}</span> with details about this buyer inquiry.
+                An introduction email will be sent to{' '}
+                <span className="font-medium text-slate-700">{currentPrimaryOwner.email}</span> with
+                details about this buyer inquiry.
               </p>
             </div>
           </div>
-          
+
           <AlertDialogFooter>
             <Button variant="ghost" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
-            <Button onClick={handleConfirm} className="bg-foreground text-background hover:bg-foreground/90">
+            <Button
+              onClick={handleConfirm}
+              className="bg-foreground text-background hover:bg-foreground/90"
+            >
               Send introduction
             </Button>
           </AlertDialogFooter>
@@ -159,18 +175,24 @@ export function OwnerIntroConfigDialog({
             Moving {dealTitle} to Owner intro requested
           </AlertDialogDescription>
         </AlertDialogHeader>
-        
+
         <div className="space-y-6 py-4">
           <div className="space-y-1">
             <p className="text-sm text-slate-600">
               This stage requires two contacts to send the introduction email:
             </p>
             <ul className="text-sm text-slate-600 space-y-1 pl-4">
-              <li>• <span className="font-medium text-slate-700">Primary owner</span> — receives the email</li>
-              <li>• <span className="font-medium text-slate-700">Deal owner</span> — coordinates internally</li>
+              <li>
+                • <span className="font-medium text-slate-700">Primary owner</span> — receives the
+                email
+              </li>
+              <li>
+                • <span className="font-medium text-slate-700">Deal owner</span> — coordinates
+                internally
+              </li>
             </ul>
           </div>
-          
+
           {needsPrimaryOwner && (
             <div className="space-y-2">
               <label className="text-sm font-medium text-slate-700">
@@ -193,15 +215,13 @@ export function OwnerIntroConfigDialog({
               </Select>
             </div>
           )}
-          
+
           {needsDealOwner && (
             <div className="space-y-2">
               <label className="text-sm font-medium text-slate-700">
                 Deal owner <span className="text-slate-500">(required)</span>
               </label>
-              <p className="text-xs text-slate-500">
-                The admin coordinating this deal internally
-              </p>
+              <p className="text-xs text-slate-500">The admin coordinating this deal internally</p>
               <Select value={selectedDealOwnerId} onValueChange={setSelectedDealOwnerId}>
                 <SelectTrigger className="bg-white border-slate-200 focus:border-slate-400">
                   <SelectValue placeholder="Select deal owner" />
@@ -216,16 +236,18 @@ export function OwnerIntroConfigDialog({
               </Select>
             </div>
           )}
-          
+
           {hasPrimaryOwner && needsDealOwner && (
             <div className="space-y-2 pt-4 border-t border-slate-200">
               <div className="flex items-center justify-between">
                 <span className="text-sm text-slate-500">Primary owner</span>
-                <span className="text-sm font-medium text-slate-700">{currentPrimaryOwner.name}</span>
+                <span className="text-sm font-medium text-slate-700">
+                  {currentPrimaryOwner.name}
+                </span>
               </div>
             </div>
           )}
-          
+
           {hasDealOwner && needsPrimaryOwner && (
             <div className="space-y-2 pt-4 border-t border-slate-200">
               <div className="flex items-center justify-between">
@@ -235,13 +257,13 @@ export function OwnerIntroConfigDialog({
             </div>
           )}
         </div>
-        
+
         <AlertDialogFooter className="border-t border-slate-200 pt-4">
           <Button variant="ghost" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button 
-            onClick={handleConfirm} 
+          <Button
+            onClick={handleConfirm}
             disabled={!isValid()}
             className="bg-foreground text-background hover:bg-foreground/90 disabled:opacity-50"
           >

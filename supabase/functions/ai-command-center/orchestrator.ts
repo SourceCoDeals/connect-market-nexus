@@ -179,8 +179,14 @@ export async function orchestrate(
   ];
 
   // Inject page context as user context if entity is known
+  // Sanitize context fields to prevent injection via entity_id/page/entity_type
   if (pageContext?.entity_id && pageContext.entity_type) {
-    const contextMsg = `[System: User is on the ${pageContext.page} page, viewing ${pageContext.entity_type} ${pageContext.entity_id}]`;
+    const sanitize = (s: string | undefined) =>
+      (s || '')
+        .replace(/[\n\r]/g, '')
+        .replace(/[[\]]/g, '')
+        .slice(0, 200);
+    const contextMsg = `[Context: page=${sanitize(pageContext.page)}, type=${sanitize(pageContext.entity_type)}, id=${sanitize(pageContext.entity_id)}]`;
     messages[messages.length - 1] = {
       role: 'user',
       content: `${contextMsg}\n\n${query}`,
@@ -287,7 +293,9 @@ export async function orchestrate(
         toolResults.push({
           type: 'tool_result',
           tool_use_id: toolId,
-          content: JSON.stringify({ error: `Tool ${toolName} is temporarily disabled due to repeated failures. Please try again in a few minutes.` }),
+          content: JSON.stringify({
+            error: `Tool ${toolName} is temporarily disabled due to repeated failures. Please try again in a few minutes.`,
+          }),
           is_error: true,
         });
         continue;

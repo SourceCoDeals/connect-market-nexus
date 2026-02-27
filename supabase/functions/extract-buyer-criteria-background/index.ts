@@ -1,7 +1,7 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
 
-import { getCorsHeaders, corsPreflightResponse } from "../_shared/cors.ts";
+import { getCorsHeaders, corsPreflightResponse } from '../_shared/cors.ts';
 
 serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
@@ -14,16 +14,16 @@ serve(async (req) => {
     const { universe_id, guide_content, source_name, industry_name } = await req.json();
 
     if (!universe_id) {
-      return new Response(
-        JSON.stringify({ error: 'universe_id is required' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      return new Response(JSON.stringify({ error: 'universe_id is required' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
 
     if (!guide_content || guide_content.length < 1000) {
       return new Response(
         JSON.stringify({ error: 'guide_content must have at least 1000 characters' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
       );
     }
 
@@ -35,7 +35,7 @@ serve(async (req) => {
     // Check if there's already an active extraction for this universe
     const { data: existingExtraction } = await supabase
       .from('buyer_criteria_extractions')
-      .select('*')
+      .select('id, status')
       .eq('universe_id', universe_id)
       .in('status', ['pending', 'processing'])
       .single();
@@ -45,9 +45,9 @@ serve(async (req) => {
         JSON.stringify({
           extraction_id: existingExtraction.id,
           status: existingExtraction.status,
-          message: 'Extraction already in progress'
+          message: 'Extraction already in progress',
         }),
-        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
       );
     }
 
@@ -61,10 +61,10 @@ serve(async (req) => {
         source_metadata: {
           industry_name: industry_name || 'Unknown',
           content_length: guide_content.length,
-          word_count: guide_content.split(/\s+/).length
+          word_count: guide_content.split(/\s+/).length,
         },
         extraction_status: 'processing',
-        extraction_started_at: new Date().toISOString()
+        extraction_started_at: new Date().toISOString(),
       })
       .select()
       .single();
@@ -83,7 +83,7 @@ serve(async (req) => {
         current_phase: 'Initializing',
         phases_completed: 0,
         total_phases: 4, // Size, Service, Geography, Buyer Types
-        extracted_criteria: {}
+        extracted_criteria: {},
       })
       .select()
       .single();
@@ -92,7 +92,9 @@ serve(async (req) => {
       throw new Error(`Failed to create extraction record: ${extractionError?.message}`);
     }
 
-    console.log(`[extract-buyer-criteria-background] Created extraction ${extraction.id} for universe ${universe_id}`);
+    console.log(
+      `[extract-buyer-criteria-background] Created extraction ${extraction.id} for universe ${universe_id}`,
+    );
 
     // Return immediately with the extraction ID
     const response = new Response(
@@ -100,12 +102,12 @@ serve(async (req) => {
         extraction_id: extraction.id,
         source_id: sourceRecord.id,
         status: 'processing',
-        message: 'Extraction started. Poll the buyer_criteria_extractions table for progress.'
+        message: 'Extraction started. Poll the buyer_criteria_extractions table for progress.',
       }),
       {
         status: 202, // Accepted
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      }
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      },
     );
 
     // Start the background extraction (don't await)
@@ -115,16 +117,19 @@ serve(async (req) => {
       universe_id,
       guide_content,
       industry_name || 'Unknown Industry',
-      supabase
+      supabase,
     ).catch(async (error) => {
-      console.error(`[extract-buyer-criteria-background] Extraction ${extraction.id} failed:`, error);
+      console.error(
+        `[extract-buyer-criteria-background] Extraction ${extraction.id} failed:`,
+        error,
+      );
       // Update extraction status to failed
       await supabase
         .from('buyer_criteria_extractions')
         .update({
           status: 'failed',
           error: error.message || 'Unknown error occurred',
-          completed_at: new Date().toISOString()
+          completed_at: new Date().toISOString(),
         })
         .eq('id', extraction.id);
 
@@ -134,19 +139,18 @@ serve(async (req) => {
         .update({
           extraction_status: 'failed',
           extraction_error: error.message,
-          extraction_completed_at: new Date().toISOString()
+          extraction_completed_at: new Date().toISOString(),
         })
         .eq('id', sourceRecord.id);
     });
 
     return response;
-
   } catch (error: any) {
     console.error('[extract-buyer-criteria-background] Error:', error);
-    return new Response(
-      JSON.stringify({ error: error.message || 'Internal server error' }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+    return new Response(JSON.stringify({ error: error.message || 'Internal server error' }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
   }
 });
 
@@ -156,7 +160,7 @@ async function processExtractionInBackground(
   universeId: string,
   guideContent: string,
   industryName: string,
-  supabase: any
+  supabase: any,
 ) {
   console.log(`[processExtractionInBackground] Starting extraction ${extractionId}`);
 
@@ -166,7 +170,7 @@ async function processExtractionInBackground(
       { name: 'Size Criteria', key: 'size_criteria' },
       { name: 'Service Criteria', key: 'service_criteria' },
       { name: 'Geography Criteria', key: 'geography_criteria' },
-      { name: 'Buyer Types', key: 'buyer_types_criteria' }
+      { name: 'Buyer Types', key: 'buyer_types_criteria' },
     ];
 
     let extractedCriteria: any = {};
@@ -175,14 +179,16 @@ async function processExtractionInBackground(
     // Process each phase
     for (let i = 0; i < phases.length; i++) {
       const phase = phases[i];
-      console.log(`[processExtractionInBackground] Processing phase ${i + 1}/${phases.length}: ${phase.name}`);
+      console.log(
+        `[processExtractionInBackground] Processing phase ${i + 1}/${phases.length}: ${phase.name}`,
+      );
 
       // Update status
       await supabase
         .from('buyer_criteria_extractions')
         .update({
           current_phase: phase.name,
-          phases_completed: i
+          phases_completed: i,
         })
         .eq('id', extractionId);
 
@@ -194,15 +200,15 @@ async function processExtractionInBackground(
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${Deno.env.get('SUPABASE_ANON_KEY')}`
+            Authorization: `Bearer ${Deno.env.get('SUPABASE_ANON_KEY')}`,
           },
           body: JSON.stringify({
             universe_id: universeId,
             guide_content: guideContent,
             source_name: `${industryName} M&A Guide`,
-            industry_name: industryName
-          })
-        }
+            industry_name: industryName,
+          }),
+        },
       );
 
       if (!response.ok) {
@@ -218,7 +224,7 @@ async function processExtractionInBackground(
           service: result.extracted_data.service_criteria?.confidence_score || 0,
           geography: result.extracted_data.geography_criteria?.confidence_score || 0,
           buyer_types: result.extracted_data.buyer_types_criteria?.confidence_score || 0,
-          overall: result.extracted_data.overall_confidence || result.confidence || 0
+          overall: result.extracted_data.overall_confidence || result.confidence || 0,
         };
 
         // Update progress with extracted data
@@ -227,7 +233,7 @@ async function processExtractionInBackground(
           .update({
             extracted_criteria: extractedCriteria,
             confidence_scores: confidenceScores,
-            phases_completed: i + 1
+            phases_completed: i + 1,
           })
           .eq('id', extractionId);
 
@@ -241,7 +247,7 @@ async function processExtractionInBackground(
       .update({
         status: 'completed',
         completed_at: new Date().toISOString(),
-        phases_completed: 4
+        phases_completed: 4,
       })
       .eq('id', extractionId);
 
@@ -252,7 +258,7 @@ async function processExtractionInBackground(
         extraction_status: 'completed',
         extraction_completed_at: new Date().toISOString(),
         extracted_data: extractedCriteria,
-        confidence_scores: confidenceScores
+        confidence_scores: confidenceScores,
       })
       .eq('id', sourceId);
 
@@ -263,12 +269,13 @@ async function processExtractionInBackground(
         size_criteria: extractedCriteria.size_criteria,
         service_criteria: extractedCriteria.service_criteria,
         geography_criteria: extractedCriteria.geography_criteria,
-        buyer_types_criteria: extractedCriteria.buyer_types_criteria
+        buyer_types_criteria: extractedCriteria.buyer_types_criteria,
       })
       .eq('id', universeId);
 
-    console.log(`[processExtractionInBackground] Extraction ${extractionId} completed successfully`);
-
+    console.log(
+      `[processExtractionInBackground] Extraction ${extractionId} completed successfully`,
+    );
   } catch (error: any) {
     console.error(`[processExtractionInBackground] Error in extraction ${extractionId}:`, error);
 
@@ -278,7 +285,7 @@ async function processExtractionInBackground(
       .update({
         status: 'failed',
         error: error.message || 'Unknown error occurred',
-        completed_at: new Date().toISOString()
+        completed_at: new Date().toISOString(),
       })
       .eq('id', extractionId);
 
@@ -288,7 +295,7 @@ async function processExtractionInBackground(
       .update({
         extraction_status: 'failed',
         extraction_error: error.message,
-        extraction_completed_at: new Date().toISOString()
+        extraction_completed_at: new Date().toISOString(),
       })
       .eq('id', sourceId);
 

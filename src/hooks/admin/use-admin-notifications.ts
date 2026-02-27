@@ -5,7 +5,13 @@ import { useEffect } from 'react';
 export interface AdminNotification {
   id: string;
   admin_id: string;
-  notification_type: 'task_assigned' | 'task_completed' | 'deal_stage_changed' | 'response_sent' | 'connection_request_new' | 'deal_follow_up_needed';
+  notification_type:
+    | 'task_assigned'
+    | 'task_completed'
+    | 'deal_stage_changed'
+    | 'response_sent'
+    | 'connection_request_new'
+    | 'deal_follow_up_needed';
   title: string;
   message: string;
   is_read: boolean;
@@ -30,13 +36,18 @@ export function useAdminNotifications() {
   const query = useQuery({
     queryKey: ['admin-notifications'],
     queryFn: async () => {
-      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      const {
+        data: { user },
+        error: authError,
+      } = await supabase.auth.getUser();
       if (authError) throw authError;
       if (!user) throw new Error('Not authenticated');
 
       const { data, error } = await supabase
         .from('admin_notifications')
-        .select('*')
+        .select(
+          'id, admin_id, notification_type, title, message, is_read, read_at, deal_id, task_id, user_id, feedback_id, action_url, metadata, created_at',
+        )
         .eq('admin_id', user.id)
         .order('created_at', { ascending: false })
         .limit(50);
@@ -59,7 +70,7 @@ export function useAdminNotifications() {
         },
         (_payload) => {
           queryClient.invalidateQueries({ queryKey: ['admin-notifications'] });
-        }
+        },
       )
       .on(
         'postgres_changes',
@@ -70,7 +81,7 @@ export function useAdminNotifications() {
         },
         (_payload) => {
           queryClient.invalidateQueries({ queryKey: ['admin-notifications'] });
-        }
+        },
       )
       .subscribe();
 
@@ -84,20 +95,24 @@ export function useAdminNotifications() {
     // Group task_assigned notifications by deal_id
     if (notification.notification_type === 'task_assigned' && notification.deal_id) {
       const groupKey = `${notification.notification_type}-${notification.deal_id}`;
-      const existing = acc.find(n => n.id === groupKey);
-      
+      const existing = acc.find((n) => n.id === groupKey);
+
       if (existing && !notification.is_read) {
         existing.groupedCount = (existing.groupedCount || 1) + 1;
         existing.groupedIds = [...(existing.groupedIds || [existing.id]), notification.id];
         return acc;
       }
     }
-    
+
     // Don't add if already grouped
-    const isGrouped = acc.some(n => n.groupedIds?.includes(notification.id));
+    const isGrouped = acc.some((n) => n.groupedIds?.includes(notification.id));
     if (!isGrouped) {
       // Create synthetic ID for grouped notifications
-      if (notification.notification_type === 'task_assigned' && notification.deal_id && !notification.is_read) {
+      if (
+        notification.notification_type === 'task_assigned' &&
+        notification.deal_id &&
+        !notification.is_read
+      ) {
         acc.push({
           ...notification,
           id: `${notification.notification_type}-${notification.deal_id}`,
@@ -108,11 +123,11 @@ export function useAdminNotifications() {
         acc.push(notification);
       }
     }
-    
+
     return acc;
   }, [] as GroupedNotification[]);
 
-  const unreadCount = (query.data || []).filter(n => !n.is_read).length;
+  const unreadCount = (query.data || []).filter((n) => !n.is_read).length;
 
   return {
     notifications: groupedNotifications,
@@ -128,12 +143,12 @@ export function useMarkNotificationAsRead() {
   return useMutation({
     mutationFn: async (notificationIds: string | string[]) => {
       const ids = Array.isArray(notificationIds) ? notificationIds : [notificationIds];
-      
+
       const { error } = await supabase
         .from('admin_notifications')
-        .update({ 
+        .update({
           is_read: true,
-          read_at: new Date().toISOString()
+          read_at: new Date().toISOString(),
         })
         .in('id', ids);
 
@@ -150,15 +165,18 @@ export function useMarkAllNotificationsAsRead() {
 
   return useMutation({
     mutationFn: async () => {
-      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      const {
+        data: { user },
+        error: authError,
+      } = await supabase.auth.getUser();
       if (authError) throw authError;
       if (!user) throw new Error('Not authenticated');
 
       const { error } = await supabase
         .from('admin_notifications')
-        .update({ 
+        .update({
           is_read: true,
-          read_at: new Date().toISOString()
+          read_at: new Date().toISOString(),
         })
         .eq('admin_id', user.id)
         .eq('is_read', false);

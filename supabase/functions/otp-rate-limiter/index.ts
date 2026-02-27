@@ -1,8 +1,7 @@
+import { serve } from 'https://deno.land/std@0.190.0/http/server.ts';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
 
-import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
-
-import { getCorsHeaders, corsPreflightResponse } from "../_shared/cors.ts";
+import { getCorsHeaders, corsPreflightResponse } from '../_shared/cors.ts';
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
 const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -25,7 +24,7 @@ interface OTPRateLimitResult {
 }
 
 const DEFAULT_WINDOW_MINUTES = 60; // 1 hour
-const DEFAULT_MAX_REQUESTS = 5;    // 5 OTP requests per hour
+const DEFAULT_MAX_REQUESTS = 5; // 5 OTP requests per hour
 
 const handler = async (req: Request): Promise<Response> => {
   const corsHeaders = getCorsHeaders(req);
@@ -40,16 +39,27 @@ const handler = async (req: Request): Promise<Response> => {
     if (authHeader) {
       const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
       const anonClient = createClient(supabaseUrl, supabaseAnonKey);
-      const { data: { user } } = await anonClient.auth.getUser(authHeader.replace('Bearer ', ''));
+      const {
+        data: { user },
+      } = await anonClient.auth.getUser(authHeader.replace('Bearer ', ''));
       // If a token is provided but invalid, reject the request
       if (!user) {
-        return new Response(JSON.stringify({ error: 'Invalid authentication token', allowed: false, remaining: 0 }), {
-          status: 401, headers: { 'Content-Type': 'application/json', ...corsHeaders },
-        });
+        return new Response(
+          JSON.stringify({ error: 'Invalid authentication token', allowed: false, remaining: 0 }),
+          {
+            status: 401,
+            headers: { 'Content-Type': 'application/json', ...corsHeaders },
+          },
+        );
       }
     }
 
-    const { email, action, window_minutes = DEFAULT_WINDOW_MINUTES, max_requests = DEFAULT_MAX_REQUESTS }: OTPRateLimitRequest = await req.json();
+    const {
+      email,
+      action,
+      window_minutes = DEFAULT_WINDOW_MINUTES,
+      max_requests = DEFAULT_MAX_REQUESTS,
+    }: OTPRateLimitRequest = await req.json();
 
     if (!email || !action) {
       throw new Error('Email and action are required');
@@ -58,19 +68,20 @@ const handler = async (req: Request): Promise<Response> => {
     // Prevent client from overriding rate limits with permissive values
     const safeWindowMinutes = Math.min(window_minutes, DEFAULT_WINDOW_MINUTES);
     const safeMaxRequests = Math.min(max_requests, DEFAULT_MAX_REQUESTS);
-    
+
     const windowStart = new Date(Date.now() - safeWindowMinutes * 60 * 1000);
     const resetTime = new Date(Date.now() + safeWindowMinutes * 60 * 1000);
 
     // Check current rate limit status
     const { data: existingRecord, error: fetchError } = await supabase
       .from('otp_rate_limits')
-      .select('*')
+      .select('id, request_count')
       .eq('email', email)
       .gte('window_start', windowStart.toISOString())
       .single();
 
-    if (fetchError && fetchError.code !== 'PGRST116') { // PGRST116 = no rows returned
+    if (fetchError && fetchError.code !== 'PGRST116') {
+      // PGRST116 = no rows returned
       throw fetchError;
     }
 
@@ -99,13 +110,11 @@ const handler = async (req: Request): Promise<Response> => {
         currentCount += 1;
       } else {
         // Create new record
-        const { error: insertError } = await supabase
-          .from('otp_rate_limits')
-          .insert({
-            email,
-            request_count: 1,
-            window_start: new Date().toISOString(),
-          });
+        const { error: insertError } = await supabase.from('otp_rate_limits').insert({
+          email,
+          request_count: 1,
+          window_start: new Date().toISOString(),
+        });
 
         if (insertError) throw insertError;
         currentCount = 1;
@@ -122,13 +131,12 @@ const handler = async (req: Request): Promise<Response> => {
 
     return new Response(JSON.stringify(result), {
       status: allowed ? 200 : 429,
-      headers: { "Content-Type": "application/json", ...corsHeaders },
+      headers: { 'Content-Type': 'application/json', ...corsHeaders },
     });
-
   } catch (error: any) {
-    console.error("Error in OTP rate limiter:", error);
+    console.error('Error in OTP rate limiter:', error);
     return new Response(
-      JSON.stringify({ 
+      JSON.stringify({
         allowed: false,
         error: error.message || 'OTP rate limiting failed',
         remaining: 0,
@@ -138,8 +146,8 @@ const handler = async (req: Request): Promise<Response> => {
       }),
       {
         status: 500,
-        headers: { "Content-Type": "application/json", ...corsHeaders },
-      }
+        headers: { 'Content-Type': 'application/json', ...corsHeaders },
+      },
     );
   }
 };

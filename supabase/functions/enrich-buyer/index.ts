@@ -1,11 +1,11 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import { validateUrl, ssrfErrorResponse } from "../_shared/security.ts";
-import { logAICallCost } from "../_shared/cost-tracker.ts";
-import { logEnrichmentEvent } from "../_shared/enrichment-events.ts";
-import { type RateLimitConfig } from "../_shared/ai-providers.ts";
-import { withConcurrencyTracking, reportRateLimit } from "../_shared/rate-limiter.ts";
-import { getCorsHeaders, corsPreflightResponse } from "../_shared/cors.ts";
-import { type SourceType, validateFieldProvenance } from "../_shared/provenance.ts";
+import { validateUrl, ssrfErrorResponse } from '../_shared/security.ts';
+import { logAICallCost } from '../_shared/cost-tracker.ts';
+import { logEnrichmentEvent } from '../_shared/enrichment-events.ts';
+import { type RateLimitConfig } from '../_shared/ai-providers.ts';
+import { withConcurrencyTracking, reportRateLimit } from '../_shared/rate-limiter.ts';
+import { getCorsHeaders, corsPreflightResponse } from '../_shared/cors.ts';
+import { type SourceType, validateFieldProvenance } from '../_shared/provenance.ts';
 import {
   // Configuration
   BUYER_AI_CONFIG,
@@ -26,7 +26,7 @@ import {
   buildBuyerUpdateObject,
   // Types
   type AIExtractionResult,
-} from "../_shared/buyer-extraction.ts";
+} from '../_shared/buyer-extraction.ts';
 
 // ============================================================================
 // FIRECRAWL SCRAPING
@@ -35,7 +35,10 @@ import {
 // Module-level rate limit config — set once per invocation from the main handler's supabase client
 let _rateLimitConfig: RateLimitConfig | undefined;
 
-async function scrapeWebsite(url: string, apiKey: string): Promise<{ success: boolean; content?: string; error?: string }> {
+async function scrapeWebsite(
+  url: string,
+  apiKey: string,
+): Promise<{ success: boolean; content?: string; error?: string }> {
   const doScrape = async () => {
     let formattedUrl = url.trim();
     if (!formattedUrl.startsWith('http://') && !formattedUrl.startsWith('https://')) {
@@ -45,7 +48,7 @@ async function scrapeWebsite(url: string, apiKey: string): Promise<{ success: bo
     const response = await fetch('https://api.firecrawl.dev/v1/scrape', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${apiKey}`,
+        Authorization: `Bearer ${apiKey}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
@@ -98,7 +101,7 @@ async function firecrawlMap(url: string, apiKey: string, limit = 100): Promise<s
     const response = await fetch('https://api.firecrawl.dev/v1/map', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${apiKey}`,
+        Authorization: `Bearer ${apiKey}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
@@ -150,20 +153,20 @@ Deno.serve(async (req) => {
     const authHeader = req.headers.get('Authorization') || '';
     const callerToken = authHeader.replace('Bearer ', '').trim();
     if (!callerToken) {
-      return new Response(
-        JSON.stringify({ success: false, error: 'Unauthorized' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      return new Response(JSON.stringify({ success: false, error: 'Unauthorized' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL');
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
 
     if (!supabaseUrl || !supabaseServiceKey) {
-      return new Response(
-        JSON.stringify({ success: false, error: 'Server configuration error' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      return new Response(JSON.stringify({ success: false, error: 'Server configuration error' }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
 
     // Allow internal service-to-service calls (e.g., from process-buyer-enrichment-queue)
@@ -174,19 +177,22 @@ Deno.serve(async (req) => {
       const callerClient = createClient(supabaseUrl, Deno.env.get('SUPABASE_ANON_KEY')!, {
         global: { headers: { Authorization: `Bearer ${callerToken}` } },
       });
-      const { data: { user: callerUser }, error: callerError } = await callerClient.auth.getUser();
+      const {
+        data: { user: callerUser },
+        error: callerError,
+      } = await callerClient.auth.getUser();
       if (callerError || !callerUser) {
-        return new Response(
-          JSON.stringify({ success: false, error: 'Unauthorized' }),
-          { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
+        return new Response(JSON.stringify({ success: false, error: 'Unauthorized' }), {
+          status: 401,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
       }
 
       const { data: isAdmin } = await supabaseAdmin.rpc('is_admin', { _user_id: callerUser.id });
       if (!isAdmin) {
         return new Response(
           JSON.stringify({ success: false, error: 'Forbidden: admin access required' }),
-          { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
         );
       }
     }
@@ -195,10 +201,10 @@ Deno.serve(async (req) => {
     const { buyerId, skipLock } = await req.json();
 
     if (!buyerId) {
-      return new Response(
-        JSON.stringify({ success: false, error: 'buyerId is required' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      return new Response(JSON.stringify({ success: false, error: 'buyerId is required' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
 
     const firecrawlApiKey = Deno.env.get('FIRECRAWL_API_KEY');
@@ -206,8 +212,12 @@ Deno.serve(async (req) => {
 
     if (!firecrawlApiKey || !geminiApiKey) {
       return new Response(
-        JSON.stringify({ success: false, error: 'Server configuration error - missing API keys (FIRECRAWL_API_KEY, GEMINI_API_KEY)' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({
+          success: false,
+          error:
+            'Server configuration error - missing API keys (FIRECRAWL_API_KEY, GEMINI_API_KEY)',
+        }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
       );
     }
 
@@ -222,28 +232,39 @@ Deno.serve(async (req) => {
       .single();
 
     if (buyerError || !buyer) {
-      return new Response(
-        JSON.stringify({ success: false, error: 'Buyer not found' }),
-        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      return new Response(JSON.stringify({ success: false, error: 'Buyer not found' }), {
+        status: 404,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
 
     // Handle multiple comma-separated URLs — take the first one
     let platformWebsite = buyer.platform_website || buyer.company_website;
     let peFirmWebsite = buyer.pe_firm_website;
     if (platformWebsite?.includes(',')) {
-      platformWebsite = platformWebsite.split(',').map((u: string) => u.trim()).filter(Boolean)[0] || null;
+      platformWebsite =
+        platformWebsite
+          .split(',')
+          .map((u: string) => u.trim())
+          .filter(Boolean)[0] || null;
       console.log(`Multiple platform URLs detected, using first: "${platformWebsite}"`);
     }
     if (peFirmWebsite?.includes(',')) {
-      peFirmWebsite = peFirmWebsite.split(',').map((u: string) => u.trim()).filter(Boolean)[0] || null;
+      peFirmWebsite =
+        peFirmWebsite
+          .split(',')
+          .map((u: string) => u.trim())
+          .filter(Boolean)[0] || null;
       console.log(`Multiple PE firm URLs detected, using first: "${peFirmWebsite}"`);
     }
 
     if (!platformWebsite && !peFirmWebsite) {
       return new Response(
-        JSON.stringify({ success: false, error: 'No website URLs provided. Add platform_website or pe_firm_website first.' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({
+          success: false,
+          error: 'No website URLs provided. Add platform_website or pe_firm_website first.',
+        }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
       );
     }
 
@@ -281,7 +302,7 @@ Deno.serve(async (req) => {
       if (lockError) {
         return new Response(
           JSON.stringify({ success: false, error: 'Failed to acquire enrichment lock' }),
-          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
         );
       }
 
@@ -291,9 +312,9 @@ Deno.serve(async (req) => {
           JSON.stringify({
             success: false,
             error: `Enrichment already in progress for this buyer. Please wait ${ENRICHMENT_LOCK_SECONDS} seconds and try again.`,
-            statusCode: 429
+            statusCode: 429,
           }),
-          { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
         );
       }
     } else {
@@ -304,13 +325,16 @@ Deno.serve(async (req) => {
         .eq('id', buyerId);
     }
 
-    console.log(`Starting 4-prompt enrichment for buyer: ${buyer.company_name || buyer.pe_firm_name || buyerId}`);
+    console.log(
+      `Starting 4-prompt enrichment for buyer: ${buyer.company_name || buyer.pe_firm_name || buyerId}`,
+    );
     console.log(`Platform website: ${platformWebsite || 'none'}`);
     console.log(`PE firm website: ${peFirmWebsite || 'none'}`);
 
     const existingSources = Array.isArray(buyer.extraction_sources) ? buyer.extraction_sources : [];
     const hasTranscriptSource = existingSources.some(
-      (src: any) => src.type === 'transcript' || src.type === 'buyer_transcript' || src.source === 'transcript'
+      (src: any) =>
+        src.type === 'transcript' || src.type === 'buyer_transcript' || src.source === 'transcript',
     );
 
     const warnings: string[] = [];
@@ -322,23 +346,32 @@ Deno.serve(async (req) => {
     // SCRAPE WEBSITES IN PARALLEL
     // ========================================================================
 
-    const scrapePromises: Promise<{ type: string; result: { success: boolean; content?: string; error?: string } }>[] = [];
+    const scrapePromises: Promise<{
+      type: string;
+      result: { success: boolean; content?: string; error?: string };
+    }>[] = [];
 
     if (platformWebsite) {
       scrapePromises.push(
-        scrapeWebsite(platformWebsite, firecrawlApiKey).then(result => ({ type: 'platform', result }))
+        scrapeWebsite(platformWebsite, firecrawlApiKey).then((result) => ({
+          type: 'platform',
+          result,
+        })),
       );
     }
     if (peFirmWebsite && peFirmWebsite !== platformWebsite) {
       scrapePromises.push(
-        scrapeWebsite(peFirmWebsite, firecrawlApiKey).then(result => ({ type: 'peFirm', result }))
+        scrapeWebsite(peFirmWebsite, firecrawlApiKey).then((result) => ({
+          type: 'peFirm',
+          result,
+        })),
       );
     }
 
     const scrapeResults = await Promise.all(scrapePromises);
 
     // Start firecrawlMap discovery in parallel — but don't block on it
-    let locationPagePromise: Promise<string | null> | null = null;
+    let _locationPagePromise: Promise<string | null> | null = null;
 
     for (const { type, result } of scrapeResults) {
       if (type === 'platform') {
@@ -348,10 +381,10 @@ Deno.serve(async (req) => {
           console.log(`Scraped platform website: ${platformContent.length} chars`);
 
           // PERF: Start location page discovery immediately (runs in parallel with Gemini batch 1)
-          locationPagePromise = firecrawlMap(platformWebsite!, firecrawlApiKey)
+          _locationPagePromise = firecrawlMap(platformWebsite!, firecrawlApiKey)
             .then(async (links) => {
-              const locationPage = links.find(link =>
-                LOCATION_PATTERNS.some(p => link.toLowerCase().includes(p))
+              const locationPage = links.find((link) =>
+                LOCATION_PATTERNS.some((p) => link.toLowerCase().includes(p)),
               );
               if (locationPage) {
                 console.log(`Found location page: ${locationPage}`);
@@ -383,7 +416,7 @@ Deno.serve(async (req) => {
     if (!platformContent && !peContent) {
       return new Response(
         JSON.stringify({ success: false, error: 'Could not scrape any website content', warnings }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
       );
     }
 
@@ -405,14 +438,26 @@ Deno.serve(async (req) => {
     // Determine source type from URL
     const getSourceType = (url: string | null | undefined): SourceType => {
       if (!url) return 'manual';
-      const normalizedUrl = url.toLowerCase().replace(/^https?:\/\//, '').replace(/\/$/, '');
-      const normalizedPE = peFirmWebsite?.toLowerCase().replace(/^https?:\/\//, '').replace(/\/$/, '');
+      const normalizedUrl = url
+        .toLowerCase()
+        .replace(/^https?:\/\//, '')
+        .replace(/\/$/, '');
+      const normalizedPE = peFirmWebsite
+        ?.toLowerCase()
+        .replace(/^https?:\/\//, '')
+        .replace(/\/$/, '');
       if (normalizedPE && normalizedUrl === normalizedPE) return 'pe_firm_website';
       return 'platform_website';
     };
 
     // Helper to process batch results with provenance tracking
-    const processBatchResults = (results: PromiseSettledResult<{ name: string; result: AIExtractionResult; url: string | null | undefined }>[]) => {
+    const processBatchResults = (
+      results: PromiseSettledResult<{
+        name: string;
+        result: AIExtractionResult;
+        url: string | null | undefined;
+      }>[],
+    ) => {
       for (const settled of results) {
         if (settled.status === 'fulfilled') {
           const { name, result, url } = settled.value;
@@ -429,7 +474,9 @@ Deno.serve(async (req) => {
             if (name === 'pe_intelligence') {
               const { thesis_summary, strategic_priorities, ...safeData } = result.data;
               if (thesis_summary || strategic_priorities) {
-                console.warn('WARNING: PE Intelligence returned thesis fields - discarding (transcript-only)');
+                console.warn(
+                  'WARNING: PE Intelligence returned thesis fields - discarding (transcript-only)',
+                );
               }
               dataToMerge = safeData;
             }
@@ -475,21 +522,47 @@ Deno.serve(async (req) => {
     };
 
     // Build extraction tasks as thunks so we can control concurrency
-    type ExtractionResult = { name: string; result: AIExtractionResult; url: string | null | undefined };
+    type ExtractionResult = {
+      name: string;
+      result: AIExtractionResult;
+      url: string | null | undefined;
+    };
     const allTasks: (() => Promise<ExtractionResult>)[] = [];
 
     if (platformContent) {
       allTasks.push(
-        () => extractBusinessOverview(platformContent, geminiApiKey, _rateLimitConfig).then(r => ({ name: 'business', result: r, url: platformWebsite })),
-        () => extractGeography(platformContent, geminiApiKey, _rateLimitConfig).then(r => ({ name: 'geography', result: validateGeography(r), url: platformWebsite })),
-        () => extractCustomerProfile(platformContent, geminiApiKey, _rateLimitConfig).then(r => ({ name: 'customer', result: r, url: platformWebsite })),
-        () => extractPEIntelligence(platformContent, geminiApiKey, _rateLimitConfig).then(r => ({ name: 'pe_intelligence', result: r, url: platformWebsite })),
+        () =>
+          extractBusinessOverview(platformContent, geminiApiKey, _rateLimitConfig).then((r) => ({
+            name: 'business',
+            result: r,
+            url: platformWebsite,
+          })),
+        () =>
+          extractGeography(platformContent, geminiApiKey, _rateLimitConfig).then((r) => ({
+            name: 'geography',
+            result: validateGeography(r),
+            url: platformWebsite,
+          })),
+        () =>
+          extractCustomerProfile(platformContent, geminiApiKey, _rateLimitConfig).then((r) => ({
+            name: 'customer',
+            result: r,
+            url: platformWebsite,
+          })),
+        () =>
+          extractPEIntelligence(platformContent, geminiApiKey, _rateLimitConfig).then((r) => ({
+            name: 'pe_intelligence',
+            result: r,
+            url: platformWebsite,
+          })),
       );
     } else if (peContent) {
       // No platform content — only extract geography from PE site
-      console.log('Platform website unavailable — extracting geographic_footprint/service_regions ONLY from PE firm website');
-      allTasks.push(
-        () => extractGeography(peContent, geminiApiKey, _rateLimitConfig).then(r => {
+      console.log(
+        'Platform website unavailable — extracting geographic_footprint/service_regions ONLY from PE firm website',
+      );
+      allTasks.push(() =>
+        extractGeography(peContent, geminiApiKey, _rateLimitConfig).then((r) => {
           const validated = validateGeography(r);
           if (validated?.data) {
             delete validated.data.hq_city;
@@ -505,8 +578,12 @@ Deno.serve(async (req) => {
     }
 
     if (peContent) {
-      allTasks.push(
-        () => extractPEIntelligence(peContent, geminiApiKey, _rateLimitConfig).then(r => ({ name: 'pe_intelligence', result: r, url: peFirmWebsite })),
+      allTasks.push(() =>
+        extractPEIntelligence(peContent, geminiApiKey, _rateLimitConfig).then((r) => ({
+          name: 'pe_intelligence',
+          result: r,
+          url: peFirmWebsite,
+        })),
       );
     }
 
@@ -517,8 +594,10 @@ Deno.serve(async (req) => {
       const allResults: PromiseSettledResult<ExtractionResult>[] = [];
       for (let b = 0; b < allTasks.length; b += BUYER_AI_CONCURRENCY) {
         const batch = allTasks.slice(b, b + BUYER_AI_CONCURRENCY);
-        console.log(`Running AI batch ${Math.floor(b / BUYER_AI_CONCURRENCY) + 1}/${Math.ceil(allTasks.length / BUYER_AI_CONCURRENCY)} (${batch.length} prompts)`);
-        const batchResults = await Promise.allSettled(batch.map(fn => fn()));
+        console.log(
+          `Running AI batch ${Math.floor(b / BUYER_AI_CONCURRENCY) + 1}/${Math.ceil(allTasks.length / BUYER_AI_CONCURRENCY)} (${batch.length} prompts)`,
+        );
+        const batchResults = await Promise.allSettled(batch.map((fn) => fn()));
         allResults.push(...batchResults);
       }
 
@@ -526,25 +605,39 @@ Deno.serve(async (req) => {
       console.log(`All prompts complete: ${promptsSuccessful}/${promptsRun} successful`);
     }
 
-    console.log(`Extraction complete: ${promptsSuccessful}/${promptsRun} prompts successful, ${Object.keys(allExtracted).length} fields extracted`);
+    console.log(
+      `Extraction complete: ${promptsSuccessful}/${promptsRun} prompts successful, ${Object.keys(allExtracted).length} fields extracted`,
+    );
 
     // Handle billing errors with partial save
     if (billingError) {
       const be = billingError as unknown as { code: string; message: string };
       const fieldsExtracted = Object.keys(allExtracted).length;
       if (fieldsExtracted > 0) {
-        const partialUpdate = buildBuyerUpdateObject(buyer, allExtracted, hasTranscriptSource, existingSources, evidenceRecords, fieldSourceMap);
+        const partialUpdate = buildBuyerUpdateObject(
+          buyer,
+          allExtracted,
+          hasTranscriptSource,
+          existingSources,
+          evidenceRecords,
+          fieldSourceMap,
+        );
         await supabase.from('remarketing_buyers').update(partialUpdate).eq('id', buyerId);
       }
 
       if (be.code === 'rate_limited' && fieldsExtracted > 0) {
-        console.log(`Partial enrichment saved despite rate limit: ${fieldsExtracted} fields for buyer ${buyerId}`);
+        console.log(
+          `Partial enrichment saved despite rate limit: ${fieldsExtracted} fields for buyer ${buyerId}`,
+        );
         return new Response(
           JSON.stringify({
             success: true,
             fieldsUpdated: fieldsExtracted,
             sources,
-            warnings: [...warnings, `Partial enrichment: ${promptsSuccessful}/${promptsRun} prompts completed before rate limit. Data was saved.`],
+            warnings: [
+              ...warnings,
+              `Partial enrichment: ${promptsSuccessful}/${promptsRun} prompts completed before rate limit. Data was saved.`,
+            ],
             extractionDetails: {
               promptsRun,
               promptsSuccessful,
@@ -553,7 +646,7 @@ Deno.serve(async (req) => {
               rateLimited: true,
             },
           }),
-          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
         );
       }
 
@@ -565,7 +658,10 @@ Deno.serve(async (req) => {
           fieldsUpdated: fieldsExtracted,
           recoverable: be.code === 'rate_limited',
         }),
-        { status: be.code === 'payment_required' ? 402 : 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        {
+          status: be.code === 'payment_required' ? 402 : 429,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        },
       );
     }
 
@@ -573,7 +669,14 @@ Deno.serve(async (req) => {
     // SAVE TO DATABASE
     // ========================================================================
 
-    const updateData = buildBuyerUpdateObject(buyer, allExtracted, hasTranscriptSource, existingSources, evidenceRecords, fieldSourceMap);
+    const updateData = buildBuyerUpdateObject(
+      buyer,
+      allExtracted,
+      hasTranscriptSource,
+      existingSources,
+      evidenceRecords,
+      fieldSourceMap,
+    );
 
     const { error: updateError } = await supabase
       .from('remarketing_buyers')
@@ -582,10 +685,10 @@ Deno.serve(async (req) => {
 
     if (updateError) {
       console.error('Database update error:', updateError);
-      return new Response(
-        JSON.stringify({ success: false, error: 'Failed to save enrichment', details: updateError.message }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      return new Response(JSON.stringify({ success: false, error: 'Internal server error' }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
 
     const fieldsUpdated = Object.keys(updateData).length - 2; // Exclude metadata fields
@@ -593,27 +696,37 @@ Deno.serve(async (req) => {
 
     // Observability: log enrichment outcome (non-blocking)
     logEnrichmentEvent(supabase, {
-      entityType: 'buyer', entityId: buyerId, provider: 'gemini',
-      functionName: 'enrich-buyer', status: 'success',
+      entityType: 'buyer',
+      entityId: buyerId,
+      provider: 'gemini',
+      functionName: 'enrich-buyer',
+      status: 'success',
       fieldsUpdated,
     });
 
     // Cost tracking: log aggregate AI usage (non-blocking)
-    logAICallCost(supabase, 'enrich-buyer', 'gemini', BUYER_AI_CONFIG.model,
+    logAICallCost(
+      supabase,
+      'enrich-buyer',
+      'gemini',
+      BUYER_AI_CONFIG.model,
       {
         inputTokens: totalInputTokens > 0 ? totalInputTokens : promptsRun * 12000,
         outputTokens: totalOutputTokens > 0 ? totalOutputTokens : promptsSuccessful * 800,
       },
-      undefined, { buyerId, promptsRun, promptsSuccessful }
+      undefined,
+      { buyerId, promptsRun, promptsSuccessful },
     ).catch(() => {});
 
     // Log provenance violations as prominent warnings
     if (provenanceViolations.length > 0) {
-      console.error(`⚠️ PROVENANCE REPORT: ${provenanceViolations.length} violation(s) blocked during enrichment of buyer ${buyerId}:`);
+      console.error(
+        `⚠️ PROVENANCE REPORT: ${provenanceViolations.length} violation(s) blocked during enrichment of buyer ${buyerId}:`,
+      );
       for (const v of provenanceViolations) {
         console.error(`  → ${v}`);
       }
-      warnings.push(...provenanceViolations.map(v => `[BLOCKED] ${v}`));
+      warnings.push(...provenanceViolations.map((v) => `[BLOCKED] ${v}`));
     }
 
     return new Response(
@@ -631,9 +744,8 @@ Deno.serve(async (req) => {
           provenanceViolationsBlocked: provenanceViolations.length,
         },
       }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
     );
-
   } catch (error) {
     console.error('Enrichment error:', error);
     const errorMsg = error instanceof Error ? error.message : 'Unknown error';
@@ -644,19 +756,28 @@ Deno.serve(async (req) => {
       const sbKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
       if (sbUrl && sbKey) {
         const errSupabase = createClient(sbUrl, sbKey);
-        const status = errorMsg.includes('429') || errorMsg.includes('rate') ? 'rate_limited'
-          : errorMsg.includes('timeout') || errorMsg.includes('abort') ? 'timeout'
-          : 'failure';
+        const status =
+          errorMsg.includes('429') || errorMsg.includes('rate')
+            ? 'rate_limited'
+            : errorMsg.includes('timeout') || errorMsg.includes('abort')
+              ? 'timeout'
+              : 'failure';
         logEnrichmentEvent(errSupabase, {
-          entityType: 'buyer', entityId: 'unknown', provider: 'gemini',
-          functionName: 'enrich-buyer', status, errorMessage: errorMsg,
+          entityType: 'buyer',
+          entityId: 'unknown',
+          provider: 'gemini',
+          functionName: 'enrich-buyer',
+          status,
+          errorMessage: errorMsg,
         });
       }
-    } catch { /* swallow */ }
+    } catch {
+      /* swallow */
+    }
 
-    return new Response(
-      JSON.stringify({ success: false, error: errorMsg }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+    return new Response(JSON.stringify({ success: false, error: errorMsg }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
   }
 });

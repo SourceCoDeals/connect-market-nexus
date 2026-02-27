@@ -242,7 +242,9 @@ const ReMarketingBuyerDetail = () => {
       // Use existing buyer_transcripts table (unified migration not executed yet)
       const { data, error } = await supabase
         .from('buyer_transcripts')
-        .select('*')
+        .select(
+          'id, transcript_text, source, file_name, file_url, processed_at, extracted_data, created_at',
+        )
         .eq('buyer_id', id!)
         .order('created_at', { ascending: false });
 

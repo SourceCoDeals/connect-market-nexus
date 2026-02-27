@@ -1,11 +1,11 @@
-import "https://deno.land/x/xhr@0.1.0/mod.ts";
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import 'https://deno.land/x/xhr@0.1.0/mod.ts';
+import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
-import { getCorsHeaders, corsPreflightResponse } from "../_shared/cors.ts";
+import { getCorsHeaders, corsPreflightResponse } from '../_shared/cors.ts';
 
-const LOVABLE_AI_URL = "https://ai.gateway.lovable.dev/v1/chat/completions";
-const DEFAULT_MODEL = "google/gemini-2.5-flash";
+const LOVABLE_AI_URL = 'https://ai.gateway.lovable.dev/v1/chat/completions';
+const DEFAULT_MODEL = 'google/gemini-2.5-flash';
 
 serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
@@ -38,12 +38,13 @@ serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseKey);
 
     // Verify caller is an authenticated admin
-    const anonClient = createClient(
-      supabaseUrl,
-      Deno.env.get('SUPABASE_ANON_KEY')!,
-      { global: { headers: { Authorization: `Bearer ${callerToken}` } } }
-    );
-    const { data: { user: callerUser }, error: callerError } = await anonClient.auth.getUser();
+    const anonClient = createClient(supabaseUrl, Deno.env.get('SUPABASE_ANON_KEY')!, {
+      global: { headers: { Authorization: `Bearer ${callerToken}` } },
+    });
+    const {
+      data: { user: callerUser },
+      error: callerError,
+    } = await anonClient.auth.getUser();
     if (callerError || !callerUser) {
       return new Response(JSON.stringify({ error: 'Unauthorized' }), {
         status: 401,
@@ -74,22 +75,24 @@ serve(async (req) => {
       });
     }
 
-    console.log(`[chat-remarketing] Context: ${contextType}, Query: "${query.substring(0, 100)}..."`);
+    console.log(
+      `[chat-remarketing] Context: ${contextType}, Query: "${query.substring(0, 100)}..."`,
+    );
 
-    let systemPrompt = "";
-    
+    let systemPrompt = '';
+
     // Build context-specific system prompt
     switch (contextType) {
-      case "deal":
+      case 'deal':
         systemPrompt = await buildDealContext(supabase, listingId);
         break;
-      case "deals":
+      case 'deals':
         systemPrompt = await buildDealsContext(supabase);
         break;
-      case "buyers":
+      case 'buyers':
         systemPrompt = await buildBuyersContext(supabase);
         break;
-      case "universe":
+      case 'universe':
         systemPrompt = await buildUniverseContext(supabase, universeId);
         break;
       default:
@@ -107,7 +110,7 @@ serve(async (req) => {
     const response = await fetch(LOVABLE_AI_URL, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+        Authorization: `Bearer ${LOVABLE_API_KEY}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
@@ -119,26 +122,35 @@ serve(async (req) => {
     });
 
     if (response.status === 429) {
-      return new Response(JSON.stringify({ error: 'Rate limits exceeded, please try again later.' }), {
-        status: 429,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+      return new Response(
+        JSON.stringify({ error: 'Rate limits exceeded, please try again later.' }),
+        {
+          status: 429,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        },
+      );
     }
 
     if (response.status === 402) {
-      return new Response(JSON.stringify({ error: 'Payment required, please add credits to your workspace.' }), {
-        status: 402,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+      return new Response(
+        JSON.stringify({ error: 'Payment required, please add credits to your workspace.' }),
+        {
+          status: 402,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        },
+      );
     }
 
     if (!response.ok || !response.body) {
       const errorText = await response.text();
       console.error('AI API error:', response.status, errorText);
-      return new Response(JSON.stringify({ error: 'Failed to generate response. Please try again.' }), {
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+      return new Response(
+        JSON.stringify({ error: 'Failed to generate response. Please try again.' }),
+        {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        },
+      );
     }
 
     // Return streaming response
@@ -147,10 +159,9 @@ serve(async (req) => {
         ...corsHeaders,
         'Content-Type': 'text/event-stream',
         'Cache-Control': 'no-cache',
-        'Connection': 'keep-alive',
+        Connection: 'keep-alive',
       },
     });
-
   } catch (error: unknown) {
     console.error('[chat-remarketing] Error:', error);
     const message = error instanceof Error ? error.message : 'Failed to process query';
@@ -164,16 +175,27 @@ serve(async (req) => {
 // Build context for deal-level queries
 async function buildDealContext(supabase: any, listingId: string): Promise<string> {
   if (!listingId) {
-    return "No deal selected. Please select a deal to get buyer recommendations.";
+    return 'No deal selected. Please select a deal to get buyer recommendations.';
   }
 
-  const [dealResult, buyersResult, scoresResult, universesResult, transcriptsResult] = await Promise.all([
-    supabase.from('listings').select('*').eq('id', listingId).single(),
-    supabase.from('remarketing_buyers').select('*').eq('archived', false).limit(150),
-    supabase.from('remarketing_scores').select('*').eq('listing_id', listingId),
-    supabase.from('remarketing_buyer_universes').select('id, name, ma_guide_content, fit_criteria, size_criteria, geography_criteria, service_criteria, scoring_behavior').eq('archived', false),
-    supabase.from('call_transcripts').select('key_quotes, ceo_detected, extracted_insights, created_at, call_type').eq('listing_id', listingId).order('created_at', { ascending: false }).limit(3),
-  ]);
+  const [dealResult, buyersResult, scoresResult, universesResult, transcriptsResult] =
+    await Promise.all([
+      supabase.from('listings').select('*').eq('id', listingId).single(),
+      supabase.from('remarketing_buyers').select('*').eq('archived', false).limit(150),
+      supabase.from('remarketing_scores').select('*').eq('listing_id', listingId),
+      supabase
+        .from('remarketing_buyer_universes')
+        .select(
+          'id, name, ma_guide_content, fit_criteria, size_criteria, geography_criteria, service_criteria, scoring_behavior',
+        )
+        .eq('archived', false),
+      supabase
+        .from('call_transcripts')
+        .select('key_quotes, ceo_detected, extracted_insights, created_at, call_type')
+        .eq('listing_id', listingId)
+        .order('created_at', { ascending: false })
+        .limit(3),
+    ]);
 
   const deal = dealResult.data;
   const buyers = buyersResult.data || [];
@@ -182,16 +204,18 @@ async function buildDealContext(supabase: any, listingId: string): Promise<strin
   const transcripts = transcriptsResult.data || [];
 
   if (!deal) {
-    return "Deal not found.";
+    return 'Deal not found.';
   }
 
   const scoreMap = new Map(scores.map((s: any) => [s.buyer_id, s]));
-  
+
   const buyerSummaries = buyers.map((buyer: any) => {
     const score = scoreMap.get(buyer.id) as any;
     // Track provenance for data quality signaling
     const sources = Array.isArray(buyer.extraction_sources) ? buyer.extraction_sources : [];
-    const hasTranscriptSource = sources.some((s: any) => s.type === 'transcript' || s.source === 'transcript');
+    const hasTranscriptSource = sources.some(
+      (s: any) => s.type === 'transcript' || s.source === 'transcript',
+    );
     return {
       id: buyer.id,
       name: buyer.company_name || buyer.pe_firm_name,
@@ -233,23 +257,32 @@ async function buildDealContext(supabase: any, listingId: string): Promise<strin
     .map((u: any) => `## ${u.name} Industry Guide:\n${u.ma_guide_content?.substring(0, 3000)}`)
     .join('\n\n');
 
-  const criteriaContext = universes.map((u: any) => `
+  const criteriaContext = universes
+    .map(
+      (u: any) => `
 ### ${u.name} Fit Criteria:
 - Size: ${JSON.stringify(u.size_criteria || {})}
 - Geography: ${JSON.stringify(u.geography_criteria || {})}
 - Services: ${JSON.stringify(u.service_criteria || {})}
 - Scoring: ${JSON.stringify(u.scoring_behavior || {})}
-`).join('\n');
+`,
+    )
+    .join('\n');
 
-  const transcriptContext = transcripts && transcripts.length > 0
-    ? `\n\nRECENT CALL TRANSCRIPTS (${transcripts.length} calls):\n${transcripts.map((t: any, idx: number) => `
+  const transcriptContext =
+    transcripts && transcripts.length > 0
+      ? `\n\nRECENT CALL TRANSCRIPTS (${transcripts.length} calls):\n${transcripts
+          .map(
+            (t: any, idx: number) => `
 **Call ${idx + 1}** (${new Date(t.created_at).toLocaleDateString()}):
 - Type: ${t.call_type || 'Unknown'}
 - CEO Detected: ${t.ceo_detected ? 'Yes' : 'No'}
 - Key Quotes: ${JSON.stringify(t.key_quotes) || 'None'}
 - Extracted Insights: ${JSON.stringify(t.extracted_insights) || 'None'}
-`).join('\n')}`
-    : '\n\n(No call transcripts available for this deal)';
+`,
+          )
+          .join('\n')}`
+      : '\n\n(No call transcripts available for this deal)';
 
   return `You are an M&A analyst assistant with deep knowledge of buyers, deals, and industry dynamics.
 
@@ -257,14 +290,14 @@ CURRENT DEAL:
 - Company: ${deal.title || deal.internal_company_name || 'Unknown'}
 - Location: ${deal.location || 'Unknown'}
 - States: ${deal.geographic_states?.join(', ') || 'Not specified'}
-- Revenue: ${deal.revenue ? `$${(deal.revenue/1000000).toFixed(1)}M` : 'Unknown'}
-- EBITDA: ${deal.ebitda ? `$${(deal.ebitda/1000000).toFixed(1)}M` : 'Unknown'}
+- Revenue: ${deal.revenue ? `$${(deal.revenue / 1000000).toFixed(1)}M` : 'Unknown'}
+- EBITDA: ${deal.ebitda ? `$${(deal.ebitda / 1000000).toFixed(1)}M` : 'Unknown'}
 - Industry: ${deal.industry || deal.category || 'Unknown'}
 - Services: ${deal.services || 'Not specified'}
 - Business Model: ${deal.business_model || 'Not specified'}
 - Description: ${deal.description || 'Not available'}
 - Owner Goals: ${deal.owner_goals || 'Not specified'}
-- Key Risks: ${Array.isArray(deal.key_risks) ? deal.key_risks.join(', ') : (deal.key_risks || 'None identified')}
+- Key Risks: ${Array.isArray(deal.key_risks) ? deal.key_risks.join(', ') : deal.key_risks || 'None identified'}
 - Location Count: ${deal.location_count || 'Unknown'}
 - Employee Count: ${deal.employees || 'Unknown'}
 ${transcriptContext}
@@ -310,8 +343,20 @@ INSTRUCTIONS:
 // Build context for all-deals queries
 async function buildDealsContext(supabase: any): Promise<string> {
   const [dealsResult, universesResult] = await Promise.all([
-    supabase.from('listings').select('*').eq('status', 'active').order('deal_total_score', { ascending: false, nullsFirst: false }).limit(100),
-    supabase.from('remarketing_buyer_universes').select('id, name, ma_guide_content, fit_criteria, size_criteria, geography_criteria, service_criteria').eq('archived', false),
+    supabase
+      .from('listings')
+      .select(
+        'id, internal_company_name, title, location, geographic_states, revenue, ebitda, industry, category, services, business_model, owner_goals, key_risks, location_count, employees, deal_total_score, enriched_at, is_priority_target, created_at, description',
+      )
+      .eq('status', 'active')
+      .order('deal_total_score', { ascending: false, nullsFirst: false })
+      .limit(100),
+    supabase
+      .from('remarketing_buyer_universes')
+      .select(
+        'id, name, ma_guide_content, fit_criteria, size_criteria, geography_criteria, service_criteria',
+      )
+      .eq('archived', false),
   ]);
 
   const deals = dealsResult.data || [];
@@ -322,8 +367,8 @@ async function buildDealsContext(supabase: any): Promise<string> {
     name: d.internal_company_name || d.title,
     location: d.location,
     states: d.geographic_states || [],
-    revenue: d.revenue ? `$${(d.revenue/1000000).toFixed(1)}M` : null,
-    ebitda: d.ebitda ? `$${(d.ebitda/1000000).toFixed(1)}M` : null,
+    revenue: d.revenue ? `$${(d.revenue / 1000000).toFixed(1)}M` : null,
+    ebitda: d.ebitda ? `$${(d.ebitda / 1000000).toFixed(1)}M` : null,
     industry: d.industry || d.category,
     category: d.category,
     services: d.services,
@@ -344,16 +389,24 @@ async function buildDealsContext(supabase: any): Promise<string> {
     .map((u: any) => `## ${u.name} Industry Guide:\n${u.ma_guide_content?.substring(0, 2000)}`)
     .join('\n\n');
 
-  const criteriaContext = universes.map((u: any) => `
+  const criteriaContext = universes
+    .map(
+      (u: any) => `
 ### ${u.name} Criteria:
 - Size: ${JSON.stringify(u.size_criteria || {})}
 - Geography: ${JSON.stringify(u.geography_criteria || {})}
 - Services: ${JSON.stringify(u.service_criteria || {})}
-`).join('\n');
+`,
+    )
+    .join('\n');
 
   const priorityCount = deals.filter((d: any) => d.is_priority_target).length;
   const enrichedCount = deals.filter((d: any) => d.enriched_at).length;
-  const avgScore = deals.filter((d: any) => d.deal_total_score).reduce((sum: number, d: any) => sum + (d.deal_total_score || 0), 0) / (deals.filter((d: any) => d.deal_total_score).length || 1);
+  const avgScore =
+    deals
+      .filter((d: any) => d.deal_total_score)
+      .reduce((sum: number, d: any) => sum + (d.deal_total_score || 0), 0) /
+    (deals.filter((d: any) => d.deal_total_score).length || 1);
 
   return `You are an M&A analyst assistant with deep knowledge of the deal pipeline and industry dynamics.
 
@@ -383,13 +436,25 @@ INSTRUCTIONS:
 // Build context for all-buyers queries
 async function buildBuyersContext(supabase: any): Promise<string> {
   const [buyersResult, universesResult] = await Promise.all([
-    supabase.from('remarketing_buyers').select('*').eq('archived', false).order('alignment_score', { ascending: false, nullsFirst: false }).limit(150),
-    supabase.from('remarketing_buyer_universes').select('id, name, ma_guide_content, fit_criteria, size_criteria, geography_criteria, service_criteria').eq('archived', false),
+    supabase
+      .from('remarketing_buyers')
+      .select(
+        'id, company_name, pe_firm_name, pe_firm_website, buyer_type, hq_city, hq_state, geographic_footprint, target_geographies, thesis_summary, business_summary, target_services, target_industries, target_revenue_min, target_revenue_max, target_ebitda_min, target_ebitda_max, total_acquisitions, recent_acquisitions, acquisition_appetite, acquisition_timeline, deal_breakers, strategic_priorities, has_fee_agreement, alignment_score',
+      )
+      .eq('archived', false)
+      .order('alignment_score', { ascending: false, nullsFirst: false })
+      .limit(150),
+    supabase
+      .from('remarketing_buyer_universes')
+      .select(
+        'id, name, ma_guide_content, fit_criteria, size_criteria, geography_criteria, service_criteria',
+      )
+      .eq('archived', false),
   ]);
 
   const buyers = buyersResult.data || [];
   const universes = universesResult.data || [];
-  
+
   const typeCounts = buyers.reduce((acc: any, b: any) => {
     acc[b.buyer_type || 'other'] = (acc[b.buyer_type || 'other'] || 0) + 1;
     return acc;
@@ -427,12 +492,16 @@ async function buildBuyersContext(supabase: any): Promise<string> {
     .map((u: any) => `## ${u.name} Industry Guide:\n${u.ma_guide_content?.substring(0, 2000)}`)
     .join('\n\n');
 
-  const criteriaContext = universes.map((u: any) => `
+  const criteriaContext = universes
+    .map(
+      (u: any) => `
 ### ${u.name} Criteria:
 - Size: ${JSON.stringify(u.size_criteria || {})}
 - Geography: ${JSON.stringify(u.geography_criteria || {})}
 - Services: ${JSON.stringify(u.service_criteria || {})}
-`).join('\n');
+`,
+    )
+    .join('\n');
 
   return `You are an M&A analyst assistant with deep knowledge of buyers and industry dynamics.
 
@@ -467,17 +536,36 @@ INSTRUCTIONS:
 - Empty data is better than wrong data — do not infer or guess missing fields`;
 }
 
-// Build context for universe-level queries  
+// Build context for universe-level queries
 async function buildUniverseContext(supabase: any, universeId: string): Promise<string> {
   if (!universeId) {
-    return "No universe selected.";
+    return 'No universe selected.';
   }
 
   const [universeResult, buyersResult, dealsResult, scoresResult] = await Promise.all([
-    supabase.from('remarketing_buyer_universes').select('*').eq('id', universeId).single(),
-    supabase.from('remarketing_buyers').select('*').eq('universe_id', universeId).eq('archived', false).limit(100),
-    supabase.from('remarketing_universe_deals').select('listing:listings(*)').eq('universe_id', universeId).eq('status', 'active'),
-    supabase.from('remarketing_scores').select('*').eq('universe_id', universeId),
+    supabase
+      .from('remarketing_buyer_universes')
+      .select(
+        'id, name, description, fit_criteria, size_criteria, geography_criteria, service_criteria, scoring_behavior, ma_guide_content',
+      )
+      .eq('id', universeId)
+      .single(),
+    supabase
+      .from('remarketing_buyers')
+      .select(
+        'id, company_name, pe_firm_name, buyer_type, hq_city, hq_state, geographic_footprint, target_geographies, thesis_summary, business_summary, target_services, target_revenue_min, target_revenue_max, total_acquisitions, acquisition_appetite, deal_breakers, alignment_score',
+      )
+      .eq('universe_id', universeId)
+      .eq('archived', false)
+      .limit(100),
+    supabase
+      .from('remarketing_universe_deals')
+      .select(
+        'listing:listings(id, internal_company_name, title, location, geographic_states, revenue, ebitda, services, business_model, owner_goals)',
+      )
+      .eq('universe_id', universeId)
+      .eq('status', 'active'),
+    supabase.from('remarketing_scores').select('status').eq('universe_id', universeId),
   ]);
 
   const universe = universeResult.data;
@@ -486,7 +574,7 @@ async function buildUniverseContext(supabase: any, universeId: string): Promise<
   const scores = scoresResult.data || [];
 
   if (!universe) {
-    return "Universe not found.";
+    return 'Universe not found.';
   }
 
   const buyerSummaries = buyers.map((b: any) => ({
@@ -513,8 +601,8 @@ async function buildUniverseContext(supabase: any, universeId: string): Promise<
     name: d.listing?.internal_company_name || d.listing?.title,
     location: d.listing?.location,
     states: d.listing?.geographic_states || [],
-    revenue: d.listing?.revenue ? `$${(d.listing.revenue/1000000).toFixed(1)}M` : null,
-    ebitda: d.listing?.ebitda ? `$${(d.listing.ebitda/1000000).toFixed(1)}M` : null,
+    revenue: d.listing?.revenue ? `$${(d.listing.revenue / 1000000).toFixed(1)}M` : null,
+    ebitda: d.listing?.ebitda ? `$${(d.listing.ebitda / 1000000).toFixed(1)}M` : null,
     services: d.listing?.services,
     businessModel: d.listing?.business_model,
     ownerGoals: d.listing?.owner_goals,

@@ -6,8 +6,8 @@
 
 // deno-lint-ignore no-explicit-any
 type SupabaseClient = any;
-import type { ClaudeTool } from "../../_shared/claude-client.ts";
-import type { ToolResult } from "./index.ts";
+import type { ClaudeTool } from '../../_shared/claude-client.ts';
+import type { ToolResult } from './index.ts';
 
 // ---------- Tool definitions ----------
 
@@ -39,21 +39,46 @@ export async function executeScoringExplainTool(
   args: Record<string, unknown>,
 ): Promise<ToolResult> {
   switch (toolName) {
-    case 'explain_buyer_score': return explainBuyerScore(supabase, args);
-    default: return { error: `Unknown scoring explain tool: ${toolName}` };
+    case 'explain_buyer_score':
+      return explainBuyerScore(supabase, args);
+    default:
+      return { error: `Unknown scoring explain tool: ${toolName}` };
   }
 }
 
 // ---------- Score dimension metadata ----------
 
 const DIMENSION_LABELS: Record<string, { label: string; description: string }> = {
-  geography_score: { label: 'Geography Fit', description: 'How well the buyer\'s HQ and operating locations overlap with the deal\'s geography' },
-  service_score: { label: 'Service/Industry Fit', description: 'Alignment between buyer\'s target services/industries and the deal\'s offerings' },
-  size_score: { label: 'Size Fit', description: 'Whether the deal\'s revenue and EBITDA fall within the buyer\'s target ranges' },
-  owner_goals_score: { label: 'Owner Goals Alignment', description: 'How well the buyer\'s acquisition model aligns with the seller\'s goals (e.g., management retention, growth plans)' },
-  acquisition_score: { label: 'Acquisition Track Record', description: 'Buyer\'s historical acquisition activity and appetite' },
-  business_model_score: { label: 'Business Model Fit', description: 'Compatibility of business models (recurring vs. project, B2B vs. B2C)' },
-  portfolio_score: { label: 'Portfolio Synergy', description: 'How the deal fits with the buyer\'s existing portfolio companies' },
+  geography_score: {
+    label: 'Geography Fit',
+    description:
+      "How well the buyer's HQ and operating locations overlap with the deal's geography",
+  },
+  service_score: {
+    label: 'Service/Industry Fit',
+    description: "Alignment between buyer's target services/industries and the deal's offerings",
+  },
+  size_score: {
+    label: 'Size Fit',
+    description: "Whether the deal's revenue and EBITDA fall within the buyer's target ranges",
+  },
+  owner_goals_score: {
+    label: 'Owner Goals Alignment',
+    description:
+      "How well the buyer's acquisition model aligns with the seller's goals (e.g., management retention, growth plans)",
+  },
+  acquisition_score: {
+    label: 'Acquisition Track Record',
+    description: "Buyer's historical acquisition activity and appetite",
+  },
+  business_model_score: {
+    label: 'Business Model Fit',
+    description: 'Compatibility of business models (recurring vs. project, B2B vs. B2C)',
+  },
+  portfolio_score: {
+    label: 'Portfolio Synergy',
+    description: "How the deal fits with the buyer's existing portfolio companies",
+  },
 };
 
 // ---------- Implementation ----------
@@ -69,34 +94,40 @@ async function explainBuyerScore(
   const [scoreResult, buyerResult, dealResult, adjustmentsResult] = await Promise.all([
     supabase
       .from('remarketing_scores')
-      .select('*')
+      .select(
+        'composite_score, geography_score, service_score, size_score, owner_goals_score, acquisition_score, business_model_score, portfolio_score, tier, score_tier, status, fit_reasoning, thesis_alignment_bonus, thesis_bonus, data_quality_bonus, kpi_bonus, custom_bonus, learning_penalty, size_multiplier, service_multiplier, geography_mode_factor',
+      )
       .eq('buyer_id', buyerId)
       .eq('listing_id', dealId)
       .single(),
     supabase
       .from('remarketing_buyers')
-      .select(`
+      .select(
+        `
         id, company_name, pe_firm_name, buyer_type,
         hq_city, hq_state, hq_country,
         geographic_footprint, target_services, target_industries,
         target_revenue_min, target_revenue_max, target_ebitda_min, target_ebitda_max,
         acquisition_appetite, total_acquisitions, num_employees, number_of_locations,
         thesis_summary
-      `)
+      `,
+      )
       .eq('id', buyerId)
       .single(),
     supabase
       .from('listings')
-      .select(`
+      .select(
+        `
         id, title, industry, services, revenue, ebitda,
         location, address_state, geographic_states,
         num_employees, number_of_locations
-      `)
+      `,
+      )
       .eq('id', dealId)
       .single(),
     supabase
       .from('deal_scoring_adjustments')
-      .select('*')
+      .select('geography_weight, service_mix_weight, size_weight, owner_goals_weight')
       .eq('listing_id', dealId)
       .maybeSingle(),
   ]);
@@ -111,7 +142,15 @@ async function explainBuyerScore(
 
   // Build dimension breakdowns
   const dimensions = [];
-  const scoreFields = ['geography_score', 'service_score', 'size_score', 'owner_goals_score', 'acquisition_score', 'business_model_score', 'portfolio_score'];
+  const scoreFields = [
+    'geography_score',
+    'service_score',
+    'size_score',
+    'owner_goals_score',
+    'acquisition_score',
+    'business_model_score',
+    'portfolio_score',
+  ];
 
   // Get weights (from adjustments or defaults)
   const weights: Record<string, number> = {
@@ -150,7 +189,8 @@ async function explainBuyerScore(
   const missingFields: string[] = [];
   if (!buyer.geographic_footprint?.length) missingFields.push('buyer geographic footprint');
   if (!buyer.target_services?.length) missingFields.push('buyer target services');
-  if (buyer.target_revenue_min == null && buyer.target_revenue_max == null) missingFields.push('buyer revenue range');
+  if (buyer.target_revenue_min == null && buyer.target_revenue_max == null)
+    missingFields.push('buyer revenue range');
   if (!buyer.total_acquisitions) missingFields.push('buyer acquisition history');
 
   return {
@@ -165,12 +205,14 @@ async function explainBuyerScore(
       },
       dimensions,
       weights_source: adjustments ? 'custom_deal_adjustments' : 'default_weights',
-      custom_weights: adjustments ? {
-        geography: adjustments.geography_weight,
-        service: adjustments.service_mix_weight,
-        size: adjustments.size_weight,
-        owner_goals: adjustments.owner_goals_weight,
-      } : null,
+      custom_weights: adjustments
+        ? {
+            geography: adjustments.geography_weight,
+            service: adjustments.service_mix_weight,
+            size: adjustments.size_weight,
+            owner_goals: adjustments.owner_goals_weight,
+          }
+        : null,
       bonuses: {
         thesis_alignment: score.thesis_alignment_bonus || score.thesis_bonus || 0,
         data_quality: score.data_quality_bonus || 0,
@@ -186,7 +228,12 @@ async function explainBuyerScore(
         geography_mode_factor: score.geography_mode_factor || 1,
       },
       missing_data: missingFields,
-      source_tables: ['remarketing_scores', 'remarketing_buyers', 'listings', 'deal_scoring_adjustments'],
+      source_tables: [
+        'remarketing_scores',
+        'remarketing_buyers',
+        'listings',
+        'deal_scoring_adjustments',
+      ],
     },
   };
 }
@@ -209,9 +256,10 @@ function buildExplanation(field: string, score: number, buyer: any, deal: any): 
       return `${tier} match (${score}/100). Buyer targets: ${buyerSvcs}. Deal offers: ${dealSvcs}.`;
     }
     case 'size_score': {
-      const range = buyer.target_revenue_min || buyer.target_revenue_max
-        ? `$${(buyer.target_revenue_min || 0) / 1e6}M–$${(buyer.target_revenue_max || 999) / 1e6}M`
-        : 'no range set';
+      const range =
+        buyer.target_revenue_min || buyer.target_revenue_max
+          ? `$${(buyer.target_revenue_min || 0) / 1e6}M–$${(buyer.target_revenue_max || 999) / 1e6}M`
+          : 'no range set';
       const dealRev = deal?.revenue ? `$${(deal.revenue / 1e6).toFixed(1)}M` : 'unknown';
       return `${tier} match (${score}/100). Buyer revenue range: ${range}. Deal revenue: ${dealRev}.`;
     }

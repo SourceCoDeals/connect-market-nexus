@@ -1,8 +1,8 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
-import { GEMINI_API_URL, getGeminiHeaders } from "../_shared/ai-providers.ts";
+import { GEMINI_API_URL, getGeminiHeaders } from '../_shared/ai-providers.ts';
 
-import { getCorsHeaders, corsPreflightResponse } from "../_shared/cors.ts";
+import { getCorsHeaders, corsPreflightResponse } from '../_shared/cors.ts';
 
 // Gemini API configuration
 const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY');
@@ -66,7 +66,7 @@ interface ExtractedInsights {
 async function extractInsightsFromTranscript(
   transcriptText: string,
   participants: string[],
-  callDate?: string
+  callDate?: string,
 ): Promise<ExtractedInsights> {
   console.log('[EXTRACTION_START] Processing buyer transcript');
   console.log(`[PARTICIPANTS] ${participants.join(', ')}`);
@@ -163,125 +163,174 @@ Now analyze the transcript below and return a JSON object with all fields above.
 TRANSCRIPT:
 ${transcriptText.slice(0, 50000)}`;
 
-  const tools = [{
-    name: "extract_buyer_insights",
-    description: "Extract comprehensive buyer acquisition criteria, profile, and key quotes from call transcript",
-    input_schema: {
-      type: "object",
-      properties: {
-        buyer_criteria: {
-          type: "object",
-          description: "Structured acquisition criteria extracted from the call",
-          properties: {
-            size_criteria: {
-              type: "object",
-              properties: {
-                revenue_min: { type: "number", description: "Minimum revenue target in raw dollars. Only set if explicit floor stated." },
-                revenue_max: { type: "number", description: "Maximum revenue target in raw dollars." },
-                ebitda_min: { type: "number", description: "Minimum EBITDA target in raw dollars. Only set if explicit floor stated." },
-                ebitda_max: { type: "number", description: "Maximum EBITDA target in raw dollars." },
-                employee_min: { type: "number", description: "Minimum employee count preference." },
-                employee_max: { type: "number", description: "Maximum employee count preference." },
-                location_count_min: { type: "number", description: "Minimum number of locations." },
-                location_count_max: { type: "number", description: "Maximum number of locations." },
-                confidence: { type: "number", description: "Confidence score 0-100 for size criteria extraction." }
+  const tools = [
+    {
+      name: 'extract_buyer_insights',
+      description:
+        'Extract comprehensive buyer acquisition criteria, profile, and key quotes from call transcript',
+      input_schema: {
+        type: 'object',
+        properties: {
+          buyer_criteria: {
+            type: 'object',
+            description: 'Structured acquisition criteria extracted from the call',
+            properties: {
+              size_criteria: {
+                type: 'object',
+                properties: {
+                  revenue_min: {
+                    type: 'number',
+                    description:
+                      'Minimum revenue target in raw dollars. Only set if explicit floor stated.',
+                  },
+                  revenue_max: {
+                    type: 'number',
+                    description: 'Maximum revenue target in raw dollars.',
+                  },
+                  ebitda_min: {
+                    type: 'number',
+                    description:
+                      'Minimum EBITDA target in raw dollars. Only set if explicit floor stated.',
+                  },
+                  ebitda_max: {
+                    type: 'number',
+                    description: 'Maximum EBITDA target in raw dollars.',
+                  },
+                  employee_min: {
+                    type: 'number',
+                    description: 'Minimum employee count preference.',
+                  },
+                  employee_max: {
+                    type: 'number',
+                    description: 'Maximum employee count preference.',
+                  },
+                  location_count_min: {
+                    type: 'number',
+                    description: 'Minimum number of locations.',
+                  },
+                  location_count_max: {
+                    type: 'number',
+                    description: 'Maximum number of locations.',
+                  },
+                  confidence: {
+                    type: 'number',
+                    description: 'Confidence score 0-100 for size criteria extraction.',
+                  },
+                },
+                required: ['confidence'],
               },
-              required: ["confidence"]
+              service_criteria: {
+                type: 'object',
+                properties: {
+                  target_services: {
+                    type: 'array',
+                    items: { type: 'string' },
+                    description:
+                      "Specific services buyer is targeting. Be specific: 'commercial HVAC' not just 'HVAC'.",
+                  },
+                  service_exclusions: {
+                    type: 'array',
+                    items: { type: 'string' },
+                    description: 'Services buyer explicitly avoids or excludes.',
+                  },
+                  service_confidence: { type: 'number', description: 'Confidence score 0-100.' },
+                  service_notes: {
+                    type: 'string',
+                    description:
+                      'Context on why they want/avoid certain services. Note if inferred from industry theme.',
+                  },
+                },
+                required: ['target_services', 'service_confidence'],
+              },
+              geography_criteria: {
+                type: 'object',
+                properties: {
+                  target_regions: {
+                    type: 'array',
+                    items: { type: 'string' },
+                    description:
+                      'Standard US regions: Southeast, Northeast, Mid-Atlantic, Midwest, Southwest, West, Pacific Northwest, Mountain West.',
+                  },
+                  target_states: {
+                    type: 'array',
+                    items: { type: 'string' },
+                    description:
+                      '2-letter state codes where buyer wants to acquire. Map all city mentions to states.',
+                  },
+                  geographic_exclusions: {
+                    type: 'array',
+                    items: { type: 'string' },
+                    description: 'States or regions buyer explicitly avoids.',
+                  },
+                  geographic_flexibility: {
+                    type: 'string',
+                    enum: ['strict', 'flexible', 'national'],
+                    description: 'How strict their geographic focus is.',
+                  },
+                  confidence: { type: 'number', description: 'Confidence score 0-100.' },
+                  geography_notes: {
+                    type: 'string',
+                    description:
+                      'Additional geographic context, MSA preferences, boundary descriptions.',
+                  },
+                },
+                required: ['confidence'],
+              },
+              deal_structure: {
+                type: 'object',
+                description:
+                  'Deal structure preferences — stored in extracted_insights JSON only, not written to buyer record',
+                properties: {
+                  deal_types: {
+                    type: 'array',
+                    items: { type: 'string' },
+                    description: "E.g., 'platform', 'add-on', 'tuck-in', 'strategic acquisition'.",
+                  },
+                  structure_preferences: {
+                    type: 'array',
+                    items: { type: 'string' },
+                    description:
+                      "E.g., 'majority recapitalization', 'full buyout', 'earnout', 'rollover equity'.",
+                  },
+                  valuation_parameters: {
+                    type: 'string',
+                    description: 'Any multiple ranges or valuation approach mentioned.',
+                  },
+                  preferred_characteristics: {
+                    type: 'array',
+                    items: { type: 'string' },
+                    description: "Nice-to-haves that aren't hard requirements.",
+                  },
+                  confidence: { type: 'number', description: 'Confidence score 0-100.' },
+                },
+                required: ['confidence'],
+              },
             },
-            service_criteria: {
-              type: "object",
-              properties: {
-                target_services: {
-                  type: "array",
-                  items: { type: "string" },
-                  description: "Specific services buyer is targeting. Be specific: 'commercial HVAC' not just 'HVAC'."
-                },
-                service_exclusions: {
-                  type: "array",
-                  items: { type: "string" },
-                  description: "Services buyer explicitly avoids or excludes."
-                },
-                service_confidence: { type: "number", description: "Confidence score 0-100." },
-                service_notes: { type: "string", description: "Context on why they want/avoid certain services. Note if inferred from industry theme." }
+          },
+          buyer_profile: {
+            type: 'object',
+            properties: {
+              thesis_summary: {
+                type: 'string',
+                description:
+                  "2-4 sentence summary of buyer's acquisition thesis. ONLY from what was stated in the call.",
               },
-              required: ["target_services", "service_confidence"]
+              acquisition_timeline: {
+                type: 'string',
+                enum: ['active', 'opportunistic', 'on_hold'],
+                description: 'How actively the buyer is pursuing acquisitions.',
+              },
             },
-            geography_criteria: {
-              type: "object",
-              properties: {
-                target_regions: {
-                  type: "array",
-                  items: { type: "string" },
-                  description: "Standard US regions: Southeast, Northeast, Mid-Atlantic, Midwest, Southwest, West, Pacific Northwest, Mountain West."
-                },
-                target_states: {
-                  type: "array",
-                  items: { type: "string" },
-                  description: "2-letter state codes where buyer wants to acquire. Map all city mentions to states."
-                },
-                geographic_exclusions: {
-                  type: "array",
-                  items: { type: "string" },
-                  description: "States or regions buyer explicitly avoids."
-                },
-                geographic_flexibility: {
-                  type: "string",
-                  enum: ["strict", "flexible", "national"],
-                  description: "How strict their geographic focus is."
-                },
-                confidence: { type: "number", description: "Confidence score 0-100." },
-                geography_notes: { type: "string", description: "Additional geographic context, MSA preferences, boundary descriptions." }
-              },
-              required: ["confidence"]
-            },
-            deal_structure: {
-              type: "object",
-              description: "Deal structure preferences — stored in extracted_insights JSON only, not written to buyer record",
-              properties: {
-                deal_types: {
-                  type: "array",
-                  items: { type: "string" },
-                  description: "E.g., 'platform', 'add-on', 'tuck-in', 'strategic acquisition'."
-                },
-                structure_preferences: {
-                  type: "array",
-                  items: { type: "string" },
-                  description: "E.g., 'majority recapitalization', 'full buyout', 'earnout', 'rollover equity'."
-                },
-                valuation_parameters: { type: "string", description: "Any multiple ranges or valuation approach mentioned." },
-                preferred_characteristics: {
-                  type: "array",
-                  items: { type: "string" },
-                  description: "Nice-to-haves that aren't hard requirements."
-                },
-                confidence: { type: "number", description: "Confidence score 0-100." }
-              },
-              required: ["confidence"]
-            }
-          }
+          },
+          overall_confidence: {
+            type: 'number',
+            description: 'Overall extraction confidence 0-100.',
+          },
         },
-        buyer_profile: {
-          type: "object",
-          properties: {
-            thesis_summary: {
-              type: "string",
-              description: "2-4 sentence summary of buyer's acquisition thesis. ONLY from what was stated in the call."
-            },
-            acquisition_timeline: {
-              type: "string",
-              enum: ["active", "opportunistic", "on_hold"],
-              description: "How actively the buyer is pursuing acquisitions."
-            }
-          }
-        },
-        overall_confidence: {
-          type: "number",
-          description: "Overall extraction confidence 0-100."
-        }
+        required: ['overall_confidence'],
       },
-      required: ["overall_confidence"]
-    }
-  }];
+    },
+  ];
 
   const startTime = Date.now();
 
@@ -290,7 +339,7 @@ ${transcriptText.slice(0, 50000)}`;
   }
 
   // Convert tools to OpenAI format for Gemini
-  const openAITools = tools.map(t => ({
+  const openAITools = tools.map((t) => ({
     type: 'function' as const,
     function: { name: t.name, description: t.description, parameters: t.input_schema },
   }));
@@ -319,16 +368,19 @@ ${transcriptText.slice(0, 50000)}`;
   const duration = Date.now() - startTime;
 
   console.log(`[EXTRACTION_COMPLETE] ${duration}ms`);
-  console.log(`[USAGE] Input: ${result.usage?.prompt_tokens}, Output: ${result.usage?.completion_tokens}`);
+  console.log(
+    `[USAGE] Input: ${result.usage?.prompt_tokens}, Output: ${result.usage?.completion_tokens}`,
+  );
 
   const toolCall = result.choices?.[0]?.message?.tool_calls?.[0];
   if (!toolCall?.function?.arguments) {
     throw new Error('No tool call found in Gemini response');
   }
 
-  const parsed = typeof toolCall.function.arguments === 'string'
-    ? JSON.parse(toolCall.function.arguments)
-    : toolCall.function.arguments;
+  const parsed =
+    typeof toolCall.function.arguments === 'string'
+      ? JSON.parse(toolCall.function.arguments)
+      : toolCall.function.arguments;
 
   return parsed as ExtractedInsights;
 }
@@ -344,7 +396,7 @@ serve(async (req) => {
   try {
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
     );
 
     const {
@@ -353,14 +405,16 @@ serve(async (req) => {
       buyer_id,
       transcript_text,
       participants = [],
-      call_date
+      call_date,
     }: TranscriptExtractionRequest = await req.json();
 
     if (!transcript_text && !transcript_id) {
       throw new Error('Must provide either transcript_text or transcript_id');
     }
 
-    console.log(`[REQUEST] Transcript: ${transcript_id || 'new'}, Universe: ${universe_id}, Buyer: ${buyer_id}`);
+    console.log(
+      `[REQUEST] Transcript: ${transcript_id || 'new'}, Universe: ${universe_id}, Buyer: ${buyer_id}`,
+    );
 
     let finalTranscriptText = transcript_text;
     let transcriptRecord: any = null;
@@ -369,7 +423,7 @@ serve(async (req) => {
     if (transcript_id) {
       const { data, error } = await supabase
         .from('buyer_transcripts')
-        .select('*')
+        .select('id, transcript_text, participants, call_date')
         .eq('id', transcript_id)
         .single();
 
@@ -385,7 +439,7 @@ serve(async (req) => {
         .from('buyer_transcripts')
         .update({
           extraction_status: 'processing',
-          processed_at: new Date().toISOString()
+          processed_at: new Date().toISOString(),
         })
         .eq('id', transcript_id);
     } else {
@@ -399,7 +453,7 @@ serve(async (req) => {
           participants,
           call_date: call_date ? new Date(call_date).toISOString() : null,
           extraction_status: 'processing',
-          processed_at: new Date().toISOString()
+          processed_at: new Date().toISOString(),
         })
         .select()
         .single();
@@ -417,8 +471,8 @@ serve(async (req) => {
     try {
       const insights = await extractInsightsFromTranscript(
         finalTranscriptText!,
-        participants.length > 0 ? participants : (transcriptRecord.participants || []),
-        call_date || transcriptRecord.call_date
+        participants.length > 0 ? participants : transcriptRecord.participants || [],
+        call_date || transcriptRecord.call_date,
       );
 
       // Update transcript record with extracted insights
@@ -427,7 +481,7 @@ serve(async (req) => {
         .update({
           extraction_status: 'completed',
           extracted_insights: insights,
-          processed_at: new Date().toISOString()
+          processed_at: new Date().toISOString(),
         })
         .eq('id', transcriptRecord.id);
 
@@ -496,65 +550,67 @@ serve(async (req) => {
               type: 'transcript',
               transcript_id: transcriptRecord.id,
               extracted_at: new Date().toISOString(),
-              fields_extracted: Object.keys(buyerUpdates).filter(k => k !== 'extraction_sources'),
-              confidence: insights.overall_confidence
-            }
+              fields_extracted: Object.keys(buyerUpdates).filter((k) => k !== 'extraction_sources'),
+              confidence: insights.overall_confidence,
+            },
           ];
           buyerUpdates.data_last_updated = new Date().toISOString();
 
-          await supabase
-            .from('remarketing_buyers')
-            .update(buyerUpdates)
-            .eq('id', buyer_id);
+          await supabase.from('remarketing_buyers').update(buyerUpdates).eq('id', buyer_id);
 
-          console.log(`[BUYER_UPDATED] Applied ${Object.keys(buyerUpdates).length} fields to buyer ${buyer_id}. Confidence: ${insights.overall_confidence}. Fields: ${Object.keys(buyerUpdates).filter(k => k !== 'extraction_sources' && k !== 'data_last_updated').join(', ')}`);
+          console.log(
+            `[BUYER_UPDATED] Applied ${Object.keys(buyerUpdates).length} fields to buyer ${buyer_id}. Confidence: ${insights.overall_confidence}. Fields: ${Object.keys(
+              buyerUpdates,
+            )
+              .filter((k) => k !== 'extraction_sources' && k !== 'data_last_updated')
+              .join(', ')}`,
+          );
         }
       }
 
       // If universe_id provided, create extraction source record
       if (universe_id) {
-        await supabase
-          .from('criteria_extraction_sources')
-          .insert({
-            universe_id,
-            source_type: 'call_transcript',
-            source_name: `Transcript - ${participants.join(', ') || 'Unknown'}`,
-            source_metadata: {
-              transcript_id: transcriptRecord.id,
-              call_date: call_date || transcriptRecord.call_date,
-              participants
-            },
-            extraction_status: 'completed',
-            extraction_started_at: new Date().toISOString(),
-            extraction_completed_at: new Date().toISOString(),
-            extracted_data: insights,
-            confidence_scores: {
-              size: insights.buyer_criteria?.size_criteria?.confidence || 0,
-              service: insights.buyer_criteria?.service_criteria?.service_confidence || 0,
-              geography: insights.buyer_criteria?.geography_criteria?.confidence || 0,
-              deal_structure: insights.buyer_criteria?.deal_structure?.confidence || 0,
-              overall: insights.overall_confidence
-            }
-          });
+        await supabase.from('criteria_extraction_sources').insert({
+          universe_id,
+          source_type: 'call_transcript',
+          source_name: `Transcript - ${participants.join(', ') || 'Unknown'}`,
+          source_metadata: {
+            transcript_id: transcriptRecord.id,
+            call_date: call_date || transcriptRecord.call_date,
+            participants,
+          },
+          extraction_status: 'completed',
+          extraction_started_at: new Date().toISOString(),
+          extraction_completed_at: new Date().toISOString(),
+          extracted_data: insights,
+          confidence_scores: {
+            size: insights.buyer_criteria?.size_criteria?.confidence || 0,
+            service: insights.buyer_criteria?.service_criteria?.service_confidence || 0,
+            geography: insights.buyer_criteria?.geography_criteria?.confidence || 0,
+            deal_structure: insights.buyer_criteria?.deal_structure?.confidence || 0,
+            overall: insights.overall_confidence,
+          },
+        });
 
         console.log(`[SOURCE_CREATED] Extraction source created for universe ${universe_id}`);
       }
 
-      console.log(`[SUCCESS] Buyer transcript extraction completed with ${insights.overall_confidence}% confidence`);
+      console.log(
+        `[SUCCESS] Buyer transcript extraction completed with ${insights.overall_confidence}% confidence`,
+      );
 
       return new Response(
         JSON.stringify({
           success: true,
           transcript_id: transcriptRecord.id,
           insights,
-          message: 'Buyer transcript insights extracted successfully'
+          message: 'Buyer transcript insights extracted successfully',
         }),
         {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          status: 200
-        }
+          status: 200,
+        },
       );
-
     } catch (extractionError) {
       // Mark extraction as failed
       await supabase
@@ -562,24 +618,23 @@ serve(async (req) => {
         .update({
           extraction_status: 'failed',
           extraction_error: extractionError.message,
-          processed_at: new Date().toISOString()
+          processed_at: new Date().toISOString(),
         })
         .eq('id', transcriptRecord.id);
 
       throw extractionError;
     }
-
   } catch (error) {
     console.error('[ERROR]', error);
     return new Response(
       JSON.stringify({
         success: false,
-        error: error.message
+        error: error.message,
       }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 500
-      }
+        status: 500,
+      },
     );
   }
 });

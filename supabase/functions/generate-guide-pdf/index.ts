@@ -1,7 +1,7 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
-import { getCorsHeaders, corsPreflightResponse } from "../_shared/cors.ts";
+import { getCorsHeaders, corsPreflightResponse } from '../_shared/cors.ts';
 
 serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
@@ -16,7 +16,7 @@ serve(async (req) => {
     if (!universeId || !content) {
       return new Response(
         JSON.stringify({ success: false, error: 'Missing universeId or content' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
       );
     }
 
@@ -25,7 +25,9 @@ serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     // Convert markdown/HTML content to styled HTML document for PDF
-    const sanitizedName = (industryName || 'MA-Research-Guide').replace(/[^a-zA-Z0-9-\s]/g, '').replace(/\s+/g, '-');
+    const sanitizedName = (industryName || 'MA-Research-Guide')
+      .replace(/[^a-zA-Z0-9-\s]/g, '')
+      .replace(/\s+/g, '-');
     const timestamp = new Date().toISOString().split('T')[0];
     const fileName = `${universeId}/${sanitizedName}-${timestamp}.html`;
 
@@ -137,10 +139,10 @@ serve(async (req) => {
 <body>
   <div class="metadata">
     <strong>Industry:</strong> ${industryName || 'M&A Research Guide'}<br>
-    <strong>Generated:</strong> ${new Date().toLocaleDateString('en-US', { 
-      year: 'numeric', 
-      month: 'long', 
-      day: 'numeric' 
+    <strong>Generated:</strong> ${new Date().toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
     })}<br>
     <strong>Word Count:</strong> ${content.split(/\s+/).length.toLocaleString()}
   </div>
@@ -150,14 +152,17 @@ serve(async (req) => {
 
     // Ensure bucket exists (create if needed)
     const { data: buckets } = await supabase.storage.listBuckets();
-    const bucketExists = buckets?.some(b => b.name === 'universe-documents');
-    
+    const bucketExists = buckets?.some((b) => b.name === 'universe-documents');
+
     if (!bucketExists) {
-      const { error: createBucketError } = await supabase.storage.createBucket('universe-documents', {
-        public: true,
-        fileSizeLimit: 52428800, // 50MB
-        allowedMimeTypes: ['text/html', 'application/pdf', 'text/plain', 'text/markdown']
-      });
+      const { error: createBucketError } = await supabase.storage.createBucket(
+        'universe-documents',
+        {
+          public: true,
+          fileSizeLimit: 52428800, // 50MB
+          allowedMimeTypes: ['text/html', 'application/pdf', 'text/plain', 'text/markdown'],
+        },
+      );
       if (createBucketError && !createBucketError.message.includes('already exists')) {
         console.error('Failed to create bucket:', createBucketError);
       }
@@ -169,21 +174,19 @@ serve(async (req) => {
       .from('universe-documents')
       .upload(fileName, htmlBlob, {
         contentType: 'text/html',
-        upsert: true
+        upsert: true,
       });
 
     if (uploadError) {
       console.error('Upload error:', uploadError);
-      return new Response(
-        JSON.stringify({ success: false, error: uploadError.message }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      return new Response(JSON.stringify({ success: false, error: 'Internal server error' }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
 
     // Get the public URL
-    const { data: urlData } = supabase.storage
-      .from('universe-documents')
-      .getPublicUrl(fileName);
+    const { data: urlData } = supabase.storage.from('universe-documents').getPublicUrl(fileName);
 
     const documentRef = {
       id: crypto.randomUUID(),
@@ -191,25 +194,24 @@ serve(async (req) => {
       url: urlData.publicUrl,
       uploaded_at: new Date().toISOString(),
       type: 'ma_guide',
-      auto_generated: true
+      auto_generated: true,
     };
 
     console.log(`Generated guide document: ${fileName}`);
 
     return new Response(
-      JSON.stringify({ 
-        success: true, 
+      JSON.stringify({
+        success: true,
         document: documentRef,
-        message: 'Guide saved to Supporting Documents'
+        message: 'Guide saved to Supporting Documents',
       }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
     );
-
   } catch (error) {
     console.error('Error in generate-guide-pdf:', error);
-    return new Response(
-      JSON.stringify({ success: false, error: (error as Error).message }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+    return new Response(JSON.stringify({ success: false, error: 'Internal server error' }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
   }
 });

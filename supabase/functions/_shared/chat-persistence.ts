@@ -38,7 +38,7 @@ export interface LoadConversationOptions {
  */
 export async function saveConversation(
   supabase: SupabaseClient,
-  options: SaveConversationOptions
+  options: SaveConversationOptions,
 ): Promise<{ success: boolean; conversationId?: string; error?: string }> {
   try {
     const conversationData = {
@@ -91,12 +91,14 @@ export async function saveConversation(
  */
 export async function loadConversation(
   supabase: SupabaseClient,
-  options: LoadConversationOptions
+  options: LoadConversationOptions,
 ): Promise<{ success: boolean; conversations?: any[]; error?: string }> {
   try {
     let query = supabase
       .from('chat_conversations')
-      .select('*')
+      .select(
+        'id, user_id, context_type, deal_id, universe_id, title, messages, created_at, updated_at, last_message_at, message_count, archived',
+      )
       .eq('user_id', options.userId)
       .eq('archived', false)
       .order('updated_at', { ascending: false });
@@ -140,7 +142,7 @@ export async function loadConversation(
 export async function archiveConversation(
   supabase: SupabaseClient,
   userId: string,
-  conversationId: string
+  conversationId: string,
 ): Promise<{ success: boolean; error?: string }> {
   try {
     const { error } = await supabase
@@ -165,7 +167,7 @@ export async function archiveConversation(
  * Generate a title from the first user message
  */
 function generateTitle(messages: ChatMessage[]): string {
-  const firstUserMessage = messages.find(m => m.role === 'user');
+  const firstUserMessage = messages.find((m) => m.role === 'user');
 
   if (!firstUserMessage) {
     return 'New Conversation';
@@ -182,7 +184,7 @@ function generateTitle(messages: ChatMessage[]): string {
 export async function getRecentConversations(
   supabase: SupabaseClient,
   userId: string,
-  limit: number = 10
+  limit: number = 10,
 ): Promise<{ success: boolean; conversations?: any[]; error?: string }> {
   return loadConversation(supabase, { userId, limit });
 }
@@ -192,7 +194,7 @@ export async function getRecentConversations(
  */
 export async function getConversationStats(
   supabase: SupabaseClient,
-  userId: string
+  userId: string,
 ): Promise<{ success: boolean; stats?: any; error?: string }> {
   try {
     const { data, error } = await supabase
@@ -208,11 +210,11 @@ export async function getConversationStats(
     const stats = {
       total: data.length,
       byContext: {
-        deal: data.filter(c => c.context_type === 'deal').length,
-        deals: data.filter(c => c.context_type === 'deals').length,
-        buyers: data.filter(c => c.context_type === 'buyers').length,
-        universe: data.filter(c => c.context_type === 'universe').length,
-      }
+        deal: data.filter((c) => c.context_type === 'deal').length,
+        deals: data.filter((c) => c.context_type === 'deals').length,
+        buyers: data.filter((c) => c.context_type === 'buyers').length,
+        universe: data.filter((c) => c.context_type === 'universe').length,
+      },
     };
 
     return { success: true, stats };

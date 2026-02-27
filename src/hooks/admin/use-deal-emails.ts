@@ -16,15 +16,15 @@ export function useDealEmails(dealId: string) {
     queryKey: ['deal-emails', dealId],
     queryFn: async () => {
       if (!dealId) return [];
-      
+
       const { data, error } = await supabase
         .from('email_delivery_logs')
-        .select('*')
+        .select('id, email, email_type, status, sent_at, correlation_id, error_message')
         .ilike('correlation_id', `%deal-${dealId}%`)
         .order('created_at', { ascending: false });
-      
+
       if (error) throw error;
-      
+
       return data as DealEmail[];
     },
     enabled: !!dealId,

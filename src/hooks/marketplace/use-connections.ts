@@ -63,17 +63,21 @@ export const useRequestConnection = () => {
       });
 
       // Record milestone for user journey tracking
-      const visitorId = localStorage.getItem(VISITOR_ID_KEY);
+      let visitorId: string | null = null;
+      try {
+        visitorId = localStorage.getItem(VISITOR_ID_KEY);
+      } catch {
+        /* private browsing */
+      }
       if (visitorId) {
-        supabase
-          .rpc('update_journey_milestone', {
+        void (async () => {
+          const { error } = await supabase.rpc('update_journey_milestone', {
             p_visitor_id: visitorId,
             p_milestone_key: 'first_connection_at',
             p_milestone_time: new Date().toISOString(),
-          })
-          .then(({ error }) => {
-            if (error) console.error('Failed to record connection milestone:', error);
           });
+          if (error) console.error('Failed to record connection milestone:', error);
+        })();
       }
 
       // Calculate deal-specific buyer quality score (fire-and-forget)

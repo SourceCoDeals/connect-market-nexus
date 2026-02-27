@@ -41,7 +41,7 @@ export default function ProvenanceSection({ addLog, dealId, runRef }: Props) {
       // Fetch before values
       const { data: bData, error: bDataError } = await supabase
         .from('listings')
-        .select('*')
+        .select('id, revenue, ebitda, executive_summary, description')
         .eq('id', dealId)
         .single();
       if (bDataError) throw bDataError;
@@ -51,7 +51,7 @@ export default function ProvenanceSection({ addLog, dealId, runRef }: Props) {
       const { data: srcData, error: srcDataError } = await (
         supabase.from('extraction_sources' as any) as any
       )
-        .select('*')
+        .select('field_name, source_type')
         .eq('listing_id', dealId);
       if (srcDataError) throw srcDataError;
       const sourceMap: Record<string, string> = {};
@@ -76,7 +76,7 @@ export default function ProvenanceSection({ addLog, dealId, runRef }: Props) {
       // Fetch after
       const { data: aData, error: aDataError } = await supabase
         .from('listings')
-        .select('*')
+        .select('id, revenue, ebitda, executive_summary, description')
         .eq('id', dealId)
         .single();
       if (aDataError) throw aDataError;

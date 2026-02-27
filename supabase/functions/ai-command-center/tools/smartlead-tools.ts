@@ -138,7 +138,9 @@ async function getSmartleadCampaigns(
 
   let query = supabase
     .from('smartlead_campaigns')
-    .select('*')
+    .select(
+      'id, smartlead_campaign_id, name, status, deal_id, lead_count, last_synced_at, created_at',
+    )
     .order('created_at', { ascending: false })
     .limit(limit);
 
@@ -164,7 +166,7 @@ async function getSmartleadCampaigns(
   const campaignIds = campaigns.map((c: { id: string }) => c.id);
   const { data: allStats } = await supabase
     .from('smartlead_campaign_stats')
-    .select('*')
+    .select('campaign_id, sent, opened, replied, bounced, total_leads, snapshot_at')
     .in('campaign_id', campaignIds)
     .order('snapshot_at', { ascending: false });
 
@@ -241,7 +243,7 @@ async function getSmartleadCampaignStats(
   // Get campaign info
   const { data: campaign, error: campaignError } = await supabase
     .from('smartlead_campaigns')
-    .select('*')
+    .select('id, smartlead_campaign_id, name, status, lead_count, last_synced_at')
     .eq('id', campaignId)
     .single();
 
@@ -252,7 +254,9 @@ async function getSmartleadCampaignStats(
   // Get latest stats snapshot
   const { data: stats } = await supabase
     .from('smartlead_campaign_stats')
-    .select('*')
+    .select(
+      'total_leads, sent, opened, clicked, replied, bounced, unsubscribed, interested, not_interested, snapshot_at',
+    )
     .eq('campaign_id', campaignId)
     .order('snapshot_at', { ascending: false })
     .limit(1)
@@ -472,7 +476,7 @@ async function pushToSmartlead(
   // Get campaign info
   const { data: campaign, error: campaignError } = await supabase
     .from('smartlead_campaigns')
-    .select('*')
+    .select('id, smartlead_campaign_id, name, lead_count')
     .eq('id', campaignId)
     .single();
 

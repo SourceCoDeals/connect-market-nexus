@@ -69,10 +69,10 @@ serve(async (req: Request) => {
       .maybeSingle();
 
     if (!membership) {
-      return new Response(
-        JSON.stringify({ error: 'No firm found', confirmed: false }),
-        { status: 200, headers: { 'Content-Type': 'application/json', ...corsHeaders } },
-      );
+      return new Response(JSON.stringify({ error: 'No firm found', confirmed: false }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json', ...corsHeaders },
+      });
     }
 
     const firmId = membership.firm_id;
@@ -87,10 +87,10 @@ serve(async (req: Request) => {
       .single();
 
     if (!firm) {
-      return new Response(
-        JSON.stringify({ error: 'Firm agreement not found', confirmed: false }),
-        { status: 200, headers: { 'Content-Type': 'application/json', ...corsHeaders } },
-      );
+      return new Response(JSON.stringify({ error: 'Firm agreement not found', confirmed: false }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json', ...corsHeaders },
+      });
     }
 
     // If already marked signed in DB, return immediately
@@ -103,26 +103,30 @@ serve(async (req: Request) => {
         .eq('id', firmId)
         .single();
       return new Response(
-        JSON.stringify({ confirmed: true, alreadySigned: true, signedDocumentUrl: docData?.[docUrlCol] || null }),
+        JSON.stringify({
+          confirmed: true,
+          alreadySigned: true,
+          signedDocumentUrl: docData?.[docUrlCol] || null,
+        }),
         { status: 200, headers: { 'Content-Type': 'application/json', ...corsHeaders } },
       );
     }
 
     const submissionId = firm[submissionCol];
     if (!submissionId) {
-      return new Response(
-        JSON.stringify({ confirmed: false, error: 'No submission found' }),
-        { status: 200, headers: { 'Content-Type': 'application/json', ...corsHeaders } },
-      );
+      return new Response(JSON.stringify({ confirmed: false, error: 'No submission found' }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json', ...corsHeaders },
+      });
     }
 
     // Check DocuSeal API for actual submission status
     const docusealApiKey = Deno.env.get('DOCUSEAL_API_KEY');
     if (!docusealApiKey) {
-      return new Response(
-        JSON.stringify({ error: 'DocuSeal not configured' }),
-        { status: 500, headers: { 'Content-Type': 'application/json', ...corsHeaders } },
-      );
+      return new Response(JSON.stringify({ error: 'DocuSeal not configured' }), {
+        status: 500,
+        headers: { 'Content-Type': 'application/json', ...corsHeaders },
+      });
     }
 
     const fetchController = new AbortController();
@@ -150,7 +154,11 @@ serve(async (req: Request) => {
     }
 
     const submitters = await submitterRes.json();
-    const data = Array.isArray(submitters?.data) ? submitters.data : Array.isArray(submitters) ? submitters : [];
+    const data = Array.isArray(submitters?.data)
+      ? submitters.data
+      : Array.isArray(submitters)
+        ? submitters
+        : [];
 
     // Get buyer's email for matching
     const { data: profile } = await supabaseAdmin
@@ -171,7 +179,8 @@ serve(async (req: Request) => {
 
     const now = new Date().toISOString();
     const rawSignedDocUrl = submitter.documents?.[0]?.url || null;
-    const signedDocUrl = rawSignedDocUrl && rawSignedDocUrl.startsWith('https://') ? rawSignedDocUrl : null;
+    const signedDocUrl =
+      rawSignedDocUrl && rawSignedDocUrl.startsWith('https://') ? rawSignedDocUrl : null;
     const firmName = firm.firm_name || 'Unknown Firm';
 
     // 1. Update firm_agreements
@@ -196,25 +205,21 @@ serve(async (req: Request) => {
       }
     }
 
-    await supabaseAdmin
-      .from('firm_agreements')
-      .update(updates)
-      .eq('id', firmId);
+    await supabaseAdmin.from('firm_agreements').update(updates).eq('id', firmId);
 
     // Write to webhook log for deduplication with the webhook handler.
     // If the webhook already processed this event, the unique constraint will
     // cause a conflict — we ignore it since the DB is already up to date.
-    await supabaseAdmin.from('docuseal_webhook_log').insert({
+    const { error: logErr } = await supabaseAdmin.from('docuseal_webhook_log').insert({
       event_type: 'form.completed',
       submission_id: String(submissionId),
       external_id: firmId,
       raw_payload: { confirmed_by_frontend: userId, document_type: documentType },
       processed_at: now,
-    }).then(({ error: logErr }: { error: any }) => {
-      if (logErr && logErr.code !== '23505') {
-        console.warn('Failed to write dedup log entry:', logErr);
-      }
     });
+    if (logErr && logErr.code !== '23505') {
+      console.warn('Failed to write dedup log entry:', logErr);
+    }
 
     // 2. Sync to profiles for all firm members
     const { data: members } = await supabaseAdmin
@@ -228,10 +233,7 @@ serve(async (req: Request) => {
         : { fee_agreement_signed: true, fee_agreement_signed_at: now, updated_at: now };
 
       for (const member of members) {
-        await supabaseAdmin
-          .from('profiles')
-          .update(profileUpdates)
-          .eq('id', member.user_id);
+        await supabaseAdmin.from('profiles').update(profileUpdates).eq('id', member.user_id);
       }
 
       // 3. Create user_notifications + system messages
@@ -243,16 +245,19 @@ serve(async (req: Request) => {
 
     console.log(`✅ Confirmed ${docLabel} signed for firm ${firmId} (buyer ${userId})`);
 
-    return new Response(
-      JSON.stringify({ confirmed: true, signedDocumentUrl: signedDocUrl }),
-      { status: 200, headers: { 'Content-Type': 'application/json', ...corsHeaders } },
-    );
+    return new Response(JSON.stringify({ confirmed: true, signedDocumentUrl: signedDocUrl }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json', ...corsHeaders },
+    });
   } catch (error: unknown) {
-    console.error('Error in confirm-agreement-signed:', error instanceof Error ? error.message : String(error));
-    return new Response(
-      JSON.stringify({ error: 'Internal server error' }),
-      { status: 500, headers: { 'Content-Type': 'application/json', ...corsHeaders } },
+    console.error(
+      'Error in confirm-agreement-signed:',
+      error instanceof Error ? error.message : String(error),
     );
+    return new Response(JSON.stringify({ error: 'Internal server error' }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json', ...corsHeaders },
+    });
   }
 });
 
@@ -368,7 +373,11 @@ async function createAdminNotification(
       title: `${docLabel} Signed`,
       message: `${firmName} has signed the ${docLabel}.`,
       notification_type: 'document_completed',
-      metadata: { firm_id: firmId, document_type: docLabel.toLowerCase().replace(/ /g, '_'), docuseal_status: 'completed' },
+      metadata: {
+        firm_id: firmId,
+        document_type: docLabel.toLowerCase().replace(/ /g, '_'),
+        docuseal_status: 'completed',
+      },
       is_read: false,
     }));
 

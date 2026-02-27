@@ -122,7 +122,9 @@ export function useDealDocuments(dealId: string | undefined) {
       if (!dealId) return [];
       const { data, error } = await supabase
         .from('deal_documents')
-        .select('*')
+        .select(
+          'id, deal_id, document_type, title, description, file_path, file_size_bytes, mime_type, version, is_current, status, created_by, created_at, updated_at',
+        )
         .eq('deal_id', dealId)
         .eq('status', 'active')
         .order('created_at', { ascending: false });
@@ -134,14 +136,19 @@ export function useDealDocuments(dealId: string | undefined) {
   });
 }
 
-export function useDealDocumentsByType(dealId: string | undefined, documentType: DealDocument['document_type']) {
+export function useDealDocumentsByType(
+  dealId: string | undefined,
+  documentType: DealDocument['document_type'],
+) {
   return useQuery({
     queryKey: ['deal-documents', dealId, documentType],
     queryFn: async () => {
       if (!dealId) return [];
       const { data, error } = await supabase
         .from('deal_documents')
-        .select('*')
+        .select(
+          'id, deal_id, document_type, title, description, file_path, file_size_bytes, mime_type, version, is_current, status, created_by, created_at, updated_at',
+        )
         .eq('deal_id', dealId)
         .eq('document_type', documentType)
         .eq('status', 'active')
@@ -163,7 +170,9 @@ export function useTrackedLinks(dealId: string | undefined) {
       if (!dealId) return [];
       const { data, error } = await supabase
         .from('document_tracked_links')
-        .select('*')
+        .select(
+          'id, deal_id, document_id, buyer_id, buyer_email, buyer_name, buyer_firm, contact_id, link_token, is_active, revoked_at, revoked_by, revoke_reason, expires_at, first_opened_at, last_opened_at, open_count, created_by, created_at',
+        )
         .eq('deal_id', dealId)
         .order('created_at', { ascending: false });
 
@@ -209,8 +218,19 @@ export function useRevokeTrackedLink() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ linkId, dealId: _dealId, reason }: { linkId: string; dealId: string; reason?: string }) => {
-      const { data: { user }, error: authError } = await supabase.auth.getUser();
+    mutationFn: async ({
+      linkId,
+      dealId: _dealId,
+      reason,
+    }: {
+      linkId: string;
+      dealId: string;
+      reason?: string;
+    }) => {
+      const {
+        data: { user },
+        error: authError,
+      } = await supabase.auth.getUser();
       if (authError) throw authError;
       const { error } = await supabase
         .from('document_tracked_links')
@@ -244,7 +264,9 @@ export function useReleaseLog(dealId: string | undefined) {
       if (!dealId) return [];
       const { data, error } = await supabase
         .from('document_release_log')
-        .select('*')
+        .select(
+          'id, deal_id, document_id, buyer_id, buyer_name, buyer_firm, buyer_email, release_method, nda_status_at_release, fee_agreement_status_at_release, released_by, released_at, tracked_link_id, first_opened_at, open_count, last_opened_at, release_notes, contact_id',
+        )
         .eq('deal_id', dealId)
         .order('released_at', { ascending: false });
 
@@ -293,7 +315,9 @@ export function useApprovalQueue(dealId?: string) {
     queryFn: async () => {
       let query = supabase
         .from('marketplace_approval_queue')
-        .select('*')
+        .select(
+          'id, connection_request_id, deal_id, buyer_name, buyer_email, buyer_firm, buyer_role, buyer_message, matched_buyer_id, match_confidence, status, reviewed_by, reviewed_at, decline_reason, decline_category, decline_email_sent, release_log_id, created_at, updated_at',
+        )
         .order('created_at', { ascending: true });
 
       if (dealId) {
@@ -314,7 +338,7 @@ export function usePendingApprovalCount(dealId: string | undefined) {
       if (!dealId) return 0;
       const { count, error } = await supabase
         .from('marketplace_approval_queue')
-        .select('*', { count: 'exact', head: true })
+        .select('id', { count: 'exact', head: true })
         .eq('deal_id', dealId)
         .eq('status', 'pending');
 
@@ -359,7 +383,10 @@ export function useDeclineMarketplaceBuyer() {
       decline_reason?: string;
       send_decline_email?: boolean;
     }) => {
-      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      const {
+        data: { user },
+        error: authError,
+      } = await supabase.auth.getUser();
       if (authError) throw authError;
       const { error } = await supabase
         .from('marketplace_approval_queue')
@@ -396,7 +423,9 @@ export function useDealDataRoomAccess(dealId: string | undefined) {
       if (!dealId) return [];
       const { data, error } = await supabase
         .from('deal_data_room_access')
-        .select('*')
+        .select(
+          'id, deal_id, buyer_id, buyer_email, buyer_name, buyer_firm, access_token, granted_document_ids, is_active, revoked_at, nda_signed_at, fee_agreement_signed_at, granted_by, granted_at, last_accessed_at',
+        )
         .eq('deal_id', dealId)
         .order('granted_at', { ascending: false });
 
@@ -424,7 +453,12 @@ export function useGrantDataRoomAccess() {
       });
 
       if (error) throw error;
-      return data as { success: boolean; data_room_url: string; warning?: string; access_id: string };
+      return data as {
+        success: boolean;
+        data_room_url: string;
+        warning?: string;
+        access_id: string;
+      };
     },
     onSuccess: (data, variables) => {
       queryClient.invalidateQueries({ queryKey: ['deal-data-room-access', variables.deal_id] });
@@ -446,7 +480,10 @@ export function useRevokeDataRoomAccess() {
 
   return useMutation({
     mutationFn: async ({ accessId, dealId: _dealId }: { accessId: string; dealId: string }) => {
-      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      const {
+        data: { user },
+        error: authError,
+      } = await supabase.auth.getUser();
       if (authError) throw authError;
       const { error } = await supabase
         .from('deal_data_room_access')
@@ -489,9 +526,12 @@ export function useUploadDealDocument() {
       description?: string;
     }) => {
       // Determine storage subfolder
-      const subfolder = documentType === 'full_detail_memo' ? 'internal'
-        : documentType === 'anonymous_teaser' ? 'marketing'
-        : 'data-room';
+      const subfolder =
+        documentType === 'full_detail_memo'
+          ? 'internal'
+          : documentType === 'anonymous_teaser'
+            ? 'marketing'
+            : 'data-room';
 
       const filePath = `${dealId}/${subfolder}/${Date.now()}_${file.name}`;
 
@@ -533,7 +573,9 @@ export function useUploadDealDocument() {
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['deal-documents', variables.dealId] });
-      toast.success('Document uploaded', { description: `${variables.file.name} uploaded successfully` });
+      toast.success('Document uploaded', {
+        description: `${variables.file.name} uploaded successfully`,
+      });
     },
     onError: (error: Error) => {
       toast.error('Upload failed', { description: error.message });

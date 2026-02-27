@@ -1,34 +1,39 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { MemosTab } from "@/components/admin/data-room/MemosTab";
-import { DocumentsPanel } from "@/components/admin/data-room/DocumentsPanel";
-import { AccessMatrixPanel } from "@/components/admin/data-room/AccessMatrixPanel";
-import { AuditLogPanel } from "@/components/admin/data-room/AuditLogPanel";
-import { DistributionLogPanel } from "@/components/admin/data-room/DistributionLogPanel";
-import {
-  DealActivityLog,
-  DealPipelinePanel,
-  DealMarketplacePanel,
-} from "@/components/remarketing/deal-detail";
-import { DealBuyerChat } from "@/components/remarketing";
-import {
-  BookOpen,
-  ClipboardList,
-  FolderOpen,
-  Send,
-  Target,
-  Users,
-} from "lucide-react";
-import { Link } from "react-router-dom";
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { BookOpen, FolderOpen, Users, Send, ClipboardList, Target } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { MemosTab } from '@/components/admin/data-room/MemosTab';
+import { DocumentsPanel } from '@/components/admin/data-room/DocumentsPanel';
+import { AccessMatrixPanel } from '@/components/admin/data-room/AccessMatrixPanel';
+import { AuditLogPanel } from '@/components/admin/data-room/AuditLogPanel';
+import { DistributionLogPanel } from '@/components/admin/data-room/DistributionLogPanel';
+import { DealBuyerChat, DealSourceBadge } from '@/components/remarketing';
+import { DealPipelinePanel, DealMarketplacePanel } from '@/components/remarketing/deal-detail';
+import { ListingNotesLog } from '@/components/remarketing/deal-detail/ListingNotesLog';
 
-interface DataRoomTabProps {
-  deal: any;
+interface DealDataRoomTabProps {
   dealId: string;
-  scoreStats: { count: number; approved: number; passed: number; avgScore: number } | undefined;
+  deal: {
+    internal_company_name: string | null;
+    title: string | null;
+    project_name: string | null;
+    is_internal_deal: boolean;
+    status: string | null;
+    address_state: string | null;
+    revenue: number | null;
+  };
+  scoreStats?: {
+    count: number;
+    approved: number;
+    passed: number;
+    avgScore: number;
+  } | null;
 }
 
-export function DataRoomTab({ deal, dealId, scoreStats }: DataRoomTabProps) {
+export function DealDataRoomTab({ dealId, deal, scoreStats }: DealDataRoomTabProps) {
+  const dealTitle = deal.internal_company_name || deal.title;
+
   return (
     <Tabs defaultValue="memos" className="space-y-4">
       <TabsList className="grid w-full grid-cols-5">
@@ -57,7 +62,7 @@ export function DataRoomTab({ deal, dealId, scoreStats }: DataRoomTabProps) {
       <TabsContent value="memos" className="space-y-6">
         <MemosTab
           dealId={dealId}
-          dealTitle={deal.internal_company_name || deal.title}
+          dealTitle={dealTitle}
           projectName={deal.project_name}
         />
       </TabsContent>
@@ -85,11 +90,15 @@ export function DataRoomTab({ deal, dealId, scoreStats }: DataRoomTabProps) {
                 <div className="text-sm text-muted-foreground">Total Matches</div>
               </div>
               <div className="text-center p-4 rounded-lg bg-green-50 dark:bg-green-950/20">
-                <div className="text-2xl font-bold text-green-600">{scoreStats?.approved || 0}</div>
+                <div className="text-2xl font-bold text-green-600">
+                  {scoreStats?.approved || 0}
+                </div>
                 <div className="text-sm text-muted-foreground">Approved</div>
               </div>
               <div className="text-center p-4 rounded-lg bg-red-50 dark:bg-red-950/20">
-                <div className="text-2xl font-bold text-red-600">{scoreStats?.passed || 0}</div>
+                <div className="text-2xl font-bold text-red-600">
+                  {scoreStats?.passed || 0}
+                </div>
                 <div className="text-sm text-muted-foreground">Passed</div>
               </div>
               <div className="text-center p-4 rounded-lg bg-primary/10">
@@ -111,7 +120,10 @@ export function DataRoomTab({ deal, dealId, scoreStats }: DataRoomTabProps) {
         </Card>
 
         <div className="grid gap-6 lg:grid-cols-2">
-          <DealPipelinePanel listingId={dealId} />
+          <DealPipelinePanel
+            listingId={dealId}
+            listingTitle={dealTitle}
+          />
           <DealMarketplacePanel
             listingId={dealId}
             isInternalDeal={deal.is_internal_deal}
@@ -124,17 +136,19 @@ export function DataRoomTab({ deal, dealId, scoreStats }: DataRoomTabProps) {
 
         <DealBuyerChat
           listingId={dealId}
-          dealName={deal.internal_company_name || deal.title}
+          dealName={dealTitle}
           dealGeography={deal.address_state ? [deal.address_state] : []}
           dealRevenue={deal.revenue ?? undefined}
           approvedCount={scoreStats?.approved || 0}
           passedCount={scoreStats?.passed || 0}
-          pendingCount={(scoreStats?.count || 0) - (scoreStats?.approved || 0) - (scoreStats?.passed || 0)}
+          pendingCount={
+            (scoreStats?.count || 0) - (scoreStats?.approved || 0) - (scoreStats?.passed || 0)
+          }
         />
       </TabsContent>
 
       <TabsContent value="activity" className="space-y-6">
-        <DealActivityLog dealId={dealId} maxHeight={800} />
+        <ListingNotesLog listingId={dealId} maxHeight={800} />
         <AuditLogPanel dealId={dealId} />
       </TabsContent>
     </Tabs>

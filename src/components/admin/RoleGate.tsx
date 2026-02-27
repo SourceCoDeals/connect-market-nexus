@@ -8,11 +8,9 @@
  *   <Route path="settings/team" element={<RoleGate min="admin"><InternalTeamPage /></RoleGate>} />
  */
 
-// TEMPORARY BYPASS: imports disabled for dev
-// import { Navigate } from 'react-router-dom';
-// import { useAuth } from '@/context/AuthContext';
-// import { meetsRole, type TeamRole } from '@/config/role-permissions';
-import { type TeamRole } from '@/config/role-permissions';
+import { Navigate } from 'react-router-dom';
+import { useAuth } from '@/context/AuthContext';
+import { meetsRole, type TeamRole } from '@/config/role-permissions';
 
 interface RoleGateProps {
   children: React.ReactNode;
@@ -20,8 +18,17 @@ interface RoleGateProps {
   min: TeamRole;
 }
 
-export function RoleGate({ children }: RoleGateProps) {
-  // TEMPORARY BYPASS: disabled for development page editing
-  // TODO: Restore before production
+export function RoleGate({ children, min }: RoleGateProps) {
+  const { teamRole, isLoading, authChecked } = useAuth();
+
+  // While auth is loading, render nothing to avoid flash
+  if (isLoading || !authChecked) {
+    return null;
+  }
+
+  if (!meetsRole(teamRole, min)) {
+    return <Navigate to="/unauthorized" replace />;
+  }
+
   return <>{children}</>;
 }

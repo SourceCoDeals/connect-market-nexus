@@ -1,7 +1,7 @@
-import { useState, useEffect } from "react";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Button } from "@/components/ui/button";
-import { AlertCircle, X } from "lucide-react";
+import { useState, useEffect } from 'react';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Button } from '@/components/ui/button';
+import { AlertCircle, X } from 'lucide-react';
 
 interface SessionData {
   trackerId: string;
@@ -37,7 +37,7 @@ export function InterruptedSessionBanner({ trackerId }: InterruptedSessionBanner
           localStorage.removeItem(storageKey);
         }
       } catch (error) {
-        console.error("Error parsing session data:", error);
+        console.error('Error parsing session data:', error);
         localStorage.removeItem(storageKey);
       }
     }
@@ -68,20 +68,15 @@ export function InterruptedSessionBanner({ trackerId }: InterruptedSessionBanner
       <AlertCircle className="h-4 w-4 text-blue-500" />
       <AlertTitle className="flex items-center justify-between">
         <span>Interrupted {session.operation}</span>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-6 w-6"
-          onClick={handleDismiss}
-        >
+        <Button variant="ghost" size="icon" className="h-6 w-6" onClick={handleDismiss}>
           <X className="h-4 w-4" />
         </Button>
       </AlertTitle>
       <AlertDescription>
         <div className="space-y-2">
           <p className="text-sm">
-            Your {session.operation.toLowerCase()} was interrupted at {progressPercent}%
-            ({session.progress} of {session.total} completed).
+            Your {session.operation.toLowerCase()} was interrupted at {progressPercent}% (
+            {session.progress} of {session.total} completed).
           </p>
           <Button onClick={handleResume} variant="outline" size="sm">
             Resume Operation
@@ -98,7 +93,7 @@ export function saveSessionState(
   trackerId: string,
   operation: string,
   progress: number,
-  total: number
+  total: number,
 ) {
   const storageKey = `ma-intelligence-session-${trackerId}`;
   const data: SessionData = {
@@ -109,7 +104,11 @@ export function saveSessionState(
     timestamp: Date.now(),
   };
 
-  localStorage.setItem(storageKey, JSON.stringify(data));
+  try {
+    localStorage.setItem(storageKey, JSON.stringify(data));
+  } catch {
+    /* private browsing */
+  }
 }
 
 // Helper function to clear session state

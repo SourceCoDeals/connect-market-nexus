@@ -1,16 +1,42 @@
-import { useEffect, useState } from "react";
-import { useNavigate, Link } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Plus, Building2, Loader2, Users, FileText, ArrowUpDown, Archive, ArchiveRestore, MoreHorizontal, Trash2 } from "lucide-react";
-import { IntelligenceCoverageBar } from "@/components/ma-intelligence/IntelligenceBadge";
-import { useToast } from "@/hooks/use-toast";
-import { Switch } from "@/components/ui/switch";
-import { Label } from "@/components/ui/label";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { deleteTrackerWithRelated } from "@/lib/ma-intelligence/cascadeDelete";
+import { useEffect, useState } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
+import { supabase } from '@/integrations/supabase/client';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import {
+  Plus,
+  Building2,
+  Loader2,
+  Users,
+  FileText,
+  ArrowUpDown,
+  Archive,
+  ArchiveRestore,
+  MoreHorizontal,
+  Trash2,
+} from 'lucide-react';
+import { IntelligenceCoverageBar } from '@/components/ma-intelligence/IntelligenceBadge';
+import { useToast } from '@/hooks/use-toast';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { deleteTrackerWithRelated } from '@/lib/ma-intelligence/cascadeDelete';
 import {
   Table,
   TableBody,
@@ -18,7 +44,7 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table";
+} from '@/components/ui/table';
 
 interface TrackerWithStats {
   id: string;
@@ -27,8 +53,8 @@ interface TrackerWithStats {
   updated_at: string;
   buyer_count: number;
   deal_count: number;
-  enriched_count: number;    // Buyers with website enrichment (contributes up to 50%)
-  transcript_count: number;  // Buyers with transcripts (contributes up to 50%)
+  enriched_count: number; // Buyers with website enrichment (contributes up to 50%)
+  transcript_count: number; // Buyers with transcripts (contributes up to 50%)
 }
 
 export default function MATrackers() {
@@ -46,19 +72,26 @@ export default function MATrackers() {
 
   const loadTrackers = async () => {
     const { data: trackersData, error: trackersDataError } = await supabase
-      .from("industry_trackers")
-      .select("*")
-      .order("updated_at", { ascending: false });
+      .from('industry_trackers')
+      .select('id, name, is_active, updated_at')
+      .order('updated_at', { ascending: false });
     if (trackersDataError) throw trackersDataError;
 
     const withStats = await Promise.all(
       (trackersData || []).map(async (tracker) => {
-        const buyersRes = await supabase.from("remarketing_buyers").select("id").eq("industry_tracker_id", tracker.id);
-        const dealsRes = await supabase.from("deals").select("id").eq("listing_id", tracker.id);
+        const buyersRes = await supabase
+          .from('remarketing_buyers')
+          .select('id')
+          .eq('industry_tracker_id', tracker.id);
+        const dealsRes = await supabase.from('deals').select('id').eq('listing_id', tracker.id);
         const buyerIds = (buyersRes.data || []).map((b) => b.id);
-        const transcriptsRes = buyerIds.length > 0
-          ? await supabase.from("buyer_transcripts").select("buyer_id").in("buyer_id", buyerIds.slice(0, 100))
-          : { data: [] as Array<{ buyer_id: string }> };
+        const transcriptsRes =
+          buyerIds.length > 0
+            ? await supabase
+                .from('buyer_transcripts')
+                .select('buyer_id')
+                .in('buyer_id', buyerIds.slice(0, 100))
+            : { data: [] as Array<{ buyer_id: string }> };
         const buyers = buyersRes.data || [];
         const transcripts = transcriptsRes.data || [];
         const buyerIdsWithTranscripts = new Set(transcripts.map((t) => t.buyer_id));
@@ -66,8 +99,8 @@ export default function MATrackers() {
         const enrichedCount = buyers.length;
 
         // Count buyers with transcripts
-        const transcriptCount = buyers.filter(b => buyerIdsWithTranscripts.has(b.id)).length;
-        
+        const transcriptCount = buyers.filter((b) => buyerIdsWithTranscripts.has(b.id)).length;
+
         return {
           id: tracker.id,
           industry_name: tracker.name || 'Unknown',
@@ -76,9 +109,9 @@ export default function MATrackers() {
           buyer_count: buyers.length,
           deal_count: dealsRes.data?.length || 0,
           enriched_count: enrichedCount,
-          transcript_count: transcriptCount
+          transcript_count: transcriptCount,
         } as TrackerWithStats;
-      })
+      }),
     );
     setTrackers(withStats);
     setIsLoading(false);
@@ -88,14 +121,18 @@ export default function MATrackers() {
     e.stopPropagation();
     // Use is_active (inverted) since is_archived doesn't exist in schema
     const { error } = await supabase
-      .from("industry_trackers")
+      .from('industry_trackers')
       .update({ is_active: tracker.archived }) // If archived, set active; if active, set inactive
-      .eq("id", tracker.id);
+      .eq('id', tracker.id);
 
     if (error) {
-      toast({ title: "Error", description: "Failed to update archive status", variant: "destructive" });
+      toast({
+        title: 'Error',
+        description: 'Failed to update archive status',
+        variant: 'destructive',
+      });
     } else {
-      toast({ title: tracker.archived ? "Universe restored" : "Universe archived" });
+      toast({ title: tracker.archived ? 'Universe restored' : 'Universe archived' });
       loadTrackers();
     }
   };
@@ -112,9 +149,12 @@ export default function MATrackers() {
     const { error } = await deleteTrackerWithRelated(trackerToDelete.id);
 
     if (error) {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
     } else {
-      toast({ title: "Universe deleted", description: `${trackerToDelete.industry_name} has been permanently deleted` });
+      toast({
+        title: 'Universe deleted',
+        description: `${trackerToDelete.industry_name} has been permanently deleted`,
+      });
       loadTrackers();
     }
 
@@ -122,8 +162,8 @@ export default function MATrackers() {
     setTrackerToDelete(null);
   };
 
-  const filteredTrackers = trackers.filter(t => showArchived ? t.archived : !t.archived);
-  const archivedCount = trackers.filter(t => t.archived).length;
+  const filteredTrackers = trackers.filter((t) => (showArchived ? t.archived : !t.archived));
+  const archivedCount = trackers.filter((t) => t.archived).length;
 
   if (isLoading) {
     return (
@@ -138,7 +178,9 @@ export default function MATrackers() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold">Buyer Universes</h1>
-          <p className="text-muted-foreground">Manage your curated buyer universes per industry vertical</p>
+          <p className="text-muted-foreground">
+            Manage your curated buyer universes per industry vertical
+          </p>
         </div>
         <div className="flex gap-3">
           <Button asChild>
@@ -152,11 +194,7 @@ export default function MATrackers() {
 
       {archivedCount > 0 && (
         <div className="flex items-center gap-2">
-          <Switch
-            id="show-archived"
-            checked={showArchived}
-            onCheckedChange={setShowArchived}
-          />
+          <Switch id="show-archived" checked={showArchived} onCheckedChange={setShowArchived} />
           <Label htmlFor="show-archived" className="text-sm text-muted-foreground cursor-pointer">
             Show archived ({archivedCount})
           </Label>
@@ -166,9 +204,13 @@ export default function MATrackers() {
       {filteredTrackers.length === 0 ? (
         <div className="bg-card rounded-lg border p-12 text-center">
           <Building2 className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-          <h3 className="font-semibold mb-2">{showArchived ? "No archived universes" : "No buyer universes yet"}</h3>
+          <h3 className="font-semibold mb-2">
+            {showArchived ? 'No archived universes' : 'No buyer universes yet'}
+          </h3>
           <p className="text-muted-foreground mb-4">
-            {showArchived ? "Archived universes will appear here." : "Create your first universe to start building institutional memory."}
+            {showArchived
+              ? 'Archived universes will appear here.'
+              : 'Create your first universe to start building institutional memory.'}
           </p>
           {!showArchived && (
             <Button asChild>
@@ -207,8 +249,10 @@ export default function MATrackers() {
             <TableBody>
               {filteredTrackers.map((t) => {
                 // Two-tier intel: website (up to 50%) + transcripts (up to 50%)
-                const websiteIntel = t.buyer_count > 0 ? Math.round((t.enriched_count / t.buyer_count) * 50) : 0;
-                const transcriptIntel = t.buyer_count > 0 ? Math.round((t.transcript_count / t.buyer_count) * 50) : 0;
+                const websiteIntel =
+                  t.buyer_count > 0 ? Math.round((t.enriched_count / t.buyer_count) * 50) : 0;
+                const transcriptIntel =
+                  t.buyer_count > 0 ? Math.round((t.transcript_count / t.buyer_count) * 50) : 0;
                 const intelligencePercent = websiteIntel + transcriptIntel;
                 return (
                   <TableRow
@@ -220,20 +264,32 @@ export default function MATrackers() {
                       <div className="flex items-center gap-2">
                         <Building2 className="w-4 h-4 text-primary" />
                         {t.industry_name}
-                        {t.archived && <Badge variant="outline" className="ml-2 text-xs">Archived</Badge>}
+                        {t.archived && (
+                          <Badge variant="outline" className="ml-2 text-xs">
+                            Archived
+                          </Badge>
+                        )}
                       </div>
                     </TableCell>
                     <TableCell className="text-center">{t.buyer_count}</TableCell>
                     <TableCell className="text-center">{t.deal_count}</TableCell>
                     <TableCell>
-                      <IntelligenceCoverageBar 
-                        intelligentCount={t.transcript_count} 
+                      <IntelligenceCoverageBar
+                        intelligentCount={t.transcript_count}
                         totalCount={t.buyer_count}
                         enrichedCount={t.enriched_count}
                       />
                     </TableCell>
                     <TableCell className="text-center">
-                      <Badge variant={intelligencePercent >= 70 ? "default" : intelligencePercent >= 40 ? "secondary" : "outline"}>
+                      <Badge
+                        variant={
+                          intelligencePercent >= 70
+                            ? 'default'
+                            : intelligencePercent >= 40
+                              ? 'secondary'
+                              : 'outline'
+                        }
+                      >
                         {intelligencePercent}% intel
                       </Badge>
                     </TableCell>
@@ -246,11 +302,18 @@ export default function MATrackers() {
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                           <DropdownMenuItem onClick={(e) => handleArchiveToggle(e, t)}>
-                            {t.archived ? <ArchiveRestore className="w-4 h-4 mr-2" /> : <Archive className="w-4 h-4 mr-2" />}
-                            {t.archived ? "Restore" : "Archive"}
+                            {t.archived ? (
+                              <ArchiveRestore className="w-4 h-4 mr-2" />
+                            ) : (
+                              <Archive className="w-4 h-4 mr-2" />
+                            )}
+                            {t.archived ? 'Restore' : 'Archive'}
                           </DropdownMenuItem>
                           <DropdownMenuSeparator />
-                          <DropdownMenuItem onClick={(e) => confirmDeleteTracker(e, t)} className="text-destructive">
+                          <DropdownMenuItem
+                            onClick={(e) => confirmDeleteTracker(e, t)}
+                            className="text-destructive"
+                          >
                             <Trash2 className="w-4 h-4 mr-2" />
                             Delete permanently
                           </DropdownMenuItem>
@@ -270,12 +333,17 @@ export default function MATrackers() {
           <AlertDialogHeader>
             <AlertDialogTitle>Delete {trackerToDelete?.industry_name}?</AlertDialogTitle>
             <AlertDialogDescription>
-              This will permanently delete this buyer universe including {trackerToDelete?.buyer_count || 0} buyers and {trackerToDelete?.deal_count || 0} deals. This action cannot be undone.
+              This will permanently delete this buyer universe including{' '}
+              {trackerToDelete?.buyer_count || 0} buyers and {trackerToDelete?.deal_count || 0}{' '}
+              deals. This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={deleteTracker} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+            <AlertDialogAction
+              onClick={deleteTracker}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
               Delete permanently
             </AlertDialogAction>
           </AlertDialogFooter>

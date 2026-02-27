@@ -47,7 +47,9 @@ export default function BuyerEnrichSection({ addLog, buyerId, onBuyerIdChange }:
     try {
       const { data: bData, error: bDataError } = await supabase
         .from('buyers')
-        .select('*')
+        .select(
+          'id, business_summary, target_industries, target_services, target_geographies, geographic_footprint, service_regions, hq_state, hq_city, min_revenue, max_revenue, min_ebitda, max_ebitda, pe_firm_name, thesis_summary, data_last_updated',
+        )
         .eq('id', buyerId)
         .single();
       if (bDataError) throw bDataError;
@@ -67,7 +69,9 @@ export default function BuyerEnrichSection({ addLog, buyerId, onBuyerIdChange }:
 
       const { data: aData, error: aDataError } = await supabase
         .from('buyers')
-        .select('*')
+        .select(
+          'id, business_summary, target_industries, target_services, target_geographies, geographic_footprint, service_regions, hq_state, hq_city, min_revenue, max_revenue, min_ebitda, max_ebitda, pe_firm_name, thesis_summary, data_last_updated',
+        )
         .eq('id', buyerId)
         .single();
       if (aDataError) throw aDataError;

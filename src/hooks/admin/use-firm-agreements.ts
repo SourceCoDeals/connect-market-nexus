@@ -2,7 +2,14 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
-export type AgreementStatus = 'not_started' | 'sent' | 'redlined' | 'under_review' | 'signed' | 'expired' | 'declined';
+export type AgreementStatus =
+  | 'not_started'
+  | 'sent'
+  | 'redlined'
+  | 'under_review'
+  | 'signed'
+  | 'expired'
+  | 'declined';
 export type AgreementSource = 'platform' | 'manual' | 'docusign' | 'other';
 export type AgreementScope = 'blanket' | 'deal_specific';
 
@@ -103,7 +110,8 @@ export function useFirmAgreements() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('firm_agreements')
-        .select(`
+        .select(
+          `
           *,
           firm_members(
             id,
@@ -114,7 +122,8 @@ export function useFirmAgreements() {
               email
             )
           )
-        `)
+        `,
+        )
         .order('primary_company_name');
 
       if (error) throw error;
@@ -122,7 +131,7 @@ export function useFirmAgreements() {
       const firms = data || [];
       if (firms.length === 0) return [] as FirmAgreement[];
 
-      const firmIds = firms.map(f => f.id);
+      const firmIds = firms.map((f) => f.id);
 
       // Batch-fetch stats: 2-3 queries total instead of 4*N
       const [leadsRes, requestsRes] = await Promise.all([
@@ -162,7 +171,7 @@ export function useFirmAgreements() {
         });
       }
 
-      return firms.map(firm => ({
+      return firms.map((firm) => ({
         ...firm,
         lead_count: leadCounts[firm.id] || 0,
         request_count: requestCounts[firm.id] || 0,
@@ -180,7 +189,8 @@ export function useFirmMembers(firmId: string | null) {
 
       const { data, error } = await supabase
         .from('firm_members')
-        .select(`
+        .select(
+          `
           *,
           user:profiles(
             id,
@@ -190,7 +200,8 @@ export function useFirmMembers(firmId: string | null) {
             company_name,
             buyer_type
           )
-        `)
+        `,
+        )
         .eq('firm_id', firmId)
         .order('member_type', { ascending: false })
         .order('is_primary_contact', { ascending: false });
@@ -207,9 +218,7 @@ export function useAllFirmMembersForSearch() {
   return useQuery({
     queryKey: ['firm-members-search'],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('firm_members')
-        .select(`
+      const { data, error } = await supabase.from('firm_members').select(`
           firm_id,
           user:profiles(
             id,
@@ -221,7 +230,16 @@ export function useAllFirmMembersForSearch() {
         `);
 
       if (error) throw error;
-      return (data || []) as Array<{ firm_id: string; user: { id: string; first_name: string | null; last_name: string | null; email: string | null; buyer_type: string | null } | null }>;
+      return (data || []) as Array<{
+        firm_id: string;
+        user: {
+          id: string;
+          first_name: string | null;
+          last_name: string | null;
+          email: string | null;
+          buyer_type: string | null;
+        } | null;
+      }>;
     },
     staleTime: 60_000,
   });
@@ -255,9 +273,9 @@ export function useUpdateFirmFeeAgreement() {
     },
     onMutate: async ({ firmId, isSigned }) => {
       await queryClient.cancelQueries({ queryKey: ['firm-agreements'] });
-      
+
       const previousData = queryClient.getQueryData(['firm-agreements']);
-      
+
       queryClient.setQueryData(['firm-agreements'], (old: any) => {
         if (!old) return old;
         return old.map((firm: any) =>
@@ -267,10 +285,10 @@ export function useUpdateFirmFeeAgreement() {
                 fee_agreement_signed: isSigned,
                 fee_agreement_signed_at: isSigned ? new Date().toISOString() : null,
               }
-            : firm
+            : firm,
         );
       });
-      
+
       return { previousData };
     },
     onSuccess: () => {
@@ -336,7 +354,7 @@ export function useUpdateFirmNDA() {
                 nda_signed: isSigned,
                 nda_signed_at: isSigned ? new Date().toISOString() : null,
               }
-            : firm
+            : firm,
         );
       });
 
@@ -425,14 +443,18 @@ export function useUpdateAgreementStatus() {
               ...firm,
               nda_status: params.newStatus,
               nda_signed: params.newStatus === 'signed',
-              nda_signed_at: params.newStatus === 'signed' ? new Date().toISOString() : firm.nda_signed_at,
+              nda_signed_at:
+                params.newStatus === 'signed' ? new Date().toISOString() : firm.nda_signed_at,
             };
           }
           return {
             ...firm,
             fee_agreement_status: params.newStatus,
             fee_agreement_signed: params.newStatus === 'signed',
-            fee_agreement_signed_at: params.newStatus === 'signed' ? new Date().toISOString() : firm.fee_agreement_signed_at,
+            fee_agreement_signed_at:
+              params.newStatus === 'signed'
+                ? new Date().toISOString()
+                : firm.fee_agreement_signed_at,
           };
         });
       });
@@ -488,7 +510,9 @@ export function useAgreementAuditLog(firmId: string | null) {
       if (!firmId) return [];
       const { data, error } = await supabase
         .from('agreement_audit_log')
-        .select('*')
+        .select(
+          'id, firm_id, agreement_type, old_status, new_status, changed_by, document_url, notes, metadata, created_at',
+        )
         .eq('firm_id', firmId)
         .order('created_at', { ascending: false });
 
@@ -510,7 +534,7 @@ export function useFirmDomainAliases(firmId: string | null) {
       if (!firmId) return [];
       const { data, error } = await supabase
         .from('firm_domain_aliases')
-        .select('*')
+        .select('id, firm_id, domain, is_primary, created_at')
         .eq('firm_id', firmId)
         .order('is_primary', { ascending: false });
 
@@ -555,10 +579,7 @@ export function useRemoveDomainAlias() {
 
   return useMutation({
     mutationFn: async ({ aliasId, firmId }: { aliasId: string; firmId: string }) => {
-      const { error } = await supabase
-        .from('firm_domain_aliases')
-        .delete()
-        .eq('id', aliasId);
+      const { error } = await supabase.from('firm_domain_aliases').delete().eq('id', aliasId);
 
       if (error) throw error;
       return firmId;

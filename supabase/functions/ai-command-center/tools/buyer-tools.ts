@@ -515,7 +515,9 @@ async function getScoreBreakdown(
 ): Promise<ToolResult> {
   const { data, error } = await supabase
     .from('remarketing_scores')
-    .select('*')
+    .select(
+      'buyer_id, listing_id, universe_id, composite_score, geography_score, service_score, size_score, owner_goals_score, acquisition_score, business_model_score, portfolio_score, fit_reasoning, pass_reason, pass_category, status, tier, scored_at, size_multiplier, service_multiplier, geography_mode_factor, thesis_alignment_bonus, data_quality_bonus, custom_bonus, learning_penalty, is_disqualified, disqualification_reason, needs_review, deal_snapshot',
+    )
     .eq('buyer_id', args.buyer_id as string)
     .eq('listing_id', args.deal_id as string)
     .single();

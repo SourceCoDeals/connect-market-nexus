@@ -42,21 +42,16 @@ export function useMapboxToken() {
       return;
     }
 
-    // If a fetch is in progress, wait for it
-    if (tokenPromise) {
-      tokenPromise.then((fetchedToken) => {
-        setToken(fetchedToken);
-        setIsLoading(false);
-      });
-      return;
-    }
-
-    // Start a new fetch
-    tokenPromise = fetchMapboxToken();
-    tokenPromise.then((fetchedToken) => {
+    const resolve = async () => {
+      // If a fetch is in progress, wait for it; otherwise start a new fetch
+      if (!tokenPromise) {
+        tokenPromise = fetchMapboxToken();
+      }
+      const fetchedToken = await tokenPromise;
       setToken(fetchedToken);
       setIsLoading(false);
-    });
+    };
+    resolve();
   }, []);
 
   return { token, isLoading };

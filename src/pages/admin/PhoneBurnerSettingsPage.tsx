@@ -54,7 +54,7 @@ function usePhoneBurnerWebhookLog() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('phoneburner_webhooks_log')
-        .select('*')
+        .select('id, event_type, event_id, processing_status, created_at')
         .order('created_at', { ascending: false })
         .limit(10);
       if (error) throw error;
@@ -64,8 +64,7 @@ function usePhoneBurnerWebhookLog() {
 }
 
 export default function PhoneBurnerSettingsPage() {
-  const { data: connectedUsers = [], isLoading: usersLoading } =
-    usePhoneBurnerConnectedUsers();
+  const { data: connectedUsers = [], isLoading: usersLoading } = usePhoneBurnerConnectedUsers();
   const { data: stats } = usePhoneBurnerStats();
   const { data: webhookEvents = [] } = usePhoneBurnerWebhookLog();
   const disconnectMutation = useDisconnectPhoneBurnerUser();
@@ -96,13 +95,17 @@ export default function PhoneBurnerSettingsPage() {
           setNewDisplayName('');
         },
         onError: (err) =>
-          toast.error(`Failed to save token: ${err instanceof Error ? err.message : 'Unknown error'}`),
+          toast.error(
+            `Failed to save token: ${err instanceof Error ? err.message : 'Unknown error'}`,
+          ),
       },
     );
   };
 
   const handleDisconnect = (userId: string, label: string) => {
-    if (!confirm(`Disconnect ${label} from PhoneBurner? They will need a new token to push contacts.`)) {
+    if (
+      !confirm(`Disconnect ${label} from PhoneBurner? They will need a new token to push contacts.`)
+    ) {
       return;
     }
     disconnectMutation.mutate(userId, {
@@ -120,7 +123,8 @@ export default function PhoneBurnerSettingsPage() {
           <div>
             <h1 className="text-2xl font-bold tracking-tight">PhoneBurner Integration</h1>
             <p className="text-muted-foreground">
-              Manage PhoneBurner access tokens for your team. Paste each user's API access token below.
+              Manage PhoneBurner access tokens for your team. Paste each user's API access token
+              below.
             </p>
           </div>
           <Button variant="ghost" size="sm" asChild>
@@ -139,13 +143,17 @@ export default function PhoneBurnerSettingsPage() {
             <Zap className="h-5 w-5 mx-auto mb-1 text-muted-foreground" />
             <p className="text-xs text-muted-foreground">Connected Users</p>
             {usersLoading ? (
-              <Badge variant="outline" className="mt-1">Checking...</Badge>
+              <Badge variant="outline" className="mt-1">
+                Checking...
+              </Badge>
             ) : validCount > 0 ? (
               <Badge className="mt-1 bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300">
                 {validCount} connected
               </Badge>
             ) : (
-              <Badge variant="destructive" className="mt-1">None</Badge>
+              <Badge variant="destructive" className="mt-1">
+                None
+              </Badge>
             )}
           </CardContent>
         </Card>
@@ -188,7 +196,8 @@ export default function PhoneBurnerSettingsPage() {
               className="underline"
             >
               PhoneBurner Developer Settings
-            </a>.
+            </a>
+            .
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -235,7 +244,8 @@ export default function PhoneBurnerSettingsPage() {
             Connected Accounts
           </CardTitle>
           <CardDescription>
-            Accounts with saved access tokens. The admin can push contact lists to any connected account.
+            Accounts with saved access tokens. The admin can push contact lists to any connected
+            account.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -263,7 +273,9 @@ export default function PhoneBurnerSettingsPage() {
                     <div>
                       <span className="font-medium">{user.label}</span>
                       {user.is_manual_token && (
-                        <Badge variant="outline" className="ml-2 text-xs">Manual Token</Badge>
+                        <Badge variant="outline" className="ml-2 text-xs">
+                          Manual Token
+                        </Badge>
                       )}
                       {user.phoneburner_user_email && (
                         <span className="text-xs text-muted-foreground ml-2">
@@ -278,9 +290,7 @@ export default function PhoneBurnerSettingsPage() {
                     </Badge>
                     <span className="text-xs text-muted-foreground">
                       Updated:{' '}
-                      {user.updated_at
-                        ? new Date(user.updated_at).toLocaleDateString()
-                        : '--'}
+                      {user.updated_at ? new Date(user.updated_at).toLocaleDateString() : '--'}
                     </span>
                     <Button
                       variant="ghost"
@@ -303,9 +313,7 @@ export default function PhoneBurnerSettingsPage() {
       <Card>
         <CardHeader>
           <CardTitle className="text-lg">Setup</CardTitle>
-          <CardDescription>
-            Configure PhoneBurner webhooks for call tracking
-          </CardDescription>
+          <CardDescription>Configure PhoneBurner webhooks for call tracking</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-2">
@@ -354,16 +362,21 @@ export default function PhoneBurnerSettingsPage() {
         </CardHeader>
         <CardContent className="space-y-3">
           <div className="flex items-start gap-3">
-            <div className="flex items-center justify-center h-6 w-6 rounded-full bg-primary/10 text-primary text-xs font-bold shrink-0 mt-0.5">1</div>
+            <div className="flex items-center justify-center h-6 w-6 rounded-full bg-primary/10 text-primary text-xs font-bold shrink-0 mt-0.5">
+              1
+            </div>
             <div>
               <p className="text-sm font-medium">Add Access Tokens</p>
               <p className="text-xs text-muted-foreground">
-                Paste each team member's PhoneBurner API access token above. Tokens are stored securely.
+                Paste each team member's PhoneBurner API access token above. Tokens are stored
+                securely.
               </p>
             </div>
           </div>
           <div className="flex items-start gap-3">
-            <div className="flex items-center justify-center h-6 w-6 rounded-full bg-primary/10 text-primary text-xs font-bold shrink-0 mt-0.5">2</div>
+            <div className="flex items-center justify-center h-6 w-6 rounded-full bg-primary/10 text-primary text-xs font-bold shrink-0 mt-0.5">
+              2
+            </div>
             <div>
               <p className="text-sm font-medium">Admin Builds Calling Lists</p>
               <p className="text-xs text-muted-foreground">
@@ -372,22 +385,26 @@ export default function PhoneBurnerSettingsPage() {
             </div>
           </div>
           <div className="flex items-start gap-3">
-            <div className="flex items-center justify-center h-6 w-6 rounded-full bg-primary/10 text-primary text-xs font-bold shrink-0 mt-0.5">3</div>
+            <div className="flex items-center justify-center h-6 w-6 rounded-full bg-primary/10 text-primary text-xs font-bold shrink-0 mt-0.5">
+              3
+            </div>
             <div>
               <p className="text-sm font-medium">Choose Target Account(s)</p>
               <p className="text-xs text-muted-foreground">
-                In the Push to Dialer dialog, select one or more connected PhoneBurner accounts
-                to push the contacts to.
+                In the Push to Dialer dialog, select one or more connected PhoneBurner accounts to
+                push the contacts to.
               </p>
             </div>
           </div>
           <div className="flex items-start gap-3">
-            <div className="flex items-center justify-center h-6 w-6 rounded-full bg-primary/10 text-primary text-xs font-bold shrink-0 mt-0.5">4</div>
+            <div className="flex items-center justify-center h-6 w-6 rounded-full bg-primary/10 text-primary text-xs font-bold shrink-0 mt-0.5">
+              4
+            </div>
             <div>
               <p className="text-sm font-medium">Track Activity</p>
               <p className="text-xs text-muted-foreground">
-                Call events and dispositions sync back automatically via webhooks. View call
-                history on buyer detail pages.
+                Call events and dispositions sync back automatically via webhooks. View call history
+                on buyer detail pages.
               </p>
             </div>
           </div>
@@ -424,9 +441,13 @@ export default function PhoneBurnerSettingsPage() {
                         Processed
                       </Badge>
                     ) : event.processing_status === 'failed' ? (
-                      <Badge variant="destructive" className="text-xs">Failed</Badge>
+                      <Badge variant="destructive" className="text-xs">
+                        Failed
+                      </Badge>
                     ) : (
-                      <Badge variant="outline" className="text-xs">Received</Badge>
+                      <Badge variant="outline" className="text-xs">
+                        Received
+                      </Badge>
                     )}
                     <span className="text-xs text-muted-foreground">
                       {new Date(event.created_at as string).toLocaleString()}

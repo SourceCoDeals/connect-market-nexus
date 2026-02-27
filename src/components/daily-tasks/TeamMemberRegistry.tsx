@@ -24,7 +24,9 @@ export function TeamMemberRegistry() {
         .select('user_id, role, profiles!inner(id, first_name, last_name, email)')
         .in('role', ['owner', 'admin', 'moderator']);
 
-      const { data: aliases } = await supabase.from('team_member_aliases' as any).select('*');
+      const { data: aliases } = await supabase
+        .from('team_member_aliases' as any)
+        .select('id, profile_id, alias');
 
       const aliasMap = new Map<string, { id: string; alias: string }[]>();
       for (const a of (aliases || []) as any[]) {

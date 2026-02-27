@@ -9,10 +9,7 @@ interface BackgroundScoringState {
   progress: number;
 }
 
-export function useBackgroundScoringProgress(
-  listingId: string,
-  universeId?: string
-) {
+export function useBackgroundScoringProgress(listingId: string, universeId?: string) {
   const queryClient = useQueryClient();
   const [scoringState, setScoringState] = useState<BackgroundScoringState>({
     isScoring: false,
@@ -28,7 +25,7 @@ export function useBackgroundScoringProgress(
       if (!universeId) return 0;
       const { count } = await supabase
         .from('remarketing_buyers')
-        .select('*', { count: 'exact', head: true })
+        .select('id', { count: 'exact', head: true })
         .eq('universe_id', universeId)
         .eq('archived', false);
       return count || 0;
@@ -42,13 +39,13 @@ export function useBackgroundScoringProgress(
     queryFn: async () => {
       let query = supabase
         .from('remarketing_scores')
-        .select('*', { count: 'exact', head: true })
+        .select('id', { count: 'exact', head: true })
         .eq('listing_id', listingId);
-      
+
       if (universeId) {
         query = query.eq('universe_id', universeId);
       }
-      
+
       const { count } = await query;
       return count || 0;
     },

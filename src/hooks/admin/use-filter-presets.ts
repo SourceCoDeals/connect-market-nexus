@@ -18,7 +18,7 @@ export function useFilterPresets() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('filter_presets')
-        .select('*')
+        .select('id, user_id, name, filters, is_default, created_at, updated_at')
         .order('created_at', { ascending: false });
 
       if (error) throw error;
@@ -32,8 +32,15 @@ export function useCreateFilterPreset() {
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: async (preset: { name: string; filters: Record<string, any>; is_default?: boolean }) => {
-      const { data: { user }, error: authError } = await supabase.auth.getUser();
+    mutationFn: async (preset: {
+      name: string;
+      filters: Record<string, any>;
+      is_default?: boolean;
+    }) => {
+      const {
+        data: { user },
+        error: authError,
+      } = await supabase.auth.getUser();
       if (authError) throw authError;
       if (!user) throw new Error('Not authenticated');
 
@@ -107,10 +114,7 @@ export function useDeleteFilterPreset() {
 
   return useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase
-        .from('filter_presets')
-        .delete()
-        .eq('id', id);
+      const { error } = await supabase.from('filter_presets').delete().eq('id', id);
 
       if (error) throw error;
     },
