@@ -11,7 +11,7 @@ import { ConnectionRequestDialog } from '@/components/admin/ConnectionRequestDia
 import { ApprovalEmailDialog } from '@/components/admin/ApprovalEmailDialog';
 import { PipelineMetricsCard } from '@/components/admin/PipelineMetricsCard';
 import { PipelineFilters } from '@/components/admin/PipelineFilters';
-import { usePipelineFilters } from '@/hooks/admin/use-pipeline-filters';
+import { usePipelineFilters, type StatusFilter, type BuyerTypeFilter, type NdaFilter, type FeeAgreementFilter, type SortOption } from '@/hooks/admin/use-pipeline-filters';
 import { toast } from '@/hooks/use-toast';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { MobileConnectionRequests } from '@/components/admin/MobileConnectionRequests';
@@ -149,18 +149,18 @@ const AdminRequests = () => {
       filters.forEach((f) => {
         switch (f.field) {
           case 'status':
-            setStatusFilter(f.value as string);
+            setStatusFilter(f.value as StatusFilter);
             break;
           case 'buyer_type':
-            setBuyerTypeFilter(f.value as string);
+            setBuyerTypeFilter(f.value as BuyerTypeFilter);
             break;
           case 'nda':
           case 'nda_status':
-            setNdaFilter(f.value as string);
+            setNdaFilter(f.value as NdaFilter);
             break;
           case 'fee_agreement':
           case 'fee_agreement_status':
-            setFeeAgreementFilter(f.value as string);
+            setFeeAgreementFilter(f.value as FeeAgreementFilter);
             break;
           case 'search':
           case 'query':
@@ -177,7 +177,7 @@ const AdminRequests = () => {
         company: 'company',
         status: 'status',
       };
-      setSortOption(sortMap[field] || field);
+      setSortOption((sortMap[field] || field) as SortOption);
     },
     onClearSelection: () => {
       setStatusFilter('all');

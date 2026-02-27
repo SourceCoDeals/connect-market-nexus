@@ -89,6 +89,7 @@ export function useDealLandingPage(dealId: string | undefined) {
         ...data,
         custom_sections: data.custom_sections as LandingPageDeal['custom_sections'],
         growth_drivers: data.growth_drivers as string[] | null,
+        service_mix: (Array.isArray(data.service_mix) ? data.service_mix : data.service_mix ? [data.service_mix] : null) as string[] | null,
       };
     },
     enabled: !!dealId,
