@@ -10,6 +10,7 @@ interface UseMatchingActionsProps {
   listingId: string | undefined;
   scores: any[] | undefined;
   selectedUniverse: string;
+  linkedUniverses: Array<{ id: string; name: string }> | undefined;
   setIsScoring: (v: boolean) => void;
   setScoringProgress: (v: number) => void;
   setCustomInstructions: (v: string) => void;
@@ -18,7 +19,7 @@ interface UseMatchingActionsProps {
 }
 
 export function useMatchingActions({
-  listingId, scores, selectedUniverse,
+  listingId, scores, selectedUniverse, linkedUniverses,
   setIsScoring, setScoringProgress, setCustomInstructions,
   refetchOutreach, listing,
 }: UseMatchingActionsProps) {
@@ -151,8 +152,16 @@ export function useMatchingActions({
 
   // Bulk score using edge function
   const handleBulkScore = async (_instructions?: string) => {
-    if (!selectedUniverse) {
-      toast.error('Please select a universe first');
+    // Determine which universe IDs to score
+    let universeIds: string[] = [];
+    if (selectedUniverse === 'all' || !selectedUniverse) {
+      universeIds = (linkedUniverses || []).map(u => u.id);
+    } else {
+      universeIds = [selectedUniverse];
+    }
+
+    if (universeIds.length === 0) {
+      toast.error('No universes linked to this deal. Link a buyer universe first.');
       return;
     }
 
@@ -161,12 +170,14 @@ export function useMatchingActions({
 
     try {
       const { queueDealScoring } = await import("@/lib/remarketing/queueScoring");
-      await queueDealScoring({ universeId: selectedUniverse, listingIds: [listingId!] });
+      let totalQueued = 0;
+      for (const uid of universeIds) {
+        totalQueued += await queueDealScoring({ universeId: uid, listingIds: [listingId!] });
+      }
 
       setScoringProgress(100);
       queryClient.invalidateQueries({ queryKey: ['remarketing', 'scores', listingId] });
     } catch (error) {
-      // Scoring error — toast shown to user
       toast.error('Failed to score buyers');
     } finally {
       setIsScoring(false);
