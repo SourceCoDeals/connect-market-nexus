@@ -34,7 +34,14 @@ export interface ToolCallInfo {
 }
 
 export interface UIActionPayload {
-  type: 'select_rows' | 'apply_filter' | 'sort_column' | 'navigate' | 'highlight_rows' | 'clear_selection' | 'trigger_action';
+  type:
+    | 'select_rows'
+    | 'apply_filter'
+    | 'sort_column'
+    | 'navigate'
+    | 'highlight_rows'
+    | 'clear_selection'
+    | 'trigger_action';
   target: string;
   payload: Record<string, unknown>;
 }
@@ -90,10 +97,12 @@ export function useAICommandCenter(pageContext?: PageContext) {
     if (saved && savedId) {
       try {
         const parsed = JSON.parse(saved) as AIMessage[];
-        setMessages(parsed.map(m => ({ ...m, timestamp: new Date(m.timestamp) })));
+        setMessages(parsed.map((m) => ({ ...m, timestamp: new Date(m.timestamp) })));
         conversationIdRef.current = savedId;
         persistedRef.current = true;
-      } catch { /* ignore corrupt data */ }
+      } catch {
+        /* ignore corrupt data */
+      }
     }
   }, []);
 
@@ -103,112 +112,114 @@ export function useAICommandCenter(pageContext?: PageContext) {
   }, []);
 
   // Send a message
-  const sendMessage = useCallback(async (query: string) => {
-    if (!query.trim() || isLoading) return;
+  const sendMessage = useCallback(
+    async (query: string) => {
+      if (!query.trim() || isLoading) return;
 
-    // Cancel any in-flight request
-    abortControllerRef.current?.abort();
-    abortControllerRef.current = new AbortController();
+      // Cancel any in-flight request
+      abortControllerRef.current?.abort();
+      abortControllerRef.current = new AbortController();
 
-    setError(null);
-    setPendingConfirmation(null);
+      setError(null);
+      setPendingConfirmation(null);
 
-    // Add user message
-    const userMsg: AIMessage = {
-      id: crypto.randomUUID(),
-      role: 'user',
-      content: query.trim(),
-      timestamp: new Date(),
-    };
-
-    setMessages(prev => [...prev, userMsg]);
-    setIsLoading(true);
-    setStreamingContent('');
-    setCurrentPhase('routing');
-    setActiveTools([]);
-
-    try {
-      const { data: sessionData } = await supabase.auth.getSession();
-      if (!sessionData.session) {
-        throw new Error('You must be logged in to use the AI Command Center');
-      }
-
-      // Build conversation history for context
-      const history = messages.slice(-10).map(m => ({
-        role: m.role,
-        content: m.content,
-      }));
-
-      const fetchOptions = {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${sessionData.session.access_token}`,
-          apikey: SUPABASE_PUBLISHABLE_KEY,
-        },
-        body: JSON.stringify({
-          query: query.trim(),
-          conversation_id: conversationIdRef.current,
-          history,
-          page_context: pageContext,
-        }),
-        signal: abortControllerRef.current.signal,
+      // Add user message
+      const userMsg: AIMessage = {
+        id: crypto.randomUUID(),
+        role: 'user',
+        content: query.trim(),
+        timestamp: new Date(),
       };
 
-      // Retry up to 2 times on network errors (Failed to fetch / TypeError)
-      let response: Response | undefined;
-      for (let attempt = 0; attempt < 3; attempt++) {
-        try {
-          response = await fetch(
-            `${SUPABASE_URL}/functions/v1/ai-command-center`,
-            fetchOptions,
-          );
-          break;
-        } catch (fetchErr) {
-          if (fetchErr instanceof Error && fetchErr.name === 'AbortError') throw fetchErr;
-          if (attempt < 2) {
-            await new Promise(r => setTimeout(r, 1000 * (attempt + 1)));
+      setMessages((prev) => [...prev, userMsg]);
+      setIsLoading(true);
+      setStreamingContent('');
+      setCurrentPhase('routing');
+      setActiveTools([]);
+
+      try {
+        const { data: sessionData } = await supabase.auth.getSession();
+        if (!sessionData.session) {
+          throw new Error('You must be logged in to use the AI Command Center');
+        }
+
+        // Build conversation history for context
+        const history = messages.slice(-10).map((m) => ({
+          role: m.role,
+          content: m.content,
+        }));
+
+        const fetchOptions = {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${sessionData.session.access_token}`,
+            apikey: SUPABASE_PUBLISHABLE_KEY,
+          },
+          body: JSON.stringify({
+            query: query.trim(),
+            conversation_id: conversationIdRef.current,
+            history,
+            page_context: pageContext,
+          }),
+          signal: abortControllerRef.current.signal,
+        };
+
+        // Retry up to 2 times on network errors (Failed to fetch / TypeError)
+        let response: Response | undefined;
+        for (let attempt = 0; attempt < 3; attempt++) {
+          try {
+            response = await fetch(`${SUPABASE_URL}/functions/v1/ai-command-center`, fetchOptions);
+            break;
+          } catch (fetchErr) {
+            if (fetchErr instanceof Error && fetchErr.name === 'AbortError') throw fetchErr;
+            if (attempt < 2) {
+              await new Promise((r) => setTimeout(r, 1000 * (attempt + 1)));
+            }
           }
         }
-      }
 
-      if (!response) {
-        throw new Error(
-          'Unable to reach the AI service. Please check your internet connection and try again.',
-        );
-      }
+        if (!response) {
+          throw new Error(
+            'Unable to reach the AI service. Please check your internet connection and try again.',
+          );
+        }
 
-      if (response.status === 429) {
-        throw new Error('Rate limit exceeded. Please wait a moment and try again.');
-      }
-      if (response.status === 401 || response.status === 403) {
-        throw new Error('Unauthorized. Please ensure you have admin access.');
-      }
-      if (!response.ok) {
-        const err = await response.json().catch(() => ({}));
-        throw new Error((err as Record<string, string>).error || 'Failed to get response');
-      }
+        if (response.status === 429) {
+          throw new Error('Rate limit exceeded. Please wait a moment and try again.');
+        }
+        if (response.status === 401 || response.status === 403) {
+          throw new Error('Unauthorized. Please ensure you have admin access.');
+        }
+        if (!response.ok) {
+          const err = await response.json().catch(() => ({}));
+          throw new Error((err as Record<string, string>).error || 'Failed to get response');
+        }
 
-      // Process SSE stream
-      await processSSEStream(response);
-
-    } catch (err) {
-      if (err instanceof Error && err.name === 'AbortError') return;
-      const message = err instanceof Error ? err.message : 'An error occurred';
-      setError(message);
-      setMessages(prev => [...prev, {
-        id: crypto.randomUUID(),
-        role: 'assistant',
-        content: `Sorry, something went wrong: ${message}`,
-        timestamp: new Date(),
-      }]);
-    } finally {
-      setIsLoading(false);
-      setStreamingContent('');
-      setCurrentPhase('');
-      setActiveTools([]);
-    }
-  }, [isLoading, messages, pageContext]);
+        // Process SSE stream
+        await processSSEStream(response);
+      } catch (err) {
+        if (err instanceof Error && err.name === 'AbortError') return;
+        const message = err instanceof Error ? err.message : 'An error occurred';
+        setError(message);
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: crypto.randomUUID(),
+            role: 'assistant',
+            content: `Sorry, something went wrong: ${message}`,
+            timestamp: new Date(),
+          },
+        ]);
+      } finally {
+        setIsLoading(false);
+        setStreamingContent('');
+        setCurrentPhase('');
+        setActiveTools([]);
+      }
+    },
+    [isLoading, messages, pageContext],
+  );
 
   // Process SSE stream from the orchestrator
   const processSSEStream = useCallback(async (response: Response) => {
@@ -282,7 +293,7 @@ export function useAICommandCenter(pageContext?: PageContext) {
             }
 
             case 'tool_result': {
-              const idx = toolCalls.findIndex(t => t.id === data.id);
+              const idx = toolCalls.findIndex((t) => t.id === data.id);
               if (idx >= 0) {
                 toolCalls[idx].status = data.success ? 'success' : 'error';
                 toolCalls[idx].hasUIAction = data.has_ui_action;
@@ -335,7 +346,7 @@ export function useAICommandCenter(pageContext?: PageContext) {
         pendingConfirmation: confirmation || undefined,
         metadata: meta,
       };
-      setMessages(prev => [...prev, assistantMsg]);
+      setMessages((prev) => [...prev, assistantMsg]);
     }
   }, []);
 
@@ -353,33 +364,30 @@ export function useAICommandCenter(pageContext?: PageContext) {
       const { data: sessionData } = await supabase.auth.getSession();
       if (!sessionData.session) throw new Error('Not authenticated');
 
-      const history = messages.slice(-10).map(m => ({
+      const history = messages.slice(-10).map((m) => ({
         role: m.role,
         content: m.content,
       }));
 
-      const response = await fetch(
-        `${SUPABASE_URL}/functions/v1/ai-command-center`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${sessionData.session.access_token}`,
-            apikey: SUPABASE_PUBLISHABLE_KEY,
-          },
-          body: JSON.stringify({
-            query: messages[messages.length - 2]?.content || '',
-            conversation_id: conversationIdRef.current,
-            history,
-            page_context: pageContext,
-            confirmed_action: {
-              tool_id: confirmed.tool_id,
-              tool_name: confirmed.tool_name,
-              args: confirmed.args,
-            },
-          }),
+      const response = await fetch(`${SUPABASE_URL}/functions/v1/ai-command-center`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${sessionData.session.access_token}`,
+          apikey: SUPABASE_PUBLISHABLE_KEY,
         },
-      );
+        body: JSON.stringify({
+          query: messages[messages.length - 2]?.content || '',
+          conversation_id: conversationIdRef.current,
+          history,
+          page_context: pageContext,
+          confirmed_action: {
+            tool_id: confirmed.tool_id,
+            tool_name: confirmed.tool_name,
+            args: confirmed.args,
+          },
+        }),
+      });
 
       if (!response.ok) throw new Error('Failed to execute confirmed action');
       await processSSEStream(response);
@@ -397,12 +405,15 @@ export function useAICommandCenter(pageContext?: PageContext) {
   const denyAction = useCallback(() => {
     if (!pendingConfirmation) return;
     setPendingConfirmation(null);
-    setMessages(prev => [...prev, {
-      id: crypto.randomUUID(),
-      role: 'assistant',
-      content: `Action cancelled: ${pendingConfirmation.description}`,
-      timestamp: new Date(),
-    }]);
+    setMessages((prev) => [
+      ...prev,
+      {
+        id: crypto.randomUUID(),
+        role: 'assistant',
+        content: `Action cancelled: ${pendingConfirmation.description}`,
+        timestamp: new Date(),
+      },
+    ]);
   }, [pendingConfirmation]);
 
   // Clear conversation
@@ -427,7 +438,9 @@ export function useAICommandCenter(pageContext?: PageContext) {
     try {
       sessionStorage.setItem('ai-cc-messages', JSON.stringify(messages.slice(-20)));
       sessionStorage.setItem('ai-cc-conversation-id', conversationIdRef.current);
-    } catch { /* storage full — ignore */ }
+    } catch {
+      /* storage full — ignore */
+    }
 
     // Database persistence (async, non-blocking)
     const lastMsg = messages[messages.length - 1];
@@ -438,13 +451,14 @@ export function useAICommandCenter(pageContext?: PageContext) {
     if (lastMsg?.role === 'assistant' && lastMsg.metadata) {
       supabase.from('chat_analytics').insert({
         conversation_id: conversationIdRef.current,
-        query_text: messages.length >= 2 ? messages[messages.length - 2]?.content?.substring(0, 500) : '',
+        query_text:
+          messages.length >= 2 ? messages[messages.length - 2]?.content?.substring(0, 500) : '',
         response_text: lastMsg.content?.substring(0, 2000) || '',
         query_intent: lastMsg.metadata.category || null,
-        tools_called: lastMsg.toolCalls?.map(t => t.name) || [],
+        tools_called: lastMsg.toolCalls?.map((t) => t.name) || [],
         response_time_ms: lastMsg.metadata.durationMs || null,
         tokens_total: null,
-      } as never).then(() => {}); // Fire and forget
+      } as never); // Fire and forget
     }
   }, [messages, isLoading]);
 

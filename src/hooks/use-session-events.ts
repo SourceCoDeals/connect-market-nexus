@@ -1,6 +1,10 @@
-import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
-import { formatEventDescription, getEventIcon, getMostFrequentEvents } from "@/lib/session-event-utils";
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+import {
+  formatEventDescription,
+  getEventIcon,
+  getMostFrequentEvents,
+} from '@/lib/session-event-utils';
 
 export interface SessionEvent {
   id: string;
@@ -35,49 +39,55 @@ export interface SessionMetadata {
 
 export const useSessionEvents = (sessionId: string | null, userId: string | null) => {
   return useQuery({
-    queryKey: ["session-events", sessionId, userId],
+    queryKey: ['session-events', sessionId, userId],
     queryFn: async () => {
       if (!sessionId || !userId) return null;
 
       // Fetch session metadata from user_initial_session
       const { data: sessionMetadata, error: sessionMetadataError } = await supabase
-        .from("user_initial_session")
-        .select("referrer, full_referrer, utm_source, utm_medium, utm_campaign, marketing_channel, device_type, browser, landing_page")
-        .eq("session_id", sessionId)
-        .eq("user_id", userId)
+        .from('user_initial_session')
+        .select(
+          'referrer, full_referrer, utm_source, utm_medium, utm_campaign, marketing_channel, device_type, browser, landing_page',
+        )
+        .eq('session_id', sessionId)
+        .eq('user_id', userId)
         .maybeSingle();
       if (sessionMetadataError) throw sessionMetadataError;
 
       // Fetch page views
       const { data: pageViews, error: pageViewsError } = await supabase
-        .from("page_views")
-        .select("*")
-        .eq("session_id", sessionId)
-        .eq("user_id", userId)
-        .order("created_at", { ascending: true });
+        .from('page_views')
+        .select('id, created_at, page_path, page_title')
+        .eq('session_id', sessionId)
+        .eq('user_id', userId)
+        .order('created_at', { ascending: true });
       if (pageViewsError) throw pageViewsError;
 
       // Fetch user events
       const { data: userEvents, error: userEventsError } = await supabase
-        .from("user_events")
-        .select("*")
-        .eq("session_id", sessionId)
-        .eq("user_id", userId)
-        .order("created_at", { ascending: true });
+        .from('user_events')
+        .select(
+          'id, created_at, event_action, event_type, event_category, event_label, page_path, element_id, element_class',
+        )
+        .eq('session_id', sessionId)
+        .eq('user_id', userId)
+        .order('created_at', { ascending: true });
       if (userEventsError) throw userEventsError;
 
       // Fetch listing analytics with listing titles
       const { data: listingAnalytics, error: listingAnalyticsError } = await supabase
-        .from("listing_analytics")
-        .select(`
+        .from('listing_analytics')
+        .select(
+          `
           *,
           listings:listing_id (
             title
           )
-        `)
-        .eq("session_id", sessionId)
-        .eq("user_id", userId)
-        .order("created_at", { ascending: true });
+        `,
+        )
+        .eq('session_id', sessionId)
+        .eq('user_id', userId)
+        .order('created_at', { ascending: true });
       if (listingAnalyticsError) throw listingAnalyticsError;
 
       // Combine all events
@@ -155,9 +165,10 @@ export const useSessionEvents = (sessionId: string | null, userId: string | null
       }
 
       // Check if session is ongoing (last event within 5 minutes)
-      const isOngoing = allEvents.length > 0 
-        ? (Date.now() - new Date(allEvents[allEvents.length - 1].timestamp).getTime()) < 300000
-        : false;
+      const isOngoing =
+        allEvents.length > 0
+          ? Date.now() - new Date(allEvents[allEvents.length - 1].timestamp).getTime() < 300000
+          : false;
 
       // Get most frequent events
       const mostFrequent = getMostFrequentEvents(allEvents);

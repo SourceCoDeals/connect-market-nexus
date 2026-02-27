@@ -1,5 +1,5 @@
-import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
 
 export interface UserJourney {
   id: string;
@@ -47,12 +47,19 @@ export function useUserJourneys(timeRangeDays: number = 30) {
   startDate.setDate(startDate.getDate() - timeRangeDays);
   const startDateStr = startDate.toISOString();
 
-  const { data: journeys, isLoading, error, refetch } = useQuery({
+  const {
+    data: journeys,
+    isLoading,
+    error,
+    refetch,
+  } = useQuery({
     queryKey: ['user-journeys', timeRangeDays],
     queryFn: async (): Promise<UserJourney[]> => {
       const { data, error } = await supabase
         .from('user_journeys')
-        .select('*')
+        .select(
+          'id, visitor_id, ga4_client_id, user_id, first_seen_at, first_landing_page, first_referrer, first_utm_source, first_utm_medium, first_utm_campaign, first_device_type, first_browser, first_os, first_country, first_city, last_seen_at, last_session_id, last_page_path, total_sessions, total_page_views, total_time_seconds, milestones, journey_stage, created_at, updated_at',
+        )
         .eq('is_bot', false)
         .eq('is_production', true)
         .gte('first_seen_at', startDateStr)
@@ -68,11 +75,11 @@ export function useUserJourneys(timeRangeDays: number = 30) {
   // Calculate stats
   const stats: JourneyStats = {
     totalJourneys: journeys?.length || 0,
-    anonymous: journeys?.filter(j => j.journey_stage === 'anonymous').length || 0,
-    registered: journeys?.filter(j => j.journey_stage === 'registered').length || 0,
-    engaged: journeys?.filter(j => j.journey_stage === 'engaged').length || 0,
-    qualified: journeys?.filter(j => j.journey_stage === 'qualified').length || 0,
-    converted: journeys?.filter(j => j.journey_stage === 'converted').length || 0,
+    anonymous: journeys?.filter((j) => j.journey_stage === 'anonymous').length || 0,
+    registered: journeys?.filter((j) => j.journey_stage === 'registered').length || 0,
+    engaged: journeys?.filter((j) => j.journey_stage === 'engaged').length || 0,
+    qualified: journeys?.filter((j) => j.journey_stage === 'qualified').length || 0,
+    converted: journeys?.filter((j) => j.journey_stage === 'converted').length || 0,
     avgSessionsToConvert: 0,
     avgTimeToRegister: 0,
     topSources: [],
@@ -81,26 +88,26 @@ export function useUserJourneys(timeRangeDays: number = 30) {
 
   if (journeys && journeys.length > 0) {
     // Calculate average sessions to convert
-    const convertedJourneys = journeys.filter(j => j.journey_stage === 'converted');
+    const convertedJourneys = journeys.filter((j) => j.journey_stage === 'converted');
     if (convertedJourneys.length > 0) {
       const totalSessions = convertedJourneys.reduce((sum, j) => sum + j.total_sessions, 0);
-      stats.avgSessionsToConvert = Math.round(totalSessions / convertedJourneys.length * 10) / 10;
+      stats.avgSessionsToConvert = Math.round((totalSessions / convertedJourneys.length) * 10) / 10;
     }
 
     // Calculate average time to register (hours)
-    const registeredJourneys = journeys.filter(j => j.milestones?.signup_at);
+    const registeredJourneys = journeys.filter((j) => j.milestones?.signup_at);
     if (registeredJourneys.length > 0) {
       const totalHours = registeredJourneys.reduce((sum, j) => {
         const firstSeen = new Date(j.first_seen_at).getTime();
         const signupAt = new Date(j.milestones.signup_at).getTime();
         return sum + (signupAt - firstSeen) / (1000 * 60 * 60);
       }, 0);
-      stats.avgTimeToRegister = Math.round(totalHours / registeredJourneys.length * 10) / 10;
+      stats.avgTimeToRegister = Math.round((totalHours / registeredJourneys.length) * 10) / 10;
     }
 
     // Top sources
     const sourceCounts: Record<string, number> = {};
-    journeys.forEach(j => {
+    journeys.forEach((j) => {
       const source = j.first_utm_source || (j.first_referrer ? 'Referral' : 'Direct');
       sourceCounts[source] = (sourceCounts[source] || 0) + 1;
     });
@@ -111,7 +118,7 @@ export function useUserJourneys(timeRangeDays: number = 30) {
 
     // Top landing pages
     const pageCounts: Record<string, number> = {};
-    journeys.forEach(j => {
+    journeys.forEach((j) => {
       const page = j.first_landing_page || '/';
       pageCounts[page] = (pageCounts[page] || 0) + 1;
     });
@@ -121,12 +128,12 @@ export function useUserJourneys(timeRangeDays: number = 30) {
       .slice(0, 5);
   }
 
-  return { 
-    journeys: journeys || [], 
-    stats, 
-    isLoading, 
-    error, 
-    refetch 
+  return {
+    journeys: journeys || [],
+    stats,
+    isLoading,
+    error,
+    refetch,
   };
 }
 

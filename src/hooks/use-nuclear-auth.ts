@@ -69,28 +69,27 @@ export function useNuclearAuth() {
           const currentSessionId = sessionStorage.getItem('session_id');
 
           if (visitorId) {
-            supabase
-              .rpc('link_journey_to_user', {
+            void (async () => {
+              const { error: linkError } = await supabase.rpc('link_journey_to_user', {
                 p_visitor_id: visitorId,
                 p_user_id: sessionUserId,
-              })
-              .then(({ error: linkError }) => {
-                if (linkError) console.error('Failed to link journey:', linkError);
               });
+              if (linkError) console.error('Failed to link journey:', linkError);
+            })();
           }
 
           if (currentSessionId) {
-            supabase
-              .from('user_sessions')
-              .update({
-                user_id: sessionUserId,
-                last_active_at: new Date().toISOString(),
-              })
-              .eq('session_id', currentSessionId)
-              .is('user_id', null)
-              .then(({ error: mergeError }) => {
-                if (mergeError) console.error('Failed to merge session:', mergeError);
-              });
+            void (async () => {
+              const { error: mergeError } = await supabase
+                .from('user_sessions')
+                .update({
+                  user_id: sessionUserId,
+                  last_active_at: new Date().toISOString(),
+                })
+                .eq('session_id', currentSessionId)
+                .is('user_id', null);
+              if (mergeError) console.error('Failed to merge session:', mergeError);
+            })();
           }
         }
       } catch (error) {

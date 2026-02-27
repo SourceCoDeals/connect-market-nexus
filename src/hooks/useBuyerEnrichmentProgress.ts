@@ -42,10 +42,26 @@ export function useBuyerEnrichmentProgress() {
       const cutoff = new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString();
 
       const [pendingRes, processingRes, completedRes, failedRes] = await Promise.all([
-        supabase.from('buyer_enrichment_queue').select('*', { count: 'exact', head: true }).eq('status', 'pending').gte('queued_at', cutoff),
-        supabase.from('buyer_enrichment_queue').select('*', { count: 'exact', head: true }).eq('status', 'processing').gte('queued_at', cutoff),
-        supabase.from('buyer_enrichment_queue').select('*', { count: 'exact', head: true }).eq('status', 'completed').gte('queued_at', cutoff),
-        supabase.from('buyer_enrichment_queue').select('*', { count: 'exact', head: true }).eq('status', 'failed').gte('queued_at', cutoff),
+        supabase
+          .from('buyer_enrichment_queue')
+          .select('id', { count: 'exact', head: true })
+          .eq('status', 'pending')
+          .gte('queued_at', cutoff),
+        supabase
+          .from('buyer_enrichment_queue')
+          .select('id', { count: 'exact', head: true })
+          .eq('status', 'processing')
+          .gte('queued_at', cutoff),
+        supabase
+          .from('buyer_enrichment_queue')
+          .select('id', { count: 'exact', head: true })
+          .eq('status', 'completed')
+          .gte('queued_at', cutoff),
+        supabase
+          .from('buyer_enrichment_queue')
+          .select('id', { count: 'exact', head: true })
+          .eq('status', 'failed')
+          .gte('queued_at', cutoff),
       ]);
 
       const pending = pendingRes.count ?? 0;
@@ -68,7 +84,8 @@ export function useBuyerEnrichmentProgress() {
       let processingRate = 0;
       if (startTimeRef.current && completed > initialCompletedRef.current) {
         const elapsedMin = (Date.now() - startTimeRef.current) / 60000;
-        if (elapsedMin > 0.1) processingRate = (completed - initialCompletedRef.current) / elapsedMin;
+        if (elapsedMin > 0.1)
+          processingRate = (completed - initialCompletedRef.current) / elapsedMin;
       }
 
       let estimatedTimeRemaining = '';
@@ -98,13 +115,17 @@ export function useBuyerEnrichmentProgress() {
 
     const channel = supabase
       .channel('buyer-enrichment-progress-global')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'buyer_enrichment_queue' }, () => {
-        if (fetchTimeoutRef.current) clearTimeout(fetchTimeoutRef.current);
-        fetchTimeoutRef.current = setTimeout(() => {
-          lastFetchRef.current = 0;
-          fetchStatus();
-        }, 2000);
-      })
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'buyer_enrichment_queue' },
+        () => {
+          if (fetchTimeoutRef.current) clearTimeout(fetchTimeoutRef.current);
+          fetchTimeoutRef.current = setTimeout(() => {
+            lastFetchRef.current = 0;
+            fetchStatus();
+          }, 2000);
+        },
+      )
       .subscribe();
 
     return () => {
@@ -118,7 +139,9 @@ export function useBuyerEnrichmentProgress() {
     const interval = progress.isEnriching ? 10000 : 120000;
     if (intervalRef.current) clearInterval(intervalRef.current);
     intervalRef.current = setInterval(fetchStatus, interval);
-    return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
+    return () => {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+    };
   }, [progress.isEnriching, fetchStatus]);
 
   const cancel = useCallback(async () => {

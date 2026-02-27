@@ -1,14 +1,11 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useCallback } from "react";
-import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
-import type { Json } from "@/integrations/supabase/types";
-import type {
-  GlobalActivityQueueItem,
-  GlobalActivityOperationType,
-} from "@/types/remarketing";
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useEffect, useCallback } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
+import type { Json } from '@/integrations/supabase/types';
+import type { GlobalActivityQueueItem, GlobalActivityOperationType } from '@/types/remarketing';
 
-const QUERY_KEY = ["global-activity-queue"];
+const QUERY_KEY = ['global-activity-queue'];
 
 // ─── Core Query Hook ────────────────────────────────────────────────
 
@@ -19,10 +16,12 @@ export function useGlobalActivityQueue() {
     queryKey: QUERY_KEY,
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("global_activity_queue")
-        .select("*")
-        .in("status", ["queued", "running", "paused", "completed", "failed", "cancelled"])
-        .order("queued_at", { ascending: false })
+        .from('global_activity_queue')
+        .select(
+          'id, operation_type, classification, status, total_items, completed_items, failed_items, context_json, error_log, created_by, started_at, completed_at, queued_at, created_at, description',
+        )
+        .in('status', ['queued', 'running', 'paused', 'completed', 'failed', 'cancelled'])
+        .order('queued_at', { ascending: false })
         .limit(50);
       if (error) throw error;
       return (data || []) as unknown as GlobalActivityQueueItem[];
@@ -33,13 +32,13 @@ export function useGlobalActivityQueue() {
   // Realtime subscription
   useEffect(() => {
     const channel = supabase
-      .channel("global-activity-queue-changes")
+      .channel('global-activity-queue-changes')
       .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "global_activity_queue" },
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'global_activity_queue' },
         () => {
           queryClient.invalidateQueries({ queryKey: QUERY_KEY });
-        }
+        },
       )
       .subscribe();
 
@@ -48,14 +47,14 @@ export function useGlobalActivityQueue() {
     };
   }, [queryClient]);
 
-  const runningOp = allItems.find((i) => i.status === "running") || null;
+  const runningOp = allItems.find((i) => i.status === 'running') || null;
   const queuedOps = allItems
-    .filter((i) => i.status === "queued")
+    .filter((i) => i.status === 'queued')
     .sort((a, b) => new Date(a.queued_at).getTime() - new Date(b.queued_at).getTime());
   const recentHistory = allItems
-    .filter((i) => ["completed", "failed", "cancelled"].includes(i.status))
+    .filter((i) => ['completed', 'failed', 'cancelled'].includes(i.status))
     .slice(0, 20);
-  const pausedOp = allItems.find((i) => i.status === "paused") || null;
+  const pausedOp = allItems.find((i) => i.status === 'paused') || null;
 
   return {
     allItems,
@@ -64,7 +63,7 @@ export function useGlobalActivityQueue() {
     queuedOps,
     recentHistory,
     isLoading: query.isLoading,
-    isMajorRunning: !!runningOp && runningOp.classification === "major",
+    isMajorRunning: !!runningOp && runningOp.classification === 'major',
   };
 }
 
@@ -75,10 +74,12 @@ export function useGlobalGateCheck() {
 
   const checkGate = useCallback(async (): Promise<GlobalActivityQueueItem | null> => {
     const { data, error } = await supabase
-      .from("global_activity_queue")
-      .select("*")
-      .eq("classification", "major")
-      .in("status", ["running", "paused"])
+      .from('global_activity_queue')
+      .select(
+        'id, operation_type, classification, status, total_items, completed_items, failed_items, context_json, error_log, created_by, started_at, completed_at, queued_at, created_at, description',
+      )
+      .eq('classification', 'major')
+      .in('status', ['running', 'paused'])
       .limit(1);
     if (error) throw error;
     if (data && data.length > 0) {
@@ -87,18 +88,25 @@ export function useGlobalGateCheck() {
       // Auto-recover stale operations: if running with 0 completed items for 10+ minutes, auto-fail it
       const STALE_THRESHOLD_MS = 10 * 60 * 1000; // 10 minutes
       if (item.status === 'running' && (item.completed_items || 0) === 0) {
-        const startedAt = item.started_at ? new Date(item.started_at).getTime() : new Date(item.created_at).getTime();
+        const startedAt = item.started_at
+          ? new Date(item.started_at).getTime()
+          : new Date(item.created_at).getTime();
         const elapsed = Date.now() - startedAt;
         if (elapsed > STALE_THRESHOLD_MS) {
-          console.warn(`[global-gate] Auto-failing stale operation ${item.id} (${item.operation_type}) — 0 progress after ${Math.round(elapsed / 60000)}min`);
+          console.warn(
+            `[global-gate] Auto-failing stale operation ${item.id} (${item.operation_type}) — 0 progress after ${Math.round(elapsed / 60000)}min`,
+          );
           await supabase
-            .from("global_activity_queue")
+            .from('global_activity_queue')
             .update({
-              status: "failed",
+              status: 'failed',
               completed_at: new Date().toISOString(),
-              error_log: [...(Array.isArray(item.error_log) ? item.error_log : []), `Auto-failed: 0 items completed after ${Math.round(elapsed / 60000)} minutes`] as Json[],
+              error_log: [
+                ...(Array.isArray(item.error_log) ? item.error_log : []),
+                `Auto-failed: 0 items completed after ${Math.round(elapsed / 60000)} minutes`,
+              ] as Json[],
             })
-            .eq("id", item.id);
+            .eq('id', item.id);
           return null; // No longer blocking
         }
       }
@@ -120,24 +128,28 @@ export function useGlobalGateCheck() {
 
       if (blocker) {
         const { data, error } = await supabase
-          .from("global_activity_queue")
-          .insert([{
-            operation_type: params.operationType,
-            classification: "major",
-            status: "queued",
-            total_items: params.totalItems,
-            context_json: (params.contextJson || {}) as Json,
-            description: params.description || null,
-            created_by: params.userId,
-          }])
-          .select("*")
+          .from('global_activity_queue')
+          .insert([
+            {
+              operation_type: params.operationType,
+              classification: 'major',
+              status: 'queued',
+              total_items: params.totalItems,
+              context_json: (params.contextJson || {}) as Json,
+              description: params.description || null,
+              created_by: params.userId,
+            },
+          ])
+          .select(
+            'id, operation_type, classification, status, total_items, completed_items, failed_items, context_json, error_log, created_by, started_at, completed_at, queued_at, created_at, description',
+          )
           .single();
 
         if (error) throw error;
 
-        const blockerName = "Another user";
+        const blockerName = 'Another user';
         toast.info(
-          `${blockerName} is running ${blocker.description || blocker.operation_type}. Your operation has been queued and will start automatically.`
+          `${blockerName} is running ${blocker.description || blocker.operation_type}. Your operation has been queued and will start automatically.`,
         );
 
         queryClient.invalidateQueries({ queryKey: QUERY_KEY });
@@ -145,18 +157,22 @@ export function useGlobalGateCheck() {
       }
 
       const { data, error } = await supabase
-        .from("global_activity_queue")
-        .insert([{
-          operation_type: params.operationType,
-          classification: "major",
-          status: "running",
-          total_items: params.totalItems,
-          context_json: (params.contextJson || {}) as Json,
-          description: params.description || null,
-          created_by: params.userId,
-          started_at: new Date().toISOString(),
-        }])
-        .select("*")
+        .from('global_activity_queue')
+        .insert([
+          {
+            operation_type: params.operationType,
+            classification: 'major',
+            status: 'running',
+            total_items: params.totalItems,
+            context_json: (params.contextJson || {}) as Json,
+            description: params.description || null,
+            created_by: params.userId,
+            started_at: new Date().toISOString(),
+          },
+        ])
+        .select(
+          'id, operation_type, classification, status, total_items, completed_items, failed_items, context_json, error_log, created_by, started_at, completed_at, queued_at, created_at, description',
+        )
         .single();
 
       if (error) throw error;
@@ -164,7 +180,7 @@ export function useGlobalGateCheck() {
       queryClient.invalidateQueries({ queryKey: QUERY_KEY });
       return { queued: false, item: data as unknown as GlobalActivityQueueItem };
     },
-    [checkGate, queryClient]
+    [checkGate, queryClient],
   );
 
   const registerMinorOp = useCallback(
@@ -175,16 +191,18 @@ export function useGlobalGateCheck() {
       userId: string;
     }) => {
       const { data, error } = await supabase
-        .from("global_activity_queue")
-        .insert([{
-          operation_type: params.operationType,
-          classification: "minor",
-          status: "running",
-          total_items: params.totalItems || 1,
-          created_by: params.userId,
-          started_at: new Date().toISOString(),
-          description: params.description || null,
-        }])
+        .from('global_activity_queue')
+        .insert([
+          {
+            operation_type: params.operationType,
+            classification: 'minor',
+            status: 'running',
+            total_items: params.totalItems || 1,
+            created_by: params.userId,
+            started_at: new Date().toISOString(),
+            description: params.description || null,
+          },
+        ])
         .select()
         .single();
 
@@ -192,7 +210,7 @@ export function useGlobalGateCheck() {
       queryClient.invalidateQueries({ queryKey: QUERY_KEY });
       return data as unknown as GlobalActivityQueueItem;
     },
-    [queryClient]
+    [queryClient],
   );
 
   return { checkGate, startOrQueueMajorOp, registerMinorOp };
@@ -216,9 +234,9 @@ export function useGlobalActivityMutations() {
 
       if (params.errorEntry) {
         const { data: current, error: fetchError } = await supabase
-          .from("global_activity_queue")
-          .select("error_log")
-          .eq("id", params.id)
+          .from('global_activity_queue')
+          .select('error_log')
+          .eq('id', params.id)
           .single();
         if (fetchError) throw fetchError;
         const log = Array.isArray(current?.error_log) ? current.error_log : [];
@@ -227,23 +245,26 @@ export function useGlobalActivityMutations() {
       }
 
       const { error } = await supabase
-        .from("global_activity_queue")
+        .from('global_activity_queue')
         .update(updates)
-        .eq("id", params.id);
+        .eq('id', params.id);
       if (error) throw error;
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: QUERY_KEY }),
   });
 
   const completeOperation = useMutation({
-    mutationFn: async (params: { id: string; finalStatus?: "completed" | "failed" | "cancelled" }) => {
+    mutationFn: async (params: {
+      id: string;
+      finalStatus?: 'completed' | 'failed' | 'cancelled';
+    }) => {
       const { error } = await supabase
-        .from("global_activity_queue")
+        .from('global_activity_queue')
         .update({
-          status: params.finalStatus || "completed",
+          status: params.finalStatus || 'completed',
           completed_at: new Date().toISOString(),
         })
-        .eq("id", params.id);
+        .eq('id', params.id);
       if (error) throw error;
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: QUERY_KEY }),
@@ -252,10 +273,10 @@ export function useGlobalActivityMutations() {
   const pauseOperation = useMutation({
     mutationFn: async (id: string) => {
       const { error } = await supabase
-        .from("global_activity_queue")
-        .update({ status: "paused" })
-        .eq("id", id)
-        .eq("status", "running");
+        .from('global_activity_queue')
+        .update({ status: 'paused' })
+        .eq('id', id)
+        .eq('status', 'running');
       if (error) throw error;
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: QUERY_KEY }),
@@ -264,10 +285,10 @@ export function useGlobalActivityMutations() {
   const resumeOperation = useMutation({
     mutationFn: async (id: string) => {
       const { error } = await supabase
-        .from("global_activity_queue")
-        .update({ status: "running", started_at: new Date().toISOString() })
-        .eq("id", id)
-        .eq("status", "paused");
+        .from('global_activity_queue')
+        .update({ status: 'running', started_at: new Date().toISOString() })
+        .eq('id', id)
+        .eq('status', 'paused');
       if (error) throw error;
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: QUERY_KEY }),
@@ -276,10 +297,10 @@ export function useGlobalActivityMutations() {
   const cancelOperation = useMutation({
     mutationFn: async (id: string) => {
       const { error } = await supabase
-        .from("global_activity_queue")
-        .update({ status: "cancelled", completed_at: new Date().toISOString() })
-        .eq("id", id)
-        .in("status", ["queued", "running", "paused"]);
+        .from('global_activity_queue')
+        .update({ status: 'cancelled', completed_at: new Date().toISOString() })
+        .eq('id', id)
+        .in('status', ['queued', 'running', 'paused']);
       if (error) throw error;
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: QUERY_KEY }),

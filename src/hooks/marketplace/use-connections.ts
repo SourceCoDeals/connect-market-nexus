@@ -70,15 +70,14 @@ export const useRequestConnection = () => {
         /* private browsing */
       }
       if (visitorId) {
-        supabase
-          .rpc('update_journey_milestone', {
+        void (async () => {
+          const { error } = await supabase.rpc('update_journey_milestone', {
             p_visitor_id: visitorId,
             p_milestone_key: 'first_connection_at',
             p_milestone_time: new Date().toISOString(),
-          })
-          .then(({ error }) => {
-            if (error) console.error('Failed to record connection milestone:', error);
           });
+          if (error) console.error('Failed to record connection milestone:', error);
+        })();
       }
 
       // Calculate deal-specific buyer quality score (fire-and-forget)
