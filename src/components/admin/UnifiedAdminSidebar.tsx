@@ -55,6 +55,7 @@ import {
   Mail,
   Search,
   Phone,
+  CheckSquare,
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -459,6 +460,13 @@ export function UnifiedAdminSidebar({
             icon={<ListChecks className="h-4 w-4" />}
             label="Daily Tasks"
             isActive={location.pathname.startsWith('/admin/daily-tasks')}
+            collapsed={collapsed}
+          />
+          <SidebarLink
+            href="/admin/tasks"
+            icon={<CheckSquare className="h-4 w-4" />}
+            label="Task Inbox"
+            isActive={location.pathname.startsWith('/admin/tasks')}
             collapsed={collapsed}
           />
         </div>

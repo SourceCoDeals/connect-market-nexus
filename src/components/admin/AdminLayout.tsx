@@ -1,9 +1,10 @@
-import { useState, useEffect, useCallback } from "react";
-import { Outlet } from "react-router-dom";
-import { UnifiedAdminSidebar } from "./UnifiedAdminSidebar";
-import { AdminNavbar } from "./AdminNavbar";
-import { AICommandCenterProvider } from "@/components/ai-command-center";
-import { UniversalSearchDialog } from "./UniversalSearchDialog";
+import { useState, useEffect, useCallback } from 'react';
+import { Outlet } from 'react-router-dom';
+import { UnifiedAdminSidebar } from './UnifiedAdminSidebar';
+import { AdminNavbar } from './AdminNavbar';
+import { AICommandCenterProvider } from '@/components/ai-command-center';
+import { UniversalSearchDialog } from './UniversalSearchDialog';
+import { TaskNotificationBar } from '@/components/rm-tasks';
 
 const AdminLayout = () => {
   const [collapsed, setCollapsed] = useState(false);
@@ -29,15 +30,22 @@ const AdminLayout = () => {
         {/* Sidebar - hidden on mobile, fixed width on desktop */}
         <aside
           className={`hidden md:flex flex-col flex-shrink-0 h-screen sticky top-0 border-r border-border bg-card transition-all duration-200 ${
-            collapsed ? "w-16" : "w-56"
+            collapsed ? 'w-16' : 'w-56'
           }`}
         >
-          <UnifiedAdminSidebar collapsed={collapsed} onCollapsedChange={setCollapsed} onSearchClick={openSearch} />
+          <UnifiedAdminSidebar
+            collapsed={collapsed}
+            onCollapsedChange={setCollapsed}
+            onSearchClick={openSearch}
+          />
         </aside>
 
         <div className="flex flex-col flex-1 min-w-0">
           {/* Mobile nav */}
           <AdminNavbar className="md:hidden" onSearchClick={openSearch} />
+
+          {/* Task notification bar */}
+          <TaskNotificationBar />
 
           {/* Main content */}
           <main className="flex-1 overflow-auto w-full bg-background/50">
@@ -54,4 +62,3 @@ const AdminLayout = () => {
 };
 
 export default AdminLayout;
-

@@ -185,6 +185,7 @@ const DailyTaskDashboard = lazyWithRetry(
 const DailyTaskAnalytics = lazyWithRetry(
   () => import('@/pages/admin/remarketing/DailyTaskAnalytics'),
 );
+const TaskInbox = lazyWithRetry(() => import('@/pages/admin/remarketing/TaskInbox'));
 
 // M&A Intelligence (separate layout — unchanged)
 const MAIntelligenceLayout = lazyWithRetry(() =>
@@ -302,7 +303,10 @@ function App() {
               {/* Dashboard */}
               <Route index element={<AdminDashboard />} />
 
-              {/* Daily Tasks */}
+              {/* Task Management (v3.0) */}
+              <Route path="tasks" element={<TaskInbox />} />
+
+              {/* Daily Tasks (legacy) */}
               <Route path="daily-tasks" element={<DailyTaskDashboard />} />
               <Route path="daily-tasks/analytics" element={<DailyTaskAnalytics />} />
 

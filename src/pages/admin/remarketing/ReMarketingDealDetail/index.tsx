@@ -3,27 +3,55 @@
 // The monolithic sibling file ReMarketingDealDetail.tsx (1,675 lines) is ORPHANED.
 // AUDIT REF: CTO Audit February 2026
 
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Building2, Eye, FolderOpen } from "lucide-react";
-import { useDealDetail } from "./useDealDetail";
-import { CapTargetInfoCard } from "./CapTargetInfoCard";
-import { DealHeader } from "./DealHeader";
-import { OverviewTab } from "./OverviewTab";
-import { DataRoomTab } from "./DataRoomTab";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { Card, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Building2, Eye, FolderOpen, CheckSquare } from 'lucide-react';
+import { useDealDetail } from './useDealDetail';
+import { CapTargetInfoCard } from './CapTargetInfoCard';
+import { DealHeader } from './DealHeader';
+import { OverviewTab } from './OverviewTab';
+import { DataRoomTab } from './DataRoomTab';
+import { EntityTasksTab } from '@/components/rm-tasks';
 
 const ReMarketingDealDetail = () => {
   const {
-    dealId, navigate, backTo, queryClient,
-    deal, dealLoading, scoreStats, pipelineStats, transcripts, transcriptsLoading,
-    updateDealMutation, toggleUniverseFlagMutation, toggleContactOwnerMutation, updateNameMutation,
-    isEnriching, enrichmentProgress, enrichmentStage, isAnalyzingNotes,
-    buyerHistoryOpen, setBuyerHistoryOpen, editFinancialsOpen, setEditFinancialsOpen,
-    isEditingName, setIsEditingName, editedName, setEditedName,
-    handleEnrichFromWebsite, handleSaveName, handleCancelEdit, handleAnalyzeNotes,
-    effectiveWebsite, dataCompleteness, tier, displayName, listedName,
+    dealId,
+    navigate,
+    backTo,
+    queryClient,
+    deal,
+    dealLoading,
+    scoreStats,
+    pipelineStats,
+    transcripts,
+    transcriptsLoading,
+    updateDealMutation,
+    toggleUniverseFlagMutation,
+    toggleContactOwnerMutation,
+    updateNameMutation,
+    isEnriching,
+    enrichmentProgress,
+    enrichmentStage,
+    isAnalyzingNotes,
+    buyerHistoryOpen,
+    setBuyerHistoryOpen,
+    editFinancialsOpen,
+    setEditFinancialsOpen,
+    isEditingName,
+    setIsEditingName,
+    editedName,
+    setEditedName,
+    handleEnrichFromWebsite,
+    handleSaveName,
+    handleCancelEdit,
+    handleAnalyzeNotes,
+    effectiveWebsite,
+    dataCompleteness,
+    tier,
+    displayName,
+    listedName,
   } = useDealDetail();
 
   if (dealLoading) {
@@ -57,7 +85,6 @@ const ReMarketingDealDetail = () => {
 
   return (
     <div className="p-6 space-y-6">
-
       <CapTargetInfoCard deal={deal} dealId={dealId!} />
 
       <DealHeader
@@ -78,10 +105,14 @@ const ReMarketingDealDetail = () => {
       />
 
       <Tabs defaultValue="overview" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-2">
+        <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="overview" className="text-sm">
             <Eye className="mr-1.5 h-3.5 w-3.5" />
             Overview
+          </TabsTrigger>
+          <TabsTrigger value="tasks" className="text-sm">
+            <CheckSquare className="mr-1.5 h-3.5 w-3.5" />
+            Tasks
           </TabsTrigger>
           <TabsTrigger value="data-room" className="text-sm">
             <FolderOpen className="mr-1.5 h-3.5 w-3.5" />
@@ -115,12 +146,12 @@ const ReMarketingDealDetail = () => {
           />
         </TabsContent>
 
+        <TabsContent value="tasks" className="space-y-6">
+          <EntityTasksTab entityType="deal" entityId={dealId!} entityName={displayName} />
+        </TabsContent>
+
         <TabsContent value="data-room" className="space-y-6">
-          <DataRoomTab
-            deal={deal}
-            dealId={dealId!}
-            scoreStats={scoreStats}
-          />
+          <DataRoomTab deal={deal} dealId={dealId!} scoreStats={scoreStats} />
         </TabsContent>
       </Tabs>
     </div>

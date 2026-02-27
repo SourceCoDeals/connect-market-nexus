@@ -15,6 +15,7 @@ import {
   Activity,
   Crosshair,
   Briefcase,
+  CheckSquare,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -50,6 +51,11 @@ export function ReMarketingSidebar() {
       label: 'Active Deals',
       href: '/admin/deals',
       icon: <Building2 className="h-5 w-5" />,
+    },
+    {
+      label: 'Tasks',
+      href: '/admin/tasks',
+      icon: <CheckSquare className="h-5 w-5" />,
     },
     {
       label: 'CapTarget Deals',
