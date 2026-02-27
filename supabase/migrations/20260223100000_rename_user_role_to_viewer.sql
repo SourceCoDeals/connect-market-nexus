@@ -83,9 +83,9 @@ BEGIN
     RAISE EXCEPTION 'Only owners can change user roles';
   END IF;
 
-  -- Upsert the role
+  -- Upsert the role (explicit cast: text → app_role enum)
   INSERT INTO public.user_roles (user_id, role, granted_by, reason)
-  VALUES (_target_user_id, _new_role, auth.uid(), _reason)
+  VALUES (_target_user_id, _new_role::app_role, auth.uid(), _reason)
   ON CONFLICT (user_id)
   DO UPDATE SET
     role = EXCLUDED.role,
@@ -99,7 +99,7 @@ BEGIN
     _target_user_id,
     auth.uid(),
     (SELECT role FROM public.user_roles WHERE user_id = _target_user_id),
-    _new_role,
+    _new_role::app_role,
     _reason
   );
 END;
