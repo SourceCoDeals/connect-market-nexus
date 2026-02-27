@@ -102,7 +102,9 @@ export function useDataRoomDocuments(dealId: string | undefined) {
       if (!dealId) return [];
       const { data, error } = await supabase
         .from('data_room_documents')
-        .select('*')
+        .select(
+          'id, deal_id, folder_name, file_name, file_type, file_size_bytes, storage_path, document_category, is_generated, version, allow_download, status, uploaded_by, created_at, updated_at',
+        )
         .eq('deal_id', dealId)
         .order('folder_name')
         .order('created_at', { ascending: false });
@@ -138,7 +140,10 @@ export function useUploadDocument() {
       formData.append('document_category', documentCategory);
       formData.append('allow_download', String(allowDownload));
 
-      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      const {
+        data: { session },
+        error: sessionError,
+      } = await supabase.auth.getSession();
       if (sessionError) throw sessionError;
       if (!session) throw new Error('Not authenticated');
 
@@ -150,7 +155,7 @@ export function useUploadDocument() {
             Authorization: `Bearer ${session.access_token}`,
           },
           body: formData,
-        }
+        },
       );
 
       if (!response.ok) {
@@ -162,7 +167,10 @@ export function useUploadDocument() {
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['data-room-documents', variables.dealId] });
-      toast({ title: 'Document uploaded', description: `${variables.file.name} uploaded successfully` });
+      toast({
+        title: 'Document uploaded',
+        description: `${variables.file.name} uploaded successfully`,
+      });
     },
     onError: (error: Error) => {
       toast({ title: 'Upload failed', description: error.message, variant: 'destructive' });
@@ -188,10 +196,7 @@ export function useDeleteDocument() {
       }
 
       // Delete record
-      const { error } = await supabase
-        .from('data_room_documents')
-        .delete()
-        .eq('id', documentId);
+      const { error } = await supabase.from('data_room_documents').delete().eq('id', documentId);
 
       if (error) throw error;
       return { dealId };
@@ -218,7 +223,7 @@ export function useDataRoomAccess(dealId: string | undefined) {
       });
 
       if (error) throw error;
-      return (data as unknown) as DataRoomAccessRecord[];
+      return data as unknown as DataRoomAccessRecord[];
     },
     enabled: !!dealId,
   });
@@ -238,7 +243,10 @@ export function useUpdateAccess() {
       fee_agreement_override_reason?: string;
       expires_at?: string;
     }) => {
-      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      const {
+        data: { session },
+        error: sessionError,
+      } = await supabase.auth.getSession();
       if (sessionError) throw sessionError;
       if (!session) throw new Error('Not authenticated');
 
@@ -262,7 +270,11 @@ export function useUpdateAccess() {
     },
     onError: (error: Error) => {
       if (error.message !== 'FEE_AGREEMENT_REQUIRED') {
-        toast({ title: 'Access update failed', description: error.message, variant: 'destructive' });
+        toast({
+          title: 'Access update failed',
+          description: error.message,
+          variant: 'destructive',
+        });
       }
     },
   });
@@ -273,7 +285,10 @@ export function useRevokeAccess() {
 
   return useMutation({
     mutationFn: async ({ accessId, dealId }: { accessId: string; dealId: string }) => {
-      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      const {
+        data: { session },
+        error: sessionError,
+      } = await supabase.auth.getSession();
       if (sessionError) throw sessionError;
       if (!session) throw new Error('Not authenticated');
 
@@ -315,7 +330,10 @@ export function useBulkUpdateAccess() {
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['data-room-access', variables.deal_id] });
-      toast({ title: 'Bulk access updated', description: `Updated ${variables.buyer_ids.length} buyers` });
+      toast({
+        title: 'Bulk access updated',
+        description: `Updated ${variables.buyer_ids.length} buyers`,
+      });
     },
     onError: (error: Error) => {
       toast({ title: 'Bulk update failed', description: error.message, variant: 'destructive' });
@@ -327,9 +345,18 @@ export function useBulkUpdateAccess() {
 
 export function useDocumentUrl() {
   return useMutation({
-    mutationFn: async ({ documentId, action = 'view' }: { documentId: string; action?: 'view' | 'download' }) => {
+    mutationFn: async ({
+      documentId,
+      action = 'view',
+    }: {
+      documentId: string;
+      action?: 'view' | 'download';
+    }) => {
       // Use fetch directly since Supabase functions.invoke doesn't support GET with params well
-      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      const {
+        data: { session },
+        error: sessionError,
+      } = await supabase.auth.getSession();
       if (sessionError) throw sessionError;
       if (!session) throw new Error('Not authenticated');
 
@@ -357,7 +384,9 @@ export function useLeadMemos(dealId: string | undefined) {
       if (!dealId) return [];
       const { data, error } = await supabase
         .from('lead_memos')
-        .select('*')
+        .select(
+          'id, deal_id, memo_type, branding, content, html_content, status, generated_from, version, pdf_storage_path, published_at, published_by, created_by, created_at, updated_at',
+        )
         .eq('deal_id', dealId)
         .order('created_at', { ascending: false });
 
@@ -398,7 +427,12 @@ export function useUpdateMemo() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ memoId, content, htmlContent, dealId }: {
+    mutationFn: async ({
+      memoId,
+      content,
+      htmlContent,
+      dealId,
+    }: {
       memoId: string;
       content: Record<string, unknown>;
       htmlContent: string;
@@ -413,7 +447,10 @@ export function useUpdateMemo() {
       if (currentMemoError) throw currentMemoError;
 
       if (currentMemo) {
-        const { data: { user }, error: authError } = await supabase.auth.getUser();
+        const {
+          data: { user },
+          error: authError,
+        } = await supabase.auth.getUser();
         if (authError) throw authError;
         await supabase.from('lead_memo_versions').insert({
           memo_id: memoId,
@@ -453,7 +490,10 @@ export function usePublishMemo() {
 
   return useMutation({
     mutationFn: async ({ memoId, dealId }: { memoId: string; dealId: string }) => {
-      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      const {
+        data: { user },
+        error: authError,
+      } = await supabase.auth.getUser();
       if (authError) throw authError;
 
       const { error } = await supabase
@@ -471,7 +511,10 @@ export function usePublishMemo() {
     },
     onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ['lead-memos', result.dealId] });
-      toast({ title: 'Memo published', description: 'Memo is now available to buyers with access' });
+      toast({
+        title: 'Memo published',
+        description: 'Memo is now available to buyers with access',
+      });
     },
     onError: (error: Error) => {
       toast({ title: 'Publish failed', description: error.message, variant: 'destructive' });
@@ -508,20 +551,21 @@ export function useLogManualSend() {
       memo_type: 'anonymous_teaser' | 'full_memo';
       notes?: string;
     }) => {
-      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      const {
+        data: { user },
+        error: authError,
+      } = await supabase.auth.getUser();
       if (authError) throw authError;
 
-      const { error } = await supabase
-        .from('memo_distribution_log')
-        .insert({
-          deal_id: params.deal_id,
-          memo_id: params.memo_id,
-          remarketing_buyer_id: params.remarketing_buyer_id,
-          memo_type: params.memo_type,
-          channel: 'manual_log',
-          sent_by: user?.id,
-          notes: params.notes,
-        });
+      const { error } = await supabase.from('memo_distribution_log').insert({
+        deal_id: params.deal_id,
+        memo_id: params.memo_id,
+        remarketing_buyer_id: params.remarketing_buyer_id,
+        memo_type: params.memo_type,
+        channel: 'manual_log',
+        sent_by: user?.id,
+        notes: params.notes,
+      });
 
       if (error) throw error;
       return { dealId: params.deal_id };
@@ -540,11 +584,7 @@ export function useLogManualSend() {
 
 export function useDraftOutreachEmail() {
   return useMutation({
-    mutationFn: async (params: {
-      deal_id: string;
-      buyer_id: string;
-      memo_id?: string;
-    }) => {
+    mutationFn: async (params: { deal_id: string; buyer_id: string; memo_id?: string }) => {
       const response = await supabase.functions.invoke('draft-outreach-email', {
         body: params,
       });
@@ -598,7 +638,9 @@ export function useDataRoomAuditLog(dealId: string | undefined) {
       if (!dealId) return [];
       const { data, error } = await supabase
         .from('data_room_audit_log')
-        .select('*')
+        .select(
+          'id, deal_id, document_id, user_id, action, metadata, ip_address, user_agent, created_at',
+        )
         .eq('deal_id', dealId)
         .order('created_at', { ascending: false })
         .limit(200);

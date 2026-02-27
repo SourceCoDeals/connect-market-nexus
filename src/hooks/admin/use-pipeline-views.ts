@@ -36,7 +36,9 @@ export function usePipelineViews() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('pipeline_views')
-        .select('*')
+        .select(
+          'id, name, description, stage_config, filter_config, is_default, is_active, created_at, updated_at',
+        )
         .eq('is_active', true)
         .order('is_default', { ascending: false });
 
@@ -88,12 +90,12 @@ export function useUpdatePipelineView() {
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: async ({ 
-      id, 
-      updates 
-    }: { 
-      id: string; 
-      updates: Partial<Omit<PipelineView, 'id' | 'created_at' | 'updated_at'>> 
+    mutationFn: async ({
+      id,
+      updates,
+    }: {
+      id: string;
+      updates: Partial<Omit<PipelineView, 'id' | 'created_at' | 'updated_at'>>;
     }) => {
       const { data, error } = await supabase
         .from('pipeline_views')
@@ -107,12 +109,12 @@ export function useUpdatePipelineView() {
     },
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ['pipeline-views'] });
-      
+
       // Show different message if saving filter config
-      const message = variables.updates.filter_config 
-        ? "View and filters saved successfully."
-        : "Pipeline view has been updated successfully.";
-      
+      const message = variables.updates.filter_config
+        ? 'View and filters saved successfully.'
+        : 'Pipeline view has been updated successfully.';
+
       toast({
         title: 'View updated',
         description: message,
@@ -134,10 +136,7 @@ export function useDeletePipelineView() {
 
   return useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase
-        .from('pipeline_views')
-        .delete()
-        .eq('id', id);
+      const { error } = await supabase.from('pipeline_views').delete().eq('id', id);
 
       if (error) throw error;
     },

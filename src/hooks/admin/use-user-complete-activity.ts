@@ -5,7 +5,14 @@ import { createQueryKey } from '@/lib/query-keys';
 export interface UserTimelineActivity {
   id: string;
   timestamp: string;
-  type: 'connection_request' | 'saved_listing' | 'page_view' | 'listing_interaction' | 'nda_action' | 'fee_agreement_action' | 'system_event';
+  type:
+    | 'connection_request'
+    | 'saved_listing'
+    | 'page_view'
+    | 'listing_interaction'
+    | 'nda_action'
+    | 'fee_agreement_action'
+    | 'system_event';
   title: string;
   description: string;
   metadata?: {
@@ -32,7 +39,7 @@ export function useUserCompleteActivity(userId: string) {
       // Fetch user profile for system events
       const { data: userProfile, error: userProfileError } = await supabase
         .from('profiles')
-        .select('*')
+        .select('id, created_at, email_verified, approval_status, updated_at')
         .eq('id', userId)
         .single();
       if (userProfileError) throw userProfileError;
@@ -45,7 +52,7 @@ export function useUserCompleteActivity(userId: string) {
           type: 'system_event',
           title: 'Account Created',
           description: 'User signed up to the platform',
-          metadata: { action_type: 'signup' }
+          metadata: { action_type: 'signup' },
         });
 
         // Email verification (if verified)
@@ -56,7 +63,7 @@ export function useUserCompleteActivity(userId: string) {
             type: 'system_event',
             title: 'Email Verified',
             description: 'User verified their email address',
-            metadata: { action_type: 'verification' }
+            metadata: { action_type: 'verification' },
           });
         }
 
@@ -68,7 +75,7 @@ export function useUserCompleteActivity(userId: string) {
             type: 'system_event',
             title: 'Account Approved',
             description: 'User account was approved by admin',
-            metadata: { action_type: 'approval' }
+            metadata: { action_type: 'approval' },
           });
         }
       }
@@ -76,7 +83,9 @@ export function useUserCompleteActivity(userId: string) {
       // Fetch connection requests with enhanced data
       const { data: connectionRequests, error: connectionRequestsError } = await supabase
         .from('connection_requests')
-        .select('*')
+        .select(
+          'id, listing_id, created_at, status, followed_up, followed_up_at, followed_up_by, negative_followed_up, negative_followed_up_at, negative_followed_up_by',
+        )
         .eq('user_id', userId)
         .order('created_at', { ascending: false });
       if (connectionRequestsError) throw connectionRequestsError;
@@ -100,8 +109,8 @@ export function useUserCompleteActivity(userId: string) {
             metadata: {
               status: request.status,
               listing: listingData,
-              action_type: 'request'
-            }
+              action_type: 'request',
+            },
           });
 
           // Admin follow-up (if any)
@@ -127,8 +136,8 @@ export function useUserCompleteActivity(userId: string) {
                 status: 'followed_up',
                 listing: listingData,
                 admin: followUpAdmin,
-                action_type: 'follow_up'
-              }
+                action_type: 'follow_up',
+              },
             });
           }
 
@@ -155,8 +164,8 @@ export function useUserCompleteActivity(userId: string) {
                 status: 'rejected',
                 listing: listingData,
                 admin: negativeFollowUpAdmin,
-                action_type: 'rejection'
-              }
+                action_type: 'rejection',
+              },
             });
           }
         }
@@ -165,18 +174,20 @@ export function useUserCompleteActivity(userId: string) {
       // Fetch saved listings
       const { data: savedListings, error: savedListingsError } = await supabase
         .from('saved_listings')
-        .select(`
+        .select(
+          `
           id,
           created_at,
           listing_id,
           listings!inner(title)
-        `)
+        `,
+        )
         .eq('user_id', userId)
         .order('created_at', { ascending: false });
       if (savedListingsError) throw savedListingsError;
 
       if (savedListings) {
-        savedListings.forEach(saved => {
+        savedListings.forEach((saved) => {
           activities.push({
             id: `saved-${saved.id}`,
             timestamp: saved.created_at,
@@ -185,8 +196,8 @@ export function useUserCompleteActivity(userId: string) {
             description: `Saved "${saved.listings?.title || 'Unknown Listing'}" for later`,
             metadata: {
               listing: saved.listings,
-              action_type: 'save'
-            }
+              action_type: 'save',
+            },
           });
         });
       }
@@ -194,7 +205,7 @@ export function useUserCompleteActivity(userId: string) {
       // Fetch listing analytics (views, interactions)
       const { data: listingAnalytics, error: listingAnalyticsError } = await supabase
         .from('listing_analytics')
-        .select('*')
+        .select('id, listing_id, created_at, action_type, time_spent')
         .eq('user_id', userId)
         .order('created_at', { ascending: false })
         .limit(20); // Limit to recent activities
@@ -207,7 +218,7 @@ export function useUserCompleteActivity(userId: string) {
               .select('title')
               .eq('id', analytic.listing_id)
               .single();
-      if (listingAnalyticsError) throw listingAnalyticsError;
+            if (listingAnalyticsError) throw listingAnalyticsError;
             if (listingDataError) throw listingDataError;
 
             activities.push({
@@ -219,8 +230,8 @@ export function useUserCompleteActivity(userId: string) {
               metadata: {
                 listing: listingData,
                 action_type: analytic.action_type,
-                duration: analytic.time_spent ?? undefined
-              }
+                duration: analytic.time_spent ?? undefined,
+              },
             });
           }
         }
@@ -229,16 +240,16 @@ export function useUserCompleteActivity(userId: string) {
       // Fetch NDA logs
       const { data: ndaLogs, error: ndaLogsError } = await supabase
         .from('nda_logs')
-        .select('*')
+        .select('id, action_type, email_sent_to, admin_name, created_at')
         .eq('user_id', userId)
         .order('created_at', { ascending: false });
       if (ndaLogsError) throw ndaLogsError;
 
       if (ndaLogs) {
-        ndaLogs.forEach(log => {
+        ndaLogs.forEach((log) => {
           let title = '';
           let description = '';
-          
+
           switch (log.action_type) {
             case 'sent':
               title = 'NDA Sent';
@@ -262,8 +273,8 @@ export function useUserCompleteActivity(userId: string) {
             description,
             metadata: {
               action_type: log.action_type,
-              admin: log.admin_name ? { name: log.admin_name } : null
-            }
+              admin: log.admin_name ? { name: log.admin_name } : null,
+            },
           });
         });
       }
@@ -271,16 +282,16 @@ export function useUserCompleteActivity(userId: string) {
       // Fetch Fee Agreement logs
       const { data: feeAgreementLogs, error: feeAgreementLogsError } = await supabase
         .from('fee_agreement_logs')
-        .select('*')
+        .select('id, action_type, email_sent_to, admin_name, created_at')
         .eq('user_id', userId)
         .order('created_at', { ascending: false });
       if (feeAgreementLogsError) throw feeAgreementLogsError;
 
       if (feeAgreementLogs) {
-        feeAgreementLogs.forEach(log => {
+        feeAgreementLogs.forEach((log) => {
           let title = '';
           let description = '';
-          
+
           switch (log.action_type) {
             case 'sent':
               title = 'Fee Agreement Sent';
@@ -304,8 +315,8 @@ export function useUserCompleteActivity(userId: string) {
             description,
             metadata: {
               action_type: log.action_type,
-              admin: log.admin_name ? { name: log.admin_name } : null
-            }
+              admin: log.admin_name ? { name: log.admin_name } : null,
+            },
           });
         });
       }

@@ -17,7 +17,7 @@ export function useNotificationEmailSender() {
         // Query for notifications that need email sent
         const { data: pendingNotifications, error } = await supabase
           .from('admin_notifications')
-          .select('*')
+          .select('id, metadata')
           .eq('notification_type', 'deal_reassignment')
           .contains('metadata', { email_pending: true })
           .limit(10);
@@ -35,42 +35,48 @@ export function useNotificationEmailSender() {
         for (const notification of pendingNotifications) {
           try {
             const metadata = notification.metadata as Record<string, unknown>;
-            
+
             // Call edge function to send email
-            const { error: emailError } = await supabase.functions.invoke('notify-deal-reassignment', {
-              body: {
-                dealId: metadata.deal_id,
-                dealTitle: metadata.deal_title,
-                listingTitle: metadata.listing_title,
-                previousOwnerId: metadata.previous_owner_id,
-                previousOwnerName: metadata.previous_owner_name,
-                previousOwnerEmail: metadata.previous_owner_email,
-                newOwnerId: metadata.new_owner_id,
-                newOwnerName: metadata.new_owner_name,
-                newOwnerEmail: metadata.new_owner_email,
-                companyName: metadata.company_name,
-              }
-            });
+            const { error: emailError } = await supabase.functions.invoke(
+              'notify-deal-reassignment',
+              {
+                body: {
+                  dealId: metadata.deal_id,
+                  dealTitle: metadata.deal_title,
+                  listingTitle: metadata.listing_title,
+                  previousOwnerId: metadata.previous_owner_id,
+                  previousOwnerName: metadata.previous_owner_name,
+                  previousOwnerEmail: metadata.previous_owner_email,
+                  newOwnerId: metadata.new_owner_id,
+                  newOwnerName: metadata.new_owner_name,
+                  newOwnerEmail: metadata.new_owner_email,
+                  companyName: metadata.company_name,
+                },
+              },
+            );
 
             if (emailError) {
-              console.error('[Email Sender] Failed to send email for notification:', notification.id, emailError);
+              console.error(
+                '[Email Sender] Failed to send email for notification:',
+                notification.id,
+                emailError,
+              );
               continue;
             }
 
             // Remove email_pending flag
             const updatedMetadata = { ...metadata };
             delete updatedMetadata.email_pending;
-            
+
             await supabase
               .from('admin_notifications')
-              .update({ 
-                metadata: { 
+              .update({
+                metadata: {
                   ...updatedMetadata,
-                  email_sent_at: new Date().toISOString()
-                }
+                  email_sent_at: new Date().toISOString(),
+                },
               })
               .eq('id', notification.id);
-
           } catch (error) {
             console.error('[Email Sender] Error processing notification:', notification.id, error);
           }
