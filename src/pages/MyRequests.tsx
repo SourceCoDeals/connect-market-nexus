@@ -215,7 +215,7 @@ const MyRequests = () => {
                   request={request}
                   isSelected={selectedDeal === request.id}
                   unreadCount={unreadForRequest}
-                  ndaSigned={ndaStatus?.ndaSigned}
+                  ndaSigned={ndaStatus?.ndaSigned ?? undefined}
                   onSelect={() => handleSelectDeal(request.id)}
                   pendingAction={pendingAction}
                 />

@@ -12,6 +12,29 @@ import type {
 
 const CAMPAIGNS_KEY = ['heyreach', 'campaigns'];
 
+function normalizeListCampaignsResponse(raw: unknown): ListCampaignsResponse {
+  const payload = (raw ?? {}) as {
+    campaigns?: unknown;
+    local_campaigns?: unknown;
+  };
+
+  const campaignsSource = payload.campaigns;
+  const campaigns = Array.isArray(campaignsSource)
+    ? (campaignsSource as HeyReachCampaign[])
+    : Array.isArray((campaignsSource as { items?: unknown[] } | null | undefined)?.items)
+      ? ((campaignsSource as { items: HeyReachCampaign[] }).items)
+      : [];
+
+  const localCampaigns = Array.isArray(payload.local_campaigns)
+    ? (payload.local_campaigns as ListCampaignsResponse['local_campaigns'])
+    : [];
+
+  return {
+    campaigns,
+    local_campaigns: localCampaigns,
+  };
+}
+
 async function invokeHeyReachCampaigns<T>(action: string, body: Record<string, unknown> = {}) {
   const { data, error } = await supabase.functions.invoke<T>('heyreach-campaigns', {
     body: { action, ...body },
@@ -24,7 +47,10 @@ async function invokeHeyReachCampaigns<T>(action: string, body: Record<string, u
 export function useHeyReachCampaigns() {
   return useQuery({
     queryKey: CAMPAIGNS_KEY,
-    queryFn: () => invokeHeyReachCampaigns<ListCampaignsResponse>('list'),
+    queryFn: async () => {
+      const data = await invokeHeyReachCampaigns<unknown>('list');
+      return normalizeListCampaignsResponse(data);
+    },
     staleTime: 60_000,
   });
 }
