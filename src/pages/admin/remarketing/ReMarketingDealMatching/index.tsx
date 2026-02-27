@@ -25,6 +25,7 @@ export default function ReMarketingDealMatching() {
     listingId,
     scores: data.scores,
     selectedUniverse: data.selectedUniverse,
+    linkedUniverses: data.linkedUniverses,
     setIsScoring: data.setIsScoring,
     setScoringProgress: data.setScoringProgress,
     // @ts-ignore
