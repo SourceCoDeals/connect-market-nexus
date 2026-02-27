@@ -193,9 +193,27 @@ export function ConnectionRequestActions({
         sender_role: "admin",
         message_type: "decision",
       });
+
+      // Send rejection email to buyer
+      const buyerEmail = user.email;
+      const buyerName = `${user.first_name || ""} ${user.last_name || ""}`.trim();
+      const companyName = listing?.title || "the listing";
+      if (buyerEmail) {
+        supabase.functions.invoke("notify-buyer-rejection", {
+          body: {
+            connectionRequestId: requestId,
+            buyerEmail,
+            buyerName: buyerName || buyerEmail,
+            companyName,
+          },
+        }).catch((emailErr) => {
+          console.error("[rejection-email] Failed to send rejection email:", emailErr);
+        });
+      }
+
       setShowRejectDialog(false);
       setRejectNote("");
-      toast({ title: "Request declined", description: "Buyer has been notified." });
+      toast({ title: "Request declined", description: "Buyer has been notified via email." });
     } catch (err) {
       toast({
         title: "Action failed",
