@@ -18,7 +18,7 @@ export interface ChatMessage {
 }
 
 export interface ConversationContext {
-  type: 'deal' | 'deals' | 'buyers' | 'universe';
+  type: 'deal' | 'deals' | 'buyers' | 'universe' | 'command_center';
   dealId?: string;
   universeId?: string;
 }
@@ -48,10 +48,13 @@ export interface Conversation {
 const db = supabase as unknown as SupabaseClient;
 
 export async function saveConversation(
-  options: SaveConversationOptions
+  options: SaveConversationOptions,
 ): Promise<{ success: boolean; conversationId?: string; error?: string }> {
   try {
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
     if (authError) throw authError;
     if (!user) {
       return { success: false, error: 'User not authenticated' };
@@ -101,10 +104,13 @@ export async function saveConversation(
 
 export async function loadConversationsByContext(
   context: ConversationContext,
-  limit: number = 10
+  limit: number = 10,
 ): Promise<{ success: boolean; conversations?: Conversation[]; error?: string }> {
   try {
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
     if (authError) throw authError;
     if (!user) {
       return { success: false, error: 'User not authenticated' };
@@ -142,10 +148,13 @@ export async function loadConversationsByContext(
 }
 
 export async function loadConversationById(
-  conversationId: string
+  conversationId: string,
 ): Promise<{ success: boolean; conversation?: Conversation; error?: string }> {
   try {
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
     if (authError) throw authError;
     if (!user) {
       return { success: false, error: 'User not authenticated' };
@@ -171,10 +180,13 @@ export async function loadConversationById(
 }
 
 export async function archiveConversation(
-  conversationId: string
+  conversationId: string,
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
     if (authError) throw authError;
     if (!user) {
       return { success: false, error: 'User not authenticated' };
@@ -199,10 +211,13 @@ export async function archiveConversation(
 }
 
 export async function getRecentConversations(
-  limit: number = 10
+  limit: number = 10,
 ): Promise<{ success: boolean; conversations?: Conversation[]; error?: string }> {
   try {
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
     if (authError) throw authError;
     if (!user) {
       return { success: false, error: 'User not authenticated' };
@@ -229,7 +244,7 @@ export async function getRecentConversations(
 }
 
 function generateTitle(messages: ChatMessage[]): string {
-  const firstUserMessage = messages.find(m => m.role === 'user');
+  const firstUserMessage = messages.find((m) => m.role === 'user');
   if (!firstUserMessage) return 'New Conversation';
   const title = firstUserMessage.content.substring(0, 50).trim();
   return title.length < firstUserMessage.content.length ? title + '...' : title;
@@ -244,7 +259,10 @@ export async function getConversationStats(): Promise<{
   error?: string;
 }> {
   try {
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
     if (authError) throw authError;
     if (!user) {
       return { success: false, error: 'User not authenticated' };
@@ -268,7 +286,7 @@ export async function getConversationStats(): Promise<{
         deals: rows.filter((c) => c.context_type === 'deals').length,
         buyers: rows.filter((c) => c.context_type === 'buyers').length,
         universe: rows.filter((c) => c.context_type === 'universe').length,
-      }
+      },
     };
 
     return { success: true, stats };
