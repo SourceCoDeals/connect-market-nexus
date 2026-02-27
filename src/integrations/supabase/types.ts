@@ -13500,6 +13500,15 @@ export type Database = {
         }
         Returns: boolean
       }
+      assign_role_for_invite: {
+        Args: {
+          _granted_by: string
+          _reason?: string
+          _role: string
+          _user_id: string
+        }
+        Returns: undefined
+      }
       calculate_buyer_priority_score:
         | { Args: { buyer_type_param: string }; Returns: number }
         | {
