@@ -26,7 +26,7 @@ function getActivityColor(body: string) {
   return 'text-blue-600 bg-blue-50';
 }
 
-export function DealActivityLog({ requestId, requestStatus }: DealActivityLogProps) {
+export function DealActivityLog({ requestId, requestStatus: _requestStatus }: DealActivityLogProps) {
   const { data: allMessages = [], isLoading } = useConnectionMessages(requestId);
 
   // Filter to only system/decision messages

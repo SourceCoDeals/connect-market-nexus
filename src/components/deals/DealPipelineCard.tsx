@@ -1,6 +1,6 @@
 import { formatDistanceToNow } from 'date-fns';
 import { cn, formatCompactCurrency } from '@/lib/utils';
-import { MessageSquare, Clock, ChevronRight } from 'lucide-react';
+import { Clock, ChevronRight } from 'lucide-react';
 import type { ConnectionRequest } from '@/types';
 import {
   TechnologyIcon,

@@ -1,6 +1,5 @@
 import { useState } from 'react';
-import { AlertTriangle, FileSignature, Shield, ArrowRight, MessageSquare, ChevronRight } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { AlertTriangle, FileSignature, Shield, MessageSquare, ChevronRight } from 'lucide-react';
 import { useMyAgreementStatus } from '@/hooks/use-agreement-status';
 import { useBuyerNdaStatus } from '@/hooks/admin/use-docuseal';
 import { useAuth } from '@/context/AuthContext';
@@ -27,7 +26,7 @@ interface ActionItem {
   color: string;
 }
 
-export function ActionHub({ requests, unreadByRequest, unreadMsgCounts, onSelectDeal }: ActionHubProps) {
+export function ActionHub({ requests, unreadByRequest: _unreadByRequest, unreadMsgCounts, onSelectDeal }: ActionHubProps) {
   const { user, isAdmin } = useAuth();
   const { data: ndaStatus } = useBuyerNdaStatus(!isAdmin ? user?.id : undefined);
   const { data: coverage } = useMyAgreementStatus(!isAdmin && !!user);
