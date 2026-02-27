@@ -431,8 +431,30 @@ function validateProspeoResult(
 }
 
 /**
+ * Validate a LinkedIn URL is a real personal profile (not company, posts, etc.)
+ * Mirrors the validation logic from the decision_makers_finder tool.
+ */
+function isValidLinkedInProfileUrl(url: string): boolean {
+  if (!url || !url.includes('linkedin.com/in/')) return false;
+  const disallowed = [
+    'linkedin.com/company/',
+    'linkedin.com/posts/',
+    'linkedin.com/pub/dir/',
+    'linkedin.com/feed/',
+    'linkedin.com/jobs/',
+    'linkedin.com/school/',
+    'linkedin.com/in/ACo',
+  ];
+  return !disallowed.some((d) => url.includes(d));
+}
+
+/**
  * Discover a LinkedIn profile URL via Google search with intelligent scoring.
- * Tries multiple search strategies and picks the highest-scoring result.
+ * Inspired by the decision_makers_finder tool patterns:
+ * - Uses domain in queries for precision (like "{domain} {company} CEO")
+ * - Excludes noisy aggregator sites (-zoominfo -dnb)
+ * - Tries multiple search strategies from most specific to broadest
+ * - Role-specific queries when title is available
  * Returns null if no confident match is found.
  */
 async function discoverLinkedInUrl(
@@ -440,36 +462,66 @@ async function discoverLinkedInUrl(
   lastName: string,
   companyName: string,
   title: string,
+  domain?: string,
 ): Promise<{ url: string; score: number; verification: string[] } | null> {
   const fullName = `${firstName} ${lastName}`.trim();
   if (!fullName) return null;
+
+  // Noise exclusion: filter out aggregator sites that return stale/wrong data
+  const excludeNoise = '-zoominfo -dnb -rocketreach -signalhire -apollo.io';
+
+  // Infer domain from company name if not provided
+  const companyDomain = domain || (companyName ? inferDomain(companyName) : '');
 
   // Build multiple search queries from most specific to broadest
   const queries: string[] = [];
 
   if (companyName) {
-    // Most specific: quoted name + quoted company + site restriction
-    queries.push(`"${fullName}" "${companyName}" site:linkedin.com/in`);
-    // Partial company match (core words) + site restriction
+    // Strategy 1: domain + quoted name + site restriction (most precise, like decision_makers_finder)
+    if (companyDomain) {
+      queries.push(
+        `${companyDomain} "${fullName}" site:linkedin.com/in ${excludeNoise}`,
+      );
+    }
+
+    // Strategy 2: quoted name + quoted company + site restriction
+    queries.push(`"${fullName}" "${companyName}" site:linkedin.com/in ${excludeNoise}`);
+
+    // Strategy 3: role-specific if we have a title (like CEO/Founder/President queries in decision_makers_finder)
+    if (title) {
+      const roleKeywords = title
+        .split(/[\s,/&]+/)
+        .filter((w) => w.length > 2)
+        .slice(0, 2)
+        .join(' ');
+      if (roleKeywords) {
+        queries.push(
+          `"${fullName}" "${companyName}" ${roleKeywords} site:linkedin.com/in ${excludeNoise}`,
+        );
+      }
+    }
+
+    // Strategy 4: partial company match (core words) + site restriction
     const coreWords = companyName
       .split(/\s+/)
       .filter((w) => w.length > 3)
       .slice(0, 2)
       .join(' ');
     if (coreWords && coreWords.toLowerCase() !== companyName.toLowerCase()) {
-      queries.push(`"${fullName}" ${coreWords} site:linkedin.com/in`);
+      queries.push(`"${fullName}" ${coreWords} site:linkedin.com/in ${excludeNoise}`);
     }
-    // Without site restriction (catches non-standard LinkedIn URLs)
-    queries.push(`"${fullName}" "${companyName}" linkedin`);
+
+    // Strategy 5: without site restriction (catches non-standard LinkedIn URLs)
+    queries.push(`"${fullName}" "${companyName}" linkedin ${excludeNoise}`);
   }
 
   if (title && !companyName) {
-    queries.push(`"${fullName}" ${title} site:linkedin.com/in`);
+    queries.push(`"${fullName}" ${title} site:linkedin.com/in ${excludeNoise}`);
   }
 
   // Broadest: just the name
   if (queries.length === 0) {
-    queries.push(`"${fullName}" site:linkedin.com/in`);
+    queries.push(`"${fullName}" site:linkedin.com/in ${excludeNoise}`);
   }
 
   let bestMatch: { url: string; score: number; verification: string[] } | null = null;
@@ -477,9 +529,7 @@ async function discoverLinkedInUrl(
   for (const query of queries) {
     try {
       const results = await googleSearch(query, 5);
-      const linkedInResults = results.filter(
-        (r) => r.url.includes('linkedin.com/in/') && !r.url.includes('linkedin.com/in/ACo'),
-      );
+      const linkedInResults = results.filter((r) => isValidLinkedInProfileUrl(r.url));
 
       for (const result of linkedInResults) {
         const score = scoreLinkedInResult(result, firstName, lastName, companyName, title);
@@ -1132,6 +1182,7 @@ async function enrichLinkedInContact(
             fallbackLastName,
             fallbackCompany,
             '',
+            domain,
           );
 
           if (googleResult && googleResult.url !== linkedinUrl) {
@@ -1485,7 +1536,8 @@ async function findAndEnrichPerson(
     let linkedinVerified = false;
 
     try {
-      const googleResult = await discoverLinkedInUrl(firstName, lastName, companyName, title);
+      const verifyDomain = companyName ? inferDomain(companyName) : undefined;
+      const googleResult = await discoverLinkedInUrl(firstName, lastName, companyName, title, verifyDomain);
       if (googleResult) {
         const storedSlug = storedLinkedinUrl.split('/in/')[1]?.split(/[/?#]/)[0]?.toLowerCase() || '';
         const googleSlug = googleResult.url.split('/in/')[1]?.split(/[/?#]/)[0]?.toLowerCase() || '';
@@ -1672,7 +1724,8 @@ async function findAndEnrichPerson(
 
   let discoveredLinkedIn: string | null = null;
   try {
-    const googleResult = await discoverLinkedInUrl(firstName, lastName, companyName, title);
+    const discoverDomain = companyName ? inferDomain(companyName) : undefined;
+    const googleResult = await discoverLinkedInUrl(firstName, lastName, companyName, title, discoverDomain);
 
     if (googleResult) {
       discoveredLinkedIn = googleResult.url;
