@@ -14,13 +14,47 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
-    const body: any = await req.json();
+    const raw: any = await req.json();
 
-    // Navigate to salesforce_data inside the n8n wrapper
-    const salesforceData = body?.[0]?.body?.salesforce_data;
-    if (!salesforceData) {
-      return errorResponse("Missing salesforce_data in payload", 400, corsHeaders);
+    // Log the top-level structure for debugging
+    console.log("Received payload keys:", Array.isArray(raw) ? `array[${raw.length}]` : Object.keys(raw || {}));
+
+    // Flexibly extract salesforce_data from multiple n8n payload shapes:
+    // Shape 1: [{ body: { salesforce_data: {...} } }]        — n8n HTTP node array wrapper
+    // Shape 2: { body: { salesforce_data: {...} } }           — n8n HTTP node single object
+    // Shape 3: { salesforce_data: {...} }                     — direct payload
+    // Shape 4: [{ salesforce_data: {...} }]                   — array without body wrapper
+    // Shape 5: { "Account Data": {...}, "Contacts Data": ... } — raw SF data directly
+    function extractSalesforceData(payload: any): any {
+      if (!payload) return null;
+
+      // If it's an array, try the first element
+      if (Array.isArray(payload)) {
+        if (payload.length === 0) return null;
+        return extractSalesforceData(payload[0]);
+      }
+
+      // Direct salesforce_data key
+      if (payload.salesforce_data) return payload.salesforce_data;
+
+      // Nested under body
+      if (payload.body?.salesforce_data) return payload.body.salesforce_data;
+
+      // Raw SF data (has "Account Data" directly)
+      if (payload["Account Data"]) return payload;
+
+      // body itself might be the SF data
+      if (payload.body?.["Account Data"]) return payload.body;
+
+      return null;
     }
+
+    const salesforceData = extractSalesforceData(raw);
+    if (!salesforceData) {
+      console.error("Could not extract salesforce_data from payload. Top-level:", JSON.stringify(raw).slice(0, 500));
+      return errorResponse("Missing salesforce_data in payload. Accepted shapes: {salesforce_data:{...}}, [{body:{salesforce_data:{...}}}], or {\"Account Data\":{...}}", 400, corsHeaders);
+    }
+    console.log("Extracted salesforce_data keys:", Object.keys(salesforceData));
 
     const account: any = salesforceData["Account Data"];
     if (!account?.Id || !account?.Name) {
@@ -45,7 +79,7 @@ Deno.serve(async (req: Request) => {
       contact?.Phone || contact?.MobilePhone || accountPhone;
 
     // Normalize website
-    let website = account.Website || null;
+    let website = account.Website || "";
     if (website && !/^https?:\/\//i.test(website)) {
       website = `https://${website}`;
     }
