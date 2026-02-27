@@ -165,6 +165,11 @@ export function UnifiedAdminSidebar({
             external: true,
           },
           {
+            label: 'Manage Listings',
+            href: '/admin/marketplace/listings',
+            icon: <Store className="h-4 w-4" />,
+          },
+          {
             label: 'Marketplace Queue',
             href: '/admin/marketplace/queue',
             icon: <ClipboardList className="h-4 w-4" />,
