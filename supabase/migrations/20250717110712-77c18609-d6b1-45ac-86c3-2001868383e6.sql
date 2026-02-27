@@ -1,5 +1,4 @@
-
--- Create email_delivery_logs table for tracking email delivery status
+-- Create email_delivery_logs table for tracking delivery status and retries
 CREATE TABLE public.email_delivery_logs (
   id uuid NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
   email text NOT NULL,

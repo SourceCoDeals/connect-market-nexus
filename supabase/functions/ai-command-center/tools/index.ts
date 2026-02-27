@@ -34,6 +34,7 @@ import {
 } from './integration-action-tools.ts';
 import { proactiveTools, executeProactiveTool } from './proactive-tools.ts';
 import { smartleadTools, executeSmartleadTool } from './smartlead-tools.ts';
+import { knowledgeTools, executeKnowledgeTool } from './knowledge-tools.ts';
 
 // ---------- Tool Result Types ----------
 
@@ -68,6 +69,7 @@ const ALL_TOOLS: ClaudeTool[] = [
   ...integrationActionTools,
   ...proactiveTools,
   ...smartleadTools,
+  ...knowledgeTools,
 ];
 
 const TOOL_CATEGORIES: Record<string, string[]> = {
@@ -182,6 +184,7 @@ const TOOL_CATEGORIES: Record<string, string[]> = {
     'get_follow_up_queue',
     'get_connection_requests',
     'google_search_companies',
+    'retrieve_knowledge',
   ],
 
   // Actions
@@ -276,8 +279,8 @@ const TOOL_CATEGORIES: Record<string, string[]> = {
     'send_document',
   ],
 
-  // Platform guide / help — minimal tools, mostly knowledge-based response
-  PLATFORM_GUIDE: ['get_current_user_context'],
+  // Platform guide / help — knowledge-based response
+  PLATFORM_GUIDE: ['get_current_user_context', 'retrieve_knowledge'],
 
   // Industry trackers
   INDUSTRY: ['get_industry_trackers', 'search_buyer_universes'],
@@ -499,6 +502,8 @@ async function _executeToolInternal(
     return executeProactiveTool(supabase, toolName, resolvedArgs);
   if (smartleadTools.some((t) => t.name === toolName))
     return executeSmartleadTool(supabase, toolName, resolvedArgs, userId);
+  if (knowledgeTools.some((t) => t.name === toolName))
+    return executeKnowledgeTool(supabase, toolName, resolvedArgs);
 
   return { error: `Unknown tool: ${toolName}` };
 }
