@@ -7,11 +7,35 @@ export type TaskType =
   | 'send_materials'
   | 'update_pipeline'
   | 'schedule_call'
+  | 'nda_execution'
+  | 'ioi_loi_process'
+  | 'due_diligence'
+  | 'buyer_qualification'
+  | 'seller_relationship'
+  | 'buyer_ic_followup'
   | 'other';
 
-export type TaskStatus = 'pending_approval' | 'pending' | 'completed' | 'overdue';
+export type TaskStatus =
+  | 'pending_approval'
+  | 'pending'
+  | 'in_progress'
+  | 'completed'
+  | 'overdue'
+  | 'snoozed'
+  | 'cancelled'
+  | 'listing_closed';
 
 export type ExtractionConfidence = 'high' | 'medium' | 'low';
+
+export type TaskEntityType = 'listing' | 'deal' | 'buyer' | 'contact';
+
+export type TaskSource = 'manual' | 'ai' | 'chatbot' | 'system' | 'template';
+
+export type TaskPriority = 'high' | 'medium' | 'low';
+
+export type AIConfidence = 'high' | 'medium';
+
+export type AISpeakerRole = 'advisor' | 'seller' | 'buyer' | 'unknown';
 
 export interface StandupMeeting {
   id: string;
@@ -55,6 +79,35 @@ export interface DailyStandupTask {
   approved_by: string | null;
   approved_at: string | null;
   updated_at: string;
+
+  // v3.1 — Entity linking
+  entity_type: TaskEntityType;
+  entity_id: string | null;
+  secondary_entity_type: TaskEntityType | null;
+  secondary_entity_id: string | null;
+
+  // v3.1 — Source & priority
+  source: TaskSource;
+  priority: TaskPriority;
+  created_by: string | null;
+
+  // v3.1 — AI fields
+  ai_evidence_quote: string | null;
+  ai_relevance_score: number | null;
+  ai_confidence: AIConfidence | null;
+  ai_speaker_assigned_to: AISpeakerRole | null;
+  transcript_id: string | null;
+  confirmed_at: string | null;
+  dismissed_at: string | null;
+  expires_at: string | null;
+
+  // v3.1 — Completion & team
+  completion_notes: string | null;
+  completion_transcript_id: string | null;
+  deal_team_visible: boolean;
+  depends_on: string | null;
+  snoozed_until: string | null;
+  buyer_deal_score: number | null;
 }
 
 export interface DailyStandupTaskWithRelations extends DailyStandupTask {
@@ -106,6 +159,12 @@ export const TASK_TYPE_LABELS: Record<TaskType, string> = {
   send_materials: 'Send Materials',
   update_pipeline: 'Update Pipeline',
   schedule_call: 'Schedule Call',
+  nda_execution: 'NDA Execution',
+  ioi_loi_process: 'IOI/LOI Process',
+  due_diligence: 'Due Diligence',
+  buyer_qualification: 'Buyer Qualification',
+  seller_relationship: 'Seller Relationship',
+  buyer_ic_followup: 'Buyer IC Follow-up',
   other: 'Other',
 };
 
@@ -116,6 +175,12 @@ export const TASK_TYPE_COLORS: Record<TaskType, string> = {
   send_materials: 'bg-purple-100 text-purple-800 border-purple-200',
   update_pipeline: 'bg-gray-100 text-gray-800 border-gray-200',
   schedule_call: 'bg-green-100 text-green-800 border-green-200',
+  nda_execution: 'bg-indigo-100 text-indigo-800 border-indigo-200',
+  ioi_loi_process: 'bg-teal-100 text-teal-800 border-teal-200',
+  due_diligence: 'bg-orange-100 text-orange-800 border-orange-200',
+  buyer_qualification: 'bg-cyan-100 text-cyan-800 border-cyan-200',
+  seller_relationship: 'bg-rose-100 text-rose-800 border-rose-200',
+  buyer_ic_followup: 'bg-violet-100 text-violet-800 border-violet-200',
   other: 'bg-slate-100 text-slate-800 border-slate-200',
 };
 
@@ -126,8 +191,44 @@ export const TASK_TYPE_OPTIONS: { value: TaskType; label: string }[] = [
   { value: 'send_materials', label: 'Send Materials' },
   { value: 'update_pipeline', label: 'Update Pipeline' },
   { value: 'schedule_call', label: 'Schedule Call' },
+  { value: 'nda_execution', label: 'NDA Execution' },
+  { value: 'ioi_loi_process', label: 'IOI/LOI Process' },
+  { value: 'due_diligence', label: 'Due Diligence' },
+  { value: 'buyer_qualification', label: 'Buyer Qualification' },
+  { value: 'seller_relationship', label: 'Seller Relationship' },
+  { value: 'buyer_ic_followup', label: 'Buyer IC Follow-up' },
   { value: 'other', label: 'Other' },
 ];
+
+export const ENTITY_TYPE_LABELS: Record<TaskEntityType, string> = {
+  listing: 'Listing',
+  deal: 'Deal',
+  buyer: 'Buyer',
+  contact: 'Contact',
+};
+
+export const TASK_STATUS_LABELS: Record<TaskStatus, string> = {
+  pending_approval: 'Awaiting Approval',
+  pending: 'Pending',
+  in_progress: 'In Progress',
+  completed: 'Completed',
+  overdue: 'Overdue',
+  snoozed: 'Snoozed',
+  cancelled: 'Cancelled',
+  listing_closed: 'Listing Closed',
+};
+
+export const PRIORITY_LABELS: Record<TaskPriority, string> = {
+  high: 'High',
+  medium: 'Medium',
+  low: 'Low',
+};
+
+export const PRIORITY_COLORS: Record<TaskPriority, string> = {
+  high: 'bg-red-100 text-red-800 border-red-200',
+  medium: 'bg-amber-100 text-amber-800 border-amber-200',
+  low: 'bg-gray-100 text-gray-800 border-gray-200',
+};
 
 // ─── Priority Scoring Constants ───
 
@@ -182,3 +283,239 @@ export interface MeetingQualityMetrics {
   assignee_match_rate: number;
   meeting_duration_minutes: number | null;
 }
+
+// ─── v3.1 — New Entity Types ───
+
+export interface TaskComment {
+  id: string;
+  task_id: string;
+  user_id: string;
+  body: string;
+  created_at: string;
+  updated_at: string;
+  user?: {
+    id: string;
+    first_name: string | null;
+    last_name: string | null;
+    email: string;
+  } | null;
+}
+
+export type TaskActivityAction =
+  | 'created'
+  | 'edited'
+  | 'reassigned'
+  | 'completed'
+  | 'reopened'
+  | 'snoozed'
+  | 'cancelled'
+  | 'confirmed'
+  | 'dismissed'
+  | 'commented'
+  | 'priority_changed'
+  | 'status_changed'
+  | 'dependency_added';
+
+export interface TaskActivityLogEntry {
+  id: string;
+  task_id: string;
+  user_id: string;
+  action: TaskActivityAction;
+  old_value: Record<string, unknown> | null;
+  new_value: Record<string, unknown> | null;
+  created_at: string;
+  user?: {
+    id: string;
+    first_name: string | null;
+    last_name: string | null;
+  } | null;
+}
+
+export type DealTeamRole = 'lead' | 'analyst' | 'support';
+
+export interface DealTeamMember {
+  id: string;
+  listing_id: string;
+  user_id: string;
+  role: DealTeamRole;
+  created_at: string;
+  user?: {
+    id: string;
+    first_name: string | null;
+    last_name: string | null;
+    email: string;
+  } | null;
+}
+
+export type SignalType = 'positive' | 'warning' | 'critical' | 'neutral';
+
+export interface DealSignal {
+  id: string;
+  listing_id: string | null;
+  deal_id: string | null;
+  buyer_id: string | null;
+  transcript_id: string;
+  signal_type: SignalType;
+  signal_category: string;
+  summary: string;
+  verbatim_quote: string | null;
+  acknowledged_by: string | null;
+  acknowledged_at: string | null;
+  created_at: string;
+}
+
+export interface BuyerDealCadence {
+  id: string;
+  buyer_id: string;
+  deal_id: string;
+  deal_stage_name: string;
+  expected_contact_days: number;
+  last_contacted_at: string | null;
+  last_contact_source: string | null;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+// ─── v3.1 — Task Templates ───
+
+export interface TaskTemplateItem {
+  title: string;
+  task_type: TaskType;
+  due_offset_days: number;
+  depends_on_index?: number; // index into the same array
+  description?: string;
+}
+
+export interface TaskTemplateStage {
+  name: string;
+  description: string;
+  tasks: TaskTemplateItem[];
+}
+
+export const DEAL_PROCESS_TEMPLATES: TaskTemplateStage[] = [
+  {
+    name: 'Intake & Qualification',
+    description: 'Initial seller engagement and deal qualification',
+    tasks: [
+      { title: 'Conduct intake call with owner', task_type: 'contact_owner', due_offset_days: 7 },
+      {
+        title: 'Collect 3 years P&Ls from owner',
+        task_type: 'send_materials',
+        due_offset_days: 14,
+      },
+      {
+        title: 'Collect EBITDA bridge documentation',
+        task_type: 'send_materials',
+        due_offset_days: 14,
+      },
+      {
+        title: 'Qualify deal for full engagement',
+        task_type: 'seller_relationship',
+        due_offset_days: 21,
+      },
+    ],
+  },
+  {
+    name: 'Build Buyer Universe',
+    description: 'Research and compile potential buyers',
+    tasks: [
+      {
+        title: 'Build initial buyer universe (50+ buyers)',
+        task_type: 'build_buyer_universe',
+        due_offset_days: 14,
+      },
+      {
+        title: 'Score all buyers against deal criteria',
+        task_type: 'buyer_qualification',
+        due_offset_days: 21,
+      },
+      {
+        title: 'Get seller approval on buyer list',
+        task_type: 'seller_relationship',
+        due_offset_days: 28,
+      },
+    ],
+  },
+  {
+    name: 'NDA Phase',
+    description: 'Send and track NDAs with qualified buyers',
+    tasks: [
+      {
+        title: 'Send NDA to top 15 qualified buyers',
+        task_type: 'nda_execution',
+        due_offset_days: 3,
+      },
+      { title: 'Track NDA returns and follow up', task_type: 'nda_execution', due_offset_days: 10 },
+      {
+        title: 'Follow up on unsigned NDAs at 7 days',
+        task_type: 'follow_up_with_buyer',
+        due_offset_days: 10,
+      },
+    ],
+  },
+  {
+    name: 'CIM Phase',
+    description: 'Deliver CIM and manage buyer engagement',
+    tasks: [
+      {
+        title: 'Deliver CIM to all NDA-signed buyers',
+        task_type: 'send_materials',
+        due_offset_days: 1,
+        depends_on_index: 0,
+      },
+      {
+        title: 'Follow up on CIM receipt and interest',
+        task_type: 'follow_up_with_buyer',
+        due_offset_days: 5,
+      },
+      { title: 'Set first round IOI deadline', task_type: 'ioi_loi_process', due_offset_days: 30 },
+    ],
+  },
+  {
+    name: 'IOI & Presentations',
+    description: 'Review offers and schedule management presentations',
+    tasks: [
+      { title: 'Review all IOIs received', task_type: 'ioi_loi_process', due_offset_days: 3 },
+      {
+        title: 'Select buyers for management presentations',
+        task_type: 'buyer_qualification',
+        due_offset_days: 5,
+      },
+      {
+        title: 'Schedule management presentations',
+        task_type: 'schedule_call',
+        due_offset_days: 10,
+      },
+      {
+        title: 'Collect final IOIs post-presentation',
+        task_type: 'ioi_loi_process',
+        due_offset_days: 21,
+      },
+    ],
+  },
+  {
+    name: 'LOI & Diligence',
+    description: 'LOI execution and due diligence coordination',
+    tasks: [
+      { title: 'Send LOI to seller for review', task_type: 'ioi_loi_process', due_offset_days: 3 },
+      {
+        title: 'Collect seller feedback on LOI terms',
+        task_type: 'seller_relationship',
+        due_offset_days: 7,
+      },
+      { title: 'Open data room for winning buyer', task_type: 'due_diligence', due_offset_days: 3 },
+      { title: 'Assign due diligence coordinator', task_type: 'due_diligence', due_offset_days: 1 },
+    ],
+  },
+];
+
+// ─── v3.1 — Snooze Presets ───
+
+export const SNOOZE_PRESETS = [
+  { label: 'Tomorrow', days: 1 },
+  { label: '3 days', days: 3 },
+  { label: '1 week', days: 7 },
+  { label: '2 weeks', days: 14 },
+  { label: '1 month', days: 30 },
+] as const;

@@ -35,6 +35,7 @@ import {
 import { proactiveTools, executeProactiveTool } from './proactive-tools.ts';
 import { smartleadTools, executeSmartleadTool } from './smartlead-tools.ts';
 import { knowledgeTools, executeKnowledgeTool } from './knowledge-tools.ts';
+import { taskTools, executeTaskTool } from './task-tools.ts';
 
 // ---------- Tool Result Types ----------
 
@@ -70,6 +71,7 @@ const ALL_TOOLS: ClaudeTool[] = [
   ...proactiveTools,
   ...smartleadTools,
   ...knowledgeTools,
+  ...taskTools,
 ];
 
 const TOOL_CATEGORIES: Record<string, string[]> = {
@@ -202,7 +204,13 @@ const TOOL_CATEGORIES: Record<string, string[]> = {
     'convert_to_pipeline_deal',
     'save_contacts_to_crm',
   ],
-  UI_ACTION: ['select_table_rows', 'apply_table_filter', 'sort_table_column', 'trigger_page_action', 'navigate_to_page'],
+  UI_ACTION: [
+    'select_table_rows',
+    'apply_table_filter',
+    'sort_table_column',
+    'trigger_page_action',
+    'navigate_to_page',
+  ],
 
   // Remarketing workflow
   REMARKETING: [
@@ -361,6 +369,20 @@ const TOOL_CATEGORIES: Record<string, string[]> = {
     'search_buyers',
     'search_contacts',
   ],
+
+  // Task inbox & management
+  TASK_INBOX: [
+    'get_task_inbox',
+    'get_daily_briefing',
+    'get_overdue_tasks',
+    'get_buyer_spotlight',
+    'get_deal_signals_summary',
+    'snooze_task',
+    'confirm_ai_task',
+    'dismiss_ai_task',
+    'add_task_comment',
+    'bulk_reassign_tasks',
+  ],
 };
 
 // Tools that require user confirmation before executing
@@ -373,6 +395,8 @@ const CONFIRMATION_REQUIRED = new Set([
   'save_contacts_to_crm',
   'reassign_deal_task',
   'convert_to_pipeline_deal',
+  'snooze_task',
+  'bulk_reassign_tasks',
 ]);
 
 // ---------- Public API ----------
@@ -419,17 +443,24 @@ export async function executeTool(
 
   // Enrichment tools get 90s (Apify LinkedIn scraper polls up to 120s internally)
   const ENRICHMENT_TOOLS = new Set([
-    'enrich_buyer_contacts', 'enrich_linkedin_contact', 'find_and_enrich_person',
+    'enrich_buyer_contacts',
+    'enrich_linkedin_contact',
+    'find_and_enrich_person',
     'find_contact_linkedin',
   ]);
   // Other external API tools get 45s (Google search, Fireflies, etc.)
   const EXTERNAL_API_TOOLS = new Set([
-    'google_search_companies', 'push_to_phoneburner', 'push_to_smartlead',
-    'search_fireflies', 'semantic_transcript_search',
+    'google_search_companies',
+    'push_to_phoneburner',
+    'push_to_smartlead',
+    'search_fireflies',
+    'semantic_transcript_search',
   ]);
-  const timeoutMs = ENRICHMENT_TOOLS.has(toolName) ? 90000
-    : EXTERNAL_API_TOOLS.has(toolName) ? 45000
-    : 15000;
+  const timeoutMs = ENRICHMENT_TOOLS.has(toolName)
+    ? 90000
+    : EXTERNAL_API_TOOLS.has(toolName)
+      ? 45000
+      : 15000;
 
   try {
     const result = await Promise.race([
@@ -504,6 +535,8 @@ async function _executeToolInternal(
     return executeSmartleadTool(supabase, toolName, resolvedArgs, userId);
   if (knowledgeTools.some((t) => t.name === toolName))
     return executeKnowledgeTool(supabase, toolName, resolvedArgs);
+  if (taskTools.some((t) => t.name === toolName))
+    return executeTaskTool(supabase, toolName, resolvedArgs, userId);
 
   return { error: `Unknown tool: ${toolName}` };
 }

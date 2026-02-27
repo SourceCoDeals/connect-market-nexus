@@ -28,13 +28,18 @@ import {
   UserRound,
   Building2,
   Calendar,
+  AlarmClock,
 } from 'lucide-react';
 import type { DailyStandupTaskWithRelations } from '@/types/daily-tasks';
 import { TASK_TYPE_LABELS, TASK_TYPE_COLORS } from '@/types/daily-tasks';
 import { useToggleTaskComplete, useReassignTask, useEditTask } from '@/hooks/useDailyTasks';
+import { useSnoozeTask } from '@/hooks/useTaskActions';
 import { useAdminProfiles } from '@/hooks/admin/use-admin-profiles';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { SNOOZE_PRESETS } from '@/types/daily-tasks';
+import { TaskCommentsPanel } from './TaskCommentsPanel';
+import { TaskActivityPanel } from './TaskActivityPanel';
 
 interface TaskCardProps {
   task: DailyStandupTaskWithRelations;
@@ -77,6 +82,7 @@ export function TaskCard({
   const toggleComplete = useToggleTaskComplete();
   const reassignTask = useReassignTask();
   const editTask = useEditTask();
+  const snoozeTask = useSnoozeTask();
   const { data: adminProfiles } = useAdminProfiles();
   const { data: deals } = useDealsForPicker();
 
@@ -130,18 +136,22 @@ export function TaskCard({
 
   const adminList = useMemo(() => {
     if (!adminProfiles) return [];
-    return Object.entries(adminProfiles).map(([id, profile]) => ({
-      id,
-      name: profile.displayName,
-    })).sort((a, b) => a.name.localeCompare(b.name));
+    return Object.entries(adminProfiles)
+      .map(([id, profile]) => ({
+        id,
+        name: profile.displayName,
+      }))
+      .sort((a, b) => a.name.localeCompare(b.name));
   }, [adminProfiles]);
 
   const dealList = useMemo(() => {
     if (!deals) return [];
-    return deals.map((d) => ({
-      id: d.id,
-      name: d.listings?.internal_company_name || d.listings?.title || d.id.slice(0, 8),
-    })).sort((a, b) => a.name.localeCompare(b.name));
+    return deals
+      .map((d) => ({
+        id: d.id,
+        name: d.listings?.internal_company_name || d.listings?.title || d.id.slice(0, 8),
+      }))
+      .sort((a, b) => a.name.localeCompare(b.name));
   }, [deals]);
 
   const handleAssigneeChange = (newAssigneeId: string) => {
@@ -259,6 +269,20 @@ export function TaskCard({
                 <UserRound className="h-3.5 w-3.5 mr-2" />
                 Reassign
               </DropdownMenuItem>
+              {!isCompleted && task.status !== 'snoozed' && (
+                <>
+                  <DropdownMenuSeparator />
+                  {SNOOZE_PRESETS.map((preset) => (
+                    <DropdownMenuItem
+                      key={preset.days}
+                      onClick={() => snoozeTask.mutate({ taskId: task.id, days: preset.days })}
+                    >
+                      <AlarmClock className="h-3.5 w-3.5 mr-2" />
+                      Snooze {preset.label}
+                    </DropdownMenuItem>
+                  ))}
+                </>
+              )}
               {isLeadership && (
                 <>
                   <DropdownMenuSeparator />
@@ -324,10 +348,7 @@ export function TaskCard({
               {/* Assignee – editable dropdown */}
               <div>
                 <p className="text-xs text-muted-foreground mb-1">Assigned to</p>
-                <Select
-                  value={task.assignee_id || ''}
-                  onValueChange={handleAssigneeChange}
-                >
+                <Select value={task.assignee_id || ''} onValueChange={handleAssigneeChange}>
                   <SelectTrigger className="h-8 text-sm w-full">
                     <SelectValue placeholder="Unassigned">
                       {assigneeName && (
@@ -351,10 +372,7 @@ export function TaskCard({
               {/* Deal – editable dropdown */}
               <div>
                 <p className="text-xs text-muted-foreground mb-1">Deal</p>
-                <Select
-                  value={task.deal_id || ''}
-                  onValueChange={handleDealChange}
-                >
+                <Select value={task.deal_id || ''} onValueChange={handleDealChange}>
                   <SelectTrigger className="h-8 text-sm w-full">
                     <SelectValue placeholder="No deal linked">
                       {dealName && (
@@ -429,6 +447,26 @@ export function TaskCard({
                 {task.source_timestamp && ` (at ${task.source_timestamp})`}
               </p>
             )}
+
+            {/* AI evidence quote */}
+            {task.ai_evidence_quote && (
+              <div className="rounded-md bg-blue-50 border border-blue-200 px-3 py-2">
+                <p className="text-xs text-blue-800">
+                  <span className="font-medium">AI Evidence:</span>{' '}
+                  <span className="italic">&ldquo;{task.ai_evidence_quote}&rdquo;</span>
+                </p>
+              </div>
+            )}
+
+            {/* Comments */}
+            <div className="border-t pt-3">
+              <TaskCommentsPanel taskId={task.id} />
+            </div>
+
+            {/* Activity log */}
+            <div className="border-t pt-3">
+              <TaskActivityPanel taskId={task.id} />
+            </div>
           </div>
         </DialogContent>
       </Dialog>
