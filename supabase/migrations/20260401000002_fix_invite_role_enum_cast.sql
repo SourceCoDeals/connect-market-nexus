@@ -5,9 +5,28 @@
 -- strings via PostgREST, but user_roles.role and permission_audit_log columns
 -- are typed as app_role enum. PostgreSQL requires an explicit cast.
 --
--- This migration adds a SECURITY DEFINER helper that the edge function can
--- call via .rpc(), keeping the cast inside SQL where it belongs.
+-- This migration also:
+--   - Adds implicit text→app_role cast so PostgREST inserts work
+--   - Fixes user_roles unique constraint: (user_id) instead of (user_id, role)
+--     since each user should have exactly one role
 -- ============================================================================
+
+-- Allow PostgreSQL to auto-cast text → app_role (fixes PostgREST inserts)
+DO $$ BEGIN
+  CREATE CAST (text AS app_role) WITH INOUT AS IMPLICIT;
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+
+-- Fix unique constraint: one role per user
+-- Remove duplicates first (keep latest)
+DELETE FROM public.user_roles a
+USING public.user_roles b
+WHERE a.user_id = b.user_id
+  AND a.granted_at < b.granted_at;
+
+ALTER TABLE public.user_roles
+  DROP CONSTRAINT IF EXISTS user_roles_user_id_role_key,
+  ADD CONSTRAINT user_roles_user_id_key UNIQUE (user_id);
 
 CREATE OR REPLACE FUNCTION public.assign_role_for_invite(
   _user_id uuid,
