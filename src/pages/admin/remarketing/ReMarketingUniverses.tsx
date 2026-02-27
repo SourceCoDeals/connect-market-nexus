@@ -148,11 +148,13 @@ function SortableFlaggedRow({
   index,
   onCreateClick,
   onNavigate,
+  onRemoveClick,
 }: {
   deal: FlaggedDeal;
   index: number;
   onCreateClick: (e: React.MouseEvent) => void;
   onNavigate: () => void;
+  onRemoveClick: (e: React.MouseEvent) => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: deal.id,
@@ -234,6 +236,9 @@ function SortableFlaggedRow({
           <Button size="sm" variant="outline" className="gap-1.5" onClick={onCreateClick}>
             <Plus className="h-3.5 w-3.5" />
             Create
+          </Button>
+          <Button size="sm" variant="ghost" className="gap-1.5 text-muted-foreground hover:text-destructive" onClick={onRemoveClick}>
+            <X className="h-3.5 w-3.5" />
           </Button>
         </div>
       </TableCell>
@@ -1286,6 +1291,19 @@ const ReMarketingUniverses = () => {
                               n.set('new', 'true');
                               return n;
                             });
+                          }}
+                          onRemoveClick={async (e) => {
+                            e.stopPropagation();
+                            const { error } = await supabase
+                              .from('listings')
+                              .update({ universe_build_flagged: false, universe_build_flagged_at: null })
+                              .eq('id', deal.id);
+                            if (error) {
+                              toast.error('Failed to remove deal from list');
+                            } else {
+                              toast.success('Deal removed from To Be Created list');
+                              queryClient.invalidateQueries({ queryKey: ['remarketing', 'universe-build-flagged-deals'] });
+                            }
                           }}
                         />
                       ))}
