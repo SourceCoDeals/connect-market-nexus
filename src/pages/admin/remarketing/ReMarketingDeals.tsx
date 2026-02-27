@@ -1165,14 +1165,16 @@ const ReMarketingDeals = () => {
         title: 'Enrichment queued',
         description: `${dealIds.length} deal${dealIds.length > 1 ? 's' : ''} queued for enrichment. Starting processing now...`,
       });
-      void supabase.functions
-        .invoke('process-enrichment-queue', { body: { source: 'ui_enrich_deals' } })
-        .then(() => {
+      void (async () => {
+        try {
+          await supabase.functions.invoke('process-enrichment-queue', {
+            body: { source: 'ui_enrich_deals' },
+          });
           /* enrichment worker triggered */
-        })
-        .catch(() => {
+        } catch {
           /* enrichment worker trigger is non-blocking */
-        });
+        }
+      })();
       refetchListings();
     } catch (error: any) {
       // Enrich deals error — toast shown to user
