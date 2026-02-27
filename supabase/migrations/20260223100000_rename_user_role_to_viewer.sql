@@ -94,7 +94,7 @@ BEGIN
     reason = EXCLUDED.reason;
 
   -- Log the change
-  INSERT INTO public.permission_audit_log (user_id, changed_by, old_role, new_role, reason)
+  INSERT INTO public.permission_audit_log (target_user_id, changed_by, old_role, new_role, reason)
   VALUES (
     _target_user_id,
     auth.uid(),
