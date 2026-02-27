@@ -3,23 +3,66 @@
  * Query, search, and inspect deals (listings) in the pipeline.
  */
 
+/* eslint-disable @typescript-eslint/no-explicit-any */
 // deno-lint-ignore no-explicit-any
 type SupabaseClient = any;
-import type { ClaudeTool } from "../../_shared/claude-client.ts";
-import type { ToolResult } from "./index.ts";
+import type { ClaudeTool } from '../../_shared/claude-client.ts';
+import type { ToolResult } from './index.ts';
 
 // ---------- US State code/name mapping ----------
 
 const STATE_CODE_TO_NAME: Record<string, string> = {
-  AL:'Alabama',AK:'Alaska',AZ:'Arizona',AR:'Arkansas',CA:'California',CO:'Colorado',
-  CT:'Connecticut',DE:'Delaware',FL:'Florida',GA:'Georgia',HI:'Hawaii',ID:'Idaho',
-  IL:'Illinois',IN:'Indiana',IA:'Iowa',KS:'Kansas',KY:'Kentucky',LA:'Louisiana',
-  ME:'Maine',MD:'Maryland',MA:'Massachusetts',MI:'Michigan',MN:'Minnesota',MS:'Mississippi',
-  MO:'Missouri',MT:'Montana',NE:'Nebraska',NV:'Nevada',NH:'New Hampshire',NJ:'New Jersey',
-  NM:'New Mexico',NY:'New York',NC:'North Carolina',ND:'North Dakota',OH:'Ohio',OK:'Oklahoma',
-  OR:'Oregon',PA:'Pennsylvania',RI:'Rhode Island',SC:'South Carolina',SD:'South Dakota',
-  TN:'Tennessee',TX:'Texas',UT:'Utah',VT:'Vermont',VA:'Virginia',WA:'Washington',
-  WV:'West Virginia',WI:'Wisconsin',WY:'Wyoming',DC:'District of Columbia',
+  AL: 'Alabama',
+  AK: 'Alaska',
+  AZ: 'Arizona',
+  AR: 'Arkansas',
+  CA: 'California',
+  CO: 'Colorado',
+  CT: 'Connecticut',
+  DE: 'Delaware',
+  FL: 'Florida',
+  GA: 'Georgia',
+  HI: 'Hawaii',
+  ID: 'Idaho',
+  IL: 'Illinois',
+  IN: 'Indiana',
+  IA: 'Iowa',
+  KS: 'Kansas',
+  KY: 'Kentucky',
+  LA: 'Louisiana',
+  ME: 'Maine',
+  MD: 'Maryland',
+  MA: 'Massachusetts',
+  MI: 'Michigan',
+  MN: 'Minnesota',
+  MS: 'Mississippi',
+  MO: 'Missouri',
+  MT: 'Montana',
+  NE: 'Nebraska',
+  NV: 'Nevada',
+  NH: 'New Hampshire',
+  NJ: 'New Jersey',
+  NM: 'New Mexico',
+  NY: 'New York',
+  NC: 'North Carolina',
+  ND: 'North Dakota',
+  OH: 'Ohio',
+  OK: 'Oklahoma',
+  OR: 'Oregon',
+  PA: 'Pennsylvania',
+  RI: 'Rhode Island',
+  SC: 'South Carolina',
+  SD: 'South Dakota',
+  TN: 'Tennessee',
+  TX: 'Texas',
+  UT: 'Utah',
+  VT: 'Vermont',
+  VA: 'Virginia',
+  WA: 'Washington',
+  WV: 'West Virginia',
+  WI: 'Wisconsin',
+  WY: 'Wyoming',
+  DC: 'District of Columbia',
 };
 
 // Simple fuzzy match: checks if target contains a close match to query (1 edit distance tolerance)
@@ -46,7 +89,9 @@ const DEAL_FIELDS_QUICK = `
   location, address_state, geographic_states, services,
   deal_total_score, is_priority_target, remarketing_status,
   deal_owner_id, primary_owner_id, updated_at
-`.replace(/\s+/g, ' ').trim();
+`
+  .replace(/\s+/g, ' ')
+  .trim();
 
 const DEAL_FIELDS_FULL = `
   id, title, status, status_label, status_tag, deal_source, industry, industry_tier_name, category, categories,
@@ -63,40 +108,67 @@ const DEAL_FIELDS_FULL = `
   deal_owner_id, primary_owner_id, presented_by_admin_id,
   need_buyer_universe, universe_build_flagged,
   created_at, updated_at, enriched_at, published_at
-`.replace(/\s+/g, ' ').trim();
+`
+  .replace(/\s+/g, ' ')
+  .trim();
 
 // ---------- Tool definitions ----------
 
 export const dealTools: ClaudeTool[] = [
   {
     name: 'query_deals',
-    description: 'Search and filter deals in the pipeline. Supports filtering by status, source, geography, industry, revenue range, and text search. Returns a list of matching deals sorted by relevance.',
+    description:
+      'Search and filter deals in the pipeline. Supports filtering by status, source, geography, industry, revenue range, and text search. Returns a list of matching deals sorted by relevance.',
     input_schema: {
       type: 'object',
       properties: {
-        status: { type: 'string', description: 'Filter by deal status (e.g. "active", "closed", "pipeline")' },
-        deal_source: { type: 'string', description: 'Filter by source (e.g. "captarget", "go_partners", "marketplace", "internal")' },
-        state: { type: 'string', description: 'Filter by a single US state code (e.g. "TX"). Use states[] instead when filtering by multiple states.' },
+        status: {
+          type: 'string',
+          description: 'Filter by deal status (e.g. "active", "closed", "pipeline")',
+        },
+        deal_source: {
+          type: 'string',
+          description:
+            'Filter by source (e.g. "captarget", "go_partners", "marketplace", "internal")',
+        },
+        state: {
+          type: 'string',
+          description:
+            'Filter by a single US state code (e.g. "TX"). Use states[] instead when filtering by multiple states.',
+        },
         states: {
           type: 'array',
           items: { type: 'string' },
-          description: 'Filter by multiple US state codes in one call (e.g. ["TX", "FL", "CA"]). Prefer this over making separate calls per state.',
+          description:
+            'Filter by multiple US state codes in one call (e.g. ["TX", "FL", "CA"]). Prefer this over making separate calls per state.',
         },
         industry: { type: 'string', description: 'Filter by industry keyword' },
         min_revenue: { type: 'number', description: 'Minimum revenue filter' },
         max_revenue: { type: 'number', description: 'Maximum revenue filter' },
         min_ebitda: { type: 'number', description: 'Minimum EBITDA filter' },
-        search: { type: 'string', description: 'Free-text search across title, description, services, location' },
+        search: {
+          type: 'string',
+          description: 'Free-text search across title, description, services, location',
+        },
         is_priority: { type: 'boolean', description: 'Filter to priority targets only' },
-        limit: { type: 'number', description: 'Max results (default 25 for simple queries, auto-expands for search/industry filters to scan all matching deals)' },
-        depth: { type: 'string', enum: ['quick', 'full'], description: 'quick = summary fields, full = all details' },
+        limit: {
+          type: 'number',
+          description:
+            'Max results (default 25 for simple queries, auto-expands for search/industry filters to scan all matching deals)',
+        },
+        depth: {
+          type: 'string',
+          enum: ['quick', 'full'],
+          description: 'quick = summary fields, full = all details',
+        },
       },
       required: [],
     },
   },
   {
     name: 'get_deal_details',
-    description: 'Get comprehensive details for a specific deal by ID. Includes financials, geography, services, scores, owner goals, risks, and investment thesis.',
+    description:
+      'Get comprehensive details for a specific deal by ID. Includes financials, geography, services, scores, owner goals, risks, and investment thesis.',
     input_schema: {
       type: 'object',
       properties: {
@@ -124,19 +196,31 @@ export const dealTools: ClaudeTool[] = [
       type: 'object',
       properties: {
         deal_id: { type: 'string', description: 'The deal/listing UUID' },
-        status: { type: 'string', enum: ['pending', 'in_progress', 'completed', 'all'], description: 'Filter by task status (default "all")' },
-        assigned_to: { type: 'string', description: 'Filter by assigned user ID. Use "CURRENT_USER" for the current user.' },
+        status: {
+          type: 'string',
+          enum: ['pending', 'in_progress', 'completed', 'all'],
+          description: 'Filter by task status (default "all")',
+        },
+        assigned_to: {
+          type: 'string',
+          description: 'Filter by assigned user ID. Use "CURRENT_USER" for the current user.',
+        },
       },
       required: ['deal_id'],
     },
   },
   {
     name: 'get_pipeline_summary',
-    description: 'Get a high-level summary of the deal pipeline — counts by status, source, stage, and key metrics.',
+    description:
+      'Get a high-level summary of the deal pipeline — counts by status, source, stage, and key metrics.',
     input_schema: {
       type: 'object',
       properties: {
-        group_by: { type: 'string', enum: ['status', 'deal_source', 'industry', 'address_state'], description: 'Dimension to group by (default "status")' },
+        group_by: {
+          type: 'string',
+          enum: ['status', 'deal_source', 'industry', 'address_state'],
+          description: 'Dimension to group by (default "status")',
+        },
       },
       required: [],
     },
@@ -151,12 +235,18 @@ export async function executeDealTool(
   args: Record<string, unknown>,
 ): Promise<ToolResult> {
   switch (toolName) {
-    case 'query_deals': return queryDeals(supabase, args);
-    case 'get_deal_details': return getDealDetails(supabase, args);
-    case 'get_deal_activities': return getDealActivities(supabase, args);
-    case 'get_deal_tasks': return getDealTasks(supabase, args);
-    case 'get_pipeline_summary': return getPipelineSummary(supabase, args);
-    default: return { error: `Unknown deal tool: ${toolName}` };
+    case 'query_deals':
+      return queryDeals(supabase, args);
+    case 'get_deal_details':
+      return getDealDetails(supabase, args);
+    case 'get_deal_activities':
+      return getDealActivities(supabase, args);
+    case 'get_deal_tasks':
+      return getDealTasks(supabase, args);
+    case 'get_pipeline_summary':
+      return getPipelineSummary(supabase, args);
+    default:
+      return { error: `Unknown deal tool: ${toolName}` };
   }
 }
 
@@ -178,7 +268,7 @@ async function queryDeals(
   const requestedLimit = Number(args.limit) || (needsClientFilter ? 5000 : 25);
   // Always use FULL fields when client-side filtering is active so we can search
   // across ALL data points (industry, category, internal_company_name, services, etc.)
-  const fields = (needsClientFilter || depth === 'full') ? DEAL_FIELDS_FULL : DEAL_FIELDS_QUICK;
+  const fields = needsClientFilter || depth === 'full' ? DEAL_FIELDS_FULL : DEAL_FIELDS_QUICK;
 
   // Build base query filters
   const buildQuery = (offset: number, batchSize: number) => {
@@ -259,32 +349,47 @@ async function queryDeals(
 
       // Exact substring match across ALL text fields
       if (
-        title.includes(term) || industry.includes(term) || category.includes(term) ||
-        location.includes(term) || addressCity.includes(term) || addressState.includes(term) ||
-        internalName.includes(term) || projectName.includes(term) || dealIdentifier.includes(term) ||
-        executiveSummary.includes(term) || investmentThesis.includes(term) ||
-        businessModel.includes(term) || ownerGoals.includes(term) ||
+        title.includes(term) ||
+        industry.includes(term) ||
+        category.includes(term) ||
+        location.includes(term) ||
+        addressCity.includes(term) ||
+        addressState.includes(term) ||
+        internalName.includes(term) ||
+        projectName.includes(term) ||
+        dealIdentifier.includes(term) ||
+        executiveSummary.includes(term) ||
+        investmentThesis.includes(term) ||
+        businessModel.includes(term) ||
+        ownerGoals.includes(term) ||
         services.some((s: string) => s.toLowerCase().includes(term)) ||
         categories.some((c: string) => c.toLowerCase().includes(term)) ||
         geographicStates.some((s: string) => s.toLowerCase().includes(term)) ||
         serviceMix.some((s: string) => s.toLowerCase().includes(term))
-      ) return true;
+      )
+        return true;
 
       // Fuzzy match: check if all words in the search appear in the combined text
       const combined = `${title} ${internalName} ${projectName} ${dealIdentifier} ${industry} ${category} ${location} ${addressCity} ${addressState} ${businessModel} ${services.join(' ')} ${categories.join(' ')} ${geographicStates.join(' ')}`;
-      const words = term.split(/\s+/).filter(w => w.length > 2);
-      if (words.length > 1 && words.every(w => fuzzyContains(combined, w))) return true;
+      const words = term.split(/\s+/).filter((w) => w.length > 2);
+      if (words.length > 1 && words.every((w) => fuzzyContains(combined, w))) return true;
 
       // Single-word fuzzy (edit distance) for entity names
-      if (term.length >= 4 && (fuzzyContains(title, term) || fuzzyContains(internalName, term) || fuzzyContains(projectName, term) || fuzzyContains(dealIdentifier, term))) return true;
+      if (
+        term.length >= 4 &&
+        (fuzzyContains(title, term) ||
+          fuzzyContains(internalName, term) ||
+          fuzzyContains(projectName, term) ||
+          fuzzyContains(dealIdentifier, term))
+      )
+        return true;
 
       return false;
     });
   }
 
   // Client-side industry keyword filter
-  // Checks industry, category, categories, services, and title fields
-  // because deals may store industry info in different fields
+  // Checks ALL text fields where industry info might live — not just the industry column
   if (args.industry) {
     const term = (args.industry as string).toLowerCase();
     results = results.filter((d: Record<string, unknown>) => {
@@ -292,13 +397,27 @@ async function queryDeals(
       const category = (d.category as string)?.toLowerCase() || '';
       const categories = (d.categories as string[]) || [];
       const services = (d.services as string[]) || [];
+      const serviceMix = (d.service_mix as string[]) || [];
       const title = (d.title as string)?.toLowerCase() || '';
+      const internalName = (d.internal_company_name as string)?.toLowerCase() || '';
+      const projectName = (d.project_name as string)?.toLowerCase() || '';
+      const executiveSummary = (d.executive_summary as string)?.toLowerCase() || '';
+      const investmentThesis = (d.investment_thesis as string)?.toLowerCase() || '';
+      const businessModel = (d.business_model as string)?.toLowerCase() || '';
+      const industryTier = (d.industry_tier_name as string)?.toLowerCase() || '';
       return (
         industry.includes(term) ||
         category.includes(term) ||
         categories.some((c: string) => c.toLowerCase().includes(term)) ||
         services.some((s: string) => s.toLowerCase().includes(term)) ||
-        title.includes(term)
+        serviceMix.some((s: string) => s.toLowerCase().includes(term)) ||
+        title.includes(term) ||
+        internalName.includes(term) ||
+        projectName.includes(term) ||
+        executiveSummary.includes(term) ||
+        investmentThesis.includes(term) ||
+        businessModel.includes(term) ||
+        industryTier.includes(term)
       );
     });
   }
@@ -324,21 +443,40 @@ async function getDealDetails(
 ): Promise<ToolResult> {
   const dealId = args.deal_id as string;
 
-  const contactFields = 'id, first_name, last_name, email, phone, title, contact_type, firm_id, remarketing_buyer_id, is_primary_at_firm, nda_signed';
+  const contactFields =
+    'id, first_name, last_name, email, phone, title, contact_type, firm_id, remarketing_buyer_id, is_primary_at_firm, nda_signed';
 
   // Parallel fetch: deal + tasks + activities + scores + contacts
-  const [dealResult, tasksResult, activitiesResult, scoresResult, sellerContactsResult] = await Promise.all([
-    supabase.from('listings').select(DEAL_FIELDS_FULL).eq('id', dealId).single(),
-    supabase.from('deal_tasks').select('id, title, status, priority, due_date, assigned_to, completed_at')
-      .eq('deal_id', dealId).order('created_at', { ascending: false }).limit(10),
-    supabase.from('deal_activities').select('id, title, activity_type, description, created_at')
-      .eq('deal_id', dealId).order('created_at', { ascending: false }).limit(5),
-    supabase.from('remarketing_scores').select('buyer_id, composite_score, status, tier')
-      .eq('listing_id', dealId).order('composite_score', { ascending: false }).limit(5),
-    // Fetch seller contacts linked to this deal
-    supabase.from('contacts').select(contactFields)
-      .eq('listing_id', dealId).eq('contact_type', 'seller').eq('archived', false).limit(10),
-  ]);
+  const [dealResult, tasksResult, activitiesResult, scoresResult, sellerContactsResult] =
+    await Promise.all([
+      supabase.from('listings').select(DEAL_FIELDS_FULL).eq('id', dealId).single(),
+      supabase
+        .from('deal_tasks')
+        .select('id, title, status, priority, due_date, assigned_to, completed_at')
+        .eq('deal_id', dealId)
+        .order('created_at', { ascending: false })
+        .limit(10),
+      supabase
+        .from('deal_activities')
+        .select('id, title, activity_type, description, created_at')
+        .eq('deal_id', dealId)
+        .order('created_at', { ascending: false })
+        .limit(5),
+      supabase
+        .from('remarketing_scores')
+        .select('buyer_id, composite_score, status, tier')
+        .eq('listing_id', dealId)
+        .order('composite_score', { ascending: false })
+        .limit(5),
+      // Fetch seller contacts linked to this deal
+      supabase
+        .from('contacts')
+        .select(contactFields)
+        .eq('listing_id', dealId)
+        .eq('contact_type', 'seller')
+        .eq('archived', false)
+        .limit(10),
+    ]);
 
   if (dealResult.error) return { error: dealResult.error.message };
 
@@ -358,14 +496,26 @@ async function getDealDetails(
 
     if (dealsRow.buyer_contact_id) {
       contactFetches.push(
-        supabase.from('contacts').select(contactFields).eq('id', dealsRow.buyer_contact_id).single()
-          .then((r: any) => { buyerContact = r.data; })
+        supabase
+          .from('contacts')
+          .select(contactFields)
+          .eq('id', dealsRow.buyer_contact_id)
+          .single()
+          .then((r: any) => {
+            buyerContact = r.data;
+          }),
       );
     }
     if (dealsRow.seller_contact_id) {
       contactFetches.push(
-        supabase.from('contacts').select(contactFields).eq('id', dealsRow.seller_contact_id).single()
-          .then((r: any) => { sellerContact = r.data; })
+        supabase
+          .from('contacts')
+          .select(contactFields)
+          .eq('id', dealsRow.seller_contact_id)
+          .single()
+          .then((r: any) => {
+            sellerContact = r.data;
+          }),
       );
     }
 
@@ -414,7 +564,9 @@ async function getDealTasks(
 
   let query = supabase
     .from('deal_tasks')
-    .select('id, title, description, status, priority, due_date, assigned_to, assigned_by, completed_at, completed_by, created_at, updated_at')
+    .select(
+      'id, title, description, status, priority, due_date, assigned_to, assigned_by, completed_at, completed_by, created_at, updated_at',
+    )
     .eq('deal_id', dealId)
     .order('due_date', { ascending: true, nullsFirst: false });
 
@@ -436,8 +588,14 @@ async function getDealTasks(
     data: {
       tasks,
       total: tasks.length,
-      by_status: { pending: grouped.pending.length, in_progress: grouped.in_progress.length, completed: grouped.completed.length },
-      overdue: tasks.filter((t: any) => t.due_date && new Date(t.due_date) < new Date() && t.status !== 'completed').length,
+      by_status: {
+        pending: grouped.pending.length,
+        in_progress: grouped.in_progress.length,
+        completed: grouped.completed.length,
+      },
+      overdue: tasks.filter(
+        (t: any) => t.due_date && new Date(t.due_date) < new Date() && t.status !== 'completed',
+      ).length,
     },
   };
 }
@@ -451,14 +609,25 @@ async function getPipelineSummary(
   // Fetch all active deals with summary fields (include category for industry fallback)
   const { data, error } = await supabase
     .from('listings')
-    .select('id, title, status, deal_source, industry, category, address_state, revenue, ebitda, deal_total_score, is_priority_target, remarketing_status')
+    .select(
+      'id, title, status, deal_source, industry, category, address_state, revenue, ebitda, deal_total_score, is_priority_target, remarketing_status',
+    )
     .is('deleted_at', null);
 
   if (error) return { error: error.message };
   const deals = data || [];
 
   // Aggregate by requested dimension
-  const groups: Record<string, { count: number; total_revenue: number; total_ebitda: number; avg_score: number; deal_ids: string[] }> = {};
+  const groups: Record<
+    string,
+    {
+      count: number;
+      total_revenue: number;
+      total_ebitda: number;
+      avg_score: number;
+      deal_ids: string[];
+    }
+  > = {};
 
   for (const deal of deals) {
     // For industry grouping, fall back to category if industry is null/empty
@@ -468,7 +637,8 @@ async function getPipelineSummary(
     } else {
       key = (deal[groupBy as keyof typeof deal] as string) || 'unknown';
     }
-    if (!groups[key]) groups[key] = { count: 0, total_revenue: 0, total_ebitda: 0, avg_score: 0, deal_ids: [] };
+    if (!groups[key])
+      groups[key] = { count: 0, total_revenue: 0, total_ebitda: 0, avg_score: 0, deal_ids: [] };
     groups[key].count++;
     groups[key].total_revenue += deal.revenue || 0;
     groups[key].total_ebitda += deal.ebitda || 0;

@@ -6,31 +6,44 @@
  * → unified search_transcripts with a `source` parameter.
  */
 
+/* eslint-disable @typescript-eslint/no-explicit-any */
 // deno-lint-ignore no-explicit-any
 type SupabaseClient = any;
-import type { ClaudeTool } from "../../_shared/claude-client.ts";
-import type { ToolResult } from "./index.ts";
+import type { ClaudeTool } from '../../_shared/claude-client.ts';
+import type { ToolResult } from './index.ts';
 
 // ---------- Tool definitions ----------
 
 export const transcriptTools: ClaudeTool[] = [
   {
     name: 'search_transcripts',
-    description: 'Search call transcripts and meeting recordings across all sources (call transcripts, buyer transcripts, Fireflies deal transcripts). Use the `source` parameter to target a specific source, or omit it to search all. Returns matching transcript excerpts with key quotes, insights, and extracted data.',
+    description:
+      'Search call transcripts and meeting recordings across all sources (call transcripts, buyer transcripts, Fireflies deal transcripts). Use the `source` parameter to target a specific source, or omit it to search all. Returns matching transcript excerpts with key quotes, insights, and extracted data.',
     input_schema: {
       type: 'object',
       properties: {
         source: {
           type: 'string',
           enum: ['call_transcripts', 'buyer_transcripts', 'fireflies', 'all'],
-          description: 'Which transcript source to search: "call_transcripts" for deal call transcripts, "buyer_transcripts" for buyer-specific transcripts, "fireflies" for Fireflies meeting recordings, "all" for all sources (default "all")',
+          description:
+            'Which transcript source to search: "call_transcripts" for deal call transcripts, "buyer_transcripts" for buyer-specific transcripts, "fireflies" for Fireflies meeting recordings, "all" for all sources (default "all")',
         },
         deal_id: { type: 'string', description: 'Filter by deal/listing UUID' },
         buyer_id: { type: 'string', description: 'Filter by buyer UUID' },
-        keywords: { type: 'string', description: 'Search keywords across transcript text, key quotes, insights, and extracted data. Also used as the "search" term for Fireflies transcripts.' },
-        ceo_detected: { type: 'boolean', description: 'Filter call transcripts where CEO was detected' },
+        keywords: {
+          type: 'string',
+          description:
+            'Search keywords across transcript text, key quotes, insights, and extracted data. Also used as the "search" term for Fireflies transcripts.',
+        },
+        ceo_detected: {
+          type: 'boolean',
+          description: 'Filter call transcripts where CEO was detected',
+        },
         call_type: { type: 'string', description: 'Filter call transcripts by call type' },
-        has_extracted_data: { type: 'boolean', description: 'Only return Fireflies transcripts with extracted data' },
+        has_extracted_data: {
+          type: 'boolean',
+          description: 'Only return Fireflies transcripts with extracted data',
+        },
         limit: { type: 'number', description: 'Max results per source (default 10, max 25)' },
       },
       required: [],
@@ -38,7 +51,8 @@ export const transcriptTools: ClaudeTool[] = [
   },
   {
     name: 'get_meeting_action_items',
-    description: 'Extract action items and follow-ups from deal meeting transcripts. Consolidates extracted_data from recent transcripts into a task list.',
+    description:
+      'Extract action items and follow-ups from deal meeting transcripts. Consolidates extracted_data from recent transcripts into a task list.',
     input_schema: {
       type: 'object',
       properties: {
@@ -59,13 +73,22 @@ export async function executeTranscriptTool(
 ): Promise<ToolResult> {
   switch (toolName) {
     // Merged tool
-    case 'search_transcripts': return searchTranscriptsUnified(supabase, args);
+    case 'search_transcripts':
+      return searchTranscriptsUnified(supabase, args);
     // Backward compatibility aliases for old tool names
-    case 'search_buyer_transcripts': return searchTranscriptsUnified(supabase, { ...args, source: 'buyer_transcripts' });
-    case 'search_fireflies': return searchTranscriptsUnified(supabase, { ...args, source: 'fireflies', keywords: args.search || args.keywords });
+    case 'search_buyer_transcripts':
+      return searchTranscriptsUnified(supabase, { ...args, source: 'buyer_transcripts' });
+    case 'search_fireflies':
+      return searchTranscriptsUnified(supabase, {
+        ...args,
+        source: 'fireflies',
+        keywords: args.search || args.keywords,
+      });
     // Standalone
-    case 'get_meeting_action_items': return getMeetingActionItems(supabase, args);
-    default: return { error: `Unknown transcript tool: ${toolName}` };
+    case 'get_meeting_action_items':
+      return getMeetingActionItems(supabase, args);
+    default:
+      return { error: `Unknown transcript tool: ${toolName}` };
   }
 }
 
@@ -127,7 +150,9 @@ async function searchCallTranscripts(
 ): Promise<ToolResult> {
   let query = supabase
     .from('call_transcripts')
-    .select('id, created_at, call_type, ceo_detected, key_quotes, extracted_insights, transcript_text, listing_id, buyer_id')
+    .select(
+      'id, created_at, call_type, ceo_detected, key_quotes, extracted_insights, transcript_text, listing_id, buyer_id',
+    )
     .order('created_at', { ascending: false })
     .limit(limit);
 
@@ -182,7 +207,9 @@ async function searchBuyerTranscripts(
 ): Promise<ToolResult> {
   let query = supabase
     .from('buyer_transcripts')
-    .select('id, buyer_id, created_at, transcript_text, extracted_data, extracted_insights, extraction_status, fireflies_transcript_id, fireflies_url')
+    .select(
+      'id, buyer_id, created_at, transcript_text, extracted_data, extracted_insights, extraction_status, fireflies_transcript_id, fireflies_url',
+    )
     .order('created_at', { ascending: false })
     .limit(limit);
 
@@ -232,7 +259,9 @@ async function searchFireflies(
 ): Promise<ToolResult> {
   let query = supabase
     .from('deal_transcripts')
-    .select('id, title, listing_id, call_date, duration_minutes, source, meeting_attendees, external_participants, extracted_data, extraction_status, transcript_text, fireflies_meeting_id, created_at')
+    .select(
+      'id, title, listing_id, call_date, duration_minutes, source, meeting_attendees, external_participants, extracted_data, extraction_status, transcript_text, fireflies_meeting_id, created_at',
+    )
     .order('call_date', { ascending: false, nullsFirst: false })
     .limit(limit);
 
@@ -248,10 +277,15 @@ async function searchFireflies(
   const searchTerm = args.keywords || args.search;
   if (searchTerm) {
     const term = (searchTerm as string).toLowerCase();
-    results = results.filter((t: any) =>
-      t.title?.toLowerCase().includes(term) ||
-      t.transcript_text?.toLowerCase().includes(term) ||
-      t.meeting_attendees?.some((a: string) => a.toLowerCase().includes(term))
+    results = results.filter(
+      (t: any) =>
+        t.title?.toLowerCase().includes(term) ||
+        t.transcript_text?.toLowerCase().includes(term) ||
+        t.meeting_attendees?.some((a: string) => a.toLowerCase().includes(term)) ||
+        t.external_participants?.some((p: string) => p.toLowerCase().includes(term)) ||
+        JSON.stringify(t.extracted_data || {})
+          .toLowerCase()
+          .includes(term),
     );
   }
 

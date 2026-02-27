@@ -3,6 +3,7 @@
  * Search, profile, and analyze remarketing buyers.
  */
 
+/* eslint-disable @typescript-eslint/no-explicit-any */
 // deno-lint-ignore no-explicit-any
 type SupabaseClient = any;
 import type { ClaudeTool } from '../../_shared/claude-client.ts';
@@ -208,7 +209,7 @@ export const buyerTools: ClaudeTool[] = [
   {
     name: 'search_lead_sources',
     description:
-      'Search deals/leads by lead source type — CP Targets (captarget), GO Partners, marketplace, internal. Returns deal/listing records with industry, revenue, and status. Use this to answer questions like "how many captarget leads are HVAC companies". Supports industry keyword filtering.',
+      'Search deals/leads by lead source type — CP Targets (captarget), GO Partners, marketplace, internal. Returns deal/listing records with industry, revenue, and status. Use this to answer questions like "how many captarget leads are HVAC companies" or "show me HVAC leads in Texas". Supports industry keyword and state filtering.',
     input_schema: {
       type: 'object',
       properties: {
@@ -221,6 +222,11 @@ export const buyerTools: ClaudeTool[] = [
           type: 'string',
           description:
             'Filter by industry keyword (e.g. "hvac", "collision", "plumbing", "auto shop", "landscaping")',
+        },
+        state: {
+          type: 'string',
+          description:
+            'Filter by US state code (e.g. "TX", "FL"). Checks address_state and geographic_states.',
         },
         status: { type: 'string', description: 'Filter by deal status' },
         limit: { type: 'number', description: 'Max results (default 5000 for counts)' },
@@ -240,6 +246,16 @@ export const buyerTools: ClaudeTool[] = [
           enum: ['general', 'auto_shop', 'hvac', 'collision', 'all'],
           description:
             'Filter by calculator type. "hvac" for HVAC companies, "collision" for collision/auto body, "auto_shop" for auto repair, "general" for general calculator.',
+        },
+        search: {
+          type: 'string',
+          description:
+            'Free-text search across business_name, display_name, industry, region, and location',
+        },
+        state: {
+          type: 'string',
+          description:
+            'Filter by US state/region keyword (e.g. "Texas", "FL"). Searches the region and location fields.',
         },
         status: {
           type: 'string',
@@ -698,7 +714,24 @@ async function searchLeadSources(
     offset += batch.length;
   }
 
-  // Client-side industry keyword filter — checks industry, category, categories, title, and services
+  // Client-side state filter — checks address_state and geographic_states
+  if (args.state) {
+    const st = (args.state as string).toUpperCase().replace(/[^A-Z]/g, '');
+    if (st.length === 2) {
+      const stLower = st.toLowerCase();
+      allData = allData.filter((d: Record<string, unknown>) => {
+        const addrState = ((d.address_state as string) || '').toLowerCase();
+        const geoStates = (d.geographic_states as string[]) || [];
+        return (
+          addrState === stLower ||
+          addrState.includes(stLower) ||
+          geoStates.some((s: string) => s.toUpperCase() === st)
+        );
+      });
+    }
+  }
+
+  // Client-side industry keyword filter — checks ALL relevant text fields
   if (args.industry) {
     const term = (args.industry as string).toLowerCase();
     allData = allData.filter((d: Record<string, unknown>) => {
@@ -707,12 +740,14 @@ async function searchLeadSources(
       const categories = (d.categories as string[]) || [];
       const title = ((d.title as string) || '').toLowerCase();
       const services = (d.services as string[]) || [];
+      const captargetTab = ((d.captarget_sheet_tab as string) || '').toLowerCase();
       return (
         industry.includes(term) ||
         category.includes(term) ||
         categories.some((c: string) => c.toLowerCase().includes(term)) ||
         title.includes(term) ||
-        services.some((s: string) => s.toLowerCase().includes(term))
+        services.some((s: string) => s.toLowerCase().includes(term)) ||
+        captargetTab.includes(term)
       );
     });
   }
@@ -765,7 +800,29 @@ async function searchValuationLeads(
   const { data, error } = await query;
   if (error) return { error: error.message };
 
-  const leads = data || [];
+  let leads = data || [];
+
+  // Client-side free-text search across all relevant fields
+  if (args.search) {
+    const term = (args.search as string).toLowerCase();
+    leads = leads.filter(
+      (l: any) =>
+        l.business_name?.toLowerCase().includes(term) ||
+        l.display_name?.toLowerCase().includes(term) ||
+        l.industry?.toLowerCase().includes(term) ||
+        l.region?.toLowerCase().includes(term) ||
+        l.location?.toLowerCase().includes(term),
+    );
+  }
+
+  // Client-side state/region filter
+  if (args.state) {
+    const term = (args.state as string).toLowerCase();
+    leads = leads.filter(
+      (l: any) =>
+        l.region?.toLowerCase().includes(term) || l.location?.toLowerCase().includes(term),
+    );
+  }
 
   // Aggregate by calculator type
   const byType: Record<string, number> = {};
