@@ -1,34 +1,58 @@
-## What This PR Does
-[1-3 sentences: what feature or fix does this introduce?]
+## Description
 
-## Why This Change Was Made
-[What problem does this solve? Link to any audit doc, spec, or issue]
+<!-- Provide a brief summary of the changes and the motivation behind them. -->
 
-## What Changed
-- **Files modified:** [list key files and what changed in each]
-- **Database:** [any schema changes, new tables, or migrations]
-- **Edge Functions:** [any edge functions added or modified]
-- **AI Tools:** [any changes to AI Command Center tools]
+## Type of Change
 
-## How to Test
-1. [Step to verify this works]
-2. [Step to verify nothing broke]
+- [ ] Bug fix (non-breaking change that fixes an issue)
+- [ ] New feature (non-breaking change that adds functionality)
+- [ ] Breaking change (fix or feature that would cause existing functionality to change)
+- [ ] Refactor (code change that neither fixes a bug nor adds a feature)
+- [ ] Documentation update
+- [ ] CI/CD or infrastructure change
+- [ ] Dependency update
 
-## Linked Document / Spec
-[Link to CTO Audit section, PRD, or spec doc if applicable]
+## Related Issues
 
-## Screenshots (UI changes only)
-[Before / After]
+<!-- Link any related issues: Fixes #123, Closes #456 -->
 
-## Claude Code Session Notes
-[If this PR is from a Claude Code session: summarise what was done, what is incomplete, and what the next session should pick up]
+## Changes Made
 
-## PR Checklist
-- [ ] PR description filled out (all sections above)
-- [ ] Branch name follows convention (feature/, fix/, refactor/, audit/)
-- [ ] Commit messages are descriptive
-- [ ] New functions have inline comments
-- [ ] New DB tables/migrations documented
-- [ ] New edge functions have header comments
-- [ ] No hardcoded API keys or secrets
-- [ ] CHANGELOG.md updated
+<!-- List the specific changes made in this PR -->
+
+-
+
+## Screenshots / Recordings
+
+<!-- If applicable, add screenshots or recordings to demonstrate the changes -->
+
+## Checklist
+
+### Code Quality
+
+- [ ] My code follows the project's coding standards
+- [ ] I have performed a self-review of my code
+- [ ] I have added comments where necessary (complex logic, workarounds, etc.)
+- [ ] No new TypeScript `any` types introduced (or justified in comments)
+
+### Testing
+
+- [ ] Existing tests pass locally (`npm run test`)
+- [ ] I have added tests for new functionality
+- [ ] I have tested edge cases and error scenarios
+
+### Build & Lint
+
+- [ ] `npm run lint` passes without new warnings
+- [ ] `npx tsc --noEmit` passes without errors
+- [ ] `npm run build` succeeds
+
+### Deployment
+
+- [ ] Environment variables are documented in `.env.example` if new ones were added
+- [ ] No secrets or credentials are committed
+- [ ] Database migrations are included if schema changes were made
+
+## Additional Notes
+
+<!-- Any additional context, deployment notes, or follow-up tasks -->

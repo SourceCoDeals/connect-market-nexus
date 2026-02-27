@@ -23,9 +23,30 @@ export async function enrichLinkedIn(
   websiteUrl: string | null,
 ): Promise<void> {
   const linkedinUrl = extracted.linkedin_url as string | undefined;
-  const companyName = (extracted.internal_company_name || deal.internal_company_name || deal.title) as string | undefined;
+  const companyName = (extracted.internal_company_name ||
+    deal.internal_company_name ||
+    deal.title) as string | undefined;
 
   if (!linkedinUrl && !companyName) return;
+
+  // Skip if LinkedIn was already successfully scraped within the last 6 months
+  const LINKEDIN_COOLDOWN_DAYS = 180;
+  if (deal.linkedin_verified_at && deal.linkedin_match_confidence !== 'failed') {
+    const lastScraped = new Date(deal.linkedin_verified_at);
+    const daysSinceLastScrape = (Date.now() - lastScraped.getTime()) / (1000 * 60 * 60 * 24);
+    if (daysSinceLastScrape < LINKEDIN_COOLDOWN_DAYS) {
+      console.log(
+        `Skipping LinkedIn enrichment for deal ${dealId}: ` +
+          `last scraped ${Math.round(daysSinceLastScrape)} days ago ` +
+          `(cooldown: ${LINKEDIN_COOLDOWN_DAYS} days, confidence: ${deal.linkedin_match_confidence})`,
+      );
+      return;
+    }
+    console.log(
+      `LinkedIn data is stale for deal ${dealId}: ` +
+        `last scraped ${Math.round(daysSinceLastScrape)} days ago — re-scraping`,
+    );
+  }
 
   try {
     console.log(`Attempting LinkedIn enrichment for: ${linkedinUrl || companyName}`);
@@ -33,8 +54,8 @@ export async function enrichLinkedIn(
     const linkedinResponse = await fetch(`${supabaseUrl}/functions/v1/apify-linkedin-scrape`, {
       method: 'POST',
       headers: {
-        'apikey': supabaseAnonKey,
-        'Authorization': `Bearer ${supabaseAnonKey}`,
+        apikey: supabaseAnonKey,
+        Authorization: `Bearer ${supabaseAnonKey}`,
         'x-internal-secret': supabaseServiceKey,
         'Content-Type': 'application/json',
       },
@@ -85,14 +106,17 @@ export async function enrichGoogleReviews(
   extracted: Record<string, unknown>,
   deal: any,
 ): Promise<void> {
-  const companyName = (extracted.internal_company_name || deal.internal_company_name || deal.title) as string | undefined;
+  const companyName = (extracted.internal_company_name ||
+    deal.internal_company_name ||
+    deal.title) as string | undefined;
 
   const googleSearchName = companyName || deal.title;
-  const googleLocation = (extracted.address_city && extracted.address_state)
-    ? `${extracted.address_city}, ${extracted.address_state}`
-    : (deal.address_city && deal.address_state)
-      ? `${deal.address_city}, ${deal.address_state}`
-      : deal.location;
+  const _googleLocation =
+    extracted.address_city && extracted.address_state
+      ? `${extracted.address_city}, ${extracted.address_state}`
+      : deal.address_city && deal.address_state
+        ? `${deal.address_city}, ${deal.address_state}`
+        : deal.location;
 
   if (!googleSearchName || deal.google_review_count) return;
 
@@ -102,8 +126,8 @@ export async function enrichGoogleReviews(
     const googleResponse = await fetch(`${supabaseUrl}/functions/v1/apify-google-reviews`, {
       method: 'POST',
       headers: {
-        'apikey': supabaseAnonKey,
-        'Authorization': `Bearer ${supabaseAnonKey}`,
+        apikey: supabaseAnonKey,
+        Authorization: `Bearer ${supabaseAnonKey}`,
         'x-internal-secret': supabaseServiceKey,
         'Content-Type': 'application/json',
       },
@@ -121,7 +145,10 @@ export async function enrichGoogleReviews(
       if (googleData.success && googleData.scraped) {
         console.log('Google reviews data retrieved:', googleData);
       } else {
-        console.log('Google reviews scrape returned no data:', googleData.error || 'No business found');
+        console.log(
+          'Google reviews scrape returned no data:',
+          googleData.error || 'No business found',
+        );
       }
     } else {
       console.warn('Google reviews scrape failed:', googleResponse.status);
